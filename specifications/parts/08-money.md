@@ -1,6 +1,6 @@
 ## 8. Payments, Donations, Auctions & Financial Transparency
 
-> **Owns:** `PaymentService`, `LedgerService`, `PaymentProvider`, the enums `PaymentPurpose` and `PaymentStatus` (verbatim from §3.5), and every enum declared here. Sets `PhysicalArtworkStatus` `LISTED_FOR_AUCTION` / `SOLD`, and reverts `LISTED_FOR_AUCTION → VERIFIED`, only through §6's artwork transition service. **Milestones:** §8.1–8.4 and §8.6–8.7 are MVP. §8.5 (auctions) is post-MVP (M6–M8); its tables ship in the MVP schema.
+> **Owns:** `PaymentService`, `LedgerService`, `PaymentProvider`, `DonationQuery`, the enums `PaymentPurpose` and `PaymentStatus` (verbatim from §3.5), and every enum declared here. Sets `PhysicalArtworkStatus` `LISTED_FOR_AUCTION` / `SOLD`, and reverts `LISTED_FOR_AUCTION` or `SOLD` → `statusBeforeListing`, only through §6's artwork transition service (`setAuctionState`). **Milestones:** §8.1–8.4 and §8.6–8.7 are MVP. §8.5 (auctions) is post-MVP (M6–M8); its tables ship in the MVP schema.
 
 ### 8.1 Configuration (`MoneyConfig`)
 
@@ -41,7 +41,7 @@ enum RefundReason { PAYER_REQUEST, DUPLICATE, WITHDRAWAL, EVENT_CANCELLED, LOT_C
 model Payment { id String @id; purpose PaymentPurpose; status PaymentStatus @default(CREATED); channel PaymentChannel
   amountMinor Int; currency String; refundedMinor Int @default(0); feeMinor Int?; taxOnFeeMinor Int?
   payerUserId String? /* null only for guest DONATION / OFFLINE */; payerName String?; payerEmail String?; payerPhone String?
-  refType String /* 'Registration'|'InstitutionRegistration'|'Donation'|'AuctionLot' */; refId String; notes Json? /* competitionId, seatCount, fundId, offerRank */
+  refType String /* 'RegistrationPaymentBatch'|'Donation'|'AuctionLot' */; refId String; notes Json? /* competitionId, fundId, offerRank */
   providerOrderId String? @unique; providerPaymentId String? @unique; providerSubscriptionId String?
   method String?; isInternational Boolean @default(false); failureCode String?; failureReason String?
   offlineMethod OfflineMethod?; offlineReference String?; proofFileAssetId String?; recordedByUserId String?
@@ -112,27 +112,27 @@ Only domain services call `createOrder`. The amount always comes from server dat
 | CAPTURED/PARTIALLY_REFUNDED → PARTIALLY_REFUNDED | `refund.processed` | Σ processed < amount | `refundedMinor` updated. Ledger reversal. Outbox `payment.refunded` |
 | CAPTURED/PARTIALLY_REFUNDED → REFUNDED | `refund.processed` | Σ processed = amount | Same, with `fully: true` |
 
-**Stale or late captures.** A handler for a §8-owned ref (Donation, AuctionLot) returns `ACCEPTED` or `REJECTED_STALE`. A ref is stale when it's already paid, the lot has been re-offered or cancelled, or the payment is foreign while FCRA is off. A stale capture is still recorded as CAPTURED and posted, then fully refunded at once as a system refund (`LATE_CAPTURE`, `DUPLICATE` or `FOREIGN_PAYMENT_BLOCKED`) without approval. §6 does the same for its own refs by calling `requestRefund({ system: true })`.
+**Stale or late captures.** A handler for a §8-owned ref (Donation, AuctionLot) returns `ACCEPTED` or `REJECTED_STALE`. A ref is stale when it's already paid, the lot has been re-offered or cancelled, or the payment is foreign while FCRA is off. A stale capture is still recorded as CAPTURED and posted, then fully refunded at once as a system refund (`LATE_CAPTURE`, `DUPLICATE` or `FOREIGN_PAYMENT_BLOCKED`) without approval. §6 owns its own refs: a capture for a registration that is no longer payable puts the batch in NEEDS_REVIEW and emits `registration.paymentNeedsReview`. There is no automatic refund.
 
 #### 8.2.5 Refunds
 
-- **Who:** FINANCE or SUPER_ADMIN. Above `payment.refundDualApprovalAboveMinor`, a different FINANCE/SUPER_ADMIN user must approve. System refunds (§8.2.4, `cancelLot`, §6 withdrawals within its rules) skip approval. **Partial refunds** are allowed: the service locks the Payment and rejects `refundedMinor + Σ pending + amount > amountMinor`.
+- **Who:** FINANCE or SUPER_ADMIN. REGISTRATION_FEE refunds may also be requested by COMPETITION_MANAGER or STAFF_ADMIN and are approved by FINANCE. Above `payment.refundDualApprovalAboveMinor`, a different FINANCE/SUPER_ADMIN user must approve. System refunds (§8.2.4, `cancelLot`, and, for registration fees, only §6's competition cancellation and duplicate resolution) skip approval. **Partial refunds** are allowed: the service locks the Payment and rejects `refundedMinor + Σ pending + amount > amountMinor`.
 - **Flow:** REQUESTED → (approval) → PENDING once the provider's `refund` is called with `refundId` in notes (after a network error, check the provider's refunds before retrying, so nothing is sent twice) → PROCESSED on `refund.processed`, or FAILED on `refund.failed` (FINANCE notified, may retry). REJECTED = approver declined. OFFLINE payments are refunded outside the gateway: FINANCE records the reference and proof, and the refund is PROCESSED at once.
 - **Ledger:** on PROCESSED, post a negative entry with the original type and category, `sourceType=REFUND`.
 
 #### 8.2.6 Reconciliation
 
 - **Daily `payments.reconcile`** (06:00 IST, previous IST day): `fetchSettlementItems` (Razorpay `GET /v1/settlements/recon/combined?year&month&day`), match by `providerPaymentId`/`providerRefundId`, set fee, tax, settlement id, `settledAt` and `reconciledAt`, and post fee + tax as EXPENSE `PAYMENT_GATEWAY_FEES` (`sourceType=SETTLEMENT_FEE`).
-- **Issues:** `NOT_CAPTURED_IN_DB` (auto-healed by applying the capture; INFO), `MISSING_IN_DB` (CRITICAL; refs never auto-created), `AMOUNT_MISMATCH` (CRITICAL), `MISSING_AT_PROVIDER` (CAPTURED but unsettled after T+3 days; WARN), `DISPUTE` (from `payment.dispute.created`; CRITICAL). CRITICAL issues emit `reconciliation.issue_found`. FINANCE resolves issues in `/admin/payments` with a note (AuditLog).
+- **Issues:** `NOT_CAPTURED_IN_DB` (auto-healed by applying the capture; INFO), `MISSING_IN_DB` (CRITICAL; refs never auto-created), `AMOUNT_MISMATCH` (CRITICAL), `MISSING_AT_PROVIDER` (CAPTURED but unsettled after T+3 days; WARN), `DISPUTE` (from `payment.dispute.created`; CRITICAL). CRITICAL issues emit `reconciliation.issueFound`. FINANCE resolves issues in `/admin/payments` with a note (AuditLog).
 - **Hourly `payments.healPending`:** CREATED/AUTHORIZED Payments older than 15 min → `fetchOrderPayments` and apply. After 24h with nothing captured → FAILED (`ABANDONED`). RecurringDonations not updated in 35 days → `fetchSubscription` and apply.
 
 ### 8.3 Registration Fees (contract with §6)
 
-- **Call:** §6 computes the fee from its competition config and calls `PaymentService.createOrder({ purpose: REGISTRATION_FEE, amountMinor, currency, payerUserId, refType, refId, notes: { competitionId, seatCount? } })`. It never calls for a zero fee or waiver. **Individual:** `refType='Registration'`, payer = participant or guardian user. **Institution bulk:** `refType='InstitutionRegistration'`, `amountMinor = perSeatFee × seatCount` (§6 computes), payer = INSTITUTION_ADMIN/coordinator. One Payment covers the batch, and §6 keeps the seat ↔ Registration map. §6's register page opens Checkout with the returned `checkout`. §8 never changes Registration state.
-- **Events back** (Outbox, routed by `refType`; §6 consumers MUST be idempotent): `payment.captured { paymentId, purpose, refType, refId, amountMinor, currency, capturedAt }`, `payment.failed { paymentId, refType, refId, failureCode }`, `payment.refunded { paymentId, refundId, refType, refId, amountMinor, fully, lineRefs? }`. If the registration is no longer payable (cancelled or already paid), §6 calls `requestRefund({ reason: DUPLICATE, system: true })`.
-- **Offline school payment** (cheque, DD, transfer): FINANCE calls `recordOfflinePayment` on the `InstitutionRegistration`, creating an OFFLINE Payment in CAPTURED that emits the same `payment.captured`.
-- **Partial refund of a bulk fee:** §6 calls `requestRefund({ paymentId, amountMinor: perSeatFee × n, reason: WITHDRAWAL, lineRefs: [{ refType: 'Registration', refId }, …] })` under the normal approval rules. The Payment becomes PARTIALLY_REFUNDED, and `payment.refunded` returns the `lineRefs`.
-- **Ledger:** INCOME `REGISTRATION_FEES`, tagged with `competitionId`. The payer gets an emailed acknowledgement PDF (payment id, registration ref, amount, mode). It isn't a donation receipt and uses no receipt number.
+- **Call:** one order per `RegistrationPaymentBatch`. §6 computes the fee from its competition config and calls `PaymentService.createOrder({ purpose: REGISTRATION_FEE, amountMinor, currency, payerUserId, refType: 'RegistrationPaymentBatch', refId: batchId, notes: { competitionId } })`, where `amountMinor` is the batch total (Σ `RegistrationPaymentBatchItem.amountMinor`). It never calls for a zero fee or waiver. **Individual:** a batch of one, payer = participant or guardian user. **Institution bulk:** a batch of N, payer = INSTITUTION_ADMIN/coordinator. One Payment covers the batch, and §6 keeps the item ↔ Registration map. §6's register page opens Checkout with the returned `checkout`. §8 never changes Registration state.
+- **Events back** (Outbox, routed by `refType`; §6 consumers MUST be idempotent): `payment.captured { paymentId, purpose, refType, refId, amountMinor, currency, capturedAt }`, `payment.failed { paymentId, refType, refId, failureCode }`, `payment.refunded { paymentId, refundId, refType, refId, amountMinor, fully, lineRefs? }`. If the registration is no longer payable (cancelled or already paid), §6 puts the batch in NEEDS_REVIEW and emits `registration.paymentNeedsReview`. There is no automatic refund.
+- **Offline payment** (cheque, DD, transfer): §6 `markBatchPaidOffline` (FINANCE or STAFF_ADMIN) calls `recordOfflinePayment({ refType: 'RegistrationPaymentBatch', refId, … })`, creating an OFFLINE Payment in CAPTURED that emits the same `payment.captured`.
+- **Partial refund of a batch:** COMPETITION_MANAGER or STAFF_ADMIN calls `requestRefund({ paymentId, amountMinor, reason: WITHDRAWAL, lineRefs: [{ refType: 'RegistrationPaymentBatchItem', refId }, …] })`, where `amountMinor` is the sum of the listed items' `amountMinor`, and FINANCE approves under the normal approval rules. The Payment becomes PARTIALLY_REFUNDED, and `payment.refunded` returns the `lineRefs`.
+- **Ledger:** INCOME `REGISTRATION_FEES`, tagged with `competitionId`. The payer gets an acknowledgement PDF by signed link (payment id, registration ref, amount, mode). It isn't a donation receipt and uses no receipt number.
 
 ### 8.4 Donations (modules 11, 24)
 
@@ -165,10 +165,12 @@ model ReceiptTemplate { id String @id; version Int @unique; name String; bodyHtm
   signatoryName String; signatoryTitle String; signatureFileAssetId String?; isActive Boolean; createdBy String; createdAt DateTime }
 ```
 
+**`DonationQuery`** (read API for other sections): `DonationQuery.totalForFund(fundId, since?: Date) => { amountMinor, currency, donorCount }`, computed from CAPTURED donations net of refunds.
+
 #### 8.4.2 Donate flow
 
 1. **Form** (`/donate`; `?fund=<slug>` preselects): fund (active public funds, default GENERAL), frequency (default `donation.defaultFrequency`), amount (chip or custom whole rupees within min/max; MONTHLY ≤ `recurringMaxAmountMinor`), donor type (default INDIVIDUAL). Organisation types require name, contact person, email, phone and a DISCLOSED/ANONYMOUS radio with no default. INDIVIDUAL shows an unchecked "Show my name on the supporters wall" box (checked = DISCLOSED) and an editable public name (prefilled first name + last initial). An optional message appears only after FINANCE or CONTENT_MANAGER approval.
-2. **Identity:** ONE_TIME allows guest checkout (name and email required, phone optional). MONTHLY needs a user with a verified email or phone; the form offers inline OTP sign-in. A signed-in user owning a ParticipantProfile aged under 18 can't donate. Guests tick "I am 18 or older".
+2. **Identity:** ONE_TIME allows guest checkout (name and email required, phone optional). MONTHLY needs a user with a verified email or phone; the form offers inline OTP sign-in. Minors can't donate; a guardian donates on their behalf. **Adulthood:** `isAdult(userId)` is false iff the user has their own ParticipantProfile (`ParticipantProfile.userId = userId`) with age < 18. Guardians who manage a minor's profile are not minors. Users without one, and guests, self-declare by ticking "I am 18 or older".
 3. **Tax receipt** (rendered only if `org.has80G`): "I need a tax-exemption receipt" reveals name as on PAN, PAN (`^[A-Z]{5}[0-9]{4}[A-Z]$`) and address with pin code. Required once ticked, never collected otherwise.
 4. **FCRA declaration** (when `org.fcraEnabled=false`): "I am an Indian citizen donating from my own Indian funds", or "Indian-registered entity" for organisations.
 5. **`createDonationCheckout`:** upsert the Donor (by `userId`, else `emailNormalized` + `donorType`) → Donation PENDING → ONE_TIME: `PaymentService.createOrder` (`refType='Donation'`); MONTHLY: `provider.createSubscription` (reusing the `ProviderPlan` for the amount) plus RecurringDonation PENDING_AUTHORIZATION → return Checkout params.
@@ -178,8 +180,8 @@ model ReceiptTemplate { id String @id; version Int @unique; name String; bodyHtm
 
 1. **Foreign payment while FCRA is off** (`isInternational && !org.fcraEnabled`): return `REJECTED_STALE` (`FOREIGN_PAYMENT_BLOCKED`). No receipt number is allocated. The donation becomes REFUNDED when the refund processes, and the donor is told why.
 2. **Otherwise, receipt allocation:** Donation → CAPTURED. Compute the FY from `capturedAt` in Asia/Kolkata (Apr–Mar). Run `INSERT … ON CONFLICT DO NOTHING`, then `UPDATE "ReceiptSequence" SET "lastSeq"="lastSeq"+1 WHERE fy=$1 RETURNING "lastSeq"`, giving `receiptNumber = FOA-RCPT-{fy}-{seq:06}`. Because this runs in the capture transaction, numbers are gapless and failed payments never consume one.
-3. **Ledger:** INCOME, with the category from the donor-type map (`INDIVIDUAL→DONATIONS_INDIVIDUAL`, `CORPORATE→DONATIONS_CORPORATE`, `CSR→CSR_CONTRIBUTIONS`, `FOUNDATION|INSTITUTIONAL→GRANTS_INSTITUTIONAL`), tagged with `fundId`. Outbox `donation.captured`.
-4. **Receipt PDF:** the job `donations.renderReceipt` writes the PDF (FileAsset `PDF`, private bucket) and emits `donation.receipt_issued`. §10 emails it with a signed link valid for 7 days.
+3. **Ledger:** INCOME, with the category from the donor-type map (`INDIVIDUAL→DONATIONS_INDIVIDUAL`, `CORPORATE→DONATIONS_CORPORATE`, `CSR→CSR_CONTRIBUTIONS`, `FOUNDATION|INSTITUTIONAL→GRANTS_INSTITUTIONAL`), tagged with `fundId`. Outbox `donation.captured` (§10 sends a thank-you message only, no attachment).
+4. **Receipt PDF:** the job `donations.renderReceipt` writes the PDF (FileAsset `PDF`, private bucket) and, after it renders, emits `donation.receiptIssued`. §10's message carries a signed download link valid for 7 days, not an attachment.
 
 #### 8.4.4 Receipts
 
@@ -198,12 +200,12 @@ model ReceiptTemplate { id String @id; version Int @unique; name String; bodyHtm
 | Donation PENDING → FAILED | `payment.failed` / `ABANDONED` | | No email for abandoned payments |
 | Donation CAPTURED → PARTIALLY_REFUNDED / REFUNDED | `payment.refunded` | | Receipt amended or cancelled. `donation.refunded` |
 | Recurring ∅ → PENDING_AUTHORIZATION | `createDonationCheckout` (MONTHLY) | Signed in | Provider subscription created. Sweeper cancels it if still unauthorised after 24h |
-| PENDING_AUTHORIZATION → ACTIVE | `subscription.authenticated` / `activated` | | `recurring.activated` |
-| ACTIVE/PAST_DUE → ACTIVE | `subscription.charged` | Idempotent on `providerPaymentId` | New Donation + Payment CAPTURED (disclosure and tax fields copied). `failedAttempts=0` |
-| ACTIVE → PAST_DUE | `subscription.pending` (charge failed, provider retrying) | | `failedAttempts++`. `recurring.charge_failed` (with an update-payment link) |
-| PAST_DUE → HALTED | `subscription.halted` (retries exhausted) | | `recurring.halted`. Auto-cancel after `haltedAutoCancelDays` |
-| ACTIVE ↔ PAUSED | Donor or FINANCE pause/resume → provider, confirmed by `subscription.paused` / `resumed` | `pauseCyclesUsed < maxPauseCycles` | `recurring.paused` / `recurring.resumed` |
-| non-terminal → CANCELLED | Donor/FINANCE cancel, `subscription.cancelled`, or HALTED timeout | | Provider cancelled immediately. `recurring.cancelled` |
+| PENDING_AUTHORIZATION → ACTIVE | `subscription.authenticated` / `activated` | | `recurringDonation.activated` |
+| ACTIVE/PAST_DUE → ACTIVE | `subscription.charged` | Idempotent on `providerPaymentId` | New Donation + Payment CAPTURED (disclosure and tax fields copied). `failedAttempts=0`. `recurringDonation.charged` |
+| ACTIVE → PAST_DUE | `subscription.pending` (charge failed, provider retrying) | | `failedAttempts++`. `recurringDonation.chargeFailed` (with an update-payment link) |
+| PAST_DUE → HALTED | `subscription.halted` (retries exhausted) | | `recurringDonation.halted`. Auto-cancel after `haltedAutoCancelDays` |
+| ACTIVE ↔ PAUSED | Donor or FINANCE pause/resume → provider, confirmed by `subscription.paused` / `resumed` | `pauseCyclesUsed < maxPauseCycles` | `recurringDonation.paused` / `recurringDonation.resumed` |
+| non-terminal → CANCELLED | Donor/FINANCE cancel, `subscription.cancelled`, or HALTED timeout | | Provider cancelled immediately. `recurringDonation.cancelled` |
 | ACTIVE → COMPLETED | `subscription.completed` | | Donor invited to renew |
 
 Changing the amount means cancelling and creating a new subscription, because the mandate must be re-authorised.
@@ -254,7 +256,7 @@ model AuctionAcknowledgement { id String @id; lotId String @unique; participantI
 
 Checked in `createLot`, re-checked in `scheduleLot` and again at SCHEDULED → LIVE. Each failure has its own error code.
 
-1. `PhysicalArtwork.status = VERIFIED` (§6), and no other non-terminal lot exists for the artwork.
+1. `PhysicalArtwork.status ∈ {VERIFIED, IN_EXHIBITION, RETAINED}` (§6), and no other non-terminal lot exists for the artwork.
 2. `Entry.auctionCandidate = true` (§7), and the entry is not WITHDRAWN or DISQUALIFIED.
 3. `Competition.allowAuction = true` (§6).
 4. `ConsentService.has(participantId, AUCTION_OF_ARTWORK, competitionId)` and `ConsentService.has(…, PUBLIC_DISPLAY, …)`. For a creator under 18, the auction consent must have been given by a guardian and `GUARDIAN_VERIFIED` must be present (§12).
@@ -264,7 +266,7 @@ Checked in `createLot`, re-checked in `scheduleLot` and again at SCHEDULED → L
 
 #### 8.5.3 Bidding (English ascending)
 
-- **Eligibility** (`assertBidderEligible`): the bidder must be signed in and have `User.phoneVerifiedAt` set. They must have accepted the current `AuctionTerms.version`. Their declared DOB must make them 18+ on the bid date, and they must own no ParticipantProfile aged under 18, so minors can't bid. They must not be suspended and must not hold AUCTION_MANAGER or FINANCE. Guardians and relatives of the creator may bid; the admin view flags them.
+- **Eligibility** (`assertBidderEligible`): the bidder must be signed in and have `User.phoneVerifiedAt` set. They must have accepted the current `AuctionTerms.version`. Their declared DOB must make them 18+ on the bid date, and `isAdult(userId)` (§8.4.2) must hold, so minors can't bid. They must not be suspended and must not hold AUCTION_MANAGER or FINANCE. Guardians and relatives of the creator may bid; the admin view flags them.
 - **Minimum next bid:** `startingBidMinor` when there are no bids, else `currentBidMinor + (fixedIncrementMinor ?? band(currentBidMinor))`. Amounts are whole rupees.
 - **`placeBid({ lotCode, amountMinor, idempotencyKey })`**, one transaction:
   1. `SELECT … FROM "AuctionLot" WHERE "lotCode"=$1 FOR UPDATE`.
@@ -281,8 +283,8 @@ Checked in `createLot`, re-checked in `scheduleLot` and again at SCHEDULED → L
 - **Close job:** `auctions.closeLot` runs at `closesAt` and is rescheduled on each extension. A per-minute sweeper catches any LIVE lot past `closesAt`. Under the lock the job re-checks `now() ≥ closesAt`; if the close has moved, it reschedules and exits.
 - **Outcome:** no VALID bids, or `currentBidMinor < reserveMinor` → CLOSED_UNSOLD. Otherwise → CLOSED_PENDING_PAYMENT with `winnerUserId = leader`, `hammerMinor = currentBidMinor`, `offerRank = 1`, `paymentDueAt = now + paymentWindowHours`. Max bids are deactivated. `lot.won` goes to the winner and `lot.closed` to the other bidders.
 - **`startLotPayment({ lotCode, shippingAddress, shareNameWithArtist })`** (current winner only): the address country must be in `shippingCountries`. The service calls `createOrder({ purpose: AUCTION, amountMinor: hammerMinor (+ flat shipping), refType: 'AuctionLot', refId, notes: { offerRank } })`.
-- **Reminders:** `lot.payment_reminder` 24h and 2h before the due time.
-- **Overdue job** (at `paymentDueAt`, if not PAID): send `lot.payment_overdue` and add a strike (reaching `nonPaymentStrikesToSuspend` suspends the bidder). Then, if `offerRank ≤ maxSecondChanceOffers`, make a **second-chance offer** to the highest VALID bid from a different, still-eligible bidder with a bid ≥ reserve, at that bidder's own highest bid. The lot stays CLOSED_PENDING_PAYMENT with the new winner, `offerRank++`, `paymentDueAt = now + secondChanceWindowHours`, and emits `lot.second_chance_offered`. Paying is acceptance. `declineSecondChance` or a timeout moves on to the next candidate. No candidates left → CLOSED_UNSOLD.
+- **Reminders:** §10 sends `reminder.auctionPayment` T−24 h and T−2 h before `paymentDueAt`. §8 emits no reminder event.
+- **Overdue job** (at `paymentDueAt`, if not PAID): send `lot.paymentOverdue` and add a strike (reaching `nonPaymentStrikesToSuspend` suspends the bidder). Then, if `offerRank ≤ maxSecondChanceOffers`, make a **second-chance offer** to the highest VALID bid from a different, still-eligible bidder with a bid ≥ reserve, at that bidder's own highest bid. The lot stays CLOSED_PENDING_PAYMENT with the new winner, `offerRank++`, `paymentDueAt = now + secondChanceWindowHours`, and emits `lot.secondChanceOffered`. Paying is acceptance. `declineSecondChance` or a timeout moves on to the next candidate. No candidates left → CLOSED_UNSOLD.
 - **Capture handler:** PAID only if `payerUserId = winnerUserId` and `notes.offerRank = offerRank`. Anything else is `REJECTED_STALE` and auto-refunded (`LATE_CAPTURE`).
 - **On PAID:** artwork → SOLD (§6 service); ledger INCOME `AUCTION_PROCEEDS` tagged with `auctionEventId` and `competitionId`; PENDING ProceedsPayouts for non-zero creator or school shares; a purchase confirmation PDF for the buyer (a purchase, not a donation, so no tax-exemption receipt); `lot.paid`, `lot.sold`.
 
@@ -298,19 +300,19 @@ Checked in `createLot`, re-checked in `scheduleLot` and again at SCHEDULED → L
 | From → To | Actor / trigger | Guard | Side effects |
 |---|---|---|---|
 | ∅ → DRAFT | AUCTION_MANAGER `createLot` | §8.5.2 guards 1–4 | Stamped image. AuditLog |
-| DRAFT → SCHEDULED | AUCTION_MANAGER `scheduleLot` | Guards re-checked. `opensAt > now`. Duration ≥ `minLotDurationHours`. Event published. Current terms published. Proceeds policy exists | Artwork → LISTED_FOR_AUCTION. Proceeds snapshot. Jobs scheduled. `lot.scheduled` |
-| SCHEDULED → DRAFT | AUCTION_MANAGER `unscheduleLot` | `now < opensAt` | Artwork → VERIFIED. Jobs cancelled |
+| DRAFT → SCHEDULED | AUCTION_MANAGER `scheduleLot` | Guards re-checked. `opensAt > now`. Duration ≥ `minLotDurationHours`. Event published. Current terms published. Proceeds policy exists | Artwork → LISTED_FOR_AUCTION (`setAuctionState`; the prior status is stored in `PhysicalArtwork.statusBeforeListing`). Proceeds snapshot. Jobs scheduled. `lot.scheduled` |
+| SCHEDULED → DRAFT | AUCTION_MANAGER `unscheduleLot` | `now < opensAt` | Artwork → `statusBeforeListing` (`setAuctionState`). Jobs cancelled |
 | SCHEDULED → LIVE | Job at `opensAt` | Consents still valid (otherwise → CANCELLED) | `lot.opened` |
 | LIVE → CLOSED_PENDING_PAYMENT | Close job | `now ≥ closesAt`, a leader exists, reserve met | §8.5.4. `lot.won`, `lot.closed` |
-| LIVE → CLOSED_UNSOLD | Close job | No bids, or reserve not met | Artwork → VERIFIED. `lot.unsold` |
-| CLOSED_PENDING_PAYMENT → same | Overdue job / `declineSecondChance` | An eligible next bid ≥ reserve, and `offerRank ≤ max` | New winner. `lot.payment_overdue`, `lot.second_chance_offered` |
-| CLOSED_PENDING_PAYMENT → CLOSED_UNSOLD | Overdue job | No candidates left | Artwork → VERIFIED. `lot.unsold` |
+| LIVE → CLOSED_UNSOLD | Close job | No bids, or reserve not met | Artwork → `statusBeforeListing` (`setAuctionState`). `lot.unsold` |
+| CLOSED_PENDING_PAYMENT → same | Overdue job / `declineSecondChance` | An eligible next bid ≥ reserve, and `offerRank ≤ max` | New winner. `lot.paymentOverdue`, `lot.secondChanceOffered` |
+| CLOSED_PENDING_PAYMENT → CLOSED_UNSOLD | Overdue job | No candidates left | Artwork → `statusBeforeListing` (`setAuctionState`). `lot.unsold` |
 | CLOSED_PENDING_PAYMENT → PAID | `payment.captured` (AUCTION) | Payer = winner, `offerRank` matches | Artwork → SOLD. Ledger. Payouts. `lot.paid`, `lot.sold` |
 | PAID → SHIPPED | AUCTION_MANAGER `markLotShipped` | Address, partner and tracking no. present | `lot.shipped` |
 | SHIPPED → DELIVERED | Buyer / AUCTION_MANAGER / auto job | Auto only if `!deliveryIssueOpen` | `lot.delivered` |
 | CLOSED_UNSOLD → RELISTED | AUCTION_MANAGER `relistLot` | Guards 1–4 still hold | New DRAFT lot with `relistedFromLotId` |
-| DRAFT/SCHEDULED/LIVE/CLOSED_PENDING_PAYMENT → CANCELLED | AUCTION_MANAGER `cancelLot` (reason), or the `consent.withdrawn` consumer | | Bids lapse. Max bids deactivated. Artwork → VERIFIED if it was listed. Any later capture auto-refunded. `lot.cancelled` |
-| PAID/SHIPPED → CANCELLED | AUCTION_MANAGER, with FINANCE approval (lost or damaged) | | Full refund (`LOT_CANCELLED`). §6 sets the artwork status |
+| DRAFT/SCHEDULED/LIVE/CLOSED_PENDING_PAYMENT → CANCELLED | AUCTION_MANAGER `cancelLot` (reason), or the `consent.withdrawn` consumer | | Bids lapse. Max bids deactivated. Artwork → `statusBeforeListing` (`setAuctionState`) if it was listed. Any later capture auto-refunded. `lot.cancelled` |
+| PAID/SHIPPED → CANCELLED | AUCTION_MANAGER, with FINANCE approval (lost or damaged) | | Full refund (`LOT_CANCELLED`). Artwork: `setAuctionState` reverts SOLD → `statusBeforeListing`, or §6 `recordArtworkReturn` if the work goes back to the creator |
 
 #### 8.5.7 Auction terms (`AuctionTerms`)
 
@@ -326,7 +328,7 @@ Versioned and published by STAFF_ADMIN. A bidder accepts them before their first
 
 ```prisma
 enum LedgerEntryType { INCOME, EXPENSE }   enum PeriodStatus { OPEN, LOCKED, PUBLISHED }
-enum LedgerSourceType { PAYMENT, REFUND, OFFLINE_PAYMENT, SETTLEMENT_FEE, PROCEEDS_PAYOUT, MANUAL, REVERSAL }
+enum LedgerSourceType { PAYMENT, REFUND, OFFLINE_PAYMENT, SETTLEMENT_FEE, PROCEEDS_PAYOUT, PRIZE_FULFILMENT, MANUAL, REVERSAL }
 enum FinancialReportType { AUDITED_STATEMENT, ANNUAL_REPORT, QUARTERLY_SUMMARY, REGISTRATION_DOCUMENT, OTHER }   enum FinancialReportStatus { DRAFT, PENDING_APPROVAL, PUBLISHED, WITHDRAWN }
 
 model LedgerCategory { id String @id; code String @unique; name String; type LedgerEntryType; publicLabel String
@@ -361,6 +363,7 @@ model FinancialReport { id String @id; title String; type FinancialReportType; f
 | Refund PROCESSED | Original type and category | −refund | REFUND / refundId |
 | Settlement fee + tax | EXPENSE / PAYMENT_GATEWAY_FEES | +fee | SETTLEMENT_FEE / providerPaymentId |
 | Proceeds payout paid | EXPENSE / AUCTION_PROCEEDS_PAYOUTS | +payout | PROCEEDS_PAYOUT / payoutId |
+| Prize dispatched with a recorded cost (§7.8) | EXPENSE / PRIZES_AWARDS | +cost | PRIZE_FULFILMENT / prizeFulfilmentId |
 | Manual (FINANCE) | Any active category | ± | MANUAL / entry id |
 
 - **Manual entries:** FINANCE only, with a required description. EXPENSE entries also require an attachment: an invoice or receipt FileAsset (PDF, JPG or PNG) with `scanStatus=CLEAN`. Grants and CSR money received outside the gateway are recorded as offline donations (donor type FOUNDATION or CSR) so they get receipts. Other income (sponsorship, interest) is a MANUAL INCOME entry with an attachment.
@@ -368,16 +371,16 @@ model FinancialReport { id String @id; title String; type FinancialReportType; f
 #### 8.6.3 Budgets, reports, exports
 
 - **Budgets:** one per FY × category (optionally × fund). FINANCE drafts; STAFF_ADMIN approves. Changing an approved budget needs a new approval, and AuditLog keeps the history.
-- **Budget vs actual** (`/admin/finance`), per category for the FY and each quarter: budget, actual (Σ ledger), variance, % used. Rows at 90% or more show amber; above 100% show red. `budget.threshold_exceeded` fires once per category per FY when a category crosses 100%.
+- **Budget vs actual** (`/admin/finance`), per category for the FY and each quarter: budget, actual (Σ ledger), variance, % used. Rows at 90% or more show amber; above 100% show red. `budget.thresholdExceeded` fires once per category per FY when a category crosses 100%.
 - **`exportLedgerCsv`:** RFC 4180, UTF-8 with BOM, one row per entry. Columns: `seq, date_ist, fy, period, type, category_code, category_name, amount_inr (2 dp), currency, fund_code, auction_event, competition_code, source_type, source_ref (payment id / receipt no. / refund id), provider_fee, description, counterparty, attachment_id, reversal_of_seq, late_adjustment, created_by`. Other exports: the donation register, Form 10BD data, and reconciliation issues.
 
 #### 8.6.4 Period close and publish
 
 | From → To | Actor | Guard | Effects |
 |---|---|---|---|
-| OPEN → LOCKED | FINANCE `lockPeriod` | Month ended. Previous month LOCKED. No OPEN CRITICAL reconciliation issue in the month | Manual postings blocked. `finance.period_locked` |
+| OPEN → LOCKED | FINANCE `lockPeriod` | Month ended. Previous month LOCKED. No OPEN CRITICAL reconciliation issue in the month | Manual postings blocked. `financialPeriod.locked` |
 | LOCKED → OPEN | SUPER_ADMIN `reopenPeriod` (reason) | Not yet PUBLISHED | AuditLog |
-| LOCKED → PUBLISHED | FINANCE `requestPeriodPublish`, then `approvePeriodPublish` by a different FINANCE or STAFF_ADMIN user | All earlier months PUBLISHED | Snapshot regenerated. `finance.period_published` |
+| LOCKED → PUBLISHED | FINANCE `requestPeriodPublish`, then `approvePeriodPublish` by a different FINANCE or STAFF_ADMIN user | All earlier months PUBLISHED | Snapshot regenerated. `financialPeriod.published` |
 
 A PUBLISHED month is never reopened. Later corrections arrive as `lateAdjustment` entries, and `/transparency` lists them as "adjustments to earlier periods".
 
@@ -417,8 +420,8 @@ Every action validates input with zod, checks `can()` inside the service, and wr
 | Action | Input | Authorization | Effect |
 |---|---|---|---|
 | `confirmCheckoutReturn` | `{ paymentId, providerPaymentId, providerOrderId? \| providerSubscriptionId?, signature }` | Payer session or guest token | Verify signature, `fetchPayment`, apply transition idempotently, return status |
-| `requestRefund` / `approveRefund` / `rejectRefund` | `{ paymentId, amountMinor, reason, reasonText, lineRefs? }` / `{ refundId, note? }` | FINANCE, SUPER_ADMIN. The approver must differ from the requester | §8.2.5 |
-| `recordOfflinePayment` | `{ refType, refId, amountMinor, method, reference, receivedAt, proofFileAssetId }` | FINANCE | OFFLINE Payment CAPTURED, `payment.captured` |
+| `requestRefund` / `approveRefund` / `rejectRefund` | `{ paymentId, amountMinor, reason, reasonText, lineRefs? }` / `{ refundId, note? }` | FINANCE, SUPER_ADMIN. `requestRefund` also COMPETITION_MANAGER and STAFF_ADMIN, for REGISTRATION_FEE only (FINANCE approves). The approver must differ from the requester | §8.2.5 |
+| `recordOfflinePayment` | `{ refType, refId, amountMinor, method, reference, receivedAt, proofFileAssetId }` | FINANCE, STAFF_ADMIN | OFFLINE Payment CAPTURED, `payment.captured` |
 | `replayWebhookEvent` / `resolveReconciliationIssue` | `{ webhookEventId }` / `{ issueId, status, note }` | FINANCE, SUPER_ADMIN | Re-enqueue / resolve |
 | `createDonationCheckout` | `{ fundId, amountMinor, frequency, donorType, donor, nameDisclosure, publicDisplayName?, message?, tax?, declarations, idempotencyKey }` | Public (MONTHLY needs a session) | §8.4.2 step 5 |
 | `recordOfflineDonation` | `{ donor, donorType, fundId, amountMinor, method, reference, receivedAt, proofFileAssetId, nameDisclosure, tax? }` | FINANCE | Donation CAPTURED, receipt, ledger |
@@ -444,11 +447,11 @@ Every action validates input with zod, checks `can()` inside the service, and wr
 
 Payloads carry ids, amounts and codes only, never PAN, addresses or contact details.
 
-- **Payments:** `payment.captured`, `payment.failed`, `payment.refunded` (§8.3 payloads; payer and §6). `refund.failed` and `reconciliation.issue_found` (FINANCE).
-- **Donations:** `donation.captured` (thank-you), `donation.receipt_issued` (with link), `donation.refunded`, `recurring.activated`, `recurring.charge_failed`, `recurring.halted` (donor and FINANCE), `recurring.paused`, `recurring.resumed`, `recurring.cancelled`.
+- **Payments:** `payment.captured`, `payment.failed`, `payment.refunded` (§8.3 payloads; payer and §6). `refund.failed` and `reconciliation.issueFound` (FINANCE).
+- **Donations:** `donation.captured` (thank-you message only, no attachment), `donation.receiptIssued` (after the PDF renders; signed download link valid 7 days), `donation.refunded`, `recurringDonation.activated`, `recurringDonation.charged` (each successful charge), `recurringDonation.chargeFailed`, `recurringDonation.halted` (donor and FINANCE), `recurringDonation.paused`, `recurringDonation.resumed`, `recurringDonation.cancelled`.
 - **Bids:** `bid.placed` (analytics only), `bid.outbid { lotCode, currentBidMinor, minNextMinor }` (previous leader).
-- **Lots:** `lot.scheduled`, `lot.opened`, `lot.extended`, `lot.closing_soon` (1h before close, to bidders on the lot), `lot.won` (winner), `lot.closed` (other bidders), `lot.unsold` (bidders, "reserve not met" variant), `lot.payment_reminder` and `lot.payment_overdue` (winner and AUCTION_MANAGER), `lot.second_chance_offered`, `lot.paid` and `lot.sold` (buyer, AUCTION_MANAGER, FINANCE), `lot.acknowledged` (creator or guardian, institution coordinator), `lot.shipped` and `lot.delivered` (buyer), `lot.cancelled` (bidders, creator or guardian).
-- **Finance:** `finance.period_locked`, `finance.period_published`, `finance.report_published`, `budget.threshold_exceeded`.
+- **Lots:** `lot.scheduled`, `lot.opened`, `lot.extended`, `lot.won` (winner), `lot.closed` (other bidders), `lot.unsold` (bidders, "reserve not met" variant), `lot.paymentOverdue` (winner and AUCTION_MANAGER), `lot.secondChanceOffered`, `lot.paid` and `lot.sold` (buyer, AUCTION_MANAGER, FINANCE), `lot.acknowledged` (creator or guardian, institution coordinator), `lot.shipped` and `lot.delivered` (buyer), `lot.cancelled` (bidders, creator or guardian). Reminders are not emitted here: §10 handles them as `reminder.lotClosing` (T−1 h before close, to watchers and bidders) and `reminder.auctionPayment` (T−24 h and T−2 h before the payment deadline).
+- **Finance:** `financialPeriod.locked`, `financialPeriod.published`, `financialReport.published`, `budget.thresholdExceeded`.
 
 ### 8.11 Security Notes
 
@@ -471,26 +474,26 @@ Payloads carry ids, amounts and codes only, never PAN, addresses or contact deta
 | Out-of-order events, or captured amount ≠ order amount | Fetch from the provider and apply the missing transitions in order / no capture, CRITICAL issue, FINANCE refunds |
 | A bid in the last second | Accepted only if DB `now() < closesAt` under the row lock. The close moves out by `antiSnipeExtendSec`. The close job re-checks under the same lock and reschedules |
 | Winner doesn't pay | Reminders, then an overdue strike, then second-chance offers (max 2), then CLOSED_UNSOLD, then an optional relist. The defaulter's late capture is auto-refunded |
-| Consent withdrawn after listing, before close or payment | §12's `consent.withdrawn` (AUCTION_OF_ARTWORK or PUBLIC_DISPLAY) → `cancelLot` within one job cycle. Bidders and the guardian are notified. Artwork → VERIFIED. An in-flight capture is auto-refunded. After PAID the sale stands per the terms; only the credit can switch to ANONYMOUS |
-| Partial refund of a bulk registration fee | §8.3: per-seat amount, cumulative-sum guard, PARTIALLY_REFUNDED, negative REGISTRATION_FEES posting, `lineRefs` returned to §6 |
+| Consent withdrawn after listing, before close or payment | §12's `consent.withdrawn` (AUCTION_OF_ARTWORK or PUBLIC_DISPLAY) → `cancelLot` within one job cycle. Bidders and the guardian are notified. Artwork → `statusBeforeListing` (`setAuctionState`). An in-flight capture is auto-refunded. After PAID the sale stands per the terms; only the credit can switch to ANONYMOUS |
+| Partial refund of a registration-fee batch | §8.3: amount = sum of the listed `RegistrationPaymentBatchItem`s, requested by COMPETITION_MANAGER or STAFF_ADMIN and approved by FINANCE, cumulative-sum guard, PARTIALLY_REFUNDED, negative REGISTRATION_FEES posting, `lineRefs` returned to §6 |
 | Refund of a donation in a PUBLISHED month | The receipt is marked cancelled. The reversal lands in the next OPEN month with `lateAdjustment` |
-| Two tabs pay the same registration / a subscription charge races a cancel | Second capture is stale, and §6 requests a `DUPLICATE` system refund / record the donation with a receipt (the money is real), and FINANCE refunds on request |
+| Two tabs pay the same registration / a subscription charge races a cancel | Second capture: §6 puts the batch in NEEDS_REVIEW and emits `registration.paymentNeedsReview`, with no automatic refund; any refund is requested by COMPETITION_MANAGER or STAFF_ADMIN and approved by FINANCE / record the donation with a receipt (the money is real), and FINANCE refunds on request |
 
 ### 8.13 Acceptance Criteria
 
 1. A webhook with a bad signature returns 400 and creates no rows. The same valid event delivered 3× produces exactly one transition, one LedgerEntry and one Outbox event. Capture works with the webhook only, the redirect only, and both in either order, each yielding one CAPTURED Payment and one posting.
 2. A provider amount that differs from `Payment.amountMinor` never captures and opens a CRITICAL issue. No server action accepts a price for a registration or lot from the client. The app refuses to start with `rzp_live_` keys when `VERCEL_ENV≠production`.
 3. Unit tests cover every allowed and every disallowed transition of the Payment, Refund, Donation, RecurringDonation, AuctionLot, FinancialPeriod and FinancialReport machines.
-4. Refunding 3 of 20 seats gives PARTIALLY_REFUNDED, `refundedMinor = 3 × fee`, a −3×fee posting and `payment.refunded` with 3 `lineRefs`. Refunds beyond the remaining amount are rejected. A refund above the threshold can't be approved by its requester.
+4. Refunding 3 of 20 items in a `RegistrationPaymentBatch` gives PARTIALLY_REFUNDED, `refundedMinor` = the sum of the 3 items, a matching negative posting and `payment.refunded` with 3 `lineRefs`. Refunds beyond the remaining amount are rejected. A refund above the threshold can't be approved by its requester.
 5. 100 concurrent captures in one FY get receipt numbers `000001`–`000100` with no gaps or duplicates. Failed and abandoned payments consume none. 31 Mar 23:59 IST → FY `2627`; 1 Apr 00:01 IST → `2728-000001`.
 6. With `org.has80G=false`, `/donate` shows no PAN fields and receipts have no tax section; setting it to `true` shows both without a deploy. A guest ONE_TIME donation completes without an account. MONTHLY without a session is rejected. A signed-in minor can't donate.
 7. An organisation donation with no disclosure choice fails validation. ANONYMOUS organisations and non-opted-in individuals never appear on `/transparency`; DISCLOSED ones do. An international capture with FCRA off is auto-refunded in full; the donation ends REFUNDED with no receipt number.
 8. Recurring with FakePaymentProvider: two `subscription.charged` → two donations and two receipts. `pending` → PAST_DUE plus notification. `halted` → HALTED. A dashboard cancel calls `cancelSubscription`.
-9. `createLot` fails with a distinct error code for each of: artwork not VERIFIED, `auctionCandidate=false`, `allowAuction=false`, missing AUCTION_OF_ARTWORK consent, minor without guardian consent. A minor whose consent says FULL_NAME gets a FIRST_NAME_INITIAL lot. No public API or page exposes the creator's DOB, exact age, or the reserve amount.
+9. `createLot` fails with a distinct error code for each of: artwork status not in {VERIFIED, IN_EXHIBITION, RETAINED}, `auctionCandidate=false`, `allowAuction=false`, missing AUCTION_OF_ARTWORK consent, minor without guardian consent. A minor whose consent says FULL_NAME gets a FIRST_NAME_INITIAL lot. No public API or page exposes the creator's DOB, exact age, or the reserve amount.
 10. Users without a verified phone, without accepted terms, under 18, suspended, or holding FINANCE or AUCTION_MANAGER can't bid.
 11. 50 concurrent equal bids on one lot: exactly 1 accepted, 49 `BID_TOO_LOW`; the current price always equals the resolved highest VALID bid. A bid 30s before close sets `closesAt = now + 120s`. A bid at or after `closesAt` (DB time) gets `LOT_CLOSED`. The close job never closes a lot whose close was extended.
 12. Proxy: A sets max ₹5,000, B bids ₹3,000 → A leads at ₹3,000 + increment. B bids ₹6,000 → B leads at ₹6,000 and A gets `bid.outbid`.
-13. Reserve not met → CLOSED_UNSOLD and artwork → VERIFIED. A non-paying winner gets a strike after 72h and the next bidder gets a second-chance offer. The defaulter's later payment is auto-refunded (`LATE_CAPTURE`).
+13. Reserve not met → CLOSED_UNSOLD and artwork → `statusBeforeListing`. A non-paying winner gets a strike after 72h and the next bidder gets a second-chance offer. The defaulter's later payment is auto-refunded (`LATE_CAPTURE`).
 14. Consent withdrawal on a LIVE lot cancels it, notifies bidders and reverts the artwork. The same withdrawal after PAID leaves the sale intact.
 15. PAID sets the artwork to SOLD, posts `AUCTION_PROCEEDS`, creates payouts per the snapshot, and issues an acknowledgement letter that names the buyer only if `shareNameWithArtist`.
 16. UPDATE or DELETE on `LedgerEntry` fails at the DB level. A reversal nets to zero. A manual EXPENSE without an attachment, or a manual posting into a LOCKED month, is rejected.

@@ -7,12 +7,12 @@ Each section ends with its own detailed open-questions list. This section collec
 | # | Question | Default applied | Where |
 |---|---|---|---|
 | P1 | Should every student submit digitally, or only the school's top N? (the source says this is "still debating") | Configurable per competition (`DigitalSubmissionScope`); default `ALL` | §6.16 |
-| P2 | How many entries a school shortlists per category | 5 per category per school; 3 school positions | §6.16, §7.17 |
-| P3 | Award scheme: A/B grade vs gold/silver/bronze vs All-India 1/2/3 | Configurable per round; default RANKED 1/2/3 in the final round | §7.17 |
+| P2 | How many entries a school shortlists per category | 5 per category per school (`Competition.schoolShortlistSize`); 3 school positions | §6.16, §7.17 |
+| P3 | Award scheme: A/B grade vs gold/silver/bronze vs All-India 1/2/3 | Configurable per round; `Competition.awardScheme` is the final round's default, RANKED 1/2/3 | §7.17 |
 | P4 | Which judging levels are active for the pilot (City/State/National/Global) | School round, then a single NATIONAL final round judged on the physical artwork | §7.17 |
-| P5 | Registration fee amounts, who pays on the school route, refund policy | Config values (no amounts invented). School route: institution pays in bulk. No refunds after CONFIRMED except cancellation or duplicates | §6.16, §8.3 |
+| P5 | Registration fee amounts, who pays on the school route, refund policy | Config values (no amounts invented). School route: institution pays in bulk. No refunds after CONFIRMED except cancellation or duplicates; CM/SA may request a discretionary refund, which FINANCE approves | §6.16, §8.3 |
 | P6 | Physical artwork after judging: return or retain, and who pays shipping | Retain unless return is requested within 30 days of results; the shipping payer is stated in the packaging instructions | §6.16 |
-| P7 | Can minors' artwork be auctioned, and how are proceeds split | Yes, with verified guardian AUCTION_OF_ARTWORK consent and the credit capped at first name + initial. 100% of proceeds to FOA; creators and schools receive an acknowledgement letter | §8.14, §12.15 |
+| P7 | Can minors' artwork be auctioned, and how are proceeds split | Yes, with verified guardian AUCTION_OF_ARTWORK consent and the credit capped at first name + initial. 100% of proceeds to FOA unless the competition's proceeds policy sets a creator share, which the AUCTION_OF_ARTWORK consent form states (§12.3); creators and schools receive an acknowledgement letter | §8.14, §12.15 |
 | P8 | Ambassador eligibility, minimum volunteer age, clubs per institution | Thresholds in config: volunteers 14+ with guardian approval; 1 club per institution | §9.16 |
 | P9 | Should post-competition invitations ship with the pilot (M5) instead of M6? | M6, with a backfill run so the pilot cohort is still invited | §9.16 |
 | P10 | WhatsApp notifications at launch | No; email, SMS and in-app first, WhatsApp adapter post-MVP | §10.10 |

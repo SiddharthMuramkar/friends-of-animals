@@ -195,7 +195,7 @@ model ContactNote { id, messageId, authorUserId, kind INTERNAL|REPLY_SENT, body,
 
 #### 9.4.5 Impact Metrics
 
-§11 computes the counters (MVs) and applies suppression: counters < 5 are omitted, and values ≥ 10 are floored to 10 and shown as "1,240+". This section defines what each counter means, and §11 MUST implement these definitions. Soft-deleted rows are always excluded.
+§11 computes the counters (MVs) and applies suppression: counters < 10 are omitted, and values ≥ 10 are floored to 10 and shown as "1,240+". This section defines what each counter means, and §11 MUST implement these definitions. Soft-deleted rows are always excluded.
 
 | §11 counter | Definition |
 |---|---|
@@ -207,7 +207,7 @@ model ContactNote { id, messageId, authorUserId, kind INTERNAL|REPLY_SENT, body,
 | `volunteers` / `volunteerHours`* | `VolunteerProfile` ACTIVE / floor(Σ APPROVED `VolunteerHourLog.minutes` / 60) |
 | `ngosListed` / `adoptionsFacilitated` | `Organization` VERIFIED / `AdoptableAnimal` ADOPTED with `adoptedViaPlatform = true` |
 | `communityMembers`* / `eventAttendees`* | `CommunityMembership` ACTIVE / `EventRegistration` ATTENDED |
-| `fundsRaisedMinor` | the §8 transparency donations total (the same figure as `/transparency`) |
+| `fundsRaisedMinor` | Σ ledger INCOME in the donation categories over PUBLISHED months, read from §8's `TransparencySnapshot` (the same figure as the `/transparency` donations total) |
 
 \* New counters requested from §11.
 
@@ -278,7 +278,7 @@ An Event of type CAMPAIGN or DRIVE is a dated activity, such as an adoption driv
 - Check-in works from `startsAt − 2h` to `endsAt + 2h` and is idempotent; a re-scan shows the original time. Staff can also check in by name search.
 - At `endsAt + 24h`, CONFIRMED registrations become NO_SHOW and the event becomes COMPLETED.
 
-**Notifications.** Reminders go out 24 h and 2 h before the start. A change of date or venue notifies all registrants. Cancelling the event cancels every CONFIRMED and WAITLISTED registration (`event.cancelled`). All events are free.
+**Notifications.** Reminders go out 24 h and 2 h before the start (§10 `reminder.eventStarting`). A change of date or venue notifies all registrants. Cancelling the event cancels every CONFIRMED and WAITLISTED registration (`event.cancelled`). All events are free.
 
 **Event media.** Media is published only after a §12.8 review. Every tagged participant needs `PARTICIPANT_PHOTO_VIDEO` with the `eventId` scope. Withdrawing that consent unpublishes the item within 24 h (§12.6).
 
@@ -314,7 +314,7 @@ EngagementService.summary(subject): Promise<EngagementSummary>
 - **Timeline merge.** A user's timeline merges their `U:` records with the `P:` records of profiles where `ParticipantProfile.userId` is that user. Guardians can view each linked child's timeline.
 - **Visibility.** Only the subject, their guardian, COMMUNITY_MANAGER and STAFF_ADMIN can see a timeline. Nothing is public except badges on adult profiles.
 
-**Wiring.** Outbox handlers in `server/jobs/engagement/`. Owning sections MAY also call the service directly; duplicate calls are harmless.
+**Wiring.** Outbox handlers in `server/jobs/engagement/`.
 
 | Trigger (owner) | Record | Subject |
 |---|---|---|
@@ -322,7 +322,7 @@ EngagementService.summary(subject): Promise<EngagementSummary>
 | `entry.submitted` (§6) | ENTRY_SUBMITTED | participant |
 | `certificate.issued` type `SCHOOL_MERIT` (§7) | MILESTONE `SCHOOL_WINNER` (source: Certificate) | participant |
 | `certificate.issued`, any type (§7) | CERTIFICATE_EARNED | participant |
-| `results.published` (§7): each Entry with `finalOutcome` ∈ {WINNER, RUNNER_UP, FINALIST, SPECIAL_MENTION} | MILESTONE `FOA_FINALIST` (source: Entry) | participant |
+| `results.published` (§7): each Entry with status FINALIZED and `finalOutcome` ∈ {WINNER, RUNNER_UP, FINALIST, SPECIAL_MENTION} (not SPECIAL_MENTION on an ELIMINATED entry) | MILESTONE `FOA_FINALIST` (source: Entry) | participant |
 | `certificate.revoked`, `entry.disqualified`, `entry.withdrawn` (§6/§7) | `revokeBySource` | n/a |
 | `community.joined` / `volunteerApplication.statusChanged` (to APPROVED) / `ambassador.appointed` (§9) | MILESTONE `COMMUNITY_MEMBER` / `VOLUNTEER` / `AMBASSADOR` | member / user / user |
 | `eventRegistration.checkedIn`, `campaign.pledged`, `volunteerHours.approved`, `club.memberAdded`, `content.published` with `sourceStoryId` (§9) | matching activity kind | attendee / pledger / volunteer / member / story subject |
@@ -523,7 +523,7 @@ model PinCode { pinCode @id, district, state, lat Float, lng Float }   // seeded
 | VERIFICATION_EXPIRED → VERIFIED | reviewer | re-verification approved | listings suspended for ORG_NOT_VERIFIED are restored |
 | VERIFIED / VERIFICATION_EXPIRED → SUSPENDED → VERIFIED | COMMUNITY_MANAGER, STAFF_ADMIN / STAFF_ADMIN | reason / new verification record | hidden; listings suspended; open applications moved to FOA; `organization.suspended` / `.reinstated` |
 
-**Re-verification and edits.** Reminders go out 30 and 7 days before expiry (`organization.reverificationDue`). On a VERIFIED org, edits to `name`, `legalName`, `type` or `registrationNumber` wait in `pendingChanges` for a CHANGE review. Other edits apply immediately and are audited.
+**Re-verification and edits.** Reminders go out 30 and 7 days before expiry (§10 `reminder.orgReverification`). On a VERIFIED org, edits to `name`, `legalName`, `type` or `registrationNumber` wait in `pendingChanges` for a CHANGE review. Other edits apply immediately and are audited.
 
 **Search** (`/ngos?q=&type=&service=&species=&city=&pin=&lat=&lng=&radiusKm=&emergency=`). Results include VERIFIED, non-deleted orgs only.
 - **Text:** `websearch_to_tsquery('simple', q)` on `searchVector` (name A, service/species labels B, description C), OR `similarity(name, q) > 0.3`.
@@ -567,7 +567,7 @@ model AdoptionApplication { id, applicationCode @unique, animalId, applicantUser
   - FOA collects no money. Any contribution is paid to the org off-platform and shown as "Adoption contribution set by {org}".
 - **Handlers.** The listing org's ORG_REPs, or ADOPTION_COORDINATORs for FOA listings. ADOPTION_COORDINATOR can see and act on every application.
 - **Public visibility.** A listing is public when status ∈ {AVAILABLE, ON_HOLD}, it is not suspended, and the org (if any) is VERIFIED. An ADOPTED listing shows "Adopted" for 90 days, then returns 410.
-- **Stale listings.** The handler is reminded after `adoption.listingReconfirmDays` without confirmation. After `adoption.listingStaleHideDays` the listing is suspended as STALE until `confirmAnimalAvailability` is called.
+- **Stale listings.** The handler is reminded after `adoption.listingReconfirmDays` without confirmation (§10 `reminder.animalStale`). After `adoption.listingStaleHideDays` the listing is suspended as STALE until `confirmAnimalAvailability` is called.
 
 | AdoptableAnimal: From → To | Actor | Guard | Side effects |
 |---|---|---|---|
@@ -597,7 +597,7 @@ model AdoptionApplication { id, applicationCode @unique, animalId, applicantUser
 - The handler sends updates as `noteToApplicant` (≤1000 characters) attached to transitions, or through `requestApplicantInfo`. The applicant may then edit their answers while the application is SUBMITTED or UNDER_REVIEW.
 - The handler's direct contact, including a RELAY_ONLY rescuer's, is revealed to the applicant only at APPROVED.
 
-**Follow-up.** On each follow-up date, the adopter gets a check-in form at `/dashboard/applications/[id]/follow-up` (wellbeing, an optional photo, concerns), and the handler is notified.
+**Follow-up.** On each follow-up date (§10 `reminder.adoptionFollowUp`), the adopter gets a check-in form at `/dashboard/applications/[id]/follow-up` (wellbeing, an optional photo, concerns), and the handler is notified.
 - CONCERN alerts the handler and ADOPTION_COORDINATOR.
 - RETURNED lets the coordinator relist the animal.
 
@@ -666,16 +666,23 @@ Every payload includes the entity id and the actor. The recipients column is gui
 | `content.submitted`, `content.changesRequested`, `content.published`, `content.archived` | approvers / editor / none (cache, §11) |
 | `contactMessage.received`, `contactMessage.assigned`, `contactMessage.replied` | sender (with `ticketCode`) / assignee / sender |
 | `story.submitted`, `story.accepted`, `story.declined` | CONTENT_MANAGER / submitter |
-| `event.published`, `event.updated`, `event.cancelled`, `event.reminderDue` | members (digest) / registrants |
+| `event.published`, `event.updated`, `event.cancelled` | members (digest) / registrants |
 | `eventRegistration.confirmed`, `.waitlisted`, `.promoted`, `.cancelled`, `.checkedIn` | registrant |
 | `campaign.published`, `campaign.pledged`, `campaign.ended` | members (digest) / pledger / COMMUNITY_MANAGER |
 | `engagement.milestoneReached {subjectKey, milestone}`, `community.joined`, `community.joinRequested`, `community.invited` | subject / guardian (join request) / invitee |
 | `club.advisorInvited`, `.approved`, `.rejected`, `.advisorVacant`, `.advisorChanged`, `.closed`, `.memberAdded`, `.announcementPosted` | advisor / requester, INSTITUTION_ADMIN / COMMUNITY_MANAGER / members' guardians |
-| `ambassador.nominated`, `.appointed`, `.rejected`, `.expiring` (−30 d), `.revoked` | COMMUNITY_MANAGER / nominee |
+| `ambassador.nominated`, `.appointed`, `.rejected`, `.revoked` | COMMUNITY_MANAGER / nominee |
 | `volunteerApplication.submitted`, `.statusChanged {from,to}`, `.guardianApprovalRequested`, `volunteerAssignment.assigned`, `volunteerHours.approved`, `volunteerHours.rejected` | applicant or volunteer / guardian / COMMUNITY_MANAGER |
-| `organization.registered`, `.verified`, `.rejected`, `.reverificationDue`, `.verificationExpired`, `.suspended`, `.reinstated`, `listing.reported` | COMMUNITY_MANAGER / ORG_REPs |
-| `animal.listed`, `animal.staleReminder`, `animal.suspended`, `animal.statusChanged` | handler / active applicants |
-| `adoptionApplication.submitted`, `.statusChanged {from,to,note?}`, `.infoRequested`, `.slaBreached`, `adoption.completed`, `adoption.followUpDue`, `adoption.followUpConcern` | handler, applicant / ADOPTION_COORDINATOR |
+| `organization.registered`, `.verified`, `.rejected`, `.verificationExpired`, `.suspended`, `.reinstated`, `listing.reported` | COMMUNITY_MANAGER / ORG_REPs |
+| `animal.listed`, `animal.suspended`, `animal.statusChanged` | handler / active applicants |
+| `adoptionApplication.submitted`, `.statusChanged {from,to,note?}`, `.infoRequested`, `.slaBreached`, `adoption.completed`, `adoption.followUpConcern` | handler, applicant / ADOPTION_COORDINATOR |
+
+**Reminders** are not emitted by this section. §10 owns them as `reminder.<name>` keys (§10.3):
+- `reminder.eventStarting`: 24 h and 2 h before `startsAt` (CONFIRMED registrants).
+- `reminder.orgReverification`: 30 and 7 days before `verificationExpiresAt` (ORG_REPs).
+- `reminder.animalStale`: after `adoption.listingReconfirmDays` without confirmation (handler).
+- `reminder.adoptionFollowUp`: on each `adoption.followUpDays` date after handover (adopter; handler notified).
+- `reminder.ambassadorExpiring`: 30 days before `termEndsAt` (ambassador).
 
 ### 9.14 Edge Cases
 
@@ -705,7 +712,7 @@ Every payload includes the entity id and the actor. The recipients column is gui
 6. `/impact` shows §11's counters. Adding an `ImpactAdjustment` changes the displayed value, writes an audit row, and adds the "offline activity" note.
 7. The contact form rejects a missing Turnstile token. The 6th message from one IP in an hour returns 429. Choosing "Safeguarding concern" opens `/safeguarding` and stores no `ContactMessage`.
 8. An editorial item that depicts artwork without a §7 stamped export, or whose participant lacks SOCIAL_MEDIA or PUBLIC_DISPLAY consent, cannot reach APPROVED.
-9. Calling `recordMilestone` twice with the same source creates one record and one `engagement.milestoneReached` event. Results publication gives every WINNER, RUNNER_UP, FINALIST and SPECIAL_MENTION entry's participant `FOA_FINALIST`.
+9. Calling `recordMilestone` twice with the same source creates one record and one `engagement.milestoneReached` event. Results publication gives every FINALIZED WINNER, RUNNER_UP, FINALIST and SPECIAL_MENTION entry's participant `FOA_FINALIST`, and an ELIMINATED entry with SPECIAL_MENTION gets none.
 10. Revoking the only SCHOOL_MERIT certificate removes `SCHOOL_WINNER` from the summary.
 11. Each recipient gets exactly one invitation per competition. A guardian of two participants gets one message, and nothing goes to a minor's own contact or inbox. Re-running the job sends nothing, and recipients without COMMUNICATION consent get nothing.
 12. A minor's membership stays PENDING_GUARDIAN until the guardian approves. `/community/members/{slug}` returns 404 for a minor, even if `publicProfile` was set directly in the database.

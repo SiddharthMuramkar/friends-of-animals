@@ -13,10 +13,10 @@ This section covers source Phases 1–5, 7, 8 and 14, plus end-to-end steps 1–
 
 | Concern | Owner | Contract |
 |---|---|---|
-| School-level judging and shortlisting | §7 | Calls `EntryService.applySchoolShortlist()`. In SHORTLIST_ONLY it MAY call `EntryService.createShortlistedEntry()` (6.9) |
+| School-level judging and shortlisting | §7 | Calls `EntryService.applySchoolShortlist()` once per category when it finalizes a school round. In SHORTLIST_ONLY it MAY call `EntryService.createShortlistedEntry()` (6.9). On a school-round reopen it calls `EntryService.revertSchoolShortlist()` (6.9 row 16). §7 `finalizeSchoolRound` is the sole emitter of `schoolShortlist.finalized` |
 | FOA judging | §7 | Moves FOA_VERIFIED → IN_JUDGING. A round with `requiresPhysicalVerified` filters on `ArtworkService.physicalReady(entryId)` |
 | RESULTS_PENDING_APPROVAL, RESULTS_PUBLISHED | §7 | Calls `CompetitionService.transition()` and sets `Competition.resultsPublishedAt` |
-| Fees and refunds | §8 | §6 calls `PaymentService.createOrder` and consumes `payment.captured` / `payment.failed` with `refType = 'RegistrationPaymentBatch'`. Refunds are requested from §8 |
+| Fees and refunds | §8 | §6 calls `PaymentService.createOrder` and `PaymentService.recordOfflinePayment`, and consumes `payment.captured` / `payment.failed` with `refType = 'RegistrationPaymentBatch'`. Refunds are requested from §8 by CM/SA and approved by FINANCE |
 | LISTED_FOR_AUCTION, SOLD | §8 | `ArtworkService.setAuctionState(artworkId, status)` |
 | Consents, guardian verification, `PendingRegistration` | §12 | `ConsentService.has/require`. §6 re-evaluates registrations on `consent.granted`, `consent.withdrawn` and `guardian.verified` |
 | Messages, reminders, bulk announcements | §10 | Events in 6.13. The `reminder.*` jobs and the `Announcement` builder (§10.6) belong to §10 |
@@ -39,6 +39,7 @@ enum PhysicalRequestReason { JUDGING EXHIBITION AUCTION ARCHIVE }
 enum ArtworkDiscrepancyType { NOT_MATCHING_DIGITAL LABEL_MISSING_OR_WRONG CREATOR_MISMATCH DAMAGED CONSENT_DOCS_MISSING OTHER }
 enum ArtworkCondition { EXCELLENT GOOD FAIR DAMAGED }
 enum ArtworkReturnPolicy { RETURN_AFTER_RESULTS RETAIN_UNLESS_REQUESTED RETAIN }
+enum PrizeType { CERTIFICATE_ONLY TROPHY MEDAL CASH VOUCHER OTHER }
 
 model Competition {
   code String @unique /* §3.1, immutable after publish */; slug String @unique; name String; theme String
@@ -56,7 +57,7 @@ model Competition {
   individualPhysicalRequired Boolean @default(true); physicalFacilityId String?; physicalDispatchDays Int @default(14)
   artworkReturnPolicy ArtworkReturnPolicy @default(RETAIN_UNLESS_REQUESTED); returnRequestWindowDays Int @default(30)
   allowPublicDisplay Boolean @default(true); allowAuction Boolean @default(false)
-  collectsGender Boolean @default(false) /* §12.2 */; awardScheme AwardScheme; rubricId String? /* §7; required before FOA_JUDGING */
+  collectsGender Boolean @default(false) /* §12.2 */; awardScheme AwardScheme /* default for the final round; §7 rounds may override it */
   extraRequiredConsentTypes ConsentType[] @default([])   // on top of the §12.4 registration set
   archiveAfterDays Int @default(180); publishedAt DateTime?; resultsPublishedAt DateTime?; cancelledAt DateTime?; cancelReason String?; createdByUserId String
 }
@@ -70,7 +71,7 @@ model CompetitionCategory {
   maxEntriesPerParticipant Int @default(1); physicalEligible Boolean /* default true: DRAWING, PAINTING, ART, CRAFT */; fileRules Json? /* 6.8.3 */
   @@unique([competitionId, discipline, ageGroupId]) @@unique([competitionId, code])
 }
-model CompetitionPrize { competitionId String; categoryId String?; level JudgingLevel; awardLabel String; description String; quantity Int @default(1); cashAmountMinor Int?; currency String?; sortOrder Int }
+model CompetitionPrize { competitionId String; categoryId String?; level JudgingLevel; prizeType PrizeType; awardLabel String; description String; quantity Int @default(1); cashAmountMinor Int?; currency String?; sortOrder Int }
 model FoaFacility { code String @unique; name String; addressLine1 String; addressLine2 String?; city String; state String; pinCode String; country String; contactName String; contactPhone String; active Boolean }
 model InstitutionApplication {   // one per verification cycle; §3.4 Institution unchanged
   institutionId String; kind String /* INITIAL | CHANGE */; proposedChanges Json?; expectedParticipants Int?; affiliationCode String?
@@ -113,7 +114,7 @@ model Entry {
 model EntryFile { entryId String; role EntryFileRole; sortOrder Int; originalAssetId String; webAssetId String?; thumbAssetId String?; mediaCheck String /* PENDING | PASSED | FAILED */; mediaErrors Json?; perceptualHash String?; supersededAt DateTime? }
 model PhysicalArtwork {
   artworkCode String @unique; entryId String @unique; competitionId String; participantId String; institutionId String?
-  status PhysicalArtworkStatus; reason PhysicalRequestReason; requiredForJudging Boolean; requestedAt DateTime; requestedByUserId String
+  status PhysicalArtworkStatus; statusBeforeListing PhysicalArtworkStatus? /* set when §8 lists it; 6.10.2 */; reason PhysicalRequestReason; requiredForJudging Boolean; requestedAt DateTime; requestedByUserId String
   dispatchDeadline DateTime; facilityId String; facilitySnapshot Json; shipmentId String?; isLateDispatch Boolean @default(false)
   receivedAt DateTime?; receivedByUserId String?; packageIntact Boolean?; verifiedAt DateTime?; verifiedByUserId String?; checklist Json?
   condition ArtworkCondition?; conditionNotes String?; widthMm Int?; heightMm Int?; depthMm Int?; medium String?
@@ -127,7 +128,7 @@ model ArtworkCustodyEvent { artworkId String; action String /* RECEIVED | STORED
 
 ### 6.3 Competition Configuration & Lifecycle
 
-**6.3.1 Configuration.** Phase 1 items map to fields as follows. Name, theme and message → `name`, `theme`, `welfareMessageHtml`. Competition type → `CompetitionCategory.discipline` (one competition may span several disciplines). Eligibility and age groups → `AgeGroup`, `eligibleCountries`, `eligibleInstitutionTypes`. Individual or institutional participation → `CompetitionRoute` rows. Rules → `rulesHtml`, `conductGuidelinesHtml`. Judging criteria → `judgingCriteriaSummary` plus `rubricId` (§7). Prizes → `CompetitionPrize` plus `awardScheme` (§7). Physical submission → `physicalTopN`, `individualPhysicalRequired`. Public display → `allowPublicDisplay`. Auction → `allowAuction`. Terms and consents → the §12.4 set plus `extraRequiredConsentTypes`.
+**6.3.1 Configuration.** Phase 1 items map to fields as follows. Name, theme and message → `name`, `theme`, `welfareMessageHtml`. Competition type → `CompetitionCategory.discipline` (one competition may span several disciplines). Eligibility and age groups → `AgeGroup`, `eligibleCountries`, `eligibleInstitutionTypes`. Individual or institutional participation → `CompetitionRoute` rows. Rules → `rulesHtml`, `conductGuidelinesHtml`. Judging criteria → `judgingCriteriaSummary` plus the §7 PUBLISHED rubrics (one must resolve for every enabled discipline). Prizes → `CompetitionPrize` plus `awardScheme` (§7). Physical submission → `physicalTopN`, `individualPhysicalRequired`. Public display → `allowPublicDisplay`. Auction → `allowAuction`. Terms and consents → the §12.4 set plus `extraRequiredConsentTypes`.
 
 Categories are Discipline × AgeGroup. A group admits birth dates in `(cutoff − (maxAge+1) y, cutoff − minAge y]`. Age is completed years on the cutoff date, so someone born exactly N years before the cutoff is N. A 29 Feb birthday counts on 1 Mar in non-leap years.
 
@@ -147,7 +148,7 @@ Categories are Discipline × AgeGroup. A group admits birth dates in `(cutoff �
 | Dates | edit | A future date may move later (emits `competition.scheduleChanged`). Earlier only via a manual transition |
 | `physicalTopN`, `individualPhysicalRequired`, facility | edit | Editable until the first entry is FOA_VERIFIED |
 
-**6.3.4 Status machine.** Job `competition.advance` runs every minute. For each competition with `autoAdvance`, it applies the time-driven rows repeatedly, so a missed run catches up in order. Each step is a conditional update (`WHERE status = from`) in its own transaction, with actor SYSTEM, so it is idempotent. The same job emits `competition.submissionOpened` once at `submissionOpensAt`. It also cancels unconfirmed registrations at `confirmationDeadline` (6.6). A manual transition (`transitionCompetition`) sets the matching date to `now()`. For example, an early close sets `registrationClosesAt = now`. If a guard fails, for example a missing `rubricId`, the job stops for that competition and emits `competition.advanceBlocked`.
+**6.3.4 Status machine.** Job `competition.advance` runs every minute. For each competition with `autoAdvance`, it applies the time-driven rows repeatedly, so a missed run catches up in order. Each step is a conditional update (`WHERE status = from`) in its own transaction, with actor SYSTEM, so it is idempotent. The same job emits `competition.submissionOpened` once at `submissionOpensAt`. It also cancels unconfirmed registrations at `confirmationDeadline` (6.6). A manual transition (`transitionCompetition`) sets the matching date to `now()`. For example, an early close sets `registrationClosesAt = now`. If a guard fails, for example no §7 PUBLISHED rubric resolves for an enabled discipline, the job stops for that competition and emits `competition.advanceBlocked`.
 
 | From → To | Trigger | Guard | Side effects |
 |---|---|---|---|
@@ -156,9 +157,9 @@ Categories are Discipline × AgeGroup. A group admits birth dates in `(cutoff �
 | REGISTRATION_OPEN → REGISTRATION_CLOSED | at `registrationClosesAt`; manual | — | `competition.registrationClosed` |
 | REGISTRATION_CLOSED → REGISTRATION_OPEN | manual, with a new `registrationClosesAt > now` | `now < conductStartsAt` | `competition.registrationOpened` |
 | REGISTRATION_CLOSED → IN_PROGRESS | at `conductStartsAt`; manual | — | `competition.statusChanged` |
-| IN_PROGRESS → SCHOOL_JUDGING | at `submissionClosesAt + lateGraceMinutes`; manual | INSTITUTION route enabled | §7 opens school judging |
-| IN_PROGRESS → FOA_JUDGING | same | No INSTITUTION route; `rubricId` set | §7 may open rounds |
-| SCHOOL_JUDGING → FOA_JUDGING | at `shortlistSubmissionClosesAt`; manual | `rubricId` set | Open shortlists are auto-finalised (6.9) |
+| IN_PROGRESS → SCHOOL_JUDGING | at `submissionClosesAt + lateGraceMinutes`; manual | INSTITUTION route enabled; a §7 PUBLISHED rubric resolves for every enabled discipline | §7 opens the school rounds, in both scopes |
+| IN_PROGRESS → FOA_JUDGING | same | No INSTITUTION route; a §7 PUBLISHED rubric resolves for every enabled discipline | §7 may open rounds |
+| SCHOOL_JUDGING → FOA_JUDGING | at `shortlistSubmissionClosesAt`; manual | Every §7 school round is FINALIZED or CLOSED_BY_FOA; a §7 PUBLISHED rubric resolves for every enabled discipline | No auto-finalise or auto-forfeit. At `shortlistSubmissionClosesAt` an unfinished school round becomes OVERDUE (§7.15 E5) |
 | FOA_JUDGING ⇄ RESULTS_PENDING_APPROVAL → RESULTS_PUBLISHED | §7 only | §7 | §7 |
 | RESULTS_PUBLISHED → ARCHIVED | at `resultsPublishedAt + archiveAfterDays`; manual | — | Read-only |
 | any status before RESULTS_PUBLISHED → CANCELLED | `cancelCompetition` (SA, reason) | — | Registrations → CANCELLED (6.6); refunds of captured fees requested from §8; artworks in custody → returns queue; `competition.cancelled` |
@@ -169,8 +170,8 @@ Categories are Discipline × AgeGroup. A group admits birth dates in `(cutoff �
 | PUBLISHED | Yes | Config edits per 6.3.3. Institutions may sign up (6.4.1) but not yet register for this competition |
 | REGISTRATION_OPEN | Yes | Individual registration, institution competition registration, adding or importing students, consents, payment |
 | REGISTRATION_CLOSED | Yes | No new registrations, except `addLateRegistration` (CM/SA). Pending registrations can finish consent, payment and institution verification until `confirmationDeadline`. `publishInstructions` |
-| IN_PROGRESS | Yes | Conduct. From `submissionOpensAt`: drafts, uploads and submissions. Conduct certification. SHORTLIST_ONLY shortlist creation. FOA verification of individual entries. Physical requests |
-| SCHOOL_JUDGING | Yes | §7 school judging. Shortlisted entries → SUBMITTED_TO_FOA until the shortlist deadline. FOA verification. Physical dispatch and receipt |
+| IN_PROGRESS | Yes | Conduct. From `submissionOpensAt`: drafts, uploads and submissions. Conduct certification. FOA verification of individual entries. Physical requests |
+| SCHOOL_JUDGING | Yes | §7 school judging. SHORTLIST_ONLY shortlist creation. Shortlisted entries → SUBMITTED_TO_FOA until the shortlist deadline. FOA verification. Physical dispatch and receipt |
 | FOA_JUDGING, RESULTS_PENDING_APPROVAL | Yes | §7 judging. Physical receipt and verification. Only staff can withdraw entries |
 | RESULTS_PUBLISHED | Yes, with results (§7) | Return requests, exhibition, retention, auction (§8) |
 | ARCHIVED | Yes, read-only | Artwork custody actions only |
@@ -262,17 +263,17 @@ A school may pay in bulk while signed forms are still coming in. Those registrat
 | PENDING_CONSENT, PENDING_PAYMENT → CONFIRMED | system, after a consent, capture, offline payment, waiver or institution verification | The target status is CONFIRMED, and `now ≤ confirmationDeadline` unless CM/SA acted | `confirmedAt`; `registration.confirmed` |
 | PENDING_PAYMENT → PENDING_CONSENT | system on `consent.withdrawn` | — | — |
 | PENDING_* → CANCELLED | job at `confirmationDeadline`; CM/SA; institution rejected; competition cancelled; duplicate resolution | — | Open batch cancelled; draft entries soft-deleted; `registration.cancelled` |
-| PENDING_*, CONFIRMED → WITHDRAWN | `withdrawRegistration` by the Owner or a claimed guardian (before FOA_JUDGING), or by SA (any time). Also the system, on `consent.withdrawn` of PARTICIPATION or DATA_PROCESSING before RESULTS_PUBLISHED (§12.6) | Reason | Live entries → WITHDRAWN; artworks per 6.10; refund only if §8 policy allows; `registration.withdrawn` |
+| PENDING_*, CONFIRMED → WITHDRAWN | `withdrawRegistration` by the Owner or a claimed guardian (before FOA_JUDGING), or by SA (any time). Also the system, on `consent.withdrawn` of PARTICIPATION or DATA_PROCESSING before RESULTS_PUBLISHED (§12.6) | Reason | Live entries in every status, including IN_JUDGING, ELIMINATED and FINALIZED, → WITHDRAWN (6.9 rows 13–14); artworks per 6.10; refund only if §8 policy allows (CM/SA request, FINANCE approves); `registration.withdrawn` |
 | CONFIRMED → CANCELLED | CM/SA (ineligible, fraud, duplicate); competition cancelled | Reason | Entries → WITHDRAWN; §8 refund on cancellation or duplicate; `registration.cancelled` |
 | WITHDRAWN, CANCELLED → `statusBeforeEnd` | `reinstateRegistration` (SA) | Competition is at or before IN_PROGRESS | `evaluateRegistration` |
 
 **Payment batches.**
-- **Create.** `createRegistrationPaymentBatch({ registrationIds })` requires: all registrations are in one competition and share one Owner; each is PENDING_CONSENT or PENDING_PAYMENT, unpaid, not waived, and not in an open batch; `now ≤ confirmationDeadline`; on route A, the institution is VERIFIED. It creates the batch (OPEN, `expiresAt = now + 30 min`) and its items, sets `openBatchId` on each registration, and calls `PaymentService.createOrder({ purpose: REGISTRATION_FEE, amountMinor: Σ items, currency, payerUserId, refType: 'RegistrationPaymentBatch', refId })`. An institution batch covers N students; an individual batch covers one.
-- **Capture.** `payment.captured` is idempotent on `paymentId`. If the amount differs from the batch total → NEEDS_REVIEW. Otherwise, each live, unpaid registration gets `feePaidMinor += amount` and `paidAt`, and is re-evaluated. If any item can't be applied → NEEDS_REVIEW and `registration.paymentNeedsReview`, so staff can reinstate or refund via §8. Otherwise → PAID. `openBatchId` is always cleared.
+- **Create.** `createRegistrationPaymentBatch({ registrationIds })` requires: all registrations are in one competition and share one Owner; each is PENDING_CONSENT or PENDING_PAYMENT, unpaid, not waived, and not in an open batch; `now ≤ confirmationDeadline`; on route A, the institution is VERIFIED. It creates the batch (OPEN, `expiresAt = now + 30 min`) and its items, sets `openBatchId` on each registration, and calls `PaymentService.createOrder({ purpose: REGISTRATION_FEE, amountMinor: Σ items, currency, payerUserId, refType: 'RegistrationPaymentBatch', refId: batchId })`, one order per batch. An institution batch covers N students; an individual registration pays through a batch of one.
+- **Capture.** `payment.captured` is idempotent on `paymentId`. If the amount differs from the batch total → NEEDS_REVIEW. Otherwise, each live, unpaid registration gets `feePaidMinor += amount` and `paidAt`, and is re-evaluated. If any item can't be applied (the registration is no longer payable) → NEEDS_REVIEW and `registration.paymentNeedsReview`, so staff can reinstate, or CM/SA can request a refund via §8, which FINANCE approves. There is no automatic refund. Otherwise → PAID. `openBatchId` is always cleared.
 - **Failure and expiry.** `payment.failed` → FAILED, and the expiry job → EXPIRED. Both clear `openBatchId`. A capture that arrives after expiry is still processed as above.
-- **Offline payment** (cheque or NEFT). FINANCE or SA calls `markBatchPaidOffline({ batchId, reference, amountMinor })`, which works like a capture. §8 records the ledger entry.
+- **Offline payment** (cheque or NEFT). FINANCE or SA calls `markBatchPaidOffline({ batchId, reference, amountMinor })`, which calls `PaymentService.recordOfflinePayment({ refType: 'RegistrationPaymentBatch', refId: batchId, … })` and then works like a capture. §8 records the ledger entry.
 - **Waivers.** CM/SA call `waiveRegistrationFees({ registrationIds | institutionRegistrationId, reason })`. Zero-fee routes need no waiver and create no Payment.
-- **Refunds** are never automatic, except on competition cancellation and duplicate resolution. Otherwise CM/SA request them via §8.
+- **Refunds** are never automatic, except on competition cancellation and duplicate resolution. Otherwise CM/SA request them via §8 and FINANCE approves (§8's dual approval above the threshold still applies). A partial refund lists the `RegistrationPaymentBatchItem` ids it covers; the amount is the sum of their `amountMinor`.
 
 ### 6.7 Preparation & Conduct (Phase 3)
 
@@ -347,26 +348,26 @@ If the Owner submits before the deadline while files are still processing, the s
 | 4 | SUBMITTED → SCHOOL_SHORTLISTED | §7 calls `applySchoolShortlist` | INSTITUTION route, scope ALL; size guard; `schoolRank` set | `entry.shortlisted` |
 | 5 | SUBMITTED → NOT_SHORTLISTED | Same call | Same | `entry.notShortlisted` |
 | 6 | NOT_SHORTLISTED → SCHOOL_SHORTLISTED | §7 amends the shortlist, e.g. to replace a withdrawn entry | `now ≤` shortlist deadline; size guard | `entry.shortlisted` |
-| 7 | ∅ → SCHOOL_SHORTLISTED | `createShortlistedEntry`: coordinator, or §7's school round | Scope SHORTLIST_ONLY. Registration CONFIRMED. `conductStartsAt ≤ now ≤` shortlist deadline. Size guard | `entryCode`; `entry.shortlisted` with `silent: true` (analytics only; §10 sends the shortlist messages from `schoolShortlist.finalized`, see §7.3) |
+| 7 | ∅ → SCHOOL_SHORTLISTED | `createShortlistedEntry`: coordinator, or §7's school round | Scope SHORTLIST_ONLY. Registration CONFIRMED. `competition.status = SCHOOL_JUDGING` and `now ≤ shortlistSubmissionClosesAt` (or a SHORTLIST extension). Size guard | `entryCode`; `entry.shortlisted` with `silent: true` (analytics only; §10 sends the shortlist messages from `schoolShortlist.finalized`, which §7 `finalizeSchoolRound` emits, see §7.3) |
 | 8 | SCHOOL_SHORTLISTED → SUBMITTED_TO_FOA | `submitShortlistedEntryToFoa`: coordinator | Within the shortlist deadline. ConductCertification exists (PHYSICAL_AT_INSTITUTION). Visual disciplines have a HIRES_SCAN ≥ `hiResMinLongEdgePx`, or a qualifying PRIMARY marked via `markFileAsHiRes`. Title and description present. PARTICIPATION consent. ENTRY_ORIGINALITY_INSTITUTION accepted | `submittedToFoaAt`; `entry.submittedToFoa` |
 | 9 | SUBMITTED_TO_FOA → SCHOOL_SHORTLISTED | `requestEntryChanges` (CM, SA) | `correctionDueAt > now` | `entry.changesRequested` |
 | 10 | SUBMITTED (INDIVIDUAL) or SUBMITTED_TO_FOA → FOA_VERIFIED | `verifyEntry` (CM, SA) | Checklist all true: category and age group correct; files legible and within rules; on theme; consents present; declaration present; no open duplicate flag | `verifiedAt`; physical request per 6.10.1; `entry.verified` |
 | 11 | SUBMITTED, SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA or FOA_VERIFIED → REJECTED_INELIGIBLE | `rejectEntry` (CM, SA) | `rejectionReason`. From FOA_VERIFIED only before IN_JUDGING (e.g. PHYSICAL_NOT_RECEIVED, PHYSICAL_MISMATCH) | `statusBeforeRejection` stored; REQUESTED artwork → NOT_REQUIRED; `entry.rejected` |
 | 12 | REJECTED_INELIGIBLE → `statusBeforeRejection` | `reinstateEntry` (SA) | Competition at or before FOA_JUDGING | `entry.reinstated` |
 | 13 | SUBMITTED, SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA or FOA_VERIFIED → WITHDRAWN | `withdrawEntry` (Owner, CM, SA); cascade from a WITHDRAWN or CANCELLED registration | Non-staff only before FOA_JUDGING | Artwork per 6.10 (REQUESTED → NOT_REQUIRED; in custody → returns queue); `entry.withdrawn` |
-| 14 | IN_JUDGING or ELIMINATED → WITHDRAWN | `withdrawEntry` (SA) | Reason | §7 removes the entry from its rounds |
+| 14 | IN_JUDGING, ELIMINATED or FINALIZED → WITHDRAWN | `withdrawEntry` (SA); cascade from a registration becoming WITHDRAWN, including the system acting on `consent.withdrawn` for PARTICIPATION (§12.6) | Reason | §7 removes the entry from its rounds. If results are already published, a §7.15 E3 correction follows (certificate revoked, results corrected) |
 | 15 | Any status except DRAFT, WITHDRAWN or DISQUALIFIED (including §7 statuses) → DISQUALIFIED | `disqualifyEntry` (CM, SA; from FINALIZED, SA only) | Reason, e.g. plagiarism or a conduct breach | §7 recomputes rankings and revokes certificates; `entry.disqualified` |
+| 16 | SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA or NOT_SHORTLISTED → SUBMITTED | `EntryService.revertSchoolShortlist({ institutionRegistrationId, categoryId })`, called only by §7 when a school round is reopened | Scope ALL. No entry of that InstitutionRegistration × category is FOA_VERIFIED or later | Clears `schoolRank`, `schoolAwardLabel` and `submittedToFoaAt`; `entry.shortlistReverted` (silent). Under SHORTLIST_ONLY, entries created by row 7 are soft-deleted on reopen instead (same guard) |
 
-**Size guard.** Live shortlist entries per InstitutionRegistration and category must not exceed `schoolShortlistSize`. Live means SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA, FOA_VERIFIED or any later §7 status. `schoolRank` is unique within that pair. Withdrawn and rejected entries free their slot. **Ended states for §6.** NOT_SHORTLISTED (except row 6), REJECTED_INELIGIBLE (except row 12), WITHDRAWN and DISQUALIFIED. **Leftovers.** An entry still SCHOOL_SHORTLISTED after the shortlist deadline stays there. It keeps its rank for §7 merit certificates but goes no further. DRAFTs left after the deadline are hidden and purged under §12 retention. **Anything else.** Any other transition throws `IllegalTransitionError`.
+**Size guard.** Live shortlist entries per InstitutionRegistration and category must not exceed `schoolShortlistSize`. Live means SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA, FOA_VERIFIED or any later §7 status. `schoolRank` is unique within that pair. Withdrawn and rejected entries free their slot. **Ended states for §6.** NOT_SHORTLISTED (except rows 6 and 16), REJECTED_INELIGIBLE (except row 12), WITHDRAWN and DISQUALIFIED. **Leftovers.** An entry still SCHOOL_SHORTLISTED after the shortlist deadline stays there. It keeps its rank for §7 merit certificates but goes no further. DRAFTs left after the deadline are hidden and purged under §12 retention. **Anything else.** Any other transition throws `IllegalTransitionError`.
 
 ```ts
 EntryService.applySchoolShortlist({ institutionRegistrationId, categoryId, actorUserId,
-  shortlisted: { entryId: string; schoolRank: number; schoolAwardLabel?: string }[], notShortlistedEntryIds: string[] }) // §7, ALL; atomic; rows 4–6
+  shortlisted: { entryId: string; schoolRank: number; schoolAwardLabel?: string }[], notShortlistedEntryIds: string[] }) // §7 finalizeSchoolRound, once per category; ALL; atomic; rows 4–6
 EntryService.createShortlistedEntry({ registrationId, categoryId, schoolRank, schoolAwardLabel?, title, description, actorUserId }) // row 7
-EntryService.finalizeSchoolShortlist({ institutionRegistrationId, categoryId, actorUserId }) // emits schoolShortlist.finalized
-  // { notShortlistedRegistrationIds } so §10 can thank SHORTLIST_ONLY students with no Entry; auto-runs at the shortlist
-  // deadline; applySchoolShortlist calls it; amendments (rows 6–7) stay allowed until the deadline
-ArtworkService.physicalReady(entryId): boolean // true if no artwork has requiredForJudging, or its status ∈ {VERIFIED, IN_EXHIBITION, RETAINED}
+EntryService.revertSchoolShortlist({ institutionRegistrationId, categoryId }) // §7 reopenSchoolRound only; row 16
+ArtworkService.physicalReady(entryId): boolean // = !artwork.requiredForJudging || artwork.status ∈ {VERIFIED, IN_EXHIBITION, RETAINED}
+  // true when the entry has no PhysicalArtwork (6.10.1); waivePhysicalForJudging sets requiredForJudging = false
 ```
 
 ### 6.10 Physical Artwork Track (Phases 5, 8, 14)
@@ -390,7 +391,7 @@ ArtworkService.physicalReady(entryId): boolean // true if no artwork has require
 | RECEIVED → DISCREPANCY | `verifyArtwork` with a failed item, or `raiseArtworkDiscrepancy` | `discrepancyType` and notes | `discrepancyResponseDueAt = now + 7 d`; `artwork.discrepancyRecorded` |
 | DISCREPANCY → VERIFIED | `resolveArtworkDiscrepancy` (CM, SA) | Resolution note; the failed items now pass | `artwork.discrepancyResolved` |
 | VERIFIED ⇄ IN_EXHIBITION; RETAINED → IN_EXHIBITION | `moveArtwork` (SA, CM) | Location | Custody EXHIBITED or STORED |
-| VERIFIED, IN_EXHIBITION or RETAINED → LISTED_FOR_AUCTION → SOLD, or back to VERIFIED | §8 only (`setAuctionState`) | §8, with consent per §12.4 | Custody HANDED_TO_AUCTION |
+| VERIFIED, IN_EXHIBITION or RETAINED → LISTED_FOR_AUCTION → SOLD; LISTED_FOR_AUCTION or SOLD → `statusBeforeListing` | §8 only (`setAuctionState`) | §8, with consent per §12.4 | Listing stores `statusBeforeListing`; custody HANDED_TO_AUCTION |
 | RECEIVED, VERIFIED, IN_EXHIBITION or DISCREPANCY → RETURNED | `recordArtworkReturn` (SA, CM) | COURIER with tracking, or HAND_OVER with the recipient's name. Not allowed while LISTED_FOR_AUCTION or SOLD | Custody RETURNED; `artwork.returned` |
 | VERIFIED or IN_EXHIBITION → RETAINED | `retainArtwork` (SA) | The return policy allows it, and no return request is open | Custody RETAINED; `artwork.retained` |
 
@@ -398,7 +399,7 @@ ArtworkService.physicalReady(entryId): boolean // true if no artwork has require
 
 **Discrepancies.** The responsible party can reply with an explanation and documents until `discrepancyResponseDueAt`. CM then either resolves the discrepancy (→ VERIFIED), or rejects or disqualifies the entry (6.9 rows 11 and 15, with PHYSICAL_MISMATCH) and returns the artwork.
 
-**Overdue.** §10 sends `reminder.artworkDispatch`. Seven days after the deadline, any artwork still REQUESTED with `requiredForJudging` goes to the CM queue. CM can extend the deadline, waive the requirement (`waivePhysicalForJudging`), or reject the entry (PHYSICAL_NOT_RECEIVED).
+**Overdue.** §10 sends `reminder.artworkDispatch`. Seven days after the deadline, any artwork still REQUESTED with `requiredForJudging` goes to the CM queue. CM can extend the deadline, waive the requirement (`waivePhysicalForJudging`, which sets `requiredForJudging = false`), or reject the entry (PHYSICAL_NOT_RECEIVED).
 
 **Custody & storage.** Every receipt, move, auction hand-off, return and retention writes an append-only ArtworkCustodyEvent. `storageLocation` has the form `FACILITY/ROOM/RACK/SHELF`, and its first segment must equal `FoaFacility.code`. The staff UI shows the current location and the full custody chain.
 
@@ -461,10 +462,11 @@ All of these are Next.js Server Actions that call domain services. Inputs are va
 | `createEntry`, `updateEntryDraft`, `deleteDraftEntry`, `startTimedEntry` | registrationId, categoryId / entryId, fields | Owner | Row 1; 6.8.5; 6.7 |
 | `requestEntryUpload`, `completeEntryUpload`, `removeEntryFile`, `markFileAsHiRes` | 6.8.4 inputs / entryFileId | Owner | 6.8.4 |
 | `submitEntry`, `bulkCreateEntries`, `submitEntries` | entryId(s), templateId / categoryId, file ids | Owner (bulk: coordinator, scope ALL) | Row 2; 6.8.2 bulk |
-| `createShortlistedEntry`, `finalizeSchoolShortlist`, `submitShortlistedEntryToFoa` | 6.9 service inputs / entryId, templateId | Coordinator (own institution) | Rows 7–8; `schoolShortlist.finalized` |
+| `createShortlistedEntry`, `submitShortlistedEntryToFoa` | 6.9 service inputs / entryId, templateId | Coordinator (own institution) | Rows 7–8. Coordinators finalize through §7's school-round UI (`finalizeSchoolRound`) |
+| `revertSchoolShortlist` | institutionRegistrationId, categoryId | §7 only, from `reopenSchoolRound` (CM/SA); no client action | Row 16 |
 | `verifyEntry`, `requestEntryChanges`, `rejectEntry`, `reinstateEntry` | entryId, checklist / note, correctionDueAt / reason | CM, SA (reinstate: SA only) | Rows 3, 9–12 |
 | `withdrawEntry`, `disqualifyEntry` | entryId, reason | Owner, CM, SA (row 14: SA only) / CM, SA (from FINALIZED: SA only) | Rows 13–15 |
-| `waivePhysicalForJudging`, `requestPhysicalArtwork`, `cancelPhysicalRequest` | entryId, reason / entryIds[], reason, deadline? / artworkId | CM, SA | 6.10.1 |
+| `waivePhysicalForJudging`, `requestPhysicalArtwork`, `cancelPhysicalRequest` | entryId, reason / entryIds[], reason, deadline? / artworkId | CM, SA | 6.10.1; waive sets `requiredForJudging = false` |
 | `downloadArtworkLabel`, `recordArtworkDispatch` | artworkId / artworkIds[], courierName, trackingNumber, trackingUrl?, dispatchedOn, proofFileId?, templateId | Responsible party (label: CM/SA too) | Label PDF / ArtworkShipment, then DISPATCHED |
 | `recordArtworkReceipt`, `verifyArtwork` | shipmentId or artworkCodes[], receivedAt, packageIntact, photos / checklist, dimensions, medium, condition, photos, storageLocation | CM, SA | RECEIVED / VERIFIED, or DISCREPANCY |
 | `raiseArtworkDiscrepancy`, `respondToDiscrepancy`, `resolveArtworkDiscrepancy` | artworkId, type, notes / text, files / resolution, outcome | CM, SA / responsible party / CM, SA | 6.10 |
@@ -483,7 +485,7 @@ Every payload carries `competitionId`, the subject's `id` and human code, `route
 | `institution.registered`, `.verified`, `.rejected`, `.suspended`, `.reinstated`; `institutionMember.invited`, `institutionMember.removed` | 6.4 |
 | `institutionRegistration.created`, `.certified`, `.withdrawn`; `studentImport.completed` | 6.4.4, 6.7, 6.5.2 |
 | `registration.created`, `.confirmed`, `.withdrawn`, `.cancelled`, `.transferred`, `.paymentNeedsReview`, `.duplicateFlagged` | 6.6, 6.14 |
-| `entry.submitted`, `.changesRequested`, `.shortlisted`, `.notShortlisted`, `.submittedToFoa`, `.verified`, `.rejected`, `.reinstated`, `.withdrawn`, `.disqualified`; `schoolShortlist.finalized`; `file.quarantined` | 6.8, 6.9 |
+| `entry.submitted`, `.changesRequested`, `.shortlisted`, `.notShortlisted`, `.submittedToFoa`, `.verified`, `.rejected`, `.reinstated`, `.withdrawn`, `.disqualified`, `.shortlistReverted` (silent); `file.quarantined` | 6.8, 6.9 |
 | `artwork.requested`, `.requestCancelled`, `.dispatched`, `.received`, `.verified`, `.discrepancyRecorded`, `.discrepancyResolved`, `.returned`, `.retained` | 6.10 |
 
 ### 6.14 Edge Cases
@@ -492,7 +494,7 @@ Every payload carries `competitionId`, the subject's `id` and human code, `route
 - **E2 One participant in two categories.** Allowed when `maxCategoriesPerParticipant ≥ 2`. One Registration with two RegistrationCategory rows. The fee is the base fee plus one additional-category fee. One entry per category, and one PhysicalArtwork per entry. Shortlist size is counted per category. Both categories share the age group, which depends only on DOB.
 - **E3 Age-group boundary and DOB correction.** Membership uses the inclusive birth-date interval from 6.3.1. Tests cover a DOB exactly N years before the cutoff, ±1 day, and 29 Feb. A corrected DOB recomputes the age group. If a chosen category no longer fits, the registration gets `eligibilityReviewRequired`. Its entries then can't pass SUBMITTED until CM either fixes the category or rejects the entry (AGE_INELIGIBLE). The Owner can edit the DOB until the first submission. After that, only CM/SA can.
 - **E4 Institution not verified when registration closes.** Registrations created before the close stay valid. Verification, consent and payment can finish until `confirmationDeadline`, and these institutions sort first in the verification queue. Registrations still unconfirmed at the deadline are CANCELLED.
-- **E5 Payment captured after registration closes.** A registration that is still PENDING_* when `now ≤ confirmationDeadline` is confirmed normally. Otherwise the batch goes to NEEDS_REVIEW, and staff either reinstate the registration (if the competition is at or before IN_PROGRESS) or refund via §8.
+- **E5 Payment captured after registration closes.** A registration that is still PENDING_* when `now ≤ confirmationDeadline` is confirmed normally. Otherwise the batch goes to NEEDS_REVIEW (`registration.paymentNeedsReview`), and staff either reinstate the registration (if the competition is at or before IN_PROGRESS), or CM/SA request a refund via §8, which FINANCE approves. There is no automatic refund.
 - **E6 Same child registered both individually and through a school.** The unique key on (competition, participant) stops the same profile registering twice. Different profiles are matched on `identityHash`, plus the guardian `phoneHash` when available. The newer registration gets `possibleDuplicateOfId`, emits `registration.duplicateFlagged`, and goes to the duplicates queue. The guardian sees a generic notice: "This child may already be registered for this competition, for example through a school. Please contact us before paying." It never names the school. Default resolution: keep the school registration, cancel the other with a §8 refund, and merge the profiles (entries, consents per §12, guardian link).
 - **E7 Consent withdrawn mid-competition.** Handled per §12.6. Withdrawing PARTICIPATION or DATA_PROCESSING before RESULTS_PUBLISHED moves the registration to WITHDRAWN. Withdrawing PUBLIC_DISPLAY or AUCTION_OF_ARTWORK changes no §6 status; §7 and §8 act on it.
 - **E8 Upload race at the deadline.** Covered by 6.8.4 (`submitRequestedAt`) and 6.8.5 (no new upload URLs after the deadline). Tests pin the clock.
@@ -517,10 +519,10 @@ Every payload carries `competitionId`, the subject's `id` and human code, `route
 12. **Upload rules.** Oversized or wrong-type uploads are rejected both client-side and by the signed URL or server. A PENDING or INFECTED file blocks submit. WEB and THUMB derivatives of a GPS-tagged fixture contain no EXIF, XMP or GPS data.
 13. **Deadline race.** A submit requested at T−1 s whose processing finishes at T+30 s ends SUBMITTED with `submittedAt = submitRequestedAt`. `requestEntryUpload` at T+1 s returns `DEADLINE_PASSED`.
 14. **Entry code.** `entryCode` matches `^[A-Z]{3,6}\d{2}-E-[0-9A-HJKMNP-TV-Z]{6}$`, is set exactly once, and survives edits and change requests.
-15. **SHORTLIST_ONLY.** Institution-route `createEntry` fails with `SCOPE_SHORTLIST_ONLY`. The (N+1)th shortlisted entry in a category fails with `SHORTLIST_FULL`. A duplicate `schoolRank` fails. `finalizeSchoolShortlist` emits `schoolShortlist.finalized` listing registrants with no entry.
+15. **SHORTLIST_ONLY.** Institution-route `createEntry` fails with `SCOPE_SHORTLIST_ONLY`. The (N+1)th shortlisted entry in a category fails with `SHORTLIST_FULL`. A duplicate `schoolRank` fails. `createShortlistedEntry` fails unless the competition is SCHOOL_JUDGING and `now ≤ shortlistSubmissionClosesAt` (or a SHORTLIST extension). §6 never emits `schoolShortlist.finalized`; §7 `finalizeSchoolRound` does.
 16. **Submit to FOA.** `submitShortlistedEntryToFoa` fails without a ConductCertification (PHYSICAL_AT_INSTITUTION), without a HIRES_SCAN of at least 3,000 px, or after the shortlist deadline with no extension.
 17. **Automatic physical request.** Verifying an individual DRAWING entry creates one REQUESTED PhysicalArtwork with a valid `artworkCode`, `dispatchDeadline = now + physicalDispatchDays` and `requiredForJudging = true`, and emits `artwork.requested`. A school entry with `schoolRank > physicalTopN` gets no PhysicalArtwork.
-18. **Physical readiness.** `physicalReady` stays false until the artwork is VERIFIED.
+18. **Physical readiness.** For a `requiredForJudging` artwork, `physicalReady` stays false until the artwork is VERIFIED. After `waivePhysicalForJudging` it is true.
 19. **Artwork handling.** Dispatch requires courier, tracking number and the declaration. Receipt works from both REQUESTED and DISPATCHED. `verifyArtwork` fails with fewer than 2 photos or without dimensions. A failed checklist item results in DISCREPANCY. Every receipt, move and return writes an ArtworkCustodyEvent.
 20. **Withdrawal cascade.** Withdrawing a CONFIRMED registration withdraws its live entries and moves its REQUESTED artworks to NOT_REQUIRED, in one transaction.
 21. **Duplicate detection.** An individual registration whose `identityHash` matches a school registration is flagged and appears in the duplicates queue. The guardian's notice contains no institution name.
@@ -536,7 +538,7 @@ Every payload carries `competitionId`, the subject's `id` and human code, `route
 - **Can institutions start before they're verified?** Default: yes, they can register and add students. Payment, confirmation and submission wait for verification, up to `confirmationDeadline` (default `conductStartsAt`).
 - **Institution verification evidence.** Default: a staff check plus principal email confirmation or a logged phone call. No documents are mandatory; the affiliation code is optional.
 - **Who pays on the school route?** Default: the institution, in bulk, online or offline (FINANCE records offline payments). Per-parent pay links come after the MVP.
-- **Refund on withdrawal.** Default: none after CONFIRMED, except for competition cancellation and duplicate resolution. Staff may make discretionary refunds via §8.
+- **Refund on withdrawal.** Default: none after CONFIRMED, except for competition cancellation and duplicate resolution. CM/SA may request discretionary refunds via §8, which FINANCE approves.
 - **Categories per participant.** Default: 1. When `maxCategoriesPerParticipant` is raised, `feeAdditionalCategoryMinor` applies.
 - **Artwork return vs. retention, and shipping cost.** Default: `RETAIN_UNLESS_REQUESTED`, with a 30-day request window after results. The instructions state who pays shipping, and the platform never charges for it.
 - **Late submissions.** Default: no grace period (`lateGraceMinutes = 0`). Staff can grant extensions per registration or per institution.
