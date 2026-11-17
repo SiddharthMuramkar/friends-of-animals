@@ -116,7 +116,7 @@ ConsentService.currentDocument(type, locale): Promise<ConsentDocument>  // falls
 **Capture UX.** Only the types relevant to the competition's config are shown (§6 `allowPublicDisplay`, `allowAuction`). Each checkbox is separate, links to the document in the viewer's locale, and shows the short version.
 
 **ConsentDocument content (MUST).** Every document contains the itemised data, the purpose, how to withdraw, how to exercise rights, how to complain to the Board, and the grievance officer contact. In addition:
-- `AUCTION_OF_ARTWORK` states: ownership of the physical work passes to FOA on dispatch; copyright stays with the creator, who grants FOA a non-exclusive licence to reproduce the work for the listing and campaigns; proceeds fund FOA's charitable purposes and are recorded in the ledger (§8); the creator is acknowledged and thanked but receives no payment; withdrawal has no effect once a lot closes with a winning bid.
+- `AUCTION_OF_ARTWORK` states: ownership of the physical work passes to FOA on dispatch; copyright stays with the creator, who grants FOA a non-exclusive licence to reproduce the work for the listing and campaigns; proceeds fund FOA's charitable purposes and are recorded in the ledger (§8); the creator is acknowledged and thanked, and receives no payment unless the competition's proceeds policy sets a creator share, which this form states; withdrawal has no effect once a lot closes with a winning bid.
 - `PUBLIC_DISPLAY` lists the fields shown (§12.7) and says that withdrawal unpublishes within 24 h.
 - `SOCIAL_MEDIA` lists the channels, says only stamped images are used, and says FOA cannot recall third-party reshares.
 
@@ -155,6 +155,8 @@ Transactional messages (OTP, confirmations, results, certificates, replies to ri
 ```prisma
 model GuardianInvite { id String @id; tokenHash String @unique; guardianId String; participantId String?; competitionId String?
   purpose InvitePurpose /* CREATE_PROFILE | CONFIRM_SCHOOL_CONSENT | CLAIM_AT_MAJORITY */; channel String; expiresAt DateTime /* 7 days */; consumedAt DateTime? }
+model PendingRegistration { id String @id; competitionId String; participantDraft Json /* enc */; guardianId String; accountHolderUserId String?; consentRequestId String
+  expiresAt DateTime; status PendingRegistrationStatus /* AWAITING_GUARDIAN | COMPLETED | EXPIRED */; createdAt DateTime }  // holds an individual minor's registration until guardian verification; §6 converts it to a Registration on guardian.verified
 // Additions to Guardian (§3.4): yearOfBirth Int?, adultDeclaredAt DateTime?, phoneHash String, emailHash String?  (phone/email stored encrypted)
 // Addition to ParticipantProfile: majorityStatus (NOT_APPLICABLE | AWAITING_CLAIM | CLAIMED), managedByLawfulGuardian Boolean @default(false) (s.9(1) persons with disability; post-MVP UI)
 ```
@@ -167,7 +169,7 @@ model GuardianInvite { id String @id; tokenHash String @unique; guardianId Strin
 |---|---|---|---|
 | PUBLIC_DISPLAY | Cascade-withdraws SOCIAL_MEDIA and AUCTION_OF_ARTWORK for the same competition. Unpublishes gallery items. Results page shows "Name withheld". Deletes public WEB and STAMPED objects and purges the CDN. Removes the work from exhibition lists | §7 | ≤ 24 h (target 15 min) |
 | SOCIAL_MEDIA | Cancels scheduled posts immediately. Creates a takedown task for each past post, assigned to `CONTENT_MANAGER` | §7 | Takedown within 72 h |
-| AUCTION_OF_ARTWORK | A lot not yet open is withdrawn. An open lot is cancelled, bidders are notified and holds released. A lot closed but unpaid is cancelled. A paid or sold lot is unaffected, and the reason is explained to the requester. `PhysicalArtworkStatus` becomes RETAINED or RETURNED according to §8 | §8 | ≤ 1 h |
+| AUCTION_OF_ARTWORK | A lot not yet open is cancelled. An open lot is cancelled, bidders are notified and holds released. A lot closed but unpaid is cancelled. A paid or sold lot is unaffected, and the reason is explained to the requester. On a cancelled lot, the artwork reverts to its pre-listing status (`statusBeforeListing`) via §8 → `setAuctionState` | §8 | ≤ 1 h |
 | COMMUNICATION | Added to the suppression list; queued marketing messages are dropped | §10 | ≤ 1 h |
 | PARTICIPANT_PHOTO_VIDEO | Tagged event media is unpublished; a "no photo" flag goes on the event attendee list | §9 | ≤ 24 h |
 | PARTICIPATION | Before RESULTS_PUBLISHED, the entries become WITHDRAWN. After it, the outcome is kept and the name is withheld publicly. Refunds follow the §8 policy | §6 | Immediate |
@@ -196,7 +198,7 @@ model ParticipantDisplayPrefs { participantId String @id; showFullName Boolean @
 - **No user-to-user contact.** There are no DMs, comments, follows or public reactions between users. An adult reaches a minor only through `NotificationService` messages from staff, or from the coordinators of the minor's own institution. Those messages go to the guardian, and to a minor with a login only as a copy. Judges never contact participants. Judge feedback is released only after staff review.
 - **Blind judging.** Judges see the entry code, category, age group and the work, per §4. Gallery attribution is never shown in the judging UI.
 - **No tracking or ads (site-wide).** No third-party ad or remarketing pixels, no session replay, no personalisation or recommendations for minors. §11 reports on minors only as aggregates (minimum cell size 10).
-- **Age gating.** Bidding (§8), adoption applications (§9) and creating NGO listings require an adult, shown by a declared DOB of 18 or more plus a verified phone. A logged-in minor may donate at most `MINOR_DONATION_MAX_INR` (default 1000) per donation. A volunteer under 18 needs `GUARDIAN_VERIFIED` and gets only tasks that involve no minors' data.
+- **Age gating.** Bidding (§8), adoption applications (§9) and creating NGO listings require an adult, shown by a declared DOB of 18 or more plus a verified phone. Minors cannot donate or bid (§8). A volunteer under 18 needs `GUARDIAN_VERIFIED` and gets only tasks that involve no minors' data.
 
 ### 12.8 Content Moderation
 
@@ -290,7 +292,7 @@ model LegalHold { id String @id; subjectType String; subjectId String; reason St
 | Export ZIPs | `RETENTION_EXPORT_ZIP_DAYS` | 7 days |
 | Backups | — | PITR window plus 35-day dumps; `ErasureLedger` replayed on any restore |
 
-The nightly job `retention.sweep` skips any `LegalHold` and writes an `AuditLog` summary. Every week it emails `SUPER_ADMIN` a dry-run report of the next week's deletions. Defaults live in `src/server/config/privacy.ts`. `SUPER_ADMIN` can override them in the `Setting` table, and each override is audited.
+The nightly job `retention.sweep` skips any `LegalHold` and writes an `AuditLog` summary. Every week it emails `SUPER_ADMIN` a dry-run report of the next week's deletions. Defaults live in `src/server/config/privacy.ts`. `SUPER_ADMIN` can override them in the `Setting` table (§13.9), and each override is audited.
 
 ### 12.12 Breach Response
 
@@ -319,7 +321,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `/dashboard/privacy` | Self; guardian for each managed child | Consent toggles per child and competition, with an effect explanation and confirm dialog. Display preferences. Download my data. Correction and erasure requests. Nominee. Grievance form and officer contact. Claim my account at 18. |
 | `/privacy`, `/terms`, `/child-protection-policy`, `/safeguarding` | Public | CMS-managed and versioned per locale. `/privacy` shows the grievance officer and the published response periods. |
 
-§12 emits these domain events: `consent.granted`, `consent.refused`, `consent.withdrawn`, `guardian.verified`, `dataRequest.received`, `dataRequest.completed`, `safeguardingReport.filed`, `safeguardingReport.escalated`, `content.reported`, `participant.reachedMajority`, `incident.declared`.
+§12 emits these domain events: `consent.requested` (when a §12.5 guardian link or OTP request is sent), `consent.granted`, `consent.refused`, `consent.withdrawn`, `guardian.verified`, `dataRequest.received`, `dataExport.ready`, `dataErasure.completed`, `safeguardingReport.submitted`, `safeguardingReport.escalated`, `content.reported`, `participant.reachedMajority`, `user.contactChanged`, `incident.declared`.
 
 ### 12.14 Acceptance Criteria
 
@@ -348,7 +350,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 - **OQ-6** What background check do judges need? *Default: self-declaration plus code of conduct for remote blind judging; police verification for in-person judging.*
 - **OQ-7** Are the retention periods in §12.11 right, especially financial (8 years) and consent (+7 years)? *Default: as in the table.*
 - **OQ-8** Do guardian-given consents survive the participant turning 18? *Default: existing uses continue; new uses need the adult's re-confirmation; 180-day grace.*
-- **OQ-9** What is the donation cap for logged-in minors? *Default: ₹1,000 per donation.*
+- **OQ-9** What is the donation cap for logged-in minors? *Resolved: minors cannot donate or bid online; a guardian donates on their behalf (§8).*
 - **OQ-10** Is the auction consent irrevocable once a lot closes with a winning bid, and does physical ownership pass to FOA on dispatch? *Default: yes to both.*
 - **OQ-11** Should the DSL be a `Role` enum value? *Default: no; use a `SafeguardingDesignation` that only SUPER_ADMIN can grant.*
 - **OQ-12** How does a lawful guardian of an adult with a disability get verified (s.9(1), Rule 11)? *Default: post-MVP, using the `managedByLawfulGuardian` flag and the guardian flow.*
@@ -364,7 +366,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 - **CSRF.** Server Actions rely on Next.js origin checks. Mutating Route Handlers verify `Origin`. Webhooks verify the HMAC signature (`RAZORPAY_WEBHOOK_SECRET`) and are idempotent.
 - **Headers.** Strict nonce-based CSP: `default-src 'self'; script-src 'self' 'nonce-{n}' 'strict-dynamic' https://checkout.razorpay.com https://challenges.cloudflare.com; frame-src https://api.razorpay.com https://checkout.razorpay.com https://challenges.cloudflare.com; img-src 'self' data: blob: {PUBLIC_CDN_URL}; connect-src 'self' {storage upload host} {Sentry ingest}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`. Also send `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.razorpay.com")` and `Cross-Origin-Opener-Policy: same-origin`.
 - **Input.** zod validates at every boundary. Rich text passes through a single allowlist sanitizer. Raw SQL is allowed only as tagged `$queryRaw`.
-- **Uploads.** Presigned uploads are constrained to the declared size and MIME type and land under a `quarantine/` prefix. The worker verifies magic bytes, size and pixel count (≤ 50 MP, which blocks decompression bombs), runs ClamAV, and promotes only CLEAN files. Allowed: JPEG, PNG, WebP and HEIC (converted) up to 20 MB; PDF and DOCX (converted to PDF in the worker) up to 10 MB; MP4, MOV and WebM up to 500 MB and 5 min. §6 may set lower limits per competition.
+- **Uploads.** Presigned uploads are constrained to the declared size and MIME type and land under a `quarantine/` prefix. The worker verifies magic bytes, size and pixel count (≤ 50 MP, which blocks decompression bombs), runs ClamAV, and promotes only CLEAN files. Allowed: JPEG, PNG, WebP and HEIC (converted) up to 20 MB; PDF and DOCX (converted to PDF in the worker) up to 10 MB for user uploads, while staff-uploaded AwarenessResource PDFs may be up to 25 MB; MP4, MOV and WebM up to 500 MB and 5 min. §6 may set lower limits per competition.
 - **Originals.** Never public. Served only through signed URLs (≤ 5 min) with `Content-Disposition: attachment`. Public files are always re-encoded derivatives.
 - **Secrets.** Vercel encrypted env vars, per environment. gitleaks runs in CI and GitHub secret scanning is on. API tokens are least-privilege (one storage token per bucket). Secrets rotate every 12 months and whenever a staff member leaves.
 - **Dependencies.** Renovate runs weekly. `npm audit --audit-level=high` blocks CI. CodeQL runs on every PR. Critical vulnerabilities are patched within 72 h and high ones within 7 days.
@@ -379,7 +381,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 
 - **Core Web Vitals.** Measured at p75 on a mid-range Android phone over 4G (Lighthouse mobile with 4× CPU throttling): LCP < 2.5 s, INP < 200 ms, CLS < 0.1. Lighthouse CI must score ≥ 85 for performance on `/`, `/competitions/[slug]`, `/gallery`, `/donate` and `/verify/[n]` in previews.
 - **Budgets.** Initial JS ≤ 170 KB gzipped on public pages. Gallery thumbnails ≤ 60 KB.
-- **Images.** sharp pre-generates derivatives (THUMB 400 px, WEB 1600 px) in AVIF and WebP with a JPEG fallback. `next/image` uses a custom loader pointing at the CDN. Below-the-fold images lazy-load. Fonts are self-hosted and subset with `font-display: swap`; Devanagari loads only for `hi`.
+- **Images.** sharp pre-generates derivatives (THUMB 400 px, WEB 2,048 px long edge) in AVIF and WebP with a JPEG fallback. `next/image` uses a custom loader pointing at the CDN. Below-the-fold images lazy-load. Fonts are self-hosted and subset with `font-display: swap`; Devanagari loads only for `hi`.
 - **Caching.**
   - Public pages use SSG or ISR: competitions revalidate every 300 s, plus `revalidateTag` on publish.
   - Gallery and results revalidate on demand at moderation, publish and withdrawal, with the CDN purge finishing within 15 min.
@@ -434,7 +436,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 - **CI on each PR (GitHub Actions).** Install, then ESLint and Prettier, then `tsc --noEmit`, then Vitest (≥ 80% coverage on `server/domain`, 100% of state-machine transitions), then `prisma validate` plus a migration drift check, then build. The PR then deploys a preview, runs `prisma migrate deploy` and seeds it, and runs Playwright E2E, axe and Lighthouse CI against it. gitleaks, `npm audit` and CodeQL also run.
 - **Release.** A merge to `main` auto-deploys staging. Production needs a manual promotion with approval. Migrations run before the traffic switch and MUST be expand/contract (backward compatible). Rollback uses Vercel instant rollback; DB problems get a forward fix.
 - **Seed (`prisma/seed.ts`, idempotent, synthetic only).** Beyond the §2.1 baseline (1 competition, 3 schools, 30 participants, 2 judges): participants under 13, aged 13–17 and adults across both routes; guardians with consents of every `ConsentMethod`, one withdrawn and one stale-version consent; ConsentDocuments in en-IN and hi-IN; one DataRequest of each type; one synthetic SafeguardingReport; one user per `Role`. Phone numbers come from a reserved test range. OTP uses `DEV_OTP_BYPASS_CODE`, which is ignored when `APP_ENV=production`.
-- **Feature flags.** Stored in a `FeatureFlag { key, enabled, rolloutPercent?, updatedBy, updatedAt }` table that SUPER_ADMIN edits, with env overrides. Flags: `AUCTIONS`, `ADOPTION`, `VOLUNTEERS`, `NGO_DIRECTORY`, `EVENTS`, `COMMUNITY`, `CLUBS`, `AMBASSADORS`, `SOCIAL_PUBLISHING`, `MINOR_LOGIN`, `IMAGE_SAFETY_CLASSIFIER`, `DIGILOCKER_GUARDIAN_VERIFICATION`, `LOCALE_HI`. Post-MVP modules (§1) ship dark behind their flags.
+- **Feature flags.** Stored in a `FeatureFlag { key, enabled, rolloutPercent?, updatedBy, updatedAt }` table that SUPER_ADMIN edits, with env overrides. Flags: `AUCTIONS`, `ADOPTION`, `VOLUNTEERS`, `NGO_DIRECTORY`, `EVENTS`, `COMMUNITY`, `CLUBS`, `AMBASSADORS`, `SOCIAL_PUBLISHING` (API posting to social networks, post-MVP, §7.11; MVP is manual export), `SMS_CHANNEL`, `WHATSAPP_CHANNEL`, `MINOR_LOGIN`, `IMAGE_SAFETY_CLASSIFIER`, `DIGILOCKER_GUARDIAN_VERIFICATION`, `LOCALE_HI`. Post-MVP modules (§1) ship dark behind their flags.
 
 ### 13.9 Configuration (required environment variables)
 
@@ -447,7 +449,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `STORAGE_BUCKET_PRIVATE`, `STORAGE_BUCKET_PUBLIC`, `STORAGE_BUCKET_EVIDENCE`, `PUBLIC_CDN_URL` | all | Originals, public derivatives, evidence; CDN host |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | all except local (mocked) | Payments (§8) |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | all except local (Mailpit) | Email |
-| `SMS_PROVIDER`, `MSG91_AUTH_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID`, `SMS_DLT_TEMPLATE_IDS` (JSON) | staging, production | DLT-compliant SMS |
+| `SMS_PROVIDER_API_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID` | staging, production | DLT-compliant SMS (template IDs live on `NotificationTemplate.dltTemplateId`) |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ENVIRONMENT` | all except local | Errors; source-map upload from CI |
 | `PII_ENCRYPTION_KEYS` (JSON kid→base64 32 B), `PII_ENCRYPTION_ACTIVE_KID`, `PII_HASH_KEY` | all | Field-level encryption and blind index (§13.1) |
 | `CRON_SECRET` | deployed | Authenticates Vercel Cron and job triggers |
@@ -460,6 +462,8 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `IMAGE_SAFETY_API_KEY`, `DIGILOCKER_CLIENT_ID`, `DIGILOCKER_CLIENT_SECRET` | optional (flags) | Post-MVP integrations |
 
 Env is validated at boot with zod (`src/env.ts`). A missing required variable fails the build or start.
+
+**Runtime settings.** `Setting { key String @id, value Json, updatedBy String, updatedAt DateTime }` is the runtime configuration table that SUPER_ADMIN edits. Each section's config keys live here, and changes are audit-logged.
 
 ### 13.10 Acceptance Criteria
 

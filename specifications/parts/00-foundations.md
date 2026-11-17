@@ -127,7 +127,7 @@ These are defined here and referenced by every section:
 - `Guardian { id, userId?, fullName, relationship, phone, email?, verifiedAt? }`. A guardian can manage several participants.
 - `Institution { id, institutionCode, name, type: SCHOOL|COLLEGE|UNIVERSITY|OTHER, addressLine1, addressLine2?, city, state, pinCode, country, contactPhone, contactEmail, principalName, principalEmail, principalPhone, status: PENDING_VERIFICATION|VERIFIED|REJECTED|SUSPENDED, verifiedBy?, verifiedAt? }`
 - `InstitutionMember { institutionId, userId, memberRole: AUTHORISED_PERSON|COORDINATOR, designation?, phone, email }`
-- `Consent`, `ConsentDocument`: see §12. `Payment`: see §8. `Notification`: see §10. `AuditLog`, `Outbox`: see above.
+- `Consent`, `ConsentDocument`: see §12. `Payment`: see §8. `Notification`: see §10. `AuditLog`, `Outbox`: see above. `Setting` (the runtime configuration table holding every section's config keys): see §13.9.
 - `FileAsset { id, ownerType, ownerId, kind: ORIGINAL|WEB|THUMB|STAMPED|PDF|OTHER, bucket, key, mime, sizeBytes, width?, height?, durationSec?, checksumSha256, uploadedByUserId, scanStatus: PENDING|CLEAN|INFECTED|SKIPPED, createdAt }`
 
 ### 3.5 Cross-Section Contracts (binding for all sections)
@@ -178,14 +178,16 @@ Service interfaces other sections call (the owner section specifies the internal
 ```ts
 PaymentService.createOrder({ purpose, amountMinor, currency, payerUserId, refType, refId, notes? }) // §8
   // emits payment.captured / payment.failed with { paymentId, refType, refId }
+PaymentService.recordOfflinePayment({ refType, refId, amountMinor, method, reference, receivedAt, proofFileAssetId }) // §8
+  // FINANCE or STAFF_ADMIN; creates an OFFLINE Payment in CAPTURED and emits the same payment.captured
 LedgerService.record({ type: 'INCOME'|'EXPENSE', category, amountMinor, currency, sourceType, sourceId, occurredAt }) // §8
 ConsentService.has(participantId, ConsentType, competitionId?) / .require(...) / .record(...) / .withdraw(...) // §12
 NotificationService.notify(eventKey, recipients[], payload)   // §10 owns templates + channels
-EngagementService.recordMilestone(participantId|userId, EngagementMilestone, source) // §9
+EngagementService.recordMilestone(participantId|userId, EngagementMilestone, source) // §9 only: other sections emit events and never call it (§3.6)
 StampService.stamp(fileAssetId, { variant: 'GALLERY'|'SOCIAL'|'CERT_SHARE' }) => FileAsset // §7
 ```
 
-Domain event naming: `<entity>.<pastTenseVerb>`, with both parts in lowerCamelCase (`institutionMember.invited`, `galleryItem.published`, `entry.changesRequested`), e.g. `registration.confirmed`, `entry.submitted`, `entry.shortlisted`, `artwork.received`, `results.published`, `certificate.issued`, `lot.won`, `donation.captured`. Each section lists the events it emits. **The §10.3 catalogue is the single source of truth for event keys.** If a section and §10.3 disagree, §10.3 wins and the section must be corrected. Scheduled reminders use `reminder.<name>` keys and are not domain events. An event payload may carry `silent: true` to record the fact for analytics without sending notifications.
+Domain event naming: `<entity>.<pastTenseVerb>`, with both parts in lowerCamelCase (`institutionMember.invited`, `galleryItem.published`, `entry.changesRequested`), e.g. `registration.confirmed`, `entry.submitted`, `entry.shortlisted`, `artwork.received`, `results.published`, `certificate.issued`, `lot.won`, `donation.captured`. Each section lists the events it emits. **The §10.3 catalogue is the single source of truth for event keys.** If a section and §10.3 disagree, §10.3 wins and the section must be corrected. Events a section emits that have no §10.3 row are recorded for analytics only and send nothing; a section that wants a message must add a row. Scheduled reminders use `reminder.<name>` keys owned and scheduled by §10. They are not domain events, and no section emits them. An event payload may carry `silent: true` to record the fact for analytics without sending notifications.
 
 ### 3.6 Integration Contracts Between Sections
 
@@ -193,18 +195,21 @@ These were agreed while the sections were written in parallel. They are binding.
 
 | Contract | Owner | Consumer | Rule |
 |---|---|---|---|
-| Shortlist messages under `SHORTLIST_ONLY` | §7.3 | §6.9, §10.3 | Sent from `schoolShortlist.finalized` lists. `createShortlistedEntry` emits `entry.shortlisted` with `silent: true` |
-| Auction state on artwork | §6.10 | §8.5 | Only §8 calls `ArtworkService.setAuctionState`. LISTED_FOR_AUCTION → VERIFIED is allowed when a lot is cancelled or unsold |
+| Shortlist messages under `SHORTLIST_ONLY` | §7.3 | §6.9, §10.3 | Sent from the per-category lists in `schoolShortlist.finalized`. §7 `finalizeSchoolRound` is its sole emitter, exactly once per school round; §6 never emits it. `createShortlistedEntry` emits `entry.shortlisted` with `silent: true` |
+| School shortlist service | §6.9 | §7.3, §7.5 | On finalize, §7 calls `EntryService.applySchoolShortlist({ institutionRegistrationId, categoryId, shortlisted, notShortlistedEntryIds })` once per category (scope ALL); under SHORTLIST_ONLY it uses `createShortlistedEntry`. `reopenSchoolRound` calls `EntryService.revertSchoolShortlist({ institutionRegistrationId, categoryId })`, allowed only while no entry of that institution × category is FOA_VERIFIED or later |
+| School-judging window | §6.3 | §7.3 | `Competition.schoolShortlistSize` and `shortlistSubmissionClosesAt` are the only settings; a per-school extension is `SubmissionExtension(SHORTLIST)`. School rounds open when the competition enters SCHOOL_JUDGING, in both scopes. No auto-finalise or auto-forfeit: an unfinished round becomes OVERDUE (§7.15 E5) |
+| Registration-fee payments | §8.3 | §6.6 | One order per `RegistrationPaymentBatch` (`refType: 'RegistrationPaymentBatch'`, `refId: batchId`, amount = Σ item `amountMinor`); an individual registration pays through a batch of one. §6 `markBatchPaidOffline` calls `PaymentService.recordOfflinePayment` (FINANCE, STAFF_ADMIN). A capture for a registration that is no longer payable puts the batch in NEEDS_REVIEW (`registration.paymentNeedsReview`), with no automatic refund. Refunds are requested by COMPETITION_MANAGER or STAFF_ADMIN and approved by FINANCE; a partial refund lists `RegistrationPaymentBatchItem` ids. Only competition cancellation and duplicate resolution refund without approval |
+| Auction state on artwork | §6.10 | §8.5, §12.6 | Only §8 calls `ArtworkService.setAuctionState`. A lot accepts VERIFIED, IN_EXHIBITION or RETAINED artwork and stores `PhysicalArtwork.statusBeforeListing`. LISTED_FOR_AUCTION → `statusBeforeListing` when a lot is cancelled, unsold or unscheduled. On cancellation of a paid or shipped lot, §8 reverts SOLD → `statusBeforeListing`, or calls §6 `recordArtworkReturn` if the work goes back to the creator |
 | Auction credit mode | §12.3 | §8.5 | Stored in `Consent.metadata.creditMode` on the AUCTION_OF_ARTWORK consent. For minors it is capped at FIRST_NAME_INITIAL |
-| Physical readiness for judging | §6.10 | §7.4 | Rounds with `requiresPhysicalVerified` filter via `ArtworkService.physicalReady(entryId)` |
-| Participation certificates | §7.7 | §6 | Issued from CONFIRMED Registrations that participated, not from Entries (SHORTLIST_ONLY students may have no Entry) |
+| Physical readiness for judging | §6.10 | §7.2 | A round with `requiresPhysicalVerified` admits an entry iff `ArtworkService.physicalReady(entryId)` = `!artwork.requiredForJudging \|\| artwork.status ∈ {VERIFIED, IN_EXHIBITION, RETAINED}`. `waivePhysicalForJudging` sets `requiredForJudging = false` |
+| Participation certificates | §7.7 | §6 | Issued from CONFIRMED Registrations that participated, not from Entries (SHORTLIST_ONLY students may have no Entry). One PARTICIPATION per registration (`categoryId` null); award certificates are per category |
 | Consent-withdrawal SLAs | §12.6 | §7, §8, §9, §10 | Every consumer uses §12.6's deadlines verbatim (gallery ≤ 24 h, social takedown ≤ 72 h) |
 | Competition display/auction flags | §6.2 | §7, §8, §12 | Canonical names are `allowPublicDisplay` and `allowAuction` |
 | Institution competition routes | §6.11 | §7, §12 | Use `/institution/competitions/[code]/…` (competition code, not id) |
-| Engagement milestones | §9.7 | §6, §7 | §9 subscribes to `entry.*`, `schoolShortlist.finalized` and `results.published`. Other sections never call `EngagementService` directly |
+| Engagement milestones | §9.7 | §6, §7 | §9 subscribes to `registration.confirmed`, `entry.submitted`, `entry.withdrawn`, `entry.disqualified`, `certificate.issued`, `certificate.revoked` and `results.published`. Other sections never call `EngagementService` directly |
 | Gallery/featured query | §7.10 | §9.4 | `GalleryQuery.featured(limit)` |
-| Fund totals | §8.4 | §9.6 | `DonationQuery.totalForFund(fundId)` returns `{ amountMinor, currency, donorCount }` from CAPTURED donations net of refunds |
-| Impact counters | §11.7 | §9.4 | `/api/v1/impact` is the only source for home and `/impact` counters. Overrides go through `ImpactAdjustment` |
+| Fund totals | §8.4 | §9.6 | `DonationQuery.totalForFund(fundId, since?: Date)` returns `{ amountMinor, currency, donorCount }` from CAPTURED donations net of refunds |
+| Impact counters | §11.7 | §9.4 | `/api/v1/impact` is the only source for home and `/impact` counters. Overrides go through `ImpactAdjustment`, except `fundsRaisedMinor`: the sum of ledger INCOME in the donation categories over PUBLISHED months, read from §8's `TransparencySnapshot`, equal to the `/transparency` donations total |
 | Moderation & display prefs | §12.7–12.8 | §7, §9 | `ModerationReview`, `ContentReport` and `ParticipantDisplayPrefs` are defined in §12 |
 | Feature flags | §13.8 | all | Post-MVP modules ship behind `FeatureFlag` keys listed in §13.8 |
 
@@ -249,6 +254,8 @@ A user can hold several roles. Staff roles require 2FA (TOTP or passkey).
 | Moderate gallery | | | | | | ✓ | ✓ | | ✓ |
 | View participant PII | | | own | own students | **no** (sees entry code only) | ✓ | ✓ | | |
 | Record ledger entries and publish financial reports | | | | | | | | ✓ | |
+| Record an offline registration-fee payment | | | | | | | ✓ | ✓ | |
+| Request a registration-fee refund (FINANCE approves) | | | | | | ✓ | ✓ | ✓ | |
 | Manage roles | | | | | | | SUPER_ADMIN only | | |
 
 **Judging is blind by default:** judges see the entry code, category, age group and the work itself. They do not see name, school or city.

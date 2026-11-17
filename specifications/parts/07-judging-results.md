@@ -2,7 +2,7 @@
 
 **Owns:** rubrics, school-level and FOA-level judging rounds, score storage and aggregation, results approval and publishing, certificates, prize fulfilment, `StampService`, the gallery and the social export queue. This section owns the §3.5 enums `JudgingLevel`, `AwardScheme`, `EntryOutcome` and `CertificateType`. All other enums, the core entities (§3.4) and the code formats (§3.1) are used verbatim.
 
-**Assumed §6 names (map 1:1 if §6 differs):** `Registration` (`participantId`, `institutionRegistrationId?`, `categoryId`, confirmed status); `InstitutionRegistration`; `Entry` (`registrationId`, `participantId`, `categoryId`, `discipline`, plus EXIF-stripped `WEB` media and a video poster); `PhysicalArtwork`; the competition category (discipline × age group, called `categoryId` here); and the competition flags `allowPublicDisplay` and `digitalSubmissionScope`. §7 calls §6's `EntryService` to run `SUBMITTED → SCHOOL_SHORTLISTED | NOT_SHORTLISTED` and its reversal. §7 defines the guards for `FOA_JUDGING → RESULTS_PENDING_APPROVAL → RESULTS_PUBLISHED` and requests those transitions through §6's `CompetitionService.transition()`.
+**Assumed §6 names (map 1:1 if §6 differs):** `Registration` (`participantId`, `institutionRegistrationId?`, categories via `RegistrationCategory`, confirmed status); `InstitutionRegistration`; `Entry` (`registrationId`, `participantId`, `categoryId`, `discipline`, plus EXIF-stripped `WEB` media and a video poster); `PhysicalArtwork`; the competition category (discipline × age group, called `categoryId` here); and the competition flags `allowPublicDisplay` and `digitalSubmissionScope`. §7 calls §6's `EntryService.applySchoolShortlist` to run `SUBMITTED → SCHOOL_SHORTLISTED | NOT_SHORTLISTED`, and `EntryService.revertSchoolShortlist` for its reversal when a school round is reopened. §7 defines the guards for `FOA_JUDGING → RESULTS_PENDING_APPROVAL → RESULTS_PUBLISHED` and requests those transitions through §6's `CompetitionService.transition()`.
 
 **Role abbreviations:** CM = COMPETITION_MANAGER (global or scoped to the competition), SA = STAFF_ADMIN (SUPER_ADMIN implies SA), IA/IC = INSTITUTION_ADMIN / INSTITUTION_COORDINATOR (own institution), J = JUDGE (own assignment), CT = CONTENT_MANAGER, P/G = PARTICIPANT / GUARDIAN (own or linked profile). Every action follows §0: permission → transition guard → AuditLog → Outbox event. Event names use the camelCase entity names that §10 already consumes. **Public identity** (name form, school, city) always follows §12.7 `ParticipantDisplayPrefs`. §7 toggles can only hide more.
 
@@ -43,7 +43,7 @@ model JudgingRound {
   // SCHOOL only
   institutionRegistrationId String? @unique      // required iff level = SCHOOL
   certifiedByUserId String?;  certifiedAt DateTime?;  certificationTextHash String?;  shortfallReason String?
-  closedOnBehalfMode String? /* PARTICIPATION_ONLY | STAFF_ENTERED */;  deadlineOverride DateTime?
+  closedOnBehalfMode String? /* PARTICIPATION_ONLY | STAFF_ENTERED */
   // FOA only
   mode JudgingMode @default(DIGITAL);  requiresPhysicalVerified Boolean @default(true)
   entryPool RoundEntryPool?;  routeFilter ParticipationRoute[] /* default both */;  sourceRoundIds String[]
@@ -73,18 +73,18 @@ type AwardBand = { key: string; label: string /* "All India 1st" | "A Grade" | "
   outcome: 'WINNER' | 'RUNNER_UP' | 'SPECIAL_MENTION';
   rankFrom?: number; rankTo?: number;         // RANKED, MEDAL (inclusive)
   minPercent?: number;                        // GRADED: finalScore ≥ minPercent, evaluated top-down
-  prize?: { type: PrizeType; description: string } };
+  prizeId?: string /* → §6 CompetitionPrize; drives PrizeFulfilment (§7.8) */ };
 type TieBreakStep = { kind: 'CRITERION_MEAN_BY_WEIGHT' | 'MEDIAN_TOTAL' | 'MANUAL' };
 ```
 
 - **Default bands** (editable): RANKED is 1st (WINNER, rank 1), 2nd (RUNNER_UP, 2), 3rd (RUNNER_UP, 3). MEDAL is Gold, Silver and Bronze over the same ranks. GRADED is A Grade (WINNER, ≥ 80) and B Grade (RUNNER_UP, ≥ 65). Overlapping bands are rejected on save.
-- **Default plan** (seeded with the competition): one FOA round with `NATIONAL`, `isFinal`, `PHYSICAL`, `entryPool FOA_VERIFIED` and `RANKED`.
+- **Default plan** (seeded with the competition): one FOA round with `NATIONAL`, `isFinal`, `PHYSICAL`, `entryPool FOA_VERIFIED` and §6 `Competition.awardScheme` (the default for the final round; the round may override it).
   - **Adding levels:** each extra level is a round with `entryPool PREVIOUS_ROUND_ADVANCED`.
   - **Partitions:** CITY (City/District) partitions by CITY, STATE by STATE, NATIONAL by COUNTRY or NONE, GLOBAL by NONE.
   - **Partition key:** the trimmed, lowercased `ParticipantProfile.city/state/country`. Judges never see it.
 - **Pool guard:** an entry joins a round only if both checks pass.
   - **Consent:** `ConsentService.has(participantId, PARTICIPATION, competitionId)` (§12 gate for judging).
-  - **Physical:** `PHYSICAL` forces `requiresPhysicalVerified`. The check passes when the entry has no `PhysicalArtwork`, or its status is NOT_REQUIRED, VERIFIED or IN_EXHIBITION.
+  - **Physical:** `PHYSICAL` forces `requiresPhysicalVerified`. A round with `requiresPhysicalVerified` admits an entry iff §6 `ArtworkService.physicalReady(entryId)`.
   - Entries that fail stay FOA_VERIFIED and appear under "Blocked" on the Pool tab, with the reason.
 
 ### 7.3 School-Level Judging (Phase 6)
@@ -92,9 +92,9 @@ type TieBreakStep = { kind: 'CRITERION_MEAN_BY_WEIGHT' | 'MEDIAN_TOTAL' | 'MANUA
 ```prisma
 model SchoolJudgingPolicy {                      // one per competition with the INSTITUTION route
   competitionId String @id;  positionsPerCategory Int @default(3) /* 3 or 5 */
-  positionLabels String[] @default(["1st","2nd","3rd"]);  shortlistPerCategory Int @default(5) /* prescribed N */
+  positionLabels String[] @default(["1st","2nd","3rd"])  // N and the window are §6 Competition.schoolShortlistSize / shortlistSubmissionClosesAt
   rubricScoresRequired Boolean @default(false);  minPanelSize Int @default(1) /* UI recommends 3 */
-  deadline DateTime;  certificationText String /* versioned; hash stored on the round */
+  certificationText String /* versioned; hash stored on the round */
 }
 model SchoolPanelMember { id String @id; roundId String; name String; designation String; isExternal Boolean @default(false) } // no account
 model SchoolResult {
@@ -103,27 +103,27 @@ model SchoolResult {
   participated Boolean                           // default: SUBMITTED entry exists (ALL) / true (SHORTLIST_ONLY)
   position Int?                                  // 1..positionsPerCategory, unique per (roundId, categoryId)
   advanced Boolean @default(false);  scores Json? /* {criterionKey:int} */;  weightedTotal Decimal? @db.Decimal(5,2)
-  @@unique([roundId, registrationId])
+  @@unique([roundId, registrationId, categoryId])
 }
 ```
 
-1. **Creation:** when §6 confirms an InstitutionRegistration, a SCHOOL round (DRAFT) is created for it. It opens when the competition enters SCHOOL_JUDGING or when §6 records the school's conduct certification (Phase 3), whichever comes first. On opening, one `SchoolResult` row is created per confirmed Registration, and rows are re-synced while the round is OPEN.
+1. **Creation:** when a §6 InstitutionRegistration becomes ACTIVE, a SCHOOL round (DRAFT) is created for it. It opens when the competition enters SCHOOL_JUDGING (at `submissionClosesAt`), in both scopes. On opening, one `SchoolResult` row is created per confirmed Registration and category, and rows are re-synced while the round is OPEN.
 2. **Coordinator UI** (`/institution/competitions/[code]/judging`): the framework (rubric and PDF), a panel editor and a results grid per category. School rounds are not blind: rows show name, registration number and a thumbnail via signed URL. Columns are participated, position, advance and optional rubric scores. The grid autosaves through `saveSchoolResults`.
 3. **`finalizeSchoolRound` validations** (errors reported per row):
    - V1: the panel has at least `minPanelSize` members.
    - V2: the certification box is ticked ("conducted and judged according to FOA guidelines"). Stores `certifiedByUserId`, `certifiedAt` and `certificationTextHash`.
    - V3: positions are unique within 1..`positionsPerCategory` and belong to participated rows.
-   - V4: at most N advanced rows per category. If fewer than min(N, participated count), `shortfallReason` is required.
+   - V4: at most N (§6 `schoolShortlistSize`) advanced rows per category. If fewer than min(N, participated count), `shortfallReason` is required.
    - V5: if `positionsPerCategory ≤ N`, every positioned row is advanced.
    - V6: under ALL, every advanced row has a SUBMITTED entry. Under SHORTLIST_ONLY, no entry is needed.
    - V7: if `rubricScoresRequired`, every advanced row has all scores in range.
 4. **Finalize effects** (one transaction, plus jobs):
    - The round → FINALIZED and becomes read-only for the school.
-   - **ALL:** §6 `EntryService.applySchoolDecision(entryId, shortlisted, schoolRank, schoolAwardLabel)` moves each SUBMITTED entry to SCHOOL_SHORTLISTED or NOT_SHORTLISTED, with `schoolAwardLabel = positionLabels[position-1]`.
-   - **SHORTLIST_ONLY:** no entry moves. §6 allows the Phase 7 upload only for registrations with `SchoolResult.advanced` and creates each Entry directly in SCHOOL_SHORTLISTED, copying `schoolRank` and `schoolAwardLabel`.
-   - **Certificates** (§7.7): PARTICIPATION for every participated row (keyed by Registration, so students with no digital entry are covered) and SCHOOL_MERIT for every positioned row.
+   - **ALL:** §6 `EntryService.applySchoolShortlist({ institutionRegistrationId, categoryId, shortlisted: [{ entryId, schoolRank, schoolAwardLabel }], notShortlistedEntryIds })`, called once per category, moves each SUBMITTED entry to SCHOOL_SHORTLISTED or NOT_SHORTLISTED, with `schoolAwardLabel = positionLabels[position-1]`.
+   - **SHORTLIST_ONLY:** no entry moves. §6 allows the Phase 7 upload only for registration × category pairs with `SchoolResult.advanced` and creates each Entry directly in SCHOOL_SHORTLISTED through `EntryService.createShortlistedEntry`, copying `schoolRank` and `schoolAwardLabel`.
+   - **Certificates** (§7.7): one PARTICIPATION per Registration with a participated row (keyed by Registration, so students with no digital entry are covered) and SCHOOL_MERIT for every positioned row.
    - **Milestone:** none recorded here. §9 derives SCHOOL_WINNER from `certificate.issued` (SCHOOL_MERIT), so §7 does not call `EngagementService` directly.
-   - **Event:** `schoolShortlist.finalized { roundId, competitionId, institutionRegistrationId, scope, shortlistedRegistrationIds[], notShortlistedRegistrationIds[] }`.
+   - **Event:** `schoolShortlist.finalized { roundId, competitionId, institutionRegistrationId, scope, categories: [{ categoryId, shortlistedRegistrationIds[], notShortlistedRegistrationIds[] }] }`. §7 `finalizeSchoolRound` (including a close on behalf) is its sole emitter, exactly once per school round; §6 never emits it.
    - **Messages under ALL:** §10 sends "shortlisted for further judging" and "not shortlisted" from §6's `entry.shortlisted` / `entry.notShortlisted`.
    - **Messages under SHORTLIST_ONLY:** §10 sends both messages from this event's lists. §6's later creation of the entry in SCHOOL_SHORTLISTED MUST NOT re-send `entry.shortlisted`.
 
@@ -231,7 +231,7 @@ model ScoreSheetRevision { id String @id; scoreSheetId String; version Int; snap
 |---|---|---|---|
 | DRAFT → OPEN | System | §7.3 step 1. Rubric resolves | SchoolResult sync. `schoolRound.opened` |
 | OPEN → FINALIZED | IA/IC `finalizeSchoolRound`, or CM/SA `closeSchoolRoundOnBehalf` | V1–V7 | §7.3 step 4 |
-| FINALIZED → OPEN | CM/SA `reopenSchoolRound` | Reason. No entry of this school is FOA_VERIFIED or later | §6 reverts entries to SUBMITTED. SCHOOL_MERIT certificates REVOKED; PARTICIPATION certificates are revoked only for rows later unticked. `schoolRound.reopened` |
+| FINALIZED → OPEN | CM/SA `reopenSchoolRound` | Reason. The §6.9 `revertSchoolShortlist` guard holds for every category: no entry of this institution × category is FOA_VERIFIED or later | §6 `EntryService.revertSchoolShortlist({ institutionRegistrationId, categoryId })` per category: entries revert to SUBMITTED (ALL), or entries created by §6.9 row 7 are soft-deleted (SHORTLIST_ONLY). SCHOOL_MERIT certificates REVOKED; PARTICIPATION certificates are revoked only for registrations whose rows are all later unticked. `schoolRound.reopened` |
 
 **`EntryStatus` (the transitions §7 owns):**
 
@@ -242,8 +242,9 @@ model ScoreSheetRevision { id String @id; scoreSheetId String; version Int; snap
 | IN_JUDGING → ELIMINATED | System (non-final `finalizeRound`) | Not advanced, or EXCLUDED | Outcome set at the final finalize |
 | IN_JUDGING → FINALIZED | System (final `finalizeRound`) | None | `finalOutcome`, `finalAwardLabel` |
 | IN_JUDGING → FOA_VERIFIED | System (round CANCELLED) | The entry's only round | RoundEntry removed |
-| IN_JUDGING, ELIMINATED or FINALIZED → DISQUALIFIED | CM/SA `disqualifyEntry` | Reason | RoundEntry DISQUALIFIED. §7.15 E3. `entry.disqualified` |
-| IN_JUDGING → WITHDRAWN | §6 withdraw action | Per §6 | RoundEntry WITHDRAWN, sheets VOID |
+| IN_JUDGING, ELIMINATED or FINALIZED → DISQUALIFIED | CM/SA `disqualifyEntry` (from FINALIZED: SA only) | Reason | RoundEntry DISQUALIFIED. §7.15 E3. `entry.disqualified` |
+| IN_JUDGING → WITHDRAWN | §6's service: SA `withdrawEntry`, or the cascade from a Registration becoming WITHDRAWN (including the system acting on `consent.withdrawn` for PARTICIPATION, §12.6) | Per §6 | RoundEntry WITHDRAWN, sheets VOID |
+| ELIMINATED or FINALIZED → WITHDRAWN | Same as IN_JUDGING → WITHDRAWN | Per §6 | RoundEntry WITHDRAWN. If results are already published, a §7.15 E3 correction follows (certificates revoked, results corrected) |
 
 ### 7.6 Results Approval & Publishing (Phase 10)
 
@@ -270,7 +271,7 @@ model ResultsRelease {
 - **Initial publish effects:**
   1. Competition → RESULTS_PUBLISHED, and outcomes become visible.
   2. Certificates created (§7.7).
-  3. PrizeFulfilment rows created for bands that have a `prize`.
+  3. PrizeFulfilment rows created for bands that have a `prizeId`, from the linked §6 CompetitionPrize.
   4. GalleryItem CANDIDATE created for each `galleryCandidate` entry if `allowPublicDisplay`.
   5. No milestone call. §9 derives FOA_FINALIST from `results.published` using `finalOutcome`.
   6. `results.published` emitted (§10 fans it out to participants, guardians and schools), and the cache tag `results:{competitionId}` is revalidated.
@@ -293,12 +294,15 @@ model ResultsRelease {
 enum CertificateStatus { PENDING GENERATED FAILED REVOKED SUPERSEDED }
 model Certificate {
   id String @id;  certificateNumber String @unique /* §3.1, assigned at creation */;  type CertificateType
-  status CertificateStatus @default(PENDING);  competitionId String;  registrationId String;  participantId String
-  entryId String?;  roundId String? /* awarding round */;  institutionId String?;  level JudgingLevel?;  awardLabel String?
+  status CertificateStatus @default(PENDING);  competitionId String?;  registrationId String?;  participantId String?
+  subjectUserId String? /* VOLUNTEER_SERVICE: the volunteer */;  data Json? /* VOLUNTEER_SERVICE: hours, period, skills */
+  // CHECK: exactly one of participantId / subjectUserId is set; competitionId and registrationId are required unless type = VOLUNTEER_SERVICE
+  entryId String?;  categoryId String? /* null for PARTICIPATION */;  roundId String? /* awarding round */;  institutionId String?;  level JudgingLevel?;  awardLabel String?
   nameSnapshot String /* PDF: fullName (Q9) */;  displayNameSnapshot String /* §12.7 public name: /verify, CERT_SHARE */;  categoryLabel String
   templateId String;  templateVersion Int;  pdfAssetId String? /* FileAsset PDF, private */
   issuedAt DateTime?;  revokedAt DateTime?;  revokedReason String? /* internal */;  supersededById String?
-  // partial unique (registrationId, type, roundId) NULLS NOT DISTINCT WHERE status IN (PENDING, GENERATED, FAILED)
+  // partial unique (registrationId, categoryId, type, roundId) NULLS NOT DISTINCT WHERE status IN (PENDING, GENERATED, FAILED)
+  //   AND type <> VOLUNTEER_SERVICE; PARTICIPATION (categoryId null) stays one per registration
 }
 model CertificateTemplate {
   id String @id;  type CertificateType;  competitionId String? /* null = global default */;  name String
@@ -310,10 +314,11 @@ model CertificateTemplate {
 
 | CertificateType | Trigger | Recipients |
 |---|---|---|
-| PARTICIPATION | `finalizeSchoolRound` (institution route) | Every participated SchoolResult |
+| PARTICIPATION | `finalizeSchoolRound` (institution route) | One per Registration with a participated SchoolResult |
 | PARTICIPATION | Initial release PUBLISHED (individual route) | Individual registrations whose entry reached SUBMITTED and is not WITHDRAWN, DISQUALIFIED or REJECTED_INELIGIBLE |
 | SCHOOL_MERIT | `finalizeSchoolRound` | Positioned rows (`awardLabel` = position label) |
 | FINALIST / WINNER / RUNNER_UP / SPECIAL_MENTION | Release PUBLISHED | One per entry by `finalOutcome` (a winning finalist gets WINNER only), plus one per level award won in a non-final round (`level`, band label) |
+| VOLUNTEER_SERVICE | §9.8 `issueVolunteerCertificate` | The volunteer (`subjectUserId`), with data (hours, period, skills) |
 
 - **Templates:** the ACTIVE template for `(type, competitionId)` is used, falling back to `(type, null)`.
   - Merge fields: `{{name}}`, `{{displayName}}`, `{{competitionName}}`, `{{competitionYear}}`, `{{categoryLabel}}`, `{{awardLabel}}`, `{{levelLabel}}`, `{{institutionName}}`, `{{issueDate}}` (IST, `d MMM yyyy`), `{{certificateNumber}}`, `{{qrSvg}}`, `{{verifyUrl}}`, `{{foaLogoUrl}}`, `{{#signatories}}`.
@@ -328,6 +333,7 @@ model CertificateTemplate {
   - **Throughput:** at least 5,000 certificates in 30 minutes on 4 workers.
 - **`/verify/[certificateNumber]`:** public, `noindex`, 30 requests per minute per IP. The input is normalized (uppercase; Crockford O→0, I/L→1).
   - **Shows:** the §12.7 public name, competition and year, type and award label, issue date, and **VALID** (GENERATED) or **REVOKED** (REVOKED or SUPERSEDED; superseded adds "Replaced by a reissued certificate").
+  - **VOLUNTEER_SERVICE:** shows the display name, "Volunteer service", the period, hours and status. No competition.
   - **Never shows:** DOB, age, city or school, and no full name unless `showFullName` is set. The institution name appears only with PUBLIC_DISPLAY consent and `showSchool`.
   - PENDING, FAILED and unknown numbers return the same 404.
 - **Downloads:** `/dashboard/certificates` serves participants and guardians (every linked participant). It offers the PDF (signed URL, 5 min), a "Share image" (CERT_SHARE, private) and the verify link.
@@ -336,7 +342,7 @@ model CertificateTemplate {
 
 | From → To | Actor | Guard | Side effects |
 |---|---|---|---|
-| ∅ → PENDING | System (trigger table) | No live certificate for (registrationId, type, roundId) | Number assigned (collision retry). Job enqueued |
+| ∅ → PENDING | System (trigger table) | No live certificate for (registrationId, categoryId, type, roundId) | Number assigned (collision retry). Job enqueued |
 | PENDING → GENERATED / FAILED | Job | PDF stored / retries exhausted | `certificate.issued` / admin alert |
 | FAILED → PENDING | CM/SA `regenerateCertificate` | None | Re-enqueued |
 | GENERATED → REVOKED | CM/SA `revokeCertificate`, school reopen, correction, DQ | Reason | `/verify` shows REVOKED. CERT_SHARE deleted. `certificate.revoked` |
@@ -345,9 +351,10 @@ model CertificateTemplate {
 ### 7.8 Prize Fulfilment
 
 ```prisma
-enum PrizeType { TROPHY MEDAL CASH VOUCHER GOODS OTHER }   enum PrizeFulfilmentStatus { PENDING DISPATCHED DELIVERED CANCELLED }
+enum PrizeFulfilmentStatus { PENDING DISPATCHED DELIVERED CANCELLED }   // PrizeType is §6's, on CompetitionPrize
 model PrizeFulfilment {
-  id String @id;  competitionId String;  entryId String;  participantId String;  certificateId String?;  prizeType PrizeType;  description String
+  id String @id;  competitionId String;  entryId String;  participantId String;  certificateId String?
+  competitionPrizeId String /* §6 CompetitionPrize from AwardBand.prizeId: prizeType, description, cash amount */
   deliverTo String          // INSTITUTION (default, institution route) | PARTICIPANT (default, individual) | HAND_OVER
   addressSnapshot Json?     // confirmed on /dashboard/entries/[entryCode] or /institution/.../results; purged 90 days after DELIVERED
   status PrizeFulfilmentStatus @default(PENDING);  courier String?;  trackingNumber String?;  proofAssetId String?
@@ -357,8 +364,8 @@ model PrizeFulfilment {
 
 | From → To | Actor | Guard | Side effects |
 |---|---|---|---|
-| ∅ → PENDING | System at release PUBLISHED | Band has a `prize` | Address request (§10) |
-| PENDING → DISPATCHED | CM/SA | Address, courier and tracking (all waived for HAND_OVER) | `prize.dispatched`. CASH: `LedgerService.record({ type: 'EXPENSE', category: 'PRIZE', sourceType: 'PrizeFulfilment', … })` |
+| ∅ → PENDING | System at release PUBLISHED | Band has a `prizeId` whose CompetitionPrize is not CERTIFICATE_ONLY | `prizeFulfilment.created` (§10 sends the address request) |
+| PENDING → DISPATCHED | CM/SA | Address, courier and tracking (all waived for HAND_OVER) | `prize.dispatched`. CASH: `LedgerService.record({ type: 'EXPENSE', category: 'PRIZES_AWARDS', sourceType: 'PRIZE_FULFILMENT', … })` |
 | DISPATCHED → DELIVERED | CM/SA | None | `prize.delivered` |
 | PENDING → CANCELLED | CM/SA, correction | Reason | None |
 
@@ -497,10 +504,10 @@ model SocialPostRecord {
 | Action | Input | Authorization | Effect |
 |---|---|---|---|
 | `upsertRubric` / `publishRubric` | competitionId, discipline?, title, guidanceHtml, criteria[] / rubricId | CM/SA | Save DRAFT (new version if one is PUBLISHED) / publish, archive the previous, PDF job, `rubric.published` |
-| `setSchoolJudgingPolicy` | competitionId, fields | CM/SA | Upsert. Only `deadline` can change once any school round is FINALIZED |
+| `setSchoolJudgingPolicy` | competitionId, fields | CM/SA | Upsert. No changes once any school round is FINALIZED (the deadline is §6's `shortlistSubmissionClosesAt`) |
 | `saveSchoolPanel` / `saveSchoolResults` | roundId, members[] / rows[] | IA/IC, round OPEN | Replace the panel / upsert drafts with per-row errors |
 | `finalizeSchoolRound` | roundId, certify: true, shortfallReason? | IA/IC | §7.3 |
-| `reopenSchoolRound` / `extendSchoolDeadline` / `closeSchoolRoundOnBehalf` | roundId, reason / until / mode, rows?, evidenceAssetId, reason | CM/SA | §7.5 / `deadlineOverride` / §7.15 E5 |
+| `reopenSchoolRound` / `extendSchoolDeadline` / `closeSchoolRoundOnBehalf` | roundId, reason / until / mode, rows?, evidenceAssetId, reason | CM/SA | §7.5 / §6 `SubmissionExtension(SHORTLIST)` for the InstitutionRegistration / §7.15 E5 |
 | `createRound` / `updateRound` | competitionId, config | CM/SA, DRAFT only | Validates level order, partitions, bands, single `isFinal` |
 | `inviteJudges` / `respondToInvite` | roundId, [{userId \| email, categoryIds, partitionKeys?}] / assignmentId, accept, COI, agreements | CM/SA / J (self) | INVITED (`judgeAssignment.created`) / ACCEPTED or DECLINED (clearance checked) |
 | `openRound` / `syncRoundPool` / `closeRound` / `reopenRound` | roundId, force?, reason? | CM/SA, job | §7.5. Sync adds newly eligible entries while OPEN |
@@ -512,7 +519,7 @@ model SocialPostRecord {
 | `resolveTie` / `overrideRoundEntry` | tieResolutionId, resolution, order?, reason / roundEntryId, fields, reason | CM/SA, SCORING_CLOSED | Recompute / recorded override |
 | `lockRound` / `unlockRound` / `finalizeRound` | roundId, reason (unlock) | CM/SA; unlock SA only | §7.5 |
 | `moderateFeedback` / `setCandidateFlags` | sheetId, APPROVE \| SUPPRESS, text? / entryId, flags | CM/SA | §7.4.2 / §7.4.4 |
-| `disqualifyEntry` | entryId, reason, evidenceAssetId? | CM/SA | §7.15 E3 |
+| `disqualifyEntry` | entryId, reason, evidenceAssetId? | CM/SA; from FINALIZED, SA only | §7.15 E3 |
 | `proposeResults` / `proposeCorrection` | competitionId, publishAt? / mode, changes[], publicNote, reason | CM/SA | New PROPOSED release |
 | `approveResults` / `rejectResults` / `reschedulePublish` | releaseId, reason? / publishAt | SA, not the proposer | §7.6 |
 | `upsertCertificateTemplate` / `activateCertificateTemplate` | fields / templateId | CM/SA | ACTIVE requires a successful preview |
@@ -529,19 +536,20 @@ model SocialPostRecord {
 | Event | Emitted when | Payload |
 |---|---|---|
 | `rubric.published` | Rubric published | competitionId, rubricId, discipline |
-| `schoolRound.opened` / `.overdue` / `.reopened` | Open / deadline passed / §7.5 | roundId, institutionRegistrationId, deadline |
+| `schoolRound.opened` / `.overdue` / `.reopened` | Open / `shortlistSubmissionClosesAt` (or extension) passed, round OVERDUE (§7.15 E5) / §7.5 | roundId, institutionRegistrationId, deadline |
 | `schoolShortlist.finalized` | School round FINALIZED (incl. on behalf) | §7.3 step 4 payload |
 | `judgeAssignment.created` | Invitation | assignmentId, roundId, categoryCount, closesAt (no participant PII) |
 | `judgingRound.opened` / `.closed` / `.closeBlocked` / `.reopened` / `.locked` / `.unlocked` / `.finalized` | §7.5 | roundId, level, competitionId |
 | `scoreSheet.revised`, `entry.disqualified` | Post-submit edit; DQ | sheetId, version; entryId, competitionId |
 | `results.approvalRequested` / `.approved` / `.rejected` / `.published` / `.corrected` | §7.6 | competitionId, releaseId, version, affectedEntryIds (correction only) |
-| `certificate.issued` / `.revoked`, `certificateBundle.generated` | §7.7 | certificateId, type, participantId, registrationId; institutionId, fileAssetId |
+| `certificate.issued` / `.revoked`, `certificateBundle.generated` | §7.7 | certificateId, type, participantId or subjectUserId, registrationId?; institutionId, fileAssetId |
+| `prizeFulfilment.created` | PrizeFulfilment created (§7.8) | prizeId, entryId, participantId, deliverTo |
 | `prize.dispatched` / `prize.delivered` | §7.8 | prizeId, participantId, trackingNumber? |
 | `galleryItem.published` / `.unpublished` | §7.10 | itemId, entryId, visibleFields[], reason? |
 | `socialFeature.published` | `recordSocialPost` | postRecordId, participantId, platform, postedUrl |
 | `socialPost.takedownRequired` / `.takedownOverdue`, `stampSettings.updated` | §7.11; §7.9 | postRecordId, platform, takedownDueAt; version |
 
-Reminders are scheduled by §10, not emitted here: `reminder.schoolJudgingDeadline` from `SchoolJudgingPolicy.deadline`/`deadlineOverride`, and `reminder.judgingDue` from `closesAt`.
+Reminders are scheduled by §10, not emitted here: `reminder.schoolJudgingDeadline` from §6 `shortlistSubmissionClosesAt` or the school's `SubmissionExtension(SHORTLIST)`, and `reminder.judgingDue` from `closesAt`.
 
 ### 7.15 Edge Cases
 
@@ -556,12 +564,12 @@ Reminders are scheduled by §10, not emitted here: `reminder.schoolJudgingDeadli
   - Prizes: PENDING → CANCELLED. Dispatched prizes get `recoveryRequired`.
 - **E4. Consent withdrawn after a social post:** handled by §7.11 (72-hour takedown, then escalation). Withdrawing SOCIAL_MEDIA alone leaves the gallery untouched. Withdrawing PUBLIC_DISPLAY cascades to both (§12.6).
 - **E5. A school never finalizes.**
-  - §10 reminders go out at −7 d, −2 d and −1 d. At the deadline, `schoolRound.overdue` goes to IA, IC and CM. There is **no automatic forfeit**.
-  - The school can still finalize until the first FOA round opens. After that, the CM uses `closeSchoolRoundOnBehalf` in one of two modes:
+  - §10 reminders go out at −7 d, −2 d and −1 d. At §6 `shortlistSubmissionClosesAt` (or the school's later `SubmissionExtension(SHORTLIST)`), a round that is not FINALIZED becomes OVERDUE: it stays OPEN, shows as overdue on the per-school board, and `schoolRound.overdue` goes to IA, IC and CM. There is **no automatic finalise and no automatic forfeit**.
+  - The school can still finalize while the round is OVERDUE. Otherwise the CM uses `closeSchoolRoundOnBehalf` in one of two modes:
     - **`PARTICIPATION_ONLY`:** every confirmed registration with a SUBMITTED entry (ALL), or every confirmed registration (SHORTLIST_ONLY), is marked participated. Entries → NOT_SHORTLISTED, and PARTICIPATION certificates are issued.
     - **`STAFF_ENTERED`:** staff enter results from evidence the school sends, with the same effects as finalizing. The evidence upload is required.
-  - Entries shortlisted late join the open FOA round through `syncRoundPool` once they are FOA_VERIFIED.
-- **E6. Entry withdrawn during judging:** its RoundEntry → WITHDRAWN and its sheets → VOID. If results are already published, a correction follows as in E3.
+  - FOA rounds open only in FOA_JUDGING, which §6 allows only once every school round is FINALIZED, so no entry reaches SUBMITTED_TO_FOA during FOA_JUDGING.
+- **E6. Entry withdrawn during or after judging (§7.5):** its RoundEntry → WITHDRAWN and, while it is IN_JUDGING, its sheets → VOID. If results are already published, a correction follows as in E3.
 - **E7. Artwork damaged or a DISCREPANCY found after the round opens:** the CM may `excludeRoundEntry` with a reason. The entry ends ELIMINATED / PARTICIPANT.
 - **E8. Data changes between approval and `publishAt`:** a stale hash makes the job REJECT the release (`STALE`), and the CM re-proposes. Consent is applied at render time, so consent changes never make a release stale.
 - **E9. Wrong name on a certificate:** after §6 fixes the profile, `reissueCertificate` issues a new number, and the old one verifies as REVOKED ("Replaced by a reissued certificate").

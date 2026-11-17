@@ -25,6 +25,7 @@ type RecipientRef =
   | { kind: 'PARTICIPANT'; participantId: string }                       // expanded per §10.4
   | { kind: 'INSTITUTION'; institutionId: string; memberRoles?: ('AUTHORISED_PERSON'|'COORDINATOR')[]; includePrincipal?: boolean }
   | { kind: 'ROLE'; role: Role; scopeId?: string }                         // staff (in-app; email only where the route says so)
+  | { kind: 'SAFEGUARDING_DESIGNATION' }                                   // active DSL and DEPUTY_DSL holders (§12.9), expanded per §10.4
   | { kind: 'ADDRESS'; email?: string; phone?: string; name?: string; locale?: string } // non-users
 
 // §3.5 signature preserved; opts is additive
@@ -39,7 +40,7 @@ interface ChannelAdapter {
 }
 ```
 
-Adapters: `ResendEmailAdapter`, `Msg91SmsAdapter` (implements §2 `SmsProvider`), `InAppAdapter` (writes `InAppNotification` and marks DELIVERED immediately), and `WhatsAppAdapter`, which is post-MVP behind feature flag `channel.whatsapp` (Meta Cloud API or a BSP, with the approved template name in `providerTemplateId`).
+Adapters: `ResendEmailAdapter`, `Msg91SmsAdapter` (implements §2 `SmsProvider`), `InAppAdapter` (writes `InAppNotification` and marks DELIVERED immediately), and `WhatsAppAdapter`, which is post-MVP behind feature flag `WHATSAPP_CHANNEL` (Meta Cloud API or a BSP, with the approved template name in `providerTemplateId`).
 
 ### 10.2 Data Model
 
@@ -69,7 +70,7 @@ model Notification {
   recipientUserId String?; recipientGuardianId String?
   toAddress String           // lowercased email | E.164 phone | userId (IN_APP)
   subjectParticipantId String? // participant the message is about
-  payload Json?              // validated merge vars; nulled after 90 days (job `notify.redact`); row kept 2 years
+  payload Json?              // validated merge vars; nulled after 90 days (job `notify.redact`); row kept 365 days
   dedupeKey String @unique; status NotificationStatus @default(QUEUED); suppressedReason SuppressionReason?
   scheduledFor DateTime?; attempts Int @default(0); lastError String?; providerMessageId String? @unique
   sentAt DateTime?; deliveredAt DateTime?; failedAt DateTime?; createdAt DateTime @default(now())
@@ -87,6 +88,8 @@ model ShortLink { code String @id /* 8 base32 */; targetUrl String; createdAt Da
 
 Legend. **PC** = participant contact set (§10.4): guardian for a minor, the participant if adult. **C** = coordinators + `INSTITUTION_ADMIN` of the registration's institution (institution route only). C gets in-app at once plus the 18:00 IST daily digest email, unless marked *now* (immediate email). **IA** = authorised person (+ principal where marked). **Sub** = submitter (C *now* on the institution route, PC on the individual route). **Staff(R)** = in-app to holders of role R in scope. Channels: E email, S SMS, I in-app (only if the recipient has a `User`). Category: **T** transactional, **O** operational, **G** engagement. The emitter section is in brackets. Names are proposals for the integrator to reconcile with §6–§9 and §12.
 
+Events not listed here are recorded for analytics only and send nothing; a section that wants a message must add a row.
+
 | Event key [emitter] | Recipients | Ch | Cat | Template summary |
 |---|---|---|---|---|
 | `otp.requested` [auth; sync] | address entered | E or S | T | 6-digit code, 10-min expiry, "never share". Ignores quiet hours and caps |
@@ -95,67 +98,117 @@ Legend. **PC** = participant contact set (§10.4): guardian for a minor, the par
 | `institution.registered` [§6] | IA + principal; Staff(STAFF_ADMIN) | E; I | T | Received, `institutionCode`, verification pending (target 2 working days) |
 | `institution.verified` [§6] | IA + principal; C *now* | E, S, I | T | Verified; dashboard link; add coordinators/students |
 | `institution.rejected` [§6] | IA + principal | E | T | Reason, how to reapply |
+| `institution.suspended` / `.reinstated` [§6] | IA + principal; C *now* | E, I | T | Suspended: reason, dashboard read-only, no new registrations, payments, submissions or dispatches, contact / reinstated: access restored |
 | `institutionMember.invited` [§6] | invitee address | E, S | T | Invite link (7-day expiry), institution name |
+| `institutionMember.removed` [§6] | removed member | E, I | T | Access to the institution removed, institution name, contact |
 | `institutionRegistration.created` [§6] | IA; C *now* | E, I | T | Competition `reference`, steps to enrol students and pay fees |
 | `institutionRegistration.certified` [§6] | Staff(COMPETITION_MANAGER) | I | O | Coordinator certified conduct/judging per FOA guidelines |
+| `institutionRegistration.withdrawn` [§6] | IA; Staff(COMPETITION_MANAGER) | E, I; I | T | Competition `reference` withdrawn, reason, effect on student registrations and fees |
+| `studentImport.completed` [§6] | uploader | I | T | Rows imported / rejected, link to the error report |
 | `registration.created` [§6] | PC; C | E, I | T | `registrationNumber`, pending steps (consent, fee) with links |
 | `registration.confirmed` [§6] | PC; C | E, S, I | T | Confirmed: Participant ID + Registration No., login link |
 | `registration.cancelled` [§6] | PC; C | E, I | T | Reason; refund status if paid |
+| `registration.withdrawn` [§6] | PC; C | E, I | T | Withdrawal confirmed: reason, effect on entries and artwork, refund status if any |
+| `registration.transferred` [§6] | PC; C of the old and new institution | E, I | T | Moved to the new school or the individual route; Registration No. unchanged; who manages it now |
+| `registration.paymentNeedsReview` [§6] | Staff(FINANCE, COMPETITION_MANAGER) | I | O | Batch, registration, why the capture could not be applied; review link |
+| `registration.duplicateFlagged` [§6] | guardian; Staff(COMPETITION_MANAGER) | E, I; I | T | Guardian: generic "may already be registered, contact us before paying" notice that never names the school. Staff: duplicates queue link |
 | `reminder.registrationPayment` (T+1 d, T+3 d after create; T-1 d before close) | payer of record (§6/§8) | E, I; S at T-1 | T | Amount, pay link, close date |
 | `payment.captured` [§8] (purpose ≠ DONATION) | payer | E, I | T | Receipt: amount, purpose, reference code, PDF link |
 | `payment.failed` / `payment.refunded` [§8] | payer | E, I | T | Retry link / refunded amount and settlement time |
+| `refund.failed` [§8] | Staff(FINANCE) | E, I | O | Refund, amount, failure reason, retry link |
 | `consent.requested` [§12] | guardian | E, S | T | Consents asked, who asked (school/self), signed approve link (7 d) |
 | `reminder.consentPending` (T+2 d, T+5 d) | guardian; C | E, S | T | Same link; which steps are blocked |
 | `consent.granted` [§12] | guardian / adult; C | E, I | T | Copy of consent version text, withdraw link |
+| `consent.refused` [§12] | none (silent) | – | – | – |
+| `guardian.verified` [§12] | none (silent; consumed by §6) | – | – | – |
 | `consent.withdrawn` [§12] | guardian / adult; C; Staff(COMPETITION_MANAGER) if display/auction affected | E, I | T | Withdrawal confirmed; effects and their deadlines exactly as listed in §12.6 (e.g. gallery unpublish ≤ 24 h, social takedown ≤ 72 h) |
 | `competition.published` [§6] | none directly: creates a DRAFT `Announcement` for staff review | – | G/O | Name, theme, disciplines, age groups, dates, register link |
-| `reminder.registrationClosing` (T-7, T-2 d) | IA + C of verified institutions not yet registered (O); PC with DRAFT registrations | E, I | O | Close date, register/finish link |
+| `reminder.registrationClosing` (T-7, T-2 d) | IA + C of verified institutions not yet registered (O); PC with registrations in PENDING_CONSENT or PENDING_PAYMENT | E, I | O | Close date, register/finish link |
 | `competition.instructionsPublished` [§6] (Phase 3) | individual: PC; institution: C *now* | E, I, S (short pointer) | O | Date/time, theme confirmation, permitted materials, duration, submission procedure, physical artwork requirements, deadlines, help contact |
 | `competition.scheduleChanged` [§6] | all confirmed PC; C *now* | E, S, I | T | Old → new dates, reason |
 | `competition.submissionOpened` [§6] | individual: PC; institution: C *now* | E, S, I | O | Window, upload link, file rules |
 | `reminder.submissionClosing` (T-7, T-2, T-1 d) | individual PC with no SUBMITTED entry; C with pending uploads (counts) | E, I; S at T-1 | O | Deadline, items pending, link |
 | `competition.cancelled` [§6] | all PC; C; IA | E, S, I | T | Reason, refund policy |
+| `file.quarantined` [§6] | uploader | E, I | T | File removed by the virus scan, which entry, re-upload before the deadline |
 | `entry.submitted` [§6] | PC; C | E, S, I | T | "Submission received": `entryCode`, title, IST timestamp |
 | `entry.changesRequested` [§6] | Sub | E, S, I | T | What to fix, fix-by deadline, link |
 | `entry.rejected` [§6] (REJECTED_INELIGIBLE) | PC; C *now* | E, I | T | Reason code, contact link |
+| `entry.reinstated` [§6] | PC | E, I | T | Entry reinstated after review, current status, next steps |
 | `entry.withdrawn` / `entry.disqualified` [§6/§7] | PC; C | E, I | T | Confirmation / reason |
+| `schoolRound.opened` [§7] | IA; C *now* | E, I | O | School judging open: deadline, shortlist size, judging framework link |
 | `reminder.schoolJudgingDeadline` (T-7, T-2, T-1 d) | IA + C of institutions with unfinalised shortlist | E, I; S at T-1 | O | Deadline, judged/remaining counts, judging framework link |
+| `schoolRound.overdue` [§7] | IA; C *now*; Staff(COMPETITION_MANAGER) | E, I; I | T | Deadline passed, no automatic forfeit; FOA will close the round or enter results from the school's evidence (§7.15 E5); contact |
+| `schoolRound.reopened` [§7] | IA; C *now* | E, I | T | Reason, shortlist reverted, deadline, link to finalise again |
 | `entry.shortlisted` [§6] (SCHOOL_SHORTLISTED) | PC | E, S, I | T | Shortlisted for FOA-level judging; next steps. Skipped when the payload has `silent: true`. For `SHORTLIST_ONLY`, sent per shortlisted registrant on `schoolShortlist.finalized` instead (§7.3) |
 | `entry.notShortlisted` [§6] | PC | E, I | T | Thank-you; participation certificate to follow; future invitations. Sent only once the school finalises its shortlist. For `SHORTLIST_ONLY`, sent per registrant without a shortlisted entry on `schoolShortlist.finalized` |
+| `schoolShortlist.finalized` [§7] | `SHORTLIST_ONLY` only: PC of each registrant in the payload's per-category lists | E, S, I (shortlisted); E, I (not shortlisted) | T | Shortlisted / not-shortlisted variants with the same content as `entry.shortlisted` / `entry.notShortlisted`. Under scope ALL it sends nothing (the per-entry events do) |
 | `entry.submittedToFoa` / `entry.verified` [§6] | C *now*; PC (I only) | E, I | T | Forwarded to / accepted by FOA |
 | `artwork.requested` [§6] | Sub; PC (if Sub = C) | E, S, I | T | `artworkCode`, packaging instructions, FOA address, dispatch deadline, tracking-entry link, declaration |
+| `artwork.requestCancelled` [§6] | sender (Sub) | E, I | T | Physical artwork no longer needed; do not dispatch |
 | `reminder.artworkDispatch` (T-3, T-1 d; +2 d overdue) | Sub; Staff(COMPETITION_MANAGER) when overdue | E, S, I | O | Deadline, tracking-entry link |
 | `artwork.dispatched` [§6] | Sub; Staff(COMPETITION_MANAGER) | E; I | T | Tracking number recorded |
 | `artwork.received` / `artwork.verified` [§6] | Sub; PC | E, I; S on received | T | FOA acknowledges receipt / verified with condition summary |
 | `artwork.discrepancyRecorded` [§6] | Sub; PC; Staff(COMPETITION_MANAGER) | E, I | T | Discrepancy type, required action, contact |
+| `artwork.discrepancyResolved` [§6] | sender (Sub) | E, I | T | Discrepancy resolved, artwork verified |
 | `artwork.returned` [§6] | Sub; PC | E, I | T | Courier details |
+| `artwork.retained` [§6] | PC | E, I | T | FOA keeps the artwork under the return policy; no return will be made |
 | `judgeAssignment.created` [§7] | judge | E, I | T | Round, entry count, deadline, `/judge` link. No participant PII |
 | `reminder.judgingDue` (T-3, T-1 d) | judges with unscored assignments; Staff(COMPETITION_MANAGER) | E, I | O | Remaining count, deadline |
+| `judgingRound.reopened` [§7] | judges assigned to the round | E, I | T | Round reopened, reason, deadline, `/judge` link. No participant PII |
 | `results.approvalRequested` [§7] | Staff(STAFF_ADMIN, COMPETITION_MANAGER) | E, I | O | Competition, approval link |
 | `results.published` [§7] | PC per entry (variant by `finalOutcome`; ELIMINATED → participant variant); C *now* (institution summary); IA | E, S, I | T | Outcome, award label, results link. Staff get a public G announcement as a draft |
+| `results.corrected` [§7] | PC of each affected entry; C *now* | E, I | T | What changed, new outcome and award label, old certificate revoked and new one issued, results link |
 | `certificate.issued` [§7] | PC; C (bulk-download digest) | E, I | T | `certificateNumber`, verify URL, download link (§7) |
 | `certificate.revoked` [§7] | PC; C | E | T | Reason |
+| `certificateBundle.generated` [§7] | requester | I | T | ZIP ready, download link (7 d) |
+| `prizeFulfilment.created` [§7] | PC | E, I | T | Prize won; request for the delivery address, confirm-address link |
+| `prize.dispatched` / `prize.delivered` [§7] | PC | E, I | T | Courier, tracking / delivery recorded |
 | `galleryItem.published` [§7] | PC | E, I | T | Gallery link, fields displayed, how to withdraw `PUBLIC_DISPLAY` |
+| `galleryItem.unpublished` [§7] | PC | E, I | T | Removed from the public gallery, reason |
 | `socialFeature.published` [§7] | PC | E, I | T | Platform + post link, how to withdraw `SOCIAL_MEDIA` |
-| `lot.listed` [§8] | creator PC | E, I | T | Lot link, dates; name shown only per consent |
+| `socialPost.takedownRequired` / `.takedownOverdue` [§7] | Staff(CONTENT_MANAGER) | E, I | T | Platform, post link, `takedownDueAt` (72 h, §12.6) / takedown overdue |
+| `lot.scheduled` [§8] | creator PC | E, I | T | Lot link, dates; name shown only per consent |
+| `lot.extended` [§8] | none (silent unless a watcher feature exists) | – | – | – |
+| `reminder.lotClosing` (T-1 h before close) | watchers and bidders on the lot | E, I | O | Current bid, closing time, bid link |
 | `bid.outbid` [§8] | previous high bidder | E, I; S in final hour | T | Current bid, closing time, bid link |
 | `lot.won` [§8] | winner | E, S, I | T | Amount, pay-by deadline, pay link |
-| `reminder.auctionPayment` (T-24 h; +1 d overdue) | winner; Staff(AUCTION_MANAGER) when overdue | E, S, I | T | Amount, deadline, consequence of non-payment |
+| `reminder.auctionPayment` (T-24 h, T-2 h before the payment deadline; after it, §8 emits `lot.paymentOverdue`) | winner | E, S, I | T | Amount, deadline, consequence of non-payment |
+| `lot.paymentOverdue` [§8] | winner; Staff(AUCTION_MANAGER) | E, S, I; I | T | Payment deadline missed, strike recorded, offer lapsed |
+| `lot.secondChanceOffered` [§8] | offered bidder | E, S, I | T | Second-chance offer at the bidder's own highest bid, pay-by deadline, pay link (paying is acceptance), decline link |
 | `lot.paid` [§8] | buyer; creator PC | E, I | T | Buyer: receipt. Creator: thank-you + amount raised for animals (buyer never named) |
 | `lot.shipped` [§8] | buyer | E, S, I | T | Courier, tracking |
-| `donation.captured` [§8] | donor | E (PDF receipt attached), I | T | `receiptNumber`, amount, 80G details |
-| `recurringDonation.charged` / `.chargeFailed` / `.cancelled` [§8] | donor | E; S on failed | T | Per-charge receipt / update-payment link / confirmation |
+| `lot.sold` / `lot.delivered` [§8] | buyer | E, I | T | Purchase confirmation link (a purchase, not a donation: no tax receipt) / delivery recorded, how to report a delivery issue within 48 h |
+| `lot.acknowledged` [§8] | creator PC; C (institution route) | E, I | T | Artist thank-you letter link, amount raised for animals (buyer named only if `shareNameWithArtist`) |
+| `lot.cancelled` [§8] | winner, if any | E, I | T | Lot withdrawn, reason, refund status if paid |
+| `donation.captured` [§8] | donor | E, I | T | Thank-you: amount, fund; no attachment (the receipt follows in `donation.receiptIssued`) |
+| `donation.receiptIssued` [§8] | donor | E, I | T | `receiptNumber`, amount, 80G details, signed download link (valid 7 d) |
+| `donation.refunded` [§8] | donor | E, I | T | Refunded amount, settlement time, receipt amended or cancelled |
+| `recurringDonation.activated` / `.charged` / `.chargeFailed` / `.halted` / `.paused` / `.resumed` / `.cancelled` [§8] | donor | E; S on failed | T | Mandate active / per-charge confirmation (receipt via `donation.receiptIssued`) / update-payment link / retries exhausted, auto-cancel date / paused / resumed / confirmation |
 | `volunteerApplication.submitted` / `.statusChanged` [§9] | applicant (guardian if minor); Staff(COMMUNITY_MANAGER) on submit | E, I | T | Ack / approved / rejected / more info |
+| `volunteerApplication.guardianApprovalRequested` [§9] | guardian | E, I | T | Role or activity applied for, approve link |
+| `volunteerAssignment.assigned` [§9] | volunteer (guardian if minor) | E, I | T | Assignment, date and time, location, contact |
 | `eventRegistration.confirmed` / `.waitlisted` / `.promoted` [§9] | attendee | E, I; S on promoted | T | Event, venue or online link, `.ics` |
 | `reminder.eventStarting` (T-1 d, T-2 h) | confirmed attendees | E, S | O | Time, venue, link |
-| `event.cancelled` [§9] | registered + waitlisted | E, S, I | T | Reason |
-| `adoptionApplication.submitted` / `.statusChanged` [§9] | applicant; ORG_REP + Staff(ADOPTION_COORDINATOR) on submit | E, I | T | Ack / status / next step |
-| `organization.registered` / `.verified` / `.rejected` [§9] | ORG_REP; Staff(COMMUNITY_MANAGER) on register | E, I | T | NGO directory listing status |
+| `event.updated` / `event.cancelled` [§9] | registered + waitlisted | E, S, I | T | What changed (date, time, venue) / reason |
+| `adoptionApplication.submitted` / `.statusChanged` / `.infoRequested` [§9] | applicant; ORG_REP + Staff(ADOPTION_COORDINATOR) on submit | E, I | T | Ack / status / next step / information requested, reply link |
+| `reminder.animalStale` (after `adoption.listingReconfirmDays` without confirmation) | handler | E, I | O | Listing, confirm-availability link, auto-hide date |
+| `reminder.adoptionFollowUp` (each `adoption.followUpDays` date after handover) | adopter; handler (I) | E, I | O | Check-in form link |
+| `organization.registered` / `.verified` / `.rejected` / `.verificationExpired` / `.suspended` [§9] | ORG_REP; Staff(COMMUNITY_MANAGER) on register | E, I | T | NGO directory listing status |
+| `reminder.orgReverification` (T-30 d, T-7 d before `verificationExpiresAt`) | ORG_REP | E, I | O | Expiry date, re-verification link |
+| `reminder.ambassadorExpiring` (T-30 d before `termEndsAt`) | ambassador | E, I | O | Term end date, next steps |
 | `contactMessage.received` [§9] | sender address; Staff inbox | E; I | T | Auto-reply with ticket ref and expected response time |
+| `contactMessage.replied` [§9] | sender address | E | T | FOA's reply, ticket ref |
 | `engagement.milestoneReached` [§9] | PC | E, I | O | Recognition. Invitation block (community/volunteer/club) rendered only if COMMUNICATION consent and adult or via guardian |
+| `community.joinRequested` [§9] | guardian | E, I | T | Child asked to join the community, approve link |
+| `community.invited` [§9] | invitee, resolved per §10.4 | E, I | G | Post-competition invitation to the FOA community, join link |
 | `feedbackSurvey.opened` [§11] + `reminder.feedbackSurvey` (+5 d, once) | invitees (§11.3) | E, I | O | Survey link (token) |
-| `safeguardingReport.submitted` [§12] | reporter address; safeguarding lead (§12) | E; E, S, I (bypass quiet hours) | T | Ack with reference only / "new report, open /admin/safeguarding". Content never included |
-| `dataExport.ready` / `dataErasure.completed` [§12] | requester (address captured at request) | E, I | T | Auth-gated download link (7 d) / erasure confirmation |
+| `safeguardingReport.submitted` [§12] | reporter address; `SAFEGUARDING_DESIGNATION` (§10.4) | E; E, S, I (bypass quiet hours) | T | Ack with reference only / "new report, open /admin/safeguarding". Content never included |
+| `safeguardingReport.escalated` [§12] | `SAFEGUARDING_DESIGNATION` (§10.4); Staff(SUPER_ADMIN). Staff only | E, S, I (bypass quiet hours) | T | Reference, severity, "open /admin/safeguarding". Content never included |
+| `content.reported` [§12] | moderators: Staff(CONTENT_MANAGER, COMPETITION_MANAGER). Staff only | E, I | O | Target type, reason code, moderation queue link |
+| `incident.declared` [§12] | Staff(SUPER_ADMIN); `SAFEGUARDING_DESIGNATION` (§10.4). Staff only | E, S, I (bypass quiet hours) | T | Incident reference, severity, link to the incident record. No personal data |
+| `dataRequest.received` [§12] | requester (address captured at request) | E, I | T | Acknowledgement: `requestNumber`, request type, SLA (§12.10), grievance officer contact |
+| `dataExport.ready` / `dataErasure.completed` [§12] | requester (address captured at request) | E, I | T | Auth-gated download link (72 h) / erasure confirmation |
+| `participant.reachedMajority` [§12] | the participant (now 18); guardian | E, I | T | Claim-account invite link; guardian access is now read-only |
 | `reminder.coordinatorDigest` (daily 18:00 IST) | C with ≥1 undigested item | E | O | Counts per event type + dashboard links |
 | `reminder.staffDigest` (daily 09:00 IST) | each staff user with non-empty Admin Home queues (§11.8) | E | O | Queue counts, SLA breaches, links |
 
@@ -186,6 +239,7 @@ Legend. **PC** = participant contact set (§10.4): guardian for a minor, the par
 4. **Content minimisation.** SMS and anything addressed to a minor uses first name only. No message includes DOB or home address. Judge templates include no participant name, school or city (CI-enforced). Safeguarding messages never contain report content.
 5. **Erased, suspended or deleted** users and guardians are SUPPRESSED `SUBJECT_ERASED`.
 6. **One message per address.** Reminders and digests are computed per recipient address. A guardian with three children in one competition gets one reminder listing them (`LIST` variable in email; count in SMS).
+7. **`SAFEGUARDING_DESIGNATION`** expands at send time to every user with an active `SafeguardingDesignation` (DSL or DEPUTY_DSL, not revoked; §12.9).
 
 ### 10.5 Categories, Gates & Preferences
 
@@ -224,7 +278,7 @@ model Announcement {
 type SegmentDefinition = {
   audience: 'PARTICIPANT_CONTACTS' | 'INSTITUTION_CONTACTS' | 'MEMBERS' | 'DONORS' | 'VOLUNTEERS' | 'JUDGES' | 'ORG_REPS'
   competitionIds?: string[]; registrationStatuses?: RegistrationStatus[]; entryStatuses?: EntryStatus[]
-  institutionIds?: string[]; route?: ParticipationRoute; ageGroupIds?: string[]; ageBands?: AgeBand[] /* §11.4 */
+  institutionIds?: string[]; route?: ParticipationRoute; ageGroupIds?: string[] /* the competition's AgeGroup ids (§6) */
   disciplines?: Discipline[]; states?: string[]; cities?: string[]; roles?: Role[]; milestones?: EngagementMilestone[]
 }
 ```
@@ -237,7 +291,7 @@ type SegmentDefinition = {
 | INSTITUTION_ADMIN, INSTITUTION_COORDINATOR (via `/institution/announcements`) | O | forced `institutionIds=[own]`, audience `PARTICIPANT_CONTACTS`, allowlisted templates, no free text |
 
 - **Coordinator templates** (`announcement.institution.*`): `conductSchedule` (date, time, `venueName` ≤60 chars), `materialsReminder`, `submissionReminder`, `consentReminder`, `resultsAvailable`, `certificatesAvailable`. Variables are typed (DATE/DATETIME/short STRING). The validator rejects URLs, emails, phone numbers and profanity in STRING values. The system fills institution and competition names. Limits: ≤1 per institution per day, ≤5 per competition. These go to guardians and adult students, never to a minor's own contact.
-- **Minor protection (G).** If a segment uses `milestones`, `roles`, or audience `DONORS`/`VOLUNTEERS`, everyone under 18 and their guardian-as-guardian contact is excluded automatically, and the preview shows the excluded count. G reaches guardians of minors only through contextual filters (competition, institution, route, age group/band, geography) and only with `COMMUNICATION` consent. No open, click or visit-based filter exists.
+- **Minor protection (G).** If a segment uses `milestones`, `roles`, or audience `DONORS`/`VOLUNTEERS`, everyone under 18 and their guardian-as-guardian contact is excluded automatically, and the preview shows the excluded count. G reaches guardians of minors only through contextual filters (competition, institution, route, age group, geography) and only with `COMMUNICATION` consent. No open, click or visit-based filter exists.
 - **Approval** by a different STAFF_ADMIN/SUPER_ADMIN is required when category = G and either the recipient count exceeds 1,000 or the segment reaches guardians of minors.
 - **Flow:** build → **preview** (count per channel after gates, exclusions by reason, 3 rendered samples) → **test send** to own contacts (`[TEST]` subject prefix, no dedupe) → schedule or send now → `SENDING`. Job `announcement.expand` snapshots recipients in pages of 500 and calls `notify()` with `announcementId`. Dedupe is per address, so a guardian reached through 3 children gets one copy.
 - **Throttling:** each channel has a token bucket in the send worker. `NOTIFY_EMAIL_RPS` defaults to 2; set it to the Resend plan limit. `NOTIFY_SMS_RPS` defaults to 20. Bulk email uses the Resend batch endpoint (≤100 per call). The `.txn` queues always drain before the `.bulk` queues. On 429, back off and honour `Retry-After`.
@@ -246,13 +300,13 @@ type SegmentDefinition = {
 
 ### 10.7 Delivery: Quiet Hours, Retries, Bounces, DLT
 
-- **Quiet hours:** no SMS or WhatsApp between 21:00 and 09:00 in the recipient's timezone (default `Asia/Kolkata`; `NOTIFY_QUIET_START/END`). Deferred messages get `scheduledFor` = next 09:00 plus 0–30 min jitter. Exempt: `otp.requested`, safeguarding staff alerts, and receipts sent within 5 min of the payer's own action (`bypassQuietHours`). Email has no quiet hours, but scheduled reminders and announcements default to a 08:00–20:00 IST window. Day-based reminders run at 10:00 IST.
+- **Quiet hours:** no SMS or WhatsApp between 21:00 and 09:00 in the recipient's timezone (default `Asia/Kolkata`; `NOTIFY_QUIET_START/END`). Deferred messages get `scheduledFor` = next 09:00 plus 0–30 min jitter. Exempt: `otp.requested`, safeguarding and security-incident staff alerts, and receipts sent within 5 min of the payer's own action (`bypassQuietHours`). Email has no quiet hours, but scheduled reminders and announcements default to a 08:00–20:00 IST window. Day-based reminders run at 10:00 IST.
 - **Retry:** `RetryableError` (network, 5xx, 429) uses pg-boss `retryLimit: 5, retryDelay: 30, retryBackoff: true` (about 30 s up to 8 min), then FAILED. `PermanentError` (4xx, invalid number, DLT mismatch) goes straight to FAILED. An invalid number also adds `SuppressionEntry(SMS, ALL, INVALID_NUMBER)`. A DLT mismatch raises a Sentry alert.
 - **SMS fallback:** routes with `smsFallback` (`registration.confirmed`, `consent.requested`, `artwork.requested`, `lot.won`, `competition.scheduleChanged`) queue the SMS template when the email ends FAILED or BOUNCED, unless an SMS was already sent.
 - **Webhooks:** `POST /api/webhooks/resend` (Svix signature) and `POST /api/webhooks/msg91` (shared secret + IP allowlist), both idempotent by provider event ID. delivered → DELIVERED. Hard bounce → BOUNCED + `SuppressionEntry(EMAIL, ALL, HARD_BOUNCE)`. Soft bounce → FAILED after provider retries. Complaint → `SuppressionEntry(EMAIL, NON_TRANSACTIONAL, COMPLAINT)` + ENGAGEMENT preference off. SMS DLR failed or rejected → FAILED.
 - **Lifting suppression:** re-verifying the address by OTP deletes HARD_BOUNCE and INVALID_NUMBER entries. STAFF_ADMIN can delete any entry with a reason (audited). COMPLAINT and UNSUBSCRIBED lift only when the user opts back in.
-- **Email setup:** subdomain `notify.<domain>` for T/O and `news.<domain>` for G, each with SPF, DKIM and DMARC `p=quarantine`; Reply-To `support@<domain>`. The only attachment is the donation receipt PDF (≤1 MB). Everything else is a link behind auth or a signed, expiring URL.
-- **Indian DLT:** before M2, FOA registers as Principal Entity, a 6-character header (e.g. `FOAIND`), and every SMS template as **Service-Implicit**. There is no promotional SMS, because G is never sent by SMS. Env: `MSG91_AUTH_KEY`, `MSG91_SENDER_ID`, `DLT_PE_ID`. An SMS template's `body` MUST be the exact DLT-approved text with `{{var}}` in place of `{#var#}`. Each variable is ≤30 chars. Links appear only as `SHORT_URL` variables resolving to `/s/[code]` on the DLT-whitelisted domain. Editing an SMS body creates a new version, which cannot be activated without a new `dltTemplateId`. Until DLT approval, flag `channel.sms` stays off and SMS audiences fall back to EMAIL + IN_APP.
+- **Email setup:** subdomain `notify.<domain>` for T/O and `news.<domain>` for G, each with SPF, DKIM and DMARC `p=quarantine`; Reply-To `support@<domain>`. No message carries an attachment. Every document, including the donation receipt, is a link behind auth or a signed, expiring URL.
+- **Indian DLT:** before M2, FOA registers as Principal Entity, a 6-character header (e.g. `FOAIND`), and every SMS template as **Service-Implicit**. There is no promotional SMS, because G is never sent by SMS. Env (§13.9): `SMS_PROVIDER_API_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID`. An SMS template's `body` MUST be the exact DLT-approved text with `{{var}}` in place of `{#var#}`. Each variable is ≤30 chars. Links appear only as `SHORT_URL` variables resolving to `/s/[code]` on the DLT-whitelisted domain. Editing an SMS body creates a new version, which cannot be activated without a new `dltTemplateId`. Until DLT approval, flag `SMS_CHANNEL` stays off and SMS audiences fall back to EMAIL + IN_APP.
 
 ### 10.8 Admin UI `/admin/communications`
 
@@ -388,7 +442,7 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 - **Event ingestion.** `analytics.ingest` (§10.1) writes `ProductEvent`. It is idempotent on `outboxId`, and props pass a per-event allowlist. No client-side product events exist.
 - **Base views.** `analytics.v_registrations`, `v_entries`, `v_artworks`, `v_certificates`, `v_payments`, `v_donations`, `v_engagement`, `v_volunteers`, `v_events`, `v_adoptions`, `v_feedback` are PII-free. Derived columns:
   - `istDate`, `state`, `city`, `isMinor`.
-  - `ageBand` ∈ {`UNDER_9`, `9_12`, `13_15`, `16_17`, `18_21`, `22_PLUS`}, computed at the competition's age cutoff. Competition-specific age groups (§6) are also available.
+  - `ageBand` of enum `AnalyticsAgeBand` ∈ {`UNDER_9`, `9_12`, `13_15`, `16_17`, `18_21`, `22_PLUS`}, computed at the competition's age cutoff. It is analytics-only and distinct from §9's `AgeBand`. Competition-specific age groups (§6) are also available.
 - **Materialized views** `analytics.mv_*_daily` have grain istDate × competition × route × institution × state × ageBand × discipline, with a unique index so they can be refreshed `CONCURRENTLY`.
   - Job `analytics.refresh` runs hourly, with a full refresh at 02:00 IST.
   - Funnel MVs refresh every 15 min while a competition is between REGISTRATION_OPEN and RESULTS_PENDING_APPROVAL.
@@ -410,14 +464,14 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 | Institution report (`/institution/reports`) | INSTITUTION_ADMIN, INSTITUTION_COORDINATOR (own institution) |
 | Impact feed (`/api/v1/impact`) | public |
 
-`suppressSmallCells(rows, { k: 5, audience })` runs in the report service and is unit-tested:
+`suppressSmallCells(rows, { k: 10, audience })` runs in the report service and is unit-tested:
 - **STAFF:** exact counts on screen. Exports are suppressed by default; only SA can switch suppression off, and doing so is audited.
 - **INSTITUTION and PUBLIC:**
-  - Any person-count cell of 1–4 becomes `"<5"` (`null` in JSON).
+  - Any person-count cell of 1–9 becomes `"<10"` (`null` in JSON).
   - Secondary suppression: the next-smallest cell in the same row/column is also hidden, so a suppressed cell can't be derived from totals.
-  - Rates whose denominator is < 5 are hidden.
+  - Rates whose denominator is < 10 are hidden.
 - **Money** totals are never suppressed in finance views. Donor counts follow k.
-- **Feedback** breakdowns with < 5 responses are hidden for every audience, staff included, to protect anonymity. Free text never appears in institution or public views.
+- **Feedback** breakdowns with < 10 responses are hidden for every audience, staff included, to protect anonymity. Free text never appears in institution or public views.
 
 ### 11.6 Web Analytics (Cookieless)
 
@@ -433,13 +487,13 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 **`/institution/reports`** (own institution; per competition and all-time):
 - **Content:** students registered / confirmed / consent pending; entries submitted; school-shortlisted; submitted to FOA; FOA finalists, winners and runners-up; certificates issued and downloaded; physical-artwork status counts; splits by age band and discipline.
 - **Counts:** own-institution counts are exact, since coordinators already see their students (§4.2).
-- **Benchmarks** ("all participating institutions": median submission and shortlist rate) appear only when ≥5 institutions contribute, and are k-suppressed. Other institutions are never named or ranked.
+- **Benchmarks** ("all participating institutions": median submission and shortlist rate) appear only when ≥10 institutions contribute, and are k-suppressed. Other institutions are never named or ranked.
 - **Export:** CSV of the same aggregates. Student-level lists stay in the operational screens (§6/§7).
 
 **`GET /api/v1/impact`** returns `{ asOf, counters: { participants, institutions, competitions, statesReached, artworksShowcased, certificatesIssued, volunteers, volunteerHours, communityMembers, eventAttendees, ngosListed, adoptionsFacilitated, fundsRaisedMinor, currency } }`.
-- **Source:** MVs plus `ImpactAdjustment`.
-- **Rounding and suppression:** counters < 5 are omitted. Counts ≥ 10 are rounded down to the nearest 10 and displayed as "1,240+".
-- **Funds:** `fundsRaisedMinor` comes from `v_payments` and MUST equal the §8 transparency total for the same period.
+- **Source:** MVs plus `ImpactAdjustment` (except `fundsRaisedMinor`, below).
+- **Rounding and suppression:** counters < 10 are omitted. Counts ≥ 10 are rounded down to the nearest 10 and displayed as "1,240+".
+- **Funds:** `fundsRaisedMinor` is the sum of ledger INCOME in the donation categories over PUBLISHED months, read from §8's `TransparencySnapshot`. It MUST equal the transparency page's donations total for the same period.
 - **Caching:** 1 h (`revalidate: 3600`).
 - **Consumers:** §9 `/impact` and the home page.
 
@@ -455,19 +509,19 @@ Layout: global search bar, then "Needs attention" queue cards, KPI tiles, and a 
 | Queue | Definition | Roles | SLA |
 |---|---|---|---|
 | Institutions awaiting verification | `Institution.status = PENDING_VERIFICATION` | SA, CM | 48 h |
-| Entries awaiting FOA verification | `Entry.status = SUBMITTED_TO_FOA` | SA, CM | 72 h |
+| Entries awaiting FOA verification | `Entry.status = SUBMITTED_TO_FOA` OR (`Entry.route = INDIVIDUAL` AND `Entry.status = SUBMITTED`) | SA, CM | 72 h |
 | Entries awaiting fixes past deadline | changes requested, fix-by passed | CM | – |
 | Artwork overdue / in transit | REQUESTED past dispatch deadline; DISPATCHED > 7 d not RECEIVED | CM | 0 h |
 | Artwork discrepancies open | `PhysicalArtwork.status = DISCREPANCY` | SA, CM | 72 h |
 | Judging progress | per open round: % scored, judges behind schedule | CM | round deadline |
 | Results awaiting approval | `Competition.status = RESULTS_PENDING_APPROVAL` | SA, CM | 48 h |
 | Consent issues | registrations blocked on consent > 3 d; withdrawals needing unpublish (§12) | SA, CM | 72 h (withdrawal) |
-| Safeguarding reports open | open reports, count and age only (§12) | safeguarding lead, SA | 24 h |
+| Safeguarding reports open | open reports, count and age only (§12) | `SAFEGUARDING_DESIGNATION` holders (DSL, deputy DSL), SUPER_ADMIN; not STAFF_ADMIN | by severity (§12.9): CRITICAL acknowledged ≤ 1 h and triaged ≤ 4 h; HIGH ≤ 24 h; MEDIUM/LOW ≤ 72 h |
 | Data-subject requests pending | export/erasure requests (§12) | SA | per §12 |
 | Failed payments / unreconciled | FAILED in 7 d; captured without ledger entry (§8) | FIN | 24 h |
 | Failed notifications | T notifications FAILED/BOUNCED in 72 h | SA | 24 h |
 | Contact inbox | unanswered `ContactMessage` | SA, COM | 48 h |
-| Gallery moderation | items pending moderation (§7) | CON, CM | 72 h |
+| Gallery moderation | items pending moderation (§7) | CON, CM | 24 h |
 | Volunteer / NGO / adoption applications | pending (§9) | COM / COM / ADO | 5 d |
 | Auction follow-ups | lots awaiting payment or shipping (§8) | AUC | 48 h |
 
@@ -493,8 +547,8 @@ Layout: global search bar, then "Needs attention" queue cards, KPI tiles, and a 
 
 1. Each KPI K01–K22 has a SQL definition with a unit test against the §2.1 seed data and expected values.
 2. CM scoped to competition X gets 403 for reports on competition Y. CM gets 403 on `/admin/reports/finance` and sees no FIN tiles. These checks run server-side.
-3. Institution and public outputs show 1–4 counts as `"<5"`, apply secondary suppression, and hide benchmarks with fewer than 5 contributing institutions. Feedback breakdowns with fewer than 5 responses are hidden for every role.
-4. `/api/v1/impact` contains no counter below 5, rounds as specified, and `fundsRaisedMinor` equals the §8 transparency total for the same period.
+3. Institution and public outputs show 1–9 counts as `"<10"`, apply secondary suppression, and hide benchmarks with fewer than 10 contributing institutions. Feedback breakdowns with fewer than 10 responses are hidden for every role.
+4. `/api/v1/impact` contains no counter below 10, rounds as specified, and `fundsRaisedMinor` equals the transparency page's donations total for the same period.
 5. A Playwright test confirms that authenticated pages, `(auth)` routes and registration pages make network requests only to first-party origins. CSP blocks a test GA snippet.
 6. A `ProductEvent` built from an Outbox payload that contains name, email or phone keys stores none of them.
 7. MV refresh runs `CONCURRENTLY` without blocking report reads, and every report shows its "Data as of" time.
@@ -507,7 +561,7 @@ Layout: global search bar, then "Needs attention" queue cards, KPI tiles, and a 
 ### 11.10 Open Questions
 
 - **Web analytics tool?** Default: Umami self-hosted. Plausible Cloud is the fallback. Vercel Analytics is not used because it has no per-path stats API we need.
-- **Suppression threshold?** Default: k = 5. Public counters are also rounded down to the nearest 10.
+- **Suppression threshold?** Default: k = 10. Public counters are also rounded down to the nearest 10.
 - **Survey minors directly?** Default: no. Guardians answer on the child's behalf.
 - **Social-media API integration timing?** Default: manual monthly entry in MVP. Meta Graph and YouTube Data API ingestion comes in M7.
 - **Definition of an "active institution"?** Default: ≥1 CONFIRMED student registration in the trailing 12 months.

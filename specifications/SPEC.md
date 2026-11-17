@@ -127,7 +127,7 @@ These are defined here and referenced by every section:
 - `Guardian { id, userId?, fullName, relationship, phone, email?, verifiedAt? }`. A guardian can manage several participants.
 - `Institution { id, institutionCode, name, type: SCHOOL|COLLEGE|UNIVERSITY|OTHER, addressLine1, addressLine2?, city, state, pinCode, country, contactPhone, contactEmail, principalName, principalEmail, principalPhone, status: PENDING_VERIFICATION|VERIFIED|REJECTED|SUSPENDED, verifiedBy?, verifiedAt? }`
 - `InstitutionMember { institutionId, userId, memberRole: AUTHORISED_PERSON|COORDINATOR, designation?, phone, email }`
-- `Consent`, `ConsentDocument`: see §12. `Payment`: see §8. `Notification`: see §10. `AuditLog`, `Outbox`: see above.
+- `Consent`, `ConsentDocument`: see §12. `Payment`: see §8. `Notification`: see §10. `AuditLog`, `Outbox`: see above. `Setting` (the runtime configuration table holding every section's config keys): see §13.9.
 - `FileAsset { id, ownerType, ownerId, kind: ORIGINAL|WEB|THUMB|STAMPED|PDF|OTHER, bucket, key, mime, sizeBytes, width?, height?, durationSec?, checksumSha256, uploadedByUserId, scanStatus: PENDING|CLEAN|INFECTED|SKIPPED, createdAt }`
 
 ### 3.5 Cross-Section Contracts (binding for all sections)
@@ -178,14 +178,16 @@ Service interfaces other sections call (the owner section specifies the internal
 ```ts
 PaymentService.createOrder({ purpose, amountMinor, currency, payerUserId, refType, refId, notes? }) // §8
   // emits payment.captured / payment.failed with { paymentId, refType, refId }
+PaymentService.recordOfflinePayment({ refType, refId, amountMinor, method, reference, receivedAt, proofFileAssetId }) // §8
+  // FINANCE or STAFF_ADMIN; creates an OFFLINE Payment in CAPTURED and emits the same payment.captured
 LedgerService.record({ type: 'INCOME'|'EXPENSE', category, amountMinor, currency, sourceType, sourceId, occurredAt }) // §8
 ConsentService.has(participantId, ConsentType, competitionId?) / .require(...) / .record(...) / .withdraw(...) // §12
 NotificationService.notify(eventKey, recipients[], payload)   // §10 owns templates + channels
-EngagementService.recordMilestone(participantId|userId, EngagementMilestone, source) // §9
+EngagementService.recordMilestone(participantId|userId, EngagementMilestone, source) // §9 only: other sections emit events and never call it (§3.6)
 StampService.stamp(fileAssetId, { variant: 'GALLERY'|'SOCIAL'|'CERT_SHARE' }) => FileAsset // §7
 ```
 
-Domain event naming: `<entity>.<pastTenseVerb>`, with both parts in lowerCamelCase (`institutionMember.invited`, `galleryItem.published`, `entry.changesRequested`), e.g. `registration.confirmed`, `entry.submitted`, `entry.shortlisted`, `artwork.received`, `results.published`, `certificate.issued`, `lot.won`, `donation.captured`. Each section lists the events it emits. **The §10.3 catalogue is the single source of truth for event keys.** If a section and §10.3 disagree, §10.3 wins and the section must be corrected. Scheduled reminders use `reminder.<name>` keys and are not domain events. An event payload may carry `silent: true` to record the fact for analytics without sending notifications.
+Domain event naming: `<entity>.<pastTenseVerb>`, with both parts in lowerCamelCase (`institutionMember.invited`, `galleryItem.published`, `entry.changesRequested`), e.g. `registration.confirmed`, `entry.submitted`, `entry.shortlisted`, `artwork.received`, `results.published`, `certificate.issued`, `lot.won`, `donation.captured`. Each section lists the events it emits. **The §10.3 catalogue is the single source of truth for event keys.** If a section and §10.3 disagree, §10.3 wins and the section must be corrected. Events a section emits that have no §10.3 row are recorded for analytics only and send nothing; a section that wants a message must add a row. Scheduled reminders use `reminder.<name>` keys owned and scheduled by §10. They are not domain events, and no section emits them. An event payload may carry `silent: true` to record the fact for analytics without sending notifications.
 
 ### 3.6 Integration Contracts Between Sections
 
@@ -193,18 +195,21 @@ These were agreed while the sections were written in parallel. They are binding.
 
 | Contract | Owner | Consumer | Rule |
 |---|---|---|---|
-| Shortlist messages under `SHORTLIST_ONLY` | §7.3 | §6.9, §10.3 | Sent from `schoolShortlist.finalized` lists. `createShortlistedEntry` emits `entry.shortlisted` with `silent: true` |
-| Auction state on artwork | §6.10 | §8.5 | Only §8 calls `ArtworkService.setAuctionState`. LISTED_FOR_AUCTION → VERIFIED is allowed when a lot is cancelled or unsold |
+| Shortlist messages under `SHORTLIST_ONLY` | §7.3 | §6.9, §10.3 | Sent from the per-category lists in `schoolShortlist.finalized`. §7 `finalizeSchoolRound` is its sole emitter, exactly once per school round; §6 never emits it. `createShortlistedEntry` emits `entry.shortlisted` with `silent: true` |
+| School shortlist service | §6.9 | §7.3, §7.5 | On finalize, §7 calls `EntryService.applySchoolShortlist({ institutionRegistrationId, categoryId, shortlisted, notShortlistedEntryIds })` once per category (scope ALL); under SHORTLIST_ONLY it uses `createShortlistedEntry`. `reopenSchoolRound` calls `EntryService.revertSchoolShortlist({ institutionRegistrationId, categoryId })`, allowed only while no entry of that institution × category is FOA_VERIFIED or later |
+| School-judging window | §6.3 | §7.3 | `Competition.schoolShortlistSize` and `shortlistSubmissionClosesAt` are the only settings; a per-school extension is `SubmissionExtension(SHORTLIST)`. School rounds open when the competition enters SCHOOL_JUDGING, in both scopes. No auto-finalise or auto-forfeit: an unfinished round becomes OVERDUE (§7.15 E5) |
+| Registration-fee payments | §8.3 | §6.6 | One order per `RegistrationPaymentBatch` (`refType: 'RegistrationPaymentBatch'`, `refId: batchId`, amount = Σ item `amountMinor`); an individual registration pays through a batch of one. §6 `markBatchPaidOffline` calls `PaymentService.recordOfflinePayment` (FINANCE, STAFF_ADMIN). A capture for a registration that is no longer payable puts the batch in NEEDS_REVIEW (`registration.paymentNeedsReview`), with no automatic refund. Refunds are requested by COMPETITION_MANAGER or STAFF_ADMIN and approved by FINANCE; a partial refund lists `RegistrationPaymentBatchItem` ids. Only competition cancellation and duplicate resolution refund without approval |
+| Auction state on artwork | §6.10 | §8.5, §12.6 | Only §8 calls `ArtworkService.setAuctionState`. A lot accepts VERIFIED, IN_EXHIBITION or RETAINED artwork and stores `PhysicalArtwork.statusBeforeListing`. LISTED_FOR_AUCTION → `statusBeforeListing` when a lot is cancelled, unsold or unscheduled. On cancellation of a paid or shipped lot, §8 reverts SOLD → `statusBeforeListing`, or calls §6 `recordArtworkReturn` if the work goes back to the creator |
 | Auction credit mode | §12.3 | §8.5 | Stored in `Consent.metadata.creditMode` on the AUCTION_OF_ARTWORK consent. For minors it is capped at FIRST_NAME_INITIAL |
-| Physical readiness for judging | §6.10 | §7.4 | Rounds with `requiresPhysicalVerified` filter via `ArtworkService.physicalReady(entryId)` |
-| Participation certificates | §7.7 | §6 | Issued from CONFIRMED Registrations that participated, not from Entries (SHORTLIST_ONLY students may have no Entry) |
+| Physical readiness for judging | §6.10 | §7.2 | A round with `requiresPhysicalVerified` admits an entry iff `ArtworkService.physicalReady(entryId)` = `!artwork.requiredForJudging \|\| artwork.status ∈ {VERIFIED, IN_EXHIBITION, RETAINED}`. `waivePhysicalForJudging` sets `requiredForJudging = false` |
+| Participation certificates | §7.7 | §6 | Issued from CONFIRMED Registrations that participated, not from Entries (SHORTLIST_ONLY students may have no Entry). One PARTICIPATION per registration (`categoryId` null); award certificates are per category |
 | Consent-withdrawal SLAs | §12.6 | §7, §8, §9, §10 | Every consumer uses §12.6's deadlines verbatim (gallery ≤ 24 h, social takedown ≤ 72 h) |
 | Competition display/auction flags | §6.2 | §7, §8, §12 | Canonical names are `allowPublicDisplay` and `allowAuction` |
 | Institution competition routes | §6.11 | §7, §12 | Use `/institution/competitions/[code]/…` (competition code, not id) |
-| Engagement milestones | §9.7 | §6, §7 | §9 subscribes to `entry.*`, `schoolShortlist.finalized` and `results.published`. Other sections never call `EngagementService` directly |
+| Engagement milestones | §9.7 | §6, §7 | §9 subscribes to `registration.confirmed`, `entry.submitted`, `entry.withdrawn`, `entry.disqualified`, `certificate.issued`, `certificate.revoked` and `results.published`. Other sections never call `EngagementService` directly |
 | Gallery/featured query | §7.10 | §9.4 | `GalleryQuery.featured(limit)` |
-| Fund totals | §8.4 | §9.6 | `DonationQuery.totalForFund(fundId)` returns `{ amountMinor, currency, donorCount }` from CAPTURED donations net of refunds |
-| Impact counters | §11.7 | §9.4 | `/api/v1/impact` is the only source for home and `/impact` counters. Overrides go through `ImpactAdjustment` |
+| Fund totals | §8.4 | §9.6 | `DonationQuery.totalForFund(fundId, since?: Date)` returns `{ amountMinor, currency, donorCount }` from CAPTURED donations net of refunds |
+| Impact counters | §11.7 | §9.4 | `/api/v1/impact` is the only source for home and `/impact` counters. Overrides go through `ImpactAdjustment`, except `fundsRaisedMinor`: the sum of ledger INCOME in the donation categories over PUBLISHED months, read from §8's `TransparencySnapshot`, equal to the `/transparency` donations total |
 | Moderation & display prefs | §12.7–12.8 | §7, §9 | `ModerationReview`, `ContentReport` and `ParticipantDisplayPrefs` are defined in §12 |
 | Feature flags | §13.8 | all | Post-MVP modules ship behind `FeatureFlag` keys listed in §13.8 |
 
@@ -249,6 +254,8 @@ A user can hold several roles. Staff roles require 2FA (TOTP or passkey).
 | Moderate gallery | | | | | | ✓ | ✓ | | ✓ |
 | View participant PII | | | own | own students | **no** (sees entry code only) | ✓ | ✓ | | |
 | Record ledger entries and publish financial reports | | | | | | | | ✓ | |
+| Record an offline registration-fee payment | | | | | | | ✓ | ✓ | |
+| Request a registration-fee refund (FINANCE approves) | | | | | | ✓ | ✓ | ✓ | |
 | Manage roles | | | | | | | SUPER_ADMIN only | | |
 
 **Judging is blind by default:** judges see the entry code, category, age group and the work itself. They do not see name, school or city.
@@ -317,10 +324,10 @@ This section covers source Phases 1–5, 7, 8 and 14, plus end-to-end steps 1–
 
 | Concern | Owner | Contract |
 |---|---|---|
-| School-level judging and shortlisting | §7 | Calls `EntryService.applySchoolShortlist()`. In SHORTLIST_ONLY it MAY call `EntryService.createShortlistedEntry()` (6.9) |
+| School-level judging and shortlisting | §7 | Calls `EntryService.applySchoolShortlist()` once per category when it finalizes a school round. In SHORTLIST_ONLY it MAY call `EntryService.createShortlistedEntry()` (6.9). On a school-round reopen it calls `EntryService.revertSchoolShortlist()` (6.9 row 16). §7 `finalizeSchoolRound` is the sole emitter of `schoolShortlist.finalized` |
 | FOA judging | §7 | Moves FOA_VERIFIED → IN_JUDGING. A round with `requiresPhysicalVerified` filters on `ArtworkService.physicalReady(entryId)` |
 | RESULTS_PENDING_APPROVAL, RESULTS_PUBLISHED | §7 | Calls `CompetitionService.transition()` and sets `Competition.resultsPublishedAt` |
-| Fees and refunds | §8 | §6 calls `PaymentService.createOrder` and consumes `payment.captured` / `payment.failed` with `refType = 'RegistrationPaymentBatch'`. Refunds are requested from §8 |
+| Fees and refunds | §8 | §6 calls `PaymentService.createOrder` and `PaymentService.recordOfflinePayment`, and consumes `payment.captured` / `payment.failed` with `refType = 'RegistrationPaymentBatch'`. Refunds are requested from §8 by CM/SA and approved by FINANCE |
 | LISTED_FOR_AUCTION, SOLD | §8 | `ArtworkService.setAuctionState(artworkId, status)` |
 | Consents, guardian verification, `PendingRegistration` | §12 | `ConsentService.has/require`. §6 re-evaluates registrations on `consent.granted`, `consent.withdrawn` and `guardian.verified` |
 | Messages, reminders, bulk announcements | §10 | Events in 6.13. The `reminder.*` jobs and the `Announcement` builder (§10.6) belong to §10 |
@@ -343,6 +350,7 @@ enum PhysicalRequestReason { JUDGING EXHIBITION AUCTION ARCHIVE }
 enum ArtworkDiscrepancyType { NOT_MATCHING_DIGITAL LABEL_MISSING_OR_WRONG CREATOR_MISMATCH DAMAGED CONSENT_DOCS_MISSING OTHER }
 enum ArtworkCondition { EXCELLENT GOOD FAIR DAMAGED }
 enum ArtworkReturnPolicy { RETURN_AFTER_RESULTS RETAIN_UNLESS_REQUESTED RETAIN }
+enum PrizeType { CERTIFICATE_ONLY TROPHY MEDAL CASH VOUCHER OTHER }
 
 model Competition {
   code String @unique /* §3.1, immutable after publish */; slug String @unique; name String; theme String
@@ -360,7 +368,7 @@ model Competition {
   individualPhysicalRequired Boolean @default(true); physicalFacilityId String?; physicalDispatchDays Int @default(14)
   artworkReturnPolicy ArtworkReturnPolicy @default(RETAIN_UNLESS_REQUESTED); returnRequestWindowDays Int @default(30)
   allowPublicDisplay Boolean @default(true); allowAuction Boolean @default(false)
-  collectsGender Boolean @default(false) /* §12.2 */; awardScheme AwardScheme; rubricId String? /* §7; required before FOA_JUDGING */
+  collectsGender Boolean @default(false) /* §12.2 */; awardScheme AwardScheme /* default for the final round; §7 rounds may override it */
   extraRequiredConsentTypes ConsentType[] @default([])   // on top of the §12.4 registration set
   archiveAfterDays Int @default(180); publishedAt DateTime?; resultsPublishedAt DateTime?; cancelledAt DateTime?; cancelReason String?; createdByUserId String
 }
@@ -374,7 +382,7 @@ model CompetitionCategory {
   maxEntriesPerParticipant Int @default(1); physicalEligible Boolean /* default true: DRAWING, PAINTING, ART, CRAFT */; fileRules Json? /* 6.8.3 */
   @@unique([competitionId, discipline, ageGroupId]) @@unique([competitionId, code])
 }
-model CompetitionPrize { competitionId String; categoryId String?; level JudgingLevel; awardLabel String; description String; quantity Int @default(1); cashAmountMinor Int?; currency String?; sortOrder Int }
+model CompetitionPrize { competitionId String; categoryId String?; level JudgingLevel; prizeType PrizeType; awardLabel String; description String; quantity Int @default(1); cashAmountMinor Int?; currency String?; sortOrder Int }
 model FoaFacility { code String @unique; name String; addressLine1 String; addressLine2 String?; city String; state String; pinCode String; country String; contactName String; contactPhone String; active Boolean }
 model InstitutionApplication {   // one per verification cycle; §3.4 Institution unchanged
   institutionId String; kind String /* INITIAL | CHANGE */; proposedChanges Json?; expectedParticipants Int?; affiliationCode String?
@@ -417,7 +425,7 @@ model Entry {
 model EntryFile { entryId String; role EntryFileRole; sortOrder Int; originalAssetId String; webAssetId String?; thumbAssetId String?; mediaCheck String /* PENDING | PASSED | FAILED */; mediaErrors Json?; perceptualHash String?; supersededAt DateTime? }
 model PhysicalArtwork {
   artworkCode String @unique; entryId String @unique; competitionId String; participantId String; institutionId String?
-  status PhysicalArtworkStatus; reason PhysicalRequestReason; requiredForJudging Boolean; requestedAt DateTime; requestedByUserId String
+  status PhysicalArtworkStatus; statusBeforeListing PhysicalArtworkStatus? /* set when §8 lists it; 6.10.2 */; reason PhysicalRequestReason; requiredForJudging Boolean; requestedAt DateTime; requestedByUserId String
   dispatchDeadline DateTime; facilityId String; facilitySnapshot Json; shipmentId String?; isLateDispatch Boolean @default(false)
   receivedAt DateTime?; receivedByUserId String?; packageIntact Boolean?; verifiedAt DateTime?; verifiedByUserId String?; checklist Json?
   condition ArtworkCondition?; conditionNotes String?; widthMm Int?; heightMm Int?; depthMm Int?; medium String?
@@ -431,7 +439,7 @@ model ArtworkCustodyEvent { artworkId String; action String /* RECEIVED | STORED
 
 ### 6.3 Competition Configuration & Lifecycle
 
-**6.3.1 Configuration.** Phase 1 items map to fields as follows. Name, theme and message → `name`, `theme`, `welfareMessageHtml`. Competition type → `CompetitionCategory.discipline` (one competition may span several disciplines). Eligibility and age groups → `AgeGroup`, `eligibleCountries`, `eligibleInstitutionTypes`. Individual or institutional participation → `CompetitionRoute` rows. Rules → `rulesHtml`, `conductGuidelinesHtml`. Judging criteria → `judgingCriteriaSummary` plus `rubricId` (§7). Prizes → `CompetitionPrize` plus `awardScheme` (§7). Physical submission → `physicalTopN`, `individualPhysicalRequired`. Public display → `allowPublicDisplay`. Auction → `allowAuction`. Terms and consents → the §12.4 set plus `extraRequiredConsentTypes`.
+**6.3.1 Configuration.** Phase 1 items map to fields as follows. Name, theme and message → `name`, `theme`, `welfareMessageHtml`. Competition type → `CompetitionCategory.discipline` (one competition may span several disciplines). Eligibility and age groups → `AgeGroup`, `eligibleCountries`, `eligibleInstitutionTypes`. Individual or institutional participation → `CompetitionRoute` rows. Rules → `rulesHtml`, `conductGuidelinesHtml`. Judging criteria → `judgingCriteriaSummary` plus the §7 PUBLISHED rubrics (one must resolve for every enabled discipline). Prizes → `CompetitionPrize` plus `awardScheme` (§7). Physical submission → `physicalTopN`, `individualPhysicalRequired`. Public display → `allowPublicDisplay`. Auction → `allowAuction`. Terms and consents → the §12.4 set plus `extraRequiredConsentTypes`.
 
 Categories are Discipline × AgeGroup. A group admits birth dates in `(cutoff − (maxAge+1) y, cutoff − minAge y]`. Age is completed years on the cutoff date, so someone born exactly N years before the cutoff is N. A 29 Feb birthday counts on 1 Mar in non-leap years.
 
@@ -451,7 +459,7 @@ Categories are Discipline × AgeGroup. A group admits birth dates in `(cutoff �
 | Dates | edit | A future date may move later (emits `competition.scheduleChanged`). Earlier only via a manual transition |
 | `physicalTopN`, `individualPhysicalRequired`, facility | edit | Editable until the first entry is FOA_VERIFIED |
 
-**6.3.4 Status machine.** Job `competition.advance` runs every minute. For each competition with `autoAdvance`, it applies the time-driven rows repeatedly, so a missed run catches up in order. Each step is a conditional update (`WHERE status = from`) in its own transaction, with actor SYSTEM, so it is idempotent. The same job emits `competition.submissionOpened` once at `submissionOpensAt`. It also cancels unconfirmed registrations at `confirmationDeadline` (6.6). A manual transition (`transitionCompetition`) sets the matching date to `now()`. For example, an early close sets `registrationClosesAt = now`. If a guard fails, for example a missing `rubricId`, the job stops for that competition and emits `competition.advanceBlocked`.
+**6.3.4 Status machine.** Job `competition.advance` runs every minute. For each competition with `autoAdvance`, it applies the time-driven rows repeatedly, so a missed run catches up in order. Each step is a conditional update (`WHERE status = from`) in its own transaction, with actor SYSTEM, so it is idempotent. The same job emits `competition.submissionOpened` once at `submissionOpensAt`. It also cancels unconfirmed registrations at `confirmationDeadline` (6.6). A manual transition (`transitionCompetition`) sets the matching date to `now()`. For example, an early close sets `registrationClosesAt = now`. If a guard fails, for example no §7 PUBLISHED rubric resolves for an enabled discipline, the job stops for that competition and emits `competition.advanceBlocked`.
 
 | From → To | Trigger | Guard | Side effects |
 |---|---|---|---|
@@ -460,9 +468,9 @@ Categories are Discipline × AgeGroup. A group admits birth dates in `(cutoff �
 | REGISTRATION_OPEN → REGISTRATION_CLOSED | at `registrationClosesAt`; manual | — | `competition.registrationClosed` |
 | REGISTRATION_CLOSED → REGISTRATION_OPEN | manual, with a new `registrationClosesAt > now` | `now < conductStartsAt` | `competition.registrationOpened` |
 | REGISTRATION_CLOSED → IN_PROGRESS | at `conductStartsAt`; manual | — | `competition.statusChanged` |
-| IN_PROGRESS → SCHOOL_JUDGING | at `submissionClosesAt + lateGraceMinutes`; manual | INSTITUTION route enabled | §7 opens school judging |
-| IN_PROGRESS → FOA_JUDGING | same | No INSTITUTION route; `rubricId` set | §7 may open rounds |
-| SCHOOL_JUDGING → FOA_JUDGING | at `shortlistSubmissionClosesAt`; manual | `rubricId` set | Open shortlists are auto-finalised (6.9) |
+| IN_PROGRESS → SCHOOL_JUDGING | at `submissionClosesAt + lateGraceMinutes`; manual | INSTITUTION route enabled; a §7 PUBLISHED rubric resolves for every enabled discipline | §7 opens the school rounds, in both scopes |
+| IN_PROGRESS → FOA_JUDGING | same | No INSTITUTION route; a §7 PUBLISHED rubric resolves for every enabled discipline | §7 may open rounds |
+| SCHOOL_JUDGING → FOA_JUDGING | at `shortlistSubmissionClosesAt`; manual | Every §7 school round is FINALIZED or CLOSED_BY_FOA; a §7 PUBLISHED rubric resolves for every enabled discipline | No auto-finalise or auto-forfeit. At `shortlistSubmissionClosesAt` an unfinished school round becomes OVERDUE (§7.15 E5) |
 | FOA_JUDGING ⇄ RESULTS_PENDING_APPROVAL → RESULTS_PUBLISHED | §7 only | §7 | §7 |
 | RESULTS_PUBLISHED → ARCHIVED | at `resultsPublishedAt + archiveAfterDays`; manual | — | Read-only |
 | any status before RESULTS_PUBLISHED → CANCELLED | `cancelCompetition` (SA, reason) | — | Registrations → CANCELLED (6.6); refunds of captured fees requested from §8; artworks in custody → returns queue; `competition.cancelled` |
@@ -473,8 +481,8 @@ Categories are Discipline × AgeGroup. A group admits birth dates in `(cutoff �
 | PUBLISHED | Yes | Config edits per 6.3.3. Institutions may sign up (6.4.1) but not yet register for this competition |
 | REGISTRATION_OPEN | Yes | Individual registration, institution competition registration, adding or importing students, consents, payment |
 | REGISTRATION_CLOSED | Yes | No new registrations, except `addLateRegistration` (CM/SA). Pending registrations can finish consent, payment and institution verification until `confirmationDeadline`. `publishInstructions` |
-| IN_PROGRESS | Yes | Conduct. From `submissionOpensAt`: drafts, uploads and submissions. Conduct certification. SHORTLIST_ONLY shortlist creation. FOA verification of individual entries. Physical requests |
-| SCHOOL_JUDGING | Yes | §7 school judging. Shortlisted entries → SUBMITTED_TO_FOA until the shortlist deadline. FOA verification. Physical dispatch and receipt |
+| IN_PROGRESS | Yes | Conduct. From `submissionOpensAt`: drafts, uploads and submissions. Conduct certification. FOA verification of individual entries. Physical requests |
+| SCHOOL_JUDGING | Yes | §7 school judging. SHORTLIST_ONLY shortlist creation. Shortlisted entries → SUBMITTED_TO_FOA until the shortlist deadline. FOA verification. Physical dispatch and receipt |
 | FOA_JUDGING, RESULTS_PENDING_APPROVAL | Yes | §7 judging. Physical receipt and verification. Only staff can withdraw entries |
 | RESULTS_PUBLISHED | Yes, with results (§7) | Return requests, exhibition, retention, auction (§8) |
 | ARCHIVED | Yes, read-only | Artwork custody actions only |
@@ -566,17 +574,17 @@ A school may pay in bulk while signed forms are still coming in. Those registrat
 | PENDING_CONSENT, PENDING_PAYMENT → CONFIRMED | system, after a consent, capture, offline payment, waiver or institution verification | The target status is CONFIRMED, and `now ≤ confirmationDeadline` unless CM/SA acted | `confirmedAt`; `registration.confirmed` |
 | PENDING_PAYMENT → PENDING_CONSENT | system on `consent.withdrawn` | — | — |
 | PENDING_* → CANCELLED | job at `confirmationDeadline`; CM/SA; institution rejected; competition cancelled; duplicate resolution | — | Open batch cancelled; draft entries soft-deleted; `registration.cancelled` |
-| PENDING_*, CONFIRMED → WITHDRAWN | `withdrawRegistration` by the Owner or a claimed guardian (before FOA_JUDGING), or by SA (any time). Also the system, on `consent.withdrawn` of PARTICIPATION or DATA_PROCESSING before RESULTS_PUBLISHED (§12.6) | Reason | Live entries → WITHDRAWN; artworks per 6.10; refund only if §8 policy allows; `registration.withdrawn` |
+| PENDING_*, CONFIRMED → WITHDRAWN | `withdrawRegistration` by the Owner or a claimed guardian (before FOA_JUDGING), or by SA (any time). Also the system, on `consent.withdrawn` of PARTICIPATION or DATA_PROCESSING before RESULTS_PUBLISHED (§12.6) | Reason | Live entries in every status, including IN_JUDGING, ELIMINATED and FINALIZED, → WITHDRAWN (6.9 rows 13–14); artworks per 6.10; refund only if §8 policy allows (CM/SA request, FINANCE approves); `registration.withdrawn` |
 | CONFIRMED → CANCELLED | CM/SA (ineligible, fraud, duplicate); competition cancelled | Reason | Entries → WITHDRAWN; §8 refund on cancellation or duplicate; `registration.cancelled` |
 | WITHDRAWN, CANCELLED → `statusBeforeEnd` | `reinstateRegistration` (SA) | Competition is at or before IN_PROGRESS | `evaluateRegistration` |
 
 **Payment batches.**
-- **Create.** `createRegistrationPaymentBatch({ registrationIds })` requires: all registrations are in one competition and share one Owner; each is PENDING_CONSENT or PENDING_PAYMENT, unpaid, not waived, and not in an open batch; `now ≤ confirmationDeadline`; on route A, the institution is VERIFIED. It creates the batch (OPEN, `expiresAt = now + 30 min`) and its items, sets `openBatchId` on each registration, and calls `PaymentService.createOrder({ purpose: REGISTRATION_FEE, amountMinor: Σ items, currency, payerUserId, refType: 'RegistrationPaymentBatch', refId })`. An institution batch covers N students; an individual batch covers one.
-- **Capture.** `payment.captured` is idempotent on `paymentId`. If the amount differs from the batch total → NEEDS_REVIEW. Otherwise, each live, unpaid registration gets `feePaidMinor += amount` and `paidAt`, and is re-evaluated. If any item can't be applied → NEEDS_REVIEW and `registration.paymentNeedsReview`, so staff can reinstate or refund via §8. Otherwise → PAID. `openBatchId` is always cleared.
+- **Create.** `createRegistrationPaymentBatch({ registrationIds })` requires: all registrations are in one competition and share one Owner; each is PENDING_CONSENT or PENDING_PAYMENT, unpaid, not waived, and not in an open batch; `now ≤ confirmationDeadline`; on route A, the institution is VERIFIED. It creates the batch (OPEN, `expiresAt = now + 30 min`) and its items, sets `openBatchId` on each registration, and calls `PaymentService.createOrder({ purpose: REGISTRATION_FEE, amountMinor: Σ items, currency, payerUserId, refType: 'RegistrationPaymentBatch', refId: batchId })`, one order per batch. An institution batch covers N students; an individual registration pays through a batch of one.
+- **Capture.** `payment.captured` is idempotent on `paymentId`. If the amount differs from the batch total → NEEDS_REVIEW. Otherwise, each live, unpaid registration gets `feePaidMinor += amount` and `paidAt`, and is re-evaluated. If any item can't be applied (the registration is no longer payable) → NEEDS_REVIEW and `registration.paymentNeedsReview`, so staff can reinstate, or CM/SA can request a refund via §8, which FINANCE approves. There is no automatic refund. Otherwise → PAID. `openBatchId` is always cleared.
 - **Failure and expiry.** `payment.failed` → FAILED, and the expiry job → EXPIRED. Both clear `openBatchId`. A capture that arrives after expiry is still processed as above.
-- **Offline payment** (cheque or NEFT). FINANCE or SA calls `markBatchPaidOffline({ batchId, reference, amountMinor })`, which works like a capture. §8 records the ledger entry.
+- **Offline payment** (cheque or NEFT). FINANCE or SA calls `markBatchPaidOffline({ batchId, reference, amountMinor })`, which calls `PaymentService.recordOfflinePayment({ refType: 'RegistrationPaymentBatch', refId: batchId, … })` and then works like a capture. §8 records the ledger entry.
 - **Waivers.** CM/SA call `waiveRegistrationFees({ registrationIds | institutionRegistrationId, reason })`. Zero-fee routes need no waiver and create no Payment.
-- **Refunds** are never automatic, except on competition cancellation and duplicate resolution. Otherwise CM/SA request them via §8.
+- **Refunds** are never automatic, except on competition cancellation and duplicate resolution. Otherwise CM/SA request them via §8 and FINANCE approves (§8's dual approval above the threshold still applies). A partial refund lists the `RegistrationPaymentBatchItem` ids it covers; the amount is the sum of their `amountMinor`.
 
 ### 6.7 Preparation & Conduct (Phase 3)
 
@@ -651,26 +659,26 @@ If the Owner submits before the deadline while files are still processing, the s
 | 4 | SUBMITTED → SCHOOL_SHORTLISTED | §7 calls `applySchoolShortlist` | INSTITUTION route, scope ALL; size guard; `schoolRank` set | `entry.shortlisted` |
 | 5 | SUBMITTED → NOT_SHORTLISTED | Same call | Same | `entry.notShortlisted` |
 | 6 | NOT_SHORTLISTED → SCHOOL_SHORTLISTED | §7 amends the shortlist, e.g. to replace a withdrawn entry | `now ≤` shortlist deadline; size guard | `entry.shortlisted` |
-| 7 | ∅ → SCHOOL_SHORTLISTED | `createShortlistedEntry`: coordinator, or §7's school round | Scope SHORTLIST_ONLY. Registration CONFIRMED. `conductStartsAt ≤ now ≤` shortlist deadline. Size guard | `entryCode`; `entry.shortlisted` with `silent: true` (analytics only; §10 sends the shortlist messages from `schoolShortlist.finalized`, see §7.3) |
+| 7 | ∅ → SCHOOL_SHORTLISTED | `createShortlistedEntry`: coordinator, or §7's school round | Scope SHORTLIST_ONLY. Registration CONFIRMED. `competition.status = SCHOOL_JUDGING` and `now ≤ shortlistSubmissionClosesAt` (or a SHORTLIST extension). Size guard | `entryCode`; `entry.shortlisted` with `silent: true` (analytics only; §10 sends the shortlist messages from `schoolShortlist.finalized`, which §7 `finalizeSchoolRound` emits, see §7.3) |
 | 8 | SCHOOL_SHORTLISTED → SUBMITTED_TO_FOA | `submitShortlistedEntryToFoa`: coordinator | Within the shortlist deadline. ConductCertification exists (PHYSICAL_AT_INSTITUTION). Visual disciplines have a HIRES_SCAN ≥ `hiResMinLongEdgePx`, or a qualifying PRIMARY marked via `markFileAsHiRes`. Title and description present. PARTICIPATION consent. ENTRY_ORIGINALITY_INSTITUTION accepted | `submittedToFoaAt`; `entry.submittedToFoa` |
 | 9 | SUBMITTED_TO_FOA → SCHOOL_SHORTLISTED | `requestEntryChanges` (CM, SA) | `correctionDueAt > now` | `entry.changesRequested` |
 | 10 | SUBMITTED (INDIVIDUAL) or SUBMITTED_TO_FOA → FOA_VERIFIED | `verifyEntry` (CM, SA) | Checklist all true: category and age group correct; files legible and within rules; on theme; consents present; declaration present; no open duplicate flag | `verifiedAt`; physical request per 6.10.1; `entry.verified` |
 | 11 | SUBMITTED, SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA or FOA_VERIFIED → REJECTED_INELIGIBLE | `rejectEntry` (CM, SA) | `rejectionReason`. From FOA_VERIFIED only before IN_JUDGING (e.g. PHYSICAL_NOT_RECEIVED, PHYSICAL_MISMATCH) | `statusBeforeRejection` stored; REQUESTED artwork → NOT_REQUIRED; `entry.rejected` |
 | 12 | REJECTED_INELIGIBLE → `statusBeforeRejection` | `reinstateEntry` (SA) | Competition at or before FOA_JUDGING | `entry.reinstated` |
 | 13 | SUBMITTED, SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA or FOA_VERIFIED → WITHDRAWN | `withdrawEntry` (Owner, CM, SA); cascade from a WITHDRAWN or CANCELLED registration | Non-staff only before FOA_JUDGING | Artwork per 6.10 (REQUESTED → NOT_REQUIRED; in custody → returns queue); `entry.withdrawn` |
-| 14 | IN_JUDGING or ELIMINATED → WITHDRAWN | `withdrawEntry` (SA) | Reason | §7 removes the entry from its rounds |
+| 14 | IN_JUDGING, ELIMINATED or FINALIZED → WITHDRAWN | `withdrawEntry` (SA); cascade from a registration becoming WITHDRAWN, including the system acting on `consent.withdrawn` for PARTICIPATION (§12.6) | Reason | §7 removes the entry from its rounds. If results are already published, a §7.15 E3 correction follows (certificate revoked, results corrected) |
 | 15 | Any status except DRAFT, WITHDRAWN or DISQUALIFIED (including §7 statuses) → DISQUALIFIED | `disqualifyEntry` (CM, SA; from FINALIZED, SA only) | Reason, e.g. plagiarism or a conduct breach | §7 recomputes rankings and revokes certificates; `entry.disqualified` |
+| 16 | SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA or NOT_SHORTLISTED → SUBMITTED | `EntryService.revertSchoolShortlist({ institutionRegistrationId, categoryId })`, called only by §7 when a school round is reopened | Scope ALL. No entry of that InstitutionRegistration × category is FOA_VERIFIED or later | Clears `schoolRank`, `schoolAwardLabel` and `submittedToFoaAt`; `entry.shortlistReverted` (silent). Under SHORTLIST_ONLY, entries created by row 7 are soft-deleted on reopen instead (same guard) |
 
-**Size guard.** Live shortlist entries per InstitutionRegistration and category must not exceed `schoolShortlistSize`. Live means SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA, FOA_VERIFIED or any later §7 status. `schoolRank` is unique within that pair. Withdrawn and rejected entries free their slot. **Ended states for §6.** NOT_SHORTLISTED (except row 6), REJECTED_INELIGIBLE (except row 12), WITHDRAWN and DISQUALIFIED. **Leftovers.** An entry still SCHOOL_SHORTLISTED after the shortlist deadline stays there. It keeps its rank for §7 merit certificates but goes no further. DRAFTs left after the deadline are hidden and purged under §12 retention. **Anything else.** Any other transition throws `IllegalTransitionError`.
+**Size guard.** Live shortlist entries per InstitutionRegistration and category must not exceed `schoolShortlistSize`. Live means SCHOOL_SHORTLISTED, SUBMITTED_TO_FOA, FOA_VERIFIED or any later §7 status. `schoolRank` is unique within that pair. Withdrawn and rejected entries free their slot. **Ended states for §6.** NOT_SHORTLISTED (except rows 6 and 16), REJECTED_INELIGIBLE (except row 12), WITHDRAWN and DISQUALIFIED. **Leftovers.** An entry still SCHOOL_SHORTLISTED after the shortlist deadline stays there. It keeps its rank for §7 merit certificates but goes no further. DRAFTs left after the deadline are hidden and purged under §12 retention. **Anything else.** Any other transition throws `IllegalTransitionError`.
 
 ```ts
 EntryService.applySchoolShortlist({ institutionRegistrationId, categoryId, actorUserId,
-  shortlisted: { entryId: string; schoolRank: number; schoolAwardLabel?: string }[], notShortlistedEntryIds: string[] }) // §7, ALL; atomic; rows 4–6
+  shortlisted: { entryId: string; schoolRank: number; schoolAwardLabel?: string }[], notShortlistedEntryIds: string[] }) // §7 finalizeSchoolRound, once per category; ALL; atomic; rows 4–6
 EntryService.createShortlistedEntry({ registrationId, categoryId, schoolRank, schoolAwardLabel?, title, description, actorUserId }) // row 7
-EntryService.finalizeSchoolShortlist({ institutionRegistrationId, categoryId, actorUserId }) // emits schoolShortlist.finalized
-  // { notShortlistedRegistrationIds } so §10 can thank SHORTLIST_ONLY students with no Entry; auto-runs at the shortlist
-  // deadline; applySchoolShortlist calls it; amendments (rows 6–7) stay allowed until the deadline
-ArtworkService.physicalReady(entryId): boolean // true if no artwork has requiredForJudging, or its status ∈ {VERIFIED, IN_EXHIBITION, RETAINED}
+EntryService.revertSchoolShortlist({ institutionRegistrationId, categoryId }) // §7 reopenSchoolRound only; row 16
+ArtworkService.physicalReady(entryId): boolean // = !artwork.requiredForJudging || artwork.status ∈ {VERIFIED, IN_EXHIBITION, RETAINED}
+  // true when the entry has no PhysicalArtwork (6.10.1); waivePhysicalForJudging sets requiredForJudging = false
 ```
 
 ### 6.10 Physical Artwork Track (Phases 5, 8, 14)
@@ -694,7 +702,7 @@ ArtworkService.physicalReady(entryId): boolean // true if no artwork has require
 | RECEIVED → DISCREPANCY | `verifyArtwork` with a failed item, or `raiseArtworkDiscrepancy` | `discrepancyType` and notes | `discrepancyResponseDueAt = now + 7 d`; `artwork.discrepancyRecorded` |
 | DISCREPANCY → VERIFIED | `resolveArtworkDiscrepancy` (CM, SA) | Resolution note; the failed items now pass | `artwork.discrepancyResolved` |
 | VERIFIED ⇄ IN_EXHIBITION; RETAINED → IN_EXHIBITION | `moveArtwork` (SA, CM) | Location | Custody EXHIBITED or STORED |
-| VERIFIED, IN_EXHIBITION or RETAINED → LISTED_FOR_AUCTION → SOLD, or back to VERIFIED | §8 only (`setAuctionState`) | §8, with consent per §12.4 | Custody HANDED_TO_AUCTION |
+| VERIFIED, IN_EXHIBITION or RETAINED → LISTED_FOR_AUCTION → SOLD; LISTED_FOR_AUCTION or SOLD → `statusBeforeListing` | §8 only (`setAuctionState`) | §8, with consent per §12.4 | Listing stores `statusBeforeListing`; custody HANDED_TO_AUCTION |
 | RECEIVED, VERIFIED, IN_EXHIBITION or DISCREPANCY → RETURNED | `recordArtworkReturn` (SA, CM) | COURIER with tracking, or HAND_OVER with the recipient's name. Not allowed while LISTED_FOR_AUCTION or SOLD | Custody RETURNED; `artwork.returned` |
 | VERIFIED or IN_EXHIBITION → RETAINED | `retainArtwork` (SA) | The return policy allows it, and no return request is open | Custody RETAINED; `artwork.retained` |
 
@@ -702,7 +710,7 @@ ArtworkService.physicalReady(entryId): boolean // true if no artwork has require
 
 **Discrepancies.** The responsible party can reply with an explanation and documents until `discrepancyResponseDueAt`. CM then either resolves the discrepancy (→ VERIFIED), or rejects or disqualifies the entry (6.9 rows 11 and 15, with PHYSICAL_MISMATCH) and returns the artwork.
 
-**Overdue.** §10 sends `reminder.artworkDispatch`. Seven days after the deadline, any artwork still REQUESTED with `requiredForJudging` goes to the CM queue. CM can extend the deadline, waive the requirement (`waivePhysicalForJudging`), or reject the entry (PHYSICAL_NOT_RECEIVED).
+**Overdue.** §10 sends `reminder.artworkDispatch`. Seven days after the deadline, any artwork still REQUESTED with `requiredForJudging` goes to the CM queue. CM can extend the deadline, waive the requirement (`waivePhysicalForJudging`, which sets `requiredForJudging = false`), or reject the entry (PHYSICAL_NOT_RECEIVED).
 
 **Custody & storage.** Every receipt, move, auction hand-off, return and retention writes an append-only ArtworkCustodyEvent. `storageLocation` has the form `FACILITY/ROOM/RACK/SHELF`, and its first segment must equal `FoaFacility.code`. The staff UI shows the current location and the full custody chain.
 
@@ -765,10 +773,11 @@ All of these are Next.js Server Actions that call domain services. Inputs are va
 | `createEntry`, `updateEntryDraft`, `deleteDraftEntry`, `startTimedEntry` | registrationId, categoryId / entryId, fields | Owner | Row 1; 6.8.5; 6.7 |
 | `requestEntryUpload`, `completeEntryUpload`, `removeEntryFile`, `markFileAsHiRes` | 6.8.4 inputs / entryFileId | Owner | 6.8.4 |
 | `submitEntry`, `bulkCreateEntries`, `submitEntries` | entryId(s), templateId / categoryId, file ids | Owner (bulk: coordinator, scope ALL) | Row 2; 6.8.2 bulk |
-| `createShortlistedEntry`, `finalizeSchoolShortlist`, `submitShortlistedEntryToFoa` | 6.9 service inputs / entryId, templateId | Coordinator (own institution) | Rows 7–8; `schoolShortlist.finalized` |
+| `createShortlistedEntry`, `submitShortlistedEntryToFoa` | 6.9 service inputs / entryId, templateId | Coordinator (own institution) | Rows 7–8. Coordinators finalize through §7's school-round UI (`finalizeSchoolRound`) |
+| `revertSchoolShortlist` | institutionRegistrationId, categoryId | §7 only, from `reopenSchoolRound` (CM/SA); no client action | Row 16 |
 | `verifyEntry`, `requestEntryChanges`, `rejectEntry`, `reinstateEntry` | entryId, checklist / note, correctionDueAt / reason | CM, SA (reinstate: SA only) | Rows 3, 9–12 |
 | `withdrawEntry`, `disqualifyEntry` | entryId, reason | Owner, CM, SA (row 14: SA only) / CM, SA (from FINALIZED: SA only) | Rows 13–15 |
-| `waivePhysicalForJudging`, `requestPhysicalArtwork`, `cancelPhysicalRequest` | entryId, reason / entryIds[], reason, deadline? / artworkId | CM, SA | 6.10.1 |
+| `waivePhysicalForJudging`, `requestPhysicalArtwork`, `cancelPhysicalRequest` | entryId, reason / entryIds[], reason, deadline? / artworkId | CM, SA | 6.10.1; waive sets `requiredForJudging = false` |
 | `downloadArtworkLabel`, `recordArtworkDispatch` | artworkId / artworkIds[], courierName, trackingNumber, trackingUrl?, dispatchedOn, proofFileId?, templateId | Responsible party (label: CM/SA too) | Label PDF / ArtworkShipment, then DISPATCHED |
 | `recordArtworkReceipt`, `verifyArtwork` | shipmentId or artworkCodes[], receivedAt, packageIntact, photos / checklist, dimensions, medium, condition, photos, storageLocation | CM, SA | RECEIVED / VERIFIED, or DISCREPANCY |
 | `raiseArtworkDiscrepancy`, `respondToDiscrepancy`, `resolveArtworkDiscrepancy` | artworkId, type, notes / text, files / resolution, outcome | CM, SA / responsible party / CM, SA | 6.10 |
@@ -787,7 +796,7 @@ Every payload carries `competitionId`, the subject's `id` and human code, `route
 | `institution.registered`, `.verified`, `.rejected`, `.suspended`, `.reinstated`; `institutionMember.invited`, `institutionMember.removed` | 6.4 |
 | `institutionRegistration.created`, `.certified`, `.withdrawn`; `studentImport.completed` | 6.4.4, 6.7, 6.5.2 |
 | `registration.created`, `.confirmed`, `.withdrawn`, `.cancelled`, `.transferred`, `.paymentNeedsReview`, `.duplicateFlagged` | 6.6, 6.14 |
-| `entry.submitted`, `.changesRequested`, `.shortlisted`, `.notShortlisted`, `.submittedToFoa`, `.verified`, `.rejected`, `.reinstated`, `.withdrawn`, `.disqualified`; `schoolShortlist.finalized`; `file.quarantined` | 6.8, 6.9 |
+| `entry.submitted`, `.changesRequested`, `.shortlisted`, `.notShortlisted`, `.submittedToFoa`, `.verified`, `.rejected`, `.reinstated`, `.withdrawn`, `.disqualified`, `.shortlistReverted` (silent); `file.quarantined` | 6.8, 6.9 |
 | `artwork.requested`, `.requestCancelled`, `.dispatched`, `.received`, `.verified`, `.discrepancyRecorded`, `.discrepancyResolved`, `.returned`, `.retained` | 6.10 |
 
 ### 6.14 Edge Cases
@@ -796,7 +805,7 @@ Every payload carries `competitionId`, the subject's `id` and human code, `route
 - **E2 One participant in two categories.** Allowed when `maxCategoriesPerParticipant ≥ 2`. One Registration with two RegistrationCategory rows. The fee is the base fee plus one additional-category fee. One entry per category, and one PhysicalArtwork per entry. Shortlist size is counted per category. Both categories share the age group, which depends only on DOB.
 - **E3 Age-group boundary and DOB correction.** Membership uses the inclusive birth-date interval from 6.3.1. Tests cover a DOB exactly N years before the cutoff, ±1 day, and 29 Feb. A corrected DOB recomputes the age group. If a chosen category no longer fits, the registration gets `eligibilityReviewRequired`. Its entries then can't pass SUBMITTED until CM either fixes the category or rejects the entry (AGE_INELIGIBLE). The Owner can edit the DOB until the first submission. After that, only CM/SA can.
 - **E4 Institution not verified when registration closes.** Registrations created before the close stay valid. Verification, consent and payment can finish until `confirmationDeadline`, and these institutions sort first in the verification queue. Registrations still unconfirmed at the deadline are CANCELLED.
-- **E5 Payment captured after registration closes.** A registration that is still PENDING_* when `now ≤ confirmationDeadline` is confirmed normally. Otherwise the batch goes to NEEDS_REVIEW, and staff either reinstate the registration (if the competition is at or before IN_PROGRESS) or refund via §8.
+- **E5 Payment captured after registration closes.** A registration that is still PENDING_* when `now ≤ confirmationDeadline` is confirmed normally. Otherwise the batch goes to NEEDS_REVIEW (`registration.paymentNeedsReview`), and staff either reinstate the registration (if the competition is at or before IN_PROGRESS), or CM/SA request a refund via §8, which FINANCE approves. There is no automatic refund.
 - **E6 Same child registered both individually and through a school.** The unique key on (competition, participant) stops the same profile registering twice. Different profiles are matched on `identityHash`, plus the guardian `phoneHash` when available. The newer registration gets `possibleDuplicateOfId`, emits `registration.duplicateFlagged`, and goes to the duplicates queue. The guardian sees a generic notice: "This child may already be registered for this competition, for example through a school. Please contact us before paying." It never names the school. Default resolution: keep the school registration, cancel the other with a §8 refund, and merge the profiles (entries, consents per §12, guardian link).
 - **E7 Consent withdrawn mid-competition.** Handled per §12.6. Withdrawing PARTICIPATION or DATA_PROCESSING before RESULTS_PUBLISHED moves the registration to WITHDRAWN. Withdrawing PUBLIC_DISPLAY or AUCTION_OF_ARTWORK changes no §6 status; §7 and §8 act on it.
 - **E8 Upload race at the deadline.** Covered by 6.8.4 (`submitRequestedAt`) and 6.8.5 (no new upload URLs after the deadline). Tests pin the clock.
@@ -821,10 +830,10 @@ Every payload carries `competitionId`, the subject's `id` and human code, `route
 12. **Upload rules.** Oversized or wrong-type uploads are rejected both client-side and by the signed URL or server. A PENDING or INFECTED file blocks submit. WEB and THUMB derivatives of a GPS-tagged fixture contain no EXIF, XMP or GPS data.
 13. **Deadline race.** A submit requested at T−1 s whose processing finishes at T+30 s ends SUBMITTED with `submittedAt = submitRequestedAt`. `requestEntryUpload` at T+1 s returns `DEADLINE_PASSED`.
 14. **Entry code.** `entryCode` matches `^[A-Z]{3,6}\d{2}-E-[0-9A-HJKMNP-TV-Z]{6}$`, is set exactly once, and survives edits and change requests.
-15. **SHORTLIST_ONLY.** Institution-route `createEntry` fails with `SCOPE_SHORTLIST_ONLY`. The (N+1)th shortlisted entry in a category fails with `SHORTLIST_FULL`. A duplicate `schoolRank` fails. `finalizeSchoolShortlist` emits `schoolShortlist.finalized` listing registrants with no entry.
+15. **SHORTLIST_ONLY.** Institution-route `createEntry` fails with `SCOPE_SHORTLIST_ONLY`. The (N+1)th shortlisted entry in a category fails with `SHORTLIST_FULL`. A duplicate `schoolRank` fails. `createShortlistedEntry` fails unless the competition is SCHOOL_JUDGING and `now ≤ shortlistSubmissionClosesAt` (or a SHORTLIST extension). §6 never emits `schoolShortlist.finalized`; §7 `finalizeSchoolRound` does.
 16. **Submit to FOA.** `submitShortlistedEntryToFoa` fails without a ConductCertification (PHYSICAL_AT_INSTITUTION), without a HIRES_SCAN of at least 3,000 px, or after the shortlist deadline with no extension.
 17. **Automatic physical request.** Verifying an individual DRAWING entry creates one REQUESTED PhysicalArtwork with a valid `artworkCode`, `dispatchDeadline = now + physicalDispatchDays` and `requiredForJudging = true`, and emits `artwork.requested`. A school entry with `schoolRank > physicalTopN` gets no PhysicalArtwork.
-18. **Physical readiness.** `physicalReady` stays false until the artwork is VERIFIED.
+18. **Physical readiness.** For a `requiredForJudging` artwork, `physicalReady` stays false until the artwork is VERIFIED. After `waivePhysicalForJudging` it is true.
 19. **Artwork handling.** Dispatch requires courier, tracking number and the declaration. Receipt works from both REQUESTED and DISPATCHED. `verifyArtwork` fails with fewer than 2 photos or without dimensions. A failed checklist item results in DISCREPANCY. Every receipt, move and return writes an ArtworkCustodyEvent.
 20. **Withdrawal cascade.** Withdrawing a CONFIRMED registration withdraws its live entries and moves its REQUESTED artworks to NOT_REQUIRED, in one transaction.
 21. **Duplicate detection.** An individual registration whose `identityHash` matches a school registration is flagged and appears in the duplicates queue. The guardian's notice contains no institution name.
@@ -840,7 +849,7 @@ Every payload carries `competitionId`, the subject's `id` and human code, `route
 - **Can institutions start before they're verified?** Default: yes, they can register and add students. Payment, confirmation and submission wait for verification, up to `confirmationDeadline` (default `conductStartsAt`).
 - **Institution verification evidence.** Default: a staff check plus principal email confirmation or a logged phone call. No documents are mandatory; the affiliation code is optional.
 - **Who pays on the school route?** Default: the institution, in bulk, online or offline (FINANCE records offline payments). Per-parent pay links come after the MVP.
-- **Refund on withdrawal.** Default: none after CONFIRMED, except for competition cancellation and duplicate resolution. Staff may make discretionary refunds via §8.
+- **Refund on withdrawal.** Default: none after CONFIRMED, except for competition cancellation and duplicate resolution. CM/SA may request discretionary refunds via §8, which FINANCE approves.
 - **Categories per participant.** Default: 1. When `maxCategoriesPerParticipant` is raised, `feeAdditionalCategoryMinor` applies.
 - **Artwork return vs. retention, and shipping cost.** Default: `RETAIN_UNLESS_REQUESTED`, with a 30-day request window after results. The instructions state who pays shipping, and the platform never charges for it.
 - **Late submissions.** Default: no grace period (`lateGraceMinutes = 0`). Staff can grant extensions per registration or per institution.
@@ -853,7 +862,7 @@ Every payload carries `competitionId`, the subject's `id` and human code, `route
 
 **Owns:** rubrics, school-level and FOA-level judging rounds, score storage and aggregation, results approval and publishing, certificates, prize fulfilment, `StampService`, the gallery and the social export queue. This section owns the §3.5 enums `JudgingLevel`, `AwardScheme`, `EntryOutcome` and `CertificateType`. All other enums, the core entities (§3.4) and the code formats (§3.1) are used verbatim.
 
-**Assumed §6 names (map 1:1 if §6 differs):** `Registration` (`participantId`, `institutionRegistrationId?`, `categoryId`, confirmed status); `InstitutionRegistration`; `Entry` (`registrationId`, `participantId`, `categoryId`, `discipline`, plus EXIF-stripped `WEB` media and a video poster); `PhysicalArtwork`; the competition category (discipline × age group, called `categoryId` here); and the competition flags `allowPublicDisplay` and `digitalSubmissionScope`. §7 calls §6's `EntryService` to run `SUBMITTED → SCHOOL_SHORTLISTED | NOT_SHORTLISTED` and its reversal. §7 defines the guards for `FOA_JUDGING → RESULTS_PENDING_APPROVAL → RESULTS_PUBLISHED` and requests those transitions through §6's `CompetitionService.transition()`.
+**Assumed §6 names (map 1:1 if §6 differs):** `Registration` (`participantId`, `institutionRegistrationId?`, categories via `RegistrationCategory`, confirmed status); `InstitutionRegistration`; `Entry` (`registrationId`, `participantId`, `categoryId`, `discipline`, plus EXIF-stripped `WEB` media and a video poster); `PhysicalArtwork`; the competition category (discipline × age group, called `categoryId` here); and the competition flags `allowPublicDisplay` and `digitalSubmissionScope`. §7 calls §6's `EntryService.applySchoolShortlist` to run `SUBMITTED → SCHOOL_SHORTLISTED | NOT_SHORTLISTED`, and `EntryService.revertSchoolShortlist` for its reversal when a school round is reopened. §7 defines the guards for `FOA_JUDGING → RESULTS_PENDING_APPROVAL → RESULTS_PUBLISHED` and requests those transitions through §6's `CompetitionService.transition()`.
 
 **Role abbreviations:** CM = COMPETITION_MANAGER (global or scoped to the competition), SA = STAFF_ADMIN (SUPER_ADMIN implies SA), IA/IC = INSTITUTION_ADMIN / INSTITUTION_COORDINATOR (own institution), J = JUDGE (own assignment), CT = CONTENT_MANAGER, P/G = PARTICIPANT / GUARDIAN (own or linked profile). Every action follows §0: permission → transition guard → AuditLog → Outbox event. Event names use the camelCase entity names that §10 already consumes. **Public identity** (name form, school, city) always follows §12.7 `ParticipantDisplayPrefs`. §7 toggles can only hide more.
 
@@ -894,7 +903,7 @@ model JudgingRound {
   // SCHOOL only
   institutionRegistrationId String? @unique      // required iff level = SCHOOL
   certifiedByUserId String?;  certifiedAt DateTime?;  certificationTextHash String?;  shortfallReason String?
-  closedOnBehalfMode String? /* PARTICIPATION_ONLY | STAFF_ENTERED */;  deadlineOverride DateTime?
+  closedOnBehalfMode String? /* PARTICIPATION_ONLY | STAFF_ENTERED */
   // FOA only
   mode JudgingMode @default(DIGITAL);  requiresPhysicalVerified Boolean @default(true)
   entryPool RoundEntryPool?;  routeFilter ParticipationRoute[] /* default both */;  sourceRoundIds String[]
@@ -924,18 +933,18 @@ type AwardBand = { key: string; label: string /* "All India 1st" | "A Grade" | "
   outcome: 'WINNER' | 'RUNNER_UP' | 'SPECIAL_MENTION';
   rankFrom?: number; rankTo?: number;         // RANKED, MEDAL (inclusive)
   minPercent?: number;                        // GRADED: finalScore ≥ minPercent, evaluated top-down
-  prize?: { type: PrizeType; description: string } };
+  prizeId?: string /* → §6 CompetitionPrize; drives PrizeFulfilment (§7.8) */ };
 type TieBreakStep = { kind: 'CRITERION_MEAN_BY_WEIGHT' | 'MEDIAN_TOTAL' | 'MANUAL' };
 ```
 
 - **Default bands** (editable): RANKED is 1st (WINNER, rank 1), 2nd (RUNNER_UP, 2), 3rd (RUNNER_UP, 3). MEDAL is Gold, Silver and Bronze over the same ranks. GRADED is A Grade (WINNER, ≥ 80) and B Grade (RUNNER_UP, ≥ 65). Overlapping bands are rejected on save.
-- **Default plan** (seeded with the competition): one FOA round with `NATIONAL`, `isFinal`, `PHYSICAL`, `entryPool FOA_VERIFIED` and `RANKED`.
+- **Default plan** (seeded with the competition): one FOA round with `NATIONAL`, `isFinal`, `PHYSICAL`, `entryPool FOA_VERIFIED` and §6 `Competition.awardScheme` (the default for the final round; the round may override it).
   - **Adding levels:** each extra level is a round with `entryPool PREVIOUS_ROUND_ADVANCED`.
   - **Partitions:** CITY (City/District) partitions by CITY, STATE by STATE, NATIONAL by COUNTRY or NONE, GLOBAL by NONE.
   - **Partition key:** the trimmed, lowercased `ParticipantProfile.city/state/country`. Judges never see it.
 - **Pool guard:** an entry joins a round only if both checks pass.
   - **Consent:** `ConsentService.has(participantId, PARTICIPATION, competitionId)` (§12 gate for judging).
-  - **Physical:** `PHYSICAL` forces `requiresPhysicalVerified`. The check passes when the entry has no `PhysicalArtwork`, or its status is NOT_REQUIRED, VERIFIED or IN_EXHIBITION.
+  - **Physical:** `PHYSICAL` forces `requiresPhysicalVerified`. A round with `requiresPhysicalVerified` admits an entry iff §6 `ArtworkService.physicalReady(entryId)`.
   - Entries that fail stay FOA_VERIFIED and appear under "Blocked" on the Pool tab, with the reason.
 
 ### 7.3 School-Level Judging (Phase 6)
@@ -943,9 +952,9 @@ type TieBreakStep = { kind: 'CRITERION_MEAN_BY_WEIGHT' | 'MEDIAN_TOTAL' | 'MANUA
 ```prisma
 model SchoolJudgingPolicy {                      // one per competition with the INSTITUTION route
   competitionId String @id;  positionsPerCategory Int @default(3) /* 3 or 5 */
-  positionLabels String[] @default(["1st","2nd","3rd"]);  shortlistPerCategory Int @default(5) /* prescribed N */
+  positionLabels String[] @default(["1st","2nd","3rd"])  // N and the window are §6 Competition.schoolShortlistSize / shortlistSubmissionClosesAt
   rubricScoresRequired Boolean @default(false);  minPanelSize Int @default(1) /* UI recommends 3 */
-  deadline DateTime;  certificationText String /* versioned; hash stored on the round */
+  certificationText String /* versioned; hash stored on the round */
 }
 model SchoolPanelMember { id String @id; roundId String; name String; designation String; isExternal Boolean @default(false) } // no account
 model SchoolResult {
@@ -954,27 +963,27 @@ model SchoolResult {
   participated Boolean                           // default: SUBMITTED entry exists (ALL) / true (SHORTLIST_ONLY)
   position Int?                                  // 1..positionsPerCategory, unique per (roundId, categoryId)
   advanced Boolean @default(false);  scores Json? /* {criterionKey:int} */;  weightedTotal Decimal? @db.Decimal(5,2)
-  @@unique([roundId, registrationId])
+  @@unique([roundId, registrationId, categoryId])
 }
 ```
 
-1. **Creation:** when §6 confirms an InstitutionRegistration, a SCHOOL round (DRAFT) is created for it. It opens when the competition enters SCHOOL_JUDGING or when §6 records the school's conduct certification (Phase 3), whichever comes first. On opening, one `SchoolResult` row is created per confirmed Registration, and rows are re-synced while the round is OPEN.
+1. **Creation:** when a §6 InstitutionRegistration becomes ACTIVE, a SCHOOL round (DRAFT) is created for it. It opens when the competition enters SCHOOL_JUDGING (at `submissionClosesAt`), in both scopes. On opening, one `SchoolResult` row is created per confirmed Registration and category, and rows are re-synced while the round is OPEN.
 2. **Coordinator UI** (`/institution/competitions/[code]/judging`): the framework (rubric and PDF), a panel editor and a results grid per category. School rounds are not blind: rows show name, registration number and a thumbnail via signed URL. Columns are participated, position, advance and optional rubric scores. The grid autosaves through `saveSchoolResults`.
 3. **`finalizeSchoolRound` validations** (errors reported per row):
    - V1: the panel has at least `minPanelSize` members.
    - V2: the certification box is ticked ("conducted and judged according to FOA guidelines"). Stores `certifiedByUserId`, `certifiedAt` and `certificationTextHash`.
    - V3: positions are unique within 1..`positionsPerCategory` and belong to participated rows.
-   - V4: at most N advanced rows per category. If fewer than min(N, participated count), `shortfallReason` is required.
+   - V4: at most N (§6 `schoolShortlistSize`) advanced rows per category. If fewer than min(N, participated count), `shortfallReason` is required.
    - V5: if `positionsPerCategory ≤ N`, every positioned row is advanced.
    - V6: under ALL, every advanced row has a SUBMITTED entry. Under SHORTLIST_ONLY, no entry is needed.
    - V7: if `rubricScoresRequired`, every advanced row has all scores in range.
 4. **Finalize effects** (one transaction, plus jobs):
    - The round → FINALIZED and becomes read-only for the school.
-   - **ALL:** §6 `EntryService.applySchoolDecision(entryId, shortlisted, schoolRank, schoolAwardLabel)` moves each SUBMITTED entry to SCHOOL_SHORTLISTED or NOT_SHORTLISTED, with `schoolAwardLabel = positionLabels[position-1]`.
-   - **SHORTLIST_ONLY:** no entry moves. §6 allows the Phase 7 upload only for registrations with `SchoolResult.advanced` and creates each Entry directly in SCHOOL_SHORTLISTED, copying `schoolRank` and `schoolAwardLabel`.
-   - **Certificates** (§7.7): PARTICIPATION for every participated row (keyed by Registration, so students with no digital entry are covered) and SCHOOL_MERIT for every positioned row.
+   - **ALL:** §6 `EntryService.applySchoolShortlist({ institutionRegistrationId, categoryId, shortlisted: [{ entryId, schoolRank, schoolAwardLabel }], notShortlistedEntryIds })`, called once per category, moves each SUBMITTED entry to SCHOOL_SHORTLISTED or NOT_SHORTLISTED, with `schoolAwardLabel = positionLabels[position-1]`.
+   - **SHORTLIST_ONLY:** no entry moves. §6 allows the Phase 7 upload only for registration × category pairs with `SchoolResult.advanced` and creates each Entry directly in SCHOOL_SHORTLISTED through `EntryService.createShortlistedEntry`, copying `schoolRank` and `schoolAwardLabel`.
+   - **Certificates** (§7.7): one PARTICIPATION per Registration with a participated row (keyed by Registration, so students with no digital entry are covered) and SCHOOL_MERIT for every positioned row.
    - **Milestone:** none recorded here. §9 derives SCHOOL_WINNER from `certificate.issued` (SCHOOL_MERIT), so §7 does not call `EngagementService` directly.
-   - **Event:** `schoolShortlist.finalized { roundId, competitionId, institutionRegistrationId, scope, shortlistedRegistrationIds[], notShortlistedRegistrationIds[] }`.
+   - **Event:** `schoolShortlist.finalized { roundId, competitionId, institutionRegistrationId, scope, categories: [{ categoryId, shortlistedRegistrationIds[], notShortlistedRegistrationIds[] }] }`. §7 `finalizeSchoolRound` (including a close on behalf) is its sole emitter, exactly once per school round; §6 never emits it.
    - **Messages under ALL:** §10 sends "shortlisted for further judging" and "not shortlisted" from §6's `entry.shortlisted` / `entry.notShortlisted`.
    - **Messages under SHORTLIST_ONLY:** §10 sends both messages from this event's lists. §6's later creation of the entry in SCHOOL_SHORTLISTED MUST NOT re-send `entry.shortlisted`.
 
@@ -1082,7 +1091,7 @@ model ScoreSheetRevision { id String @id; scoreSheetId String; version Int; snap
 |---|---|---|---|
 | DRAFT → OPEN | System | §7.3 step 1. Rubric resolves | SchoolResult sync. `schoolRound.opened` |
 | OPEN → FINALIZED | IA/IC `finalizeSchoolRound`, or CM/SA `closeSchoolRoundOnBehalf` | V1–V7 | §7.3 step 4 |
-| FINALIZED → OPEN | CM/SA `reopenSchoolRound` | Reason. No entry of this school is FOA_VERIFIED or later | §6 reverts entries to SUBMITTED. SCHOOL_MERIT certificates REVOKED; PARTICIPATION certificates are revoked only for rows later unticked. `schoolRound.reopened` |
+| FINALIZED → OPEN | CM/SA `reopenSchoolRound` | Reason. The §6.9 `revertSchoolShortlist` guard holds for every category: no entry of this institution × category is FOA_VERIFIED or later | §6 `EntryService.revertSchoolShortlist({ institutionRegistrationId, categoryId })` per category: entries revert to SUBMITTED (ALL), or entries created by §6.9 row 7 are soft-deleted (SHORTLIST_ONLY). SCHOOL_MERIT certificates REVOKED; PARTICIPATION certificates are revoked only for registrations whose rows are all later unticked. `schoolRound.reopened` |
 
 **`EntryStatus` (the transitions §7 owns):**
 
@@ -1093,8 +1102,9 @@ model ScoreSheetRevision { id String @id; scoreSheetId String; version Int; snap
 | IN_JUDGING → ELIMINATED | System (non-final `finalizeRound`) | Not advanced, or EXCLUDED | Outcome set at the final finalize |
 | IN_JUDGING → FINALIZED | System (final `finalizeRound`) | None | `finalOutcome`, `finalAwardLabel` |
 | IN_JUDGING → FOA_VERIFIED | System (round CANCELLED) | The entry's only round | RoundEntry removed |
-| IN_JUDGING, ELIMINATED or FINALIZED → DISQUALIFIED | CM/SA `disqualifyEntry` | Reason | RoundEntry DISQUALIFIED. §7.15 E3. `entry.disqualified` |
-| IN_JUDGING → WITHDRAWN | §6 withdraw action | Per §6 | RoundEntry WITHDRAWN, sheets VOID |
+| IN_JUDGING, ELIMINATED or FINALIZED → DISQUALIFIED | CM/SA `disqualifyEntry` (from FINALIZED: SA only) | Reason | RoundEntry DISQUALIFIED. §7.15 E3. `entry.disqualified` |
+| IN_JUDGING → WITHDRAWN | §6's service: SA `withdrawEntry`, or the cascade from a Registration becoming WITHDRAWN (including the system acting on `consent.withdrawn` for PARTICIPATION, §12.6) | Per §6 | RoundEntry WITHDRAWN, sheets VOID |
+| ELIMINATED or FINALIZED → WITHDRAWN | Same as IN_JUDGING → WITHDRAWN | Per §6 | RoundEntry WITHDRAWN. If results are already published, a §7.15 E3 correction follows (certificates revoked, results corrected) |
 
 ### 7.6 Results Approval & Publishing (Phase 10)
 
@@ -1121,7 +1131,7 @@ model ResultsRelease {
 - **Initial publish effects:**
   1. Competition → RESULTS_PUBLISHED, and outcomes become visible.
   2. Certificates created (§7.7).
-  3. PrizeFulfilment rows created for bands that have a `prize`.
+  3. PrizeFulfilment rows created for bands that have a `prizeId`, from the linked §6 CompetitionPrize.
   4. GalleryItem CANDIDATE created for each `galleryCandidate` entry if `allowPublicDisplay`.
   5. No milestone call. §9 derives FOA_FINALIST from `results.published` using `finalOutcome`.
   6. `results.published` emitted (§10 fans it out to participants, guardians and schools), and the cache tag `results:{competitionId}` is revalidated.
@@ -1144,12 +1154,15 @@ model ResultsRelease {
 enum CertificateStatus { PENDING GENERATED FAILED REVOKED SUPERSEDED }
 model Certificate {
   id String @id;  certificateNumber String @unique /* §3.1, assigned at creation */;  type CertificateType
-  status CertificateStatus @default(PENDING);  competitionId String;  registrationId String;  participantId String
-  entryId String?;  roundId String? /* awarding round */;  institutionId String?;  level JudgingLevel?;  awardLabel String?
+  status CertificateStatus @default(PENDING);  competitionId String?;  registrationId String?;  participantId String?
+  subjectUserId String? /* VOLUNTEER_SERVICE: the volunteer */;  data Json? /* VOLUNTEER_SERVICE: hours, period, skills */
+  // CHECK: exactly one of participantId / subjectUserId is set; competitionId and registrationId are required unless type = VOLUNTEER_SERVICE
+  entryId String?;  categoryId String? /* null for PARTICIPATION */;  roundId String? /* awarding round */;  institutionId String?;  level JudgingLevel?;  awardLabel String?
   nameSnapshot String /* PDF: fullName (Q9) */;  displayNameSnapshot String /* §12.7 public name: /verify, CERT_SHARE */;  categoryLabel String
   templateId String;  templateVersion Int;  pdfAssetId String? /* FileAsset PDF, private */
   issuedAt DateTime?;  revokedAt DateTime?;  revokedReason String? /* internal */;  supersededById String?
-  // partial unique (registrationId, type, roundId) NULLS NOT DISTINCT WHERE status IN (PENDING, GENERATED, FAILED)
+  // partial unique (registrationId, categoryId, type, roundId) NULLS NOT DISTINCT WHERE status IN (PENDING, GENERATED, FAILED)
+  //   AND type <> VOLUNTEER_SERVICE; PARTICIPATION (categoryId null) stays one per registration
 }
 model CertificateTemplate {
   id String @id;  type CertificateType;  competitionId String? /* null = global default */;  name String
@@ -1161,10 +1174,11 @@ model CertificateTemplate {
 
 | CertificateType | Trigger | Recipients |
 |---|---|---|
-| PARTICIPATION | `finalizeSchoolRound` (institution route) | Every participated SchoolResult |
+| PARTICIPATION | `finalizeSchoolRound` (institution route) | One per Registration with a participated SchoolResult |
 | PARTICIPATION | Initial release PUBLISHED (individual route) | Individual registrations whose entry reached SUBMITTED and is not WITHDRAWN, DISQUALIFIED or REJECTED_INELIGIBLE |
 | SCHOOL_MERIT | `finalizeSchoolRound` | Positioned rows (`awardLabel` = position label) |
 | FINALIST / WINNER / RUNNER_UP / SPECIAL_MENTION | Release PUBLISHED | One per entry by `finalOutcome` (a winning finalist gets WINNER only), plus one per level award won in a non-final round (`level`, band label) |
+| VOLUNTEER_SERVICE | §9.8 `issueVolunteerCertificate` | The volunteer (`subjectUserId`), with data (hours, period, skills) |
 
 - **Templates:** the ACTIVE template for `(type, competitionId)` is used, falling back to `(type, null)`.
   - Merge fields: `{{name}}`, `{{displayName}}`, `{{competitionName}}`, `{{competitionYear}}`, `{{categoryLabel}}`, `{{awardLabel}}`, `{{levelLabel}}`, `{{institutionName}}`, `{{issueDate}}` (IST, `d MMM yyyy`), `{{certificateNumber}}`, `{{qrSvg}}`, `{{verifyUrl}}`, `{{foaLogoUrl}}`, `{{#signatories}}`.
@@ -1179,6 +1193,7 @@ model CertificateTemplate {
   - **Throughput:** at least 5,000 certificates in 30 minutes on 4 workers.
 - **`/verify/[certificateNumber]`:** public, `noindex`, 30 requests per minute per IP. The input is normalized (uppercase; Crockford O→0, I/L→1).
   - **Shows:** the §12.7 public name, competition and year, type and award label, issue date, and **VALID** (GENERATED) or **REVOKED** (REVOKED or SUPERSEDED; superseded adds "Replaced by a reissued certificate").
+  - **VOLUNTEER_SERVICE:** shows the display name, "Volunteer service", the period, hours and status. No competition.
   - **Never shows:** DOB, age, city or school, and no full name unless `showFullName` is set. The institution name appears only with PUBLIC_DISPLAY consent and `showSchool`.
   - PENDING, FAILED and unknown numbers return the same 404.
 - **Downloads:** `/dashboard/certificates` serves participants and guardians (every linked participant). It offers the PDF (signed URL, 5 min), a "Share image" (CERT_SHARE, private) and the verify link.
@@ -1187,7 +1202,7 @@ model CertificateTemplate {
 
 | From → To | Actor | Guard | Side effects |
 |---|---|---|---|
-| ∅ → PENDING | System (trigger table) | No live certificate for (registrationId, type, roundId) | Number assigned (collision retry). Job enqueued |
+| ∅ → PENDING | System (trigger table) | No live certificate for (registrationId, categoryId, type, roundId) | Number assigned (collision retry). Job enqueued |
 | PENDING → GENERATED / FAILED | Job | PDF stored / retries exhausted | `certificate.issued` / admin alert |
 | FAILED → PENDING | CM/SA `regenerateCertificate` | None | Re-enqueued |
 | GENERATED → REVOKED | CM/SA `revokeCertificate`, school reopen, correction, DQ | Reason | `/verify` shows REVOKED. CERT_SHARE deleted. `certificate.revoked` |
@@ -1196,9 +1211,10 @@ model CertificateTemplate {
 ### 7.8 Prize Fulfilment
 
 ```prisma
-enum PrizeType { TROPHY MEDAL CASH VOUCHER GOODS OTHER }   enum PrizeFulfilmentStatus { PENDING DISPATCHED DELIVERED CANCELLED }
+enum PrizeFulfilmentStatus { PENDING DISPATCHED DELIVERED CANCELLED }   // PrizeType is §6's, on CompetitionPrize
 model PrizeFulfilment {
-  id String @id;  competitionId String;  entryId String;  participantId String;  certificateId String?;  prizeType PrizeType;  description String
+  id String @id;  competitionId String;  entryId String;  participantId String;  certificateId String?
+  competitionPrizeId String /* §6 CompetitionPrize from AwardBand.prizeId: prizeType, description, cash amount */
   deliverTo String          // INSTITUTION (default, institution route) | PARTICIPANT (default, individual) | HAND_OVER
   addressSnapshot Json?     // confirmed on /dashboard/entries/[entryCode] or /institution/.../results; purged 90 days after DELIVERED
   status PrizeFulfilmentStatus @default(PENDING);  courier String?;  trackingNumber String?;  proofAssetId String?
@@ -1208,8 +1224,8 @@ model PrizeFulfilment {
 
 | From → To | Actor | Guard | Side effects |
 |---|---|---|---|
-| ∅ → PENDING | System at release PUBLISHED | Band has a `prize` | Address request (§10) |
-| PENDING → DISPATCHED | CM/SA | Address, courier and tracking (all waived for HAND_OVER) | `prize.dispatched`. CASH: `LedgerService.record({ type: 'EXPENSE', category: 'PRIZE', sourceType: 'PrizeFulfilment', … })` |
+| ∅ → PENDING | System at release PUBLISHED | Band has a `prizeId` whose CompetitionPrize is not CERTIFICATE_ONLY | `prizeFulfilment.created` (§10 sends the address request) |
+| PENDING → DISPATCHED | CM/SA | Address, courier and tracking (all waived for HAND_OVER) | `prize.dispatched`. CASH: `LedgerService.record({ type: 'EXPENSE', category: 'PRIZES_AWARDS', sourceType: 'PRIZE_FULFILMENT', … })` |
 | DISPATCHED → DELIVERED | CM/SA | None | `prize.delivered` |
 | PENDING → CANCELLED | CM/SA, correction | Reason | None |
 
@@ -1348,10 +1364,10 @@ model SocialPostRecord {
 | Action | Input | Authorization | Effect |
 |---|---|---|---|
 | `upsertRubric` / `publishRubric` | competitionId, discipline?, title, guidanceHtml, criteria[] / rubricId | CM/SA | Save DRAFT (new version if one is PUBLISHED) / publish, archive the previous, PDF job, `rubric.published` |
-| `setSchoolJudgingPolicy` | competitionId, fields | CM/SA | Upsert. Only `deadline` can change once any school round is FINALIZED |
+| `setSchoolJudgingPolicy` | competitionId, fields | CM/SA | Upsert. No changes once any school round is FINALIZED (the deadline is §6's `shortlistSubmissionClosesAt`) |
 | `saveSchoolPanel` / `saveSchoolResults` | roundId, members[] / rows[] | IA/IC, round OPEN | Replace the panel / upsert drafts with per-row errors |
 | `finalizeSchoolRound` | roundId, certify: true, shortfallReason? | IA/IC | §7.3 |
-| `reopenSchoolRound` / `extendSchoolDeadline` / `closeSchoolRoundOnBehalf` | roundId, reason / until / mode, rows?, evidenceAssetId, reason | CM/SA | §7.5 / `deadlineOverride` / §7.15 E5 |
+| `reopenSchoolRound` / `extendSchoolDeadline` / `closeSchoolRoundOnBehalf` | roundId, reason / until / mode, rows?, evidenceAssetId, reason | CM/SA | §7.5 / §6 `SubmissionExtension(SHORTLIST)` for the InstitutionRegistration / §7.15 E5 |
 | `createRound` / `updateRound` | competitionId, config | CM/SA, DRAFT only | Validates level order, partitions, bands, single `isFinal` |
 | `inviteJudges` / `respondToInvite` | roundId, [{userId \| email, categoryIds, partitionKeys?}] / assignmentId, accept, COI, agreements | CM/SA / J (self) | INVITED (`judgeAssignment.created`) / ACCEPTED or DECLINED (clearance checked) |
 | `openRound` / `syncRoundPool` / `closeRound` / `reopenRound` | roundId, force?, reason? | CM/SA, job | §7.5. Sync adds newly eligible entries while OPEN |
@@ -1363,7 +1379,7 @@ model SocialPostRecord {
 | `resolveTie` / `overrideRoundEntry` | tieResolutionId, resolution, order?, reason / roundEntryId, fields, reason | CM/SA, SCORING_CLOSED | Recompute / recorded override |
 | `lockRound` / `unlockRound` / `finalizeRound` | roundId, reason (unlock) | CM/SA; unlock SA only | §7.5 |
 | `moderateFeedback` / `setCandidateFlags` | sheetId, APPROVE \| SUPPRESS, text? / entryId, flags | CM/SA | §7.4.2 / §7.4.4 |
-| `disqualifyEntry` | entryId, reason, evidenceAssetId? | CM/SA | §7.15 E3 |
+| `disqualifyEntry` | entryId, reason, evidenceAssetId? | CM/SA; from FINALIZED, SA only | §7.15 E3 |
 | `proposeResults` / `proposeCorrection` | competitionId, publishAt? / mode, changes[], publicNote, reason | CM/SA | New PROPOSED release |
 | `approveResults` / `rejectResults` / `reschedulePublish` | releaseId, reason? / publishAt | SA, not the proposer | §7.6 |
 | `upsertCertificateTemplate` / `activateCertificateTemplate` | fields / templateId | CM/SA | ACTIVE requires a successful preview |
@@ -1380,19 +1396,20 @@ model SocialPostRecord {
 | Event | Emitted when | Payload |
 |---|---|---|
 | `rubric.published` | Rubric published | competitionId, rubricId, discipline |
-| `schoolRound.opened` / `.overdue` / `.reopened` | Open / deadline passed / §7.5 | roundId, institutionRegistrationId, deadline |
+| `schoolRound.opened` / `.overdue` / `.reopened` | Open / `shortlistSubmissionClosesAt` (or extension) passed, round OVERDUE (§7.15 E5) / §7.5 | roundId, institutionRegistrationId, deadline |
 | `schoolShortlist.finalized` | School round FINALIZED (incl. on behalf) | §7.3 step 4 payload |
 | `judgeAssignment.created` | Invitation | assignmentId, roundId, categoryCount, closesAt (no participant PII) |
 | `judgingRound.opened` / `.closed` / `.closeBlocked` / `.reopened` / `.locked` / `.unlocked` / `.finalized` | §7.5 | roundId, level, competitionId |
 | `scoreSheet.revised`, `entry.disqualified` | Post-submit edit; DQ | sheetId, version; entryId, competitionId |
 | `results.approvalRequested` / `.approved` / `.rejected` / `.published` / `.corrected` | §7.6 | competitionId, releaseId, version, affectedEntryIds (correction only) |
-| `certificate.issued` / `.revoked`, `certificateBundle.generated` | §7.7 | certificateId, type, participantId, registrationId; institutionId, fileAssetId |
+| `certificate.issued` / `.revoked`, `certificateBundle.generated` | §7.7 | certificateId, type, participantId or subjectUserId, registrationId?; institutionId, fileAssetId |
+| `prizeFulfilment.created` | PrizeFulfilment created (§7.8) | prizeId, entryId, participantId, deliverTo |
 | `prize.dispatched` / `prize.delivered` | §7.8 | prizeId, participantId, trackingNumber? |
 | `galleryItem.published` / `.unpublished` | §7.10 | itemId, entryId, visibleFields[], reason? |
 | `socialFeature.published` | `recordSocialPost` | postRecordId, participantId, platform, postedUrl |
 | `socialPost.takedownRequired` / `.takedownOverdue`, `stampSettings.updated` | §7.11; §7.9 | postRecordId, platform, takedownDueAt; version |
 
-Reminders are scheduled by §10, not emitted here: `reminder.schoolJudgingDeadline` from `SchoolJudgingPolicy.deadline`/`deadlineOverride`, and `reminder.judgingDue` from `closesAt`.
+Reminders are scheduled by §10, not emitted here: `reminder.schoolJudgingDeadline` from §6 `shortlistSubmissionClosesAt` or the school's `SubmissionExtension(SHORTLIST)`, and `reminder.judgingDue` from `closesAt`.
 
 ### 7.15 Edge Cases
 
@@ -1407,12 +1424,12 @@ Reminders are scheduled by §10, not emitted here: `reminder.schoolJudgingDeadli
   - Prizes: PENDING → CANCELLED. Dispatched prizes get `recoveryRequired`.
 - **E4. Consent withdrawn after a social post:** handled by §7.11 (72-hour takedown, then escalation). Withdrawing SOCIAL_MEDIA alone leaves the gallery untouched. Withdrawing PUBLIC_DISPLAY cascades to both (§12.6).
 - **E5. A school never finalizes.**
-  - §10 reminders go out at −7 d, −2 d and −1 d. At the deadline, `schoolRound.overdue` goes to IA, IC and CM. There is **no automatic forfeit**.
-  - The school can still finalize until the first FOA round opens. After that, the CM uses `closeSchoolRoundOnBehalf` in one of two modes:
+  - §10 reminders go out at −7 d, −2 d and −1 d. At §6 `shortlistSubmissionClosesAt` (or the school's later `SubmissionExtension(SHORTLIST)`), a round that is not FINALIZED becomes OVERDUE: it stays OPEN, shows as overdue on the per-school board, and `schoolRound.overdue` goes to IA, IC and CM. There is **no automatic finalise and no automatic forfeit**.
+  - The school can still finalize while the round is OVERDUE. Otherwise the CM uses `closeSchoolRoundOnBehalf` in one of two modes:
     - **`PARTICIPATION_ONLY`:** every confirmed registration with a SUBMITTED entry (ALL), or every confirmed registration (SHORTLIST_ONLY), is marked participated. Entries → NOT_SHORTLISTED, and PARTICIPATION certificates are issued.
     - **`STAFF_ENTERED`:** staff enter results from evidence the school sends, with the same effects as finalizing. The evidence upload is required.
-  - Entries shortlisted late join the open FOA round through `syncRoundPool` once they are FOA_VERIFIED.
-- **E6. Entry withdrawn during judging:** its RoundEntry → WITHDRAWN and its sheets → VOID. If results are already published, a correction follows as in E3.
+  - FOA rounds open only in FOA_JUDGING, which §6 allows only once every school round is FINALIZED, so no entry reaches SUBMITTED_TO_FOA during FOA_JUDGING.
+- **E6. Entry withdrawn during or after judging (§7.5):** its RoundEntry → WITHDRAWN and, while it is IN_JUDGING, its sheets → VOID. If results are already published, a correction follows as in E3.
 - **E7. Artwork damaged or a DISCREPANCY found after the round opens:** the CM may `excludeRoundEntry` with a reason. The entry ends ELIMINATED / PARTICIPANT.
 - **E8. Data changes between approval and `publishAt`:** a stale hash makes the job REJECT the release (`STALE`), and the CM re-proposes. Consent is applied at render time, so consent changes never make a release stale.
 - **E9. Wrong name on a certificate:** after §6 fixes the profile, `reissueCertificate` issues a new number, and the old one verifies as REVOKED ("Replaced by a reissued certificate").
@@ -1469,7 +1486,7 @@ Reminders are scheduled by §10, not emitted here: `reminder.schoolJudgingDeadli
 
 ## 8. Payments, Donations, Auctions & Financial Transparency
 
-> **Owns:** `PaymentService`, `LedgerService`, `PaymentProvider`, the enums `PaymentPurpose` and `PaymentStatus` (verbatim from §3.5), and every enum declared here. Sets `PhysicalArtworkStatus` `LISTED_FOR_AUCTION` / `SOLD`, and reverts `LISTED_FOR_AUCTION → VERIFIED`, only through §6's artwork transition service. **Milestones:** §8.1–8.4 and §8.6–8.7 are MVP. §8.5 (auctions) is post-MVP (M6–M8); its tables ship in the MVP schema.
+> **Owns:** `PaymentService`, `LedgerService`, `PaymentProvider`, `DonationQuery`, the enums `PaymentPurpose` and `PaymentStatus` (verbatim from §3.5), and every enum declared here. Sets `PhysicalArtworkStatus` `LISTED_FOR_AUCTION` / `SOLD`, and reverts `LISTED_FOR_AUCTION` or `SOLD` → `statusBeforeListing`, only through §6's artwork transition service (`setAuctionState`). **Milestones:** §8.1–8.4 and §8.6–8.7 are MVP. §8.5 (auctions) is post-MVP (M6–M8); its tables ship in the MVP schema.
 
 ### 8.1 Configuration (`MoneyConfig`)
 
@@ -1510,7 +1527,7 @@ enum RefundReason { PAYER_REQUEST, DUPLICATE, WITHDRAWAL, EVENT_CANCELLED, LOT_C
 model Payment { id String @id; purpose PaymentPurpose; status PaymentStatus @default(CREATED); channel PaymentChannel
   amountMinor Int; currency String; refundedMinor Int @default(0); feeMinor Int?; taxOnFeeMinor Int?
   payerUserId String? /* null only for guest DONATION / OFFLINE */; payerName String?; payerEmail String?; payerPhone String?
-  refType String /* 'Registration'|'InstitutionRegistration'|'Donation'|'AuctionLot' */; refId String; notes Json? /* competitionId, seatCount, fundId, offerRank */
+  refType String /* 'RegistrationPaymentBatch'|'Donation'|'AuctionLot' */; refId String; notes Json? /* competitionId, fundId, offerRank */
   providerOrderId String? @unique; providerPaymentId String? @unique; providerSubscriptionId String?
   method String?; isInternational Boolean @default(false); failureCode String?; failureReason String?
   offlineMethod OfflineMethod?; offlineReference String?; proofFileAssetId String?; recordedByUserId String?
@@ -1581,27 +1598,27 @@ Only domain services call `createOrder`. The amount always comes from server dat
 | CAPTURED/PARTIALLY_REFUNDED → PARTIALLY_REFUNDED | `refund.processed` | Σ processed < amount | `refundedMinor` updated. Ledger reversal. Outbox `payment.refunded` |
 | CAPTURED/PARTIALLY_REFUNDED → REFUNDED | `refund.processed` | Σ processed = amount | Same, with `fully: true` |
 
-**Stale or late captures.** A handler for a §8-owned ref (Donation, AuctionLot) returns `ACCEPTED` or `REJECTED_STALE`. A ref is stale when it's already paid, the lot has been re-offered or cancelled, or the payment is foreign while FCRA is off. A stale capture is still recorded as CAPTURED and posted, then fully refunded at once as a system refund (`LATE_CAPTURE`, `DUPLICATE` or `FOREIGN_PAYMENT_BLOCKED`) without approval. §6 does the same for its own refs by calling `requestRefund({ system: true })`.
+**Stale or late captures.** A handler for a §8-owned ref (Donation, AuctionLot) returns `ACCEPTED` or `REJECTED_STALE`. A ref is stale when it's already paid, the lot has been re-offered or cancelled, or the payment is foreign while FCRA is off. A stale capture is still recorded as CAPTURED and posted, then fully refunded at once as a system refund (`LATE_CAPTURE`, `DUPLICATE` or `FOREIGN_PAYMENT_BLOCKED`) without approval. §6 owns its own refs: a capture for a registration that is no longer payable puts the batch in NEEDS_REVIEW and emits `registration.paymentNeedsReview`. There is no automatic refund.
 
 #### 8.2.5 Refunds
 
-- **Who:** FINANCE or SUPER_ADMIN. Above `payment.refundDualApprovalAboveMinor`, a different FINANCE/SUPER_ADMIN user must approve. System refunds (§8.2.4, `cancelLot`, §6 withdrawals within its rules) skip approval. **Partial refunds** are allowed: the service locks the Payment and rejects `refundedMinor + Σ pending + amount > amountMinor`.
+- **Who:** FINANCE or SUPER_ADMIN. REGISTRATION_FEE refunds may also be requested by COMPETITION_MANAGER or STAFF_ADMIN and are approved by FINANCE. Above `payment.refundDualApprovalAboveMinor`, a different FINANCE/SUPER_ADMIN user must approve. System refunds (§8.2.4, `cancelLot`, and, for registration fees, only §6's competition cancellation and duplicate resolution) skip approval. **Partial refunds** are allowed: the service locks the Payment and rejects `refundedMinor + Σ pending + amount > amountMinor`.
 - **Flow:** REQUESTED → (approval) → PENDING once the provider's `refund` is called with `refundId` in notes (after a network error, check the provider's refunds before retrying, so nothing is sent twice) → PROCESSED on `refund.processed`, or FAILED on `refund.failed` (FINANCE notified, may retry). REJECTED = approver declined. OFFLINE payments are refunded outside the gateway: FINANCE records the reference and proof, and the refund is PROCESSED at once.
 - **Ledger:** on PROCESSED, post a negative entry with the original type and category, `sourceType=REFUND`.
 
 #### 8.2.6 Reconciliation
 
 - **Daily `payments.reconcile`** (06:00 IST, previous IST day): `fetchSettlementItems` (Razorpay `GET /v1/settlements/recon/combined?year&month&day`), match by `providerPaymentId`/`providerRefundId`, set fee, tax, settlement id, `settledAt` and `reconciledAt`, and post fee + tax as EXPENSE `PAYMENT_GATEWAY_FEES` (`sourceType=SETTLEMENT_FEE`).
-- **Issues:** `NOT_CAPTURED_IN_DB` (auto-healed by applying the capture; INFO), `MISSING_IN_DB` (CRITICAL; refs never auto-created), `AMOUNT_MISMATCH` (CRITICAL), `MISSING_AT_PROVIDER` (CAPTURED but unsettled after T+3 days; WARN), `DISPUTE` (from `payment.dispute.created`; CRITICAL). CRITICAL issues emit `reconciliation.issue_found`. FINANCE resolves issues in `/admin/payments` with a note (AuditLog).
+- **Issues:** `NOT_CAPTURED_IN_DB` (auto-healed by applying the capture; INFO), `MISSING_IN_DB` (CRITICAL; refs never auto-created), `AMOUNT_MISMATCH` (CRITICAL), `MISSING_AT_PROVIDER` (CAPTURED but unsettled after T+3 days; WARN), `DISPUTE` (from `payment.dispute.created`; CRITICAL). CRITICAL issues emit `reconciliation.issueFound`. FINANCE resolves issues in `/admin/payments` with a note (AuditLog).
 - **Hourly `payments.healPending`:** CREATED/AUTHORIZED Payments older than 15 min → `fetchOrderPayments` and apply. After 24h with nothing captured → FAILED (`ABANDONED`). RecurringDonations not updated in 35 days → `fetchSubscription` and apply.
 
 ### 8.3 Registration Fees (contract with §6)
 
-- **Call:** §6 computes the fee from its competition config and calls `PaymentService.createOrder({ purpose: REGISTRATION_FEE, amountMinor, currency, payerUserId, refType, refId, notes: { competitionId, seatCount? } })`. It never calls for a zero fee or waiver. **Individual:** `refType='Registration'`, payer = participant or guardian user. **Institution bulk:** `refType='InstitutionRegistration'`, `amountMinor = perSeatFee × seatCount` (§6 computes), payer = INSTITUTION_ADMIN/coordinator. One Payment covers the batch, and §6 keeps the seat ↔ Registration map. §6's register page opens Checkout with the returned `checkout`. §8 never changes Registration state.
-- **Events back** (Outbox, routed by `refType`; §6 consumers MUST be idempotent): `payment.captured { paymentId, purpose, refType, refId, amountMinor, currency, capturedAt }`, `payment.failed { paymentId, refType, refId, failureCode }`, `payment.refunded { paymentId, refundId, refType, refId, amountMinor, fully, lineRefs? }`. If the registration is no longer payable (cancelled or already paid), §6 calls `requestRefund({ reason: DUPLICATE, system: true })`.
-- **Offline school payment** (cheque, DD, transfer): FINANCE calls `recordOfflinePayment` on the `InstitutionRegistration`, creating an OFFLINE Payment in CAPTURED that emits the same `payment.captured`.
-- **Partial refund of a bulk fee:** §6 calls `requestRefund({ paymentId, amountMinor: perSeatFee × n, reason: WITHDRAWAL, lineRefs: [{ refType: 'Registration', refId }, …] })` under the normal approval rules. The Payment becomes PARTIALLY_REFUNDED, and `payment.refunded` returns the `lineRefs`.
-- **Ledger:** INCOME `REGISTRATION_FEES`, tagged with `competitionId`. The payer gets an emailed acknowledgement PDF (payment id, registration ref, amount, mode). It isn't a donation receipt and uses no receipt number.
+- **Call:** one order per `RegistrationPaymentBatch`. §6 computes the fee from its competition config and calls `PaymentService.createOrder({ purpose: REGISTRATION_FEE, amountMinor, currency, payerUserId, refType: 'RegistrationPaymentBatch', refId: batchId, notes: { competitionId } })`, where `amountMinor` is the batch total (Σ `RegistrationPaymentBatchItem.amountMinor`). It never calls for a zero fee or waiver. **Individual:** a batch of one, payer = participant or guardian user. **Institution bulk:** a batch of N, payer = INSTITUTION_ADMIN/coordinator. One Payment covers the batch, and §6 keeps the item ↔ Registration map. §6's register page opens Checkout with the returned `checkout`. §8 never changes Registration state.
+- **Events back** (Outbox, routed by `refType`; §6 consumers MUST be idempotent): `payment.captured { paymentId, purpose, refType, refId, amountMinor, currency, capturedAt }`, `payment.failed { paymentId, refType, refId, failureCode }`, `payment.refunded { paymentId, refundId, refType, refId, amountMinor, fully, lineRefs? }`. If the registration is no longer payable (cancelled or already paid), §6 puts the batch in NEEDS_REVIEW and emits `registration.paymentNeedsReview`. There is no automatic refund.
+- **Offline payment** (cheque, DD, transfer): §6 `markBatchPaidOffline` (FINANCE or STAFF_ADMIN) calls `recordOfflinePayment({ refType: 'RegistrationPaymentBatch', refId, … })`, creating an OFFLINE Payment in CAPTURED that emits the same `payment.captured`.
+- **Partial refund of a batch:** COMPETITION_MANAGER or STAFF_ADMIN calls `requestRefund({ paymentId, amountMinor, reason: WITHDRAWAL, lineRefs: [{ refType: 'RegistrationPaymentBatchItem', refId }, …] })`, where `amountMinor` is the sum of the listed items' `amountMinor`, and FINANCE approves under the normal approval rules. The Payment becomes PARTIALLY_REFUNDED, and `payment.refunded` returns the `lineRefs`.
+- **Ledger:** INCOME `REGISTRATION_FEES`, tagged with `competitionId`. The payer gets an acknowledgement PDF by signed link (payment id, registration ref, amount, mode). It isn't a donation receipt and uses no receipt number.
 
 ### 8.4 Donations (modules 11, 24)
 
@@ -1634,10 +1651,12 @@ model ReceiptTemplate { id String @id; version Int @unique; name String; bodyHtm
   signatoryName String; signatoryTitle String; signatureFileAssetId String?; isActive Boolean; createdBy String; createdAt DateTime }
 ```
 
+**`DonationQuery`** (read API for other sections): `DonationQuery.totalForFund(fundId, since?: Date) => { amountMinor, currency, donorCount }`, computed from CAPTURED donations net of refunds.
+
 #### 8.4.2 Donate flow
 
 1. **Form** (`/donate`; `?fund=<slug>` preselects): fund (active public funds, default GENERAL), frequency (default `donation.defaultFrequency`), amount (chip or custom whole rupees within min/max; MONTHLY ≤ `recurringMaxAmountMinor`), donor type (default INDIVIDUAL). Organisation types require name, contact person, email, phone and a DISCLOSED/ANONYMOUS radio with no default. INDIVIDUAL shows an unchecked "Show my name on the supporters wall" box (checked = DISCLOSED) and an editable public name (prefilled first name + last initial). An optional message appears only after FINANCE or CONTENT_MANAGER approval.
-2. **Identity:** ONE_TIME allows guest checkout (name and email required, phone optional). MONTHLY needs a user with a verified email or phone; the form offers inline OTP sign-in. A signed-in user owning a ParticipantProfile aged under 18 can't donate. Guests tick "I am 18 or older".
+2. **Identity:** ONE_TIME allows guest checkout (name and email required, phone optional). MONTHLY needs a user with a verified email or phone; the form offers inline OTP sign-in. Minors can't donate; a guardian donates on their behalf. **Adulthood:** `isAdult(userId)` is false iff the user has their own ParticipantProfile (`ParticipantProfile.userId = userId`) with age < 18. Guardians who manage a minor's profile are not minors. Users without one, and guests, self-declare by ticking "I am 18 or older".
 3. **Tax receipt** (rendered only if `org.has80G`): "I need a tax-exemption receipt" reveals name as on PAN, PAN (`^[A-Z]{5}[0-9]{4}[A-Z]$`) and address with pin code. Required once ticked, never collected otherwise.
 4. **FCRA declaration** (when `org.fcraEnabled=false`): "I am an Indian citizen donating from my own Indian funds", or "Indian-registered entity" for organisations.
 5. **`createDonationCheckout`:** upsert the Donor (by `userId`, else `emailNormalized` + `donorType`) → Donation PENDING → ONE_TIME: `PaymentService.createOrder` (`refType='Donation'`); MONTHLY: `provider.createSubscription` (reusing the `ProviderPlan` for the amount) plus RecurringDonation PENDING_AUTHORIZATION → return Checkout params.
@@ -1647,8 +1666,8 @@ model ReceiptTemplate { id String @id; version Int @unique; name String; bodyHtm
 
 1. **Foreign payment while FCRA is off** (`isInternational && !org.fcraEnabled`): return `REJECTED_STALE` (`FOREIGN_PAYMENT_BLOCKED`). No receipt number is allocated. The donation becomes REFUNDED when the refund processes, and the donor is told why.
 2. **Otherwise, receipt allocation:** Donation → CAPTURED. Compute the FY from `capturedAt` in Asia/Kolkata (Apr–Mar). Run `INSERT … ON CONFLICT DO NOTHING`, then `UPDATE "ReceiptSequence" SET "lastSeq"="lastSeq"+1 WHERE fy=$1 RETURNING "lastSeq"`, giving `receiptNumber = FOA-RCPT-{fy}-{seq:06}`. Because this runs in the capture transaction, numbers are gapless and failed payments never consume one.
-3. **Ledger:** INCOME, with the category from the donor-type map (`INDIVIDUAL→DONATIONS_INDIVIDUAL`, `CORPORATE→DONATIONS_CORPORATE`, `CSR→CSR_CONTRIBUTIONS`, `FOUNDATION|INSTITUTIONAL→GRANTS_INSTITUTIONAL`), tagged with `fundId`. Outbox `donation.captured`.
-4. **Receipt PDF:** the job `donations.renderReceipt` writes the PDF (FileAsset `PDF`, private bucket) and emits `donation.receipt_issued`. §10 emails it with a signed link valid for 7 days.
+3. **Ledger:** INCOME, with the category from the donor-type map (`INDIVIDUAL→DONATIONS_INDIVIDUAL`, `CORPORATE→DONATIONS_CORPORATE`, `CSR→CSR_CONTRIBUTIONS`, `FOUNDATION|INSTITUTIONAL→GRANTS_INSTITUTIONAL`), tagged with `fundId`. Outbox `donation.captured` (§10 sends a thank-you message only, no attachment).
+4. **Receipt PDF:** the job `donations.renderReceipt` writes the PDF (FileAsset `PDF`, private bucket) and, after it renders, emits `donation.receiptIssued`. §10's message carries a signed download link valid for 7 days, not an attachment.
 
 #### 8.4.4 Receipts
 
@@ -1667,12 +1686,12 @@ model ReceiptTemplate { id String @id; version Int @unique; name String; bodyHtm
 | Donation PENDING → FAILED | `payment.failed` / `ABANDONED` | | No email for abandoned payments |
 | Donation CAPTURED → PARTIALLY_REFUNDED / REFUNDED | `payment.refunded` | | Receipt amended or cancelled. `donation.refunded` |
 | Recurring ∅ → PENDING_AUTHORIZATION | `createDonationCheckout` (MONTHLY) | Signed in | Provider subscription created. Sweeper cancels it if still unauthorised after 24h |
-| PENDING_AUTHORIZATION → ACTIVE | `subscription.authenticated` / `activated` | | `recurring.activated` |
-| ACTIVE/PAST_DUE → ACTIVE | `subscription.charged` | Idempotent on `providerPaymentId` | New Donation + Payment CAPTURED (disclosure and tax fields copied). `failedAttempts=0` |
-| ACTIVE → PAST_DUE | `subscription.pending` (charge failed, provider retrying) | | `failedAttempts++`. `recurring.charge_failed` (with an update-payment link) |
-| PAST_DUE → HALTED | `subscription.halted` (retries exhausted) | | `recurring.halted`. Auto-cancel after `haltedAutoCancelDays` |
-| ACTIVE ↔ PAUSED | Donor or FINANCE pause/resume → provider, confirmed by `subscription.paused` / `resumed` | `pauseCyclesUsed < maxPauseCycles` | `recurring.paused` / `recurring.resumed` |
-| non-terminal → CANCELLED | Donor/FINANCE cancel, `subscription.cancelled`, or HALTED timeout | | Provider cancelled immediately. `recurring.cancelled` |
+| PENDING_AUTHORIZATION → ACTIVE | `subscription.authenticated` / `activated` | | `recurringDonation.activated` |
+| ACTIVE/PAST_DUE → ACTIVE | `subscription.charged` | Idempotent on `providerPaymentId` | New Donation + Payment CAPTURED (disclosure and tax fields copied). `failedAttempts=0`. `recurringDonation.charged` |
+| ACTIVE → PAST_DUE | `subscription.pending` (charge failed, provider retrying) | | `failedAttempts++`. `recurringDonation.chargeFailed` (with an update-payment link) |
+| PAST_DUE → HALTED | `subscription.halted` (retries exhausted) | | `recurringDonation.halted`. Auto-cancel after `haltedAutoCancelDays` |
+| ACTIVE ↔ PAUSED | Donor or FINANCE pause/resume → provider, confirmed by `subscription.paused` / `resumed` | `pauseCyclesUsed < maxPauseCycles` | `recurringDonation.paused` / `recurringDonation.resumed` |
+| non-terminal → CANCELLED | Donor/FINANCE cancel, `subscription.cancelled`, or HALTED timeout | | Provider cancelled immediately. `recurringDonation.cancelled` |
 | ACTIVE → COMPLETED | `subscription.completed` | | Donor invited to renew |
 
 Changing the amount means cancelling and creating a new subscription, because the mandate must be re-authorised.
@@ -1723,7 +1742,7 @@ model AuctionAcknowledgement { id String @id; lotId String @unique; participantI
 
 Checked in `createLot`, re-checked in `scheduleLot` and again at SCHEDULED → LIVE. Each failure has its own error code.
 
-1. `PhysicalArtwork.status = VERIFIED` (§6), and no other non-terminal lot exists for the artwork.
+1. `PhysicalArtwork.status ∈ {VERIFIED, IN_EXHIBITION, RETAINED}` (§6), and no other non-terminal lot exists for the artwork.
 2. `Entry.auctionCandidate = true` (§7), and the entry is not WITHDRAWN or DISQUALIFIED.
 3. `Competition.allowAuction = true` (§6).
 4. `ConsentService.has(participantId, AUCTION_OF_ARTWORK, competitionId)` and `ConsentService.has(…, PUBLIC_DISPLAY, …)`. For a creator under 18, the auction consent must have been given by a guardian and `GUARDIAN_VERIFIED` must be present (§12).
@@ -1733,7 +1752,7 @@ Checked in `createLot`, re-checked in `scheduleLot` and again at SCHEDULED → L
 
 #### 8.5.3 Bidding (English ascending)
 
-- **Eligibility** (`assertBidderEligible`): the bidder must be signed in and have `User.phoneVerifiedAt` set. They must have accepted the current `AuctionTerms.version`. Their declared DOB must make them 18+ on the bid date, and they must own no ParticipantProfile aged under 18, so minors can't bid. They must not be suspended and must not hold AUCTION_MANAGER or FINANCE. Guardians and relatives of the creator may bid; the admin view flags them.
+- **Eligibility** (`assertBidderEligible`): the bidder must be signed in and have `User.phoneVerifiedAt` set. They must have accepted the current `AuctionTerms.version`. Their declared DOB must make them 18+ on the bid date, and `isAdult(userId)` (§8.4.2) must hold, so minors can't bid. They must not be suspended and must not hold AUCTION_MANAGER or FINANCE. Guardians and relatives of the creator may bid; the admin view flags them.
 - **Minimum next bid:** `startingBidMinor` when there are no bids, else `currentBidMinor + (fixedIncrementMinor ?? band(currentBidMinor))`. Amounts are whole rupees.
 - **`placeBid({ lotCode, amountMinor, idempotencyKey })`**, one transaction:
   1. `SELECT … FROM "AuctionLot" WHERE "lotCode"=$1 FOR UPDATE`.
@@ -1750,8 +1769,8 @@ Checked in `createLot`, re-checked in `scheduleLot` and again at SCHEDULED → L
 - **Close job:** `auctions.closeLot` runs at `closesAt` and is rescheduled on each extension. A per-minute sweeper catches any LIVE lot past `closesAt`. Under the lock the job re-checks `now() ≥ closesAt`; if the close has moved, it reschedules and exits.
 - **Outcome:** no VALID bids, or `currentBidMinor < reserveMinor` → CLOSED_UNSOLD. Otherwise → CLOSED_PENDING_PAYMENT with `winnerUserId = leader`, `hammerMinor = currentBidMinor`, `offerRank = 1`, `paymentDueAt = now + paymentWindowHours`. Max bids are deactivated. `lot.won` goes to the winner and `lot.closed` to the other bidders.
 - **`startLotPayment({ lotCode, shippingAddress, shareNameWithArtist })`** (current winner only): the address country must be in `shippingCountries`. The service calls `createOrder({ purpose: AUCTION, amountMinor: hammerMinor (+ flat shipping), refType: 'AuctionLot', refId, notes: { offerRank } })`.
-- **Reminders:** `lot.payment_reminder` 24h and 2h before the due time.
-- **Overdue job** (at `paymentDueAt`, if not PAID): send `lot.payment_overdue` and add a strike (reaching `nonPaymentStrikesToSuspend` suspends the bidder). Then, if `offerRank ≤ maxSecondChanceOffers`, make a **second-chance offer** to the highest VALID bid from a different, still-eligible bidder with a bid ≥ reserve, at that bidder's own highest bid. The lot stays CLOSED_PENDING_PAYMENT with the new winner, `offerRank++`, `paymentDueAt = now + secondChanceWindowHours`, and emits `lot.second_chance_offered`. Paying is acceptance. `declineSecondChance` or a timeout moves on to the next candidate. No candidates left → CLOSED_UNSOLD.
+- **Reminders:** §10 sends `reminder.auctionPayment` T−24 h and T−2 h before `paymentDueAt`. §8 emits no reminder event.
+- **Overdue job** (at `paymentDueAt`, if not PAID): send `lot.paymentOverdue` and add a strike (reaching `nonPaymentStrikesToSuspend` suspends the bidder). Then, if `offerRank ≤ maxSecondChanceOffers`, make a **second-chance offer** to the highest VALID bid from a different, still-eligible bidder with a bid ≥ reserve, at that bidder's own highest bid. The lot stays CLOSED_PENDING_PAYMENT with the new winner, `offerRank++`, `paymentDueAt = now + secondChanceWindowHours`, and emits `lot.secondChanceOffered`. Paying is acceptance. `declineSecondChance` or a timeout moves on to the next candidate. No candidates left → CLOSED_UNSOLD.
 - **Capture handler:** PAID only if `payerUserId = winnerUserId` and `notes.offerRank = offerRank`. Anything else is `REJECTED_STALE` and auto-refunded (`LATE_CAPTURE`).
 - **On PAID:** artwork → SOLD (§6 service); ledger INCOME `AUCTION_PROCEEDS` tagged with `auctionEventId` and `competitionId`; PENDING ProceedsPayouts for non-zero creator or school shares; a purchase confirmation PDF for the buyer (a purchase, not a donation, so no tax-exemption receipt); `lot.paid`, `lot.sold`.
 
@@ -1767,19 +1786,19 @@ Checked in `createLot`, re-checked in `scheduleLot` and again at SCHEDULED → L
 | From → To | Actor / trigger | Guard | Side effects |
 |---|---|---|---|
 | ∅ → DRAFT | AUCTION_MANAGER `createLot` | §8.5.2 guards 1–4 | Stamped image. AuditLog |
-| DRAFT → SCHEDULED | AUCTION_MANAGER `scheduleLot` | Guards re-checked. `opensAt > now`. Duration ≥ `minLotDurationHours`. Event published. Current terms published. Proceeds policy exists | Artwork → LISTED_FOR_AUCTION. Proceeds snapshot. Jobs scheduled. `lot.scheduled` |
-| SCHEDULED → DRAFT | AUCTION_MANAGER `unscheduleLot` | `now < opensAt` | Artwork → VERIFIED. Jobs cancelled |
+| DRAFT → SCHEDULED | AUCTION_MANAGER `scheduleLot` | Guards re-checked. `opensAt > now`. Duration ≥ `minLotDurationHours`. Event published. Current terms published. Proceeds policy exists | Artwork → LISTED_FOR_AUCTION (`setAuctionState`; the prior status is stored in `PhysicalArtwork.statusBeforeListing`). Proceeds snapshot. Jobs scheduled. `lot.scheduled` |
+| SCHEDULED → DRAFT | AUCTION_MANAGER `unscheduleLot` | `now < opensAt` | Artwork → `statusBeforeListing` (`setAuctionState`). Jobs cancelled |
 | SCHEDULED → LIVE | Job at `opensAt` | Consents still valid (otherwise → CANCELLED) | `lot.opened` |
 | LIVE → CLOSED_PENDING_PAYMENT | Close job | `now ≥ closesAt`, a leader exists, reserve met | §8.5.4. `lot.won`, `lot.closed` |
-| LIVE → CLOSED_UNSOLD | Close job | No bids, or reserve not met | Artwork → VERIFIED. `lot.unsold` |
-| CLOSED_PENDING_PAYMENT → same | Overdue job / `declineSecondChance` | An eligible next bid ≥ reserve, and `offerRank ≤ max` | New winner. `lot.payment_overdue`, `lot.second_chance_offered` |
-| CLOSED_PENDING_PAYMENT → CLOSED_UNSOLD | Overdue job | No candidates left | Artwork → VERIFIED. `lot.unsold` |
+| LIVE → CLOSED_UNSOLD | Close job | No bids, or reserve not met | Artwork → `statusBeforeListing` (`setAuctionState`). `lot.unsold` |
+| CLOSED_PENDING_PAYMENT → same | Overdue job / `declineSecondChance` | An eligible next bid ≥ reserve, and `offerRank ≤ max` | New winner. `lot.paymentOverdue`, `lot.secondChanceOffered` |
+| CLOSED_PENDING_PAYMENT → CLOSED_UNSOLD | Overdue job | No candidates left | Artwork → `statusBeforeListing` (`setAuctionState`). `lot.unsold` |
 | CLOSED_PENDING_PAYMENT → PAID | `payment.captured` (AUCTION) | Payer = winner, `offerRank` matches | Artwork → SOLD. Ledger. Payouts. `lot.paid`, `lot.sold` |
 | PAID → SHIPPED | AUCTION_MANAGER `markLotShipped` | Address, partner and tracking no. present | `lot.shipped` |
 | SHIPPED → DELIVERED | Buyer / AUCTION_MANAGER / auto job | Auto only if `!deliveryIssueOpen` | `lot.delivered` |
 | CLOSED_UNSOLD → RELISTED | AUCTION_MANAGER `relistLot` | Guards 1–4 still hold | New DRAFT lot with `relistedFromLotId` |
-| DRAFT/SCHEDULED/LIVE/CLOSED_PENDING_PAYMENT → CANCELLED | AUCTION_MANAGER `cancelLot` (reason), or the `consent.withdrawn` consumer | | Bids lapse. Max bids deactivated. Artwork → VERIFIED if it was listed. Any later capture auto-refunded. `lot.cancelled` |
-| PAID/SHIPPED → CANCELLED | AUCTION_MANAGER, with FINANCE approval (lost or damaged) | | Full refund (`LOT_CANCELLED`). §6 sets the artwork status |
+| DRAFT/SCHEDULED/LIVE/CLOSED_PENDING_PAYMENT → CANCELLED | AUCTION_MANAGER `cancelLot` (reason), or the `consent.withdrawn` consumer | | Bids lapse. Max bids deactivated. Artwork → `statusBeforeListing` (`setAuctionState`) if it was listed. Any later capture auto-refunded. `lot.cancelled` |
+| PAID/SHIPPED → CANCELLED | AUCTION_MANAGER, with FINANCE approval (lost or damaged) | | Full refund (`LOT_CANCELLED`). Artwork: `setAuctionState` reverts SOLD → `statusBeforeListing`, or §6 `recordArtworkReturn` if the work goes back to the creator |
 
 #### 8.5.7 Auction terms (`AuctionTerms`)
 
@@ -1795,7 +1814,7 @@ Versioned and published by STAFF_ADMIN. A bidder accepts them before their first
 
 ```prisma
 enum LedgerEntryType { INCOME, EXPENSE }   enum PeriodStatus { OPEN, LOCKED, PUBLISHED }
-enum LedgerSourceType { PAYMENT, REFUND, OFFLINE_PAYMENT, SETTLEMENT_FEE, PROCEEDS_PAYOUT, MANUAL, REVERSAL }
+enum LedgerSourceType { PAYMENT, REFUND, OFFLINE_PAYMENT, SETTLEMENT_FEE, PROCEEDS_PAYOUT, PRIZE_FULFILMENT, MANUAL, REVERSAL }
 enum FinancialReportType { AUDITED_STATEMENT, ANNUAL_REPORT, QUARTERLY_SUMMARY, REGISTRATION_DOCUMENT, OTHER }   enum FinancialReportStatus { DRAFT, PENDING_APPROVAL, PUBLISHED, WITHDRAWN }
 
 model LedgerCategory { id String @id; code String @unique; name String; type LedgerEntryType; publicLabel String
@@ -1830,6 +1849,7 @@ model FinancialReport { id String @id; title String; type FinancialReportType; f
 | Refund PROCESSED | Original type and category | −refund | REFUND / refundId |
 | Settlement fee + tax | EXPENSE / PAYMENT_GATEWAY_FEES | +fee | SETTLEMENT_FEE / providerPaymentId |
 | Proceeds payout paid | EXPENSE / AUCTION_PROCEEDS_PAYOUTS | +payout | PROCEEDS_PAYOUT / payoutId |
+| Prize dispatched with a recorded cost (§7.8) | EXPENSE / PRIZES_AWARDS | +cost | PRIZE_FULFILMENT / prizeFulfilmentId |
 | Manual (FINANCE) | Any active category | ± | MANUAL / entry id |
 
 - **Manual entries:** FINANCE only, with a required description. EXPENSE entries also require an attachment: an invoice or receipt FileAsset (PDF, JPG or PNG) with `scanStatus=CLEAN`. Grants and CSR money received outside the gateway are recorded as offline donations (donor type FOUNDATION or CSR) so they get receipts. Other income (sponsorship, interest) is a MANUAL INCOME entry with an attachment.
@@ -1837,16 +1857,16 @@ model FinancialReport { id String @id; title String; type FinancialReportType; f
 #### 8.6.3 Budgets, reports, exports
 
 - **Budgets:** one per FY × category (optionally × fund). FINANCE drafts; STAFF_ADMIN approves. Changing an approved budget needs a new approval, and AuditLog keeps the history.
-- **Budget vs actual** (`/admin/finance`), per category for the FY and each quarter: budget, actual (Σ ledger), variance, % used. Rows at 90% or more show amber; above 100% show red. `budget.threshold_exceeded` fires once per category per FY when a category crosses 100%.
+- **Budget vs actual** (`/admin/finance`), per category for the FY and each quarter: budget, actual (Σ ledger), variance, % used. Rows at 90% or more show amber; above 100% show red. `budget.thresholdExceeded` fires once per category per FY when a category crosses 100%.
 - **`exportLedgerCsv`:** RFC 4180, UTF-8 with BOM, one row per entry. Columns: `seq, date_ist, fy, period, type, category_code, category_name, amount_inr (2 dp), currency, fund_code, auction_event, competition_code, source_type, source_ref (payment id / receipt no. / refund id), provider_fee, description, counterparty, attachment_id, reversal_of_seq, late_adjustment, created_by`. Other exports: the donation register, Form 10BD data, and reconciliation issues.
 
 #### 8.6.4 Period close and publish
 
 | From → To | Actor | Guard | Effects |
 |---|---|---|---|
-| OPEN → LOCKED | FINANCE `lockPeriod` | Month ended. Previous month LOCKED. No OPEN CRITICAL reconciliation issue in the month | Manual postings blocked. `finance.period_locked` |
+| OPEN → LOCKED | FINANCE `lockPeriod` | Month ended. Previous month LOCKED. No OPEN CRITICAL reconciliation issue in the month | Manual postings blocked. `financialPeriod.locked` |
 | LOCKED → OPEN | SUPER_ADMIN `reopenPeriod` (reason) | Not yet PUBLISHED | AuditLog |
-| LOCKED → PUBLISHED | FINANCE `requestPeriodPublish`, then `approvePeriodPublish` by a different FINANCE or STAFF_ADMIN user | All earlier months PUBLISHED | Snapshot regenerated. `finance.period_published` |
+| LOCKED → PUBLISHED | FINANCE `requestPeriodPublish`, then `approvePeriodPublish` by a different FINANCE or STAFF_ADMIN user | All earlier months PUBLISHED | Snapshot regenerated. `financialPeriod.published` |
 
 A PUBLISHED month is never reopened. Later corrections arrive as `lateAdjustment` entries, and `/transparency` lists them as "adjustments to earlier periods".
 
@@ -1886,8 +1906,8 @@ Every action validates input with zod, checks `can()` inside the service, and wr
 | Action | Input | Authorization | Effect |
 |---|---|---|---|
 | `confirmCheckoutReturn` | `{ paymentId, providerPaymentId, providerOrderId? \| providerSubscriptionId?, signature }` | Payer session or guest token | Verify signature, `fetchPayment`, apply transition idempotently, return status |
-| `requestRefund` / `approveRefund` / `rejectRefund` | `{ paymentId, amountMinor, reason, reasonText, lineRefs? }` / `{ refundId, note? }` | FINANCE, SUPER_ADMIN. The approver must differ from the requester | §8.2.5 |
-| `recordOfflinePayment` | `{ refType, refId, amountMinor, method, reference, receivedAt, proofFileAssetId }` | FINANCE | OFFLINE Payment CAPTURED, `payment.captured` |
+| `requestRefund` / `approveRefund` / `rejectRefund` | `{ paymentId, amountMinor, reason, reasonText, lineRefs? }` / `{ refundId, note? }` | FINANCE, SUPER_ADMIN. `requestRefund` also COMPETITION_MANAGER and STAFF_ADMIN, for REGISTRATION_FEE only (FINANCE approves). The approver must differ from the requester | §8.2.5 |
+| `recordOfflinePayment` | `{ refType, refId, amountMinor, method, reference, receivedAt, proofFileAssetId }` | FINANCE, STAFF_ADMIN | OFFLINE Payment CAPTURED, `payment.captured` |
 | `replayWebhookEvent` / `resolveReconciliationIssue` | `{ webhookEventId }` / `{ issueId, status, note }` | FINANCE, SUPER_ADMIN | Re-enqueue / resolve |
 | `createDonationCheckout` | `{ fundId, amountMinor, frequency, donorType, donor, nameDisclosure, publicDisplayName?, message?, tax?, declarations, idempotencyKey }` | Public (MONTHLY needs a session) | §8.4.2 step 5 |
 | `recordOfflineDonation` | `{ donor, donorType, fundId, amountMinor, method, reference, receivedAt, proofFileAssetId, nameDisclosure, tax? }` | FINANCE | Donation CAPTURED, receipt, ledger |
@@ -1913,11 +1933,11 @@ Every action validates input with zod, checks `can()` inside the service, and wr
 
 Payloads carry ids, amounts and codes only, never PAN, addresses or contact details.
 
-- **Payments:** `payment.captured`, `payment.failed`, `payment.refunded` (§8.3 payloads; payer and §6). `refund.failed` and `reconciliation.issue_found` (FINANCE).
-- **Donations:** `donation.captured` (thank-you), `donation.receipt_issued` (with link), `donation.refunded`, `recurring.activated`, `recurring.charge_failed`, `recurring.halted` (donor and FINANCE), `recurring.paused`, `recurring.resumed`, `recurring.cancelled`.
+- **Payments:** `payment.captured`, `payment.failed`, `payment.refunded` (§8.3 payloads; payer and §6). `refund.failed` and `reconciliation.issueFound` (FINANCE).
+- **Donations:** `donation.captured` (thank-you message only, no attachment), `donation.receiptIssued` (after the PDF renders; signed download link valid 7 days), `donation.refunded`, `recurringDonation.activated`, `recurringDonation.charged` (each successful charge), `recurringDonation.chargeFailed`, `recurringDonation.halted` (donor and FINANCE), `recurringDonation.paused`, `recurringDonation.resumed`, `recurringDonation.cancelled`.
 - **Bids:** `bid.placed` (analytics only), `bid.outbid { lotCode, currentBidMinor, minNextMinor }` (previous leader).
-- **Lots:** `lot.scheduled`, `lot.opened`, `lot.extended`, `lot.closing_soon` (1h before close, to bidders on the lot), `lot.won` (winner), `lot.closed` (other bidders), `lot.unsold` (bidders, "reserve not met" variant), `lot.payment_reminder` and `lot.payment_overdue` (winner and AUCTION_MANAGER), `lot.second_chance_offered`, `lot.paid` and `lot.sold` (buyer, AUCTION_MANAGER, FINANCE), `lot.acknowledged` (creator or guardian, institution coordinator), `lot.shipped` and `lot.delivered` (buyer), `lot.cancelled` (bidders, creator or guardian).
-- **Finance:** `finance.period_locked`, `finance.period_published`, `finance.report_published`, `budget.threshold_exceeded`.
+- **Lots:** `lot.scheduled`, `lot.opened`, `lot.extended`, `lot.won` (winner), `lot.closed` (other bidders), `lot.unsold` (bidders, "reserve not met" variant), `lot.paymentOverdue` (winner and AUCTION_MANAGER), `lot.secondChanceOffered`, `lot.paid` and `lot.sold` (buyer, AUCTION_MANAGER, FINANCE), `lot.acknowledged` (creator or guardian, institution coordinator), `lot.shipped` and `lot.delivered` (buyer), `lot.cancelled` (bidders, creator or guardian). Reminders are not emitted here: §10 handles them as `reminder.lotClosing` (T−1 h before close, to watchers and bidders) and `reminder.auctionPayment` (T−24 h and T−2 h before the payment deadline).
+- **Finance:** `financialPeriod.locked`, `financialPeriod.published`, `financialReport.published`, `budget.thresholdExceeded`.
 
 ### 8.11 Security Notes
 
@@ -1940,26 +1960,26 @@ Payloads carry ids, amounts and codes only, never PAN, addresses or contact deta
 | Out-of-order events, or captured amount ≠ order amount | Fetch from the provider and apply the missing transitions in order / no capture, CRITICAL issue, FINANCE refunds |
 | A bid in the last second | Accepted only if DB `now() < closesAt` under the row lock. The close moves out by `antiSnipeExtendSec`. The close job re-checks under the same lock and reschedules |
 | Winner doesn't pay | Reminders, then an overdue strike, then second-chance offers (max 2), then CLOSED_UNSOLD, then an optional relist. The defaulter's late capture is auto-refunded |
-| Consent withdrawn after listing, before close or payment | §12's `consent.withdrawn` (AUCTION_OF_ARTWORK or PUBLIC_DISPLAY) → `cancelLot` within one job cycle. Bidders and the guardian are notified. Artwork → VERIFIED. An in-flight capture is auto-refunded. After PAID the sale stands per the terms; only the credit can switch to ANONYMOUS |
-| Partial refund of a bulk registration fee | §8.3: per-seat amount, cumulative-sum guard, PARTIALLY_REFUNDED, negative REGISTRATION_FEES posting, `lineRefs` returned to §6 |
+| Consent withdrawn after listing, before close or payment | §12's `consent.withdrawn` (AUCTION_OF_ARTWORK or PUBLIC_DISPLAY) → `cancelLot` within one job cycle. Bidders and the guardian are notified. Artwork → `statusBeforeListing` (`setAuctionState`). An in-flight capture is auto-refunded. After PAID the sale stands per the terms; only the credit can switch to ANONYMOUS |
+| Partial refund of a registration-fee batch | §8.3: amount = sum of the listed `RegistrationPaymentBatchItem`s, requested by COMPETITION_MANAGER or STAFF_ADMIN and approved by FINANCE, cumulative-sum guard, PARTIALLY_REFUNDED, negative REGISTRATION_FEES posting, `lineRefs` returned to §6 |
 | Refund of a donation in a PUBLISHED month | The receipt is marked cancelled. The reversal lands in the next OPEN month with `lateAdjustment` |
-| Two tabs pay the same registration / a subscription charge races a cancel | Second capture is stale, and §6 requests a `DUPLICATE` system refund / record the donation with a receipt (the money is real), and FINANCE refunds on request |
+| Two tabs pay the same registration / a subscription charge races a cancel | Second capture: §6 puts the batch in NEEDS_REVIEW and emits `registration.paymentNeedsReview`, with no automatic refund; any refund is requested by COMPETITION_MANAGER or STAFF_ADMIN and approved by FINANCE / record the donation with a receipt (the money is real), and FINANCE refunds on request |
 
 ### 8.13 Acceptance Criteria
 
 1. A webhook with a bad signature returns 400 and creates no rows. The same valid event delivered 3× produces exactly one transition, one LedgerEntry and one Outbox event. Capture works with the webhook only, the redirect only, and both in either order, each yielding one CAPTURED Payment and one posting.
 2. A provider amount that differs from `Payment.amountMinor` never captures and opens a CRITICAL issue. No server action accepts a price for a registration or lot from the client. The app refuses to start with `rzp_live_` keys when `VERCEL_ENV≠production`.
 3. Unit tests cover every allowed and every disallowed transition of the Payment, Refund, Donation, RecurringDonation, AuctionLot, FinancialPeriod and FinancialReport machines.
-4. Refunding 3 of 20 seats gives PARTIALLY_REFUNDED, `refundedMinor = 3 × fee`, a −3×fee posting and `payment.refunded` with 3 `lineRefs`. Refunds beyond the remaining amount are rejected. A refund above the threshold can't be approved by its requester.
+4. Refunding 3 of 20 items in a `RegistrationPaymentBatch` gives PARTIALLY_REFUNDED, `refundedMinor` = the sum of the 3 items, a matching negative posting and `payment.refunded` with 3 `lineRefs`. Refunds beyond the remaining amount are rejected. A refund above the threshold can't be approved by its requester.
 5. 100 concurrent captures in one FY get receipt numbers `000001`–`000100` with no gaps or duplicates. Failed and abandoned payments consume none. 31 Mar 23:59 IST → FY `2627`; 1 Apr 00:01 IST → `2728-000001`.
 6. With `org.has80G=false`, `/donate` shows no PAN fields and receipts have no tax section; setting it to `true` shows both without a deploy. A guest ONE_TIME donation completes without an account. MONTHLY without a session is rejected. A signed-in minor can't donate.
 7. An organisation donation with no disclosure choice fails validation. ANONYMOUS organisations and non-opted-in individuals never appear on `/transparency`; DISCLOSED ones do. An international capture with FCRA off is auto-refunded in full; the donation ends REFUNDED with no receipt number.
 8. Recurring with FakePaymentProvider: two `subscription.charged` → two donations and two receipts. `pending` → PAST_DUE plus notification. `halted` → HALTED. A dashboard cancel calls `cancelSubscription`.
-9. `createLot` fails with a distinct error code for each of: artwork not VERIFIED, `auctionCandidate=false`, `allowAuction=false`, missing AUCTION_OF_ARTWORK consent, minor without guardian consent. A minor whose consent says FULL_NAME gets a FIRST_NAME_INITIAL lot. No public API or page exposes the creator's DOB, exact age, or the reserve amount.
+9. `createLot` fails with a distinct error code for each of: artwork status not in {VERIFIED, IN_EXHIBITION, RETAINED}, `auctionCandidate=false`, `allowAuction=false`, missing AUCTION_OF_ARTWORK consent, minor without guardian consent. A minor whose consent says FULL_NAME gets a FIRST_NAME_INITIAL lot. No public API or page exposes the creator's DOB, exact age, or the reserve amount.
 10. Users without a verified phone, without accepted terms, under 18, suspended, or holding FINANCE or AUCTION_MANAGER can't bid.
 11. 50 concurrent equal bids on one lot: exactly 1 accepted, 49 `BID_TOO_LOW`; the current price always equals the resolved highest VALID bid. A bid 30s before close sets `closesAt = now + 120s`. A bid at or after `closesAt` (DB time) gets `LOT_CLOSED`. The close job never closes a lot whose close was extended.
 12. Proxy: A sets max ₹5,000, B bids ₹3,000 → A leads at ₹3,000 + increment. B bids ₹6,000 → B leads at ₹6,000 and A gets `bid.outbid`.
-13. Reserve not met → CLOSED_UNSOLD and artwork → VERIFIED. A non-paying winner gets a strike after 72h and the next bidder gets a second-chance offer. The defaulter's later payment is auto-refunded (`LATE_CAPTURE`).
+13. Reserve not met → CLOSED_UNSOLD and artwork → `statusBeforeListing`. A non-paying winner gets a strike after 72h and the next bidder gets a second-chance offer. The defaulter's later payment is auto-refunded (`LATE_CAPTURE`).
 14. Consent withdrawal on a LIVE lot cancels it, notifies bidders and reverts the artwork. The same withdrawal after PAID leaves the sale intact.
 15. PAID sets the artwork to SOLD, posts `AUCTION_PROCEEDS`, creates payouts per the snapshot, and issues an acknowledgement letter that names the buyer only if `shareNameWithArtist`.
 16. UPDATE or DELETE on `LedgerEntry` fails at the DB level. A reversal nets to zero. A manual EXPENSE without an attachment, or a manual posting into a LOCKED month, is rejected.
@@ -2174,7 +2194,7 @@ model ContactNote { id, messageId, authorUserId, kind INTERNAL|REPLY_SENT, body,
 
 #### 9.4.5 Impact Metrics
 
-§11 computes the counters (MVs) and applies suppression: counters < 5 are omitted, and values ≥ 10 are floored to 10 and shown as "1,240+". This section defines what each counter means, and §11 MUST implement these definitions. Soft-deleted rows are always excluded.
+§11 computes the counters (MVs) and applies suppression: counters < 10 are omitted, and values ≥ 10 are floored to 10 and shown as "1,240+". This section defines what each counter means, and §11 MUST implement these definitions. Soft-deleted rows are always excluded.
 
 | §11 counter | Definition |
 |---|---|
@@ -2186,7 +2206,7 @@ model ContactNote { id, messageId, authorUserId, kind INTERNAL|REPLY_SENT, body,
 | `volunteers` / `volunteerHours`* | `VolunteerProfile` ACTIVE / floor(Σ APPROVED `VolunteerHourLog.minutes` / 60) |
 | `ngosListed` / `adoptionsFacilitated` | `Organization` VERIFIED / `AdoptableAnimal` ADOPTED with `adoptedViaPlatform = true` |
 | `communityMembers`* / `eventAttendees`* | `CommunityMembership` ACTIVE / `EventRegistration` ATTENDED |
-| `fundsRaisedMinor` | the §8 transparency donations total (the same figure as `/transparency`) |
+| `fundsRaisedMinor` | Σ ledger INCOME in the donation categories over PUBLISHED months, read from §8's `TransparencySnapshot` (the same figure as the `/transparency` donations total) |
 
 \* New counters requested from §11.
 
@@ -2257,7 +2277,7 @@ An Event of type CAMPAIGN or DRIVE is a dated activity, such as an adoption driv
 - Check-in works from `startsAt − 2h` to `endsAt + 2h` and is idempotent; a re-scan shows the original time. Staff can also check in by name search.
 - At `endsAt + 24h`, CONFIRMED registrations become NO_SHOW and the event becomes COMPLETED.
 
-**Notifications.** Reminders go out 24 h and 2 h before the start. A change of date or venue notifies all registrants. Cancelling the event cancels every CONFIRMED and WAITLISTED registration (`event.cancelled`). All events are free.
+**Notifications.** Reminders go out 24 h and 2 h before the start (§10 `reminder.eventStarting`). A change of date or venue notifies all registrants. Cancelling the event cancels every CONFIRMED and WAITLISTED registration (`event.cancelled`). All events are free.
 
 **Event media.** Media is published only after a §12.8 review. Every tagged participant needs `PARTICIPANT_PHOTO_VIDEO` with the `eventId` scope. Withdrawing that consent unpublishes the item within 24 h (§12.6).
 
@@ -2293,7 +2313,7 @@ EngagementService.summary(subject): Promise<EngagementSummary>
 - **Timeline merge.** A user's timeline merges their `U:` records with the `P:` records of profiles where `ParticipantProfile.userId` is that user. Guardians can view each linked child's timeline.
 - **Visibility.** Only the subject, their guardian, COMMUNITY_MANAGER and STAFF_ADMIN can see a timeline. Nothing is public except badges on adult profiles.
 
-**Wiring.** Outbox handlers in `server/jobs/engagement/`. Owning sections MAY also call the service directly; duplicate calls are harmless.
+**Wiring.** Outbox handlers in `server/jobs/engagement/`.
 
 | Trigger (owner) | Record | Subject |
 |---|---|---|
@@ -2301,7 +2321,7 @@ EngagementService.summary(subject): Promise<EngagementSummary>
 | `entry.submitted` (§6) | ENTRY_SUBMITTED | participant |
 | `certificate.issued` type `SCHOOL_MERIT` (§7) | MILESTONE `SCHOOL_WINNER` (source: Certificate) | participant |
 | `certificate.issued`, any type (§7) | CERTIFICATE_EARNED | participant |
-| `results.published` (§7): each Entry with `finalOutcome` ∈ {WINNER, RUNNER_UP, FINALIST, SPECIAL_MENTION} | MILESTONE `FOA_FINALIST` (source: Entry) | participant |
+| `results.published` (§7): each Entry with status FINALIZED and `finalOutcome` ∈ {WINNER, RUNNER_UP, FINALIST, SPECIAL_MENTION} (not SPECIAL_MENTION on an ELIMINATED entry) | MILESTONE `FOA_FINALIST` (source: Entry) | participant |
 | `certificate.revoked`, `entry.disqualified`, `entry.withdrawn` (§6/§7) | `revokeBySource` | n/a |
 | `community.joined` / `volunteerApplication.statusChanged` (to APPROVED) / `ambassador.appointed` (§9) | MILESTONE `COMMUNITY_MEMBER` / `VOLUNTEER` / `AMBASSADOR` | member / user / user |
 | `eventRegistration.checkedIn`, `campaign.pledged`, `volunteerHours.approved`, `club.memberAdded`, `content.published` with `sourceStoryId` (§9) | matching activity kind | attendee / pledger / volunteer / member / story subject |
@@ -2502,7 +2522,7 @@ model PinCode { pinCode @id, district, state, lat Float, lng Float }   // seeded
 | VERIFICATION_EXPIRED → VERIFIED | reviewer | re-verification approved | listings suspended for ORG_NOT_VERIFIED are restored |
 | VERIFIED / VERIFICATION_EXPIRED → SUSPENDED → VERIFIED | COMMUNITY_MANAGER, STAFF_ADMIN / STAFF_ADMIN | reason / new verification record | hidden; listings suspended; open applications moved to FOA; `organization.suspended` / `.reinstated` |
 
-**Re-verification and edits.** Reminders go out 30 and 7 days before expiry (`organization.reverificationDue`). On a VERIFIED org, edits to `name`, `legalName`, `type` or `registrationNumber` wait in `pendingChanges` for a CHANGE review. Other edits apply immediately and are audited.
+**Re-verification and edits.** Reminders go out 30 and 7 days before expiry (§10 `reminder.orgReverification`). On a VERIFIED org, edits to `name`, `legalName`, `type` or `registrationNumber` wait in `pendingChanges` for a CHANGE review. Other edits apply immediately and are audited.
 
 **Search** (`/ngos?q=&type=&service=&species=&city=&pin=&lat=&lng=&radiusKm=&emergency=`). Results include VERIFIED, non-deleted orgs only.
 - **Text:** `websearch_to_tsquery('simple', q)` on `searchVector` (name A, service/species labels B, description C), OR `similarity(name, q) > 0.3`.
@@ -2546,7 +2566,7 @@ model AdoptionApplication { id, applicationCode @unique, animalId, applicantUser
   - FOA collects no money. Any contribution is paid to the org off-platform and shown as "Adoption contribution set by {org}".
 - **Handlers.** The listing org's ORG_REPs, or ADOPTION_COORDINATORs for FOA listings. ADOPTION_COORDINATOR can see and act on every application.
 - **Public visibility.** A listing is public when status ∈ {AVAILABLE, ON_HOLD}, it is not suspended, and the org (if any) is VERIFIED. An ADOPTED listing shows "Adopted" for 90 days, then returns 410.
-- **Stale listings.** The handler is reminded after `adoption.listingReconfirmDays` without confirmation. After `adoption.listingStaleHideDays` the listing is suspended as STALE until `confirmAnimalAvailability` is called.
+- **Stale listings.** The handler is reminded after `adoption.listingReconfirmDays` without confirmation (§10 `reminder.animalStale`). After `adoption.listingStaleHideDays` the listing is suspended as STALE until `confirmAnimalAvailability` is called.
 
 | AdoptableAnimal: From → To | Actor | Guard | Side effects |
 |---|---|---|---|
@@ -2576,7 +2596,7 @@ model AdoptionApplication { id, applicationCode @unique, animalId, applicantUser
 - The handler sends updates as `noteToApplicant` (≤1000 characters) attached to transitions, or through `requestApplicantInfo`. The applicant may then edit their answers while the application is SUBMITTED or UNDER_REVIEW.
 - The handler's direct contact, including a RELAY_ONLY rescuer's, is revealed to the applicant only at APPROVED.
 
-**Follow-up.** On each follow-up date, the adopter gets a check-in form at `/dashboard/applications/[id]/follow-up` (wellbeing, an optional photo, concerns), and the handler is notified.
+**Follow-up.** On each follow-up date (§10 `reminder.adoptionFollowUp`), the adopter gets a check-in form at `/dashboard/applications/[id]/follow-up` (wellbeing, an optional photo, concerns), and the handler is notified.
 - CONCERN alerts the handler and ADOPTION_COORDINATOR.
 - RETURNED lets the coordinator relist the animal.
 
@@ -2645,16 +2665,23 @@ Every payload includes the entity id and the actor. The recipients column is gui
 | `content.submitted`, `content.changesRequested`, `content.published`, `content.archived` | approvers / editor / none (cache, §11) |
 | `contactMessage.received`, `contactMessage.assigned`, `contactMessage.replied` | sender (with `ticketCode`) / assignee / sender |
 | `story.submitted`, `story.accepted`, `story.declined` | CONTENT_MANAGER / submitter |
-| `event.published`, `event.updated`, `event.cancelled`, `event.reminderDue` | members (digest) / registrants |
+| `event.published`, `event.updated`, `event.cancelled` | members (digest) / registrants |
 | `eventRegistration.confirmed`, `.waitlisted`, `.promoted`, `.cancelled`, `.checkedIn` | registrant |
 | `campaign.published`, `campaign.pledged`, `campaign.ended` | members (digest) / pledger / COMMUNITY_MANAGER |
 | `engagement.milestoneReached {subjectKey, milestone}`, `community.joined`, `community.joinRequested`, `community.invited` | subject / guardian (join request) / invitee |
 | `club.advisorInvited`, `.approved`, `.rejected`, `.advisorVacant`, `.advisorChanged`, `.closed`, `.memberAdded`, `.announcementPosted` | advisor / requester, INSTITUTION_ADMIN / COMMUNITY_MANAGER / members' guardians |
-| `ambassador.nominated`, `.appointed`, `.rejected`, `.expiring` (−30 d), `.revoked` | COMMUNITY_MANAGER / nominee |
+| `ambassador.nominated`, `.appointed`, `.rejected`, `.revoked` | COMMUNITY_MANAGER / nominee |
 | `volunteerApplication.submitted`, `.statusChanged {from,to}`, `.guardianApprovalRequested`, `volunteerAssignment.assigned`, `volunteerHours.approved`, `volunteerHours.rejected` | applicant or volunteer / guardian / COMMUNITY_MANAGER |
-| `organization.registered`, `.verified`, `.rejected`, `.reverificationDue`, `.verificationExpired`, `.suspended`, `.reinstated`, `listing.reported` | COMMUNITY_MANAGER / ORG_REPs |
-| `animal.listed`, `animal.staleReminder`, `animal.suspended`, `animal.statusChanged` | handler / active applicants |
-| `adoptionApplication.submitted`, `.statusChanged {from,to,note?}`, `.infoRequested`, `.slaBreached`, `adoption.completed`, `adoption.followUpDue`, `adoption.followUpConcern` | handler, applicant / ADOPTION_COORDINATOR |
+| `organization.registered`, `.verified`, `.rejected`, `.verificationExpired`, `.suspended`, `.reinstated`, `listing.reported` | COMMUNITY_MANAGER / ORG_REPs |
+| `animal.listed`, `animal.suspended`, `animal.statusChanged` | handler / active applicants |
+| `adoptionApplication.submitted`, `.statusChanged {from,to,note?}`, `.infoRequested`, `.slaBreached`, `adoption.completed`, `adoption.followUpConcern` | handler, applicant / ADOPTION_COORDINATOR |
+
+**Reminders** are not emitted by this section. §10 owns them as `reminder.<name>` keys (§10.3):
+- `reminder.eventStarting`: 24 h and 2 h before `startsAt` (CONFIRMED registrants).
+- `reminder.orgReverification`: 30 and 7 days before `verificationExpiresAt` (ORG_REPs).
+- `reminder.animalStale`: after `adoption.listingReconfirmDays` without confirmation (handler).
+- `reminder.adoptionFollowUp`: on each `adoption.followUpDays` date after handover (adopter; handler notified).
+- `reminder.ambassadorExpiring`: 30 days before `termEndsAt` (ambassador).
 
 ### 9.14 Edge Cases
 
@@ -2684,7 +2711,7 @@ Every payload includes the entity id and the actor. The recipients column is gui
 6. `/impact` shows §11's counters. Adding an `ImpactAdjustment` changes the displayed value, writes an audit row, and adds the "offline activity" note.
 7. The contact form rejects a missing Turnstile token. The 6th message from one IP in an hour returns 429. Choosing "Safeguarding concern" opens `/safeguarding` and stores no `ContactMessage`.
 8. An editorial item that depicts artwork without a §7 stamped export, or whose participant lacks SOCIAL_MEDIA or PUBLIC_DISPLAY consent, cannot reach APPROVED.
-9. Calling `recordMilestone` twice with the same source creates one record and one `engagement.milestoneReached` event. Results publication gives every WINNER, RUNNER_UP, FINALIST and SPECIAL_MENTION entry's participant `FOA_FINALIST`.
+9. Calling `recordMilestone` twice with the same source creates one record and one `engagement.milestoneReached` event. Results publication gives every FINALIZED WINNER, RUNNER_UP, FINALIST and SPECIAL_MENTION entry's participant `FOA_FINALIST`, and an ELIMINATED entry with SPECIAL_MENTION gets none.
 10. Revoking the only SCHOOL_MERIT certificate removes `SCHOOL_WINNER` from the summary.
 11. Each recipient gets exactly one invitation per competition. A guardian of two participants gets one message, and nothing goes to a minor's own contact or inbox. Re-running the job sends nothing, and recipients without COMMUNICATION consent get nothing.
 12. A minor's membership stays PENDING_GUARDIAN until the guardian approves. `/community/members/{slug}` returns 404 for a minor, even if `publicProfile` was set directly in the database.
@@ -2747,6 +2774,7 @@ type RecipientRef =
   | { kind: 'PARTICIPANT'; participantId: string }                       // expanded per §10.4
   | { kind: 'INSTITUTION'; institutionId: string; memberRoles?: ('AUTHORISED_PERSON'|'COORDINATOR')[]; includePrincipal?: boolean }
   | { kind: 'ROLE'; role: Role; scopeId?: string }                         // staff (in-app; email only where the route says so)
+  | { kind: 'SAFEGUARDING_DESIGNATION' }                                   // active DSL and DEPUTY_DSL holders (§12.9), expanded per §10.4
   | { kind: 'ADDRESS'; email?: string; phone?: string; name?: string; locale?: string } // non-users
 
 // §3.5 signature preserved; opts is additive
@@ -2761,7 +2789,7 @@ interface ChannelAdapter {
 }
 ```
 
-Adapters: `ResendEmailAdapter`, `Msg91SmsAdapter` (implements §2 `SmsProvider`), `InAppAdapter` (writes `InAppNotification` and marks DELIVERED immediately), and `WhatsAppAdapter`, which is post-MVP behind feature flag `channel.whatsapp` (Meta Cloud API or a BSP, with the approved template name in `providerTemplateId`).
+Adapters: `ResendEmailAdapter`, `Msg91SmsAdapter` (implements §2 `SmsProvider`), `InAppAdapter` (writes `InAppNotification` and marks DELIVERED immediately), and `WhatsAppAdapter`, which is post-MVP behind feature flag `WHATSAPP_CHANNEL` (Meta Cloud API or a BSP, with the approved template name in `providerTemplateId`).
 
 ### 10.2 Data Model
 
@@ -2791,7 +2819,7 @@ model Notification {
   recipientUserId String?; recipientGuardianId String?
   toAddress String           // lowercased email | E.164 phone | userId (IN_APP)
   subjectParticipantId String? // participant the message is about
-  payload Json?              // validated merge vars; nulled after 90 days (job `notify.redact`); row kept 2 years
+  payload Json?              // validated merge vars; nulled after 90 days (job `notify.redact`); row kept 365 days
   dedupeKey String @unique; status NotificationStatus @default(QUEUED); suppressedReason SuppressionReason?
   scheduledFor DateTime?; attempts Int @default(0); lastError String?; providerMessageId String? @unique
   sentAt DateTime?; deliveredAt DateTime?; failedAt DateTime?; createdAt DateTime @default(now())
@@ -2809,6 +2837,8 @@ model ShortLink { code String @id /* 8 base32 */; targetUrl String; createdAt Da
 
 Legend. **PC** = participant contact set (§10.4): guardian for a minor, the participant if adult. **C** = coordinators + `INSTITUTION_ADMIN` of the registration's institution (institution route only). C gets in-app at once plus the 18:00 IST daily digest email, unless marked *now* (immediate email). **IA** = authorised person (+ principal where marked). **Sub** = submitter (C *now* on the institution route, PC on the individual route). **Staff(R)** = in-app to holders of role R in scope. Channels: E email, S SMS, I in-app (only if the recipient has a `User`). Category: **T** transactional, **O** operational, **G** engagement. The emitter section is in brackets. Names are proposals for the integrator to reconcile with §6–§9 and §12.
 
+Events not listed here are recorded for analytics only and send nothing; a section that wants a message must add a row.
+
 | Event key [emitter] | Recipients | Ch | Cat | Template summary |
 |---|---|---|---|---|
 | `otp.requested` [auth; sync] | address entered | E or S | T | 6-digit code, 10-min expiry, "never share". Ignores quiet hours and caps |
@@ -2817,67 +2847,117 @@ Legend. **PC** = participant contact set (§10.4): guardian for a minor, the par
 | `institution.registered` [§6] | IA + principal; Staff(STAFF_ADMIN) | E; I | T | Received, `institutionCode`, verification pending (target 2 working days) |
 | `institution.verified` [§6] | IA + principal; C *now* | E, S, I | T | Verified; dashboard link; add coordinators/students |
 | `institution.rejected` [§6] | IA + principal | E | T | Reason, how to reapply |
+| `institution.suspended` / `.reinstated` [§6] | IA + principal; C *now* | E, I | T | Suspended: reason, dashboard read-only, no new registrations, payments, submissions or dispatches, contact / reinstated: access restored |
 | `institutionMember.invited` [§6] | invitee address | E, S | T | Invite link (7-day expiry), institution name |
+| `institutionMember.removed` [§6] | removed member | E, I | T | Access to the institution removed, institution name, contact |
 | `institutionRegistration.created` [§6] | IA; C *now* | E, I | T | Competition `reference`, steps to enrol students and pay fees |
 | `institutionRegistration.certified` [§6] | Staff(COMPETITION_MANAGER) | I | O | Coordinator certified conduct/judging per FOA guidelines |
+| `institutionRegistration.withdrawn` [§6] | IA; Staff(COMPETITION_MANAGER) | E, I; I | T | Competition `reference` withdrawn, reason, effect on student registrations and fees |
+| `studentImport.completed` [§6] | uploader | I | T | Rows imported / rejected, link to the error report |
 | `registration.created` [§6] | PC; C | E, I | T | `registrationNumber`, pending steps (consent, fee) with links |
 | `registration.confirmed` [§6] | PC; C | E, S, I | T | Confirmed: Participant ID + Registration No., login link |
 | `registration.cancelled` [§6] | PC; C | E, I | T | Reason; refund status if paid |
+| `registration.withdrawn` [§6] | PC; C | E, I | T | Withdrawal confirmed: reason, effect on entries and artwork, refund status if any |
+| `registration.transferred` [§6] | PC; C of the old and new institution | E, I | T | Moved to the new school or the individual route; Registration No. unchanged; who manages it now |
+| `registration.paymentNeedsReview` [§6] | Staff(FINANCE, COMPETITION_MANAGER) | I | O | Batch, registration, why the capture could not be applied; review link |
+| `registration.duplicateFlagged` [§6] | guardian; Staff(COMPETITION_MANAGER) | E, I; I | T | Guardian: generic "may already be registered, contact us before paying" notice that never names the school. Staff: duplicates queue link |
 | `reminder.registrationPayment` (T+1 d, T+3 d after create; T-1 d before close) | payer of record (§6/§8) | E, I; S at T-1 | T | Amount, pay link, close date |
 | `payment.captured` [§8] (purpose ≠ DONATION) | payer | E, I | T | Receipt: amount, purpose, reference code, PDF link |
 | `payment.failed` / `payment.refunded` [§8] | payer | E, I | T | Retry link / refunded amount and settlement time |
+| `refund.failed` [§8] | Staff(FINANCE) | E, I | O | Refund, amount, failure reason, retry link |
 | `consent.requested` [§12] | guardian | E, S | T | Consents asked, who asked (school/self), signed approve link (7 d) |
 | `reminder.consentPending` (T+2 d, T+5 d) | guardian; C | E, S | T | Same link; which steps are blocked |
 | `consent.granted` [§12] | guardian / adult; C | E, I | T | Copy of consent version text, withdraw link |
+| `consent.refused` [§12] | none (silent) | – | – | – |
+| `guardian.verified` [§12] | none (silent; consumed by §6) | – | – | – |
 | `consent.withdrawn` [§12] | guardian / adult; C; Staff(COMPETITION_MANAGER) if display/auction affected | E, I | T | Withdrawal confirmed; effects and their deadlines exactly as listed in §12.6 (e.g. gallery unpublish ≤ 24 h, social takedown ≤ 72 h) |
 | `competition.published` [§6] | none directly: creates a DRAFT `Announcement` for staff review | – | G/O | Name, theme, disciplines, age groups, dates, register link |
-| `reminder.registrationClosing` (T-7, T-2 d) | IA + C of verified institutions not yet registered (O); PC with DRAFT registrations | E, I | O | Close date, register/finish link |
+| `reminder.registrationClosing` (T-7, T-2 d) | IA + C of verified institutions not yet registered (O); PC with registrations in PENDING_CONSENT or PENDING_PAYMENT | E, I | O | Close date, register/finish link |
 | `competition.instructionsPublished` [§6] (Phase 3) | individual: PC; institution: C *now* | E, I, S (short pointer) | O | Date/time, theme confirmation, permitted materials, duration, submission procedure, physical artwork requirements, deadlines, help contact |
 | `competition.scheduleChanged` [§6] | all confirmed PC; C *now* | E, S, I | T | Old → new dates, reason |
 | `competition.submissionOpened` [§6] | individual: PC; institution: C *now* | E, S, I | O | Window, upload link, file rules |
 | `reminder.submissionClosing` (T-7, T-2, T-1 d) | individual PC with no SUBMITTED entry; C with pending uploads (counts) | E, I; S at T-1 | O | Deadline, items pending, link |
 | `competition.cancelled` [§6] | all PC; C; IA | E, S, I | T | Reason, refund policy |
+| `file.quarantined` [§6] | uploader | E, I | T | File removed by the virus scan, which entry, re-upload before the deadline |
 | `entry.submitted` [§6] | PC; C | E, S, I | T | "Submission received": `entryCode`, title, IST timestamp |
 | `entry.changesRequested` [§6] | Sub | E, S, I | T | What to fix, fix-by deadline, link |
 | `entry.rejected` [§6] (REJECTED_INELIGIBLE) | PC; C *now* | E, I | T | Reason code, contact link |
+| `entry.reinstated` [§6] | PC | E, I | T | Entry reinstated after review, current status, next steps |
 | `entry.withdrawn` / `entry.disqualified` [§6/§7] | PC; C | E, I | T | Confirmation / reason |
+| `schoolRound.opened` [§7] | IA; C *now* | E, I | O | School judging open: deadline, shortlist size, judging framework link |
 | `reminder.schoolJudgingDeadline` (T-7, T-2, T-1 d) | IA + C of institutions with unfinalised shortlist | E, I; S at T-1 | O | Deadline, judged/remaining counts, judging framework link |
+| `schoolRound.overdue` [§7] | IA; C *now*; Staff(COMPETITION_MANAGER) | E, I; I | T | Deadline passed, no automatic forfeit; FOA will close the round or enter results from the school's evidence (§7.15 E5); contact |
+| `schoolRound.reopened` [§7] | IA; C *now* | E, I | T | Reason, shortlist reverted, deadline, link to finalise again |
 | `entry.shortlisted` [§6] (SCHOOL_SHORTLISTED) | PC | E, S, I | T | Shortlisted for FOA-level judging; next steps. Skipped when the payload has `silent: true`. For `SHORTLIST_ONLY`, sent per shortlisted registrant on `schoolShortlist.finalized` instead (§7.3) |
 | `entry.notShortlisted` [§6] | PC | E, I | T | Thank-you; participation certificate to follow; future invitations. Sent only once the school finalises its shortlist. For `SHORTLIST_ONLY`, sent per registrant without a shortlisted entry on `schoolShortlist.finalized` |
+| `schoolShortlist.finalized` [§7] | `SHORTLIST_ONLY` only: PC of each registrant in the payload's per-category lists | E, S, I (shortlisted); E, I (not shortlisted) | T | Shortlisted / not-shortlisted variants with the same content as `entry.shortlisted` / `entry.notShortlisted`. Under scope ALL it sends nothing (the per-entry events do) |
 | `entry.submittedToFoa` / `entry.verified` [§6] | C *now*; PC (I only) | E, I | T | Forwarded to / accepted by FOA |
 | `artwork.requested` [§6] | Sub; PC (if Sub = C) | E, S, I | T | `artworkCode`, packaging instructions, FOA address, dispatch deadline, tracking-entry link, declaration |
+| `artwork.requestCancelled` [§6] | sender (Sub) | E, I | T | Physical artwork no longer needed; do not dispatch |
 | `reminder.artworkDispatch` (T-3, T-1 d; +2 d overdue) | Sub; Staff(COMPETITION_MANAGER) when overdue | E, S, I | O | Deadline, tracking-entry link |
 | `artwork.dispatched` [§6] | Sub; Staff(COMPETITION_MANAGER) | E; I | T | Tracking number recorded |
 | `artwork.received` / `artwork.verified` [§6] | Sub; PC | E, I; S on received | T | FOA acknowledges receipt / verified with condition summary |
 | `artwork.discrepancyRecorded` [§6] | Sub; PC; Staff(COMPETITION_MANAGER) | E, I | T | Discrepancy type, required action, contact |
+| `artwork.discrepancyResolved` [§6] | sender (Sub) | E, I | T | Discrepancy resolved, artwork verified |
 | `artwork.returned` [§6] | Sub; PC | E, I | T | Courier details |
+| `artwork.retained` [§6] | PC | E, I | T | FOA keeps the artwork under the return policy; no return will be made |
 | `judgeAssignment.created` [§7] | judge | E, I | T | Round, entry count, deadline, `/judge` link. No participant PII |
 | `reminder.judgingDue` (T-3, T-1 d) | judges with unscored assignments; Staff(COMPETITION_MANAGER) | E, I | O | Remaining count, deadline |
+| `judgingRound.reopened` [§7] | judges assigned to the round | E, I | T | Round reopened, reason, deadline, `/judge` link. No participant PII |
 | `results.approvalRequested` [§7] | Staff(STAFF_ADMIN, COMPETITION_MANAGER) | E, I | O | Competition, approval link |
 | `results.published` [§7] | PC per entry (variant by `finalOutcome`; ELIMINATED → participant variant); C *now* (institution summary); IA | E, S, I | T | Outcome, award label, results link. Staff get a public G announcement as a draft |
+| `results.corrected` [§7] | PC of each affected entry; C *now* | E, I | T | What changed, new outcome and award label, old certificate revoked and new one issued, results link |
 | `certificate.issued` [§7] | PC; C (bulk-download digest) | E, I | T | `certificateNumber`, verify URL, download link (§7) |
 | `certificate.revoked` [§7] | PC; C | E | T | Reason |
+| `certificateBundle.generated` [§7] | requester | I | T | ZIP ready, download link (7 d) |
+| `prizeFulfilment.created` [§7] | PC | E, I | T | Prize won; request for the delivery address, confirm-address link |
+| `prize.dispatched` / `prize.delivered` [§7] | PC | E, I | T | Courier, tracking / delivery recorded |
 | `galleryItem.published` [§7] | PC | E, I | T | Gallery link, fields displayed, how to withdraw `PUBLIC_DISPLAY` |
+| `galleryItem.unpublished` [§7] | PC | E, I | T | Removed from the public gallery, reason |
 | `socialFeature.published` [§7] | PC | E, I | T | Platform + post link, how to withdraw `SOCIAL_MEDIA` |
-| `lot.listed` [§8] | creator PC | E, I | T | Lot link, dates; name shown only per consent |
+| `socialPost.takedownRequired` / `.takedownOverdue` [§7] | Staff(CONTENT_MANAGER) | E, I | T | Platform, post link, `takedownDueAt` (72 h, §12.6) / takedown overdue |
+| `lot.scheduled` [§8] | creator PC | E, I | T | Lot link, dates; name shown only per consent |
+| `lot.extended` [§8] | none (silent unless a watcher feature exists) | – | – | – |
+| `reminder.lotClosing` (T-1 h before close) | watchers and bidders on the lot | E, I | O | Current bid, closing time, bid link |
 | `bid.outbid` [§8] | previous high bidder | E, I; S in final hour | T | Current bid, closing time, bid link |
 | `lot.won` [§8] | winner | E, S, I | T | Amount, pay-by deadline, pay link |
-| `reminder.auctionPayment` (T-24 h; +1 d overdue) | winner; Staff(AUCTION_MANAGER) when overdue | E, S, I | T | Amount, deadline, consequence of non-payment |
+| `reminder.auctionPayment` (T-24 h, T-2 h before the payment deadline; after it, §8 emits `lot.paymentOverdue`) | winner | E, S, I | T | Amount, deadline, consequence of non-payment |
+| `lot.paymentOverdue` [§8] | winner; Staff(AUCTION_MANAGER) | E, S, I; I | T | Payment deadline missed, strike recorded, offer lapsed |
+| `lot.secondChanceOffered` [§8] | offered bidder | E, S, I | T | Second-chance offer at the bidder's own highest bid, pay-by deadline, pay link (paying is acceptance), decline link |
 | `lot.paid` [§8] | buyer; creator PC | E, I | T | Buyer: receipt. Creator: thank-you + amount raised for animals (buyer never named) |
 | `lot.shipped` [§8] | buyer | E, S, I | T | Courier, tracking |
-| `donation.captured` [§8] | donor | E (PDF receipt attached), I | T | `receiptNumber`, amount, 80G details |
-| `recurringDonation.charged` / `.chargeFailed` / `.cancelled` [§8] | donor | E; S on failed | T | Per-charge receipt / update-payment link / confirmation |
+| `lot.sold` / `lot.delivered` [§8] | buyer | E, I | T | Purchase confirmation link (a purchase, not a donation: no tax receipt) / delivery recorded, how to report a delivery issue within 48 h |
+| `lot.acknowledged` [§8] | creator PC; C (institution route) | E, I | T | Artist thank-you letter link, amount raised for animals (buyer named only if `shareNameWithArtist`) |
+| `lot.cancelled` [§8] | winner, if any | E, I | T | Lot withdrawn, reason, refund status if paid |
+| `donation.captured` [§8] | donor | E, I | T | Thank-you: amount, fund; no attachment (the receipt follows in `donation.receiptIssued`) |
+| `donation.receiptIssued` [§8] | donor | E, I | T | `receiptNumber`, amount, 80G details, signed download link (valid 7 d) |
+| `donation.refunded` [§8] | donor | E, I | T | Refunded amount, settlement time, receipt amended or cancelled |
+| `recurringDonation.activated` / `.charged` / `.chargeFailed` / `.halted` / `.paused` / `.resumed` / `.cancelled` [§8] | donor | E; S on failed | T | Mandate active / per-charge confirmation (receipt via `donation.receiptIssued`) / update-payment link / retries exhausted, auto-cancel date / paused / resumed / confirmation |
 | `volunteerApplication.submitted` / `.statusChanged` [§9] | applicant (guardian if minor); Staff(COMMUNITY_MANAGER) on submit | E, I | T | Ack / approved / rejected / more info |
+| `volunteerApplication.guardianApprovalRequested` [§9] | guardian | E, I | T | Role or activity applied for, approve link |
+| `volunteerAssignment.assigned` [§9] | volunteer (guardian if minor) | E, I | T | Assignment, date and time, location, contact |
 | `eventRegistration.confirmed` / `.waitlisted` / `.promoted` [§9] | attendee | E, I; S on promoted | T | Event, venue or online link, `.ics` |
 | `reminder.eventStarting` (T-1 d, T-2 h) | confirmed attendees | E, S | O | Time, venue, link |
-| `event.cancelled` [§9] | registered + waitlisted | E, S, I | T | Reason |
-| `adoptionApplication.submitted` / `.statusChanged` [§9] | applicant; ORG_REP + Staff(ADOPTION_COORDINATOR) on submit | E, I | T | Ack / status / next step |
-| `organization.registered` / `.verified` / `.rejected` [§9] | ORG_REP; Staff(COMMUNITY_MANAGER) on register | E, I | T | NGO directory listing status |
+| `event.updated` / `event.cancelled` [§9] | registered + waitlisted | E, S, I | T | What changed (date, time, venue) / reason |
+| `adoptionApplication.submitted` / `.statusChanged` / `.infoRequested` [§9] | applicant; ORG_REP + Staff(ADOPTION_COORDINATOR) on submit | E, I | T | Ack / status / next step / information requested, reply link |
+| `reminder.animalStale` (after `adoption.listingReconfirmDays` without confirmation) | handler | E, I | O | Listing, confirm-availability link, auto-hide date |
+| `reminder.adoptionFollowUp` (each `adoption.followUpDays` date after handover) | adopter; handler (I) | E, I | O | Check-in form link |
+| `organization.registered` / `.verified` / `.rejected` / `.verificationExpired` / `.suspended` [§9] | ORG_REP; Staff(COMMUNITY_MANAGER) on register | E, I | T | NGO directory listing status |
+| `reminder.orgReverification` (T-30 d, T-7 d before `verificationExpiresAt`) | ORG_REP | E, I | O | Expiry date, re-verification link |
+| `reminder.ambassadorExpiring` (T-30 d before `termEndsAt`) | ambassador | E, I | O | Term end date, next steps |
 | `contactMessage.received` [§9] | sender address; Staff inbox | E; I | T | Auto-reply with ticket ref and expected response time |
+| `contactMessage.replied` [§9] | sender address | E | T | FOA's reply, ticket ref |
 | `engagement.milestoneReached` [§9] | PC | E, I | O | Recognition. Invitation block (community/volunteer/club) rendered only if COMMUNICATION consent and adult or via guardian |
+| `community.joinRequested` [§9] | guardian | E, I | T | Child asked to join the community, approve link |
+| `community.invited` [§9] | invitee, resolved per §10.4 | E, I | G | Post-competition invitation to the FOA community, join link |
 | `feedbackSurvey.opened` [§11] + `reminder.feedbackSurvey` (+5 d, once) | invitees (§11.3) | E, I | O | Survey link (token) |
-| `safeguardingReport.submitted` [§12] | reporter address; safeguarding lead (§12) | E; E, S, I (bypass quiet hours) | T | Ack with reference only / "new report, open /admin/safeguarding". Content never included |
-| `dataExport.ready` / `dataErasure.completed` [§12] | requester (address captured at request) | E, I | T | Auth-gated download link (7 d) / erasure confirmation |
+| `safeguardingReport.submitted` [§12] | reporter address; `SAFEGUARDING_DESIGNATION` (§10.4) | E; E, S, I (bypass quiet hours) | T | Ack with reference only / "new report, open /admin/safeguarding". Content never included |
+| `safeguardingReport.escalated` [§12] | `SAFEGUARDING_DESIGNATION` (§10.4); Staff(SUPER_ADMIN). Staff only | E, S, I (bypass quiet hours) | T | Reference, severity, "open /admin/safeguarding". Content never included |
+| `content.reported` [§12] | moderators: Staff(CONTENT_MANAGER, COMPETITION_MANAGER). Staff only | E, I | O | Target type, reason code, moderation queue link |
+| `incident.declared` [§12] | Staff(SUPER_ADMIN); `SAFEGUARDING_DESIGNATION` (§10.4). Staff only | E, S, I (bypass quiet hours) | T | Incident reference, severity, link to the incident record. No personal data |
+| `dataRequest.received` [§12] | requester (address captured at request) | E, I | T | Acknowledgement: `requestNumber`, request type, SLA (§12.10), grievance officer contact |
+| `dataExport.ready` / `dataErasure.completed` [§12] | requester (address captured at request) | E, I | T | Auth-gated download link (72 h) / erasure confirmation |
+| `participant.reachedMajority` [§12] | the participant (now 18); guardian | E, I | T | Claim-account invite link; guardian access is now read-only |
 | `reminder.coordinatorDigest` (daily 18:00 IST) | C with ≥1 undigested item | E | O | Counts per event type + dashboard links |
 | `reminder.staffDigest` (daily 09:00 IST) | each staff user with non-empty Admin Home queues (§11.8) | E | O | Queue counts, SLA breaches, links |
 
@@ -2908,6 +2988,7 @@ Legend. **PC** = participant contact set (§10.4): guardian for a minor, the par
 4. **Content minimisation.** SMS and anything addressed to a minor uses first name only. No message includes DOB or home address. Judge templates include no participant name, school or city (CI-enforced). Safeguarding messages never contain report content.
 5. **Erased, suspended or deleted** users and guardians are SUPPRESSED `SUBJECT_ERASED`.
 6. **One message per address.** Reminders and digests are computed per recipient address. A guardian with three children in one competition gets one reminder listing them (`LIST` variable in email; count in SMS).
+7. **`SAFEGUARDING_DESIGNATION`** expands at send time to every user with an active `SafeguardingDesignation` (DSL or DEPUTY_DSL, not revoked; §12.9).
 
 ### 10.5 Categories, Gates & Preferences
 
@@ -2946,7 +3027,7 @@ model Announcement {
 type SegmentDefinition = {
   audience: 'PARTICIPANT_CONTACTS' | 'INSTITUTION_CONTACTS' | 'MEMBERS' | 'DONORS' | 'VOLUNTEERS' | 'JUDGES' | 'ORG_REPS'
   competitionIds?: string[]; registrationStatuses?: RegistrationStatus[]; entryStatuses?: EntryStatus[]
-  institutionIds?: string[]; route?: ParticipationRoute; ageGroupIds?: string[]; ageBands?: AgeBand[] /* §11.4 */
+  institutionIds?: string[]; route?: ParticipationRoute; ageGroupIds?: string[] /* the competition's AgeGroup ids (§6) */
   disciplines?: Discipline[]; states?: string[]; cities?: string[]; roles?: Role[]; milestones?: EngagementMilestone[]
 }
 ```
@@ -2959,7 +3040,7 @@ type SegmentDefinition = {
 | INSTITUTION_ADMIN, INSTITUTION_COORDINATOR (via `/institution/announcements`) | O | forced `institutionIds=[own]`, audience `PARTICIPANT_CONTACTS`, allowlisted templates, no free text |
 
 - **Coordinator templates** (`announcement.institution.*`): `conductSchedule` (date, time, `venueName` ≤60 chars), `materialsReminder`, `submissionReminder`, `consentReminder`, `resultsAvailable`, `certificatesAvailable`. Variables are typed (DATE/DATETIME/short STRING). The validator rejects URLs, emails, phone numbers and profanity in STRING values. The system fills institution and competition names. Limits: ≤1 per institution per day, ≤5 per competition. These go to guardians and adult students, never to a minor's own contact.
-- **Minor protection (G).** If a segment uses `milestones`, `roles`, or audience `DONORS`/`VOLUNTEERS`, everyone under 18 and their guardian-as-guardian contact is excluded automatically, and the preview shows the excluded count. G reaches guardians of minors only through contextual filters (competition, institution, route, age group/band, geography) and only with `COMMUNICATION` consent. No open, click or visit-based filter exists.
+- **Minor protection (G).** If a segment uses `milestones`, `roles`, or audience `DONORS`/`VOLUNTEERS`, everyone under 18 and their guardian-as-guardian contact is excluded automatically, and the preview shows the excluded count. G reaches guardians of minors only through contextual filters (competition, institution, route, age group, geography) and only with `COMMUNICATION` consent. No open, click or visit-based filter exists.
 - **Approval** by a different STAFF_ADMIN/SUPER_ADMIN is required when category = G and either the recipient count exceeds 1,000 or the segment reaches guardians of minors.
 - **Flow:** build → **preview** (count per channel after gates, exclusions by reason, 3 rendered samples) → **test send** to own contacts (`[TEST]` subject prefix, no dedupe) → schedule or send now → `SENDING`. Job `announcement.expand` snapshots recipients in pages of 500 and calls `notify()` with `announcementId`. Dedupe is per address, so a guardian reached through 3 children gets one copy.
 - **Throttling:** each channel has a token bucket in the send worker. `NOTIFY_EMAIL_RPS` defaults to 2; set it to the Resend plan limit. `NOTIFY_SMS_RPS` defaults to 20. Bulk email uses the Resend batch endpoint (≤100 per call). The `.txn` queues always drain before the `.bulk` queues. On 429, back off and honour `Retry-After`.
@@ -2968,13 +3049,13 @@ type SegmentDefinition = {
 
 ### 10.7 Delivery: Quiet Hours, Retries, Bounces, DLT
 
-- **Quiet hours:** no SMS or WhatsApp between 21:00 and 09:00 in the recipient's timezone (default `Asia/Kolkata`; `NOTIFY_QUIET_START/END`). Deferred messages get `scheduledFor` = next 09:00 plus 0–30 min jitter. Exempt: `otp.requested`, safeguarding staff alerts, and receipts sent within 5 min of the payer's own action (`bypassQuietHours`). Email has no quiet hours, but scheduled reminders and announcements default to a 08:00–20:00 IST window. Day-based reminders run at 10:00 IST.
+- **Quiet hours:** no SMS or WhatsApp between 21:00 and 09:00 in the recipient's timezone (default `Asia/Kolkata`; `NOTIFY_QUIET_START/END`). Deferred messages get `scheduledFor` = next 09:00 plus 0–30 min jitter. Exempt: `otp.requested`, safeguarding and security-incident staff alerts, and receipts sent within 5 min of the payer's own action (`bypassQuietHours`). Email has no quiet hours, but scheduled reminders and announcements default to a 08:00–20:00 IST window. Day-based reminders run at 10:00 IST.
 - **Retry:** `RetryableError` (network, 5xx, 429) uses pg-boss `retryLimit: 5, retryDelay: 30, retryBackoff: true` (about 30 s up to 8 min), then FAILED. `PermanentError` (4xx, invalid number, DLT mismatch) goes straight to FAILED. An invalid number also adds `SuppressionEntry(SMS, ALL, INVALID_NUMBER)`. A DLT mismatch raises a Sentry alert.
 - **SMS fallback:** routes with `smsFallback` (`registration.confirmed`, `consent.requested`, `artwork.requested`, `lot.won`, `competition.scheduleChanged`) queue the SMS template when the email ends FAILED or BOUNCED, unless an SMS was already sent.
 - **Webhooks:** `POST /api/webhooks/resend` (Svix signature) and `POST /api/webhooks/msg91` (shared secret + IP allowlist), both idempotent by provider event ID. delivered → DELIVERED. Hard bounce → BOUNCED + `SuppressionEntry(EMAIL, ALL, HARD_BOUNCE)`. Soft bounce → FAILED after provider retries. Complaint → `SuppressionEntry(EMAIL, NON_TRANSACTIONAL, COMPLAINT)` + ENGAGEMENT preference off. SMS DLR failed or rejected → FAILED.
 - **Lifting suppression:** re-verifying the address by OTP deletes HARD_BOUNCE and INVALID_NUMBER entries. STAFF_ADMIN can delete any entry with a reason (audited). COMPLAINT and UNSUBSCRIBED lift only when the user opts back in.
-- **Email setup:** subdomain `notify.<domain>` for T/O and `news.<domain>` for G, each with SPF, DKIM and DMARC `p=quarantine`; Reply-To `support@<domain>`. The only attachment is the donation receipt PDF (≤1 MB). Everything else is a link behind auth or a signed, expiring URL.
-- **Indian DLT:** before M2, FOA registers as Principal Entity, a 6-character header (e.g. `FOAIND`), and every SMS template as **Service-Implicit**. There is no promotional SMS, because G is never sent by SMS. Env: `MSG91_AUTH_KEY`, `MSG91_SENDER_ID`, `DLT_PE_ID`. An SMS template's `body` MUST be the exact DLT-approved text with `{{var}}` in place of `{#var#}`. Each variable is ≤30 chars. Links appear only as `SHORT_URL` variables resolving to `/s/[code]` on the DLT-whitelisted domain. Editing an SMS body creates a new version, which cannot be activated without a new `dltTemplateId`. Until DLT approval, flag `channel.sms` stays off and SMS audiences fall back to EMAIL + IN_APP.
+- **Email setup:** subdomain `notify.<domain>` for T/O and `news.<domain>` for G, each with SPF, DKIM and DMARC `p=quarantine`; Reply-To `support@<domain>`. No message carries an attachment. Every document, including the donation receipt, is a link behind auth or a signed, expiring URL.
+- **Indian DLT:** before M2, FOA registers as Principal Entity, a 6-character header (e.g. `FOAIND`), and every SMS template as **Service-Implicit**. There is no promotional SMS, because G is never sent by SMS. Env (§13.9): `SMS_PROVIDER_API_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID`. An SMS template's `body` MUST be the exact DLT-approved text with `{{var}}` in place of `{#var#}`. Each variable is ≤30 chars. Links appear only as `SHORT_URL` variables resolving to `/s/[code]` on the DLT-whitelisted domain. Editing an SMS body creates a new version, which cannot be activated without a new `dltTemplateId`. Until DLT approval, flag `SMS_CHANNEL` stays off and SMS audiences fall back to EMAIL + IN_APP.
 
 ### 10.8 Admin UI `/admin/communications`
 
@@ -3110,7 +3191,7 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 - **Event ingestion.** `analytics.ingest` (§10.1) writes `ProductEvent`. It is idempotent on `outboxId`, and props pass a per-event allowlist. No client-side product events exist.
 - **Base views.** `analytics.v_registrations`, `v_entries`, `v_artworks`, `v_certificates`, `v_payments`, `v_donations`, `v_engagement`, `v_volunteers`, `v_events`, `v_adoptions`, `v_feedback` are PII-free. Derived columns:
   - `istDate`, `state`, `city`, `isMinor`.
-  - `ageBand` ∈ {`UNDER_9`, `9_12`, `13_15`, `16_17`, `18_21`, `22_PLUS`}, computed at the competition's age cutoff. Competition-specific age groups (§6) are also available.
+  - `ageBand` of enum `AnalyticsAgeBand` ∈ {`UNDER_9`, `9_12`, `13_15`, `16_17`, `18_21`, `22_PLUS`}, computed at the competition's age cutoff. It is analytics-only and distinct from §9's `AgeBand`. Competition-specific age groups (§6) are also available.
 - **Materialized views** `analytics.mv_*_daily` have grain istDate × competition × route × institution × state × ageBand × discipline, with a unique index so they can be refreshed `CONCURRENTLY`.
   - Job `analytics.refresh` runs hourly, with a full refresh at 02:00 IST.
   - Funnel MVs refresh every 15 min while a competition is between REGISTRATION_OPEN and RESULTS_PENDING_APPROVAL.
@@ -3132,14 +3213,14 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 | Institution report (`/institution/reports`) | INSTITUTION_ADMIN, INSTITUTION_COORDINATOR (own institution) |
 | Impact feed (`/api/v1/impact`) | public |
 
-`suppressSmallCells(rows, { k: 5, audience })` runs in the report service and is unit-tested:
+`suppressSmallCells(rows, { k: 10, audience })` runs in the report service and is unit-tested:
 - **STAFF:** exact counts on screen. Exports are suppressed by default; only SA can switch suppression off, and doing so is audited.
 - **INSTITUTION and PUBLIC:**
-  - Any person-count cell of 1–4 becomes `"<5"` (`null` in JSON).
+  - Any person-count cell of 1–9 becomes `"<10"` (`null` in JSON).
   - Secondary suppression: the next-smallest cell in the same row/column is also hidden, so a suppressed cell can't be derived from totals.
-  - Rates whose denominator is < 5 are hidden.
+  - Rates whose denominator is < 10 are hidden.
 - **Money** totals are never suppressed in finance views. Donor counts follow k.
-- **Feedback** breakdowns with < 5 responses are hidden for every audience, staff included, to protect anonymity. Free text never appears in institution or public views.
+- **Feedback** breakdowns with < 10 responses are hidden for every audience, staff included, to protect anonymity. Free text never appears in institution or public views.
 
 ### 11.6 Web Analytics (Cookieless)
 
@@ -3155,13 +3236,13 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 **`/institution/reports`** (own institution; per competition and all-time):
 - **Content:** students registered / confirmed / consent pending; entries submitted; school-shortlisted; submitted to FOA; FOA finalists, winners and runners-up; certificates issued and downloaded; physical-artwork status counts; splits by age band and discipline.
 - **Counts:** own-institution counts are exact, since coordinators already see their students (§4.2).
-- **Benchmarks** ("all participating institutions": median submission and shortlist rate) appear only when ≥5 institutions contribute, and are k-suppressed. Other institutions are never named or ranked.
+- **Benchmarks** ("all participating institutions": median submission and shortlist rate) appear only when ≥10 institutions contribute, and are k-suppressed. Other institutions are never named or ranked.
 - **Export:** CSV of the same aggregates. Student-level lists stay in the operational screens (§6/§7).
 
 **`GET /api/v1/impact`** returns `{ asOf, counters: { participants, institutions, competitions, statesReached, artworksShowcased, certificatesIssued, volunteers, volunteerHours, communityMembers, eventAttendees, ngosListed, adoptionsFacilitated, fundsRaisedMinor, currency } }`.
-- **Source:** MVs plus `ImpactAdjustment`.
-- **Rounding and suppression:** counters < 5 are omitted. Counts ≥ 10 are rounded down to the nearest 10 and displayed as "1,240+".
-- **Funds:** `fundsRaisedMinor` comes from `v_payments` and MUST equal the §8 transparency total for the same period.
+- **Source:** MVs plus `ImpactAdjustment` (except `fundsRaisedMinor`, below).
+- **Rounding and suppression:** counters < 10 are omitted. Counts ≥ 10 are rounded down to the nearest 10 and displayed as "1,240+".
+- **Funds:** `fundsRaisedMinor` is the sum of ledger INCOME in the donation categories over PUBLISHED months, read from §8's `TransparencySnapshot`. It MUST equal the transparency page's donations total for the same period.
 - **Caching:** 1 h (`revalidate: 3600`).
 - **Consumers:** §9 `/impact` and the home page.
 
@@ -3177,19 +3258,19 @@ Layout: global search bar, then "Needs attention" queue cards, KPI tiles, and a 
 | Queue | Definition | Roles | SLA |
 |---|---|---|---|
 | Institutions awaiting verification | `Institution.status = PENDING_VERIFICATION` | SA, CM | 48 h |
-| Entries awaiting FOA verification | `Entry.status = SUBMITTED_TO_FOA` | SA, CM | 72 h |
+| Entries awaiting FOA verification | `Entry.status = SUBMITTED_TO_FOA` OR (`Entry.route = INDIVIDUAL` AND `Entry.status = SUBMITTED`) | SA, CM | 72 h |
 | Entries awaiting fixes past deadline | changes requested, fix-by passed | CM | – |
 | Artwork overdue / in transit | REQUESTED past dispatch deadline; DISPATCHED > 7 d not RECEIVED | CM | 0 h |
 | Artwork discrepancies open | `PhysicalArtwork.status = DISCREPANCY` | SA, CM | 72 h |
 | Judging progress | per open round: % scored, judges behind schedule | CM | round deadline |
 | Results awaiting approval | `Competition.status = RESULTS_PENDING_APPROVAL` | SA, CM | 48 h |
 | Consent issues | registrations blocked on consent > 3 d; withdrawals needing unpublish (§12) | SA, CM | 72 h (withdrawal) |
-| Safeguarding reports open | open reports, count and age only (§12) | safeguarding lead, SA | 24 h |
+| Safeguarding reports open | open reports, count and age only (§12) | `SAFEGUARDING_DESIGNATION` holders (DSL, deputy DSL), SUPER_ADMIN; not STAFF_ADMIN | by severity (§12.9): CRITICAL acknowledged ≤ 1 h and triaged ≤ 4 h; HIGH ≤ 24 h; MEDIUM/LOW ≤ 72 h |
 | Data-subject requests pending | export/erasure requests (§12) | SA | per §12 |
 | Failed payments / unreconciled | FAILED in 7 d; captured without ledger entry (§8) | FIN | 24 h |
 | Failed notifications | T notifications FAILED/BOUNCED in 72 h | SA | 24 h |
 | Contact inbox | unanswered `ContactMessage` | SA, COM | 48 h |
-| Gallery moderation | items pending moderation (§7) | CON, CM | 72 h |
+| Gallery moderation | items pending moderation (§7) | CON, CM | 24 h |
 | Volunteer / NGO / adoption applications | pending (§9) | COM / COM / ADO | 5 d |
 | Auction follow-ups | lots awaiting payment or shipping (§8) | AUC | 48 h |
 
@@ -3215,8 +3296,8 @@ Layout: global search bar, then "Needs attention" queue cards, KPI tiles, and a 
 
 1. Each KPI K01–K22 has a SQL definition with a unit test against the §2.1 seed data and expected values.
 2. CM scoped to competition X gets 403 for reports on competition Y. CM gets 403 on `/admin/reports/finance` and sees no FIN tiles. These checks run server-side.
-3. Institution and public outputs show 1–4 counts as `"<5"`, apply secondary suppression, and hide benchmarks with fewer than 5 contributing institutions. Feedback breakdowns with fewer than 5 responses are hidden for every role.
-4. `/api/v1/impact` contains no counter below 5, rounds as specified, and `fundsRaisedMinor` equals the §8 transparency total for the same period.
+3. Institution and public outputs show 1–9 counts as `"<10"`, apply secondary suppression, and hide benchmarks with fewer than 10 contributing institutions. Feedback breakdowns with fewer than 10 responses are hidden for every role.
+4. `/api/v1/impact` contains no counter below 10, rounds as specified, and `fundsRaisedMinor` equals the transparency page's donations total for the same period.
 5. A Playwright test confirms that authenticated pages, `(auth)` routes and registration pages make network requests only to first-party origins. CSP blocks a test GA snippet.
 6. A `ProductEvent` built from an Outbox payload that contains name, email or phone keys stores none of them.
 7. MV refresh runs `CONCURRENTLY` without blocking report reads, and every report shows its "Data as of" time.
@@ -3229,7 +3310,7 @@ Layout: global search bar, then "Needs attention" queue cards, KPI tiles, and a 
 ### 11.10 Open Questions
 
 - **Web analytics tool?** Default: Umami self-hosted. Plausible Cloud is the fallback. Vercel Analytics is not used because it has no per-path stats API we need.
-- **Suppression threshold?** Default: k = 5. Public counters are also rounded down to the nearest 10.
+- **Suppression threshold?** Default: k = 10. Public counters are also rounded down to the nearest 10.
 - **Survey minors directly?** Default: no. Guardians answer on the child's behalf.
 - **Social-media API integration timing?** Default: manual monthly entry in MVP. Meta Graph and YouTube Data API ingestion comes in M7.
 - **Definition of an "active institution"?** Default: ≥1 CONFIRMED student registration in the trailing 12 months.
@@ -3355,7 +3436,7 @@ ConsentService.currentDocument(type, locale): Promise<ConsentDocument>  // falls
 **Capture UX.** Only the types relevant to the competition's config are shown (§6 `allowPublicDisplay`, `allowAuction`). Each checkbox is separate, links to the document in the viewer's locale, and shows the short version.
 
 **ConsentDocument content (MUST).** Every document contains the itemised data, the purpose, how to withdraw, how to exercise rights, how to complain to the Board, and the grievance officer contact. In addition:
-- `AUCTION_OF_ARTWORK` states: ownership of the physical work passes to FOA on dispatch; copyright stays with the creator, who grants FOA a non-exclusive licence to reproduce the work for the listing and campaigns; proceeds fund FOA's charitable purposes and are recorded in the ledger (§8); the creator is acknowledged and thanked but receives no payment; withdrawal has no effect once a lot closes with a winning bid.
+- `AUCTION_OF_ARTWORK` states: ownership of the physical work passes to FOA on dispatch; copyright stays with the creator, who grants FOA a non-exclusive licence to reproduce the work for the listing and campaigns; proceeds fund FOA's charitable purposes and are recorded in the ledger (§8); the creator is acknowledged and thanked, and receives no payment unless the competition's proceeds policy sets a creator share, which this form states; withdrawal has no effect once a lot closes with a winning bid.
 - `PUBLIC_DISPLAY` lists the fields shown (§12.7) and says that withdrawal unpublishes within 24 h.
 - `SOCIAL_MEDIA` lists the channels, says only stamped images are used, and says FOA cannot recall third-party reshares.
 
@@ -3394,6 +3475,8 @@ Transactional messages (OTP, confirmations, results, certificates, replies to ri
 ```prisma
 model GuardianInvite { id String @id; tokenHash String @unique; guardianId String; participantId String?; competitionId String?
   purpose InvitePurpose /* CREATE_PROFILE | CONFIRM_SCHOOL_CONSENT | CLAIM_AT_MAJORITY */; channel String; expiresAt DateTime /* 7 days */; consumedAt DateTime? }
+model PendingRegistration { id String @id; competitionId String; participantDraft Json /* enc */; guardianId String; accountHolderUserId String?; consentRequestId String
+  expiresAt DateTime; status PendingRegistrationStatus /* AWAITING_GUARDIAN | COMPLETED | EXPIRED */; createdAt DateTime }  // holds an individual minor's registration until guardian verification; §6 converts it to a Registration on guardian.verified
 // Additions to Guardian (§3.4): yearOfBirth Int?, adultDeclaredAt DateTime?, phoneHash String, emailHash String?  (phone/email stored encrypted)
 // Addition to ParticipantProfile: majorityStatus (NOT_APPLICABLE | AWAITING_CLAIM | CLAIMED), managedByLawfulGuardian Boolean @default(false) (s.9(1) persons with disability; post-MVP UI)
 ```
@@ -3406,7 +3489,7 @@ model GuardianInvite { id String @id; tokenHash String @unique; guardianId Strin
 |---|---|---|---|
 | PUBLIC_DISPLAY | Cascade-withdraws SOCIAL_MEDIA and AUCTION_OF_ARTWORK for the same competition. Unpublishes gallery items. Results page shows "Name withheld". Deletes public WEB and STAMPED objects and purges the CDN. Removes the work from exhibition lists | §7 | ≤ 24 h (target 15 min) |
 | SOCIAL_MEDIA | Cancels scheduled posts immediately. Creates a takedown task for each past post, assigned to `CONTENT_MANAGER` | §7 | Takedown within 72 h |
-| AUCTION_OF_ARTWORK | A lot not yet open is withdrawn. An open lot is cancelled, bidders are notified and holds released. A lot closed but unpaid is cancelled. A paid or sold lot is unaffected, and the reason is explained to the requester. `PhysicalArtworkStatus` becomes RETAINED or RETURNED according to §8 | §8 | ≤ 1 h |
+| AUCTION_OF_ARTWORK | A lot not yet open is cancelled. An open lot is cancelled, bidders are notified and holds released. A lot closed but unpaid is cancelled. A paid or sold lot is unaffected, and the reason is explained to the requester. On a cancelled lot, the artwork reverts to its pre-listing status (`statusBeforeListing`) via §8 → `setAuctionState` | §8 | ≤ 1 h |
 | COMMUNICATION | Added to the suppression list; queued marketing messages are dropped | §10 | ≤ 1 h |
 | PARTICIPANT_PHOTO_VIDEO | Tagged event media is unpublished; a "no photo" flag goes on the event attendee list | §9 | ≤ 24 h |
 | PARTICIPATION | Before RESULTS_PUBLISHED, the entries become WITHDRAWN. After it, the outcome is kept and the name is withheld publicly. Refunds follow the §8 policy | §6 | Immediate |
@@ -3435,7 +3518,7 @@ model ParticipantDisplayPrefs { participantId String @id; showFullName Boolean @
 - **No user-to-user contact.** There are no DMs, comments, follows or public reactions between users. An adult reaches a minor only through `NotificationService` messages from staff, or from the coordinators of the minor's own institution. Those messages go to the guardian, and to a minor with a login only as a copy. Judges never contact participants. Judge feedback is released only after staff review.
 - **Blind judging.** Judges see the entry code, category, age group and the work, per §4. Gallery attribution is never shown in the judging UI.
 - **No tracking or ads (site-wide).** No third-party ad or remarketing pixels, no session replay, no personalisation or recommendations for minors. §11 reports on minors only as aggregates (minimum cell size 10).
-- **Age gating.** Bidding (§8), adoption applications (§9) and creating NGO listings require an adult, shown by a declared DOB of 18 or more plus a verified phone. A logged-in minor may donate at most `MINOR_DONATION_MAX_INR` (default 1000) per donation. A volunteer under 18 needs `GUARDIAN_VERIFIED` and gets only tasks that involve no minors' data.
+- **Age gating.** Bidding (§8), adoption applications (§9) and creating NGO listings require an adult, shown by a declared DOB of 18 or more plus a verified phone. Minors cannot donate or bid (§8). A volunteer under 18 needs `GUARDIAN_VERIFIED` and gets only tasks that involve no minors' data.
 
 ### 12.8 Content Moderation
 
@@ -3529,7 +3612,7 @@ model LegalHold { id String @id; subjectType String; subjectId String; reason St
 | Export ZIPs | `RETENTION_EXPORT_ZIP_DAYS` | 7 days |
 | Backups | — | PITR window plus 35-day dumps; `ErasureLedger` replayed on any restore |
 
-The nightly job `retention.sweep` skips any `LegalHold` and writes an `AuditLog` summary. Every week it emails `SUPER_ADMIN` a dry-run report of the next week's deletions. Defaults live in `src/server/config/privacy.ts`. `SUPER_ADMIN` can override them in the `Setting` table, and each override is audited.
+The nightly job `retention.sweep` skips any `LegalHold` and writes an `AuditLog` summary. Every week it emails `SUPER_ADMIN` a dry-run report of the next week's deletions. Defaults live in `src/server/config/privacy.ts`. `SUPER_ADMIN` can override them in the `Setting` table (§13.9), and each override is audited.
 
 ### 12.12 Breach Response
 
@@ -3558,7 +3641,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `/dashboard/privacy` | Self; guardian for each managed child | Consent toggles per child and competition, with an effect explanation and confirm dialog. Display preferences. Download my data. Correction and erasure requests. Nominee. Grievance form and officer contact. Claim my account at 18. |
 | `/privacy`, `/terms`, `/child-protection-policy`, `/safeguarding` | Public | CMS-managed and versioned per locale. `/privacy` shows the grievance officer and the published response periods. |
 
-§12 emits these domain events: `consent.granted`, `consent.refused`, `consent.withdrawn`, `guardian.verified`, `dataRequest.received`, `dataRequest.completed`, `safeguardingReport.filed`, `safeguardingReport.escalated`, `content.reported`, `participant.reachedMajority`, `incident.declared`.
+§12 emits these domain events: `consent.requested` (when a §12.5 guardian link or OTP request is sent), `consent.granted`, `consent.refused`, `consent.withdrawn`, `guardian.verified`, `dataRequest.received`, `dataExport.ready`, `dataErasure.completed`, `safeguardingReport.submitted`, `safeguardingReport.escalated`, `content.reported`, `participant.reachedMajority`, `user.contactChanged`, `incident.declared`.
 
 ### 12.14 Acceptance Criteria
 
@@ -3587,7 +3670,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 - **OQ-6** What background check do judges need? *Default: self-declaration plus code of conduct for remote blind judging; police verification for in-person judging.*
 - **OQ-7** Are the retention periods in §12.11 right, especially financial (8 years) and consent (+7 years)? *Default: as in the table.*
 - **OQ-8** Do guardian-given consents survive the participant turning 18? *Default: existing uses continue; new uses need the adult's re-confirmation; 180-day grace.*
-- **OQ-9** What is the donation cap for logged-in minors? *Default: ₹1,000 per donation.*
+- **OQ-9** What is the donation cap for logged-in minors? *Resolved: minors cannot donate or bid online; a guardian donates on their behalf (§8).*
 - **OQ-10** Is the auction consent irrevocable once a lot closes with a winning bid, and does physical ownership pass to FOA on dispatch? *Default: yes to both.*
 - **OQ-11** Should the DSL be a `Role` enum value? *Default: no; use a `SafeguardingDesignation` that only SUPER_ADMIN can grant.*
 - **OQ-12** How does a lawful guardian of an adult with a disability get verified (s.9(1), Rule 11)? *Default: post-MVP, using the `managedByLawfulGuardian` flag and the guardian flow.*
@@ -3603,7 +3686,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 - **CSRF.** Server Actions rely on Next.js origin checks. Mutating Route Handlers verify `Origin`. Webhooks verify the HMAC signature (`RAZORPAY_WEBHOOK_SECRET`) and are idempotent.
 - **Headers.** Strict nonce-based CSP: `default-src 'self'; script-src 'self' 'nonce-{n}' 'strict-dynamic' https://checkout.razorpay.com https://challenges.cloudflare.com; frame-src https://api.razorpay.com https://checkout.razorpay.com https://challenges.cloudflare.com; img-src 'self' data: blob: {PUBLIC_CDN_URL}; connect-src 'self' {storage upload host} {Sentry ingest}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`. Also send `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.razorpay.com")` and `Cross-Origin-Opener-Policy: same-origin`.
 - **Input.** zod validates at every boundary. Rich text passes through a single allowlist sanitizer. Raw SQL is allowed only as tagged `$queryRaw`.
-- **Uploads.** Presigned uploads are constrained to the declared size and MIME type and land under a `quarantine/` prefix. The worker verifies magic bytes, size and pixel count (≤ 50 MP, which blocks decompression bombs), runs ClamAV, and promotes only CLEAN files. Allowed: JPEG, PNG, WebP and HEIC (converted) up to 20 MB; PDF and DOCX (converted to PDF in the worker) up to 10 MB; MP4, MOV and WebM up to 500 MB and 5 min. §6 may set lower limits per competition.
+- **Uploads.** Presigned uploads are constrained to the declared size and MIME type and land under a `quarantine/` prefix. The worker verifies magic bytes, size and pixel count (≤ 50 MP, which blocks decompression bombs), runs ClamAV, and promotes only CLEAN files. Allowed: JPEG, PNG, WebP and HEIC (converted) up to 20 MB; PDF and DOCX (converted to PDF in the worker) up to 10 MB for user uploads, while staff-uploaded AwarenessResource PDFs may be up to 25 MB; MP4, MOV and WebM up to 500 MB and 5 min. §6 may set lower limits per competition.
 - **Originals.** Never public. Served only through signed URLs (≤ 5 min) with `Content-Disposition: attachment`. Public files are always re-encoded derivatives.
 - **Secrets.** Vercel encrypted env vars, per environment. gitleaks runs in CI and GitHub secret scanning is on. API tokens are least-privilege (one storage token per bucket). Secrets rotate every 12 months and whenever a staff member leaves.
 - **Dependencies.** Renovate runs weekly. `npm audit --audit-level=high` blocks CI. CodeQL runs on every PR. Critical vulnerabilities are patched within 72 h and high ones within 7 days.
@@ -3618,7 +3701,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 
 - **Core Web Vitals.** Measured at p75 on a mid-range Android phone over 4G (Lighthouse mobile with 4× CPU throttling): LCP < 2.5 s, INP < 200 ms, CLS < 0.1. Lighthouse CI must score ≥ 85 for performance on `/`, `/competitions/[slug]`, `/gallery`, `/donate` and `/verify/[n]` in previews.
 - **Budgets.** Initial JS ≤ 170 KB gzipped on public pages. Gallery thumbnails ≤ 60 KB.
-- **Images.** sharp pre-generates derivatives (THUMB 400 px, WEB 1600 px) in AVIF and WebP with a JPEG fallback. `next/image` uses a custom loader pointing at the CDN. Below-the-fold images lazy-load. Fonts are self-hosted and subset with `font-display: swap`; Devanagari loads only for `hi`.
+- **Images.** sharp pre-generates derivatives (THUMB 400 px, WEB 2,048 px long edge) in AVIF and WebP with a JPEG fallback. `next/image` uses a custom loader pointing at the CDN. Below-the-fold images lazy-load. Fonts are self-hosted and subset with `font-display: swap`; Devanagari loads only for `hi`.
 - **Caching.**
   - Public pages use SSG or ISR: competitions revalidate every 300 s, plus `revalidateTag` on publish.
   - Gallery and results revalidate on demand at moderation, publish and withdrawal, with the CDN purge finishing within 15 min.
@@ -3673,7 +3756,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 - **CI on each PR (GitHub Actions).** Install, then ESLint and Prettier, then `tsc --noEmit`, then Vitest (≥ 80% coverage on `server/domain`, 100% of state-machine transitions), then `prisma validate` plus a migration drift check, then build. The PR then deploys a preview, runs `prisma migrate deploy` and seeds it, and runs Playwright E2E, axe and Lighthouse CI against it. gitleaks, `npm audit` and CodeQL also run.
 - **Release.** A merge to `main` auto-deploys staging. Production needs a manual promotion with approval. Migrations run before the traffic switch and MUST be expand/contract (backward compatible). Rollback uses Vercel instant rollback; DB problems get a forward fix.
 - **Seed (`prisma/seed.ts`, idempotent, synthetic only).** Beyond the §2.1 baseline (1 competition, 3 schools, 30 participants, 2 judges): participants under 13, aged 13–17 and adults across both routes; guardians with consents of every `ConsentMethod`, one withdrawn and one stale-version consent; ConsentDocuments in en-IN and hi-IN; one DataRequest of each type; one synthetic SafeguardingReport; one user per `Role`. Phone numbers come from a reserved test range. OTP uses `DEV_OTP_BYPASS_CODE`, which is ignored when `APP_ENV=production`.
-- **Feature flags.** Stored in a `FeatureFlag { key, enabled, rolloutPercent?, updatedBy, updatedAt }` table that SUPER_ADMIN edits, with env overrides. Flags: `AUCTIONS`, `ADOPTION`, `VOLUNTEERS`, `NGO_DIRECTORY`, `EVENTS`, `COMMUNITY`, `CLUBS`, `AMBASSADORS`, `SOCIAL_PUBLISHING`, `MINOR_LOGIN`, `IMAGE_SAFETY_CLASSIFIER`, `DIGILOCKER_GUARDIAN_VERIFICATION`, `LOCALE_HI`. Post-MVP modules (§1) ship dark behind their flags.
+- **Feature flags.** Stored in a `FeatureFlag { key, enabled, rolloutPercent?, updatedBy, updatedAt }` table that SUPER_ADMIN edits, with env overrides. Flags: `AUCTIONS`, `ADOPTION`, `VOLUNTEERS`, `NGO_DIRECTORY`, `EVENTS`, `COMMUNITY`, `CLUBS`, `AMBASSADORS`, `SOCIAL_PUBLISHING` (API posting to social networks, post-MVP, §7.11; MVP is manual export), `SMS_CHANNEL`, `WHATSAPP_CHANNEL`, `MINOR_LOGIN`, `IMAGE_SAFETY_CLASSIFIER`, `DIGILOCKER_GUARDIAN_VERIFICATION`, `LOCALE_HI`. Post-MVP modules (§1) ship dark behind their flags.
 
 ### 13.9 Configuration (required environment variables)
 
@@ -3686,7 +3769,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `STORAGE_BUCKET_PRIVATE`, `STORAGE_BUCKET_PUBLIC`, `STORAGE_BUCKET_EVIDENCE`, `PUBLIC_CDN_URL` | all | Originals, public derivatives, evidence; CDN host |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | all except local (mocked) | Payments (§8) |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | all except local (Mailpit) | Email |
-| `SMS_PROVIDER`, `MSG91_AUTH_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID`, `SMS_DLT_TEMPLATE_IDS` (JSON) | staging, production | DLT-compliant SMS |
+| `SMS_PROVIDER_API_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID` | staging, production | DLT-compliant SMS (template IDs live on `NotificationTemplate.dltTemplateId`) |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ENVIRONMENT` | all except local | Errors; source-map upload from CI |
 | `PII_ENCRYPTION_KEYS` (JSON kid→base64 32 B), `PII_ENCRYPTION_ACTIVE_KID`, `PII_HASH_KEY` | all | Field-level encryption and blind index (§13.1) |
 | `CRON_SECRET` | deployed | Authenticates Vercel Cron and job triggers |
@@ -3699,6 +3782,8 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `IMAGE_SAFETY_API_KEY`, `DIGILOCKER_CLIENT_ID`, `DIGILOCKER_CLIENT_SECRET` | optional (flags) | Post-MVP integrations |
 
 Env is validated at boot with zod (`src/env.ts`). A missing required variable fails the build or start.
+
+**Runtime settings.** `Setting { key String @id, value Json, updatedBy String, updatedAt DateTime }` is the runtime configuration table that SUPER_ADMIN edits. Each section's config keys live here, and changes are audit-logged.
 
 ### 13.10 Acceptance Criteria
 
@@ -3723,7 +3808,7 @@ The order follows the source's 6-month objectives: get one pilot competition run
 |---|---|---|---|
 | **M0** | Foundations | §2, §3, §4, §12 (core), §13 | Weeks 1–2 |
 | **M1** | Institutions & registration | §6.1–§6.6 (registration, fees), §8 payments core, §12 consent | Weeks 3–5 |
-| **M2** | Submissions & school-level judging | §6 submission, §7 school round, §10 core | Weeks 6–8 |
+| **M2** | Submissions & school-level judging | §6 submission, §7 rubrics and school round, §10 core | Weeks 6–8 |
 | **M3** | Physical artwork & FOA judging | §6 physical track, §7 FOA rounds, judge dashboard | Weeks 9–11 |
 | **M4** | Results, certificates, gallery | §7 results/certificates/stamping/gallery/social export | Weeks 12–14 |
 | **M5** | Donations & transparency, CMS | §8 donations/ledger/transparency, §9 CMS/blog/home/contact, §11 basic reports | Weeks 15–18 |
@@ -3735,7 +3820,7 @@ The order follows the source's 6-month objectives: get one pilot competition run
 ### M0 — Foundations
 - Next.js + TypeScript strict + Tailwind/shadcn scaffold matching the §2.1 layout. Prisma connected to Neon. CI runs lint, typecheck, Vitest and Playwright against preview deployments.
 - Auth: email OTP and phone OTP login. Sessions. `UserRole` with scoped roles. `can()` policy helper. Staff 2FA.
-- `AuditLog`, `Outbox`, job worker, `FileAsset` with presigned upload, `lib/ids` (§3.1 code generators with tests), `lib/money`.
+- `AuditLog`, `Outbox`, job worker, `FileAsset` with presigned upload, the `Setting` runtime-configuration table (§13.9; changes audit-logged), `lib/ids` (§3.1 code generators with tests), `lib/money`.
 - `ConsentDocument`/`Consent` tables and `ConsentService` skeleton. Legal pages served from CMS stubs.
 - Seed script (§2.1).
 - **Accept when:** a user can sign up and log in by OTP; a SUPER_ADMIN can grant a scoped role; every mutation in the demo writes an AuditLog row; a file uploads directly to the bucket and is retrievable only through a signed URL by an authorized user; CI is green.
@@ -3743,20 +3828,21 @@ The order follows the source's 6-month objectives: get one pilot competition run
 ### M1 — Institutions & Registration
 - `/schools/register`, admin institution verification, institution competition registration, coordinator student management including CSV import.
 - Competition admin CRUD with categories, age groups, dates, fees, scope flags, and a status machine driven by scheduled jobs.
-- Individual registration with guardian capture and verification (§12). Registration status machine. `PaymentService` with Razorpay (test mode) for individual and bulk institution fees. Webhooks are idempotent.
-- **Accept when:** an institution registers → is verified → registers for a competition → imports 30 students from CSV (with an error report for bad rows) → pays a bulk fee → all 30 registrations become CONFIRMED with registration numbers. A minor registering individually can't reach CONFIRMED without guardian verification. A replayed webhook doesn't double-confirm. A competition's status flips automatically at its registration-open/close instants.
+- Individual registration with guardian capture and verification (§12). A minor's individual registration is held as a `PendingRegistration` (§12.5) and becomes a Registration on `guardian.verified`. Registration status machine. `PaymentService` with Razorpay (test mode) for individual and bulk institution fees: one order per `RegistrationPaymentBatch` (a batch of one for an individual, of N for an institution). Offline payments via `recordOfflinePayment` (FINANCE, STAFF_ADMIN). Webhooks are idempotent.
+- **Accept when:** an institution registers → is verified → registers for a competition → imports 30 students from CSV (with an error report for bad rows) → pays a bulk fee (one `RegistrationPaymentBatch` order) → all 30 registrations become CONFIRMED with registration numbers. A minor registering individually stays a `PendingRegistration` until guardian verification, so can't reach CONFIRMED without it. A replayed webhook doesn't double-confirm. A capture for a registration that is no longer payable puts the batch in NEEDS_REVIEW and refunds nothing automatically. A competition's status flips automatically at its registration-open/close instants.
 
 ### M2 — Submissions & School-Level Judging
 - Entry submission per discipline with file rules, derivatives, EXIF strip and scan gate. Entry codes. Confirmation notifications.
 - Phase 3 announcements to registrants. Conduct certification by the coordinator.
-- School round: coordinator enters panel, positions and shortlist; certifies; finalizes. Entries move to SCHOOL_SHORTLISTED / NOT_SHORTLISTED. Shortlisted entries are uploaded in hi-res with declarations → SUBMITTED_TO_FOA. FOA verification → FOA_VERIFIED.
+- §7.1 rubrics: the competition can't enter SCHOOL_JUDGING until a PUBLISHED rubric resolves for every enabled discipline (§6.3.4).
+- School round: opens when the competition enters SCHOOL_JUDGING (both scopes); coordinator enters panel, positions and shortlist; certifies; finalizes. `finalizeSchoolRound` calls `EntryService.applySchoolShortlist` once per category and is the sole emitter of `schoolShortlist.finalized`. Entries move to SCHOOL_SHORTLISTED / NOT_SHORTLISTED (under SHORTLIST_ONLY, `createShortlistedEntry` creates them). There is no auto-finalise: at `shortlistSubmissionClosesAt` an unfinished round becomes OVERDUE; the school can still finalize, otherwise staff close it on its behalf (§7.15 E5). A reopened round reverts its shortlist through `EntryService.revertSchoolShortlist`. Shortlisted entries are uploaded in hi-res with declarations → SUBMITTED_TO_FOA. FOA verification → FOA_VERIFIED.
 - NotificationService with email + SMS adapters, templates, and an in-app inbox.
-- **Accept when:** both `DigitalSubmissionScope` modes work end to end for the school route; the individual route reaches FOA_VERIFIED; an upload over the size limit or of the wrong type is rejected client- and server-side; shortlisted and not-shortlisted families each receive the correct message; the full EntryStatus transition test table passes.
+- **Accept when:** both `DigitalSubmissionScope` modes work end to end for the school route; the individual route reaches FOA_VERIFIED; an upload over the size limit or of the wrong type is rejected client- and server-side; shortlisted and not-shortlisted families each receive the correct message; a school round unfinished at `shortlistSubmissionClosesAt` becomes OVERDUE, is never auto-finalised, and blocks SCHOOL_JUDGING → FOA_JUDGING until it is finalized (by the school or on its behalf); reopening a finalized school round reverts its shortlist only while none of its entries is FOA_VERIFIED or later; the full EntryStatus transition test table passes.
 
 ### M3 — Physical Artwork & FOA Judging
 - PhysicalArtwork track: request → dispatch (tracking) → receive → verify/discrepancy, with condition photos and storage location.
 - FOA rounds with rubric, judge assignment, conflict-of-interest declaration, blind scoring UI, aggregation, tie-break, round lock. Multi-level rounds (at least SCHOOL → NATIONAL in the pilot; others configurable).
-- **Accept when:** a judge sees only assigned entries with no participant PII; a round can't be locked while an assigned entry is unscored, unless an admin overrides it with a reason; a round with `requiresPhysicalVerified` doesn't expose entries whose artwork isn't VERIFIED; aggregate rankings match a hand-computed fixture.
+- **Accept when:** a judge sees only assigned entries with no participant PII; a round can't be locked while an assigned entry is unscored, unless an admin overrides it with a reason; a round with `requiresPhysicalVerified` doesn't expose entries for which `ArtworkService.physicalReady(entryId)` is false (artwork required for judging and not VERIFIED, IN_EXHIBITION or RETAINED); aggregate rankings match a hand-computed fixture.
 
 ### M4 — Results, Certificates, Gallery
 - Results approval (two-person rule), scheduled publish, public results page.
@@ -3765,21 +3851,21 @@ The order follows the source's 6-month objectives: get one pilot competition run
 - **Accept when:** publishing results issues the correct certificate type to every registrant (participation for everyone, merit/finalist/winner as earned); scanning a certificate QR shows VALID, and after revocation shows REVOKED; no public URL ever resolves to an ORIGINAL asset (automated test crawls gallery and results pages); withdrawing PUBLIC_DISPLAY consent unpublishes the gallery item within the §12 SLA.
 
 ### M5 — Donations, Transparency, CMS
-- Donations (one-time + recurring), receipts, donor wall opt-in, corporate disclosure choice, offline donation entry.
-- Ledger with automatic postings, manual entries, budgets, period lock. `/transparency` page computed from locked periods.
+- Donations (one-time + recurring; adults only, so a guardian donates on a minor's behalf), receipts (delivered as a signed download link valid 7 days, never an attachment), donor wall opt-in, corporate disclosure choice, offline donation entry.
+- Ledger with automatic postings, manual entries, budgets, period lock. `/transparency` page computed from published periods.
 - CMS pages, blog, home composition, contact inbox, impact counters. Basic reports and the admin home queues (§11).
-- **Accept when:** a captured donation produces exactly one ledger entry and one receipt with the next sequential number for the FY; a refund creates a reversal entry; the transparency page totals equal the ledger totals for locked periods and expose no donor PII; Lighthouse ≥ 90 for performance and accessibility on home, competition and gallery pages (mobile).
+- **Accept when:** a captured donation produces exactly one ledger entry and one receipt with the next sequential number for the FY; a signed-in minor can't donate; a refund creates a reversal entry; the transparency page totals equal the ledger totals for published periods and expose no donor PII; `fundsRaisedMinor` on `/impact` equals the `/transparency` donations total for the same period; Lighthouse ≥ 90 for performance and accessibility on home, competition and gallery pages (mobile).
 
 ### M6–M8 — Post-Pilot
 - **M6:** community membership, engagement timeline and milestones, post-competition invitations, clubs, ambassadors, volunteers (application → approval → tasks → hours), events with registration/waitlist/check-in.
 - **M7:** NGO directory (self-registration, verification, geo search) and adoption facilitation (listings, applications, coordinator workflow).
-- **M8:** auctions (lots from verified artwork with consent, bidding with anti-sniping, payment window, fulfilment, artist thank-you, proceeds in the ledger), feedback surveys, full analytics and social metric snapshots.
+- **M8:** auctions (lots from consented artwork that is VERIFIED, IN_EXHIBITION or RETAINED and reverts to its pre-listing status if the lot is cancelled or unsold, bidding with anti-sniping, payment window, fulfilment, artist thank-you, proceeds in the ledger), feedback surveys, full analytics and social metric snapshots.
 - Each module's acceptance criteria are in its section (§8, §9, §11).
 
 ### 14.1 Definition of Done (every milestone)
 - Migrations applied cleanly on a fresh DB and on a copy of staging.
 - State machines have exhaustive transition unit tests.
-- New domain events are in the §10 catalogue and have templates.
+- New domain events that send a message have a §10.3 row and templates; any other event is analytics-only. Reminders are §10 `reminder.<name>` keys, never emitted by sections.
 - New personal-data fields are listed in the §12 data inventory, with retention set.
 - Authorization tests exist for every new server action (allowed role passes; at least one disallowed role fails).
 - No `console.log` of PII. Sentry receives errors from staging.
@@ -3794,12 +3880,12 @@ Each section ends with its own detailed open-questions list. This section collec
 | # | Question | Default applied | Where |
 |---|---|---|---|
 | P1 | Should every student submit digitally, or only the school's top N? (the source says this is "still debating") | Configurable per competition (`DigitalSubmissionScope`); default `ALL` | §6.16 |
-| P2 | How many entries a school shortlists per category | 5 per category per school; 3 school positions | §6.16, §7.17 |
-| P3 | Award scheme: A/B grade vs gold/silver/bronze vs All-India 1/2/3 | Configurable per round; default RANKED 1/2/3 in the final round | §7.17 |
+| P2 | How many entries a school shortlists per category | 5 per category per school (`Competition.schoolShortlistSize`); 3 school positions | §6.16, §7.17 |
+| P3 | Award scheme: A/B grade vs gold/silver/bronze vs All-India 1/2/3 | Configurable per round; `Competition.awardScheme` is the final round's default, RANKED 1/2/3 | §7.17 |
 | P4 | Which judging levels are active for the pilot (City/State/National/Global) | School round, then a single NATIONAL final round judged on the physical artwork | §7.17 |
-| P5 | Registration fee amounts, who pays on the school route, refund policy | Config values (no amounts invented). School route: institution pays in bulk. No refunds after CONFIRMED except cancellation or duplicates | §6.16, §8.3 |
+| P5 | Registration fee amounts, who pays on the school route, refund policy | Config values (no amounts invented). School route: institution pays in bulk. No refunds after CONFIRMED except cancellation or duplicates; CM/SA may request a discretionary refund, which FINANCE approves | §6.16, §8.3 |
 | P6 | Physical artwork after judging: return or retain, and who pays shipping | Retain unless return is requested within 30 days of results; the shipping payer is stated in the packaging instructions | §6.16 |
-| P7 | Can minors' artwork be auctioned, and how are proceeds split | Yes, with verified guardian AUCTION_OF_ARTWORK consent and the credit capped at first name + initial. 100% of proceeds to FOA; creators and schools receive an acknowledgement letter | §8.14, §12.15 |
+| P7 | Can minors' artwork be auctioned, and how are proceeds split | Yes, with verified guardian AUCTION_OF_ARTWORK consent and the credit capped at first name + initial. 100% of proceeds to FOA unless the competition's proceeds policy sets a creator share, which the AUCTION_OF_ARTWORK consent form states (§12.3); creators and schools receive an acknowledgement letter | §8.14, §12.15 |
 | P8 | Ambassador eligibility, minimum volunteer age, clubs per institution | Thresholds in config: volunteers 14+ with guardian approval; 1 club per institution | §9.16 |
 | P9 | Should post-competition invitations ship with the pilot (M5) instead of M6? | M6, with a backfill run so the pilot cohort is still invited | §9.16 |
 | P10 | WhatsApp notifications at launch | No; email, SMS and in-app first, WhatsApp adapter post-MVP | §10.10 |
