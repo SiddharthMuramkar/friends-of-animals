@@ -15,7 +15,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "brand:assets": "node scripts/brand-assets.mjs"
+    "brand:assets": "tsx scripts/brand-assets.ts"
   },
   "dependencies": {
     "@react-router/node": "8.3.0",

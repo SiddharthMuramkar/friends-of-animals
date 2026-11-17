@@ -54,12 +54,13 @@ export const links: Route.LinksFunction = () => [
 ];
 
 /**
- * Site-wide Open Graph / Twitter tags. They live in the Layout rather than in
- * `meta` because a route's `meta` export replaces its parents' tags.
+ * Site-wide Open Graph / Twitter defaults. They live in the Layout rather than
+ * in `meta` because a route's `meta` export replaces its parents' tags, and
+ * they render after <Meta /> so a page's own og:image comes first and wins.
  */
 function SocialMeta() {
   const origin = useRouteLoaderData<typeof loader>("root")?.origin ?? "";
-  const image = `${origin}/brand/foa-social-1200x630.png`;
+  const image = `${origin}${SITE.socialImage}`;
   return (
     <>
       <meta property="og:site_name" content={SITE.name} />
@@ -82,9 +83,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <SocialMeta />
         <script dangerouslySetInnerHTML={{ __html: darkModeScript }} />
         <Meta />
+        <SocialMeta />
         <Links />
       </head>
       <body>

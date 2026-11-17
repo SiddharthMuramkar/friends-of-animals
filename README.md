@@ -120,7 +120,10 @@ app/
 drizzle/                      # generated SQL migrations (committed)
 scripts/
 ├── migrate.ts                # applies migrations
-└── seed.ts                   # sample data for development
+├── seed.ts                   # sample data for development
+└── brand-assets.ts           # derives logo PNGs and icons from the SVG master
+public/brand/                 # the registered logo: SVG master + derived assets (see its README)
+docs/brand/trace-diff.png     # evidence that the master matches the source logo
 docs/deploy-vercel-notes.md   # details on the Vercel setup
 Dockerfile
 docker-compose.yml

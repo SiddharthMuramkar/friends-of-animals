@@ -49,12 +49,12 @@ If FOA can find the original artwork file (AI, CDR, EPS or PDF), replace `foa-lo
 Every PNG, ICO and the favicon SVG are derived from `foa-logo.svg` by scaling only:
 
 ```bash
-npm run brand:assets   # scripts/brand-assets.mjs, renders with resvg
+npm run brand:assets   # scripts/brand-assets.ts, renders with resvg
 ```
 
 ## Waiting on the owner
 
-These two questions need FOA's approval. Until they answer, the assets keep the full logo in full colour everywhere:
+These two questions need FOA's approval, tracked in [#17](https://github.com/SiddharthMuramkar/friends-of-animals/issues/17). Until they answer, the assets keep the full logo in full colour everywhere:
 
-1. **May the three F-O-A tiles appear alone, without the "Friends of Animals" wordmark, at small sizes such as the favicon?** The favicon currently shows the full logo, and at 16 px the wordmark is just a grey line. If FOA approves, `scripts/brand-assets.mjs` can crop to the tiles for the favicon sizes.
+1. **May the three F-O-A tiles appear alone, without the "Friends of Animals" wordmark, at small sizes such as the favicon?** The favicon currently shows the full logo, and at 16 px the wordmark is just a grey line. If FOA approves, `scripts/brand-assets.ts` can crop to the tiles for the favicon sizes.
 2. **Is a single-colour (all-white or all-black) version allowed?** This would help on dark backgrounds and photos, where the black wordmark disappears. Until then the site puts the logo on a white plate in dark mode.

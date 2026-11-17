@@ -47,10 +47,10 @@ export default function AppLayout() {
               plate so the black wordmark stays legible. */}
           <Link to="/" className="shrink-0 rounded-md dark:bg-white dark:p-1.5">
             <img
-              src="/brand/foa-logo.svg"
+              src={SITE.logo.src}
               alt={`${SITE.name} home`}
-              width={294}
-              height={170}
+              width={SITE.logo.width}
+              height={SITE.logo.height}
               className="h-14 w-auto sm:h-16"
             />
           </Link>
