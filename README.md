@@ -120,7 +120,10 @@ app/
 drizzle/                      # generated SQL migrations (committed)
 scripts/
 ├── migrate.ts                # applies migrations
-└── seed.ts                   # sample data for development
+├── seed.ts                   # sample data for development
+└── brand-assets.ts           # derives logo PNGs and icons from the SVG master
+public/brand/                 # the registered logo: SVG master + derived assets (see its README)
+docs/brand/trace-diff.png     # evidence that the master matches the source logo
 docs/deploy-vercel-notes.md   # details on the Vercel setup
 Dockerfile
 docker-compose.yml
@@ -240,11 +243,12 @@ Vercel runs the `vercel-build` script, which applies the migrations before build
 | `npm run db:migrate` | Apply pending migrations |
 | `npm run db:seed` | Reset sample data (**wipes** animals and users) |
 | `npm run db:studio` | Open Drizzle Studio |
+| `npm run brand:assets` | Regenerate the logo PNGs and icons in `public/brand/` from the SVG master (see `public/brand/README.md`) |
 | `npm run vercel-build` | Migrate + build (used by Vercel) |
 
 ## Before going live
 
 - [ ] **Add authentication to `/admin`.** It is currently open to anyone; search for `TODO(auth)`.
-- [ ] Update the organisation details in `app/lib/site.ts` and replace `public/favicon.svg`.
+- [ ] Update the organisation details in `app/lib/site.ts`. (The logo, favicon and social preview are done: see `public/brand/`.)
 - [ ] Set a strong `SESSION_SECRET` in Vercel.
 - [ ] Give preview deployments their own Neon branch.

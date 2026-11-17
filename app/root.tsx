@@ -6,6 +6,7 @@ import {
   Scripts,
   ScrollRestoration,
   useNavigation,
+  useRouteLoaderData,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -28,8 +29,18 @@ export const meta: Route.MetaFunction = () => [
   { name: "description", content: SITE.tagline },
 ];
 
+// Social previews need absolute image URLs, so take the origin from the request.
+export function loader({ request }: Route.LoaderArgs) {
+  return { origin: new URL(request.url).origin };
+}
+
+// The origin never changes within a session, so never refetch it.
+export const shouldRevalidate = () => false;
+
 export const links: Route.LinksFunction = () => [
-  { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+  { rel: "icon", href: "/favicon.ico", sizes: "32x32" },
+  { rel: "icon", type: "image/svg+xml", href: "/brand/favicon.svg" },
+  { rel: "apple-touch-icon", href: "/brand/apple-touch-icon.png" },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
@@ -42,6 +53,30 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
+/**
+ * Site-wide Open Graph / Twitter defaults. They live in the Layout rather than
+ * in `meta` because a route's `meta` export replaces its parents' tags, and
+ * they render after <Meta /> so a page's own og:image comes first and wins.
+ */
+function SocialMeta() {
+  const origin = useRouteLoaderData<typeof loader>("root")?.origin ?? "";
+  const image = `${origin}${SITE.socialImage}`;
+  return (
+    <>
+      <meta property="og:site_name" content={SITE.name} />
+      <meta property="og:type" content="website" />
+      <meta property="og:title" content={SITE.name} />
+      <meta property="og:description" content={SITE.tagline} />
+      <meta property="og:image" content={image} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt" content={`${SITE.name} logo`} />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:image" content={image} />
+    </>
+  );
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -50,6 +85,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script dangerouslySetInnerHTML={{ __html: darkModeScript }} />
         <Meta />
+        <SocialMeta />
         <Links />
       </head>
       <body>

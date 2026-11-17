@@ -1,4 +1,4 @@
-import { Moon, PawPrint, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { Toaster } from "sonner";
@@ -43,9 +43,16 @@ export default function AppLayout() {
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 text-lg font-bold">
-            <PawPrint className="size-5 text-primary" />
-            {SITE.name}
+          {/* The registered logo, unaltered. In dark mode it sits on a white
+              plate so the black wordmark stays legible. */}
+          <Link to="/" className="shrink-0 rounded-md dark:bg-white dark:p-1.5">
+            <img
+              src={SITE.logo.src}
+              alt={`${SITE.name} home`}
+              width={SITE.logo.width}
+              height={SITE.logo.height}
+              className="h-14 w-auto sm:h-16"
+            />
           </Link>
           <nav className="flex items-center gap-1 sm:gap-2">
             {NAV.map((item) => (
