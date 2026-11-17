@@ -1,0 +1,52 @@
+# Local stack for the Friends of Animals site (Docker Compose).
+#
+#   Full stack (app built from the Dockerfile + Postgres):
+#     docker compose up --build            -> http://localhost:3000
+#
+#   Day-to-day development with hot reload: run only the database here and the
+#   app on the host:
+#     docker compose up -d db
+#     cp .env.example .env && npm run db:migrate && npm run dev
+#
+# Data lives in the named volumes `pgdata` and `uploads`; `docker compose down -v`
+# deletes them.
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rescue
+      POSTGRES_PASSWORD: rescue
+      POSTGRES_DB: rescue
+    ports:
+      # Published so `npm run dev` on the host can reach it at localhost:5432.
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rescue -d rescue"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://rescue:rescue@db:5432/rescue
+      # Read from .env (or the shell) when set; the default is for local use only.
+      SESSION_SECRET: ${SESSION_SECRET:-dev-only-insecure-session-secret-change-me}
+      STORAGE_DRIVER: local
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:
