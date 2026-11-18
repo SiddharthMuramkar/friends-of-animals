@@ -248,6 +248,8 @@ const RAW = {
   },
   Q11: {
     text: "…two types of medical treatment: medical treatment for humans and medical treatment for animals. Wherever medical herbs suitable for humans or animals are not available, I have had them imported and grown. Wherever medical roots or fruits are not available I have had them imported and grown. Along roads I have had wells dug and trees planted for the benefit of humans and animals.",
+    display:
+      "…two types of medical treatment: medical treatment for humans and medical treatment for animals…",
     lang: "en",
     author: "Ashoka",
     work: "Rock Edict II",

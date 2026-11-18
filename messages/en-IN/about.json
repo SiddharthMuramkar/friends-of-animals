@@ -3,6 +3,166 @@
     "meta": {
       "title": "About us",
       "description": "Who we are, why compassion for animals can be learnt, and how Friends of Animals works."
-    }
+    },
+    "hero": {
+      "eyebrow": "About us",
+      "title": "Kindness to animals is something children can learn",
+      "lead": "Friends of Animals (FOA) is an Indian non-profit. We help children and young adults practise compassion for animals through art, writing, photography and film.",
+      "easy": "We help children learn to be kind to animals, by making art about them."
+    },
+    "easyLabel": "Easy read",
+    "duty": {
+      "eyebrow": "Where we start",
+      "title": "It is in our Constitution",
+      "body": "Article 51A(g) lists compassion for living creatures among the duties of every Indian citizen. It is a duty and a value, something each of us can practise every day.",
+      "court": "In 2014 the Supreme Court said what that compassion means:"
+    },
+    "vision": {
+      "visionTitle": "Our vision",
+      "vision": "To build a world where compassion for animals is a universal human value, inspiring people to treat all animals with respect, kindness, and care.",
+      "missionTitle": "Our mission",
+      "mission": "To nurture compassion for animals as a lifelong human value, especially among children and young adults, through awareness, education, creative engagement, community participation, and positive action."
+    },
+    "skill": {
+      "eyebrow": "Why it works",
+      "title": "Compassion grows with practice",
+      "easy": "Kindness gets stronger when you practise it, just like drawing.",
+      "body": "To draw a crow well, you have to watch it: how it tilts its head, where it waits, what it needs. Looking that closely turns an animal from background into a neighbour. A competition gives children a reason to look, a deadline to finish, and recognition when they do. We hope the habit lasts long after the certificate is framed.",
+      "detailSummary": "For parents and teachers",
+      "detail": "Indian education policy already asks for this. NEP 2020 names “compassion and empathy” among the aims of education, and the foundational-stage curriculum (NCF-FS 2022) lists kindness to animals as a learning outcome. FOA gives schools a creative way to work on both."
+    },
+    "ashoka": {
+      "eyebrow": "An old Indian idea",
+      "title": "Care for animals, carved in stone",
+      "body": "In the 3rd century BCE, Emperor Ashoka had his edicts cut into rock across his empire. One of them, at Girnar in Gujarat, records medical care for animals as well as for people."
+    },
+    "how": {
+      "eyebrow": "How FOA works",
+      "title": "From a child’s drawing to a kinder street",
+      "steps": {
+        "create": {
+          "title": "Children create",
+          "body": "Drawing, painting, art, craft, essays, photography and films, all about animals and how to treat them well."
+        },
+        "share": {
+          "title": "The public sees",
+          "body": "Selected work goes into a public gallery and awareness campaigns, with the young artist’s name shown safely."
+        },
+        "grow": {
+          "title": "Compassion spreads",
+          "body": "Families, schools and neighbours meet animals through children’s eyes. More people treat animals with respect, kindness and care."
+        }
+      }
+    },
+    "people": {
+      "eyebrow": "Who we work with",
+      "title": "The people who make FOA work",
+      "lead": "FOA brings together the people who teach children and the people who look after animals.",
+      "items": {
+        "schools": "Schools, colleges and universities",
+        "participants": "Young people who enter on their own",
+        "teachers": "Teachers and school coordinators",
+        "parents": "Parents and guardians",
+        "judges": "Judges and jury members",
+        "welfare": "Animal-welfare NGOs and rescuers",
+        "volunteers": "Volunteers",
+        "donors": "Donors and CSR partners"
+      }
+    },
+    "shelter": {
+      "eyebrow": "One thing we are not",
+      "title": "We are not a shelter",
+      "lead": "FOA does not house animals. Later, we plan to connect families who want to adopt with the people who already care for animals, and to build a network of them across India.",
+      "centre": "Friends of Animals",
+      "centreNote": "connects, never houses",
+      "later": "Coming later",
+      "nodes": {
+        "shelters": "Shelters and NGOs",
+        "rescuers": "Independent rescuers",
+        "adopters": "Families who want to adopt",
+        "volunteers": "Animal-welfare volunteers",
+        "fosters": "Foster carers",
+        "vets": "Veterinarians"
+      }
+    },
+    "badges": {
+      "title": "Badges, not a ladder",
+      "lead": "After a competition, the friendship with FOA can continue. Each badge marks something you did. Earn them in any order, or just one.",
+      "howEarned": "How to earn it",
+      "later": "Opens later",
+      "note": "There are no streaks, points or rankings. Badges show on your own dashboard, and we never put a child’s badges on a public page.",
+      "items": {
+        "participant": {
+          "name": "Participant",
+          "earn": "Your place in any FOA competition is confirmed."
+        },
+        "schoolWinner": {
+          "name": "School Winner",
+          "earn": "Your school’s judges award you a school merit certificate."
+        },
+        "finalist": {
+          "name": "FOA Finalist",
+          "earn": "Your work reaches FOA’s final round and is named a winner, runner-up, finalist or special mention."
+        },
+        "communityMember": {
+          "name": "Community Member",
+          "earn": "You join the FOA community."
+        },
+        "volunteer": {
+          "name": "Volunteer",
+          "earn": "FOA approves your application to volunteer."
+        },
+        "ambassador": {
+          "name": "Ambassador",
+          "earn": "FOA appoints you as an ambassador."
+        }
+      }
+    },
+    "objectives": {
+      "eyebrow": "Our first six months",
+      "title": "What we are working on now",
+      "items": [
+        {
+          "title": "Build and launch the platform",
+          "body": "One place where young people register, enter competitions, send their work and get their certificates."
+        },
+        {
+          "title": "Run pilot competitions",
+          "body": "Drawing, painting, art, craft, essay, photography and videography, all about animals and their well-being."
+        },
+        {
+          "title": "Work with schools and colleges",
+          "body": "Partner with selected institutions to reach children and young adults."
+        },
+        {
+          "title": "Build the first community",
+          "body": "Help one-time entrants stay connected to animals and to each other."
+        },
+        {
+          "title": "Start an animal-welfare network",
+          "body": "A structured list of volunteers, welfare organisations and others who help animals."
+        },
+        {
+          "title": "Spread awareness on social media",
+          "body": "Educational and creative posts, including work by participants."
+        },
+        {
+          "title": "Grow the volunteer network",
+          "body": "Students and young volunteers in technology, content, outreach and running competitions."
+        },
+        {
+          "title": "Measure and learn",
+          "body": "Track what works before we grow."
+        }
+      ]
+    },
+    "transparency": {
+      "eyebrow": "Our promise",
+      "title": "Our accounts will be public",
+      "body": "FOA has decided to make its financial information public. When donations begin, we will publish what came in and where it went, so anyone can check.",
+      "registration": "Registration:",
+      "cta": "How giving works"
+    },
+    "name": "Friends of Animals (FOA) is an Indian non-profit. We are not connected with other organisations that use the same name, in India or abroad."
   }
 }

@@ -3,6 +3,79 @@
     "meta": {
       "title": "Friends of Animals · Kindness to animals, grown through children’s art",
       "description": "An Indian non-profit that grows compassion for animals in children and young adults through competitions in drawing, painting, craft, writing, photography and film."
+    },
+    "announcement": {
+      "text": "Registration is open: {name}. Closes {closes, date, long}.",
+      "link": "See the competition"
+    },
+    "hero": {
+      "eyebrow": "An Indian non-profit for children and animals",
+      "heading": "Children’s art that grows kindness to animals",
+      "subheading": "Friends of Animals runs drawing, painting, craft, writing, photography and film competitions for children and young adults. Every one is about animals and how to treat them well, and every entry earns a certificate.",
+      "primary": "See the competitions",
+      "secondary": "Bring FOA to your school",
+      "caption": "A street dog takes a seat in an auto-rickshaw.",
+      "note": "This seat is taken"
+    },
+    "competitions": {
+      "eyebrow": "Enter now",
+      "title": "Competitions you can enter",
+      "lead": "Open ones come first. Each card shows who can enter and the next date to remember.",
+      "all": "See all competitions",
+      "emptyTitle": "Our first competition is on its way",
+      "emptyBody": "We are preparing the first FOA competitions now. Each one will appear here with its theme, age groups and dates. Schools can sign up early, so their students are ready on day one.",
+      "emptyBack": "How schools take part",
+      "moreTitle": "More themes are on the way. Past and upcoming competitions are all in one place."
+    },
+    "how": {
+      "eyebrow": "How it works",
+      "title": "Two ways in, one fair path",
+      "lead": "Enter through your school or on your own. Either way, your work is judged the same way and you get the same certificate."
+    },
+    "why": {
+      "eyebrow": "Why children",
+      "title": "Why we start with children",
+      "body": "Children notice animals everywhere: the dog at the gate, the crow on the wall, the squirrel on the window ledge. When a child draws or writes about one of them, they look closely and think about how it feels. That habit of looking closely is where kindness starts."
+    },
+    "gallery": {
+      "eyebrow": "The gallery",
+      "title": "A gallery waiting for its first pictures",
+      "lead": "We will never show made-up children’s art. These frames fill only with real entries, shown with permission, after the first competition.",
+      "frames": {
+        "drawing": "Your drawing could hang here",
+        "painting": "A painting of your street’s cat?",
+        "photo": "Your best bird photo",
+        "craft": "Something you made by hand"
+      }
+    },
+    "impact": {
+      "eyebrow": "What we count",
+      "title": "Numbers we can check",
+      "lead": "We publish only counts we can check, and we round them down.",
+      "how": "How we count",
+      "emptyBody": "Counts appear here after the first competition ends."
+    },
+    "stories": {
+      "eyebrow": "Stories",
+      "title": "True stories of kindness from India",
+      "lead": "Short reads for children and grown-ups, with sources you can check.",
+      "all": "Read all stories"
+    },
+    "seasonal": {
+      "more": "More ways to help animals"
+    },
+    "badges": {
+      "eyebrow": "After the competition",
+      "more": "More about FOA"
+    },
+    "donate": {
+      "eyebrow": "Support FOA",
+      "title": "Help more children take part",
+      "body": "Gifts pay for competitions, certificates and awareness work. We will publish our accounts so anyone can see where the money goes.",
+      "cta": "How giving works"
+    },
+    "joy": {
+      "label": "A note on joy"
     }
   }
 }
