@@ -1,8 +1,8 @@
 # Friends of Animals
 
-The website for **Friends of Animals**, an animal rescue organisation. It lists animals available for adoption and has an admin area where staff add animals and upload their photos.
+The web platform for **Friends of Animals (FOA)**, a non-profit in India that nurtures compassion for animals among children and young adults through creative competitions, community, awareness, adoption facilitation and fundraising.
 
-The codebase is deliberately lean: one example feature (animals), wired end-to-end through the database, file storage, pages and tests. New features follow the same pattern.
+What it will do is specified in [`specifications/SPEC.md`](specifications/SPEC.md). The build follows the milestones in SPEC §14. Right now the app is the bare foundation: a brand landing page, the site shell, the database layer and the test harness. The public site arrives in [#14](https://github.com/SiddharthMuramkar/friends-of-animals/issues/14).
 
 ---
 
@@ -12,243 +12,193 @@ The codebase is deliberately lean: one example feature (animals), wired end-to-e
 - [Prerequisites](#prerequisites)
 - [Getting started](#getting-started)
 - [Running everything in Docker](#running-everything-in-docker)
-- [Project structure](#project-structure)
-- [How a feature is put together](#how-a-feature-is-put-together)
+- [Scripts](#scripts)
+- [Project layout](#project-layout)
 - [Database and migrations](#database-and-migrations)
-- [File uploads](#file-uploads)
 - [Testing](#testing)
 - [Environment variables](#environment-variables)
-- [Deploying to Vercel](#deploying-to-vercel)
-- [Scripts reference](#scripts-reference)
-- [Before going live](#before-going-live)
+- [Deploying](#deploying)
+- [Brand assets](#brand-assets)
 
 ---
 
 ## Tech stack
 
-| Layer | Choice |
-|-------|--------|
-| Framework | [React Router 8](https://reactrouter.com) in framework mode (server-side rendering) |
-| Language | TypeScript (strict) |
-| Styling | Tailwind CSS 4 + [shadcn/ui](https://ui.shadcn.com) components |
-| Database | PostgreSQL 17 |
-| ORM and migrations | [Drizzle ORM](https://orm.drizzle.team) + Drizzle Kit, with the `postgres.js` driver |
-| File storage | Local disk in development, [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) in production |
-| Validation | Zod |
-| Tests | Vitest + [PGlite](https://pglite.dev) (in-memory Postgres) |
-| Local infrastructure | Docker + Docker Compose |
-| Hosting | Vercel, with Neon Postgres |
+The stack and hosting layout were locked in [#11](https://github.com/SiddharthMuramkar/friends-of-animals/issues/11); SPEC §2 is the reference. In this repo today:
+
+| Layer              | Choice                                                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Framework          | [Next.js 16](https://nextjs.org) App Router with Cache Components, Turbopack, `output: "standalone"`                 |
+| Language           | TypeScript 7 (strict) on Node.js 26                                                                                  |
+| UI                 | Tailwind CSS 4, [shadcn/ui](https://ui.shadcn.com), `next/font` (Inter), lucide icons, sonner toasts                 |
+| Validation         | Zod 4                                                                                                                |
+| Database           | PostgreSQL 18                                                                                                        |
+| ORM and migrations | [Drizzle ORM](https://orm.drizzle.team) 0.45 + drizzle-kit, on the `postgres.js` driver                              |
+| Tests              | [Vitest](https://vitest.dev) + [PGlite](https://pglite.dev) (in-memory Postgres)                                     |
+| Lint and format    | [oxlint](https://oxc.rs/docs/guide/usage/linter) (type-aware) and [oxfmt](https://oxc.rs/docs/guide/usage/formatter) |
+| Package manager    | pnpm 12                                                                                                              |
+| Hosting            | Vercel (functions in `bom1`, Mumbai); Postgres on the Mumbai VPS                                                     |
+
+Still to come, each in its own M0 ticket: Better Auth, Cloudflare R2 storage, the pg-boss worker, next-intl, React Email, Sentry, and CI with Playwright.
 
 ## Prerequisites
 
-- **Node.js 22.22 or newer.** React Router 8 requires it.
+- **Node.js 26.** `package.json` pins `engines.node` to `26.x`, which is also Vercel's default.
+- **pnpm 12.** Node 26 ships without corepack, so install it from npm: `npm install --global pnpm@12.21.0`.
 - **Docker** with the Compose plugin (`docker compose version` should work).
 
 ## Getting started
 
 ```bash
-git clone https://github.com/<your-account>/friends-of-animals.git
+git clone https://github.com/SiddharthMuramkar/friends-of-animals.git
 cd friends-of-animals
-npm install
-cp .env.example .env          # defaults already match the local database
+pnpm install
+cp .env.example .env          # defaults match the local database
 
-docker compose up -d db       # start Postgres in Docker
-npm run db:migrate            # create the tables
-npm run db:seed               # optional: sample animals + an admin user
-npm run dev                   # http://localhost:5173
+docker compose up -d db       # start Postgres 18 in Docker
+pnpm db:migrate               # apply the migrations
+pnpm dev                      # http://localhost:3000
 ```
 
-Pages to try:
+To stop the database, run `docker compose stop db`. The data stays in the `pgdata` volume until you run `docker compose down -v`.
 
-| URL | What it is |
-|-----|------------|
-| `/` | Home page with featured available animals |
-| `/animals` | Adoptable animals, filterable by status |
-| `/animals/:id` | An animal's detail page |
-| `/admin/animals` | Admin list (**currently unprotected**, see [Before going live](#before-going-live)) |
-| `/admin/animals/new` | Add an animal with a photo |
-
-To stop the database, run `docker compose stop db`. The data is kept in a Docker volume until you run `docker compose down -v`.
+> **Upgrading an older checkout?** The Compose database moved to Postgres 18, with a new user and volume layout. Run `docker compose down -v` once to start from an empty volume.
 
 ## Running everything in Docker
 
 You can also build and run the production image together with Postgres:
 
 ```bash
-docker compose up --build     # http://localhost:3000
+docker compose up -d --build --wait   # http://localhost:3000
+docker compose down                   # stop (add -v to delete the database)
 ```
 
-The app container runs the migrations every time it starts, then serves the built app. Data persists in two named volumes:
+Compose starts three services in order:
 
-| Volume | Holds |
-|--------|-------|
-| `pgdata` | the Postgres database |
-| `uploads` | uploaded photos (mounted at `/data/uploads`) |
+| Service   | What it does                                                                                                               |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `db`      | Postgres 18. Data in the `pgdata` volume.                                                                                  |
+| `migrate` | One-shot: runs `pnpm db:migrate` (the Dockerfile's `migrate` target), then exits.                                          |
+| `app`     | The Next.js standalone server (the Dockerfile's `runner` target), as a non-root user. Starts once `migrate` has succeeded. |
 
-To seed the containerised database, run `docker compose exec app npm run db:seed`.
+Ports are published on `127.0.0.1` only, because Docker's published ports bypass host firewalls such as ufw. Reach them from another machine through an SSH tunnel.
 
-## Project structure
+## Scripts
+
+| Script                              | What it does                                                              |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| `pnpm dev`                          | Dev server with hot reload (Turbopack)                                    |
+| `pnpm build`                        | Production build into `.next/` (includes `.next/standalone`)              |
+| `pnpm start`                        | Serve the production build on port 3000                                   |
+| `pnpm typecheck`                    | Generate Next.js route types, then run `tsc`                              |
+| `pnpm lint`                         | oxlint with type-aware rules                                              |
+| `pnpm format` / `pnpm format:check` | Format with oxfmt / check formatting                                      |
+| `pnpm test` / `pnpm test:watch`     | Run the tests once / in watch mode                                        |
+| `pnpm check`                        | typecheck + lint + format:check + test: run it before you push            |
+| `pnpm db:generate`                  | Create a migration from schema changes                                    |
+| `pnpm db:migrate`                   | Apply pending migrations                                                  |
+| `pnpm db:studio`                    | Open Drizzle Studio                                                       |
+| `pnpm brand:assets`                 | Regenerate the logo PNGs and icons in `public/brand/` from the SVG master |
+| `pnpm vercel-build`                 | Migrate, then build (Vercel runs this)                                    |
+
+## Project layout
+
+The layout follows SPEC §2.1. The parts that exist today:
 
 ```
-app/
-├── root.tsx                  # HTML shell, theme script, global meta
-├── routes.ts                 # route table: register every new page here
-├── routes/
-│   ├── layout.app.tsx        # site header / nav / footer
-│   ├── home.tsx
-│   ├── animals._index.tsx    # /animals
-│   ├── animals.$id.tsx       # /animals/:id
-│   ├── admin.animals._index.tsx
-│   ├── admin.animals.new.tsx # create form + photo upload
-│   └── files.$.ts            # serves locally stored uploads at /files/*
-├── services/
-│   └── animalService.ts      # all animal queries live here (+ .test.ts)
-├── db/
-│   ├── schema.ts             # Drizzle tables: users, animals
-│   ├── enums.ts              # enums that are safe to import in the browser
-│   └── index.ts              # lazily created database client (`db`)
-├── lib/
-│   ├── site.ts               # organisation name, tagline, contact email
-│   ├── env.server.ts         # validated environment variables (`env()`)
-│   ├── storage/              # file storage: local disk or Vercel Blob
-│   ├── session.ts            # cookie session helpers
-│   └── validation.ts         # Zod helpers for form data and URL params
+src/
+├── app/                      # App Router
+│   ├── layout.tsx            # <html>, metadata, Inter, theme script, header/footer, toaster
+│   ├── page.tsx              # brand landing page
+│   ├── not-found.tsx, error.tsx, global-error.tsx
+│   └── globals.css           # Tailwind 4 + shadcn theme
 ├── components/
 │   ├── ui/                   # shadcn/ui primitives
-│   └── animal-card.tsx, admin-banner.tsx
-└── test/setup.ts             # in-memory test database helpers
+│   └── site-header.tsx, site-footer.tsx, theme-toggle.tsx
+├── lib/                      # pure utilities, safe anywhere: site.ts (branding), utils.ts (cn), theme.ts
+├── env.ts                    # server-only, Zod-validated environment (`env()`)
+├── server/db/
+│   ├── index.ts              # lazily connected Drizzle client (`db`)
+│   └── schema/index.ts       # schema barrel: one file per module, re-exported here
+└── test/db.ts                # PGlite test database (`createTestDb()`)
 drizzle/                      # generated SQL migrations (committed)
 scripts/
-├── migrate.ts                # applies migrations
-├── seed.ts                   # sample data for development
+├── migrate.ts                # applies migrations (DIRECT_URL, else DATABASE_URL)
 └── brand-assets.ts           # derives logo PNGs and icons from the SVG master
-public/brand/                 # the registered logo: SVG master + derived assets (see its README)
-docs/brand/trace-diff.png     # evidence that the master matches the source logo
-docs/deploy-vercel-notes.md   # details on the Vercel setup
-Dockerfile
-docker-compose.yml
+public/brand/                 # the registered logo: SVG master + derived assets
+specifications/               # the platform spec
+Dockerfile, docker-compose.yml
 ```
 
-Files ending in `.server.ts` only run on the server and never ship to the browser.
+Still to come, per SPEC §2.1: the route groups under `src/app/`, `src/server/{domain,jobs,integrations,auth}/`, `src/worker/`, `src/emails/`, `src/i18n/` + `messages/`, `docker/` for the VPS, and `tests/e2e/`.
 
-## How a feature is put together
-
-The animals feature is the reference for new features (adoption applications, events, volunteers…):
-
-1. **Schema.** Add a table in `app/db/schema.ts`, then generate a migration (see below).
-2. **Service.** Put the queries in `app/services/<thing>Service.ts`. Routes never query the database directly.
-3. **Test.** Write `app/services/<thing>Service.test.ts` against the in-memory database.
-4. **Routes.** Load data in a `loader`, handle forms in an `action`, and validate input with the helpers in `app/lib/validation.ts`.
-5. **Register.** Add the route in `app/routes.ts`. `npm run typecheck` then generates the route types.
+Code that must never reach the browser (`src/env.ts`, `src/server/**`) starts with `import "server-only"`, so importing it from a Client Component fails the build.
 
 ## Database and migrations
 
-The schema in `app/db/schema.ts` is the source of truth. To change the database:
+The Drizzle schema in `src/server/db/schema/` is the source of truth. Add one file per module and re-export it from `schema/index.ts`. To change the database:
 
 ```bash
-# 1. edit app/db/schema.ts
-npm run db:generate    # 2. writes a new SQL file to drizzle/
+# 1. edit src/server/db/schema/
+pnpm db:generate       # 2. writes a new SQL file to drizzle/
                        # 3. review the SQL and commit it with your change
-npm run db:migrate     # 4. apply it to your database
+pnpm db:migrate        # 4. apply it to your database
 ```
 
-Migrations are applied automatically in two places: when the Docker container starts, and during the Vercel build. Never edit a migration that has already been applied anywhere; generate a new one instead.
+For SQL that Drizzle can't express (extensions, functions, triggers), create an empty migration with `pnpm db:generate --custom --name <what_it_does>` and write the SQL yourself. The first migration, `0000_enable_pg_trgm`, is one: it enables `pg_trgm` for search (SPEC §2).
 
-`npm run db:studio` opens Drizzle Studio, a browser UI for the database.
+Never edit a migration that has already been applied anywhere; generate a new one instead.
 
-## File uploads
-
-Code never writes to the filesystem directly. It goes through the storage interface, which picks the backend from `STORAGE_DRIVER`:
-
-```ts
-import { getStorage, makeUploadKey } from "~/lib/storage/index.server";
-
-const storage = getStorage();
-const { key } = await storage.put(makeUploadKey("animals", file.name), file, {
-  contentType: file.type,
-});
-// save `key` in the database; build the image URL later with storage.url(key)
-```
-
-| `STORAGE_DRIVER` | Where files go | Used for |
-|------------------|----------------|----------|
-| `local` (default) | `UPLOAD_DIR` on disk, served from `/files/*` | development, Docker |
-| `blob` | Vercel Blob (needs `BLOB_READ_WRITE_TOKEN`) | production on Vercel |
-
-Uploads accept JPEG, PNG, WebP, GIF and AVIF images up to 5 MB.
+The app's `db` client connects on first use, with prepared statements off (PgBouncer in transaction mode doesn't support them). Pages that don't query the database never need `DATABASE_URL`, and `next build` runs without it.
 
 ## Testing
 
 ```bash
-npm test             # run once
-npm run test:watch   # watch mode
-npm run typecheck    # generate route types + run tsc
+pnpm test             # run once
+pnpm test:watch       # watch mode
 ```
 
-Tests don't need Docker. Each test gets a fresh in-memory Postgres (PGlite), which runs the real migrations, and the app's `db` is swapped for it:
+Tests don't need Docker. `createTestDb()` returns a fresh in-memory Postgres (PGlite) with `pg_trgm` loaded and the real migrations from `drizzle/` applied. Code under test imports `db` from `@/server/db`; swap it for the test database:
 
 ```ts
-import { createTestDb, type TestDb } from "~/test/setup";
+import { beforeEach, vi } from "vitest";
+import { createTestDb, type TestDb } from "@/test/db";
 
 let testDb: TestDb;
-vi.mock("~/db", () => ({ get db() { return testDb; } }));
+vi.mock("@/server/db", () => ({
+  get db() {
+    return testDb;
+  },
+}));
 
 beforeEach(async () => {
   testDb = await createTestDb();
 });
 ```
 
-See `app/services/animalService.test.ts` for a complete example.
+Under Vitest, `server-only` resolves to an empty module, so server code can be imported directly. Playwright end-to-end tests will run in GitHub Actions CI, not on the VPS.
 
 ## Environment variables
 
-Copy `.env.example` to `.env` for local development. The defaults match the Docker Compose database.
+Copy `.env.example` to `.env` for local development. Next.js, drizzle-kit and `pnpm db:migrate` all read it. In app code, read server config through `env()` from `@/env` rather than `process.env`.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | always | Postgres connection string. Neon's *pooled* URL works (the client disables prepared statements). |
-| `SESSION_SECRET` | in production | At least 32 characters; generate one with `openssl rand -base64 32`. A dev fallback is used locally. |
-| `STORAGE_DRIVER` | no | `local` (default) or `blob`. |
-| `UPLOAD_DIR` | no | Upload directory for the local driver. Default `./data/uploads`; `/data/uploads` in Docker. |
-| `BLOB_READ_WRITE_TOKEN` | when `STORAGE_DRIVER=blob` | Set automatically when a Blob store is connected on Vercel. |
+| Variable               | Required                  | Description                                                                                                                        |
+| ---------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`         | when the database is used | Runtime Postgres URL. On Vercel: PgBouncer on the VPS.                                                                             |
+| `DIRECT_URL`           | no                        | Direct (session-mode) URL for migrations and drizzle-kit. Falls back to `DATABASE_URL`.                                            |
+| `NEXT_PUBLIC_SITE_URL` | no                        | Public origin for absolute URLs (Open Graph images). Defaults to `http://localhost:3000`. Prerendered pages read it at build time. |
+| `APP_ENV`              | no                        | `local` (default), `preview`, `staging` or `production`. Branch on this for behaviour switches, not on `VERCEL_ENV`.               |
 
-> `npm start` runs in production mode, so it needs a `SESSION_SECRET` of 32+ characters even on your machine.
+## Deploying
 
-## Deploying to Vercel
+The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel.json`. Vercel detects Next.js and runs the `vercel-build` script, which applies the migrations and then builds:
 
-1. Import the GitHub repo into Vercel. React Router is detected automatically and no `vercel.json` is needed.
-2. In the project's **Storage** tab, add:
-   - a **Neon** Postgres database, which sets `DATABASE_URL`;
-   - a **Blob** store, which sets `BLOB_READ_WRITE_TOKEN`.
-3. Under **Settings → Environment Variables**, add `SESSION_SECRET` (a random value) and `STORAGE_DRIVER=blob`.
-4. Deploy.
+- Migrations connect through `DIRECT_URL` (a PgBouncer session-mode entry with a migrator role) or, failing that, `DATABASE_URL`. One of them must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails.
+- Each preview deployment will get its own database (`foa_pr_<n>`) on the non-production Postgres. Staging, the Vercel custom environment `staging` at foa.shipped-it.dev, will use `foa_staging`.
+- The production database (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups) arrives in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), and the per-preview databases in #12 and #13. Until then there is no database for Vercel to migrate.
 
-Vercel runs the `vercel-build` script, which applies the migrations before building. That means:
+Set `APP_ENV` and `NEXT_PUBLIC_SITE_URL` per environment in the Vercel project settings.
 
-- `DATABASE_URL` must be available at **build** time.
-- Preview deployments migrate whatever database they point at. Give previews their own Neon branch so they never touch production data.
+## Brand assets
 
-> The official `@vercel/react-router` preset doesn't support React Router 8 yet. Vercel's zero-config deployment works without it. See [`docs/deploy-vercel-notes.md`](docs/deploy-vercel-notes.md) for the details and how to enable the preset once it's released.
-
-## Scripts reference
-
-| Script | What it does |
-|--------|--------------|
-| `npm run dev` | Dev server with hot reload |
-| `npm run build` | Production build into `build/` |
-| `npm start` | Serve the production build (port 3000) |
-| `npm run typecheck` | Generate route types and type-check |
-| `npm test` / `npm run test:watch` | Run tests |
-| `npm run db:generate` | Create a migration from schema changes |
-| `npm run db:migrate` | Apply pending migrations |
-| `npm run db:seed` | Reset sample data (**wipes** animals and users) |
-| `npm run db:studio` | Open Drizzle Studio |
-| `npm run brand:assets` | Regenerate the logo PNGs and icons in `public/brand/` from the SVG master (see `public/brand/README.md`) |
-| `npm run vercel-build` | Migrate + build (used by Vercel) |
-
-## Before going live
-
-- [ ] **Add authentication to `/admin`.** It is currently open to anyone; search for `TODO(auth)`.
-- [ ] Update the organisation details in `app/lib/site.ts`. (The logo, favicon and social preview are done: see `public/brand/`.)
-- [ ] Set a strong `SESSION_SECRET` in Vercel.
-- [ ] Give preview deployments their own Neon branch.
+The FOA logo is a registered mark. `public/brand/` holds the SVG master and every derived PNG and icon; its [README](public/brand/README.md) explains the files and the rules. Never redraw or recolour it. To regenerate the derived files from the master, run `pnpm brand:assets`.
