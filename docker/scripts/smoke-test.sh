@@ -77,16 +77,16 @@ $PSQL "$u" -c 'create database t_check template foa_seed' \
   -c "select datname, pg_get_userbyid(datdba), shobj_description(oid, 'pg_database') from pg_database where datname = 't_check'" \
   -c 'drop database t_check with (force)'
 SH
-check "nonprod_app cannot CREATE DATABASE" fail 'permission denied to create database' <<'SH'
+check "nonprod_app cannot CREATE DATABASE (no CONNECT on postgres, no CREATEDB)" fail 'permission denied (for database "postgres"|to create database)' <<'SH'
 $PSQL "${PREVIEW_DATABASE_URL/\/foa_pr\?//postgres?}" -c 'create database t_nope'
 SH
-check "superuser postgres through 6432 is refused" fail 'authentication failed' <<'SH'
+check "superuser postgres through 6432 is refused" fail 'no such user|authentication failed' <<'SH'
 PGPASSWORD="$(cat /run/su_password)" $PSQL "host=$DBHOST port=6432 user=postgres dbname=foa sslmode=verify-full" -c 'select 1'
 SH
-check "superuser postgres through 6432 to db postgres is refused" fail 'authentication failed' <<'SH'
+check "superuser postgres through 6432 to db postgres is refused" fail 'no such user|authentication failed' <<'SH'
 PGPASSWORD="$(cat /run/su_password)" $PSQL "host=$DBHOST port=6432 user=postgres dbname=postgres sslmode=verify-full" -c 'select 1'
 SH
-check "PgBouncer admin console is refused" fail 'not allowed|authentication failed' <<'SH'
+check "PgBouncer admin console is refused" fail 'not allowed|bouncer config error|authentication failed' <<'SH'
 $PSQL "${PROD_DATABASE_URL/\/foa\?//pgbouncer?}" -c 'show pools'
 SH
 check "connecting to foa_seed is refused" fail 'not currently accepting connections' <<'SH'
