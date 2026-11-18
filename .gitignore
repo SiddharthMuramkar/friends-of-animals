@@ -1,10 +1,24 @@
 .DS_Store
-.env
+*.pem
 /node_modules/
 
-# React Router
-/.react-router/
-/build/
+# Env files (local secrets); only the example is committed
+.env*
+!.env.example
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Testing
+/coverage/
 
 # Local data
 *.db

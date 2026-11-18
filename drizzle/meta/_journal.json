@@ -5,8 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1794903356308,
-      "tag": "0000_init",
+      "when": 1794970969591,
+      "tag": "0000_enable_pg_trgm",
       "breakpoints": true
     }
   ]

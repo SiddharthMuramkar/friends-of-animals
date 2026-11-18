@@ -2,10 +2,10 @@
 // (SITE.logo.src). The logo is a registered mark: this script only scales it
 // and centres it on a canvas. It never crops, recolours or rearranges it.
 //
-//   npm run brand:assets
+//   pnpm brand:assets
 import { readFileSync, writeFileSync } from "node:fs";
 import { Resvg } from "@resvg/resvg-js";
-import { SITE } from "../app/lib/site";
+import { SITE } from "../src/lib/site";
 
 const PUBLIC_DIR = new URL("../public/", import.meta.url);
 const publicFile = (path: string) =>

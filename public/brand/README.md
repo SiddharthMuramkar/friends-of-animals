@@ -49,7 +49,7 @@ If FOA can find the original artwork file (AI, CDR, EPS or PDF), replace `foa-lo
 Every PNG, ICO and the favicon SVG are derived from `foa-logo.svg` by scaling only:
 
 ```bash
-npm run brand:assets   # scripts/brand-assets.ts, renders with resvg
+pnpm brand:assets      # scripts/brand-assets.ts, renders with resvg
 ```
 
 ## Waiting on the owner

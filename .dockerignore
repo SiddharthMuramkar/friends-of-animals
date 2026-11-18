@@ -1,8 +1,10 @@
 # Dependencies and build output are produced inside the image.
 node_modules
-build
-.react-router
+.next
+out
 .vercel
+*.tsbuildinfo
+next-env.d.ts
 
 # Secrets and local data
 .env
@@ -24,9 +26,10 @@ data/
 .sandcastle
 coverage
 
-# Docs (not needed in the image)
+# Docs and the spec (not needed in the image)
 *.md
 docs/
+specifications/
 
 # Container definitions themselves
 Dockerfile

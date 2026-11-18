@@ -1,55 +1,63 @@
-# Production image for the Friends of Animals site (any Docker engine).
-# React Router 8 requires Node >= 22.22.0; node:22-slim tracks the latest 22.x.
+# Images for the Friends of Animals app. Production runs on Vercel; these are
+# for the local Compose stack and any self-hosted fallback.
 #
-#   docker build -t rescue-site .
-#   docker compose up --build        # app + Postgres, see docker-compose.yml
+#   docker compose up -d --build --wait      # db + migrate + app, see docker-compose.yml
+#   docker build -t foa-app .                # runner (default target)
+#   docker build --target migrate -t foa-migrate .
 #
-# On start the container runs pending Drizzle migrations, then serves on :3000.
+# Targets:
+#   runner   Next.js standalone server on :3000, as a non-root user.
+#   migrate  Applies pending Drizzle migrations (`pnpm db:migrate`), then exits.
 
-ARG NODE_IMAGE=node:22-slim
+ARG NODE_IMAGE=node:26-trixie-slim
 
-# ---- deps: install every dependency (dev deps included: the build needs vite,
-# and the runtime migration step needs tsx + drizzle) --------------------------
-FROM ${NODE_IMAGE} AS deps
+# ---- base: Node + pnpm --------------------------------------------------------
+FROM ${NODE_IMAGE} AS base
+# Node 26 ships without corepack, so install pnpm from npm.
+RUN npm install --global pnpm@12.21.0 && npm cache clean --force
+ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
-COPY package.json package-lock.json ./
-# npm 10 (bundled with Node 22) ignores package.json "allowScripts" and runs
-# install scripts as usual, so esbuild's postinstall runs here.
-RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
-# ---- build: compile the React Router app -------------------------------------
-FROM ${NODE_IMAGE} AS build
-WORKDIR /app
+# ---- deps: every dependency (the build and the migrate target need dev deps) --
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ---- build: compile the Next.js app ------------------------------------------
+FROM base AS build
+# Prerendered pages bake in the canonical base URL (Open Graph URLs), so
+# APP_URL is a build argument as well as a runtime variable. Empty falls back
+# to http://localhost:3000.
+ARG APP_URL=""
+ENV APP_URL=${APP_URL}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# mkdir: the runtime stage copies these folders, so make sure they exist even
-# before the first migration has been generated.
-RUN npm run build && mkdir -p drizzle scripts
+RUN pnpm build
 
-# ---- runtime ------------------------------------------------------------------
-FROM ${NODE_IMAGE} AS runtime
-WORKDIR /app
+# ---- migrate: one-shot migration runner ---------------------------------------
+FROM base AS migrate
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
+COPY drizzle ./drizzle
+COPY scripts ./scripts
+# The migration script parses its env with the shared schema.
+COPY src/env.schema.ts ./src/env.schema.ts
+USER node
+CMD ["pnpm", "db:migrate"]
+
+# ---- runner: the standalone server --------------------------------------------
+FROM ${NODE_IMAGE} AS runner
 ENV NODE_ENV=production \
-    PORT=3000 \
-    STORAGE_DRIVER=local \
-    UPLOAD_DIR=/data/uploads
-
-# Full node_modules from the deps stage: `npm run db:migrate` runs through tsx
-# at container start, which is a dev dependency.
-COPY --from=deps --chown=node:node /app/node_modules ./node_modules
-COPY --from=build --chown=node:node /app/package.json /app/package-lock.json /app/tsconfig.json ./
-COPY --from=build --chown=node:node /app/build ./build
-COPY --from=build --chown=node:node /app/drizzle ./drizzle
-COPY --from=build --chown=node:node /app/scripts ./scripts
-# The migrate/seed scripts import the schema and db client from app/db.
-COPY --from=build --chown=node:node /app/app/db ./app/db
-
-# Upload directory, owned by the non-root user so a fresh named volume mounted
-# here inherits writable permissions.
-RUN mkdir -p /data/uploads && chown -R node:node /data
-VOLUME ["/data/uploads"]
-
+    NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000
+WORKDIR /app
+# Owned by the non-root user so Next.js can write its cache under .next/.
+COPY --from=build --chown=node:node /app/public ./public
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
 USER node
 EXPOSE 3000
-
-CMD ["sh", "-c", "npm run db:migrate && exec npm start"]
+CMD ["node", "server.js"]
