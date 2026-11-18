@@ -353,13 +353,18 @@ an hour; with many open previews, or if the repo goes private, put a read-only
 
 ## Checks
 
-`scripts/smoke-test.sh` runs 21 client-side checks through
+`scripts/smoke-test.sh` runs 31 client-side checks through
 `db.shipped-it.dev:6432` from a throwaway `postgres:18.7-trixie` container:
 each URL logs in as the right role and database with `verify-full`, direct
 TLS and TLS 1.3, parameterized and named prepared statements through the
 transaction pool, `foa_app` cannot create in `public`, `nonprod_migrator` can
-clone `foa_seed`, and refusals (superuser, admin console, `foa_seed`,
-cross-environment logins, plaintext, wrong host name).
+clone `foa_seed`, the preview roles cannot reach `foa_staging` and the staging
+roles reach nothing else, the role timeouts hold through the pool (a 16 s
+query as `foa_app` is cancelled), and refusals (superuser, admin console,
+`foa_seed`, cross-environment logins, plaintext, wrong host name). Passwords
+never appear on a command line (`ps`): the URLs are split into libpq
+variables in a 0600 env file, passed with `docker run --env-file` and removed
+afterwards.
 
 ## TODO and owner actions
 
