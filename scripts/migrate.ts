@@ -22,7 +22,6 @@ import {
 import {
   directTls,
   previewDatabase,
-  resolveDatabaseUrl,
   withDatabase,
 } from "../src/server/db/database-url";
 import { loadEnvFiles } from "./load-env";
@@ -62,8 +61,12 @@ try {
   process.exit(1);
 }
 
-if (config.APP_ENV === "preview") {
-  const preview = previewDatabase(config);
+// A preview migrates its own database, named once here: the same name is
+// created below and then connected to.
+const preview =
+  config.APP_ENV === "preview" ? previewDatabase(config) : undefined;
+
+if (preview !== undefined) {
   // CREATE DATABASE runs from another database: `postgres`, on the same
   // cluster, which PgBouncer reaches through its `*` entry.
   const maintenanceUrl = withDatabase(config.DIRECT_URL, "postgres");
@@ -81,7 +84,10 @@ if (config.APP_ENV === "preview") {
   }
 }
 
-const url = resolveDatabaseUrl(config.DIRECT_URL, config);
+const url =
+  preview === undefined
+    ? config.DIRECT_URL
+    : withDatabase(config.DIRECT_URL, preview.name);
 const client = postgres(url, clientOptions(url));
 
 try {
