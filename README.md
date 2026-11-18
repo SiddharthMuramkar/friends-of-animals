@@ -124,7 +124,7 @@ src/
 └── test/db.ts                # PGlite test database (`createTestDb()`)
 drizzle/                      # generated SQL migrations (committed)
 scripts/
-├── migrate.ts                # applies migrations (DIRECT_URL, else DATABASE_URL)
+├── migrate.ts                # applies migrations through DIRECT_URL
 └── brand-assets.ts           # derives logo PNGs and icons from the SVG master
 public/brand/                 # the registered logo: SVG master + derived assets
 specifications/               # the platform spec
@@ -135,7 +135,7 @@ Still to come, per SPEC §2.1: the route groups under `src/app/`, `src/server/{d
 
 Code that must never reach the browser starts with `import "server-only"`, so importing it from a Client Component fails the build. Today that is `src/env.ts` and `src/server/db/index.ts`.
 
-Outside a Next.js server bundle, `server-only` throws as soon as it is imported. So the schema files in `src/server/db/schema/` (drizzle-kit loads them), `scripts/`, and anything else that runs under plain Node must not import it, directly or through another module. The future `src/worker/` must either stick to such modules or start Node with `--conditions=react-server`, under which `server-only` resolves to an empty module.
+Outside a Next.js server bundle, `server-only` throws as soon as it is imported. So the schema files in `src/server/db/schema/` (drizzle-kit loads them), `src/env.schema.ts` (the migration script and drizzle-kit parse their env with it), `scripts/`, and anything else that runs under plain Node must not import it, directly or through another module. The future `src/worker/` must either stick to such modules or start Node with `--conditions=react-server`, under which `server-only` resolves to an empty module.
 
 ## Database and migrations
 
@@ -188,7 +188,7 @@ Copy `.env.example` to `.env` for local development. Next.js, drizzle-kit and `p
 | Variable       | Required                  | Description                                                                                                                                                                            |
 | -------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL` | when the database is used | Runtime Postgres URL. On Vercel: PgBouncer on the VPS.                                                                                                                                 |
-| `DIRECT_URL`   | no                        | Direct (session-mode) URL for migrations and drizzle-kit. Falls back to `DATABASE_URL`.                                                                                                |
+| `DIRECT_URL`   | for migrations            | Direct (session-mode) URL for `pnpm db:migrate` and drizzle-kit, which never fall back to `DATABASE_URL`. Locally the same URL as `DATABASE_URL`.                                      |
 | `APP_URL`      | no                        | Canonical base URL for absolute URLs (Open Graph images). Defaults to `http://localhost:3000`. Read only on the server, but prerendered pages bake it in, so set it at build time too. |
 | `APP_ENV`      | no                        | `local` (default), `preview`, `staging` or `production`. Branch on this for behaviour switches, not on `VERCEL_ENV`.                                                                   |
 
@@ -196,7 +196,7 @@ Copy `.env.example` to `.env` for local development. Next.js, drizzle-kit and `p
 
 The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel.json`. Vercel detects Next.js and runs the `vercel-build` script, which applies the migrations and then builds:
 
-- Migrations connect through `DIRECT_URL` (a PgBouncer session-mode entry with a migrator role) or, failing that, `DATABASE_URL`. One of them must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails.
+- Migrations connect through `DIRECT_URL` only (a PgBouncer session-mode entry with a migrator role), never `DATABASE_URL`. It must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails.
 - Each preview deployment will get its own database (`foa_pr_<n>`) on the non-production Postgres. Staging, the Vercel custom environment `staging` at foa.shipped-it.dev, will use `foa_staging`.
 - The production database (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups) arrives in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), and the per-preview databases in #12 and #13. Until then there is no database for Vercel to migrate.
 

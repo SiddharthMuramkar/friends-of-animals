@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { envSchema, parseEnv } from "./env.schema";
+import { envSchema, migrationEnvSchema, parseEnv } from "./env.schema";
 
 const DATABASE_URL = "postgres://foa:foa@localhost:5432/foa";
 
@@ -11,7 +11,6 @@ describe("parseEnv", () => {
     expect(config.NODE_ENV).toBe("development");
     expect(config.APP_ENV).toBe("local");
     expect(config.DATABASE_URL).toBeUndefined();
-    expect(config.DIRECT_URL).toBeUndefined();
   });
 
   it("treats empty strings as unset", () => {
@@ -40,21 +39,13 @@ describe("envSchema", () => {
     expect(() => parseEnv(envSchema, { APP_ENV: "prod" })).toThrow(/APP_ENV/);
   });
 
-  it("only accepts postgres URLs for DATABASE_URL and DIRECT_URL", () => {
+  it("only accepts a postgres URL for DATABASE_URL", () => {
     expect(parseEnv(envSchema, { DATABASE_URL }).DATABASE_URL).toBe(
       DATABASE_URL
     );
-    expect(
-      parseEnv(envSchema, {
-        DIRECT_URL: "postgresql://m:p@db.example.org:6432/foa",
-      }).DIRECT_URL
-    ).toBe("postgresql://m:p@db.example.org:6432/foa");
     expect(() =>
       parseEnv(envSchema, { DATABASE_URL: "mysql://localhost/foa" })
     ).toThrow(/DATABASE_URL/);
-    expect(() => parseEnv(envSchema, { DIRECT_URL: "not a url" })).toThrow(
-      /DIRECT_URL/
-    );
   });
 
   it("requires APP_URL to be an http(s) URL", () => {
@@ -64,5 +55,29 @@ describe("envSchema", () => {
     expect(
       parseEnv(envSchema, { APP_URL: "https://foa.shipped-it.dev" }).APP_URL
     ).toBe("https://foa.shipped-it.dev");
+  });
+});
+
+describe("migrationEnvSchema", () => {
+  it("reads DIRECT_URL", () => {
+    const url = "postgresql://migrator:p@db.example.org:6432/foa";
+    expect(parseEnv(migrationEnvSchema, { DIRECT_URL: url }).DIRECT_URL).toBe(
+      url
+    );
+  });
+
+  it("requires DIRECT_URL and never falls back to DATABASE_URL", () => {
+    expect(() => parseEnv(migrationEnvSchema, { DATABASE_URL })).toThrow(
+      /DIRECT_URL is not set/
+    );
+    expect(() =>
+      parseEnv(migrationEnvSchema, { DIRECT_URL: "", DATABASE_URL })
+    ).toThrow(/DIRECT_URL is not set/);
+  });
+
+  it("only accepts a postgres URL", () => {
+    expect(() =>
+      parseEnv(migrationEnvSchema, { DIRECT_URL: "not a url" })
+    ).toThrow(/must be a postgres:\/\/ .*\n.*at DIRECT_URL/);
   });
 });

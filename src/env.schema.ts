@@ -5,10 +5,16 @@
 
 import { z } from "zod";
 
-const postgresUrl = z.url({
-  protocol: /^postgres(ql)?$/,
-  error: "must be a postgres:// or postgresql:// URL",
-});
+/** A postgres:// URL; `whenUnset` is the error shown when it is missing. */
+function postgresUrl(whenUnset: string) {
+  return z.url({
+    protocol: /^postgres(ql)?$/,
+    error: (issue) =>
+      issue.input === undefined
+        ? whenUnset
+        : "must be a postgres:// or postgresql:// URL",
+  });
+}
 
 /** The app's server config. */
 export const envSchema = z.object({
@@ -27,9 +33,7 @@ export const envSchema = z.object({
    * here so `next build` works without a database; `databaseUrl()` enforces
    * it when the database is actually used.
    */
-  DATABASE_URL: postgresUrl.optional(),
-  /** Direct (session-mode) connection for migrations and drizzle-kit. */
-  DIRECT_URL: postgresUrl.optional(),
+  DATABASE_URL: postgresUrl("DATABASE_URL is not set").optional(),
   /**
    * Canonical base URL, e.g. https://foa.shipped-it.dev (§13.9). Only the
    * server reads it, so it needs no NEXT_PUBLIC_ prefix.
@@ -40,6 +44,20 @@ export const envSchema = z.object({
 });
 
 export type Env = z.output<typeof envSchema>;
+
+/**
+ * What the migration script and drizzle-kit read. They connect through
+ * DIRECT_URL only, a direct or session-mode connection (§2.2): DATABASE_URL
+ * may be the transaction-mode pooler, so it is never a fallback.
+ */
+export const migrationEnvSchema = z.object({
+  DIRECT_URL: postgresUrl(
+    "DIRECT_URL is not set. Migrations and drizzle-kit connect through it, " +
+      "never through DATABASE_URL. Locally it is the same URL as " +
+      "DATABASE_URL, e.g. postgres://foa:foa@localhost:5432/foa (see " +
+      ".env.example)."
+  ),
+});
 
 /**
  * Parses an env-like object, usually process.env, against `schema`. Empty

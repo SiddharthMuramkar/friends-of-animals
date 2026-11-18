@@ -42,7 +42,9 @@ services:
       context: .
       target: migrate
     environment:
-      DATABASE_URL: postgres://foa:foa@db:5432/foa
+      # Migrations connect through DIRECT_URL only; here that is the database
+      # itself.
+      DIRECT_URL: postgres://foa:foa@db:5432/foa
     depends_on:
       db:
         condition: service_healthy
