@@ -1,0 +1,11 @@
+[Unit]
+Description=FOA: pgBackRest differential backup of pg-prod (stanza foa)
+Documentation=file:/srv/foa/docker/README.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=6h
+# Without a prior full backup pgBackRest takes a full one instead.
+ExecStart=/usr/bin/docker exec -u postgres foa-pg-prod pgbackrest --stanza=foa --type=diff backup

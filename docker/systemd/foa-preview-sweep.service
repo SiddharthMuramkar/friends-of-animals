@@ -1,0 +1,13 @@
+[Unit]
+Description=FOA: drop preview databases of closed PRs and deleted branches (pg-nonprod)
+Documentation=file:/srv/foa/docker/README.md
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=15min
+# Optional GITHUB_TOKEN=... (read-only).
+EnvironmentFile=-/etc/foa/sweeper.env
+ExecStart=/srv/foa/docker/scripts/sweep-preview-dbs.sh

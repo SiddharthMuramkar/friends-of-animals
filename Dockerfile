@@ -42,8 +42,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY drizzle ./drizzle
 COPY scripts ./scripts
-# The migration script parses its env with the shared schema.
+# The migration script parses its env with the shared schema, which names
+# preview databases with database-url.ts.
 COPY src/env.schema.ts ./src/env.schema.ts
+COPY src/server/db/database-url.ts ./src/server/db/database-url.ts
 USER node
 CMD ["pnpm", "db:migrate"]
 

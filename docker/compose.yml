@@ -1,0 +1,223 @@
+# VPS database stack for FOA (issue #12): pg-prod, pg-nonprod and PgBouncer.
+#
+#   docker compose -f /srv/foa/docker/compose.yml up -d --wait
+#
+# Runbook: docker/README.md. Secrets live in /etc/foa/secrets (made by
+# scripts/bootstrap-secrets.sh) and are never in git. Relative paths below
+# resolve against this file's directory, /srv/foa/docker on the VPS.
+#
+# Only PgBouncer publishes a port (6432, TLS + SCRAM). Postgres is reachable
+# only on the private network `db`; admins use `docker exec` or an SSH tunnel
+# to pg-prod's fixed address. Docker-published ports bypass ufw, so any port
+# added later must bind 127.0.0.1 (systemd/foa-docker-user-fw.service drops
+# everything else arriving on eth0 anyway).
+
+name: foa-vps
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+x-postgres: &postgres
+  build: ./postgres
+  image: foa-vps/postgres:18.7-pgbackrest2.60.1
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  # Fast shutdown (the image's STOPSIGNAL is SIGINT) needs time for the
+  # shutdown checkpoint; Docker's 10 s default would SIGKILL into crash recovery.
+  stop_grace_period: 120s
+  logging: *logging
+  healthcheck:
+    # Socket ping plus "listening on TCP 5432" (0x1538): during first-start
+    # initdb the entrypoint's temporary server has no TCP listener, so the
+    # container is not reported healthy until the real server is up.
+    test:
+      - CMD-SHELL
+      - pg_isready -q -h /var/run/postgresql -U postgres -d postgres && grep -q ':1538 00000000:0000 0A' /proc/net/tcp
+    interval: 10s
+    timeout: 5s
+    retries: 6
+    start_period: 60s
+    start_interval: 2s
+
+services:
+  pg-prod:
+    <<: *postgres
+    container_name: foa-pg-prod
+    hostname: pg-prod
+    command: ["postgres", "-c", "config_file=/etc/postgresql/prod.conf"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      FOA_PG_ROLE: prod
+      # pgBackRest reads its config from the same directory mount. Naming a
+      # config file turns off the default include path, so name that too:
+      # conf.d/cipher.conf holds the repository passphrase.
+      PGBACKREST_CONFIG: /etc/postgresql/pgbackrest.conf
+      PGBACKREST_CONFIG_INCLUDE_PATH: /etc/pgbackrest/conf.d
+    secrets:
+      - source: pg_prod_postgres_password
+        target: postgres_password
+      - source: pg_prod_foa_migrator_password
+        target: migrator_password
+      - source: pg_prod_foa_app_password
+        target: app_password
+      - source: pgbouncer_auth_password
+        target: pgbouncer_auth_password
+      # pgBackRest picks up conf.d/*.conf; this one holds repo1-cipher-pass.
+      - source: pgbackrest_cipher_conf
+        target: /etc/pgbackrest/conf.d/cipher.conf
+    volumes:
+      # PG 18 images keep PGDATA in /var/lib/postgresql/18/docker: mount the parent.
+      - pg-prod-data:/var/lib/postgresql
+      # pgBackRest repo1 (local POSIX) on its own volume, never the data volume.
+      - pgbackrest-repo:/var/lib/pgbackrest
+      # Config as a directory, never as single files: git replaces a file on
+      # checkout (a new inode) and a single-file bind mount keeps showing the
+      # old one, so a reload after `git pull` would change nothing.
+      - ./postgres:/etc/postgresql:ro
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - ./postgres/bootstrap:/opt/foa/bootstrap:ro
+    shm_size: 1g
+    cpus: 4
+    mem_limit: 10g
+    networks:
+      db:
+        ipv4_address: 10.112.12.10
+
+  pg-nonprod:
+    <<: *postgres
+    container_name: foa-pg-nonprod
+    hostname: pg-nonprod
+    command: ["postgres", "-c", "config_file=/etc/postgresql/nonprod.conf"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      FOA_PG_ROLE: nonprod
+    secrets:
+      - source: pg_nonprod_postgres_password
+        target: postgres_password
+      # migrator/app: the preview roles (nonprod_*); staging has its own.
+      - source: pg_nonprod_nonprod_migrator_password
+        target: migrator_password
+      - source: pg_nonprod_nonprod_app_password
+        target: app_password
+      - source: pg_nonprod_staging_migrator_password
+        target: staging_migrator_password
+      - source: pg_nonprod_staging_app_password
+        target: staging_app_password
+      - source: pgbouncer_auth_password
+        target: pgbouncer_auth_password
+    volumes:
+      - pg-nonprod-data:/var/lib/postgresql
+      - ./postgres:/etc/postgresql:ro # a directory, see pg-prod
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - ./postgres/bootstrap:/opt/foa/bootstrap:ro
+    shm_size: 512m
+    cpus: 2
+    mem_limit: 4g
+    networks:
+      db:
+        ipv4_address: 10.112.12.11
+
+  pgbouncer:
+    build: ./pgbouncer
+    image: foa-vps/pgbouncer:1.26.1
+    container_name: foa-pgbouncer
+    hostname: pgbouncer
+    restart: unless-stopped
+    depends_on:
+      pg-prod:
+        condition: service_healthy
+      pg-nonprod:
+        condition: service_healthy
+    ports:
+      # The only published port on the VPS. IPv4 only (db.shipped-it.dev has
+      # no AAAA record).
+      - "0.0.0.0:6432:6432"
+    secrets:
+      # auth_file: only pgbouncer_auth's entry; every other role is looked up
+      # through auth_query.
+      - source: pgbouncer_userlist
+        target: pgbouncer_userlist.txt
+    command: ["/etc/pgbouncer/foa/pgbouncer.ini"]
+    volumes:
+      # A directory, not the file, so RELOAD sees `git pull` (see pg-prod).
+      - ./pgbouncer:/etc/pgbouncer/foa:ro
+      # Let's Encrypt cert + key, installed by scripts/install-cert.sh. A
+      # RELOAD (SIGHUP) makes new connections use renewed files.
+      - /etc/foa/pgbouncer-tls:/etc/pgbouncer/tls:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    stop_grace_period: 30s
+    cpus: 1
+    mem_limit: 512m
+    logging: *logging
+    healthcheck:
+      # Listening on TCP 6432 (0x1920). Deliberately not a login: probes would
+      # fill the log that CrowdSec reads.
+      test: ["CMD-SHELL", "grep -q ':1920 00000000:0000 0A' /proc/net/tcp"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+      start_interval: 1s
+    networks:
+      db:
+        ipv4_address: 10.112.12.20
+
+networks:
+  db:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-foa-db
+    ipam:
+      config:
+        # Fixed so pg_hba.conf, pgbouncer.ini and SSH tunnels can name
+        # addresses. The gateway (the host's address on this bridge) is the
+        # only source pg_hba accepts the `postgres` superuser from over TCP.
+        - subnet: 10.112.12.0/24
+          gateway: 10.112.12.1
+
+volumes:
+  pg-prod-data:
+  pg-nonprod-data:
+  pgbackrest-repo:
+
+secrets:
+  pg_prod_postgres_password:
+    file: /etc/foa/secrets/pg_prod_postgres_password
+  pg_prod_foa_migrator_password:
+    file: /etc/foa/secrets/pg_prod_foa_migrator_password
+  pg_prod_foa_app_password:
+    file: /etc/foa/secrets/pg_prod_foa_app_password
+  pg_nonprod_postgres_password:
+    file: /etc/foa/secrets/pg_nonprod_postgres_password
+  pg_nonprod_nonprod_migrator_password:
+    file: /etc/foa/secrets/pg_nonprod_nonprod_migrator_password
+  pg_nonprod_nonprod_app_password:
+    file: /etc/foa/secrets/pg_nonprod_nonprod_app_password
+  pg_nonprod_staging_migrator_password:
+    file: /etc/foa/secrets/pg_nonprod_staging_migrator_password
+  pg_nonprod_staging_app_password:
+    file: /etc/foa/secrets/pg_nonprod_staging_app_password
+  pgbouncer_auth_password:
+    file: /etc/foa/secrets/pgbouncer_auth_password
+  pgbouncer_userlist:
+    file: /etc/foa/secrets/pgbouncer_userlist.txt
+  pgbackrest_cipher_conf:
+    file: /etc/foa/secrets/pgbackrest_cipher.conf
