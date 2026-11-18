@@ -13,6 +13,11 @@
 # staging_app, staging_migrator, preview_app, preview_migrator (the
 # *_DATABASE_URL and *_DIRECT_URL keys).
 #
+# Scratch databases (t_check*) are made through PgBouncer as nonprod_migrator
+# and dropped again as the superuser over pg-nonprod's local socket, before
+# and after the run: DROP ... WITH (FORCE) as nonprod_migrator cannot end
+# nonprod_app's pooled server connection.
+#
 # libpq needs a CA bundle for sslmode=verify-full; the official image has none,
 # so the host's bundle is mounted read-only (PGSSLROOTCERT). Node/postgres.js
 # uses its built-in CA store instead.
@@ -23,6 +28,8 @@ set -uo pipefail
 URLS=/etc/foa/vercel-urls.env
 SU_SECRET=/etc/foa/secrets/pg_prod_postgres_password
 IMAGE=postgres:18.7-trixie
+NONPROD=foa-pg-nonprod
+SCRATCH_DBS=(t_check t_check_staging t_check_timeout)
 DBHOST=db.shipped-it.dev
 DBPORT=6432
 passed=0 failed=0
@@ -30,10 +37,20 @@ passed=0 failed=0
 die() { echo "smoke-test: $*" >&2; exit 2; }
 [ -r "$URLS" ] || die "cannot read $URLS (run as root)"
 
+drop_scratch_dbs() {
+  local db
+  for db in "${SCRATCH_DBS[@]}"; do
+    docker exec -u postgres "$NONPROD" psql -X -q -h /var/run/postgresql -d postgres \
+      -c "SET client_min_messages = warning" -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" ||
+      echo "smoke-test: WARNING: could not drop $db on $NONPROD" >&2
+  done
+}
+
 umask 077
 ENV_FILE="$(mktemp /tmp/foa-smoke-test.XXXXXX)" || die "mktemp failed"
-trap 'rm -f "$ENV_FILE"' EXIT
+trap 'rm -f "$ENV_FILE"; drop_scratch_dbs' EXIT
 trap 'exit 130' INT TERM HUP
+drop_scratch_dbs
 
 # The env file: libpq defaults, then <CONNECTION>_{USER,PASSWORD,DATABASE}.
 # Only shell builtins touch the values (no external command gets them as
@@ -144,8 +161,7 @@ $PSQL -c 'create table public.smoke_test (id int)' -c 'drop table public.smoke_t
 SH
 check "nonprod_migrator: CREATE DATABASE t_check TEMPLATE foa_seed via db postgres (dropped again)" ok '^t_check\|nonprod_migrator\|foa-preview smoke$' <<'SH'
 use preview_migrator
-$PSQL -d postgres -c 'drop database if exists t_check with (force)' \
-  -c 'create database t_check template foa_seed' \
+$PSQL -d postgres -c 'create database t_check template foa_seed' \
   -c "comment on database t_check is 'foa-preview smoke'" \
   -c "select datname, pg_get_userbyid(datdba), shobj_description(oid, 'pg_database') from pg_database where datname = 't_check'" \
   -c 'drop database t_check with (force)'
@@ -172,11 +188,8 @@ use staging_app; $PSQL -d postgres -c 'select 1'
 SH
 check "staging_migrator cannot connect to a preview database (made and dropped here)" fail "$REFUSED" <<'SH'
 use preview_migrator
-$PSQL -d postgres -c 'drop database if exists t_check_staging with (force)' \
-  -c 'create database t_check_staging template foa_seed' >/dev/null || exit 0
-out="$(use staging_migrator; $PSQL -d t_check_staging -c 'select 1' 2>&1)"; rc=$?
-$PSQL -d postgres -c 'drop database t_check_staging with (force)'
-echo "$out"; exit "$rc"
+$PSQL -d postgres -c 'create database t_check_staging template foa_seed' || exit 0
+use staging_migrator; $PSQL -d t_check_staging -c 'select 1'
 SH
 
 # Refusals --------------------------------------------------------------------------------------
@@ -210,11 +223,8 @@ check "app roles: statement_timeout 15s, idle_in_transaction_session_timeout 1mi
 q="select current_setting('statement_timeout') || '/' || current_setting('idle_in_transaction_session_timeout')"
 a="$(use prod_app; $PSQL -c "$q")"
 b="$(use staging_app; $PSQL -c "$q")"
-use preview_migrator
-$PSQL -d postgres -c 'drop database if exists t_check_timeout with (force)' \
-  -c 'create database t_check_timeout template foa_seed' >/dev/null
+use preview_migrator; $PSQL -d postgres -c 'create database t_check_timeout template foa_seed'
 c="$(use preview_app; $PSQL -d t_check_timeout -c "$q")"
-$PSQL -d postgres -c 'drop database t_check_timeout with (force)' >/dev/null
 echo "foa_app=$a staging_app=$b nonprod_app=$c"
 SH
 check "migrator roles: no statement_timeout, lock_timeout 30s" ok '^foa_migrator=0/30s staging_migrator=0/30s nonprod_migrator=0/30s$' <<'SH'
