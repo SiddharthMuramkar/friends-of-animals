@@ -116,7 +116,7 @@ src/
 │   └── globals.css           # Tailwind 4 + shadcn theme
 ├── components/
 │   ├── ui/                   # shadcn/ui primitives
-│   └── site-header.tsx, site-footer.tsx, theme-toggle.tsx
+│   └── logo.tsx, site-header.tsx, site-footer.tsx, theme-toggle.tsx
 ├── lib/                      # pure utilities, safe anywhere: site.ts (branding), utils.ts (cn), theme.ts
 ├── env.schema.ts             # Zod env schemas + `parseEnv()`; no server-only, so scripts can use it
 ├── env.ts                    # server-only, cached config accessor (`env()`)
