@@ -112,7 +112,7 @@ enum TriState { YES, NO, UNKNOWN }   enum AnimalSex { MALE, FEMALE, UNKNOWN }   
 #### 9.4.1 Models
 
 ```prisma
-model Page { id, slug String, locale String @default("en-IN"), systemKey String? /* home|about|impact|awareness|privacy|terms|safeguarding|child-protection-policy|adoption-terms|directory-terms */,
+model Page { id, slug String, locale String @default("en-IN"), systemKey String? /* home|about|impact|awareness|privacy|terms|safeguarding|child-protection-policy|pricing|refunds|adoption-terms|directory-terms */,
   template PageTemplate, title, body Json /* Block[] */, seoTitle?, seoDescription?, ogImageAssetId?, noIndex Boolean @default(false),
   status ContentStatus, publishAt DateTime?, publishedAt?, publishedRevisionId?, pendingRevisionId?, lastEditedById, approvedById?, deletedAt?
   @@unique([slug, locale]) @@unique([systemKey, locale]) }
@@ -171,6 +171,8 @@ Home edits go through §9.4.2. The page is cached with `cacheTag` (`home`, `post
 | Latest stories | `Post` PUBLISHED | featured first, then `publishedAt` descending; 3 items |
 | Donate CTA | copy plus link to `/donate` (§8) | progress bar shown if an ACTIVE `Campaign` has a `fundId` |
 | Upcoming events | `Event` PUBLISHED, `startsAt` > now | max 3; only when `EVENTS` is on |
+
+Until the CMS ships (M5), these pages, the stories and the awareness content are authored in the repo: UI strings in the message files, long-form content as typed modules under `src/content/` in the §9.4.1 block shape, so the M5 import is mechanical.
 
 Other public pages:
 - **`/about`:** the ABOUT Page.

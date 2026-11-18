@@ -31,8 +31,8 @@ The stack is locked (decided in issue #11). Keep the architecture; a row changes
 | Framework | **Next.js 16.4.x (App Router) + TypeScript (strict)**, started from `create-next-app` | Server Components and Server Actions; Route Handlers for auth, webhooks and the public API. Turbopack, `cacheComponents: true`, `output: 'standalone'` |
 | Runtime | Node 26 LTS (`engines.node: "26.x"`); TypeScript 7.0.x | `next build` type-checks with the project's `tsc` |
 | Tooling | pnpm 12; oxlint (type-aware via `oxlint-tsgolint`; `nextjs`, `react`, `jsx-a11y` and `import` plugins) + oxfmt | oxlint replaces ESLint and oxfmt replaces Prettier |
-| UI | Tailwind CSS 4 + shadcn/ui (`rsc: true`), `next/font` Inter, lucide icons | Mobile-first. WCAG 2.2 AA |
-| i18n | next-intl 4 | Wired in M0 (§13.5) |
+| UI | Tailwind CSS 4 + shadcn/ui (`rsc: true`), `next/font` Inter (body) + Baloo 2 (display, Latin + Devanagari) + Kalam (accent, a few words), lucide icons. Motion is CSS only on public pages (View Transitions, scroll-driven animations); no animation library | Mobile-first. WCAG 2.2 AA |
+| i18n | next-intl 4 | Wired in M0 (§13.5). While en-IN is the only locale it runs without i18n routing (unprefixed URLs, server-side `getTranslations` only, no next-intl code in the browser); the `[locale]` segment arrives with the second locale |
 | Validation | Zod 4 | Shared by forms and services (§2.2) |
 | DB | **PostgreSQL 18.7** in Docker on the Mumbai VPS: `pg-prod` and `pg-nonprod` | Never published on a host port. Databases per environment: §2.4 |
 | Pooler | PgBouncer 1.26, the only public DB endpoint | TLS (Let's Encrypt) + SCRAM, transaction pooling (session mode for the migrator roles), port 6432. Reachable only from Vercel Static IPs (Hostinger firewall plus a `DOCKER-USER` rule); open to all until they are bought (§2.3) |
@@ -94,7 +94,7 @@ src/
   emails/                # React Email templates
   i18n/                  # next-intl config
   test/                  # PGlite test harness
-messages/                # next-intl message files, {locale}.json (§13.5)
+messages/                # next-intl message files, {locale}/{namespace}.json (§13.5)
 drizzle/                 # generated SQL migrations plus hand-written SQL (partial indexes, triggers), checked in
 scripts/
   migrate.ts             # applies drizzle/ through DIRECT_URL
@@ -359,7 +359,8 @@ Mapping of the 33 core modules from the source document to routes. Detail pages 
 | 17 | Contact Us | `/contact` | 9 |
 | 18 | Registration / Login | `/login`, `/register`, `/verify-otp` | 6, 12 |
 | — | Certificate verification | `/verify/[certificateNumber]` | 7 |
-| — | Legal | `/privacy`, `/terms`, `/safeguarding`, `/child-protection-policy` | 12 |
+| — | Legal | `/privacy`, `/terms`, `/safeguarding`, `/child-protection-policy`, `/pricing`, `/refunds` | 12 |
+| — | Image and font credits | `/credits` | 9 |
 
 ### 5.2 Authenticated Dashboards
 
