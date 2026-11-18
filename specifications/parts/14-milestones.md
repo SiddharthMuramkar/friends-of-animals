@@ -21,7 +21,7 @@ The order follows the source's 6-month objectives: get one pilot competition run
 - `AuditLog`, `Outbox`, job worker, `FileAsset` with presigned upload, the `Setting` runtime-configuration table (§13.9; changes audit-logged), `lib/ids` (§3.1 code generators with tests), `lib/money`.
 - `ConsentDocument`/`Consent` tables and `ConsentService` skeleton. Legal pages served from CMS stubs.
 - Seed script (§2.1).
-- **Accept when:** a user can sign up and log in by OTP; a SUPER_ADMIN can grant a scoped role; every mutation in the demo writes an AuditLog row; a file uploads directly to the bucket and is retrievable only through a signed URL by an authorized user; the VPS Compose services (`pg-prod`, `pgbouncer`, `worker`, `clamav`, `gotenberg`) are healthy; a backup and a restore drill pass; a preview database can be created from `foa_seed` and dropped; CI is green.
+- **Accept when:** a user can sign up and log in by OTP; a SUPER_ADMIN can grant a scoped role; every mutation in the demo writes an AuditLog row; a file uploads directly to the bucket and is retrievable only through a signed URL by an authorized user; the VPS Compose services (`pg-prod`, `pg-nonprod`, `pgbouncer`, `worker`, `worker-media`, `clamav`, `gotenberg`) are healthy; a backup and a restore drill pass; a preview database can be created from `foa_seed` and dropped; CI is green.
 
 ### M1 — Institutions & Registration
 - `/schools/register`, admin institution verification, institution competition registration, coordinator student management including CSV import.
