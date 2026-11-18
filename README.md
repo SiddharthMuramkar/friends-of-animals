@@ -132,7 +132,9 @@ Dockerfile, docker-compose.yml
 
 Still to come, per SPEC §2.1: the route groups under `src/app/`, `src/server/{domain,jobs,integrations,auth}/`, `src/worker/`, `src/emails/`, `src/i18n/` + `messages/`, `docker/` for the VPS, and `tests/e2e/`.
 
-Code that must never reach the browser (`src/env.ts`, `src/server/**`) starts with `import "server-only"`, so importing it from a Client Component fails the build.
+Code that must never reach the browser starts with `import "server-only"`, so importing it from a Client Component fails the build. Today that is `src/env.ts` and `src/server/db/index.ts`.
+
+Outside a Next.js server bundle, `server-only` throws as soon as it is imported. So the schema files in `src/server/db/schema/` (drizzle-kit loads them), `scripts/`, and anything else that runs under plain Node must not import it, directly or through another module. The future `src/worker/` must either stick to such modules or start Node with `--conditions=react-server`, under which `server-only` resolves to an empty module.
 
 ## Database and migrations
 
