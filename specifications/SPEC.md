@@ -127,7 +127,7 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 | **GitHub Actions** | CI, Playwright E2E, worker image builds |
 
 - Vercel reaches the database only through PgBouncer on port 6432. There is no HTTP path from Vercel to the worker: work is handed over through Postgres (Outbox rows and pg-boss jobs).
-- The worker connects to Postgres directly on the Compose network. The only app endpoint it calls is `/api/internal/revalidate` (§2.2).
+- The worker connects to Postgres directly on the Compose network. Apart from fetching the app's public static assets (certificate rendering, §7.7), the only app endpoint it calls is `/api/internal/revalidate` (§2.2).
 - Only PgBouncer on port 6432 (from Vercel Static IPs only) and SSH accept inbound traffic on the VPS. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
 - Worker images are built by GitHub Actions, pushed to GHCR tagged with the commit SHA, and deployed with `docker compose pull && docker compose up -d --wait`. A rollback redeploys the previous tag.
 
@@ -1253,7 +1253,7 @@ model CertificateTemplate {
   - A template becomes ACTIVE only after a successful preview render.
   - Issued PDFs are immutable: template edits never re-render them, only reissue does.
 - **Generation:** job `certificate.generate(id)` skips GENERATED certificates.
-  - **Render:** Playwright HTML→PDF in `worker-media`, with Noto fonts (Latin, Devanagari and other Indic scripts) bundled in the image. The worker reads the template's images (FOA logo, signatures, background) from storage and inlines them as `data:` URLs. Every other request is blocked. Timeout 30 s.
+  - **Render:** Playwright HTML→PDF in `worker-media`, with Noto fonts (Latin, Devanagari and other Indic scripts) bundled in the image. Every request is blocked except the app's asset origin and `data:` URLs. Timeout 30 s.
   - **QR:** the `qrcode` package encodes `{APP_URL}/verify/{certificateNumber}`.
   - **Store and issue:** the PDF goes to `certificates/{competitionCode}/{certificateNumber}.pdf` (private) as a FileAsset of kind PDF. The certificate → GENERATED and `certificate.issued` is emitted.
   - **Retries:** at 1 min, 10 min and 1 h, then FAILED.
