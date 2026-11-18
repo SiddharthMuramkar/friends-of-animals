@@ -60,5 +60,7 @@ systemctl enable crowdsec crowdsec-firewall-bouncer
 systemctl restart crowdsec
 systemctl restart crowdsec-firewall-bouncer
 
-cscli version 2>/dev/null | head -1
+# First line only. Not `| head -1`: head exits early, cscli dies of SIGPIPE,
+# and pipefail turns that into a failed install.
+cscli version 2>/dev/null | sed -n 1p
 cscli bouncers list
