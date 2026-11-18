@@ -35,9 +35,9 @@ The stack is locked (decided in issue #11). Keep the architecture; a row changes
 | i18n | next-intl 4 | Wired in M0 (§13.5) |
 | Validation | Zod 4 | Shared by forms and services (§2.2) |
 | DB | **PostgreSQL 18.7** in Docker on the Mumbai VPS: `pg-prod` and `pg-nonprod` | Never published on a host port. Databases per environment: §2.4 |
-| Pooler | PgBouncer 1.26, the only public DB endpoint | TLS (Let's Encrypt) + SCRAM, transaction pooling, port 6432. Reachable only from Vercel Static IPs (Hostinger firewall plus a `DOCKER-USER` rule) |
+| Pooler | PgBouncer 1.26, the only public DB endpoint | TLS (Let's Encrypt) + SCRAM, transaction pooling (session mode for the migrator roles), port 6432. Reachable only from Vercel Static IPs (Hostinger firewall plus a `DOCKER-USER` rule); open to all until they are bought (§2.3) |
 | ORM | **Drizzle ORM 0.45.4** + drizzle-kit 0.31.x on postgres.js, pinned | Prefer the core query builder over RQB v1. Move to Drizzle 1.0 when it is stable and Better Auth's peer range allows. SQL migrations in `drizzle/`, checked in |
-| Backups | pgBackRest to Cloudflare R2 (WAL pushed at least every 60 s, 30-day PITR), plus a daily `age`-encrypted `pg_dump` kept 35 days in a locked bucket | Quarterly restore drill (§13.1) |
+| Backups | pgBackRest to Cloudflare R2 (WAL pushed at least every 60 s, 30-day PITR), plus a daily `age`-encrypted `pg_dump` kept 35 days in a locked bucket | Quarterly restore drill (§13.1). Until FOA's R2 exists (#18), pgBackRest archives to a local encrypted repository on the VPS |
 | Auth | **Better Auth 1.7.x** + Drizzle adapter | Email OTP, phone OTP through our `SmsProvider`, TOTP/passkey, captcha. Password optional. Sessions in DB. FOA layer on top: scoped `UserRole` + `can()`, guardian rules, staff 2FA gate, step-up (§4, §13.1) |
 | Object storage | **Cloudflare R2** via the S3 API | Buckets `foa-private` (originals, `quarantine/`), `foa-public` (derived/stamped assets only) and `foa-evidence` (§13.1). Vercel Blob is not used |
 | Uploads | Presigned direct-to-bucket uploads from the browser (multipart above 100 MB) | Server never proxies large files |
@@ -121,14 +121,15 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 
 | Where | Runs |
 |---|---|
-| **Vercel Pro**, functions in `bom1` | The Next.js app: pages, Server Actions and Route Handlers (auth, webhooks, `/api/health`, `/api/internal/revalidate`). R2 presigning. pg-boss send-only. DB migrations in `vercel-build` through `DIRECT_URL`, a PgBouncer session-mode entry with a migrator role; migrations take a Postgres advisory lock (#12). Builds use the Static IPs ("Use Static IPs for builds" on), because PgBouncer accepts only those IPs |
+| **Vercel Pro**, functions in `bom1` | The Next.js app: pages, Server Actions and Route Handlers (auth, webhooks, `/api/health`, `/api/internal/revalidate`). R2 presigning. pg-boss send-only. DB migrations in `vercel-build` through `DIRECT_URL`, which logs in to PgBouncer as a migrator role; PgBouncer gives the migrator roles session mode through a per-user `pool_mode`. Migrations take a Postgres advisory lock (#12). Once the Static IPs are bought, builds use them ("Use Static IPs for builds" on), because PgBouncer then accepts only those IPs |
 | **Mumbai VPS** (Docker Compose) | `pg-prod`, `pg-nonprod`, `pgbouncer`, `worker`, `worker-media`, `clamav`, `gotenberg`, and the pg-boss dashboard (on 127.0.0.1 only, reached through an SSH tunnel) |
 | **Cloudflare** | R2 buckets, the `media.<foa-domain>` CDN, and the backup repository and dump bucket |
 | **GitHub Actions** | CI, Playwright E2E, worker image builds |
 
 - Vercel reaches the database only through PgBouncer on port 6432. There is no HTTP path from Vercel to the worker: work is handed over through Postgres (Outbox rows and pg-boss jobs).
 - The worker connects to Postgres directly on the Compose network. Apart from fetching the app's public static assets (certificate rendering, §7.7), the only app endpoint it calls is `/api/internal/revalidate` (§2.2).
-- Only PgBouncer on port 6432 (from Vercel Static IPs only) and SSH accept inbound traffic on the VPS. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
+- Only PgBouncer on port 6432 (from Vercel Static IPs only), SSH, and TCP 80 on the host accept inbound traffic on the VPS. Port 80 is used only for the few seconds of a Let's Encrypt HTTP-01 renewal of PgBouncer's certificate, and nothing listens there otherwise; DNS-01 would need an account-wide Vercel token on the VPS. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
+- Until the Static IPs are bought (#12), port 6432 is open to all, protected by TLS, SCRAM, 32-byte random passwords and CrowdSec.
 - Worker images are built by GitHub Actions, pushed to GHCR tagged with the commit SHA, and deployed with `docker compose pull && docker compose up -d --wait`. A rollback redeploys the previous tag.
 
 ### 2.4 Environments
@@ -136,11 +137,12 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 | Environment | App | Database | Notes |
 |---|---|---|---|
 | **local** | `pnpm dev` | Compose Postgres 18 on 127.0.0.1; Vitest uses in-memory PGlite | Email to Mailpit. Storage: a local S3 server (RustFS container) or the in-memory storage driver |
-| **preview** | Vercel preview deployment per PR | `foa_pr_<n>` on `pg-nonprod`, created from the template database `foa_seed` during `vercel-build` and dropped when the PR closes | |
+| **preview** | Vercel preview deployment per PR | `foa_pr_<n>` (`foa_br_<branch>` before the PR exists) on `pg-nonprod`, created from the template database `foa_seed` during `vercel-build` and dropped when the PR closes or the branch is deleted | An hourly sweeper on the VPS drops them, reading the database comment (`foa-preview pr=<n>` or `foa-preview branch=<ref>`). Not GitHub Actions, which can't pass the future allowlist |
 | **staging** (test) | `foa.shipped-it.dev`, Vercel custom environment `staging` | `foa_staging` on `pg-nonprod` | |
 | **production** | FOA's own domain | `pg-prod`, with PITR (§13.1) | SES out of sandbox; Razorpay live |
 
 - Behaviour switches read `APP_ENV` (`local`, `preview`, `staging` or `production`), never `VERCEL_ENV`, which reads `preview` in the custom `staging` environment.
+- PgBouncer sends database `foa` to `pg-prod` and any other name to `pg-nonprod`. On previews, `DATABASE_URL` and `DIRECT_URL` name the placeholder database `foa_pr`; the app and the migration script replace it with the preview's own.
 - Per-environment rules for payments, email and SMS: §13.8.
 
 ## 3. Conventions

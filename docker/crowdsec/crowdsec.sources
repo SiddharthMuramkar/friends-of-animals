@@ -1,0 +1,9 @@
+# CrowdSec's upstream apt repository (packagecloud), installed by
+# docker/scripts/install-crowdsec.sh. Ubuntu's own archive only carries
+# crowdsec 1.4.6 (2023), too old for the current hub. Upstream has no
+# `resolute` suite yet; its `noble` builds are used.
+Types: deb
+URIs: https://packagecloud.io/crowdsec/crowdsec/ubuntu
+Suites: noble
+Components: main
+Signed-By: /etc/apt/keyrings/crowdsec.gpg

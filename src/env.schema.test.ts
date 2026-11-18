@@ -66,6 +66,45 @@ describe("buildEnvSchema", () => {
     );
   });
 
+  it("defaults a preview's APP_URL to its Vercel branch URL", () => {
+    const vercel = {
+      VERCEL: "1",
+      APP_ENV: "preview",
+      VERCEL_BRANCH_URL: "foa-git-map-foa.vercel.app",
+      VERCEL_URL: "foa-abc123-foa.vercel.app",
+    };
+    expect(parseEnv(buildEnvSchema, vercel)).toEqual({
+      NODE_ENV: "development",
+      APP_ENV: "preview",
+      APP_URL: "https://foa-git-map-foa.vercel.app",
+    });
+    expect(
+      parseEnv(buildEnvSchema, { ...vercel, VERCEL_BRANCH_URL: "" }).APP_URL
+    ).toBe("https://foa-abc123-foa.vercel.app");
+    expect(parseEnv(buildEnvSchema, { ...vercel, APP_URL: SITE }).APP_URL).toBe(
+      SITE
+    );
+  });
+
+  it("says so when a preview has neither APP_URL nor a Vercel URL", () => {
+    expect(() =>
+      parseEnv(buildEnvSchema, { VERCEL: "1", APP_ENV: "preview" })
+    ).toThrow(/APP_URL is not set[\s\S]*VERCEL_BRANCH_URL[\s\S]*at APP_URL/);
+  });
+
+  it("never defaults APP_URL on staging or production", () => {
+    for (const appEnv of ["staging", "production"]) {
+      expect(() =>
+        parseEnv(buildEnvSchema, {
+          VERCEL: "1",
+          APP_ENV: appEnv,
+          VERCEL_BRANCH_URL: "foa-git-main-foa.vercel.app",
+          VERCEL_URL: "foa-abc123-foa.vercel.app",
+        })
+      ).toThrow(/APP_URL is not set/);
+    }
+  });
+
   it("requires APP_ENV on Vercel", () => {
     expect(() => parseEnv(buildEnvSchema, { VERCEL: "1" })).toThrow(
       /APP_ENV is not set[\s\S]*at APP_ENV/
@@ -127,6 +166,35 @@ describe("envSchema", () => {
       /DATABASE_URL is not set[\s\S]*APP_ENV is not set/
     );
   });
+
+  it("fails a preview that can't name its database", () => {
+    const preview = { DATABASE_URL, APP_ENV: "preview", APP_URL: SITE };
+    expect(() => parseEnv(envSchema, preview)).toThrow(
+      /name its database[\s\S]*at VERCEL_GIT_COMMIT_REF/
+    );
+    expect(() =>
+      parseEnv(envSchema, { ...preview, VERCEL_GIT_PULL_REQUEST_ID: "" })
+    ).toThrow(/name its database/);
+  });
+
+  it("keeps the variables that name a preview's database", () => {
+    const config = parseEnv(envSchema, {
+      DATABASE_URL,
+      APP_ENV: "preview",
+      APP_URL: SITE,
+      VERCEL_GIT_PULL_REQUEST_ID: "12",
+      VERCEL_GIT_COMMIT_REF: "map",
+    });
+    expect(config.VERCEL_GIT_PULL_REQUEST_ID).toBe("12");
+    expect(config.VERCEL_GIT_COMMIT_REF).toBe("map");
+  });
+
+  it("only needs them on previews", () => {
+    expect(
+      parseEnv(envSchema, { DATABASE_URL, APP_ENV: "staging", APP_URL: SITE })
+        .APP_ENV
+    ).toBe("staging");
+  });
 });
 
 describe("migrationEnvSchema", () => {
@@ -150,5 +218,49 @@ describe("migrationEnvSchema", () => {
     expect(() =>
       parseEnv(migrationEnvSchema, { DIRECT_URL: "not a url" })
     ).toThrow(/must be a postgres:\/\/ .*\n.*at DIRECT_URL/);
+  });
+
+  it("reads APP_ENV and the variables that name a preview's database", () => {
+    const config = parseEnv(migrationEnvSchema, {
+      DIRECT_URL: DATABASE_URL,
+      APP_ENV: "preview",
+      VERCEL_GIT_PULL_REQUEST_ID: "",
+      VERCEL_GIT_COMMIT_REF: "feature/map",
+    });
+    expect(config).toEqual({
+      DIRECT_URL: DATABASE_URL,
+      APP_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "feature/map",
+    });
+  });
+
+  it("fails a preview that can't name its database", () => {
+    expect(() =>
+      parseEnv(migrationEnvSchema, {
+        DIRECT_URL: DATABASE_URL,
+        APP_ENV: "preview",
+      })
+    ).toThrow(/name its database[\s\S]*at VERCEL_GIT_COMMIT_REF/);
+  });
+
+  it("requires APP_ENV on Vercel", () => {
+    expect(() =>
+      parseEnv(migrationEnvSchema, { DIRECT_URL: DATABASE_URL, VERCEL: "1" })
+    ).toThrow(/APP_ENV is not set/);
+    expect(() =>
+      parseEnv(migrationEnvSchema, {
+        DIRECT_URL: DATABASE_URL,
+        APP_ENV: "prod",
+      })
+    ).toThrow(/APP_ENV/);
+  });
+
+  it("needs no APP_URL", () => {
+    expect(
+      parseEnv(migrationEnvSchema, {
+        DIRECT_URL: DATABASE_URL,
+        APP_ENV: "production",
+      }).APP_ENV
+    ).toBe("production");
   });
 });

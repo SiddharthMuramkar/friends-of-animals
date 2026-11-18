@@ -5,10 +5,7 @@ export default function HomePage() {
   return (
     <section className="mx-auto flex max-w-3xl flex-col items-center px-4 py-16 text-center sm:px-6 sm:py-24">
       {/* Decorative here: the heading below names the organisation. */}
-      <Logo
-        plateClassName="rounded-lg dark:p-3"
-        className="h-auto w-56 sm:w-72"
-      />
+      <Logo className="h-auto w-56 sm:w-72" />
       <h1 className="mt-10 text-3xl font-bold tracking-tight text-balance sm:text-5xl">
         {SITE.name}
       </h1>
