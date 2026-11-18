@@ -31,6 +31,12 @@ function createDb() {
     // Fail a request in seconds rather than the default 30 when PgBouncer
     // can't be reached.
     connect_timeout: 5,
+    // Backstop for a server or network that goes silent: give up on a query
+    // (waiting for a connection and running together) after 20 s and cancel
+    // it. The app roles' statement_timeout (15 s, set on the VPS) is the
+    // real limit; it fires first while the server answers, with a known
+    // outcome.
+    query_timeout: 20,
   });
   return drizzle(client, { schema });
 }

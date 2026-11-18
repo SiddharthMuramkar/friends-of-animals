@@ -52,6 +52,16 @@ ALTER ROLE staging_migrator WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHER
 ALTER ROLE staging_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT
   NOREPLICATION NOBYPASSRLS;
 
+-- Timeouts per role, as on pg-prod (see prod.sql).
+ALTER ROLE nonprod_app SET statement_timeout = '15s';
+ALTER ROLE nonprod_app SET idle_in_transaction_session_timeout = '60s';
+ALTER ROLE staging_app SET statement_timeout = '15s';
+ALTER ROLE staging_app SET idle_in_transaction_session_timeout = '60s';
+ALTER ROLE nonprod_migrator SET statement_timeout = 0;
+ALTER ROLE nonprod_migrator SET lock_timeout = '30s';
+ALTER ROLE staging_migrator SET statement_timeout = 0;
+ALTER ROLE staging_migrator SET lock_timeout = '30s';
+
 SELECT :'set_passwords' = '1'
     OR (SELECT rolpassword IS NULL FROM pg_authid WHERE rolname = 'nonprod_migrator') AS set_pw \gset
 \if :set_pw

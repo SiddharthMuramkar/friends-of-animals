@@ -192,6 +192,12 @@ Roles and databases (`postgres/bootstrap/`):
   `template1`, and USAGE on `public` in every FOA database. New schemas need
   `GRANT USAGE ON SCHEMA ... TO foa_app` in their migration. Re-running the
   bootstrap never re-grants on existing tables (a migration may narrow one).
+- Timeouts are role settings, so they hold through the transaction pool
+  (each server connection logs in as the role; `DISCARD ALL` resets to them):
+  `foa_app`, `staging_app` and `nonprod_app` have `statement_timeout = 15s`
+  and `idle_in_transaction_session_timeout = 60s`; the migrator roles have no
+  statement timeout but `lock_timeout = 30s`. The app's client adds
+  `query_timeout: 20` (postgres.js) as a backstop.
 - `pg_stat_statements.track_utility = off` on both servers (and `SET` again
   in each bootstrap file): pg_stat_statements keeps a utility statement's text
   as typed, so the bootstrap's `ALTER ROLE ... PASSWORD` would land there. The

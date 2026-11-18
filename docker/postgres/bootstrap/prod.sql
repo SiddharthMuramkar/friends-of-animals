@@ -29,6 +29,17 @@ ALTER ROLE foa_migrator WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT
 ALTER ROLE foa_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT
   NOREPLICATION NOBYPASSRLS;
 
+-- Timeouts per role, so they hold through PgBouncer's transaction pool: a
+-- role's settings apply to every server connection it logs in with, and
+-- DISCARD ALL resets to them. The app's statements stop after 15 s and an
+-- idle transaction after 60 s. Migrations may run as long as they need but
+-- give up after 30 s waiting for a lock, rather than queue the app behind
+-- them.
+ALTER ROLE foa_app SET statement_timeout = '15s';
+ALTER ROLE foa_app SET idle_in_transaction_session_timeout = '60s';
+ALTER ROLE foa_migrator SET statement_timeout = 0;
+ALTER ROLE foa_migrator SET lock_timeout = '30s';
+
 SELECT :'set_passwords' = '1'
     OR (SELECT rolpassword IS NULL FROM pg_authid WHERE rolname = 'foa_migrator') AS set_pw \gset
 \if :set_pw
