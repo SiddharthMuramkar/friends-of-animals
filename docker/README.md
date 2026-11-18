@@ -10,11 +10,11 @@ units and bind mounts point there, never at a developer worktree).
 Compose project `foa-vps` (`docker/compose.yml`), network `db` =
 `10.112.12.0/24` on bridge `br-foa-db`, gateway `10.112.12.1` (the host).
 
-| Container | Image | Address | Published | Limits | Volumes |
-|---|---|---|---|---|---|
-| `foa-pg-prod` | `foa-vps/postgres:18.7-pgbackrest2.60.1` (`postgres/Dockerfile`) | 10.112.12.10:5432 | no | 4 CPU, 10 GB, shm 1 GB | `foa-vps_pg-prod-data`, `foa-vps_pgbackrest-repo` |
-| `foa-pg-nonprod` | same image | 10.112.12.11:5432 | no | 2 CPU, 4 GB, shm 512 MB | `foa-vps_pg-nonprod-data` |
-| `foa-pgbouncer` | `foa-vps/pgbouncer:1.26.1` (`pgbouncer/Dockerfile`) | 10.112.12.20:6432 | **0.0.0.0:6432** | 1 CPU, 512 MB | none (read-only root) |
+| Container        | Image                                                            | Address           | Published        | Limits                  | Volumes                                           |
+| ---------------- | ---------------------------------------------------------------- | ----------------- | ---------------- | ----------------------- | ------------------------------------------------- |
+| `foa-pg-prod`    | `foa-vps/postgres:18.7-pgbackrest2.60.1` (`postgres/Dockerfile`) | 10.112.12.10:5432 | no               | 4 CPU, 10 GB, shm 1 GB  | `foa-vps_pg-prod-data`, `foa-vps_pgbackrest-repo` |
+| `foa-pg-nonprod` | same image                                                       | 10.112.12.11:5432 | no               | 2 CPU, 4 GB, shm 512 MB | `foa-vps_pg-nonprod-data`                         |
+| `foa-pgbouncer`  | `foa-vps/pgbouncer:1.26.1` (`pgbouncer/Dockerfile`)              | 10.112.12.20:6432 | **0.0.0.0:6432** | 1 CPU, 512 MB           | none (read-only root)                             |
 
 - **pg-prod** holds production only: database `foa`. `shared_buffers` 4 GB,
   WAL archived by pgBackRest (`archive_timeout` 60 s).
@@ -27,39 +27,39 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
 Host side: systemd units in `systemd/` (firewall, certificate renewal,
 backups, preview sweep) and CrowdSec (`crowdsec/`).
 
-| Path | What |
-|---|---|
-| `compose.yml` | The stack |
-| `postgres/{prod,nonprod}.conf`, `pg_hba.{prod,nonprod}.conf` | Server config, mounted read-only |
-| `postgres/pgbackrest.conf` | pgBackRest (pg-prod) |
-| `postgres/bootstrap/*.sql`, `initdb/` | Roles, databases, privileges (idempotent) |
-| `pgbouncer/pgbouncer.ini` | Routing, pooling, TLS |
-| `scripts/` | Host scripts (all idempotent, run as root) |
-| `systemd/` | Units, linked into `/etc/systemd/system` |
-| `crowdsec/` | CrowdSec apt source, acquisition, local parser, whitelist |
+| Path                                                         | What                                                      |
+| ------------------------------------------------------------ | --------------------------------------------------------- |
+| `compose.yml`                                                | The stack                                                 |
+| `postgres/{prod,nonprod}.conf`, `pg_hba.{prod,nonprod}.conf` | Server config, mounted read-only                          |
+| `postgres/pgbackrest.conf`                                   | pgBackRest (pg-prod)                                      |
+| `postgres/bootstrap/*.sql`, `initdb/`                        | Roles, databases, privileges (idempotent)                 |
+| `pgbouncer/pgbouncer.ini`                                    | Routing, pooling, TLS                                     |
+| `scripts/`                                                   | Host scripts (all idempotent, run as root)                |
+| `systemd/`                                                   | Units, linked into `/etc/systemd/system`                  |
+| `crowdsec/`                                                  | CrowdSec apt source, acquisition, local parser, whitelist |
 
 ## Secrets
 
 Nothing secret is in git. `scripts/bootstrap-secrets.sh` creates everything
 under `/etc/foa` (0700 root) and never overwrites an existing secret:
 
-| File | Owner, mode | Used by |
-|---|---|---|
-| `/etc/foa/secrets/pg_prod_postgres_password` | 999, 0400 | pg-prod superuser |
-| `/etc/foa/secrets/pg_prod_foa_migrator_password` | 999, 0400 | `foa_migrator` |
-| `/etc/foa/secrets/pg_prod_foa_app_password` | 999, 0400 | `foa_app` |
-| `/etc/foa/secrets/pg_nonprod_postgres_password` | 999, 0400 | pg-nonprod superuser |
-| `/etc/foa/secrets/pg_nonprod_nonprod_migrator_password` | 999, 0400 | `nonprod_migrator` |
-| `/etc/foa/secrets/pg_nonprod_nonprod_app_password` | 999, 0400 | `nonprod_app` |
-| `/etc/foa/secrets/pg_nonprod_staging_migrator_password` | 999, 0400 | `staging_migrator` |
-| `/etc/foa/secrets/pg_nonprod_staging_app_password` | 999, 0400 | `staging_app` |
-| `/etc/foa/secrets/pgbouncer_auth_password` | 999, 0400 | `pgbouncer_auth` on both servers |
-| `/etc/foa/secrets/pgbouncer_userlist.txt` | 6432, 0400 | PgBouncer `auth_file` (derived) |
-| `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` | root, 0400 | pgBackRest repo1 passphrase |
-| `/etc/foa/secrets/pgbackrest_cipher.conf` | 999, 0400 | pgBackRest `conf.d` snippet (derived) |
-| `/etc/foa/vercel-urls.env` | root, 0600 | URLs to paste into Vercel (derived) |
-| `/etc/foa/lego/` | root, 0700 | ACME account key, certificate, key |
-| `/etc/foa/pgbouncer-tls/` | root:6432, 0750 | Installed cert (0444) and key (0400) |
+| File                                                    | Owner, mode     | Used by                               |
+| ------------------------------------------------------- | --------------- | ------------------------------------- |
+| `/etc/foa/secrets/pg_prod_postgres_password`            | 999, 0400       | pg-prod superuser                     |
+| `/etc/foa/secrets/pg_prod_foa_migrator_password`        | 999, 0400       | `foa_migrator`                        |
+| `/etc/foa/secrets/pg_prod_foa_app_password`             | 999, 0400       | `foa_app`                             |
+| `/etc/foa/secrets/pg_nonprod_postgres_password`         | 999, 0400       | pg-nonprod superuser                  |
+| `/etc/foa/secrets/pg_nonprod_nonprod_migrator_password` | 999, 0400       | `nonprod_migrator`                    |
+| `/etc/foa/secrets/pg_nonprod_nonprod_app_password`      | 999, 0400       | `nonprod_app`                         |
+| `/etc/foa/secrets/pg_nonprod_staging_migrator_password` | 999, 0400       | `staging_migrator`                    |
+| `/etc/foa/secrets/pg_nonprod_staging_app_password`      | 999, 0400       | `staging_app`                         |
+| `/etc/foa/secrets/pgbouncer_auth_password`              | 999, 0400       | `pgbouncer_auth` on both servers      |
+| `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
+| `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
+| `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
+| `/etc/foa/vercel-urls.env`                              | root, 0600      | URLs to paste into Vercel (derived)   |
+| `/etc/foa/lego/`                                        | root, 0700      | ACME account key, certificate, key    |
+| `/etc/foa/pgbouncer-tls/`                               | root:6432, 0750 | Installed cert (0444) and key (0400)  |
 
 999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours.
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
@@ -68,14 +68,14 @@ Compose secrets (`/run/secrets/...`), never as environment values.
 `vercel-urls.env` has exactly these keys (host `db.shipped-it.dev`, port 6432,
 `?sslmode=verify-full`):
 
-| Key | Role | Database | PgBouncer pool |
-|---|---|---|---|
-| `PROD_DATABASE_URL` | `foa_app` | `foa` | transaction |
-| `PROD_DIRECT_URL` | `foa_migrator` | `foa` | session |
-| `STAGING_DATABASE_URL` | `staging_app` | `foa_staging` | transaction |
-| `STAGING_DIRECT_URL` | `staging_migrator` | `foa_staging` | session |
-| `PREVIEW_DATABASE_URL` | `nonprod_app` | `foa_pr` (placeholder) | transaction |
-| `PREVIEW_DIRECT_URL` | `nonprod_migrator` | `foa_pr` (placeholder) | session |
+| Key                    | Role               | Database               | PgBouncer pool |
+| ---------------------- | ------------------ | ---------------------- | -------------- |
+| `PROD_DATABASE_URL`    | `foa_app`          | `foa`                  | transaction    |
+| `PROD_DIRECT_URL`      | `foa_migrator`     | `foa`                  | session        |
+| `STAGING_DATABASE_URL` | `staging_app`      | `foa_staging`          | transaction    |
+| `STAGING_DIRECT_URL`   | `staging_migrator` | `foa_staging`          | session        |
+| `PREVIEW_DATABASE_URL` | `nonprod_app`      | `foa_pr` (placeholder) | transaction    |
+| `PREVIEW_DIRECT_URL`   | `nonprod_migrator` | `foa_pr` (placeholder) | session        |
 
 Staging and previews have separate roles: Vercel has no build-only variables,
 so every preview function can read the preview's `DIRECT_URL`, and a shared
@@ -122,7 +122,7 @@ Then copy the six values from `/etc/foa/vercel-urls.env` into Vercel
 (production, the `staging` custom environment, preview).
 
 To rebuild production from backups instead of starting empty, run the
-`pgbackrest restore` (below) into the `foa-vps_pg-prod-data` volume *before*
+`pgbackrest restore` (below) into the `foa-vps_pg-prod-data` volume _before_
 the first `up` of pg-prod (an initialised volume skips `initdb`, and the
 restored cluster already has its roles). On a new machine that needs the
 off-site repo2; the local repo1 dies with the old VPS.
@@ -137,11 +137,11 @@ foa-pgbouncer`. Postgres config changes: `docker restart foa-pg-prod` (or
 
 PgBouncer (`pgbouncer/pgbouncer.ini`):
 
-| Client database | Goes to | Pool |
-|---|---|---|
-| `foa` | pg-prod `foa` | 20 + 5 reserve per user |
+| Client database                                                   | Goes to                           | Pool                         |
+| ----------------------------------------------------------------- | --------------------------------- | ---------------------------- |
+| `foa`                                                             | pg-prod `foa`                     | 20 + 5 reserve per user      |
 | anything else (`foa_staging`, `foa_pr_*`, `foa_br_*`, `postgres`) | pg-nonprod, same name (`*` entry) | 10 + 2 per database and user |
-| `pgbouncer_auth_prod`, `pgbouncer_auth_nonprod` | each server's `postgres` | auth only (see below) |
+| `pgbouncer_auth_prod`, `pgbouncer_auth_nonprod`                   | each server's `postgres`          | auth only (see below)        |
 
 - `[users]`: `foa_migrator`, `staging_migrator` and `nonprod_migrator` use
   **session** mode (max 10, 10 and 20 server connections); everyone else
@@ -173,16 +173,16 @@ PgBouncer (`pgbouncer/pgbouncer.ini`):
 
 Roles and databases (`postgres/bootstrap/`):
 
-| Server | Role | Rights |
-|---|---|---|
-| pg-prod | `foa_migrator` | LOGIN; owns `foa` (hence `public` via `pg_database_owner`) |
-| pg-prod | `foa_app` | LOGIN; CONNECT on `foa`, USAGE on `public`; `SELECT/INSERT/UPDATE/DELETE` on tables, `USAGE/SELECT` on sequences, `EXECUTE` on functions, all through `ALTER DEFAULT PRIVILEGES FOR ROLE foa_migrator`. Cannot CREATE in `public` |
-| pg-nonprod | `staging_migrator` | LOGIN, no CREATEDB; owns `foa_staging`. pg_hba: `foa_staging` only |
-| pg-nonprod | `staging_app` | LOGIN; CONNECT on `foa_staging`; same DML-only defaults (`FOR ROLE staging_migrator`). pg_hba: `foa_staging` only |
-| pg-nonprod | `nonprod_migrator` | Previews. LOGIN CREATEDB; owns `foa_seed` and the previews it creates; CONNECT on `postgres`. No CONNECT on `foa_staging`, and pg_hba rejects it there |
-| pg-nonprod | `nonprod_app` | Previews. LOGIN; same DML-only defaults (`FOR ROLE nonprod_migrator`); kept out of `foa_staging` the same way |
-| both | `pgbouncer_auth` | LOGIN NOINHERIT; CONNECT on `postgres`; EXECUTE `pgbouncer.get_auth` |
-| both | `postgres` | superuser: container socket, or TCP from 10.112.12.1 (SSH tunnel) only |
+| Server     | Role               | Rights                                                                                                                                                                                                                            |
+| ---------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pg-prod    | `foa_migrator`     | LOGIN; owns `foa` (hence `public` via `pg_database_owner`)                                                                                                                                                                        |
+| pg-prod    | `foa_app`          | LOGIN; CONNECT on `foa`, USAGE on `public`; `SELECT/INSERT/UPDATE/DELETE` on tables, `USAGE/SELECT` on sequences, `EXECUTE` on functions, all through `ALTER DEFAULT PRIVILEGES FOR ROLE foa_migrator`. Cannot CREATE in `public` |
+| pg-nonprod | `staging_migrator` | LOGIN, no CREATEDB; owns `foa_staging`. pg_hba: `foa_staging` only                                                                                                                                                                |
+| pg-nonprod | `staging_app`      | LOGIN; CONNECT on `foa_staging`; same DML-only defaults (`FOR ROLE staging_migrator`). pg_hba: `foa_staging` only                                                                                                                 |
+| pg-nonprod | `nonprod_migrator` | Previews. LOGIN CREATEDB; owns `foa_seed` and the previews it creates; CONNECT on `postgres`. No CONNECT on `foa_staging`, and pg_hba rejects it there                                                                            |
+| pg-nonprod | `nonprod_app`      | Previews. LOGIN; same DML-only defaults (`FOR ROLE nonprod_migrator`); kept out of `foa_staging` the same way                                                                                                                     |
+| both       | `pgbouncer_auth`   | LOGIN NOINHERIT; CONNECT on `postgres`; EXECUTE `pgbouncer.get_auth`                                                                                                                                                              |
+| both       | `postgres`         | superuser: container socket, or TCP from 10.112.12.1 (SSH tunnel) only                                                                                                                                                            |
 
 - `foa_seed` (owned by `nonprod_migrator`) holds only the preview roles'
   default privileges and the `public` grants; `IS_TEMPLATE true
