@@ -128,7 +128,7 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 
 - Vercel reaches the database only through PgBouncer on port 6432. There is no HTTP path from Vercel to the worker: work is handed over through Postgres (Outbox rows and pg-boss jobs).
 - The worker connects to Postgres directly on the Compose network. Apart from fetching the app's public static assets (certificate rendering, §7.7), the only app endpoint it calls is `/api/internal/revalidate` (§2.2).
-- Only PgBouncer on port 6432 (from Vercel Static IPs only) and SSH accept inbound traffic on the VPS. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
+- Only PgBouncer on port 6432 (from Vercel Static IPs only), SSH, and TCP 80 on the host accept inbound traffic on the VPS. Port 80 is used only for the few seconds of a Let's Encrypt HTTP-01 renewal of PgBouncer's certificate, and nothing listens there otherwise; DNS-01 would need an account-wide Vercel token on the VPS. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
 - Until the Static IPs are bought (#12), port 6432 is open to all, protected by TLS, SCRAM, 32-byte random passwords and CrowdSec.
 - Worker images are built by GitHub Actions, pushed to GHCR tagged with the commit SHA, and deployed with `docker compose pull && docker compose up -d --wait`. A rollback redeploys the previous tag.
 

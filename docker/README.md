@@ -118,8 +118,11 @@ scripts/restore-drill.sh
 scripts/smoke-test.sh                        # client checks through db.shipped-it.dev:6432
 ```
 
-Then copy the six values from `/etc/foa/vercel-urls.env` into Vercel
-(production, the `staging` custom environment, preview).
+Then copy the values from `/etc/foa/vercel-urls.env` into Vercel: `PROD_*`
+into Production and `PREVIEW_*` into Preview, as `DATABASE_URL` and
+`DIRECT_URL`. Staging is deferred to #13: the Vercel `staging` custom
+environment does not exist yet (the API token could not create it), so the
+`STAGING_*` values wait for it. `foa_staging` and its roles are ready.
 
 To rebuild production from backups instead of starting empty, run the
 `pgbackrest restore` (below) into the `foa-vps_pg-prod-data` volume _before_
@@ -375,7 +378,11 @@ afterwards.
 1. **Vercel Static IPs** (deferred): allowlist them in
    `/etc/foa/firewall.env`, the Hostinger firewall and the CrowdSec whitelist.
    Until then 6432 is open to the internet, protected by TLS, SCRAM with
-   32-byte random passwords, PgBouncer 1.26.1 and CrowdSec.
+   32-byte random passwords, PgBouncer 1.26.1 and CrowdSec. Vercel **builds**
+   run in `iad1` (Washington), not in `bom1` with the functions, and the
+   migrations run in the build: turning on "Use Static IPs for builds" needs a
+   static-IP region for builds as well, and its IPs on the allowlist, or the
+   allowlist blocks every migration.
 2. **Off-site backups on FOA's Cloudflare (#18)**: pgBackRest `repo2` on R2
    (own passphrase), plus a daily `age`-encrypted `pg_dump` to a separate,
    bucket-locked R2 bucket kept 35 days. Until then backups live on the same
@@ -390,3 +397,11 @@ afterwards.
 6. The future worker connects directly on the `db` network (pg_hba already
    allows the app roles from 10.112.12.0/24); give it its own role if it
    needs rights beyond `foa_app`.
+7. **One build per branch** (owner): Vercel → Project Settings → Build and
+   Deployment → On-Demand Concurrent Builds → "Run up to one build per
+   branch". The API refused the change for lack of permission. Meanwhile the
+   migration's advisory lock keeps concurrent builds of one branch from
+   applying the same migration twice.
+8. **Staging (#13)**: create the Vercel `staging` custom environment and give
+   it `STAGING_DATABASE_URL`/`STAGING_DIRECT_URL` (as `DATABASE_URL` and
+   `DIRECT_URL`) from `/etc/foa/vercel-urls.env`.

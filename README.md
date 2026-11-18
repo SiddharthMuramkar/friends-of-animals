@@ -135,10 +135,13 @@ scripts/
 └── brand-assets.ts           # derives logo PNGs and icons from the SVG master
 public/brand/                 # the registered logo: SVG master + derived assets
 specifications/               # the platform spec
+docker/                       # the VPS database stack: Postgres, PgBouncer, backups (runbook: docker/README.md)
 Dockerfile, docker-compose.yml
 ```
 
-Still to come, per SPEC §2.1: the route groups under `src/app/`, `src/server/{domain,jobs,integrations,auth}/`, `src/worker/`, `src/emails/`, `src/i18n/` + `messages/`, `docker/` for the VPS, and `tests/e2e/`.
+Still to come, per SPEC §2.1: the route groups under `src/app/`, `src/server/{domain,jobs,integrations,auth}/`, `src/worker/`, `src/emails/`, `src/i18n/` + `messages/`, and `tests/e2e/`.
+
+`docker/` is not part of the app: it is the database stack the VPS runs (Postgres, PgBouncer, backups, firewall), with its own runbook, [`docker/README.md`](docker/README.md).
 
 Code that must never reach the browser starts with `import "server-only"`, so importing it from a Client Component fails the build. Today that is `src/env.ts` and `src/server/db/index.ts`.
 
@@ -222,8 +225,8 @@ The schemas live in `src/env.schema.ts`. The server validates its environment as
 The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel.json`. Vercel detects Next.js and runs the `vercel-build` script, which applies the migrations and then builds:
 
 - Migrations connect through `DIRECT_URL` only (the migrator role, which PgBouncer gives session mode), never `DATABASE_URL`. It must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails.
-- Each preview deployment gets its own database (`foa_pr_<n>`, or `foa_br_<slug>_<hash>` before its PR) on the non-production Postgres, created during the build ([Databases on Vercel](#databases-on-vercel)). Staging, the Vercel custom environment `staging` at foa.shipped-it.dev, uses `foa_staging`.
-- The databases (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups, and the `foa_seed` template) are set up in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12); deploying `main` with these variables set follows in #13. Until `scripts/seed.ts` exists, `foa_seed` is empty and previews start with the schema only.
+- Each preview deployment gets its own database (`foa_pr_<n>`, or `foa_br_<slug>_<hash>` before its PR) on the non-production Postgres, created during the build ([Databases on Vercel](#databases-on-vercel)). Staging, the Vercel custom environment `staging` at foa.shipped-it.dev, will use `foa_staging` with its own roles; it is deferred to #13, because the custom environment doesn't exist yet (the API token couldn't create it).
+- The databases (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups, and the `foa_seed` template) are set up in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), from `docker/` (runbook: [`docker/README.md`](docker/README.md)); deploying `main` with these variables set follows in #13. Until `scripts/seed.ts` exists, `foa_seed` is empty and previews start with the schema only.
 
 Set `APP_ENV`, `DATABASE_URL` and `DIRECT_URL` per environment in the Vercel project settings, and `APP_URL` for staging and production; without them the build fails. Vercel exposes them to the build as well as at runtime, which `APP_URL` needs.
 
