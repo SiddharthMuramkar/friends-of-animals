@@ -1,12 +1,264 @@
+import { Clock } from "lucide-react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
-// Stub: the story page's own task replaces this with real content and slugs.
-// Cache Components needs at least one param; the placeholder renders a 404.
+import { TileCover } from "@/components/showcase/card-cover";
+import { StoryCard } from "@/components/showcase/story-card";
+import { Chip } from "@/components/site/chip";
+import { JsonLd } from "@/components/site/json-ld";
+import { Photo } from "@/components/site/photo";
+import { Section } from "@/components/site/section";
+import { TileMarker } from "@/components/site/tile";
+import {
+  STORIES,
+  STORY_SLUGS,
+  type Story,
+  getStory,
+  isStorySlug,
+  loadArticle,
+} from "@/content/stories";
+import { metaDescription, tableOfContents } from "@/content/stories/text";
+import { siteUrl } from "@/env";
+import { ROUTES, slugHref } from "@/lib/routes";
+import { pageMetadata } from "@/lib/seo";
+import { SITE } from "@/lib/site";
+
+import { ArticleBodyView, SourceList } from "./_components/article-body";
+import styles from "./_components/article.module.css";
+import { FactChecks } from "../_components/fact-checks";
+import { ReadAloud } from "./_components/read-aloud";
+
+const AUDIENCE_TONE = {
+  kids: "green",
+  families: "blue",
+  everyone: "pink",
+} as const;
+
+const BODY_ID = "article-body";
+
 export function generateStaticParams() {
-  return [{ slug: "__placeholder__" }];
+  return STORY_SLUGS.map((slug) => ({ slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps<"/blog/[slug]">): Promise<Metadata> {
+  const { slug } = await params;
+  if (!isStorySlug(slug)) return {};
+  const story = getStory(slug);
+  return pageMetadata({
+    title: story.title,
+    description: metaDescription(story.dek),
+    path: slugHref("story", slug),
+  });
+}
+
+/** Up to two other stories, same audience first. */
+function related(story: Story): Story[] {
+  const others = STORIES.filter((s) => s.slug !== story.slug);
+  return [
+    ...others.filter((s) => s.audience === story.audience),
+    ...others.filter((s) => s.audience !== story.audience),
+  ].slice(0, 2);
 }
 
 export default async function Page({ params }: PageProps<"/blog/[slug]">) {
-  await params;
-  notFound();
+  const { slug } = await params;
+  if (!isStorySlug(slug)) notFound();
+  const story = getStory(slug);
+  const body = await loadArticle(slug);
+  const toc = tableOfContents(body.blocks);
+
+  const [t, tc, tr, format, locale] = await Promise.all([
+    getTranslations("stories.article"),
+    getTranslations("showcase.story"),
+    getTranslations("stories.readAloud"),
+    getFormatter(),
+    getLocale(),
+  ]);
+  const published = format.dateTime(new Date(story.publishedOn), "long");
+
+  const base = siteUrl();
+  const url = new URL(slugHref("story", slug), base).href;
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: story.title,
+      description: story.dek,
+      datePublished: story.publishedOn,
+      inLanguage: "en-IN",
+      mainEntityOfPage: url,
+      author: { "@type": "Organization", name: SITE.name },
+      publisher: {
+        "@type": "Organization",
+        name: SITE.name,
+        logo: new URL(SITE.logo.src, base).href,
+      },
+      citation: body.footnotes.map((f) => f.url),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { name: t("home"), path: "/" },
+        { name: t("allStories"), path: ROUTES.stories.path },
+        { name: story.title, path: slugHref("story", slug) },
+      ].map((c, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: c.name,
+        item: new URL(c.path, base).href,
+      })),
+    },
+  ];
+
+  return (
+    <>
+      <div aria-hidden="true" className={styles.progress} />
+      <JsonLd data={jsonLd} />
+      <article>
+        <Section
+          hue="yellow"
+          tone="tint"
+          className="pt-8 pb-12 sm:pt-10 sm:pb-16"
+        >
+          <nav aria-label={t("breadcrumb")} className="text-sm">
+            <ol className="flex flex-wrap items-center gap-x-2 text-ink-muted">
+              <li>
+                <Link
+                  href={ROUTES.stories.path}
+                  className="inline-flex min-h-6 items-center font-semibold text-link underline underline-offset-2 hover:text-link-hover"
+                >
+                  {t("allStories")}
+                </Link>
+              </li>
+              <li aria-hidden="true">/</li>
+              <li aria-current="page" className="line-clamp-1">
+                {story.title}
+              </li>
+            </ol>
+          </nav>
+          <div className="mt-8 grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <header>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <Chip tone={AUDIENCE_TONE[story.audience]}>
+                  {tc(`audience.${story.audience}`)}
+                </Chip>
+                <span className="inline-flex items-center gap-1.5 text-sm text-ink-muted">
+                  <Clock aria-hidden="true" className="size-4" />
+                  {tc("minutes", { minutes: story.readingMinutes })}
+                </span>
+                <span className="text-sm text-ink-muted">
+                  {t("published", { date: published })}
+                </span>
+              </div>
+              <h1 className="mt-4 text-(--section-heading)">{story.title}</h1>
+              <p className="mt-5 max-w-prose text-lead text-ink">{story.dek}</p>
+              <p className="mt-6 flex max-w-prose flex-wrap items-baseline gap-x-3 rounded-2xl border-2 border-dashed border-yellow-700/50 bg-surface px-4 py-3 text-ink">
+                <span className="font-hand text-lead text-(--section-heading)">
+                  {t("easyReadLabel")}
+                </span>
+                <span>{story.easyRead}</span>
+              </p>
+              <div className="mt-6">
+                <ReadAloud
+                  targetId={BODY_ID}
+                  locale={locale}
+                  labels={{
+                    listen: tr("listen"),
+                    pause: tr("pause"),
+                    resume: tr("resume"),
+                    stop: tr("stop"),
+                    onlineVoice: tr("onlineVoice"),
+                    group: tr("group"),
+                  }}
+                />
+              </div>
+            </header>
+            {story.coverImageId ? (
+              <Photo
+                id={story.coverImageId}
+                preload
+                frame="blue"
+                frameCorner="bottom-right"
+                sizes="(min-width: 1024px) 520px, 92vw"
+                className="aspect-4/3"
+              />
+            ) : (
+              <TileCover
+                seed={story.slug}
+                className="rounded-3xl border-2 border-yellow-700/20 bg-surface"
+              />
+            )}
+          </div>
+        </Section>
+
+        <Section hue="yellow" className="pt-10 sm:pt-14">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-14">
+            <nav
+              aria-labelledby="toc"
+              className="lg:sticky lg:top-[calc(var(--header-height)+1.5rem)] lg:order-2 lg:self-start"
+            >
+              <div className="rounded-3xl border-2 border-border bg-surface p-5">
+                <p
+                  id="toc"
+                  className="flex items-center gap-2 font-display text-lead font-semibold"
+                >
+                  <TileMarker hue="yellow" size="sm" />
+                  {t("toc")}
+                </p>
+                <ol className="mt-3 space-y-1 text-sm">
+                  {toc.map((h) => (
+                    <li key={h.id}>
+                      <a
+                        href={`#${h.id}`}
+                        className="flex min-h-8 items-center rounded-lg px-2 text-ink hover:bg-surface-muted hover:text-link"
+                      >
+                        {h.text}
+                      </a>
+                    </li>
+                  ))}
+                  <li>
+                    <a
+                      href="#sources"
+                      className="flex min-h-8 items-center rounded-lg px-2 text-ink-muted hover:bg-surface-muted hover:text-link"
+                    >
+                      {t("sources")}
+                    </a>
+                  </li>
+                </ol>
+              </div>
+            </nav>
+            <div className="min-w-0 lg:order-1">
+              <ArticleBodyView body={body} id={BODY_ID} />
+              <SourceList footnotes={body.footnotes} />
+              <FactChecks className="mt-12" />
+            </div>
+          </div>
+        </Section>
+      </article>
+
+      <Section hue="yellow" tone="tint" labelledBy="related">
+        <h2 id="related" className="text-h2 text-(--section-heading)">
+          {t("related")}
+        </h2>
+        <ul className="mt-8 grid gap-6 md:grid-cols-2">
+          {related(story).map((s) => (
+            <li key={s.slug} className="flex">
+              <StoryCard story={s} className="w-full" />
+            </li>
+          ))}
+        </ul>
+        <Link
+          href={ROUTES.stories.path}
+          className="mt-8 inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-4 hover:text-link-hover"
+        >
+          {t("allStoriesLink")}
+        </Link>
+      </Section>
+    </>
+  );
 }
