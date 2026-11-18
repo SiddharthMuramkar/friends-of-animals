@@ -1,6 +1,10 @@
 .DS_Store
-.env
+*.pem
 /node_modules/
+
+# Env files (local secrets); only the example is committed
+.env*
+!.env.example
 
 # Next.js
 /.next/
