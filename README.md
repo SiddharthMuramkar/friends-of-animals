@@ -128,6 +128,7 @@ src/
 drizzle/                      # generated SQL migrations (committed)
 scripts/
 ├── migrate.ts                # applies migrations through DIRECT_URL
+├── load-env.ts               # loads .env.local and .env for scripts and drizzle-kit
 └── brand-assets.ts           # derives logo PNGs and icons from the SVG master
 public/brand/                 # the registered logo: SVG master + derived assets
 specifications/               # the platform spec
