@@ -3,6 +3,71 @@
     "meta": {
       "title": "Contact us",
       "description": "How to reach Friends of Animals, and where to go with a safeguarding concern."
+    },
+    "hero": {
+      "eyebrow": "Contact",
+      "title": "Write to us",
+      "lead": "Tell us what your message is about, and it reaches the right person sooner.",
+      "photoCaption": "A street dog resting by a gate in the evening light"
+    },
+    "safety": {
+      "title": "Worried about a child's safety?",
+      "body": "Please don't wait for an email reply. In an emergency, call 112. For a child who needs help, call Childline on 1098. For abuse online, report it at cybercrime.gov.in or call 1930.",
+      "link": "Go to our safeguarding page"
+    },
+    "details": {
+      "title": "How to reach us",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Post",
+      "reply": "We aim to reply within 2 working days.",
+      "form": "A contact form is coming. Until then, please use email."
+    },
+    "topics": {
+      "title": "What is it about?",
+      "lead": "Start your subject line with the topic, for example “Schools: our school in Pune”, and tell us what you need.",
+      "items": {
+        "GENERAL": {
+          "title": "General",
+          "body": "Questions about Friends of Animals, this website, or anything not listed here."
+        },
+        "SCHOOLS": {
+          "title": "Schools",
+          "body": "Bringing a competition to your school. Tell us the school's name, city and the classes you have in mind."
+        },
+        "NGOS": {
+          "title": "Animal welfare groups",
+          "body": "NGOs, shelters and rescuers who would like to work with us. Tell us where you work and what you do."
+        },
+        "ADOPTION": {
+          "title": "Adoption",
+          "body": "We are not a shelter and don't have animals for adoption. Help connecting adopters with shelters is coming later."
+        },
+        "VOLUNTEERING": {
+          "title": "Volunteering",
+          "body": "Volunteering opens later. Write to us now with your city and how you would like to help, and we will keep your note."
+        },
+        "DONATIONS": {
+          "title": "Donations and payments",
+          "body": "Questions about giving, a fee you paid, or a refund. Include your registration or receipt number if you have one."
+        },
+        "MEDIA": {
+          "title": "Media",
+          "body": "Journalists and writers. Tell us your publication and your deadline."
+        }
+      },
+      "safeguarding": {
+        "title": "Safeguarding concern",
+        "body": "Don't email us about a child at risk. Use the safeguarding page, which explains who to call first.",
+        "link": "Safeguarding"
+      }
+    },
+    "policies": {
+      "title": "Before you write",
+      "body": "These pages may already answer your question.",
+      "pricing": "Pricing",
+      "refunds": "Refunds",
+      "privacy": "Privacy"
     }
   }
 }
