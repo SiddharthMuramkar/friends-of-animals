@@ -462,7 +462,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `DEV_OTP_BYPASS_CODE` | local, preview | Test OTP; ignored in production |
 | `IMAGE_SAFETY_API_KEY`, `DIGILOCKER_CLIENT_ID`, `DIGILOCKER_CLIENT_SECRET` | optional (flags) | Post-MVP integrations |
 
-Env is validated at boot with zod (`src/env.ts`), in the app and in the worker. A missing required variable fails the build or start. Backup credentials (pgBackRest and dump-bucket R2 tokens, the repository cipher passphrase) live only on the VPS, never in Vercel.
+Env is validated at boot with zod (`src/env.ts`), in the app and in the worker: the app validates it in `register()` (`src/instrumentation.ts`), so a missing required variable fails the start. `next build` needs no required variable; the Vercel build still fails without `DIRECT_URL`, because `vercel-build` runs the migrations through it. Backup credentials (pgBackRest and dump-bucket R2 tokens, the repository cipher passphrase) live only on the VPS, never in Vercel.
 
 **Runtime settings.** `Setting { key String @id, value Json, updatedBy String, updatedAt DateTime }` is the runtime configuration table that SUPER_ADMIN edits. Each section's config keys live here, and changes are audit-logged.
 

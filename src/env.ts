@@ -1,30 +1,25 @@
 import "server-only";
 
-import { envSchema, parseEnv, type Env } from "./env.schema";
+import { buildEnvSchema, envSchema, parseEnv, type Env } from "./env.schema";
 
 let cached: Env | undefined;
 
 /**
- * The server config: process.env, parsed with `envSchema` on the first call
- * and cached. Importing this module never throws.
+ * The server config: process.env parsed with `envSchema` on the first call,
+ * then cached. Throws if a required variable is missing or invalid.
+ * src/instrumentation.ts calls it as the server starts, so that happens at
+ * boot. `next build` has no runtime config, so code that runs while pages
+ * are prerendered must not call it.
  */
 export function env(): Env {
   cached ??= parseEnv(envSchema, process.env);
   return cached;
 }
 
-/** The runtime database URL. Throws if DATABASE_URL is not set. */
-export function databaseUrl(config: Env = env()): string {
-  if (!config.DATABASE_URL) {
-    throw new Error(
-      "DATABASE_URL is not set. Point it at a Postgres database, e.g. " +
-        "postgres://foa:foa@localhost:5432/foa (see .env.example)."
-    );
-  }
-  return config.DATABASE_URL;
-}
-
-/** Absolute site origin for metadata and links; localhost when unset. */
-export function siteUrl(config: Env = env()): URL {
-  return new URL(config.APP_URL ?? "http://localhost:3000");
+/**
+ * Canonical base URL (APP_URL) for metadata and absolute links. Prerendered
+ * pages call this during `next build`, so it reads only `buildEnvSchema`.
+ */
+export function siteUrl(): URL {
+  return new URL(parseEnv(buildEnvSchema, process.env).APP_URL);
 }

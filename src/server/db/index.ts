@@ -3,15 +3,14 @@ import "server-only";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import { databaseUrl } from "@/env";
+import { env } from "@/env";
 
 import * as schema from "./schema";
 
-// The connection opens lazily, on first use, so importing this module never
-// needs DATABASE_URL. That keeps `next build` and pages that don't query the
-// database working without one.
+// The connection opens lazily, on first use, so importing this module needs
+// no database. `next build` imports it without one.
 function createDb() {
-  const client = postgres(databaseUrl(), {
+  const client = postgres(env().DATABASE_URL, {
     // PgBouncer in transaction mode (our only public database endpoint)
     // doesn't support prepared statements.
     prepare: false,

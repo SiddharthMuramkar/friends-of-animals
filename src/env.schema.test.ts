@@ -1,26 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { envSchema, migrationEnvSchema, parseEnv } from "./env.schema";
+import {
+  buildEnvSchema,
+  envSchema,
+  migrationEnvSchema,
+  parseEnv,
+} from "./env.schema";
 
 const DATABASE_URL = "postgres://foa:foa@localhost:5432/foa";
 
 describe("parseEnv", () => {
-  it("applies defaults and needs no database at parse time", () => {
-    const config = parseEnv(envSchema, {});
-    expect(config.NODE_ENV).toBe("development");
-    expect(config.APP_ENV).toBe("local");
-    expect(config.DATABASE_URL).toBeUndefined();
-  });
-
   it("treats empty strings as unset", () => {
-    const config = parseEnv(envSchema, { DATABASE_URL: "", APP_ENV: "" });
-    expect(config.DATABASE_URL).toBeUndefined();
+    const config = parseEnv(buildEnvSchema, { APP_ENV: "", APP_URL: "" });
     expect(config.APP_ENV).toBe("local");
+    expect(config.APP_URL).toBe("http://localhost:3000");
+    expect(() => parseEnv(envSchema, { DATABASE_URL: "" })).toThrow(
+      /DATABASE_URL is not set/
+    );
   });
 
   it("drops variables the schema doesn't name", () => {
-    expect(parseEnv(envSchema, { HOME: "/root" })).not.toHaveProperty("HOME");
+    expect(parseEnv(buildEnvSchema, { HOME: "/root" })).not.toHaveProperty(
+      "HOME"
+    );
   });
 
   it("lists every invalid variable in one error", () => {
@@ -31,12 +34,40 @@ describe("parseEnv", () => {
   });
 });
 
-describe("envSchema", () => {
+describe("buildEnvSchema", () => {
+  it("needs nothing, so `next build` runs without a database or secrets", () => {
+    expect(parseEnv(buildEnvSchema, {})).toEqual({
+      NODE_ENV: "development",
+      APP_ENV: "local",
+      APP_URL: "http://localhost:3000",
+    });
+  });
+
   it("accepts every APP_ENV and rejects anything else", () => {
     for (const appEnv of ["local", "preview", "staging", "production"]) {
-      expect(parseEnv(envSchema, { APP_ENV: appEnv }).APP_ENV).toBe(appEnv);
+      expect(parseEnv(buildEnvSchema, { APP_ENV: appEnv }).APP_ENV).toBe(
+        appEnv
+      );
     }
-    expect(() => parseEnv(envSchema, { APP_ENV: "prod" })).toThrow(/APP_ENV/);
+    expect(() => parseEnv(buildEnvSchema, { APP_ENV: "prod" })).toThrow(
+      /APP_ENV/
+    );
+  });
+
+  it("requires APP_URL to be an http(s) URL", () => {
+    expect(() => parseEnv(buildEnvSchema, { APP_URL: "example.org" })).toThrow(
+      /APP_URL/
+    );
+    expect(
+      parseEnv(buildEnvSchema, { APP_URL: "https://foa.shipped-it.dev" })
+        .APP_URL
+    ).toBe("https://foa.shipped-it.dev");
+  });
+});
+
+describe("envSchema", () => {
+  it("requires DATABASE_URL", () => {
+    expect(() => parseEnv(envSchema, {})).toThrow(/DATABASE_URL is not set/);
   });
 
   it("only accepts a postgres URL for DATABASE_URL", () => {
@@ -45,16 +76,16 @@ describe("envSchema", () => {
     );
     expect(() =>
       parseEnv(envSchema, { DATABASE_URL: "mysql://localhost/foa" })
-    ).toThrow(/DATABASE_URL/);
+    ).toThrow(/must be a postgres:\/\/ .*\n.*at DATABASE_URL/);
   });
 
-  it("requires APP_URL to be an http(s) URL", () => {
-    expect(() => parseEnv(envSchema, { APP_URL: "example.org" })).toThrow(
-      /APP_URL/
-    );
-    expect(
-      parseEnv(envSchema, { APP_URL: "https://foa.shipped-it.dev" }).APP_URL
-    ).toBe("https://foa.shipped-it.dev");
+  it("includes the build variables", () => {
+    const config = parseEnv(envSchema, {
+      DATABASE_URL,
+      APP_URL: "https://example.org",
+    });
+    expect(config.APP_URL).toBe("https://example.org");
+    expect(config.APP_ENV).toBe("local");
   });
 });
 

@@ -16,8 +16,11 @@ function postgresUrl(whenUnset: string) {
   });
 }
 
-/** The app's server config. */
-export const envSchema = z.object({
+/**
+ * What pages may read while `next build` prerenders them. Nothing here is
+ * required, so the build needs no database and no secrets.
+ */
+export const buildEnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
@@ -29,18 +32,25 @@ export const envSchema = z.object({
     .enum(["local", "preview", "staging", "production"])
     .default("local"),
   /**
-   * Runtime connection (PgBouncer in transaction mode on Vercel). Optional
-   * here so `next build` works without a database; `databaseUrl()` enforces
-   * it when the database is actually used.
-   */
-  DATABASE_URL: postgresUrl("DATABASE_URL is not set").optional(),
-  /**
    * Canonical base URL, e.g. https://foa.shipped-it.dev (§13.9). Only the
-   * server reads it, so it needs no NEXT_PUBLIC_ prefix.
+   * server reads it, so it needs no NEXT_PUBLIC_ prefix, but prerendered
+   * pages bake it in at build time.
    */
   APP_URL: z
     .url({ protocol: /^https?$/, error: "must be an http(s) URL" })
-    .optional(),
+    .default("http://localhost:3000"),
+});
+
+/**
+ * The app server's config, validated when the server starts
+ * (src/instrumentation.ts). A missing required variable fails the start.
+ */
+export const envSchema = buildEnvSchema.extend({
+  /** Runtime connection (PgBouncer in transaction mode on Vercel). */
+  DATABASE_URL: postgresUrl(
+    "DATABASE_URL is not set. Point it at a Postgres database, e.g. " +
+      "postgres://foa:foa@localhost:5432/foa (see .env.example)."
+  ),
 });
 
 export type Env = z.output<typeof envSchema>;

@@ -118,6 +118,7 @@ src/
 ├── lib/                      # pure utilities, safe anywhere: site.ts (branding), utils.ts (cn), theme.ts
 ├── env.schema.ts             # Zod env schemas + `parseEnv()`; no server-only, so scripts can use it
 ├── env.ts                    # server-only, cached config accessor (`env()`)
+├── instrumentation.ts        # validates the env when the server starts (+ instrumentation-node.ts)
 ├── server/db/
 │   ├── index.ts              # lazily connected Drizzle client (`db`)
 │   └── schema/index.ts       # schema barrel: one file per module, re-exported here
@@ -152,7 +153,7 @@ For SQL that Drizzle can't express (extensions, functions, triggers), create an 
 
 Never edit a migration that has already been applied anywhere; generate a new one instead.
 
-The app's `db` client connects on first use, with prepared statements off (PgBouncer in transaction mode doesn't support them). Pages that don't query the database never need `DATABASE_URL`, and `next build` runs without it.
+The app's `db` client connects on first use, with prepared statements off (PgBouncer in transaction mode doesn't support them). Importing it needs no database, so `next build` runs without `DATABASE_URL`; the server itself won't start without it (see [Environment variables](#environment-variables)).
 
 ## Testing
 
@@ -185,12 +186,14 @@ Under Vitest, `server-only` resolves to an empty module, so server code can be i
 
 Copy `.env.example` to `.env` for local development. Next.js, drizzle-kit and `pnpm db:migrate` all read it. In app code, read server config through `env()` from `@/env` rather than `process.env`.
 
-| Variable       | Required                  | Description                                                                                                                                                                            |
-| -------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL` | when the database is used | Runtime Postgres URL. On Vercel: PgBouncer on the VPS.                                                                                                                                 |
-| `DIRECT_URL`   | for migrations            | Direct (session-mode) URL for `pnpm db:migrate` and drizzle-kit, which never fall back to `DATABASE_URL`. Locally the same URL as `DATABASE_URL`.                                      |
-| `APP_URL`      | no                        | Canonical base URL for absolute URLs (Open Graph images). Defaults to `http://localhost:3000`. Read only on the server, but prerendered pages bake it in, so set it at build time too. |
-| `APP_ENV`      | no                        | `local` (default), `preview`, `staging` or `production`. Branch on this for behaviour switches, not on `VERCEL_ENV`.                                                                   |
+The schemas live in `src/env.schema.ts`. The server validates its environment as it starts (`register()` in `src/instrumentation.ts`): if a required variable is missing or invalid, it prints the problems and exits instead of serving errors. `next build` needs none of them: code that runs while pages are prerendered reads only `buildEnvSchema` (`APP_URL`, `APP_ENV`, `NODE_ENV`), and every variable in it has a default.
+
+| Variable       | Required            | Description                                                                                                                                                                            |
+| -------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL` | to start the server | Runtime Postgres URL. On Vercel: PgBouncer on the VPS. Not needed by `next build`.                                                                                                     |
+| `DIRECT_URL`   | for migrations      | Direct (session-mode) URL for `pnpm db:migrate` and drizzle-kit, which never fall back to `DATABASE_URL`. Locally the same URL as `DATABASE_URL`.                                      |
+| `APP_URL`      | no                  | Canonical base URL for absolute URLs (Open Graph images). Defaults to `http://localhost:3000`. Read only on the server, but prerendered pages bake it in, so set it at build time too. |
+| `APP_ENV`      | no                  | `local` (default), `preview`, `staging` or `production`. Branch on this for behaviour switches, not on `VERCEL_ENV`.                                                                   |
 
 ## Deploying
 
