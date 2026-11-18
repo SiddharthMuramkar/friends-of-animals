@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   images: {
+    // AVIF first, WebP fallback; next/image picks per the Accept header.
     formats: ["image/avif", "image/webp"],
     qualities: [75, 85],
   },
