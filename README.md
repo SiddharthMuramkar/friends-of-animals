@@ -113,7 +113,8 @@ src/
 │   ├── layout.tsx            # <html>, metadata, Inter, theme script, header/footer, toaster
 │   ├── page.tsx              # brand landing page
 │   ├── not-found.tsx, error.tsx, global-error.tsx
-│   └── globals.css           # Tailwind 4 + shadcn theme
+│   ├── globals.css           # Tailwind 4 + shadcn theme
+│   └── api/health/route.ts   # GET /api/health: database check for uptime monitors
 ├── components/
 │   ├── ui/                   # shadcn/ui primitives
 │   └── logo.tsx, site-header.tsx, site-footer.tsx, theme-toggle.tsx
@@ -123,11 +124,13 @@ src/
 ├── instrumentation.ts        # validates the env when the server starts (+ instrumentation-node.ts)
 ├── server/db/
 │   ├── index.ts              # lazily connected Drizzle client (`db`)
+│   ├── database-url.ts       # preview database names, URL rewriting, direct TLS; no server-only
 │   └── schema/index.ts       # schema barrel: one file per module, re-exported here
 └── test/db.ts                # PGlite test database (`createTestDb()`)
 drizzle/                      # generated SQL migrations (committed)
 scripts/
-├── migrate.ts                # applies migrations through DIRECT_URL
+├── migrate.ts                # applies migrations through DIRECT_URL, under an advisory lock
+├── preview-database.ts       # creates a preview's database from foa_seed
 ├── load-env.ts               # loads .env.local and .env for scripts and drizzle-kit
 └── brand-assets.ts           # derives logo PNGs and icons from the SVG master
 public/brand/                 # the registered logo: SVG master + derived assets
@@ -139,7 +142,7 @@ Still to come, per SPEC §2.1: the route groups under `src/app/`, `src/server/{d
 
 Code that must never reach the browser starts with `import "server-only"`, so importing it from a Client Component fails the build. Today that is `src/env.ts` and `src/server/db/index.ts`.
 
-Outside a Next.js server bundle, `server-only` throws as soon as it is imported. So the schema files in `src/server/db/schema/` (drizzle-kit loads them), `src/env.schema.ts` (the migration script and drizzle-kit parse their env with it), `scripts/`, and anything else that runs under plain Node must not import it, directly or through another module. The future `src/worker/` must either stick to such modules or start Node with `--conditions=react-server`, under which `server-only` resolves to an empty module.
+Outside a Next.js server bundle, `server-only` throws as soon as it is imported. So the schema files in `src/server/db/schema/` (drizzle-kit loads them), `src/env.schema.ts` and `src/server/db/database-url.ts` (the migration script and drizzle-kit use them), `scripts/`, and anything else that runs under plain Node must not import it, directly or through another module. The future `src/worker/` must either stick to such modules or start Node with `--conditions=react-server`, under which `server-only` resolves to an empty module.
 
 ## Database and migrations
 
@@ -156,7 +159,23 @@ For SQL that Drizzle can't express (extensions, functions, triggers), create an 
 
 Never edit a migration that has already been applied anywhere; generate a new one instead.
 
-The app's `db` client connects on first use, with prepared statements off (PgBouncer in transaction mode doesn't support them). Importing it needs no database, so `next build` runs without `DATABASE_URL`; the server itself won't start without it (see [Environment variables](#environment-variables)).
+The app's `db` client connects on first use, with prepared statements off (PgBouncer in transaction mode doesn't support them), a pool of 5, a 5 s connect timeout and a 20 s idle timeout. Importing it needs no database, so `next build` runs without `DATABASE_URL`; the server itself won't start without it (see [Environment variables](#environment-variables)). TLS comes from the URL's `sslmode`: `verify-full` on Vercel, none locally. When `sslmode` always encrypts, the client also starts TLS on the first byte (`sslnegotiation: 'direct'`, which PgBouncer accepts since 1.25), saving a round trip per connection.
+
+`pnpm db:migrate` holds a Postgres advisory lock (key `5066339983389443922`, the bytes of `FOA_MIGR`) while it migrates, because Drizzle's migrator takes none and Vercel can build two commits of one branch at once: a second run logs that it is waiting, then finds nothing left to apply. Advisory locks belong to one database, so previews don't wait for each other.
+
+### Databases on Vercel
+
+Both URLs point at PgBouncer on the VPS, `db.shipped-it.dev:6432`, with `?sslmode=verify-full`. PgBouncer sends database `foa` to `pg-prod` and every other name to `pg-nonprod`.
+
+| Environment | Database in the URL                 | `DATABASE_URL` role | `DIRECT_URL` role  |
+| ----------- | ----------------------------------- | ------------------- | ------------------ |
+| production  | `foa`                               | `foa_app`           | `foa_migrator`     |
+| staging     | `foa_staging`                       | `nonprod_app`       | `nonprod_migrator` |
+| preview     | `foa_pr`, a placeholder (see below) | `nonprod_app`       | `nonprod_migrator` |
+
+The app roles can only read and write rows, and PgBouncer pools them by transaction. The migrator roles own the schema and get session mode through a per-user `pool_mode`, so the migration's advisory lock holds.
+
+Every preview gets a database of its own. With `APP_ENV=preview`, `src/server/db/database-url.ts` replaces the placeholder with `foa_pr_<n>` from `VERCEL_GIT_PULL_REQUEST_ID`, or, before the branch has a PR, `foa_br_<branch>` from `VERCEL_GIT_COMMIT_REF` (lowercased, other characters turned into `_`, and cut to 63 bytes with a hash of the branch when it is long). `pnpm db:migrate` first runs `CREATE DATABASE <name> TEMPLATE foa_seed` (an existing database counts as success) and comments the database `foa-preview pr=<n>` or `foa-preview branch=<ref>`. An hourly sweeper on the VPS reads that comment and drops the databases of closed PRs and deleted branches.
 
 ## Testing
 
@@ -189,24 +208,26 @@ Under Vitest, `server-only` resolves to an empty module, so server code can be i
 
 Copy `.env.example` to `.env` for local development. Next.js, drizzle-kit and `pnpm db:migrate` all read it. In app code, read server config through `env()` from `@/env` rather than `process.env`.
 
-The schemas live in `src/env.schema.ts`. The server validates its environment as it starts (`register()` in `src/instrumentation.ts`): if a required variable is missing or invalid, it prints the problems and exits instead of serving errors. `next build` needs no database: code that runs while pages are prerendered reads only `buildEnvSchema` (`APP_URL`, `APP_ENV`, `NODE_ENV`). A local run may leave all of them out. A deployment may not: `APP_URL` is required whenever `APP_ENV` is anything but `local`, and `APP_ENV` is required on Vercel (where `VERCEL` is set), at build time and at runtime.
+The schemas live in `src/env.schema.ts`. The server validates its environment as it starts (`register()` in `src/instrumentation.ts`): if a required variable is missing or invalid, it prints the problems and exits instead of serving errors. `next build` needs no database: code that runs while pages are prerendered reads only `buildEnvSchema` (`APP_URL`, `APP_ENV`, `NODE_ENV`). A local run may leave all of them out. A deployment may not: `APP_URL` is required on staging and production, and `APP_ENV` is required on Vercel (where `VERCEL` is set), at build time and at runtime. A preview without `APP_URL` uses `https://$VERCEL_BRANCH_URL` (or `VERCEL_URL`). A preview also fails to start or migrate when neither `VERCEL_GIT_PULL_REQUEST_ID` nor `VERCEL_GIT_COMMIT_REF` can name its database.
 
-| Variable       | Required                      | Description                                                                                                                                                                            |
-| -------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL` | to start the server           | Runtime Postgres URL. On Vercel: PgBouncer on the VPS. Not needed by `next build`.                                                                                                     |
-| `DIRECT_URL`   | for migrations                | Direct (session-mode) URL for `pnpm db:migrate` and drizzle-kit, which never fall back to `DATABASE_URL`. Locally the same URL as `DATABASE_URL`.                                      |
-| `APP_URL`      | when `APP_ENV` is not `local` | Canonical base URL for absolute URLs (Open Graph images). Defaults to `http://localhost:3000`. Read only on the server, but prerendered pages bake it in, so set it at build time too. |
-| `APP_ENV`      | on Vercel                     | `local` (default), `preview`, `staging` or `production`. Branch on this for behaviour switches, not on `VERCEL_ENV`.                                                                   |
+| Variable       | Required                  | Description                                                                                                                                                                                                                       |
+| -------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL` | to start the server       | Runtime Postgres URL. On Vercel: PgBouncer on the VPS with the app role ([Databases on Vercel](#databases-on-vercel)). Not needed by `next build`.                                                                                |
+| `DIRECT_URL`   | for migrations            | Session-mode URL with the migrator role for `pnpm db:migrate` and drizzle-kit, which never fall back to `DATABASE_URL`. Locally the same URL as `DATABASE_URL`.                                                                   |
+| `APP_URL`      | on staging and production | Canonical base URL for absolute URLs (Open Graph images). Defaults to `http://localhost:3000` locally and to the branch URL on a preview. Read only on the server, but prerendered pages bake it in, so set it at build time too. |
+| `APP_ENV`      | on Vercel                 | `local` (default), `preview`, `staging` or `production`. Branch on this for behaviour switches, not on `VERCEL_ENV`.                                                                                                              |
 
 ## Deploying
 
 The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel.json`. Vercel detects Next.js and runs the `vercel-build` script, which applies the migrations and then builds:
 
-- Migrations connect through `DIRECT_URL` only (a PgBouncer session-mode entry with a migrator role), never `DATABASE_URL`. It must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails.
-- Each preview deployment will get its own database (`foa_pr_<n>`) on the non-production Postgres. Staging, the Vercel custom environment `staging` at foa.shipped-it.dev, will use `foa_staging`.
-- The production database (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups) arrives in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), and the per-preview databases in #12 and #13. Until then there is no database for Vercel to migrate.
+- Migrations connect through `DIRECT_URL` only (the migrator role, which PgBouncer gives session mode), never `DATABASE_URL`. It must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails.
+- Each preview deployment gets its own database (`foa_pr_<n>`, or `foa_br_<branch>` before its PR) on the non-production Postgres, created during the build ([Databases on Vercel](#databases-on-vercel)). Staging, the Vercel custom environment `staging` at foa.shipped-it.dev, uses `foa_staging`.
+- The databases (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups, and the `foa_seed` template) are set up in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12); deploying `main` with these variables set follows in #13. Until `scripts/seed.ts` exists, `foa_seed` is empty and previews start with the schema only.
 
-Set `APP_ENV` and `APP_URL` per environment in the Vercel project settings; without them the build fails. Vercel exposes them to the build as well as at runtime, which `APP_URL` needs.
+Set `APP_ENV`, `DATABASE_URL` and `DIRECT_URL` per environment in the Vercel project settings, and `APP_URL` for staging and production; without them the build fails. Vercel exposes them to the build as well as at runtime, which `APP_URL` needs.
+
+`GET /api/health` runs `select 1` and answers `{"status":"ok","db":{"ok":true,"ms":<n>}}`, or 503 with `{"status":"error","db":{"ok":false}}` (details go to the server log only). It is never cached.
 
 ## Brand assets
 
