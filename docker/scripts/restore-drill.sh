@@ -5,13 +5,16 @@
 #  1. Write a marker row to a scratch table in `foa` (schema
 #     foa_restore_drill), note the time T, commit a second row after T, and
 #     force a WAL switch; wait until that segment is archived.
-#  2. Restore with --type=time --target=T --archive-mode=off into a new volume,
-#     in a container from the same image with --network none and the repo
-#     volume mounted read-only: it can neither archive into the real repo nor
-#     reach anything. The real data volume is never mounted.
-#  3. Start Postgres (archive_mode=off, no TCP), wait for promotion, check
+#  2. Start a throwaway container from the same image with --network none and
+#     the repo volume mounted read-only: it can neither archive into the real
+#     repo nor reach anything. The real data volume is never mounted (and
+#     neither is pg-nonprod: the drill never restores into a live server).
+#  3. `pgbackrest verify` in it: every backup file and WAL segment in the
+#     repository is read and checksummed. Any problem fails the drill.
+#  4. Restore with --type=time --target=T --archive-mode=off into a new volume.
+#  5. Start Postgres (archive_mode=off, no TCP), wait for promotion, check
 #     that the row before T exists and the row after T does not.
-#  4. Remove the container and volume; drop the scratch schema from prod.
+#  6. Remove the container and volume; drop the scratch schema from prod.
 #
 # Prints wall-clock timings and keeps a log in /var/log/foa/.
 # Usage: sudo restore-drill.sh
@@ -93,7 +96,7 @@ done
 [ -n "$last" ] && [[ ! "$last" < "$wal" ]] || die "WAL $wal was not archived within 120 s (last: ${last:-none})"
 t_archived="$(now)"
 
-# 2. Restore into a fresh volume ------------------------------------------------
+# 2. Throwaway container and volume ------------------------------------------------
 docker volume create --label "foa.restore-drill=$STAMP" "$VOL" >/dev/null
 docker run -d --name "$DRILL" --label "foa.restore-drill=$STAMP" \
   --network none \
@@ -105,13 +108,25 @@ docker run -d --name "$DRILL" --label "foa.restore-drill=$STAMP" \
   "$image" infinity >/dev/null
 docker exec "$DRILL" install -d -o postgres -g postgres -m 0700 "$PGDATA"
 
+# 3. Verify the repository ----------------------------------------------------------
+t_verify0="$(now)"
+if ! verify_out="$(docker exec -u postgres "$DRILL" pgbackrest --stanza="$STANZA" \
+  --log-level-console=warn --output=text --verbose verify 2>&1)"; then
+  echo "$verify_out"
+  die "pgbackrest verify failed"
+fi
+echo "$verify_out"
+grep -qx 'status: ok' <<<"$verify_out" || die "pgbackrest verify did not report status: ok"
+t_verify1="$(now)"
+
+# 4. Restore into the fresh volume ---------------------------------------------------
 t_restore0="$(now)"
 docker exec -u postgres "$DRILL" pgbackrest --stanza="$STANZA" \
   --type=time "--target=$target" --target-action=promote --archive-mode=off \
   --log-level-console=info restore
 t_restore1="$(now)"
 
-# 3. Recover, promote, verify ---------------------------------------------------------
+# 5. Recover, promote, check ----------------------------------------------------------
 docker exec -u postgres "$DRILL" pg_ctl -D "$PGDATA" -l /tmp/postgres.log -w -t 900 \
   -o "-c listen_addresses='' -c archive_mode=off -c unix_socket_directories=/var/run/postgresql" start
 promoted=0
@@ -133,6 +148,7 @@ t_end="$(now)"
 echo
 echo "restore-drill: PASS ($STAMP)"
 echo "  write marker + archive WAL : $(secs "$t_start" "$t_archived") s"
+echo "  pgbackrest verify          : $(secs "$t_verify0" "$t_verify1") s"
 echo "  pgbackrest restore         : $(secs "$t_restore0" "$t_restore1") s"
 echo "  recovery to T + promote    : $(secs "$t_restore1" "$t_recovered") s"
 echo "  restore + recovery (RTO)   : $(secs "$t_restore0" "$t_recovered") s"

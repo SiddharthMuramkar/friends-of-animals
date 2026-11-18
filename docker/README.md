@@ -314,9 +314,11 @@ systemctl start foa-pgbackrest-full.service     # or -diff
 
 **Restore drill**: `scripts/restore-drill.sh` writes a marker row to a scratch
 table in `foa`, notes time T, commits a second row after T, forces a WAL
-switch and waits for it to be archived, then restores `--type=time --target=T
---archive-mode=off` into a new volume in a `--network none` container from the
-same image (repo mounted read-only; the real data volume is never mounted),
+switch and waits for it to be archived. In a `--network none` container from
+the same image (repo mounted read-only; the real data volume and pg-nonprod
+are never touched) it runs `pgbackrest verify`, which reads and checksums
+every backup file and WAL segment and fails the drill on any problem, then
+restores `--type=time --target=T --archive-mode=off` into a new volume,
 starts it, checks the before-T row exists and the after-T row does not, prints
 timings, tears everything down and drops the scratch schema. Logs:
 `/var/log/foa/restore-drill-*.log`. Run it quarterly at least (spec §13.1).
