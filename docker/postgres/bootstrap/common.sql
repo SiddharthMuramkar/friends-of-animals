@@ -4,9 +4,10 @@
 -- psql variable set_passwords (0/1) comes from bootstrap.sh.
 
 -- Some statements below carry passwords: keep them out of pg_stat_statements
--- (track_utility is off in postgresql.conf too) and out of the server log,
--- even if they fail.
+-- (track_utility is off in postgresql.conf too; this session records nothing
+-- there at all) and out of the server log, even if they fail.
 SET pg_stat_statements.track_utility = off;
+SET pg_stat_statements.track = none;
 SET client_min_messages = warning;
 SET log_statement = 'none';
 SET log_min_error_statement = 'panic';
