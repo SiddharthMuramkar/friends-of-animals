@@ -1,12 +1,12 @@
 ## 10. Notifications & Communications
 
-§10 owns `NotificationService` (§3.5), templates, channel adapters, preferences, suppression, announcements and the reminder scheduler. Every user-facing email, SMS or in-app message MUST go through `NotificationService`. No other module calls Resend or MSG91 directly.
+§10 owns `NotificationService` (§3.5), templates, channel adapters, preferences, suppression, announcements and the reminder scheduler. Every user-facing email, SMS or in-app message MUST go through `NotificationService`. No other module calls SES or MSG91 directly.
 
 ### 10.1 Pipeline & Service Contract
 
 ```
 domain service tx ──► Outbox row (§3.3)
-   job `outbox.dispatch` (pg-boss; every 5 s + LISTEN/NOTIFY) fans each row out to:
+   `outbox.dispatch` (a loop in `worker`, not a pg-boss schedule: LISTEN on a direct connection + 5 s poll, §2.2) fans each row out to:
       ├─► queue `notify.route`      (singletonKey = outboxId)  ─► EventRoute registry ─► resolvers (§10.4) ─► NotificationService.notify()
       └─► queue `analytics.ingest`  (singletonKey = outboxId)  ─► ProductEvent (§11.4)
 notify()      ─► per recipient × channel: gates (§10.5) ─► Notification row (QUEUED | SUPPRESSED) ─► queue `notify.send.<channel>.<txn|bulk>`
@@ -40,7 +40,7 @@ interface ChannelAdapter {
 }
 ```
 
-Adapters: `ResendEmailAdapter`, `Msg91SmsAdapter` (implements §2 `SmsProvider`), `InAppAdapter` (writes `InAppNotification` and marks DELIVERED immediately), and `WhatsAppAdapter`, which is post-MVP behind feature flag `WHATSAPP_CHANNEL` (Meta Cloud API or a BSP, with the approved template name in `providerTemplateId`).
+Adapters: `SesEmailAdapter` (implements §2 `EmailProvider`; Amazon SES `ap-south-1`), `Msg91SmsAdapter` (implements §2 `SmsProvider`), `InAppAdapter` (writes `InAppNotification` and marks DELIVERED immediately), and `WhatsAppAdapter`, which is post-MVP behind feature flag `WHATSAPP_CHANNEL` (Meta Cloud API or a BSP, with the approved template name in `providerTemplateId`).
 
 ### 10.2 Data Model
 
@@ -294,16 +294,16 @@ type SegmentDefinition = {
 - **Minor protection (G).** If a segment uses `milestones`, `roles`, or audience `DONORS`/`VOLUNTEERS`, everyone under 18 and their guardian-as-guardian contact is excluded automatically, and the preview shows the excluded count. G reaches guardians of minors only through contextual filters (competition, institution, route, age group, geography) and only with `COMMUNICATION` consent. No open, click or visit-based filter exists.
 - **Approval** by a different STAFF_ADMIN/SUPER_ADMIN is required when category = G and either the recipient count exceeds 1,000 or the segment reaches guardians of minors.
 - **Flow:** build → **preview** (count per channel after gates, exclusions by reason, 3 rendered samples) → **test send** to own contacts (`[TEST]` subject prefix, no dedupe) → schedule or send now → `SENDING`. Job `announcement.expand` snapshots recipients in pages of 500 and calls `notify()` with `announcementId`. Dedupe is per address, so a guardian reached through 3 children gets one copy.
-- **Throttling:** each channel has a token bucket in the send worker. `NOTIFY_EMAIL_RPS` defaults to 2; set it to the Resend plan limit. `NOTIFY_SMS_RPS` defaults to 20. Bulk email uses the Resend batch endpoint (≤100 per call). The `.txn` queues always drain before the `.bulk` queues. On 429, back off and honour `Retry-After`.
+- **Throttling:** each channel has a token bucket in the send worker. `NOTIFY_EMAIL_RPS` defaults to 2; set it at or below the SES account's maximum send rate, and stay within its 24-hour sending quota. `NOTIFY_SMS_RPS` defaults to 20. Bulk email is throttled to the SES account's 24-hour sending quota and maximum send rate. The `.txn` queues always drain before the `.bulk` queues. On 429, back off and honour `Retry-After`.
 - **Stats** (live group-by on `Notification`): targeted, suppressed by reason, queued, sent, delivered, failed, bounced. CSV export contains counts only; addresses are included for STAFF_ADMIN only. Cancelling a `SCHEDULED` announcement sets it to CANCELLED. Cancelling one in `SENDING` stops expansion and moves its QUEUED rows to CANCELLED.
-- **No open-tracking pixels and no click-tracking link rewriting** on any email (disabled in Resend).
+- **No open-tracking pixels and no click-tracking link rewriting** on any email (SES adds none, because the configuration set publishes no Open or Click events).
 
 ### 10.7 Delivery: Quiet Hours, Retries, Bounces, DLT
 
 - **Quiet hours:** no SMS or WhatsApp between 21:00 and 09:00 in the recipient's timezone (default `Asia/Kolkata`; `NOTIFY_QUIET_START/END`). Deferred messages get `scheduledFor` = next 09:00 plus 0–30 min jitter. Exempt: `otp.requested`, safeguarding and security-incident staff alerts, and receipts sent within 5 min of the payer's own action (`bypassQuietHours`). Email has no quiet hours, but scheduled reminders and announcements default to a 08:00–20:00 IST window. Day-based reminders run at 10:00 IST.
 - **Retry:** `RetryableError` (network, 5xx, 429) uses pg-boss `retryLimit: 5, retryDelay: 30, retryBackoff: true` (about 30 s up to 8 min), then FAILED. `PermanentError` (4xx, invalid number, DLT mismatch) goes straight to FAILED. An invalid number also adds `SuppressionEntry(SMS, ALL, INVALID_NUMBER)`. A DLT mismatch raises a Sentry alert.
 - **SMS fallback:** routes with `smsFallback` (`registration.confirmed`, `consent.requested`, `artwork.requested`, `lot.won`, `competition.scheduleChanged`) queue the SMS template when the email ends FAILED or BOUNCED, unless an SMS was already sent.
-- **Webhooks:** `POST /api/webhooks/resend` (Svix signature) and `POST /api/webhooks/msg91` (shared secret + IP allowlist), both idempotent by provider event ID. delivered → DELIVERED. Hard bounce → BOUNCED + `SuppressionEntry(EMAIL, ALL, HARD_BOUNCE)`. Soft bounce → FAILED after provider retries. Complaint → `SuppressionEntry(EMAIL, NON_TRANSACTIONAL, COMPLAINT)` + ENGAGEMENT preference off. SMS DLR failed or rejected → FAILED.
+- **Webhooks:** `POST /api/webhooks/ses` (SES events published to an SNS topic with an HTTPS subscription; the SNS message signature and `TopicArn` are verified, and the subscription confirmation is handled) and `POST /api/webhooks/msg91` (shared secret + IP allowlist), both idempotent by provider event ID. delivered → DELIVERED. Hard bounce (SES `Permanent`) → BOUNCED + `SuppressionEntry(EMAIL, ALL, HARD_BOUNCE)`. Soft bounce (SES `Transient`) → FAILED after provider retries. Complaint → `SuppressionEntry(EMAIL, NON_TRANSACTIONAL, COMPLAINT)` + ENGAGEMENT preference off. SMS DLR failed or rejected → FAILED.
 - **Lifting suppression:** re-verifying the address by OTP deletes HARD_BOUNCE and INVALID_NUMBER entries. STAFF_ADMIN can delete any entry with a reason (audited). COMPLAINT and UNSUBSCRIBED lift only when the user opts back in.
 - **Email setup:** subdomain `notify.<domain>` for T/O and `news.<domain>` for G, each with SPF, DKIM and DMARC `p=quarantine`; Reply-To `support@<domain>`. No message carries an attachment. Every document, including the donation receipt, is a link behind auth or a signed, expiring URL.
 - **Indian DLT:** before M2, FOA registers as Principal Entity, a 6-character header (e.g. `FOAIND`), and every SMS template as **Service-Implicit**. There is no promotional SMS, because G is never sent by SMS. Env (§13.9): `SMS_PROVIDER_API_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID`. An SMS template's `body` MUST be the exact DLT-approved text with `{{var}}` in place of `{#var#}`. Each variable is ≤30 chars. Links appear only as `SHORT_URL` variables resolving to `/s/[code]` on the DLT-whitelisted domain. Editing an SMS body creates a new version, which cannot be activated without a new `dltTemplateId`. Until DLT approval, flag `SMS_CHANNEL` stays off and SMS audiences fall back to EMAIL + IN_APP.
@@ -475,7 +475,7 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 
 ### 11.6 Web Analytics (Cookieless)
 
-- **Tool:** **Umami, self-hosted** on its own Neon database and proxied first-party under `/stats`. No cookies, no cross-site identifiers, no custom client events. It honours DNT/GPC (`data-do-not-track`).
+- **Tool:** **Umami, self-hosted** with its own database and role on the VPS Postgres (§2.3), and proxied first-party under `/stats`. No cookies, no cross-site identifiers, no custom client events. It honours DNT/GPC (`data-do-not-track`).
 - **Banned:** GA, GTM, Meta Pixel, LinkedIn Insight, Hotjar, session replay and all ad pixels. This is enforced by CSP `script-src 'self'` plus the Umami origin, and by a CI test that fails if the built bundle references known tracker hosts.
 - **Where the script loads:** only in the `(public)` layout, and only when no session cookie exists. It is never rendered on `(auth)` routes, `/competitions/[slug]/register`, `/feedback/*`, `/dashboard/*`, `/institution/*`, `/judge/*` or `/admin/*`, so there is no tracking on authenticated pages or pages minors use to register or sign in (DPDP children's rules, §12).
 - **Gallery stats:** job `analytics.pullWebStats` runs nightly and copies per-path pageviews/visitors for `/gallery/*`, `/competitions/*`, `/impact` and `/donate` from the Umami API into `PageStatDaily`.
@@ -494,7 +494,7 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 - **Source:** MVs plus `ImpactAdjustment` (except `fundsRaisedMinor`, below).
 - **Rounding and suppression:** counters < 10 are omitted. Counts ≥ 10 are rounded down to the nearest 10 and displayed as "1,240+".
 - **Funds:** `fundsRaisedMinor` is the sum of ledger INCOME in the donation categories over PUBLISHED months, read from §8's `TransparencySnapshot`. It MUST equal the transparency page's donations total for the same period.
-- **Caching:** 1 h (`revalidate: 3600`).
+- **Caching:** 1 h (`cacheLife({ revalidate: 3600 })`).
 - **Consumers:** §9 `/impact` and the home page.
 
 ### 11.8 Admin Home `/admin` (Module 22)

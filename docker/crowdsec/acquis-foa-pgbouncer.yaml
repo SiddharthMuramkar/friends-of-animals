@@ -1,0 +1,9 @@
+# CrowdSec acquisition: PgBouncer's log (stderr of the foa-pgbouncer container).
+# Installed to /etc/crowdsec/acquis.d/ by docker/scripts/install-crowdsec.sh.
+# type=pgbouncer becomes evt.Parsed.program, which crowdsecurity/pgsql-logs
+# (collection crowdsecurity/pgsql) and foa/pgbouncer-no-such-user expect.
+source: docker
+container_name:
+  - foa-pgbouncer
+labels:
+  type: pgbouncer

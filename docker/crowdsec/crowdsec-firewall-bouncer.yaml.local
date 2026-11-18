@@ -1,0 +1,9 @@
+# Merged over /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml.
+# Besides INPUT (SSH and other host services), block in DOCKER-USER, which
+# Docker-published ports (PgBouncer 6432) pass through instead of INPUT. The
+# bouncer inserts its rule at the top of DOCKER-USER, ahead of the
+# FOA-INBOUND jump; both apply.
+mode: iptables
+iptables_chains:
+  - INPUT
+  - DOCKER-USER

@@ -143,7 +143,7 @@ model StorySubmission { id, submittedByUserId, subjectParticipantId?, title, bod
 | (new) → DRAFT | CONTENT_MANAGER, STAFF_ADMIN | slug matches `^[a-z0-9-]{3,80}$`, unique per locale | revision v1 |
 | DRAFT → IN_REVIEW | editor | title, ≥1 block, `seoDescription`; Post also needs cover + alt + category | `content.submitted` → approvers |
 | IN_REVIEW → DRAFT | approver | comment required | `content.changesRequested` |
-| IN_REVIEW → PUBLISHED | approver | approver ≠ `lastEditedById` when `content.fourEyes`; LEGAL template: STAFF_ADMIN only | set `publishedAt` and `publishedRevisionId`; `revalidateTag`; `content.published` |
+| IN_REVIEW → PUBLISHED | approver | approver ≠ `lastEditedById` when `content.fourEyes`; LEGAL template: STAFF_ADMIN only | set `publishedAt` and `publishedRevisionId`; cache tags revalidated (§2.2); `content.published` |
 | IN_REVIEW → SCHEDULED | approver | same guards, and `publishAt` ≥ now + 5 min | job enqueued at `publishAt` |
 | SCHEDULED → PUBLISHED | system job | revision unchanged since approval (if changed → IN_REVIEW) | as for PUBLISHED |
 | SCHEDULED → DRAFT | editor or approver | none | job cancelled |
@@ -160,7 +160,7 @@ Home is `Page(systemKey='home', template=HOME)`. It has a single `homeLayout` bl
 - `counterKeys` (4 keys from §9.4.5)
 - an ordered `sections` list with a visibility toggle per section.
 
-Home edits go through §9.4.2. The page is ISR with `revalidateTag` (`home`, `posts`, `competitions`, `gallery`, `events`, `impact`) and a 300 s fallback.
+Home edits go through §9.4.2. The page is cached with `cacheTag` (`home`, `posts`, `competitions`, `gallery`, `events`, `impact`), revalidated on those tags (§2.2), with `cacheLife({ revalidate: 300 })` as the fallback.
 
 | Section | Source | Rules |
 |---|---|---|

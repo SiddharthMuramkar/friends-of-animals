@@ -1,12 +1,17 @@
 import { defineConfig } from "drizzle-kit";
 
+import { migrationEnvSchema, parseEnv } from "./src/env.schema";
+import { loadEnvFiles } from "./scripts/load-env";
+
+loadEnvFiles();
+
+// drizzle-kit connects like the migration script: through DIRECT_URL only,
+// never DATABASE_URL (SPEC §2.2).
+const { DIRECT_URL } = parseEnv(migrationEnvSchema, process.env);
+
 export default defineConfig({
-  schema: "./app/db/schema.ts",
+  schema: "./src/server/db/schema/index.ts",
   out: "./drizzle",
   dialect: "postgresql",
-  dbCredentials: {
-    url:
-      process.env.DATABASE_URL ??
-      "postgres://rescue:rescue@localhost:5432/rescue",
-  },
+  dbCredentials: { url: DIRECT_URL },
 });

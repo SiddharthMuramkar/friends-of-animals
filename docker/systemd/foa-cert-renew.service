@@ -1,0 +1,12 @@
+[Unit]
+Description=FOA: renew the db.shipped-it.dev certificate (lego, HTTP-01) and reload PgBouncer
+Documentation=file:/srv/foa/docker/README.md
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# lego sleeps a random while before a due renewal; allow for it.
+TimeoutStartSec=30min
+ExecStart=/srv/foa/docker/scripts/cert-renew.sh

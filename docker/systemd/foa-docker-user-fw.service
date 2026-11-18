@@ -1,0 +1,16 @@
+[Unit]
+Description=FOA: filter inbound traffic to Docker-published ports (DOCKER-USER -> FOA-INBOUND)
+Documentation=file:/srv/foa/docker/README.md
+# Docker creates DOCKER-USER; re-apply whenever Docker (re)starts.
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Optional: PGBOUNCER_ALLOWED_SOURCES="<ip/cidr> ..." (Vercel Static IPs, TODO).
+EnvironmentFile=-/etc/foa/firewall.env
+ExecStart=/srv/foa/docker/scripts/docker-user-fw.sh apply
+
+[Install]
+WantedBy=docker.service multi-user.target
