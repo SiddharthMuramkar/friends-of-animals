@@ -446,8 +446,8 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `DATABASE_URL`, `DIRECT_URL` | all | `DATABASE_URL`: PgBouncer, transaction mode (in the worker: Postgres directly on the Compose network, §2.2). `DIRECT_URL`: PgBouncer session-mode entry with the migrator role, for migrations |
 | `AUTH_SECRET` | all | Session and token signing (≥ 32 bytes) |
 | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` | all | Cloudflare R2 S3 API (`https://<account-id>.r2.cloudflarestorage.com`, region `auto`); local: RustFS or the in-memory driver (§2.4) |
-| `STORAGE_BUCKET_PRIVATE`, `STORAGE_BUCKET_PUBLIC`, `STORAGE_BUCKET_EVIDENCE`, `PUBLIC_CDN_URL` | all | `foa-private`, `foa-public`, `foa-evidence`; CDN host `media.<foa-domain>` |
-| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` | deployed | CDN purge by URL (§7.10, §12.6); the token can only purge cache on that zone |
+| `STORAGE_BUCKET_PRIVATE`, `STORAGE_BUCKET_PUBLIC`, `STORAGE_BUCKET_EVIDENCE`, `PUBLIC_CDN_URL` | all | Production values: `foa-private`, `foa-public`, `foa-evidence`; CDN host `media.<foa-domain>`. Preview and staging use separate non-production buckets, never the production ones (§13.8); local: RustFS or the in-memory driver (§2.4) |
+| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` | deployed | CDN purge by URL (§7.10, §12.6) on the zone that serves `PUBLIC_CDN_URL`; the token can only purge cache on that zone |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | all except local (mocked) | Payments (§8) |
 | `SES_REGION` (`ap-south-1`), `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_CONFIGURATION_SET`, `SES_SNS_TOPIC_ARN`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | all except local (Mailpit) | Email through Amazon SES (§10). `/api/webhooks/ses` accepts messages only from `SES_SNS_TOPIC_ARN` |
 | `SMS_PROVIDER_API_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID` | staging, production | DLT-compliant SMS (template IDs live on `NotificationTemplate.dltTemplateId`) |
@@ -455,8 +455,8 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `PII_ENCRYPTION_KEYS` (JSON kid→base64 32 B), `PII_ENCRYPTION_ACTIVE_KID`, `PII_HASH_KEY` | all | Field-level encryption and blind index (§13.1) |
 | `REVALIDATE_SECRET` | deployed | HMAC key for `/api/internal/revalidate`, shared by the app and the worker (§2.2) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | deployed | Bot protection on public forms |
-| `MALWARE_SCAN_URL` | all (worker only) | `clamd` TCP address on the Compose network (e.g. `tcp://clamav:3310`) |
-| `GOTENBERG_URL` | all (worker only) | Gotenberg on the Compose network (DOCX→PDF) |
+| `MALWARE_SCAN_URL` | deployed (worker only) | `clamd` TCP address on the Compose network (e.g. `tcp://clamav:3310`) |
+| `GOTENBERG_URL` | deployed (worker only) | Gotenberg on the Compose network (DOCX→PDF) |
 | `SAFEGUARDING_ALERT_EMAILS`, `SAFEGUARDING_ALERT_PHONES` | production, staging | Paging for CRITICAL reports |
 | `ADMIN_IP_ALLOWLIST` | optional | CIDR list for SUPER_ADMIN |
 | `DEV_OTP_BYPASS_CODE` | local, preview | Test OTP; ignored in production |

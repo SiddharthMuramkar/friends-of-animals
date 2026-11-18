@@ -124,8 +124,8 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 | **GitHub Actions** | CI, Playwright E2E, worker image builds |
 
 - Vercel reaches the database only through PgBouncer on port 6432. There is no HTTP path from Vercel to the worker: work is handed over through Postgres (Outbox rows and pg-boss jobs).
-- The worker connects to Postgres directly on the Compose network. Its only HTTP call into the app is the internal revalidate route (§2.2).
-- PgBouncer is the only VPS port open to the internet. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
+- The worker connects to Postgres directly on the Compose network. The only app endpoint it calls is `/api/internal/revalidate` (§2.2).
+- Only PgBouncer on port 6432 (from Vercel Static IPs only) and SSH accept inbound traffic on the VPS. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
 - Worker images are built by GitHub Actions, pushed to GHCR tagged with the commit SHA, and deployed with `docker compose pull && docker compose up -d --wait`. A rollback redeploys the previous tag.
 
 ### 2.4 Environments
@@ -142,7 +142,12 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 
 ## 3. Conventions
 
-**Notation.** The `prisma` code blocks in this spec describe the logical model. Implement them in Drizzle (`src/server/db/schema/`): `String @id` → `uuid` (UUIDv7, generated in the app); `DateTime` → `timestamptz`; `Json` → `jsonb`; enums → `pgEnum`; `Unsupported("tsvector")` → a `customType`; `@@index` / `@@unique` → Drizzle `index()` / `uniqueIndex()`. Partial indexes and triggers are written as SQL in `drizzle/` migrations.
+**Notation.** The `prisma` code blocks in this spec describe the logical model. Implement them in Drizzle (`src/server/db/schema/`):
+
+- **Keys.** `id String @id` → `uuid` (UUIDv7, generated in the app). A column that references an `id`, including one used as the key (e.g. `competitionId String @id`), takes that `id`'s type. A natural key (e.g. `Setting.key`, `ShortLink.code`, `ReceiptSequence.fy`, `FinancialPeriod.month`) keeps its own type, here `text`.
+- **Scalars.** `String` → `text`; `Int` → `integer`; `BigInt` → `bigint` (`@default(autoincrement())` → an identity column); `Boolean` → `boolean`; `Float` → `double precision`; `Decimal` / `@db.Decimal(p,s)` → `numeric` / `numeric(p,s)`; `Bytes` → `bytea`; `DateTime` → `timestamptz`, but `DateTime @db.Date` → `date`; `Json` → `jsonb`; enums → `pgEnum`; `Unsupported("tsvector")` → a `customType`.
+- **Encrypted columns.** A column listed as encrypted in §13.1, marked `enc` or named `…Encrypted` uses the encrypted `customType` in `src/server/db/pii.ts`, whatever its logical type.
+- **Indexes.** `@@index` / `@@unique` → Drizzle `index()` / `uniqueIndex()`. Partial indexes and triggers are written as SQL in `drizzle/` migrations.
 
 ### 3.1 Identifiers
 

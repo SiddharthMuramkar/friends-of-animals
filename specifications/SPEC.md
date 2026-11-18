@@ -124,8 +124,8 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 | **GitHub Actions** | CI, Playwright E2E, worker image builds |
 
 - Vercel reaches the database only through PgBouncer on port 6432. There is no HTTP path from Vercel to the worker: work is handed over through Postgres (Outbox rows and pg-boss jobs).
-- The worker connects to Postgres directly on the Compose network. Its only HTTP call into the app is the internal revalidate route (§2.2).
-- PgBouncer is the only VPS port open to the internet. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
+- The worker connects to Postgres directly on the Compose network. The only app endpoint it calls is `/api/internal/revalidate` (§2.2).
+- Only PgBouncer on port 6432 (from Vercel Static IPs only) and SSH accept inbound traffic on the VPS. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
 - Worker images are built by GitHub Actions, pushed to GHCR tagged with the commit SHA, and deployed with `docker compose pull && docker compose up -d --wait`. A rollback redeploys the previous tag.
 
 ### 2.4 Environments
@@ -142,7 +142,12 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 
 ## 3. Conventions
 
-**Notation.** The `prisma` code blocks in this spec describe the logical model. Implement them in Drizzle (`src/server/db/schema/`): `String @id` → `uuid` (UUIDv7, generated in the app); `DateTime` → `timestamptz`; `Json` → `jsonb`; enums → `pgEnum`; `Unsupported("tsvector")` → a `customType`; `@@index` / `@@unique` → Drizzle `index()` / `uniqueIndex()`. Partial indexes and triggers are written as SQL in `drizzle/` migrations.
+**Notation.** The `prisma` code blocks in this spec describe the logical model. Implement them in Drizzle (`src/server/db/schema/`):
+
+- **Keys.** `id String @id` → `uuid` (UUIDv7, generated in the app). A column that references an `id`, including one used as the key (e.g. `competitionId String @id`), takes that `id`'s type. A natural key (e.g. `Setting.key`, `ShortLink.code`, `ReceiptSequence.fy`, `FinancialPeriod.month`) keeps its own type, here `text`.
+- **Scalars.** `String` → `text`; `Int` → `integer`; `BigInt` → `bigint` (`@default(autoincrement())` → an identity column); `Boolean` → `boolean`; `Float` → `double precision`; `Decimal` / `@db.Decimal(p,s)` → `numeric` / `numeric(p,s)`; `Bytes` → `bytea`; `DateTime` → `timestamptz`, but `DateTime @db.Date` → `date`; `Json` → `jsonb`; enums → `pgEnum`; `Unsupported("tsvector")` → a `customType`.
+- **Encrypted columns.** A column listed as encrypted in §13.1, marked `enc` or named `…Encrypted` uses the encrypted `customType` in `src/server/db/pii.ts`, whatever its logical type.
+- **Indexes.** `@@index` / `@@unique` → Drizzle `index()` / `uniqueIndex()`. Partial indexes and triggers are written as SQL in `drizzle/` migrations.
 
 ### 3.1 Identifiers
 
@@ -1245,7 +1250,7 @@ model CertificateTemplate {
   - A template becomes ACTIVE only after a successful preview render.
   - Issued PDFs are immutable: template edits never re-render them, only reissue does.
 - **Generation:** job `certificate.generate(id)` skips GENERATED certificates.
-  - **Render:** Playwright HTML→PDF with bundled Noto fonts (Latin, Devanagari and other Indic scripts). Every request is blocked except the app's asset origin and `data:` URLs. Timeout 30 s.
+  - **Render:** Playwright HTML→PDF in `worker-media`, with Noto fonts (Latin, Devanagari and other Indic scripts) bundled in the image. The worker reads the template's images (FOA logo, signatures, background) from storage and inlines them as `data:` URLs. Every other request is blocked. Timeout 30 s.
   - **QR:** the `qrcode` package encodes `{APP_URL}/verify/{certificateNumber}`.
   - **Store and issue:** the PDF goes to `certificates/{competitionCode}/{certificateNumber}.pdf` (private) as a FileAsset of kind PDF. The certificate → GENERATED and `certificate.issued` is emitted.
   - **Retries:** at 1 min, 10 min and 1 h, then FAILED.
@@ -3825,8 +3830,8 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `DATABASE_URL`, `DIRECT_URL` | all | `DATABASE_URL`: PgBouncer, transaction mode (in the worker: Postgres directly on the Compose network, §2.2). `DIRECT_URL`: PgBouncer session-mode entry with the migrator role, for migrations |
 | `AUTH_SECRET` | all | Session and token signing (≥ 32 bytes) |
 | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` | all | Cloudflare R2 S3 API (`https://<account-id>.r2.cloudflarestorage.com`, region `auto`); local: RustFS or the in-memory driver (§2.4) |
-| `STORAGE_BUCKET_PRIVATE`, `STORAGE_BUCKET_PUBLIC`, `STORAGE_BUCKET_EVIDENCE`, `PUBLIC_CDN_URL` | all | `foa-private`, `foa-public`, `foa-evidence`; CDN host `media.<foa-domain>` |
-| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` | deployed | CDN purge by URL (§7.10, §12.6); the token can only purge cache on that zone |
+| `STORAGE_BUCKET_PRIVATE`, `STORAGE_BUCKET_PUBLIC`, `STORAGE_BUCKET_EVIDENCE`, `PUBLIC_CDN_URL` | all | Production values: `foa-private`, `foa-public`, `foa-evidence`; CDN host `media.<foa-domain>`. Preview and staging use separate non-production buckets, never the production ones (§13.8); local: RustFS or the in-memory driver (§2.4) |
+| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` | deployed | CDN purge by URL (§7.10, §12.6) on the zone that serves `PUBLIC_CDN_URL`; the token can only purge cache on that zone |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | all except local (mocked) | Payments (§8) |
 | `SES_REGION` (`ap-south-1`), `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_CONFIGURATION_SET`, `SES_SNS_TOPIC_ARN`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | all except local (Mailpit) | Email through Amazon SES (§10). `/api/webhooks/ses` accepts messages only from `SES_SNS_TOPIC_ARN` |
 | `SMS_PROVIDER_API_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID` | staging, production | DLT-compliant SMS (template IDs live on `NotificationTemplate.dltTemplateId`) |
@@ -3834,8 +3839,8 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `PII_ENCRYPTION_KEYS` (JSON kid→base64 32 B), `PII_ENCRYPTION_ACTIVE_KID`, `PII_HASH_KEY` | all | Field-level encryption and blind index (§13.1) |
 | `REVALIDATE_SECRET` | deployed | HMAC key for `/api/internal/revalidate`, shared by the app and the worker (§2.2) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | deployed | Bot protection on public forms |
-| `MALWARE_SCAN_URL` | all (worker only) | `clamd` TCP address on the Compose network (e.g. `tcp://clamav:3310`) |
-| `GOTENBERG_URL` | all (worker only) | Gotenberg on the Compose network (DOCX→PDF) |
+| `MALWARE_SCAN_URL` | deployed (worker only) | `clamd` TCP address on the Compose network (e.g. `tcp://clamav:3310`) |
+| `GOTENBERG_URL` | deployed (worker only) | Gotenberg on the Compose network (DOCX→PDF) |
 | `SAFEGUARDING_ALERT_EMAILS`, `SAFEGUARDING_ALERT_PHONES` | production, staging | Paging for CRITICAL reports |
 | `ADMIN_IP_ALLOWLIST` | optional | CIDR list for SUPER_ADMIN |
 | `DEV_OTP_BYPASS_CODE` | local, preview | Test OTP; ignored in production |
