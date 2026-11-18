@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Cursor cloud-agent boot. Starts Postgres and makes the dev login exist.
-# Safe to run again. Does not migrate or seed (those wipe or change data).
+# Safe to run again. Does not migrate: run `pnpm db:migrate` when a task needs
+# the schema.
 set -euo pipefail
 
 if ! command -v pg_isready >/dev/null 2>&1; then
