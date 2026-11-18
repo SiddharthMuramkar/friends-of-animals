@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * The "Easy read" kid layer (DIRECTION §1): one or two short sentences, first,
- * in big type. Adult detail follows on the page. Shared by the P2 pages.
+ * in big type. Adult detail follows on the page. Shared by every page that has one.
  */
 export function EasyRead({
   label,

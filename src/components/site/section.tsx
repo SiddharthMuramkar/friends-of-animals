@@ -29,7 +29,7 @@ const HEADING_ONLY: Record<SectionHue, string> = {
 
 const WIDTH = {
   prose: "max-w-3xl",
-  default: "max-w-6xl",
+  default: "max-w-7xl",
   wide: "max-w-7xl",
 } as const;
 

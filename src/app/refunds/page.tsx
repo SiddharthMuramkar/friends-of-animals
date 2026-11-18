@@ -42,7 +42,7 @@ export default async function Page() {
         shortTitle={t("short.title")}
         items={SHORT.map((k) => t(`short.items.${k}`))}
       />
-      <Section width="prose">
+      <Section innerClassName="[&>*]:max-w-3xl">
         <div className="grid gap-12">
           <PolicyBlock id="automatic" title={t("automatic.title")}>
             <ul className="grid gap-3">

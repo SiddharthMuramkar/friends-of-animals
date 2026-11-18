@@ -16,7 +16,7 @@ import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 
-import { EasyRead } from "../competitions/_components/easy-read";
+import { EasyRead } from "@/components/site/easy-read";
 import { ButtonLink } from "@/components/site/button-link";
 
 export async function generateMetadata(): Promise<Metadata> {

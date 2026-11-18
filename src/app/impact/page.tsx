@@ -13,7 +13,7 @@ import { getSampleImpact } from "@/content/sample";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
-import { EasyRead } from "../competitions/_components/easy-read";
+import { EasyRead } from "@/components/site/easy-read";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("impact.meta");

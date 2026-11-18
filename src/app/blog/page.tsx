@@ -8,6 +8,7 @@ import { StoryCard } from "@/components/showcase/story-card";
 import { Chip } from "@/components/site/chip";
 import { PageHeader } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
+import { EasyRead } from "@/components/site/easy-read";
 import { Section } from "@/components/site/section";
 import { STORIES, type Story, latestStories } from "@/content/stories";
 import { ROUTES, slugHref } from "@/lib/routes";
@@ -96,12 +97,9 @@ export default async function Page() {
               title={t("title")}
               lead={t("lead")}
             />
-            <p className="mt-6 flex max-w-prose flex-wrap items-baseline gap-x-3 rounded-2xl border-2 border-dashed border-yellow-700/50 bg-surface px-4 py-3 text-ink">
-              <span className="font-hand text-lead text-(--section-heading)">
-                {t("easyReadLabel")}
-              </span>
-              <span>{t("easyRead")}</span>
-            </p>
+            <EasyRead label={t("easyReadLabel")} className="mt-6 max-w-prose">
+              <p>{t("easyRead")}</p>
+            </EasyRead>
           </div>
           <Photo
             id="hand-paw-friendship"

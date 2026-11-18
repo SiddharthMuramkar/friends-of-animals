@@ -3,10 +3,13 @@ import type { ReactNode } from "react";
 
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { type TileHue, TileMarker } from "@/components/site/tile";
+import { TileMarker } from "@/components/site/tile";
 import { cn } from "@/lib/utils";
 
-/** Header + "The short version" box for /pricing and /refunds. */
+/**
+ * Header band + "The short version" box for /pricing and /refunds, in the
+ * same shape as the other policy pages (LegalDocument).
+ */
 export function PolicyTop({
   eyebrow,
   title,
@@ -20,28 +23,38 @@ export function PolicyTop({
   shortTitle: string;
   items: readonly string[];
 }) {
-  const tiles: TileHue[] = ["red", "green", "blue", "yellow", "teal", "pink"];
   return (
-    <Section hue="neutral" tone="tint" width="prose" className="pt-10 sm:pt-14">
-      <PageHeader eyebrow={eyebrow} tile="blue" title={title} />
-      <p className="mt-3 text-sm text-ink-muted">{updated}</p>
-      <section
-        aria-labelledby="short-version"
-        className="mt-8 rounded-3xl border-2 border-ink bg-surface p-6 shadow-warm sm:p-8"
-      >
-        <h2 id="short-version" className="text-h3">
-          {shortTitle}
-        </h2>
-        <ul className="mt-5 grid gap-4">
-          {items.map((item, i) => (
-            <li key={item} className="flex items-start gap-3 text-lead">
-              <TileMarker hue={tiles[i % tiles.length]} className="mt-1.5" />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </Section>
+    <>
+      <Section hue="neutral" tone="tint" className="pt-10 pb-12 sm:pt-14">
+        <PageHeader eyebrow={eyebrow} tile="blue" title={title} />
+        <p className="mt-5 text-sm font-semibold text-ink-muted">{updated}</p>
+      </Section>
+      <Section hue="neutral" className="pt-10 pb-0 sm:pt-12 sm:pb-0">
+        <section
+          aria-labelledby="short-version"
+          className="max-w-3xl rounded-3xl border-2 border-blue-700 bg-section-blue p-6 sm:p-8 dark:border-blue-400"
+        >
+          <h2
+            id="short-version"
+            className="flex items-center gap-2.5 font-display text-h4 leading-tight text-(--section-blue-heading)"
+          >
+            <TileMarker hue="blue" />
+            {shortTitle}
+          </h2>
+          <ul className="mt-4 space-y-3 text-lead text-ink">
+            {items.map((item) => (
+              <li key={item} className="flex gap-3">
+                <span
+                  aria-hidden="true"
+                  className="mt-2.5 size-2.5 shrink-0 rounded-[22%] bg-blue-700 dark:bg-blue-400"
+                />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </Section>
+    </>
   );
 }
 

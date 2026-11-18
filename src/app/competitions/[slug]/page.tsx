@@ -29,7 +29,7 @@ import { pageMetadata } from "@/lib/seo";
 import { placeholder, SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-import { EasyRead } from "../_components/easy-read";
+import { EasyRead } from "@/components/site/easy-read";
 import {
   competitionParams,
   fileRules,

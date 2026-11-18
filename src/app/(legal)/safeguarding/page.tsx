@@ -91,7 +91,7 @@ export default async function Page() {
   return (
     <>
       <div className="sticky top-(--header-height) z-30 border-b-2 border-border bg-surface">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-end gap-x-4 gap-y-1 px-4 py-2 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-x-4 gap-y-1 px-4 py-2 sm:px-6">
           <p
             id="quick-exit-hint"
             className="sr-only text-sm text-ink-muted sm:not-sr-only"

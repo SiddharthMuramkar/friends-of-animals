@@ -16,7 +16,7 @@ import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-import { EasyRead } from "../_components/easy-read";
+import { EasyRead } from "@/components/site/easy-read";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("schools.meta");
@@ -70,7 +70,7 @@ export default async function Page() {
               lead={t("hero.lead")}
             />
             <EasyRead label={t("easyLabel")} className="mt-6">
-              {t("hero.easy")}
+              <p>{t("hero.easy")}</p>
             </EasyRead>
           </div>
           <Photo

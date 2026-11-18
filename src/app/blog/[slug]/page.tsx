@@ -9,6 +9,7 @@ import { StoryCard } from "@/components/showcase/story-card";
 import { Chip } from "@/components/site/chip";
 import { JsonLd } from "@/components/site/json-ld";
 import { Photo } from "@/components/site/photo";
+import { EasyRead } from "@/components/site/easy-read";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
 import {
@@ -157,12 +158,9 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
               </div>
               <h1 className="mt-4 text-(--section-heading)">{story.title}</h1>
               <p className="mt-5 max-w-prose text-lead text-ink">{story.dek}</p>
-              <p className="mt-6 flex max-w-prose flex-wrap items-baseline gap-x-3 rounded-2xl border-2 border-dashed border-yellow-700/50 bg-surface px-4 py-3 text-ink">
-                <span className="font-hand text-lead text-(--section-heading)">
-                  {t("easyReadLabel")}
-                </span>
-                <span>{story.easyRead}</span>
-              </p>
+              <EasyRead label={t("easyReadLabel")} className="mt-6 max-w-prose">
+                <p>{story.easyRead}</p>
+              </EasyRead>
               <div className="mt-6">
                 <ReadAloud
                   targetId={BODY_ID}

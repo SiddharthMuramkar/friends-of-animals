@@ -42,7 +42,7 @@ export default async function Page() {
         shortTitle={t("short.title")}
         items={SHORT.map((k) => t(`short.items.${k}`))}
       />
-      <Section width="prose">
+      <Section innerClassName="[&>*]:max-w-3xl">
         <PolicyBlock id="fees" title={t("fees.title")}>
           <p className="text-ink-muted">{t("fees.lead")}</p>
           <div className="overflow-hidden rounded-3xl border-2 border-border bg-surface">

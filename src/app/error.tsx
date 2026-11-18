@@ -33,7 +33,7 @@ export default function ErrorPage({
 
   return (
     <section className="bg-section-red py-16 [--section-heading:var(--section-red-heading)] sm:py-24">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <h1 className="text-(--section-heading)">{m.title}</h1>
         <p className="mt-5 max-w-prose text-lead text-ink-muted">{m.body}</p>
         {digest ? (

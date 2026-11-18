@@ -18,7 +18,7 @@ import { getSampleCompetitions } from "@/content/sample";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
-import { EasyRead } from "./_components/easy-read";
+import { EasyRead } from "@/components/site/easy-read";
 import { cardClass, CompetitionFilters } from "./_components/filters";
 import { filterTokens } from "./_lib/view";
 
