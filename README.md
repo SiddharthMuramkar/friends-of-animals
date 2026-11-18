@@ -116,7 +116,8 @@ src/
 │   ├── ui/                   # shadcn/ui primitives
 │   └── site-header.tsx, site-footer.tsx, theme-toggle.tsx
 ├── lib/                      # pure utilities, safe anywhere: site.ts (branding), utils.ts (cn), theme.ts
-├── env.ts                    # server-only, Zod-validated environment (`env()`)
+├── env.schema.ts             # Zod env schemas + `parseEnv()`; no server-only, so scripts can use it
+├── env.ts                    # server-only, cached config accessor (`env()`)
 ├── server/db/
 │   ├── index.ts              # lazily connected Drizzle client (`db`)
 │   └── schema/index.ts       # schema barrel: one file per module, re-exported here
