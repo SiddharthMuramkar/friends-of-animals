@@ -55,7 +55,7 @@ The stack is locked (decided in issue #11). Keep the architecture; a row changes
 | Search | Postgres full-text plus `pg_trgm` | Gallery, NGO directory, admin lists |
 | Observability | Sentry (`@sentry/nextjs` on Vercel, `@sentry/node` in the worker, Sentry cron monitors), pino structured logs, `/api/health` | §13.3 |
 | Hosting | Vercel Pro (functions in `bom1`) for the app; Docker Compose on the Mumbai VPS for data and workers | §2.3 |
-| Testing | Vitest (latest) + PGlite (unit/domain); Playwright (E2E) in GitHub Actions CI, never on the VPS | State machines MUST have unit tests covering every allowed and disallowed transition |
+| Testing | Vitest 5 + PGlite (unit/domain); Playwright (E2E) in GitHub Actions CI, never on the VPS | State machines MUST have unit tests covering every allowed and disallowed transition |
 
 ### 2.1 Repository Layout
 

@@ -55,7 +55,7 @@ The stack is locked (decided in issue #11). Keep the architecture; a row changes
 | Search | Postgres full-text plus `pg_trgm` | Gallery, NGO directory, admin lists |
 | Observability | Sentry (`@sentry/nextjs` on Vercel, `@sentry/node` in the worker, Sentry cron monitors), pino structured logs, `/api/health` | §13.3 |
 | Hosting | Vercel Pro (functions in `bom1`) for the app; Docker Compose on the Mumbai VPS for data and workers | §2.3 |
-| Testing | Vitest (latest) + PGlite (unit/domain); Playwright (E2E) in GitHub Actions CI, never on the VPS | State machines MUST have unit tests covering every allowed and disallowed transition |
+| Testing | Vitest 5 + PGlite (unit/domain); Playwright (E2E) in GitHub Actions CI, never on the VPS | State machines MUST have unit tests covering every allowed and disallowed transition |
 
 ### 2.1 Repository Layout
 
@@ -3829,7 +3829,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 
 | Variable | Envs | Purpose |
 |---|---|---|
-| `APP_ENV`, `APP_URL` | all | `local`, `preview`, `staging` or `production`; canonical base URL |
+| `APP_ENV`, `APP_URL` | all (defaulted locally) | `local`, `preview`, `staging` or `production`; canonical base URL |
 | `DATABASE_URL`, `DIRECT_URL` | all | `DATABASE_URL`: PgBouncer, transaction mode (in the worker: Postgres directly on the Compose network, §2.2). `DIRECT_URL`: PgBouncer session-mode entry with the migrator role, for migrations |
 | `AUTH_SECRET` | all | Session and token signing (≥ 32 bytes) |
 | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` | all | Cloudflare R2 S3 API (`https://<account-id>.r2.cloudflarestorage.com`, region `auto`); local: RustFS or the in-memory driver (§2.4) |
@@ -3849,7 +3849,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `DEV_OTP_BYPASS_CODE` | local, preview | Test OTP; ignored in production |
 | `IMAGE_SAFETY_API_KEY`, `DIGILOCKER_CLIENT_ID`, `DIGILOCKER_CLIENT_SECRET` | optional (flags) | Post-MVP integrations |
 
-Env is validated at boot with zod (`src/env.ts`), in the app and in the worker: the app validates it in `register()` (`src/instrumentation.ts`), so a missing required variable fails the start. Only a local run may leave out `APP_ENV` and `APP_URL`, which then default to `local` and `http://localhost:3000`. A missing `APP_URL` fails the build and the start whenever `APP_ENV` is anything but `local`, and on Vercel so does a missing `APP_ENV` (prerendered pages read both at build time). `next build` needs no other variable; the Vercel build still fails without `DIRECT_URL`, because `vercel-build` runs the migrations through it. Backup credentials (pgBackRest and dump-bucket R2 tokens, the repository cipher passphrase) live only on the VPS, never in Vercel.
+Env is validated at boot with zod (schemas in `src/env.schema.ts`, read through `src/env.ts`), in the app and in the worker: the app validates it in `register()` (`src/instrumentation.ts`), so a missing required variable fails the start. Only a local run may leave out `APP_ENV` and `APP_URL`, which then default to `local` and `http://localhost:3000`. A missing `APP_URL` fails the build and the start whenever `APP_ENV` is anything but `local`, and on Vercel so does a missing `APP_ENV` (prerendered pages read both at build time). `next build` needs no other variable; the Vercel build still fails without `DIRECT_URL`, because `vercel-build` runs the migrations through it. Backup credentials (pgBackRest and dump-bucket R2 tokens, the repository cipher passphrase) live only on the VPS, never in Vercel.
 
 **Runtime settings.** `Setting { key String @id, value Json, updatedBy String, updatedAt DateTime }` is the runtime configuration table that SUPER_ADMIN edits. Each section's config keys live here, and changes are audit-logged.
 

@@ -87,21 +87,21 @@ Ports are published on `127.0.0.1` only, because Docker's published ports bypass
 
 ## Scripts
 
-| Script                              | What it does                                                              |
-| ----------------------------------- | ------------------------------------------------------------------------- |
-| `pnpm dev`                          | Dev server with hot reload (Turbopack)                                    |
-| `pnpm build`                        | Production build into `.next/` (includes `.next/standalone`)              |
-| `pnpm start`                        | Serve the production build on port 3000                                   |
-| `pnpm typecheck`                    | Generate Next.js route types, then run `tsc`                              |
-| `pnpm lint`                         | oxlint with type-aware rules                                              |
-| `pnpm format` / `pnpm format:check` | Format with oxfmt / check formatting                                      |
-| `pnpm test` / `pnpm test:watch`     | Run the tests once / in watch mode                                        |
-| `pnpm check`                        | typecheck + lint + format:check + test: run it before you push            |
-| `pnpm db:generate`                  | Create a migration from schema changes                                    |
-| `pnpm db:migrate`                   | Apply pending migrations                                                  |
-| `pnpm db:studio`                    | Open Drizzle Studio                                                       |
-| `pnpm brand:assets`                 | Regenerate the logo PNGs and icons in `public/brand/` from the SVG master |
-| `pnpm vercel-build`                 | Migrate, then build (Vercel runs this)                                    |
+| Script                              | What it does                                                                                                                        |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                          | Dev server with hot reload (Turbopack)                                                                                              |
+| `pnpm build`                        | Production build into `.next/` (includes `.next/standalone`)                                                                        |
+| `pnpm start`                        | Serve the production build on port 3000 (`next start` warns under `output: "standalone"`; Docker runs `.next/standalone/server.js`) |
+| `pnpm typecheck`                    | Generate Next.js route types, then run `tsc`                                                                                        |
+| `pnpm lint`                         | oxlint with type-aware rules                                                                                                        |
+| `pnpm format` / `pnpm format:check` | Format with oxfmt / check formatting                                                                                                |
+| `pnpm test` / `pnpm test:watch`     | Run the tests once / in watch mode                                                                                                  |
+| `pnpm check`                        | typecheck + lint + format:check + test: run it before you push                                                                      |
+| `pnpm db:generate`                  | Create a migration from schema changes (needs `DIRECT_URL` set, even though it does not connect)                                    |
+| `pnpm db:migrate`                   | Apply pending migrations                                                                                                            |
+| `pnpm db:studio`                    | Open Drizzle Studio                                                                                                                 |
+| `pnpm brand:assets`                 | Regenerate the logo PNGs and icons in `public/brand/` from the SVG master                                                           |
+| `pnpm vercel-build`                 | Migrate, then build (Vercel runs this)                                                                                              |
 
 ## Project layout
 

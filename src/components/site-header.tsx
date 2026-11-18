@@ -15,7 +15,7 @@ export function SiteHeader() {
           {/* Decorative: the name beside it labels the link. */}
           <Logo
             plateClassName="shrink-0 rounded-md dark:p-1.5"
-            className="block h-12 w-auto sm:h-14"
+            className="h-12 w-auto sm:h-14"
           />
           {/* Shown from the sm breakpoint up. On narrow screens it stays in
               the accessibility tree, so the link always has a name. */}
