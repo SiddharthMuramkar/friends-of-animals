@@ -111,6 +111,28 @@ export function resolveDatabaseUrl(url: string, env: DatabaseEnv): string {
     : url;
 }
 
+/** What scripts/migrate.ts migrates. */
+export type MigrationTarget = {
+  /** The connection to migrate through. */
+  url: string;
+  /** On a preview, its own database, which the script creates first. */
+  preview?: PreviewDatabase;
+};
+
+/**
+ * A preview migrates its own database, named once here so that the script
+ * creates and then connects to the same one. Every other environment,
+ * staging and production included, migrates the database DIRECT_URL names
+ * in place and creates nothing.
+ */
+export function migrationTarget(
+  env: DatabaseEnv & { DIRECT_URL: string }
+): MigrationTarget {
+  if (env.APP_ENV !== "preview") return { url: env.DIRECT_URL };
+  const preview = previewDatabase(env);
+  return { url: withDatabase(env.DIRECT_URL, preview.name), preview };
+}
+
 /** The sslmodes that always encrypt, which libpq requires for direct TLS. */
 const ENCRYPTED_SSLMODES = new Set(["require", "verify-ca", "verify-full"]);
 

@@ -19,9 +19,13 @@ import {
   parseEnv,
   type MigrationEnv,
 } from "../src/env.schema";
-import { directTls, withDatabase } from "../src/server/db/database-url";
+import {
+  directTls,
+  migrationTarget,
+  withDatabase,
+} from "../src/server/db/database-url";
 import { loadEnvFiles } from "./load-env";
-import { createPreviewDatabase, migrationTarget } from "./preview-database";
+import { createPreviewDatabase } from "./preview-database";
 
 /**
  * Key of the session-level advisory lock held around `migrate()`: the ASCII
@@ -57,10 +61,9 @@ try {
   process.exit(1);
 }
 
-// A preview migrates its own database, named once here: the same name is
-// created below and then connected to. Staging and production migrate the
-// database DIRECT_URL names (foa_staging, foa) in place.
-const { url, create: preview } = migrationTarget(config);
+// A preview's own database is created below, then migrated; staging and
+// production migrate foa_staging and foa in place.
+const { url, preview } = migrationTarget(config);
 
 if (preview !== undefined) {
   // CREATE DATABASE runs from another database: `postgres`, on the same

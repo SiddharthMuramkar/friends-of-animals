@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   directTls,
+  migrationTarget,
   previewDatabase,
   previewDatabaseName,
   resolveDatabaseUrl,
@@ -182,6 +183,47 @@ describe("resolveDatabaseUrl", () => {
     expect(() =>
       resolveDatabaseUrl(PREVIEW_URL, { APP_ENV: "preview" })
     ).toThrow(/name its database/);
+  });
+});
+
+describe("migrationTarget", () => {
+  // Vercel sets these on every deployment from Git, staging's included.
+  const fromMain = {
+    VERCEL_GIT_PULL_REQUEST_ID: "",
+    VERCEL_GIT_COMMIT_REF: "main",
+  };
+
+  it("migrates foa_staging in place and creates no database", () => {
+    const DIRECT_URL =
+      "postgres://staging_migrator:f00d@db.shipped-it.dev:6432/foa_staging?sslmode=verify-full";
+    expect(
+      migrationTarget({ DIRECT_URL, APP_ENV: "staging", ...fromMain })
+    ).toStrictEqual({ url: DIRECT_URL });
+  });
+
+  it("migrates production and local runs in place too", () => {
+    const DIRECT_URL =
+      "postgres://foa_migrator:beef@db.shipped-it.dev:6432/foa?sslmode=verify-full";
+    for (const APP_ENV of ["production", "local", undefined]) {
+      expect(
+        migrationTarget({ DIRECT_URL, APP_ENV, ...fromMain })
+      ).toStrictEqual({ url: DIRECT_URL });
+    }
+  });
+
+  it("creates a preview's own database and migrates that", () => {
+    expect(
+      migrationTarget({
+        DIRECT_URL:
+          "postgres://nonprod_migrator:f00d@db.shipped-it.dev:6432/foa_pr?sslmode=verify-full",
+        APP_ENV: "preview",
+        VERCEL_GIT_PULL_REQUEST_ID: "7",
+        VERCEL_GIT_COMMIT_REF: "map",
+      })
+    ).toStrictEqual({
+      url: "postgres://nonprod_migrator:f00d@db.shipped-it.dev:6432/foa_pr_7?sslmode=verify-full",
+      preview: { name: "foa_pr_7", comment: "foa-preview pr=7" },
+    });
   });
 });
 

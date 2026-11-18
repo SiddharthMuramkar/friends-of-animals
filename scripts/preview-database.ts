@@ -1,38 +1,11 @@
-// Picks the database scripts/migrate.ts migrates and creates a preview's own
-// on pg-nonprod from the `foa_seed` template (SPEC §2.4), which that script
-// does before migrating a preview. Kept apart from it so both can be tested
-// without Postgres.
+// Creates a preview's own database on pg-nonprod from the `foa_seed`
+// template (SPEC §2.4). scripts/migrate.ts runs it before migrating a
+// preview. Kept apart from that script so it can be tested without Postgres.
 
-import {
-  previewDatabase,
-  withDatabase,
-  type DatabaseEnv,
-  type PreviewDatabase,
-} from "../src/server/db/database-url";
+import type { PreviewDatabase } from "../src/server/db/database-url";
 
 /** The template every preview database is copied from. */
 export const SEED_TEMPLATE = "foa_seed";
-
-/** What scripts/migrate.ts migrates. */
-export type MigrationTarget = {
-  /** The connection to migrate through. */
-  url: string;
-  /** The database to create first: only ever a preview's own. */
-  create?: PreviewDatabase;
-};
-
-/**
- * A preview (APP_ENV=preview) migrates its own database, which is created
- * first. Every other environment, staging and production included, migrates
- * the database DIRECT_URL names in place and creates nothing.
- */
-export function migrationTarget(
-  env: DatabaseEnv & { DIRECT_URL: string }
-): MigrationTarget {
-  if (env.APP_ENV !== "preview") return { url: env.DIRECT_URL };
-  const create = previewDatabase(env);
-  return { url: withDatabase(env.DIRECT_URL, create.name), create };
-}
 
 /** Runs one SQL statement, e.g. `(query) => sql.unsafe(query)`. */
 export type RunSql = (query: string) => Promise<unknown>;
