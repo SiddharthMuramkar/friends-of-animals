@@ -24,34 +24,44 @@
 
 ## 2. Tech Stack & Architecture
 
-Defaults (swap if the team prefers, but keep the architecture):
+The stack is locked (decided in issue #11). Keep the architecture; a row changes only through a new decision on a GitHub issue. Versions are pinned in `package.json` and the Compose files.
 
-| Concern | Default | Notes |
+| Concern | Lock | Notes |
 |---|---|---|
-| Framework | **Next.js (App Router) + TypeScript (strict)** | Server Components and Server Actions; Route Handlers for webhooks and the public API |
-| UI | Tailwind CSS + shadcn/ui | Mobile-first. WCAG 2.2 AA |
-| DB | **PostgreSQL** (Neon) | Branch per preview deployment |
-| ORM | Prisma | Migrations checked in |
-| Auth | Better Auth (or Auth.js) | Email OTP plus phone OTP. Password optional. Sessions in DB |
-| Object storage | S3-compatible (Cloudflare R2 / AWS S3) | Private bucket for originals; public CDN bucket for derived/stamped assets only |
-| Uploads | Presigned direct-to-bucket uploads (multipart for video) | Server never proxies large files |
-| Image processing | `sharp` | Thumbnails, web derivatives, EXIF stripping, logo stamping |
-| PDF | Headless Chromium (Playwright) HTML→PDF, or `@react-pdf/renderer` | Certificates, receipts |
+| Framework | **Next.js 16.4.x (App Router) + TypeScript (strict)**, started from `create-next-app` | Server Components and Server Actions; Route Handlers for auth, webhooks and the public API. Turbopack, `cacheComponents: true`, `output: 'standalone'` |
+| Runtime | Node 26 LTS (`engines.node: "26.x"`); TypeScript 7.0.x | `next build` type-checks with the project's `tsc` |
+| Tooling | pnpm 12; oxlint (type-aware via `oxlint-tsgolint`; `nextjs`, `react`, `jsx-a11y` and `import` plugins) + oxfmt | oxlint replaces ESLint and oxfmt replaces Prettier |
+| UI | Tailwind CSS 4 + shadcn/ui (`rsc: true`), `next/font` Inter, lucide icons | Mobile-first. WCAG 2.2 AA |
+| i18n | next-intl 4 | Wired in M0 (§13.5) |
+| Validation | Zod 4 | Shared by forms and services (§2.2) |
+| DB | **PostgreSQL 18.7** in Docker on the Mumbai VPS: `pg-prod` and `pg-nonprod` | Never published on a host port. Databases per environment: §2.4 |
+| Pooler | PgBouncer 1.26, the only public DB endpoint | TLS (Let's Encrypt) + SCRAM, transaction pooling, port 6432. Reachable only from Vercel Static IPs (Hostinger firewall plus a `DOCKER-USER` rule) |
+| ORM | **Drizzle ORM 0.45.4** + drizzle-kit 0.31.x on postgres.js, pinned | Prefer the core query builder over RQB v1. Move to Drizzle 1.0 when it is stable and Better Auth's peer range allows. SQL migrations in `drizzle/`, checked in |
+| Backups | pgBackRest to Cloudflare R2 (WAL pushed at least every 60 s, 30-day PITR), plus a daily `age`-encrypted `pg_dump` kept 35 days in a locked bucket | Quarterly restore drill (§13.1) |
+| Auth | **Better Auth 1.7.x** + Drizzle adapter | Email OTP, phone OTP through our `SmsProvider`, TOTP/passkey, captcha. Password optional. Sessions in DB. FOA layer on top: scoped `UserRole` + `can()`, guardian rules, staff 2FA gate, step-up (§4, §13.1) |
+| Object storage | **Cloudflare R2** via the S3 API | Buckets `foa-private` (originals, `quarantine/`), `foa-public` (derived/stamped assets only) and `foa-evidence` (§13.1). Vercel Blob is not used |
+| Uploads | Presigned direct-to-bucket uploads from the browser (multipart above 100 MB) | Server never proxies large files |
+| CDN | Cloudflare CDN on `media.<foa-domain>` in front of `foa-public` | Purge by URL through the Cloudflare API (§7.10, §12.6) |
+| Image and video | `sharp` + `heif-dec` (HEIC); ffmpeg/ffprobe | Thumbnails, web derivatives, EXIF stripping, logo stamping, video posters. Runs in `worker-media` |
+| PDF | Headless Chromium (Playwright) HTML→PDF in `worker-media`; Gotenberg 8 (LibreOffice) for DOCX→PDF | Certificates, receipts, letters, rendered cards |
+| Antivirus | ClamAV (`clamd` over TCP on the Compose network) | Every upload is scanned before promotion (§13.1) |
 | QR | `qrcode` | Certificate verification |
-| Background jobs | pg-boss (Postgres-backed queue) or Inngest | Scheduled transitions, PDF generation, notifications, image processing |
-| Payments | **Razorpay** (Orders, Subscriptions, Webhooks) behind a `PaymentProvider` interface | Fees, donations, auction payments |
-| Email | Resend (or SES) | Templated, React Email |
-| SMS | MSG91 (or similar), behind a `SmsProvider` interface | Indian SMS needs DLT-registered templates |
+| Background jobs | **pg-boss 12** on the same Postgres | `worker` and `worker-media` containers on the VPS. Vercel only sends jobs (§2.2). Every schedule is a pg-boss cron with tz `Asia/Kolkata`, run by `worker`. Vercel Cron is not used |
+| Caching | `'use cache'` + `cacheTag` / `cacheLife`; `revalidateTag(tag, profile)` and `updateTag` | The worker invalidates only through the internal route (§2.2) |
+| Rate limits | Stored in Postgres | No Redis |
+| Payments | **Razorpay** (Orders, Subscriptions, Webhooks; domestic methods, §8.4.6) behind a `PaymentProvider` interface | Fees, donations, auction payments |
+| Email | **Amazon SES** (`ap-south-1`) behind an `EmailProvider` interface | Templated, React Email |
+| SMS | **MSG91** behind an `SmsProvider` interface | Indian SMS needs DLT-registered templates |
 | Search | Postgres full-text plus `pg_trgm` | Gallery, NGO directory, admin lists |
-| Observability | Sentry plus structured logs | |
-| Hosting | Vercel (app) plus Neon (DB) | Jobs run on the queue worker or Vercel Cron |
-| Testing | Vitest (unit/domain), Playwright (E2E) | State machines MUST have unit tests covering every allowed and disallowed transition |
+| Observability | Sentry (`@sentry/nextjs` on Vercel, `@sentry/node` in the worker, Sentry cron monitors), pino structured logs, `/api/health` | §13.3 |
+| Hosting | Vercel Pro (functions in `bom1`) for the app; Docker Compose on the Mumbai VPS for data and workers | §2.3 |
+| Testing | Vitest (latest) + PGlite (unit/domain); Playwright (E2E) in GitHub Actions CI, never on the VPS | State machines MUST have unit tests covering every allowed and disallowed transition |
 
 ### 2.1 Repository Layout
 
 ```
 src/
-  app/
+  app/                   # App Router: layout.tsx, page.tsx, not-found.tsx, error.tsx, global-error.tsx, globals.css
     (public)/            # marketing + public modules
     (auth)/              # login, register, verify OTP
     dashboard/           # participant / member / guardian dashboard
@@ -59,20 +69,39 @@ src/
     judge/               # judge/jury dashboard
     admin/               # FOA staff dashboard
     verify/[certificateNumber]/   # public certificate verification (QR target)
-    api/webhooks/razorpay/route.ts
+    api/auth/[...all]/route.ts    # Better Auth handler
+    api/webhooks/razorpay/route.ts  # also ses/ and msg91/ (§10.7)
+    api/internal/revalidate/route.ts  # HMAC-signed cache invalidation for the worker (§2.2)
+    api/health/route.ts  # DB, queue and worker heartbeat (§13.3)
     api/v1/...           # JSON API only where needed (uploads, polling)
+  components/            # site chrome
+    ui/                  # shadcn/ui
+  lib/                   # pure utilities (site, utils, ids, money, dates)
+  env.ts                 # server-only, zod-validated env (§13.9)
   server/
+    db/
+      index.ts           # Drizzle client (postgres.js)
+      schema/            # one file per module + index.ts barrel
+      pii.ts             # PII registry and encrypted columns (§12.2, §13.1)
+      repositories/
     domain/<module>/     # services, state machines, validators (zod), policies
-    db/                  # prisma client, repositories
-    jobs/                # queue handlers + schedules
-    integrations/        # payment, email, sms, storage adapters
-    auth/                # session helpers, RBAC
-  components/
+    jobs/                # pg-boss queues, handlers, schedules, send helpers
+    integrations/        # payment, email, sms, storage, CDN-purge adapters
+    auth/                # Better Auth config, session helpers, RBAC
+  worker/                # pg-boss worker entrypoint; imports src/server
   emails/                # React Email templates
-  lib/                   # pure utilities (ids, money, dates)
-prisma/schema.prisma
-prisma/seed.ts           # realistic seed: 1 competition, 3 schools, 30 participants, 2 judges
-tests/
+  i18n/                  # next-intl config
+  test/                  # PGlite test harness
+messages/                # next-intl message files, {locale}.json (§13.5)
+drizzle/                 # generated SQL migrations plus hand-written SQL (partial indexes, triggers), checked in
+scripts/
+  migrate.ts             # applies drizzle/ through DIRECT_URL
+  seed.ts                # realistic seed: 1 competition, 3 schools, 30 participants, 2 judges
+  brand-assets.ts
+docker/                  # VPS Compose files; PgBouncer and pgBackRest config
+docker-compose.yml       # local stack: Postgres 18 on 127.0.0.1
+Dockerfile               # standalone app image for the local stack
+tests/e2e/               # Playwright (runs in GitHub Actions)
 ```
 
 ### 2.2 Architectural Rules
@@ -82,8 +111,43 @@ tests/
 - **Idempotency:** webhook handlers and payment-confirmation flows MUST be idempotent, keyed by provider event ID.
 - **Files:** originals are private and served only through short-lived signed URLs, after an authorization check. Public pages only ever show derived assets with metadata stripped and the logo stamped (§7).
 - **Soft delete** (`deletedAt`) for user-generated content. Hard delete only through the data-erasure workflow (§12).
+- **Cache invalidation.** Cached reads use `'use cache'` with `cacheTag` and `cacheLife`. A Server Action invalidates with `updateTag` (read-your-own-writes) or `revalidateTag(tag, profile)`. The worker can't call either, so it MUST revalidate only through `POST /api/internal/revalidate`: the body carries the tags and a timestamp and is signed with HMAC-SHA256 (`REVALIDATE_SECRET`); a bad or stale signature gets 401. For removals (consent withdrawal, erasure, takedown) the route uses `revalidateTag(tag, { expire: 0 })`, so no stale copy is served.
+- **Database connections and jobs.** Vercel functions reach Postgres only through PgBouncer in transaction mode (`DATABASE_URL`; postgres.js with `prepare: false` and a small pool). Migrations use `DIRECT_URL` (§2.3). pg-boss workers and the Outbox `LISTEN` MUST use a direct Postgres connection on the Compose network, never the transaction-mode PgBouncer. The Vercel side only sends jobs: pg-boss runs there with supervision, scheduling and migration off, and each `send` runs inside the caller's Drizzle transaction, so a job exists only if the change committed. Outbox rows (§3.3) fire `NOTIFY` from an insert trigger; the worker's dispatcher listens and also polls every 5 s (§10.1).
+
+### 2.3 Placement
+
+| Where | Runs |
+|---|---|
+| **Vercel Pro**, functions in `bom1` | The Next.js app: pages, Server Actions and Route Handlers (auth, webhooks, `/api/health`, `/api/internal/revalidate`). R2 presigning. pg-boss send-only. DB migrations in `vercel-build` through `DIRECT_URL`, a PgBouncer session-mode entry with a migrator role; migrations take a Postgres advisory lock (#12). Builds use the Static IPs ("Use Static IPs for builds" on), because PgBouncer accepts only those IPs |
+| **Mumbai VPS** (Docker Compose) | `pg-prod`, `pg-nonprod`, `pgbouncer`, `worker`, `worker-media`, `clamav`, `gotenberg`, and the pg-boss dashboard (on 127.0.0.1 only, reached through an SSH tunnel) |
+| **Cloudflare** | R2 buckets, the `media.<foa-domain>` CDN, and the backup repository and dump bucket |
+| **GitHub Actions** | CI, Playwright E2E, worker image builds |
+
+- Vercel reaches the database only through PgBouncer on port 6432. There is no HTTP path from Vercel to the worker: work is handed over through Postgres (Outbox rows and pg-boss jobs).
+- The worker connects to Postgres directly on the Compose network. The only app endpoint it calls is `/api/internal/revalidate` (§2.2).
+- Only PgBouncer on port 6432 (from Vercel Static IPs only) and SSH accept inbound traffic on the VPS. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
+- Worker images are built by GitHub Actions, pushed to GHCR tagged with the commit SHA, and deployed with `docker compose pull && docker compose up -d --wait`. A rollback redeploys the previous tag.
+
+### 2.4 Environments
+
+| Environment | App | Database | Notes |
+|---|---|---|---|
+| **local** | `pnpm dev` | Compose Postgres 18 on 127.0.0.1; Vitest uses in-memory PGlite | Email to Mailpit. Storage: a local S3 server (RustFS container) or the in-memory storage driver |
+| **preview** | Vercel preview deployment per PR | `foa_pr_<n>` on `pg-nonprod`, created from the template database `foa_seed` during `vercel-build` and dropped when the PR closes | |
+| **staging** (test) | `foa.shipped-it.dev`, Vercel custom environment `staging` | `foa_staging` on `pg-nonprod` | |
+| **production** | FOA's own domain | `pg-prod`, with PITR (§13.1) | SES out of sandbox; Razorpay live |
+
+- Behaviour switches read `APP_ENV` (`local`, `preview`, `staging` or `production`), never `VERCEL_ENV`, which reads `preview` in the custom `staging` environment.
+- Per-environment rules for payments, email and SMS: §13.8.
 
 ## 3. Conventions
+
+**Notation.** The `prisma` code blocks in this spec describe the logical model. Implement them in Drizzle (`src/server/db/schema/`):
+
+- **Keys.** `id String @id` → `uuid` (UUIDv7, generated in the app). A column that references an `id`, including one used as the key (e.g. `competitionId String @id`), takes that `id`'s type. A natural key (e.g. `Setting.key`, `ShortLink.code`, `ReceiptSequence.fy`, `FinancialPeriod.month`) keeps its own type, here `text`.
+- **Scalars.** `String` → `text`; `Int` → `integer`; `BigInt` → `bigint` (`@default(autoincrement())` → an identity column); `Boolean` → `boolean`; `Float` → `double precision`; `Decimal` / `@db.Decimal(p,s)` → `numeric` / `numeric(p,s)`; `Bytes` → `bytea`; `DateTime` → `timestamptz`, but `DateTime @db.Date` → `date`; `Json` → `jsonb`; enums → `pgEnum`; `Unsupported("tsvector")` → a `customType`.
+- **Encrypted columns.** A column listed as encrypted in §13.1, marked `enc` or named `…Encrypted` uses the encrypted `customType` in `src/server/db/pii.ts`, whatever its logical type.
+- **Indexes.** `@@index` / `@@unique` → Drizzle `index()` / `uniqueIndex()`. Partial indexes and triggers are written as SQL in `drizzle/` migrations.
 
 ### 3.1 Identifiers
 

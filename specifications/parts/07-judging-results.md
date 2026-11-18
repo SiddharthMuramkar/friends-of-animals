@@ -274,8 +274,8 @@ model ResultsRelease {
   3. PrizeFulfilment rows created for bands that have a `prizeId`, from the linked §6 CompetitionPrize.
   4. GalleryItem CANDIDATE created for each `galleryCandidate` entry if `allowPublicDisplay`.
   5. No milestone call. §9 derives FOA_FINALIST from `results.published` using `finalOutcome`.
-  6. `results.published` emitted (§10 fans it out to participants, guardians and schools), and the cache tag `results:{competitionId}` is revalidated.
-- **`/competitions/[slug]/results`** (ISR, revalidated on publish, correction or consent change):
+  6. `results.published` emitted (§10 fans it out to participants, guardians and schools), and the worker revalidates the cache tag `results:{competitionId}` through the internal route (§2.2).
+- **`/competitions/[slug]/results`** (cached with `cacheTag('results:{competitionId}')`, revalidated on publish, correction or consent change):
   - **Layout:** tabs per discipline, then sections per category. Each section lists award bands in order, then special mentions, then finalists alphabetically. Level awards from non-final rounds appear under "{Level} awards".
   - **Name:** when `ConsentService.has(participantId, PUBLIC_DISPLAY, competitionId)` holds, the §12.7 public name (minors: "Aarav S." unless `showFullName`). Otherwise "{entryCode} · Name withheld".
   - **Institution:** shown only with that consent and §12.7 `showSchool`.
@@ -326,7 +326,7 @@ model CertificateTemplate {
   - A template becomes ACTIVE only after a successful preview render.
   - Issued PDFs are immutable: template edits never re-render them, only reissue does.
 - **Generation:** job `certificate.generate(id)` skips GENERATED certificates.
-  - **Render:** Playwright HTML→PDF with bundled Noto fonts (Latin, Devanagari and other Indic scripts). Every request is blocked except the app's asset origin and `data:` URLs. Timeout 30 s.
+  - **Render:** Playwright HTML→PDF in `worker-media`, with Noto fonts (Latin, Devanagari and other Indic scripts) bundled in the image. The worker reads the template's images (FOA logo, signatures, background) from storage and inlines them as `data:` URLs. Every other request is blocked. Timeout 30 s.
   - **QR:** the `qrcode` package encodes `{APP_URL}/verify/{certificateNumber}`.
   - **Store and issue:** the PDF goes to `certificates/{competitionCode}/{certificateNumber}.pdf` (private) as a FileAsset of kind PDF. The certificate → GENERATED and `certificate.issued` is emitted.
   - **Retries:** at 1 min, 10 min and 1 h, then FAILED.
@@ -437,11 +437,11 @@ model GalleryItem {
 | ∅ → CANDIDATE | System at release PUBLISHED (`galleryCandidate`), or CT/CM/SA `addGalleryCandidate` | Competition RESULTS_PUBLISHED. `allowPublicDisplay`. Entry not WITHDRAWN or DISQUALIFIED | Fields snapshotted |
 | CANDIDATE → APPROVED | CT/CM/SA | `ConsentService.has(participantId, PUBLIC_DISPLAY, competitionId)`. A §12.8 `ModerationReview` for the item is APPROVED (checklist: consent, faces, PII, age-appropriate, matches entry) | Stamp jobs (GALLERY + SOCIAL_SQUARE) |
 | CANDIDATE → REJECTED | CT/CM/SA | Reason | None |
-| APPROVED → PUBLISHED | CT/CM/SA (bulk allowed) | Stamped assets ready. Consent re-checked | Listed (sitemap only if `isAdult`). Cache revalidated. `galleryItem.published` |
+| APPROVED → PUBLISHED | CT/CM/SA (bulk allowed) | Stamped assets ready. Consent re-checked | Listed (sitemap only if `isAdult`). Cache tags revalidated (§2.2). `galleryItem.published` |
 | PUBLISHED or APPROVED → UNPUBLISHED | CT/CM/SA (reason), or system: `consent.withdrawn` (PUBLIC_DISPLAY), §12 `consent.reconcile`, DQ, §12.8 auto-hide (REPORTED), §12 erasure | None | Delisted. Detail page returns 410. Consent withdrawal or erasure: public objects deleted and purged from the CDN. `galleryItem.unpublished` |
 | UNPUBLISHED → APPROVED | CT/CM/SA | Not ERASURE. Consent present. New APPROVED review if REPORTED | Restamped if the objects were deleted |
 
-- **Consent withdrawal SLA** (§12.6): gone from every public page, the sitemap and the results page within **15 minutes** (high-priority job plus cache-tag revalidation). The same job deletes the public objects and purges the CDN: target 15 minutes, hard limit **24 hours**. Handlers and §12's `consent.reconcile` both call `GalleryService.unpublishForConsent(participantId, competitionId, reason)`.
+- **Consent withdrawal SLA** (§12.6): gone from every public page, the sitemap and the results page within **15 minutes** (high-priority job plus cache-tag revalidation through the internal route, §2.2). The same job deletes the public objects and purges their URLs from the Cloudflare CDN (credentials in §13.9): target 15 minutes, hard limit **24 hours**. Handlers and §12's `consent.reconcile` both call `GalleryService.unpublishForConsent(participantId, competitionId, reason)`.
 - **`/gallery`:**
   - **Filters:** `competition`, `discipline`, `age` (category), `year`, `recognition`.
   - **Search:** `q` uses `websearch_to_tsquery('simple', q)` plus `pg_trgm` on `displayNameSnapshot`.

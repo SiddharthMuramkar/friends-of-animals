@@ -24,7 +24,7 @@ This section covers source Phases 1–5, 7, 8 and 14, plus end-to-end steps 1–
 
 ### 6.2 Data Model
 
-Every model also has `id String @id` (UUIDv7), `createdAt` and `updatedAt`. Money follows §3.2. The §3.4 entities (`Institution`, `InstitutionMember`, `ParticipantProfile`, `Guardian`, `FileAsset`) are not changed. Fields are joined with `;` here only to save space; `schema.prisma` puts one field per line.
+Every model also has `id String @id` (UUIDv7), `createdAt` and `updatedAt`. Money follows §3.2. The §3.4 entities (`Institution`, `InstitutionMember`, `ParticipantProfile`, `Guardian`, `FileAsset`) are not changed. Fields are joined with `;` here only to save space; the Drizzle schema (§3) puts one column per line.
 
 ```prisma
 enum ConductMode { PHYSICAL_AT_INSTITUTION ONLINE INDEPENDENT }
@@ -321,7 +321,7 @@ A school may pay in bulk while signed forms are still coming in. Those registrat
 **6.8.4 Upload pipeline & submit gate.**
 1. **Request.** `requestEntryUpload({ entryId, role, fileName, mime, sizeBytes })` checks the file rule, that the entry is editable, and that `now ≤ effective deadline`. It creates `FileAsset(ORIGINAL, scanStatus PENDING)` and `EntryFile(mediaCheck PENDING)`. It returns a 15-minute presigned PUT, with Content-Type and Content-Length signed, to `quarantine/entries/{competitionId}/{entryId}/{fileAssetId}`. Above 100 MB, the upload is multipart, with parts presigned on demand.
 2. **Complete.** The client calls `completeEntryUpload({ fileAssetId, sha256 })`. The server HEADs the object (the size must match) and enqueues `media.process`.
-3. **Process** (`media.process`, per §13): Checks: magic bytes, ≤ 50 MP, ClamAV. Sets `scanStatus`; CLEAN files are promoted out of `quarantine/`. Probe: sharp or ffprobe reads dimensions and duration, the file rule is checked, and `mediaCheck` is set. Images: auto-orient; HEIC → JPEG; WEB (2,048 px long edge) and THUMB (400 px) derivatives with all EXIF, XMP and IPTC metadata (including GPS) stripped; a dHash stored as `perceptualHash`. Video: a poster THUMB. DOCX: a PDF derivative.
+3. **Process** (`media.process`, per §13): Checks: magic bytes, ≤ 50 MP, ClamAV. Sets `scanStatus`; CLEAN files are promoted out of `quarantine/`. Probe: sharp or ffprobe reads dimensions and duration, the file rule is checked, and `mediaCheck` is set. Images: auto-orient; HEIC → JPEG; WEB (2,048 px long edge) and THUMB (400 px) derivatives with all EXIF, XMP and IPTC metadata (including GPS) stripped; a dHash stored as `perceptualHash`. Video: a poster THUMB. DOCX: a PDF derivative (Gotenberg, §2).
 4. **Infected files.** An INFECTED file is detached, the Owner is notified (`file.quarantined`), and the object is deleted after 7 days.
 
 Originals stay private (signed URLs, §13). Judges and the public only ever see derivatives.
