@@ -10,6 +10,11 @@
 #
 # Data lives in the named volumes `pgdata` and `uploads`; `docker compose down -v`
 # deletes them.
+#
+# Ports are published on 127.0.0.1 only. Docker's published ports bypass host
+# firewalls such as ufw, so "5432:5432" would expose the database (and its
+# local-only password) to the internet on a VPS. Reach it from another machine
+# through an SSH tunnel: ssh -L 5432:127.0.0.1:5432 <host>
 
 services:
   db:
@@ -21,7 +26,7 @@ services:
       POSTGRES_DB: rescue
     ports:
       # Published so `npm run dev` on the host can reach it at localhost:5432.
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -34,7 +39,7 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       DATABASE_URL: postgres://rescue:rescue@db:5432/rescue
       # Read from .env (or the shell) when set; the default is for local use only.
