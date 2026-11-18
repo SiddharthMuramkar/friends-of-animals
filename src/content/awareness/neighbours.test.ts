@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { fleschKincaidGrade } from "@/content/stories/text";
+
 import { NEIGHBOURS, neighbour } from "./neighbours";
 import { BITE_FIRST_AID, HURT_ANIMAL_KID_STEPS } from "./rescue";
 
@@ -38,6 +40,21 @@ describe("NEIGHBOURS", () => {
         expect(line, n.id).not.toMatch(/^feed\b/i);
       }
     }
+  });
+
+  it.each(NEIGHBOURS.map((n) => n.id))(
+    "%s kid lines read at grade 6 or below",
+    (id) => {
+      const n = neighbour(id);
+      const kid = [n.fact, ...n.good, ...n.avoid].join(" ");
+      expect(fleschKincaidGrade(kid)).toBeLessThanOrEqual(6);
+    }
+  );
+
+  it("keeps kid steps for a hurt animal at grade 6 or below", () => {
+    expect(
+      fleschKincaidGrade(HURT_ANIMAL_KID_STEPS.join(" "))
+    ).toBeLessThanOrEqual(6);
   });
 
   it("puts Ruskin Bond's sparrow line on the sparrow", () => {

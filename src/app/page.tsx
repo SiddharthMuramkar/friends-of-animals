@@ -73,10 +73,13 @@ async function Announcement() {
       aria-label={t("link")}
       className="bg-yellow-100 text-neutral-900 dark:bg-yellow-950 dark:text-yellow-50"
     >
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-sm sm:px-6 sm:text-base">
         <SampleTag />
-        <p className="flex items-center gap-2 font-semibold">
-          <Megaphone aria-hidden="true" className="size-5 shrink-0" />
+        <p className="flex items-start gap-2 font-semibold sm:items-center">
+          <Megaphone
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 sm:mt-0 sm:size-5"
+          />
           {t("text", { name: a.name, closes: new Date(a.expiresAt) })}
         </p>
         <Link
@@ -100,20 +103,19 @@ async function Hero() {
     >
       {/* Tile field: a few loose logo-colour tiles, decorative. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <span className="absolute top-10 left-[46%] hidden size-6 rotate-12 rounded-[22%] bg-yellow-300 lg:block" />
         <span className="absolute bottom-16 left-[4%] hidden size-5 -rotate-6 rounded-[22%] bg-teal-400 sm:block" />
         <span className="absolute right-[6%] bottom-8 hidden size-4 rotate-6 rounded-[22%] bg-pink-400 sm:block" />
       </div>
-      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-24">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-8 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
         <div>
           <Eyebrow tile="green">{t("hero.eyebrow")}</Eyebrow>
           <h1
             id="home-title"
-            className="mt-4 font-display text-display leading-[1.05] font-extrabold text-ink"
+            className="mt-4 font-display text-[2.75rem] leading-[1.05] font-extrabold text-balance text-ink sm:text-display lg:text-[4.5rem]"
           >
             {t(hero.heading)}
           </h1>
-          <p className="mt-6 max-w-prose text-lead text-ink-muted">
+          <p className="mt-5 max-w-prose text-lg text-ink-muted sm:mt-6 sm:text-lead">
             {t(hero.subheading)}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -131,7 +133,7 @@ async function Hero() {
             ) : null}
           </div>
         </div>
-        <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
+        <div className="relative mx-auto w-full max-w-xl lg:mr-3 lg:max-w-none">
           <Photo
             id={hero.imageAssetId}
             sizes="(min-width: 1280px) 560px, (min-width: 1024px) 44vw, 92vw"
