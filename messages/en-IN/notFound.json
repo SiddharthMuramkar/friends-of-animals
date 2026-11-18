@@ -4,8 +4,50 @@
       "title": "Page not found"
     },
     "eyebrow": "Error 404",
-    "title": "We couldn’t find that page",
-    "body": "The link may be old, or the address may have a typo. These pages are a good place to start.",
-    "home": "Go to the home page"
+    "title": "This page has wandered off",
+    "body": "The link may be old, or the address may have a typo. While you are here, you could draw something.",
+    "photoCaption": "A puppy peeking out.",
+    "drawEyebrow": "Doodle pad",
+    "drawTitle": "Draw the animal you were hoping to find",
+    "drawLead": "Draw with a finger, a pen or a mouse. Or use stamps with the keyboard. Your drawing stays on this device.",
+    "start": "Start drawing",
+    "loading": "Getting the pad ready…",
+    "pad": {
+      "canvas": "Drawing area. {count} marks so far.",
+      "draw": "Draw",
+      "stamp": "Stamp",
+      "tool": "Tool",
+      "colour": "Colour",
+      "colours": {
+        "ink": "Ink black",
+        "red": "Tile red",
+        "green": "Leaf green",
+        "blue": "Sky blue",
+        "yellow": "Marigold"
+      },
+      "stampKind": "Stamp",
+      "stamps": {
+        "paw": "Paw",
+        "heart": "Heart",
+        "leaf": "Leaf"
+      },
+      "keyboardHint": "No mouse? Tab to the pad, move with the arrow keys (hold Shift for bigger steps) and press Enter to place a stamp.",
+      "undo": "Undo",
+      "clear": "Clear",
+      "clearConfirm": "Clear the whole drawing?",
+      "clearYes": "Yes, clear it",
+      "clearNo": "Keep it",
+      "download": "Download",
+      "placed": "{stamp} placed.",
+      "cleared": "Drawing cleared.",
+      "undone": "Last mark removed."
+    },
+    "waysBack": "Real ways back",
+    "home": "Go to the home page",
+    "homeHint": "Start from the beginning.",
+    "competitions": "See the competitions",
+    "competitionsHint": "Drawing, painting, photos and more.",
+    "awareness": "Meet your street neighbours",
+    "awarenessHint": "Ten animals and how to be kind to them."
   }
 }
