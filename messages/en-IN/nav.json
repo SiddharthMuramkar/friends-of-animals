@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "label": "Main",
+    "homeLink": "Friends of Animals home page",
+    "menu": "Menu",
+    "menuTitle": "Pages",
+    "closeMenu": "Close menu",
+    "donate": "Donate",
+    "links": {
+      "home": "Home",
+      "competitions": "Competitions",
+      "competition": "Competition",
+      "schools": "Schools",
+      "awareness": "Awareness",
+      "stories": "Stories",
+      "story": "Story",
+      "about": "About",
+      "impact": "Impact",
+      "donate": "Donate",
+      "contact": "Contact",
+      "credits": "Image credits",
+      "privacy": "Privacy policy",
+      "terms": "Terms of use",
+      "safeguarding": "Safeguarding",
+      "childProtection": "Child protection policy",
+      "pricing": "Pricing",
+      "refunds": "Refunds and cancellations",
+      "styleguide": "Style guide"
+    }
+  }
+}

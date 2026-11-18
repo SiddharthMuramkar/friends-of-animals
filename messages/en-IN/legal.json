@@ -1,0 +1,28 @@
+{
+  "legal": {
+    "privacy": {
+      "meta": {
+        "title": "Privacy policy",
+        "description": "What personal data Friends of Animals collects, why, and how you can control it."
+      }
+    },
+    "terms": {
+      "meta": {
+        "title": "Terms of use",
+        "description": "The rules for using this website and taking part in Friends of Animals programmes."
+      }
+    },
+    "safeguarding": {
+      "meta": {
+        "title": "Safeguarding",
+        "description": "How Friends of Animals keeps children safe, and how to report a concern."
+      }
+    },
+    "childProtection": {
+      "meta": {
+        "title": "Child protection policy",
+        "description": "The full policy Friends of Animals follows to protect every child who takes part."
+      }
+    }
+  }
+}

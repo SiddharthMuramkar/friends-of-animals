@@ -1,23 +1,45 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/site/button-link";
+import { PageHeader } from "@/components/site/heading";
+import { Section } from "@/components/site/section";
+import { PRIMARY_NAV } from "@/lib/routes";
 
-export const metadata: Metadata = {
-  title: "Page not found",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("notFound");
+  return { title: t("meta.title") };
+}
 
-export default function NotFound() {
+// Baseline 404 (real status for unmatched URLs). The doodle pad (W11) lands
+// with the not-found page's own task.
+export default async function NotFound() {
+  const t = await getTranslations("notFound");
+  const tn = await getTranslations("nav");
   return (
-    <section className="mx-auto flex max-w-xl flex-col items-center px-4 py-20 text-center sm:px-6">
-      <p className="text-sm font-semibold text-muted-foreground">404</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight">Page not found</h1>
-      <p className="mt-4 text-muted-foreground">
-        The page you&apos;re looking for doesn&apos;t exist or may have moved.
-      </p>
-      <Button asChild className="mt-8">
-        <Link href="/">Go to the home page</Link>
-      </Button>
-    </section>
+    <Section hue="yellow" tone="tint" className="py-16 sm:py-24">
+      <PageHeader
+        eyebrow={t("eyebrow")}
+        tile="yellow"
+        title={t("title")}
+        lead={t("body")}
+      />
+      <ul className="mt-8 flex flex-wrap gap-2">
+        {PRIMARY_NAV.map((route) => (
+          <li key={route.id}>
+            <Link
+              href={route.path}
+              className="inline-flex min-h-11 items-center rounded-full border-2 border-border-strong bg-surface px-4 font-semibold hover:border-ink"
+            >
+              {tn(`links.${route.id}`)}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <ButtonLink href="/" className="mt-8">
+        {t("home")}
+      </ButtonLink>
+    </Section>
   );
 }

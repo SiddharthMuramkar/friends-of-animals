@@ -1,0 +1,34 @@
+{
+  "common": {
+    "siteName": "Friends of Animals",
+    "tagline": "Nurturing compassion for animals among children and young adults through creative competitions, community and awareness.",
+    "skipLink": "Skip to main content",
+    "sample": "Sample",
+    "toBeConfirmed": "To be confirmed",
+    "comingLater": "Coming later",
+    "placeholders": {
+      "legalName": "Registered name",
+      "email": "Email address",
+      "phone": "Phone number",
+      "address": "Postal address",
+      "registrationType": "Registration type",
+      "registrationNumber": "Registration number",
+      "pan": "PAN",
+      "grievanceOfficerName": "Grievance officer",
+      "grievanceOfficerEmail": "Grievance officer’s email",
+      "socials": "Social media links",
+      "feeSchool": "Fee for the school route",
+      "feeIndividual": "Fee for the individual route"
+    },
+    "callout": {
+      "info": "Note",
+      "success": "Done",
+      "warning": "Careful",
+      "danger": "Important"
+    },
+    "theme": {
+      "toDark": "Switch to dark theme",
+      "toLight": "Switch to light theme"
+    }
+  }
+}

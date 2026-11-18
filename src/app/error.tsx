@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
-import { Button } from "@/components/ui/button";
+import { buttonStyles } from "@/components/site/button-link";
+
+// Client component: strings come from the message file directly (no next-intl
+// client runtime on every page).
+import messages from "../../messages/en-IN/error.json";
+
+const m = messages.error;
 
 export default function ErrorPage({
   error,
@@ -26,25 +32,27 @@ export default function ErrorPage({
       : undefined;
 
   return (
-    <section className="mx-auto flex max-w-xl flex-col items-center px-4 py-20 text-center sm:px-6">
-      <h1 className="text-3xl font-bold tracking-tight">
-        Something went wrong
-      </h1>
-      <p className="mt-4 text-muted-foreground">
-        An unexpected error occurred. Please try again.
-      </p>
-      {digest ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Reference: {digest}
-        </p>
-      ) : null}
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Button type="button" onClick={() => retry()}>
-          Try again
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/">Go to the home page</Link>
-        </Button>
+    <section className="bg-section-red py-16 [--section-heading:var(--section-red-heading)] sm:py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <h1 className="text-(--section-heading)">{m.title}</h1>
+        <p className="mt-5 max-w-prose text-lead text-ink-muted">{m.body}</p>
+        {digest ? (
+          <p className="mt-2 text-sm text-ink-muted">
+            {m.reference.replace("{digest}", digest)}
+          </p>
+        ) : null}
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => retry()}
+            className={buttonStyles()}
+          >
+            {m.retry}
+          </button>
+          <Link href="/" className={buttonStyles({ variant: "secondary" })}>
+            {m.home}
+          </Link>
+        </div>
       </div>
     </section>
   );

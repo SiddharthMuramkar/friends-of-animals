@@ -1,0 +1,26 @@
+{
+  "footer": {
+    "about": "Friends of Animals is an Indian non-profit that grows compassion for animals in children and young adults, through art, writing, photography and film.",
+    "navLabel": "Footer",
+    "groups": {
+      "takePart": "Take part",
+      "organisation": "About FOA",
+      "policies": "Policies"
+    },
+    "helplines": {
+      "title": "If a child is in danger",
+      "intro": "Call straight away. You can also tell a teacher or another adult you trust.",
+      "emergency": "Emergency",
+      "childline": "Childline",
+      "cyber": "Online harm",
+      "cyberOr": "or",
+      "safeguarding": "How we keep children safe",
+      "emergencyNumber": "112",
+      "childlineNumber": "1098",
+      "cyberNumber": "1930",
+      "cyberSite": "cybercrime.gov.in"
+    },
+    "sampleNote": "This is a test site. Anything tagged “Sample” is example content, not a real competition, person or number.",
+    "copyright": "© {year} Friends of Animals"
+  }
+}

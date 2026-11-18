@@ -1,0 +1,10 @@
+{
+  "error": {
+    "title": "Something went wrong",
+    "body": "This page didn’t load. Try again, or go back to the home page.",
+    "retry": "Try again",
+    "home": "Go to the home page",
+    "reference": "Reference: {digest}",
+    "pageTitle": "Something went wrong · Friends of Animals"
+  }
+}

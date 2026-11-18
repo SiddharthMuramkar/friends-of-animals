@@ -1,26 +1,74 @@
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { Logo } from "@/components/logo";
+import { ButtonLink } from "@/components/site/button-link";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SITE } from "@/lib/site";
+import { PRIMARY_NAV, ROUTES } from "@/lib/routes";
 
-export function SiteHeader() {
+import {
+  DesktopNav,
+  DesktopNavView,
+  MobileMenu,
+  MobileMenuView,
+} from "./header-nav";
+
+export async function SiteHeader() {
+  const t = await getTranslations("nav");
+  const tc = await getTranslations("common");
+  const items = PRIMARY_NAV.map((r) => ({
+    href: r.path,
+    label: t(`links.${r.id}`),
+  }));
+  const menu = {
+    items,
+    donateHref: ROUTES.donate.path,
+    labels: {
+      menu: t("menu"),
+      title: t("menuTitle"),
+      close: t("closeMenu"),
+      nav: t("label"),
+      donate: t("donate"),
+    },
+  };
+
   return (
-    <header className="border-b border-border">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+    // Pinned during page view transitions (globals.css).
+    <header
+      style={{ viewTransitionName: "site-header" }}
+      className="sticky top-0 z-40 border-b border-border bg-background"
+    >
+      <div className="mx-auto flex h-(--header-height) max-w-7xl items-center gap-3 px-4 sm:px-6">
         <Link
           href="/"
-          className="flex min-w-0 items-center gap-3 rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+          aria-label={t("homeLink")}
+          className="mr-auto shrink-0 rounded-xl lg:mr-4"
         >
-          {/* Decorative: the name beside it labels the link. */}
-          <Logo wrapperClassName="shrink-0" className="h-12 w-auto sm:h-14" />
-          {/* Shown from the sm breakpoint up. On narrow screens it stays in
-              the accessibility tree, so the link always has a name. */}
-          <span className="sr-only text-lg font-semibold tracking-tight sm:not-sr-only">
-            {SITE.name}
-          </span>
+          <Logo className="h-11 w-auto sm:h-12" />
         </Link>
-        <ThemeToggle />
+        {/* usePathname() can suspend on routes with unknown params. */}
+        <Suspense
+          fallback={
+            <DesktopNavView items={items} label={t("label")} pathname={null} />
+          }
+        >
+          <DesktopNav items={items} label={t("label")} />
+        </Suspense>
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <ButtonLink href={ROUTES.donate.path} className="max-sm:hidden">
+            {t("donate")}
+          </ButtonLink>
+          <ThemeToggle
+            labels={{
+              toDark: tc("theme.toDark"),
+              toLight: tc("theme.toLight"),
+            }}
+          />
+          <Suspense fallback={<MobileMenuView {...menu} pathname={null} />}>
+            <MobileMenu {...menu} />
+          </Suspense>
+        </div>
       </div>
     </header>
   );

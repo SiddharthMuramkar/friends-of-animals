@@ -19,7 +19,12 @@ function subscribe(onChange: () => void) {
 const isDark = () => document.documentElement.classList.contains("dark");
 const isDarkOnServer = () => false;
 
-export function ThemeToggle() {
+/** Labels arrive translated from the server (no i18n code in the browser). */
+export function ThemeToggle({
+  labels,
+}: {
+  labels: { toDark: string; toLight: string };
+}) {
   const dark = useSyncExternalStore(subscribe, isDark, isDarkOnServer);
 
   function toggle() {
@@ -36,8 +41,8 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="inline-flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      className="inline-flex size-11 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+      aria-label={dark ? labels.toLight : labels.toDark}
     >
       {dark ? (
         <Sun aria-hidden="true" className="size-5" />
