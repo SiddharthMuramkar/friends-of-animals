@@ -3,6 +3,75 @@
     "meta": {
       "title": "Impact",
       "description": "How Friends of Animals will count what it does, and what it will publish."
+    },
+    "hero": {
+      "eyebrow": "Impact",
+      "title": "What we count, and how we count it",
+      "lead": "Kindness is hard to measure. What we can count honestly is who took part, where, and what came of it. This page shows those numbers and the rules behind them.",
+      "easy": "We count the children who take part and the schools that join. We only show numbers we can check.",
+      "photoCaption": "Two street dogs asleep in winter coats on a vendor's mat"
+    },
+    "method": {
+      "title": "How we count",
+      "lead": "Each number comes straight from our records, not from estimates. These are the rules.",
+      "caption": "What each number means",
+      "number": "Number",
+      "means": "What it counts",
+      "defs": {
+        "participants": {
+          "name": "Children and young people",
+          "def": "Each person with at least one confirmed registration, counted once however many competitions they enter."
+        },
+        "institutions": {
+          "name": "Schools and institutions",
+          "def": "Verified schools and institutions with at least one confirmed registration."
+        },
+        "competitions": {
+          "name": "Competitions",
+          "def": "Competitions whose results have been published."
+        },
+        "statesReached": {
+          "name": "States and union territories",
+          "def": "Places with at least one participant or school."
+        },
+        "artworksShowcased": {
+          "name": "Works shown in public",
+          "def": "Entries shown in the gallery or awareness campaigns, with consent."
+        },
+        "certificatesIssued": {
+          "name": "Certificates",
+          "def": "Certificates issued and not withdrawn."
+        },
+        "funds": {
+          "name": "Money raised",
+          "def": "Donations received, shown on the transparency page once giving opens."
+        }
+      },
+      "rules": {
+        "title": "The rules",
+        "small": "Numbers under 10 are not shown, so no one can work out who took part from a small count.",
+        "round": "Bigger numbers are rounded down to the nearest ten, with a plus: 1,249 becomes 1,240+.",
+        "offline": "If a number includes work done offline, such as paper entries, we say so next to it.",
+        "asOf": "Every number carries the date it was counted.",
+        "targets": "We never show our targets as if they were results."
+      }
+    },
+    "counters": {
+      "sampleNote": "These are sample numbers, shown on test sites only. They show how rounding and hiding work.",
+      "empty": {
+        "title": "No numbers yet",
+        "body": "The first numbers appear here after the first competition, counted by the rules above."
+      }
+    },
+    "publish": {
+      "title": "What we will publish",
+      "items": {
+        "counters": "The numbers on this page, updated from our records.",
+        "results": "Results of every competition, with first names and initials only.",
+        "money": "What money came in and where it went, on a transparency page.",
+        "method": "Any change to how we count, explained here."
+      },
+      "transparency": "The transparency page is being built."
     }
   }
 }

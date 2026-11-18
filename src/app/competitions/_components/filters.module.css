@@ -1,0 +1,34 @@
+/*
+ * CSS-only filters for /competitions (0 KB of JS; the route stays static).
+ * A radio in each group hides the cards that don't carry its value. One rule
+ * per value: statuses (StatusLabel), disciplines and AGE_BANDS in view.ts.
+ */
+.root:has(input[name="status"][value="upcoming"]:checked)
+  .card:not([data-status="upcoming"]),
+.root:has(input[name="status"][value="open"]:checked)
+  .card:not([data-status="open"]),
+.root:has(input[name="status"][value="inProgress"]:checked)
+  .card:not([data-status="inProgress"]),
+.root:has(input[name="status"][value="results"]:checked)
+  .card:not([data-status="results"]),
+.root:has(input[name="discipline"][value="DRAWING"]:checked)
+  .card:not([data-disciplines~="DRAWING"]),
+.root:has(input[name="discipline"][value="PAINTING"]:checked)
+  .card:not([data-disciplines~="PAINTING"]),
+.root:has(input[name="discipline"][value="ART"]:checked)
+  .card:not([data-disciplines~="ART"]),
+.root:has(input[name="discipline"][value="CRAFT"]:checked)
+  .card:not([data-disciplines~="CRAFT"]),
+.root:has(input[name="discipline"][value="ESSAY"]:checked)
+  .card:not([data-disciplines~="ESSAY"]),
+.root:has(input[name="discipline"][value="PHOTOGRAPHY"]:checked)
+  .card:not([data-disciplines~="PHOTOGRAPHY"]),
+.root:has(input[name="discipline"][value="VIDEOGRAPHY"]:checked)
+  .card:not([data-disciplines~="VIDEOGRAPHY"]),
+.root:has(input[name="age"][value="a5"]:checked) .card:not([data-ages~="a5"]),
+.root:has(input[name="age"][value="a9"]:checked) .card:not([data-ages~="a9"]),
+.root:has(input[name="age"][value="a13"]:checked) .card:not([data-ages~="a13"]),
+.root:has(input[name="age"][value="a18"]:checked)
+  .card:not([data-ages~="a18"]) {
+  display: none;
+}

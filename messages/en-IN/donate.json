@@ -3,6 +3,79 @@
     "meta": {
       "title": "Donate",
       "description": "Where a gift to Friends of Animals will go, and what we can and cannot do yet."
+    },
+    "hero": {
+      "eyebrow": "Donate",
+      "title": "Help children grow up kind to animals",
+      "lead": "Your gift pays for competitions, certificates and awareness work that turn a child's drawing into a lesson the whole neighbourhood sees.",
+      "easy": "Under 18? Please don't give money. Ask a grown-up. You can help by making art for a competition.",
+      "photoCaption": "A dog resting on the beach at sunset"
+    },
+    "notLive": {
+      "title": "Online giving isn't open yet",
+      "body": "We are setting up payments and receipts properly before we take a single rupee. When giving opens, you will be able to give once, or monthly from an account, in rupees.",
+      "rules": "For now we can only accept gifts from Indian citizens, paid from India. We cannot accept foreign contributions.",
+      "back": "Write to us"
+    },
+    "why": {
+      "title": "Why give to this",
+      "body": "A child who spends a week drawing the crow on the wire looks at that crow differently afterwards. A school that hangs those drawings in the corridor gets a few hundred more children looking. That is the work: Student Creativity, then Public Awareness, then Compassion for Animals.",
+      "notShelter": "We are not a shelter, and we don't rescue or treat animals ourselves. We grow the habit of kindness, so that more people help the animals around them."
+    },
+    "map": {
+      "title": "Where the money will go",
+      "lead": "These are the things a gift will pay for. We won't print percentages until there is real money to count; the actual split will be published once giving opens.",
+      "items": {
+        "competitions": {
+          "title": "Competitions",
+          "body": "Judging, certificates for every participant, and posting original artwork to judges and back."
+        },
+        "schools": {
+          "title": "Schools",
+          "body": "Guides and materials for teacher coordinators, so running a competition in class is simple."
+        },
+        "awareness": {
+          "title": "Awareness",
+          "body": "Seasonal kindness guides, cited stories and printed displays of children's work."
+        },
+        "safety": {
+          "title": "Safety and privacy",
+          "body": "A secure website and careful consent records, because this is children's work and children's data."
+        },
+        "running": {
+          "title": "Running costs",
+          "body": "Accounts, audits and day-to-day running."
+        }
+      }
+    },
+    "cant": {
+      "title": "What we can't do yet",
+      "items": {
+        "tax": "We can't promise you a tax deduction. We will only mention a tax benefit once we hold it and can show its number on this page.",
+        "foreign": "We can't accept money from outside India.",
+        "minors": "We can't take gifts from anyone under 18. A parent or guardian can give on their behalf.",
+        "rescue": "We can't take in animals or pay for their treatment."
+      }
+    },
+    "legit": {
+      "title": "Is Friends of Animals legitimate?",
+      "lead": "It is right to ask before you give. Here is what you should be able to check, and what is still missing.",
+      "registeredName": "Registered name",
+      "registration": "Registration",
+      "registrationNumber": "Registration number",
+      "pan": "PAN",
+      "honest": "Until every line above is filled in, please wait before giving. We would rather you wait than give on trust alone.",
+      "publish": "Once giving opens, we will publish what came in and where it went on a transparency page."
+    },
+    "receipts": {
+      "title": "Receipts and tax",
+      "body": "Every gift will get a receipt by email. Until our tax status is confirmed, receipts will not carry a tax section."
+    },
+    "csr": {
+      "title": "Companies, foundations and partners",
+      "body": "If your company or foundation would like to support competitions in schools, write to us. Tell us which cities or age groups you have in mind.",
+      "email": "Email",
+      "link": "Contact us"
     }
   }
 }
