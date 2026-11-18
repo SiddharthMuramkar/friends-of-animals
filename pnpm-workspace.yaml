@@ -1,3 +1,7 @@
+# `pnpm add` saves the exact version, so package.json keeps pinning every
+# dependency (SPEC §2).
+saveExact: true
+
 # pnpm 12 fails the install when a dependency has an install script that is not
 # listed here. true = run it, false = skip it.
 allowBuilds:

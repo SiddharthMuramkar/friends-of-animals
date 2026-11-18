@@ -39,6 +39,8 @@ The stack and hosting layout were locked in [#11](https://github.com/SiddharthMu
 | Package manager    | pnpm 12                                                                                                              |
 | Hosting            | Vercel (functions in `bom1`, Mumbai); Postgres on the Mumbai VPS                                                     |
 
+Every dependency in `package.json` is pinned to an exact version, and `saveExact: true` in `pnpm-workspace.yaml` makes `pnpm add` do the same.
+
 Still to come, each in its own M0 ticket: Better Auth, Cloudflare R2 storage, the pg-boss worker, next-intl, React Email, Sentry, and CI with Playwright.
 
 ## Prerequisites
