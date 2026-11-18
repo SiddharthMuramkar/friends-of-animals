@@ -5,6 +5,8 @@
 
 import { z } from "zod";
 
+import { previewDatabase } from "./server/db/database-url";
+
 /** A postgres:// URL; `whenUnset` is the error shown when it is missing. */
 function postgresUrl(whenUnset: string) {
   return z.url({
@@ -19,21 +21,25 @@ function postgresUrl(whenUnset: string) {
 const DEPLOYED_APP_ENVS = ["preview", "staging", "production"] as const;
 const APP_ENVS = ["local", ...DEPLOYED_APP_ENVS] as const;
 
-/** What APP_URL is when it is unset, which only `local` allows. */
+/** What APP_URL is when it is unset on a local run. */
 const LOCAL_APP_URL = "http://localhost:3000";
+
+/** Set to "1" by Vercel, at build time and at runtime. */
+const vercel = z.string().optional();
+
+/**
+ * Which deployment this is. Use it for behaviour switches instead of
+ * VERCEL_ENV, which can't tell the staging custom environment from preview.
+ */
+const appEnv = z.enum(APP_ENVS).optional();
 
 /** The variables pages may read while `next build` prerenders them. */
 const buildVariables = {
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
-  /** Set to "1" by Vercel, at build time and at runtime. */
-  VERCEL: z.string().optional(),
-  /**
-   * Which deployment this is. Use it for behaviour switches instead of
-   * VERCEL_ENV, which can't tell the staging custom environment from preview.
-   */
-  APP_ENV: z.enum(APP_ENVS).optional(),
+  VERCEL: vercel,
+  APP_ENV: appEnv,
   /**
    * Canonical base URL, e.g. https://foa.shipped-it.dev (§13.9). Only the
    * server reads it, so it needs no NEXT_PUBLIC_ prefix, but prerendered
@@ -42,23 +48,57 @@ const buildVariables = {
   APP_URL: z
     .url({ protocol: /^https?$/, error: "must be an http(s) URL" })
     .optional(),
-};
-
-type DeploymentVariables = {
-  VERCEL?: string | undefined;
-  APP_ENV?: (typeof APP_ENVS)[number] | undefined;
-  APP_URL?: string | undefined;
+  /**
+   * Set by Vercel: the host name (no https://) of the branch's latest
+   * deployment, and of this deployment. A preview without APP_URL uses the
+   * first, else the second.
+   */
+  VERCEL_BRANCH_URL: z.string().optional(),
+  VERCEL_URL: z.string().optional(),
 };
 
 /**
- * Every deployed environment, all of them on Vercel, must set APP_ENV and
- * APP_URL (§13.9); only a local run may leave them out. So on Vercel (VERCEL
- * set) APP_ENV is required, and any APP_ENV other than `local` requires
- * APP_URL: a deployment never bakes http://localhost:3000 into its pages.
+ * Set by Vercel at build time and at runtime. They name a preview's own
+ * database (src/server/db/database-url.ts).
  */
-function checkDeployment(
-  { VERCEL, APP_ENV, APP_URL }: DeploymentVariables,
-  ctx: z.RefinementCtx<DeploymentVariables>
+const previewDatabaseVariables = {
+  /** The PR number; empty while the branch has no PR. */
+  VERCEL_GIT_PULL_REQUEST_ID: z.string().optional(),
+  /** The branch the deployment was built from. */
+  VERCEL_GIT_COMMIT_REF: z.string().optional(),
+};
+
+type AppEnv = (typeof APP_ENVS)[number];
+
+type DeploymentVariables = {
+  VERCEL?: string | undefined;
+  APP_ENV?: AppEnv | undefined;
+  APP_URL?: string | undefined;
+  VERCEL_BRANCH_URL?: string | undefined;
+  VERCEL_URL?: string | undefined;
+};
+
+/**
+ * What APP_URL is when it is unset: http://localhost:3000 on a local run,
+ * the Vercel branch (or deployment) URL on a preview, and nothing elsewhere.
+ */
+function defaultAppUrl({
+  APP_ENV,
+  VERCEL_BRANCH_URL,
+  VERCEL_URL,
+}: DeploymentVariables): string | undefined {
+  if (APP_ENV === undefined || APP_ENV === "local") return LOCAL_APP_URL;
+  const host = APP_ENV === "preview" ? (VERCEL_BRANCH_URL ?? VERCEL_URL) : "";
+  return host ? `https://${host}` : undefined;
+}
+
+/**
+ * Every Vercel environment (VERCEL set) must say which deployment it is
+ * (§13.9); only a local run may leave APP_ENV out.
+ */
+function requireAppEnvOnVercel(
+  { VERCEL, APP_ENV }: Pick<DeploymentVariables, "VERCEL" | "APP_ENV">,
+  ctx: z.RefinementCtx<Pick<DeploymentVariables, "VERCEL" | "APP_ENV">>
 ) {
   if (VERCEL !== undefined && APP_ENV === undefined) {
     ctx.issues.push({
@@ -70,29 +110,79 @@ function checkDeployment(
         "preview, staging or production.",
     });
   }
+}
+
+/**
+ * Staging and production must set APP_URL (§13.9), so a deployment never
+ * bakes http://localhost:3000 into its pages. A preview may leave it out and
+ * gets its Vercel URL.
+ */
+function requireAppUrl(
+  values: DeploymentVariables,
+  ctx: z.RefinementCtx<DeploymentVariables>
+) {
   // An invalid APP_ENV already has its own issue.
-  const deployed = DEPLOYED_APP_ENVS.find((name) => name === APP_ENV);
-  if (deployed !== undefined && APP_URL === undefined) {
+  const deployed = DEPLOYED_APP_ENVS.find((name) => name === values.APP_ENV);
+  if (
+    deployed !== undefined &&
+    values.APP_URL === undefined &&
+    defaultAppUrl(values) === undefined
+  ) {
     ctx.issues.push({
       code: "custom",
       path: ["APP_URL"],
-      input: APP_URL,
+      input: values.APP_URL,
       message:
         `APP_URL is not set. APP_ENV=${deployed} needs its canonical base ` +
-        "URL, e.g. https://foa.shipped-it.dev, at build time and at runtime.",
+        "URL, e.g. https://foa.shipped-it.dev, at build time and at runtime." +
+        (deployed === "preview"
+          ? " (Previews default to https://$VERCEL_BRANCH_URL, which is not set either.)"
+          : ""),
+    });
+  }
+}
+
+type PreviewDatabaseVariables = {
+  APP_ENV?: AppEnv | undefined;
+  VERCEL_GIT_PULL_REQUEST_ID?: string | undefined;
+  VERCEL_GIT_COMMIT_REF?: string | undefined;
+};
+
+/**
+ * A preview connects to a database of its own, named from its PR or branch
+ * (§2.4), so it fails the start and the migration when it can't be named.
+ */
+function requirePreviewDatabase(
+  values: PreviewDatabaseVariables,
+  ctx: z.RefinementCtx<PreviewDatabaseVariables>
+) {
+  if (values.APP_ENV !== "preview") return;
+  try {
+    previewDatabase(values);
+  } catch (error) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["VERCEL_GIT_COMMIT_REF"],
+      input: values.VERCEL_GIT_COMMIT_REF,
+      message: error instanceof Error ? error.message : String(error),
     });
   }
 }
 
 /**
- * Run `checkDeployment` even when another variable is invalid, so the error
- * lists every problem at once.
+ * Run each check even when another variable is invalid, so the error lists
+ * every problem at once.
  */
 const always = { when: () => true };
 
-/** Fills in the local defaults and drops VERCEL, which nothing else reads. */
-function withLocalDefaults<T extends DeploymentVariables>({
+/**
+ * Fills in APP_ENV and APP_URL and drops VERCEL and the Vercel host names,
+ * which nothing else reads.
+ */
+function withDefaults<T extends DeploymentVariables>({
   VERCEL: _vercel,
+  VERCEL_BRANCH_URL,
+  VERCEL_URL,
   APP_ENV,
   APP_URL,
   ...rest
@@ -100,7 +190,11 @@ function withLocalDefaults<T extends DeploymentVariables>({
   return {
     ...rest,
     APP_ENV: APP_ENV ?? "local",
-    APP_URL: APP_URL ?? LOCAL_APP_URL,
+    // `requireAppUrl` has already rejected a deployment without a default.
+    APP_URL:
+      APP_URL ??
+      defaultAppUrl({ APP_ENV, VERCEL_BRANCH_URL, VERCEL_URL }) ??
+      LOCAL_APP_URL,
   };
 }
 
@@ -110,8 +204,9 @@ function withLocalDefaults<T extends DeploymentVariables>({
  */
 export const buildEnvSchema = z
   .object(buildVariables)
-  .superRefine(checkDeployment, always)
-  .transform(withLocalDefaults);
+  .superRefine(requireAppEnvOnVercel, always)
+  .superRefine(requireAppUrl, always)
+  .transform(withDefaults);
 
 /**
  * The app server's config, validated when the server starts
@@ -120,30 +215,47 @@ export const buildEnvSchema = z
 export const envSchema = z
   .object({
     ...buildVariables,
-    /** Runtime connection (PgBouncer in transaction mode on Vercel). */
+    ...previewDatabaseVariables,
+    /**
+     * Runtime connection (PgBouncer in transaction mode on Vercel). On
+     * previews it names a placeholder database, which the db client swaps for
+     * the preview's own.
+     */
     DATABASE_URL: postgresUrl(
       "DATABASE_URL is not set. Point it at a Postgres database, e.g. " +
         "postgres://foa:foa@localhost:5432/foa (see .env.example)."
     ),
   })
-  .superRefine(checkDeployment, always)
-  .transform(withLocalDefaults);
+  .superRefine(requireAppEnvOnVercel, always)
+  .superRefine(requireAppUrl, always)
+  .superRefine(requirePreviewDatabase, always)
+  .transform(withDefaults);
 
 export type Env = z.output<typeof envSchema>;
 
 /**
  * What the migration script and drizzle-kit read. They connect through
  * DIRECT_URL only, a direct or session-mode connection (§2.2): DATABASE_URL
- * may be the transaction-mode pooler, so it is never a fallback.
+ * may be the transaction-mode pooler, so it is never a fallback. On a
+ * preview (APP_ENV=preview) the script first creates the preview's database,
+ * named from the VERCEL_GIT_* variables, then migrates that.
  */
-export const migrationEnvSchema = z.object({
-  DIRECT_URL: postgresUrl(
-    "DIRECT_URL is not set. Migrations and drizzle-kit connect through it, " +
-      "never through DATABASE_URL. Locally it is the same URL as " +
-      "DATABASE_URL, e.g. postgres://foa:foa@localhost:5432/foa (see " +
-      ".env.example)."
-  ),
-});
+export const migrationEnvSchema = z
+  .object({
+    DIRECT_URL: postgresUrl(
+      "DIRECT_URL is not set. Migrations and drizzle-kit connect through " +
+        "it, never through DATABASE_URL. Locally it is the same URL as " +
+        "DATABASE_URL, e.g. postgres://foa:foa@localhost:5432/foa (see " +
+        ".env.example)."
+    ),
+    VERCEL: vercel,
+    APP_ENV: appEnv,
+    ...previewDatabaseVariables,
+  })
+  .superRefine(requireAppEnvOnVercel, always)
+  .superRefine(requirePreviewDatabase, always);
+
+export type MigrationEnv = z.output<typeof migrationEnvSchema>;
 
 /**
  * Parses an env-like object, usually process.env, against `schema`. Empty
