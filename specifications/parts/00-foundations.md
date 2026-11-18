@@ -118,7 +118,7 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 
 | Where | Runs |
 |---|---|
-| **Vercel Pro**, functions in `bom1` | The Next.js app: pages, Server Actions and Route Handlers (auth, webhooks, `/api/health`, `/api/internal/revalidate`). R2 presigning. pg-boss send-only. DB migrations in `vercel-build` through `DIRECT_URL`, a PgBouncer session-mode entry with a migrator role |
+| **Vercel Pro**, functions in `bom1` | The Next.js app: pages, Server Actions and Route Handlers (auth, webhooks, `/api/health`, `/api/internal/revalidate`). R2 presigning. pg-boss send-only. DB migrations in `vercel-build` through `DIRECT_URL`, a PgBouncer session-mode entry with a migrator role; migrations take a Postgres advisory lock (#12). Builds use the Static IPs ("Use Static IPs for builds" on), because PgBouncer accepts only those IPs |
 | **Mumbai VPS** (Docker Compose) | `pg-prod`, `pg-nonprod`, `pgbouncer`, `worker`, `worker-media`, `clamav`, `gotenberg`, and the pg-boss dashboard (on 127.0.0.1 only, reached through an SSH tunnel) |
 | **Cloudflare** | R2 buckets, the `media.<foa-domain>` CDN, and the backup repository and dump bucket |
 | **GitHub Actions** | CI, Playwright E2E, worker image builds |

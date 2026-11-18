@@ -118,7 +118,7 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 
 | Where | Runs |
 |---|---|
-| **Vercel Pro**, functions in `bom1` | The Next.js app: pages, Server Actions and Route Handlers (auth, webhooks, `/api/health`, `/api/internal/revalidate`). R2 presigning. pg-boss send-only. DB migrations in `vercel-build` through `DIRECT_URL`, a PgBouncer session-mode entry with a migrator role |
+| **Vercel Pro**, functions in `bom1` | The Next.js app: pages, Server Actions and Route Handlers (auth, webhooks, `/api/health`, `/api/internal/revalidate`). R2 presigning. pg-boss send-only. DB migrations in `vercel-build` through `DIRECT_URL`, a PgBouncer session-mode entry with a migrator role; migrations take a Postgres advisory lock (#12). Builds use the Static IPs ("Use Static IPs for builds" on), because PgBouncer accepts only those IPs |
 | **Mumbai VPS** (Docker Compose) | `pg-prod`, `pg-nonprod`, `pgbouncer`, `worker`, `worker-media`, `clamav`, `gotenberg`, and the pg-boss dashboard (on 127.0.0.1 only, reached through an SSH tunnel) |
 | **Cloudflare** | R2 buckets, the `media.<foa-domain>` CDN, and the backup repository and dump bucket |
 | **GitHub Actions** | CI, Playwright E2E, worker image builds |
@@ -3759,7 +3759,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 - **Audit.** `AuditLog` per §3.3, plus `pii.viewed` rows whenever a minor's PII, an original file or an evidence file is opened.
 - **Admin protection.** `/admin` is limited to 300 requests/min per user. `ADMIN_IP_ALLOWLIST` is optional and applies to SUPER_ADMIN. A sign-in from a new device emails the user.
 - **Public forms.** Turnstile, a 10 requests/min per IP limit (stored in Postgres, §2), and a honeypot field.
-- **Backups.** pgBackRest archives WAL to an encrypted R2 repository at least every 60 s (`archive_timeout = 60`), with 30 days of PITR. A daily `age`-encrypted `pg_dump` goes to a separate, locked R2 bucket and is kept 35 days. Originals are versioned. RPO ≤ 5 min, RTO ≤ 4 h. Every quarter, a restore drill restores into `pg-nonprod`, replays `ErasureLedger`, runs smoke tests, and records the time taken.
+- **Backups.** pgBackRest archives WAL to an encrypted R2 repository at least every 60 s (`archive_timeout = 60`), with 30 days of PITR. A daily `age`-encrypted `pg_dump` goes to a separate, locked R2 bucket and is kept 35 days. R2 has no object versioning, so originals are never overwritten: keys are UUIDs or content hashes, and every write uses `If-None-Match: *`. RPO ≤ 5 min, RTO ≤ 4 h. Every quarter, a restore drill restores into `pg-nonprod`, replays `ErasureLedger`, runs smoke tests, and records the time taken.
 
 ### 13.2 Performance
 
@@ -3776,10 +3776,10 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 ### 13.3 Availability and Observability
 
 - **SLOs.** 99.5% monthly availability for the public site, auth and submission. 99.9% during critical windows (the 48 h before a submission deadline, and results day). No deploys in the 24 h before a deadline. Razorpay webhooks are processed within 5 min (p99). Notification dispatch p95 < 2 min. Consent-withdrawal unpublish < 15 min.
-- **Sentry.** Errors plus 10% performance tracing, with `sendDefaultPii: false`. `beforeSend` scrubs name, phone, email and DOB keys. Session Replay is off.
+- **Sentry.** Errors plus 10% performance tracing from the app (`@sentry/nextjs`) and the worker (`@sentry/node`), with `sendDefaultPii: false`. Every pg-boss schedule has a Sentry cron monitor. `beforeSend` scrubs name, phone, email and DOB keys. Session Replay is off.
 - **Logs.** Structured JSON (pino) with `requestId`, `userId` and `route`, and no PII values. Drained to a log store with 365-day retention. The log region is a CERT-In question for counsel.
-- **Uptime and queues.** Checks every 1 min from at least 2 regions on `/`, `/api/health` (DB and queue), `/verify/{fixture}` and the webhook endpoint. Job queue monitoring tracks depth, failures, the dead-letter queue and the age of the oldest job.
-- **Alerts.** SEV1 (SMS or phone, on-call): two consecutive uptime failures, error rate > 2% for 5 min, webhook failures 3 times in a row, oldest job > 10 min, backup failure, a CRITICAL safeguarding SLA breach. SEV2 (email or Slack): p95 > 2 s for 10 min, DB CPU > 80% for 15 min, a `consent.reconcile` count above 0.
+- **Uptime and queues.** Checks every 1 min from at least 2 regions on `/`, `/api/health` (DB, queue and worker heartbeat), `/verify/{fixture}` and the webhook endpoint. Job queue monitoring tracks depth, failures, the dead-letter queue and the age of the oldest job.
+- **Alerts.** SEV1 (SMS or phone, on-call): two consecutive uptime failures, error rate > 2% for 5 min, webhook failures 3 times in a row, oldest job > 10 min, worker heartbeat stale, backup failure, a CRITICAL safeguarding SLA breach. SEV2 (email or Slack): p95 > 2 s for 10 min, DB CPU > 80% for 15 min, a `consent.reconcile` count above 0.
 
 ### 13.4 Accessibility and Child-Friendly UX
 
@@ -3818,7 +3818,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 
 - **Environments** (hosting and databases: §2.4). **local**: Mailpit for email, Razorpay mocked. **preview** per PR: Razorpay test mode, email only to an allowlist, SMS logged rather than sent. **staging**: production-like, Razorpay test mode, SMS only to allowlisted numbers. **production**: SES out of sandbox, Razorpay live. Production data is never copied to another environment.
 - **CI on each PR (GitHub Actions).** Install, then oxlint and `oxfmt --check`, then `tsc --noEmit`, then Vitest (≥ 80% coverage on `server/domain`, 100% of state-machine transitions), then `drizzle-kit check` plus a migration drift check (`drizzle-kit generate` must produce no new migration), then build. The PR then deploys a preview, whose `vercel-build` creates `foa_pr_<n>` from the seeded `foa_seed` template and applies the `drizzle/` migrations through `DIRECT_URL`. GitHub Actions runs Playwright E2E, axe and Lighthouse CI against it. gitleaks, `pnpm audit` and CodeQL also run.
-- **Release.** A merge to `main` auto-deploys staging. Production needs a manual promotion with approval. Migrations run in `vercel-build`, before the traffic switch, and MUST be expand/contract (backward compatible). Worker images deploy from GitHub Actions (§2.3). Rollback uses Vercel instant rollback for the app and redeploys the previous GHCR image tag for the worker; DB problems get a forward fix.
+- **Release.** A merge to `main` auto-deploys staging. Production needs a manual promotion with approval. Migrations run in `vercel-build` under a Postgres advisory lock (§2.3), before the traffic switch, and MUST be expand/contract (backward compatible). Worker images deploy from GitHub Actions (§2.3). Rollback uses Vercel instant rollback for the app and redeploys the previous GHCR image tag for the worker; DB problems get a forward fix.
 - **Seed (`scripts/seed.ts`, idempotent, synthetic only; previews are cloned from a `foa_seed` database built from it).** Beyond the §2.1 baseline (1 competition, 3 schools, 30 participants, 2 judges): participants under 13, aged 13–17 and adults across both routes; guardians with consents of every `ConsentMethod`, one withdrawn and one stale-version consent; ConsentDocuments in en-IN and hi-IN; one DataRequest of each type; one synthetic SafeguardingReport; one user per `Role`. Phone numbers come from a reserved test range. OTP uses `DEV_OTP_BYPASS_CODE`, which is ignored when `APP_ENV=production`.
 - **Feature flags.** Stored in a `FeatureFlag { key, enabled, rolloutPercent?, updatedBy, updatedAt }` table that SUPER_ADMIN edits, with env overrides. Flags: `AUCTIONS`, `ADOPTION`, `VOLUNTEERS`, `NGO_DIRECTORY`, `EVENTS`, `COMMUNITY`, `CLUBS`, `AMBASSADORS`, `SOCIAL_PUBLISHING` (API posting to social networks, post-MVP, §7.11; MVP is manual export), `SMS_CHANNEL`, `WHATSAPP_CHANNEL`, `MINOR_LOGIN`, `IMAGE_SAFETY_CLASSIFIER`, `DIGILOCKER_GUARDIAN_VERIFICATION`, `LOCALE_HI`. Post-MVP modules (§1) ship dark behind their flags.
 
@@ -3839,8 +3839,8 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | `PII_ENCRYPTION_KEYS` (JSON kid→base64 32 B), `PII_ENCRYPTION_ACTIVE_KID`, `PII_HASH_KEY` | all | Field-level encryption and blind index (§13.1) |
 | `REVALIDATE_SECRET` | deployed | HMAC key for `/api/internal/revalidate`, shared by the app and the worker (§2.2) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | deployed | Bot protection on public forms |
-| `MALWARE_SCAN_URL` | deployed (worker only) | `clamd` TCP address on the Compose network (e.g. `tcp://clamav:3310`) |
-| `GOTENBERG_URL` | deployed (worker only) | Gotenberg on the Compose network (DOCX→PDF) |
+| `MALWARE_SCAN_URL` | all (worker only) | `clamd` TCP address on the Compose network (e.g. `tcp://clamav:3310`) |
+| `GOTENBERG_URL` | all (worker only) | Gotenberg on the Compose network (DOCX→PDF) |
 | `SAFEGUARDING_ALERT_EMAILS`, `SAFEGUARDING_ALERT_PHONES` | production, staging | Paging for CRITICAL reports |
 | `ADMIN_IP_ALLOWLIST` | optional | CIDR list for SUPER_ADMIN |
 | `DEV_OTP_BYPASS_CODE` | local, preview | Test OTP; ignored in production |
@@ -3888,7 +3888,7 @@ The order follows the source's 6-month objectives: get one pilot competition run
 - `AuditLog`, `Outbox`, job worker, `FileAsset` with presigned upload, the `Setting` runtime-configuration table (§13.9; changes audit-logged), `lib/ids` (§3.1 code generators with tests), `lib/money`.
 - `ConsentDocument`/`Consent` tables and `ConsentService` skeleton. Legal pages served from CMS stubs.
 - Seed script (§2.1).
-- **Accept when:** a user can sign up and log in by OTP; a SUPER_ADMIN can grant a scoped role; every mutation in the demo writes an AuditLog row; a file uploads directly to the bucket and is retrievable only through a signed URL by an authorized user; the VPS Compose services (`pg-prod`, `pgbouncer`, `worker`, `clamav`, `gotenberg`) are healthy; a backup and a restore drill into `pg-nonprod` pass; a preview database can be created from `foa_seed` and dropped; CI is green.
+- **Accept when:** a user can sign up and log in by OTP; a SUPER_ADMIN can grant a scoped role; every mutation in the demo writes an AuditLog row; a file uploads directly to the bucket and is retrievable only through a signed URL by an authorized user; the VPS Compose services (`pg-prod`, `pgbouncer`, `worker`, `clamav`, `gotenberg`) are healthy; a backup and a restore drill pass; a preview database can be created from `foa_seed` and dropped; CI is green.
 
 ### M1 — Institutions & Registration
 - `/schools/register`, admin institution verification, institution competition registration, coordinator student management including CSV import.
