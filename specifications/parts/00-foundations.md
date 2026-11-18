@@ -77,7 +77,9 @@ src/
   components/            # site chrome
     ui/                  # shadcn/ui
   lib/                   # pure utilities (site, utils, ids, money, dates)
-  env.ts                 # server-only, zod-validated env (§13.9)
+  env.schema.ts          # zod env schemas + parseEnv(); no server-only, so scripts and drizzle-kit can import it
+  env.ts                 # server-only, cached env accessor (§13.9)
+  instrumentation.ts     # validates the env when the server starts (§13.9); Node-only half in instrumentation-node.ts
   server/
     db/
       index.ts           # Drizzle client (postgres.js)
@@ -96,7 +98,8 @@ messages/                # next-intl message files, {locale}.json (§13.5)
 drizzle/                 # generated SQL migrations plus hand-written SQL (partial indexes, triggers), checked in
 scripts/
   migrate.ts             # applies drizzle/ through DIRECT_URL
-  seed.ts                # realistic seed: 1 competition, 3 schools, 30 participants, 2 judges
+  load-env.ts            # loads .env.local and .env for scripts and drizzle-kit
+  seed.ts                # later (M0): realistic seed: 1 competition, 3 schools, 30 participants, 2 judges
   brand-assets.ts
 docker/                  # VPS Compose files; PgBouncer and pgBackRest config
 docker-compose.yml       # local stack: Postgres 18 on 127.0.0.1
