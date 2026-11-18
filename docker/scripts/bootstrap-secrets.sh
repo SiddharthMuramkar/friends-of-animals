@@ -77,8 +77,9 @@ new_secret pg_nonprod_nonprod_app_password "$PG_UID"
 # One auth_user for both servers: PgBouncer has a single auth_file.
 new_secret pgbouncer_auth_password "$PG_UID"
 # pgBackRest repo1 cipher passphrase (48 random bytes). Losing it makes every
-# backup unreadable: keep an offline copy.
-new_secret pgbackrest_repo1_cipher_pass "$PG_UID" 48
+# backup unreadable: keep an offline copy. Only the derived conf below is
+# mounted into a container.
+new_secret pgbackrest_repo1_cipher_pass root 48
 
 # PgBouncer auth_file: pgbouncer_auth only.
 printf '"pgbouncer_auth" "%s"\n' "$(secret pgbouncer_auth_password)" |

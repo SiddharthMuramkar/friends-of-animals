@@ -21,7 +21,10 @@ RUN set -eux; \
     echo 'deb [signed-by=/usr/share/keyrings/pgdg.asc] http://apt.postgresql.org/pub/repos/apt trixie-pgdg main' \
         > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
-    apt-get install -y --no-install-recommends "pgbouncer=${PGBOUNCER_VERSION}"; \
+    # ca-certificates: with client TLS on, PgBouncer loads the default CA
+    # bundle (/etc/ssl/certs/ca-certificates.crt) even though client
+    # certificates are not used, and refuses to start without it.
+    apt-get install -y --no-install-recommends "pgbouncer=${PGBOUNCER_VERSION}" ca-certificates; \
     rm -rf /var/lib/apt/lists/*; \
     rm -f /etc/pgbouncer/userlist.txt; \
     pgbouncer --version
