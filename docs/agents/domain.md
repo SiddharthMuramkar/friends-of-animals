@@ -10,6 +10,8 @@ How the engineering skills should consume this repo's domain documentation when 
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
 
+`docs/adr/README.md` lists the records that exist. An ADR with status Pending is not a decision. ADR-0002 (the platform stack, issue #11) is pending.
+
 ## File structure
 
 Single-context repo (most repos):
