@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Drop preview databases on pg-nonprod whose PR is closed or branch is gone.
 #
-# Preview builds create foa_pr_<n> / foa_br_<slug> from foa_seed and label
-# them with a database comment:
+# Preview builds create foa_pr_<n> / foa_br_<slug>_<hash> from foa_seed and
+# label them with a database comment:
 #   'foa-preview pr=<n>'         dropped once GitHub reports the PR closed
 #   'foa-preview branch=<ref>'   dropped once the branch no longer exists
+# The comment alone says which PR or branch a database belongs to; names are
+# never parsed or recomputed here, only checked to look like a preview's.
 # Anything uncertain (API error, rate limit, unexpected name or comment) is
 # kept. foa_seed, foa_staging, postgres and the templates are never touched.
 #

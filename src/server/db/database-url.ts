@@ -15,7 +15,10 @@ export type DatabaseEnv = {
 
 /** A preview's own database on pg-nonprod (SPEC §2.4). */
 export type PreviewDatabase = {
-  /** `foa_pr_<n>`, or `foa_br_<branch>` while the branch has no PR. */
+  /**
+   * `foa_pr_<n>`, or `foa_br_<slug>_<hash>` while the branch has no PR (see
+   * `branchDatabaseName`).
+   */
   name: string;
   /**
    * The database's comment: `foa-preview pr=<n>` or
@@ -35,11 +38,11 @@ const PR_NUMBER = /^[1-9][0-9]*$/;
 export const PREVIEW_DATABASE_UNNAMED =
   "APP_ENV=preview needs VERCEL_GIT_PULL_REQUEST_ID (a PR number) or " +
   "VERCEL_GIT_COMMIT_REF (a branch) to name its database, foa_pr_<n> or " +
-  "foa_br_<branch>. Vercel sets both for deployments from Git.";
+  "foa_br_<branch>_<hash>. Vercel sets both for deployments from Git.";
 
 /**
- * Names a preview's database: `foa_pr_<n>` for a PR, else `foa_br_<slug>`
- * from the branch. Throws if neither variable is usable.
+ * Names a preview's database: `foa_pr_<n>` for a PR, else
+ * `foa_br_<slug>_<hash>` from the branch. Throws if neither variable is usable.
  */
 export function previewDatabase(env: DatabaseEnv): PreviewDatabase {
   const pr = env.VERCEL_GIT_PULL_REQUEST_ID ?? "";
@@ -62,30 +65,30 @@ export function previewDatabaseName(env: DatabaseEnv): string {
 }
 
 /**
- * `foa_br_` plus the branch lowercased, with every run of other characters
- * than [a-z0-9] turned into one `_`. A name that would pass 63 bytes, or has
- * nothing left of the branch, is cut short and ends in `_` plus 8 hex
- * characters of the branch's SHA-256, so long branches that share a prefix
- * still get databases of their own.
+ * `foa_br_<slug>_<hash>`: the slug is the branch lowercased, with every run
+ * of other characters than [a-z0-9] turned into one `_`, cut so the name
+ * fits 63 bytes; the hash is the first 8 hex characters of the branch's
+ * SHA-256. The hash is always there, because the slug alone can collide:
+ * `feat/a-b` and `feat/a.b` have the same one, and the sweeper would drop
+ * their shared database once either branch is deleted. A branch with nothing
+ * left for a slug gets `foa_br_<hash>`.
  */
 function branchDatabaseName(ref: string): string {
-  const slug = ref
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "_")
-    .replaceAll(/^_+|_+$/g, "");
-  // The slug is ASCII, so its length is its size in bytes.
-  if (slug !== "" && BRANCH_PREFIX.length + slug.length <= MAX_NAME_BYTES) {
-    return BRANCH_PREFIX + slug;
-  }
   const hash = createHash("sha256")
     .update(ref)
     .digest("hex")
     .slice(0, HASH_CHARS);
-  const room = MAX_NAME_BYTES - BRANCH_PREFIX.length - HASH_CHARS - 1;
-  const head = slug.slice(0, room).replace(/_+$/, "");
-  return head === ""
+  // The slug is ASCII, so its length is its size in bytes.
+  const room = MAX_NAME_BYTES - BRANCH_PREFIX.length - 1 - HASH_CHARS;
+  const slug = ref
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "_")
+    .replace(/^_+/, "")
+    .slice(0, room)
+    .replace(/_+$/, "");
+  return slug === ""
     ? `${BRANCH_PREFIX}${hash}`
-    : `${BRANCH_PREFIX}${head}_${hash}`;
+    : `${BRANCH_PREFIX}${slug}_${hash}`;
 }
 
 /** `url` with its database (the path) replaced by `database`. */

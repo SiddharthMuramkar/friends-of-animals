@@ -32,7 +32,10 @@ describe("previewDatabase", () => {
           VERCEL_GIT_PULL_REQUEST_ID: pr,
           VERCEL_GIT_COMMIT_REF: "map",
         })
-      ).toEqual({ name: "foa_br_map", comment: "foa-preview branch=map" });
+      ).toEqual({
+        name: `foa_br_map_${hash8("map")}`,
+        comment: "foa-preview branch=map",
+      });
     }
   });
 
@@ -59,25 +62,42 @@ describe("previewDatabaseName", () => {
   const branch = (ref: string) =>
     previewDatabaseName({ VERCEL_GIT_COMMIT_REF: ref });
 
-  it("lowercases the branch and turns other characters into one _", () => {
-    expect(branch("Feature/Map-Tiles")).toBe("foa_br_feature_map_tiles");
-    expect(branch("fix//two--dashes__x")).toBe("foa_br_fix_two_dashes_x");
+  it("lowercases the branch, turns other characters into one _ and adds a hash", () => {
+    expect(branch("Feature/Map-Tiles")).toBe(
+      `foa_br_feature_map_tiles_${hash8("Feature/Map-Tiles")}`
+    );
+    expect(branch("fix//two--dashes__x")).toBe(
+      `foa_br_fix_two_dashes_x_${hash8("fix//two--dashes__x")}`
+    );
     expect(branch("dependabot/npm_and_yarn/next-16.4.6")).toBe(
-      "foa_br_dependabot_npm_and_yarn_next_16_4_6"
+      `foa_br_dependabot_npm_and_yarn_next_16_4_6_${hash8("dependabot/npm_and_yarn/next-16.4.6")}`
     );
   });
 
-  it("trims _ from both ends", () => {
-    expect(branch("/-feature-/")).toBe("foa_br_feature");
+  it("trims _ from both ends of the slug", () => {
+    expect(branch("/-feature-/")).toBe(
+      `foa_br_feature_${hash8("/-feature-/")}`
+    );
   });
 
-  it("keeps names that fit 63 bytes exactly", () => {
-    const ref = "a".repeat(63 - "foa_br_".length);
-    expect(branch(ref)).toBe(`foa_br_${ref}`);
+  it("gives branches with the same slug different names", () => {
+    const names = ["feat/a-b", "feat/a.b", "feat/a_b", "Feat/A-B"].map(branch);
+    expect(new Set(names).size).toBe(4);
+    for (const name of names)
+      expect(name).toMatch(/^foa_br_feat_a_b_[0-9a-f]{8}$/);
+  });
+
+  it("hashes the branch as it is, before the slug", () => {
+    expect(branch("feat/a-b").slice(-8)).toBe(hash8("feat/a-b"));
+  });
+
+  it("keeps a slug that fits 63 bytes whole", () => {
+    const ref = "a".repeat(63 - "foa_br_".length - 9);
+    expect(branch(ref)).toBe(`foa_br_${ref}_${hash8(ref)}`);
     expect(branch(ref)).toHaveLength(63);
   });
 
-  it("cuts long branches to 63 bytes and adds a hash of the branch", () => {
+  it("cuts long branches so the name is 63 bytes", () => {
     const ref = "a".repeat(100);
     expect(branch(ref)).toBe(`foa_br_${"a".repeat(47)}_${hash8(ref)}`);
     expect(branch(ref)).toHaveLength(63);
@@ -102,11 +122,16 @@ describe("previewDatabaseName", () => {
 
   it("uses the hash alone for a branch with nothing left", () => {
     expect(branch("日本語")).toBe(`foa_br_${hash8("日本語")}`);
+    expect(branch("---")).toBe(`foa_br_${hash8("---")}`);
   });
 
-  it("only ever makes plain identifiers", () => {
-    for (const ref of ["UPPER", "a.b", "émoji-🐶", "x".repeat(300)]) {
-      expect(branch(ref)).toMatch(/^foa_br_[a-z0-9_]{1,56}$/);
+  it("only ever makes plain identifiers of at most 63 bytes", () => {
+    for (const ref of ["UPPER", "a.b", "émoji-🐶", "x".repeat(300), "_x_"]) {
+      const name = branch(ref);
+      expect(name).toMatch(
+        /^foa_br_([a-z0-9]([a-z0-9_]*[a-z0-9])?_)?[0-9a-f]{8}$/
+      );
+      expect(name.length).toBeLessThanOrEqual(63);
     }
   });
 });
@@ -137,7 +162,7 @@ describe("resolveDatabaseUrl", () => {
         VERCEL_GIT_PULL_REQUEST_ID: "",
         VERCEL_GIT_COMMIT_REF: "Feature/Map",
       })
-    ).toContain("/foa_br_feature_map?");
+    ).toContain(`/foa_br_feature_map_${hash8("Feature/Map")}?`);
   });
 
   it("leaves every other environment's URL alone", () => {
