@@ -386,7 +386,7 @@ A PUBLISHED month is never reopened. Later corrections arrive as `lateAdjustment
 
 ### 8.7 Financial Transparency (`/transparency`, module 12)
 
-- **Source:** the latest `TransparencySnapshot`, built only from LedgerEntries in PUBLISHED months and regenerated on period publish and on report publish or withdrawal. Public requests never query the ledger. The page is static and revalidated with `revalidateTag('transparency')`.
+- **Source:** the latest `TransparencySnapshot`, built only from LedgerEntries in PUBLISHED months and regenerated on period publish and on report publish or withdrawal. Public requests never query the ledger. The page is cached with `cacheTag('transparency')`, and writing a snapshot revalidates that tag (§2.2: `updateTag` in a Server Action, the internal route from the worker).
 - **Periods:** FY ("FY 2026-27, Apr–Nov", published months only) and quarters (shown only when all three months are published).
 - **Sections:**
   1. Totals: income, expenses and net, with "data through <month>" and a last-updated date.
@@ -456,7 +456,7 @@ Payloads carry ids, amounts and codes only, never PAN, addresses or contact deta
 ### 8.11 Security Notes
 
 - **Amounts:** always computed server-side, from fee config, the validated donation choice or the hammer price. Client-sent prices, statuses and payment outcomes are never trusted; every capture is confirmed by `fetchPayment` or a verified webhook.
-- **PCI:** card and UPI data only ever enter Razorpay Checkout, which keeps FOA in the minimal (SAQ-A-style) scope. No card data is logged or stored, and webhook payloads are redacted after 180 days. **Secrets** stay server-only (only `RAZORPAY_KEY_ID` reaches the client). Live keys (`rzp_live_`) refuse to load unless `VERCEL_ENV=production`.
+- **PCI:** card and UPI data only ever enter Razorpay Checkout, which keeps FOA in the minimal (SAQ-A-style) scope. No card data is logged or stored, and webhook payloads are redacted after 180 days. **Secrets** stay server-only (only `RAZORPAY_KEY_ID` reaches the client). Live keys (`rzp_live_`) refuse to load unless `APP_ENV=production`.
 - **Webhook route:** raw body, HMAC with constant-time compare, rate-limited, outside CSRF protection, no session. Server actions keep framework CSRF protection.
 - **PAN:** app-level AES-256-GCM envelope encryption with the key from the secret store (§13). The UI shows only the last 4 characters, and every decrypt (export, receipt render) is AuditLogged.
 - **Files:** receipts, letters and ledger attachments live in the private bucket behind signed URLs issued after an owner or role check. Guest tokens are 32 random bytes, stored hashed, valid for 7 days.
@@ -482,7 +482,7 @@ Payloads carry ids, amounts and codes only, never PAN, addresses or contact deta
 ### 8.13 Acceptance Criteria
 
 1. A webhook with a bad signature returns 400 and creates no rows. The same valid event delivered 3× produces exactly one transition, one LedgerEntry and one Outbox event. Capture works with the webhook only, the redirect only, and both in either order, each yielding one CAPTURED Payment and one posting.
-2. A provider amount that differs from `Payment.amountMinor` never captures and opens a CRITICAL issue. No server action accepts a price for a registration or lot from the client. The app refuses to start with `rzp_live_` keys when `VERCEL_ENV≠production`.
+2. A provider amount that differs from `Payment.amountMinor` never captures and opens a CRITICAL issue. No server action accepts a price for a registration or lot from the client. The app refuses to start with `rzp_live_` keys when `APP_ENV≠production`.
 3. Unit tests cover every allowed and every disallowed transition of the Payment, Refund, Donation, RecurringDonation, AuctionLot, FinancialPeriod and FinancialReport machines.
 4. Refunding 3 of 20 items in a `RegistrationPaymentBatch` gives PARTIALLY_REFUNDED, `refundedMinor` = the sum of the 3 items, a matching negative posting and `payment.refunded` with 3 `lineRefs`. Refunds beyond the remaining amount are rejected. A refund above the threshold can't be approved by its requester.
 5. 100 concurrent captures in one FY get receipt numbers `000001`–`000100` with no gaps or duplicates. Failed and abandoned payments consume none. 31 Mar 23:59 IST → FY `2627`; 1 Apr 00:01 IST → `2728-000001`.

@@ -24,34 +24,44 @@
 
 ## 2. Tech Stack & Architecture
 
-Defaults (swap if the team prefers, but keep the architecture):
+The stack is locked (decided in issue #11). Keep the architecture; a row changes only through a new decision on a GitHub issue. Versions are pinned in `package.json` and the Compose files.
 
-| Concern | Default | Notes |
+| Concern | Lock | Notes |
 |---|---|---|
-| Framework | **Next.js (App Router) + TypeScript (strict)** | Server Components and Server Actions; Route Handlers for webhooks and the public API |
-| UI | Tailwind CSS + shadcn/ui | Mobile-first. WCAG 2.2 AA |
-| DB | **PostgreSQL** (Neon) | Branch per preview deployment |
-| ORM | Prisma | Migrations checked in |
-| Auth | Better Auth (or Auth.js) | Email OTP plus phone OTP. Password optional. Sessions in DB |
-| Object storage | S3-compatible (Cloudflare R2 / AWS S3) | Private bucket for originals; public CDN bucket for derived/stamped assets only |
-| Uploads | Presigned direct-to-bucket uploads (multipart for video) | Server never proxies large files |
-| Image processing | `sharp` | Thumbnails, web derivatives, EXIF stripping, logo stamping |
-| PDF | Headless Chromium (Playwright) HTML→PDF, or `@react-pdf/renderer` | Certificates, receipts |
+| Framework | **Next.js 16.4.x (App Router) + TypeScript (strict)**, started from `create-next-app` | Server Components and Server Actions; Route Handlers for auth, webhooks and the public API. Turbopack, `cacheComponents: true`, `output: 'standalone'` |
+| Runtime | Node 26 LTS (`engines.node: "26.x"`); TypeScript 7.0.x | `next build` type-checks with the project's `tsc` |
+| Tooling | pnpm 12; oxlint (type-aware via `oxlint-tsgolint`; `nextjs`, `react`, `jsx-a11y` and `import` plugins) + oxfmt | oxlint replaces ESLint and oxfmt replaces Prettier |
+| UI | Tailwind CSS 4 + shadcn/ui (`rsc: true`), `next/font` Inter, lucide icons | Mobile-first. WCAG 2.2 AA |
+| i18n | next-intl 4 | Wired in M0 (§13.5) |
+| Validation | Zod 4 | Shared by forms and services (§2.2) |
+| DB | **PostgreSQL 18.7** in Docker on the Mumbai VPS: `pg-prod` and `pg-nonprod` | Never published on a host port. Databases per environment: §2.4 |
+| Pooler | PgBouncer 1.26, the only public DB endpoint | TLS (Let's Encrypt) + SCRAM, transaction pooling, port 6432. Reachable only from Vercel Static IPs (Hostinger firewall plus a `DOCKER-USER` rule) |
+| ORM | **Drizzle ORM 0.45.4** + drizzle-kit 0.31.x on postgres.js, pinned | Prefer the core query builder over RQB v1. Move to Drizzle 1.0 when it is stable and Better Auth's peer range allows. SQL migrations in `drizzle/`, checked in |
+| Backups | pgBackRest to Cloudflare R2 (WAL pushed at least every 60 s, 30-day PITR), plus a daily `age`-encrypted `pg_dump` kept 35 days in a locked bucket | Quarterly restore drill (§13.1) |
+| Auth | **Better Auth 1.7.x** + Drizzle adapter | Email OTP, phone OTP through our `SmsProvider`, TOTP/passkey, captcha. Password optional. Sessions in DB. FOA layer on top: scoped `UserRole` + `can()`, guardian rules, staff 2FA gate, step-up (§4, §13.1) |
+| Object storage | **Cloudflare R2** via the S3 API | Buckets `foa-private` (originals, `quarantine/`), `foa-public` (derived/stamped assets only) and `foa-evidence` (§13.1). Vercel Blob is not used |
+| Uploads | Presigned direct-to-bucket uploads from the browser (multipart above 100 MB) | Server never proxies large files |
+| CDN | Cloudflare CDN on `media.<foa-domain>` in front of `foa-public` | Purge by URL through the Cloudflare API (§7.10, §12.6) |
+| Image and video | `sharp` + `heif-dec` (HEIC); ffmpeg/ffprobe | Thumbnails, web derivatives, EXIF stripping, logo stamping, video posters. Runs in `worker-media` |
+| PDF | Headless Chromium (Playwright) HTML→PDF in `worker-media`; Gotenberg 8 (LibreOffice) for DOCX→PDF | Certificates, receipts, letters, rendered cards |
+| Antivirus | ClamAV (`clamd` over TCP on the Compose network) | Every upload is scanned before promotion (§13.1) |
 | QR | `qrcode` | Certificate verification |
-| Background jobs | pg-boss (Postgres-backed queue) or Inngest | Scheduled transitions, PDF generation, notifications, image processing |
-| Payments | **Razorpay** (Orders, Subscriptions, Webhooks) behind a `PaymentProvider` interface | Fees, donations, auction payments |
-| Email | Resend (or SES) | Templated, React Email |
-| SMS | MSG91 (or similar), behind a `SmsProvider` interface | Indian SMS needs DLT-registered templates |
+| Background jobs | **pg-boss 12** on the same Postgres | `worker` and `worker-media` containers on the VPS. Vercel only sends jobs (§2.2). Every schedule is a pg-boss cron with tz `Asia/Kolkata`, run by `worker`. Vercel Cron is not used |
+| Caching | `'use cache'` + `cacheTag` / `cacheLife`; `revalidateTag(tag, profile)` and `updateTag` | The worker invalidates only through the internal route (§2.2) |
+| Rate limits | Stored in Postgres | No Redis |
+| Payments | **Razorpay** (Orders, Subscriptions, Webhooks; domestic methods, §8.4.6) behind a `PaymentProvider` interface | Fees, donations, auction payments |
+| Email | **Amazon SES** (`ap-south-1`) behind an `EmailProvider` interface | Templated, React Email |
+| SMS | **MSG91** behind an `SmsProvider` interface | Indian SMS needs DLT-registered templates |
 | Search | Postgres full-text plus `pg_trgm` | Gallery, NGO directory, admin lists |
-| Observability | Sentry plus structured logs | |
-| Hosting | Vercel (app) plus Neon (DB) | Jobs run on the queue worker or Vercel Cron |
-| Testing | Vitest (unit/domain), Playwright (E2E) | State machines MUST have unit tests covering every allowed and disallowed transition |
+| Observability | Sentry (`@sentry/nextjs` on Vercel, `@sentry/node` in the worker, Sentry cron monitors), pino structured logs, `/api/health` | §13.3 |
+| Hosting | Vercel Pro (functions in `bom1`) for the app; Docker Compose on the Mumbai VPS for data and workers | §2.3 |
+| Testing | Vitest (latest) + PGlite (unit/domain); Playwright (E2E) in GitHub Actions CI, never on the VPS | State machines MUST have unit tests covering every allowed and disallowed transition |
 
 ### 2.1 Repository Layout
 
 ```
 src/
-  app/
+  app/                   # App Router: layout.tsx, page.tsx, not-found.tsx, error.tsx, global-error.tsx, globals.css
     (public)/            # marketing + public modules
     (auth)/              # login, register, verify OTP
     dashboard/           # participant / member / guardian dashboard
@@ -59,20 +69,39 @@ src/
     judge/               # judge/jury dashboard
     admin/               # FOA staff dashboard
     verify/[certificateNumber]/   # public certificate verification (QR target)
-    api/webhooks/razorpay/route.ts
+    api/auth/[...all]/route.ts    # Better Auth handler
+    api/webhooks/razorpay/route.ts  # also ses/ and msg91/ (§10.7)
+    api/internal/revalidate/route.ts  # HMAC-signed cache invalidation for the worker (§2.2)
+    api/health/route.ts  # DB, queue and worker heartbeat (§13.3)
     api/v1/...           # JSON API only where needed (uploads, polling)
+  components/            # site chrome
+    ui/                  # shadcn/ui
+  lib/                   # pure utilities (site, utils, ids, money, dates)
+  env.ts                 # server-only, zod-validated env (§13.9)
   server/
+    db/
+      index.ts           # Drizzle client (postgres.js)
+      schema/            # one file per module + index.ts barrel
+      pii.ts             # PII registry and encrypted columns (§12.2, §13.1)
+      repositories/
     domain/<module>/     # services, state machines, validators (zod), policies
-    db/                  # prisma client, repositories
-    jobs/                # queue handlers + schedules
-    integrations/        # payment, email, sms, storage adapters
-    auth/                # session helpers, RBAC
-  components/
+    jobs/                # pg-boss queues, handlers, schedules, send helpers
+    integrations/        # payment, email, sms, storage, CDN-purge adapters
+    auth/                # Better Auth config, session helpers, RBAC
+  worker/                # pg-boss worker entrypoint; imports src/server
   emails/                # React Email templates
-  lib/                   # pure utilities (ids, money, dates)
-prisma/schema.prisma
-prisma/seed.ts           # realistic seed: 1 competition, 3 schools, 30 participants, 2 judges
-tests/
+  i18n/                  # next-intl config
+  test/                  # PGlite test harness
+messages/                # next-intl message files, {locale}.json (§13.5)
+drizzle/                 # generated SQL migrations plus hand-written SQL (partial indexes, triggers), checked in
+scripts/
+  migrate.ts             # applies drizzle/ through DIRECT_URL
+  seed.ts                # realistic seed: 1 competition, 3 schools, 30 participants, 2 judges
+  brand-assets.ts
+docker/                  # VPS Compose files; PgBouncer and pgBackRest config
+docker-compose.yml       # local stack: Postgres 18 on 127.0.0.1
+Dockerfile               # standalone app image for the local stack
+tests/e2e/               # Playwright (runs in GitHub Actions)
 ```
 
 ### 2.2 Architectural Rules
@@ -82,8 +111,38 @@ tests/
 - **Idempotency:** webhook handlers and payment-confirmation flows MUST be idempotent, keyed by provider event ID.
 - **Files:** originals are private and served only through short-lived signed URLs, after an authorization check. Public pages only ever show derived assets with metadata stripped and the logo stamped (§7).
 - **Soft delete** (`deletedAt`) for user-generated content. Hard delete only through the data-erasure workflow (§12).
+- **Cache invalidation.** Cached reads use `'use cache'` with `cacheTag` and `cacheLife`. A Server Action invalidates with `updateTag` (read-your-own-writes) or `revalidateTag(tag, profile)`. The worker can't call either, so it MUST revalidate only through `POST /api/internal/revalidate`: the body carries the tags and a timestamp and is signed with HMAC-SHA256 (`REVALIDATE_SECRET`); a bad or stale signature gets 401. For removals (consent withdrawal, erasure, takedown) the route uses `revalidateTag(tag, { expire: 0 })`, so no stale copy is served.
+- **Database connections and jobs.** Vercel functions reach Postgres only through PgBouncer in transaction mode (`DATABASE_URL`; postgres.js with `prepare: false` and a small pool). Migrations use `DIRECT_URL` (§2.3). pg-boss workers and the Outbox `LISTEN` MUST use a direct Postgres connection on the Compose network, never the transaction-mode PgBouncer. The Vercel side only sends jobs: pg-boss runs there with supervision, scheduling and migration off, and each `send` runs inside the caller's Drizzle transaction, so a job exists only if the change committed. Outbox rows (§3.3) fire `NOTIFY` from an insert trigger; the worker's dispatcher listens and also polls every 5 s (§10.1).
+
+### 2.3 Placement
+
+| Where | Runs |
+|---|---|
+| **Vercel Pro**, functions in `bom1` | The Next.js app: pages, Server Actions and Route Handlers (auth, webhooks, `/api/health`, `/api/internal/revalidate`). R2 presigning. pg-boss send-only. DB migrations in `vercel-build` through `DIRECT_URL`, a PgBouncer session-mode entry with a migrator role |
+| **Mumbai VPS** (Docker Compose) | `pg-prod`, `pg-nonprod`, `pgbouncer`, `worker`, `worker-media`, `clamav`, `gotenberg`, and the pg-boss dashboard (on 127.0.0.1 only, reached through an SSH tunnel) |
+| **Cloudflare** | R2 buckets, the `media.<foa-domain>` CDN, and the backup repository and dump bucket |
+| **GitHub Actions** | CI, Playwright E2E, worker image builds |
+
+- Vercel reaches the database only through PgBouncer on port 6432. There is no HTTP path from Vercel to the worker: work is handed over through Postgres (Outbox rows and pg-boss jobs).
+- The worker connects to Postgres directly on the Compose network. Its only HTTP call into the app is the internal revalidate route (§2.2).
+- PgBouncer is the only VPS port open to the internet. Any other published port binds 127.0.0.1, because Docker-published ports bypass ufw.
+- Worker images are built by GitHub Actions, pushed to GHCR tagged with the commit SHA, and deployed with `docker compose pull && docker compose up -d --wait`. A rollback redeploys the previous tag.
+
+### 2.4 Environments
+
+| Environment | App | Database | Notes |
+|---|---|---|---|
+| **local** | `pnpm dev` | Compose Postgres 18 on 127.0.0.1; Vitest uses in-memory PGlite | Email to Mailpit. Storage: a local S3 server (RustFS container) or the in-memory storage driver |
+| **preview** | Vercel preview deployment per PR | `foa_pr_<n>` on `pg-nonprod`, created from the template database `foa_seed` during `vercel-build` and dropped when the PR closes | |
+| **staging** (test) | `foa.shipped-it.dev`, Vercel custom environment `staging` | `foa_staging` on `pg-nonprod` | |
+| **production** | FOA's own domain | `pg-prod`, with PITR (§13.1) | SES out of sandbox; Razorpay live |
+
+- Behaviour switches read `APP_ENV` (`local`, `preview`, `staging` or `production`), never `VERCEL_ENV`, which reads `preview` in the custom `staging` environment.
+- Per-environment rules for payments, email and SMS: §13.8.
 
 ## 3. Conventions
+
+**Notation.** The `prisma` code blocks in this spec describe the logical model. Implement them in Drizzle (`src/server/db/schema/`): `String @id` → `uuid` (UUIDv7, generated in the app); `DateTime` → `timestamptz`; `Json` → `jsonb`; enums → `pgEnum`; `Unsupported("tsvector")` → a `customType`; `@@index` / `@@unique` → Drizzle `index()` / `uniqueIndex()`. Partial indexes and triggers are written as SQL in `drizzle/` migrations.
 
 ### 3.1 Identifiers
 
@@ -335,7 +394,7 @@ This section covers source Phases 1–5, 7, 8 and 14, plus end-to-end steps 1–
 
 ### 6.2 Data Model
 
-Every model also has `id String @id` (UUIDv7), `createdAt` and `updatedAt`. Money follows §3.2. The §3.4 entities (`Institution`, `InstitutionMember`, `ParticipantProfile`, `Guardian`, `FileAsset`) are not changed. Fields are joined with `;` here only to save space; `schema.prisma` puts one field per line.
+Every model also has `id String @id` (UUIDv7), `createdAt` and `updatedAt`. Money follows §3.2. The §3.4 entities (`Institution`, `InstitutionMember`, `ParticipantProfile`, `Guardian`, `FileAsset`) are not changed. Fields are joined with `;` here only to save space; the Drizzle schema (§3) puts one column per line.
 
 ```prisma
 enum ConductMode { PHYSICAL_AT_INSTITUTION ONLINE INDEPENDENT }
@@ -632,7 +691,7 @@ A school may pay in bulk while signed forms are still coming in. Those registrat
 **6.8.4 Upload pipeline & submit gate.**
 1. **Request.** `requestEntryUpload({ entryId, role, fileName, mime, sizeBytes })` checks the file rule, that the entry is editable, and that `now ≤ effective deadline`. It creates `FileAsset(ORIGINAL, scanStatus PENDING)` and `EntryFile(mediaCheck PENDING)`. It returns a 15-minute presigned PUT, with Content-Type and Content-Length signed, to `quarantine/entries/{competitionId}/{entryId}/{fileAssetId}`. Above 100 MB, the upload is multipart, with parts presigned on demand.
 2. **Complete.** The client calls `completeEntryUpload({ fileAssetId, sha256 })`. The server HEADs the object (the size must match) and enqueues `media.process`.
-3. **Process** (`media.process`, per §13): Checks: magic bytes, ≤ 50 MP, ClamAV. Sets `scanStatus`; CLEAN files are promoted out of `quarantine/`. Probe: sharp or ffprobe reads dimensions and duration, the file rule is checked, and `mediaCheck` is set. Images: auto-orient; HEIC → JPEG; WEB (2,048 px long edge) and THUMB (400 px) derivatives with all EXIF, XMP and IPTC metadata (including GPS) stripped; a dHash stored as `perceptualHash`. Video: a poster THUMB. DOCX: a PDF derivative.
+3. **Process** (`media.process`, per §13): Checks: magic bytes, ≤ 50 MP, ClamAV. Sets `scanStatus`; CLEAN files are promoted out of `quarantine/`. Probe: sharp or ffprobe reads dimensions and duration, the file rule is checked, and `mediaCheck` is set. Images: auto-orient; HEIC → JPEG; WEB (2,048 px long edge) and THUMB (400 px) derivatives with all EXIF, XMP and IPTC metadata (including GPS) stripped; a dHash stored as `perceptualHash`. Video: a poster THUMB. DOCX: a PDF derivative (Gotenberg, §2).
 4. **Infected files.** An INFECTED file is detached, the Owner is notified (`file.quarantined`), and the object is deleted after 7 days.
 
 Originals stay private (signed URLs, §13). Judges and the public only ever see derivatives.
@@ -1134,8 +1193,8 @@ model ResultsRelease {
   3. PrizeFulfilment rows created for bands that have a `prizeId`, from the linked §6 CompetitionPrize.
   4. GalleryItem CANDIDATE created for each `galleryCandidate` entry if `allowPublicDisplay`.
   5. No milestone call. §9 derives FOA_FINALIST from `results.published` using `finalOutcome`.
-  6. `results.published` emitted (§10 fans it out to participants, guardians and schools), and the cache tag `results:{competitionId}` is revalidated.
-- **`/competitions/[slug]/results`** (ISR, revalidated on publish, correction or consent change):
+  6. `results.published` emitted (§10 fans it out to participants, guardians and schools), and the worker revalidates the cache tag `results:{competitionId}` through the internal route (§2.2).
+- **`/competitions/[slug]/results`** (cached with `cacheTag('results:{competitionId}')`, revalidated on publish, correction or consent change):
   - **Layout:** tabs per discipline, then sections per category. Each section lists award bands in order, then special mentions, then finalists alphabetically. Level awards from non-final rounds appear under "{Level} awards".
   - **Name:** when `ConsentService.has(participantId, PUBLIC_DISPLAY, competitionId)` holds, the §12.7 public name (minors: "Aarav S." unless `showFullName`). Otherwise "{entryCode} · Name withheld".
   - **Institution:** shown only with that consent and §12.7 `showSchool`.
@@ -1297,11 +1356,11 @@ model GalleryItem {
 | ∅ → CANDIDATE | System at release PUBLISHED (`galleryCandidate`), or CT/CM/SA `addGalleryCandidate` | Competition RESULTS_PUBLISHED. `allowPublicDisplay`. Entry not WITHDRAWN or DISQUALIFIED | Fields snapshotted |
 | CANDIDATE → APPROVED | CT/CM/SA | `ConsentService.has(participantId, PUBLIC_DISPLAY, competitionId)`. A §12.8 `ModerationReview` for the item is APPROVED (checklist: consent, faces, PII, age-appropriate, matches entry) | Stamp jobs (GALLERY + SOCIAL_SQUARE) |
 | CANDIDATE → REJECTED | CT/CM/SA | Reason | None |
-| APPROVED → PUBLISHED | CT/CM/SA (bulk allowed) | Stamped assets ready. Consent re-checked | Listed (sitemap only if `isAdult`). Cache revalidated. `galleryItem.published` |
+| APPROVED → PUBLISHED | CT/CM/SA (bulk allowed) | Stamped assets ready. Consent re-checked | Listed (sitemap only if `isAdult`). Cache tags revalidated (§2.2). `galleryItem.published` |
 | PUBLISHED or APPROVED → UNPUBLISHED | CT/CM/SA (reason), or system: `consent.withdrawn` (PUBLIC_DISPLAY), §12 `consent.reconcile`, DQ, §12.8 auto-hide (REPORTED), §12 erasure | None | Delisted. Detail page returns 410. Consent withdrawal or erasure: public objects deleted and purged from the CDN. `galleryItem.unpublished` |
 | UNPUBLISHED → APPROVED | CT/CM/SA | Not ERASURE. Consent present. New APPROVED review if REPORTED | Restamped if the objects were deleted |
 
-- **Consent withdrawal SLA** (§12.6): gone from every public page, the sitemap and the results page within **15 minutes** (high-priority job plus cache-tag revalidation). The same job deletes the public objects and purges the CDN: target 15 minutes, hard limit **24 hours**. Handlers and §12's `consent.reconcile` both call `GalleryService.unpublishForConsent(participantId, competitionId, reason)`.
+- **Consent withdrawal SLA** (§12.6): gone from every public page, the sitemap and the results page within **15 minutes** (high-priority job plus cache-tag revalidation through the internal route, §2.2). The same job deletes the public objects and purges their URLs from the Cloudflare CDN (credentials in §13.9): target 15 minutes, hard limit **24 hours**. Handlers and §12's `consent.reconcile` both call `GalleryService.unpublishForConsent(participantId, competitionId, reason)`.
 - **`/gallery`:**
   - **Filters:** `competition`, `discipline`, `age` (category), `year`, `recognition`.
   - **Search:** `q` uses `websearch_to_tsquery('simple', q)` plus `pg_trgm` on `displayNameSnapshot`.
@@ -1872,7 +1931,7 @@ A PUBLISHED month is never reopened. Later corrections arrive as `lateAdjustment
 
 ### 8.7 Financial Transparency (`/transparency`, module 12)
 
-- **Source:** the latest `TransparencySnapshot`, built only from LedgerEntries in PUBLISHED months and regenerated on period publish and on report publish or withdrawal. Public requests never query the ledger. The page is static and revalidated with `revalidateTag('transparency')`.
+- **Source:** the latest `TransparencySnapshot`, built only from LedgerEntries in PUBLISHED months and regenerated on period publish and on report publish or withdrawal. Public requests never query the ledger. The page is cached with `cacheTag('transparency')`, and writing a snapshot revalidates that tag (§2.2: `updateTag` in a Server Action, the internal route from the worker).
 - **Periods:** FY ("FY 2026-27, Apr–Nov", published months only) and quarters (shown only when all three months are published).
 - **Sections:**
   1. Totals: income, expenses and net, with "data through <month>" and a last-updated date.
@@ -1942,7 +2001,7 @@ Payloads carry ids, amounts and codes only, never PAN, addresses or contact deta
 ### 8.11 Security Notes
 
 - **Amounts:** always computed server-side, from fee config, the validated donation choice or the hammer price. Client-sent prices, statuses and payment outcomes are never trusted; every capture is confirmed by `fetchPayment` or a verified webhook.
-- **PCI:** card and UPI data only ever enter Razorpay Checkout, which keeps FOA in the minimal (SAQ-A-style) scope. No card data is logged or stored, and webhook payloads are redacted after 180 days. **Secrets** stay server-only (only `RAZORPAY_KEY_ID` reaches the client). Live keys (`rzp_live_`) refuse to load unless `VERCEL_ENV=production`.
+- **PCI:** card and UPI data only ever enter Razorpay Checkout, which keeps FOA in the minimal (SAQ-A-style) scope. No card data is logged or stored, and webhook payloads are redacted after 180 days. **Secrets** stay server-only (only `RAZORPAY_KEY_ID` reaches the client). Live keys (`rzp_live_`) refuse to load unless `APP_ENV=production`.
 - **Webhook route:** raw body, HMAC with constant-time compare, rate-limited, outside CSRF protection, no session. Server actions keep framework CSRF protection.
 - **PAN:** app-level AES-256-GCM envelope encryption with the key from the secret store (§13). The UI shows only the last 4 characters, and every decrypt (export, receipt render) is AuditLogged.
 - **Files:** receipts, letters and ledger attachments live in the private bucket behind signed URLs issued after an owner or role check. Guest tokens are 32 random bytes, stored hashed, valid for 7 days.
@@ -1968,7 +2027,7 @@ Payloads carry ids, amounts and codes only, never PAN, addresses or contact deta
 ### 8.13 Acceptance Criteria
 
 1. A webhook with a bad signature returns 400 and creates no rows. The same valid event delivered 3× produces exactly one transition, one LedgerEntry and one Outbox event. Capture works with the webhook only, the redirect only, and both in either order, each yielding one CAPTURED Payment and one posting.
-2. A provider amount that differs from `Payment.amountMinor` never captures and opens a CRITICAL issue. No server action accepts a price for a registration or lot from the client. The app refuses to start with `rzp_live_` keys when `VERCEL_ENV≠production`.
+2. A provider amount that differs from `Payment.amountMinor` never captures and opens a CRITICAL issue. No server action accepts a price for a registration or lot from the client. The app refuses to start with `rzp_live_` keys when `APP_ENV≠production`.
 3. Unit tests cover every allowed and every disallowed transition of the Payment, Refund, Donation, RecurringDonation, AuctionLot, FinancialPeriod and FinancialReport machines.
 4. Refunding 3 of 20 items in a `RegistrationPaymentBatch` gives PARTIALLY_REFUNDED, `refundedMinor` = the sum of the 3 items, a matching negative posting and `payment.refunded` with 3 `lineRefs`. Refunds beyond the remaining amount are rejected. A refund above the threshold can't be approved by its requester.
 5. 100 concurrent captures in one FY get receipt numbers `000001`–`000100` with no gaps or duplicates. Failed and abandoned payments consume none. 31 Mar 23:59 IST → FY `2627`; 1 Apr 00:01 IST → `2728-000001`.
@@ -2142,7 +2201,7 @@ model StorySubmission { id, submittedByUserId, subjectParticipantId?, title, bod
 | (new) → DRAFT | CONTENT_MANAGER, STAFF_ADMIN | slug matches `^[a-z0-9-]{3,80}$`, unique per locale | revision v1 |
 | DRAFT → IN_REVIEW | editor | title, ≥1 block, `seoDescription`; Post also needs cover + alt + category | `content.submitted` → approvers |
 | IN_REVIEW → DRAFT | approver | comment required | `content.changesRequested` |
-| IN_REVIEW → PUBLISHED | approver | approver ≠ `lastEditedById` when `content.fourEyes`; LEGAL template: STAFF_ADMIN only | set `publishedAt` and `publishedRevisionId`; `revalidateTag`; `content.published` |
+| IN_REVIEW → PUBLISHED | approver | approver ≠ `lastEditedById` when `content.fourEyes`; LEGAL template: STAFF_ADMIN only | set `publishedAt` and `publishedRevisionId`; cache tags revalidated (§2.2); `content.published` |
 | IN_REVIEW → SCHEDULED | approver | same guards, and `publishAt` ≥ now + 5 min | job enqueued at `publishAt` |
 | SCHEDULED → PUBLISHED | system job | revision unchanged since approval (if changed → IN_REVIEW) | as for PUBLISHED |
 | SCHEDULED → DRAFT | editor or approver | none | job cancelled |
@@ -2159,7 +2218,7 @@ Home is `Page(systemKey='home', template=HOME)`. It has a single `homeLayout` bl
 - `counterKeys` (4 keys from §9.4.5)
 - an ordered `sections` list with a visibility toggle per section.
 
-Home edits go through §9.4.2. The page is ISR with `revalidateTag` (`home`, `posts`, `competitions`, `gallery`, `events`, `impact`) and a 300 s fallback.
+Home edits go through §9.4.2. The page is cached with `cacheTag` (`home`, `posts`, `competitions`, `gallery`, `events`, `impact`), revalidated on those tags (§2.2), with `cacheLife({ revalidate: 300 })` as the fallback.
 
 | Section | Source | Rules |
 |---|---|---|
@@ -2749,13 +2808,13 @@ Every payload includes the entity id and the actor. The recipients column is gui
 
 ## 10. Notifications & Communications
 
-§10 owns `NotificationService` (§3.5), templates, channel adapters, preferences, suppression, announcements and the reminder scheduler. Every user-facing email, SMS or in-app message MUST go through `NotificationService`. No other module calls Resend or MSG91 directly.
+§10 owns `NotificationService` (§3.5), templates, channel adapters, preferences, suppression, announcements and the reminder scheduler. Every user-facing email, SMS or in-app message MUST go through `NotificationService`. No other module calls SES or MSG91 directly.
 
 ### 10.1 Pipeline & Service Contract
 
 ```
 domain service tx ──► Outbox row (§3.3)
-   job `outbox.dispatch` (pg-boss; every 5 s + LISTEN/NOTIFY) fans each row out to:
+   `outbox.dispatch` (a loop in `worker`, not a pg-boss schedule: LISTEN on a direct connection + 5 s poll, §2.2) fans each row out to:
       ├─► queue `notify.route`      (singletonKey = outboxId)  ─► EventRoute registry ─► resolvers (§10.4) ─► NotificationService.notify()
       └─► queue `analytics.ingest`  (singletonKey = outboxId)  ─► ProductEvent (§11.4)
 notify()      ─► per recipient × channel: gates (§10.5) ─► Notification row (QUEUED | SUPPRESSED) ─► queue `notify.send.<channel>.<txn|bulk>`
@@ -2789,7 +2848,7 @@ interface ChannelAdapter {
 }
 ```
 
-Adapters: `ResendEmailAdapter`, `Msg91SmsAdapter` (implements §2 `SmsProvider`), `InAppAdapter` (writes `InAppNotification` and marks DELIVERED immediately), and `WhatsAppAdapter`, which is post-MVP behind feature flag `WHATSAPP_CHANNEL` (Meta Cloud API or a BSP, with the approved template name in `providerTemplateId`).
+Adapters: `SesEmailAdapter` (implements §2 `EmailProvider`; Amazon SES `ap-south-1`), `Msg91SmsAdapter` (implements §2 `SmsProvider`), `InAppAdapter` (writes `InAppNotification` and marks DELIVERED immediately), and `WhatsAppAdapter`, which is post-MVP behind feature flag `WHATSAPP_CHANNEL` (Meta Cloud API or a BSP, with the approved template name in `providerTemplateId`).
 
 ### 10.2 Data Model
 
@@ -3043,16 +3102,16 @@ type SegmentDefinition = {
 - **Minor protection (G).** If a segment uses `milestones`, `roles`, or audience `DONORS`/`VOLUNTEERS`, everyone under 18 and their guardian-as-guardian contact is excluded automatically, and the preview shows the excluded count. G reaches guardians of minors only through contextual filters (competition, institution, route, age group, geography) and only with `COMMUNICATION` consent. No open, click or visit-based filter exists.
 - **Approval** by a different STAFF_ADMIN/SUPER_ADMIN is required when category = G and either the recipient count exceeds 1,000 or the segment reaches guardians of minors.
 - **Flow:** build → **preview** (count per channel after gates, exclusions by reason, 3 rendered samples) → **test send** to own contacts (`[TEST]` subject prefix, no dedupe) → schedule or send now → `SENDING`. Job `announcement.expand` snapshots recipients in pages of 500 and calls `notify()` with `announcementId`. Dedupe is per address, so a guardian reached through 3 children gets one copy.
-- **Throttling:** each channel has a token bucket in the send worker. `NOTIFY_EMAIL_RPS` defaults to 2; set it to the Resend plan limit. `NOTIFY_SMS_RPS` defaults to 20. Bulk email uses the Resend batch endpoint (≤100 per call). The `.txn` queues always drain before the `.bulk` queues. On 429, back off and honour `Retry-After`.
+- **Throttling:** each channel has a token bucket in the send worker. `NOTIFY_EMAIL_RPS` defaults to 2; set it at or below the SES account's maximum send rate, and stay within its 24-hour sending quota. `NOTIFY_SMS_RPS` defaults to 20. Bulk email sends one SES message per recipient through the same token bucket. The `.txn` queues always drain before the `.bulk` queues. On 429, back off and honour `Retry-After`.
 - **Stats** (live group-by on `Notification`): targeted, suppressed by reason, queued, sent, delivered, failed, bounced. CSV export contains counts only; addresses are included for STAFF_ADMIN only. Cancelling a `SCHEDULED` announcement sets it to CANCELLED. Cancelling one in `SENDING` stops expansion and moves its QUEUED rows to CANCELLED.
-- **No open-tracking pixels and no click-tracking link rewriting** on any email (disabled in Resend).
+- **No open-tracking pixels and no click-tracking link rewriting** on any email (SES adds none, because the configuration set publishes no Open or Click events).
 
 ### 10.7 Delivery: Quiet Hours, Retries, Bounces, DLT
 
 - **Quiet hours:** no SMS or WhatsApp between 21:00 and 09:00 in the recipient's timezone (default `Asia/Kolkata`; `NOTIFY_QUIET_START/END`). Deferred messages get `scheduledFor` = next 09:00 plus 0–30 min jitter. Exempt: `otp.requested`, safeguarding and security-incident staff alerts, and receipts sent within 5 min of the payer's own action (`bypassQuietHours`). Email has no quiet hours, but scheduled reminders and announcements default to a 08:00–20:00 IST window. Day-based reminders run at 10:00 IST.
 - **Retry:** `RetryableError` (network, 5xx, 429) uses pg-boss `retryLimit: 5, retryDelay: 30, retryBackoff: true` (about 30 s up to 8 min), then FAILED. `PermanentError` (4xx, invalid number, DLT mismatch) goes straight to FAILED. An invalid number also adds `SuppressionEntry(SMS, ALL, INVALID_NUMBER)`. A DLT mismatch raises a Sentry alert.
 - **SMS fallback:** routes with `smsFallback` (`registration.confirmed`, `consent.requested`, `artwork.requested`, `lot.won`, `competition.scheduleChanged`) queue the SMS template when the email ends FAILED or BOUNCED, unless an SMS was already sent.
-- **Webhooks:** `POST /api/webhooks/resend` (Svix signature) and `POST /api/webhooks/msg91` (shared secret + IP allowlist), both idempotent by provider event ID. delivered → DELIVERED. Hard bounce → BOUNCED + `SuppressionEntry(EMAIL, ALL, HARD_BOUNCE)`. Soft bounce → FAILED after provider retries. Complaint → `SuppressionEntry(EMAIL, NON_TRANSACTIONAL, COMPLAINT)` + ENGAGEMENT preference off. SMS DLR failed or rejected → FAILED.
+- **Webhooks:** `POST /api/webhooks/ses` (SES events published to an SNS topic with an HTTPS subscription; the SNS message signature and `TopicArn` are verified, and the subscription confirmation is handled) and `POST /api/webhooks/msg91` (shared secret + IP allowlist), both idempotent by provider event ID. delivered → DELIVERED. Hard bounce (SES `Permanent`) → BOUNCED + `SuppressionEntry(EMAIL, ALL, HARD_BOUNCE)`. Soft bounce (SES `Transient`) → FAILED after provider retries. Complaint → `SuppressionEntry(EMAIL, NON_TRANSACTIONAL, COMPLAINT)` + ENGAGEMENT preference off. SMS DLR failed or rejected → FAILED.
 - **Lifting suppression:** re-verifying the address by OTP deletes HARD_BOUNCE and INVALID_NUMBER entries. STAFF_ADMIN can delete any entry with a reason (audited). COMPLAINT and UNSUBSCRIBED lift only when the user opts back in.
 - **Email setup:** subdomain `notify.<domain>` for T/O and `news.<domain>` for G, each with SPF, DKIM and DMARC `p=quarantine`; Reply-To `support@<domain>`. No message carries an attachment. Every document, including the donation receipt, is a link behind auth or a signed, expiring URL.
 - **Indian DLT:** before M2, FOA registers as Principal Entity, a 6-character header (e.g. `FOAIND`), and every SMS template as **Service-Implicit**. There is no promotional SMS, because G is never sent by SMS. Env (§13.9): `SMS_PROVIDER_API_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID`. An SMS template's `body` MUST be the exact DLT-approved text with `{{var}}` in place of `{#var#}`. Each variable is ≤30 chars. Links appear only as `SHORT_URL` variables resolving to `/s/[code]` on the DLT-whitelisted domain. Editing an SMS body creates a new version, which cannot be activated without a new `dltTemplateId`. Until DLT approval, flag `SMS_CHANNEL` stays off and SMS audiences fall back to EMAIL + IN_APP.
@@ -3224,7 +3283,7 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 
 ### 11.6 Web Analytics (Cookieless)
 
-- **Tool:** **Umami, self-hosted** on its own Neon database and proxied first-party under `/stats`. No cookies, no cross-site identifiers, no custom client events. It honours DNT/GPC (`data-do-not-track`).
+- **Tool:** **Umami, self-hosted** with its own database and role on the VPS Postgres (§2.3), and proxied first-party under `/stats`. No cookies, no cross-site identifiers, no custom client events. It honours DNT/GPC (`data-do-not-track`).
 - **Banned:** GA, GTM, Meta Pixel, LinkedIn Insight, Hotjar, session replay and all ad pixels. This is enforced by CSP `script-src 'self'` plus the Umami origin, and by a CI test that fails if the built bundle references known tracker hosts.
 - **Where the script loads:** only in the `(public)` layout, and only when no session cookie exists. It is never rendered on `(auth)` routes, `/competitions/[slug]/register`, `/feedback/*`, `/dashboard/*`, `/institution/*`, `/judge/*` or `/admin/*`, so there is no tracking on authenticated pages or pages minors use to register or sign in (DPDP children's rules, §12).
 - **Gallery stats:** job `analytics.pullWebStats` runs nightly and copies per-path pageviews/visitors for `/gallery/*`, `/competitions/*`, `/impact` and `/donate` from the Umami API into `PageStatDaily`.
@@ -3243,7 +3302,7 @@ model ReportExport     { id String @id; reportKey String; filters Json; suppress
 - **Source:** MVs plus `ImpactAdjustment` (except `fundsRaisedMinor`, below).
 - **Rounding and suppression:** counters < 10 are omitted. Counts ≥ 10 are rounded down to the nearest 10 and displayed as "1,240+".
 - **Funds:** `fundsRaisedMinor` is the sum of ledger INCOME in the donation categories over PUBLISHED months, read from §8's `TransparencySnapshot`. It MUST equal the transparency page's donations total for the same period.
-- **Caching:** 1 h (`revalidate: 3600`).
+- **Caching:** 1 h (`cacheLife({ revalidate: 3600 })`).
 - **Consumers:** §9 `/impact` and the home page.
 
 ### 11.8 Admin Home `/admin` (Module 22)
@@ -3347,7 +3406,7 @@ Sources: [1] DPDP Rules 2025, G.S.R. 846(E), meity.gov.in/static/uploads/2025/11
 
 ### 12.2 Principles and Data Minimization
 
-- **Purpose limitation.** Every personal-data column carries a `/// @pii(purpose="…", category="…", enc=bool, publicForMinor=bool)` doc comment in `schema.prisma`. A CI test parses the schema and fails on any column that matches the PII name list (name, phone, email, dob, address, pin, pan, ip) but has no annotation. The export and erasure jobs (§12.10) are driven by this registry.
+- **Purpose limitation.** Every personal-data column is declared with the `pii({ purpose, category, enc, publicForMinor })` marker from `src/server/db/pii.ts`, which records it in the PII registry. A CI test walks the Drizzle schema and fails on any column that matches the PII name list (name, phone, email, dob, address, pin, pan, ip) but is not in the registry. The export and erasure jobs (§12.10) are driven by this registry.
 - **Privacy by default.** `PUBLIC_DISPLAY`, `SOCIAL_MEDIA`, `AUCTION_OF_ARTWORK`, `PARTICIPANT_PHOTO_VIDEO` and `COMMUNICATION` are OFF until granted. Checkboxes are never pre-ticked. "No" is as prominent as "Yes". Declining an optional consent never blocks registration or judging.
 - **Minimization per actor.** Fields marked "enc" are encrypted at field level (§13.1).
 
@@ -3582,10 +3641,10 @@ model LegalHold { id String @id; subjectType String; subjectId String; reason St
 
 - **Workflow.** `RECEIVED → VERIFYING_IDENTITY → IN_PROGRESS → COMPLETED | PARTIALLY_COMPLETED | REJECTED`. The requester may move it to CANCELLED before IN_PROGRESS. A request from an authenticated session skips VERIFYING_IDENTITY. Others are verified by OTP to a contact on file. Every response carries the grievance officer contact (Rule 9).
 - **SLAs** (config): ACCESS and EXPORT are self-service in `/dashboard/privacy`, with the ZIP ready within 24 h; manual requests are answered within 15 days. CORRECTION: self-service fields are immediate, others within 7 days. A name or DOB change after certificates are issued triggers a §7 reissue. ERASURE: a 7-day cancellable cooling-off period, then execution within 30 days of the request. GRIEVANCE: acknowledged within 48 h and resolved within **30 days** (published; the legal cap is 90). NOMINATION: immediate.
-- **Export.** A ZIP containing `data.json` (the subject's records as listed in the `@pii` registry, plus consents with document versions), the subject's entry originals, certificate PDFs and receipts. It excludes other people's data, judges' identities and raw scores, and safeguarding case content. The ZIP sits in the private bucket, behind a signed URL valid for 72 h, and is deleted after `RETENTION_EXPORT_ZIP_DAYS`.
+- **Export.** A ZIP containing `data.json` (the subject's records as listed in the `pii()` registry, plus consents with document versions), the subject's entry originals, certificate PDFs and receipts. It excludes other people's data, judges' identities and raw scores, and safeguarding case content. The ZIP sits in the private bucket, behind a signed URL valid for 72 h, and is deleted after `RETENTION_EXPORT_ZIP_DAYS`.
 - **Erasure.**
   1. **Preview.** The registry classifies each record as DELETE, ANONYMIZE or RETAIN (with reason and end date).
-  2. **Execute** (idempotent job). Withdraw all consents (§12.6 cascade). Delete originals and derivatives in every bucket. Delete profile and guardian PII and set `User.status=DELETED`. Replace the participant link on registrations and entries with an "Erased participant" tombstone that keeps codes and outcomes. Reduce certificates to minimal form (number, competition, type, outcome, issuedAt, holder initials). Keep payments, donations and receipts until `RETENTION_FINANCIAL_YEARS` ends, then anonymize. Keep `AuditLog` rows (minimum 1 year) with PII keys inside `before`/`after` redacted. Keep consent rows as proof (§12.11). Call the processors' deletion and suppression APIs (Resend, MSG91).
+  2. **Execute** (idempotent job). Withdraw all consents (§12.6 cascade). Delete originals and derivatives in every bucket. Delete profile and guardian PII and set `User.status=DELETED`. Replace the participant link on registrations and entries with an "Erased participant" tombstone that keeps codes and outcomes. Reduce certificates to minimal form (number, competition, type, outcome, issuedAt, holder initials). Keep payments, donations and receipts until `RETENTION_FINANCIAL_YEARS` ends, then anonymize. Keep `AuditLog` rows (minimum 1 year) with PII keys inside `before`/`after` redacted. Keep consent rows as proof (§12.11). Call the processors' deletion and suppression APIs (SES, MSG91).
   3. **Record.** Write the `ErasureLedger` row and tell the requester which categories were retained and why. A `LegalHold` or open safeguarding case blocks erasure of the records it covers.
 - **Guardians** exercise every right for a minor. A minor with a login can request ACCESS, and can request restriction or withdrawal; the guardian is notified.
 - **Coming of age.** A daily job notifies the guardian (and the participant, if they have a login) 30 days before the 18th birthday. On the birthday it sets `majorityStatus=AWAITING_CLAIM`, sends a `CLAIM_AT_MAJORITY` invite, emits `participant.reachedMajority`, and makes guardian access read-only. On **claim**, the new adult verifies their own contact by OTP, the guardian link is archived, and the adult must re-confirm or withdraw each optional consent. Existing public uses continue; new uses wait for the re-confirmation. If the profile is unclaimed after `MAJORITY_CLAIM_GRACE_DAYS` (180), COMMUNICATION is suppressed and no new public uses are allowed.
@@ -3656,7 +3715,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 9. A user who has not accepted the code of conduct gets a 403 from every service returning minors' PII. Judges never receive name, school or city in any API payload.
 10. `/safeguarding` accepts anonymous reports. A CRITICAL report pages the DSL within 1 min. A STAFF_ADMIN without a designation gets a 403 on `/admin/safeguarding`.
 11. An export ZIP contains only the subject's data. Erasure leaves payments, minimal certificate rows and audit rows, removes every PII column in the registry, and writes `ErasureLedger`. A restore drill that replays the ledger re-erases the subject.
-12. Every PII column carries an `@pii` annotation (the CI test passes). Guardian phone and email and DOB are ciphertext in the DB.
+12. Every PII column is in the `pii()` registry (the CI test passes). Guardian phone and email and DOB are ciphertext in the DB.
 13. The `consent.reconcile` job reports 0 public items without valid consent after the E2E suite runs.
 14. A participant turning 18 gets AWAITING_CLAIM. After the claim, the guardian has no access and optional consents need re-confirmation.
 
@@ -3683,19 +3742,19 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 - **Authentication.** OTPs are 6 digits, valid 10 min, with at most 5 verify attempts per code. Sending is limited to 1 per 60 s, 5 per hour and 10 per day per identifier, and 30 per hour per IP; ten failed verifications in an hour lock the identifier for 15 min. OTP inputs use `autocomplete="one-time-code"` and allow paste. Passwords are optional; if set, at least 12 characters, checked against a breached-password list.
 - **Sessions and 2FA.** Lifetimes: MEMBER, PARTICIPANT and GUARDIAN 30 days sliding; INSTITUTION_* and JUDGE 7 days; staff roles 12 h absolute and 30 min idle. Cookies are `__Host-`, `HttpOnly`, `Secure`, `SameSite=Lax`, rotated on login and on any role change. Staff roles must use 2FA (TOTP or passkey). Step-up 2FA no older than 10 min is required for role changes, ConsentDocument publish, erasure execution, exporting another person's data, safeguarding case access, results publish and refunds.
 - **Authorization.** `can()` is checked inside domain services and denies by default. Every query is scoped by owner, institution or assignment, so a guessed ID never returns data. Unit tests cover every row of the §4 permission matrix. Signed URLs are issued only after the check.
-- **CSRF.** Server Actions rely on Next.js origin checks. Mutating Route Handlers verify `Origin`. Webhooks verify the HMAC signature (`RAZORPAY_WEBHOOK_SECRET`) and are idempotent.
+- **CSRF.** Server Actions rely on Next.js origin checks. Mutating Route Handlers verify `Origin`. Webhooks verify the provider's signature or secret (Razorpay HMAC with `RAZORPAY_WEBHOOK_SECRET`; the SNS message signature for SES; MSG91 per §10.7) and are idempotent. `/api/internal/revalidate` checks its HMAC instead of `Origin` (§2.2).
 - **Headers.** Strict nonce-based CSP: `default-src 'self'; script-src 'self' 'nonce-{n}' 'strict-dynamic' https://checkout.razorpay.com https://challenges.cloudflare.com; frame-src https://api.razorpay.com https://checkout.razorpay.com https://challenges.cloudflare.com; img-src 'self' data: blob: {PUBLIC_CDN_URL}; connect-src 'self' {storage upload host} {Sentry ingest}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`. Also send `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.razorpay.com")` and `Cross-Origin-Opener-Policy: same-origin`.
-- **Input.** zod validates at every boundary. Rich text passes through a single allowlist sanitizer. Raw SQL is allowed only as tagged `$queryRaw`.
+- **Input.** zod validates at every boundary. Rich text passes through a single allowlist sanitizer. Raw SQL is allowed only as Drizzle's tagged `sql` template; `sql.raw` never takes input.
 - **Uploads.** Presigned uploads are constrained to the declared size and MIME type and land under a `quarantine/` prefix. The worker verifies magic bytes, size and pixel count (≤ 50 MP, which blocks decompression bombs), runs ClamAV, and promotes only CLEAN files. Allowed: JPEG, PNG, WebP and HEIC (converted) up to 20 MB; PDF and DOCX (converted to PDF in the worker) up to 10 MB for user uploads, while staff-uploaded AwarenessResource PDFs may be up to 25 MB; MP4, MOV and WebM up to 500 MB and 5 min. §6 may set lower limits per competition.
 - **Originals.** Never public. Served only through signed URLs (≤ 5 min) with `Content-Disposition: attachment`. Public files are always re-encoded derivatives.
-- **Secrets.** Vercel encrypted env vars, per environment. gitleaks runs in CI and GitHub secret scanning is on. API tokens are least-privilege (one storage token per bucket). Secrets rotate every 12 months and whenever a staff member leaves.
-- **Dependencies.** Renovate runs weekly. `npm audit --audit-level=high` blocks CI. CodeQL runs on every PR. Critical vulnerabilities are patched within 72 h and high ones within 7 days.
-- **Encryption.** TLS 1.2+ everywhere (1.3 preferred). Neon and object storage encrypt at rest (AES-256). A separate evidence bucket holds consent forms, clearance documents and safeguarding files, with no public access and object lock where available.
-- **PII field-level encryption.** `Guardian.phone`, `Guardian.email`, `ParticipantProfile.dateOfBirth` and the fields marked enc in §12 are encrypted with AES-256-GCM by a Prisma client extension (`src/server/db/pii-extension.ts`), stored as `v1:{kid}:{iv}:{ct}:{tag}` with keys from `PII_ENCRYPTION_KEYS` and `PII_ENCRYPTION_ACTIVE_KID`. Exact-match lookups use HMAC-SHA256 blind indexes (`phoneHash`, `emailHash`, keyed by `PII_HASH_KEY`) over normalized values (E.164 phone, lowercased email). DOB is decrypted only in the app; the age group is computed there and snapshotted by §6, so no SQL filters on DOB. The `pii.rekey` job re-encrypts after a key rotation.
+- **Secrets.** Vercel encrypted env vars, per environment. VPS worker secrets live in root-only Compose env files on the VPS. gitleaks runs in CI and GitHub secret scanning is on. API tokens are least-privilege (one storage token per bucket). Secrets rotate every 12 months and whenever a staff member leaves.
+- **Dependencies.** Renovate runs weekly. `pnpm audit --audit-level high` blocks CI. CodeQL runs on every PR. Critical vulnerabilities are patched within 72 h and high ones within 7 days.
+- **Encryption.** TLS 1.2+ everywhere (1.3 preferred), including PgBouncer. R2 encrypts objects at rest (AES-256). Backups are encrypted before they leave the VPS (pgBackRest repository encryption; `age` for the daily dumps). Whether the VPS disk is encrypted at rest is a question for Hostinger. A separate evidence bucket (`foa-evidence`) holds consent forms, clearance documents and safeguarding files, with no public access and R2 bucket locks.
+- **PII field-level encryption.** `Guardian.phone`, `Guardian.email`, `ParticipantProfile.dateOfBirth` and the fields marked enc in §12 are encrypted with AES-256-GCM in the repository layer (an encrypted Drizzle `customType` in `src/server/db/pii.ts` encrypts on write and decrypts on read), stored as `v1:{kid}:{iv}:{ct}:{tag}` with keys from `PII_ENCRYPTION_KEYS` and `PII_ENCRYPTION_ACTIVE_KID`. Exact-match lookups use HMAC-SHA256 blind indexes (`phoneHash`, `emailHash`, keyed by `PII_HASH_KEY`) over normalized values (E.164 phone, lowercased email). DOB is decrypted only in the app; the age group is computed there and snapshotted by §6, so no SQL filters on DOB. The `pii.rekey` job re-encrypts after a key rotation.
 - **Audit.** `AuditLog` per §3.3, plus `pii.viewed` rows whenever a minor's PII, an original file or an evidence file is opened.
 - **Admin protection.** `/admin` is limited to 300 requests/min per user. `ADMIN_IP_ALLOWLIST` is optional and applies to SUPER_ADMIN. A sign-in from a new device emails the user.
-- **Public forms.** Turnstile, a 10 requests/min per IP limit (Upstash Redis), and a honeypot field.
-- **Backups.** Neon PITR with a window of at least 7 days (target 30). A daily encrypted `pg_dump` goes to separate storage and is kept 35 days. Originals are versioned. RPO ≤ 5 min, RTO ≤ 4 h. Every quarter, a restore drill restores to a branch, replays `ErasureLedger`, runs smoke tests, and records the time taken.
+- **Public forms.** Turnstile, a 10 requests/min per IP limit (stored in Postgres, §2), and a honeypot field.
+- **Backups.** pgBackRest archives WAL to an encrypted R2 repository at least every 60 s (`archive_timeout = 60`), with 30 days of PITR. A daily `age`-encrypted `pg_dump` goes to a separate, locked R2 bucket and is kept 35 days. Originals are versioned. RPO ≤ 5 min, RTO ≤ 4 h. Every quarter, a restore drill restores into `pg-nonprod`, replays `ErasureLedger`, runs smoke tests, and records the time taken.
 
 ### 13.2 Performance
 
@@ -3703,10 +3762,10 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 - **Budgets.** Initial JS ≤ 170 KB gzipped on public pages. Gallery thumbnails ≤ 60 KB.
 - **Images.** sharp pre-generates derivatives (THUMB 400 px, WEB 2,048 px long edge) in AVIF and WebP with a JPEG fallback. `next/image` uses a custom loader pointing at the CDN. Below-the-fold images lazy-load. Fonts are self-hosted and subset with `font-display: swap`; Devanagari loads only for `hi`.
 - **Caching.**
-  - Public pages use SSG or ISR: competitions revalidate every 300 s, plus `revalidateTag` on publish.
-  - Gallery and results revalidate on demand at moderation, publish and withdrawal, with the CDN purge finishing within 15 min.
+  - Public pages are cached with `'use cache'` and `cacheTag`: competitions use `cacheLife({ revalidate: 300 })`, plus tag revalidation on publish (§2.2).
+  - Gallery and results revalidate on demand at moderation, publish and withdrawal (§2.2), with the CDN purge finishing within 15 min.
   - Stamped assets use content-hashed keys with `Cache-Control: public, max-age=31536000, immutable`.
-- **Server latency (p95).** Cached reads < 100 ms; DB-backed pages < 300 ms; Server Action mutations < 500 ms (excluding third-party calls); presigned upload URL < 300 ms; Razorpay order creation < 1.5 s; DB queries < 50 ms. Server p99 < 1.5 s. Prisma runs through the Neon pooler, every FK and filter column is indexed, and N+1 queries are checked in review.
+- **Server latency (p95).** Cached reads < 100 ms; DB-backed pages < 300 ms; Server Action mutations < 500 ms (excluding third-party calls); presigned upload URL < 300 ms; Razorpay order creation < 1.5 s; DB queries < 50 ms. Server p99 < 1.5 s. Drizzle on postgres.js runs through PgBouncer in transaction mode (`prepare: false`, a small pool per function instance), every FK and filter column is indexed, and N+1 queries are checked in review.
 - **Load profile (assumption, to confirm).** Pilot scale: 100 schools and 20,000 participants. Peak in the 2 h before a submission deadline: 2,000 concurrent users, 500 concurrent image uploads (5 MB average) and 20 video multipart uploads, about 100 server requests/s. Results day: 5,000 certificate downloads per hour. The image pipeline must process ≥ 1,000 images in 10 min. Each competition deadline is preceded by a k6 load test on staging at 2× this profile.
 
 ### 13.3 Availability and Observability
@@ -3730,7 +3789,7 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 ### 13.5 Internationalization
 
 - **Locales.** next-intl with `localePrefix: 'as-needed'`. Launch with `en-IN`. `hi-IN` comes next (legal pages and ConsentDocuments at launch, §12.1). Then bn, mr, ta, te, kn, ml, gu, pa and or.
-- **Strings.** Every string lives in `messages/{locale}.json`. ESLint `react/jsx-no-literals` blocks hard-coded UI strings.
+- **Strings.** Every string lives in `messages/{locale}.json`. oxlint `react/jsx-no-literals` blocks hard-coded UI strings.
 - **Content and templates.** Email, SMS and PDF templates exist per locale. SMS templates are DLT-registered per language. CMS content is per locale with an `en-IN` fallback. `User.locale` decides the notification language.
 - **Formatting.** `Intl` APIs throughout. Display timezone `Asia/Kolkata` by default. Dates in `dd MMM yyyy`. Currency through `Intl.NumberFormat('en-IN', {style:'currency', currency})`, which gives Indian grouping (₹1,23,456). No RTL at launch, but layouts use logical CSS properties.
 
@@ -3752,10 +3811,10 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 
 ### 13.8 Environments, CI/CD, Seed and Feature Flags
 
-- **Environments.** **local**: Docker Postgres, MinIO and Mailpit, or a Neon dev branch. **preview** per PR: Vercel plus a Neon branch from `staging-seed`, Razorpay test mode, email only to an allowlist, SMS logged rather than sent. **staging**: production-like, Razorpay test mode, SMS only to allowlisted numbers. **production.** Production data is never copied to another environment.
-- **CI on each PR (GitHub Actions).** Install, then ESLint and Prettier, then `tsc --noEmit`, then Vitest (≥ 80% coverage on `server/domain`, 100% of state-machine transitions), then `prisma validate` plus a migration drift check, then build. The PR then deploys a preview, runs `prisma migrate deploy` and seeds it, and runs Playwright E2E, axe and Lighthouse CI against it. gitleaks, `npm audit` and CodeQL also run.
-- **Release.** A merge to `main` auto-deploys staging. Production needs a manual promotion with approval. Migrations run before the traffic switch and MUST be expand/contract (backward compatible). Rollback uses Vercel instant rollback; DB problems get a forward fix.
-- **Seed (`prisma/seed.ts`, idempotent, synthetic only).** Beyond the §2.1 baseline (1 competition, 3 schools, 30 participants, 2 judges): participants under 13, aged 13–17 and adults across both routes; guardians with consents of every `ConsentMethod`, one withdrawn and one stale-version consent; ConsentDocuments in en-IN and hi-IN; one DataRequest of each type; one synthetic SafeguardingReport; one user per `Role`. Phone numbers come from a reserved test range. OTP uses `DEV_OTP_BYPASS_CODE`, which is ignored when `APP_ENV=production`.
+- **Environments** (hosting and databases: §2.4). **local**: Mailpit for email, Razorpay mocked. **preview** per PR: Razorpay test mode, email only to an allowlist, SMS logged rather than sent. **staging**: production-like, Razorpay test mode, SMS only to allowlisted numbers. **production**: SES out of sandbox, Razorpay live. Production data is never copied to another environment.
+- **CI on each PR (GitHub Actions).** Install, then oxlint and `oxfmt --check`, then `tsc --noEmit`, then Vitest (≥ 80% coverage on `server/domain`, 100% of state-machine transitions), then `drizzle-kit check` plus a migration drift check (`drizzle-kit generate` must produce no new migration), then build. The PR then deploys a preview, whose `vercel-build` creates `foa_pr_<n>` from the seeded `foa_seed` template and applies the `drizzle/` migrations through `DIRECT_URL`. GitHub Actions runs Playwright E2E, axe and Lighthouse CI against it. gitleaks, `pnpm audit` and CodeQL also run.
+- **Release.** A merge to `main` auto-deploys staging. Production needs a manual promotion with approval. Migrations run in `vercel-build`, before the traffic switch, and MUST be expand/contract (backward compatible). Worker images deploy from GitHub Actions (§2.3). Rollback uses Vercel instant rollback for the app and redeploys the previous GHCR image tag for the worker; DB problems get a forward fix.
+- **Seed (`scripts/seed.ts`, idempotent, synthetic only; previews are cloned from a `foa_seed` database built from it).** Beyond the §2.1 baseline (1 competition, 3 schools, 30 participants, 2 judges): participants under 13, aged 13–17 and adults across both routes; guardians with consents of every `ConsentMethod`, one withdrawn and one stale-version consent; ConsentDocuments in en-IN and hi-IN; one DataRequest of each type; one synthetic SafeguardingReport; one user per `Role`. Phone numbers come from a reserved test range. OTP uses `DEV_OTP_BYPASS_CODE`, which is ignored when `APP_ENV=production`.
 - **Feature flags.** Stored in a `FeatureFlag { key, enabled, rolloutPercent?, updatedBy, updatedAt }` table that SUPER_ADMIN edits, with env overrides. Flags: `AUCTIONS`, `ADOPTION`, `VOLUNTEERS`, `NGO_DIRECTORY`, `EVENTS`, `COMMUNITY`, `CLUBS`, `AMBASSADORS`, `SOCIAL_PUBLISHING` (API posting to social networks, post-MVP, §7.11; MVP is manual export), `SMS_CHANNEL`, `WHATSAPP_CHANNEL`, `MINOR_LOGIN`, `IMAGE_SAFETY_CLASSIFIER`, `DIGILOCKER_GUARDIAN_VERIFICATION`, `LOCALE_HI`. Post-MVP modules (§1) ship dark behind their flags.
 
 ### 13.9 Configuration (required environment variables)
@@ -3763,25 +3822,26 @@ model SecurityIncident { id String @id; title String; awareAt DateTime; severity
 | Variable | Envs | Purpose |
 |---|---|---|
 | `APP_ENV`, `APP_URL` | all | `local`, `preview`, `staging` or `production`; canonical base URL |
-| `DATABASE_URL`, `DIRECT_URL` | all | Pooled Neon URL; direct URL for migrations |
+| `DATABASE_URL`, `DIRECT_URL` | all | `DATABASE_URL`: PgBouncer, transaction mode (in the worker: Postgres directly on the Compose network, §2.2). `DIRECT_URL`: PgBouncer session-mode entry with the migrator role, for migrations |
 | `AUTH_SECRET` | all | Session and token signing (≥ 32 bytes) |
-| `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` | all | S3-compatible storage (R2 or S3) |
-| `STORAGE_BUCKET_PRIVATE`, `STORAGE_BUCKET_PUBLIC`, `STORAGE_BUCKET_EVIDENCE`, `PUBLIC_CDN_URL` | all | Originals, public derivatives, evidence; CDN host |
+| `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` | all | Cloudflare R2 S3 API (`https://<account-id>.r2.cloudflarestorage.com`, region `auto`); local: RustFS or the in-memory driver (§2.4) |
+| `STORAGE_BUCKET_PRIVATE`, `STORAGE_BUCKET_PUBLIC`, `STORAGE_BUCKET_EVIDENCE`, `PUBLIC_CDN_URL` | all | `foa-private`, `foa-public`, `foa-evidence`; CDN host `media.<foa-domain>` |
+| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` | deployed | CDN purge by URL (§7.10, §12.6); the token can only purge cache on that zone |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | all except local (mocked) | Payments (§8) |
-| `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | all except local (Mailpit) | Email |
+| `SES_REGION` (`ap-south-1`), `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_CONFIGURATION_SET`, `SES_SNS_TOPIC_ARN`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | all except local (Mailpit) | Email through Amazon SES (§10). `/api/webhooks/ses` accepts messages only from `SES_SNS_TOPIC_ARN` |
 | `SMS_PROVIDER_API_KEY`, `SMS_DLT_SENDER_ID`, `SMS_DLT_ENTITY_ID` | staging, production | DLT-compliant SMS (template IDs live on `NotificationTemplate.dltTemplateId`) |
-| `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ENVIRONMENT` | all except local | Errors; source-map upload from CI |
+| `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ENVIRONMENT` | all except local | Errors and cron monitors (app and worker); source-map upload from CI |
 | `PII_ENCRYPTION_KEYS` (JSON kid→base64 32 B), `PII_ENCRYPTION_ACTIVE_KID`, `PII_HASH_KEY` | all | Field-level encryption and blind index (§13.1) |
-| `CRON_SECRET` | deployed | Authenticates Vercel Cron and job triggers |
-| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | deployed | Rate limiting |
+| `REVALIDATE_SECRET` | deployed | HMAC key for `/api/internal/revalidate`, shared by the app and the worker (§2.2) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | deployed | Bot protection on public forms |
-| `MALWARE_SCAN_URL` | all | ClamAV REST endpoint used by the worker |
+| `MALWARE_SCAN_URL` | all (worker only) | `clamd` TCP address on the Compose network (e.g. `tcp://clamav:3310`) |
+| `GOTENBERG_URL` | all (worker only) | Gotenberg on the Compose network (DOCX→PDF) |
 | `SAFEGUARDING_ALERT_EMAILS`, `SAFEGUARDING_ALERT_PHONES` | production, staging | Paging for CRITICAL reports |
 | `ADMIN_IP_ALLOWLIST` | optional | CIDR list for SUPER_ADMIN |
 | `DEV_OTP_BYPASS_CODE` | local, preview | Test OTP; ignored in production |
 | `IMAGE_SAFETY_API_KEY`, `DIGILOCKER_CLIENT_ID`, `DIGILOCKER_CLIENT_SECRET` | optional (flags) | Post-MVP integrations |
 
-Env is validated at boot with zod (`src/env.ts`). A missing required variable fails the build or start.
+Env is validated at boot with zod (`src/env.ts`), in the app and in the worker. A missing required variable fails the build or start. Backup credentials (pgBackRest and dump-bucket R2 tokens, the repository cipher passphrase) live only on the VPS, never in Vercel.
 
 **Runtime settings.** `Setting { key String @id, value Json, updatedBy String, updatedAt DateTime }` is the runtime configuration table that SUPER_ADMIN edits. Each section's config keys live here, and changes are audit-logged.
 
@@ -3796,7 +3856,7 @@ Env is validated at boot with zod (`src/env.ts`). A missing required variable fa
 7. axe reports 0 serious or critical violations. Keyboard-only E2E completes register, consent, submit and donate.
 8. Every UI string comes from the message files (lint passes). Switching the locale to `hi-IN` renders the legal pages and consent documents in Hindi.
 9. `sitemap.xml` contains no minor's entry. Every public page has a title, description, canonical URL and OG image.
-10. A preview deploy creates its own Neon branch, migrates and seeds it, and the E2E suite passes against it. A missing env variable fails the boot.
+10. A preview deploy creates its own database `foa_pr_<n>` on `pg-nonprod` from `foa_seed`, migrates it, and the E2E suite passes against it. The database is dropped when the PR closes. A missing env variable fails the boot.
 11. The quarterly restore drill completes within the 4 h RTO, and its report is filed in `/admin/reports`.
 12. Sentry events contain no email, phone, name or DOB values (fixture test of the scrubber).
 
@@ -3818,12 +3878,12 @@ The order follows the source's 6-month objectives: get one pilot competition run
 | **M8** | Auctions & advanced analytics | §8 auctions, §11 full analytics, feedback surveys | After physical artwork from the pilot is verified |
 
 ### M0 — Foundations
-- Next.js + TypeScript strict + Tailwind/shadcn scaffold matching the §2.1 layout. Prisma connected to Neon. CI runs lint, typecheck, Vitest and Playwright against preview deployments.
+- Next.js + TypeScript strict + Tailwind/shadcn scaffold matching the §2.1 layout. Drizzle connected to the VPS Postgres through PgBouncer (§2.3). CI in GitHub Actions runs lint, typecheck, Vitest, and Playwright E2E against preview deployments.
 - Auth: email OTP and phone OTP login. Sessions. `UserRole` with scoped roles. `can()` policy helper. Staff 2FA.
 - `AuditLog`, `Outbox`, job worker, `FileAsset` with presigned upload, the `Setting` runtime-configuration table (§13.9; changes audit-logged), `lib/ids` (§3.1 code generators with tests), `lib/money`.
 - `ConsentDocument`/`Consent` tables and `ConsentService` skeleton. Legal pages served from CMS stubs.
 - Seed script (§2.1).
-- **Accept when:** a user can sign up and log in by OTP; a SUPER_ADMIN can grant a scoped role; every mutation in the demo writes an AuditLog row; a file uploads directly to the bucket and is retrievable only through a signed URL by an authorized user; CI is green.
+- **Accept when:** a user can sign up and log in by OTP; a SUPER_ADMIN can grant a scoped role; every mutation in the demo writes an AuditLog row; a file uploads directly to the bucket and is retrievable only through a signed URL by an authorized user; the VPS Compose services (`pg-prod`, `pgbouncer`, `worker`, `clamav`, `gotenberg`) are healthy; a backup and a restore drill into `pg-nonprod` pass; a preview database can be created from `foa_seed` and dropped; CI is green.
 
 ### M1 — Institutions & Registration
 - `/schools/register`, admin institution verification, institution competition registration, coordinator student management including CSV import.

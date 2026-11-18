@@ -16,12 +16,12 @@ The order follows the source's 6-month objectives: get one pilot competition run
 | **M8** | Auctions & advanced analytics | §8 auctions, §11 full analytics, feedback surveys | After physical artwork from the pilot is verified |
 
 ### M0 — Foundations
-- Next.js + TypeScript strict + Tailwind/shadcn scaffold matching the §2.1 layout. Prisma connected to Neon. CI runs lint, typecheck, Vitest and Playwright against preview deployments.
+- Next.js + TypeScript strict + Tailwind/shadcn scaffold matching the §2.1 layout. Drizzle connected to the VPS Postgres through PgBouncer (§2.3). CI in GitHub Actions runs lint, typecheck, Vitest, and Playwright E2E against preview deployments.
 - Auth: email OTP and phone OTP login. Sessions. `UserRole` with scoped roles. `can()` policy helper. Staff 2FA.
 - `AuditLog`, `Outbox`, job worker, `FileAsset` with presigned upload, the `Setting` runtime-configuration table (§13.9; changes audit-logged), `lib/ids` (§3.1 code generators with tests), `lib/money`.
 - `ConsentDocument`/`Consent` tables and `ConsentService` skeleton. Legal pages served from CMS stubs.
 - Seed script (§2.1).
-- **Accept when:** a user can sign up and log in by OTP; a SUPER_ADMIN can grant a scoped role; every mutation in the demo writes an AuditLog row; a file uploads directly to the bucket and is retrievable only through a signed URL by an authorized user; CI is green.
+- **Accept when:** a user can sign up and log in by OTP; a SUPER_ADMIN can grant a scoped role; every mutation in the demo writes an AuditLog row; a file uploads directly to the bucket and is retrievable only through a signed URL by an authorized user; the VPS Compose services (`pg-prod`, `pgbouncer`, `worker`, `clamav`, `gotenberg`) are healthy; a backup and a restore drill into `pg-nonprod` pass; a preview database can be created from `foa_seed` and dropped; CI is green.
 
 ### M1 — Institutions & Registration
 - `/schools/register`, admin institution verification, institution competition registration, coordinator student management including CSV import.
