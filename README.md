@@ -62,9 +62,9 @@ pnpm db:migrate               # apply the migrations
 pnpm dev                      # http://localhost:3000
 ```
 
-To stop the database, run `docker compose stop db`. The data stays in the `pgdata` volume until you run `docker compose down -v`.
+To stop the database, run `docker compose stop db`. The data stays in the `pgdata18` volume.
 
-> **Upgrading an older checkout?** The Compose database moved to Postgres 18, with a new user and volume layout. Run `docker compose down -v` once to start from an empty volume.
+> **Upgrading an older checkout?** The Compose database moved to Postgres 18 with a new user, on a new volume, `pgdata18`, so it starts empty and never mounts the old Postgres 17 data. The React Router template's `pgdata` volume is left alone: if you no longer need it, find it with `docker volume ls` (it is named `<project>_pgdata`) and remove it with `docker volume rm`.
 
 ## Running everything in Docker
 
@@ -72,14 +72,14 @@ You can also build and run the production image together with Postgres:
 
 ```bash
 docker compose up -d --build --wait   # http://localhost:3000
-docker compose down                   # stop (add -v to delete the database)
+docker compose down                   # stop; the database stays in pgdata18
 ```
 
 Compose starts three services in order:
 
 | Service   | What it does                                                                                                               |
 | --------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `db`      | Postgres 18. Data in the `pgdata` volume.                                                                                  |
+| `db`      | Postgres 18. Data in the `pgdata18` volume.                                                                                |
 | `migrate` | One-shot: runs `pnpm db:migrate` (the Dockerfile's `migrate` target), then exits.                                          |
 | `app`     | The Next.js standalone server (the Dockerfile's `runner` target), as a non-root user. Starts once `migrate` has succeeded. |
 

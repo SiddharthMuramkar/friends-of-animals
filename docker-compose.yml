@@ -8,7 +8,9 @@
 #     docker compose up -d db
 #     cp .env.example .env && pnpm db:migrate && pnpm dev
 #
-# Data lives in the named volume `pgdata`; `docker compose down -v` deletes it.
+# Data lives in the named volume `pgdata18`. It has a new name so a Postgres 17
+# `pgdata` volume left by the React Router template is never mounted into
+# Postgres 18. Remove that old volume by hand once you no longer need it.
 #
 # Ports are published on 127.0.0.1 only. Docker's published ports bypass host
 # firewalls such as ufw, so "5432:5432" would expose the database (and its
@@ -29,7 +31,7 @@ services:
     volumes:
       # Postgres 18 images keep data in a versioned subdirectory
       # (/var/lib/postgresql/18/docker), so mount the parent.
-      - pgdata:/var/lib/postgresql
+      - pgdata18:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U foa -d foa"]
       interval: 5s
@@ -79,4 +81,4 @@ services:
         condition: service_completed_successfully
 
 volumes:
-  pgdata:
+  pgdata18:
