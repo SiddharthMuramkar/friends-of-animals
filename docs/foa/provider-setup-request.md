@@ -37,15 +37,15 @@
 
 Ordered by how long each item takes, longest first.
 
-| Item | Who at FOA acts | How long | Cost |
-|---|---|---|---|
-| 1. Tax status (section 4) | CA, with trustees | 0–9 months (see section 4) | Ask CA |
-| 2. Razorpay payments (section 7) | Authorised signatory | About 1–2 weeks once documents and pages are ready | 2% + GST per payment; possible ₹199 + tax KYC fee |
-| 3. SMS registration, DLT (section 8) | Person named in Appendix A; trustees approve wording | About 1–2 weeks | About ₹5,900 once, then ₹0.16–0.25 per SMS + GST |
-| 4. Website policy pages (section 6) | Trustees approve; developer drafts | Days, after your answers | — |
-| 5. KYC documents (section 5) | FOA administration | Days | — |
-| 6. Email sending, Amazon SES (section 9) | FOA's AWS account owner | 1–4 days | USD 0.10 per 1,000 emails |
-| 7. Domain and DNS (section 10) | Cloudflare account holder | Minutes to hours | Not covered by our research |
+| Item                                     | Who at FOA acts                                      | How long                                           | Cost                                              |
+| ---------------------------------------- | ---------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------- |
+| 1. Tax status (section 4)                | CA, with trustees                                    | 0–9 months (see section 4)                         | Ask CA                                            |
+| 2. Razorpay payments (section 7)         | Authorised signatory                                 | About 1–2 weeks once documents and pages are ready | 2% + GST per payment; possible ₹199 + tax KYC fee |
+| 3. SMS registration, DLT (section 8)     | Person named in Appendix A; trustees approve wording | About 1–2 weeks                                    | About ₹5,900 once, then ₹0.16–0.25 per SMS + GST  |
+| 4. Website policy pages (section 6)      | Trustees approve; developer drafts                   | Days, after your answers                           | —                                                 |
+| 5. KYC documents (section 5)             | FOA administration                                   | Days                                               | —                                                 |
+| 6. Email sending, Amazon SES (section 9) | FOA's AWS account owner                              | 1–4 days                                           | USD 0.10 per 1,000 emails                         |
+| 7. Domain and DNS (section 10)           | Cloudflare account holder                            | Minutes to hours                                   | Not covered by our research                       |
 
 "—" means our research found no provider fee. Lead times of "1–2 weeks" are the developer's estimates from each provider's step times.
 
@@ -66,36 +66,44 @@ Providers check these facts against FOA's documents. Please copy them exactly as
 
 - **Q3.1 Legal form.** "NGO" describes what FOA does, not its legal form. Razorpay has a different document list for each form.
 
-  ☐ Trust  ☐ Registered society  ☐ Section 8 company  ☐ Not sure
+  ☐ Trust ☐ Registered society ☐ Section 8 company ☐ Not sure
+
 - **Q3.2 Exact legal name, as printed on FOA's PAN card.** AWS checks that FOA's account name matches the PAN exactly, including spelling and punctuation.
 
   Answer: ________
+
 - **Q3.3 Registration number and date** (trust registration, society registration, or company CIN).
 
-  Number: ________  Date: ________
+  Number: ________ Date: ________
+
 - **Q3.4 FOA's PAN** (Permanent Account Number of the organisation, not of a person).
 
   Answer: ________
+
 - **Q3.5 GST number,** if FOA has one.
 
-  ☐ None  GSTIN: ________
+  ☐ None GSTIN: ________
+
 - **Q3.6 Registered address,** with PIN code.
 
   Answer: ________
+
 - **Q3.7 Authorised signatory.** The person who signs up for Razorpay, appears on its video call, and signs for FOA. They must have their **original physical PAN card** (Razorpay does not accept a printout or e-PAN).
 
-  Name: ________  Designation: ________  Mobile: ________  Email: ________
+  Name: ________ Designation: ________ Mobile: ________ Email: ________
+
 - **Q3.8 Bank account that will receive the money.** Razorpay needs the account number and IFSC. The signatory can type the full account number directly into Razorpay; you do not need to write it here.
 
-  Bank: ________  Branch: ________  Account name: ________  IFSC: ________  Last 4 digits: ________
+  Bank: ________ Branch: ________ Account name: ________ IFSC: ________ Last 4 digits: ________
+
 - **Q3.9 People who run or own FOA.** Razorpay asks for a declaration of "ultimate beneficial owners" (UBOs): the people who ultimately own or control the organisation. Please list your trustees, governing-body members or directors below. Your CA can tell you which of them count as UBOs.
 
-| Name | Role (trustee, member, director) | Counts as UBO? |
-|---|---|---|
-| ________ | ________ | ☐ Yes ☐ No |
-| ________ | ________ | ☐ Yes ☐ No |
-| ________ | ________ | ☐ Yes ☐ No |
-| ________ | ________ | ☐ Yes ☐ No |
+| Name     | Role (trustee, member, director) | Counts as UBO? |
+| -------- | -------------------------------- | -------------- |
+| ________ | ________                         | ☐ Yes ☐ No     |
+| ________ | ________                         | ☐ Yes ☐ No     |
+| ________ | ________                         | ☐ Yes ☐ No     |
+| ________ | ________                         | ☐ Yes ☐ No     |
 
 ---
 
@@ -120,12 +128,12 @@ India's **Income-tax Act 2025** replaced the 1961 Act on **1 April 2026**. The r
 
 ### The four possible paths
 
-| FOA's situation | What FOA files | How long | Valid for |
-|---|---|---|---|
-| Already holds regular registration and approval | Nothing now | — | Until current approval expires |
-| Not registered; activities **not yet started** | Form 104 (provisional) | 1–2 months | Up to 3 tax years |
-| Not registered; **already operating** | Form 105 (regular) | **Up to about 9 months** | 5 tax years |
-| Holds provisional registration (Form 106); activities have since started | Form 105, within 6 months of starting | Up to about 9 months | 5 tax years (see below) |
+| FOA's situation                                                          | What FOA files                        | How long                 | Valid for                      |
+| ------------------------------------------------------------------------ | ------------------------------------- | ------------------------ | ------------------------------ |
+| Already holds regular registration and approval                          | Nothing now                           | —                        | Until current approval expires |
+| Not registered; activities **not yet started**                           | Form 104 (provisional)                | 1–2 months               | Up to 3 tax years              |
+| Not registered; **already operating**                                    | Form 105 (regular)                    | **Up to about 9 months** | 5 tax years                    |
+| Holds provisional registration (Form 106); activities have since started | Form 105, within 6 months of starting | Up to about 9 months     | 5 tax years (see below)        |
 
 - **Form 104:** the order is due within one month from the end of the month of application. It is valid for 3 tax years, or until 6 months after activities start, if earlier.
 - **Form 105:** the order is due within six months from the end of the quarter of application.
@@ -137,24 +145,29 @@ Form 104 is only for organisations whose activities have not started. If an orga
 
 - **Q4.1 Current status today.**
 
-  ☐ Registered (old 12A/12AB, now s.332)  ☐ Approved (old 80G, now s.354)  ☐ Applied and waiting  ☐ Neither  ☐ Don't know
+  ☐ Registered (old 12A/12AB, now s.332) ☐ Approved (old 80G, now s.354) ☐ Applied and waiting ☐ Neither ☐ Don't know
+
 - **Q4.2 Registration and approval numbers, with validity dates.** Please also send copies of the certificates or orders (section 5).
 
-  Registration no.: ________  Valid until: ________
+  Registration no.: ________ Valid until: ________
 
-  Approval no.: ________  Valid until: ________
+  Approval no.: ________ Valid until: ________
+
 - **Q4.3 If FOA is not registered: have FOA's activities already started?** (CA to confirm.)
 
-  ☐ Yes  ☐ No
+  ☐ Yes ☐ No
+
 - **Q4.4 FOA's CA.**
 
-  Name: ________  Firm: ________  Phone: ________  Email: ________
+  Name: ________ Firm: ________ Phone: ________ Email: ________
+
 - **Q4.5 If an application is needed:** which form will the CA file, and when?
 
-  ☐ Form 104  ☐ Form 105  Filing date: ________
+  ☐ Form 104 ☐ Form 105 Filing date: ________
+
 - **Q4.6 Decision: should donors receive tax-deductible receipts** once FOA is registered and approved?
 
-  ☐ Yes  ☐ No  ☐ Decide later
+  ☐ Yes ☐ No ☐ Decide later
 
 ---
 
@@ -162,23 +175,23 @@ Form 104 is only for organisations whose activities have not started. If an orga
 
 "KYC" (Know Your Customer) means the identity checks that payment, SMS and cloud providers must run before they serve an organisation. Please collect the documents below. The "Notes" column says which provider needs each one: **Razorpay** (payments), **DLT** (SMS registration) or **AWS** (email). Does each provider accept scanned copies? The developer will confirm. The signatory's PAN must be the original card.
 
-| Document | Have it? | Sent on | Notes |
-|---|---|---|---|
-| FOA's PAN card (copy) | ☐ Yes ☐ No | ________ | Razorpay, DLT, AWS. See below |
-| Trust deed or gazette notification | ☐ Yes ☐ No ☐ N/A | ________ | Trust only. Razorpay: mandatory |
-| Trust registration certificate | ☐ Yes ☐ No ☐ N/A | ________ | Trust only, if registered. Razorpay |
-| Society registration certificate | ☐ Yes ☐ No ☐ N/A | ________ | Society only. Razorpay |
-| Certificate of incorporation, CIN, MOA and AOA | ☐ Yes ☐ No ☐ N/A | ________ | Section 8 company only. Razorpay |
-| Signatory's PAN card | ☐ Yes ☐ No | ________ | Razorpay. **Original card**. See below |
-| Signatory's address proof | ☐ Yes ☐ No | ________ | Razorpay |
-| Power of attorney, or board resolution, naming the signatory | ☐ Yes ☐ No | ________ | Razorpay. See below |
-| UBO declaration | ☐ Yes ☐ No | ________ | Razorpay. See Q3.9 |
-| Tax registration and approval proof (12A/80G certificates, or Form 106/107 order) | ☐ Yes ☐ No ☐ N/A | ________ | Razorpay may ask a trust |
-| Cancelled cheque for the receiving account | ☐ Yes ☐ No | ________ | Razorpay, if needed. See below |
-| GST certificate | ☐ Yes ☐ No ☐ N/A | ________ | DLT, if FOA has GST |
-| FOA's proof of identity and address | ☐ Yes ☐ No | ________ | DLT |
-| Signed authorisation letter on FOA letterhead | ☐ Yes ☐ No | ________ | DLT. Draft in Appendix A |
-| Sample invoice or receipt | ☐ Yes ☐ No | ________ | Razorpay. See Q6.10 |
+| Document                                                                          | Have it?         | Sent on  | Notes                                  |
+| --------------------------------------------------------------------------------- | ---------------- | -------- | -------------------------------------- |
+| FOA's PAN card (copy)                                                             | ☐ Yes ☐ No       | ________ | Razorpay, DLT, AWS. See below          |
+| Trust deed or gazette notification                                                | ☐ Yes ☐ No ☐ N/A | ________ | Trust only. Razorpay: mandatory        |
+| Trust registration certificate                                                    | ☐ Yes ☐ No ☐ N/A | ________ | Trust only, if registered. Razorpay    |
+| Society registration certificate                                                  | ☐ Yes ☐ No ☐ N/A | ________ | Society only. Razorpay                 |
+| Certificate of incorporation, CIN, MOA and AOA                                    | ☐ Yes ☐ No ☐ N/A | ________ | Section 8 company only. Razorpay       |
+| Signatory's PAN card                                                              | ☐ Yes ☐ No       | ________ | Razorpay. **Original card**. See below |
+| Signatory's address proof                                                         | ☐ Yes ☐ No       | ________ | Razorpay                               |
+| Power of attorney, or board resolution, naming the signatory                      | ☐ Yes ☐ No       | ________ | Razorpay. See below                    |
+| UBO declaration                                                                   | ☐ Yes ☐ No       | ________ | Razorpay. See Q3.9                     |
+| Tax registration and approval proof (12A/80G certificates, or Form 106/107 order) | ☐ Yes ☐ No ☐ N/A | ________ | Razorpay may ask a trust               |
+| Cancelled cheque for the receiving account                                        | ☐ Yes ☐ No       | ________ | Razorpay, if needed. See below         |
+| GST certificate                                                                   | ☐ Yes ☐ No ☐ N/A | ________ | DLT, if FOA has GST                    |
+| FOA's proof of identity and address                                               | ☐ Yes ☐ No       | ________ | DLT                                    |
+| Signed authorisation letter on FOA letterhead                                     | ☐ Yes ☐ No       | ________ | DLT. Draft in Appendix A               |
+| Sample invoice or receipt                                                         | ☐ Yes ☐ No       | ________ | Razorpay. See Q6.10                    |
 
 Notes on the table:
 
@@ -212,37 +225,47 @@ Razorpay also asks for a **sample invoice**. Without these pages, FOA can only s
 
 - **Q6.1 Where can the pages go live now?** The new platform will not be live when Razorpay's checks start, so the pages must be live somewhere first.
 
-  ☐ On FOA's current website: ________ (address)  ☐ Publish the new site's pages early on FOA's own domain
+  ☐ On FOA's current website: ________ (address) ☐ Publish the new site's pages early on FOA's own domain
+
 - **Q6.2 What does FOA charge money for?**
 
-  ☐ Competition registration fees  ☐ One-time donations  ☐ Monthly donations  ☐ Auction sales of artwork (planned for later)  ☐ Other: ________
+  ☐ Competition registration fees ☐ One-time donations ☐ Monthly donations ☐ Auction sales of artwork (planned for later) ☐ Other: ________
+
 - **Q6.3 How much?** Fee per competition, and whether it is per student or per school.
 
   Answer: ________
+
 - **Q6.4 Refunds and cancellations: when does FOA give money back?** For example: a student withdraws; FOA cancels a competition; someone pays twice; a donor gives the wrong amount. The platform supports full and partial refunds.
 
   Answer: ________
+
 - **Q6.5 How long do refunds take, and who at FOA decides them?**
 
   Answer: ________
+
 - **Q6.6 Privacy contact (grievance officer).** India's data protection rules (in force from 13 May 2027; the platform follows them from day one) require FOA to publish a contact for questions about personal data, and to name that contact in every reply. The Privacy page will show it.
 
-  Name: ________  Designation: ________  Email: ________  Phone: ________
+  Name: ________ Designation: ________ Email: ________ Phone: ________
+
 - **Q6.7 Response times for privacy complaints.** The platform plans to acknowledge a complaint within 48 hours and resolve it within 30 days. The law allows up to 90 days.
 
-  ☐ Approve  ☐ Change to: ________
+  ☐ Approve ☐ Change to: ________
+
 - **Q6.8 Public contact details for the Contact page.**
 
-  Address: ________  Email: ________  Phone: ________
+  Address: ________ Email: ________ Phone: ________
+
 - **Q6.9 Who at FOA approves the final page text?**
 
   Name: ________
+
 - **Q6.10 Sample receipt or invoice.** Does FOA already use a receipt or invoice format? If yes, please send a sample. Who signs receipts?
 
-  ☐ Sample attached  ☐ None yet (the developer will draft one)  Signatory name and title: ________
+  ☐ Sample attached ☐ None yet (the developer will draft one) Signatory name and title: ________
+
 - **Q6.11 GST on fees (for the CA).** The platform assumes FOA issues no GST invoices on registration fees or auction sales, and that the amounts charged are final. The CA must confirm this before launch.
 
-  ☐ Confirmed, no GST  ☐ GST applies: ________
+  ☐ Confirmed, no GST ☐ GST applies: ________
 
 ---
 
@@ -286,22 +309,27 @@ Limits set by RBI and Razorpay:
 
 - **Q7.1 Does FOA already have a Razorpay account?**
 
-  ☐ Yes  ☐ No
+  ☐ Yes ☐ No
+
 - **Q7.2 Who will sign up?**
 
-  ☐ The signatory in Q3.7  ☐ Someone else: ________
+  ☐ The signatory in Q3.7 ☐ Someone else: ________
+
 - **Q7.3 Decision: do you approve Razorpay's fees as above?**
 
-  ☐ Approved  ☐ Want to discuss
+  ☐ Approved ☐ Want to discuss
+
 - **Q7.4 Decision: should the website offer monthly donations** (capped at ₹15,000 a month)?
 
-  ☐ Yes  ☐ No  ☐ Later
+  ☐ Yes ☐ No ☐ Later
+
 - **Q7.5 Does FOA have a contact at Razorpay?** If so, please ask them: (a) is NGO or donation pricing below 2% available? (b) will Razorpay accept FOA's Form 106/107 order where its checklist still says "10AC"? Neither answer is published.
 
-  Contact: ________  Answers: ________
+  Contact: ________ Answers: ________
+
 - **Q7.6 Decision: when should the account be activated?** The 90-day fee-free offer starts at activation. If FOA activates early but the platform launches later, part of the 90 days may pass before the website takes payments.
 
-  ☐ As soon as possible  ☐ Closer to the platform launch
+  ☐ As soon as possible ☐ Closer to the platform launch
 
 ---
 
@@ -341,18 +369,22 @@ Total: about **1–2 weeks** from complete documents (the developer's estimate).
 
 - **Q8.1 Who will do the DLT registration, and on which portal?** This person is named in the authorisation letter.
 
-  ☐ FOA's signatory  ☐ The developer, on FOA's behalf  ☐ Someone else: ________
+  ☐ FOA's signatory ☐ The developer, on FOA's behalf ☐ Someone else: ________
 
   Portal: ☐ Developer chooses ☐ Other: ________
+
 - **Q8.2 Decision: approve the header `FOAIND`?** It must be exactly 6 characters.
 
-  ☐ Approve  ☐ Use instead: ________ (first choice)  ________ (second choice)
+  ☐ Approve ☐ Use instead: ________ (first choice) ________ (second choice)
+
 - **Q8.3 Decision: approve the SMS wording in Appendix B?**
 
-  ☐ All approved  ☐ Approved with changes marked on Appendix B
+  ☐ All approved ☐ Approved with changes marked on Appendix B
+
 - **Q8.4 Decision: approve the DLT fee and SMS costs above?**
 
-  ☐ Approved  ☐ Want to discuss
+  ☐ Approved ☐ Want to discuss
+
 - **Q8.5 Signed authorisation letter** (Appendix A) on FOA letterhead.
 
   ☐ Signed and returned on: ________
@@ -378,16 +410,19 @@ Amazon SES (Simple Email Service) is Amazon's service for sending email from sof
 
 - **Q9.1 Who at FOA will own the AWS account?**
 
-  Name: ________  Designation: ________
+  Name: ________ Designation: ________
+
 - **Q9.2 Which FOA payment method will pay the AWS bill?** (Please don't write card numbers here.)
 
-  ☐ FOA card held by: ________  ☐ Other: ________
+  ☐ FOA card held by: ________ ☐ Other: ________
+
 - **Q9.3 Decision: approve the sending addresses** ending @notify.[domain] and @news.[domain], with replies to support@[domain]?
 
-  ☐ Approve  ☐ Change: ________
+  ☐ Approve ☐ Change: ________
+
 - **Q9.4 Sender name shown in people's inboxes.**
 
-  ☐ "Friends of Animals"  ☐ Other: ________
+  ☐ "Friends of Animals" ☐ Other: ________
 
 ---
 
@@ -413,18 +448,22 @@ The developer will not change or remove FOA's existing records (for example, tho
 - **Q10.1 Which domain does FOA use?**
 
   Answer: ________
+
 - **Q10.2 Who controls it, and where was it bought?**
 
-  Person: ________  ☐ Bought through Cloudflare  ☐ Bought elsewhere: ________
+  Person: ________ ☐ Bought through Cloudflare ☐ Bought elsewhere: ________
+
 - **Q10.3 Decision: keep DNS on Cloudflare?**
 
-  ☐ Yes  ☐ Want to discuss
+  ☐ Yes ☐ Want to discuss
+
 - **Q10.4 Developer invited to the Cloudflare account?**
 
   ☐ Done on: ________ (invite sent to the email on page 1)
+
 - **Q10.5 Does FOA already have mailboxes on this domain?**
 
-  ☐ Google Workspace  ☐ Zoho Mail  ☐ Other: ________  ☐ None. If none: forward `support@` to: ________
+  ☐ Google Workspace ☐ Zoho Mail ☐ Other: ________ ☐ None. If none: forward `support@` to: ________
 
 ---
 
@@ -438,14 +477,14 @@ The developer will not change or remove FOA's existing records (for example, tho
 
 ### Who owns which account
 
-| Account | Owned by (FOA person) | Login email / 2FA phone | ☐ done |
-|---|---|---|---|
-| Razorpay | ________ | ________ | ☐ |
-| DLT portal | ________ | ________ | ☐ |
-| MSG91 | ________ | ________ | ☐ |
-| AWS (Amazon SES) | ________ | ________ | ☐ |
-| Cloudflare | ________ | ________ | ☐ |
-| Domain registrar (if not Cloudflare) | ________ | ________ | ☐ |
+| Account                              | Owned by (FOA person) | Login email / 2FA phone | ☐ done |
+| ------------------------------------ | --------------------- | ----------------------- | ------ |
+| Razorpay                             | ________              | ________                | ☐      |
+| DLT portal                           | ________              | ________                | ☐      |
+| MSG91                                | ________              | ________                | ☐      |
+| AWS (Amazon SES)                     | ________              | ________                | ☐      |
+| Cloudflare                           | ________              | ________                | ☐      |
+| Domain registrar (if not Cloudflare) | ________              | ________                | ☐      |
 
 ### Where account IDs and keys will be kept
 
@@ -462,15 +501,18 @@ Each provider gives the platform account IDs and API keys. They must be stored s
 - **Q11.1 FOA mailbox to use for logins.**
 
   Answer: ________
+
 - **Q11.2 FOA-owned phone number for 2FA.** (Please don't write any codes here.)
 
   Number held by: ________
+
 - **Q11.3 Account table above filled in?**
 
   ☐ Yes
+
 - **Q11.4 Decision: where should account IDs and keys be kept?**
 
-  ☐ (a) Bitwarden  ☐ (b) 1Password  ☐ (c) Developer's password manager
+  ☐ (a) Bitwarden ☐ (b) 1Password ☐ (c) Developer's password manager
 
 ---
 
@@ -480,13 +522,15 @@ The developer's research raised these further questions for FOA.
 
 - **Q12.1 Foreign donations. Does FOA expect donations from abroad in the next 2–3 years?** To accept money from abroad, FOA needs FCRA registration and a payment company other than Razorpay. Eligibility depends on FOA's age and past spending; approval takes months. If the answer is yes, the CA should check eligibility now. Since the FCRA Amendment Rules 2026, registration is per purpose and State, with fees for each (law-firm summary). Does the ₹10,000 fee in Appendix C still cover FOA? CA to check.
 
-  ☐ Yes  ☐ No  ☐ Not sure
+  ☐ Yes ☐ No ☐ Not sure
+
 - **Q12.2 Data location. Does FOA have any rule that personal data must stay in India?** Email already will: the developer has chosen Amazon SES in Mumbai (section 9), so email sending and records stay in India. Please tell us if FOA, a funder or a partner school has any other data-location rule.
 
-  ☐ No objection to the plan  ☐ Data must stay in India  ☐ Want to discuss
+  ☐ No objection to the plan ☐ Data must stay in India ☐ Want to discuss
+
 - **Q12.3 WhatsApp messages (later, no action now).** WhatsApp can come after the first launch. It would need a Meta business portfolio, a phone number FOA owns (a new one is simplest) and a display name. New accounts can message 250 people a day; business verification is one way to raise that. Meta charges per message. Since 1 October 2026 it also charges for service messages beyond 1,000 a month per number. Meta may waive this until 31 December 2027 for non-profits it decides are eligible; FOA cannot apply for this yet. Is FOA interested later?
 
-  ☐ Yes  ☐ No  ☐ Later
+  ☐ Yes ☐ No ☐ Later
 
 ---
 
@@ -494,64 +538,64 @@ The developer's research raised these further questions for FOA.
 
 Please fill in this sheet and return it with the documents.
 
-| # | Question | Answer |
-|---|---|---|
-| Q3.1 | Legal form | ☐ Trust ☐ Society ☐ Section 8 ☐ Not sure |
-| Q3.2 | Legal name exactly as on PAN | ________ |
-| Q3.3 | Registration number and date | ________ |
-| Q3.4 | FOA's PAN | ________ |
-| Q3.5 | GST number, if any | ________ |
-| Q3.6 | Registered address | ________ |
-| Q3.7 | Authorised signatory: name, designation, mobile, email | ________ |
-| Q3.8 | Bank, branch, account name, IFSC, last 4 digits | ________ |
-| Q3.9 | Trustees/members/directors and UBOs | ☐ Table in section 3 filled in |
-| Q4.1 | Tax status today | ________ |
-| Q4.2 | Registration/approval numbers and validity | ________ |
-| Q4.3 | Activities already started? | ☐ Yes ☐ No |
-| Q4.4 | CA's name and contact | ________ |
-| Q4.5 | Form to file, and filing date | ________ |
-| Q4.6 | Tax-deductible receipts for donors? | ☐ Yes ☐ No ☐ Later |
-| Q5.1 | Section 5 documents sent | ☐ All ☐ Some |
-| Q6.1 | Where policy pages go live | ________ |
-| Q6.2 | What FOA charges for | ________ |
-| Q6.3 | Fee amounts | ________ |
-| Q6.4 | When refunds are given | ________ |
-| Q6.5 | Refund time and who decides | ________ |
-| Q6.6 | Privacy contact / grievance officer | ________ |
-| Q6.7 | Complaint response times | ☐ Approve ☐ Change |
-| Q6.8 | Public contact details | ________ |
-| Q6.9 | Who approves page text | ________ |
-| Q6.10 | Sample receipt; receipt signatory | ________ |
-| Q6.11 | GST on fees, CA to confirm | ________ |
-| Q7.1 | Existing Razorpay account? | ☐ Yes ☐ No |
-| Q7.2 | Who signs up | ________ |
-| Q7.3 | Razorpay fees approved? | ☐ Yes ☐ Discuss |
-| Q7.4 | Offer monthly donations? | ☐ Yes ☐ No ☐ Later |
-| Q7.5 | Razorpay contact; pricing and Form 106/107 answers | ________ |
-| Q7.6 | When to activate Razorpay | ☐ ASAP ☐ Near launch |
-| Q8.1 | Who does DLT registration; which portal | ________ |
-| Q8.2 | Header FOAIND or alternative | ________ |
-| Q8.3 | SMS wording, Appendix B | ☐ Approved ☐ With changes |
-| Q8.4 | DLT and SMS costs approved? | ☐ Yes ☐ Discuss |
-| Q8.5 | Authorisation letter signed | ☐ Yes |
-| Q9.1 | AWS account owner | ________ |
-| Q9.2 | Payment method for AWS bill | ________ |
-| Q9.3 | Sending addresses @notify.[domain] and @news.[domain]; replies to support@[domain] | ☐ Approve ☐ Change |
-| Q9.4 | Sender name in inboxes | ________ |
-| Q10.1 | FOA's domain | ________ |
-| Q10.2 | Who controls it; where bought | ________ |
-| Q10.3 | Keep DNS on Cloudflare? | ☐ Yes ☐ Discuss |
-| Q10.4 | Developer invited to Cloudflare | ☐ Done |
-| Q10.5 | Existing mailboxes; support@ forwarding | ________ |
-| Q11.1 | FOA mailbox for logins | ________ |
-| Q11.2 | FOA phone for 2FA, held by | ________ |
-| Q11.3 | Account ownership table filled in | ☐ Yes |
-| Q11.4 | Where keys are kept | ☐ (a) ☐ (b) ☐ (c) |
-| Q12.1 | Foreign donations in 2–3 years? | ☐ Yes ☐ No ☐ Not sure |
-| Q12.2 | Any data-location rule? | ________ |
-| Q12.3 | WhatsApp later? | ☐ Yes ☐ No ☐ Later |
+| #     | Question                                                                           | Answer                                   |
+| ----- | ---------------------------------------------------------------------------------- | ---------------------------------------- |
+| Q3.1  | Legal form                                                                         | ☐ Trust ☐ Society ☐ Section 8 ☐ Not sure |
+| Q3.2  | Legal name exactly as on PAN                                                       | ________                                 |
+| Q3.3  | Registration number and date                                                       | ________                                 |
+| Q3.4  | FOA's PAN                                                                          | ________                                 |
+| Q3.5  | GST number, if any                                                                 | ________                                 |
+| Q3.6  | Registered address                                                                 | ________                                 |
+| Q3.7  | Authorised signatory: name, designation, mobile, email                             | ________                                 |
+| Q3.8  | Bank, branch, account name, IFSC, last 4 digits                                    | ________                                 |
+| Q3.9  | Trustees/members/directors and UBOs                                                | ☐ Table in section 3 filled in           |
+| Q4.1  | Tax status today                                                                   | ________                                 |
+| Q4.2  | Registration/approval numbers and validity                                         | ________                                 |
+| Q4.3  | Activities already started?                                                        | ☐ Yes ☐ No                               |
+| Q4.4  | CA's name and contact                                                              | ________                                 |
+| Q4.5  | Form to file, and filing date                                                      | ________                                 |
+| Q4.6  | Tax-deductible receipts for donors?                                                | ☐ Yes ☐ No ☐ Later                       |
+| Q5.1  | Section 5 documents sent                                                           | ☐ All ☐ Some                             |
+| Q6.1  | Where policy pages go live                                                         | ________                                 |
+| Q6.2  | What FOA charges for                                                               | ________                                 |
+| Q6.3  | Fee amounts                                                                        | ________                                 |
+| Q6.4  | When refunds are given                                                             | ________                                 |
+| Q6.5  | Refund time and who decides                                                        | ________                                 |
+| Q6.6  | Privacy contact / grievance officer                                                | ________                                 |
+| Q6.7  | Complaint response times                                                           | ☐ Approve ☐ Change                       |
+| Q6.8  | Public contact details                                                             | ________                                 |
+| Q6.9  | Who approves page text                                                             | ________                                 |
+| Q6.10 | Sample receipt; receipt signatory                                                  | ________                                 |
+| Q6.11 | GST on fees, CA to confirm                                                         | ________                                 |
+| Q7.1  | Existing Razorpay account?                                                         | ☐ Yes ☐ No                               |
+| Q7.2  | Who signs up                                                                       | ________                                 |
+| Q7.3  | Razorpay fees approved?                                                            | ☐ Yes ☐ Discuss                          |
+| Q7.4  | Offer monthly donations?                                                           | ☐ Yes ☐ No ☐ Later                       |
+| Q7.5  | Razorpay contact; pricing and Form 106/107 answers                                 | ________                                 |
+| Q7.6  | When to activate Razorpay                                                          | ☐ ASAP ☐ Near launch                     |
+| Q8.1  | Who does DLT registration; which portal                                            | ________                                 |
+| Q8.2  | Header FOAIND or alternative                                                       | ________                                 |
+| Q8.3  | SMS wording, Appendix B                                                            | ☐ Approved ☐ With changes                |
+| Q8.4  | DLT and SMS costs approved?                                                        | ☐ Yes ☐ Discuss                          |
+| Q8.5  | Authorisation letter signed                                                        | ☐ Yes                                    |
+| Q9.1  | AWS account owner                                                                  | ________                                 |
+| Q9.2  | Payment method for AWS bill                                                        | ________                                 |
+| Q9.3  | Sending addresses @notify.[domain] and @news.[domain]; replies to support@[domain] | ☐ Approve ☐ Change                       |
+| Q9.4  | Sender name in inboxes                                                             | ________                                 |
+| Q10.1 | FOA's domain                                                                       | ________                                 |
+| Q10.2 | Who controls it; where bought                                                      | ________                                 |
+| Q10.3 | Keep DNS on Cloudflare?                                                            | ☐ Yes ☐ Discuss                          |
+| Q10.4 | Developer invited to Cloudflare                                                    | ☐ Done                                   |
+| Q10.5 | Existing mailboxes; support@ forwarding                                            | ________                                 |
+| Q11.1 | FOA mailbox for logins                                                             | ________                                 |
+| Q11.2 | FOA phone for 2FA, held by                                                         | ________                                 |
+| Q11.3 | Account ownership table filled in                                                  | ☐ Yes                                    |
+| Q11.4 | Where keys are kept                                                                | ☐ (a) ☐ (b) ☐ (c)                        |
+| Q12.1 | Foreign donations in 2–3 years?                                                    | ☐ Yes ☐ No ☐ Not sure                    |
+| Q12.2 | Any data-location rule?                                                            | ________                                 |
+| Q12.3 | WhatsApp later?                                                                    | ☐ Yes ☐ No ☐ Later                       |
 
-Filled in by: ________  Designation: ________  Date: ________
+Filled in by: ________ Designation: ________ Date: ________
 
 ---
 
@@ -606,44 +650,44 @@ Designation: [designation]
 - Once approved, any change to the wording needs a new DLT approval.
 - B22 to B27 are for **auctions**, which are planned for later. They can be registered when auctions start.
 
-| Ref and purpose | Draft text | Blanks, in order |
-|---|---|---|
-| B1. Login code | {#var#} is your FOA login code. It expires in 10 minutes. Never share this code with anyone. | Code |
-| B2. Contact details changed (security notice) | FOA: The contact details on your FOA account were changed. If this wasn't you, open {#var#} now. | Link |
-| B3. School or institution verified | FOA: Your institution is now verified. Open your dashboard to add coordinators and students: {#var#} | Link |
-| B4. Invitation to join an institution | FOA: You are invited to join {#var#} on FOA. Accept within 7 days: {#var#} | Institution name; link |
-| B5. Registration confirmed | FOA: Registration confirmed for {#var#}. Participant ID {#var#}, Reg. No. {#var#}. Log in: {#var#} | First name; Participant ID; Registration No.; link |
-| B6. Fee reminder (day before registration closes) | FOA: Rs {#var#} is due to complete your registration. Registration closes {#var#}. Pay here: {#var#} | Amount; closing date; link |
-| B7. Parent consent request | FOA: Your consent is needed for {#var#} to take part (requested by {#var#}). Please review within 7 days: {#var#} | Child's first name; who asked (school or "you"); link |
-| B8. Consent reminder | FOA: Reminder: consent for {#var#} is still pending, so the next steps are on hold. Review here: {#var#} | First name or number of children; link |
-| B9. Competition instructions ready | FOA: Instructions for {#var#} are ready: date, theme, materials and how to submit. Read them: {#var#} | Competition name; link |
-| B10. Competition dates changed | FOA: {#var#} has moved from {#var#} to {#var#}. Details and reason: {#var#} | Competition name; old date; new date; link |
-| B11. Submissions open | FOA: Submissions for {#var#} are open until {#var#}. Upload here: {#var#} | Competition name; closing date; link |
-| B12. Submission reminder (day before close) | FOA: Submissions for {#var#} close tomorrow, {#var#}. {#var#} item(s) still pending. Upload: {#var#} | Competition name; deadline; count; link |
-| B13. Competition cancelled | FOA: We are sorry, {#var#} has been cancelled. Reason and refund details: {#var#} | Competition name; link |
-| B14. Submission received | FOA: Submission received for {#var#}: "{#var#}", entry code {#var#}, at {#var#} IST. | First name; artwork title; entry code; date and time |
-| B15. Entry needs a change | FOA: Entry {#var#} needs a change before {#var#}. See what to fix: {#var#} | Entry code; deadline; link |
-| B16. School judging reminder (to coordinators, day before deadline) | FOA: School judging for {#var#} closes tomorrow, {#var#}. {#var#} entries still to judge: {#var#} | Competition name; deadline; count; link |
-| B17. Entry shortlisted (also used when a school finalises its shortlist) | FOA: Good news! {#var#}'s entry {#var#} has been shortlisted for FOA-level judging. Next steps: {#var#} | First name; entry code; link |
-| B18. Original artwork requested | FOA: Please send the original artwork for entry {#var#} (artwork code {#var#}) by {#var#}. Packing steps and address: {#var#} | Entry code; artwork code; deadline; link |
-| B19. Artwork dispatch reminder | FOA: Reminder: artwork {#var#} must be dispatched by {#var#}. Enter the courier tracking number here: {#var#} | Artwork code; deadline; link |
-| B20. Artwork received | FOA: We have received artwork {#var#}. Thank you! | Artwork code |
-| B21. Results published (same neutral wording for every outcome) | FOA: Results for {#var#} are published. See {#var#}'s result: {#var#} | Competition name; first name; link |
-| B21a. Results published (institution) | FOA: Results for {#var#} are published. See your institution's summary: {#var#} | Competition name; link |
-| B22. Outbid (final hour of an auction) | FOA auction: You have been outbid on lot {#var#}. Current bid Rs {#var#}, closes {#var#}. Bid again: {#var#} | Lot code; amount; closing time; link |
-| B23. Auction won | FOA auction: You won lot {#var#} for Rs {#var#}. Please pay by {#var#}: {#var#} | Lot code; amount; deadline; link |
-| B24. Auction payment reminder | FOA auction: Rs {#var#} for lot {#var#} is due by {#var#}. Unpaid lots are offered to the next bidder. Pay: {#var#} | Amount; lot code; deadline; link |
-| B25. Auction payment missed | FOA auction: The payment deadline for lot {#var#} has passed. The offer has lapsed and a strike was recorded on your account. | Lot code |
-| B26. Second-chance offer | FOA auction: Lot {#var#} is offered to you at your highest bid, Rs {#var#}. Pay by {#var#} to accept: {#var#} To decline: {#var#} | Lot code; amount; deadline; pay link; decline link |
-| B27. Lot shipped | FOA auction: Lot {#var#} has been shipped by {#var#}. Tracking: {#var#} | Lot code; courier name; tracking link |
-| B28. Monthly donation charge failed | FOA: Your monthly donation of Rs {#var#} could not be charged. Please update your payment method: {#var#} | Amount; link |
-| B29. Event place confirmed from waiting list | FOA: A place has opened up. You are now confirmed for {#var#} on {#var#}. Details: {#var#} | Event name; date; link |
-| B30. Event reminder | FOA: Reminder: {#var#} starts {#var#}. Venue or joining link: {#var#} | Event name; date and time; link |
-| B31. Event changed | FOA: {#var#} has changed. New details: {#var#} | Event name; link |
-| B32. Event cancelled | FOA: We are sorry, {#var#} on {#var#} has been cancelled. Details: {#var#} | Event name; date; link |
-| B33. New safeguarding report (to FOA's safeguarding staff) | FOA: New safeguarding report {#var#}. Please log in to FOA admin and open Safeguarding now. | Report reference |
-| B34. Safeguarding report escalated (to FOA staff) | FOA: Safeguarding report {#var#} escalated, severity {#var#}. Please log in to FOA admin and open Safeguarding now. | Report reference; severity |
-| B35. Security incident declared (to FOA staff) | FOA: Incident {#var#} declared, severity {#var#}. Please log in to FOA admin and open the incident record. | Incident reference; severity |
+| Ref and purpose                                                          | Draft text                                                                                                                        | Blanks, in order                                      |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| B1. Login code                                                           | {#var#} is your FOA login code. It expires in 10 minutes. Never share this code with anyone.                                      | Code                                                  |
+| B2. Contact details changed (security notice)                            | FOA: The contact details on your FOA account were changed. If this wasn't you, open {#var#} now.                                  | Link                                                  |
+| B3. School or institution verified                                       | FOA: Your institution is now verified. Open your dashboard to add coordinators and students: {#var#}                              | Link                                                  |
+| B4. Invitation to join an institution                                    | FOA: You are invited to join {#var#} on FOA. Accept within 7 days: {#var#}                                                        | Institution name; link                                |
+| B5. Registration confirmed                                               | FOA: Registration confirmed for {#var#}. Participant ID {#var#}, Reg. No. {#var#}. Log in: {#var#}                                | First name; Participant ID; Registration No.; link    |
+| B6. Fee reminder (day before registration closes)                        | FOA: Rs {#var#} is due to complete your registration. Registration closes {#var#}. Pay here: {#var#}                              | Amount; closing date; link                            |
+| B7. Parent consent request                                               | FOA: Your consent is needed for {#var#} to take part (requested by {#var#}). Please review within 7 days: {#var#}                 | Child's first name; who asked (school or "you"); link |
+| B8. Consent reminder                                                     | FOA: Reminder: consent for {#var#} is still pending, so the next steps are on hold. Review here: {#var#}                          | First name or number of children; link                |
+| B9. Competition instructions ready                                       | FOA: Instructions for {#var#} are ready: date, theme, materials and how to submit. Read them: {#var#}                             | Competition name; link                                |
+| B10. Competition dates changed                                           | FOA: {#var#} has moved from {#var#} to {#var#}. Details and reason: {#var#}                                                       | Competition name; old date; new date; link            |
+| B11. Submissions open                                                    | FOA: Submissions for {#var#} are open until {#var#}. Upload here: {#var#}                                                         | Competition name; closing date; link                  |
+| B12. Submission reminder (day before close)                              | FOA: Submissions for {#var#} close tomorrow, {#var#}. {#var#} item(s) still pending. Upload: {#var#}                              | Competition name; deadline; count; link               |
+| B13. Competition cancelled                                               | FOA: We are sorry, {#var#} has been cancelled. Reason and refund details: {#var#}                                                 | Competition name; link                                |
+| B14. Submission received                                                 | FOA: Submission received for {#var#}: "{#var#}", entry code {#var#}, at {#var#} IST.                                              | First name; artwork title; entry code; date and time  |
+| B15. Entry needs a change                                                | FOA: Entry {#var#} needs a change before {#var#}. See what to fix: {#var#}                                                        | Entry code; deadline; link                            |
+| B16. School judging reminder (to coordinators, day before deadline)      | FOA: School judging for {#var#} closes tomorrow, {#var#}. {#var#} entries still to judge: {#var#}                                 | Competition name; deadline; count; link               |
+| B17. Entry shortlisted (also used when a school finalises its shortlist) | FOA: Good news! {#var#}'s entry {#var#} has been shortlisted for FOA-level judging. Next steps: {#var#}                           | First name; entry code; link                          |
+| B18. Original artwork requested                                          | FOA: Please send the original artwork for entry {#var#} (artwork code {#var#}) by {#var#}. Packing steps and address: {#var#}     | Entry code; artwork code; deadline; link              |
+| B19. Artwork dispatch reminder                                           | FOA: Reminder: artwork {#var#} must be dispatched by {#var#}. Enter the courier tracking number here: {#var#}                     | Artwork code; deadline; link                          |
+| B20. Artwork received                                                    | FOA: We have received artwork {#var#}. Thank you!                                                                                 | Artwork code                                          |
+| B21. Results published (same neutral wording for every outcome)          | FOA: Results for {#var#} are published. See {#var#}'s result: {#var#}                                                             | Competition name; first name; link                    |
+| B21a. Results published (institution)                                    | FOA: Results for {#var#} are published. See your institution's summary: {#var#}                                                   | Competition name; link                                |
+| B22. Outbid (final hour of an auction)                                   | FOA auction: You have been outbid on lot {#var#}. Current bid Rs {#var#}, closes {#var#}. Bid again: {#var#}                      | Lot code; amount; closing time; link                  |
+| B23. Auction won                                                         | FOA auction: You won lot {#var#} for Rs {#var#}. Please pay by {#var#}: {#var#}                                                   | Lot code; amount; deadline; link                      |
+| B24. Auction payment reminder                                            | FOA auction: Rs {#var#} for lot {#var#} is due by {#var#}. Unpaid lots are offered to the next bidder. Pay: {#var#}               | Amount; lot code; deadline; link                      |
+| B25. Auction payment missed                                              | FOA auction: The payment deadline for lot {#var#} has passed. The offer has lapsed and a strike was recorded on your account.     | Lot code                                              |
+| B26. Second-chance offer                                                 | FOA auction: Lot {#var#} is offered to you at your highest bid, Rs {#var#}. Pay by {#var#} to accept: {#var#} To decline: {#var#} | Lot code; amount; deadline; pay link; decline link    |
+| B27. Lot shipped                                                         | FOA auction: Lot {#var#} has been shipped by {#var#}. Tracking: {#var#}                                                           | Lot code; courier name; tracking link                 |
+| B28. Monthly donation charge failed                                      | FOA: Your monthly donation of Rs {#var#} could not be charged. Please update your payment method: {#var#}                         | Amount; link                                          |
+| B29. Event place confirmed from waiting list                             | FOA: A place has opened up. You are now confirmed for {#var#} on {#var#}. Details: {#var#}                                        | Event name; date; link                                |
+| B30. Event reminder                                                      | FOA: Reminder: {#var#} starts {#var#}. Venue or joining link: {#var#}                                                             | Event name; date and time; link                       |
+| B31. Event changed                                                       | FOA: {#var#} has changed. New details: {#var#}                                                                                    | Event name; link                                      |
+| B32. Event cancelled                                                     | FOA: We are sorry, {#var#} on {#var#} has been cancelled. Details: {#var#}                                                        | Event name; date; link                                |
+| B33. New safeguarding report (to FOA's safeguarding staff)               | FOA: New safeguarding report {#var#}. Please log in to FOA admin and open Safeguarding now.                                       | Report reference                                      |
+| B34. Safeguarding report escalated (to FOA staff)                        | FOA: Safeguarding report {#var#} escalated, severity {#var#}. Please log in to FOA admin and open Safeguarding now.               | Report reference; severity                            |
+| B35. Security incident declared (to FOA staff)                           | FOA: Incident {#var#} declared, severity {#var#}. Please log in to FOA admin and open the incident record.                        | Incident reference; severity                          |
 
 Safeguarding and incident alerts never contain the content of a report or any personal data.
 
@@ -651,18 +695,18 @@ Safeguarding and incident alerts never contain the content of a report or any pe
 
 Amounts as found in the developer's research on 17 November 2026. Prices can change; each provider's own page is final.
 
-| Item | One-time | Recurring | Notes |
-|---|---|---|---|
-| Tax registration (Form 104/105) | Not covered by our research | — | Ask your CA about fees |
-| Razorpay | Possible ₹199 + tax KYC fee | 2% + 18% GST per payment (2.15% corporate credit cards) | No setup or annual fee |
-| Razorpay monthly donations | — | Card: extra 0.9%. UPI and bank mandate: on request | Ask support to confirm |
-| DLT registration | About ₹5,900 (₹5,000 + GST) | — | SmartPing figure; Jio and Airtel reported the same |
-| MSG91 SMS | — | ₹0.16–0.25 per SMS + 18% GST | Price per SMS falls as volume rises |
-| Amazon SES email | — | USD 0.10 per 1,000 emails | Billed in rupees by AWS India |
-| Cloudflare DNS | — | Not covered by our research | FOA's existing account |
-| Password manager | — | Not covered by our research | Section 11 |
-| Later: FCRA | FC-3A from ₹10,000 (2026 per-purpose fees unverified), or FC-3B ₹5,000 | — | Only if FOA wants foreign donations |
-| Later: WhatsApp | — | Charged per message | Possible non-profit waiver until 31 December 2027 |
+| Item                            | One-time                                                               | Recurring                                               | Notes                                              |
+| ------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------- |
+| Tax registration (Form 104/105) | Not covered by our research                                            | —                                                       | Ask your CA about fees                             |
+| Razorpay                        | Possible ₹199 + tax KYC fee                                            | 2% + 18% GST per payment (2.15% corporate credit cards) | No setup or annual fee                             |
+| Razorpay monthly donations      | —                                                                      | Card: extra 0.9%. UPI and bank mandate: on request      | Ask support to confirm                             |
+| DLT registration                | About ₹5,900 (₹5,000 + GST)                                            | —                                                       | SmartPing figure; Jio and Airtel reported the same |
+| MSG91 SMS                       | —                                                                      | ₹0.16–0.25 per SMS + 18% GST                            | Price per SMS falls as volume rises                |
+| Amazon SES email                | —                                                                      | USD 0.10 per 1,000 emails                               | Billed in rupees by AWS India                      |
+| Cloudflare DNS                  | —                                                                      | Not covered by our research                             | FOA's existing account                             |
+| Password manager                | —                                                                      | Not covered by our research                             | Section 11                                         |
+| Later: FCRA                     | FC-3A from ₹10,000 (2026 per-purpose fees unverified), or FC-3B ₹5,000 | —                                                       | Only if FOA wants foreign donations                |
+| Later: WhatsApp                 | —                                                                      | Charged per message                                     | Possible non-profit waiver until 31 December 2027  |
 
 - **Razorpay welcome offer:** no platform fee on the first ₹5 lakh of domestic payments within 90 days of activation (exclusions apply; see section 7).
 

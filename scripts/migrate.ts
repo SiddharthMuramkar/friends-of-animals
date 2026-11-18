@@ -21,7 +21,7 @@ import {
 } from "../src/env.schema";
 import {
   directTls,
-  previewDatabase,
+  migrationTarget,
   withDatabase,
 } from "../src/server/db/database-url";
 import { loadEnvFiles } from "./load-env";
@@ -61,10 +61,9 @@ try {
   process.exit(1);
 }
 
-// A preview migrates its own database, named once here: the same name is
-// created below and then connected to.
-const preview =
-  config.APP_ENV === "preview" ? previewDatabase(config) : undefined;
+// A preview's own database is created below, then migrated; staging and
+// production migrate foa_staging and foa in place.
+const { url, preview } = migrationTarget(config);
 
 if (preview !== undefined) {
   // CREATE DATABASE runs from another database: `postgres`, on the same
@@ -84,10 +83,6 @@ if (preview !== undefined) {
   }
 }
 
-const url =
-  preview === undefined
-    ? config.DIRECT_URL
-    : withDatabase(config.DIRECT_URL, preview.name);
 const client = postgres(url, clientOptions(url));
 
 try {
