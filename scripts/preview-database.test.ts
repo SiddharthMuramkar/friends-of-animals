@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createPreviewDatabase,
+  migrationTarget,
   quoteIdentifier,
   quoteLiteral,
 } from "./preview-database";
@@ -92,5 +93,43 @@ describe("quoting", () => {
   it("doubles the quote character", () => {
     expect(quoteIdentifier('a"b')).toBe('"a""b"');
     expect(quoteLiteral("a'b\\c")).toBe("'a''b\\c'");
+  });
+});
+
+describe("migrationTarget", () => {
+  // Vercel sets these on every deployment from Git, staging's included.
+  const git = { VERCEL_GIT_PULL_REQUEST_ID: "", VERCEL_GIT_COMMIT_REF: "main" };
+
+  it("migrates foa_staging in place and creates no database", () => {
+    const DIRECT_URL =
+      "postgres://staging_migrator:f00d@db.shipped-it.dev:6432/foa_staging?sslmode=verify-full";
+    expect(
+      migrationTarget({ DIRECT_URL, APP_ENV: "staging", ...git })
+    ).toStrictEqual({ url: DIRECT_URL });
+  });
+
+  it("migrates production and local runs in place too", () => {
+    const DIRECT_URL =
+      "postgres://foa_migrator:beef@db.shipped-it.dev:6432/foa?sslmode=verify-full";
+    for (const APP_ENV of ["production", "local", undefined]) {
+      expect(migrationTarget({ DIRECT_URL, APP_ENV, ...git })).toStrictEqual({
+        url: DIRECT_URL,
+      });
+    }
+  });
+
+  it("creates a preview's own database and migrates that", () => {
+    expect(
+      migrationTarget({
+        DIRECT_URL:
+          "postgres://nonprod_migrator:f00d@db.shipped-it.dev:6432/foa_pr?sslmode=verify-full",
+        APP_ENV: "preview",
+        VERCEL_GIT_PULL_REQUEST_ID: "7",
+        VERCEL_GIT_COMMIT_REF: "map",
+      })
+    ).toStrictEqual({
+      url: "postgres://nonprod_migrator:f00d@db.shipped-it.dev:6432/foa_pr_7?sslmode=verify-full",
+      create: PR,
+    });
   });
 });

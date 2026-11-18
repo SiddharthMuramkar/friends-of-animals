@@ -137,10 +137,13 @@ tests/e2e/               # Playwright (runs in GitHub Actions)
 | Environment | App | Database | Notes |
 |---|---|---|---|
 | **local** | `pnpm dev` | Compose Postgres 18 on 127.0.0.1; Vitest uses in-memory PGlite | Email to Mailpit. Storage: a local S3 server (RustFS container) or the in-memory storage driver |
-| **preview** | Vercel preview deployment per PR | `foa_pr_<n>` (`foa_br_<branch>` before the PR exists) on `pg-nonprod`, created from the template database `foa_seed` during `vercel-build` and dropped when the PR closes or the branch is deleted | An hourly sweeper on the VPS drops them, reading the database comment (`foa-preview pr=<n>` or `foa-preview branch=<ref>`). Not GitHub Actions, which can't pass the future allowlist |
-| **staging** (test) | `foa.shipped-it.dev`, Vercel custom environment `staging` | `foa_staging` on `pg-nonprod` | |
-| **production** | FOA's own domain | `pg-prod`, with PITR (§13.1) | SES out of sandbox; Razorpay live |
+| **preview** | Vercel preview deployment per PR, behind Vercel Authentication | `foa_pr_<n>` (`foa_br_<branch>` before the PR exists) on `pg-nonprod`, created from the template database `foa_seed` during `vercel-build` and dropped when the PR closes or the branch is deleted | An hourly sweeper on the VPS drops them, reading the database comment (`foa-preview pr=<n>` or `foa-preview branch=<ref>`). Not GitHub Actions, which can't pass the future allowlist |
+| **staging** (test) | `shipped-it.dev` (`www.shipped-it.dev` redirects there), Vercel custom environment `staging`, deployed from `main` | `foa_staging` on `pg-nonprod`, migrated in place | Public. `APP_URL=https://shipped-it.dev` |
+| **production** | FOA's own domain, Vercel Production, deployed from `production` | `foa` on `pg-prod`, with PITR (§13.1) | SES out of sandbox; Razorpay live. Dormant until FOA's domain arrives |
 
+- **Branches.** The `staging` custom environment (Vercel Pro allows one per project) tracks the branch `main` (exact match), so every push to `main` deploys staging. Production tracks the branch `production`, which doesn't exist until launch. Every other branch deploys a preview. Going live means adding FOA's domain to Production, then creating `production` from `main` and pushing it.
+- **Promotion rebuilds.** Promoting a staging deployment to Production in Vercel rebuilds it with the Production variables, so its `vercel-build` runs the migrations against `pg-prod`.
+- **Access.** Vercel Authentication (Standard Protection) keeps previews private. `shipped-it.dev` and `www.shipped-it.dev` are public through Deployment Protection Exceptions.
 - Behaviour switches read `APP_ENV` (`local`, `preview`, `staging` or `production`), never `VERCEL_ENV`, which reads `preview` in the custom `staging` environment.
 - PgBouncer sends database `foa` to `pg-prod` and any other name to `pg-nonprod`. On previews, `DATABASE_URL` and `DIRECT_URL` name the placeholder database `foa_pr`; the app and the migration script replace it with the preview's own.
 - Per-environment rules for payments, email and SMS: §13.8.

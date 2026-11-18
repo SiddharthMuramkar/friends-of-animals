@@ -118,11 +118,10 @@ scripts/restore-drill.sh
 scripts/smoke-test.sh                        # client checks through db.shipped-it.dev:6432
 ```
 
-Then copy the values from `/etc/foa/vercel-urls.env` into Vercel: `PROD_*`
-into Production and `PREVIEW_*` into Preview, as `DATABASE_URL` and
-`DIRECT_URL`. Staging is deferred to #13: the Vercel `staging` custom
-environment does not exist yet (the API token could not create it), so the
-`STAGING_*` values wait for it. `foa_staging` and its roles are ready.
+Then copy the values from `/etc/foa/vercel-urls.env` into Vercel, as
+`DATABASE_URL` and `DIRECT_URL`: `PROD_*` into Production, `STAGING_*` into
+the `staging` custom environment (`shipped-it.dev`, deployed from `main`)
+and `PREVIEW_*` into Preview.
 
 To rebuild production from backups instead of starting empty, run the
 `pgbackrest restore` (below) into the `foa-vps_pg-prod-data` volume _before_
@@ -402,6 +401,3 @@ afterwards.
    branch". The API refused the change for lack of permission. Meanwhile the
    migration's advisory lock keeps concurrent builds of one branch from
    applying the same migration twice.
-8. **Staging (#13)**: create the Vercel `staging` custom environment and give
-   it `STAGING_DATABASE_URL`/`STAGING_DIRECT_URL` (as `DATABASE_URL` and
-   `DIRECT_URL`) from `/etc/foa/vercel-urls.env`.

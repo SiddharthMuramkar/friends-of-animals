@@ -19,13 +19,9 @@ import {
   parseEnv,
   type MigrationEnv,
 } from "../src/env.schema";
-import {
-  directTls,
-  previewDatabase,
-  withDatabase,
-} from "../src/server/db/database-url";
+import { directTls, withDatabase } from "../src/server/db/database-url";
 import { loadEnvFiles } from "./load-env";
-import { createPreviewDatabase } from "./preview-database";
+import { createPreviewDatabase, migrationTarget } from "./preview-database";
 
 /**
  * Key of the session-level advisory lock held around `migrate()`: the ASCII
@@ -62,9 +58,9 @@ try {
 }
 
 // A preview migrates its own database, named once here: the same name is
-// created below and then connected to.
-const preview =
-  config.APP_ENV === "preview" ? previewDatabase(config) : undefined;
+// created below and then connected to. Staging and production migrate the
+// database DIRECT_URL names (foa_staging, foa) in place.
+const { url, create: preview } = migrationTarget(config);
 
 if (preview !== undefined) {
   // CREATE DATABASE runs from another database: `postgres`, on the same
@@ -84,10 +80,6 @@ if (preview !== undefined) {
   }
 }
 
-const url =
-  preview === undefined
-    ? config.DIRECT_URL
-    : withDatabase(config.DIRECT_URL, preview.name);
 const client = postgres(url, clientOptions(url));
 
 try {

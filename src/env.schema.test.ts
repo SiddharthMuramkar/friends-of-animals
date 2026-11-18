@@ -9,7 +9,7 @@ import {
 } from "./env.schema";
 
 const DATABASE_URL = "postgres://foa:foa@localhost:5432/foa";
-const SITE = "https://foa.shipped-it.dev";
+const SITE = "https://shipped-it.dev";
 
 describe("parseEnv", () => {
   it("treats empty strings as unset", () => {
@@ -262,5 +262,17 @@ describe("migrationEnvSchema", () => {
         APP_ENV: "production",
       }).APP_ENV
     ).toBe("production");
+  });
+
+  it("accepts a staging build from main without naming a preview database", () => {
+    expect(
+      parseEnv(migrationEnvSchema, {
+        DIRECT_URL: DATABASE_URL,
+        VERCEL: "1",
+        APP_ENV: "staging",
+        VERCEL_GIT_PULL_REQUEST_ID: "",
+        VERCEL_GIT_COMMIT_REF: "main",
+      }).APP_ENV
+    ).toBe("staging");
   });
 });
