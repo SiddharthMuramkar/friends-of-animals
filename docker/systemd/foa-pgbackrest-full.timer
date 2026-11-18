@@ -1,0 +1,10 @@
+[Unit]
+Description=FOA: weekly pgBackRest full backup of pg-prod (Sunday 02:30 IST)
+
+[Timer]
+OnCalendar=Sun *-*-* 02:30:00 Asia/Kolkata
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

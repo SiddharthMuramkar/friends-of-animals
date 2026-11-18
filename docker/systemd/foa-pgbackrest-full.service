@@ -1,0 +1,11 @@
+[Unit]
+Description=FOA: pgBackRest full backup of pg-prod (stanza foa)
+Documentation=file:/srv/foa/docker/README.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=6h
+# Expires backups beyond repo1-retention-full (30 days) afterwards.
+ExecStart=/usr/bin/docker exec -u postgres foa-pg-prod pgbackrest --stanza=foa --type=full backup

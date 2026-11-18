@@ -1,0 +1,15 @@
+# Local CrowdSec whitelist (s02-enrich). Never ban:
+#  - the VPS's own public address: connections the host makes to
+#    db.shipped-it.dev (smoke tests, health probes) arrive from it, and a ban
+#    in INPUT would also hit the host's own traffic;
+#  - the compose network.
+# TODO: add the Vercel Static IPs once bought. They are shared NAT addresses:
+# a ban would cut off the app (and other tenants behind them).
+name: foa/whitelist
+description: "FOA: never ban the VPS itself or the Docker network"
+whitelist:
+  reason: "FOA VPS own addresses"
+  ip:
+    - "189.72.156.29"
+  cidr:
+    - "10.112.12.0/24"

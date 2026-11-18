@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Install the db.shipped-it.dev certificate for PgBouncer and reload it.
+#
+# Copies lego's certificate and key into /etc/foa/pgbouncer-tls (mounted
+# read-only into the pgbouncer container) when they changed, then sends SIGHUP
+# (RELOAD): new connections use the new files, existing ones keep theirs.
+#
+# Before the first ACME run there is no lego certificate; then a short-lived
+# self-signed placeholder is written so PgBouncer can start
+# (client_tls_sslmode=require needs a key). Clients using verify-full reject
+# it, which is the point.
+#
+# Usage: sudo install-cert.sh        (also run by cert-renew.sh)
+set -euo pipefail
+umask 077
+
+DOMAIN="${FOA_DB_DOMAIN:-db.shipped-it.dev}"
+LEGO_DIR="${FOA_LEGO_DIR:-/etc/foa/lego}"
+TLS_DIR=/etc/foa/pgbouncer-tls
+PGB_UID=6432
+CONTAINER=foa-pgbouncer
+
+src_crt="$LEGO_DIR/certificates/$DOMAIN.crt"
+src_key="$LEGO_DIR/certificates/$DOMAIN.key"
+
+install -d -m 0750 -o root -g "$PGB_UID" "$TLS_DIR"
+
+pub_of_crt() { openssl x509 -noout -pubkey -in "$1" | sha256sum; }
+pub_of_key() { openssl pkey -pubout -in "$1" | sha256sum; }
+
+# put SRC_CRT SRC_KEY: install both atomically-enough (key first, then cert).
+put() {
+  local tmp_key tmp_crt
+  tmp_key="$(mktemp "$TLS_DIR/.key.XXXXXX")"
+  tmp_crt="$(mktemp "$TLS_DIR/.crt.XXXXXX")"
+  cat "$2" >"$tmp_key"
+  cat "$1" >"$tmp_crt"
+  chown "$PGB_UID:$PGB_UID" "$tmp_key" "$tmp_crt"
+  chmod 0400 "$tmp_key"
+  chmod 0444 "$tmp_crt"
+  mv -f "$tmp_key" "$TLS_DIR/server.key"
+  mv -f "$tmp_crt" "$TLS_DIR/server.crt"
+}
+
+changed=0
+if [ -s "$src_crt" ] && [ -s "$src_key" ]; then
+  if ! cmp -s "$src_crt" "$TLS_DIR/server.crt" || ! cmp -s "$src_key" "$TLS_DIR/server.key"; then
+    if [ "$(pub_of_crt "$src_crt")" != "$(pub_of_key "$src_key")" ]; then
+      echo "install-cert: $src_crt does not match its key; not installing" >&2
+      exit 1
+    fi
+    put "$src_crt" "$src_key"
+    changed=1
+    echo "install-cert: installed $(openssl x509 -noout -issuer -enddate -in "$TLS_DIR/server.crt" | tr '\n' ' ')"
+  else
+    echo "install-cert: certificate unchanged"
+  fi
+elif [ ! -s "$TLS_DIR/server.crt" ] || [ ! -s "$TLS_DIR/server.key" ]; then
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 7 \
+    -subj "/CN=$DOMAIN (placeholder)" -addext "subjectAltName=DNS:$DOMAIN" \
+    -keyout "$work/key.pem" -out "$work/crt.pem" 2>/dev/null
+  put "$work/crt.pem" "$work/key.pem"
+  changed=1
+  echo "install-cert: no ACME certificate yet; wrote a self-signed placeholder"
+else
+  echo "install-cert: no ACME certificate yet; keeping the installed one"
+fi
+
+if [ "$changed" -eq 1 ] && [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" = "true" ]; then
+  docker kill -s HUP "$CONTAINER" >/dev/null
+  echo "install-cert: reloaded $CONTAINER"
+fi

@@ -1,0 +1,29 @@
+# Local CrowdSec parser (s01-parse): PgBouncer logins for a user that
+# auth_query does not return, i.e. unknown roles, superusers such as
+# `postgres`, and pgbouncer_auth. PgBouncer logs them as
+#   ... LOG C-0x..: foa/(nouser)@203.0.113.7:51234 closing because: no such user (age=0s)
+# which crowdsecurity/pgsql-logs does not match (it only matches
+# "... ERROR ... password authentication failed"). Scanners mostly try
+# `postgres`, so feed these into the same brute-force scenario
+# (crowdsecurity/pgsql-bf) via log_type pgsql_failed_auth.
+onsuccess: next_stage
+name: foa/pgbouncer-no-such-user
+description: "PgBouncer: login attempt for a user auth_query does not return"
+filter: "evt.Parsed.program == 'pgbouncer'"
+nodes:
+  - grok:
+      pattern: '%{TIMESTAMP_ISO8601:timestamp} %{WORD:zone} \[%{INT:PID}\] LOG C-%{NOTSPACE:connection_id}: %{DATA:pgsql_dbname}/%{DATA:pgsql_target_user}@\[?%{IP:source_ip}\]?:%{INT:source_port} closing because: no such user'
+      apply_on: message
+statics:
+  - meta: log_type
+    value: pgsql_failed_auth
+  - meta: auth_method
+    value: no_such_user
+  - meta: source_ip
+    expression: "evt.Parsed.source_ip"
+  - meta: user
+    expression: "evt.Parsed.pgsql_target_user"
+  - meta: db
+    expression: "evt.Parsed.pgsql_dbname"
+  - target: evt.StrTime
+    expression: evt.Parsed.timestamp
