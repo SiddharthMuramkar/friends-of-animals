@@ -26,8 +26,11 @@ export const envSchema = z.object({
   DATABASE_URL: postgresUrl.optional(),
   /** Direct (session-mode) connection for migrations and drizzle-kit. */
   DIRECT_URL: postgresUrl.optional(),
-  /** Public origin, e.g. https://foa.shipped-it.dev. Used for absolute URLs. */
-  NEXT_PUBLIC_SITE_URL: z
+  /**
+   * Canonical base URL, e.g. https://foa.shipped-it.dev (§13.9). Only the
+   * server reads it, so it needs no NEXT_PUBLIC_ prefix.
+   */
+  APP_URL: z
     .url({ protocol: /^https?$/, error: "must be an http(s) URL" })
     .optional(),
 });
@@ -78,5 +81,5 @@ export function databaseUrl(config: Env = env()): string {
 
 /** Absolute site origin for metadata and links; localhost when unset. */
 export function siteUrl(config: Env = env()): URL {
-  return new URL(config.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
+  return new URL(config.APP_URL ?? "http://localhost:3000");
 }

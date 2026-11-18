@@ -38,14 +38,11 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ DIRECT_URL: "not a url" })).toThrow(/DIRECT_URL/);
   });
 
-  it("requires NEXT_PUBLIC_SITE_URL to be an http(s) URL", () => {
-    expect(() => parseEnv({ NEXT_PUBLIC_SITE_URL: "example.org" })).toThrow(
-      /NEXT_PUBLIC_SITE_URL/
+  it("requires APP_URL to be an http(s) URL", () => {
+    expect(() => parseEnv({ APP_URL: "example.org" })).toThrow(/APP_URL/);
+    expect(parseEnv({ APP_URL: "https://foa.shipped-it.dev" }).APP_URL).toBe(
+      "https://foa.shipped-it.dev"
     );
-    expect(
-      parseEnv({ NEXT_PUBLIC_SITE_URL: "https://foa.shipped-it.dev" })
-        .NEXT_PUBLIC_SITE_URL
-    ).toBe("https://foa.shipped-it.dev");
   });
 });
 
@@ -64,8 +61,8 @@ describe("siteUrl", () => {
     expect(siteUrl(parseEnv({})).href).toBe("http://localhost:3000/");
   });
 
-  it("uses NEXT_PUBLIC_SITE_URL when set", () => {
-    const config = parseEnv({ NEXT_PUBLIC_SITE_URL: "https://example.org" });
+  it("uses APP_URL when set", () => {
+    const config = parseEnv({ APP_URL: "https://example.org" });
     expect(siteUrl(config).origin).toBe("https://example.org");
   });
 });

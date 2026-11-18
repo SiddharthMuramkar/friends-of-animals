@@ -26,10 +26,11 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 
 # ---- build: compile the Next.js app ------------------------------------------
 FROM base AS build
-# Prerendered pages bake in the public origin (Open Graph URLs). Empty falls
-# back to http://localhost:3000.
-ARG NEXT_PUBLIC_SITE_URL=""
-ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+# Prerendered pages bake in the canonical base URL (Open Graph URLs), so
+# APP_URL is a build argument as well as a runtime variable. Empty falls back
+# to http://localhost:3000.
+ARG APP_URL=""
+ENV APP_URL=${APP_URL}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build

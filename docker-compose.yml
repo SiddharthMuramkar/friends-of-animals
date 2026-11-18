@@ -52,14 +52,16 @@ services:
       context: .
       target: runner
       args:
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        # Baked into prerendered pages at build time; keep it equal to the
+        # runtime value below.
+        APP_URL: ${APP_URL:-http://localhost:3000}
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
     environment:
       APP_ENV: local
       DATABASE_URL: postgres://foa:foa@db:5432/foa
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      APP_URL: ${APP_URL:-http://localhost:3000}
     healthcheck:
       test:
         - CMD

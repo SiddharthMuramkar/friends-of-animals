@@ -184,12 +184,12 @@ Under Vitest, `server-only` resolves to an empty module, so server code can be i
 
 Copy `.env.example` to `.env` for local development. Next.js, drizzle-kit and `pnpm db:migrate` all read it. In app code, read server config through `env()` from `@/env` rather than `process.env`.
 
-| Variable               | Required                  | Description                                                                                                                        |
-| ---------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`         | when the database is used | Runtime Postgres URL. On Vercel: PgBouncer on the VPS.                                                                             |
-| `DIRECT_URL`           | no                        | Direct (session-mode) URL for migrations and drizzle-kit. Falls back to `DATABASE_URL`.                                            |
-| `NEXT_PUBLIC_SITE_URL` | no                        | Public origin for absolute URLs (Open Graph images). Defaults to `http://localhost:3000`. Prerendered pages read it at build time. |
-| `APP_ENV`              | no                        | `local` (default), `preview`, `staging` or `production`. Branch on this for behaviour switches, not on `VERCEL_ENV`.               |
+| Variable       | Required                  | Description                                                                                                                                                                            |
+| -------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL` | when the database is used | Runtime Postgres URL. On Vercel: PgBouncer on the VPS.                                                                                                                                 |
+| `DIRECT_URL`   | no                        | Direct (session-mode) URL for migrations and drizzle-kit. Falls back to `DATABASE_URL`.                                                                                                |
+| `APP_URL`      | no                        | Canonical base URL for absolute URLs (Open Graph images). Defaults to `http://localhost:3000`. Read only on the server, but prerendered pages bake it in, so set it at build time too. |
+| `APP_ENV`      | no                        | `local` (default), `preview`, `staging` or `production`. Branch on this for behaviour switches, not on `VERCEL_ENV`.                                                                   |
 
 ## Deploying
 
@@ -199,7 +199,7 @@ The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel
 - Each preview deployment will get its own database (`foa_pr_<n>`) on the non-production Postgres. Staging, the Vercel custom environment `staging` at foa.shipped-it.dev, will use `foa_staging`.
 - The production database (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups) arrives in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), and the per-preview databases in #12 and #13. Until then there is no database for Vercel to migrate.
 
-Set `APP_ENV` and `NEXT_PUBLIC_SITE_URL` per environment in the Vercel project settings.
+Set `APP_ENV` and `APP_URL` per environment in the Vercel project settings. Vercel exposes them to the build as well as at runtime, which `APP_URL` needs.
 
 ## Brand assets
 
