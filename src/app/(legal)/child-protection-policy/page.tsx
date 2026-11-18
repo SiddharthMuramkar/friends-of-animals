@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { StubPage } from "@/components/site/stub-page";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
-// Stub: the page's own task replaces this body.
+import { LegalDocument } from "../_components/legal-document";
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("legal.childProtection.meta");
   return pageMetadata({
@@ -15,13 +15,6 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default async function Page() {
-  const t = await getTranslations("legal.childProtection.meta");
-  return (
-    <StubPage
-      title={t("title")}
-      description={t("description")}
-      hue={ROUTES.childProtection.hue}
-    />
-  );
+export default function Page() {
+  return <LegalDocument id="childProtection" />;
 }

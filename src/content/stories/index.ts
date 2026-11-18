@@ -29,6 +29,8 @@ const storySchema = z.strictObject({
   title: z.string().min(1).max(80),
   /** The excerpt (SPEC §9.4.1: ≤ 300 characters). */
   dek: z.string().min(1).max(300),
+  /** One or two short sentences at grade 6 or below: the "Easy read" layer. */
+  easyRead: z.string().min(1).max(200),
   audience: z.enum(AUDIENCES),
   /** Absent: the card shows a tile-pattern cover (no licensed photo exists). */
   coverImageId: z.enum(SITE_IMAGE_IDS).optional(),
@@ -48,9 +50,11 @@ export const STORIES: readonly Story[] = z
       slug: "rukmini-devi-and-indias-animal-law",
       title: "The dancer who shaped India’s animal law",
       dek: "Rukmini Devi Arundale, a dancer and the first woman nominated to the Rajya Sabha, asked Parliament in 1954 to protect animals from cruelty. India’s 1960 animal-welfare law followed.",
+      easyRead:
+        "A dancer named Rukmini Devi asked India’s Parliament to protect animals. Her work helped make a law in 1960. It still keeps animals safe.",
       audience: "everyone",
       topics: ["history", "law"],
-      readingMinutes: 6,
+      readingMinutes: 4,
       publishedOn: "2026-11-18",
       featured: true,
     },
@@ -58,6 +62,8 @@ export const STORIES: readonly Story[] = z
       slug: "a-drawing-that-feeds-tiny-guests",
       title: "A drawing that feeds a thousand tiny guests",
       dek: "Each morning, rice-flour patterns appear at doorsteps in Tamil Nadu. By evening, feet, ants and birds have carried them away. Sharing is part of the idea.",
+      easyRead:
+        "Every morning, people in Tamil Nadu draw at the door with rice flour. Ants and birds eat the flour. The art is also a gift.",
       audience: "kids",
       coverImageId: "care-kolam-rice",
       topics: ["traditions", "art"],
@@ -69,9 +75,11 @@ export const STORIES: readonly Story[] = z
       slug: "the-stork-that-gets-a-baby-shower",
       title: "The stork that gets a baby shower",
       dek: "In Assam, a giant stork was once called a bad omen. Now thousands of women guard its nests, sing about it and hold baby showers for its chicks.",
+      easyRead:
+        "A giant stork in Assam was called bad luck. Now women sing for it, guard its nests and throw parties for its chicks.",
       audience: "kids",
       topics: ["birds", "community"],
-      readingMinutes: 4,
+      readingMinutes: 5,
       publishedOn: "2026-11-18",
       featured: false,
     },
@@ -79,10 +87,12 @@ export const STORIES: readonly Story[] = z
       slug: "two-pilots-two-puppies",
       title: "Two pilots, two puppies and the start of Blue Cross",
       dek: "On a rainy day in 1959, a Madras pilot took two puppies home from a flooded road. His family’s house soon held sixty animals. Blue Cross had begun.",
+      easyRead:
+        "In 1959, a pilot took two puppies home from a flood. Soon his family cared for 60 animals. That was the start of Blue Cross.",
       audience: "families",
       coverImageId: "puppies-lounging-cloth",
       topics: ["rescue", "history"],
-      readingMinutes: 5,
+      readingMinutes: 4,
       publishedOn: "2026-11-18",
       featured: false,
     },
@@ -90,10 +100,12 @@ export const STORIES: readonly Story[] = z
       slug: "kinder-skies-in-kite-season",
       title: "Kinder skies in kite season",
       dek: "In January 2026, Gujarat ran over 1,000 bird-care points for kite season. In Delhi, a bird hospital open since 1929 treats its patients free.",
+      easyRead:
+        "Kites are fun, but string can hurt birds. Use cotton thread, fly in the day, and tell a grown-up if a bird is stuck.",
       audience: "families",
       coverImageId: "se-kites-uttarayan",
       topics: ["festivals", "birds"],
-      readingMinutes: 6,
+      readingMinutes: 4,
       publishedOn: "2026-11-18",
       featured: false,
     },

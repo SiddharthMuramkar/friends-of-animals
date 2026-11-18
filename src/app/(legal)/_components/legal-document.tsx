@@ -1,0 +1,207 @@
+import { getFormatter, getTranslations } from "next-intl/server";
+import Link from "next/link";
+import type { ReactNode } from "react";
+
+import { PageHeader } from "@/components/site/heading";
+import { Placeholder } from "@/components/site/placeholder";
+import { Section } from "@/components/site/section";
+import { TileMarker } from "@/components/site/tile";
+import {
+  LEGAL_DOCS,
+  type LegalBlock,
+  type LegalDocId,
+  type LegalFact,
+  type LegalInline,
+} from "@/content/legal";
+import { SITE } from "@/lib/site";
+
+const LINK =
+  "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
+
+const FACT_VALUE: Record<LegalFact, unknown> = {
+  legalName: SITE.org.legalName,
+  email: SITE.org.email,
+  phone: SITE.org.phone,
+  address: SITE.org.address,
+  grievanceOfficerName: SITE.org.grievanceOfficer.name,
+  grievanceOfficerEmail: SITE.org.grievanceOfficer.email,
+};
+
+/** A confirmed fact as text (or a mailto/tel link); else a visible placeholder. */
+function Fact({ fact }: { fact: LegalFact }) {
+  const href = (v: string) =>
+    fact === "phone"
+      ? `tel:${v.replace(/\s/g, "")}`
+      : fact.toLowerCase().includes("email")
+        ? `mailto:${v}`
+        : undefined;
+  return (
+    <Placeholder fact={FACT_VALUE[fact] as string}>
+      {(v) => {
+        const h = href(v);
+        return h ? (
+          <a href={h} className={LINK}>
+            {v}
+          </a>
+        ) : (
+          v
+        );
+      }}
+    </Placeholder>
+  );
+}
+
+function Inlines({ text }: { text: LegalInline[] }) {
+  return text.map((i, k): ReactNode => {
+    if (typeof i === "string") return i;
+    if ("strong" in i) return <strong key={k}>{i.strong}</strong>;
+    if ("fact" in i) return <Fact key={k} fact={i.fact} />;
+    return (
+      <Link key={k} href={i.href} className={LINK}>
+        {i.link}
+      </Link>
+    );
+  });
+}
+
+function BlockView({ block }: { block: LegalBlock }) {
+  if ("p" in block)
+    return (
+      <p>
+        <Inlines text={block.p} />
+      </p>
+    );
+  return (
+    <ul>
+      {block.list.map((item, k) => (
+        <li key={k}>
+          <Inlines text={item} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const NS = {
+  privacy: "legal.privacy",
+  terms: "legal.terms",
+  safeguarding: "legal.safeguarding",
+  childProtection: "legal.childProtection",
+} as const;
+
+/**
+ * A policy page: header with a fixed "last updated" date, the short version
+ * first, then the full text with a table of contents. `top` renders above
+ * the short version (e.g. helplines); `after` adds content after a section.
+ */
+export async function LegalDocument({
+  id,
+  top,
+  after = {},
+}: {
+  id: LegalDocId;
+  top?: ReactNode;
+  after?: Partial<Record<string, ReactNode>>;
+}) {
+  const doc = LEGAL_DOCS[id];
+  const [t, tp, format] = await Promise.all([
+    getTranslations("legal.common"),
+    getTranslations(NS[id]),
+    getFormatter(),
+  ]);
+  const shortTitle =
+    id === "childProtection" ? tp("shortVersion") : t("shortVersion");
+
+  return (
+    <>
+      <Section hue="neutral" tone="tint" className="pt-10 pb-12 sm:pt-14">
+        <PageHeader
+          eyebrow={t("eyebrow")}
+          tile="blue"
+          title={tp("title")}
+          lead={tp("lead")}
+        />
+        <p className="mt-5 text-sm font-semibold text-ink-muted">
+          {t("lastUpdated", {
+            date: format.dateTime(new Date(doc.updated), "long"),
+          })}
+        </p>
+      </Section>
+
+      <Section hue="neutral" className="pt-10 sm:pt-12">
+        {top}
+        <section
+          aria-labelledby="short-version"
+          className="max-w-3xl rounded-3xl border-2 border-blue-700 bg-section-blue p-6 sm:p-8 dark:border-blue-400"
+        >
+          <h2
+            id="short-version"
+            className="flex items-center gap-2.5 font-display text-h4 leading-tight text-(--section-blue-heading)"
+          >
+            <TileMarker hue="blue" />
+            {shortTitle}
+          </h2>
+          <ul className="mt-4 space-y-3 text-lead text-ink">
+            {doc.short.map((point, k) => (
+              <li key={k} className="flex gap-3">
+                <span
+                  aria-hidden="true"
+                  className="mt-2.5 size-2.5 shrink-0 rounded-[22%] bg-blue-700 dark:bg-blue-400"
+                />
+                <span>
+                  <Inlines text={point} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-14">
+          <nav
+            aria-labelledby="legal-toc"
+            className="lg:sticky lg:top-[calc(var(--header-height)+1.5rem)] lg:order-2 lg:self-start"
+          >
+            <div className="rounded-3xl border-2 border-border bg-surface p-5">
+              <p
+                id="legal-toc"
+                className="flex items-center gap-2 font-display text-lead font-semibold"
+              >
+                <TileMarker hue="blue" size="sm" />
+                {t("toc")}
+              </p>
+              <ol className="mt-3 space-y-1 text-sm">
+                {doc.sections.map((s) => (
+                  <li key={s.id}>
+                    <a
+                      href={`#${s.id}`}
+                      className="flex min-h-8 items-center rounded-lg px-2 text-ink hover:bg-surface-muted hover:text-link"
+                    >
+                      {s.title}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </nav>
+
+          <div className="min-w-0 lg:order-1">
+            <div className="prose-foa">
+              {doc.sections.map((s) => (
+                <section key={s.id} aria-labelledby={s.id}>
+                  <h2 id={s.id}>{s.title}</h2>
+                  {s.blocks.map((b, k) => (
+                    <div key={k} className="mt-4">
+                      <BlockView block={b} />
+                    </div>
+                  ))}
+                  {after[s.id] ? (
+                    <div className="mt-6">{after[s.id]}</div>
+                  ) : null}
+                </section>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Section>
+    </>
+  );
+}
