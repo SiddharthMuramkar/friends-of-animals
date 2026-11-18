@@ -170,10 +170,10 @@ Both URLs point at PgBouncer on the VPS, `db.shipped-it.dev:6432`, with `?sslmod
 | Environment | Database in the URL                 | `DATABASE_URL` role | `DIRECT_URL` role  |
 | ----------- | ----------------------------------- | ------------------- | ------------------ |
 | production  | `foa`                               | `foa_app`           | `foa_migrator`     |
-| staging     | `foa_staging`                       | `nonprod_app`       | `nonprod_migrator` |
+| staging     | `foa_staging`                       | `staging_app`       | `staging_migrator` |
 | preview     | `foa_pr`, a placeholder (see below) | `nonprod_app`       | `nonprod_migrator` |
 
-The app roles can only read and write rows, and PgBouncer pools them by transaction. The migrator roles own the schema and get session mode through a per-user `pool_mode`, so the migration's advisory lock holds.
+The app roles can only read and write rows, and PgBouncer pools them by transaction. The migrator roles own the schema and get session mode through a per-user `pool_mode`, so the migration's advisory lock holds. Staging and previews have separate roles: Vercel has no build-only variables, so any preview function could use the preview's `DIRECT_URL`, and the preview roles cannot connect to `foa_staging` at all.
 
 Every preview gets a database of its own. With `APP_ENV=preview`, `src/server/db/database-url.ts` replaces the placeholder with `foa_pr_<n>` from `VERCEL_GIT_PULL_REQUEST_ID`, or, before the branch has a PR, `foa_br_<branch>` from `VERCEL_GIT_COMMIT_REF` (lowercased, other characters turned into `_`, and cut to 63 bytes with a hash of the branch when it is long). `pnpm db:migrate` first runs `CREATE DATABASE <name> TEMPLATE foa_seed` (an existing database counts as success) and comments the database `foa-preview pr=<n>` or `foa-preview branch=<ref>`. An hourly sweeper on the VPS reads that comment and drops the databases of closed PRs and deleted branches.
 

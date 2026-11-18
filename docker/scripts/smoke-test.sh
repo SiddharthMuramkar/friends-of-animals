@@ -43,10 +43,10 @@ SH
 check "prod DIRECT_URL: foa_migrator, session pool" ok '^foa_migrator\|foa$' <<'SH'
 $PSQL "$PROD_DIRECT_URL" -c 'select current_user, current_database()'
 SH
-check "staging DATABASE_URL: nonprod_app" ok '^nonprod_app\|foa_staging$' <<'SH'
+check "staging DATABASE_URL: staging_app" ok '^staging_app\|foa_staging$' <<'SH'
 $PSQL "$STAGING_DATABASE_URL" -c 'select current_user, current_database()'
 SH
-check "staging DIRECT_URL: nonprod_migrator" ok '^nonprod_migrator\|foa_staging$' <<'SH'
+check "staging DIRECT_URL: staging_migrator" ok '^staging_migrator\|foa_staging$' <<'SH'
 $PSQL "$STAGING_DIRECT_URL" -c 'select current_user, current_database()'
 SH
 check "direct TLS negotiation (sslnegotiation=direct)" ok '^foa_app$' <<'SH'
@@ -90,7 +90,7 @@ check "PgBouncer admin console is refused" fail 'not allowed|bouncer config erro
 $PSQL "${PROD_DATABASE_URL/\/foa\?//pgbouncer?}" -c 'show pools'
 SH
 check "connecting to foa_seed is refused" fail 'not currently accepting connections' <<'SH'
-$PSQL "${STAGING_DIRECT_URL/\/foa_staging\?//foa_seed?}" -c 'select 1'
+$PSQL "${PREVIEW_DIRECT_URL/\/foa_pr\?//foa_seed?}" -c 'select 1'
 SH
 check "prod role cannot log in to non-prod databases" fail 'authentication failed' <<'SH'
 $PSQL "${PROD_DATABASE_URL/\/foa\?//foa_staging?}" -c 'select 1'

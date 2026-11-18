@@ -96,10 +96,15 @@ services:
     secrets:
       - source: pg_nonprod_postgres_password
         target: postgres_password
+      # migrator/app: the preview roles (nonprod_*); staging has its own.
       - source: pg_nonprod_nonprod_migrator_password
         target: migrator_password
       - source: pg_nonprod_nonprod_app_password
         target: app_password
+      - source: pg_nonprod_staging_migrator_password
+        target: staging_migrator_password
+      - source: pg_nonprod_staging_app_password
+        target: staging_app_password
       - source: pgbouncer_auth_password
         target: pgbouncer_auth_password
     volumes:
@@ -199,6 +204,10 @@ secrets:
     file: /etc/foa/secrets/pg_nonprod_nonprod_migrator_password
   pg_nonprod_nonprod_app_password:
     file: /etc/foa/secrets/pg_nonprod_nonprod_app_password
+  pg_nonprod_staging_migrator_password:
+    file: /etc/foa/secrets/pg_nonprod_staging_migrator_password
+  pg_nonprod_staging_app_password:
+    file: /etc/foa/secrets/pg_nonprod_staging_app_password
   pgbouncer_auth_password:
     file: /etc/foa/secrets/pgbouncer_auth_password
   pgbouncer_userlist:

@@ -50,6 +50,8 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_nonprod_postgres_password` | 999, 0400 | pg-nonprod superuser |
 | `/etc/foa/secrets/pg_nonprod_nonprod_migrator_password` | 999, 0400 | `nonprod_migrator` |
 | `/etc/foa/secrets/pg_nonprod_nonprod_app_password` | 999, 0400 | `nonprod_app` |
+| `/etc/foa/secrets/pg_nonprod_staging_migrator_password` | 999, 0400 | `staging_migrator` |
+| `/etc/foa/secrets/pg_nonprod_staging_app_password` | 999, 0400 | `staging_app` |
 | `/etc/foa/secrets/pgbouncer_auth_password` | 999, 0400 | `pgbouncer_auth` on both servers |
 | `/etc/foa/secrets/pgbouncer_userlist.txt` | 6432, 0400 | PgBouncer `auth_file` (derived) |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` | root, 0400 | pgBackRest repo1 passphrase |
@@ -69,10 +71,15 @@ Compose secrets (`/run/secrets/...`), never as environment values.
 |---|---|---|---|
 | `PROD_DATABASE_URL` | `foa_app` | `foa` | transaction |
 | `PROD_DIRECT_URL` | `foa_migrator` | `foa` | session |
-| `STAGING_DATABASE_URL` | `nonprod_app` | `foa_staging` | transaction |
-| `STAGING_DIRECT_URL` | `nonprod_migrator` | `foa_staging` | session |
+| `STAGING_DATABASE_URL` | `staging_app` | `foa_staging` | transaction |
+| `STAGING_DIRECT_URL` | `staging_migrator` | `foa_staging` | session |
 | `PREVIEW_DATABASE_URL` | `nonprod_app` | `foa_pr` (placeholder) | transaction |
 | `PREVIEW_DIRECT_URL` | `nonprod_migrator` | `foa_pr` (placeholder) | session |
+
+Staging and previews have separate roles: Vercel has no build-only variables,
+so every preview function can read the preview's `DIRECT_URL`, and a shared
+migrator role could drop staging. The preview roles cannot connect to
+`foa_staging` at all, and the staging roles reach nothing else.
 
 The app swaps the `/foa_pr` path for `foa_pr_<n>` or `foa_br_<slug>`. The
 preview build connects as `nonprod_migrator` to database `postgres` and runs
@@ -133,8 +140,9 @@ PgBouncer (`pgbouncer/pgbouncer.ini`):
 | anything else (`foa_staging`, `foa_pr_*`, `foa_br_*`, `postgres`) | pg-nonprod, same name (`*` entry) | 10 + 2 per database and user |
 | `pgbouncer_auth_prod`, `pgbouncer_auth_nonprod` | each server's `postgres` | auth only (see below) |
 
-- `[users]`: `foa_migrator` and `nonprod_migrator` use **session** mode (max 10
-  and 20 server connections); everyone else **transaction** mode.
+- `[users]`: `foa_migrator`, `staging_migrator` and `nonprod_migrator` use
+  **session** mode (max 10, 10 and 20 server connections); everyone else
+  **transaction** mode.
   `max_client_conn` 1000, `client_idle_timeout` 600 s, `query_wait_timeout`
   20 s, `idle_transaction_timeout` 60 s. `max_prepared_statements` stays at
   its default (200).
@@ -144,9 +152,12 @@ PgBouncer (`pgbouncer/pgbouncer.ini`):
   executable only by `pgbouncer_auth`) and returns nothing for superusers,
   replication/BYPASSRLS roles, roles that cannot log in, and
   `pgbouncer_auth`. `auth_dbname` names a `[databases]` entry, not a server
-  database, hence the two auth-only entries; pg_hba lets only
+  database, hence the two auth-only entries. On pg-prod pg_hba lets only
   `pgbouncer_auth` (from 10.112.12.20) and the host-side superuser into
-  `postgres`. SCRAM pass-through then logs clients in with their own
+  `postgres`; on pg-nonprod `nonprod_migrator` connects there too, by design,
+  to run `CREATE DATABASE` for previews. The function serves every role that
+  can log in, so new roles (such as the staging ones) need no change there.
+  SCRAM pass-through then logs clients in with their own
   credentials.
 - The `auth_file` holds only `pgbouncer_auth`, as **plain text**: PgBouncer
   must log in to Postgres as the auth user itself, and a SCRAM secret works
@@ -163,14 +174,17 @@ Roles and databases (`postgres/bootstrap/`):
 |---|---|---|
 | pg-prod | `foa_migrator` | LOGIN; owns `foa` (hence `public` via `pg_database_owner`) |
 | pg-prod | `foa_app` | LOGIN; CONNECT on `foa`, USAGE on `public`; `SELECT/INSERT/UPDATE/DELETE` on tables, `USAGE/SELECT` on sequences, `EXECUTE` on functions, all through `ALTER DEFAULT PRIVILEGES FOR ROLE foa_migrator`. Cannot CREATE in `public` |
-| pg-nonprod | `nonprod_migrator` | LOGIN CREATEDB; owns `foa_seed`, `foa_staging` and the previews it creates |
-| pg-nonprod | `nonprod_app` | LOGIN; same DML-only defaults (`FOR ROLE nonprod_migrator`) |
+| pg-nonprod | `staging_migrator` | LOGIN, no CREATEDB; owns `foa_staging`. pg_hba: `foa_staging` only |
+| pg-nonprod | `staging_app` | LOGIN; CONNECT on `foa_staging`; same DML-only defaults (`FOR ROLE staging_migrator`). pg_hba: `foa_staging` only |
+| pg-nonprod | `nonprod_migrator` | Previews. LOGIN CREATEDB; owns `foa_seed` and the previews it creates; CONNECT on `postgres`. No CONNECT on `foa_staging`, and pg_hba rejects it there |
+| pg-nonprod | `nonprod_app` | Previews. LOGIN; same DML-only defaults (`FOR ROLE nonprod_migrator`); kept out of `foa_staging` the same way |
 | both | `pgbouncer_auth` | LOGIN NOINHERIT; CONNECT on `postgres`; EXECUTE `pgbouncer.get_auth` |
 | both | `postgres` | superuser: container socket, or TCP from 10.112.12.1 (SSH tunnel) only |
 
-- `foa_seed` (owned by `nonprod_migrator`) holds only the default privileges
-  and the `public` grants; `IS_TEMPLATE true ALLOW_CONNECTIONS false`.
-  `foa_staging` was created from it.
+- `foa_seed` (owned by `nonprod_migrator`) holds only the preview roles'
+  default privileges and the `public` grants; `IS_TEMPLATE true
+  ALLOW_CONNECTIONS false`. `foa_staging` is made from `template1` instead and
+  holds the staging roles' own.
 - PUBLIC lost CONNECT/TEMP on `postgres`, `foa`, `foa_staging` and CONNECT on
   `template1`, and USAGE on `public` in every FOA database. New schemas need
   `GRANT USAGE ON SCHEMA ... TO foa_app` in their migration. Re-running the

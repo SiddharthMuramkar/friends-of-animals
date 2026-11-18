@@ -24,7 +24,10 @@ case "${1:-}" in
   *) echo "usage: $0 [--set-passwords]" >&2; exit 2 ;;
 esac
 
-for s in postgres_password migrator_password app_password pgbouncer_auth_password; do
+secrets=(postgres_password migrator_password app_password pgbouncer_auth_password)
+# pg-nonprod: migrator_password and app_password are the preview roles'.
+[ "$role" = nonprod ] && secrets+=(staging_migrator_password staging_app_password)
+for s in "${secrets[@]}"; do
   if [ ! -s "/run/secrets/$s" ]; then
     echo "bootstrap: missing or empty secret /run/secrets/$s" >&2
     exit 1
