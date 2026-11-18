@@ -2,9 +2,19 @@
 .env
 /node_modules/
 
-# React Router
-/.react-router/
-/build/
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Testing
+/coverage/
 
 # Local data
 *.db

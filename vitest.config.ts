@@ -1,9 +1,24 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
-import tsconfigPaths from "vite-tsconfig-paths";
+
+const fromRoot = (path: string) =>
+  fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  resolve: {
+    alias: [
+      // The `@/*` path alias from tsconfig.json.
+      { find: /^@\//, replacement: `${fromRoot("./src")}/` },
+      // `server-only` throws unless it is bundled for React Server Components,
+      // so tests swap it for an empty module.
+      {
+        find: /^server-only$/,
+        replacement: fromRoot("./src/test/server-only.ts"),
+      },
+    ],
+  },
   test: {
-    globals: true,
+    include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.ts"],
+    environment: "node",
   },
 });
