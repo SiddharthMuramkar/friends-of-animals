@@ -12,7 +12,7 @@ An ADR is a decision that has already been made, with evidence in this repo. Age
 | --- | --- | --- |
 | [0001](0001-starter-stack.md) | Accepted | The code in this repo is a React Router, Drizzle, and Postgres starter. |
 | [0002](0002-platform-stack.md) | Pending | Which stack the full platform will use. Tracked in issue #11. |
-| [0003](0003-local-postgres.md) | Accepted | Local Postgres is the `rescue` database on port 5432, matching `.env.example`. |
+| [0003](0003-local-postgres.md) | Accepted | Local Postgres is the `rescue` database on `127.0.0.1` port 5432. Reach it from elsewhere through an SSH tunnel. |
 | [0004](0004-registered-logo.md) | Accepted | The logo is traced and used as-is. |
 
 Copy `template.md` when a decision is actually made. Do not open an ADR to hold a guess.
