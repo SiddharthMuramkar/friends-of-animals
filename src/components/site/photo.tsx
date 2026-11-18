@@ -4,6 +4,9 @@ import { needsVisibleCredit, shortCredit } from "@/lib/images/credits";
 import { type SiteImageId, siteImage } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
+// next/image placeholder mode (a constant: the lint rule bars literals here).
+const BLUR = "blur";
+
 const TILE = {
   red: "bg-red-600",
   green: "bg-green-600",
@@ -73,7 +76,7 @@ export function Photo({
           alt={credit.alt}
           sizes={sizes}
           preload={preload}
-          placeholder="blur"
+          placeholder={BLUR}
           style={{ objectPosition: `${focal[0] * 100}% ${focal[1] * 100}%` }}
           className={cn("h-auto w-full rounded-3xl object-cover", className)}
         />

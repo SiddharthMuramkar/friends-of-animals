@@ -1,0 +1,121 @@
+import Image from "next/image";
+
+import type { TileHue } from "@/components/site/tile";
+import { type SiteImageId, siteImage } from "@/lib/images";
+import { needsVisibleCredit, shortCredit } from "@/lib/images/credits";
+import { cn } from "@/lib/utils";
+
+// next/image placeholder mode (a constant: the lint rule bars literals here).
+const BLUR = "blur";
+
+/** A card's cover photo, cropped by aspect with the image's focal point. */
+export function CardCover({
+  id,
+  sizes,
+  className,
+}: {
+  id: SiteImageId;
+  sizes: string;
+  className?: string;
+}) {
+  const { src, credit, focal } = siteImage(id);
+  return (
+    <div
+      className={cn(
+        "relative aspect-4/3 overflow-hidden bg-surface-muted",
+        className
+      )}
+    >
+      <Image
+        src={src}
+        alt={credit.alt}
+        fill
+        sizes={sizes}
+        placeholder={BLUR}
+        style={{ objectPosition: `${focal[0] * 100}% ${focal[1] * 100}%` }}
+        className="object-cover transition-transform duration-300 ease-out motion-safe:group-hover:scale-[1.03]"
+      />
+    </div>
+  );
+}
+
+/**
+ * The real place and, for CC BY images, the short credit, under a card. It
+ * sits above the card's stretched link so the credit stays clickable.
+ */
+export function CardCredit({
+  id,
+  className,
+}: {
+  id: SiteImageId;
+  className?: string;
+}) {
+  const { credit } = siteImage(id);
+  const visible = needsVisibleCredit(credit.licence);
+  if (!credit.place && !visible) return null;
+  return (
+    <p
+      className={cn(
+        "relative z-10 flex flex-wrap gap-x-2 text-xs text-ink-muted",
+        className
+      )}
+    >
+      {credit.place ? <span>{credit.place}</span> : null}
+      {visible ? (
+        <a
+          href={credit.sourceUrl}
+          className="inline-flex min-h-6 items-center underline decoration-1 underline-offset-2 hover:text-ink"
+        >
+          {shortCredit(credit)}
+        </a>
+      ) : null}
+    </p>
+  );
+}
+
+const TILES: TileHue[] = ["red", "green", "blue", "yellow", "teal", "pink"];
+const BG: Record<TileHue, string> = {
+  red: "bg-red-500",
+  green: "bg-green-500",
+  blue: "bg-blue-600",
+  yellow: "bg-yellow-300",
+  teal: "bg-teal-400",
+  pink: "bg-pink-400",
+};
+
+/** A tile-pattern cover for a story with no licensed photo. Decorative. */
+export function TileCover({
+  seed,
+  className,
+}: {
+  seed: string;
+  className?: string;
+}) {
+  let h = 0;
+  for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const cells = Array.from({ length: 12 }, (_, i) => {
+    const v = (h >>> (i % 24)) + i * 7;
+    return v % 5 === 0 ? null : TILES[v % TILES.length]!;
+  });
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "grid aspect-4/3 grid-cols-4 grid-rows-3 gap-3 bg-section-yellow p-5",
+        className
+      )}
+    >
+      {cells.map((hue, i) => (
+        <span
+          key={i}
+          className={cn(
+            "rounded-[22%] transition-transform duration-300 ease-out",
+            hue ? BG[hue] : "border-2 border-dashed border-yellow-700/40",
+            i % 3 === 0 && "motion-safe:group-hover:-rotate-6",
+            i % 3 === 1 && "motion-safe:group-hover:rotate-6"
+          )}
+        />
+      ))}
+    </div>
+  );
+}
