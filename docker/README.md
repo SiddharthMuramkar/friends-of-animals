@@ -175,6 +175,10 @@ Roles and databases (`postgres/bootstrap/`):
   `template1`, and USAGE on `public` in every FOA database. New schemas need
   `GRANT USAGE ON SCHEMA ... TO foa_app` in their migration. Re-running the
   bootstrap never re-grants on existing tables (a migration may narrow one).
+- `pg_stat_statements.track_utility = off` on both servers (and `SET` again
+  in each bootstrap file): pg_stat_statements keeps a utility statement's text
+  as typed, so the bootstrap's `ALTER ROLE ... PASSWORD` would land there. The
+  bootstrap also turns statement logging off for its own session.
 - Re-apply: `scripts/db-bootstrap.sh`. Passwords are set only when a role has
   none; after rotating a secret file run `scripts/bootstrap-secrets.sh`,
   `scripts/db-bootstrap.sh --set-passwords`, `docker restart foa-pgbouncer`

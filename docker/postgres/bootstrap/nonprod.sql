@@ -8,6 +8,9 @@
 --
 -- No production data ever lands here (spec §13.8).
 
+-- Passwords below: keep them out of pg_stat_statements and the server log
+-- (see common.sql).
+SET pg_stat_statements.track_utility = off;
 SET client_min_messages = warning;
 SET log_statement = 'none';
 SET log_min_error_statement = 'panic';
