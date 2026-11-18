@@ -27,16 +27,16 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
 Host side: systemd units in `systemd/` (firewall, certificate renewal,
 backups, preview sweep) and CrowdSec (`crowdsec/`).
 
-| Path                                                         | What                                                      |
-| ------------------------------------------------------------ | --------------------------------------------------------- |
-| `compose.yml`                                                | The stack                                                 |
-| `postgres/{prod,nonprod}.conf`, `pg_hba.{prod,nonprod}.conf` | Server config, mounted read-only                          |
-| `postgres/pgbackrest.conf`                                   | pgBackRest (pg-prod)                                      |
-| `postgres/bootstrap/*.sql`, `initdb/`                        | Roles, databases, privileges (idempotent)                 |
-| `pgbouncer/pgbouncer.ini`                                    | Routing, pooling, TLS                                     |
-| `scripts/`                                                   | Host scripts (all idempotent, run as root)                |
-| `systemd/`                                                   | Units, linked into `/etc/systemd/system`                  |
-| `crowdsec/`                                                  | CrowdSec apt source, acquisition, local parser, whitelist |
+| Path                                                         | What                                                        |
+| ------------------------------------------------------------ | ----------------------------------------------------------- |
+| `compose.yml`                                                | The stack                                                   |
+| `postgres/{prod,nonprod}.conf`, `pg_hba.{prod,nonprod}.conf` | Server config (`postgres/` is mounted at `/etc/postgresql`) |
+| `postgres/pgbackrest.conf`                                   | pgBackRest (pg-prod, `PGBACKREST_CONFIG`)                   |
+| `postgres/bootstrap/*.sql`, `initdb/`                        | Roles, databases, privileges (idempotent)                   |
+| `pgbouncer/pgbouncer.ini`                                    | Routing, pooling, TLS                                       |
+| `scripts/`                                                   | Host scripts (all idempotent, run as root)                  |
+| `systemd/`                                                   | Units, linked into `/etc/systemd/system`                    |
+| `crowdsec/`                                                  | CrowdSec apt source, acquisition, local parser, whitelist   |
 
 ## Secrets
 
@@ -130,8 +130,12 @@ off-site repo2; the local repo1 dies with the old VPS.
 Updating: `git -C /srv/foa pull`, then `docker compose -f
 /srv/foa/docker/compose.yml up -d --build --wait` and, if units changed,
 `systemctl daemon-reload`. Config-only PgBouncer changes: `docker kill -s HUP
-foa-pgbouncer`. Postgres config changes: `docker restart foa-pg-prod` (or
-`SELECT pg_reload_conf()` for reloadable settings).
+foa-pgbouncer`. Postgres config changes: `SELECT pg_reload_conf()` (or
+`docker restart foa-pg-prod` for settings that need a server start);
+`pgbackrest.conf` is read by every pgBackRest command. That works because
+the config is mounted as directories (`postgres/` at `/etc/postgresql`,
+`pgbouncer/` at `/etc/pgbouncer/foa`): git replaces a file on checkout, and a
+single-file bind mount would go on showing the container the old one.
 
 ## Routing and roles
 

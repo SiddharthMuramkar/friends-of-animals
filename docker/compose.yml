@@ -48,12 +48,17 @@ services:
     <<: *postgres
     container_name: foa-pg-prod
     hostname: pg-prod
-    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    command: ["postgres", "-c", "config_file=/etc/postgresql/prod.conf"]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       FOA_PG_ROLE: prod
+      # pgBackRest reads its config from the same directory mount. Naming a
+      # config file turns off the default include path, so name that too:
+      # conf.d/cipher.conf holds the repository passphrase.
+      PGBACKREST_CONFIG: /etc/postgresql/pgbackrest.conf
+      PGBACKREST_CONFIG_INCLUDE_PATH: /etc/pgbackrest/conf.d
     secrets:
       - source: pg_prod_postgres_password
         target: postgres_password
@@ -71,9 +76,10 @@ services:
       - pg-prod-data:/var/lib/postgresql
       # pgBackRest repo1 (local POSIX) on its own volume, never the data volume.
       - pgbackrest-repo:/var/lib/pgbackrest
-      - ./postgres/prod.conf:/etc/postgresql/postgresql.conf:ro
-      - ./postgres/pg_hba.prod.conf:/etc/postgresql/pg_hba.conf:ro
-      - ./postgres/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro
+      # Config as a directory, never as single files: git replaces a file on
+      # checkout (a new inode) and a single-file bind mount keeps showing the
+      # old one, so a reload after `git pull` would change nothing.
+      - ./postgres:/etc/postgresql:ro
       - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
       - ./postgres/bootstrap:/opt/foa/bootstrap:ro
     shm_size: 1g
@@ -87,7 +93,7 @@ services:
     <<: *postgres
     container_name: foa-pg-nonprod
     hostname: pg-nonprod
-    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    command: ["postgres", "-c", "config_file=/etc/postgresql/nonprod.conf"]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
@@ -109,8 +115,7 @@ services:
         target: pgbouncer_auth_password
     volumes:
       - pg-nonprod-data:/var/lib/postgresql
-      - ./postgres/nonprod.conf:/etc/postgresql/postgresql.conf:ro
-      - ./postgres/pg_hba.nonprod.conf:/etc/postgresql/pg_hba.conf:ro
+      - ./postgres:/etc/postgresql:ro # a directory, see pg-prod
       - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
       - ./postgres/bootstrap:/opt/foa/bootstrap:ro
     shm_size: 512m
@@ -140,8 +145,10 @@ services:
       # through auth_query.
       - source: pgbouncer_userlist
         target: pgbouncer_userlist.txt
+    command: ["/etc/pgbouncer/foa/pgbouncer.ini"]
     volumes:
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      # A directory, not the file, so RELOAD sees `git pull` (see pg-prod).
+      - ./pgbouncer:/etc/pgbouncer/foa:ro
       # Let's Encrypt cert + key, installed by scripts/install-cert.sh. A
       # RELOAD (SIGHUP) makes new connections use renewed files.
       - /etc/foa/pgbouncer-tls:/etc/pgbouncer/tls:ro
