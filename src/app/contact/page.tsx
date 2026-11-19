@@ -1,7 +1,7 @@
 import { Mail, MapPin, Phone, ShieldAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 import type { ReactNode } from "react";
 
 import { ButtonLink } from "@/components/site/button-link";
@@ -94,9 +94,9 @@ export default async function Page() {
                   ),
                 })}
               </p>
-              <Link href={ROUTES.safeguarding.path} className={LINK}>
+              <SiteLink href={ROUTES.safeguarding.path} className={LINK}>
                 {t("safety.link")}
-              </Link>
+              </SiteLink>
             </aside>
           </div>
           {/* On phones a half-width print, smaller than the safety note's
@@ -180,9 +180,9 @@ export default async function Page() {
                 <p className="mt-1.5 text-ink">
                   {t("topics.safeguarding.body")}
                 </p>
-                <Link href={ROUTES.safeguarding.path} className={LINK}>
+                <SiteLink href={ROUTES.safeguarding.path} className={LINK}>
                   {t("topics.safeguarding.link")}
-                </Link>
+                </SiteLink>
               </li>
             </ul>
           </div>

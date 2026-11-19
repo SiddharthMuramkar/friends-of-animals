@@ -1,7 +1,7 @@
 import { CircleCheck, CircleX } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 
 import { ButtonLink } from "@/components/site/button-link";
 import { ContactFact } from "@/components/site/contact-fact";
@@ -102,12 +102,12 @@ export default async function Page() {
           </section>
         </div>
         <p className="mt-10">
-          <Link
+          <SiteLink
             href={ROUTES.pricing.path}
             className="inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover"
           >
             {t("pricingLink")}
-          </Link>
+          </SiteLink>
         </p>
       </Section>
     </>

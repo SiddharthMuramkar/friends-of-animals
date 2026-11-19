@@ -1,7 +1,7 @@
 import { Clock } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
 import { TileCover } from "@/components/showcase/card-cover";
@@ -121,12 +121,12 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
           <nav aria-label={t("breadcrumb")} className="text-sm">
             <ol className="flex flex-wrap items-center gap-x-2 text-ink-muted">
               <li>
-                <Link
+                <SiteLink
                   href={ROUTES.stories.path}
                   className="inline-flex min-h-6 items-center font-semibold text-link underline underline-offset-2 hover:text-link-hover"
                 >
                   {t("allStories")}
-                </Link>
+                </SiteLink>
               </li>
               <li aria-hidden="true">/</li>
               <li aria-current="page" className="line-clamp-1">
@@ -244,12 +244,12 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
             </li>
           ))}
         </ul>
-        <Link
+        <SiteLink
           href={ROUTES.stories.path}
           className="mt-8 inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-4 hover:text-link-hover"
         >
           {t("allStoriesLink")}
-        </Link>
+        </SiteLink>
       </Section>
     </>
   );

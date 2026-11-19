@@ -1,5 +1,5 @@
 import { getFormatter, getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 
 import { SampleTag } from "@/components/site/sample-tag";
 import { type TileHue, TileMarker } from "@/components/site/tile";
@@ -80,12 +80,12 @@ export async function ImpactCounters({
             "long"
           ),
         })}{" "}
-        <Link
+        <SiteLink
           href={ROUTES.impact.path}
           className="font-semibold text-link underline underline-offset-4 hover:text-link-hover"
         >
           {t("howWeCount")}
-        </Link>
+        </SiteLink>
       </p>
     </div>
   );

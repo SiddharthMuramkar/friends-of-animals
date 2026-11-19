@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
@@ -85,7 +85,7 @@ export default async function NotFound() {
               <ul className="grid gap-3">
                 {WAYS_BACK.map((w) => (
                   <li key={w.key}>
-                    <Link
+                    <SiteLink
                       href={w.href}
                       className="group flex min-h-14 items-center gap-4 rounded-3xl border-2 border-border bg-surface px-5 py-3 shadow-warm transition-[translate,border-color] duration-200 hover:border-ink motion-safe:hover:-translate-y-0.5"
                     >
@@ -102,7 +102,7 @@ export default async function NotFound() {
                         aria-hidden="true"
                         className="size-5 text-ink-muted transition-transform duration-200 motion-safe:group-hover:translate-x-1"
                       />
-                    </Link>
+                    </SiteLink>
                   </li>
                 ))}
               </ul>
