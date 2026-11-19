@@ -78,7 +78,7 @@ export default async function Page() {
         width="wide"
         className="py-12 sm:py-16 lg:py-20"
       >
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14">
           <div>
             <PageHeader
               eyebrow={t("hero.eyebrow")}

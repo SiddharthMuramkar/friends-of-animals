@@ -1,7 +1,7 @@
 import { ArrowDown } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { CompetitionCard } from "@/components/showcase/competition-card";
@@ -51,7 +51,7 @@ export default async function Page() {
   return (
     <>
       <Section hue={HUE} tone="tint" className="pt-10 sm:pt-14">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
           <div>
             <PageHeader
               eyebrow={t("hero.eyebrow")}
@@ -69,7 +69,7 @@ export default async function Page() {
           </div>
           <Photo
             id="art-supplies-flatlay-blue"
-            sizes="(min-width: 1024px) 40vw, 92vw"
+            sizes="(min-width: 1024px) min(40vw, 512px), min(92vw, 512px)"
             preload
             frame="red"
             frameCorner="bottom-right"
@@ -146,12 +146,12 @@ export default async function Page() {
                     </h3>
                     <p className="mt-3 text-ink-muted">{t("endCard.body")}</p>
                   </div>
-                  <Link
+                  <SiteLink
                     href={ROUTES.contact.path}
                     className="inline-flex min-h-11 items-center self-start font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover"
                   >
                     {t("endCard.link")}
-                  </Link>
+                  </SiteLink>
                 </div>
               </li>
             </ul>

@@ -57,16 +57,18 @@ export async function GalleryFrames({ className }: { className?: string }) {
       {FRAMES.map(({ key, Icon, corner, tilt, shape }) => (
         <li key={key} className={cn("relative", tilt)}>
           <div className="rounded-xl bg-surface p-2.5 shadow-warm ring-1 ring-border sm:p-3.5">
+            {/* No overflow-hidden: the aspect ratio is then only a minimum
+                height, so the frame grows to fit a long or spaced label. */}
             <div
               className={cn(
-                "relative grid place-items-center overflow-hidden rounded-md border-2 border-dashed border-border-strong bg-background p-3 text-center",
+                "relative grid place-items-center rounded-md border-2 border-dashed border-border-strong bg-background p-3 text-center",
                 shape
               )}
             >
               <span
                 aria-hidden="true"
                 className={cn(
-                  "absolute top-0 right-0 size-6 rounded-bl-[30%] sm:size-8",
+                  "absolute top-0 right-0 size-6 rounded-tr-[calc(var(--radius-md)-2px)] rounded-bl-[30%] sm:size-8",
                   corner
                 )}
               />

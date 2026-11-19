@@ -2,12 +2,22 @@
 
 import { getStroke } from "perfect-freehand";
 import { Download, Trash2, Undo2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { buttonStyles } from "@/components/site/button-link";
 import { cn } from "@/lib/utils";
 
-import { moveCursor, outlineToPath, type Point } from "./doodle-math";
+import {
+  bitmapSize,
+  moveCursor,
+  outlineToPath,
+  PAD,
+  PAD_CENTRE,
+  type Point,
+  strokeOwner,
+  toPad,
+  toPercent,
+} from "./doodle-math";
 
 export type DoodleLabels = {
   canvas: string;
@@ -32,6 +42,7 @@ export type DoodleLabels = {
 
 type ColourId = "ink" | "red" | "green" | "blue" | "yellow";
 type StampId = "paw" | "heart" | "leaf";
+/** x and y in pad units (doodle-math's PAD), then pressure. */
 type Pt = [number, number, number];
 type Op =
   | { kind: "stroke"; color: string; pen: boolean; pts: Pt[] }
@@ -45,14 +56,24 @@ const COLOURS: [ColourId, string][] = [
   ["yellow", "#E9A400"],
 ];
 const STAMPS: StampId[] = ["paw", "heart", "leaf"];
-const MAX_DPR = 2;
-const MAX_PIXELS = 2_500_000;
-const STAMP_SIZE = 44;
+// Strokes keep this width on screen (CSS px) at any pad size; stamps are
+// in pad units and scale with the drawing.
+const STROKE_PX = 15;
+const STAMP_SIZE = 80;
 const PAPER = "#FFFFFF";
+// Disabled-looking controls that stay focusable (aria-disabled, not
+// disabled), so focus never drops to <body> when the drawing empties.
+const ARIA_DISABLED =
+  "aria-disabled:pointer-events-none aria-disabled:opacity-60";
 
-function strokePath(op: Extract<Op, { kind: "stroke" }>): Path2D {
+/** STROKE_PX in pad units, for a pad shown `cssWidth` CSS px wide. */
+function strokeSize(cssWidth: number) {
+  return cssWidth > 0 ? (STROKE_PX * PAD.width) / cssWidth : STROKE_PX;
+}
+
+function strokePath(op: Extract<Op, { kind: "stroke" }>, size: number) {
   const outline = getStroke(op.pts, {
-    size: 12,
+    size,
     thinning: 0.5,
     smoothing: 0.5,
     streamline: 0.5,
@@ -93,7 +114,7 @@ function drawStamp(
   ctx.fill();
   if (op.stamp === "leaf") {
     ctx.strokeStyle = PAPER;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(0, -s * 0.7);
     ctx.lineTo(0, s * 0.7);
@@ -102,28 +123,53 @@ function drawStamp(
   ctx.restore();
 }
 
-function render(
-  ctx: CanvasRenderingContext2D,
-  ops: Op[],
-  w: number,
-  h: number
-) {
-  ctx.fillStyle = PAPER;
-  ctx.fillRect(0, 0, w, h);
-  for (const op of ops) {
-    if (op.kind === "stroke") {
-      ctx.fillStyle = op.color;
-      ctx.fill(strokePath(op));
-    } else drawStamp(ctx, op);
-  }
+function drawOp(ctx: CanvasRenderingContext2D, op: Op, size: number) {
+  if (op.kind === "stroke") {
+    ctx.fillStyle = op.color;
+    ctx.fill(strokePath(op, size));
+  } else drawStamp(ctx, op);
 }
 
-/** The 404 doodle pad: vectors in memory, PNG on device. */
+/** Paper and every op, on a context already scaled to pad units. */
+function render(ctx: CanvasRenderingContext2D, ops: Op[], size: number) {
+  ctx.fillStyle = PAPER;
+  ctx.fillRect(0, 0, PAD.width, PAD.height);
+  for (const op of ops) drawOp(ctx, op, size);
+}
+
+/** The canvas's content box (inside its border), in client px. */
+function padBox(c: HTMLCanvasElement) {
+  const r = c.getBoundingClientRect();
+  return {
+    left: r.left + c.clientLeft,
+    top: r.top + c.clientTop,
+    width: c.clientWidth,
+    height: c.clientHeight,
+  };
+}
+
+type PointerSample = {
+  clientX: number;
+  clientY: number;
+  pressure: number;
+  pointerType: string;
+};
+
+/**
+ * The 404 doodle pad: vectors in memory, PNG on device. Ops are stored in
+ * pad units and drawn scaled, so the drawing survives a resize or rotation.
+ * Committed ops live on an offscreen layer, so a frame only copies that
+ * layer and draws the live stroke, however big the drawing gets.
+ */
 export function DoodlePad({ labels }: { labels: DoodleLabels }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const layerRef = useRef<HTMLCanvasElement | null>(null);
+  const frame = useRef(0);
+  // Stroke size in pad units for the pad's current width (see resize).
+  const size = useRef(STROKE_PX);
   const ops = useRef<Op[]>([]);
   const live = useRef<Extract<Op, { kind: "stroke" }> | null>(null);
-  const size = useRef({ width: 0, height: 0 });
+  const [stroke] = useState(strokeOwner);
   const [tool, setTool] = useState<"draw" | "stamp">("draw");
   const [colour, setColour] = useState<ColourId>("ink");
   const [stamp, setStamp] = useState<StampId>("paw");
@@ -133,54 +179,100 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
   const [confirming, setConfirming] = useState(false);
   const [status, setStatus] = useState("");
   const keepRef = useRef<HTMLButtonElement>(null);
+  const clearRef = useRef<HTMLButtonElement>(null);
   const surfaceRef = useRef<HTMLButtonElement>(null);
+  const wasConfirming = useRef(false);
 
-  // The launcher button is gone once the pad loads: move focus to the pad.
-  useEffect(() => {
+  const hex = COLOURS.find(([id]) => id === colour)![1];
+
+  /** Redraws the committed ops onto the layer: on resize, undo and clear. */
+  function rebuildLayer() {
+    const c = canvasRef.current;
+    if (!c) return;
+    const layer = (layerRef.current ??= document.createElement("canvas"));
+    layer.width = c.width;
+    layer.height = c.height;
+    const ctx = layer.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(c.width / PAD.width, 0, 0, c.height / PAD.height, 0, 0);
+    render(ctx, ops.current, size.current);
+  }
+
+  function paint() {
+    frame.current = 0;
+    const c = canvasRef.current;
+    const ctx = c?.getContext("2d");
+    const layer = layerRef.current;
+    if (!c || !ctx || !layer) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(layer, 0, 0);
+    if (live.current) {
+      ctx.setTransform(c.width / PAD.width, 0, 0, c.height / PAD.height, 0, 0);
+      drawOp(ctx, live.current, size.current);
+    }
+  }
+
+  /** At most one paint per animation frame. */
+  function schedulePaint() {
+    if (!frame.current) frame.current = requestAnimationFrame(paint);
+  }
+
+  /** Sizes the bitmap to the canvas's box on screen and redraws. */
+  function resize() {
+    const c = canvasRef.current;
+    if (!c) return;
+    const box = padBox(c);
+    const bitmap = bitmapSize(box, window.devicePixelRatio);
+    const nextSize = strokeSize(box.width);
+    if (
+      size.current === nextSize &&
+      c.width === bitmap.width &&
+      c.height === bitmap.height &&
+      layerRef.current
+    )
+      return;
+    // Redraw every stroke at the new width, so a rotation keeps them the
+    // same thickness on screen.
+    size.current = nextSize;
+    c.width = bitmap.width;
+    c.height = bitmap.height;
+    rebuildLayer();
+    paint();
+  }
+
+  // Measure before focusing, so the canvas has its size before the first
+  // keyboard stamp. The launcher button is gone once the pad loads: move
+  // focus to the pad.
+  useLayoutEffect(() => {
+    resize();
     surfaceRef.current?.focus();
   }, []);
 
   useEffect(() => {
-    if (confirming) keepRef.current?.focus();
-  }, [confirming]);
-  const hex = COLOURS.find(([id]) => id === colour)![1];
-
-  function paint() {
-    const c = canvasRef.current;
-    const ctx = c?.getContext("2d");
-    if (!c || !ctx) return;
-    const { width, height } = size.current;
-    render(
-      ctx,
-      live.current ? [...ops.current, live.current] : ops.current,
-      width,
-      height
-    );
-  }
-
-  useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const ro = new ResizeObserver(([entry]) => {
-      if (!entry) return;
-      const { width, height } = entry.contentRect;
-      let dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
-      if (width * height * dpr * dpr > MAX_PIXELS)
-        dpr = Math.sqrt(MAX_PIXELS / (width * height));
-      c.width = Math.round(width * dpr);
-      c.height = Math.round(height * dpr);
-      size.current = { width, height };
-      c.getContext("2d")?.setTransform(dpr, 0, 0, dpr, 0, 0);
-      paint();
-    });
+    const ro = new ResizeObserver(() => resize());
     ro.observe(c);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(frame.current);
+    };
   }, []);
+
+  // Into the confirm step: focus "Keep it". Out of it, by either button
+  // (both unmount): focus Clear, so focus never drops to <body>.
+  useEffect(() => {
+    if (confirming) keepRef.current?.focus();
+    else if (wasConfirming.current) clearRef.current?.focus();
+    wasConfirming.current = confirming;
+  }, [confirming]);
 
   function commit(op: Op) {
     ops.current.push(op);
+    const ctx = layerRef.current?.getContext("2d");
+    if (ctx) drawOp(ctx, op, size.current);
     setCount(ops.current.length);
-    paint();
+    schedulePaint();
   }
 
   function placeStamp(x: number, y: number) {
@@ -188,103 +280,92 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
     setStatus(labels.placed.replace("{stamp}", labels.stamps[stamp]));
   }
 
-  function point(
-    e: {
-      clientX: number;
-      clientY: number;
-      pressure: number;
-      pointerType: string;
-    },
-    c: HTMLCanvasElement
-  ): Pt {
-    const r = c.getBoundingClientRect();
-    return [
-      e.clientX - r.left,
-      e.clientY - r.top,
-      e.pointerType === "pen" ? e.pressure : 0.5,
-    ];
+  function point(e: PointerSample, box: ReturnType<typeof padBox>): Pt {
+    const { x, y } = toPad(e.clientX, e.clientY, box);
+    return [x, y, e.pointerType === "pen" ? e.pressure : 0.5];
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!e.isPrimary) return;
     const c = e.currentTarget;
-    const [x, y] = point(e.nativeEvent, c);
     if (tool === "stamp") {
+      if (!e.isPrimary) return;
+      const [x, y] = point(e.nativeEvent, padBox(c));
       setCursor({ x, y });
       placeStamp(x, y);
       return;
     }
+    // Only the first finger draws; others are ignored until it lifts.
+    if (!stroke.claim(e)) return;
     c.setPointerCapture(e.pointerId);
     live.current = {
       kind: "stroke",
       color: hex,
       pen: e.pointerType === "pen",
-      pts: [point(e.nativeEvent, c)],
+      pts: [point(e.nativeEvent, padBox(c))],
     };
+    schedulePaint();
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!live.current) return;
+    if (!live.current || !stroke.owns(e.pointerId)) return;
+    const box = padBox(e.currentTarget);
     const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent];
-    for (const ev of events) live.current.pts.push(point(ev, e.currentTarget));
-    requestAnimationFrame(paint);
+    for (const ev of events) live.current.pts.push(point(ev, box));
+    schedulePaint();
   }
 
-  function onPointerUp() {
-    if (!live.current) return;
+  /** Pointer up, cancel or lost capture: ends the stroke if it owns it. */
+  function onPointerEnd(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!stroke.release(e.pointerId)) return;
     const op = live.current;
     live.current = null;
-    commit(op);
-  }
-
-  function centre(): Point {
-    return { x: size.current.width / 2, y: size.current.height / 2 };
+    if (op) commit(op);
   }
 
   function stampAtCursor() {
-    const at = cursor ?? centre();
+    const at = cursor ?? PAD_CENTRE;
     setCursor(at);
     placeStamp(at.x, at.y);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
-    const next = moveCursor(
-      cursor ?? centre(),
-      e.key,
-      e.shiftKey,
-      size.current
-    );
+    const next = moveCursor(cursor ?? PAD_CENTRE, e.key, e.shiftKey);
     if (next) {
       e.preventDefault();
       setCursor(next);
     }
   }
 
+  // Undo, Clear and Download stay focusable when there is nothing to act
+  // on (aria-disabled), so each handler checks for itself.
   function undo() {
     if (!ops.current.length) return;
     ops.current.pop();
+    rebuildLayer();
     setCount(ops.current.length);
     setStatus(labels.undone);
-    paint();
+    schedulePaint();
   }
 
   function clear() {
     ops.current = [];
+    rebuildLayer();
     setCount(0);
     setConfirming(false);
     setStatus(labels.cleared);
-    paint();
+    schedulePaint();
   }
 
   function download() {
-    const { width, height } = size.current;
+    if (!ops.current.length) return;
+    // The whole drawing at the pad's logical size, whatever the screen.
     const c = document.createElement("canvas");
-    c.width = width * 2;
-    c.height = height * 2;
+    c.width = PAD.width;
+    c.height = PAD.height;
     const ctx = c.getContext("2d");
     if (!ctx) return;
-    ctx.scale(2, 2);
-    render(ctx, ops.current, width, height);
+    // Strokes as thick, relative to the pad, as they look on screen.
+    render(ctx, ops.current, size.current);
     c.toBlob((blob) => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
@@ -368,14 +449,17 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
         </fieldset>
       </div>
 
-      <div className="relative">
+      {/* At most as tall as the screen below the sticky header, so the
+          whole pad fits on a landscape phone. */}
+      <div className="relative mx-auto w-[min(100%,calc((100dvh-var(--header-height)-2rem)*4/3))]">
         <canvas
           ref={canvasRef}
           aria-hidden="true"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerEnd}
+          onLostPointerCapture={onPointerEnd}
           className={cn(
             "block aspect-4/3 w-full touch-none rounded-3xl border-2 border-border-strong bg-white",
             tool === "stamp" ? "cursor-copy" : "cursor-crosshair"
@@ -391,17 +475,22 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
           onClick={stampAtCursor}
           onFocus={() => {
             setFocused(true);
-            setCursor((c) => c ?? centre());
+            setCursor((c) => c ?? PAD_CENTRE);
           }}
           onBlur={() => setFocused(false)}
           className="pointer-events-none absolute inset-0 rounded-3xl focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
         />
         {focused && cursor ? (
+          // Inside the canvas border, where pad units map to the bitmap.
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute size-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-ink"
-            style={{ left: cursor.x, top: cursor.y }}
-          />
+            className="pointer-events-none absolute inset-0.5"
+          >
+            <span
+              className="absolute size-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-ink"
+              style={toPercent(cursor)}
+            />
+          </span>
         ) : null}
       </div>
       <p id="doodle-hint" className="text-sm text-ink-muted">
@@ -412,8 +501,8 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
         <button
           type="button"
           onClick={undo}
-          disabled={count === 0}
-          className={buttonStyles({ variant: "secondary" })}
+          aria-disabled={count === 0}
+          className={cn(buttonStyles({ variant: "secondary" }), ARIA_DISABLED)}
         >
           <Undo2 aria-hidden="true" />
           {labels.undo}
@@ -441,10 +530,16 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
           </span>
         ) : (
           <button
+            ref={clearRef}
             type="button"
-            onClick={() => setConfirming(true)}
-            disabled={count === 0}
-            className={buttonStyles({ variant: "secondary" })}
+            onClick={() => {
+              if (count > 0) setConfirming(true);
+            }}
+            aria-disabled={count === 0}
+            className={cn(
+              buttonStyles({ variant: "secondary" }),
+              ARIA_DISABLED
+            )}
           >
             <Trash2 aria-hidden="true" />
             {labels.clear}
@@ -453,8 +548,8 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
         <button
           type="button"
           onClick={download}
-          disabled={count === 0}
-          className={buttonStyles()}
+          aria-disabled={count === 0}
+          className={cn(buttonStyles(), ARIA_DISABLED)}
         >
           <Download aria-hidden="true" />
           {labels.download}

@@ -32,11 +32,11 @@
         },
         "statesReached": {
           "name": "States and union territories",
-          "def": "Places with at least one participant or school."
+          "def": "States and union territories where at least one counted participant lives."
         },
         "artworksShowcased": {
           "name": "Works shown in public",
-          "def": "Entries shown in the gallery or awareness campaigns, with consent."
+          "def": "Works live in the public gallery, shown with consent."
         },
         "certificatesIssued": {
           "name": "Certificates",

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 import { useEffect } from "react";
 
 import { buttonStyles } from "@/components/site/button-link";
@@ -49,9 +49,9 @@ export default function ErrorPage({
           >
             {m.retry}
           </button>
-          <Link href="/" className={buttonStyles({ variant: "secondary" })}>
+          <SiteLink href="/" className={buttonStyles({ variant: "secondary" })}>
             {m.home}
-          </Link>
+          </SiteLink>
         </div>
       </div>
     </section>

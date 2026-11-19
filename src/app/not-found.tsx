@@ -1,17 +1,21 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
-import { Photo } from "@/components/site/photo";
 import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
 
-import { DoodleLauncher } from "./_not-found/doodle-launcher";
 import type { DoodleLabels } from "./_not-found/doodle-pad";
+import { PawTrail } from "./_not-found/paw-trail";
+
+// Through a server slot so the launcher is its own chunk, loaded only when
+// this page renders; it is still server-rendered, button text included.
+const DoodleLauncher = dynamic(() => import("./_not-found/doodle-slot"));
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("notFound");
@@ -28,7 +32,12 @@ const WAYS_BACK: {
   { href: ROUTES.awareness.path, key: "awareness", tile: "teal" },
 ];
 
-/** A 404 you can draw on. Unmatched URLs get a real 404. */
+/**
+ * A 404 you can draw on. Unmatched URLs get a real 404. Next.js sends this
+ * tree, and loads its client components, with every route, so keep it light:
+ * no next/image, and the launcher loads lazily (#45). The pad's own code
+ * loads only after the tap.
+ */
 export default async function NotFound() {
   const t = await getTranslations("notFound");
   const p = await getTranslations("notFound.pad");
@@ -81,7 +90,7 @@ export default async function NotFound() {
               <ul className="grid gap-3">
                 {WAYS_BACK.map((w) => (
                   <li key={w.key}>
-                    <Link
+                    <SiteLink
                       href={w.href}
                       className="group flex min-h-14 items-center gap-4 rounded-3xl border-2 border-border bg-surface px-5 py-3 shadow-warm transition-[translate,border-color] duration-200 hover:border-ink motion-safe:hover:-translate-y-0.5"
                     >
@@ -98,21 +107,13 @@ export default async function NotFound() {
                         aria-hidden="true"
                         className="size-5 text-ink-muted transition-transform duration-200 motion-safe:group-hover:translate-x-1"
                       />
-                    </Link>
+                    </SiteLink>
                   </li>
                 ))}
               </ul>
             </nav>
           </div>
-          <Photo
-            id="puppy-ganden-peeking"
-            sizes="(min-width: 768px) 400px, 92vw"
-            preload
-            frame="blue"
-            frameCorner="top-right"
-            caption={t("photoCaption")}
-            className="aspect-4/5"
-          />
+          <PawTrail className="mx-auto hidden md:block" />
         </div>
       </Section>
 
@@ -128,6 +129,8 @@ export default async function NotFound() {
           <DoodleLauncher
             start={t("start")}
             loading={t("loading")}
+            loadFailed={t("loadFailed")}
+            retry={t("retry")}
             labels={labels}
           />
         </div>

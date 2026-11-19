@@ -2,7 +2,7 @@
 # for the local Compose stack and any self-hosted fallback.
 #
 #   docker compose up -d --build --wait      # db + migrate + app, see docker-compose.yml
-#   docker build -t foa-app .                # runner (default target)
+#   docker build --build-arg APP_URL=https://shipped-it.dev -t foa-app .   # runner (default target)
 #   docker build --target migrate -t foa-migrate .
 #
 # Targets:
@@ -31,9 +31,15 @@ FROM base AS build
 # to http://localhost:3000.
 ARG APP_URL=""
 ENV APP_URL=${APP_URL}
+# next.config.ts bakes the security headers (HSTS, X-Robots-Tag) from APP_ENV
+# at build time, so an unset APP_ENV would ship non-production headers.
+# Production needs APP_URL too; Compose passes local for both.
+ARG APP_ENV=production
+ENV APP_ENV=${APP_ENV}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm build
+# check:build fails the image on syntax iOS 16.0 can't parse (#51).
+RUN pnpm build && pnpm check:build
 
 # ---- migrate: one-shot migration runner ---------------------------------------
 FROM base AS migrate
@@ -51,7 +57,10 @@ CMD ["pnpm", "db:migrate"]
 
 # ---- runner: the standalone server --------------------------------------------
 FROM ${NODE_IMAGE} AS runner
-ENV NODE_ENV=production \
+# The same APP_ENV at runtime as the headers were built with.
+ARG APP_ENV=production
+ENV APP_ENV=${APP_ENV} \
+    NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
     PORT=3000

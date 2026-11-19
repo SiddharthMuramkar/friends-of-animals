@@ -1,19 +1,24 @@
 "use client";
 
-import Link, { useLinkStatus } from "next/link";
+import { useLinkStatus } from "next/link";
 import type { ComponentProps } from "react";
 
+import { SiteLink } from "@/components/site/site-link";
 import { cn } from "@/lib/utils";
 
-/** Fixed-size dot that fades in while the link's route loads. */
-function PendingDot() {
+/**
+ * Fixed-size dot that fades in while the link's route loads. Render it
+ * inside a <Link>; `className` places it.
+ */
+export function PendingDot({ className }: { className?: string }) {
   const { pending } = useLinkStatus();
   return (
     <span
       aria-hidden="true"
       className={cn(
         "size-1.5 shrink-0 rounded-full bg-current transition-opacity",
-        pending ? "opacity-100 delay-100" : "opacity-0"
+        pending ? "opacity-100 delay-100" : "opacity-0",
+        className
       )}
     />
   );
@@ -33,9 +38,12 @@ export function NavLink({
   className,
   children,
   ...props
-}: ComponentProps<typeof Link> & { href: string; pathname: string | null }) {
+}: ComponentProps<typeof SiteLink> & {
+  href: string;
+  pathname: string | null;
+}) {
   return (
-    <Link
+    <SiteLink
       href={href}
       aria-current={isCurrent(href, pathname) ? "page" : undefined}
       className={cn("inline-flex items-center gap-2", className)}
@@ -43,6 +51,6 @@ export function NavLink({
     >
       {children}
       <PendingDot />
-    </Link>
+    </SiteLink>
   );
 }

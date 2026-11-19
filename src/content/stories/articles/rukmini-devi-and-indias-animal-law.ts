@@ -154,8 +154,8 @@ export const article = {
     },
     {
       id: "f3",
-      text: "Rajya Sabha debates, 2 March 1960",
-      url: "https://rsdebate.nic.in/bitstream/123456789/561341/1/PD_28_02031960_18_p2438_p2548_10.pdf",
+      text: "Rajya Sabha debates, 2 March 1960 (Internet Archive copy)",
+      url: "https://web.archive.org/web/20251207001235/https://rsdebate.nic.in/bitstream/123456789/561341/1/PD_28_02031960_18_p2438_p2548_10.pdf",
     },
     {
       id: "f4",

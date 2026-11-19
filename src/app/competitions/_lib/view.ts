@@ -72,13 +72,20 @@ export type TimelineStep = {
   at: string;
   /** For a window (making the work): when it ends. */
   end?: string;
+  /** Shown with its time (registration opens 09:00, closes 23:59 IST). */
+  timed: boolean;
   past: boolean;
 };
+
+const TIMED: ReadonlySet<TimelineKind> = new Set([
+  "registrationOpens",
+  "registrationCloses",
+]);
 
 /** Every public date, in order; steps before `now` are marked past. */
 export function timeline(c: Competition, now?: Date): TimelineStep[] {
   const t = now?.getTime() ?? Number.NEGATIVE_INFINITY;
-  const steps: Omit<TimelineStep, "past">[] = [
+  const steps: Omit<TimelineStep, "past" | "timed">[] = [
     { kind: "registrationOpens", at: c.registrationOpensAt },
     { kind: "registrationCloses", at: c.registrationClosesAt },
     { kind: "confirmation", at: c.confirmationDeadline },
@@ -89,6 +96,7 @@ export function timeline(c: Competition, now?: Date): TimelineStep[] {
     steps.push({ kind: "shortlistCloses", at: c.shortlistSubmissionClosesAt });
   return steps.map((s) => ({
     ...s,
+    timed: TIMED.has(s.kind),
     past: Date.parse(s.end ?? s.at) < t,
   }));
 }
@@ -101,6 +109,8 @@ export type FileRule = {
   maxMb: number;
   /** Shortest long edge (short edge for video), in pixels. */
   minPx?: number;
+  /** Longest written entry, in words (essays). */
+  maxWords?: number;
 };
 
 /** Default file rules for each discipline. */
@@ -110,7 +120,7 @@ const FILE_RULES: Record<Discipline, Omit<FileRule, "discipline">> = {
   ART: { types: "image", files: "art", maxMb: 20, minPx: 1200 },
   CRAFT: { types: "image", files: "craft", maxMb: 20, minPx: 1200 },
   PHOTOGRAPHY: { types: "image", files: "one", maxMb: 20, minPx: 2000 },
-  ESSAY: { types: "essay", files: "one", maxMb: 10 },
+  ESSAY: { types: "essay", files: "one", maxMb: 10, maxWords: 1000 },
   VIDEOGRAPHY: { types: "video", files: "one", maxMb: 500, minPx: 720 },
 };
 

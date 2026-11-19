@@ -1,7 +1,8 @@
 import { CalendarDays } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
-import Link from "next/link";
 
+import { PendingDot } from "@/components/nav-link";
+import { SiteLink } from "@/components/site/site-link";
 import { Placeholder } from "@/components/site/placeholder";
 import { SampleTag } from "@/components/site/sample-tag";
 import type { Competition } from "@/content/sample/model";
@@ -53,13 +54,14 @@ export async function CompetitionCard({
         </div>
         <div>
           <H level={headingLevel} className="text-h4 leading-tight text-ink">
-            <Link
+            <SiteLink
               href={slugHref("competition", c.slug)}
               prefetch={true}
-              className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-['']"
+              className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-[''] active:after:bg-ink/8"
             >
               {c.name}
-            </Link>
+              <PendingDot className="ms-2 inline-block align-middle" />
+            </SiteLink>
           </H>
           <p className="mt-2 text-ink-muted">{c.theme}</p>
         </div>
@@ -75,13 +77,17 @@ export async function CompetitionCard({
           <dd className="text-ink-muted">{t("ageRange", ages)}</dd>
           <dt className="font-semibold text-ink">{t("ways")}</dt>
           <dd className="text-ink-muted">
+            {/* Labels stand alone ("On your own"); after the first item the
+                list form keeps the casing right in each locale. */}
             {format.list(
-              c.routes.map((r) => ts(`route.${r.route}`)),
+              c.routes.map((r, i) =>
+                i === 0 ? ts(`route.${r.route}`) : ts(`routeInList.${r.route}`)
+              ),
               "and"
             )}
           </dd>
           <dt className="font-semibold text-ink">{t("fee")}</dt>
-          <dd className="relative z-10 flex flex-wrap gap-1.5 text-ink-muted">
+          <dd className="flex flex-wrap gap-1.5 text-ink-muted">
             {c.routes.map((r) => {
               const fee = feeDisplay(r.feeBaseMinor);
               if (fee.kind === "placeholder")

@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { buttonStyles } from "@/components/site/button-link";
 import { cn } from "@/lib/utils";
 
-import { cleanName, wrapWords } from "./pledge-text";
+import { CARD, LOGO_TOP, cardLayout, cleanName } from "./pledge-text";
 
 type Option = { id: string; label: string };
 
@@ -31,8 +31,7 @@ export type PledgeLabels = {
   shareText: string;
 };
 
-const W = 1080;
-const H = 1350;
+const { width: W, height: H, size: SIZE } = CARD;
 const PAPER = "#FEFAF2";
 const INK = "#25221E";
 const MUTED = "#5C564D";
@@ -42,7 +41,7 @@ const TEAL_TINT = "#DDF3F5";
 const TILES = ["#C92827", "#07AC06", "#2B41F0"];
 const FILE_NAME = "foa-kindness-pledge.png";
 const PNG = "image/png";
-const TEXT_WIDTH = 860;
+const TEXT_WIDTH = CARD.textWidth;
 
 function fontVar(name: string): string {
   const v = getComputedStyle(document.documentElement)
@@ -76,8 +75,8 @@ async function drawCard(c: HTMLCanvasElement, text: CardText): Promise<void> {
   const body = fontVar("--font-inter");
   // A face that fails to load must not stop the card: canvas falls back.
   await Promise.allSettled([
-    document.fonts.load(`800 92px ${display}`, text.promise),
-    document.fonts.load(`500 38px ${body}`, text.quote),
+    document.fonts.load(`800 ${SIZE.promise}px ${display}`, text.promise),
+    document.fonts.load(`500 ${SIZE.quote}px ${body}`, text.quote),
   ]);
   const logo = await loadLogo().catch(() => null);
   c.width = W;
@@ -102,65 +101,54 @@ async function drawCard(c: HTMLCanvasElement, text: CardText): Promise<void> {
     ctx.fill();
   });
 
-  const x = 110;
+  const { x } = CARD;
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = TEAL;
   ctx.font = `700 60px ${display}`;
   ctx.fillText(text.title, x, 260);
 
-  let y = 380;
+  const leadFont = `700 ${SIZE.lead}px ${display}`;
+  const promiseFont = `800 ${SIZE.promise}px ${display}`;
+  const measureIn = (font: string) => (s: string) => {
+    ctx.font = font;
+    return ctx.measureText(s).width;
+  };
+  const layout = cardLayout(text, {
+    lead: measureIn(leadFont),
+    promise: measureIn(promiseFont),
+  });
+
   ctx.fillStyle = INK;
-  ctx.font = `700 64px ${display}`;
-  for (const line of wrapWords(
-    text.lead,
-    TEXT_WIDTH,
-    (s) => ctx.measureText(s).width
-  )) {
-    ctx.fillText(line, x, y);
-    y += 78;
-  }
+  ctx.font = leadFont;
+  for (const line of layout.lead) ctx.fillText(line.text, x, line.y);
 
-  y += 30;
   ctx.fillStyle = BLUE;
-  ctx.font = `800 92px ${display}`;
-  for (const line of wrapWords(
-    text.promise,
-    TEXT_WIDTH,
-    (s) => ctx.measureText(s).width
-  )) {
-    ctx.fillText(line, x, y);
-    y += 100;
-  }
+  ctx.font = promiseFont;
+  for (const line of layout.promise) ctx.fillText(line.text, x, line.y);
 
-  y += 10;
-  ctx.font = `600 38px ${body}`;
+  const pillH = CARD.pillHeight;
+  ctx.font = `600 ${SIZE.pill}px ${body}`;
   const pillW = Math.min(
     TEXT_WIDTH,
     ctx.measureText(text.neighbour).width + 64
   );
   ctx.fillStyle = TEAL_TINT;
   ctx.beginPath();
-  ctx.roundRect(x, y, pillW, 76, 38);
+  ctx.roundRect(x, layout.pillY, pillW, pillH, pillH / 2);
   ctx.fill();
   ctx.fillStyle = TEAL;
-  ctx.fillText(text.neighbour, x + 32, y + 51, TEXT_WIDTH - 64);
+  ctx.fillText(text.neighbour, x + 32, layout.pillY + 51, TEXT_WIDTH - 64);
 
   ctx.fillStyle = INK;
-  ctx.font = `italic 500 38px ${body}`;
-  ctx.fillText(text.quote, x, H - 400, TEXT_WIDTH);
+  ctx.font = `italic 500 ${SIZE.quote}px ${body}`;
+  ctx.fillText(text.quote, x, layout.quoteY, TEXT_WIDTH);
   ctx.fillStyle = MUTED;
-  ctx.font = `500 28px ${body}`;
-  ctx.fillText(text.source, x, H - 354, TEXT_WIDTH);
+  ctx.font = `500 ${SIZE.source}px ${body}`;
+  ctx.fillText(text.source, x, layout.sourceY, TEXT_WIDTH);
 
   if (logo) {
-    const lw = 280;
-    ctx.drawImage(
-      logo,
-      W - 110 - lw,
-      H - 110 - (lw * 169.62) / 294.23,
-      lw,
-      (lw * 169.62) / 294.23
-    );
+    const { width, height, right } = CARD.logo;
+    ctx.drawImage(logo, W - right - width, LOGO_TOP, width, height);
   }
 }
 
@@ -193,8 +181,29 @@ export function PledgeCard({
   const [animal, setAnimal] = useState(animals[0]!.id);
   const [promise, setPromise] = useState(promises[0]!.id);
   const [canShare, setCanShare] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<File | null>(null);
+
+  // On a slow phone the form works as plain HTML before hydration, and
+  // hydration fires no change events: adopt what was typed and picked then,
+  // or the card shows the defaults and the next render wipes the form.
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    const value = (name: string) => {
+      const el = form.elements.namedItem(name);
+      return el instanceof HTMLInputElement || el instanceof RadioNodeList
+        ? el.value
+        : "";
+    };
+    const typed = value(`${uid}-name`);
+    const pickedAnimal = value(`${uid}-animal`);
+    const pickedPromise = value(`${uid}-promise`);
+    if (typed) setName(typed);
+    if (animals.some((a) => a.id === pickedAnimal)) setAnimal(pickedAnimal);
+    if (promises.some((p) => p.id === pickedPromise)) setPromise(pickedPromise);
+  }, [uid, animals, promises]);
 
   const clean = cleanName(name);
   const lead = clean
@@ -255,7 +264,11 @@ export function PledgeCard({
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-12">
-      <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
+      <form
+        ref={formRef}
+        className="space-y-8"
+        onSubmit={(e) => e.preventDefault()}
+      >
         <div>
           <label
             htmlFor={`${uid}-name`}
@@ -268,6 +281,7 @@ export function PledgeCard({
           </p>
           <input
             id={`${uid}-name`}
+            name={`${uid}-name`}
             aria-describedby={`${uid}-hint ${uid}-privacy`}
             value={name}
             onChange={(e) => setName(e.target.value)}

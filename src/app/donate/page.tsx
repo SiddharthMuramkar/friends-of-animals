@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { Callout } from "@/components/site/callout";
+import { ContactFact } from "@/components/site/contact-fact";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { JsonLd } from "@/components/site/json-ld";
@@ -67,7 +68,7 @@ export default async function Page() {
             screen, so the heading text stays the LCP element (a hero image
             there would make Lighthouse count every script before it). From
             lg the photo takes the right column and the quote spans below. */}
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
           <div>
             <PageHeader
               eyebrow={t("hero.eyebrow")}
@@ -209,7 +210,7 @@ export default async function Page() {
             <p className="mt-3 text-ink-muted">{t("csr.body")}</p>
             <p className="mt-4 flex flex-wrap items-center gap-2">
               <span className="font-semibold">{t("csr.email")}</span>
-              <Placeholder fact={SITE.org.email} />
+              <ContactFact kind="email" fact={SITE.org.email} />
             </p>
             <ButtonLink
               href={ROUTES.contact.path}

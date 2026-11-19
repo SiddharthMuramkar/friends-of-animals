@@ -94,6 +94,8 @@
 }
 
 :root {
+  /* Scrollbars and form controls follow the site theme, not the OS. */
+  color-scheme: light;
   --background: oklch(98.6% 0.011 84.6); /* neutral-50 #FEFAF2 */
   --surface: oklch(100% 0 0); /* white #FFFFFF */
   --surface-raised: oklch(100% 0 0); /* white #FFFFFF */
@@ -150,6 +152,7 @@
   --section-pink-heading: oklch(41.5% 0.177 345.1); /* pink-800 #870061 */
 }
 .dark {
+  color-scheme: dark;
   --background: oklch(19.7% 0.008 84.6); /* neutral-950 #171511 */
   --surface: oklch(22.8% 0.009 75.2); /* surface-dark #1F1C18 */
   --surface-raised: oklch(27% 0.01 80.6); /* surface-raised-dark #292621 */
@@ -323,6 +326,23 @@
 }
 
 /*
+ * ₹ (U+20B9) is in Baloo 2's latin-ext file only, so one price fetched that
+ * whole file. This face, first in the display stack, maps ₹ alone to an
+ * installed system font that has it; only if none is found does Baloo's
+ * latin-ext file load. local() only: it never downloads anything.
+ */
+@font-face {
+  font-family: "Rupee Local";
+  src:
+    local("Roboto"), local("Roboto-Regular"), local("Segoe UI"),
+    local("SegoeUI"), local("Helvetica Neue"), local("HelveticaNeue"),
+    local("Noto Sans"), local("NotoSans-Regular"), local("Nirmala UI"),
+    local("Arial"), local("ArialMT");
+  unicode-range: U+20B9;
+  font-display: swap;
+}
+
+/*
  * Type. next/font sets --font-inter, --font-baloo and --font-kalam on
  * <html> (src/lib/fonts.ts). Headings are fluid between 360 and 1280 px;
  * running text is fixed rem so it doubles at 200% zoom.
@@ -332,7 +352,8 @@
     var(--font-inter), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-display:
-    var(--font-baloo), var(--font-inter), ui-sans-serif, sans-serif;
+    "Rupee Local", var(--font-baloo), var(--font-inter), ui-sans-serif,
+    sans-serif;
   --font-hand: var(--font-kalam), var(--font-baloo), cursive;
 
   --text-display: clamp(3rem, 2.0217rem + 4.3478vw, 5.5rem);
@@ -366,9 +387,21 @@
     @apply border-border;
   }
   html {
-    /* The sticky header must not cover a focused element or an anchor. */
-    scroll-padding-top: calc(var(--header-height) + 1rem);
+    /* The sticky header (and Quick exit bar) must not cover a focused
+       element or an anchor. */
+    scroll-padding-top: calc(
+      var(--header-height) + var(--quick-exit-offset, 0px) + 1rem
+    );
     -webkit-text-size-adjust: 100%;
+  }
+  /* /safeguarding: the Quick exit bar sticks under the header. Before
+     hydration, its presence counts, at one line (py-2, min-h-11, 2px
+     border). Then QuickExit takes over: it measures the bar (it can wrap)
+     and sets data-quick-exit, as Next keeps a left page's bar in the DOM,
+     hidden, for Back. */
+  html:not([data-quick-exit]):has([data-quick-exit-bar]),
+  html[data-quick-exit="shown"] {
+    --quick-exit-offset: var(--quick-exit-height, calc(3.75rem + 2px));
   }
   @media (prefers-reduced-motion: no-preference) {
     html[data-scroll-behavior="smooth"] {
@@ -383,6 +416,8 @@
   h3,
   h4 {
     @apply font-display text-balance text-ink;
+    /* Long words wrap instead of overflowing at large text sizes. */
+    overflow-wrap: break-word;
   }
   h1 {
     @apply text-h1 font-extrabold;
@@ -516,4 +551,16 @@
     color: var(--link-hover);
     text-decoration-thickness: 0.14em;
   }
+}
+
+/*
+ * Devanagari loads only for `hi` (SPEC §13.2). On a page in another language
+ * a Hindi line (lang="hi", e.g. the Article 51A(g) quote on /about) uses the
+ * system's Devanagari font, so Baloo 2's 113 KB Devanagari file is never
+ * fetched. Unlayered, so it beats `font-display` and the other utilities.
+ */
+html:not(:lang(hi)) :lang(hi) {
+  font-family:
+    "Kohinoor Devanagari", "Devanagari Sangam MN", "Noto Sans Devanagari",
+    "Nirmala UI", "Mangal", ui-sans-serif, system-ui, sans-serif;
 }

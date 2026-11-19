@@ -1,10 +1,10 @@
 import { CircleCheck, CircleX } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 
 import { ButtonLink } from "@/components/site/button-link";
-import { Placeholder } from "@/components/site/placeholder";
+import { ContactFact } from "@/components/site/contact-fact";
 import { Section } from "@/components/site/section";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
@@ -94,7 +94,7 @@ export default async function Page() {
             <p className="mt-3">{t("ask.body")}</p>
             <p className="mt-4 flex flex-wrap items-center gap-2">
               <span className="font-semibold">{t("ask.email")}</span>
-              <Placeholder fact={SITE.org.email} />
+              <ContactFact kind="email" fact={SITE.org.email} />
             </p>
             <ButtonLink href={ROUTES.contact.path} className="mt-6">
               {t("ask.link")}
@@ -102,12 +102,12 @@ export default async function Page() {
           </section>
         </div>
         <p className="mt-10">
-          <Link
+          <SiteLink
             href={ROUTES.pricing.path}
             className="inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover"
           >
             {t("pricingLink")}
-          </Link>
+          </SiteLink>
         </p>
       </Section>
     </>

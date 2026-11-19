@@ -1,6 +1,6 @@
 import { ArrowRight, Megaphone } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
@@ -50,7 +50,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 function MoreLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link
+    <SiteLink
       href={href}
       className="group mt-8 inline-flex min-h-11 items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover"
     >
@@ -59,7 +59,7 @@ function MoreLink({ href, children }: { href: string; children: ReactNode }) {
         aria-hidden="true"
         className="size-5 transition-transform motion-safe:group-hover:translate-x-1"
       />
-    </Link>
+    </SiteLink>
   );
 }
 
@@ -84,12 +84,12 @@ async function Announcement() {
           />
           {t("text", { name: a.name, closes: new Date(a.expiresAt) })}
         </p>
-        <Link
+        <SiteLink
           href={`/competitions/${a.slug}`}
           className="inline-flex min-h-11 items-center underline decoration-2 underline-offset-4"
         >
           {t("link")}
-        </Link>
+        </SiteLink>
       </div>
     </aside>
   );
@@ -99,16 +99,17 @@ async function Hero() {
   const t = await getTranslations("home");
   const { hero } = HOME_LAYOUT;
   return (
-    <section
-      aria-labelledby="home-title"
-      className="relative overflow-hidden bg-surface-muted"
-    >
-      {/* Tile field: a few loose logo-colour tiles, decorative. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+    <section aria-labelledby="home-title" className="relative bg-surface-muted">
+      {/* Tile field: a few loose logo-colour tiles, decorative. Only this
+          layer clips, so the text and buttons can never be cut off. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
         <span className="absolute bottom-16 left-[4%] hidden size-5 -rotate-6 rounded-[22%] bg-teal-400 sm:block" />
         <span className="absolute right-[6%] bottom-8 hidden size-4 rotate-6 rounded-[22%] bg-pink-400 sm:block" />
       </div>
-      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-8 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
+      <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-12 px-4 py-8 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
         <div>
           <Eyebrow tile="green">{t("hero.eyebrow")}</Eyebrow>
           <h1
@@ -138,7 +139,7 @@ async function Hero() {
         <div className="relative mx-auto w-full max-w-xl lg:mr-3 lg:max-w-none">
           <Photo
             id={hero.imageAssetId}
-            sizes="(min-width: 1280px) 560px, (min-width: 1024px) 44vw, 92vw"
+            sizes="(min-width: 1280px) 560px, (min-width: 1024px) 44vw, min(92vw, 576px)"
             preload
             frame="red"
             frameCorner="top-right"
@@ -184,7 +185,7 @@ async function Competitions() {
             ))}
             {list.length < 3 ? (
               <li className="flex">
-                <Link
+                <SiteLink
                   href={ROUTES.competitions.path}
                   className="group flex w-full flex-col items-start justify-end gap-4 rounded-3xl border-2 border-dashed border-border-strong bg-section-pink p-6 transition-[border-color,translate] hover:border-ink motion-safe:hover:-translate-y-0.5"
                 >
@@ -202,7 +203,7 @@ async function Competitions() {
                       className="size-5 transition-transform motion-safe:group-hover:translate-x-1"
                     />
                   </span>
-                </Link>
+                </SiteLink>
               </li>
             ) : null}
           </ul>
@@ -360,8 +361,12 @@ async function Donate() {
   const t = await getTranslations("home.donate");
   return (
     <Section labelledBy="home-donate" width="wide" hue="red">
-      <div className="relative overflow-hidden rounded-3xl bg-section-red p-6 sm:p-10 lg:p-14">
-        <div aria-hidden="true" className="absolute top-6 right-6 flex gap-1.5">
+      <div className="relative rounded-3xl bg-section-red p-6 sm:p-10 lg:p-14">
+        {/* In flow on phones, so the tiles can't cover the eyebrow. */}
+        <div
+          aria-hidden="true"
+          className="flex justify-end gap-1.5 max-sm:mb-3 sm:absolute sm:top-6 sm:right-6"
+        >
           <TileMarker hue="red" size="lg" />
           <TileMarker hue="green" size="lg" />
           <TileMarker hue="blue" size="lg" />

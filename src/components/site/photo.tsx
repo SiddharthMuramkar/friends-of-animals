@@ -4,8 +4,17 @@ import { needsVisibleCredit, shortCredit } from "@/lib/images/credits";
 import { type SiteImageId, siteImage } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
-// next/image placeholder mode (a constant: the lint rule bars literals here).
-const BLUR = "blur";
+// next/image loading props (constants: the lint rule bars literals here).
+// The LCP image loads eagerly at high priority: the docs prefer that to
+// `preload`, and React still adds the <link rel="preload"> for an eager
+// image. It gets no blur, which would paint after the photo and become the
+// LCP entry (#37). Every other photo lazy-loads behind a blur.
+const LCP_IMAGE = {
+  loading: "eager",
+  fetchPriority: "high",
+  placeholder: "empty",
+} as const;
+const LAZY_IMAGE = { placeholder: "blur" } as const;
 
 const TILE = {
   red: "bg-red-600",
@@ -32,7 +41,10 @@ type Props = {
   id: SiteImageId;
   /** Required: how wide the image renders, e.g. "(min-width: 1024px) 40vw, 92vw". */
   sizes: string;
-  /** Only for the one above-the-fold image on a page (the LCP image). */
+  /**
+   * Only for the one above-the-fold image on a page (the LCP image): loads it
+   * eagerly at high fetch priority, with no blur placeholder.
+   */
   preload?: boolean;
   /** One logo-tile-coloured rounded square peeking from a corner. */
   frame?: keyof typeof TILE;
@@ -53,8 +65,9 @@ type Props = {
 };
 
 /**
- * A credited site photo: next/image with a blur placeholder, an optional tile
- * frame, the real place in the caption and a short credit for CC images.
+ * A credited site photo: next/image with a blur placeholder (none on the LCP
+ * image), an optional tile frame, the real place in the caption and a short
+ * credit for CC images.
  */
 export function Photo({
   id,
@@ -77,7 +90,7 @@ export function Photo({
       {creditVisible ? (
         <a
           href={credit.sourceUrl}
-          className="underline decoration-1 underline-offset-2 hover:text-foreground"
+          className="inline-flex min-h-6 items-center underline decoration-1 underline-offset-2 hover:text-foreground"
         >
           {shortCredit(credit)}
         </a>
@@ -102,8 +115,7 @@ export function Photo({
           src={src}
           alt={credit.alt}
           sizes={sizes}
-          preload={preload}
-          placeholder={BLUR}
+          {...(preload ? LCP_IMAGE : LAZY_IMAGE)}
           style={{ objectPosition: `${focal[0] * 100}% ${focal[1] * 100}%` }}
           className={cn("h-auto w-full rounded-3xl object-cover", className)}
         />

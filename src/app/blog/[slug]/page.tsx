@@ -1,12 +1,13 @@
 import { Clock } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
 import { TileCover } from "@/components/showcase/card-cover";
 import { StoryCard } from "@/components/showcase/story-card";
 import { Chip } from "@/components/site/chip";
+import { InPageLink } from "@/components/site/in-page-link";
 import { JsonLd } from "@/components/site/json-ld";
 import { Photo } from "@/components/site/photo";
 import { EasyRead } from "@/components/site/easy-read";
@@ -23,7 +24,7 @@ import {
 import { metaDescription, tableOfContents } from "@/content/stories/text";
 import { siteUrl } from "@/env";
 import { ROUTES, slugHref } from "@/lib/routes";
-import { pageMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 
 import { ArticleBodyView, SourceList } from "./_components/article-body";
@@ -50,7 +51,7 @@ export async function generateMetadata({
   if (!isStorySlug(slug)) return {};
   const story = getStory(slug);
   return pageMetadata({
-    title: story.title,
+    title: story.seoTitle ?? story.title,
     description: metaDescription(story.dek),
     path: slugHref("story", slug),
   });
@@ -100,20 +101,11 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
       },
       citation: body.footnotes.map((f) => f.url),
     },
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { name: t("home"), path: "/" },
-        { name: t("allStories"), path: ROUTES.stories.path },
-        { name: story.title, path: slugHref("story", slug) },
-      ].map((c, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        name: c.name,
-        item: new URL(c.path, base).href,
-      })),
-    },
+    breadcrumbJsonLd(base, [
+      { name: t("home"), path: "/" },
+      { name: t("allStories"), path: ROUTES.stories.path },
+      { name: story.title, path: slugHref("story", slug) },
+    ]),
   ];
 
   return (
@@ -129,12 +121,12 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
           <nav aria-label={t("breadcrumb")} className="text-sm">
             <ol className="flex flex-wrap items-center gap-x-2 text-ink-muted">
               <li>
-                <Link
+                <SiteLink
                   href={ROUTES.stories.path}
                   className="inline-flex min-h-6 items-center font-semibold text-link underline underline-offset-2 hover:text-link-hover"
                 >
                   {t("allStories")}
-                </Link>
+                </SiteLink>
               </li>
               <li aria-hidden="true">/</li>
               <li aria-current="page" className="line-clamp-1">
@@ -161,7 +153,9 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
               <EasyRead label={t("easyReadLabel")} className="mt-6 max-w-prose">
                 <p>{story.easyRead}</p>
               </EasyRead>
-              <div className="mt-6">
+              {/* min-h-11 holds the player's row, which mounts after
+                  hydration, so the story below doesn't jump. */}
+              <div className="mt-6 min-h-11">
                 <ReadAloud
                   targetId={BODY_ID}
                   locale={locale}
@@ -211,21 +205,21 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
                 <ol className="mt-3 space-y-1 text-sm">
                   {toc.map((h) => (
                     <li key={h.id}>
-                      <a
+                      <InPageLink
                         href={`#${h.id}`}
                         className="flex min-h-8 items-center rounded-lg px-2 text-ink hover:bg-surface-muted hover:text-link"
                       >
                         {h.text}
-                      </a>
+                      </InPageLink>
                     </li>
                   ))}
                   <li>
-                    <a
+                    <InPageLink
                       href="#sources"
                       className="flex min-h-8 items-center rounded-lg px-2 text-ink-muted hover:bg-surface-muted hover:text-link"
                     >
                       {t("sources")}
-                    </a>
+                    </InPageLink>
                   </li>
                 </ol>
               </div>
@@ -250,12 +244,12 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
             </li>
           ))}
         </ul>
-        <Link
+        <SiteLink
           href={ROUTES.stories.path}
           className="mt-8 inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-4 hover:text-link-hover"
         >
           {t("allStoriesLink")}
-        </Link>
+        </SiteLink>
       </Section>
     </>
   );

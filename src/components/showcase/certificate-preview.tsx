@@ -1,7 +1,6 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
-import { SAMPLE_COMPETITIONS } from "@/content/sample";
-import { SAMPLE_CERTIFICATE } from "@/content/sample/certificate";
+import { getSampleCertificate } from "@/content/sample";
 import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +57,9 @@ const CORNER_TILE = "absolute size-5 rounded-[22%] sm:size-7";
 /**
  * "A certificate for everyone": a full-size sample participation
  * certificate, watermarked SAMPLE, with a certificate number in the real
- * format and a QR placeholder. Printed on paper in both themes.
+ * format and a QR placeholder. Printed on paper in both themes. In
+ * production, where sample content is off, the name, competition and other
+ * details are neutral placeholder text ("Your name").
  */
 export async function CertificatePreview({
   headingLevel = 2,
@@ -73,10 +74,7 @@ export async function CertificatePreview({
   const t = await getTranslations("showcase.certificate");
   const ts = await getTranslations("sample");
   const format = await getFormatter();
-  const c = SAMPLE_CERTIFICATE;
-  const competition = SAMPLE_COMPETITIONS.find(
-    (x) => x.code === c.competitionCode
-  )!;
+  const c = getSampleCertificate();
 
   return (
     <div className={className}>
@@ -123,36 +121,40 @@ export async function CertificatePreview({
             </p>
             <p className="mt-3 text-sm sm:text-body">{t("certify")}</p>
             <p className="mt-1 font-hand text-h2 leading-tight text-[#2134B9]">
-              {ts("certificate.name")}
+              {c ? ts("certificate.name") : t("placeholder.name")}
             </p>
             <p className="text-sm sm:text-body">{t("tookPart")}</p>
             <p className="mt-1 font-display text-h4 leading-tight font-bold">
-              {competition.name}
+              {c ? c.competition.name : t("placeholder.competition")}
             </p>
             <p className="mt-1 text-sm">
-              {t("category", {
-                discipline: ts(`discipline.${c.discipline}`),
-                group: ts("certificate.group"),
-                min: c.ageGroup.minAge,
-                max: c.ageGroup.maxAge,
-              })}
+              {c
+                ? t("category", {
+                    discipline: ts(`discipline.${c.discipline}`),
+                    group: ts("certificate.group"),
+                    min: c.ageGroup.minAge,
+                    max: c.ageGroup.maxAge,
+                  })
+                : t("placeholder.category")}
             </p>
 
             <div className="mt-6 flex flex-col items-center gap-4 text-left sm:mt-auto sm:flex-row sm:items-end sm:justify-between sm:pt-6">
               <div className="text-sm">
                 <p>
-                  {t("issued", {
-                    date: format.dateTime(
-                      new Date(`${c.issuedOn}T12:00:00+05:30`),
-                      "long"
-                    ),
-                  })}
+                  {c
+                    ? t("issued", {
+                        date: format.dateTime(
+                          new Date(`${c.issuedOn}T12:00:00+05:30`),
+                          "long"
+                        ),
+                      })
+                    : t("placeholder.issued")}
                 </p>
                 <p className="mt-2 text-xs font-semibold tracking-wide uppercase">
                   {t("number")}
                 </p>
                 <p className="font-mono text-sm font-semibold sm:text-base">
-                  {c.number}
+                  {c ? c.number : t("placeholder.number")}
                 </p>
               </div>
               <div className="flex flex-col items-center gap-1">

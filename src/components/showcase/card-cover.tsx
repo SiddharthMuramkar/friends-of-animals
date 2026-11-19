@@ -40,14 +40,22 @@ export function CardCover({
 }
 
 /**
- * The real place and, for CC BY images, the short credit, under a card. It
- * sits above the card's stretched link so the credit stays clickable.
+ * The real place and, for CC BY images, the short credit, under a card. Only
+ * the credit link sits above the card's stretched link, so it stays
+ * clickable while a tap on the place or the blank line still opens the card.
  */
 export function CardCredit({
   id,
+  raised = true,
   className,
 }: {
   id: SiteImageId;
+  /**
+   * Lift the link above a stretched card link. Turn it off on a card with no
+   * stretched link: inside a flip card, the extra layer makes iPhone Safari
+   * paint the credit mirrored on the back face.
+   */
+  raised?: boolean;
   className?: string;
 }) {
   const { credit } = siteImage(id);
@@ -55,16 +63,16 @@ export function CardCredit({
   if (!credit.place && !visible) return null;
   return (
     <p
-      className={cn(
-        "relative z-10 flex flex-wrap gap-x-2 text-xs text-ink-muted",
-        className
-      )}
+      className={cn("flex flex-wrap gap-x-2 text-xs text-ink-muted", className)}
     >
       {credit.place ? <span>{credit.place}</span> : null}
       {visible ? (
         <a
           href={credit.sourceUrl}
-          className="inline-flex min-h-6 items-center underline decoration-1 underline-offset-2 hover:text-ink"
+          className={cn(
+            "inline-flex min-h-6 items-center underline decoration-1 underline-offset-2 hover:text-ink",
+            raised && "relative z-10"
+          )}
         >
           {shortCredit(credit)}
         </a>

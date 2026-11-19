@@ -8,6 +8,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
 import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
+import { TableScroller } from "@/components/site/table-scroller";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { getSampleImpact } from "@/content/sample";
 import { ROUTES } from "@/lib/routes";
@@ -54,7 +55,7 @@ export default async function Page() {
             screen, so the heading text stays the LCP element (a hero image
             there would make Lighthouse count every script before it). From
             lg the photo takes the right column and the quote spans below. */}
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
           <div>
             <PageHeader
               eyebrow={t("hero.eyebrow")}
@@ -100,10 +101,12 @@ export default async function Page() {
           title={t("method.title")}
           lead={t("method.lead")}
         />
-        <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-          <div className="overflow-hidden rounded-3xl border-2 border-border bg-surface">
+        <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+          <TableScroller captionId="method-caption">
             <table className="w-full text-left">
-              <caption className="sr-only">{t("method.caption")}</caption>
+              <caption id="method-caption" className="sr-only">
+                {t("method.caption")}
+              </caption>
               <thead className="bg-surface-muted text-sm">
                 <tr>
                   <th scope="col" className="px-5 py-3">
@@ -127,7 +130,7 @@ export default async function Page() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroller>
           <div>
             <h3 className="text-h3">{t("method.rules.title")}</h3>
             <ol className="mt-5 grid gap-4">

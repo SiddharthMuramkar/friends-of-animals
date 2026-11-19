@@ -5,10 +5,10 @@ import { getTranslations } from "next-intl/server";
 import { JudgingPath } from "@/components/showcase/judging-path";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { ButtonLink } from "@/components/site/button-link";
+import { ContactFact } from "@/components/site/contact-fact";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
-import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
@@ -61,7 +61,11 @@ export default async function Page() {
         width="wide"
         className="py-12 sm:py-16 lg:py-20"
       >
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
+        {/* Text, quote, then photo: on phones the photo sits below the first
+            screen, so the heading text stays the LCP element (see /donate).
+            From lg the photo takes the right column and the quote spans
+            below. */}
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
           <div>
             <PageHeader
               eyebrow={t("hero.eyebrow")}
@@ -73,21 +77,22 @@ export default async function Page() {
               <p>{t("hero.easy")}</p>
             </EasyRead>
           </div>
+          <QuoteFigure
+            id="Q29"
+            hue="green"
+            size="md"
+            className="mt-4 max-w-4xl lg:col-span-2 lg:mt-0"
+          />
           <Photo
             id="classroom-chennai-smart-class"
-            sizes="(min-width: 1280px) 540px, (min-width: 1024px) 42vw, 92vw"
+            sizes="(min-width: 1280px) 540px, (min-width: 1024px) 42vw, min(92vw, 512px)"
             preload
             frame="green"
             frameCorner="top-right"
             className="aspect-4/3 shadow-warm"
+            figureClassName="mx-auto w-full max-w-lg lg:col-start-2 lg:row-start-1 lg:max-w-none"
           />
         </div>
-        <QuoteFigure
-          id="Q29"
-          hue="green"
-          size="md"
-          className="mt-14 max-w-4xl"
-        />
       </Section>
 
       {/* Five steps, from registering a school to sending the shortlist. */}
@@ -228,7 +233,7 @@ export default async function Page() {
           <p>{t("contact.openBody")}</p>
           <p className="flex flex-wrap items-center gap-2">
             {t("contact.contactLabel")}
-            <Placeholder fact={SITE.org.email} />
+            <ContactFact kind="email" fact={SITE.org.email} />
           </p>
         </ExplainState>
         <ButtonLink href={ROUTES.contact.path} size="lg" className="mt-8">

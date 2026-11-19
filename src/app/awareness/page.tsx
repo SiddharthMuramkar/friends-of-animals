@@ -7,6 +7,7 @@ import { SeasonalCard } from "@/components/showcase/seasonal-card";
 import { Callout } from "@/components/site/callout";
 import { Disclosure } from "@/components/site/disclosure";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
+import { InPageLink } from "@/components/site/in-page-link";
 import { Photo } from "@/components/site/photo";
 import { Section } from "@/components/site/section";
 import { TileDivider } from "@/components/site/tile";
@@ -100,7 +101,7 @@ export default async function AwarenessPage() {
     <>
       {/* 1. Intro: Goodall Q42 */}
       <Section hue="teal" tone="tint" className="pt-10 sm:pt-14">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
           <div>
             <PageHeader
               eyebrow={t("hero.eyebrow")}
@@ -112,12 +113,12 @@ export default async function AwarenessPage() {
               <ul className="flex flex-wrap gap-2">
                 {JUMPS.map(([id, key]) => (
                   <li key={id}>
-                    <a
+                    <InPageLink
                       href={`#${id}`}
                       className="inline-flex min-h-11 items-center rounded-full border-2 border-teal-700/40 bg-surface px-4 font-semibold text-ink transition-colors hover:border-teal-700"
                     >
                       {t(`hero.${key}`)}
-                    </a>
+                    </InPageLink>
                   </li>
                 ))}
               </ul>
@@ -159,7 +160,6 @@ export default async function AwarenessPage() {
           {SEASONAL_MONTHS.map((m) => (
             <Disclosure
               key={m.month}
-              name="months"
               summary={
                 <span className="flex flex-wrap items-baseline gap-x-3">
                   <span className="font-display text-h5 text-(--section-heading)">
