@@ -25,12 +25,15 @@ export function Logo({ className, wrapperClassName }: LogoProps) {
         height={SITE.logo.height}
         className={cn("block dark:hidden", className)}
       />
+      {/* Lazy, so light mode never downloads it while it is hidden; React
+          also skips the image preload it adds for eager images. */}
       {/* oxlint-disable-next-line nextjs/no-img-element -- SVG, nothing to optimise */}
       <img
         src={SITE.logo.whiteSrc}
         alt=""
         width={SITE.logo.width}
         height={SITE.logo.height}
+        loading="lazy"
         className={cn("hidden dark:block", className)}
       />
     </span>

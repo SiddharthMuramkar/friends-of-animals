@@ -1,8 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import { cacheLife } from "next/cache";
-import Link from "next/link";
 
 import { Logo } from "@/components/logo";
+import { SiteLink } from "@/components/site/site-link";
 import { TileDivider } from "@/components/site/tile";
 import { FOOTER_GROUPS, footerRoutes, ROUTES } from "@/lib/routes";
 import { isSampleContentEnabled } from "@/lib/site";
@@ -26,15 +26,15 @@ export async function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-border bg-surface-muted">
       <div className="mx-auto max-w-7xl px-4 pt-12 pb-8 sm:px-6">
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <div className="max-w-md">
-            <Link
+            <SiteLink
               href="/"
               aria-label={tn("homeLink")}
               className="inline-block rounded-xl"
             >
               <Logo className="h-14 w-auto" />
-            </Link>
+            </SiteLink>
             <p className="mt-4 text-ink-muted">{t("about")}</p>
 
             <section
@@ -47,7 +47,7 @@ export async function SiteFooter() {
               <p className="mt-1 text-sm text-ink-muted">
                 {t("helplines.intro")}
               </p>
-              <ul className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                 <li>
                   <a
                     href="tel:112"
@@ -85,25 +85,28 @@ export async function SiteFooter() {
                     {t("helplines.cyber")} {t("helplines.cyberOr")}{" "}
                     <a
                       href="https://cybercrime.gov.in"
-                      className="text-link underline underline-offset-2"
+                      // Breaks inside the address only with large text.
+                      className="text-link underline underline-offset-2 max-[20rem]:wrap-break-word"
                     >
                       {t("helplines.cyberSite")}
                     </a>
                   </span>
                 </li>
               </ul>
-              <Link
+              <SiteLink
                 href={ROUTES.safeguarding.path}
                 className="mt-3 inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-4 hover:text-link-hover"
               >
                 {t("helplines.safeguarding")}
-              </Link>
+              </SiteLink>
             </section>
           </div>
 
+          {/* One column under a rem breakpoint, which phones only reach
+              with large text. */}
           <nav
             aria-label={t("navLabel")}
-            className="grid grid-cols-2 gap-8 sm:grid-cols-3"
+            className="grid grid-cols-2 gap-8 max-[20rem]:grid-cols-1 sm:grid-cols-3"
           >
             {FOOTER_GROUPS.map((group) => (
               <div key={group}>
@@ -113,9 +116,9 @@ export async function SiteFooter() {
                 <ul className="mt-3 space-y-1">
                   {footerRoutes(group).map((route) => (
                     <li key={route.id}>
-                      <Link href={route.path} className={LINK}>
+                      <SiteLink href={route.path} className={LINK}>
                         {tn(`links.${route.id}`)}
-                      </Link>
+                      </SiteLink>
                     </li>
                   ))}
                 </ul>

@@ -94,6 +94,8 @@
 }
 
 :root {
+  /* Scrollbars and form controls follow the site theme, not the OS. */
+  color-scheme: light;
   --background: oklch(98.6% 0.011 84.6); /* neutral-50 #FEFAF2 */
   --surface: oklch(100% 0 0); /* white #FFFFFF */
   --surface-raised: oklch(100% 0 0); /* white #FFFFFF */
@@ -150,6 +152,7 @@
   --section-pink-heading: oklch(41.5% 0.177 345.1); /* pink-800 #870061 */
 }
 .dark {
+  color-scheme: dark;
   --background: oklch(19.7% 0.008 84.6); /* neutral-950 #171511 */
   --surface: oklch(22.8% 0.009 75.2); /* surface-dark #1F1C18 */
   --surface-raised: oklch(27% 0.01 80.6); /* surface-raised-dark #292621 */
@@ -395,6 +398,8 @@
   h3,
   h4 {
     @apply font-display text-balance text-ink;
+    /* Long words wrap instead of overflowing at large text sizes. */
+    overflow-wrap: break-word;
   }
   h1 {
     @apply text-h1 font-extrabold;

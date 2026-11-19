@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ViewTransition } from "react";
 
@@ -16,7 +16,7 @@ import {
   TITLE_TEMPLATE,
 } from "@/lib/seo";
 import { SITE } from "@/lib/site";
-import { themeScript } from "@/lib/theme";
+import { THEME_COLORS, themeScript } from "@/lib/theme";
 
 import "./globals.css";
 
@@ -51,13 +51,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FEFAF2" },
-    { media: "(prefers-color-scheme: dark)", color: "#171511" },
-  ],
-};
-
 export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
   const t = await getTranslations("common");
   return (
@@ -69,6 +62,10 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <head>
+        {/* The toolbar colour follows the site theme, not the OS setting, so
+            it lives here rather than in Next's per-route viewport metadata,
+            and the theme script and toggle keep it in step. */}
+        <meta name="theme-color" content={THEME_COLORS.light} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="flex min-h-dvh flex-col">
