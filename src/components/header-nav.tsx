@@ -11,8 +11,14 @@ import { NavLink } from "./nav-link";
 
 type Item = { href: string; label: string };
 
+// The current page gets a cue that doesn't rely on colour alone, in the
+// section-blue heading colour (over 3:1 on the tint in both themes): an
+// underline on desktop, a bar on the inline-start edge in the phone menu.
 const DESKTOP_LINK =
-  "min-h-11 rounded-full px-3.5 font-semibold text-ink-muted hover:bg-surface-muted hover:text-ink aria-[current=page]:bg-section-blue aria-[current=page]:text-ink";
+  "min-h-11 rounded-full px-3.5 font-semibold text-ink-muted decoration-section-blue-heading decoration-3 underline-offset-6 hover:bg-surface-muted hover:text-ink aria-[current=page]:bg-section-blue aria-[current=page]:text-ink aria-[current=page]:underline";
+
+const MENU_LINK =
+  "relative flex min-h-12 w-full rounded-2xl px-4 text-lead font-semibold hover:bg-surface-muted aria-[current=page]:bg-section-blue aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-3 aria-[current=page]:before:start-1.5 aria-[current=page]:before:w-1 aria-[current=page]:before:rounded-full aria-[current=page]:before:bg-section-blue-heading";
 
 /** Desktop navigation (lg and up). */
 export function DesktopNavView({
@@ -135,7 +141,7 @@ export function MobileMenuView({
                   href={item.href}
                   pathname={pathname}
                   onNavigate={close}
-                  className="flex min-h-12 w-full rounded-2xl px-4 text-lead font-semibold hover:bg-surface-muted aria-[current=page]:bg-section-blue"
+                  className={MENU_LINK}
                 >
                   {item.label}
                 </NavLink>
