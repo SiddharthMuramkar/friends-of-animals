@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils";
 
 /**
  * Pill buttons (buttons are rounded-full). Primary is the logo blue; one
- * primary action per screen. Sizes keep targets ≥ 44 px.
+ * primary action per screen. Sizes keep targets ≥ 44 px. Long labels wrap,
+ * centred, rather than widen the page on phones.
  */
 export const buttonStyles = cva(
-  "inline-flex items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap transition-[background-color,box-shadow,translate,color] duration-200 ease-out select-none [&_svg]:size-5 [&_svg]:shrink-0 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 disabled:pointer-events-none disabled:opacity-60",
+  "inline-flex items-center justify-center gap-2 rounded-full text-center font-semibold text-balance transition-[background-color,box-shadow,translate,color] duration-200 ease-out select-none [&_svg]:size-5 [&_svg]:shrink-0 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       variant: {
@@ -21,8 +22,9 @@ export const buttonStyles = cva(
           "text-link underline decoration-2 underline-offset-4 hover:bg-surface-muted hover:text-link-hover",
       },
       size: {
-        md: "min-h-11 px-5 text-body",
-        lg: "min-h-13 px-7 text-lead",
+        // The vertical padding only shows once a label wraps.
+        md: "min-h-11 px-5 py-1.5 text-body",
+        lg: "min-h-13 px-7 py-2.5 text-lead",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },
