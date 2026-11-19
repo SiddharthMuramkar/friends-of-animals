@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { BadgeConstellation } from "@/components/showcase/badge-constellation";
+import { HappyMosaic } from "@/components/showcase/happy-mosaic";
 import { NotAShelter } from "@/components/showcase/not-a-shelter";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { ButtonLink } from "@/components/site/button-link";
@@ -12,6 +13,7 @@ import { Photo } from "@/components/site/photo";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { TileDivider, TileMarker } from "@/components/site/tile";
+import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
@@ -33,6 +35,13 @@ const HOW = [
   { key: "share", Icon: Eye, tile: "bg-pink-400 text-neutral-900" },
   { key: "grow", Icon: Sprout, tile: "bg-green-700 text-white" },
 ] as const;
+
+// The neighbours at the heart of it: one dog, two cats.
+const HOW_PHOTOS = [
+  ["cat-roof-bougainvillea", "roof"],
+  ["dog-thrissur-happy-white", "ears"],
+  ["cat-stretch-ahmedabad", "paws"],
+] as const satisfies readonly (readonly [SiteImageId, string])[];
 
 const PEOPLE = [
   "schools",
@@ -81,13 +90,16 @@ export default async function Page() {
               <p>{t("hero.easy")}</p>
             </EasyRead>
           </div>
+          {/* On phones a half-width print, smaller than the lead text, so
+              text stays the LCP element (see /contact). */}
           <Photo
             id="dogs-pariah-yelahanka-park"
-            sizes="(min-width: 1280px) 520px, (min-width: 1024px) 42vw, 92vw"
+            sizes="(min-width: 1280px) 520px, (min-width: 1024px) 42vw, (min-width: 640px) 92vw, 46vw"
             preload
             frame="blue"
             frameCorner="bottom-left"
             className="aspect-4/3 shadow-warm"
+            figureClassName="ml-auto mr-2 w-1/2 -rotate-2 sm:mx-0 sm:mr-0 sm:w-full sm:rotate-0"
           />
         </div>
       </Section>
@@ -219,6 +231,18 @@ export default async function Page() {
             </li>
           ))}
         </ol>
+        <h3 className="mt-16 flex items-center gap-3 text-h3 sm:mt-20">
+          <TileMarker hue="yellow" size="lg" />
+          {t("how.photos.title")}
+        </h3>
+        <HappyMosaic
+          layout="row3"
+          tiles={HOW_PHOTOS.map(([id, key]) => ({
+            id,
+            caption: t(`how.photos.${key}`),
+          }))}
+          className="mt-10"
+        />
       </Section>
 
       {/* Stakeholders and the not-a-shelter diagram. */}

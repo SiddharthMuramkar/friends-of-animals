@@ -73,15 +73,17 @@ export default async function Page() {
               </Link>
             </aside>
           </div>
+          {/* On phones a half-width print, smaller than the safety note's
+              text, so text stays the LCP element (see /donate). */}
           <Photo
-            id="dog-dehradun-gate-golden"
-            sizes="(min-width: 1024px) 40vw, 92vw"
+            id="dog-thrissur-happy-white"
+            sizes="(min-width: 1024px) min(40vw, 512px), (min-width: 640px) min(92vw, 512px), 46vw"
             preload
             frame="blue"
             frameCorner="top-right"
             caption={t("hero.photoCaption")}
             className="aspect-4/3"
-            figureClassName="mx-auto w-full max-w-lg"
+            figureClassName="ml-auto mr-2 w-1/2 rotate-2 sm:mx-auto sm:w-full sm:max-w-lg sm:rotate-0"
           />
         </div>
       </Section>

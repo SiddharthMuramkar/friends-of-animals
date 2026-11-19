@@ -13,6 +13,14 @@ const TILE = {
   blue: "bg-blue-600",
 } as const;
 
+// A caption written on a coloured note, like the home hero's (ink on light
+// tile colours only: never white on these).
+const NOTE = {
+  yellow: "bg-yellow-300",
+  pink: "bg-pink-400",
+  teal: "bg-teal-400",
+} as const;
+
 const CORNER = {
   "top-left": "-top-3 -left-3",
   "top-right": "-top-3 -right-3",
@@ -33,6 +41,11 @@ type Props = {
   showCredit?: boolean;
   /** Translated caption; the verified place is always added after it. */
   caption?: string;
+  /**
+   * Show the caption as a handwritten note pinned over the photo's bottom
+   * edge, with the place and credit on the line below. Keep it to 5 words.
+   */
+  captionNote?: keyof typeof NOTE;
   /** Classes for the image, e.g. "aspect-4/5" to crop with object-cover. */
   className?: string;
   /** Classes for the outer figure (width, margins). */
@@ -51,12 +64,26 @@ export function Photo({
   frameCorner = "top-left",
   showCredit,
   caption,
+  captionNote,
   className,
   figureClassName,
 }: Props) {
   const { src, credit, focal } = siteImage(id);
   const creditVisible = showCredit ?? needsVisibleCredit(credit.licence);
   const hasCaption = caption !== undefined || creditVisible;
+  const placeAndCredit = (
+    <>
+      {credit.place ? <span>{credit.place}</span> : null}
+      {creditVisible ? (
+        <a
+          href={credit.sourceUrl}
+          className="underline decoration-1 underline-offset-2 hover:text-foreground"
+        >
+          {shortCredit(credit)}
+        </a>
+      ) : null}
+    </>
+  );
 
   return (
     <figure className={cn("relative", figureClassName)}>
@@ -82,17 +109,30 @@ export function Photo({
         />
       </div>
       {hasCaption ? (
-        <figcaption className="mt-2 flex flex-wrap gap-x-2 text-sm text-muted-foreground">
-          {caption ? <span className="text-foreground">{caption}</span> : null}
-          {credit.place ? <span>{credit.place}</span> : null}
-          {creditVisible ? (
-            <a
-              href={credit.sourceUrl}
-              className="underline decoration-1 underline-offset-2 hover:text-foreground"
+        <figcaption
+          className={cn(
+            "mt-2 flex flex-wrap gap-x-2 text-sm text-muted-foreground",
+            captionNote &&
+              "relative -mt-5 flex-col items-start gap-y-2 px-3 max-sm:text-xs"
+          )}
+        >
+          {caption && captionNote ? (
+            <span
+              className={cn(
+                "max-w-full -rotate-2 rounded-2xl px-3 py-1 font-hand text-base leading-snug text-neutral-900 shadow-warm sm:text-lead",
+                NOTE[captionNote]
+              )}
             >
-              {shortCredit(credit)}
-            </a>
+              {caption}
+            </span>
+          ) : caption ? (
+            <span className="text-foreground">{caption}</span>
           ) : null}
+          {captionNote ? (
+            <span className="flex flex-wrap gap-x-2">{placeAndCredit}</span>
+          ) : (
+            placeAndCredit
+          )}
         </figcaption>
       ) : null}
     </figure>

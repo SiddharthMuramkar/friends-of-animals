@@ -98,6 +98,11 @@
       "eyebrow": "Kindness pledge",
       "title": "Make your kindness pledge card",
       "lead": "Pick a street neighbour and a promise. Your card is made right here on your device, ready to print or pin up.",
+      "photosLabel": "A happy puppy and kitten",
+      "photos": {
+        "puppy": "Tail up, tongue out",
+        "kitten": "I can see you"
+      },
       "name": "Your first name or nickname",
       "nameHint": "Optional. Only your first name.",
       "animal": "Pick a street neighbour",

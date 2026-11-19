@@ -28,6 +28,19 @@ import seWinterDogCoatCurled from "@/assets/site-images/seasons/se-winter-dog-co
 import seKitesUttarayan from "@/assets/site-images/seasons/se-kites-uttarayan.jpg";
 import careKolamRice from "@/assets/site-images/stories/care-kolam-rice.jpg";
 import puppiesLoungingCloth from "@/assets/site-images/stories/puppies-lounging-cloth.jpg";
+import dogAnjunaBeachHappy from "@/assets/site-images/happy/dog-anjuna-beach-happy.jpg";
+import dogBhubaneswarBellyUp from "@/assets/site-images/happy/dog-bhubaneswar-belly-up.jpg";
+import puppyWhiteRunning from "@/assets/site-images/happy/puppy-white-running.jpg";
+import dogsLalbaghPlay from "@/assets/site-images/happy/dogs-lalbagh-play.jpg";
+import puppiesKeralaGrass from "@/assets/site-images/happy/puppies-kerala-grass.jpg";
+import dogThrissurHappyWhite from "@/assets/site-images/happy/dog-thrissur-happy-white.jpg";
+import kittensBasketGuwahati from "@/assets/site-images/happy/kittens-basket-guwahati.jpg";
+import kittenTreePeekaboo from "@/assets/site-images/happy/kitten-tree-peekaboo.jpg";
+import catRoofBougainvillea from "@/assets/site-images/happy/cat-roof-bougainvillea.jpg";
+import catStretchAhmedabad from "@/assets/site-images/happy/cat-stretch-ahmedabad.jpg";
+import catGrassSrinagar from "@/assets/site-images/happy/cat-grass-srinagar.jpg";
+import kittenTreeDingore from "@/assets/site-images/happy/kitten-tree-dingore.jpg";
+import kittensPlayLalakapa from "@/assets/site-images/happy/kittens-play-lalakapa.jpg";
 
 import focalPoints from "@/assets/site-images/focal.json";
 
@@ -66,6 +79,19 @@ const files: Record<SiteImageId, StaticImageData> = {
   "se-kites-uttarayan": seKitesUttarayan,
   "care-kolam-rice": careKolamRice,
   "puppies-lounging-cloth": puppiesLoungingCloth,
+  "dog-anjuna-beach-happy": dogAnjunaBeachHappy,
+  "dog-bhubaneswar-belly-up": dogBhubaneswarBellyUp,
+  "puppy-white-running": puppyWhiteRunning,
+  "dogs-lalbagh-play": dogsLalbaghPlay,
+  "puppies-kerala-grass": puppiesKeralaGrass,
+  "dog-thrissur-happy-white": dogThrissurHappyWhite,
+  "kittens-basket-guwahati": kittensBasketGuwahati,
+  "kitten-tree-peekaboo": kittenTreePeekaboo,
+  "cat-roof-bougainvillea": catRoofBougainvillea,
+  "cat-stretch-ahmedabad": catStretchAhmedabad,
+  "cat-grass-srinagar": catGrassSrinagar,
+  "kitten-tree-dingore": kittenTreeDingore,
+  "kittens-play-lalakapa": kittensPlayLalakapa,
 };
 
 // Subject position in each master, as [x, y] fractions, for object-position.

@@ -12,6 +12,18 @@
       "easy": "Pick a competition. Make your picture, story or film. Everyone who takes part gets a certificate.",
       "photoCaption": "Crayons, paints and paper: all you need for most competitions."
     },
+    "draw": {
+      "eyebrow": "Drawing prompts",
+      "title": "Who will you draw?",
+      "lead": "Pick a happy neighbour from these photos, or one you can see from your window. Look closely at its ears and its tail. Then draw it your own way.",
+      "label": "Four happy animals to draw",
+      "prompts": {
+        "rolling": "A dog, rolling over",
+        "tree": "A kitten up a tree",
+        "grin": "The biggest doggy grin",
+        "stretch": "A long, lazy stretch"
+      }
+    },
     "list": {
       "title": "Open and coming up",
       "lead": "Choose what you like to make and your age to see the competitions that fit.",

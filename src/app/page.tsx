@@ -9,6 +9,7 @@ import { CertificatePreview } from "@/components/showcase/certificate-preview";
 import { cachedNow } from "@/components/showcase/clock";
 import { CompetitionCard } from "@/components/showcase/competition-card";
 import { GalleryFrames } from "@/components/showcase/gallery-frames";
+import { HappyMosaic } from "@/components/showcase/happy-mosaic";
 import { ImpactCounters } from "@/components/showcase/impact-counters";
 import { JudgingPath } from "@/components/showcase/judging-path";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
@@ -25,6 +26,7 @@ import { TileMarker } from "@/components/site/tile";
 import { getSampleCompetitions, getSampleImpact } from "@/content/sample";
 import { homeCompetitions } from "@/content/sample/selectors";
 import { latestStories } from "@/content/stories";
+import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
@@ -379,17 +381,37 @@ async function Donate() {
   );
 }
 
+// Darwin's line is about young animals playing, so the prints are puppies
+// and kittens at play, three of each.
+const JOY_PHOTOS = [
+  ["kittens-basket-guwahati", "basket"],
+  ["dogs-lalbagh-play", "mum"],
+  ["kittens-play-lalakapa", "wrestle"],
+  ["kitten-tree-peekaboo", "peekaboo"],
+  ["puppies-kerala-grass", "slipper"],
+  ["puppy-white-running", "running"],
+] as const satisfies readonly (readonly [SiteImageId, string])[];
+
 async function Joy() {
   const t = await getTranslations("home.joy");
   return (
-    <section
-      aria-label={t("label")}
-      className="bg-yellow-100 py-14 dark:bg-yellow-950 sm:py-20"
-    >
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <QuoteFigure id="Q36" hue="yellow" />
-      </div>
-    </section>
+    <Section labelledBy="home-joy" width="wide" tone="tint" hue="yellow">
+      <HappyMosaic
+        layout="around"
+        tiles={JOY_PHOTOS.map(([id, key]) => ({
+          id,
+          caption: t(`photos.${key}`),
+        }))}
+      >
+        <SectionHeading
+          id="home-joy"
+          eyebrow={t("eyebrow")}
+          tile="yellow"
+          title={t("title")}
+        />
+        <QuoteFigure id="Q36" hue="yellow" size="md" className="mt-8" />
+      </HappyMosaic>
+    </Section>
   );
 }
 

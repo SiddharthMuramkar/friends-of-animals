@@ -75,7 +75,16 @@
       "cta": "How giving works"
     },
     "joy": {
-      "label": "A note on joy"
+      "eyebrow": "Happy neighbours",
+      "title": "Look who lives next door",
+      "photos": {
+        "basket": "A basket of kittens",
+        "mum": "Mum, play with me",
+        "wrestle": "Play-fight time",
+        "peekaboo": "Peekaboo",
+        "slipper": "Four pups and a slipper",
+        "running": "Here I come"
+      }
     }
   }
 }
