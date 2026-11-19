@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { PageHeader } from "@/components/site/heading";
+import { InPageLink } from "@/components/site/in-page-link";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
@@ -171,12 +172,12 @@ export async function LegalDocument({
               <ol className="mt-3 space-y-1 text-sm">
                 {doc.sections.map((s) => (
                   <li key={s.id}>
-                    <a
+                    <InPageLink
                       href={`#${s.id}`}
                       className="flex min-h-8 items-center rounded-lg px-2 text-ink hover:bg-surface-muted hover:text-link"
                     >
                       {s.title}
-                    </a>
+                    </InPageLink>
                   </li>
                 ))}
               </ol>

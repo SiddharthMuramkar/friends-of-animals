@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { ViewTransition } from "react";
 
 import { JsonLd } from "@/components/site/json-ld";
+import { SkipLink } from "@/components/site/skip-link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { siteUrl } from "@/env";
@@ -70,12 +71,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="flex min-h-dvh flex-col">
-        <a
-          href="#main"
-          className="sr-only rounded-full bg-primary px-5 py-3 font-semibold text-primary-fg focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
-        >
-          {t("skipLink")}
-        </a>
+        <SkipLink>{t("skipLink")}</SkipLink>
         <SiteHeader />
         <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
           {/* Page changes cross-fade; the header is pinned (globals.css). */}
