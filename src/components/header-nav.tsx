@@ -2,7 +2,7 @@
 
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { buttonStyles } from "@/components/site/button-link";
 import { cn } from "@/lib/utils";
@@ -55,9 +55,13 @@ type MenuLabels = {
   donate: string;
 };
 
+/** Ties the Menu and Close buttons to the dialog through invoker commands. */
+const MENU_ID = "mobile-menu";
+
 /**
  * Small screens: a native modal <dialog> (focus trap, Escape and inert page
- * for free). Choosing a link closes it, so it never lingers after navigation.
+ * for free). It closes whenever the pathname changes, whether through one of
+ * its links, Back or Forward, so it never lingers over another page.
  */
 export function MobileMenuView({
   items,
@@ -73,24 +77,38 @@ export function MobileMenuView({
   const dialog = useRef<HTMLDialogElement>(null);
   const close = () => dialog.current?.close();
 
+  useEffect(() => {
+    dialog.current?.close();
+  }, [pathname]);
+
   return (
     <>
+      {/* The invoker command opens the menu before hydration (Chrome 135+,
+          Safari 26.2+); onClick covers older browsers. Opening an open modal
+          does nothing, so the two never clash. */}
       <button
         type="button"
         aria-haspopup="dialog"
+        {...({ command: "show-modal", commandfor: MENU_ID } as object)}
         onClick={() => dialog.current?.showModal()}
         className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-border-strong px-4 font-semibold text-ink hover:bg-surface-muted lg:hidden"
       >
         <Menu aria-hidden="true" className="size-5" />
         {labels.menu}
       </button>
+      {/* Overscroll is contained on the dialog, its backdrop and the nav,
+          so swipes never scroll the page behind. The backdrop colour is a
+          literal (neutral-950 at 50%): before Safari 17.4 and Chrome 122,
+          ::backdrop inherits no custom properties, so a token-based colour
+          turned transparent there. */}
       <dialog
         ref={dialog}
+        id={MENU_ID}
         aria-labelledby="mobile-menu-title"
         // Light dismiss (backdrop click) where supported; Escape and the
         // Close button work everywhere.
-        {...({ closedby: "any" } as object)}
-        className="m-0 ml-auto h-dvh max-h-dvh w-[min(24rem,100vw)] max-w-none bg-background p-0 text-ink backdrop:bg-neutral-950/50 open:flex open:flex-col"
+        closedby="any"
+        className="m-0 ml-auto h-dvh max-h-dvh w-[min(24rem,100vw)] max-w-none overscroll-contain border-s border-border bg-background p-0 text-ink backdrop:overflow-hidden backdrop:overscroll-contain backdrop:bg-[rgb(23_21_17/0.5)] open:flex open:flex-col"
       >
         <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
           <p id="mobile-menu-title" className="font-display text-h4 font-bold">
@@ -98,6 +116,7 @@ export function MobileMenuView({
           </p>
           <button
             type="button"
+            {...({ command: "close", commandfor: MENU_ID } as object)}
             onClick={close}
             className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 font-semibold hover:bg-surface-muted"
           >
@@ -107,7 +126,7 @@ export function MobileMenuView({
         </div>
         <nav
           aria-label={labels.nav}
-          className="flex-1 overflow-y-auto px-3 py-4"
+          className="flex-1 overflow-y-auto overscroll-contain px-3 py-4"
         >
           <ul className="flex flex-col gap-1">
             {items.map((item) => (
