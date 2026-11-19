@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { CompetitionCard } from "@/components/showcase/competition-card";
+import { HappyMosaic } from "@/components/showcase/happy-mosaic";
 import { TwoDoors } from "@/components/showcase/two-doors";
 import { ButtonLink } from "@/components/site/button-link";
 import { Disclosure } from "@/components/site/disclosure";
@@ -15,6 +16,7 @@ import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
 import { getSampleCompetitions } from "@/content/sample";
+import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
@@ -32,6 +34,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const HUE = ROUTES.competitions.hue;
+
+// Four poses that are fun to draw: two dogs, two cats.
+const PROMPTS = [
+  ["dog-bhubaneswar-belly-up", "rolling"],
+  ["kitten-tree-dingore", "tree"],
+  ["dog-anjuna-beach-happy", "grin"],
+  ["cat-grass-srinagar", "stretch"],
+] as const satisfies readonly (readonly [SiteImageId, string])[];
 
 export default async function Page() {
   const t = await getTranslations("competitions");
@@ -69,6 +79,26 @@ export default async function Page() {
           />
         </div>
         <QuoteFigure id="Q25" hue="pink" size="md" className="mt-14 sm:mt-20" />
+      </Section>
+
+      {/* Drawing prompts: not sample content, so it shows in production. */}
+      <Section labelledBy="draw-title" hue={HUE} width="wide">
+        <SectionHeading
+          id="draw-title"
+          eyebrow={t("draw.eyebrow")}
+          tile="yellow"
+          title={t("draw.title")}
+          lead={t("draw.lead")}
+        />
+        <HappyMosaic
+          layout="row4"
+          label={t("draw.label")}
+          tiles={PROMPTS.map(([id, key]) => ({
+            id,
+            caption: t(`draw.prompts.${key}`),
+          }))}
+          className="mt-12"
+        />
       </Section>
 
       <Section

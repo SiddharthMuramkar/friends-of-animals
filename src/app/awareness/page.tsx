@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { HappyMosaic } from "@/components/showcase/happy-mosaic";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { SeasonalCard } from "@/components/showcase/seasonal-card";
 import { Callout } from "@/components/site/callout";
@@ -18,6 +19,7 @@ import {
   RESCUE_SOURCES,
 } from "@/content/awareness/rescue";
 import { SEASONAL_MONTHS } from "@/content/awareness/seasonal";
+import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
@@ -40,6 +42,12 @@ const JUMPS = [
   ["law", "jumpLaw"],
   ["pledge", "jumpPledge"],
 ] as const;
+
+// A cheerful puppy and kitten beside the pledge.
+const PLEDGE_PHOTOS = [
+  ["puppy-white-running", "puppy"],
+  ["kitten-tree-peekaboo", "kitten"],
+] as const satisfies readonly (readonly [SiteImageId, string])[];
 
 const SWAPS = ["milk", "bread", "sweets", "chick", "holi", "manja"] as const;
 const PROMISES = [
@@ -328,13 +336,23 @@ export default async function AwarenessPage() {
 
       {/* 7. Kindness pledge card */}
       <Section hue="teal" tone="tint" id="pledge" labelledBy="pledge-title">
-        <SectionHeading
-          id="pledge-title"
-          eyebrow={t("pledge.eyebrow")}
-          tile="green"
-          title={t("pledge.title")}
-          lead={t("pledge.lead")}
-        />
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
+          <SectionHeading
+            id="pledge-title"
+            eyebrow={t("pledge.eyebrow")}
+            tile="green"
+            title={t("pledge.title")}
+            lead={t("pledge.lead")}
+          />
+          <HappyMosaic
+            layout="pair"
+            label={t("pledge.photosLabel")}
+            tiles={PLEDGE_PHOTOS.map(([id, key]) => ({
+              id,
+              caption: t(`pledge.photos.${key}`),
+            }))}
+          />
+        </div>
         <div className="mt-10">
           <PledgeCard
             animals={NEIGHBOURS.map((n) => ({ id: n.id, label: n.name }))}

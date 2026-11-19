@@ -53,7 +53,7 @@ export const NEIGHBOURS: readonly Neighbour[] = z
       id: "indie-dog",
       name: "Indie dog",
       latin: "Canis familiaris",
-      imageId: "sn-dog-chirala",
+      imageId: "dog-thrissur-happy-white",
       fact: "Street dogs can follow a pointing finger, with no training at all.",
       factDetail:
         "Scientists tested 160 street dogs in Indian cities. About half were too shy to come near a stranger. Of the dogs that did, about 8 in 10 followed a pointing finger to the right bowl.",
@@ -84,7 +84,7 @@ export const NEIGHBOURS: readonly Neighbour[] = z
       id: "street-cat",
       name: "Street cat",
       latin: "Felis catus",
-      imageId: "sn-cat-horniman",
+      imageId: "kitten-tree-dingore",
       fact: "A slow blink is a cat’s friendly hello. Blink slowly at a cat from far away, and it may blink back.",
       factDetail:
         "Tested on pet cats in the UK, not street cats. Cats narrowed their eyes back at people who blinked slowly, and were more likely to come up to a stranger after a slow blink.",

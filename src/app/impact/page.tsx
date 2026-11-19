@@ -50,6 +50,10 @@ export default async function Page() {
   return (
     <>
       <Section hue={HUE} tone="tint" className="pt-10 sm:pt-14">
+        {/* Text, quote, then photo: on phones the photo sits below the first
+            screen, so the heading text stays the LCP element (a hero image
+            there would make Lighthouse count every script before it). From
+            lg the photo takes the right column and the quote spans below. */}
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
           <div>
             <PageHeader
@@ -66,23 +70,23 @@ export default async function Page() {
               <p>{t("hero.easy")}</p>
             </EasyRead>
           </div>
+          <QuoteFigure
+            id="Q10b"
+            hue="teal"
+            size="md"
+            className="mt-4 sm:mt-10 lg:col-span-2 lg:mt-6"
+          />
           <Photo
-            id="dogs-vests-mat-stall"
-            sizes="(min-width: 1024px) 40vw, 92vw"
+            id="dogs-lalbagh-play"
+            sizes="(min-width: 1024px) min(40vw, 512px), min(92vw, 512px)"
             preload
             frame="green"
             frameCorner="bottom-left"
             caption={t("hero.photoCaption")}
             className="aspect-4/3"
-            figureClassName="mx-auto w-full max-w-lg"
+            figureClassName="mx-auto w-full max-w-lg lg:col-start-2 lg:row-start-1"
           />
         </div>
-        <QuoteFigure
-          id="Q10b"
-          hue="teal"
-          size="md"
-          className="mt-14 sm:mt-20"
-        />
       </Section>
 
       <Section

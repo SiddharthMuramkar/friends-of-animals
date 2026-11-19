@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { BadgeConstellation } from "@/components/showcase/badge-constellation";
+import { HappyMosaic } from "@/components/showcase/happy-mosaic";
 import { NotAShelter } from "@/components/showcase/not-a-shelter";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { ButtonLink } from "@/components/site/button-link";
@@ -12,6 +13,7 @@ import { Photo } from "@/components/site/photo";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { TileDivider, TileMarker } from "@/components/site/tile";
+import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
@@ -33,6 +35,13 @@ const HOW = [
   { key: "share", Icon: Eye, tile: "bg-pink-400 text-neutral-900" },
   { key: "grow", Icon: Sprout, tile: "bg-green-700 text-white" },
 ] as const;
+
+// The neighbours at the heart of it: one dog, two cats.
+const HOW_PHOTOS = [
+  ["cat-roof-bougainvillea", "roof"],
+  ["dog-thrissur-happy-white", "ears"],
+  ["cat-stretch-ahmedabad", "paws"],
+] as const satisfies readonly (readonly [SiteImageId, string])[];
 
 const PEOPLE = [
   "schools",
@@ -219,6 +228,18 @@ export default async function Page() {
             </li>
           ))}
         </ol>
+        <h3 className="mt-16 flex items-center gap-3 text-h3 sm:mt-20">
+          <TileMarker hue="yellow" size="lg" />
+          {t("how.photos.title")}
+        </h3>
+        <HappyMosaic
+          layout="row3"
+          tiles={HOW_PHOTOS.map(([id, key]) => ({
+            id,
+            caption: t(`how.photos.${key}`),
+          }))}
+          className="mt-10"
+        />
       </Section>
 
       {/* Stakeholders and the not-a-shelter diagram. */}
