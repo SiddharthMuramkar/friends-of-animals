@@ -23,3 +23,22 @@ export function newerSyntax(source: string): SyntaxName[] {
     ({ name }) => name
   );
 }
+
+/** SPEC §13.2: "Initial JS ≤ 170 KB gzipped on public pages" (in bytes). */
+export const INITIAL_JS_BUDGET = 170_000;
+
+/**
+ * The scripts a prerendered page loads up front: the paths of its
+ * `<script src>` tags under /_next/static/, without the `noModule`
+ * polyfills, which current browsers never fetch. This is how #45 measured
+ * initial JS.
+ */
+export function initialScripts(html: string): string[] {
+  const scripts = new Set<string>();
+  for (const [, attrs = ""] of html.matchAll(/<script\b([^>]*)>/gi)) {
+    if (/\bnomodule\b/i.test(attrs)) continue;
+    const src = /\bsrc="(\/_next\/static\/[^"?#]+\.js)/.exec(attrs)?.[1];
+    if (src) scripts.add(src);
+  }
+  return [...scripts];
+}

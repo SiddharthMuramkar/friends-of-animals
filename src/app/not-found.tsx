@@ -5,13 +5,13 @@ import Link from "next/link";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
-import { Photo } from "@/components/site/photo";
 import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
 
 import { DoodleLauncher } from "./_not-found/doodle-launcher";
 import type { DoodleLabels } from "./_not-found/doodle-pad";
+import { PawTrail } from "./_not-found/paw-trail";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("notFound");
@@ -28,7 +28,11 @@ const WAYS_BACK: {
   { href: ROUTES.awareness.path, key: "awareness", tile: "teal" },
 ];
 
-/** A 404 you can draw on. Unmatched URLs get a real 404. */
+/**
+ * A 404 you can draw on. Unmatched URLs get a real 404. Next.js sends this
+ * tree, and loads its client components, with every route, so keep it light:
+ * no next/image (#45). The pad's own code loads only after the tap.
+ */
 export default async function NotFound() {
   const t = await getTranslations("notFound");
   const p = await getTranslations("notFound.pad");
@@ -104,15 +108,7 @@ export default async function NotFound() {
               </ul>
             </nav>
           </div>
-          <Photo
-            id="puppy-ganden-peeking"
-            sizes="(min-width: 768px) 400px, 92vw"
-            preload
-            frame="blue"
-            frameCorner="top-right"
-            caption={t("photoCaption")}
-            className="aspect-4/5"
-          />
+          <PawTrail className="mx-auto hidden md:block" />
         </div>
       </Section>
 

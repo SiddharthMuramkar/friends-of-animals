@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { newerSyntax } from "./client-bundle";
+import { initialScripts, newerSyntax } from "./client-bundle";
 
 describe("newerSyntax", () => {
   it("finds a class static block, minified or not", () => {
@@ -40,5 +40,28 @@ describe("newerSyntax", () => {
       "class static block",
       "RegExp lookbehind",
     ]);
+  });
+});
+
+describe("initialScripts", () => {
+  it("lists a page's chunks in order, without the noModule polyfills", () => {
+    const html =
+      '<link rel="preload" as="script" href="/_next/static/chunks/c.js"/>' +
+      '<script src="/_next/static/chunks/a.js" async=""></script>' +
+      '<script src="/_next/static/chunks/polyfill.js" noModule=""></script>' +
+      '<script src="/_next/static/chunks/c.js" id="_R_" async=""></script>' +
+      '<script>self.__next_f.push([1,"<script src=\\"x.js\\">"])</script>';
+    expect(initialScripts(html)).toEqual([
+      "/_next/static/chunks/a.js",
+      "/_next/static/chunks/c.js",
+    ]);
+  });
+
+  it("counts a chunk once and skips scripts from elsewhere", () => {
+    const html =
+      '<script async src="/_next/static/chunks/a.js"></script>' +
+      '<script src="/_next/static/chunks/a.js"></script>' +
+      '<script src="https://example.com/x.js"></script>';
+    expect(initialScripts(html)).toEqual(["/_next/static/chunks/a.js"]);
   });
 });
