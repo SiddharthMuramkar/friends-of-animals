@@ -161,7 +161,9 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
               <EasyRead label={t("easyReadLabel")} className="mt-6 max-w-prose">
                 <p>{story.easyRead}</p>
               </EasyRead>
-              <div className="mt-6">
+              {/* min-h-11 holds the player's row, which mounts after
+                  hydration, so the story below doesn't jump. */}
+              <div className="mt-6 min-h-11">
                 <ReadAloud
                   targetId={BODY_ID}
                   locale={locale}
