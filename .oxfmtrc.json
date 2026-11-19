@@ -11,6 +11,8 @@
     "public/**",
     "drizzle/meta/**",
     "pnpm-lock.yaml",
-    "AGENTS.md"
+    "AGENTS.md",
+    ".claude/skills/**",
+    "skills-lock.json"
   ]
 }
