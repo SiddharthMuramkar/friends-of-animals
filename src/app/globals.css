@@ -534,3 +534,15 @@
     text-decoration-thickness: 0.14em;
   }
 }
+
+/*
+ * Devanagari loads only for `hi` (SPEC §13.2). On a page in another language
+ * a Hindi line (lang="hi", e.g. the Article 51A(g) quote on /about) uses the
+ * system's Devanagari font, so Baloo 2's 113 KB Devanagari file is never
+ * fetched. Unlayered, so it beats `font-display` and the other utilities.
+ */
+html:not(:lang(hi)) :lang(hi) {
+  font-family:
+    "Kohinoor Devanagari", "Devanagari Sangam MN", "Noto Sans Devanagari",
+    "Nirmala UI", "Mangal", ui-sans-serif, system-ui, sans-serif;
+}

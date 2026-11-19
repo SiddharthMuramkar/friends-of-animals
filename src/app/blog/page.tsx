@@ -91,7 +91,7 @@ export default async function Page() {
   return (
     <>
       <Section hue="yellow" tone="tint" className="pt-10 sm:pt-16">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-16">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-16">
           <div>
             <PageHeader
               eyebrow={t("eyebrow")}
@@ -103,13 +103,16 @@ export default async function Page() {
               <p>{t("easyRead")}</p>
             </EasyRead>
           </div>
+          {/* On phones a half-width print, smaller than the lead text, so
+              text stays the LCP element (see /about and /contact). */}
           <Photo
             id="hand-paw-friendship"
             preload
             frame="red"
             frameCorner="top-right"
-            sizes="(min-width: 1024px) 480px, 92vw"
+            sizes="(min-width: 1024px) 480px, (min-width: 640px) min(92vw, 512px), 46vw"
             className="aspect-4/3"
+            figureClassName="ml-auto mr-2 w-1/2 -rotate-2 sm:mx-auto sm:w-full sm:max-w-lg sm:rotate-0 lg:max-w-none"
           />
         </div>
       </Section>
