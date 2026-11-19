@@ -123,18 +123,22 @@ export default async function AwarenessPage() {
               </ul>
             </nav>
           </div>
+          {/* Text, quote, then photo: on phones the photo sits below the
+              first screen, so text stays the LCP element (see /donate). From
+              lg the photo takes the right column and the quote spans below. */}
+          <TileDivider className="lg:col-span-2 lg:mt-2" />
+          <QuoteFigure id="Q42" hue="teal" className="lg:col-span-2" />
           <Photo
             id="dog-vest-blanket-delhi"
-            sizes="(min-width: 1024px) 460px, 92vw"
+            sizes="(min-width: 1024px) 460px, min(92vw, 512px)"
             preload
             frame="green"
             frameCorner="bottom-right"
             caption={t("hero.photoCaption")}
             className="aspect-4/3"
+            figureClassName="mx-auto w-full max-w-lg lg:col-start-2 lg:row-start-1"
           />
         </div>
-        <TileDivider className="my-12" />
-        <QuoteFigure id="Q42" hue="teal" />
       </Section>
 
       {/* 2. This month, and all twelve */}
