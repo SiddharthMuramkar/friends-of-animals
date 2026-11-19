@@ -126,6 +126,16 @@ describe("nextKeyDate", () => {
       "entriesClose"
     );
   });
+  it("moves on the moment a deadline passes", () => {
+    const closes = Date.parse(c.registrationClosesAt);
+    expect(nextKeyDate(c, new Date(closes - 1))?.kind).toBe(
+      "registrationCloses"
+    );
+    expect(nextKeyDate(c, new Date(closes + 1))).toEqual({
+      kind: "entriesClose",
+      at: c.submissionClosesAt,
+    });
+  });
   it("returns null once every date has passed", () => {
     expect(nextKeyDate(c, new Date("2030-01-01T00:00:00Z"))).toBeNull();
   });

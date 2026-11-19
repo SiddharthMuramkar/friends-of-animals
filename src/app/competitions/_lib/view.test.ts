@@ -80,6 +80,27 @@ describe("timeline", () => {
     ]);
   });
 
+  it("marks a deadline done as soon as it passes", () => {
+    const closes = Date.parse(open.registrationClosesAt);
+    const kinds = (at: number) =>
+      timeline(open, new Date(at))
+        .filter((s) => s.past)
+        .map((s) => s.kind);
+    expect(kinds(closes - 1)).toEqual(["registrationOpens"]);
+    expect(kinds(closes + 1)).toEqual([
+      "registrationOpens",
+      "registrationCloses",
+    ]);
+  });
+
+  it("marks the making window done only once it has ended", () => {
+    const making = (at: string) =>
+      timeline(open, new Date(at)).find((s) => s.kind === "making")!.past;
+    expect(making(open.conductStartsAt)).toBe(false);
+    expect(making(open.conductEndsAt)).toBe(false);
+    expect(making("2027-02-05T17:00:01+05:30")).toBe(true);
+  });
+
   it("leaves out the shortlist step when schools don't take part", () => {
     const { shortlistSubmissionClosesAt: _, ...rest } = open;
     const solo = {
