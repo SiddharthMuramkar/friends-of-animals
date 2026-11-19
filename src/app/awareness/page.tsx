@@ -100,7 +100,7 @@ export default async function AwarenessPage() {
     <>
       {/* 1. Intro: Goodall Q42 */}
       <Section hue="teal" tone="tint" className="pt-10 sm:pt-14">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
           <div>
             <PageHeader
               eyebrow={t("hero.eyebrow")}

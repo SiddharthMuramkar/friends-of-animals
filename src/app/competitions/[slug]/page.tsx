@@ -157,7 +157,7 @@ export default async function Page({
           </ol>
         </nav>
 
-        <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
+        <div className="mt-8 grid grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusChip status={c.status} />
@@ -174,7 +174,7 @@ export default async function Page({
 
             <dl
               aria-label={t("facts")}
-              className="mt-8 grid max-w-xl grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-3 rounded-3xl bg-surface p-5 shadow-warm sm:p-6"
+              className="mt-8 grid max-w-xl grid-cols-1 gap-x-6 gap-y-1 rounded-3xl bg-surface p-5 shadow-warm sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-y-3 sm:p-6 max-sm:[&>dt:not(:first-of-type)]:mt-3"
             >
               <dt className="font-semibold text-ink">{t("ages")}</dt>
               <dd className="text-ink-muted">{t("ageRange", ages)}</dd>

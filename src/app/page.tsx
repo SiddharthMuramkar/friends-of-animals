@@ -99,16 +99,17 @@ async function Hero() {
   const t = await getTranslations("home");
   const { hero } = HOME_LAYOUT;
   return (
-    <section
-      aria-labelledby="home-title"
-      className="relative overflow-hidden bg-surface-muted"
-    >
-      {/* Tile field: a few loose logo-colour tiles, decorative. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+    <section aria-labelledby="home-title" className="relative bg-surface-muted">
+      {/* Tile field: a few loose logo-colour tiles, decorative. Only this
+          layer clips, so the text and buttons can never be cut off. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
         <span className="absolute bottom-16 left-[4%] hidden size-5 -rotate-6 rounded-[22%] bg-teal-400 sm:block" />
         <span className="absolute right-[6%] bottom-8 hidden size-4 rotate-6 rounded-[22%] bg-pink-400 sm:block" />
       </div>
-      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-8 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
+      <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-12 px-4 py-8 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
         <div>
           <Eyebrow tile="green">{t("hero.eyebrow")}</Eyebrow>
           <h1
@@ -360,7 +361,7 @@ async function Donate() {
   const t = await getTranslations("home.donate");
   return (
     <Section labelledBy="home-donate" width="wide" hue="red">
-      <div className="relative overflow-hidden rounded-3xl bg-section-red p-6 sm:p-10 lg:p-14">
+      <div className="relative rounded-3xl bg-section-red p-6 sm:p-10 lg:p-14">
         <div aria-hidden="true" className="absolute top-6 right-6 flex gap-1.5">
           <TileMarker hue="red" size="lg" />
           <TileMarker hue="green" size="lg" />
