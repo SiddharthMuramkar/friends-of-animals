@@ -362,7 +362,11 @@ async function Donate() {
   return (
     <Section labelledBy="home-donate" width="wide" hue="red">
       <div className="relative rounded-3xl bg-section-red p-6 sm:p-10 lg:p-14">
-        <div aria-hidden="true" className="absolute top-6 right-6 flex gap-1.5">
+        {/* In flow on phones, so the tiles can't cover the eyebrow. */}
+        <div
+          aria-hidden="true"
+          className="flex justify-end gap-1.5 max-sm:mb-3 sm:absolute sm:top-6 sm:right-6"
+        >
           <TileMarker hue="red" size="lg" />
           <TileMarker hue="green" size="lg" />
           <TileMarker hue="blue" size="lg" />
