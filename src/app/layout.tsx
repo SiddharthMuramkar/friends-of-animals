@@ -58,7 +58,7 @@ export const viewport: Viewport = {
   ],
 };
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
   const t = await getTranslations("common");
   return (
     // The theme script changes the class before hydration.
@@ -74,11 +74,16 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-dvh flex-col">
         <SkipLink>{t("skipLink")}</SkipLink>
         <SiteHeader />
-        <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
-          {/* Page changes cross-fade; the header is pinned (globals.css). */}
-          <ViewTransition>{children}</ViewTransition>
-        </main>
-        <SiteFooter />
+        {/* One wrapper for main and the footer, so a sticky bar from the
+            @exit slot (Quick exit) stays on screen over the footer too. */}
+        <div className="flex flex-1 flex-col">
+          {exit}
+          <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
+            {/* Page changes cross-fade; the header is pinned (globals.css). */}
+            <ViewTransition>{children}</ViewTransition>
+          </main>
+          <SiteFooter />
+        </div>
         <HistoryScrollGuard />
         <JsonLd data={organizationJsonLd(siteUrl(), t("tagline"))} />
       </body>

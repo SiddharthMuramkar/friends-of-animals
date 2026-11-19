@@ -7,7 +7,6 @@ import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
 import { LegalDocument } from "../_components/legal-document";
-import { QuickExit } from "../_components/quick-exit";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("legal.safeguarding.meta");
@@ -91,39 +90,23 @@ async function Helplines() {
 export default async function Page() {
   const t = await getTranslations("legal.safeguarding");
   return (
-    <>
-      <div
-        data-quick-exit-bar
-        className="sticky top-(--header-height) z-30 border-b-2 border-border bg-surface"
-      >
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-x-4 gap-y-1 px-4 py-2 sm:px-6">
-          <p
-            id="quick-exit-hint"
-            className="sr-only text-sm text-ink-muted sm:not-sr-only"
+    <LegalDocument
+      id="safeguarding"
+      top={<Helplines />}
+      after={{
+        "how-to-report": (
+          <ExplainState
+            title={t("form.title")}
+            headingLevel="h3"
+            back={{
+              href: ROUTES.childProtection.path,
+              label: t("form.back"),
+            }}
           >
-            {t("quickExitHint")}
-          </p>
-          <QuickExit label={t("quickExit")} hintId="quick-exit-hint" />
-        </div>
-      </div>
-      <LegalDocument
-        id="safeguarding"
-        top={<Helplines />}
-        after={{
-          "how-to-report": (
-            <ExplainState
-              title={t("form.title")}
-              headingLevel="h3"
-              back={{
-                href: ROUTES.childProtection.path,
-                label: t("form.back"),
-              }}
-            >
-              <p>{t("form.body")}</p>
-            </ExplainState>
-          ),
-        }}
-      />
-    </>
+            <p>{t("form.body")}</p>
+          </ExplainState>
+        ),
+      }}
+    />
   );
 }
