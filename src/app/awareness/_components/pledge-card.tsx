@@ -177,7 +177,7 @@ function saveFile(file: File) {
 /**
  * The kindness pledge card: a first name (optional), a street neighbour and a
  * promise, drawn on a canvas and saved as a PNG on the device. Nothing is sent
- * or stored (tech-recipes §11).
+ * or stored.
  */
 export function PledgeCard({
   animals,

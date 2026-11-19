@@ -17,7 +17,7 @@ const noop = () => () => {};
 const supported = () =>
   "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
 
-/** Device voices first; en-IN, then other English voices (tech-recipes §9). */
+/** Device voices first; en-IN, then other English voices. */
 function pickVoice(voices: SpeechSynthesisVoice[]) {
   const lang = (v: SpeechSynthesisVoice) =>
     v.lang.replace("_", "-").toLowerCase();

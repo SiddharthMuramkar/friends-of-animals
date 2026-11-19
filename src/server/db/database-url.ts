@@ -13,7 +13,7 @@ export type DatabaseEnv = {
   VERCEL_GIT_COMMIT_REF?: string | undefined;
 };
 
-/** A preview's own database on pg-nonprod (SPEC §2.4). */
+/** A preview's own database on pg-nonprod. */
 export type PreviewDatabase = {
   /**
    * `foa_pr_<n>`, or `foa_br_<slug>_<hash>` while the branch has no PR (see

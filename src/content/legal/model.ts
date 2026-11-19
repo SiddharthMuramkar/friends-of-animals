@@ -1,6 +1,6 @@
 /**
- * Legal and policy documents as typed blocks (SPEC §12.13; DIRECTION §7):
- * a plain-language "short version" first, then the full text in sections.
+ * Legal and policy documents as typed blocks: a plain-language "short
+ * version" first, then the full text in sections.
  * Unconfirmed organisation facts are references into SITE.org, rendered as
  * visible placeholders until FOA confirms them; never typed in by hand.
  */

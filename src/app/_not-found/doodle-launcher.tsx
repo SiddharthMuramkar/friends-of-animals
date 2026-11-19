@@ -7,7 +7,7 @@ import { buttonStyles } from "@/components/site/button-link";
 
 import type { DoodleLabels } from "./doodle-pad";
 
-// The pad and perfect-freehand load only after the tap (tech-recipes §10.1).
+// The pad and perfect-freehand load only after the tap.
 const DoodlePad = lazy(() =>
   import("./doodle-pad").then((m) => ({ default: m.DoodlePad }))
 );

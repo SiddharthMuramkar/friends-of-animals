@@ -1,8 +1,8 @@
 import type { ArticleBody } from "../model";
 
-// Brief: research/stories.md §4 D; dossier S7. DIRECTION §5: "Fly kites only
-// with plain cotton thread"; children never handle a hurt bird. Helpline
-// numbers are dated to January 2026: recheck every December.
+// Safety rules: "Fly kites only with plain cotton thread"; children never
+// handle a hurt bird. Helpline numbers are dated to January 2026: recheck
+// every December.
 export const article = {
   blocks: [
     {

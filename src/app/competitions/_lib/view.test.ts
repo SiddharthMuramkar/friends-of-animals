@@ -97,7 +97,7 @@ describe("fileRules", () => {
     ).toEqual(["PHOTOGRAPHY", "DRAWING"]);
   });
 
-  it("uses SPEC 6.8.3 limits", () => {
+  it("uses the default size and resolution limits", () => {
     const [essay, video] = fileRules(["ESSAY", "VIDEOGRAPHY"]);
     expect(essay.maxMb).toBe(10);
     expect(video.maxMb).toBe(500);

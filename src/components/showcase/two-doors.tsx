@@ -32,9 +32,9 @@ const NUMBER: Record<Door, string> = {
 };
 
 /**
- * W1 "Two doors, one path": a radio pair (school recommended, on your own)
+ * "Two doors, one path": a radio pair (school recommended, on your own)
  * that lights the chosen route's steps; both routes then merge into the same
- * judging and certificate (FoA.md Phase 2, Routes A and B). CSS only.
+ * judging and certificate. CSS only.
  */
 export async function TwoDoors({
   id = "doors",

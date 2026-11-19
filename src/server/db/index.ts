@@ -13,7 +13,7 @@ import * as schema from "./schema";
 function createDb() {
   const config = env();
   // A preview's DATABASE_URL names a placeholder database; this connects to
-  // the preview's own instead (SPEC §2.4).
+  // the preview's own instead.
   const url = resolveDatabaseUrl(config.DATABASE_URL, config);
   const client = postgres(url, {
     // TLS and how the certificate is checked come from the URL's sslmode

@@ -1,8 +1,7 @@
 import type { ArticleBody } from "../model";
 
-// Brief: quotes.md Q10 and D1 (the misattributed Gandhi line, debunked without
-// quoting it), india-anchors §10.1. Rukmini Devi's own 1954 words were not
-// found, so none are quoted (quotes.md D13).
+// The misattributed Gandhi line is debunked without quoting it. Rukmini
+// Devi's own 1954 words were not found, so none are quoted.
 export const article = {
   blocks: [
     {

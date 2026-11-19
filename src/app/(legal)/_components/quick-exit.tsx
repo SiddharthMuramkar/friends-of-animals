@@ -3,7 +3,7 @@
 import { LogOut } from "lucide-react";
 import { useEffect } from "react";
 
-/** Neutral page to land on (GOV.UK "Exit this page" pattern, ux-patterns P06). */
+/** Neutral page to land on (GOV.UK "Exit this page" pattern). */
 const DESTINATION = "https://www.google.com/search?q=weather";
 
 function leave() {

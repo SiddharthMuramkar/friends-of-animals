@@ -90,7 +90,7 @@ for (const width of [256, 512, 1024, 2048]) {
   );
 }
 
-// Transparent watermarks for stamping onto photos (SPEC §7.9).
+// Transparent watermarks for stamping onto photos.
 const watermark = (art: Artwork): Canvas => ({
   width: 1024,
   height: heightAt(art, 1024),

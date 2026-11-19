@@ -24,7 +24,7 @@ describe("visibleSections", () => {
     expect(visibleSections(base)).toEqual(["competitions", "stories"]);
   });
 
-  it("follows SPEC §9.4.3 order on the shipped layout", () => {
+  it("puts the shipped sections in home page order", () => {
     const keys = visibleSections(HOME_LAYOUT);
     const at = (k: string) => keys.indexOf(k as never);
     expect(at("competitions")).toBeLessThan(at("gallery"));

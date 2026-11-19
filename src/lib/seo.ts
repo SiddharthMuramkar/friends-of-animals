@@ -67,8 +67,8 @@ export function jsonLdScript(data: unknown): string {
 }
 
 /**
- * Site-wide NGO structured data (SPEC §13.6). Unconfirmed facts are left out,
- * never sent as placeholders.
+ * Site-wide NGO structured data. Unconfirmed facts are left out, never sent
+ * as placeholders.
  */
 export function organizationJsonLd(base: URL, description: string) {
   const { email, legalName, socials } = SITE.org;

@@ -1,7 +1,7 @@
 import type { ArticleBody } from "../model";
 
-// Brief: research/stories.md §4 B; dossier S4. Kids' article: FK grade ≤ 6
-// outside the grown-ups' box (checked in text.test.ts).
+// Kids' article: FK grade ≤ 6 outside the grown-ups' box (checked in
+// text.test.ts).
 export const article = {
   blocks: [
     {

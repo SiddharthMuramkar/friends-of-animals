@@ -56,8 +56,8 @@ function QrTile() {
 const CORNER_TILE = "absolute size-5 rounded-[22%] sm:size-7";
 
 /**
- * W3 "A certificate for everyone": a full-size sample participation
- * certificate, watermarked SAMPLE, with a certificate number in the SPEC §3.1
+ * "A certificate for everyone": a full-size sample participation
+ * certificate, watermarked SAMPLE, with a certificate number in the real
  * format and a QR placeholder. Printed on paper in both themes.
  */
 export async function CertificatePreview({

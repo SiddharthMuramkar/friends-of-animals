@@ -15,7 +15,7 @@
 -- The preview roles have no CONNECT on foa_staging and pg_hba.conf rejects
 -- them there; pg_hba.conf lets the staging roles into foa_staging only.
 --
--- No production data ever lands here (spec §13.8).
+-- No production data ever lands here.
 
 -- Passwords below: keep them out of pg_stat_statements and the server log
 -- (see common.sql).

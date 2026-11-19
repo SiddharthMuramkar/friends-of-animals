@@ -41,9 +41,9 @@ const buildVariables = {
   VERCEL: vercel,
   APP_ENV: appEnv,
   /**
-   * Canonical base URL, e.g. https://shipped-it.dev (§13.9). Only the
-   * server reads it, so it needs no NEXT_PUBLIC_ prefix, but prerendered
-   * pages bake it in at build time.
+   * Canonical base URL, e.g. https://shipped-it.dev. Only the server reads
+   * it, so it needs no NEXT_PUBLIC_ prefix, but prerendered pages bake it
+   * in at build time.
    */
   APP_URL: z
     .url({ protocol: /^https?$/, error: "must be an http(s) URL" })
@@ -93,8 +93,8 @@ function defaultAppUrl({
 }
 
 /**
- * Every Vercel environment (VERCEL set) must say which deployment it is
- * (§13.9); only a local run may leave APP_ENV out.
+ * Every Vercel environment (VERCEL set) must say which deployment it is;
+ * only a local run may leave APP_ENV out.
  */
 function requireAppEnvOnVercel(
   { VERCEL, APP_ENV }: Pick<DeploymentVariables, "VERCEL" | "APP_ENV">,
@@ -113,7 +113,7 @@ function requireAppEnvOnVercel(
 }
 
 /**
- * Staging and production must set APP_URL (§13.9), so a deployment never
+ * Staging and production must set APP_URL, so a deployment never
  * bakes http://localhost:3000 into its pages. A preview may leave it out and
  * gets its Vercel URL.
  */
@@ -149,8 +149,8 @@ type PreviewDatabaseVariables = {
 };
 
 /**
- * A preview connects to a database of its own, named from its PR or branch
- * (§2.4), so it fails the start and the migration when it can't be named.
+ * A preview connects to a database of its own, named from its PR or branch,
+ * so it fails the start and the migration when it can't be named.
  */
 function requirePreviewDatabase(
   values: PreviewDatabaseVariables,
@@ -235,8 +235,8 @@ export type Env = z.output<typeof envSchema>;
 
 /**
  * What the migration script and drizzle-kit read. They connect through
- * DIRECT_URL only, a direct or session-mode connection (§2.2): DATABASE_URL
- * may be the transaction-mode pooler, so it is never a fallback. On a
+ * DIRECT_URL only, a direct or session-mode connection: DATABASE_URL may
+ * be the transaction-mode pooler, so it is never a fallback. On a
  * preview (APP_ENV=preview) the script first creates the preview's database,
  * named from the VERCEL_GIT_* variables, then migrates that.
  */

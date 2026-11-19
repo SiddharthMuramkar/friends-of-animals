@@ -7,8 +7,7 @@ import { type ArticleBody, articleBodySchema } from "./model";
 export type { ArticleBody, Block, Footnote, Inline } from "./model";
 
 /**
- * The cited articles (DIRECTION §7; briefs in research/stories.md §4 and
- * quotes.md Q10). Metadata lives here; each body is its own module in
+ * The cited articles. Metadata lives here; each body is its own module in
  * ./articles/<slug>.ts, loaded on demand.
  */
 
@@ -27,7 +26,7 @@ export type Audience = (typeof AUDIENCES)[number];
 const storySchema = z.strictObject({
   slug: z.enum(STORY_SLUGS),
   title: z.string().min(1).max(80),
-  /** The excerpt (SPEC §9.4.1: ≤ 300 characters). */
+  /** The excerpt (≤ 300 characters). */
   dek: z.string().min(1).max(300),
   /** One or two short sentences at grade 6 or below: the "Easy read" layer. */
   easyRead: z.string().min(1).max(200),
@@ -121,7 +120,7 @@ export function getStory(slug: StorySlug): Story {
   return bySlug.get(slug)!;
 }
 
-/** SPEC §9.4.3: featured first, then newest; ties keep registry order. */
+/** Featured first, then newest; ties keep registry order. */
 export function latestStories(limit = 3): Story[] {
   return STORIES.toSorted(
     (a, b) =>

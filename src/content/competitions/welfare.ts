@@ -1,8 +1,8 @@
 /**
- * The welfare message for each sample competition (SPEC §6.3.1
- * `welfareMessageHtml`), keyed by slug, as plain paragraphs. Sample content:
- * shown on test sites only, beside the Sample tag. Every line follows
- * DIRECTION §5: no touching or feeding street animals, "Tell a grown-up".
+ * The welfare message for each sample competition (`welfareMessageHtml`),
+ * keyed by slug, as plain paragraphs. Sample content: shown on test sites
+ * only, beside the Sample tag. Every line follows the child-safety rules: no
+ * touching or feeding street animals, "Tell a grown-up".
  */
 export const SAMPLE_WELFARE: Readonly<Record<string, readonly string[]>> = {
   "neighbours-on-my-street": [

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const POINTS = ["sources", "quotes", "numbers", "noLink"] as const;
 
-/** "How we check facts": the promise behind every story (DIRECTION W7). */
+/** "How we check facts": the promise behind every story. */
 export async function FactChecks({ className }: { className?: string }) {
   const t = await getTranslations("stories.checks");
   return (

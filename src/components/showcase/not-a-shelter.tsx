@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 
 import { H, type HeadingLevel } from "./heading";
 
-// FoA.md stakeholder framework §5 (welfare) and §6 (adoption). Grid cells on
-// wide screens, in reading order around the centre.
+// The welfare and adoption groups FOA links up. Grid cells on wide
+// screens, in reading order around the centre.
 const NODES = [
   {
     key: "shelters",
@@ -47,9 +47,9 @@ const LINES = [
 ] as const;
 
 /**
- * W12 "We're not a shelter": FOA links people and groups who already care for
+ * "We're not a shelter": FOA links people and groups who already care for
  * animals; every link is labelled "coming later" (adoption and the network are
- * M7). Connectors are decorative SVG; the list carries the meaning.
+ * not built yet). Connectors are decorative SVG; the list carries the meaning.
  */
 export async function NotAShelter({
   headingLevel = 3,

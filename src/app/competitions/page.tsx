@@ -45,7 +45,7 @@ const PROMPTS = [
 
 export default async function Page() {
   const t = await getTranslations("competitions");
-  // Never drafts (SPEC §6.11); samples only off production (owner decision 1).
+  // Never drafts; samples only off production (owner decision 1).
   const list = getSampleCompetitions().filter((c) => c.status !== "DRAFT");
 
   return (

@@ -5,10 +5,10 @@ import { SITE_IMAGE_IDS } from "@/lib/images/credits";
 import { QUOTE_IDS } from "../quotes";
 
 /**
- * Article bodies as typed blocks, mirroring SPEC §9.4.1 (richText, heading,
- * image, quote, callout) without raw HTML: text is plain strings plus inline
- * marks, so there is nothing to sanitise. A footnote reference `{ fn: "f1" }`
- * must match an entry in `footnotes`, and every footnote must be cited.
+ * Article bodies as typed blocks without raw HTML: text is plain strings
+ * plus inline marks, so there is nothing to sanitise. A footnote reference
+ * `{ fn: "f1" }` must match an entry in `footnotes`, and every footnote must
+ * be cited.
  */
 
 const inlineSchema = z.union([

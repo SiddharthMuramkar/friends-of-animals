@@ -24,7 +24,7 @@ const CYBER_SITE = "cybercrime.gov.in";
 const CALL =
   "inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 font-semibold text-primary-fg hover:bg-primary-hover [&_svg]:size-5";
 
-/** 112, Childline 1098 and cybercrime.gov.in / 1930 (DIRECTION §5, SPEC §12.9). */
+/** Helplines: 112, Childline 1098 and cybercrime.gov.in / 1930. */
 async function Helplines() {
   const t = await getTranslations("legal.safeguarding.helplines");
   const lines = [

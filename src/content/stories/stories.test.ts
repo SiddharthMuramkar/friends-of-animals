@@ -6,7 +6,7 @@ import { STORIES, STORY_SLUGS, latestStories, loadArticle } from ".";
 import { articleBodySchema } from "./model";
 
 describe("story registry", () => {
-  it("lists the five articles from DIRECTION §7 with unique slugs", () => {
+  it("lists the five articles with unique slugs", () => {
     expect(STORIES).toHaveLength(5);
     expect(new Set(STORY_SLUGS).size).toBe(5);
   });

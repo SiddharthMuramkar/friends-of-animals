@@ -123,7 +123,7 @@ export default async function Page() {
         <QuoteFigure id="Q03" hue="red" size="md" className="mt-6 max-w-3xl" />
       </Section>
 
-      {/* Vision and mission, verbatim from FoA.md. */}
+      {/* Vision and mission, in FOA's own words. */}
       <Section width="wide" tone="tint" hue="blue">
         <div className="grid gap-6 md:grid-cols-2">
           {(
@@ -278,12 +278,12 @@ export default async function Page() {
         <NotAShelter headingLevel={3} className="mt-10" />
       </Section>
 
-      {/* W4 badges. */}
+      {/* Badges. */}
       <Section id="badges" labelledBy="about-badges" width="wide" hue="blue">
         <BadgeConstellation id="about-badges" headingLevel={2} />
       </Section>
 
-      {/* Six-month objectives (FoA.md). */}
+      {/* Six-month objectives. */}
       <Section
         labelledBy="about-objectives"
         width="wide"

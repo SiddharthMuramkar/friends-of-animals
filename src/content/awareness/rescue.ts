@@ -1,7 +1,6 @@
 /**
- * "If you find a hurt or scared animal" and bite first aid, from
- * research/seasonal-neighbours.md §C and §A13 (NCDC, WHO, AWBI). The kid
- * steps are §C1 word for word; grown-up steps are §C2, shortened.
+ * "If you find a hurt or scared animal" and bite first aid, based on NCDC,
+ * WHO and AWBI guidance.
  */
 
 export type Step = { title: string; text: string };

@@ -13,7 +13,7 @@ The FOA logo is a **registered mark**. Use these files as they are. Don't recolo
 | `foa-logo-2048.png` | 2048 × 1181 | Logo on white, for print and large displays. |
 | `foa-logo-white.svg` | vector, transparent | All-white logo for dark backgrounds. The letters and paw are cut out, so the background shows through. The site header uses it in dark mode. |
 | `foa-logo-black.svg` | vector, transparent | All-black logo with the letters and paw cut out. Suggested use: one-colour printing. |
-| `foa-logo-watermark.png` | 1024 × 590, transparent | Full-colour watermark for stamping onto artwork photos (SPEC §7.9, `StampSettings.logoAssetId`). Use it on light or mid-tone areas, because the wordmark is black. |
+| `foa-logo-watermark.png` | 1024 × 590, transparent | Full-colour watermark for stamping onto artwork photos (`StampSettings.logoAssetId`). Use it on light or mid-tone areas, because the wordmark is black. |
 | `foa-logo-watermark-white.png` | 1024 × 590, transparent | All-white watermark for dark photos. |
 | `foa-logo-watermark-black.png` | 1024 × 590, transparent | All-black watermark. Suggested use: very light photos. |
 | `favicon.svg` | vector, square | Browser tab icon for modern browsers: the tiles alone on a white square. |

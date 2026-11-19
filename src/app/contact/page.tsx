@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-/** SPEC §9.4.4 ContactTopic, in the form's order. */
+/** ContactTopic values, in the form's order. */
 const TOPICS = [
   "GENERAL",
   "SCHOOLS",

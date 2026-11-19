@@ -1,8 +1,7 @@
 # VPS database stack (runbook)
 
-Postgres and PgBouncer for FOA on the Hostinger Mumbai VPS (issue #12; design:
-`docs/research/postgres-on-vps.md`, spec §2.3–§2.4). This directory is the
-whole deployment; the VPS runs it from a clone at **`/srv/foa`** (systemd
+Postgres and PgBouncer for FOA on the Hostinger Mumbai VPS (issue #12). This
+directory is the whole deployment; the VPS runs it from a clone at **`/srv/foa`** (systemd
 units and bind mounts point there, never at a developer worktree).
 
 ## What runs
@@ -267,7 +266,7 @@ IPv6:
 
 `scripts/docker-user-fw.sh show` prints it. CrowdSec's bouncer adds its own
 jump at the top of `DOCKER-USER` and `INPUT`. Any port published later must
-bind 127.0.0.1 (spec §2.3); this chain drops it on eth0 regardless. Port 80
+bind 127.0.0.1; this chain drops it on eth0 regardless. Port 80
 for ACME is a host process (INPUT, open). SSH config and ufw are untouched.
 
 **Allowlist (TODO):** when Vercel Static IPs are bought, put them in
@@ -327,7 +326,7 @@ every backup file and WAL segment and fails the drill on any problem, then
 restores `--type=time --target=T --archive-mode=off` into a new volume,
 starts it, checks the before-T row exists and the after-T row does not, prints
 timings, tears everything down and drops the scratch schema. Logs:
-`/var/log/foa/restore-drill-*.log`. Run it quarterly at least (spec §13.1).
+`/var/log/foa/restore-drill-*.log`. Run it quarterly at least.
 
 **Real restore of production** (outline): `docker stop foa-pgbouncer
 foa-pg-prod`; if there is room, copy the data volume first (it is the only
@@ -336,8 +335,8 @@ way back); run `pgbackrest --stanza=foa --delta [--type=time --target=...
 with the data volume, the repo volume and both pgBackRest config files
 mounted as in `restore-drill.sh`, but **without** `--archive-mode=off`, so
 the promoted server keeps archiving on its new timeline; `docker start
-foa-pg-prod`, verify, `docker start foa-pgbouncer`, replay `ErasureLedger`
-(spec §12.11), then take a full backup.
+foa-pg-prod`, verify, `docker start foa-pgbouncer`, replay `ErasureLedger`,
+then take a full backup.
 
 ## Preview databases and the sweeper
 

@@ -5,7 +5,7 @@
  * transparency, login, events, volunteer, adopt, NGOs, auctions) stay out.
  */
 
-/** Section colour each page leans on (DIRECTION §2). */
+/** Section colour each page leans on. */
 export type SectionHue =
   | "multi"
   | "red"

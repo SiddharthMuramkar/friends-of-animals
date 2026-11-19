@@ -1,7 +1,6 @@
 import type { ArticleBody } from "../model";
 
-// Brief: research/stories.md §4 C; dossier S3 and india-anchors §10.2. Told as
-// history: no link to today's court orders on street dogs (stories.md S3).
+// Told as history: no link to today's court orders on street dogs.
 export const article = {
   blocks: [
     {

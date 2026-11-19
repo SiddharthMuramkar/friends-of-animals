@@ -1,7 +1,7 @@
 import { type LegalDoc, POLICIES_UPDATED } from "./model";
 
-// From SPEC §12.7–12.9 and ux-patterns P06. The public report form needs a
-// back end (later), so this page names an interim channel (placeholders).
+// The public report form needs a back end (later), so this page names an
+// interim channel (placeholders).
 export const safeguarding: LegalDoc = {
   updated: POLICIES_UPDATED,
   short: [

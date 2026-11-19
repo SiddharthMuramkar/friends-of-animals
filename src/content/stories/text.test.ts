@@ -138,7 +138,7 @@ describe("the five articles", () => {
     }
   );
 
-  // DIRECTION §4 and §5: banned words and unsafe advice.
+  // Banned words and unsafe advice.
   const BANNED = [
     /make a difference/i,
     /furry friends/i,

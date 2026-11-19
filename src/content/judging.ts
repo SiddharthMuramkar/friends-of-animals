@@ -1,8 +1,7 @@
 /**
- * Judging levels and the seeded rubric. FoA.md Phase 9: School → City/District
- * → State → National → Global, "not every level initially"; SPEC §7.2 opens
- * the school round (school route only) and the FOA round (NATIONAL, final).
- * Rubric weights: SPEC §7.1.
+ * Judging levels and the seeded rubric. School → City/District → State →
+ * National → Global, not every level at first: only the school round (school
+ * route only) and the FOA round (NATIONAL, final) are open.
  */
 export const JUDGING_LEVELS = [
   { key: "SCHOOL", active: true },

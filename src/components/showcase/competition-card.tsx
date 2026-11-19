@@ -16,7 +16,7 @@ import { H, type HeadingLevel } from "./heading";
 import { StatusChip } from "./status-chip";
 
 /**
- * A competition card with the SPEC §6.11 fields: cover, name, theme,
+ * A competition card with the listing fields: cover, name, theme,
  * disciplines, ages, next key date, ways in, fee and status. Sample content
  * only for now, so it always carries the Sample tag.
  */

@@ -62,7 +62,7 @@ describe("SEASONAL_MONTHS", () => {
     }
   });
 
-  it("obeys the child-safety copy rules (DIRECTION §5)", () => {
+  it("obeys the child-safety copy rules", () => {
     const kidText = SEASONAL_MONTHS.flatMap((m) => [m.kid, ...m.actions]);
     const all = SEASONAL_MONTHS.flatMap((m) => [
       m.kid,

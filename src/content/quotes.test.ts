@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { QUOTES, QUOTE_IDS, attribution, quote } from "./quotes";
 
-// quotes.md §4 and §6: misattributed or misquoted lines that must never ship.
+// Misattributed or misquoted lines that must never ship.
 const DO_NOT_USE = [
   /greatness of a nation/i,
   /life in the air/i,

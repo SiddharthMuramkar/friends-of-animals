@@ -3,7 +3,7 @@ import { z } from "zod";
 import { SITE_IMAGE_IDS } from "@/lib/images/credits";
 import { isPlaceholder, type Placeholder } from "@/lib/site";
 
-/** Shapes from SPEC §3.5 and §6.2, for typed sample content. */
+/** Data shapes for typed sample content. */
 
 export const COMPETITION_STATUSES = [
   "DRAFT",
@@ -87,7 +87,7 @@ export const competitionSchema = z
           message: `${a} must be ${strict ? "before" : "on or before"} ${b}`,
         });
     };
-    // SPEC §6.2 date-order rules.
+    // Date-order rules.
     order("registrationOpensAt", "registrationClosesAt", true);
     order("registrationClosesAt", "confirmationDeadline", false);
     order("confirmationDeadline", "submissionClosesAt", false);
@@ -109,7 +109,7 @@ export const competitionSchema = z
 
 export type Competition = z.infer<typeof competitionSchema>;
 
-/** Pilot-visible impact counters (SPEC §9.4.5). */
+/** Pilot-visible impact counters. */
 export const COUNTER_KEYS = [
   "participants",
   "institutions",

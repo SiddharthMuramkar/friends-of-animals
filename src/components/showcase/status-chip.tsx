@@ -20,7 +20,7 @@ const ICON: Record<StatusLabel, LucideIcon> = {
   cancelled: CircleSlash,
 };
 
-/** A competition's status as icon + word (SPEC §6.11). Nothing for drafts. */
+/** A competition's status as icon + word. Nothing for drafts. */
 export async function StatusChip({
   status,
   className,

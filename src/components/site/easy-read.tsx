@@ -4,8 +4,8 @@ import { type TileHue, TileMarker } from "@/components/site/tile";
 import { cn } from "@/lib/utils";
 
 /**
- * The "Easy read" kid layer (DIRECTION §1): one or two short sentences, first,
- * in big type. Adult detail follows on the page. Shared by every page that has one.
+ * The "Easy read" kid layer: one or two short sentences, first, in big type.
+ * Adult detail follows on the page. Shared by every page that has one.
  */
 export function EasyRead({
   label,

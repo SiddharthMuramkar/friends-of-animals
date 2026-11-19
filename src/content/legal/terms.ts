@@ -1,7 +1,7 @@
 import { type LegalDoc, POLICIES_UPDATED } from "./model";
 
-// From SPEC §6.6 (registration and fees), §8.2.5 (refunds), §12.4–12.7
-// (consent, minors) and §12.13. Fee amounts stay placeholders (SITE.org).
+// Covers registration and fees, refunds, consent and minors. Fee amounts stay
+// placeholders (SITE.org).
 export const terms: LegalDoc = {
   updated: POLICIES_UPDATED,
   short: [

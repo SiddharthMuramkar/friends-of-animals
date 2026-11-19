@@ -1,7 +1,7 @@
 import { Baloo_2, Inter, Kalam } from "next/font/google";
 
-// Every font is defined once, here (type-colour.md §A.7). Latin subsets only:
-// Devanagari would preload ~110 KB on every English page.
+// Every font is defined once, here. Latin subsets only: Devanagari would
+// preload ~110 KB on every English page.
 
 /** Body text. Preloaded. */
 export const inter = Inter({

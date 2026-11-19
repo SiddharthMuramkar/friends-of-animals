@@ -28,7 +28,7 @@ const WAYS_BACK: {
   { href: ROUTES.awareness.path, key: "awareness", tile: "teal" },
 ];
 
-/** A 404 you can draw on (DIRECTION W11). Unmatched URLs get a real 404. */
+/** A 404 you can draw on. Unmatched URLs get a real 404. */
 export default async function NotFound() {
   const t = await getTranslations("notFound");
   const p = await getTranslations("notFound.pad");

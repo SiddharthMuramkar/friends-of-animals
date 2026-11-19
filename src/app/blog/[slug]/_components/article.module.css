@@ -1,5 +1,5 @@
-/* Reading progress: CSS scroll-driven, decorative (tech-recipes §7). It scales
-   a 4px strip and moves no content, so it stays on under reduced motion. */
+/* Reading progress: CSS scroll-driven, decorative. It scales a 4px strip
+   and moves no content, so it stays on under reduced motion. */
 .progress {
   display: none;
 }

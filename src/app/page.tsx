@@ -426,7 +426,7 @@ const SECTIONS: Record<HomeSectionKey, () => Promise<ReactNode>> = {
   badges: Badges,
   donate: Donate,
   joy: Joy,
-  // M6: upcoming events.
+  // Upcoming events: not built yet.
   events: async () => null,
 };
 

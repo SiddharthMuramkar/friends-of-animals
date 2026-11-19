@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 import { H, type HeadingLevel, sub } from "./heading";
 
-/** SPEC §9.7.1 EngagementMilestone, in enum order. */
+/** EngagementMilestone values, in enum order. */
 const BADGES = [
   "participant",
   "schoolWinner",
@@ -26,7 +26,7 @@ const BADGES = [
 ] as const;
 type Badge = (typeof BADGES)[number];
 
-// Modules that open later (M6): their badges can't be earned yet.
+// Modules that open later: their badges can't be earned yet.
 const LATER: ReadonlySet<Badge> = new Set([
   "communityMember",
   "volunteer",
@@ -66,9 +66,9 @@ const LOOK: Record<
 };
 
 /**
- * W4 "Badges, not a ladder": the six milestones as independent tile-badges,
- * each with how it is earned. No streaks, points, expiry or rankings
- * (SPEC §9.7.1). Native <details>, no JS.
+ * "Badges, not a ladder": the six milestones as independent tile-badges,
+ * each with how it is earned. No streaks, points, expiry or rankings.
+ * Native <details>, no JS.
  */
 export async function BadgeConstellation({
   headingLevel = 2,

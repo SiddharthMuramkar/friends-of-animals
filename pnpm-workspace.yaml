@@ -1,5 +1,5 @@
 # `pnpm add` saves the exact version, so package.json keeps pinning every
-# dependency (SPEC §2).
+# dependency.
 saveExact: true
 
 # pnpm 12 fails the install when a dependency has an install script that is not

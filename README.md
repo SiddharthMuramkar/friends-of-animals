@@ -2,7 +2,7 @@
 
 The web platform for **Friends of Animals (FOA)**, a non-profit in India that nurtures compassion for animals among children and young adults through creative competitions, community, awareness, adoption facilitation and fundraising.
 
-What it will do is specified in [`specifications/SPEC.md`](specifications/SPEC.md). The build follows the milestones in SPEC §14. Right now the app is the bare foundation: a brand landing page, the site shell, the database layer and the test harness. The public site arrives in [#14](https://github.com/SiddharthMuramkar/friends-of-animals/issues/14).
+Right now the app is the bare foundation: a brand landing page, the site shell, the database layer and the test harness. The public site arrives in [#14](https://github.com/SiddharthMuramkar/friends-of-animals/issues/14).
 
 ---
 
@@ -24,7 +24,7 @@ What it will do is specified in [`specifications/SPEC.md`](specifications/SPEC.m
 
 ## Tech stack
 
-The stack and hosting layout were locked in [#11](https://github.com/SiddharthMuramkar/friends-of-animals/issues/11); SPEC §2 is the reference. In this repo today:
+The stack and hosting layout were locked in [#11](https://github.com/SiddharthMuramkar/friends-of-animals/issues/11). In this repo today:
 
 | Layer              | Choice                                                                                                               |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
@@ -41,7 +41,7 @@ The stack and hosting layout were locked in [#11](https://github.com/SiddharthMu
 
 Every dependency in `package.json` is pinned to an exact version, and `saveExact: true` in `pnpm-workspace.yaml` makes `pnpm add` do the same.
 
-Still to come, each in its own M0 ticket: Better Auth, Cloudflare R2 storage, the pg-boss worker, next-intl, React Email, Sentry, and CI with Playwright.
+Still to come: Better Auth, Cloudflare R2 storage, the pg-boss worker, next-intl, React Email, Sentry, and CI with Playwright.
 
 ## Prerequisites
 
@@ -105,7 +105,7 @@ Ports are published on `127.0.0.1` only, because Docker's published ports bypass
 
 ## Project layout
 
-The layout follows SPEC §2.1. The parts that exist today:
+The parts that exist today:
 
 ```
 src/
@@ -134,12 +134,11 @@ scripts/
 ├── load-env.ts               # loads .env.local and .env for scripts and drizzle-kit
 └── brand-assets.ts           # derives logo PNGs and icons from the SVG master
 public/brand/                 # the registered logo: SVG master + derived assets
-specifications/               # the platform spec
 docker/                       # the VPS database stack: Postgres, PgBouncer, backups (runbook: docker/README.md)
 Dockerfile, docker-compose.yml
 ```
 
-Still to come, per SPEC §2.1: the route groups under `src/app/`, `src/server/{domain,jobs,integrations,auth}/`, `src/worker/`, `src/emails/`, `src/i18n/` + `messages/`, and `tests/e2e/`.
+Still to come: the route groups under `src/app/`, `src/server/{domain,jobs,integrations,auth}/`, `src/worker/`, `src/emails/`, `src/i18n/` + `messages/`, and `tests/e2e/`.
 
 `docker/` is not part of the app: it is the database stack the VPS runs (Postgres, PgBouncer, backups, firewall), with its own runbook, [`docker/README.md`](docker/README.md).
 
@@ -158,7 +157,7 @@ pnpm db:generate       # 2. writes a new SQL file to drizzle/
 pnpm db:migrate        # 4. apply it to your database
 ```
 
-For SQL that Drizzle can't express (extensions, functions, triggers), create an empty migration with `pnpm db:generate --custom --name <what_it_does>` and write the SQL yourself. The first migration, `0000_enable_pg_trgm`, is one: it enables `pg_trgm` for search (SPEC §2).
+For SQL that Drizzle can't express (extensions, functions, triggers), create an empty migration with `pnpm db:generate --custom --name <what_it_does>` and write the SQL yourself. The first migration, `0000_enable_pg_trgm`, is one: it enables `pg_trgm` for search.
 
 Never edit a migration that has already been applied anywhere; generate a new one instead.
 
@@ -222,7 +221,7 @@ The schemas live in `src/env.schema.ts`. The server validates its environment as
 
 ## Deploying
 
-The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel.json`. Which branch deploys where (SPEC §2.4):
+The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel.json`. Which branch deploys where:
 
 | Branch       | Vercel environment           | Domain                                                                   | Database      |
 | ------------ | ---------------------------- | ------------------------------------------------------------------------ | ------------- |

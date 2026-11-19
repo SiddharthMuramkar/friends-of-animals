@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 import { fleschKincaidGrade } from "@/content/stories/text";
 
 // Copy around the happy dog and cat photos (HappyMosaic). Notes are
-// handwritten in Kalam, so five words at most (DIRECTION §2); the lines
-// children read stay at grade 6 or below (DIRECTION §1).
+// handwritten in Kalam, so five words at most; the lines children read
+// stay at grade 6 or below.
 const DIR = path.join(process.cwd(), "messages", "en-IN");
 type Tree = { [k: string]: string | Tree };
 const read = (ns: string) =>

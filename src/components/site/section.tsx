@@ -35,7 +35,7 @@ const WIDTH = {
 
 type SectionProps = {
   children: ReactNode;
-  /** The page's section colour (DIRECTION §2). */
+  /** The page's section colour. */
   hue?: SectionHue;
   /** "tint" fills the band with the hue; "plain" keeps the paper. */
   tone?: "plain" | "tint";

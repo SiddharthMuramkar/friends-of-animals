@@ -1,8 +1,8 @@
 import { type LegalDoc, POLICIES_UPDATED } from "./model";
 
-// From SPEC §12.1 (POCSO), §12.7 (minor display), §12.9 (designations,
-// clearance, escalation) and §12.11 (retention). The short version is the
-// child-friendly summary (grade 6 or below, checked in legal.test.ts).
+// Covers POCSO, how minors are displayed, designations, clearance,
+// escalation and retention. The short version is the child-friendly summary
+// (grade 6 or below, checked in legal.test.ts).
 export const childProtection: LegalDoc = {
   updated: POLICIES_UPDATED,
   short: [

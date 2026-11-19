@@ -5,10 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Colour tokens: research/tmp/out/tokens.css (type-colour.md §B.10), adopted
- * verbatim; 242 text/UI pairs checked. Rules: hue step 700+ is text-safe on
- * paper; never white on logo green, never marigold text on paper, never red on
- * blue; meaning never by hue alone (icon + word).
+ * Colour tokens, with 242 text/UI pairs checked for contrast. Rules: hue
+ * step 700+ is text-safe on paper; never white on logo green, never
+ * marigold text on paper, never red on blue; meaning never by hue alone
+ * (icon + word).
  */
 @theme {
   --color-*: initial;
@@ -285,7 +285,7 @@
   --input: var(--border-strong);
   --ring: var(--focus);
   --radius: 1rem;
-  /* One warm shadow for every raised surface (DIRECTION §2). */
+  /* One warm shadow for every raised surface. */
   --shadow-warm:
     0 1px 0 oklch(25.4% 0.009 75.2 / 6%),
     0 12px 32px -12px oklch(25.4% 0.009 75.2 / 18%);
@@ -323,9 +323,9 @@
 }
 
 /*
- * Type (type-colour.md §A.6). next/font sets --font-inter, --font-baloo and
- * --font-kalam on <html> (src/lib/fonts.ts). Headings are fluid between 360
- * and 1280 px; running text is fixed rem so it doubles at 200% zoom.
+ * Type. next/font sets --font-inter, --font-baloo and --font-kalam on
+ * <html> (src/lib/fonts.ts). Headings are fluid between 360 and 1280 px;
+ * running text is fixed rem so it doubles at 200% zoom.
  */
 @theme {
   --font-sans:
@@ -403,7 +403,7 @@
   p {
     text-wrap: pretty;
   }
-  /* No italics are loaded (type-colour.md §A.7): emphasis is weight. */
+  /* No italics are loaded: emphasis is weight. */
   em {
     font-style: normal;
     font-weight: 600;

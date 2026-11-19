@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 /**
- * The verified quote bank (research/quotes.md §3, §5): every quote in the
- * placement map plus the strong alternates. `text` is the source wording,
- * copied exactly (spelling, punctuation and archaic words untouched). A
- * `display` excerpt may only trim with "…"; the tests check that each piece
- * still appears in `text`. One quote per surface; see `placements`.
+ * The verified quote bank: every quote in the placement map plus the strong
+ * alternates. `text` is the source wording, copied exactly (spelling,
+ * punctuation and archaic words untouched). A `display` excerpt may only trim
+ * with "…"; the tests check that each piece still appears in `text`. One quote
+ * per surface; see `placements`.
  */
 
 const quoteSchema = z
@@ -106,7 +106,7 @@ const RAW = {
   },
   Q02: {
     // Reconstructed from a lossy PDF extraction: proofread against the
-    // printed page before hi-IN ships (quotes.md Q02).
+    // printed page before hi-IN ships.
     text: "(छ) प्राकृतिक पर्यावरण की, जिसके अंतर्गत वन, झील, नदी और वन्य जीव हैं, रक्षा करे और उसका संवर्धन करे तथा प्राणि मात्र के प्रति दयाभाव रखे;",
     display: "…प्राणि मात्र के प्रति दयाभाव रखे",
     lang: "hi",
@@ -585,7 +585,7 @@ export function quote(id: QuoteId): Quote {
   return byId.get(id)!;
 }
 
-/** "Rabindranath Tagore, Stray Birds (1916), no. 123" (quotes.md §0 rule 3). */
+/** Formats like "Rabindranath Tagore, Stray Birds (1916), no. 123". */
 export function attribution(q: Quote): string {
   const work = q.year ? `${q.work} (${q.year})` : q.work;
   const parts = [q.author, work, q.locator].filter(Boolean).join(", ");

@@ -118,7 +118,7 @@ function render(
   }
 }
 
-/** The 404 doodle pad (tech-recipes §10): vectors in memory, PNG on device. */
+/** The 404 doodle pad: vectors in memory, PNG on device. */
 export function DoodlePad({ labels }: { labels: DoodleLabels }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ops = useRef<Op[]>([]);

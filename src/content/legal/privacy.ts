@@ -1,7 +1,8 @@
 import { type LegalDoc, POLICIES_UPDATED } from "./model";
 
-// From SPEC §12.1–12.12 and §11.6 (cookieless analytics). Periods are SPEC's
-// published defaults: grievances acknowledged in 48 hours, resolved in 30 days.
+// Covers personal data, consent, rights and cookieless analytics. Periods are
+// the published defaults: grievances acknowledged in 48 hours, resolved in 30
+// days.
 export const privacy: LegalDoc = {
   updated: POLICIES_UPDATED,
   short: [

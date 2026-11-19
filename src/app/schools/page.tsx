@@ -90,7 +90,7 @@ export default async function Page() {
         />
       </Section>
 
-      {/* Five steps: Route A steps 1–2, phases 3, 6, 7–8 (FoA.md). */}
+      {/* Five steps, from registering a school to sending the shortlist. */}
       <Section labelledBy="schools-steps" width="wide" hue="green">
         <SectionHeading
           id="schools-steps"
@@ -201,7 +201,7 @@ export default async function Page() {
         />
       </Section>
 
-      {/* W2: where the work goes next. */}
+      {/* Where the work goes next. */}
       <Section width="wide" tone="tint" hue="green">
         <JudgingPath headingLevel={2} />
       </Section>

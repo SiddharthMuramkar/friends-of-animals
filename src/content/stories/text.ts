@@ -3,7 +3,7 @@ import type { ArticleBody, Block, Inline } from "./model";
 /**
  * Plain-text helpers for articles: anchor ids and the table of contents,
  * word counts and reading time, and a Flesch-Kincaid estimate used by tests
- * to keep kids' articles at grade 6 or below (DIRECTION §1).
+ * to keep kids' articles at grade 6 or below.
  */
 
 /** Callout title that marks the adult-detail box in a kids' article. */

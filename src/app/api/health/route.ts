@@ -3,8 +3,8 @@ import { connection } from "next/server";
 
 import { db } from "@/server/db";
 
-// Health check for uptime monitors (SPEC §13.3). Today it checks the
-// database; the queue and worker heartbeat join it with the worker.
+// Health check for uptime monitors. Today it checks the database; the
+// queue and worker heartbeat join it with the worker.
 
 /** Monitors and CDNs must never see a cached answer. */
 const headers = { "Cache-Control": "no-store" };

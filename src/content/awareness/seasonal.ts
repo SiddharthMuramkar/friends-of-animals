@@ -5,13 +5,12 @@ import { SITE_IMAGE_IDS } from "@/lib/images/credits";
 import { QUOTE_IDS } from "../quotes";
 
 /**
- * The seasonal kindness guide: one entry per month, from
- * research/seasonal-neighbours.md §A (kid lines scored at Flesch-Kincaid
- * grade ≤ 6 there). Kid copy never asks a child to touch, feed or follow an
- * animal; it sends them to a grown-up (DIRECTION §5).
+ * The seasonal kindness guide: one entry per month (kid lines scored at
+ * Flesch-Kincaid grade ≤ 6). Kid copy never asks a child to touch, feed or
+ * follow an animal; it sends them to a grown-up.
  */
 
-/** Sources cited below (seasonal-neighbours.md §E). */
+/** Sources the monthly entries below cite, by id. */
 export const SEASONAL_SOURCES = {
   S04: {
     label: "Delhi High Court, W.P.(C) 13163/2019, 2 Sep 2022",

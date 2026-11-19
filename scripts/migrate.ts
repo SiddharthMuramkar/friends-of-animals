@@ -1,14 +1,14 @@
 // Applies the SQL migrations in ./drizzle. Runs in `vercel-build`, in the
 // Docker `migrate` target and by hand (`pnpm db:migrate`).
 //
-// Migrations connect through DIRECT_URL only (SPEC §2.2): a direct or
+// Migrations connect through DIRECT_URL only: a direct or
 // session-mode connection. DATABASE_URL may point at the transaction-mode
 // pooler, so it is never a fallback. On Vercel, DIRECT_URL logs in as a
 // migrator role, which PgBouncer gives session mode, so the advisory lock
 // below holds for the whole run.
 //
 // On a preview (APP_ENV=preview) it first creates the preview's own database
-// from the `foa_seed` template, then migrates that database (SPEC §2.4).
+// from the `foa_seed` template, then migrates that database.
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";

@@ -7,7 +7,7 @@ import { NAMESPACES } from "./messages";
 
 const DIR = path.join(process.cwd(), "messages", "en-IN");
 
-// DIRECTION §4 and the slop ban list (briefs/00-context.md).
+// Banned from copy: charity clichés and stock AI-writing phrases.
 const BANNED = [
   /make a difference/i,
   /furry friends?/i,

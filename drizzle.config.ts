@@ -6,7 +6,7 @@ import { loadEnvFiles } from "./scripts/load-env";
 loadEnvFiles();
 
 // drizzle-kit connects like the migration script: through DIRECT_URL only,
-// never DATABASE_URL (SPEC §2.2).
+// never DATABASE_URL.
 const { DIRECT_URL } = parseEnv(migrationEnvSchema, process.env);
 
 export default defineConfig({

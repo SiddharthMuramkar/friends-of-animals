@@ -1,4 +1,4 @@
-/** The sample participation certificate (W3); numbers follow SPEC §3.1. */
+/** The sample participation certificate and its number format. */
 export const CERTIFICATE_NUMBER = /^FOA-C-\d{2}-[0-9A-HJKMNP-TV-Z]{10}$/;
 
 export const SAMPLE_CERTIFICATE = {

@@ -41,7 +41,7 @@ export type PrimaryAction =
   | "results"
   | "cancelled";
 
-/** What the detail page's main call to action offers (SPEC §6.11). */
+/** What the detail page's main call to action offers. */
 export function primaryAction(status: CompetitionStatus): PrimaryAction {
   switch (status) {
     case "REGISTRATION_OPEN":
@@ -103,7 +103,7 @@ export type FileRule = {
   minPx?: number;
 };
 
-/** SPEC §6.8.3 default file rules. */
+/** Default file rules for each discipline. */
 const FILE_RULES: Record<Discipline, Omit<FileRule, "discipline">> = {
   DRAWING: { types: "image", files: "art", maxMb: 20, minPx: 1200 },
   PAINTING: { types: "image", files: "art", maxMb: 20, minPx: 1200 },

@@ -29,7 +29,7 @@ const BAR = ["bg-red-600", "bg-yellow-400", "bg-teal-500", "bg-pink-500"];
 const MAX = Math.max(...RUBRIC.map((r) => r.weight));
 
 /**
- * W2 "Judging path, honestly lit": the five levels, with the ones not open
+ * "Judging path, honestly lit": the five levels, with the ones not open
  * yet marked "Later"; the rubric weights; and the blind-judging promise.
  */
 export async function JudgingPath({

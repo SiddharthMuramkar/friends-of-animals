@@ -4,9 +4,9 @@ import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 
 /**
- * The home page's layout in the shape of SPEC §9.4.3's `homeLayout` block, so
- * the CMS (M5) can supply it later. Text fields hold message keys under
- * `home.` until then.
+ * The home page's layout in the shape of a `homeLayout` block, so the CMS
+ * can supply it later. Text fields hold message keys under `home.`
+ * until then.
  */
 export type HomeSectionKey =
   | "competitions"
@@ -67,7 +67,7 @@ export const HOME_LAYOUT: HomeLayout = {
     { key: "badges", visible: true },
     { key: "donate", visible: true },
     { key: "joy", visible: true },
-    // Needs the EVENTS module (M6).
+    // Needs the events module, not built yet.
     { key: "events", visible: false },
   ],
 };
@@ -90,7 +90,7 @@ export function openAnnouncement(
     : null;
 }
 
-/** Hidden from `expiresAt` on (SPEC §9.4.3). */
+/** Hidden from `expiresAt` on. */
 export function activeAnnouncement(
   a: Announcement | null,
   now: number

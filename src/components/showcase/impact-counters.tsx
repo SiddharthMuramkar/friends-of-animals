@@ -21,8 +21,9 @@ const COLS = [
 ];
 
 /**
- * Impact counters with SPEC §9.4.5 suppression: final numbers in the HTML
- * (never counted up from zero), in Baloo 2. Sample data only for now.
+ * Impact counters, with small counts suppressed (counterDisplay): final
+ * numbers in the HTML (never counted up from zero), in Baloo 2. Sample
+ * data only for now.
  */
 export async function ImpactCounters({
   impact,

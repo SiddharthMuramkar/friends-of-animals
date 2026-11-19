@@ -53,7 +53,7 @@ describe("sample competitions", () => {
   });
 });
 
-describe("homeCompetitions (SPEC §9.4.3)", () => {
+describe("homeCompetitions", () => {
   const list: Competition[] = [
     make({
       slug: "a",
@@ -131,7 +131,7 @@ describe("nextKeyDate", () => {
   });
 });
 
-describe("counterDisplay (SPEC §9.4.5)", () => {
+describe("counterDisplay", () => {
   it("suppresses counts under 10", () => {
     expect(counterDisplay(0)).toBeNull();
     expect(counterDisplay(9)).toBeNull();

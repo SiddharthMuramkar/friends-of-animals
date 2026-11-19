@@ -5,8 +5,8 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Pill buttons (DIRECTION §2: buttons are rounded-full). Primary is the logo
- * blue; one primary action per screen. Sizes keep targets ≥ 44 px.
+ * Pill buttons (buttons are rounded-full). Primary is the logo blue; one
+ * primary action per screen. Sizes keep targets ≥ 44 px.
  */
 export const buttonStyles = cva(
   "inline-flex items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap transition-[background-color,box-shadow,translate,color] duration-200 ease-out select-none [&_svg]:size-5 [&_svg]:shrink-0 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 disabled:pointer-events-none disabled:opacity-60",

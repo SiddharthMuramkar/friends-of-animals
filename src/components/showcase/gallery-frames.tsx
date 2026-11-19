@@ -42,7 +42,7 @@ const FRAMES = [
 }[];
 
 /**
- * W5 "The gallery that is waiting": empty frames with honest labels. No
+ * "The gallery that is waiting": empty frames with honest labels. No
  * artwork is shown until real, consented entries exist (owner decision 1).
  */
 export async function GalleryFrames({ className }: { className?: string }) {

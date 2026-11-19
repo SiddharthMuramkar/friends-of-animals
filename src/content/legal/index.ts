@@ -12,7 +12,7 @@ export type {
 } from "./model";
 export { LEGAL_FACTS, POLICIES_UPDATED } from "./model";
 
-/** The four policy pages (SPEC §12.13), keyed like the routes registry. */
+/** The four policy pages, keyed like the routes registry. */
 export const LEGAL_DOCS = {
   privacy,
   terms,

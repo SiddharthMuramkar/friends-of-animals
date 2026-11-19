@@ -2,7 +2,7 @@ import { isPlaceholder, type PlaceholderKey } from "@/lib/site";
 
 import type { Competition, CompetitionStatus, CounterKey, Fee } from "./model";
 
-/** Statuses the home page may show (SPEC §9.4.3); drafts never appear. */
+/** Statuses the home page may show; drafts never appear. */
 const HOME_STATUSES: ReadonlySet<CompetitionStatus> = new Set([
   "PUBLISHED",
   "REGISTRATION_OPEN",
@@ -51,7 +51,7 @@ const CHIP: Record<
   CANCELLED: { label: "cancelled", tone: "neutral" },
 };
 
-/** One word and a tone per status (SPEC §6.11); null for drafts. */
+/** One word and a tone per status; null for drafts. */
 export function statusChip(
   status: CompetitionStatus
 ): { label: StatusLabel; tone: StatusTone } | null {
@@ -91,8 +91,8 @@ export function ageRange(c: Competition): { min: number; max: number } {
 const indian = new Intl.NumberFormat("en-IN");
 
 /**
- * SPEC §9.4.5: counts under 10 are omitted; larger counts are floored to a
- * multiple of 10 and shown with a plus, e.g. 1,249 → "1,240+".
+ * Counts under 10 are omitted; larger counts are floored to a multiple of 10
+ * and shown with a plus, e.g. 1,249 → "1,240+".
  */
 export function counterDisplay(value: number): string | null {
   if (value < 10) return null;

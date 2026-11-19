@@ -5,11 +5,10 @@ import { SITE_IMAGE_IDS } from "@/lib/images/credits";
 import { QUOTE_IDS } from "../quotes";
 
 /**
- * Street-neighbour cards, from research/seasonal-neighbours.md §B. Front: one
- * verified fact a child can enjoy. Back: how to be a good neighbour. Kid lines
- * never ask a child to touch, feed or follow an animal (DIRECTION §5); the
- * feeding and legal detail sits in `grownUps`. Where a study used pets or
- * another country, `factDetail` says so.
+ * Street-neighbour cards. Front: one verified fact a child can enjoy. Back:
+ * how to be a good neighbour. Kid lines never ask a child to touch, feed or
+ * follow an animal; the feeding and legal detail sits in `grownUps`. Where a
+ * study used pets or another country, `factDetail` says so.
  */
 
 const sourceSchema = z.object({

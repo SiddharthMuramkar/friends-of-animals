@@ -24,8 +24,8 @@ const SIZE = {
 
 /**
  * A verified quote: <figure><blockquote cite><figcaption>, exact wording,
- * attribution in quotes.md's format and a link to the source. Usage:
- * <QuoteFigure id="Q32a" />. One per surface.
+ * attribution (author, work, year, locator, translator) and a link to the
+ * source. Usage: <QuoteFigure id="Q32a" />. One per surface.
  */
 export async function QuoteFigure({
   id,

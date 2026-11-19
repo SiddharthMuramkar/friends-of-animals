@@ -1,5 +1,5 @@
 // Creates a preview's own database on pg-nonprod from the `foa_seed`
-// template (SPEC §2.4). scripts/migrate.ts runs it before migrating a
+// template. scripts/migrate.ts runs it before migrating a
 // preview. Kept apart from that script so it can be tested without Postgres.
 
 import type { PreviewDatabase } from "../src/server/db/database-url";
