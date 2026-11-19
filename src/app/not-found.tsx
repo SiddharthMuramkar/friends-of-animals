@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import { getTranslations } from "next-intl/server";
 import { SiteLink } from "@/components/site/site-link";
 
@@ -9,9 +10,12 @@ import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
 
-import { DoodleLauncher } from "./_not-found/doodle-launcher";
 import type { DoodleLabels } from "./_not-found/doodle-pad";
 import { PawTrail } from "./_not-found/paw-trail";
+
+// Through a server slot so the launcher is its own chunk, loaded only when
+// this page renders; it is still server-rendered, button text included.
+const DoodleLauncher = dynamic(() => import("./_not-found/doodle-slot"));
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("notFound");
@@ -31,7 +35,8 @@ const WAYS_BACK: {
 /**
  * A 404 you can draw on. Unmatched URLs get a real 404. Next.js sends this
  * tree, and loads its client components, with every route, so keep it light:
- * no next/image (#45). The pad's own code loads only after the tap.
+ * no next/image, and the launcher loads lazily (#45). The pad's own code
+ * loads only after the tap.
  */
 export default async function NotFound() {
   const t = await getTranslations("notFound");
