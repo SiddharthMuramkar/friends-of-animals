@@ -103,7 +103,14 @@
       "number": "Certificate number",
       "qr": "QR code",
       "verify": "Checkable at /verify, coming soon",
-      "nameNote": "We print a child’s first name and the initial of their surname. Never a photo, an age or an address."
+      "nameNote": "We print a child’s first name and the initial of their surname. Never a photo, an age or an address.",
+      "placeholder": {
+        "name": "Your name",
+        "competition": "Your competition",
+        "category": "Your category and age group",
+        "issued": "Date of issue",
+        "number": "Your own number"
+      }
     },
     "counters": {
       "title": "So far",
