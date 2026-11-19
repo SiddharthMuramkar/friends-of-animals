@@ -56,8 +56,9 @@ const COLOURS: [ColourId, string][] = [
   ["yellow", "#E9A400"],
 ];
 const STAMPS: StampId[] = ["paw", "heart", "leaf"];
-// In pad units; a desktop-sized pad shows them at about 0.64×.
-const STROKE_SIZE = 24;
+// Strokes keep this width on screen (CSS px) at any pad size; stamps are
+// in pad units and scale with the drawing.
+const STROKE_PX = 15;
 const STAMP_SIZE = 80;
 const PAPER = "#FFFFFF";
 // Disabled-looking controls that stay focusable (aria-disabled, not
@@ -65,9 +66,14 @@ const PAPER = "#FFFFFF";
 const ARIA_DISABLED =
   "aria-disabled:pointer-events-none aria-disabled:opacity-60";
 
-function strokePath(op: Extract<Op, { kind: "stroke" }>): Path2D {
+/** STROKE_PX in pad units, for a pad shown `cssWidth` CSS px wide. */
+function strokeSize(cssWidth: number) {
+  return cssWidth > 0 ? (STROKE_PX * PAD.width) / cssWidth : STROKE_PX;
+}
+
+function strokePath(op: Extract<Op, { kind: "stroke" }>, size: number) {
   const outline = getStroke(op.pts, {
-    size: STROKE_SIZE,
+    size,
     thinning: 0.5,
     smoothing: 0.5,
     streamline: 0.5,
@@ -117,18 +123,18 @@ function drawStamp(
   ctx.restore();
 }
 
-function drawOp(ctx: CanvasRenderingContext2D, op: Op) {
+function drawOp(ctx: CanvasRenderingContext2D, op: Op, size: number) {
   if (op.kind === "stroke") {
     ctx.fillStyle = op.color;
-    ctx.fill(strokePath(op));
+    ctx.fill(strokePath(op, size));
   } else drawStamp(ctx, op);
 }
 
 /** Paper and every op, on a context already scaled to pad units. */
-function render(ctx: CanvasRenderingContext2D, ops: Op[]) {
+function render(ctx: CanvasRenderingContext2D, ops: Op[], size: number) {
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, PAD.width, PAD.height);
-  for (const op of ops) drawOp(ctx, op);
+  for (const op of ops) drawOp(ctx, op, size);
 }
 
 /** The canvas's content box (inside its border), in client px. */
@@ -159,6 +165,8 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const layerRef = useRef<HTMLCanvasElement | null>(null);
   const frame = useRef(0);
+  // Stroke size in pad units for the pad's current width (see resize).
+  const size = useRef(STROKE_PX);
   const ops = useRef<Op[]>([]);
   const live = useRef<Extract<Op, { kind: "stroke" }> | null>(null);
   const [stroke] = useState(strokeOwner);
@@ -187,7 +195,7 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
     const ctx = layer.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(c.width / PAD.width, 0, 0, c.height / PAD.height, 0, 0);
-    render(ctx, ops.current);
+    render(ctx, ops.current, size.current);
   }
 
   function paint() {
@@ -200,7 +208,7 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
     ctx.drawImage(layer, 0, 0);
     if (live.current) {
       ctx.setTransform(c.width / PAD.width, 0, 0, c.height / PAD.height, 0, 0);
-      drawOp(ctx, live.current);
+      drawOp(ctx, live.current, size.current);
     }
   }
 
@@ -213,13 +221,19 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
   function resize() {
     const c = canvasRef.current;
     if (!c) return;
-    const bitmap = bitmapSize(padBox(c), window.devicePixelRatio);
+    const box = padBox(c);
+    const bitmap = bitmapSize(box, window.devicePixelRatio);
+    const nextSize = strokeSize(box.width);
     if (
+      size.current === nextSize &&
       c.width === bitmap.width &&
       c.height === bitmap.height &&
       layerRef.current
     )
       return;
+    // Redraw every stroke at the new width, so a rotation keeps them the
+    // same thickness on screen.
+    size.current = nextSize;
     c.width = bitmap.width;
     c.height = bitmap.height;
     rebuildLayer();
@@ -256,7 +270,7 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
   function commit(op: Op) {
     ops.current.push(op);
     const ctx = layerRef.current?.getContext("2d");
-    if (ctx) drawOp(ctx, op);
+    if (ctx) drawOp(ctx, op, size.current);
     setCount(ops.current.length);
     schedulePaint();
   }
@@ -350,7 +364,8 @@ export function DoodlePad({ labels }: { labels: DoodleLabels }) {
     c.height = PAD.height;
     const ctx = c.getContext("2d");
     if (!ctx) return;
-    render(ctx, ops.current);
+    // Strokes as thick, relative to the pad, as they look on screen.
+    render(ctx, ops.current, size.current);
     c.toBlob((blob) => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
