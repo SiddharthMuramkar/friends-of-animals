@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
+import { TableScroller } from "@/components/site/table-scroller";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
@@ -45,9 +46,11 @@ export default async function Page() {
       <Section innerClassName="[&>*]:max-w-3xl">
         <PolicyBlock id="fees" title={t("fees.title")}>
           <p className="text-ink-muted">{t("fees.lead")}</p>
-          <div className="overflow-hidden rounded-3xl border-2 border-border bg-surface">
+          <TableScroller captionId="fees-caption">
             <table className="w-full text-left">
-              <caption className="sr-only">{t("fees.caption")}</caption>
+              <caption id="fees-caption" className="sr-only">
+                {t("fees.caption")}
+              </caption>
               <thead className="bg-surface-muted text-sm">
                 <tr>
                   <th scope="col" className="px-5 py-3">
@@ -86,7 +89,7 @@ export default async function Page() {
                 </tr>
               </tbody>
             </table>
-          </div>
+          </TableScroller>
         </PolicyBlock>
         <h2 className="mt-14 text-h2">{t("detail.title")}</h2>
         <div className="mt-8 grid gap-10">

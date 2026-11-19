@@ -18,6 +18,7 @@ import { Photo } from "@/components/site/photo";
 import { Placeholder } from "@/components/site/placeholder";
 import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
+import { TableScroller } from "@/components/site/table-scroller";
 import { TileMarker } from "@/components/site/tile";
 import { SAMPLE_WELFARE } from "@/content/competitions/welfare";
 import { getSampleCompetitions } from "@/content/sample";
@@ -233,12 +234,17 @@ export default async function Page({
             date: date(`${c.ageCutoffDate}T00:00:00+05:30`),
           })}
         />
-        <div className="mt-8 overflow-hidden rounded-3xl border-2 border-border bg-surface">
+        <TableScroller captionId="categories-caption" className="mt-8">
           <table className="w-full text-left">
-            <caption className="sr-only">{t("categories.caption")}</caption>
+            <caption id="categories-caption" className="sr-only">
+              {t("categories.caption")}
+            </caption>
             <thead className="bg-surface-muted text-sm">
               <tr>
-                <th scope="col" className="px-5 py-3 font-semibold">
+                <th
+                  scope="col"
+                  className="sticky start-0 bg-surface-muted px-5 py-3 font-semibold"
+                >
                   {t("categories.discipline")}
                 </th>
                 {c.ageGroups.map((g) => (
@@ -261,22 +267,28 @@ export default async function Page({
             <tbody>
               {c.disciplines.map((d) => (
                 <tr key={d} className="border-t border-border">
-                  <th scope="row" className="px-5 py-3 font-semibold">
+                  <th
+                    scope="row"
+                    className="sticky start-0 bg-surface px-5 py-3 font-semibold"
+                  >
                     {ts(`discipline.${d}`)}
                   </th>
                   {c.ageGroups.map((g) => (
                     <td key={g.label} className="px-5 py-3">
-                      <Check
-                        aria-label={`${ts(`discipline.${d}`)}, ${g.label}`}
-                        className="size-5 text-green-700 dark:text-green-300"
-                      />
+                      <span className="inline-flex items-center gap-1.5">
+                        <Check
+                          aria-hidden="true"
+                          className="size-5 shrink-0 text-green-700 dark:text-green-300"
+                        />
+                        {t("categories.open")}
+                      </span>
                     </td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableScroller>
       </Section>
 
       <Section labelledBy="dates-title" hue={HUE}>

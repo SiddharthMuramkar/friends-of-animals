@@ -109,7 +109,8 @@
         "discipline": "Discipline",
         "group": "Age group",
         "ages": "Ages",
-        "groupAges": "{min} to {max}"
+        "groupAges": "{min} to {max}",
+        "open": "Open"
       },
       "timeline": {
         "title": "Dates to remember",
