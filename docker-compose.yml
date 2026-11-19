@@ -59,6 +59,9 @@ services:
         # Baked into prerendered pages at build time; keep it equal to the
         # runtime value below.
         APP_URL: ${APP_URL:-http://localhost:3000}
+        # The image defaults to production; security headers are baked from
+        # this at build time, so keep it equal to the runtime value below.
+        APP_ENV: local
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
