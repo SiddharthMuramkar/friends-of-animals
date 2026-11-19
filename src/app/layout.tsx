@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { getTranslations } from "next-intl/server";
 import { ViewTransition } from "react";
 
+import { HistoryScrollGuard } from "@/components/site/history-scroll-guard";
 import { JsonLd } from "@/components/site/json-ld";
 import { SkipLink } from "@/components/site/skip-link";
 import { SiteFooter } from "@/components/site-footer";
@@ -78,6 +79,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <ViewTransition>{children}</ViewTransition>
         </main>
         <SiteFooter />
+        <HistoryScrollGuard />
         <JsonLd data={organizationJsonLd(siteUrl(), t("tagline"))} />
       </body>
     </html>

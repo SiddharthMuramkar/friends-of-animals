@@ -17,6 +17,7 @@ import { Callout } from "@/components/site/callout";
 import { Chip } from "@/components/site/chip";
 import { Disclosure } from "@/components/site/disclosure";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
+import { InPageLink } from "@/components/site/in-page-link";
 import { Placeholder } from "@/components/site/placeholder";
 import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
@@ -234,13 +235,13 @@ export default async function Page() {
           <ul className="mt-3 flex flex-wrap gap-2">
             {SECTIONS.map(({ id, hue }) => (
               <li key={id}>
-                <a
+                <InPageLink
                   href={`#${id}`}
                   className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-border bg-surface px-4 font-semibold text-ink transition-[border-color,translate] hover:border-ink motion-safe:hover:-translate-y-0.5"
                 >
                   <TileMarker hue={hue} size="sm" />
                   {t(`sections.${id}`)}
-                </a>
+                </InPageLink>
               </li>
             ))}
           </ul>
