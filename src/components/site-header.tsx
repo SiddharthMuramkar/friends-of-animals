@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
+import { HeaderHeightSync } from "@/components/header-height-sync";
 import { Logo } from "@/components/logo";
 import { ButtonLink } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
@@ -40,9 +41,11 @@ export async function SiteHeader() {
       style={{ viewTransitionName: "site-header" }}
       className="sticky top-0 z-40 border-b border-border bg-background"
     >
+      <HeaderHeightSync />
       {/* With very large text the row may wrap, and the logo may shrink,
-          rather than push Menu off the screen. */}
-      <div className="mx-auto flex min-h-(--header-height) max-w-7xl flex-wrap items-center gap-3 px-4 py-2 sm:px-6">
+          rather than push Menu off the screen. The fixed min height (the
+          --header-height default) stops the measured var feeding back. */}
+      <div className="mx-auto flex min-h-18 max-w-7xl flex-wrap items-center gap-3 px-4 py-2 sm:px-6">
         <SiteLink
           href="/"
           aria-label={t("homeLink")}
