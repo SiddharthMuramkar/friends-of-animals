@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { Callout } from "@/components/site/callout";
+import { ContactFact } from "@/components/site/contact-fact";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { JsonLd } from "@/components/site/json-ld";
@@ -209,7 +210,7 @@ export default async function Page() {
             <p className="mt-3 text-ink-muted">{t("csr.body")}</p>
             <p className="mt-4 flex flex-wrap items-center gap-2">
               <span className="font-semibold">{t("csr.email")}</span>
-              <Placeholder fact={SITE.org.email} />
+              <ContactFact kind="email" fact={SITE.org.email} />
             </p>
             <ButtonLink
               href={ROUTES.contact.path}

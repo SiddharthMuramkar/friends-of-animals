@@ -2,7 +2,9 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ContactFact } from "@/components/site/contact-fact";
 import { PageHeader } from "@/components/site/heading";
+import { InPageLink } from "@/components/site/in-page-link";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
@@ -13,7 +15,7 @@ import {
   type LegalFact,
   type LegalInline,
 } from "@/content/legal";
-import { SITE } from "@/lib/site";
+import { type OrgFact, SITE } from "@/lib/site";
 
 const LINK =
   "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
@@ -29,26 +31,11 @@ const FACT_VALUE: Record<LegalFact, unknown> = {
 
 /** A confirmed fact as text (or a mailto/tel link); else a visible placeholder. */
 function Fact({ fact }: { fact: LegalFact }) {
-  const href = (v: string) =>
-    fact === "phone"
-      ? `tel:${v.replace(/\s/g, "")}`
-      : fact.toLowerCase().includes("email")
-        ? `mailto:${v}`
-        : undefined;
-  return (
-    <Placeholder fact={FACT_VALUE[fact] as string}>
-      {(v) => {
-        const h = href(v);
-        return h ? (
-          <a href={h} className={LINK}>
-            {v}
-          </a>
-        ) : (
-          v
-        );
-      }}
-    </Placeholder>
-  );
+  const value = FACT_VALUE[fact] as OrgFact;
+  if (fact === "phone") return <ContactFact kind="phone" fact={value} />;
+  if (fact.toLowerCase().includes("email"))
+    return <ContactFact kind="email" fact={value} />;
+  return <Placeholder fact={value} />;
 }
 
 function Inlines({ text }: { text: LegalInline[] }) {
@@ -158,7 +145,7 @@ export async function LegalDocument({
         <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-14">
           <nav
             aria-labelledby="legal-toc"
-            className="lg:sticky lg:top-[calc(var(--header-height)+1.5rem)] lg:order-2 lg:self-start"
+            className="lg:sticky lg:top-[calc(var(--header-height)+var(--quick-exit-offset,0px)+1.5rem)] lg:order-2 lg:self-start"
           >
             <div className="rounded-3xl border-2 border-border bg-surface p-5">
               <p
@@ -171,12 +158,12 @@ export async function LegalDocument({
               <ol className="mt-3 space-y-1 text-sm">
                 {doc.sections.map((s) => (
                   <li key={s.id}>
-                    <a
+                    <InPageLink
                       href={`#${s.id}`}
                       className="flex min-h-8 items-center rounded-lg px-2 text-ink hover:bg-surface-muted hover:text-link"
                     >
                       {s.title}
-                    </a>
+                    </InPageLink>
                   </li>
                 ))}
               </ol>

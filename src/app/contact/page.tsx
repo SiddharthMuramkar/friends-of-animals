@@ -2,13 +2,16 @@ import { Mail, MapPin, Phone, ShieldAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { ButtonLink } from "@/components/site/button-link";
+import { CONTACT_LINK, ContactFact } from "@/components/site/contact-fact";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
+import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
@@ -35,6 +38,14 @@ const TOPICS = [
 
 const LINK =
   "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
+
+/** The safety box's helplines: tel: links, as in the footer. */
+const SAFETY_LINE = `${CONTACT_LINK} font-semibold`;
+const call = (number: string) => (chunks: ReactNode) => (
+  <a href={contactHref("phone", number)} className={SAFETY_LINE}>
+    {chunks}
+  </a>
+);
 
 export default async function Page() {
   const t = await getTranslations("contact");
@@ -67,7 +78,22 @@ export default async function Page() {
                 <ShieldAlert aria-hidden="true" className="size-6 shrink-0" />
                 {t("safety.title")}
               </h2>
-              <p className="mt-2 text-ink">{t("safety.body")}</p>
+              <p className="mt-2 text-ink">
+                {t.rich("safety.body", {
+                  emergency: call("112"),
+                  childline: call("1098"),
+                  cyberLine: call("1930"),
+                  cyberSite: (chunks) => (
+                    <a
+                      href="https://cybercrime.gov.in"
+                      rel="noreferrer"
+                      className={SAFETY_LINE}
+                    >
+                      {chunks}
+                    </a>
+                  ),
+                })}
+              </p>
               <Link href={ROUTES.safeguarding.path} className={LINK}>
                 {t("safety.link")}
               </Link>
@@ -110,7 +136,11 @@ export default async function Page() {
                     </span>
                   </dt>
                   <dd className="col-start-2 mt-0.5">
-                    <Placeholder fact={fact} />
+                    {key === "address" ? (
+                      <Placeholder fact={fact} />
+                    ) : (
+                      <ContactFact kind={key} fact={fact} />
+                    )}
                   </dd>
                 </div>
               ))}

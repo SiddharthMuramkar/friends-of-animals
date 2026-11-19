@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Renders an organisation fact, or, while FOA hasn't confirmed it, a visible
- * dashed tile: "<what> · To be confirmed". Never invent the value.
+ * dashed tile: "<what> · To be confirmed". Never invent the value. For an
+ * email or phone number, use <ContactFact>, which renders a tappable link.
  */
 export async function Placeholder<T>({
   fact,

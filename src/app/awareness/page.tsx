@@ -7,6 +7,7 @@ import { SeasonalCard } from "@/components/showcase/seasonal-card";
 import { Callout } from "@/components/site/callout";
 import { Disclosure } from "@/components/site/disclosure";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
+import { InPageLink } from "@/components/site/in-page-link";
 import { Photo } from "@/components/site/photo";
 import { Section } from "@/components/site/section";
 import { TileDivider } from "@/components/site/tile";
@@ -112,12 +113,12 @@ export default async function AwarenessPage() {
               <ul className="flex flex-wrap gap-2">
                 {JUMPS.map(([id, key]) => (
                   <li key={id}>
-                    <a
+                    <InPageLink
                       href={`#${id}`}
                       className="inline-flex min-h-11 items-center rounded-full border-2 border-teal-700/40 bg-surface px-4 font-semibold text-ink transition-colors hover:border-teal-700"
                     >
                       {t(`hero.${key}`)}
-                    </a>
+                    </InPageLink>
                   </li>
                 ))}
               </ul>

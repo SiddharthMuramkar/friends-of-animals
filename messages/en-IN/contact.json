@@ -12,7 +12,7 @@
     },
     "safety": {
       "title": "Worried about a child's safety?",
-      "body": "Please don't wait for an email reply. In an emergency, call 112. For a child who needs help, call Childline on 1098. For abuse online, report it at cybercrime.gov.in or call 1930.",
+      "body": "Please don't wait for an email reply. In an emergency, call <emergency>112</emergency>. For a child who needs help, call Childline on <childline>1098</childline>. For abuse online, report it at <cyberSite>cybercrime.gov.in</cyberSite> or call <cyberLine>1930</cyberLine>.",
       "link": "Go to our safeguarding page"
     },
     "details": {

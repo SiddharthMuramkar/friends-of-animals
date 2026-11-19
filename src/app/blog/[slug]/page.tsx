@@ -7,6 +7,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { TileCover } from "@/components/showcase/card-cover";
 import { StoryCard } from "@/components/showcase/story-card";
 import { Chip } from "@/components/site/chip";
+import { InPageLink } from "@/components/site/in-page-link";
 import { JsonLd } from "@/components/site/json-ld";
 import { Photo } from "@/components/site/photo";
 import { EasyRead } from "@/components/site/easy-read";
@@ -204,21 +205,21 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
                 <ol className="mt-3 space-y-1 text-sm">
                   {toc.map((h) => (
                     <li key={h.id}>
-                      <a
+                      <InPageLink
                         href={`#${h.id}`}
                         className="flex min-h-8 items-center rounded-lg px-2 text-ink hover:bg-surface-muted hover:text-link"
                       >
                         {h.text}
-                      </a>
+                      </InPageLink>
                     </li>
                   ))}
                   <li>
-                    <a
+                    <InPageLink
                       href="#sources"
                       className="flex min-h-8 items-center rounded-lg px-2 text-ink-muted hover:bg-surface-muted hover:text-link"
                     >
                       {t("sources")}
-                    </a>
+                    </InPageLink>
                   </li>
                 </ol>
               </div>

@@ -112,6 +112,19 @@ export const safeguarding: LegalDoc = {
             [
               "Every page that shows participants’ work has a way to report it.",
             ],
+            [
+              "Quick exit leaves this page at once, but it doesn’t clear your browsing history. Afterwards, delete this visit from your history (how to in ",
+              {
+                link: "Chrome",
+                href: "https://support.google.com/chrome/answer/95589",
+              },
+              " or ",
+              {
+                link: "Safari on iPhone",
+                href: "https://support.apple.com/105082",
+              },
+              "), or use a private window next time.",
+            ],
           ],
         },
       ],

@@ -5,10 +5,10 @@ import { getTranslations } from "next-intl/server";
 import { JudgingPath } from "@/components/showcase/judging-path";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { ButtonLink } from "@/components/site/button-link";
+import { ContactFact } from "@/components/site/contact-fact";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
-import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
@@ -228,7 +228,7 @@ export default async function Page() {
           <p>{t("contact.openBody")}</p>
           <p className="flex flex-wrap items-center gap-2">
             {t("contact.contactLabel")}
-            <Placeholder fact={SITE.org.email} />
+            <ContactFact kind="email" fact={SITE.org.email} />
           </p>
         </ExplainState>
         <ButtonLink href={ROUTES.contact.path} size="lg" className="mt-8">

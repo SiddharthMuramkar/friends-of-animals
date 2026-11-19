@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { getTranslations } from "next-intl/server";
 import { ViewTransition } from "react";
 
+import { HistoryScrollGuard } from "@/components/site/history-scroll-guard";
 import { JsonLd } from "@/components/site/json-ld";
+import { SkipLink } from "@/components/site/skip-link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { siteUrl } from "@/env";
@@ -56,7 +58,7 @@ export const viewport: Viewport = {
   ],
 };
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
   const t = await getTranslations("common");
   return (
     // The theme script changes the class before hydration.
@@ -70,18 +72,19 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="flex min-h-dvh flex-col">
-        <a
-          href="#main"
-          className="sr-only rounded-full bg-primary px-5 py-3 font-semibold text-primary-fg focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
-        >
-          {t("skipLink")}
-        </a>
+        <SkipLink>{t("skipLink")}</SkipLink>
         <SiteHeader />
-        <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
-          {/* Page changes cross-fade; the header is pinned (globals.css). */}
-          <ViewTransition>{children}</ViewTransition>
-        </main>
-        <SiteFooter />
+        {/* One wrapper for main and the footer, so a sticky bar from the
+            @exit slot (Quick exit) stays on screen over the footer too. */}
+        <div className="flex flex-1 flex-col">
+          {exit}
+          <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
+            {/* Page changes cross-fade; the header is pinned (globals.css). */}
+            <ViewTransition>{children}</ViewTransition>
+          </main>
+          <SiteFooter />
+        </div>
+        <HistoryScrollGuard />
         <JsonLd data={organizationJsonLd(siteUrl(), t("tagline"))} />
       </body>
     </html>
