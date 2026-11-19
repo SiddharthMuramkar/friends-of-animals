@@ -39,13 +39,15 @@ export async function SiteHeader() {
       style={{ viewTransitionName: "site-header" }}
       className="sticky top-0 z-40 border-b border-border bg-background"
     >
-      <div className="mx-auto flex h-(--header-height) max-w-7xl items-center gap-3 px-4 sm:px-6">
+      {/* With very large text the row may wrap, and the logo may shrink,
+          rather than push Menu off the screen. */}
+      <div className="mx-auto flex min-h-(--header-height) max-w-7xl flex-wrap items-center gap-3 px-4 py-2 sm:px-6">
         <Link
           href="/"
           aria-label={t("homeLink")}
-          className="mr-auto shrink-0 rounded-xl lg:mr-4"
+          className="mr-auto min-w-0 rounded-xl lg:mr-4"
         >
-          <Logo className="h-11 w-auto sm:h-12" />
+          <Logo className="h-11 w-auto max-w-full object-contain object-left sm:h-12" />
         </Link>
         {/* usePathname() can suspend on routes with unknown params. */}
         <Suspense

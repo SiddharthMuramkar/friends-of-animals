@@ -386,6 +386,8 @@
   h3,
   h4 {
     @apply font-display text-balance text-ink;
+    /* Long words wrap instead of overflowing at large text sizes. */
+    overflow-wrap: break-word;
   }
   h1 {
     @apply text-h1 font-extrabold;

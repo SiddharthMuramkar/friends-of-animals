@@ -100,7 +100,9 @@ export function MobileMenuView({
         className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-border-strong px-4 font-semibold text-ink hover:bg-surface-muted lg:hidden"
       >
         <Menu aria-hidden="true" className="size-5" />
-        {labels.menu}
+        {/* The rem breakpoint grows with the browser's text size, so only
+            large text reduces Menu to its icon. */}
+        <span className="max-[20rem]:sr-only">{labels.menu}</span>
       </button>
       {/* Overscroll is contained on the dialog, its backdrop and the nav,
           so swipes never scroll the page behind. The backdrop colour is a

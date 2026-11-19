@@ -26,7 +26,7 @@ export async function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-border bg-surface-muted">
       <div className="mx-auto max-w-7xl px-4 pt-12 pb-8 sm:px-6">
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <div className="max-w-md">
             <Link
               href="/"
@@ -47,7 +47,7 @@ export async function SiteFooter() {
               <p className="mt-1 text-sm text-ink-muted">
                 {t("helplines.intro")}
               </p>
-              <ul className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                 <li>
                   <a
                     href="tel:112"
@@ -85,7 +85,8 @@ export async function SiteFooter() {
                     {t("helplines.cyber")} {t("helplines.cyberOr")}{" "}
                     <a
                       href="https://cybercrime.gov.in"
-                      className="text-link underline underline-offset-2"
+                      // Breaks inside the address only with large text.
+                      className="text-link underline underline-offset-2 max-[20rem]:wrap-break-word"
                     >
                       {t("helplines.cyberSite")}
                     </a>
@@ -101,9 +102,11 @@ export async function SiteFooter() {
             </section>
           </div>
 
+          {/* One column under a rem breakpoint, which phones only reach
+              with large text. */}
           <nav
             aria-label={t("navLabel")}
-            className="grid grid-cols-2 gap-8 sm:grid-cols-3"
+            className="grid grid-cols-2 gap-8 max-[20rem]:grid-cols-1 sm:grid-cols-3"
           >
             {FOOTER_GROUPS.map((group) => (
               <div key={group}>
