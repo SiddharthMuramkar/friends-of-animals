@@ -163,6 +163,11 @@ export const SEASONAL_SOURCES = {
     label: "Cornell Lab, All About Birds, “I found a baby bird. What do I do?”",
     url: "https://www.allaboutbirds.org/news/i-found-a-baby-bird-what-do-i-do/",
   },
+  S118: {
+    label:
+      "DD News (IANS), “Over 1.18 lakh injured birds rescued in Gujarat since launch of Karuna Abhiyan”, 2 Feb 2026",
+    url: "https://ddnews.gov.in/en/over-1-18-lakh-injured-birds-rescued-in-gujarat-since-launch-of-karuna-abhiyan/",
+  },
 } as const satisfies Record<string, { label: string; url: string }>;
 
 export type SeasonalSourceId = keyof typeof SEASONAL_SOURCES;
@@ -209,7 +214,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
       grownUps:
         "Use only plain cotton thread, and don’t fly at dawn or dusk. If you find a bird caught in string, cover it gently with a cloth and put it in a ventilated box. Give no food or water, and don’t pull the string out: let a trained rescuer cut it. AWBI’s letter of 11 January 2026 asks every state to “permit only plain cotton thread for kite flying”.",
       why: "In Gujarat’s 2026 Karuna Abhiyan alone (10–20 January), 16,380 birds hurt by kite strings were treated.",
-      sources: ["S07", "S10", "S11", "S53"],
+      sources: ["S07", "S10", "S11", "S118", "S53"],
       imageId: "se-kites-uttarayan",
     },
     {
