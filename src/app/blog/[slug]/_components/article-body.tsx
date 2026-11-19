@@ -21,12 +21,22 @@ type Labels = {
   close: string;
 };
 
+/** The id of a source's entry in the numbered list. */
+const sourceId = (n: number) => `source-${n}`;
+
 type Ctx = {
   notes: Map<string, { n: number; note: Footnote }>;
   labels: Labels;
 };
 
-/** A superscript number that opens its source in place (popover). */
+const REF =
+  "inline-grid h-6 min-w-6 place-items-center rounded-full bg-yellow-100 px-1 align-baseline font-sans text-xs leading-none font-bold text-yellow-900 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-100 dark:hover:bg-yellow-800";
+
+/**
+ * A superscript number that opens its source in place (popover). Where the
+ * Popover API is missing (iOS 16), CSS swaps the button for a plain link to
+ * the source's entry in the list below, and hides the note.
+ */
 function FootnoteRef({
   id,
   uid,
@@ -48,13 +58,17 @@ function FootnoteRef({
           popoverTarget={popId}
           aria-label={ctx.labels.sourceN(n)}
           style={anchor}
-          className={cn(
-            styles.ref,
-            "inline-grid h-6 min-w-6 place-items-center rounded-full bg-yellow-100 px-1 align-baseline font-sans text-xs leading-none font-bold text-yellow-900 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-100 dark:hover:bg-yellow-800"
-          )}
+          className={cn(styles.ref, REF)}
         >
           {n}
         </button>
+        <a
+          href={`#${sourceId(n)}`}
+          aria-label={ctx.labels.sourceN(n)}
+          className={cn(styles.refLink, REF, "no-underline")}
+        >
+          {n}
+        </a>
       </sup>
       <span
         id={popId}
@@ -291,7 +305,7 @@ export async function SourceList({ footnotes }: { footnotes: Footnote[] }) {
       <p className="mt-3 max-w-prose text-ink-muted">{t("sourcesIntro")}</p>
       <ol className="mt-6 space-y-3">
         {footnotes.map((f, i) => (
-          <li key={f.id} className="flex gap-3">
+          <li key={f.id} id={sourceId(i + 1)} className="flex gap-3">
             <span
               aria-hidden="true"
               className="grid size-7 shrink-0 place-items-center rounded-[22%] bg-yellow-100 text-sm font-bold text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100"
