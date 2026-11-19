@@ -46,9 +46,16 @@ export function CardCover({
  */
 export function CardCredit({
   id,
+  raised = true,
   className,
 }: {
   id: SiteImageId;
+  /**
+   * Lift the link above a stretched card link. Turn it off on a card with no
+   * stretched link: inside a flip card, the extra layer makes iPhone Safari
+   * paint the credit mirrored on the back face.
+   */
+  raised?: boolean;
   className?: string;
 }) {
   const { credit } = siteImage(id);
@@ -62,7 +69,10 @@ export function CardCredit({
       {visible ? (
         <a
           href={credit.sourceUrl}
-          className="relative z-10 inline-flex min-h-6 items-center underline decoration-1 underline-offset-2 hover:text-ink"
+          className={cn(
+            "inline-flex min-h-6 items-center underline decoration-1 underline-offset-2 hover:text-ink",
+            raised && "relative z-10"
+          )}
         >
           {shortCredit(credit)}
         </a>

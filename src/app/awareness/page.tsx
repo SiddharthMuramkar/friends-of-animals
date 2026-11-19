@@ -159,7 +159,6 @@ export default async function AwarenessPage() {
           {SEASONAL_MONTHS.map((m) => (
             <Disclosure
               key={m.month}
-              name="months"
               summary={
                 <span className="flex flex-wrap items-baseline gap-x-3">
                   <span className="font-display text-h5 text-(--section-heading)">
