@@ -4,7 +4,6 @@ import { ViewTransition } from "react";
 
 import { HistoryScrollGuard } from "@/components/site/history-scroll-guard";
 import { JsonLd } from "@/components/site/json-ld";
-import { SkipLink } from "@/components/site/skip-link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { siteUrl } from "@/env";
@@ -74,7 +73,7 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
             CSS order puts it back under the header; body is its sticky
             containing block, so it stays on screen over the footer too. */}
         {exit}
-        <SkipLink>{t("skipLink")}</SkipLink>
+        {/* The skip link is the header's first child (site-header.tsx). */}
         <SiteHeader />
         <div className="order-2 flex flex-1 flex-col">
           <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
