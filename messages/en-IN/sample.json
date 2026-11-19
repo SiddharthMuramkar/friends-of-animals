@@ -20,6 +20,10 @@
       "INSTITUTION": "Through your school",
       "INDIVIDUAL": "On your own"
     },
+    "routeInList": {
+      "INSTITUTION": "through your school",
+      "INDIVIDUAL": "on your own"
+    },
     "certificate": {
       "name": "Aarav S.",
       "group": "Group B"

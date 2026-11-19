@@ -153,8 +153,8 @@ export const article = {
   footnotes: [
     {
       id: "f1",
-      text: "Vijaya Nagarajan, Feeding a Thousand Souls (Oxford University Press, 2018), book website",
-      url: "https://feedingathousandsouls.com/",
+      text: "Vijaya Nagarajan, Feeding a Thousand Souls (Oxford University Press, 2018), publisher’s page",
+      url: "https://global.oup.com/academic/product/feeding-a-thousand-souls-9780190858070",
     },
     {
       id: "f2",

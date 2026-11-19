@@ -125,6 +125,13 @@ describe("fileRules", () => {
     expect(fileRules(["DRAWING"])[0].minPx).toBe(1200);
     expect(fileRules(["PHOTOGRAPHY"])[0].minPx).toBe(2000);
   });
+
+  it("limits essays by length in words, not by pixel size", () => {
+    const [essay] = fileRules(["ESSAY"]);
+    expect(essay.maxWords).toBe(1000);
+    expect(essay.minPx).toBeUndefined();
+    expect(fileRules(["DRAWING"])[0].maxWords).toBeUndefined();
+  });
 });
 
 describe("competitionParams", () => {

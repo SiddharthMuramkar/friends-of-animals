@@ -469,14 +469,26 @@ export default async function Page({
                 <dd className="text-ink-muted">
                   {t("files.maxValue", { mb: r.maxMb })}
                 </dd>
-                <dt className="font-semibold">{t("files.min")}</dt>
-                <dd className="text-ink-muted">
-                  {r.minPx === undefined
-                    ? t("files.minNone")
-                    : r.types === "video"
-                      ? t("files.minVideo", { px: r.minPx })
-                      : t("files.minValue", { px: format.number(r.minPx) })}
-                </dd>
+                {r.minPx === undefined ? null : (
+                  <>
+                    <dt className="font-semibold">{t("files.min")}</dt>
+                    <dd className="text-ink-muted">
+                      {r.types === "video"
+                        ? t("files.minVideo", { px: r.minPx })
+                        : t("files.minValue", { px: format.number(r.minPx) })}
+                    </dd>
+                  </>
+                )}
+                {r.maxWords === undefined ? null : (
+                  <>
+                    <dt className="font-semibold">{t("files.length")}</dt>
+                    <dd className="text-ink-muted">
+                      {t("files.lengthValue", {
+                        words: format.number(r.maxWords),
+                      })}
+                    </dd>
+                  </>
+                )}
               </dl>
             </li>
           ))}

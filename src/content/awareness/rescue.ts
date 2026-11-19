@@ -75,7 +75,7 @@ export const BITE_FIRST_AID: readonly Step[] = [
 export const SAVE_A_NUMBER_SOURCES: readonly Source[] = [
   {
     label: "AWBI, list of recognised animal welfare organisations",
-    url: "https://awbi.gov.in",
+    url: "https://www.awbi.gov.in/view/index/list-of-awo",
   },
   {
     label: "Kerala AHD, 1962 call centre and mobile veterinary unit",

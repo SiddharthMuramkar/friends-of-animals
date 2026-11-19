@@ -63,7 +63,7 @@ export const SEASONAL_SOURCES = {
   },
   S21: {
     label: "NDMA, Heat wave do’s and don’ts",
-    url: "https://ndma.gov.in/Natural-Hazards/Heat-Wave/Dos-Donts",
+    url: "https://ndma.gov.in/en/heat-wave-dos-donts",
   },
   S22: {
     label: "IMD, FAQ on heat waves",

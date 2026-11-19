@@ -480,7 +480,7 @@ const RAW = {
     work: "“Help Your Child to Wonder”, Woman's Home Companion",
     workIsTitle: false,
     year: "1956",
-    sourceUrl: "https://rachelcarsoncouncil.org/help-child-wonder",
+    sourceUrl: "https://www.fws.gov/media/help-your-child-wonder",
     verdict: "VERIFIED",
     rights: "free",
     placements: ["Competitions: taking part on your own"],

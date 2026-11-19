@@ -75,8 +75,12 @@ export async function CompetitionCard({
           <dd className="text-ink-muted">{t("ageRange", ages)}</dd>
           <dt className="font-semibold text-ink">{t("ways")}</dt>
           <dd className="text-ink-muted">
+            {/* Labels stand alone ("On your own"); after the first item the
+                list form keeps the casing right in each locale. */}
             {format.list(
-              c.routes.map((r) => ts(`route.${r.route}`)),
+              c.routes.map((r, i) =>
+                i === 0 ? ts(`route.${r.route}`) : ts(`routeInList.${r.route}`)
+              ),
               "and"
             )}
           </dd>

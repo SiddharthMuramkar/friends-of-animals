@@ -101,6 +101,8 @@ export type FileRule = {
   maxMb: number;
   /** Shortest long edge (short edge for video), in pixels. */
   minPx?: number;
+  /** Longest written entry, in words (essays). */
+  maxWords?: number;
 };
 
 /** Default file rules for each discipline. */
@@ -110,7 +112,7 @@ const FILE_RULES: Record<Discipline, Omit<FileRule, "discipline">> = {
   ART: { types: "image", files: "art", maxMb: 20, minPx: 1200 },
   CRAFT: { types: "image", files: "craft", maxMb: 20, minPx: 1200 },
   PHOTOGRAPHY: { types: "image", files: "one", maxMb: 20, minPx: 2000 },
-  ESSAY: { types: "essay", files: "one", maxMb: 10 },
+  ESSAY: { types: "essay", files: "one", maxMb: 10, maxWords: 1000 },
   VIDEOGRAPHY: { types: "video", files: "one", maxMb: 500, minPx: 720 },
 };
 
