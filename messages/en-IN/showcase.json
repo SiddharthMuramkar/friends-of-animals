@@ -1,0 +1,137 @@
+{
+  "showcase": {
+    "quote": {
+      "source": "Source",
+      "sourceOf": "Source of the quote by {author}",
+      "translatedBy": "translated by {name}",
+      "inSimpleWords": "In simple words",
+      "original": "In the original"
+    },
+    "seasonal": {
+      "eyebrow": "This month’s kindness",
+      "monthTitle": "{month}: {title}",
+      "tryThis": "Try this",
+      "forGrownUps": "For grown-ups",
+      "why": "Why it matters",
+      "sources": "Sources",
+      "safety": "If any animal bites or scratches you, tell a grown-up right away."
+    },
+    "story": {
+      "audience": {
+        "kids": "Easy read",
+        "families": "Read together",
+        "everyone": "For everyone"
+      },
+      "minutes": "{minutes} min read",
+      "illustrated": "Illustrated cover"
+    },
+    "twoDoors": {
+      "title": "Two doors, one path",
+      "lead": "Every child can take part. Pick the way in that suits you. Both lead to the same judges and the same certificate.",
+      "legend": "Choose your way in",
+      "recommended": "Recommended",
+      "doors": {
+        "school": {
+          "title": "Through your school",
+          "line": "Your teacher runs the competition in class. We look after the rest.",
+          "note": "We encourage you to participate through your school."
+        },
+        "self": {
+          "title": "On your own",
+          "line": "A parent or guardian signs you up with us. You make your entry at home.",
+          "note": "No school needed. Every student can take part this way."
+        }
+      },
+      "pathLabel": "Steps {door}",
+      "steps": {
+        "school": {
+          "1": "Your school signs up with Friends of Animals and names a teacher coordinator.",
+          "2": "The coordinator registers your class for a competition.",
+          "3": "You make your entry at school, on the day.",
+          "4": "Your school’s judges choose up to five entries to send on."
+        },
+        "self": {
+          "1": "A parent or guardian registers you on our website.",
+          "2": "You get a participant ID and a registration number.",
+          "3": "You make your entry at home and send us a photo of it."
+        }
+      },
+      "merge": "Both paths meet here",
+      "together": {
+        "1": "Our judges score each entry by its code, never by name.",
+        "2": "Results are published, and everyone who took part gets a certificate."
+      }
+    },
+    "judging": {
+      "title": "How judging works",
+      "lead": "Entries can travel through five levels. We start with two, and open the others as more schools join.",
+      "levels": {
+        "SCHOOL": "School",
+        "CITY": "City or district",
+        "STATE": "State",
+        "NATIONAL": "National",
+        "GLOBAL": "Global"
+      },
+      "levelNotes": {
+        "SCHOOL": "Your school’s round. Only on the school route.",
+        "NATIONAL": "Our final round. Entries from schools and from students on their own meet here."
+      },
+      "active": "Open now",
+      "later": "Later",
+      "pathLabel": "Judging levels, from school to global",
+      "rubricTitle": "What judges look for",
+      "rubricLabel": "Share of the score for each part of the judging guide",
+      "rubric": {
+        "theme": "Theme and message",
+        "creativity": "Creativity and originality",
+        "technique": "Technique",
+        "presentation": "Presentation and effort"
+      },
+      "percent": "{value}%",
+      "blind": "Judges see the entry code, not your name, school or city."
+    },
+    "certificate": {
+      "title": "A certificate for everyone",
+      "lead": "Every child who takes part gets a participation certificate with its own number. Schools download them for their students; families download them from their account.",
+      "figureLabel": "Sample participation certificate",
+      "watermark": "Sample",
+      "heading": "Certificate of participation",
+      "certify": "This is to certify that",
+      "tookPart": "took part in",
+      "category": "{discipline} · {group} (ages {min} to {max})",
+      "issued": "Issued {date}",
+      "number": "Certificate number",
+      "qr": "QR code",
+      "verify": "Checkable at /verify, coming soon",
+      "nameNote": "We print a child’s first name and the initial of their surname. Never a photo, an age or an address."
+    },
+    "counters": {
+      "title": "So far",
+      "asOf": "Counted on {date}. Counts under 10 are not shown, and larger counts are rounded down to the nearest 10.",
+      "howWeCount": "How we count",
+      "labels": {
+        "participants": "children and young people took part",
+        "institutions": "schools and colleges joined",
+        "competitions": "competitions completed",
+        "statesReached": "states and union territories reached",
+        "artworksShowcased": "artworks shown in the gallery",
+        "certificatesIssued": "certificates issued"
+      }
+    },
+    "competition": {
+      "disciplines": "Disciplines",
+      "ages": "Ages",
+      "ageRange": "{min} to {max}",
+      "ways": "Ways in",
+      "fee": "Fee",
+      "free": "Free",
+      "keyDate": {
+        "registrationOpens": "Registration opens {date}",
+        "registrationCloses": "Registration closes {date}",
+        "entriesClose": "Entries close {date}",
+        "shortlistCloses": "School shortlists due {date}",
+        "none": "Judging is under way"
+      }
+    }
+  }
+}

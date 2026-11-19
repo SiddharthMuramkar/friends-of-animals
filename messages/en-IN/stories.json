@@ -1,0 +1,52 @@
+{
+  "stories": {
+    "meta": {
+      "title": "Stories of care from across India",
+      "description": "True, sourced stories of how people across India look after animals, from kolam doorsteps to stork baby showers. Every fact links to its source."
+    },
+    "index": {
+      "eyebrow": "Stories",
+      "title": "Stories of care from across India",
+      "lead": "Real people, real places, and the small habits that keep animals safe. Every fact in every story links to where we found it.",
+      "easyReadLabel": "Easy read",
+      "easyRead": "These are true stories about people in India who are kind to animals. Read them alone or with a grown-up.",
+      "featured": "Featured story",
+      "featuredHeading": "Start here",
+      "more": "More stories",
+      "readStory": "Read the story"
+    },
+    "article": {
+      "breadcrumb": "Breadcrumb",
+      "home": "Home",
+      "allStories": "All stories",
+      "published": "Published {date}",
+      "easyReadLabel": "Easy read",
+      "toc": "In this story",
+      "sources": "Sources",
+      "sourcesIntro": "Every numbered note in the story points to one of these. Tap a number to see its source without leaving the page.",
+      "sourceN": "Source {n}",
+      "openSource": "Open the source",
+      "close": "Close",
+      "related": "More stories",
+      "allStoriesLink": "See all stories"
+    },
+    "readAloud": {
+      "listen": "Read to me",
+      "pause": "Pause",
+      "resume": "Continue",
+      "stop": "Stop",
+      "onlineVoice": "This voice comes from your browser’s online service.",
+      "group": "Read this story aloud"
+    },
+    "checks": {
+      "title": "How we check facts",
+      "points": {
+        "sources": "Every fact comes from a source we opened and read: a government record, the organisation itself, a book or a newspaper of record.",
+        "quotes": "We quote people only in their exact words, from the place they said or wrote them. If we can’t find the original, we leave the quote out.",
+        "numbers": "Every number has a date, because numbers change.",
+        "noLink": "Friends of Animals has no connection with the people or groups in these stories unless we say so."
+      },
+      "mistake": "Spotted a mistake? Write to us at"
+    }
+  }
+}

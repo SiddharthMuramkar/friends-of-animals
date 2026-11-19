@@ -27,5 +27,47 @@
     "drizzle/**",
     "public/**",
     "specifications/**"
+  ],
+  "overrides": [
+    {
+      "files": ["src/**/*.tsx"],
+      "rules": {
+        "react/jsx-no-literals": [
+          "error",
+          {
+            "noStrings": true,
+            "ignoreProps": true,
+            "allowedStrings": [
+              "·",
+              "—",
+              "–",
+              "/",
+              "|",
+              ":",
+              "(",
+              ")",
+              " ",
+              "&nbsp;"
+            ],
+            "restrictedAttributes": [
+              "alt",
+              "aria-label",
+              "aria-description",
+              "aria-roledescription",
+              "aria-valuetext",
+              "title",
+              "placeholder",
+              "label"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/**/*.test.tsx", "src/components/ui/**"],
+      "rules": {
+        "react/jsx-no-literals": "off"
+      }
+    }
   ]
 }

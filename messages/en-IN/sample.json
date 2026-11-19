@@ -1,0 +1,29 @@
+{
+  "sample": {
+    "status": {
+      "upcoming": "Upcoming",
+      "open": "Registration open",
+      "inProgress": "In progress",
+      "results": "Results",
+      "cancelled": "Cancelled"
+    },
+    "discipline": {
+      "DRAWING": "Drawing",
+      "PAINTING": "Painting",
+      "ART": "Art",
+      "CRAFT": "Craft",
+      "ESSAY": "Essay",
+      "PHOTOGRAPHY": "Photography",
+      "VIDEOGRAPHY": "Videography"
+    },
+    "route": {
+      "INSTITUTION": "Through your school",
+      "INDIVIDUAL": "On your own"
+    },
+    "certificate": {
+      "name": "Aarav S.",
+      "group": "Group B"
+    },
+    "note": "Sample content, shown on test sites only."
+  }
+}

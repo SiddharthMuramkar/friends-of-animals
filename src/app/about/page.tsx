@@ -1,0 +1,321 @@
+import { Brush, Eye, Sprout } from "lucide-react";
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+
+import { BadgeConstellation } from "@/components/showcase/badge-constellation";
+import { NotAShelter } from "@/components/showcase/not-a-shelter";
+import { QuoteFigure } from "@/components/showcase/quote-figure";
+import { ButtonLink } from "@/components/site/button-link";
+import { Disclosure } from "@/components/site/disclosure";
+import { PageHeader, SectionHeading } from "@/components/site/heading";
+import { Photo } from "@/components/site/photo";
+import { Placeholder } from "@/components/site/placeholder";
+import { Section } from "@/components/site/section";
+import { TileDivider, TileMarker } from "@/components/site/tile";
+import { ROUTES } from "@/lib/routes";
+import { pageMetadata } from "@/lib/seo";
+import { SITE } from "@/lib/site";
+import { cn } from "@/lib/utils";
+
+import { EasyRead } from "@/components/site/easy-read";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("about.meta");
+  return pageMetadata({
+    title: t("title"),
+    description: t("description"),
+    path: ROUTES.about.path,
+  });
+}
+
+const HOW = [
+  { key: "create", Icon: Brush, tile: "bg-blue-700 text-white" },
+  { key: "share", Icon: Eye, tile: "bg-pink-400 text-neutral-900" },
+  { key: "grow", Icon: Sprout, tile: "bg-green-700 text-white" },
+] as const;
+
+const PEOPLE = [
+  "schools",
+  "participants",
+  "teachers",
+  "parents",
+  "judges",
+  "welfare",
+  "volunteers",
+  "donors",
+] as const;
+
+const PEOPLE_TILES = [
+  "red",
+  "green",
+  "blue",
+  "yellow",
+  "teal",
+  "pink",
+] as const;
+
+export default async function Page() {
+  const t = await getTranslations("about");
+  const objectives = t.raw("objectives.items") as {
+    title: string;
+    body: string;
+  }[];
+
+  return (
+    <>
+      <Section
+        hue="blue"
+        tone="tint"
+        width="wide"
+        className="py-12 sm:py-16 lg:py-20"
+      >
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14">
+          <div>
+            <PageHeader
+              eyebrow={t("hero.eyebrow")}
+              tile="blue"
+              title={t("hero.title")}
+              lead={t("hero.lead")}
+            />
+            <EasyRead label={t("easyLabel")} className="mt-6">
+              <p>{t("hero.easy")}</p>
+            </EasyRead>
+          </div>
+          <Photo
+            id="dogs-pariah-yelahanka-park"
+            sizes="(min-width: 1280px) 520px, (min-width: 1024px) 42vw, 92vw"
+            preload
+            frame="blue"
+            frameCorner="bottom-left"
+            className="aspect-4/3 shadow-warm"
+          />
+        </div>
+      </Section>
+
+      {/* Opener: Article 51A(g), in English and Hindi, and what it means. */}
+      <Section labelledBy="about-duty" width="wide" hue="blue">
+        <SectionHeading
+          id="about-duty"
+          eyebrow={t("duty.eyebrow")}
+          tile="blue"
+          title={t("duty.title")}
+          lead={t("duty.body")}
+        />
+        <div className="mt-10 grid gap-10 lg:grid-cols-2 lg:gap-14">
+          <QuoteFigure id="Q01" hue="blue" />
+          <QuoteFigure id="Q02" hue="green" size="md" />
+        </div>
+        <p className="mt-12 max-w-prose text-lead text-ink">
+          {t("duty.court")}
+        </p>
+        <QuoteFigure id="Q03" hue="red" size="md" className="mt-6 max-w-3xl" />
+      </Section>
+
+      {/* Vision and mission, verbatim from FoA.md. */}
+      <Section width="wide" tone="tint" hue="blue">
+        <div className="grid gap-6 md:grid-cols-2">
+          {(
+            [
+              ["visionTitle", "vision", "yellow"],
+              ["missionTitle", "mission", "teal"],
+            ] as const
+          ).map(([title, body, tile]) => (
+            <div
+              key={body}
+              className="rounded-3xl border-2 border-border bg-surface p-6 shadow-warm sm:p-8"
+            >
+              <h2 className="flex items-center gap-3 text-h3">
+                <TileMarker hue={tile} size="lg" />
+                {t(`vision.${title}`)}
+              </h2>
+              <p className="mt-4 font-display text-h5 leading-snug font-semibold text-ink">
+                {t(`vision.${body}`)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* Why compassion is a skill. */}
+      <Section labelledBy="about-skill" width="wide" hue="blue">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16">
+          <Photo
+            id="cat-lentils-west-bengal"
+            sizes="(min-width: 1024px) 40vw, 92vw"
+            frame="green"
+            frameCorner="top-left"
+            className="aspect-square"
+            figureClassName="order-last lg:order-first"
+          />
+          <div>
+            <SectionHeading
+              id="about-skill"
+              eyebrow={t("skill.eyebrow")}
+              tile="green"
+              title={t("skill.title")}
+            />
+            <EasyRead label={t("easyLabel")} className="mt-6">
+              <p>{t("skill.easy")}</p>
+            </EasyRead>
+            <p className="mt-6 max-w-prose text-body text-ink">
+              {t("skill.body")}
+            </p>
+            <Disclosure
+              summary={t("skill.detailSummary")}
+              className="mt-6 max-w-prose"
+            >
+              <p>{t("skill.detail")}</p>
+            </Disclosure>
+          </div>
+        </div>
+      </Section>
+
+      {/* Ashoka heritage strip. */}
+      <Section
+        labelledBy="about-ashoka"
+        width="default"
+        tone="tint"
+        hue="yellow"
+      >
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:gap-14">
+          <SectionHeading
+            id="about-ashoka"
+            eyebrow={t("ashoka.eyebrow")}
+            tile="yellow"
+            title={t("ashoka.title")}
+            lead={t("ashoka.body")}
+          />
+          <QuoteFigure id="Q11" hue="yellow" size="md" />
+        </div>
+      </Section>
+
+      {/* How FOA works: creativity → awareness → compassion. */}
+      <Section labelledBy="about-how" width="wide" hue="blue">
+        <SectionHeading
+          id="about-how"
+          eyebrow={t("how.eyebrow")}
+          tile="blue"
+          title={t("how.title")}
+        />
+        <ol className="mt-10 grid gap-6 md:grid-cols-3">
+          {HOW.map(({ key, Icon, tile }) => (
+            <li
+              key={key}
+              className="relative rounded-3xl border-2 border-border bg-surface p-6 shadow-warm"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "grid size-14 place-items-center rounded-[22%]",
+                  tile
+                )}
+              >
+                <Icon className="size-7" strokeWidth={2.25} />
+              </span>
+              <h3 className="mt-4 text-h4">{t(`how.steps.${key}.title`)}</h3>
+              <p className="mt-2 text-body text-ink-muted">
+                {t(`how.steps.${key}.body`)}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </Section>
+
+      {/* Stakeholders and the not-a-shelter diagram. */}
+      <Section labelledBy="about-people" width="wide" tone="tint" hue="blue">
+        <SectionHeading
+          id="about-people"
+          eyebrow={t("people.eyebrow")}
+          tile="teal"
+          title={t("people.title")}
+          lead={t("people.lead")}
+        />
+        <ul className="mt-8 flex flex-wrap gap-3">
+          {PEOPLE.map((key, i) => (
+            <li
+              key={key}
+              className="inline-flex min-h-11 items-center gap-2.5 rounded-full border-2 border-border bg-surface px-4 py-2 font-semibold text-ink"
+            >
+              <TileMarker
+                hue={PEOPLE_TILES[i % PEOPLE_TILES.length]}
+                size="sm"
+              />
+              {t(`people.items.${key}`)}
+            </li>
+          ))}
+        </ul>
+        <TileDivider className="my-14" />
+        <SectionHeading
+          eyebrow={t("shelter.eyebrow")}
+          tile="red"
+          title={<span className="text-h3">{t("shelter.title")}</span>}
+          lead={t("shelter.lead")}
+        />
+        <NotAShelter headingLevel={3} className="mt-10" />
+      </Section>
+
+      {/* W4 badges. */}
+      <Section id="badges" labelledBy="about-badges" width="wide" hue="blue">
+        <BadgeConstellation id="about-badges" headingLevel={2} />
+      </Section>
+
+      {/* Six-month objectives (FoA.md). */}
+      <Section
+        labelledBy="about-objectives"
+        width="wide"
+        tone="tint"
+        hue="blue"
+      >
+        <SectionHeading
+          id="about-objectives"
+          eyebrow={t("objectives.eyebrow")}
+          tile="green"
+          title={t("objectives.title")}
+        />
+        <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {objectives.map((o, i) => (
+            <li
+              key={o.title}
+              className="rounded-3xl border-2 border-border bg-surface p-5"
+            >
+              <span
+                aria-hidden="true"
+                className="grid size-10 place-items-center rounded-[22%] bg-blue-700 font-display text-lead font-bold text-white"
+              >
+                {i + 1}
+              </span>
+              <h3 className="mt-3 text-h5 font-sans font-bold">{o.title}</h3>
+              <p className="mt-1.5 text-sm text-ink-muted">{o.body}</p>
+            </li>
+          ))}
+        </ol>
+      </Section>
+
+      {/* Transparency promise and name line. */}
+      <Section labelledBy="about-promise" width="default" hue="blue">
+        <div className="rounded-3xl border-2 border-ink bg-surface p-6 shadow-warm sm:p-10">
+          <SectionHeading
+            id="about-promise"
+            eyebrow={t("transparency.eyebrow")}
+            tile="red"
+            title={t("transparency.title")}
+            lead={t("transparency.body")}
+          />
+          <p className="mt-6 flex flex-wrap items-center gap-2 text-body text-ink">
+            {t("transparency.registration")}
+            <Placeholder fact={SITE.org.registration.type} />
+            <Placeholder fact={SITE.org.registration.number} />
+          </p>
+          <ButtonLink
+            href={ROUTES.donate.path}
+            variant="secondary"
+            className="mt-8"
+          >
+            {t("transparency.cta")}
+          </ButtonLink>
+        </div>
+        <p className="mt-10 max-w-prose text-sm text-ink-muted">{t("name")}</p>
+      </Section>
+    </>
+  );
+}

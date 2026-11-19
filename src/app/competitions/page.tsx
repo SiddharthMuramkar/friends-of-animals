@@ -1,0 +1,167 @@
+import { ArrowDown } from "lucide-react";
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+import Link from "next/link";
+
+import { QuoteFigure } from "@/components/showcase/quote-figure";
+import { CompetitionCard } from "@/components/showcase/competition-card";
+import { TwoDoors } from "@/components/showcase/two-doors";
+import { ButtonLink } from "@/components/site/button-link";
+import { Disclosure } from "@/components/site/disclosure";
+import { ExplainState } from "@/components/site/explain-state";
+import { PageHeader, SectionHeading } from "@/components/site/heading";
+import { Photo } from "@/components/site/photo";
+import { SampleTag } from "@/components/site/sample-tag";
+import { Section } from "@/components/site/section";
+import { TileMarker } from "@/components/site/tile";
+import { getSampleCompetitions } from "@/content/sample";
+import { ROUTES } from "@/lib/routes";
+import { pageMetadata } from "@/lib/seo";
+
+import { EasyRead } from "@/components/site/easy-read";
+import { cardClass, CompetitionFilters } from "./_components/filters";
+import { filterTokens } from "./_lib/view";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("competitions.meta");
+  return pageMetadata({
+    title: t("title"),
+    description: t("description"),
+    path: ROUTES.competitions.path,
+  });
+}
+
+const HUE = ROUTES.competitions.hue;
+
+export default async function Page() {
+  const t = await getTranslations("competitions");
+  // Never drafts (SPEC §6.11); samples only off production (owner decision 1).
+  const list = getSampleCompetitions().filter((c) => c.status !== "DRAFT");
+
+  return (
+    <>
+      <Section hue={HUE} tone="tint" className="pt-10 sm:pt-14">
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
+          <div>
+            <PageHeader
+              eyebrow={t("hero.eyebrow")}
+              tile="pink"
+              title={t("hero.title")}
+              lead={t("hero.lead")}
+            />
+            <EasyRead label={t("easyRead")} className="mt-8 max-w-xl">
+              <p>{t("hero.easy")}</p>
+            </EasyRead>
+            <ButtonLink href="#open" size="lg" className="mt-8">
+              {t("list.title")}
+              <ArrowDown aria-hidden="true" />
+            </ButtonLink>
+          </div>
+          <Photo
+            id="art-supplies-flatlay-blue"
+            sizes="(min-width: 1024px) 40vw, 92vw"
+            preload
+            frame="red"
+            frameCorner="bottom-right"
+            caption={t("hero.photoCaption")}
+            className="aspect-4/3 lg:aspect-4/5"
+            figureClassName="mx-auto w-full max-w-lg"
+          />
+        </div>
+        <QuoteFigure id="Q25" hue="pink" size="md" className="mt-14 sm:mt-20" />
+      </Section>
+
+      <Section
+        id="open"
+        labelledBy="open-title"
+        hue={HUE}
+        className="scroll-mt-24"
+      >
+        <SectionHeading
+          id="open-title"
+          title={t("list.title")}
+          lead={list.length > 0 ? t("list.lead") : undefined}
+        />
+        {list.length > 0 ? (
+          <CompetitionFilters className="mt-8">
+            <p className="mt-6 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
+              <SampleTag />
+              {t("list.sampleNote")}
+            </p>
+            <ul className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {list.map((c) => {
+                const tokens = filterTokens(c);
+                return (
+                  <li
+                    key={c.slug}
+                    className={`${cardClass} flex`}
+                    data-status={tokens.status}
+                    data-disciplines={tokens.disciplines}
+                    data-ages={tokens.ages}
+                  >
+                    <CompetitionCard competition={c} className="w-full" />
+                  </li>
+                );
+              })}
+              <li className="flex">
+                <div className="flex w-full flex-col justify-between gap-6 rounded-3xl border-2 border-dashed border-border-strong p-6">
+                  <div>
+                    <div aria-hidden="true" className="flex gap-1.5">
+                      <TileMarker hue="pink" />
+                      <TileMarker hue="yellow" />
+                      <TileMarker hue="teal" />
+                    </div>
+                    <h3 className="mt-4 text-h4 leading-tight">
+                      {t("endCard.title")}
+                    </h3>
+                    <p className="mt-3 text-ink-muted">{t("endCard.body")}</p>
+                  </div>
+                  <Link
+                    href={ROUTES.contact.path}
+                    className="inline-flex min-h-11 items-center self-start font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover"
+                  >
+                    {t("endCard.link")}
+                  </Link>
+                </div>
+              </li>
+            </ul>
+          </CompetitionFilters>
+        ) : (
+          <ExplainState
+            title={t("empty.title")}
+            back={{ href: ROUTES.contact.path, label: t("empty.back") }}
+            className="mt-8 max-w-2xl"
+          >
+            <p>{t("empty.body")}</p>
+          </ExplainState>
+        )}
+      </Section>
+
+      <Section labelledBy="own-title" hue={HUE} tone="tint">
+        <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
+          <div>
+            <SectionHeading
+              id="own-title"
+              title={t("own.title")}
+              lead={t("own.lead")}
+            />
+            <p className="mt-4 max-w-prose text-ink">{t("own.body")}</p>
+            <Disclosure summary={t("own.adultSummary")} className="mt-6">
+              <p>{t("own.adult")}</p>
+            </Disclosure>
+          </div>
+          <QuoteFigure
+            id="Q39"
+            hue="yellow"
+            size="md"
+            className="self-center"
+          />
+        </div>
+      </Section>
+
+      <Section hue={HUE}>
+        <TwoDoors id="doors-competitions" />
+      </Section>
+    </>
+  );
+}

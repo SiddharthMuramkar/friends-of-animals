@@ -1,0 +1,60 @@
+{
+  "refunds": {
+    "meta": {
+      "title": "Refunds and cancellations",
+      "description": "When Friends of Animals refunds fees and donations, and how to ask for a refund."
+    },
+    "eyebrow": "Policies",
+    "title": "Refunds and cancellations",
+    "updated": "Last updated 18 November 2026",
+    "short": {
+      "title": "The short version",
+      "items": {
+        "cancelled": "If we cancel a competition, everyone gets their fee back in full.",
+        "duplicate": "If you paid twice for the same entry, we refund the extra payment.",
+        "confirmed": "Once a registration is confirmed, the fee is not usually refunded.",
+        "withdraw": "Withdrawing an entry does not refund the fee.",
+        "ask": "Something went wrong? Ask us. A person reads every request."
+      }
+    },
+    "automatic": {
+      "title": "When we refund without being asked",
+      "items": {
+        "cancelled": "The competition is cancelled. Every fee paid for it is refunded in full.",
+        "duplicate": "The same registration was paid for twice. Once we have matched the payments, the extra one is refunded.",
+        "twoRoutes": "A student was registered both through a school and on their own. We keep the school registration and refund the other one.",
+        "foreign": "A donation was made with a card issued outside India. We can't accept foreign contributions yet, so it is refunded."
+      }
+    },
+    "discretionary": {
+      "title": "When you can ask",
+      "body": "If something happened that isn't covered above, write to us with your registration or receipt number and what went wrong. Our competition team looks at it and our finance team decides. We can refund all or part of a fee. Larger refunds are checked by a second person.",
+      "late": "Payments that arrive late, or twice by accident, are checked by a person before anything is refunded. We will write to you."
+    },
+    "never": {
+      "title": "What isn't refunded",
+      "items": {
+        "withdraw": "Withdrawing an entry, at any stage.",
+        "confirmed": "A confirmed registration you no longer want, unless one of the cases above applies.",
+        "switch": "Moving from one school to another during a competition. No difference in fee is charged or refunded either."
+      }
+    },
+    "donations": {
+      "title": "Donations",
+      "body": "If you gave by mistake, or gave the wrong amount, write to us. Our finance team handles donation refunds. Your receipt will be marked cancelled, or amended to show the amount refunded.",
+      "monthly": "Monthly gifts can be paused for up to three months, or cancelled at any time. To change the amount, you set up a new monthly gift."
+    },
+    "timing": {
+      "title": "How long it takes",
+      "body": "Refunds go back to the account or card you paid from.",
+      "time": "Time to reach you"
+    },
+    "ask": {
+      "title": "How to ask for a refund",
+      "body": "Write to us with your name, your registration or receipt number, and what happened. Please don't send card details or bank passwords; we will never ask for them.",
+      "email": "Email",
+      "link": "Contact us"
+    },
+    "pricingLink": "See how fees work"
+  }
+}

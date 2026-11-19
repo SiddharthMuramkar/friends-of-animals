@@ -1,0 +1,52 @@
+{
+  "credits": {
+    "meta": {
+      "title": "Photo and font credits",
+      "description": "Who took each photo on this site, where, the licence that lets us show it, and what we changed."
+    },
+    "eyebrow": "Credits",
+    "title": "Photo and font credits",
+    "lead": "Every photo here was taken by someone, somewhere real. This page names them, says where, and links the licence that lets us show their work.",
+    "adaptations": "We crop and resize photos and remove their location data. A cropped photo under a CC BY-SA licence is an adaptation, shared under the same licence.",
+    "groups": {
+      "pages": "Page photos",
+      "neighbours": "Street neighbours",
+      "seasons": "Through the year",
+      "stories": "Stories"
+    },
+    "count": "{count, plural, one {# photo} other {# photos}}",
+    "fields": {
+      "by": "By",
+      "place": "Place",
+      "licence": "Licence",
+      "changes": "Changes",
+      "why": "Why we chose it",
+      "source": "See the original"
+    },
+    "noPlace": "Studio photo",
+    "fonts": {
+      "title": "Fonts",
+      "lead": "All three typefaces are free to use under the SIL Open Font License 1.1, and we serve them from this site.",
+      "licence": "SIL Open Font License 1.1",
+      "items": {
+        "baloo": {
+          "name": "Baloo 2",
+          "by": "Ek Type",
+          "use": "Headings, numbers and rupee amounts"
+        },
+        "inter": {
+          "name": "Inter",
+          "by": "Rasmus Andersson",
+          "use": "Body text"
+        },
+        "kalam": {
+          "name": "Kalam",
+          "by": "Indian Type Foundry",
+          "use": "Handwritten notes, a few words at a time"
+        }
+      },
+      "specimen": "Font page"
+    },
+    "logo": "The Friends of Animals logo is a registered mark. Please don’t copy or change it."
+  }
+}

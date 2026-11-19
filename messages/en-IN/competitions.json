@@ -1,0 +1,200 @@
+{
+  "competitions": {
+    "meta": {
+      "title": "Competitions",
+      "description": "Drawing, painting, craft, essay, photography and video competitions about animals, for children and young adults in India."
+    },
+    "easyRead": "Easy read",
+    "hero": {
+      "eyebrow": "Competitions",
+      "title": "Make something about an animal you know",
+      "lead": "Each competition gives you a theme about animals and kindness. You draw, paint, build, write, photograph or film your answer, and real judges look at every entry.",
+      "easy": "Pick a competition. Make your picture, story or film. Everyone who takes part gets a certificate.",
+      "photoCaption": "Crayons, paints and paper: all you need for most competitions."
+    },
+    "list": {
+      "title": "Open and coming up",
+      "lead": "Choose what you like to make and your age to see the competitions that fit.",
+      "sampleNote": "These are sample competitions, shown on test sites only."
+    },
+    "filters": {
+      "label": "Filter the competitions",
+      "status": "Status",
+      "discipline": "What you make",
+      "age": "Age",
+      "all": "All",
+      "bands": {
+        "a5": "5 to 8",
+        "a9": "9 to 12",
+        "a13": "13 to 17",
+        "a18": "18 and over"
+      },
+      "note": "The list changes as you choose. Nothing is sent anywhere."
+    },
+    "endCard": {
+      "title": "Not seeing one for you?",
+      "body": "New competitions appear here first. A school that wants one for its students can write to us.",
+      "link": "Write to us"
+    },
+    "empty": {
+      "title": "The first competition is being planned",
+      "body": "When it is ready, you will find its theme, age groups, dates and fee right here. Schools can write to us now to hear first.",
+      "back": "Write to us"
+    },
+    "own": {
+      "title": "Taking part on your own",
+      "lead": "A student should not be required to participate through a school.",
+      "body": "If your school is not part of a competition, a parent or guardian can sign you up with us directly. You make your entry at home, it goes to the same judges, and you get the same certificate.",
+      "adultSummary": "For parents and guardians",
+      "adult": "You create the account, give the consents for your child and, where there is a fee, pay it. Your child's work is judged on the entry code alone. We show a child's first name and the first letter of the surname (like Aarav S.), never a photo, age, school address or contact details."
+    },
+    "detail": {
+      "breadcrumb": "Breadcrumb",
+      "facts": "At a glance",
+      "ages": "Ages",
+      "ageRange": "{min} to {max} years",
+      "disciplines": "What you can make",
+      "nextDate": "Next date",
+      "noNextDate": "All dates have passed",
+      "fee": "Fee",
+      "free": "Free",
+      "action": {
+        "register": {
+          "label": "Register for this competition",
+          "title": "Online registration opens with the first real competition",
+          "body": "We are building sign-up so that consent, safety and payments work properly from day one. Until then, a school or a parent can write to us and we will reply with the steps."
+        },
+        "opensSoon": {
+          "label": "Registration opens {date}",
+          "title": "Registration has not opened yet",
+          "body": "You can read everything about this competition now. Schools can start planning: the theme and dates below will not change without notice."
+        },
+        "underway": {
+          "label": "Entries are being judged",
+          "title": "This competition is underway",
+          "body": "Registration has closed. If you already have an entry, your dashboard will show its progress once accounts are switched on."
+        },
+        "results": {
+          "label": "See the results",
+          "title": "Results pages are coming",
+          "body": "Results will be published here with first names and initials only. That page is being built."
+        },
+        "cancelled": {
+          "label": "This competition was cancelled",
+          "title": "This competition was cancelled",
+          "body": "Every fee paid for it is refunded in full. See the refunds page for how that works."
+        },
+        "contact": "Write to us"
+      },
+      "theme": {
+        "eyebrow": "The theme",
+        "welfare": "The kindness behind it"
+      },
+      "categories": {
+        "title": "Who can enter, and with what",
+        "lead": "Your age group is set by your age on {date}. You may enter once in each category.",
+        "caption": "Categories by discipline and age group",
+        "discipline": "Discipline",
+        "group": "Age group",
+        "ages": "Ages",
+        "groupAges": "{min} to {max}"
+      },
+      "timeline": {
+        "title": "Dates to remember",
+        "lead": "All times are Indian Standard Time.",
+        "done": "Done",
+        "steps": {
+          "registrationOpens": "Registration opens",
+          "registrationCloses": "Registration closes",
+          "confirmation": "Last day to confirm registrations",
+          "making": "Time to make your entry",
+          "entriesClose": "Last day to send entries",
+          "shortlistCloses": "Schools send their shortlist"
+        },
+        "range": "{start} to {end}"
+      },
+      "routes": {
+        "title": "Two ways to take part",
+        "recommended": "Recommended",
+        "school": {
+          "title": "Through your school",
+          "line": "We encourage you to participate through your school.",
+          "body": "Your teacher runs the competition in class. The school judges first and sends its best entries to us."
+        },
+        "self": {
+          "title": "On your own",
+          "line": "No school needed.",
+          "body": "A parent or guardian signs you up. You make your entry at home and upload it before the closing date."
+        },
+        "fee": "Fee"
+      },
+      "recognition": {
+        "title": "Every way we recognise good work",
+        "items": {
+          "participation": "A participation certificate for everyone who takes part",
+          "merit": "School merit certificates, chosen by your school's own judges",
+          "finalist": "Finalist certificates for entries that reach the FOA round",
+          "winner": "Winner and runner-up awards in each category",
+          "featured": "Featured work shown in our public gallery and awareness campaigns, with consent"
+        },
+        "prizes": "Prizes",
+        "prizesBody": "Prizes for this competition are still being decided. They will be listed here before entries close."
+      },
+      "files": {
+        "title": "How to send your entry",
+        "types": "File types",
+        "count": "Files",
+        "max": "Largest file",
+        "min": "Smallest size",
+        "typeNames": {
+          "image": "JPEG, PNG, WebP or HEIC photo",
+          "essay": "Typed in the editor, or a PDF or Word file",
+          "video": "MP4, MOV or WebM video"
+        },
+        "countNames": {
+          "art": "1 main photo, plus up to 2 more views",
+          "craft": "2 to 6 photos: front, side and close-up",
+          "one": "1"
+        },
+        "maxValue": "{mb} MB",
+        "minValue": "{px} pixels on the long side",
+        "minVideo": "{px} pixels on the short side, 10 seconds to 3 minutes",
+        "minNone": "Up to 1,000 words"
+      },
+      "rules": {
+        "title": "The rules",
+        "items": {
+          "own": "The work must be your own. A grown-up may help you set up, but the ideas and the making are yours.",
+          "once": "One entry for each category you register for.",
+          "animals": "Never chase, hold or disturb an animal for a photo or a film. Watch from a distance and let it be.",
+          "consent": "If you are under 18, a parent or guardian gives consent before you enter.",
+          "theme": "Your entry should answer the theme. Judges give it the most weight."
+        }
+      },
+      "physical": {
+        "title": "If we ask for your original",
+        "body": "For drawing, painting, art and craft, finalists may be asked to post the original so judges can see it in person. Keep it flat, dry and safe until results are out.",
+        "who": "Through school, your teacher sends it. On your own, a parent or guardian posts it. The packing note will say who pays for postage. Friends of Animals never charges you to get your work back."
+      },
+      "display": {
+        "title": "Showing your work",
+        "body": "With your consent, and a parent's or guardian's if you are under 18, selected entries may appear in our public gallery and awareness campaigns. We credit you by first name and initial only.",
+        "noAuction": "There is no auction in this competition. Your work will not be sold."
+      },
+      "consent": {
+        "title": "Consent and policies",
+        "body": "Before you register you will be asked to agree to these. You can read them now.",
+        "terms": "Terms of use",
+        "privacy": "Privacy policy",
+        "childProtection": "Child protection policy",
+        "pricing": "Pricing",
+        "refunds": "Refunds"
+      },
+      "help": {
+        "title": "Questions?",
+        "body": "Ask us anything about this competition, before or after you register.",
+        "link": "Contact us"
+      }
+    }
+  }
+}

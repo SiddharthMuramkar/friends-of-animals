@@ -10,3 +10,8 @@ allowBuilds:
   # Next.js uses sharp's prebuilt @img/sharp-* binaries; its script only
   # builds from source.
   sharp: false
+  # next-intl's message extractor deps. Prebuilt binaries arrive as optional
+  # platform packages; the scripts only verify or build from source, and we
+  # don't enable the extractor.
+  "@swc/core": false
+  "@parcel/watcher": false

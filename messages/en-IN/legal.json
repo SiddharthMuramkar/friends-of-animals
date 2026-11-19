@@ -1,0 +1,63 @@
+{
+  "legal": {
+    "common": {
+      "eyebrow": "Policies",
+      "shortVersion": "The short version",
+      "lastUpdated": "Last updated {date}",
+      "toc": "On this page",
+      "fullText": "The full text",
+      "questions": "Questions about this page? Write to"
+    },
+    "privacy": {
+      "meta": {
+        "title": "Privacy policy",
+        "description": "What personal data Friends of Animals collects, why, and how you can control it."
+      },
+      "title": "Privacy policy",
+      "lead": "Visitors give us nothing. Participants give us only what a competition needs, and a guardian decides for every child."
+    },
+    "terms": {
+      "meta": {
+        "title": "Terms of use",
+        "description": "The rules for using this website and taking part in Friends of Animals programmes."
+      },
+      "title": "Terms of use",
+      "lead": "The ground rules for this website and our competitions, in plain words: be kind, enter your own work, and keep what you make."
+    },
+    "safeguarding": {
+      "meta": {
+        "title": "Safeguarding",
+        "description": "How Friends of Animals keeps children safe, the helplines to call, and how to report a concern."
+      },
+      "title": "Keeping children safe",
+      "lead": "Who to call if a child is in danger, how to tell us about a worry, and what we do next.",
+      "quickExit": "Quick exit",
+      "quickExitHint": "Leaves this page at once for a weather search. Shortcut: press Esc.",
+      "helplines": {
+        "title": "Get help now",
+        "intro": "These numbers are free and work across India.",
+        "emergency": "Emergency",
+        "emergencyBody": "Police, fire or ambulance, any time.",
+        "childline": "Childline",
+        "childlineBody": "For any child who needs help, or any adult worried about a child. Day and night.",
+        "cyber": "Online harm",
+        "cyberBody": "Report online abuse or cyber crime, or call the helpline.",
+        "call": "Call {number}"
+      },
+      "form": {
+        "title": "An online report form is coming",
+        "body": "We are building a form that works without an account and lets you stay anonymous. Until it opens, please use the email or phone above.",
+        "back": "Child protection policy"
+      }
+    },
+    "childProtection": {
+      "meta": {
+        "title": "Child protection policy",
+        "description": "The full policy Friends of Animals follows to protect every child who takes part."
+      },
+      "title": "Child protection policy",
+      "lead": "The rules every adult who works with us follows, so that every child who takes part is safe.",
+      "shortVersion": "For children: the short version"
+    }
+  }
+}

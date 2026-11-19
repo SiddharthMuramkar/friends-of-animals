@@ -1,0 +1,128 @@
+{
+  "awareness": {
+    "meta": {
+      "title": "Be a good neighbour to animals",
+      "description": "This month’s kindness tip, ten street neighbours and how to be kind to them, what to do if you find a hurt animal, and a pledge card you make on your own device."
+    },
+    "hero": {
+      "eyebrow": "Awareness",
+      "title": "Be a good neighbour to the animals on your street",
+      "lead": "Dogs, cats, cows, crows and squirrels share our streets every day. Here is how to look, learn and help, without getting too close.",
+      "photoCaption": "A street dog in a warm vest on a winter morning.",
+      "jump": "On this page",
+      "jumpMonth": "This month",
+      "jumpNeighbours": "Street neighbours",
+      "jumpHurt": "A hurt animal",
+      "jumpLaw": "The law",
+      "jumpPledge": "Pledge card"
+    },
+    "month": {
+      "eyebrow": "Month by month",
+      "title": "Kindness for every month",
+      "lead": "Each month brings its own heat, rain, festivals or babies. Here is the tip for now, and the whole year below.",
+      "allTitle": "The whole year",
+      "allLead": "Open any month to read its tips."
+    },
+    "neighbours": {
+      "eyebrow": "Street neighbours",
+      "title": "Meet the neighbours",
+      "lead": "Ten animals you can see from a window, a balcony or the school bus. Read the fact, then flip the card to learn how to be a good neighbour.",
+      "rule": "The rule for every card: look and learn. Don’t touch, chase or feed by hand.",
+      "didYouKnow": "Did you know?",
+      "flip": "How to be a good neighbour",
+      "flipLabel": "How to be a good neighbour to the {name}",
+      "superpower": "Your kindness superpower",
+      "do": "Do",
+      "dont": "Don’t",
+      "grownUps": "For parents and teachers",
+      "theStudy": "The study",
+      "sources": "Sources",
+      "bondNote": "On house sparrows"
+    },
+    "helps": {
+      "eyebrow": "Kindness that helps",
+      "title": "Kind on the inside, helpful on the outside",
+      "lead": "Some kind ideas hurt animals by mistake. Swap them for these.",
+      "instead": "Instead of",
+      "try": "Try",
+      "pairs": {
+        "milk": {
+          "instead": "milk for a street cat",
+          "try": "a bowl of fresh water. Most grown-up cats can’t digest milk."
+        },
+        "bread": {
+          "instead": "bread for birds",
+          "try": "a wide, shallow bowl of water. Change it every day."
+        },
+        "sweets": {
+          "instead": "sweets and rotis for cows",
+          "try": "putting food waste in a closed bin, never in plastic on the street."
+        },
+        "chick": {
+          "instead": "picking up a baby bird on the ground",
+          "try": "leaving it be. Its parents are usually close by, watching."
+        },
+        "holi": {
+          "instead": "Holi colours on a dog, even “safe” ones",
+          "try": "keeping colours for people. No colours on animals at all."
+        },
+        "manja": {
+          "instead": "glass-coated or nylon kite string",
+          "try": "plain cotton thread, and picking up loose string after."
+        }
+      }
+    },
+    "hurt": {
+      "eyebrow": "If you find a hurt or scared animal",
+      "title": "Stop, step back, tell a grown-up",
+      "lead": "You don’t have to fix it yourself. The kindest thing a child can do is get the right grown-up.",
+      "grownUps": "For grown-ups: what to do next",
+      "saveTitle": "Save a number before you need it",
+      "saveBody": "India has no single animal rescue helpline. Ask a vet, your municipality or a recognised animal welfare organisation for your nearest rescue’s number, save it in your phone, and check that it works.",
+      "save1962": "Many states run 1962 for cattle and other livestock; hours vary by state. 112 is for people in danger, not for animals.",
+      "biteTitle": "If an animal bites or scratches you",
+      "biteKid": "Tell a grown-up right away. Wash it with soap and running water for 15 minutes. See a doctor the same day.",
+      "biteGrownUps": "Bite and scratch first aid",
+      "sources": "Sources"
+    },
+    "law": {
+      "eyebrow": "What the law says",
+      "title": "Caring is also a duty",
+      "kid": "In India, hurting an animal on purpose is against the law. Anyone who looks after an animal must keep it well.",
+      "detailTitle": "More for grown-ups",
+      "detail1": "Section 3 of the Prevention of Cruelty to Animals Act, 1960 puts a duty of care on every person in charge of an animal. Section 11 lists acts of cruelty, such as beating, overloading and abandoning animals.",
+      "detail2": "Article 51A(g) of the Constitution lists compassion for living creatures among every citizen’s fundamental duties. It is a value to practise, not a right a court enforces.",
+      "readAct": "Read the Act on India Code"
+    },
+    "pledge": {
+      "eyebrow": "Kindness pledge",
+      "title": "Make your kindness pledge card",
+      "lead": "Pick a street neighbour and a promise. Your card is made right here on your device, ready to print or pin up.",
+      "name": "Your first name or nickname",
+      "nameHint": "Optional. Only your first name.",
+      "animal": "Pick a street neighbour",
+      "promise": "Pick a promise",
+      "promises": {
+        "water": "keep a water bowl clean and change it every day",
+        "distance": "watch animals from far away and never chase them",
+        "grownUp": "tell a grown-up when I see a hurt animal",
+        "thread": "fly kites only with plain cotton thread",
+        "bin": "put food waste in a closed bin",
+        "nests": "leave nests, eggs and babies alone"
+      },
+      "preview": "Your card",
+      "download": "Download my card",
+      "share": "Share my card",
+      "privacy": "Your card stays on this device. Nothing is sent to us or saved.",
+      "cardTitle": "My kindness pledge",
+      "cardWithName": "{name} promises to",
+      "cardNoName": "I promise to",
+      "cardNeighbour": "My street neighbour: {animal}",
+      "cardQuote": "“…to have compassion for living creatures”",
+      "cardQuoteSource": "Constitution of India, Article 51A(g)",
+      "cardAlt": "Pledge card: {promiseLine} {promise}. {neighbour}.",
+      "shareTitle": "My kindness pledge",
+      "shareText": "I made a kindness pledge for the animals on my street."
+    }
+  }
+}

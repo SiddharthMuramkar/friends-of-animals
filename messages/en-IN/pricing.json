@@ -1,0 +1,58 @@
+{
+  "pricing": {
+    "meta": {
+      "title": "Pricing",
+      "description": "What taking part in a Friends of Animals competition costs, by route."
+    },
+    "eyebrow": "Policies",
+    "title": "Pricing",
+    "updated": "Last updated 18 November 2026",
+    "short": {
+      "title": "The short version",
+      "items": {
+        "perCompetition": "Each competition shows its fee, or says Free, before you register.",
+        "school": "Through a school, the school pays once for all its students.",
+        "self": "On your own, a parent or guardian pays. An adult participant pays for themselves.",
+        "noExtras": "There are no hidden charges, and we never charge to send artwork back.",
+        "donations": "Donations are separate and optional. You never need to give to take part."
+      }
+    },
+    "fees": {
+      "title": "Fees by route",
+      "lead": "Fees are in rupees. They are not set yet; each will appear here and on every competition page before registration opens.",
+      "caption": "Competition fees by participation route",
+      "route": "Route",
+      "who": "Who pays",
+      "amount": "Fee",
+      "school": "Through your school",
+      "schoolWho": "The school, once, for all its registered students",
+      "self": "On your own",
+      "selfWho": "A parent or guardian, or the adult participant"
+    },
+    "detail": {
+      "title": "The details",
+      "set": {
+        "title": "How fees are set",
+        "body": "Each competition sets its own fee for each route. A competition can also be free. The fee you see when you register is the fee you pay: if it changes later, your registration keeps the old price."
+      },
+      "pay": {
+        "title": "How to pay",
+        "body": "Online payments go through Razorpay: UPI, cards and net banking from Indian banks. Schools can also pay offline by cheque, demand draft or bank transfer; the steps are shown when the school registers."
+      },
+      "receipt": {
+        "title": "What you get",
+        "body": "Every payment gets a fee acknowledgement by email. A fee acknowledgement isn't a donation receipt, and can't be used to claim tax relief."
+      },
+      "gst": {
+        "title": "GST",
+        "body": "We don't issue GST invoices. The amount shown is the amount you pay."
+      },
+      "switch": {
+        "title": "Changing route or school",
+        "body": "If a student moves from one school to another during a competition, no difference in fee is charged or refunded."
+      }
+    },
+    "refundsLink": "Read the refunds policy",
+    "questions": "Questions about a payment? Contact us"
+  }
+}

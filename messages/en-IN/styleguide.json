@@ -1,0 +1,117 @@
+{
+  "styleguide": {
+    "meta": {
+      "title": "Style guide",
+      "description": "Colours, type and components for the Friends of Animals site. Test sites only."
+    },
+    "eyebrow": "For builders",
+    "title": "Style guide",
+    "lead": "The parts this site is built from, each in its finished form. Copy from here, and keep one radius, one shadow and one voice.",
+    "onThisPage": "On this page",
+    "sections": {
+      "colour": "Colour",
+      "type": "Type",
+      "primitives": "Building blocks",
+      "cards": "Cards",
+      "showcase": "Showcase",
+      "dark": "Dark theme"
+    },
+    "colour": {
+      "lead": "Six hues from the logo and its mixes, on warm paper. Step 700 and darker is safe for text on paper. Meaning never rides on colour alone.",
+      "scales": "Scales",
+      "semantic": "Roles",
+      "sections": "Section colours",
+      "hues": {
+        "red": "Red",
+        "green": "Green",
+        "blue": "Blue",
+        "yellow": "Marigold",
+        "teal": "Teal",
+        "pink": "Pink",
+        "neutral": "Paper to ink"
+      },
+      "roles": {
+        "background": "Page",
+        "surface": "Card",
+        "surfaceMuted": "Quiet band",
+        "ink": "Text",
+        "inkMuted": "Quiet text",
+        "primary": "Primary action",
+        "link": "Link",
+        "focus": "Focus ring"
+      },
+      "sectionNames": {
+        "multi": "Home",
+        "blue": "About",
+        "pink": "Competitions",
+        "green": "Schools",
+        "teal": "Awareness and impact",
+        "yellow": "Stories",
+        "red": "Donate",
+        "neutral": "Contact and policies"
+      }
+    },
+    "type": {
+      "intro": "Baloo 2 for headings, numbers and rupees; Inter for reading; Kalam for a few handwritten words. Headings grow smoothly from 360 to 1280 pixels wide.",
+      "display": "Kindness is a skill",
+      "h1": "Draw the animal next door",
+      "h2": "Two doors, one path",
+      "h3": "What judges look for",
+      "h4": "Change the water every day",
+      "h5": "Ages 9 to 12",
+      "lead": "A short first line that a child can read, with the detail after it.",
+      "body": "Body text is 18 pixels with a measure of no more than 68 characters, so a line is easy to follow from start to end.",
+      "small": "Small text, for captions and credits.",
+      "hand": "a note in the margin",
+      "rupee": "₹1,23,456",
+      "sizes": {
+        "display": "Display · 48 to 88 px",
+        "h1": "Heading 1 · 40 to 64 px",
+        "h2": "Heading 2 · 32 to 48 px",
+        "h3": "Heading 3 · 26 to 36 px",
+        "h4": "Heading 4 · 22 to 28 px",
+        "h5": "Heading 5",
+        "lead": "Lead · 20 px",
+        "body": "Body · 18 px",
+        "small": "Small · 15 px",
+        "hand": "Kalam · five words at most",
+        "rupee": "Rupees always in Baloo 2"
+      }
+    },
+    "primitives": {
+      "buttons": "Buttons",
+      "primary": "See the competitions",
+      "secondary": "Bring FOA to your school",
+      "quiet": "How we count",
+      "chips": "Chips",
+      "status": "Competition status",
+      "tiles": "Tiles",
+      "callouts": "Callouts",
+      "calloutBody": "One idea per box, with an icon and a word as well as a colour.",
+      "disclosure": "Disclosure",
+      "disclosureSummary": "For parents and teachers",
+      "disclosureBody": "Native details element: no JavaScript, keyboard ready. Give a group the same name to open one at a time.",
+      "placeholder": "Unconfirmed fact",
+      "headings": "Section heading",
+      "headingEyebrow": "This month",
+      "headingTitle": "Kindness you can do today",
+      "headingLead": "An eyebrow led by a tile, the heading, and one lead line."
+    },
+    "cards": {
+      "stories": "Story cards",
+      "competitions": "Competition cards",
+      "seasonal": "Seasonal card",
+      "counters": "Impact counters",
+      "quote": "Quote"
+    },
+    "showcase": {
+      "doors": "Two doors (W1)",
+      "judging": "Judging path (W2)",
+      "judgingCompact": "Judging path, compact",
+      "certificate": "Certificate (W3)"
+    },
+    "dark": {
+      "lead": "The same parts in the dark theme: warm ink-black, never pure black, with the white logo."
+    }
+  }
+}

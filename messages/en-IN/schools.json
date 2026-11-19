@@ -1,0 +1,103 @@
+{
+  "schools": {
+    "meta": {
+      "title": "For schools",
+      "description": "How your school can take part in Friends of Animals competitions, step by step."
+    },
+    "hero": {
+      "eyebrow": "For schools",
+      "title": "Bring FOA to your school",
+      "lead": "Your students make art about animals. Your teachers run the first round. FOA provides the theme, the judging guide and a certificate for every participant.",
+      "easy": "Your class makes art about animals. The best work goes on to FOA."
+    },
+    "easyLabel": "Easy read",
+    "steps": {
+      "eyebrow": "Five steps",
+      "title": "How school participation works",
+      "items": [
+        {
+          "title": "Register your school",
+          "body": "Tell us your school’s name, address and pin code, the principal’s and an authorised person’s contact details, and roughly how many students will take part. We aim to verify new schools within 2 working days."
+        },
+        {
+          "title": "Sign up for a competition",
+          "body": "You get an institution ID, a registration reference and a coordinator dashboard. Schools can sign up as soon as a competition is announced, and register students once registration opens."
+        },
+        {
+          "title": "Hold the competition",
+          "body": "We send the date, theme, permitted materials, time allowed, deadlines and how to submit. Hold it in school (essays and films can be done online). Your coordinator confirms it followed FOA’s guidelines."
+        },
+        {
+          "title": "Judge the first round",
+          "body": "Appoint a small judging panel and use FOA’s judging guide. Name 1st, 2nd and 3rd for each category, and pick your shortlist for the next level."
+        },
+        {
+          "title": "Send your shortlist",
+          "body": "Upload a clear photo or scan of each shortlisted entry. Once we verify an entry, courier the original artwork to FOA with the packing instructions and address we send."
+        }
+      ]
+    },
+    "coordinator": {
+      "eyebrow": "The coordinator",
+      "title": "One teacher holds it together",
+      "lead": "Each school names a coordinator, usually a teacher. They:",
+      "items": [
+        "register students and keep their details up to date",
+        "receive FOA’s messages and pass them on",
+        "run competition day in school",
+        "confirm the competition and judging followed FOA’s guidelines",
+        "upload the shortlisted entries",
+        "send the original artwork when we ask for it"
+      ]
+    },
+    "provides": {
+      "eyebrow": "What you get",
+      "title": "What FOA provides",
+      "items": [
+        {
+          "title": "Theme and rules",
+          "body": "A theme about animals and kindness, age groups, permitted materials and clear deadlines."
+        },
+        {
+          "title": "A judging guide",
+          "body": "The same criteria for every school, so the first round is fair and quick."
+        },
+        {
+          "title": "Certificates",
+          "body": "A participation certificate for every student, and merit certificates for your school winners."
+        },
+        {
+          "title": "Packing and courier details",
+          "body": "Instructions, the address and the deadline for sending original artwork."
+        },
+        {
+          "title": "A place on the path",
+          "body": "Your shortlist goes on to FOA’s judges, and selected work can reach the public gallery."
+        },
+        {
+          "title": "Someone to ask",
+          "body": "A help contact for every competition."
+        }
+      ]
+    },
+    "curriculum": {
+      "eyebrow": "Already in your curriculum",
+      "title": "This is work you already do",
+      "lead": "Kindness to animals is part of India’s national curriculum and education policy. An FOA competition gives your students a creative way to practise it.",
+      "ncf": "Foundational stage (ages 3 to 8): learning outcome C-4.6",
+      "nep": "National Education Policy 2020: the purpose of education"
+    },
+    "verma": {
+      "lead": "The idea of teaching our fundamental duties in school is not new."
+    },
+    "contact": {
+      "eyebrow": "Take part",
+      "title": "We encourage you to participate through your school.",
+      "body": "Ask a teacher or your principal to register your school. Students can also enter on their own if their school does not take part.",
+      "openTitle": "School registration opens with our first competition",
+      "openBody": "When the first competition is announced, this is where your school signs up. Until then, write to us and we will tell you when it opens.",
+      "contactCta": "Contact us",
+      "contactLabel": "Email:"
+    }
+  }
+}
