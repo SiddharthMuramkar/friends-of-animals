@@ -26,7 +26,7 @@ import type { Competition } from "@/content/sample/model";
 import { ageRange, feeDisplay, nextKeyDate } from "@/content/sample/selectors";
 import { siteUrl } from "@/env";
 import { ROUTES, slugHref } from "@/lib/routes";
-import { pageMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 import { placeholder, SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -113,28 +113,35 @@ export default async function Page({
   return (
     <>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Event",
-          name: c.name,
-          description: c.theme,
-          startDate: c.conductStartsAt,
-          endDate: c.submissionClosesAt,
-          eventStatus:
-            c.status === "CANCELLED"
-              ? "https://schema.org/EventCancelled"
-              : "https://schema.org/EventScheduled",
-          eventAttendanceMode: "https://schema.org/MixedEventAttendanceMode",
-          location: {
-            "@type": "VirtualLocation",
-            url: new URL(slugHref("competition", c.slug), base).href,
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Event",
+            name: c.name,
+            description: c.theme,
+            startDate: c.conductStartsAt,
+            endDate: c.submissionClosesAt,
+            eventStatus:
+              c.status === "CANCELLED"
+                ? "https://schema.org/EventCancelled"
+                : "https://schema.org/EventScheduled",
+            // Entries are uploaded: online only, until a real Place is listed.
+            eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode",
+            location: {
+              "@type": "VirtualLocation",
+              url: new URL(slugHref("competition", c.slug), base).href,
+            },
+            organizer: {
+              "@type": "NGO",
+              name: SITE.name,
+              url: new URL("/", base).href,
+            },
           },
-          organizer: {
-            "@type": "NGO",
-            name: SITE.name,
-            url: new URL("/", base).href,
-          },
-        }}
+          breadcrumbJsonLd(base, [
+            { name: tc("meta.title"), path: ROUTES.competitions.path },
+            { name: c.name, path: slugHref("competition", c.slug) },
+          ]),
+        ]}
       />
 
       <Section hue={HUE} tone="tint" className="pt-8 sm:pt-10">

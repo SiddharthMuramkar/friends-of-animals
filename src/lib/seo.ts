@@ -15,10 +15,22 @@ export const DEFAULT_SOCIAL_IMAGE: SocialImage = {
 /** Root layout's title template: "About us · Friends of Animals". */
 export const TITLE_TEMPLATE = `%s · ${SITE.name}`;
 
+/** Longest rendered `<title>` and meta description, in characters. */
+export const TITLE_MAX = 60;
+export const DESCRIPTION_MAX = 160;
+
+/** The `<title>` a page title renders as, template applied unless absolute. */
+export function renderedTitle(title: string, absolute = false): string {
+  return absolute ? title : TITLE_TEMPLATE.replace("%s", title);
+}
+
 type PageMetadataInput = {
-  /** Translated page title; the layout's template adds the site name. */
+  /**
+   * Translated page title; the layout's template adds the site name. With
+   * it, ≤ TITLE_MAX characters (seo.test.ts checks every page).
+   */
   title: string;
-  /** Translated description, ≤ 160 characters. */
+  /** Translated description, ≤ DESCRIPTION_MAX characters. */
   description: string;
   /** Path from the routes registry, e.g. "/about". */
   path: string;
@@ -64,6 +76,23 @@ export function pageMetadata({
  */
 export function jsonLdScript(data: unknown): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+/** A BreadcrumbList matching a page's visual breadcrumb, first crumb first. */
+export function breadcrumbJsonLd(
+  base: URL,
+  crumbs: readonly { name: string; path: string }[]
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: c.name,
+      item: new URL(c.path, base).href,
+    })),
+  };
 }
 
 /**

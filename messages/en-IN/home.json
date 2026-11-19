@@ -1,8 +1,8 @@
 {
   "home": {
     "meta": {
-      "title": "Friends of Animals · Kindness to animals, grown through children’s art",
-      "description": "An Indian non-profit that grows compassion for animals in children and young adults through competitions in drawing, painting, craft, writing, photography and film."
+      "title": "Friends of Animals · Kindness grown through children’s art",
+      "description": "An Indian non-profit growing compassion for animals in children and young adults through drawing, painting, craft, writing, photography and film competitions."
     },
     "announcement": {
       "text": "Registration is open: {name}. Closes {closes, date, long}.",
