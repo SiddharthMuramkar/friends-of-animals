@@ -31,19 +31,37 @@
 
 /* Footnotes open in place: each reference button anchors its own popover.
    Without anchor positioning, the popover keeps the browser's centred
-   default, which still works. */
+   default, which still works. The area spans the full width: a phone-width
+   note is wider than the space to one side of a reference, and an area it
+   overflows sideways never flips. It opens below, or above when below
+   would run off the screen. */
 @supports (anchor-name: --a) {
   .ref {
     anchor-name: var(--anchor);
   }
   .note {
     position-anchor: var(--anchor);
-    position-area: bottom span-right;
-    position-try-fallbacks:
-      flip-block,
-      flip-inline,
-      flip-block flip-inline;
+    position-area: bottom span-all;
+    position-try-fallbacks: flip-block;
     inset: auto;
     margin: 0.5rem 0;
+  }
+}
+
+/* Without the Popover API (iOS 16, Chrome before 114) nothing hides a
+   [popover], so every note would show inside the sentence. There, each
+   number is a plain link to its entry in the source list instead. These
+   rules sit outside Tailwind's layers, so they beat its display utilities. */
+.refLink {
+  display: none;
+}
+
+@supports not selector(:popover-open) {
+  .ref,
+  .note {
+    display: none;
+  }
+  .refLink {
+    display: inline-grid;
   }
 }

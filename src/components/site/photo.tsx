@@ -77,7 +77,7 @@ export function Photo({
       {creditVisible ? (
         <a
           href={credit.sourceUrl}
-          className="underline decoration-1 underline-offset-2 hover:text-foreground"
+          className="inline-flex min-h-6 items-center underline decoration-1 underline-offset-2 hover:text-foreground"
         >
           {shortCredit(credit)}
         </a>

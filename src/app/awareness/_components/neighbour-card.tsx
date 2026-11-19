@@ -33,7 +33,7 @@ export async function NeighbourCard({ n }: { n: Neighbour }) {
         <p className="mt-1 font-display text-lead leading-snug font-semibold text-ink">
           {n.fact}
         </p>
-        <CardCredit id={n.imageId} className="mt-auto pt-4" />
+        <CardCredit id={n.imageId} raised={false} className="mt-auto pt-4" />
       </div>
     </article>
   );
