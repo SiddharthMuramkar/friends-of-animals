@@ -5,6 +5,7 @@ import { HeaderHeightSync } from "@/components/header-height-sync";
 import { Logo } from "@/components/logo";
 import { ButtonLink } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
+import { SkipLink } from "@/components/site/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PRIMARY_NAV, ROUTES } from "@/lib/routes";
 
@@ -41,6 +42,11 @@ export async function SiteHeader() {
       style={{ viewTransitionName: "site-header" }}
       className="sticky top-0 z-40 border-b border-border bg-background"
     >
+      {/* First in the banner landmark, not loose in <body>: on /safeguarding
+          Quick exit, an off-site link, comes before it, and axe then stops
+          counting it as a skip link and flags it as content outside any
+          landmark. It still comes first in tab order after Quick exit. */}
+      <SkipLink>{tc("skipLink")}</SkipLink>
       <HeaderHeightSync />
       {/* With very large text the row may wrap, and the logo may shrink,
           rather than push Menu off the screen. The fixed min height (the

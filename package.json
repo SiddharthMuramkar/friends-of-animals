@@ -20,7 +20,8 @@
     "db:studio": "drizzle-kit studio",
     "brand:assets": "tsx scripts/brand-assets.ts",
     "check:build": "tsx scripts/check-build.ts",
-    "vercel-build": "pnpm db:migrate && next build && pnpm check:build"
+    "vercel-build": "pnpm db:migrate && next build && pnpm check:build",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "class-variance-authority": "0.7.1",
@@ -40,7 +41,9 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@electric-sql/pglite": "0.5.16",
+    "@playwright/test": "1.65.1",
     "@resvg/resvg-js": "2.6.2",
     "@tailwindcss/postcss": "4.3.5",
     "@types/node": "26.6.6",

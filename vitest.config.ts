@@ -22,6 +22,7 @@ export default defineConfig({
       "src/**/*.test.{ts,tsx}",
       "scripts/**/*.test.ts",
       "docker/**/*.test.ts",
+      "tests/e2e/**/*.test.ts",
     ],
     environment: "node",
   },

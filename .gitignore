@@ -35,3 +35,8 @@ next-env.d.ts
 .vscode/
 
 /data/
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.auth/

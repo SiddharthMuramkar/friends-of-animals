@@ -24,6 +24,21 @@ export function newerSyntax(source: string): SyntaxName[] {
   );
 }
 
+/**
+ * The App Router page a prerendered `.html` file renders, from its path
+ * under `.next/server`, or undefined for any other file. A plain
+ * `next build` writes pages to `app/<page>.html`. With a deployment adapter,
+ * which Vercel always sets, Next writes them to the route cache instead,
+ * `route-cache/APP_PAGE/<sha256 of the route>/$/<page>.html`.
+ */
+export function prerenderedPage(serverPath: string): string | undefined {
+  const page =
+    /^app(\/.+)\.html$/.exec(serverPath)?.[1] ??
+    /^route-cache\/APP_PAGE\/[0-9a-f]+\/\$(\/.+)\.html$/.exec(serverPath)?.[1];
+  if (page === undefined) return undefined;
+  return page === "/index" ? "/" : page;
+}
+
 /** SPEC §13.2: "Initial JS ≤ 170 KB gzipped on public pages" (in bytes). */
 export const INITIAL_JS_BUDGET = 170_000;
 

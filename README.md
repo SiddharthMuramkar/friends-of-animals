@@ -16,6 +16,7 @@ Right now the app is the bare foundation: a brand landing page, the site shell, 
 - [Project layout](#project-layout)
 - [Database and migrations](#database-and-migrations)
 - [Testing](#testing)
+- [Continuous integration](#continuous-integration)
 - [Environment variables](#environment-variables)
 - [Deploying](#deploying)
 - [Brand assets](#brand-assets)
@@ -35,13 +36,14 @@ The stack and hosting layout were locked in [#11](https://github.com/SiddharthMu
 | Database           | PostgreSQL 18                                                                                                        |
 | ORM and migrations | [Drizzle ORM](https://orm.drizzle.team) 0.45 + drizzle-kit, on the `postgres.js` driver                              |
 | Tests              | [Vitest](https://vitest.dev) + [PGlite](https://pglite.dev) (in-memory Postgres)                                     |
+| End-to-end tests   | [Playwright](https://playwright.dev) + [axe](https://github.com/dequelabs/axe-core-npm), against PR previews         |
 | Lint and format    | [oxlint](https://oxc.rs/docs/guide/usage/linter) (type-aware) and [oxfmt](https://oxc.rs/docs/guide/usage/formatter) |
 | Package manager    | pnpm 12                                                                                                              |
 | Hosting            | Vercel (functions in `bom1`, Mumbai); Postgres on the Mumbai VPS                                                     |
 
 Every dependency in `package.json` is pinned to an exact version, and `saveExact: true` in `pnpm-workspace.yaml` makes `pnpm add` do the same.
 
-Still to come: Better Auth, Cloudflare R2 storage, the pg-boss worker, next-intl, React Email, Sentry, and CI with Playwright.
+Still to come: Better Auth, Cloudflare R2 storage, the pg-boss worker, next-intl, React Email and Sentry.
 
 ## Prerequisites
 
@@ -97,6 +99,7 @@ Ports are published on `127.0.0.1` only, because Docker's published ports bypass
 | `pnpm format` / `pnpm format:check` | Format with oxfmt / check formatting                                                                                                |
 | `pnpm test` / `pnpm test:watch`     | Run the tests once / in watch mode                                                                                                  |
 | `pnpm check`                        | typecheck + lint + format:check + test: run it before you push                                                                      |
+| `pnpm test:e2e`                     | Playwright journeys and axe against a deployment ([End-to-end tests](#end-to-end-tests))                                            |
 | `pnpm db:generate`                  | Create a migration from schema changes (needs `DIRECT_URL` set, even though it does not connect)                                    |
 | `pnpm db:migrate`                   | Apply pending migrations                                                                                                            |
 | `pnpm db:studio`                    | Open Drizzle Studio                                                                                                                 |
@@ -133,12 +136,14 @@ scripts/
 ├── preview-database.ts       # creates a preview's database from foa_seed
 ├── load-env.ts               # loads .env.local and .env for scripts and drizzle-kit
 └── brand-assets.ts           # derives logo PNGs and icons from the SVG master
+tests/e2e/                    # Playwright journeys (*.spec.ts) run against a deployment, with their setup; config in playwright.config.ts
 public/brand/                 # the registered logo: SVG master + derived assets
+.github/                      # CI workflows and the shared setup action
 docker/                       # the VPS database stack: Postgres, PgBouncer, backups (runbook: docker/README.md)
 Dockerfile, docker-compose.yml
 ```
 
-Still to come: the route groups under `src/app/`, `src/server/{domain,jobs,integrations,auth}/`, `src/worker/`, `src/emails/`, `src/i18n/` + `messages/`, and `tests/e2e/`.
+Still to come: the route groups under `src/app/`, `src/server/{domain,jobs,integrations,auth}/`, `src/worker/`, `src/emails/`, and `src/i18n/` + `messages/`.
 
 `docker/` is not part of the app: it is the database stack the VPS runs (Postgres, PgBouncer, backups, firewall), with its own runbook, [`docker/README.md`](docker/README.md).
 
@@ -204,7 +209,52 @@ beforeEach(async () => {
 });
 ```
 
-Under Vitest, `server-only` resolves to an empty module, so server code can be imported directly. Playwright end-to-end tests will run in GitHub Actions CI, not on the VPS.
+Under Vitest, `server-only` resolves to an empty module, so server code can be imported directly.
+
+### End-to-end tests
+
+The Playwright journeys in `tests/e2e/` never start a server of their own: they run against a deployment, normally a PR's Vercel preview. Every page a journey visits is also checked with [axe](https://github.com/dequelabs/axe-core-npm), and any violation fails the test. Each test runs twice, on desktop Chrome and on a Pixel 7. In CI they run on every PR ([Continuous integration](#continuous-integration)).
+
+To run them yourself, install Chromium once, then point `PLAYWRIGHT_BASE_URL` at the deployment:
+
+```bash
+pnpm exec playwright install --with-deps chromium   # once
+
+# A PR preview: copy its URL from the PR's Vercel comment or the dashboard.
+# Previews sit behind Vercel Authentication, so pass the project's
+# Protection Bypass for Automation secret (Vercel → Settings →
+# Deployment Protection), here read with the Vercel CLI without printing it:
+export VERCEL_AUTOMATION_BYPASS_SECRET="$(vercel api /v9/projects/friends-of-animals --scope acme-ef4b \
+  | jq -r '.protectionBypass | to_entries[] | select(.value.scope == "automation-bypass") | .key')"
+PLAYWRIGHT_BASE_URL=https://friends-of-animals-<hash>-acme-ef4b.vercel.app pnpm test:e2e
+
+# Staging needs no secret.
+PLAYWRIGHT_BASE_URL=https://shipped-it.dev pnpm test:e2e
+
+# A local production build (pnpm build, then DATABASE_URL=… PORT=3100 pnpm start):
+PLAYWRIGHT_BASE_URL=http://localhost:3100 pnpm test:e2e
+```
+
+Add `--ui` to watch the tests run, or `--project=desktop` for one viewport. A failed test leaves a trace and a screenshot in `test-results/`; open a trace with `pnpm exec playwright show-trace <path>/trace.zip`.
+
+The secret goes only to this project's own deployments (`https://friends-of-animals-…-acme-ef4b.vercel.app`), so a run pointed at localhost, staging or a mistyped URL never sends it. Global setup (`tests/e2e/global-setup.ts`) trades it once for Vercel's bypass cookie, saved in `playwright/.auth/` (git-ignored), and the tests use the cookie, so the secret never appears in a trace. The cookie does (it opens that one preview for a week), so CI strips it from traces before uploading them.
+
+## Continuous integration
+
+Two GitHub Actions workflows keep `main` deployable:
+
+| Workflow                    | When                                | What                                                                                                                                                                                                                                                       |
+| --------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/ci.yml`  | every PR, and every push to `main`  | lint, typecheck, format check and Vitest. Every check runs even after one fails, and any failure fails the job.                                                                                                                                            |
+| `.github/workflows/e2e.yml` | once a PR's Vercel preview is ready | the Playwright journeys and axe against that preview, never staging. The result appears on the PR as the commit status `E2E: Playwright and axe on the preview`. A failed run uploads traces and screenshots as the `playwright-…` artefact, kept 14 days. |
+
+`e2e.yml` depends on three settings outside the repo:
+
+- **Vercel sends `repository_dispatch` events.** When a deployment is ready, Vercel sends `vercel.deployment.success` with its URL and environment, and the workflow runs only for `environment == "preview"`. It is a Git setting of the Vercel project, `gitProviderOptions.disableRepositoryDispatchEvents: false` in its API. The project doesn't create GitHub Deployments, so `deployment_status` never fires. GitHub runs `repository_dispatch` workflows from the default branch only, so a change to `e2e.yml` takes effect once it is on `main`.
+- **The repository secret `VERCEL_AUTOMATION_BYPASS_SECRET`** holds the Vercel project's Protection Bypass for Automation secret, which gets the tests past Vercel Authentication on previews. GitHub masks it in logs. To rotate it, regenerate it in Vercel (_Settings → Deployment Protection_) and set the new value with `gh secret set VERCEL_AUTOMATION_BYPASS_SECRET`.
+- **Vercel's Git Fork Protection stays on** (the default). The job runs the deployed commit's own code with the secret, so it relies on Vercel building a fork's PR only after a team member authorises it.
+
+To rerun the journeys by hand against any preview: `gh workflow run e2e.yml -f url=https://<preview> -f ref=<branch or SHA>` (the result shows in the Actions tab, not on the PR).
 
 ## Environment variables
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { initialScripts, newerSyntax } from "./client-bundle";
+import { initialScripts, newerSyntax, prerenderedPage } from "./client-bundle";
 
 describe("newerSyntax", () => {
   it("finds a class static block, minified or not", () => {
@@ -63,5 +63,37 @@ describe("initialScripts", () => {
       '<script src="/_next/static/chunks/a.js"></script>' +
       '<script src="https://example.com/x.js"></script>';
     expect(initialScripts(html)).toEqual(["/_next/static/chunks/a.js"]);
+  });
+});
+
+describe("prerenderedPage", () => {
+  const hash = "9f".repeat(32);
+
+  it("reads App Router pages from server/app, as a plain next build writes them", () => {
+    expect(prerenderedPage("app/index.html")).toBe("/");
+    expect(prerenderedPage("app/donate.html")).toBe("/donate");
+    expect(prerenderedPage("app/competitions/kinder-skies.html")).toBe(
+      "/competitions/kinder-skies"
+    );
+  });
+
+  it("reads them from the route cache, as a build with a deployment adapter (Vercel) writes them", () => {
+    expect(prerenderedPage(`route-cache/APP_PAGE/${hash}/$/index.html`)).toBe(
+      "/"
+    );
+    expect(prerenderedPage(`route-cache/APP_PAGE/${hash}/$/donate.html`)).toBe(
+      "/donate"
+    );
+    expect(
+      prerenderedPage(`route-cache/APP_PAGE/${hash}/$/blog/two-pilots.html`)
+    ).toBe("/blog/two-pilots");
+  });
+
+  it("skips HTML that isn't an App Router page", () => {
+    expect(prerenderedPage("pages/404.html")).toBeUndefined();
+    expect(
+      prerenderedPage(`route-cache/APP_ROUTE/${hash}/$/robots.txt.html`)
+    ).toBeUndefined();
+    expect(prerenderedPage("app/donate.rsc")).toBeUndefined();
   });
 });

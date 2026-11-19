@@ -1,0 +1,46 @@
+name: CI
+
+# Lint, typecheck, format check and Vitest on every PR and on main. Any
+# failure fails the check. The Playwright journeys run in e2e.yml, once the
+# PR's Vercel preview is ready.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to a PR cancels its older run; every commit on main keeps its own.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, typecheck, format, Vitest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: setup
+        uses: ./.github/actions/setup
+
+      # Each check runs even if one before it failed, so a PR sees every
+      # problem at once; any failure still fails the job.
+      - name: Lint
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm lint
+      - name: Typecheck
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm typecheck
+      - name: Format check
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm format:check
+      - name: Vitest
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm test
