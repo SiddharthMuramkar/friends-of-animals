@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { robotsHeaders } from "./src/lib/indexing";
 import { securityHeaders } from "./src/lib/security-headers";
 import { assertNoPlaceholdersInProduction } from "./src/lib/site";
 
@@ -25,11 +26,14 @@ const nextConfig: NextConfig = {
     // lucide-react is optimised by default; radix-ui is not.
     optimizePackageImports: ["radix-ui"],
   },
-  // §13.1 headers on every route, HTML and static assets alike. Evaluated at
-  // build time, so APP_ENV must be set for `next build` (Vercel sets it).
+  // §13.1 headers on every route, HTML and static assets alike, plus
+  // X-Robots-Tag: noindex on every response outside production (#29). Both
+  // are evaluated at build time, so APP_ENV must be set for `next build`
+  // (Vercel sets it).
   headers() {
     return [
       { source: "/:path*", headers: securityHeaders(process.env.APP_ENV) },
+      ...robotsHeaders(),
     ];
   },
 };
