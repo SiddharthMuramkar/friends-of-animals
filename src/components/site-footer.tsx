@@ -1,8 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import { cacheLife } from "next/cache";
-import Link from "next/link";
 
 import { Logo } from "@/components/logo";
+import { SiteLink } from "@/components/site/site-link";
 import { TileDivider } from "@/components/site/tile";
 import { FOOTER_GROUPS, footerRoutes, ROUTES } from "@/lib/routes";
 import { isSampleContentEnabled } from "@/lib/site";
@@ -28,13 +28,13 @@ export async function SiteFooter() {
       <div className="mx-auto max-w-7xl px-4 pt-12 pb-8 sm:px-6">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <div className="max-w-md">
-            <Link
+            <SiteLink
               href="/"
               aria-label={tn("homeLink")}
               className="inline-block rounded-xl"
             >
               <Logo className="h-14 w-auto" />
-            </Link>
+            </SiteLink>
             <p className="mt-4 text-ink-muted">{t("about")}</p>
 
             <section
@@ -93,12 +93,12 @@ export async function SiteFooter() {
                   </span>
                 </li>
               </ul>
-              <Link
+              <SiteLink
                 href={ROUTES.safeguarding.path}
                 className="mt-3 inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-4 hover:text-link-hover"
               >
                 {t("helplines.safeguarding")}
-              </Link>
+              </SiteLink>
             </section>
           </div>
 
@@ -116,9 +116,9 @@ export async function SiteFooter() {
                 <ul className="mt-3 space-y-1">
                   {footerRoutes(group).map((route) => (
                     <li key={route.id}>
-                      <Link href={route.path} className={LINK}>
+                      <SiteLink href={route.path} className={LINK}>
                         {tn(`links.${route.id}`)}
-                      </Link>
+                      </SiteLink>
                     </li>
                   ))}
                 </ul>

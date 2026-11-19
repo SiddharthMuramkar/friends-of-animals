@@ -1,9 +1,9 @@
 import { ArrowRight, Clock } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { PendingDot } from "@/components/nav-link";
+import { SiteLink } from "@/components/site/site-link";
 import { CardCover, TileCover } from "@/components/showcase/card-cover";
 import { StoryCard } from "@/components/showcase/story-card";
 import { Chip } from "@/components/site/chip";
@@ -61,14 +61,14 @@ async function FeaturedStory({ story }: { story: Story }) {
           </span>
         </div>
         <h3 className="text-h3 leading-tight text-ink">
-          <Link
+          <SiteLink
             href={slugHref("story", story.slug)}
             prefetch={true}
             className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-[''] active:after:bg-ink/8"
           >
             {story.title}
             <PendingDot className="ms-2 inline-block align-middle" />
-          </Link>
+          </SiteLink>
         </h3>
         <p className="text-lead text-ink-muted">{story.dek}</p>
         <p

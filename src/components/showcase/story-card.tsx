@@ -1,8 +1,8 @@
 import { Clock } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 
 import { PendingDot } from "@/components/nav-link";
+import { SiteLink } from "@/components/site/site-link";
 import { Chip } from "@/components/site/chip";
 import type { Story } from "@/content/stories";
 import { slugHref } from "@/lib/routes";
@@ -55,14 +55,14 @@ export async function StoryCard({
         <H level={headingLevel} className="text-h4 leading-tight text-ink">
           {/* Prefetch the full article: partialPrefetching would otherwise
               fetch only the shell (brief 02 item 9). */}
-          <Link
+          <SiteLink
             href={slugHref("story", story.slug)}
             prefetch={true}
             className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-[''] active:after:bg-ink/8"
           >
             {story.title}
             <PendingDot className="ms-2 inline-block align-middle" />
-          </Link>
+          </SiteLink>
         </H>
         <p className="text-ink-muted">{story.dek}</p>
         {story.coverImageId ? (

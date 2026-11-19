@@ -1,8 +1,8 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import Link from "next/link";
 import type { ComponentProps } from "react";
 
 import { PendingDot } from "@/components/nav-link";
+import { SiteLink } from "@/components/site/site-link";
 import { cn } from "@/lib/utils";
 
 /**
@@ -32,7 +32,7 @@ export const buttonStyles = cva(
   }
 );
 
-type ButtonLinkProps = ComponentProps<typeof Link> &
+type ButtonLinkProps = ComponentProps<typeof SiteLink> &
   VariantProps<typeof buttonStyles>;
 
 /**
@@ -47,13 +47,13 @@ export function ButtonLink({
   ...props
 }: ButtonLinkProps) {
   return (
-    <Link
+    <SiteLink
       className={cn(buttonStyles({ variant, size }), "relative", className)}
       {...props}
     >
       {children}
       {/* In the inline padding, so it never shifts or covers the label. */}
       <PendingDot className="absolute end-2 top-1/2 -translate-y-1/2" />
-    </Link>
+    </SiteLink>
   );
 }

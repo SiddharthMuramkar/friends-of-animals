@@ -1,8 +1,9 @@
 "use client";
 
-import Link, { useLinkStatus } from "next/link";
+import { useLinkStatus } from "next/link";
 import type { ComponentProps } from "react";
 
+import { SiteLink } from "@/components/site/site-link";
 import { cn } from "@/lib/utils";
 
 /**
@@ -37,9 +38,12 @@ export function NavLink({
   className,
   children,
   ...props
-}: ComponentProps<typeof Link> & { href: string; pathname: string | null }) {
+}: ComponentProps<typeof SiteLink> & {
+  href: string;
+  pathname: string | null;
+}) {
   return (
-    <Link
+    <SiteLink
       href={href}
       aria-current={isCurrent(href, pathname) ? "page" : undefined}
       className={cn("inline-flex items-center gap-2", className)}
@@ -47,6 +51,6 @@ export function NavLink({
     >
       {children}
       <PendingDot />
-    </Link>
+    </SiteLink>
   );
 }
