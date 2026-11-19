@@ -18,7 +18,11 @@ export default defineConfig({
     ],
   },
   test: {
-    include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.ts"],
+    include: [
+      "src/**/*.test.{ts,tsx}",
+      "scripts/**/*.test.ts",
+      "docker/**/*.test.ts",
+    ],
     environment: "node",
   },
 });
