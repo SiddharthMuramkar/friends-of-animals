@@ -1,5 +1,5 @@
 import { getFormatter, getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 import type { ReactNode } from "react";
 
 import { ContactFact } from "@/components/site/contact-fact";
@@ -44,9 +44,9 @@ function Inlines({ text }: { text: LegalInline[] }) {
     if ("strong" in i) return <strong key={k}>{i.strong}</strong>;
     if ("fact" in i) return <Fact key={k} fact={i.fact} />;
     return (
-      <Link key={k} href={i.href} className={LINK}>
+      <SiteLink key={k} href={i.href} className={LINK}>
         {i.link}
-      </Link>
+      </SiteLink>
     );
   });
 }

@@ -1,7 +1,7 @@
 import { Check, ChevronRight, Mail } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 import { notFound } from "next/navigation";
 
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
@@ -150,12 +150,12 @@ export default async function Page({
         <nav aria-label={t("breadcrumb")}>
           <ol className="flex flex-wrap items-center gap-1 text-sm">
             <li>
-              <Link
+              <SiteLink
                 href={ROUTES.competitions.path}
                 className="inline-flex min-h-6 items-center text-link underline underline-offset-2 hover:text-link-hover"
               >
                 {tc("meta.title")}
-              </Link>
+              </SiteLink>
             </li>
             <li aria-hidden="true">
               <ChevronRight className="size-4 text-ink-muted" />
@@ -557,12 +557,12 @@ export default async function Page({
                 ] as const
               ).map(([k, href]) => (
                 <li key={k}>
-                  <Link
+                  <SiteLink
                     href={href}
                     className={cn(LINK, "inline-flex min-h-11 items-center")}
                   >
                     {t(`consent.${k}`)}
-                  </Link>
+                  </SiteLink>
                 </li>
               ))}
             </ul>

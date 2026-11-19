@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
@@ -101,14 +101,14 @@ export default async function Page() {
         </div>
         <ul className="mt-12 grid gap-1 border-t-2 border-border pt-6">
           <li>
-            <Link href={ROUTES.refunds.path} className={LINK}>
+            <SiteLink href={ROUTES.refunds.path} className={LINK}>
               {t("refundsLink")}
-            </Link>
+            </SiteLink>
           </li>
           <li>
-            <Link href={ROUTES.contact.path} className={LINK}>
+            <SiteLink href={ROUTES.contact.path} className={LINK}>
               {t("questions")}
-            </Link>
+            </SiteLink>
           </li>
         </ul>
       </Section>

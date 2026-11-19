@@ -1,7 +1,7 @@
 import { ArrowDown } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { CompetitionCard } from "@/components/showcase/competition-card";
@@ -146,12 +146,12 @@ export default async function Page() {
                     </h3>
                     <p className="mt-3 text-ink-muted">{t("endCard.body")}</p>
                   </div>
-                  <Link
+                  <SiteLink
                     href={ROUTES.contact.path}
                     className="inline-flex min-h-11 items-center self-start font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover"
                   >
                     {t("endCard.link")}
-                  </Link>
+                  </SiteLink>
                 </div>
               </li>
             </ul>

@@ -1,6 +1,6 @@
 import { ArrowRight, Megaphone } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { SiteLink } from "@/components/site/site-link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
@@ -50,7 +50,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 function MoreLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link
+    <SiteLink
       href={href}
       className="group mt-8 inline-flex min-h-11 items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover"
     >
@@ -59,7 +59,7 @@ function MoreLink({ href, children }: { href: string; children: ReactNode }) {
         aria-hidden="true"
         className="size-5 transition-transform motion-safe:group-hover:translate-x-1"
       />
-    </Link>
+    </SiteLink>
   );
 }
 
@@ -84,12 +84,12 @@ async function Announcement() {
           />
           {t("text", { name: a.name, closes: new Date(a.expiresAt) })}
         </p>
-        <Link
+        <SiteLink
           href={`/competitions/${a.slug}`}
           className="inline-flex min-h-11 items-center underline decoration-2 underline-offset-4"
         >
           {t("link")}
-        </Link>
+        </SiteLink>
       </div>
     </aside>
   );
@@ -185,7 +185,7 @@ async function Competitions() {
             ))}
             {list.length < 3 ? (
               <li className="flex">
-                <Link
+                <SiteLink
                   href={ROUTES.competitions.path}
                   className="group flex w-full flex-col items-start justify-end gap-4 rounded-3xl border-2 border-dashed border-border-strong bg-section-pink p-6 transition-[border-color,translate] hover:border-ink motion-safe:hover:-translate-y-0.5"
                 >
@@ -203,7 +203,7 @@ async function Competitions() {
                       className="size-5 transition-transform motion-safe:group-hover:translate-x-1"
                     />
                   </span>
-                </Link>
+                </SiteLink>
               </li>
             ) : null}
           </ul>
