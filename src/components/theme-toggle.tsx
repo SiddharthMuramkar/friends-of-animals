@@ -1,9 +1,9 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
-import { THEME_STORAGE_KEY } from "@/lib/theme";
+import { setTheme, syncThemeColor } from "@/lib/theme";
 
 // The `dark` class on <html> is the source of truth. The inline script in
 // the root layout sets it before first paint; this toggle flips it.
@@ -27,20 +27,14 @@ export function ThemeToggle({
 }) {
   const dark = useSyncExternalStore(subscribe, isDark, isDarkOnServer);
 
-  function toggle() {
-    const next = !dark;
-    document.documentElement.classList.toggle("dark", next);
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, next ? "dark" : "light");
-    } catch {
-      // Storage can be unavailable (private mode); the toggle still works.
-    }
-  }
+  // Keep every theme-color meta in step with the class once hydrated: the
+  // head script adds a dark one ahead of the layout's light one.
+  useEffect(() => syncThemeColor(isDark()), [dark]);
 
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={() => setTheme(!dark)}
       className="inline-flex size-11 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
       aria-label={dark ? labels.toLight : labels.toDark}
     >
