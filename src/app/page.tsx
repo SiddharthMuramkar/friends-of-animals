@@ -139,7 +139,7 @@ async function Hero() {
         <div className="relative mx-auto w-full max-w-xl lg:mr-3 lg:max-w-none">
           <Photo
             id={hero.imageAssetId}
-            sizes="(min-width: 1280px) 560px, (min-width: 1024px) 44vw, 92vw"
+            sizes="(min-width: 1280px) 560px, (min-width: 1024px) 44vw, min(92vw, 576px)"
             preload
             frame="red"
             frameCorner="top-right"

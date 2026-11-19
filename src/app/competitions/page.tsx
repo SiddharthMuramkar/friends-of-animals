@@ -69,7 +69,7 @@ export default async function Page() {
           </div>
           <Photo
             id="art-supplies-flatlay-blue"
-            sizes="(min-width: 1024px) 40vw, 92vw"
+            sizes="(min-width: 1024px) min(40vw, 512px), min(92vw, 512px)"
             preload
             frame="red"
             frameCorner="bottom-right"
