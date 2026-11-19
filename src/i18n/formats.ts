@@ -29,8 +29,8 @@ export const formats = {
     },
   },
   number: {
-    // ₹1,24,000 (no paise). Render amounts in the display face: ₹ is not in
-    // Inter's latin subset.
+    // ₹1,24,000 (no paise). Render amounts in the display face: its stack
+    // maps ₹ to a system font (globals.css), as Inter's latin file lacks it.
     inr: { style: "currency", currency: "INR", maximumFractionDigits: 0 },
     inrExact: { style: "currency", currency: "INR" },
   },

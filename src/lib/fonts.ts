@@ -20,10 +20,10 @@ export const inter = localFont({
 });
 
 /**
- * Headings, numbers and every ₹ amount: the rupee sign is not in Inter's latin
- * file. U+20B9 is in Baloo's latin-ext and Devanagari faces; browsers check
- * the later-declared latin-ext first, so ₹ fetches that file, not
- * Devanagari. Variable 400–800. Preloaded. Baloo 2 runs ~16% small and has a
+ * Headings, numbers and every ₹ amount. U+20B9 is only in Baloo's latin-ext
+ * and Devanagari faces, so the display stack puts a local-only "Rupee Local"
+ * face first (globals.css) and ₹ uses a system font instead of fetching
+ * latin-ext. Variable 400–800. Preloaded. Baloo 2 runs ~16% small and has a
  * 1.6 em line box: always set line-height.
  */
 export const baloo = Baloo_2({
