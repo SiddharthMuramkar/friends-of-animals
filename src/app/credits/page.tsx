@@ -33,6 +33,7 @@ const GROUPS = [
   { key: "neighbours", hue: "green" },
   { key: "seasons", hue: "teal" },
   { key: "stories", hue: "yellow" },
+  { key: "happy", hue: "pink" },
 ] as const satisfies readonly { key: string; hue: TileHue }[];
 
 const FONTS = [

@@ -12,7 +12,8 @@
       "pages": "Page photos",
       "neighbours": "Street neighbours",
       "seasons": "Through the year",
-      "stories": "Stories"
+      "stories": "Stories",
+      "happy": "Happy dogs and cats"
     },
     "count": "{count, plural, one {# photo} other {# photos}}",
     "fields": {

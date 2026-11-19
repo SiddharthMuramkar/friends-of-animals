@@ -39,6 +39,20 @@ export const SITE_IMAGE_IDS = [
   // stories
   "care-kolam-rice",
   "puppies-lounging-cloth",
+  // happy dogs and cats
+  "dog-anjuna-beach-happy",
+  "dog-bhubaneswar-belly-up",
+  "puppy-white-running",
+  "dogs-lalbagh-play",
+  "puppies-kerala-grass",
+  "dog-thrissur-happy-white",
+  "kittens-basket-guwahati",
+  "kitten-tree-peekaboo",
+  "cat-roof-bougainvillea",
+  "cat-stretch-ahmedabad",
+  "cat-grass-srinagar",
+  "kitten-tree-dingore",
+  "kittens-play-lalakapa",
 ] as const;
 
 export type SiteImageId = (typeof SITE_IMAGE_IDS)[number];
@@ -90,7 +104,7 @@ export const creditSchema = z
     id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
     file: z
       .string()
-      .regex(/^(?:pages|neighbours|seasons|stories)\/[a-z0-9-]+\.jpg$/),
+      .regex(/^(?:pages|neighbours|seasons|stories|happy)\/[a-z0-9-]+\.jpg$/),
     title: z.string().min(1),
     author: z.string().min(1),
     authorUrl: z.url().nullable(),
