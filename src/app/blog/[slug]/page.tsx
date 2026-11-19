@@ -23,7 +23,7 @@ import {
 import { metaDescription, tableOfContents } from "@/content/stories/text";
 import { siteUrl } from "@/env";
 import { ROUTES, slugHref } from "@/lib/routes";
-import { pageMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 
 import { ArticleBodyView, SourceList } from "./_components/article-body";
@@ -50,7 +50,7 @@ export async function generateMetadata({
   if (!isStorySlug(slug)) return {};
   const story = getStory(slug);
   return pageMetadata({
-    title: story.title,
+    title: story.seoTitle ?? story.title,
     description: metaDescription(story.dek),
     path: slugHref("story", slug),
   });
@@ -100,20 +100,11 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
       },
       citation: body.footnotes.map((f) => f.url),
     },
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { name: t("home"), path: "/" },
-        { name: t("allStories"), path: ROUTES.stories.path },
-        { name: story.title, path: slugHref("story", slug) },
-      ].map((c, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        name: c.name,
-        item: new URL(c.path, base).href,
-      })),
-    },
+    breadcrumbJsonLd(base, [
+      { name: t("home"), path: "/" },
+      { name: t("allStories"), path: ROUTES.stories.path },
+      { name: story.title, path: slugHref("story", slug) },
+    ]),
   ];
 
   return (

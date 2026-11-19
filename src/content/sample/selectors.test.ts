@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { placeholder } from "@/lib/site";
 
-import { SAMPLE_COMPETITIONS, SAMPLE_IMPACT, getSampleCompetitions } from ".";
+import {
+  SAMPLE_COMPETITIONS,
+  SAMPLE_IMPACT,
+  getSampleCertificate,
+  getSampleCompetitions,
+} from ".";
 import { type Competition, competitionSchema } from "./model";
 import {
   counterDisplay,
@@ -50,6 +55,18 @@ describe("sample competitions", () => {
     expect(getSampleCompetitions({ APP_ENV: "staging" }).length).toBe(
       SAMPLE_COMPETITIONS.length
     );
+  });
+});
+
+describe("getSampleCertificate", () => {
+  it("is never served in production", () => {
+    expect(getSampleCertificate({ APP_ENV: "production" })).toBeNull();
+  });
+
+  it("names a listed sample competition on test sites", () => {
+    const cert = getSampleCertificate({ APP_ENV: "staging" });
+    expect(cert?.competition.code).toBe(cert?.competitionCode);
+    expect(SAMPLE_COMPETITIONS).toContain(cert?.competition);
   });
 });
 
@@ -125,6 +142,16 @@ describe("nextKeyDate", () => {
     expect(nextKeyDate(c, new Date("2027-01-20T00:00:00Z"))?.kind).toBe(
       "entriesClose"
     );
+  });
+  it("moves on the moment a deadline passes", () => {
+    const closes = Date.parse(c.registrationClosesAt);
+    expect(nextKeyDate(c, new Date(closes - 1))?.kind).toBe(
+      "registrationCloses"
+    );
+    expect(nextKeyDate(c, new Date(closes + 1))).toEqual({
+      kind: "entriesClose",
+      at: c.submissionClosesAt,
+    });
   });
   it("returns null once every date has passed", () => {
     expect(nextKeyDate(c, new Date("2030-01-01T00:00:00Z"))).toBeNull();

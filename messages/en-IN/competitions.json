@@ -109,7 +109,8 @@
         "discipline": "Discipline",
         "group": "Age group",
         "ages": "Ages",
-        "groupAges": "{min} to {max}"
+        "groupAges": "{min} to {max}",
+        "open": "Open"
       },
       "timeline": {
         "title": "Dates to remember",
@@ -171,7 +172,8 @@
         "maxValue": "{mb} MB",
         "minValue": "{px} pixels on the long side",
         "minVideo": "{px} pixels on the short side, 10 seconds to 3 minutes",
-        "minNone": "Up to 1,000 words"
+        "length": "Length",
+        "lengthValue": "Up to {words} words"
       },
       "rules": {
         "title": "The rules",

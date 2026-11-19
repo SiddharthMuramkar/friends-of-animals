@@ -26,6 +26,11 @@ export type Audience = (typeof AUDIENCES)[number];
 const storySchema = z.strictObject({
   slug: z.enum(STORY_SLUGS),
   title: z.string().min(1).max(80),
+  /**
+   * A shorter title for search results and the browser tab, when the title
+   * plus " · Friends of Animals" would pass 60 characters.
+   */
+  seoTitle: z.string().min(1).max(39).optional(),
   /** The excerpt (≤ 300 characters). */
   dek: z.string().min(1).max(300),
   /** One or two short sentences at grade 6 or below: the "Easy read" layer. */
@@ -48,6 +53,7 @@ export const STORIES: readonly Story[] = z
     {
       slug: "rukmini-devi-and-indias-animal-law",
       title: "The dancer who shaped India’s animal law",
+      seoTitle: "The dancer behind India’s animal law",
       dek: "Rukmini Devi Arundale, a dancer and the first woman nominated to the Rajya Sabha, asked Parliament in 1954 to protect animals from cruelty. India’s 1960 animal-welfare law followed.",
       easyRead:
         "A dancer named Rukmini Devi asked India’s Parliament to protect animals. Her work helped make a law in 1960. It still keeps animals safe.",
@@ -60,6 +66,7 @@ export const STORIES: readonly Story[] = z
     {
       slug: "a-drawing-that-feeds-tiny-guests",
       title: "A drawing that feeds a thousand tiny guests",
+      seoTitle: "A drawing that feeds tiny guests",
       dek: "Each morning, rice-flour patterns appear at doorsteps in Tamil Nadu. By evening, feet, ants and birds have carried them away. Sharing is part of the idea.",
       easyRead:
         "Every morning, people in Tamil Nadu draw at the door with rice flour. Ants and birds eat the flour. The art is also a gift.",
@@ -85,6 +92,7 @@ export const STORIES: readonly Story[] = z
     {
       slug: "two-pilots-two-puppies",
       title: "Two pilots, two puppies and the start of Blue Cross",
+      seoTitle: "Two pilots, two puppies and Blue Cross",
       dek: "On a rainy day in 1959, a Madras pilot took two puppies home from a flooded road. His family’s house soon held sixty animals. Blue Cross had begun.",
       easyRead:
         "In 1959, a pilot took two puppies home from a flood. Soon his family cared for 60 animals. That was the start of Blue Cross.",

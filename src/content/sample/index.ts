@@ -1,5 +1,6 @@
 import { isSampleContentEnabled, placeholder } from "@/lib/site";
 
+import { SAMPLE_CERTIFICATE } from "./certificate";
 import {
   type Competition,
   competitionSchema,
@@ -121,4 +122,19 @@ export function getSampleCompetitions(env?: EnvLike): readonly Competition[] {
 
 export function getSampleImpact(env?: EnvLike): Impact | null {
   return isSampleContentEnabled(env) ? SAMPLE_IMPACT : null;
+}
+
+export type SampleCertificate = typeof SAMPLE_CERTIFICATE & {
+  competition: Competition;
+};
+
+/**
+ * The sample certificate and the competition it is for, off production only
+ * (the home page then shows neutral placeholder text instead).
+ */
+export function getSampleCertificate(env?: EnvLike): SampleCertificate | null {
+  const competition = getSampleCompetitions(env).find(
+    (c) => c.code === SAMPLE_CERTIFICATE.competitionCode
+  );
+  return competition ? { ...SAMPLE_CERTIFICATE, competition } : null;
 }

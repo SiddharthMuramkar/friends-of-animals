@@ -18,6 +18,7 @@ import { Photo } from "@/components/site/photo";
 import { Placeholder } from "@/components/site/placeholder";
 import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
+import { TableScroller } from "@/components/site/table-scroller";
 import { TileMarker } from "@/components/site/tile";
 import { SAMPLE_WELFARE } from "@/content/competitions/welfare";
 import { getSampleCompetitions } from "@/content/sample";
@@ -25,7 +26,7 @@ import type { Competition } from "@/content/sample/model";
 import { ageRange, feeDisplay, nextKeyDate } from "@/content/sample/selectors";
 import { siteUrl } from "@/env";
 import { ROUTES, slugHref } from "@/lib/routes";
-import { pageMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 import { placeholder, SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +94,8 @@ export default async function Page({
   const format = await getFormatter();
   const now = new Date(await cachedNow());
   const date = (iso: string) => format.dateTime(new Date(iso), "long");
+  const dateTime = (iso: string) =>
+    format.dateTime(new Date(iso), "longDateTime");
 
   const ages = ageRange(c);
   const next = nextKeyDate(c, now);
@@ -112,28 +115,35 @@ export default async function Page({
   return (
     <>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Event",
-          name: c.name,
-          description: c.theme,
-          startDate: c.conductStartsAt,
-          endDate: c.submissionClosesAt,
-          eventStatus:
-            c.status === "CANCELLED"
-              ? "https://schema.org/EventCancelled"
-              : "https://schema.org/EventScheduled",
-          eventAttendanceMode: "https://schema.org/MixedEventAttendanceMode",
-          location: {
-            "@type": "VirtualLocation",
-            url: new URL(slugHref("competition", c.slug), base).href,
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Event",
+            name: c.name,
+            description: c.theme,
+            startDate: c.conductStartsAt,
+            endDate: c.submissionClosesAt,
+            eventStatus:
+              c.status === "CANCELLED"
+                ? "https://schema.org/EventCancelled"
+                : "https://schema.org/EventScheduled",
+            // Entries are uploaded: online only, until a real Place is listed.
+            eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode",
+            location: {
+              "@type": "VirtualLocation",
+              url: new URL(slugHref("competition", c.slug), base).href,
+            },
+            organizer: {
+              "@type": "NGO",
+              name: SITE.name,
+              url: new URL("/", base).href,
+            },
           },
-          organizer: {
-            "@type": "NGO",
-            name: SITE.name,
-            url: new URL("/", base).href,
-          },
-        }}
+          breadcrumbJsonLd(base, [
+            { name: tc("meta.title"), path: ROUTES.competitions.path },
+            { name: c.name, path: slugHref("competition", c.slug) },
+          ]),
+        ]}
       />
 
       <Section hue={HUE} tone="tint" className="pt-8 sm:pt-10">
@@ -156,7 +166,7 @@ export default async function Page({
           </ol>
         </nav>
 
-        <div className="mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
+        <div className="mt-8 grid grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusChip status={c.status} />
@@ -173,7 +183,7 @@ export default async function Page({
 
             <dl
               aria-label={t("facts")}
-              className="mt-8 grid max-w-xl grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-3 rounded-3xl bg-surface p-5 shadow-warm sm:p-6"
+              className="mt-8 grid max-w-xl grid-cols-1 gap-x-6 gap-y-1 rounded-3xl bg-surface p-5 shadow-warm sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-y-3 sm:p-6 max-sm:[&>dt:not(:first-of-type)]:mt-3"
             >
               <dt className="font-semibold text-ink">{t("ages")}</dt>
               <dd className="text-ink-muted">{t("ageRange", ages)}</dd>
@@ -194,7 +204,7 @@ export default async function Page({
           </div>
           <Photo
             id={c.coverImageId}
-            sizes="(min-width: 1024px) 40vw, 92vw"
+            sizes="(min-width: 1024px) min(40vw, 512px), min(92vw, 512px)"
             preload
             frame="blue"
             frameCorner="top-right"
@@ -233,12 +243,17 @@ export default async function Page({
             date: date(`${c.ageCutoffDate}T00:00:00+05:30`),
           })}
         />
-        <div className="mt-8 overflow-hidden rounded-3xl border-2 border-border bg-surface">
+        <TableScroller captionId="categories-caption" className="mt-8">
           <table className="w-full text-left">
-            <caption className="sr-only">{t("categories.caption")}</caption>
+            <caption id="categories-caption" className="sr-only">
+              {t("categories.caption")}
+            </caption>
             <thead className="bg-surface-muted text-sm">
               <tr>
-                <th scope="col" className="px-5 py-3 font-semibold">
+                <th
+                  scope="col"
+                  className="sticky start-0 bg-surface-muted px-5 py-3 font-semibold"
+                >
                   {t("categories.discipline")}
                 </th>
                 {c.ageGroups.map((g) => (
@@ -261,22 +276,28 @@ export default async function Page({
             <tbody>
               {c.disciplines.map((d) => (
                 <tr key={d} className="border-t border-border">
-                  <th scope="row" className="px-5 py-3 font-semibold">
+                  <th
+                    scope="row"
+                    className="sticky start-0 bg-surface px-5 py-3 font-semibold"
+                  >
                     {ts(`discipline.${d}`)}
                   </th>
                   {c.ageGroups.map((g) => (
                     <td key={g.label} className="px-5 py-3">
-                      <Check
-                        aria-label={`${ts(`discipline.${d}`)}, ${g.label}`}
-                        className="size-5 text-green-700 dark:text-green-300"
-                      />
+                      <span className="inline-flex items-center gap-1.5">
+                        <Check
+                          aria-hidden="true"
+                          className="size-5 shrink-0 text-green-700 dark:text-green-300"
+                        />
+                        {t("categories.open")}
+                      </span>
                     </td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableScroller>
       </Section>
 
       <Section labelledBy="dates-title" hue={HUE}>
@@ -317,7 +338,9 @@ export default async function Page({
                         start: date(s.at),
                         end: date(s.end),
                       })
-                    : date(s.at)}
+                    : s.timed
+                      ? dateTime(s.at)
+                      : date(s.at)}
                 </p>
                 {s.past ? (
                   <p className="mt-1 flex items-center gap-1 text-sm text-ink-muted">
@@ -457,14 +480,26 @@ export default async function Page({
                 <dd className="text-ink-muted">
                   {t("files.maxValue", { mb: r.maxMb })}
                 </dd>
-                <dt className="font-semibold">{t("files.min")}</dt>
-                <dd className="text-ink-muted">
-                  {r.minPx === undefined
-                    ? t("files.minNone")
-                    : r.types === "video"
-                      ? t("files.minVideo", { px: r.minPx })
-                      : t("files.minValue", { px: format.number(r.minPx) })}
-                </dd>
+                {r.minPx === undefined ? null : (
+                  <>
+                    <dt className="font-semibold">{t("files.min")}</dt>
+                    <dd className="text-ink-muted">
+                      {r.types === "video"
+                        ? t("files.minVideo", { px: r.minPx })
+                        : t("files.minValue", { px: format.number(r.minPx) })}
+                    </dd>
+                  </>
+                )}
+                {r.maxWords === undefined ? null : (
+                  <>
+                    <dt className="font-semibold">{t("files.length")}</dt>
+                    <dd className="text-ink-muted">
+                      {t("files.lengthValue", {
+                        words: format.number(r.maxWords),
+                      })}
+                    </dd>
+                  </>
+                )}
               </dl>
             </li>
           ))}
