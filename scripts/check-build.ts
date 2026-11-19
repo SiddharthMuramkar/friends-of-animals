@@ -15,11 +15,12 @@ import {
   INITIAL_JS_BUDGET,
   initialScripts,
   newerSyntax,
+  prerenderedPage,
 } from "./client-bundle";
 
 const NEXT_DIR = path.resolve(process.argv[2] ?? ".next");
 const CHUNKS_DIR = path.join(NEXT_DIR, "static", "chunks");
-const PAGES_DIR = path.join(NEXT_DIR, "server", "app");
+const SERVER_DIR = path.join(NEXT_DIR, "server");
 
 /** Every file under `dir` whose name ends with `ext`, recursively. */
 function filesUnder(dir: string, ext: string): string[] {
@@ -59,16 +60,18 @@ function checkInitialJs(): string[] {
     return size;
   };
 
-  const pages = filesUnder(PAGES_DIR, ".html").flatMap((file) => {
+  const pages = filesUnder(SERVER_DIR, ".html").flatMap((file) => {
+    const page = prerenderedPage(path.relative(SERVER_DIR, file));
+    if (page === undefined) return [];
     const html = readFileSync(file, "utf8");
     // A dynamic route's fallback shell (e.g. blog/[slug].html) is empty.
     if (html === "") return [];
     const scripts = initialScripts(html);
     const bytes = scripts.reduce((sum, src) => sum + sizeOf(src), 0);
-    return [{ page: path.relative(PAGES_DIR, file), bytes }];
+    return [{ page, bytes }];
   });
   if (!pages.some(({ bytes }) => bytes > 0)) {
-    failures.push(`No prerendered page in ${PAGES_DIR} loads a script.`);
+    failures.push(`No prerendered page in ${SERVER_DIR} loads a script.`);
   }
 
   for (const { page, bytes } of pages) {
