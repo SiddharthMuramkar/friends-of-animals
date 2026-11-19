@@ -2,6 +2,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ContactFact } from "@/components/site/contact-fact";
 import { PageHeader } from "@/components/site/heading";
 import { InPageLink } from "@/components/site/in-page-link";
 import { Placeholder } from "@/components/site/placeholder";
@@ -14,7 +15,7 @@ import {
   type LegalFact,
   type LegalInline,
 } from "@/content/legal";
-import { SITE } from "@/lib/site";
+import { type OrgFact, SITE } from "@/lib/site";
 
 const LINK =
   "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
@@ -30,26 +31,11 @@ const FACT_VALUE: Record<LegalFact, unknown> = {
 
 /** A confirmed fact as text (or a mailto/tel link); else a visible placeholder. */
 function Fact({ fact }: { fact: LegalFact }) {
-  const href = (v: string) =>
-    fact === "phone"
-      ? `tel:${v.replace(/\s/g, "")}`
-      : fact.toLowerCase().includes("email")
-        ? `mailto:${v}`
-        : undefined;
-  return (
-    <Placeholder fact={FACT_VALUE[fact] as string}>
-      {(v) => {
-        const h = href(v);
-        return h ? (
-          <a href={h} className={LINK}>
-            {v}
-          </a>
-        ) : (
-          v
-        );
-      }}
-    </Placeholder>
-  );
+  const value = FACT_VALUE[fact] as OrgFact;
+  if (fact === "phone") return <ContactFact kind="phone" fact={value} />;
+  if (fact.toLowerCase().includes("email"))
+    return <ContactFact kind="email" fact={value} />;
+  return <Placeholder fact={value} />;
 }
 
 function Inlines({ text }: { text: LegalInline[] }) {
