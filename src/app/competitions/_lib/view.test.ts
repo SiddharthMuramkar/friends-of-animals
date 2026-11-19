@@ -80,6 +80,13 @@ describe("timeline", () => {
     ]);
   });
 
+  it("shows the time only on the registration steps", () => {
+    const timed = timeline(open)
+      .filter((s) => s.timed)
+      .map((s) => s.kind);
+    expect(timed).toEqual(["registrationOpens", "registrationCloses"]);
+  });
+
   it("marks a deadline done as soon as it passes", () => {
     const closes = Date.parse(open.registrationClosesAt);
     const kinds = (at: number) =>

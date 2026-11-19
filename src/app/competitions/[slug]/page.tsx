@@ -94,6 +94,8 @@ export default async function Page({
   const format = await getFormatter();
   const now = new Date(await cachedNow());
   const date = (iso: string) => format.dateTime(new Date(iso), "long");
+  const dateTime = (iso: string) =>
+    format.dateTime(new Date(iso), "longDateTime");
 
   const ages = ageRange(c);
   const next = nextKeyDate(c, now);
@@ -336,7 +338,9 @@ export default async function Page({
                         start: date(s.at),
                         end: date(s.end),
                       })
-                    : date(s.at)}
+                    : s.timed
+                      ? dateTime(s.at)
+                      : date(s.at)}
                 </p>
                 {s.past ? (
                   <p className="mt-1 flex items-center gap-1 text-sm text-ink-muted">

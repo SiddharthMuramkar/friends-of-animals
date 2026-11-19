@@ -72,13 +72,20 @@ export type TimelineStep = {
   at: string;
   /** For a window (making the work): when it ends. */
   end?: string;
+  /** Shown with its time (registration opens 09:00, closes 23:59 IST). */
+  timed: boolean;
   past: boolean;
 };
+
+const TIMED: ReadonlySet<TimelineKind> = new Set([
+  "registrationOpens",
+  "registrationCloses",
+]);
 
 /** Every public date, in order; steps before `now` are marked past. */
 export function timeline(c: Competition, now?: Date): TimelineStep[] {
   const t = now?.getTime() ?? Number.NEGATIVE_INFINITY;
-  const steps: Omit<TimelineStep, "past">[] = [
+  const steps: Omit<TimelineStep, "past" | "timed">[] = [
     { kind: "registrationOpens", at: c.registrationOpensAt },
     { kind: "registrationCloses", at: c.registrationClosesAt },
     { kind: "confirmation", at: c.confirmationDeadline },
@@ -89,6 +96,7 @@ export function timeline(c: Competition, now?: Date): TimelineStep[] {
     steps.push({ kind: "shortlistCloses", at: c.shortlistSubmissionClosesAt });
   return steps.map((s) => ({
     ...s,
+    timed: TIMED.has(s.kind),
     past: Date.parse(s.end ?? s.at) < t,
   }));
 }
