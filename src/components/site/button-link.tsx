@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import Link from "next/link";
 import type { ComponentProps } from "react";
 
+import { PendingDot } from "@/components/nav-link";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils";
  * centred, rather than widen the page on phones.
  */
 export const buttonStyles = cva(
-  "inline-flex items-center justify-center gap-2 rounded-full text-center font-semibold text-balance transition-[background-color,box-shadow,translate,color] duration-200 ease-out select-none [&_svg]:size-5 [&_svg]:shrink-0 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 disabled:pointer-events-none disabled:opacity-60",
+  "inline-flex items-center justify-center gap-2 rounded-full text-center font-semibold text-balance transition-[background-color,box-shadow,translate,scale,color] duration-200 ease-out select-none active:scale-[0.98] [&_svg]:size-5 [&_svg]:shrink-0 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       variant: {
@@ -34,17 +35,25 @@ export const buttonStyles = cva(
 type ButtonLinkProps = ComponentProps<typeof Link> &
   VariantProps<typeof buttonStyles>;
 
-/** A link that looks like a button. For actions, use <button> + buttonStyles. */
+/**
+ * A link that looks like a button, with a dot at its end while the next
+ * page loads. For actions, use <button> + buttonStyles.
+ */
 export function ButtonLink({
   variant,
   size,
   className,
+  children,
   ...props
 }: ButtonLinkProps) {
   return (
     <Link
-      className={cn(buttonStyles({ variant, size }), className)}
+      className={cn(buttonStyles({ variant, size }), "relative", className)}
       {...props}
-    />
+    >
+      {children}
+      {/* In the inline padding, so it never shifts or covers the label. */}
+      <PendingDot className="absolute end-2 top-1/2 -translate-y-1/2" />
+    </Link>
   );
 }

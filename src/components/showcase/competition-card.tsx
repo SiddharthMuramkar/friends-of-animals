@@ -2,6 +2,7 @@ import { CalendarDays } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import Link from "next/link";
 
+import { PendingDot } from "@/components/nav-link";
 import { Placeholder } from "@/components/site/placeholder";
 import { SampleTag } from "@/components/site/sample-tag";
 import type { Competition } from "@/content/sample/model";
@@ -56,9 +57,10 @@ export async function CompetitionCard({
             <Link
               href={slugHref("competition", c.slug)}
               prefetch={true}
-              className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-['']"
+              className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-[''] active:after:bg-ink/8"
             >
               {c.name}
+              <PendingDot className="ms-2 inline-block align-middle" />
             </Link>
           </H>
           <p className="mt-2 text-ink-muted">{c.theme}</p>

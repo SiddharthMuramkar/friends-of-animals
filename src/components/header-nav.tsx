@@ -144,7 +144,10 @@ export function MobileMenuView({
                 <NavLink
                   href={item.href}
                   pathname={pathname}
-                  onNavigate={close}
+                  // The pathname effect closes the menu once the new page
+                  // shows, so the pending dot stays visible meanwhile. A
+                  // link to the page already showing closes it at once.
+                  onNavigate={item.href === pathname ? close : undefined}
                   className={MENU_LINK}
                 >
                   {item.label}
@@ -159,7 +162,7 @@ export function MobileMenuView({
           <NavLink
             href={donateHref}
             pathname={pathname}
-            onNavigate={close}
+            onNavigate={donateHref === pathname ? close : undefined}
             className={cn(buttonStyles({ size: "lg" }), "w-full")}
           >
             {labels.donate}

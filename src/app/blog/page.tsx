@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { PendingDot } from "@/components/nav-link";
 import { CardCover, TileCover } from "@/components/showcase/card-cover";
 import { StoryCard } from "@/components/showcase/story-card";
 import { Chip } from "@/components/site/chip";
@@ -63,9 +64,10 @@ async function FeaturedStory({ story }: { story: Story }) {
           <Link
             href={slugHref("story", story.slug)}
             prefetch={true}
-            className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-['']"
+            className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-[''] active:after:bg-ink/8"
           >
             {story.title}
+            <PendingDot className="ms-2 inline-block align-middle" />
           </Link>
         </h3>
         <p className="text-lead text-ink-muted">{story.dek}</p>

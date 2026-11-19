@@ -2,6 +2,7 @@ import { Clock } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
+import { PendingDot } from "@/components/nav-link";
 import { Chip } from "@/components/site/chip";
 import type { Story } from "@/content/stories";
 import { slugHref } from "@/lib/routes";
@@ -57,9 +58,10 @@ export async function StoryCard({
           <Link
             href={slugHref("story", story.slug)}
             prefetch={true}
-            className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-['']"
+            className="rounded-sm decoration-2 underline-offset-4 group-hover:underline after:absolute after:inset-0 after:rounded-3xl after:content-[''] active:after:bg-ink/8"
           >
             {story.title}
+            <PendingDot className="ms-2 inline-block align-middle" />
           </Link>
         </H>
         <p className="text-ink-muted">{story.dek}</p>
