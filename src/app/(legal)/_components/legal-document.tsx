@@ -159,7 +159,7 @@ export async function LegalDocument({
         <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-14">
           <nav
             aria-labelledby="legal-toc"
-            className="lg:sticky lg:top-[calc(var(--header-height)+1.5rem)] lg:order-2 lg:self-start"
+            className="lg:sticky lg:top-[calc(var(--header-height)+var(--quick-exit-offset,0px)+1.5rem)] lg:order-2 lg:self-start"
           >
             <div className="rounded-3xl border-2 border-border bg-surface p-5">
               <p
