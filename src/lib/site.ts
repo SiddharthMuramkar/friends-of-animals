@@ -86,7 +86,7 @@ export const SITE = {
   },
 } as const;
 
-type EnvLike = Readonly<Record<string, string | undefined>>;
+export type EnvLike = Readonly<Record<string, string | undefined>>;
 
 const APP_ENVS = ["local", "preview", "staging", "production"] as const;
 export type AppEnv = (typeof APP_ENVS)[number];
