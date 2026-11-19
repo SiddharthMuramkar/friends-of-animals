@@ -69,12 +69,14 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="flex min-h-dvh flex-col">
+        {/* The @exit slot (Quick exit on /safeguarding) comes first in tab
+            order, before the skip link and header (GOV.UK "Exit this page").
+            CSS order puts it back under the header; body is its sticky
+            containing block, so it stays on screen over the footer too. */}
+        {exit}
         <SkipLink>{t("skipLink")}</SkipLink>
         <SiteHeader />
-        {/* One wrapper for main and the footer, so a sticky bar from the
-            @exit slot (Quick exit) stays on screen over the footer too. */}
-        <div className="flex flex-1 flex-col">
-          {exit}
+        <div className="order-2 flex flex-1 flex-col">
           <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
             {/* Page changes cross-fade; the header is pinned (globals.css). */}
             <ViewTransition>{children}</ViewTransition>
