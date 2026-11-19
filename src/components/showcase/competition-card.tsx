@@ -85,7 +85,7 @@ export async function CompetitionCard({
             )}
           </dd>
           <dt className="font-semibold text-ink">{t("fee")}</dt>
-          <dd className="relative z-10 flex flex-wrap gap-1.5 text-ink-muted">
+          <dd className="flex flex-wrap gap-1.5 text-ink-muted">
             {c.routes.map((r) => {
               const fee = feeDisplay(r.feeBaseMinor);
               if (fee.kind === "placeholder")
