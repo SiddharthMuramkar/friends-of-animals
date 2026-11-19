@@ -33,7 +33,8 @@ ARG APP_URL=""
 ENV APP_URL=${APP_URL}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm build
+# check:build fails the image on syntax iOS 16.0 can't parse (#51).
+RUN pnpm build && pnpm check:build
 
 # ---- migrate: one-shot migration runner ---------------------------------------
 FROM base AS migrate

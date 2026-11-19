@@ -19,7 +19,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "brand:assets": "tsx scripts/brand-assets.ts",
-    "vercel-build": "pnpm db:migrate && next build"
+    "check:build": "tsx scripts/check-build.ts",
+    "vercel-build": "pnpm db:migrate && next build && pnpm check:build"
   },
   "dependencies": {
     "class-variance-authority": "0.7.1",
@@ -56,6 +57,13 @@
     "typescript": "7.0.2",
     "vitest": "5.1.0"
   },
+  "browserslist": [
+    "chrome 111",
+    "edge 111",
+    "firefox 111",
+    "safari 16.0",
+    "ios_saf 16.0"
+  ],
   "engines": {
     "node": "26.x"
   },
