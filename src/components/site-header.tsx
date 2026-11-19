@@ -30,6 +30,7 @@ export async function SiteHeader() {
       close: t("closeMenu"),
       nav: t("label"),
       donate: t("donate"),
+      theme: tc("theme.switch"),
     },
   };
 
@@ -61,10 +62,14 @@ export async function SiteHeader() {
           <ButtonLink href={ROUTES.donate.path} className="max-sm:hidden">
             {t("donate")}
           </ButtonLink>
+          {/* On phones the theme switch is in the menu instead. */}
           <ThemeToggle
+            className="max-sm:hidden"
             labels={{
               toDark: tc("theme.toDark"),
               toLight: tc("theme.toLight"),
+              dark: tc("theme.dark"),
+              light: tc("theme.light"),
             }}
           />
           <Suspense fallback={<MobileMenuView {...menu} pathname={null} />}>

@@ -8,6 +8,7 @@ import { buttonStyles } from "@/components/site/button-link";
 import { cn } from "@/lib/utils";
 
 import { NavLink } from "./nav-link";
+import { ThemeSwitch } from "./theme-toggle";
 
 type Item = { href: string; label: string };
 
@@ -59,6 +60,7 @@ type MenuLabels = {
   close: string;
   nav: string;
   donate: string;
+  theme: string;
 };
 
 /** Ties the Menu and Close buttons to the dialog through invoker commands. */
@@ -152,6 +154,8 @@ export function MobileMenuView({
           </ul>
         </nav>
         <div className="border-t border-border p-5">
+          {/* From sm up the header shows its own theme button. */}
+          <ThemeSwitch label={labels.theme} className="mb-3 sm:hidden" />
           <NavLink
             href={donateHref}
             pathname={pathname}
