@@ -124,6 +124,8 @@ export default async function NotFound() {
           <DoodleLauncher
             start={t("start")}
             loading={t("loading")}
+            loadFailed={t("loadFailed")}
+            retry={t("retry")}
             labels={labels}
           />
         </div>

@@ -11,6 +11,8 @@
     "drawLead": "Draw with a finger, a pen or a mouse. Or use stamps with the keyboard. Your drawing stays on this device.",
     "start": "Start drawing",
     "loading": "Getting the pad ready…",
+    "loadFailed": "The drawing pad didn't load. Check your connection, then try again.",
+    "retry": "Try again",
     "pad": {
       "canvas": "Drawing area. {count} marks so far.",
       "draw": "Draw",
