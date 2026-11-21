@@ -842,13 +842,14 @@ Uptime checks run at an outside provider (HR-23: provider, account and
 alert target are the owner's choice), so they see what users see, and they
 only call public URLs: nothing on the VPS needs to be reachable for them.
 Each check alerts on its own, so a stalled worker never pages as "the app
-is down". Staging is `https://shipped-it.dev`; production gets the same
-app and worker checks once its domain is live.
+is down". The app and worker checks call production,
+`https://friendsofanimals.dev`: Vercel has no staging environment
+([ADR 0001](../docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)).
 
 | Check  | Target                                      | Runs from                     | Alerts when                                                                                         | Alert goes to             | Silence and un-silence                                                                                                        |
 | ------ | ------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | App    | `GET` `/api/health`                         | Uptime provider, every minute | Not 200 on 2 checks in a row. 503 means the app can't query its database                            | Owner (HR-23)             | Pause the monitor (or open a maintenance window) in the provider; resume it after. A paused monitor never re-alerts by itself |
-| Pooler | TCP `db.shipped-it.dev:6432`                | Uptime provider, every minute | Connect fails on 2 checks in a row. TCP connect only, no login: probes must not fill CrowdSec's log | Owner (HR-23)             | Same as App. If CrowdSec ever bans the provider's addresses, add them to `crowdsec/foa-whitelist.yaml`                        |
+| Pooler | TCP `db.friendsofanimals.dev:6432`          | Uptime provider, every minute | Connect fails on 2 checks in a row. TCP connect only, no login: probes must not fill CrowdSec's log | Owner (HR-23)             | Same as App. If CrowdSec ever bans the provider's addresses, add them to `crowdsec/foa-whitelist.yaml`                        |
 | Worker | `GET` `/api/health/worker`                  | Uptime provider, every minute | Not 200 on 2 checks in a row: 503 `stale` (newest heartbeat over 120 s old) or `missing` (none)     | Owner (HR-23)             | Same as App. Pause it while the workers are stopped on purpose, and until HR-07 first starts them                             |
 | Errors | Sentry projects for the app and the workers | Sentry (`SENTRY_DSN`, HR-22)  | A new issue, or a resolved one that comes back                                                      | Owner (Sentry alert rule) | In Sentry, Archive the issue (until it escalates, or for a time); Unarchive to hear about it again                            |
 
@@ -863,12 +864,12 @@ monitored.
 touching production:
 
 1. Worker: `docker compose -f /srv/foa/docker/workers.yml stop worker-staging`.
-   After 120 s `https://shipped-it.dev/api/health/worker` turns 503
-   `stale`, and two failed checks later (about 4 minutes in all) the alert
-   arrives; `start worker-staging` clears it.
+   After 120 s staging's `/api/health/worker` turns 503 `stale`, and two
+   failed checks later (about 4 minutes in all) the alert arrives;
+   `start worker-staging` clears it.
 2. App and pooler: add a throwaway monitor for `/api/health/does-not-exist`
-   and one for TCP `db.shipped-it.dev:6433` (closed). Both alert; delete
-   them after.
+   and one for TCP `db.friendsofanimals.dev:6433` (closed). Both alert;
+   delete them after.
 3. Errors, with the workers' DSN set: start a throwaway staging worker
    pointed at a port nothing listens on. It fails to start, reports that
    to Sentry (`where` `worker.main`, `environment` `staging`) and exits 1;
