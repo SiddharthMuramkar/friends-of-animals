@@ -6,13 +6,14 @@ import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
 import auth from "../../messages/en-IN/auth.json";
+import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
 import contact from "../../messages/en-IN/contact.json";
+import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
 import donate from "../../messages/en-IN/donate.json";
-import emails from "../../messages/en-IN/emails.json";
 import error from "../../messages/en-IN/error.json";
 import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
@@ -33,13 +34,14 @@ export const NAMESPACES = [
   "about",
   "account",
   "auth",
+  "authPhone",
   "awareness",
   "common",
   "competitions",
   "contact",
+  "contactForm",
   "credits",
   "donate",
-  "emails",
   "error",
   "footer",
   "home",
@@ -64,13 +66,14 @@ export const messages = {
   ...about,
   ...account,
   ...auth,
+  ...authPhone,
   ...awareness,
   ...common,
   ...competitions,
   ...contact,
+  ...contactForm,
   ...credits,
   ...donate,
-  ...emails,
   ...error,
   ...footer,
   ...home,

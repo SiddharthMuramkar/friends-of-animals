@@ -71,15 +71,21 @@ export async function emailCodeAction(
   // The step the form was showing; "Send a new code" asks for a code
   // (step "email") from the code step.
   const from = field(formData, "from") === "code" ? "code" : "email";
+  // Sign-up's optional messages consent box: the document id it showed,
+  // only when ticked.
+  const messagesConsent =
+    intent === "sign-up" ? field(formData, "messagesConsent") : "";
   const entered = {
     email: field(formData, "email"),
     name: field(formData, "name"),
+    ...(messagesConsent ? { messagesConsent } : {}),
   };
 
   const actor = await currentActor();
   if (actor.kind !== "visitor") redirect(APP_ROUTES.accountSessions);
   if (step === "restart") return withText({ ...START, name: entered.name });
 
+  let consentNotRecorded = false;
   try {
     if (step === "code") {
       const code = field(formData, "code");
@@ -91,12 +97,17 @@ export async function emailCodeAction(
       if (!result.ok) {
         return withText(afterVerify(result, { step: "code", ...entered }));
       }
+      // The box was ticked, but staff published a new version meanwhile:
+      // the account exists, and the settings page shows the new text.
+      if (result.messagesConsent && result.messagesConsent !== "given") {
+        consentNotRecorded = true;
+      }
     } else {
       return withText(
         afterRequest(
           await as(actor).requestEmailCode(
             intent === "sign-up"
-              ? { intent, ...entered }
+              ? { intent, name: entered.name, email: entered.email }
               : { intent, email: entered.email }
           ),
           entered,
@@ -114,5 +125,7 @@ export async function emailCodeAction(
   }
   // Signed in: the session cookie is set. Outside the try, because
   // redirect() works by throwing.
-  redirect(APP_ROUTES.accountSessions);
+  redirect(
+    consentNotRecorded ? APP_ROUTES.accountConsents : APP_ROUTES.accountSessions
+  );
 }

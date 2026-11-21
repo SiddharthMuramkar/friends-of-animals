@@ -12,12 +12,30 @@ import "server-only";
 
 import { headers } from "next/headers";
 
+import { accessUseCases } from "./access";
 import type { Actor } from "./actor";
+import { auditUseCases } from "./audit";
+import { consentUseCases } from "./consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
+import { notificationsUseCases } from "./notifications";
+import { settingsUseCases } from "./settings";
+import { safeguardingUseCases } from "./modules/safeguarding";
+import { contactUseCases } from "./modules/contact";
+import { publicFormUseCases } from "./modules/public-forms";
 import { composeUseCases } from "./use-cases";
 
-const useCases = composeUseCases(identityUseCases);
+const useCases = composeUseCases(
+  identityUseCases,
+  accessUseCases,
+  auditUseCases,
+  consentUseCases,
+  settingsUseCases,
+  publicFormUseCases,
+  contactUseCases,
+  notificationsUseCases,
+  safeguardingUseCases
+);
 
 /** Every use case, by name, bound to one actor. */
 export type UseCases = ReturnType<typeof useCases>;

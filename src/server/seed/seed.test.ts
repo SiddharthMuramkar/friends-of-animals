@@ -1,6 +1,7 @@
 import { asc } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { fieldCryptoFor } from "@/server/crypto/keys";
 import { user } from "@/server/db/schema";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
@@ -9,7 +10,11 @@ import { SEED_ACCOUNTS } from "./accounts";
 import { createSeedBuilders, seedPreview } from "./index";
 
 async function seedDeps() {
-  return { db: await createTestDb(), clock: new FakeClock() };
+  return {
+    db: await createTestDb(),
+    clock: new FakeClock(),
+    ...fieldCryptoFor({ APP_ENV: "local" }),
+  };
 }
 
 async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {
@@ -20,11 +25,12 @@ async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {
 }
 
 describe("seedPreview", () => {
-  it("creates a super admin and three members", async () => {
+  it("creates a super admin, three members and a safeguarding lead", async () => {
     const deps = await seedDeps();
     await seedPreview(deps);
 
     expect((await accounts(deps)).map((account) => account.email)).toEqual([
+      "dsl@example.test",
       "member1@example.test",
       "member2@example.test",
       "member3@example.test",
