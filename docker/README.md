@@ -583,8 +583,9 @@ monitored.
 touching production:
 
 1. Worker: `docker compose -f /srv/foa/docker/workers.yml stop worker-staging`.
-   Within about 2 minutes `https://shipped-it.dev/api/health/worker` turns
-   503 `stale` and the alert arrives; `start worker-staging` clears it.
+   After 120 s `https://shipped-it.dev/api/health/worker` turns 503
+   `stale`, and two failed checks later (about 4 minutes in all) the alert
+   arrives; `start worker-staging` clears it.
 2. App and pooler: add a throwaway monitor for `/api/health/does-not-exist`
    and one for TCP `db.shipped-it.dev:6433` (closed). Both alert; delete
    them after.
