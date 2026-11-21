@@ -59,6 +59,7 @@ export class FakeCopyBucket implements CopyBucket {
   readonly #brokenObjects = new Set<string>();
   /** Broken listings: how many objects each yields before it throws. */
   readonly #brokenListings = new Map<string, number>();
+  #onWrite: (stored: { bucket: string; key: string }) => void = () => {};
 
   constructor(options: { clock?: Clock } = {}) {
     this.#clock = options.clock ?? realClock;
@@ -144,6 +145,7 @@ export class FakeCopyBucket implements CopyBucket {
       lastModified: this.#clock.now(),
     });
     this.#writes.push({ bucket: input.bucket, key: input.key });
+    this.#onWrite({ bucket: input.bucket, key: input.key });
   }
 
   /** Every object stored so far, oldest first. */
@@ -158,6 +160,11 @@ export class FakeCopyBucket implements CopyBucket {
 
   async exists({ bucket, key }: { bucket: string; key: string }) {
     return this.#bucket(bucket).has(key);
+  }
+
+  /** Calls `hook` after each object is stored, e.g. to let time pass. */
+  onWrite(hook: (stored: { bucket: string; key: string }) => void): void {
+    this.#onWrite = hook;
   }
 
   /** Makes every later `operation` on this object throw, until `heal()`. */

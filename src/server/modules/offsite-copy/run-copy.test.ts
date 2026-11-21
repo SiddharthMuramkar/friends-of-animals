@@ -565,3 +565,41 @@ describe("runOffsiteCopy: failures, retries and reports", () => {
     expect(h.errors.reported).toEqual([]);
   });
 });
+
+describe("runOffsiteCopy: the run's time budget", () => {
+  it("starts no copy once two hours have passed, and defers the rest without failing", async () => {
+    const { h, b2, upload, offsiteKeys, run } = await world({
+      concurrency: 1,
+    });
+    for (const name of ["a", "b", "c", "d"])
+      await upload(`avatar/${name}`, name);
+    b2.onWrite(() => h.clock.advance({ minutes: 50 }));
+
+    expect(await run()).toMatchObject({
+      status: "complete",
+      copied: 3,
+      deferred: 1,
+      failed: 0,
+    });
+    expect(await offsiteKeys()).toEqual([
+      `${FILES}/avatar/a`,
+      `${FILES}/avatar/b`,
+      `${FILES}/avatar/c`,
+    ]);
+    expect(h.errors.reported).toEqual([]);
+  });
+
+  it("copies what was deferred on the next night", async () => {
+    const { h, b2, upload, offsiteKeys, run } = await world({
+      concurrency: 1,
+    });
+    for (const name of ["a", "b", "c", "d"])
+      await upload(`avatar/${name}`, name);
+    b2.onWrite(() => h.clock.advance({ minutes: 50 }));
+    await run();
+    h.clock.advance({ hours: 20 });
+
+    expect(await run()).toMatchObject({ copied: 1, unchanged: 3, deferred: 0 });
+    expect(await offsiteKeys()).toHaveLength(4);
+  });
+});
