@@ -20,7 +20,10 @@ type Call = { url: string; init: RequestInit };
 function fakeFetch(reply: () => Response | Promise<Response>) {
   const calls: Call[] = [];
   const fetch = async (url: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: String(url), init: init ?? {} });
+    calls.push({
+      url: url instanceof Request ? url.url : url.toString(),
+      init: init ?? {},
+    });
     return reply();
   };
   return { fetch: fetch as typeof globalThis.fetch, calls };
@@ -64,7 +67,8 @@ describe("msg91SmsSender", () => {
     expect(new Headers(init.headers).get("content-type")).toBe(
       "application/json"
     );
-    expect(JSON.parse(String(init.body))).toEqual({
+    expect(typeof init.body).toBe("string");
+    expect(JSON.parse(init.body as string)).toEqual({
       template_id: "otp-template-id",
       short_url: "0",
       recipients: [{ mobiles: "919876543210", code: "482913", minutes: "10" }],
