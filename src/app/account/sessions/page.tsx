@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/form";
 import { Chip } from "@/components/site/chip";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
+import { formatPhoneNumber } from "@/lib/phone";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type { SessionSummary } from "@/server/identity";
@@ -26,13 +27,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type SearchParams = Promise<{ signedOut?: string | string[] }>;
+type SearchParams = PageProps<"/account/sessions">["searchParams"];
 
 export default async function Page({
   searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+}: PageProps<"/account/sessions">) {
   const t = await getTranslations("account.sessions");
   return (
     <Section hue="blue" tone="tint" width="prose" className="pt-10 sm:pt-14">
@@ -81,7 +80,13 @@ async function Sessions({ searchParams }: { searchParams: SearchParams }) {
     <div className="mt-8 flex flex-col gap-10">
       {/* An email is one long word: let it break anywhere on a phone. */}
       <p className="text-lead text-ink wrap-anywhere">
-        {t("signedInAs", { name: account.name, email: account.email ?? "" })}
+        {t("signedInAs", {
+          name: account.name,
+          // Every account has an email or a phone.
+          contact:
+            account.email ??
+            (account.phone ? formatPhoneNumber(account.phone) : ""),
+        })}
       </p>
 
       {typeof signedOut === "string" ? (
