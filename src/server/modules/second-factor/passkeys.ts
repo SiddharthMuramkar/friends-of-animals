@@ -313,28 +313,29 @@ export async function finishPasskeyVerification(
   return ctx.db.transaction(async (tx) => {
     const challenge = await takeChallenge(tx, ctx, actor, "verify");
     if (!challenge) return { ok: false, error: "challenge_expired" } as const;
+    // The factor's row before the lockout row (see guardedAttempt).
+    const [factor] = await tx
+      .select({
+        id: secondFactor.id,
+        publicKey: secondFactor.publicKey,
+        signCount: secondFactor.signCount,
+        transports: secondFactor.transports,
+      })
+      .from(secondFactor)
+      .where(
+        and(
+          eq(secondFactor.userId, actor.userId),
+          eq(secondFactor.kind, "passkey"),
+          eq(secondFactor.credentialId, String(response.id))
+        )
+      )
+      .for("update");
 
     return guardedAttempt<"not_verified">(
       tx,
       { ...ctx, actor },
       "passkey",
       async () => {
-        const [factor] = await tx
-          .select({
-            id: secondFactor.id,
-            publicKey: secondFactor.publicKey,
-            signCount: secondFactor.signCount,
-            transports: secondFactor.transports,
-          })
-          .from(secondFactor)
-          .where(
-            and(
-              eq(secondFactor.userId, actor.userId),
-              eq(secondFactor.kind, "passkey"),
-              eq(secondFactor.credentialId, String(response.id))
-            )
-          )
-          .for("update");
         if (!factor?.publicKey) {
           return { ok: false, error: "not_verified" } as const;
         }
