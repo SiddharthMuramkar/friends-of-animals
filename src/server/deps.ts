@@ -23,6 +23,10 @@ import {
   HUMAN_CHECK_DIFFICULTY,
   proofOfWorkHumanCheck,
 } from "./modules/public-forms/proof-of-work-check";
+import {
+  CONTACT_RATE_LIMITS,
+  type ContactRateLimits,
+} from "./modules/contact/domain/submission";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -54,6 +58,10 @@ export function emailSenderFor(
   return appEnv === "production"
     ? unconfiguredEmailSender
     : captureEmailSender(deps);
+}
+
+export function contactLimitsFor(_appEnv: Env["APP_ENV"]): ContactRateLimits {
+  return CONTACT_RATE_LIMITS;
 }
 
 let production: Deps | undefined;
