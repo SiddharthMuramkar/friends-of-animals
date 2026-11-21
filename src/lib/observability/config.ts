@@ -6,7 +6,12 @@
 // The browser loads this too, so it has no imports beyond the scrubber and
 // uses no RegExp lookbehind (scripts/client-bundle.ts).
 
-import { scrubBreadcrumb, scrubEvent, type ScrubOptions } from "./scrub";
+import {
+  scrubBreadcrumb,
+  scrubEvent,
+  scrubStreamedSpan,
+  type ScrubOptions,
+} from "./scrub";
 
 /** The parts of a Sentry DSN: `<protocol>://<key>@<host><path>/<project>`. */
 export type Dsn = {
@@ -118,12 +123,16 @@ export type SentryOptions = {
   environment: string;
   release?: string;
   /**
-   * 0, not unset: unset lets SENTRY_TRACES_SAMPLE_RATE turn tracing on,
-   * and streamed spans never pass through `beforeSend`.
+   * Never sample a span. Not `tracesSampleRate: 0`: Sentry 11 follows a
+   * caller's `sentry-trace ...-1` header before it reads the rate, and
+   * streamed spans skip `beforeSend`. It asks a sampler first, so neither
+   * a header nor SENTRY_TRACES_SAMPLE_RATE can turn spans on.
    */
-  tracesSampleRate: 0;
+  tracesSampler: (samplingContext: unknown) => 0;
   dataCollection: typeof NO_DATA_COLLECTION;
   beforeSend: Scrubbed;
+  /** Second line, should a span be sent anyway. */
+  beforeSendSpan: Scrubbed;
   beforeBreadcrumb: Scrubbed;
 };
 
@@ -142,9 +151,10 @@ export function sentryOptions(
     dsn: tracking.dsn,
     environment: tracking.environment,
     ...(tracking.release === undefined ? {} : { release: tracking.release }),
-    tracesSampleRate: 0,
+    tracesSampler: () => 0,
     dataCollection: NO_DATA_COLLECTION,
     beforeSend: (event) => scrubEvent(event, scrub),
+    beforeSendSpan: (span) => scrubStreamedSpan(span),
     beforeBreadcrumb: (crumb) => scrubBreadcrumb(crumb),
   };
 }

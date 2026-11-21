@@ -385,6 +385,39 @@ const URL_PART_KEYS = [
 ] as const;
 
 /**
+ * Breadcrumb data or span attributes, scrubbed: personal keys redacted,
+ * text redacted, the query of `url`, `from` and `to` dropped, and the
+ * keys that hold a URL's query or fragment apart removed.
+ */
+function scrubUrlData(data: Record<string, unknown>): Record<string, unknown> {
+  const scrubbed = scrubValue(data) as Record<string, unknown>;
+  for (const key of ["url", "from", "to"] as const) {
+    if (typeof scrubbed[key] === "string") {
+      scrubbed[key] = stripQuery(scrubbed[key]);
+    }
+  }
+  for (const key of URL_PART_KEYS) delete scrubbed[key];
+  return scrubbed;
+}
+
+/**
+ * A copy of a streamed span (Sentry 11's `beforeSendSpan`) with the query
+ * dropped from its name and its attributes scrubbed like breadcrumb data.
+ * The SDK is set never to sample a span (`sentryOptions`); this is the
+ * second line.
+ */
+export function scrubStreamedSpan<S extends object>(span: S): S {
+  const { name, attributes, ...rest } = span as Record<string, unknown>;
+  const scrubbed: Record<string, unknown> = { ...rest };
+  if (typeof name === "string") scrubbed.name = redactText(stripQuery(name));
+  else if (name !== undefined) scrubbed.name = name;
+  if (isRecord(attributes)) scrubbed.attributes = scrubUrlData(attributes);
+  else if (attributes !== undefined)
+    scrubbed.attributes = scrubValue(attributes);
+  return scrubbed as S;
+}
+
+/**
  * A copy of a breadcrumb with its message redacted, its data scrubbed and
  * the query strings of navigation and request URLs dropped.
  */
@@ -393,14 +426,7 @@ export function scrubBreadcrumb<B extends object>(crumb: B): B {
   const scrubbed: Record<string, unknown> = { ...rest };
   if (message !== undefined) scrubbed.message = scrubValue(message);
   if (isRecord(data)) {
-    const scrubbedData = scrubValue(data) as Record<string, unknown>;
-    for (const key of ["url", "from", "to"] as const) {
-      if (typeof scrubbedData[key] === "string") {
-        scrubbedData[key] = stripQuery(scrubbedData[key]);
-      }
-    }
-    for (const key of URL_PART_KEYS) delete scrubbedData[key];
-    scrubbed.data = scrubbedData;
+    scrubbed.data = scrubUrlData(data);
   } else if (data !== undefined) {
     scrubbed.data = scrubValue(data);
   }
