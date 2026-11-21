@@ -4,7 +4,7 @@
 //   listInstitutions({ status? })               → FOA admins' queue, oldest first
 //   getInstitutionForReview({ institutionId })  → every detail, for FOA admins
 
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { E164Phone } from "../../../lib/phone";
@@ -74,8 +74,8 @@ export type GetMyInstitutionResult =
   | { ok: false; error: "not_found" };
 
 /**
- * The institution the signed-in user registered most recently: after a
- * rejection and a new registration, the new one.
+ * The signed-in user's open registration, or their latest rejected one.
+ * A replacement stays current when the two registrations' clocks differ.
  */
 export async function getMyInstitution(
   ctx: UseCaseContext
@@ -86,7 +86,11 @@ export async function getMyInstitution(
     .select()
     .from(institution)
     .where(eq(institution.createdBy, userId))
-    .orderBy(desc(institution.createdAt), desc(institution.id))
+    .orderBy(
+      asc(sql`${institution.status} = 'rejected'`),
+      desc(institution.createdAt),
+      desc(institution.id)
+    )
     .limit(1);
   if (!row) return { ok: false, error: "not_found" };
   return { ok: true, institution: detailsOf(ctx, row) };

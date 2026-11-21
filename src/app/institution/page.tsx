@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { FormAlert } from "@/components/form";
@@ -14,6 +15,9 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { formatPhoneNumber } from "@/lib/phone";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+
+// Render the document on each request so its scripts carry the CSP nonce.
+export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("institutions.mine.meta");
@@ -29,6 +33,7 @@ type SearchParams = PageProps<"/institution">["searchParams"];
 export default async function Page({
   searchParams,
 }: PageProps<"/institution">) {
+  await connection();
   const t = await getTranslations("institutions.mine");
   return (
     <Section hue="blue" tone="tint" width="prose" className="pt-10 sm:pt-14">

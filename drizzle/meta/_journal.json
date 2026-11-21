@@ -106,6 +106,13 @@
       "when": 1795263321150,
       "tag": "0014_73_institutions",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1795263920516,
+      "tag": "0015_73_institution_messages",
+      "breakpoints": true
     }
   ]
 }

@@ -190,7 +190,7 @@ describe("decideInstitution", () => {
     expect(new Set(codes).size).toBe(3);
   });
 
-  it("rejects an institution, after which its authorised person may register again", async () => {
+  it("shows the replacement after a rejection even if the clock moves back", async () => {
     const h = await createHarness();
     const { person, actor, institutionId } = await registeredInstitution(h);
     const staff = await signedInStaff(h);
@@ -213,6 +213,7 @@ describe("decideInstitution", () => {
       .where(eq(userRole.userId, person.id));
     expect(grants[0]?.n).toBe(0);
 
+    h.clock.set(new Date(h.clock.now().getTime() - 1));
     expect(
       await h
         .as(actor)

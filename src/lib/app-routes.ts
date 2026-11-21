@@ -58,7 +58,10 @@ export function isUnderPrefix(
  * Pages behind sign-in with a dynamic segment, written as their routes
  * are: `[name]` stands for any one non-empty path segment.
  */
-export const DYNAMIC_APP_ROUTES = ["/admin/templates/[key]"] as const;
+export const DYNAMIC_APP_ROUTES = [
+  "/admin/templates/[key]",
+  "/admin/institutions/[id]",
+] as const;
 
 /** Whether `pathname` fills in `route`, segment by segment. */
 function fillsRoute(route: string, pathname: string): boolean {

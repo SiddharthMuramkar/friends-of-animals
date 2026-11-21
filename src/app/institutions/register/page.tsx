@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/site/heading";
@@ -16,6 +17,9 @@ import {
 } from "./_components/registration-form";
 import { REGISTRATION_FIELDS } from "./_lib/form-state";
 
+// Render the document on each request so its scripts carry the CSP nonce.
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("institutions.register.meta");
   return {
@@ -26,6 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page() {
+  await connection();
   const t = await getTranslations("institutions.register");
   return (
     <Section hue="blue" tone="tint" width="prose" className="pt-10 sm:pt-14">

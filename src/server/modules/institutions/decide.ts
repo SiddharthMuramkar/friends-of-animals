@@ -19,6 +19,7 @@ import {
 } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
+import { emit } from "../../outbox";
 import type { UseCaseContext } from "../../use-cases";
 import {
   decideInstitutionStatus,
@@ -157,6 +158,12 @@ export async function decideInstitution(
           }
         : { status: change.to, reason: change.reason },
       actorRole,
+    });
+    // The authorised person is told the outcome (#69's dispatcher).
+    await emit(tx, ctx.clock, {
+      type: `institution.${change.outcome}`,
+      aggregate: { type: "institution", id: institutionId },
+      payload: { institutionId, userId: row.createdBy },
     });
     return {
       ok: true,

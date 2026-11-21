@@ -8,7 +8,9 @@ import { ButtonLink } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
 import { SkipLink } from "@/components/site/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { APP_ROUTES } from "@/lib/app-routes";
 import { PRIMARY_NAV, ROUTES } from "@/lib/routes";
+import { as, currentActor } from "@/server/app";
 
 import {
   DesktopNav,
@@ -16,6 +18,18 @@ import {
   MobileMenu,
   MobileMenuView,
 } from "./header-nav";
+
+async function MyInstitutionLink({ label }: { label: string }) {
+  const actor = await currentActor();
+  if (actor.kind !== "user") return null;
+  const { grants } = await as(actor).myAccess();
+  if (!grants.some((grant) => grant.role === "institution_admin")) return null;
+  return (
+    <ButtonLink href={APP_ROUTES.myInstitution} variant="secondary">
+      {label}
+    </ButtonLink>
+  );
+}
 
 export async function SiteHeader() {
   const t = await getTranslations("nav");
@@ -68,10 +82,13 @@ export async function SiteHeader() {
         >
           <DesktopNav items={items} label={t("label")} />
         </Suspense>
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
           {/* Signed-in only: the session streams in after the shell. */}
           <Suspense fallback={null}>
             <InboxBadge />
+          </Suspense>
+          <Suspense fallback={null}>
+            <MyInstitutionLink label={t("links.myInstitution")} />
           </Suspense>
           <ButtonLink href={ROUTES.donate.path} className="max-sm:hidden">
             {t("donate")}

@@ -14,6 +14,16 @@ import {
   type GivablePurpose,
 } from "../modules/consent/domain/purposes";
 
+/**
+ * FOA staff decided about an institution (#73). `userId` is its authorised
+ * person, who registered it.
+ */
+type InstitutionDecided<T extends `institution.${string}`> = {
+  type: T;
+  aggregate: { type: "institution"; id: string };
+  payload: { institutionId: string; userId: string };
+};
+
 export type DomainEvent =
   | {
       type: "identity.user_signed_up";
@@ -31,7 +41,15 @@ export type DomainEvent =
         purpose: GivablePurpose;
         documentId: string;
       };
-    };
+    }
+  /** Verified for the first time: it has its Institution ID. */
+  | InstitutionDecided<"institution.verified">
+  /** Its registration wasn't accepted; the person may register again. */
+  | InstitutionDecided<"institution.rejected">
+  /** Suspended for now; it keeps its Institution ID and its admin. */
+  | InstitutionDecided<"institution.suspended">
+  /** Verified again after a suspension, with the Institution ID it had. */
+  | InstitutionDecided<"institution.reinstated">;
 
 export type EventType = DomainEvent["type"];
 
@@ -43,6 +61,11 @@ export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
  * Parsing strips any other key, so a payload built by spreading a record
  * can't carry personal data into the table.
  */
+const INSTITUTION_DECIDED = z.object({
+  institutionId: z.uuid(),
+  userId: z.uuid(),
+});
+
 export const EVENT_PAYLOADS = {
   "identity.user_signed_up": z.object({ userId: z.uuid() }),
   "consent.withdrawn": z.object({
@@ -52,6 +75,10 @@ export const EVENT_PAYLOADS = {
     purpose: z.enum(GIVABLE_PURPOSES),
     documentId: z.uuid(),
   }),
+  "institution.verified": INSTITUTION_DECIDED,
+  "institution.rejected": INSTITUTION_DECIDED,
+  "institution.suspended": INSTITUTION_DECIDED,
+  "institution.reinstated": INSTITUTION_DECIDED,
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -64,6 +91,10 @@ export const SUBSCRIBERS = {
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
   "consent.withdrawn": ["notifications.dispatch"],
+  "institution.verified": ["notifications.dispatch"],
+  "institution.rejected": ["notifications.dispatch"],
+  "institution.suspended": ["notifications.dispatch"],
+  "institution.reinstated": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];
