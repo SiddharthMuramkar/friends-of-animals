@@ -17,6 +17,8 @@ import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import type { EmailSender } from "./ports/email";
 import { emailSenderFor } from "./ports/email-sender-for";
+import type { ErrorReporter } from "./ports/errors";
+import { serverErrorReporter } from "./observability/server-reporter";
 
 export { emailSenderFor } from "./ports/email-sender-for";
 
@@ -26,6 +28,8 @@ export interface Deps extends DbWithClock {
   cookies: CookieJar;
   /** Better Auth's secret and the site's base URL. */
   auth: { secret: string; baseUrl: string };
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
 }
 
 /**
@@ -51,6 +55,8 @@ export function productionDeps(): Deps {
         secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
         baseUrl: config.APP_URL,
       },
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
     };
   }
   return production;
