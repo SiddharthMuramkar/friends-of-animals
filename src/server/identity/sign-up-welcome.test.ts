@@ -16,14 +16,12 @@ function codeFor(h: Harness, address: string): string {
 async function signUp(h: Harness, name: string, email: string) {
   const visitor = h.visitor();
   await h.as(visitor).requestEmailCode({ intent: "sign-up", name, email });
-  return h
-    .as(visitor)
-    .verifyEmailCode({
-      intent: "sign-up",
-      name,
-      email,
-      code: codeFor(h, email),
-    });
+  return h.as(visitor).verifyEmailCode({
+    intent: "sign-up",
+    name,
+    email,
+    code: codeFor(h, email),
+  });
 }
 
 async function countRows(h: Harness, table: typeof user | typeof outbox) {

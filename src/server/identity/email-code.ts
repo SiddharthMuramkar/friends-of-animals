@@ -18,6 +18,7 @@ import type { CookieJar } from "../ports/cookies";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { codeEmail } from "./code-email";
+import { createAccount } from "./create-account";
 import { authorize } from "./policy";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
@@ -159,35 +160,38 @@ export async function verifyEmailCode(
     .from(user)
     .where(eq(user.email, data.email));
 
-  if (data.intent === "sign-in" && !existing) {
-    // Never create an account from the sign-in page. Better Auth checks the
-    // code first (a wrong guess counts) and only then reports that no user
-    // has the address, leaving a right code unused.
+  let isNewAccount = false;
+  if (!existing) {
+    // Better Auth checks the code first (a wrong guess counts) and only
+    // then reports that no user has the address, leaving a right code
+    // unused, so it still signs in below.
     try {
       await auth.api.checkVerificationOTP({
         body: { email: data.email, type: "sign-in", otp: data.code },
       });
+      // The account appeared meanwhile: sign in to it.
     } catch (error) {
-      if (isAPIError(error) && error.body?.code === "USER_NOT_FOUND") {
-        return { ok: false, error: "no_account" };
+      if (!isAPIError(error) || error.body?.code !== "USER_NOT_FOUND") {
+        return codeError(error);
       }
-      return codeError(error);
+      // Never create an account from the sign-in page.
+      if (data.intent === "sign-in") return { ok: false, error: "no_account" };
+      // The account and its welcome event, in one transaction.
+      isNewAccount = await createAccount(ctx, {
+        email: data.email,
+        name: data.name,
+      });
     }
-    // The account appeared meanwhile: sign in to it.
   }
 
   try {
     const { headers, response } = await auth.api.signInEmailOTP({
-      body: {
-        email: data.email,
-        otp: data.code,
-        ...(data.intent === "sign-up" ? { name: data.name } : {}),
-      },
+      body: { email: data.email, otp: data.code },
       headers: headersFor(meta),
       returnHeaders: true,
     });
     await storeCookies(ctx.cookies, headers);
-    return { ok: true, userId: response.user.id, isNewAccount: !existing };
+    return { ok: true, userId: response.user.id, isNewAccount };
   } catch (error) {
     return codeError(error);
   }

@@ -66,6 +66,9 @@ function createAuth({ db, clock, auth: config }: Deps) {
         expiresIn: EMAIL_CODE.lifetimeMinutes * 60,
         allowedAttempts: EMAIL_CODE.attempts,
         storeOTP: "hashed",
+        // FOA creates accounts itself, with their welcome event in the same
+        // transaction (./create-account.ts); a sign-in never creates one.
+        disableSignUp: true,
         // requestEmailCode makes the code with createVerificationOTP and
         // sends it through the email port itself. Nothing FOA calls makes
         // Better Auth send one.
