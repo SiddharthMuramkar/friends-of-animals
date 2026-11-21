@@ -102,9 +102,10 @@ Ports are published on `127.0.0.1` only, because Docker's published ports bypass
 | `pnpm test:e2e`                     | Playwright journeys and axe against a deployment ([End-to-end tests](#end-to-end-tests))                                            |
 | `pnpm db:generate`                  | Create a migration from schema changes (needs `DIRECT_URL` set, even though it does not connect)                                    |
 | `pnpm db:migrate`                   | Apply pending migrations                                                                                                            |
+| `pnpm db:seed`                      | Add the seed accounts to a local or preview database (idempotent; does nothing on staging and production)                           |
 | `pnpm db:studio`                    | Open Drizzle Studio                                                                                                                 |
 | `pnpm brand:assets`                 | Regenerate the logo PNGs and icons in `public/brand/` from the SVG master                                                           |
-| `pnpm vercel-build`                 | Migrate, then build (Vercel runs this)                                                                                              |
+| `pnpm vercel-build`                 | Migrate, seed, then build (Vercel runs this)                                                                                        |
 
 ## Project layout
 
@@ -281,11 +282,11 @@ The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel
 
 Every push to `main` deploys staging. The `production` branch doesn't exist yet: production stays dormant until FOA's domain is added to it, then `production` is created from `main` and pushed. Promoting a staging deployment to Production in Vercel rebuilds it with the Production variables, so it runs the migrations against `pg-prod`.
 
-Vercel detects Next.js and runs the `vercel-build` script, which applies the migrations and then builds:
+Vercel detects Next.js and runs the `vercel-build` script, which applies the migrations, seeds a preview's database and then builds:
 
 - Migrations connect through `DIRECT_URL` only (the migrator role, which PgBouncer gives session mode), never `DATABASE_URL`. It must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails.
 - Staging and production migrate the database `DIRECT_URL` names (`foa_staging`, `foa`) in place. Each preview deployment gets its own database (`foa_pr_<n>`, or `foa_br_<slug>_<hash>` before its PR) on the non-production Postgres, created during the build ([Databases on Vercel](#databases-on-vercel)).
-- The databases (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups, and the `foa_seed` template) are set up in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), from `docker/` (runbook: [`docker/README.md`](docker/README.md)). Until `scripts/seed.ts` exists, `foa_seed` is empty and previews start with the schema only.
+- The databases (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups, and the `foa_seed` template) are set up in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), from `docker/` (runbook: [`docker/README.md`](docker/README.md)). `foa_seed` stays empty: after migrating, `pnpm db:seed` (`scripts/seed.ts`) fills a preview's own database with the seed accounts. It is idempotent, and on staging and production it exits without connecting.
 
 Set `APP_ENV`, `DATABASE_URL` and `DIRECT_URL` per environment in the Vercel project settings, and `APP_URL` for staging (`https://shipped-it.dev`) and production; without them the build fails. Vercel exposes them to the build as well as at runtime, which `APP_URL` needs.
 
