@@ -8,6 +8,7 @@ import {
   getFileDownloadUrl,
   type GetFileDownloadUrlInput,
 } from "./use-cases/delivery";
+import { getFileStatus, type GetFileStatusInput } from "./use-cases/status";
 import {
   completeUpload,
   requestUpload,
@@ -19,6 +20,10 @@ export type {
   GetFileDownloadUrlInput,
   GetFileDownloadUrlResult,
 } from "./use-cases/delivery";
+export type {
+  GetFileStatusInput,
+  GetFileStatusResult,
+} from "./use-cases/status";
 export type {
   CompleteUploadInput,
   CompleteUploadResult,
@@ -33,4 +38,5 @@ export const filesUseCases = (ctx: UseCaseContext) => ({
   completeUpload: (input: CompleteUploadInput) => completeUpload(ctx, input),
   getFileDownloadUrl: (input: GetFileDownloadUrlInput) =>
     getFileDownloadUrl(ctx, input),
+  getFileStatus: (input: GetFileStatusInput) => getFileStatus(ctx, input),
 });
