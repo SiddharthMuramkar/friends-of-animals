@@ -7,11 +7,24 @@
 
 import { z } from "zod";
 
-export type DomainEvent = {
-  type: "identity.user_signed_up";
-  aggregate: { type: "user"; id: string };
-  payload: { userId: string };
-};
+export type DomainEvent =
+  | {
+      type: "identity.user_signed_up";
+      aggregate: { type: "user"; id: string };
+      payload: { userId: string };
+    }
+  | {
+      /** Someone withdrew consent (#64); later modules stop what it allowed. */
+      type: "consent.withdrawn";
+      aggregate: { type: "consent_event"; id: string };
+      payload: {
+        consentEventId: string;
+        subjectType: "user";
+        subjectId: string;
+        purpose: "messages";
+        documentId: string;
+      };
+    };
 
 export type EventType = DomainEvent["type"];
 
@@ -25,11 +38,21 @@ export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
  */
 export const EVENT_PAYLOADS = {
   "identity.user_signed_up": z.object({ userId: z.uuid() }),
+  "consent.withdrawn": z.object({
+    consentEventId: z.uuid(),
+    subjectType: z.literal("user"),
+    subjectId: z.uuid(),
+    purpose: z.literal("messages"),
+    documentId: z.uuid(),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /** The handlers each event is delivered to, one outbox row apiece. */
 export const SUBSCRIBERS = {
   "identity.user_signed_up": ["notifications.send_welcome_email"],
+  // The modules that act on a withdrawal (gallery, social, auctions,
+  // campaigns: #69, #119, #126, #131) add their handlers here.
+  "consent.withdrawn": ["consent.acknowledge_withdrawal"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

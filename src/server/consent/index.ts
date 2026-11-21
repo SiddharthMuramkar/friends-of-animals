@@ -4,13 +4,27 @@
 
 import type { UseCaseContext } from "../use-cases";
 import {
+  giveConsent,
+  myConsents,
+  withdrawConsent,
+  type GiveConsentInput,
+} from "./consents";
+import {
   currentConsentDocument,
   listConsentDocumentVersions,
   publishConsentDocument,
   type PublishConsentDocumentInput,
 } from "./documents";
-import type { ConsentPurpose } from "./domain/purposes";
+import type { ConsentPurpose, GivablePurpose } from "./domain/purposes";
 
+export type {
+  ConsentHistoryItem,
+  GiveConsentInput,
+  GiveConsentResult,
+  MyConsent,
+  WithdrawConsentResult,
+} from "./consents";
+export type { ConsentState } from "./domain/consent-state";
 export type {
   ConsentDocumentVersion,
   PublishConsentDocumentInput,
@@ -19,7 +33,7 @@ export type {
 } from "./documents";
 export type { ConsentDocumentBody } from "./domain/document-body";
 export type { SourceError, SourceErrorCode } from "./domain/document-source";
-export type { ConsentPurpose } from "./domain/purposes";
+export type { ConsentPurpose, GivablePurpose } from "./domain/purposes";
 
 export const consentUseCases = (ctx: UseCaseContext) => ({
   publishConsentDocument: (input: PublishConsentDocumentInput) =>
@@ -28,4 +42,8 @@ export const consentUseCases = (ctx: UseCaseContext) => ({
     currentConsentDocument(ctx, input),
   listConsentDocumentVersions: (input: { purpose: ConsentPurpose }) =>
     listConsentDocumentVersions(ctx, input),
+  giveConsent: (input: GiveConsentInput) => giveConsent(ctx, input),
+  withdrawConsent: (input: { purpose: GivablePurpose }) =>
+    withdrawConsent(ctx, input),
+  myConsents: () => myConsents(ctx),
 });
