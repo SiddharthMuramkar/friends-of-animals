@@ -20,7 +20,18 @@ export const APP_ROUTES = {
 export const SIGNED_IN_PREFIXES = ["/account", "/admin"] as const;
 
 export function isSignedInPath(pathname: string): boolean {
-  return SIGNED_IN_PREFIXES.some(
+  return isUnderPrefix(pathname, SIGNED_IN_PREFIXES);
+}
+
+/**
+ * True when `pathname` is one of `prefixes` or below one, by whole
+ * segments: "/account/x" is under "/account", "/accounts" isn't.
+ */
+export function isUnderPrefix(
+  pathname: string,
+  prefixes: readonly string[]
+): boolean {
+  return prefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }
