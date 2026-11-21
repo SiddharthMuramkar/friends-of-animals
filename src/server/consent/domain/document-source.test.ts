@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_DOCS, resolveLegalDoc } from "@/content/legal";
+import { LEGAL_DOCS, resolveLegalDoc, type ShownInline } from "@/content/legal";
 
 import type { ConsentDocumentBody } from "./document-body";
 import {
@@ -265,7 +265,33 @@ describe("formatConsentDocumentSource", () => {
 
       expect(
         parseConsentDocumentSource(formatConsentDocumentSource(body))
-      ).toEqual({ ok: true, body });
+      ).toEqual({ ok: true, body: withTextJoined(body) });
     }
   );
 });
+
+/**
+ * The body as the source format reads it back: a clause's words join the
+ * words around them, because plain text has no seam between two strings.
+ */
+function withTextJoined(body: ConsentDocumentBody): ConsentDocumentBody {
+  const join = (text: ShownInline[]) =>
+    text.reduce<ShownInline[]>((out, inline) => {
+      const last = out.at(-1);
+      if (typeof inline === "string" && typeof last === "string") {
+        out[out.length - 1] = last + inline;
+      } else {
+        out.push(inline);
+      }
+      return out;
+    }, []);
+  return {
+    short: body.short.map(join),
+    sections: body.sections.map((section) => ({
+      ...section,
+      blocks: section.blocks.map((block) =>
+        "p" in block ? { p: join(block.p) } : { list: block.list.map(join) }
+      ),
+    })),
+  };
+}

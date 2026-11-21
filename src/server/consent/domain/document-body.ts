@@ -15,7 +15,10 @@ import {
 } from "../../../content/legal/model";
 
 /** Bodies hold no clauses: a published version's words are final. */
-export type ConsentDocumentBody = Pick<LegalDoc<ShownInline>, "short" | "sections">;
+export type ConsentDocumentBody = Pick<
+  LegalDoc<ShownInline>,
+  "short" | "sections"
+>;
 
 /** Kebab-case letters, as the policy pages' anchors already are. */
 export const SECTION_ID = /^[a-z]+(?:-[a-z]+)*$/;
