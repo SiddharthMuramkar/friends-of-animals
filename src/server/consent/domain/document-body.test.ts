@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_DOCS } from "@/content/legal";
+import { LEGAL_DOCS, resolveLegalDoc } from "@/content/legal";
 
 import {
   parseConsentDocumentBody,
@@ -46,10 +46,12 @@ describe("parseConsentDocumentBody", () => {
     expect(parseConsentDocumentBody(VALID)).toEqual({ ok: true, body: VALID });
   });
 
+  // Every clause's facts shown, as the preview seed publishes it.
   it.each(Object.entries(LEGAL_DOCS))(
-    "accepts the %s policy as it is written in the repo",
+    "accepts the %s policy as a preview shows it",
     (_name, doc) => {
-      const body = { short: doc.short, sections: doc.sections };
+      const { short, sections } = resolveLegalDoc(doc, () => true);
+      const body = { short, sections };
       expect(parseConsentDocumentBody(body)).toEqual({ ok: true, body });
     }
   );
