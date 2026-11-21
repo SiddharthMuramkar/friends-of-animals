@@ -17,8 +17,11 @@ const TIMEOUT_MS = 10_000;
 
 export type Msg91Config = {
   authKey: string;
-  /** MSG91's template id for each FOA template. */
-  templates: Record<SmsTemplate, string>;
+  /**
+   * MSG91's template id for each FOA template DLT has approved. A message
+   * for a template without one is refused before MSG91 is called.
+   */
+  templates: Partial<Record<SmsTemplate, string>>;
 };
 
 /**
@@ -43,6 +46,12 @@ export function msg91SmsSender(
 ): SmsSender {
   return {
     async send(message) {
+      const templateId = templates[message.template];
+      if (!templateId) {
+        throw new Msg91Error(
+          `no DLT template id is configured for "${message.template}"`
+        );
+      }
       let response: Response;
       try {
         response = await fetchImpl(MSG91_FLOW_URL, {
@@ -53,7 +62,7 @@ export function msg91SmsSender(
             "content-type": "application/json",
           },
           body: JSON.stringify({
-            template_id: templates[message.template],
+            template_id: templateId,
             short_url: "0",
             recipients: [{ ...message.vars, mobiles: message.to.slice(1) }],
           }),

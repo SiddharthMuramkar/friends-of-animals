@@ -132,6 +132,12 @@ const secretVariables = {
    */
   MSG91_AUTH_KEY: z.string().optional(),
   MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+  /**
+   * The MSG91 id of the DLT-approved coordinator invitation template (#74,
+   * HR-14). Optional: without it, phone invitations fail to send in
+   * production; they stay refused there anyway while `sms.enabled` is off.
+   */
+  MSG91_COORDINATOR_INVITATION_TEMPLATE_ID: z.string().optional(),
 };
 
 type AppEnv = (typeof APP_ENVS)[number];

@@ -15,7 +15,7 @@ import type { E164Phone } from "../../lib/phone";
  * Every SMS FOA sends uses a template registered under India's DLT rules,
  * named here; MSG91 knows each by its template id.
  */
-export type SmsTemplate = "sign-in-code";
+export type SmsTemplate = "sign-in-code" | "coordinator-invitation";
 
 /**
  * One text message: the template and its variables (what MSG91 sends), and

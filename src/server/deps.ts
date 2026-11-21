@@ -72,7 +72,11 @@ export function emailSenderFor(
 export function smsSenderFor(
   appEnv: Env["APP_ENV"],
   deps: DbWithClock,
-  msg91: { authKey?: string | undefined; otpTemplateId?: string | undefined },
+  msg91: {
+    authKey?: string | undefined;
+    otpTemplateId?: string | undefined;
+    coordinatorInvitationTemplateId?: string | undefined;
+  },
   fetchImpl: typeof fetch = fetch
 ): SmsSender {
   if (appEnv !== "production") return captureSmsSender(deps);
@@ -80,7 +84,10 @@ export function smsSenderFor(
   return msg91SmsSender(
     {
       authKey: msg91.authKey,
-      templates: { "sign-in-code": msg91.otpTemplateId },
+      templates: {
+        "sign-in-code": msg91.otpTemplateId,
+        "coordinator-invitation": msg91.coordinatorInvitationTemplateId,
+      },
     },
     fetchImpl
   );
@@ -114,6 +121,8 @@ export function productionDeps(): Deps {
         {
           authKey: config.MSG91_AUTH_KEY,
           otpTemplateId: config.MSG91_OTP_TEMPLATE_ID,
+          coordinatorInvitationTemplateId:
+            config.MSG91_COORDINATOR_INVITATION_TEMPLATE_ID,
         }
       ),
       cookies: nextCookieJar,
