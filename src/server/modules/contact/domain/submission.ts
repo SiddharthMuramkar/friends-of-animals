@@ -10,16 +10,9 @@
 
 import { z } from "zod";
 
+import type { FormRateRule } from "../../public-forms";
+import { CONTACT_FIELD_LIMITS, MIN_FILL_MS } from "./limits";
 import { CONTACT_TOPICS, type ContactTopic } from "./routing";
-
-/** Longest value each field accepts, after trimming. */
-export const CONTACT_FIELD_LIMITS = {
-  name: 100,
-  email: 254,
-  organisation: 150,
-  subject: 150,
-  message: 5000,
-} as const;
 
 const required = (max: number) => z.string().trim().min(1).max(max);
 
@@ -84,9 +77,6 @@ function isField(name: string): name is ContactSubmissionField {
   return Object.hasOwn(contactSubmissionSchema.shape, name);
 }
 
-/** Faster than this from opening the form to sending it is a bot. */
-export const MIN_FILL_MS = 3000;
-
 /**
  * Whether a submission looks like a person sent it. A bot that fills the
  * hidden field, or sends the form within `minFillMs` of the human check
@@ -119,19 +109,11 @@ export type ContactRateLimits = {
   perEmailPerDay: number;
 };
 
-/** One counter a submission adds to; over `max` in a window is refused. */
-export type RateRule = {
-  scope: "ip" | "email";
-  key: string;
-  max: number;
-  windowMs: number;
-};
-
 /** The counters one submission from `ip` and `email` adds to. */
 export function contactRateRules(
   sender: { ip: string; email: string },
   limits: ContactRateLimits = CONTACT_RATE_LIMITS
-): RateRule[] {
+): FormRateRule[] {
   return [
     {
       scope: "ip",

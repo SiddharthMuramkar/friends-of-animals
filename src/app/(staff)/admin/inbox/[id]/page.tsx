@@ -11,7 +11,7 @@ import { Section } from "@/components/site/section";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import { CONTACT_NOTE_MAX } from "@/server/modules/contact/inbox";
+import { CONTACT_NOTE_MAX } from "@/server/modules/contact/domain/limits";
 import { CONTACT_CLOSE_REASONS } from "@/server/modules/contact/domain/status";
 
 import { secondStepRedirect } from "../_lib/form-state";

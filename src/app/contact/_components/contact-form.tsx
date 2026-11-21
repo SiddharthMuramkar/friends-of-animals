@@ -28,6 +28,12 @@ import { proofKeeper } from "../_lib/proof-keeper";
 /** Picking it shows where to go instead; the form never sends it. */
 const SAFEGUARDING = "SAFEGUARDING";
 
+/** Longest value each field takes (the use case's limits). */
+export type ContactFormLimits = Record<
+  "name" | "email" | "organisation" | "subject" | "message",
+  number
+>;
+
 export type ContactFormLabels = {
   topic: { legend: string };
   safeguarding: { label: string; body: string; link: string };
@@ -59,6 +65,7 @@ const LINK =
  */
 export function ContactForm(props: {
   labels: ContactFormLabels;
+  limits: ContactFormLimits;
   topics: readonly { value: string; label: string }[];
 }) {
   // A new key starts a blank form after "Send another message".
@@ -74,10 +81,12 @@ export function ContactForm(props: {
 
 function ContactFormRound({
   labels,
+  limits,
   topics,
   onSendAnother,
 }: {
   labels: ContactFormLabels;
+  limits: ContactFormLimits;
   topics: readonly { value: string; label: string }[];
   onSendAnother: () => void;
 }) {
@@ -227,7 +236,7 @@ function ContactFormRound({
               name="name"
               autoComplete="name"
               required
-              maxLength={100}
+              maxLength={limits.name}
               defaultValue={view.entered.name}
               label={labels.name.label}
               error={text.errors.name}
@@ -239,7 +248,7 @@ function ContactFormRound({
               autoComplete="email"
               spellCheck={false}
               required
-              maxLength={254}
+              maxLength={limits.email}
               defaultValue={view.entered.email}
               label={labels.email.label}
               hint={labels.email.hint}
@@ -250,7 +259,7 @@ function ContactFormRound({
             id="contact-organisation"
             name="organisation"
             autoComplete="organization"
-            maxLength={150}
+            maxLength={limits.organisation}
             defaultValue={view.entered.organisation}
             label={labels.organisation.label}
             error={text.errors.organisation}
@@ -259,12 +268,13 @@ function ContactFormRound({
             id="contact-subject"
             name="subject"
             required
-            maxLength={150}
+            maxLength={limits.subject}
             defaultValue={view.entered.subject}
             label={labels.subject.label}
             error={text.errors.subject}
           />
           <MessageField
+            maxLength={limits.message}
             label={labels.message.label}
             hint={labels.message.hint}
             error={text.errors.message}
@@ -307,11 +317,13 @@ function ContactFormRound({
 
 /** A labelled textarea, wired like TextField. */
 function MessageField({
+  maxLength,
   label,
   hint,
   error,
   defaultValue,
 }: {
+  maxLength: number;
   label: string;
   hint: string;
   error: string | undefined;
@@ -341,7 +353,7 @@ function MessageField({
         id="contact-message"
         name="message"
         required
-        maxLength={5000}
+        maxLength={maxLength}
         rows={7}
         defaultValue={defaultValue}
         aria-describedby={describedBy}

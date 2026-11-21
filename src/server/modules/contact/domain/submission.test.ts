@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { CONTACT_FIELD_LIMITS, MIN_FILL_MS } from "./limits";
 import {
-  CONTACT_FIELD_LIMITS,
   CONTACT_RATE_LIMITS,
   CONTACT_REFERENCE_PATTERN,
   contactRateRules,
   contactReferenceFormat,
-  MIN_FILL_MS,
   parseContactSubmission,
   screenSubmission,
 } from "./submission";

@@ -6,20 +6,23 @@ import { redirect } from "next/navigation";
 
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { errorSummaryForLogs } from "@/server/errors";
 
 import {
   inboxFormState,
   secondStepRedirect,
   type InboxFormState,
 } from "./form-state";
-import { unlessRefused } from "./refusal";
+import { unlessRefused, type Loaded } from "./refusal";
 
 // The staff forms on a contact message. Each calls one use case, which
 // authorizes (the message's team, staff admins and super admins, with
 // this session's second step, #60) and checks the input; the action maps
 // its answer to words and refreshes the page after a change, so the
 // status, assignee and notes follow. A refusal for want of a second step
-// sends the user to enter it, then back to the message.
+// sends the user to enter it, then back to the message. A use case that
+// fails outright (the database, say) is said in the form too, which gives
+// a note's words back.
 
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -34,13 +37,28 @@ async function signedIn() {
 
 /**
  * Runs the use case; a refusal goes to #60's screens when a second step
- * lifts it, and otherwise comes back as the form's refusal.
+ * lifts it, and otherwise comes back as the form's refusal, as does a
+ * failure.
  */
 async function handle<T>(
   messageId: string,
   run: () => Promise<T>
 ): Promise<{ ok: true; value: T } | { ok: false; state: InboxFormState }> {
-  const outcome = await unlessRefused(run);
+  let outcome: Loaded<T>;
+  try {
+    outcome = await unlessRefused(run);
+  } catch (error) {
+    // Only the error's class and Postgres code: its message can hold what
+    // staff typed.
+    console.error(
+      `Contact inbox: the use case failed: ${errorSummaryForLogs(error)}`
+    );
+    const t = await getTranslations("adminInbox.detail");
+    return {
+      ok: false,
+      state: { status: "refused", message: t("failed"), typed: "" },
+    };
+  }
   if (outcome.ok) return outcome;
   const lift = secondStepRedirect(outcome.refusal, messageId);
   if (lift) redirect(lift);

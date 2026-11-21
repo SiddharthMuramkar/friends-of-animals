@@ -3,7 +3,7 @@
 // it, so the island never compares its clock with the server's. Server-side
 // only: the island imports nothing from here but types.
 
-import { MIN_FILL_MS } from "@/server/modules/contact/domain/submission";
+import { MIN_FILL_MS } from "@/server/modules/contact/domain/limits";
 import type { HumanCheckChallenge } from "@/server/modules/public-forms";
 
 import type { ChallengeView } from "./proof-keeper";
