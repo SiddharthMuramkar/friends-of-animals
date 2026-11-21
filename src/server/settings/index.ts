@@ -10,6 +10,8 @@ import {
 } from "./use-cases";
 
 export type { SettingKey, SettingValue } from "./catalogue";
+export type { SettingInput } from "./definition";
+export type { SettingValueProblem } from "./values";
 export { readSetting } from "./read";
 export type {
   ChangeSettingInput,
