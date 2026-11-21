@@ -17,7 +17,7 @@ export const IDENTITY_POLICY = {
   requestPhoneCode: signedOut,
   verifyPhoneCode: signedOut,
   // Which ways in are on is no secret: the sign-in pages ask for whoever
-  // is looking at them.
+  // is looking at them. Not the platform itself, which never signs in.
   signInMethods: anyOf(signedOut, signedIn),
   // A signed-in user, for their own account and sessions only. Most of
   // these take no id; signOutSession takes a session id, and its query

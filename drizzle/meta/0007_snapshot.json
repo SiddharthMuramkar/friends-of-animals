@@ -1,6 +1,6 @@
 {
-  "id": "0ccd8ac7-3aab-446c-93c5-ccfaf134642b",
-  "prevId": "408ccac3-4d1c-42c7-b372-64342d11c5cd",
+  "id": "94e474b5-fe74-496b-a88c-4d0ac55d7589",
+  "prevId": "d2395a81-9e2f-4a5c-966e-453801958553",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -996,33 +996,31 @@
       },
       "isRLSEnabled": false
     },
-    "public.institution": {
-      "name": "institution",
+    "public.worker_heartbeat": {
+      "name": "worker_heartbeat",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
+        "worker": {
+          "name": "worker",
+          "type": "text",
           "primaryKey": true,
           "notNull": true
         },
-        "name": {
-          "name": "name",
+        "environment": {
+          "name": "environment",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "status": {
-          "name": "status",
-          "type": "institution_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending_verification'"
-        },
-        "created_at": {
-          "name": "created_at",
+        "last_seen_at": {
+          "name": "last_seen_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         }
@@ -1032,272 +1030,10 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.institution_invitation": {
-      "name": "institution_invitation",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "institution_id": {
-          "name": "institution_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "channel": {
-          "name": "channel",
-          "type": "institution_invitation_channel",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "identifier_ciphertext": {
-          "name": "identifier_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "identifier_hash": {
-          "name": "identifier_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token_ciphertext": {
-          "name": "token_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "institution_invitation_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "invited_by_user_id": {
-          "name": "invited_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "accepted_at": {
-          "name": "accepted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "accepted_by_user_id": {
-          "name": "accepted_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revoked_by_user_id": {
-          "name": "revoked_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "institution_invitation_one_pending_per_identifier": {
-          "name": "institution_invitation_one_pending_per_identifier",
-          "columns": [
-            {
-              "expression": "institution_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "identifier_hash",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"institution_invitation\".\"status\" = 'pending'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "institution_invitation_institution_id_idx": {
-          "name": "institution_invitation_institution_id_idx",
-          "columns": [
-            {
-              "expression": "institution_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "institution_invitation_invited_by_user_id_idx": {
-          "name": "institution_invitation_invited_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "invited_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "institution_invitation_accepted_by_user_id_idx": {
-          "name": "institution_invitation_accepted_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "accepted_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "institution_invitation_revoked_by_user_id_idx": {
-          "name": "institution_invitation_revoked_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "revoked_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "institution_invitation_institution_id_institution_id_fk": {
-          "name": "institution_invitation_institution_id_institution_id_fk",
-          "tableFrom": "institution_invitation",
-          "tableTo": "institution",
-          "columnsFrom": [
-            "institution_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "institution_invitation_invited_by_user_id_user_id_fk": {
-          "name": "institution_invitation_invited_by_user_id_user_id_fk",
-          "tableFrom": "institution_invitation",
-          "tableTo": "user",
-          "columnsFrom": [
-            "invited_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "institution_invitation_accepted_by_user_id_user_id_fk": {
-          "name": "institution_invitation_accepted_by_user_id_user_id_fk",
-          "tableFrom": "institution_invitation",
-          "tableTo": "user",
-          "columnsFrom": [
-            "accepted_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "institution_invitation_revoked_by_user_id_user_id_fk": {
-          "name": "institution_invitation_revoked_by_user_id_user_id_fk",
-          "tableFrom": "institution_invitation",
-          "tableTo": "user",
-          "columnsFrom": [
-            "revoked_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "institution_invitation_token_hash_unique": {
-          "name": "institution_invitation_token_hash_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
-        }
-      },
-      "policies": {},
       "checkConstraints": {
-        "institution_invitation_token_only_while_pending": {
-          "name": "institution_invitation_token_only_while_pending",
-          "value": "\"institution_invitation\".\"status\" = 'pending' OR \"institution_invitation\".\"token_ciphertext\" IS NULL"
-        },
-        "institution_invitation_accepted_at_matches_status": {
-          "name": "institution_invitation_accepted_at_matches_status",
-          "value": "(\"institution_invitation\".\"status\" = 'accepted') = (\"institution_invitation\".\"accepted_at\" IS NOT NULL)"
-        },
-        "institution_invitation_revoked_at_matches_status": {
-          "name": "institution_invitation_revoked_at_matches_status",
-          "value": "(\"institution_invitation\".\"status\" = 'revoked') = (\"institution_invitation\".\"revoked_at\" IS NOT NULL)"
-        },
-        "institution_invitation_expires_after_creation": {
-          "name": "institution_invitation_expires_after_creation",
-          "value": "\"institution_invitation\".\"expires_at\" > \"institution_invitation\".\"created_at\""
+        "worker_heartbeat_environment_known": {
+          "name": "worker_heartbeat_environment_known",
+          "value": "\"worker_heartbeat\".\"environment\" IN ('local', 'preview', 'staging', 'production')"
         }
       },
       "isRLSEnabled": false
@@ -1360,33 +1096,6 @@
         "pending",
         "dispatched",
         "failed"
-      ]
-    },
-    "public.institution_status": {
-      "name": "institution_status",
-      "schema": "public",
-      "values": [
-        "pending_verification",
-        "verified",
-        "rejected",
-        "suspended"
-      ]
-    },
-    "public.institution_invitation_channel": {
-      "name": "institution_invitation_channel",
-      "schema": "public",
-      "values": [
-        "email",
-        "phone"
-      ]
-    },
-    "public.institution_invitation_status": {
-      "name": "institution_invitation_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "accepted",
-        "revoked"
       ]
     }
   },

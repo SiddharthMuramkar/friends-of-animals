@@ -7,7 +7,6 @@ import { z } from "zod";
 
 import { parseBlindIndexKey } from "./server/crypto/blind-index";
 import { parseKeyRing } from "./server/crypto/field-cipher";
-
 import { parseDsn } from "./lib/observability/config";
 import { previewDatabase } from "./server/db/database-url";
 
@@ -415,7 +414,6 @@ export const envSchema = z
   .superRefine(requirePreviewDatabase, always)
   .superRefine(requireAuthSecret, always)
   .superRefine(requireFieldKeys, always)
-
   .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 

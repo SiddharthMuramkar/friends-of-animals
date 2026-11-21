@@ -1,0 +1,147 @@
+name: Deploy production
+
+# Production deploys are prebuilt here and uploaded: Vercel builds nothing
+# from Git and there are no previews (docs/adr/0001-ci-e2e-and-prebuilt-deploys.md).
+# `vercel build` runs the vercel-build script, which migrates the production
+# database first. The deployment is smoked on its own URL before it takes
+# the domains.
+#
+# By hand: gh workflow run deploy-production.yml -f ref=main
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit or branch to deploy; it must already be on main
+        required: true
+        default: main
+  # The final launch train adds:
+  # workflow_run: { workflows: [CI], types: [completed], branches: [main] }
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build, deploy, smoke and promote
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production
+      url: https://friendsofanimals.dev
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Only what main already has goes to production. A branch can edit this
+      # step out of its own copy, so the GitHub environment `production`
+      # (which holds the secrets) also admits only runs from main.
+      - name: The commit is on main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          sha="$(git rev-parse HEAD)"
+          if ! git merge-base --is-ancestor "$sha" origin/main; then
+            echo "::error::$sha is not on main. Deploy only commits that main contains."
+            exit 1
+          fi
+          echo "VERCEL_GIT_COMMIT_SHA=$sha" >> "$GITHUB_ENV"
+          echo "Deploying $sha."
+
+      - uses: ./.github/actions/setup
+        with:
+          save-cache: false
+
+      - name: Install the Vercel CLI
+        run: npm install --global vercel@66.6.0
+
+      # The non-sensitive Production variables (APP_ENV, APP_URL,
+      # NEXT_PUBLIC_*), which the build bakes in. Sensitive ones aren't
+      # pulled; Vercel injects them at runtime. .vercel/ stays on the runner.
+      - name: Pull the production settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build (migrates the production database first)
+        env:
+          DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      # The migrator skips a journal entry dated before the last applied one,
+      # so a count that differs means a migration never ran.
+      - name: Every migration is applied
+        env:
+          DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+        run: |
+          set -euo pipefail
+          expected="$(jq '.entries | length' drizzle/meta/_journal.json)"
+          applied="$(pnpm --silent exec tsx --eval '
+            import postgres from "postgres";
+            import { directTls } from "./src/server/db/database-url";
+            void (async () => {
+              const url = process.env.DIRECT_URL ?? "";
+              const sql = postgres(url, {
+                ...directTls(url),
+                max: 1,
+                prepare: false,
+                connect_timeout: 10,
+                onnotice: () => {},
+              });
+              const [row] = await sql`
+                select count(*)::int as applied from drizzle.__drizzle_migrations
+              `;
+              console.log(row?.applied ?? 0);
+              await sql.end();
+            })().catch((error: unknown) => {
+              console.error(error instanceof Error ? error.message : "The query failed.");
+              process.exit(1);
+            });
+          ')"
+          echo "Journal entries: $expected. Applied migrations: $applied."
+          if [ "$applied" != "$expected" ]; then
+            echo "::error::Production has $applied migrations applied, but the journal lists $expected."
+            exit 1
+          fi
+
+      - id: deploy
+        name: Deploy the prebuilt output, without the domains
+        run: |
+          set -euo pipefail
+          url="$(vercel deploy --prebuilt --prod --skip-domain --archive=tgz \
+            --meta githubCommitSha="$VERCEL_GIT_COMMIT_SHA" --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to $url."
+
+      - name: Smoke the unaliased deployment
+        env:
+          BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          curl -fsS -o /dev/null -H "x-vercel-protection-bypass: $BYPASS" "$URL/"
+          curl -fsS -H "x-vercel-protection-bypass: $BYPASS" "$URL/api/health"
+          echo
+
+      - name: Promote
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: vercel promote "$URL" --yes --token="$VERCEL_TOKEN"
+
+      - name: Check the live site
+        run: |
+          curl -fsS https://friendsofanimals.dev/api/health
+          echo

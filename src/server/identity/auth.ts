@@ -2,11 +2,12 @@
 // files in src/server/identity/ import it. It owns email sign-in codes
 // (made, hashed, expired and counted by its email-OTP plugin) and database
 // sessions. Phone codes are FOA's (./phone-code.ts), and a verified phone
-// starts its session through `startVerifiedSession` below. FOA adds what it lacks: per-email and per-IP limits on codes
-// (./rate-limit.ts), the use cases and can() (./policy.ts). FOA also sends
-// the codes itself (./email-code.ts), so a failed send reaches the use case
-// instead of being caught and logged by Better Auth, and creates accounts
-// itself (./create-account.ts), so the welcome event is saved with them.
+// starts its session through `startVerifiedSession` below. FOA adds what
+// it lacks: per-email and per-IP limits on codes (./rate-limit.ts), the
+// use cases and can() (./policy.ts). FOA also sends the codes itself
+// (./email-code.ts), so a failed send reaches the use case instead of
+// being caught and logged by Better Auth, and creates accounts itself
+// (./create-account.ts), so the welcome event is saved with them.
 //
 // No /api/auth/* route handler is mounted: every call goes through a use
 // case, so Better Auth's own endpoints (which would skip FOA's limits) are
@@ -23,7 +24,7 @@ import type { AppDb } from "../db/app-db";
 import { account, session, user, verification } from "../db/schema";
 import type { Deps } from "../deps";
 import { uuidv7 } from "../ids";
-import { EMAIL_CODE, SESSION_LIFETIME_DAYS } from "./settings";
+import { SIGN_IN_CODE, SESSION_LIFETIME_DAYS } from "./settings";
 
 const DAY_SECONDS = 24 * 60 * 60;
 
@@ -97,9 +98,9 @@ function createAuth({ db, clock, auth: config }: Deps) {
     },
     plugins: [
       emailOTP({
-        otpLength: EMAIL_CODE.length,
-        expiresIn: EMAIL_CODE.lifetimeMinutes * 60,
-        allowedAttempts: EMAIL_CODE.attempts,
+        otpLength: SIGN_IN_CODE.length,
+        expiresIn: SIGN_IN_CODE.lifetimeMinutes * 60,
+        allowedAttempts: SIGN_IN_CODE.attempts,
         storeOTP: "hashed",
         // FOA creates accounts itself, with their welcome event in the same
         // transaction (./create-account.ts); a sign-in never creates one.

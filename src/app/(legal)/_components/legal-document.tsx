@@ -13,9 +13,10 @@ import {
   type LegalBlock,
   type LegalDocId,
   type LegalFact,
-  type LegalInline,
+  resolveLegalDoc,
+  type ShownInline,
 } from "@/content/legal";
-import { type OrgFact, SITE } from "@/lib/site";
+import { isFactShown, type OrgFact, SITE } from "@/lib/site";
 
 const LINK =
   "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
@@ -38,7 +39,7 @@ function Fact({ fact }: { fact: LegalFact }) {
   return <Placeholder fact={value} />;
 }
 
-function Inlines({ text }: { text: LegalInline[] }) {
+function Inlines({ text }: { text: ShownInline[] }) {
   return text.map((i, k): ReactNode => {
     if (typeof i === "string") return i;
     if ("strong" in i) return <strong key={k}>{i.strong}</strong>;
@@ -51,7 +52,7 @@ function Inlines({ text }: { text: LegalInline[] }) {
   });
 }
 
-function BlockView({ block }: { block: LegalBlock }) {
+function BlockView({ block }: { block: LegalBlock<ShownInline> }) {
   if ("p" in block)
     return (
       <p>
@@ -80,6 +81,8 @@ const NS = {
  * A policy page: header with a fixed "last updated" date, the short version
  * first, then the full text with a table of contents. `top` renders above
  * the short version (e.g. helplines); `after` adds content after a section.
+ * In production, clauses about unconfirmed facts give way to their
+ * production wording, and emptied sections go (resolveLegalDoc).
  */
 export async function LegalDocument({
   id,
@@ -90,7 +93,9 @@ export async function LegalDocument({
   top?: ReactNode;
   after?: Partial<Record<string, ReactNode>>;
 }) {
-  const doc = LEGAL_DOCS[id];
+  const doc = resolveLegalDoc(LEGAL_DOCS[id], (fact) =>
+    isFactShown(FACT_VALUE[fact])
+  );
   const [t, tp, format] = await Promise.all([
     getTranslations("legal.common"),
     getTranslations(NS[id]),

@@ -1,5 +1,6 @@
 // The identity and access module: sign-up and sign-in by email or SMS
-// code, and sessions. Its use cases join `as(actor)` through `identityUseCases`.
+// code, and sessions. Its use cases join `as(actor)` through
+// `identityUseCases`.
 
 import type { UseCaseContext } from "../use-cases";
 import { getAccount } from "./account";

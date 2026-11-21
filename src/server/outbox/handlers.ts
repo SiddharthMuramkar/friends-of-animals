@@ -14,7 +14,7 @@
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
 import { sendCoordinatorInvitation } from "../institutions/coordinators/invitation-message";
-import { sendWelcomeEmail } from "../notifications/welcome-email";
+import { sendWelcomeEmail } from "../modules/notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { SmsSender } from "../ports/sms";
@@ -28,8 +28,11 @@ export type OutboxDeps = {
   sms: SmsSender;
   /** Decrypts what a message needs at send time (an invitation's link). */
   cipher: FieldCipher;
-  /** The site's base URL, for links in messages. */
-  auth: { baseUrl: string };
+  /**
+   * The site's base URL, for links in messages. A worker started without
+   * APP_URL has none, and a message that needs a link fails until it does.
+   */
+  auth: { baseUrl?: string | undefined };
 };
 
 /** The event a handler listens to, from SUBSCRIBERS. */

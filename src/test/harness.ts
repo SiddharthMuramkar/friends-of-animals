@@ -123,7 +123,6 @@ export async function createHarness(
     sms,
     cookies,
     auth: TEST_AUTH,
-    errors,
     // Fresh keys per harness, as a deployment has its own.
     cipher: createFieldCipher({
       primary: 1,
@@ -131,6 +130,7 @@ export async function createHarness(
     }),
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
     settings,
+    errors,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({

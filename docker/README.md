@@ -4,6 +4,10 @@ Postgres and PgBouncer for FOA on the Hostinger Mumbai VPS (issue #12). This
 directory is the whole deployment; the VPS runs it from a clone at **`/srv/foa`** (systemd
 units and bind mounts point there, never at a developer worktree).
 
+The VPS runs **Fedora 44** (firewalld on nftables, dnf, Docker 29 with the
+containerd image store). It ran Ubuntu before, and the scripts still handle
+both; where the two differ, this runbook says which is which.
+
 ## What runs
 
 Compose project `foa-vps` (`docker/compose.yml`), network `db` =
@@ -22,9 +26,25 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
   archiving, no PITR.
 - **PgBouncer** is the only public endpoint: `db.shipped-it.dev:6432`, TLS
   required (Let's Encrypt), SCRAM, transaction pooling.
+- **One Postgres image**: only pg-prod has `build: ./postgres`; pg-nonprod
+  runs the same tag with `pull_policy: never`. Two services building one tag
+  export it twice in parallel, which the containerd image store (Docker 29's
+  default on a fresh install) can fail with `image "...": already exists`.
+  `up --build` builds before it creates containers, so the whole-stack
+  commands in this runbook work, but `docker compose up pg-nonprod` on its own
+  fails until pg-prod's image exists (build it first with
+  `docker compose -f compose.yml build pg-prod`).
+- **Memory limits are hard** (`mem_limit`). `memswap_limit` equals `mem_limit`
+  on all three to keep them out of swap, but on Docker 29.10 with runc 1.5.3
+  and the systemd cgroup driver that never reaches the cgroup
+  (`memory.swap.max` stays `max`), so today they can still swap into zram
+  under pressure. The setting stays so it applies once runc passes it on.
+- **OOM order**: `oom_score_adj: -900` on all three, so under memory pressure
+  the kernel kills the agents and test runs sharing the box before any
+  database process.
 
 Host side: systemd units in `systemd/` (firewall, certificate renewal,
-backups, preview sweep) and CrowdSec (`crowdsec/`).
+backups, restore drill, preview sweep) and CrowdSec (`crowdsec/`).
 
 | Path                                                         | What                                                        |
 | ------------------------------------------------------------ | ----------------------------------------------------------- |
@@ -35,7 +55,9 @@ backups, preview sweep) and CrowdSec (`crowdsec/`).
 | `pgbouncer/pgbouncer.ini`                                    | Routing, pooling, TLS                                       |
 | `scripts/`                                                   | Host scripts (all idempotent, run as root)                  |
 | `systemd/`                                                   | Units, linked into `/etc/systemd/system`                    |
-| `crowdsec/`                                                  | CrowdSec apt source, acquisition, local parser, whitelist   |
+| `crowdsec/`                                                  | Both OSes: acquisition, local parser, whitelist, drop-ins   |
+| `crowdsec/crowdsec.repo`, `*-bouncer-nftables.yaml.local`    | Fedora: dnf repository, nftables bouncer settings           |
+| `crowdsec/crowdsec.sources`, `*-bouncer-iptables.yaml.local` | Ubuntu: apt source, iptables bouncer settings               |
 
 ## Secrets
 
@@ -53,6 +75,10 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_nonprod_staging_migrator_password` | 999, 0400       | `staging_migrator`                    |
 | `/etc/foa/secrets/pg_nonprod_staging_app_password`      | 999, 0400       | `staging_app`                         |
 | `/etc/foa/secrets/pgbouncer_auth_password`              | 999, 0400       | `pgbouncer_auth` on both servers      |
+| `/etc/foa/secrets/pg_prod_foa_worker_password`          | 1000, 0400      | `foa_worker` (worker-prod)            |
+| `/etc/foa/secrets/pg_nonprod_staging_worker_password`   | 1000, 0400      | `staging_worker` (worker-staging)     |
+| `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
+| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for all three workers   |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
 | `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
@@ -60,7 +86,9 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/lego/`                                        | root, 0700      | ACME account key, certificate, key    |
 | `/etc/foa/pgbouncer-tls/`                               | root:6432, 0750 | Installed cert (0444) and key (0400)  |
 
-999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours.
+999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours;
+1000 is `node` in the worker image. The worker secrets come from
+`scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`.
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
@@ -103,6 +131,81 @@ be rotated (below).
 
 ## Bring-up on a fresh VPS
 
+**Fedora prerequisites**, as root, before the bring-up block below:
+
+1. Install Docker from Docker's own repository
+   (`download.docker.com/linux/fedora`), `docker-buildx-plugin` included:
+   Compose refuses `up --build` without buildx 0.17 or later. Then check the
+   host tools the scripts call (`gdbus` from `glib2` runs the firewall unit's
+   watcher, `flock` comes with `util-linux`) and `dnf install` any that are
+   missing.
+
+   ```sh
+   dnf config-manager addrepo --from-repofile https://download.docker.com/linux/fedora/docker-ce.repo
+   dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+   rpm -q openssl diffutils coreutils gawk jq git-core curl iproute ca-certificates glib2 util-linux
+   ```
+
+2. Write `/etc/docker/daemon.json` before Docker's first start.
+   `"firewall-backend": "iptables"` pins the backend that has `DOCKER-USER`,
+   which the firewall unit needs (the nftables backend, experimental in
+   Docker 29, has none), and `iptables` and `ip6tables` make Docker create
+   that chain for both families. The other keys are the defaults plus log
+   rotation for the throwaway containers (lego, smoke test, restore drill);
+   the compose services set their own. Left out on purpose:
+   `ip-forward-no-drop` (Docker sets the FORWARD policy to DROP, which is
+   wanted, because firewalld's public zone allows forwarding) and
+   `live-restore` (containers should get a clean SIGINT when Docker stops).
+
+   ```sh
+   install -d -m 0755 /etc/docker
+   cat > /etc/docker/daemon.json <<'EOF'
+   {
+     "firewall-backend": "iptables",
+     "iptables": true,
+     "ip6tables": true,
+     "userland-proxy": true,
+     "log-driver": "json-file",
+     "log-opts": { "max-size": "50m", "max-file": "5" }
+   }
+   EOF
+   chmod 0644 /etc/docker/daemon.json
+   dockerd --validate --config-file=/etc/docker/daemon.json   # configuration OK
+   ```
+
+3. Add two systemd drop-ins. On `systemctl stop docker` or
+   `systemctl restart docker`, dockerd gives Postgres its 120 s
+   `stop_grace_period` for the shutdown checkpoint, but systemd kills dockerd
+   after Fedora's default 45 s (docker.service sets no stop timeout of its
+   own); 180 s lets the grace period apply. A reboot is different: systemd
+   stops the container scopes itself, with the 45 s default, and a slow
+   checkpoint then ends in crash recovery on the next start (safe, just
+   slower). Fedora's systemd-oomd also watches `system.slice`, where Docker
+   runs the containers (`10-oomd-per-slice-defaults.conf`, kill at 80 %
+   memory pressure), so pressure from interactive work could SIGKILL
+   foa-pg-prod. `auto` takes `system.slice`, sshd included, off its list; the
+   kernel OOM killer still applies, and `user@0.service` is still watched, so
+   interactive work is killed first.
+
+   ```sh
+   install -d -m 0755 /etc/systemd/system/docker.service.d /etc/systemd/system/system.slice.d
+   printf '[Service]\nTimeoutStopSec=180s\n' > /etc/systemd/system/docker.service.d/50-foa-stop-timeout.conf
+   printf '[Slice]\nManagedOOMMemoryPressure=auto\n' > /etc/systemd/system/system.slice.d/50-foa-no-oomd-kill.conf
+   systemctl daemon-reload
+   ```
+
+4. Start Docker. The RPM neither enables nor starts it (Fedora's preset
+   enables only `docker.socket`), and the stack needs dockerd from boot;
+   `scripts/install-systemd.sh` enables it again later.
+
+   ```sh
+   systemctl enable --now docker
+   docker info 2>/dev/null | grep -E 'Firewall Backend|Storage Driver|driver-type|Cgroup Driver|Logging Driver'
+   #   iptables+firewalld, overlayfs (containerd snapshotter), systemd, json-file
+   ```
+
+**Bring-up**, on either OS (the `firewall-cmd` lines are Fedora-only):
+
 ```sh
 git clone https://github.com/SiddharthMuramkar/friends-of-animals.git /srv/foa
 cd /srv/foa/docker
@@ -112,10 +215,19 @@ docker compose -f compose.yml up -d --build --wait
 #   first start runs postgres/initdb -> bootstrap: roles, foa, foa_seed, foa_staging
 docker exec -u postgres foa-pg-prod pgbackrest --stanza=foa stanza-create
 docker exec -u postgres foa-pg-prod pgbackrest --stanza=foa check
+#   Fedora: let Let's Encrypt reach lego on port 80 (runtime + permanent, no reload)
+firewall-cmd --zone=public --add-service=http
+firewall-cmd --permanent --zone=public --add-service=http
 scripts/cert-renew.sh --staging              # optional dry run against LE staging
 scripts/cert-renew.sh                        # real certificate, installs + reloads PgBouncer
-scripts/install-systemd.sh                   # firewall unit + timers
-scripts/install-crowdsec.sh
+scripts/install-systemd.sh                   # enables docker.service, firewall unit + timers
+scripts/install-crowdsec.sh                  # dnf + nftables bouncer (Ubuntu: apt + iptables)
+#   at once, with the owner's SSH session open: the foa-admin allowlist (CrowdSec)
+cscli allowlists inspect foa-admin >/dev/null 2>&1 ||
+  cscli allowlists create foa-admin -d "FOA: VPS addresses and the owner's SSH client"
+cscli allowlists add foa-admin 189.72.156.29 2a02:4780:63:e413::1 \
+  $(ss -Htn state established '( sport = :22 )' | awk '{print $4}' |
+    sed -E 's/:[0-9]+$//; s/^\[//; s/\]$//' | sort -u)
 systemctl start foa-pgbackrest-full.service  # first full backup
 scripts/restore-drill.sh
 scripts/smoke-test.sh                        # client checks through db.shipped-it.dev:6432
@@ -134,13 +246,19 @@ off-site repo2; the local repo1 dies with the old VPS.
 
 Updating: `git -C /srv/foa pull`, then `docker compose -f
 /srv/foa/docker/compose.yml up -d --build --wait` and, if units changed,
-`systemctl daemon-reload`. Config-only PgBouncer changes: `docker kill -s HUP
-foa-pgbouncer`. Postgres config changes: `SELECT pg_reload_conf()` (or
-`docker restart foa-pg-prod` for settings that need a server start);
+`systemctl daemon-reload`; if the firewall unit or `docker-user-fw.sh`
+changed, also `systemctl restart foa-docker-user-fw` (its watcher goes on
+running the old version until then). Config-only PgBouncer changes: `docker
+kill -s HUP foa-pgbouncer`. Postgres config changes: `SELECT pg_reload_conf()`
+(or `docker restart foa-pg-prod` for settings that need a server start);
 `pgbackrest.conf` is read by every pgBackRest command. That works because
 the config is mounted as directories (`postgres/` at `/etc/postgresql`,
 `pgbouncer/` at `/etc/pgbouncer/foa`): git replaces a file on checkout, and a
 single-file bind mount would go on showing the container the old one.
+
+Docker upgrades restart dockerd and with it the whole stack (`live-restore`
+is off), so schedule them. On Fedora, dnf5-automatic (security updates only)
+never upgrades Docker, because Docker's repository publishes no advisories.
 
 ## Routing and roles
 
@@ -190,6 +308,9 @@ Roles and databases (`postgres/bootstrap/`):
 | pg-nonprod | `staging_app`      | LOGIN; CONNECT on `foa_staging`; same DML-only defaults (`FOR ROLE staging_migrator`). pg_hba: `foa_staging` only                                                                                                                 |
 | pg-nonprod | `nonprod_migrator` | Previews. LOGIN CREATEDB; owns `foa_seed` and the previews it creates; CONNECT on `postgres`. No CONNECT on `foa_staging`, and pg_hba rejects it there                                                                            |
 | pg-nonprod | `nonprod_app`      | Previews. LOGIN; same DML-only defaults (`FOR ROLE nonprod_migrator`); kept out of `foa_staging` the same way                                                                                                                     |
+| pg-prod    | `foa_worker`       | worker-prod. LOGIN; member of `foa_app` (DML); owns schema `pgboss` in `foa`. `workers-prod.sql`                                                                                                                                  |
+| pg-nonprod | `staging_worker`   | worker-staging. LOGIN; member of `staging_app`; owns schema `pgboss` in `foa_staging`. pg_hba: `foa_staging` only. `workers-nonprod.sql`                                                                                          |
+| pg-nonprod | `nonprod_worker`   | worker-preview. LOGIN; member of `nonprod_app`; CONNECT on `postgres` (lists previews) and, through PUBLIC, on each preview. Never `foa_staging`. `workers-nonprod.sql`                                                           |
 | both       | `pgbouncer_auth`   | LOGIN NOINHERIT; CONNECT on `postgres`; EXECUTE `pgbouncer.get_auth`                                                                                                                                                              |
 | both       | `postgres`         | superuser: container socket, or TCP from 10.112.12.1 (SSH tunnel) only                                                                                                                                                            |
 
@@ -240,10 +361,17 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
 ## TLS certificate
 
 - Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`,
-  listening on `189.72.156.29:80` for the seconds a challenge takes;
-  127.0.0.1:80 belongs to another service). Not DNS-01: that would need an
-  account-wide Vercel token on this box. No ACME account e-mail is registered
-  (set `FOA_ACME_EMAIL` to add one).
+  listening only on the public address, `189.72.156.29:80`, for the seconds a
+  challenge takes). Not DNS-01: that would need an account-wide Vercel token
+  on this box. No ACME account e-mail is registered (set `FOA_ACME_EMAIL` to
+  add one).
+- Port 80 must get through the host's INPUT filter: on Fedora that is the
+  `http` service in firewalld's public zone (Firewall, below); on Ubuntu ufw
+  is inactive. `cert-renew.sh` warns, and changes nothing, when firewalld's
+  zone for that address allows neither the `http` service nor 80/tcp.
+- db.shipped-it.dev has no AAAA record. Adding one would break renewals:
+  Let's Encrypt tries IPv6 first and falls back to IPv4 only on a timeout,
+  and lego listens on the IPv4 address only.
 - `foa-cert-renew.timer` runs `scripts/cert-renew.sh` daily: `lego run
   --renew-days 30` renews below 30 days left (or when the CA's renewal info
   asks), then `scripts/install-cert.sh` copies cert + key into
@@ -257,10 +385,17 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
 
 ## Firewall
 
-Docker-published ports bypass ufw (inactive here anyway) and INPUT.
-`foa-docker-user-fw.service` (oneshot, `PartOf=docker.service`, so it re-runs
-whenever Docker restarts) runs `scripts/docker-user-fw.sh`, which keeps a
-chain `FOA-INBOUND`, jumped to from `DOCKER-USER` for `-i eth0`, IPv4 and
+The host firewall is firewalld on Fedora (nftables backend, eth0 in zone
+`public`) and ufw on Ubuntu (inactive there). Neither filters
+Docker-published ports: Docker DNATs them before INPUT, so they take the
+FORWARD path. firewalld puts Docker's bridges in its `docker` zone with a
+`docker-forwarding` policy, and with `StrictForwardPorts=no` it accepts every
+DNAT-ed connection, so a published port passes whatever the public zone
+lists. Don't add 6432 to firewalld; it isn't needed.
+
+`foa-docker-user-fw.service` runs `scripts/docker-user-fw.sh`, which keeps a
+chain `FOA-INBOUND`, jumped to from `DOCKER-USER` for `-i eth0` (set
+`FOA_EXT_IF` in `/etc/foa/firewall.env` for another interface), IPv4 and
 IPv6:
 
 1. `ESTABLISHED,RELATED` → RETURN
@@ -268,38 +403,120 @@ IPv6:
    (from anywhere for now)
 3. everything else → DROP
 
-`scripts/docker-user-fw.sh show` prints it. CrowdSec's bouncer adds its own
-jump at the top of `DOCKER-USER` and `INPUT`. Any port published later must
-bind 127.0.0.1; this chain drops it on eth0 regardless. Port 80
-for ACME is a host process (INPUT, open). SSH config and ufw are untouched.
+`DOCKER-USER` exists only with Docker's iptables firewall backend
+(iptables-nft on Fedora), hence the pin in `/etc/docker/daemon.json`.
+iptables-nft's FORWARD chain runs before firewalld's (priority filter against
+filter + 10), and an nftables drop is final, so the DROP holds whatever
+firewalld accepts afterwards.
+
+The unit is `Type=simple`. `ExecStartPre` runs `apply`, which waits up to
+about 30 s for `DOCKER-USER`; `ExecStart` runs `watch`, which follows
+firewalld on D-Bus (`gdbus monitor`) and re-applies the rules, IPv4 and IPv6,
+after every firewalld reload and whenever firewalld starts or stops.
+`PartOf=docker.service` re-runs it whenever Docker restarts. A failed apply or
+a dead watcher is retried every 30 s, re-applying first. Without firewalld
+installed (Ubuntu), `watch` exits at once and the unit stays active (exited).
+`systemctl reload foa-docker-user-fw` re-applies the rules;
+`scripts/docker-user-fw.sh show` prints the FORWARD jump, `DOCKER-USER` and
+`FOA-INBOUND`.
+
+**Never use `firewall-cmd --direct` or `/etc/firewalld/direct.xml`.**
+firewalld leaves the iptables-nft tables alone only while it has no direct
+configuration of its own. With any direct rule, chain or passthrough it
+flushes them on every reload, start and stop, taking Docker's NAT and
+`FOA-INBOUND` with them, and adding the first one flushes them at once, with
+no signal for the watcher to catch (`systemctl restart docker` restores them).
+
+Host ports are INPUT traffic, which this unit never touches:
+
+- **SSH**: the `ssh` service in firewalld's public zone and the SSH config
+  are left untouched (Ubuntu: ufw untouched).
+- **Port 80** for ACME (lego runs on the host network), opened in the runtime
+  and the permanent configuration, so no reload is needed:
+
+  ```sh
+  firewall-cmd --zone=public --add-service=http
+  firewall-cmd --permanent --zone=public --add-service=http
+  ```
+
+  It stays open, IPv4 and IPv6: outside a challenge nothing listens, and the
+  kernel answers with a reset. Ubuntu: ufw is inactive, nothing to do.
+
+CrowdSec's bouncer blocks banned addresses on top of all this (below). Any
+port published later must bind 127.0.0.1; this chain drops it on eth0
+regardless. Docker enables IP forwarding and sets the iptables FORWARD policy
+to DROP, so a future rootful podman or libvirt bridge would need its own
+accept in `DOCKER-USER`.
 
 **Allowlist (TODO):** when Vercel Static IPs are bought, put them in
 `/etc/foa/firewall.env` as `PGBOUNCER_ALLOWED_SOURCES="<ip>/32 <ip>/32"` and
-`systemctl restart foa-docker-user-fw`; also allow only them on 6432 in the
-Hostinger firewall and whitelist them in CrowdSec (`crowdsec/foa-whitelist.yaml`).
+`systemctl restart foa-docker-user-fw` (restart, not reload: the running
+watcher would put the old list back at the next firewalld event); also allow
+only them on 6432 in the Hostinger firewall and whitelist them in CrowdSec
+(`crowdsec/foa-whitelist.yaml` and a LAPI allowlist, below).
 
 ## CrowdSec
 
-`scripts/install-crowdsec.sh` installs CrowdSec 1.8 and
-`crowdsec-firewall-bouncer-iptables` from CrowdSec's apt repo (written as a
-deb822 source with a pinned key fingerprint; Ubuntu's archive only has 1.4.6),
-the `crowdsecurity/pgsql` collection, the acquisition of the `foa-pgbouncer`
-container's docker logs (`type: pgbouncer`), a local parser for PgBouncer's
-`closing because: no such user` (logins as `postgres` or unknown roles, which
-the hub parser misses), and a whitelist for the VPS's own IP and the compose
-subnet. The bouncer blocks in `INPUT` and `DOCKER-USER`; a systemd drop-in
-starts it after Docker. Brute force (5 failures, leaking 1 per 10 s) bans the
-source.
+`scripts/install-crowdsec.sh` installs CrowdSec 1.8 and its firewall bouncer
+from CrowdSec's own package repository on packagecloud (no `curl | bash`; the
+signing keys' fingerprints are pinned in the script). It picks the OS by `ID`
+in `/etc/os-release`:
+
+- **Fedora** (this VPS): dnf, with `crowdsec/crowdsec.repo`, packagecloud's
+  `rpm_any` tree of EL9 builds (static Go binaries): Fedora's repositories
+  have no crowdsec, and packagecloud's Fedora trees are empty. dnf checks the
+  repository metadata and every package against the two pinned keys, and
+  `includepkgs` keeps the repository to CrowdSec's own packages. The bouncer
+  is `crowdsec-firewall-bouncer-nftables`
+  (`crowdsec-firewall-bouncer-nftables.yaml.local`). It keeps its own tables,
+  `ip crowdsec` and `ip6 crowdsec6`, with a chain on the input hook (SSH and
+  other host services) and one on the forward hook (PgBouncer's published
+  port, DNAT-ed before it could reach input), at priority -10: ahead of
+  Docker's FORWARD (0) and firewalld (+10), and a drop is final. firewalld and
+  Docker never touch these tables, so bans survive `firewall-cmd --reload` and
+  Docker restarts. The RPM signing key expires 2027-05-12; re-running the
+  script fetches the extended key.
+- **Ubuntu**: apt, with `crowdsec/crowdsec.sources` as a deb822 source
+  (Ubuntu's archive only has 1.4.6; upstream's `noble` builds are used), and
+  `crowdsec-firewall-bouncer-iptables`
+  (`crowdsec-firewall-bouncer-iptables.yaml.local`), which adds its own jump
+  at the top of `INPUT` and `DOCKER-USER`.
+
+On both it installs the `crowdsecurity/pgsql` collection, the acquisition of
+the `foa-pgbouncer` container's docker logs (`type: pgbouncer`), a local
+parser for PgBouncer's `closing because: no such user` (logins as `postgres`
+or unknown roles, which the hub parser misses), and a whitelist for the VPS's
+own addresses (IPv4 and IPv6) and the compose subnet. systemd drop-ins start
+crowdsec (its docker acquisition makes it exit if the Docker API is not up
+yet) and the bouncer after Docker. Brute force (5 failures, leaking 1 per
+10 s) bans the source.
+
+That whitelist is a parser whitelist: it stops local alerts only, not
+community blocklist entries. The LAPI allowlist **`foa-admin`** covers both.
+It holds the VPS's two addresses and the owner's SSH clients, added right
+after the install (Bring-up, above). **SSH lock-out:** a ban drops
+established SSH sessions too, the Fedora RPM turns on the sshd scenarios, and
+a home IP can change after the allowlist was made; add a new one with
+`cscli allowlists add foa-admin <ip>`. If the owner is locked out anyway,
+open the Hostinger browser console and run `cscli decisions delete --ip <ip>`.
 
 ```sh
 cscli metrics show acquisition parsers   # docker:foa-pgbouncer lines read/parsed
 cscli alerts list; cscli decisions list
 cscli decisions delete --ip <ip>         # unban
+cscli allowlists inspect foa-admin
 cscli explain --type pgbouncer --log '<log line>'
+nft list table ip crowdsec               # Fedora: the bouncer's chains and ban sets
 ```
 
 Shared Vercel egress IPs could be banned if the app fails logins repeatedly
-(or land on a community blocklist): whitelist the Static IPs when they exist.
+(or land on a community blocklist): whitelist the Static IPs when they exist,
+in `crowdsec/foa-whitelist.yaml` and a LAPI allowlist.
+
+CrowdSec issue #4781: the docker acquisition leaks a stream in dockerd for
+every container log line over 64 KiB. PgBouncer's lines are short, but if
+`ls /proc/$(pidof dockerd)/fd | wc -l` keeps growing, run
+`systemctl restart crowdsec`.
 
 ## Backups (pgBackRest) and restore
 
@@ -421,6 +638,114 @@ prints what it would drop. Unauthenticated GitHub API calls are limited to 60
 an hour; with many open previews, or if the repo goes private, put a read-only
 `GITHUB_TOKEN=...` in `/etc/foa/sweeper.env` (0600).
 
+## Workers
+
+`workers.yml` (Compose project `foa-workers`, issue #61) runs the background
+workers next to the database stack, on its `db` network (`foa-vps_db`, so
+start `compose.yml` first). Each runs `src/worker/main.ts` from the
+Dockerfile's `worker` target, drains its database's outbox every 5 s and
+connects to Postgres directly, never through PgBouncer: pg-boss holds
+sessions, which transaction pooling breaks. None publishes a port.
+
+| Service          | Database                       | Role             | Does                                 | Limits          |
+| ---------------- | ------------------------------ | ---------------- | ------------------------------------ | --------------- |
+| `worker-prod`    | pg-prod `foa`                  | `foa_worker`     | outbox relay, `SCHEDULES` on pg-boss | 1 CPU, 512 MB   |
+| `worker-staging` | pg-nonprod `foa_staging`       | `staging_worker` | outbox relay, `SCHEDULES` on pg-boss | 0.5 CPU, 384 MB |
+| `worker-preview` | pg-nonprod, every live preview | `nonprod_worker` | outbox relay only, 1 connection each | 0.5 CPU, 512 MB |
+
+- **Health:** after each healthy poll the worker touches
+  `/tmp/foa-worker-heartbeat` (a tmpfs; the root file system is read-only),
+  and the health check passes while it is under 120 s old. Single-database
+  workers stop touching it while their database fails; `worker-preview`
+  while it can't list the previews (one broken preview doesn't count). Each
+  poll also upserts the worker's row in `worker_heartbeat` in every database
+  it drains (worker, environment, last seen, version), which
+  `/api/health/worker` reads ("Monitoring and alerts").
+  `restart: unless-stopped` restarts a worker that exits; Docker doesn't
+  restart an unhealthy one, so watch `docker ps`.
+- **Logs:** one JSON object per line (`event`, `database`, counts), with
+  error classes and codes but never messages or addresses; in the host's
+  journal for a year ("Logs").
+- **Errors:** a failed tick (once, until that database recovers), an
+  uncaught exception or unhandled rejection (then the worker exits 1 and
+  restarts), and a failed start go to Sentry, scrubbed, tagged with the
+  database and APP_ENV, when `/etc/foa/secrets/worker_sentry.env` holds
+  `SENTRY_DSN=...` (HR-22). Without it they are only logged.
+- **Email:** staging and previews capture every message in their database's
+  mailbox; production refuses until SES exists (HR-12), so its deliveries
+  retry and end `failed`, visible to staff.
+- **Schedules:** `SCHEDULES` (`src/server/outbox/schedules.ts`) is registered
+  with pg-boss in schema `pgboss` (owned by the worker role) at every start;
+  a schedule removed from the code is unscheduled. Previews run none.
+
+### Preview databases: attach and detach
+
+There are no Vercel previews today
+(`docs/adr/0001-ci-e2e-and-prebuilt-deploys.md`), so `worker-preview` finds
+no preview database and idles, still healthy. If previews come back, it
+behaves as follows.
+
+`worker-preview` lists pg-nonprod's databases every 60 s from `postgres`
+and serves exactly those the sweeper would recognise: `foa_pr_<n>[_<fp>]`
+labelled `foa-preview pr=<n>`, or `foa_br_…` labelled `foa-preview
+branch=<ref>`. A new preview is attached at the next listing, with no
+manual step (its first deploy's migration creates and labels the database).
+When the sweeper drops a preview (`WITH (FORCE)` ends the worker's
+session), the next drain sees SQLSTATE 3D000 and the worker lets go at
+once; a database that just stops being listed is let go at the next
+listing. Each attach and detach is logged (`tenant.attached`,
+`tenant.detached`). The worker runs one code version for every preview:
+deliveries for handlers it doesn't have are left pending (`skipped`), and
+the preview drain route (`POST /api/preview/drain`) covers Seam 2 journeys
+meanwhile.
+
+### First start (owner, HR-07)
+
+```sh
+cd /srv/foa/docker
+docker exec foa-pg-prod psql -U postgres -c 'SELECT pg_reload_conf()'     # after git pull: pg_hba
+docker exec foa-pg-nonprod psql -U postgres -c 'SELECT pg_reload_conf()'
+scripts/worker-roles.sh               # roles + /etc/foa/secrets/*_worker_password
+WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
+  docker compose -f workers.yml up -d --build --wait
+docker compose -f workers.yml ps      # all three "healthy"
+```
+
+Then check that each single-database worker's heartbeat row is fresh (its
+`last_seen_at` moves every 5 s):
+
+```sh
+docker exec foa-pg-prod psql -U postgres -d foa -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
+docker exec foa-pg-nonprod psql -U postgres -d foa_staging -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
+```
+
+`worker-preview` writes a row only in the previews it serves, so with no
+previews it has none; `ps` showing it healthy means it can list them.
+
+### Run, restart and read the logs
+
+Run from `/srv/foa/docker`. `WORKER_VERSION` is only recorded in the
+heartbeat rows; leave it out and they say `unknown`.
+
+| Worker           | Run (build and start)                                               | Restart                                                | Logs                                                              |
+| ---------------- | ------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| `worker-prod`    | `docker compose -f workers.yml up -d --build --wait worker-prod`    | `docker compose -f workers.yml restart worker-prod`    | `docker compose -f workers.yml logs -f --tail=200 worker-prod`    |
+| `worker-staging` | `docker compose -f workers.yml up -d --build --wait worker-staging` | `docker compose -f workers.yml restart worker-staging` | `docker compose -f workers.yml logs -f --tail=200 worker-staging` |
+| `worker-preview` | `docker compose -f workers.yml up -d --build --wait worker-preview` | `docker compose -f workers.yml restart worker-preview` | `docker compose -f workers.yml logs -f --tail=200 worker-preview` |
+
+- Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
+  its poll, stops pg-boss and closes its connections within 30 s).
+- Updating: `git -C /srv/foa pull`, then the "Run" line; only a changed
+  image is recreated. All three build from `/srv/foa` (main), and each has
+  its own image (`foa-workers/worker-<name>`), so rebuilding one never swaps
+  another's.
+- Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
+- Rotating a worker password: replace its file in `/etc/foa/secrets`, rerun
+  `scripts/worker-roles.sh`, restart that worker.
+- A local run needs none of this: `pnpm worker:dev` drains the local
+  database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
+  email, and restarts on code changes.
+
 ## Checks
 
 `scripts/smoke-test.sh` runs 31 client-side checks through
@@ -434,12 +759,99 @@ query as `foa_app` is cancelled), and refusals (superuser, admin console,
 `foa_seed`, cross-environment logins, plaintext, wrong host name). Passwords
 never appear on a command line (`ps`): the URLs are split into libpq
 variables in a 0600 env file, passed with `docker run --env-file` and removed
-afterwards.
+afterwards. It needs the real certificate (its `verify-full` checks fail
+against the placeholder by design). The container gets the host's CA bundle
+as one file, symlinks resolved: on Fedora `/etc/ssl/certs/ca-certificates.crt`
+links into `/etc/pki/ca-trust`, which would dangle inside the container.
+
+## Monitoring and alerts
+
+Uptime checks run at an outside provider (HR-23: provider, account and
+alert target are the owner's choice), so they see what users see, and they
+only call public URLs: nothing on the VPS needs to be reachable for them.
+Each check alerts on its own, so a stalled worker never pages as "the app
+is down". Staging is `https://shipped-it.dev`; production gets the same
+app and worker checks once its domain is live.
+
+| Check  | Target                                      | Runs from                     | Alerts when                                                                                         | Alert goes to             | Silence and un-silence                                                                                                        |
+| ------ | ------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| App    | `GET` `/api/health`                         | Uptime provider, every minute | Not 200 on 2 checks in a row. 503 means the app can't query its database                            | Owner (HR-23)             | Pause the monitor (or open a maintenance window) in the provider; resume it after. A paused monitor never re-alerts by itself |
+| Pooler | TCP `db.shipped-it.dev:6432`                | Uptime provider, every minute | Connect fails on 2 checks in a row. TCP connect only, no login: probes must not fill CrowdSec's log | Owner (HR-23)             | Same as App. If CrowdSec ever bans the provider's addresses, add them to `crowdsec/foa-whitelist.yaml`                        |
+| Worker | `GET` `/api/health/worker`                  | Uptime provider, every minute | Not 200 on 2 checks in a row: 503 `stale` (newest heartbeat over 120 s old) or `missing` (none)     | Owner (HR-23)             | Same as App. Pause it while the workers are stopped on purpose, and until HR-07 first starts them                             |
+| Errors | Sentry projects for the app and the workers | Sentry (`SENTRY_DSN`, HR-22)  | A new issue, or a resolved one that comes back                                                      | Owner (Sentry alert rule) | In Sentry, Archive the issue (until it escalates, or for a time); Unarchive to hear about it again                            |
+
+`/api/health/worker` answers from the app's own database: each worker
+writes its `worker_heartbeat` row there after every poll (5 s), so the
+staging URL reports `worker-staging` and production's reports
+`worker-prod`. 200 is `{ "status": "ok", "worker": { "name", "ageSeconds" } }`;
+503 is `stale` (with the same `worker`) or `missing`. Previews are not
+monitored.
+
+**Forced failure** (HR-23, and per milestone on staging, HR-27), without
+touching production:
+
+1. Worker: `docker compose -f /srv/foa/docker/workers.yml stop worker-staging`.
+   After 120 s `https://shipped-it.dev/api/health/worker` turns 503
+   `stale`, and two failed checks later (about 4 minutes in all) the alert
+   arrives; `start worker-staging` clears it.
+2. App and pooler: add a throwaway monitor for `/api/health/does-not-exist`
+   and one for TCP `db.shipped-it.dev:6433` (closed). Both alert; delete
+   them after.
+3. Errors, with the workers' DSN set: start a throwaway staging worker
+   pointed at a port nothing listens on. It fails to start, reports that
+   to Sentry (`where` `worker.main`, `environment` `staging`) and exits 1;
+   the alert rule fires.
+
+   ```sh
+   docker compose -f /srv/foa/docker/workers.yml run --rm \
+     -e WORKER_DATABASE_URL=postgres://staging_worker@10.112.12.11:5999/foa_staging \
+     worker-staging
+   ```
+
+## Logs
+
+Logs are kept for 365 days. On the VPS they stay in the host's journal
+today; an off-box copy, and the app's logs from Vercel, go to one store
+once the owner picks it (HR-24).
+
+| Source                                                                    | Goes to                                                      | Kept                                                      | Read with                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Containers: `foa-pg-prod`, `foa-pg-nonprod`, `foa-pgbouncer`, the workers | Host journal, through Docker's journald driver (`x-logging`) | 12 to 13 months, at most 20 GiB                           | `docker logs foa-pgbouncer`, `docker compose -f /srv/foa/docker/workers.yml logs worker-staging`, `journalctl -t foa-pg-prod --since 2026-11-01`; after a container is gone, `journalctl CONTAINER_NAME=foa-pg-prod` |
+| Host units (`foa-*` timers and services, CrowdSec, sshd)                  | Host journal                                                 | Same                                                      | `journalctl -u foa-pgbackrest-full.service --since -7d`                                                                                                                                                              |
+| Restore drills                                                            | `/var/log/foa/` (never pruned)                               | Forever                                                   | See "Restore drill"                                                                                                                                                                                                  |
+| The app on Vercel (functions, builds, requests)                           | Vercel's runtime logs, then a Vercel log drain (HR-24)       | Vercel: a short, plan-bound window. Drain store: 365 days | Vercel dashboard or `vercel logs`; the store's search once the drain exists                                                                                                                                          |
+
+`docker/systemd/journald-foa.conf` sets the year (`MaxRetentionSec=1year`,
+monthly files), the 20 GiB cap and a higher rate limit, since every
+container's lines reach journald through dockerd and share one limit. If
+the cap fills first, the oldest files go early: `journalctl --disk-usage`
+shows how close it is, and the off-box store is the answer, not a bigger
+cap on the database disk. Container logs carry client IP addresses
+(PgBouncer, CrowdSec); keeping them a year waits on counsel (HR-30).
+
+Install, once (HR-24):
+
+```sh
+install -D -m 0644 /srv/foa/docker/systemd/journald-foa.conf \
+  /etc/systemd/journald.conf.d/foa.conf
+systemctl restart systemd-journald
+journalctl --disk-usage
+# Recreates the containers with the journald driver. Postgres restarts:
+# pick a quiet moment. Lines logged before the switch go with the old containers.
+docker compose -f /srv/foa/docker/compose.yml up -d --wait
+docker inspect -f '{{.HostConfig.LogConfig.Type}}' foa-pgbouncer   # journald
+```
+
+Off-box (HR-24): in Vercel, Team Settings → Drains → add a log drain for
+the project to the chosen store; on the VPS, a shipper that reads the
+journal (for example `systemd-journal-upload`, or the store's own agent)
+sends the same entries there. The store keeps 365 days.
 
 ## TODO and owner actions
 
 1. **Vercel Static IPs** (deferred): allowlist them in
-   `/etc/foa/firewall.env`, the Hostinger firewall and the CrowdSec whitelist.
+   `/etc/foa/firewall.env`, the Hostinger firewall and CrowdSec (whitelist
+   and LAPI allowlist).
    Until then 6432 is open to the internet, protected by TLS, SCRAM with
    32-byte random passwords, PgBouncer 1.26.1 and CrowdSec. Vercel **builds**
    run in `iad1` (Washington), not in `bom1` with the functions, and the
@@ -459,9 +871,9 @@ afterwards.
    (`pg_stat_archiver.failed_count`), and a periodic `pgbackrest check`. The
    restore drill cannot see archiving that has stalled, because it can only
    replay the WAL that reached the repository.
-6. The future worker connects directly on the `db` network (pg_hba already
-   allows the app roles from 10.112.12.0/24); give it its own role if it
-   needs rights beyond `foa_app`.
+6. **Workers (HR-07):** apply the roles and start `workers.yml` (Workers,
+   "First start"), and settle the CPU and memory caps there for the shared
+   VPS.
 7. **One build per branch** (owner): Vercel → Project Settings → Build and
    Deployment → On-Demand Concurrent Builds → "Run up to one build per
    branch". The API refused the change for lack of permission. Meanwhile the

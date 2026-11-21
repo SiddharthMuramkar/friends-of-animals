@@ -11,3 +11,4 @@ export * from "./audit";
 export * from "./outbox";
 export * from "./institutions";
 export * from "./institution-invitations";
+export * from "./worker";

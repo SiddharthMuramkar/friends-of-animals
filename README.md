@@ -225,9 +225,9 @@ pnpm exec playwright install --with-deps chromium   # once
 # Previews sit behind Vercel Authentication, so pass the project's
 # Protection Bypass for Automation secret (Vercel → Settings →
 # Deployment Protection), here read with the Vercel CLI without printing it:
-export VERCEL_AUTOMATION_BYPASS_SECRET="$(vercel api /v9/projects/friends-of-animals --scope acme-ef4b \
+export VERCEL_AUTOMATION_BYPASS_SECRET="$(vercel api /v9/projects/friends-of-animals --scope bitacu1 \
   | jq -r '.protectionBypass | to_entries[] | select(.value.scope == "automation-bypass") | .key')"
-PLAYWRIGHT_BASE_URL=https://friends-of-animals-<hash>-acme-ef4b.vercel.app pnpm test:e2e
+PLAYWRIGHT_BASE_URL=https://friends-of-animals-<hash>-bitacu1.vercel.app pnpm test:e2e
 
 # Staging needs no secret.
 PLAYWRIGHT_BASE_URL=https://shipped-it.dev pnpm test:e2e
@@ -238,7 +238,7 @@ PLAYWRIGHT_BASE_URL=http://localhost:3100 pnpm test:e2e
 
 Add `--ui` to watch the tests run, or `--project=desktop` for one viewport. A failed test leaves a trace and a screenshot in `test-results/`; open a trace with `pnpm exec playwright show-trace <path>/trace.zip`.
 
-The secret goes only to this project's own deployments (`https://friends-of-animals-…-acme-ef4b.vercel.app`), so a run pointed at localhost, staging or a mistyped URL never sends it. Global setup (`tests/e2e/global-setup.ts`) trades it once for Vercel's bypass cookie, saved in `playwright/.auth/` (git-ignored), and the tests use the cookie, so the secret never appears in a trace. The cookie does (it opens that one preview for a week), so CI strips it from traces before uploading them.
+The secret goes only to this project's own deployments (`https://friends-of-animals-…-bitacu1.vercel.app`), so a run pointed at localhost, staging or a mistyped URL never sends it. Global setup (`tests/e2e/global-setup.ts`) trades it once for Vercel's bypass cookie, saved in `playwright/.auth/` (git-ignored), and the tests use the cookie, so the secret never appears in a trace. The cookie does (it opens that one preview for a week), so CI strips it from traces before uploading them.
 
 ## Continuous integration
 

@@ -30,8 +30,8 @@ export type InvitationMessageDeps = {
   email: EmailSender;
   sms: SmsSender;
   cipher: FieldCipher;
-  /** The site's base URL, for the link. */
-  auth: { baseUrl: string };
+  /** The site's base URL, for the link; a worker without APP_URL has none. */
+  auth: { baseUrl?: string | undefined };
 };
 
 /** When the link stops working, as the site writes deadlines (IST). */
@@ -80,6 +80,13 @@ export async function sendCoordinatorInvitation(
     return;
   }
 
+  if (!deps.auth.baseUrl) {
+    // Thrown, so the outbox retries once the worker has APP_URL.
+    throw new Error(
+      `Invitation ${payload.invitationId} needs the site's base URL ` +
+        "(APP_URL) for its link"
+    );
+  }
   const token = deps.cipher.decrypt(INVITATION_TOKEN, row.tokenCiphertext);
   const link = new URL(invitationPath(token), deps.auth.baseUrl).toString();
   const values = {

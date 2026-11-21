@@ -221,6 +221,7 @@ export type UserGrant = Grant & {
 export type ListUserRolesResult =
   | {
       ok: true;
+      // `email` is null for an account made by phone (#58).
       user: { id: string; name: string; email: string | null };
       grants: UserGrant[];
     }

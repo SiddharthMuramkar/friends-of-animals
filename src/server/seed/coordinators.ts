@@ -60,10 +60,9 @@ async function ensureSeedInstitution(deps: SeedDeps): Promise<string> {
 export async function seedCoordinators(deps: SeedDeps): Promise<void> {
   const principalId = await ensureSeedInstitution(deps);
   const institutionId = SEED_COORDINATORS.institution.id;
-  const coordinator = await ensureVerifiedAccount(
-    deps,
-    SEED_COORDINATORS.coordinator
-  );
+  // Member 1, made by the identity seed (with its phone) before this runs.
+  const { id, name, email } = SEED_COORDINATORS.coordinator;
+  const coordinator = await ensureVerifiedAccount(deps, { id, name, email });
   await ensureGrant(deps, coordinator.id, {
     role: "institution_coordinator",
     scope: { type: "institution", id: institutionId },

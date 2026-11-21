@@ -35,6 +35,11 @@ A short-lived number emailed or texted to a User to prove they hold that
 address or phone; it is how people sign up and sign in, with no password.
 _Avoid_: OTP (in copy), password, token
 
+**Sign-in method**:
+A way to receive sign-in codes: email, always on, or SMS, which stays off
+until FOA's SMS sender registration is approved.
+_Avoid_: Login type, provider
+
 **Role**:
 What a User is to the platform, such as a judge, an institution coordinator or
 a super admin, which decides what they may do. A User may hold several.
@@ -69,11 +74,6 @@ The record of every change to who may do what, and later to other records:
 who made it, with which Role, to what, before and after, from where and when.
 Nobody can edit or delete an entry.
 _Avoid_: Activity log, history, event log
-
-**Sign-in method**:
-A way to receive sign-in codes: email, always on, or SMS, which stays off
-until FOA's SMS sender registration is approved.
-_Avoid_: Login type, provider
 
 ## Personal data
 
@@ -125,6 +125,19 @@ _Avoid_: Job, task, message
 One round of carrying out every delivery that is due: the worker does it all
 the time, a preview does it on request, and a Seam 1 test does it in process.
 _Avoid_: Flush, process the queue
+
+**Worker**:
+The platform's always-on background process, which keeps draining and runs
+scheduled jobs. Production and staging each have their own; one shared
+preview worker serves every live preview and lets go of a preview once it is
+removed.
+_Avoid_: Cron, daemon, job runner
+
+**Scheduled job**:
+Work the platform does on a timetable rather than in answer to one change,
+such as a reminder sweep, a status flip at a deadline or a retention purge.
+Previews never run them.
+_Avoid_: Cron job, recurring task
 
 ## Engineering
 
