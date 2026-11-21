@@ -33,29 +33,71 @@
     {
       "idx": 4,
       "version": "7",
-      "when": 1795246027580,
+      "when": 1795246111359,
       "tag": "0004_59_roles_audit",
       "breakpoints": true
     },
     {
       "idx": 5,
       "version": "7",
-      "when": 1795246028322,
+      "when": 1795246112169,
       "tag": "0005_59_audit_append_only",
       "breakpoints": true
     },
     {
       "idx": 6,
       "version": "7",
-      "when": 1795247877186,
-      "tag": "0006_113_contact_inbox",
+      "when": 1795246247702,
+      "tag": "0006_64_consent",
       "breakpoints": true
     },
     {
       "idx": 7,
       "version": "7",
-      "when": 1795248106828,
-      "tag": "0007_113_contact_note_append_only",
+      "when": 1795246248505,
+      "tag": "0007_64_consent_document_immutable",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795246730543,
+      "tag": "0008_58_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795246843925,
+      "tag": "0009_62_runtime_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795247247177,
+      "tag": "0010_69_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795247248246,
+      "tag": "0011_69_notification_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795248486677,
+      "tag": "0012_113_contact_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795248488037,
+      "tag": "0013_113_contact_note_append_only",
       "breakpoints": true
     }
   ]

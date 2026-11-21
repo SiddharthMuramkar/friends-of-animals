@@ -15,8 +15,11 @@ import { headers } from "next/headers";
 import { accessUseCases } from "./access";
 import type { Actor } from "./actor";
 import { auditUseCases } from "./audit";
+import { consentUseCases } from "./consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
+import { notificationsUseCases } from "./notifications";
+import { settingsUseCases } from "./settings";
 import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
 import { composeUseCases } from "./use-cases";
@@ -25,6 +28,9 @@ const useCases = composeUseCases(
   identityUseCases,
   accessUseCases,
   auditUseCases,
+  consentUseCases,
+  settingsUseCases,
+  notificationsUseCases,
   publicFormUseCases,
   contactUseCases
 );

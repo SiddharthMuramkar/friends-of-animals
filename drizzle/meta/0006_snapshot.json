@@ -1,6 +1,6 @@
 {
-  "id": "f6dae4bc-520d-404a-93f9-057da6be1c50",
-  "prevId": "c7b0fa6a-5515-4f1a-9fb5-087c00dc9b5f",
+  "id": "cfc2d5ba-0f93-4af9-8de5-5e941cfd8a8d",
+  "prevId": "79fbf683-200a-40a9-ba94-9b190cd4000b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -962,8 +962,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.contact_message": {
-      "name": "contact_message",
+    "public.consent_document": {
+      "name": "consent_document",
       "schema": "",
       "columns": {
         "id": {
@@ -972,119 +972,159 @@
           "primaryKey": true,
           "notNull": true
         },
-        "reference": {
-          "name": "reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "topic": {
-          "name": "topic",
-          "type": "contact_topic",
+        "purpose": {
+          "name": "purpose",
+          "type": "consent_purpose",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "team": {
-          "name": "team",
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
-          "type": "text",
+        "body": {
+          "name": "body",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
-        "email": {
-          "name": "email",
-          "type": "text",
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
-        "organisation": {
-          "name": "organisation",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "subject": {
-          "name": "subject",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "contact_message_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'new'"
-        },
-        "close_reason": {
-          "name": "close_reason",
-          "type": "contact_close_reason",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assigned_to_user_id": {
-          "name": "assigned_to_user_id",
+        "published_by_user_id": {
+          "name": "published_by_user_id",
           "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ip_hash": {
-          "name": "ip_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }
       },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "consent_document_purpose_version_unique": {
+          "name": "consent_document_purpose_version_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "purpose",
+            "version"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "consent_document_version_positive": {
+          "name": "consent_document_version_positive",
+          "value": "\"consent_document\".\"version\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.consent_event": {
+      "name": "consent_event",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "subject_type": {
+          "name": "subject_type",
+          "type": "consent_subject_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "giver_user_id": {
+          "name": "giver_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "consent_purpose",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "consent_event_action",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "method": {
+          "name": "method",
+          "type": "consent_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
       "indexes": {
-        "contact_message_team_status_created_at_idx": {
-          "name": "contact_message_team_status_created_at_idx",
+        "consent_event_subject_idx": {
+          "name": "consent_event_subject_idx",
           "columns": [
             {
-              "expression": "team",
+              "expression": "subject_type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "status",
+              "expression": "subject_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "created_at",
+              "expression": "purpose",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
               "isExpression": false,
               "asc": false,
               "nulls": "last"
@@ -1095,11 +1135,11 @@
           "method": "btree",
           "with": {}
         },
-        "contact_message_assigned_to_user_id_idx": {
-          "name": "contact_message_assigned_to_user_id_idx",
+        "consent_event_document_id_idx": {
+          "name": "consent_event_document_id_idx",
           "columns": [
             {
-              "expression": "assigned_to_user_id",
+              "expression": "document_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1112,269 +1152,33 @@
         }
       },
       "foreignKeys": {
-        "contact_message_assigned_to_user_id_user_id_fk": {
-          "name": "contact_message_assigned_to_user_id_user_id_fk",
-          "tableFrom": "contact_message",
+        "consent_event_giver_user_id_user_id_fk": {
+          "name": "consent_event_giver_user_id_user_id_fk",
+          "tableFrom": "consent_event",
           "tableTo": "user",
           "columnsFrom": [
-            "assigned_to_user_id"
+            "giver_user_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "contact_message_reference_unique": {
-          "name": "contact_message_reference_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "reference"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "contact_message_team_known": {
-          "name": "contact_message_team_known",
-          "value": "\"contact_message\".\"team\" IN ('staff_admin', 'competition_manager', 'community_manager', 'adoption_coordinator', 'finance', 'content_manager')"
         },
-        "contact_message_closed_with_reason": {
-          "name": "contact_message_closed_with_reason",
-          "value": "(\"contact_message\".\"status\" = 'closed') = (\"contact_message\".\"close_reason\" IS NOT NULL AND \"contact_message\".\"closed_at\" IS NOT NULL)"
-        },
-        "contact_message_name_length": {
-          "name": "contact_message_name_length",
-          "value": "char_length(\"contact_message\".\"name\") BETWEEN 1 AND 100"
-        },
-        "contact_message_email_length": {
-          "name": "contact_message_email_length",
-          "value": "char_length(\"contact_message\".\"email\") BETWEEN 1 AND 254"
-        },
-        "contact_message_organisation_length": {
-          "name": "contact_message_organisation_length",
-          "value": "\"contact_message\".\"organisation\" IS NULL OR char_length(\"contact_message\".\"organisation\") BETWEEN 1 AND 150"
-        },
-        "contact_message_subject_length": {
-          "name": "contact_message_subject_length",
-          "value": "char_length(\"contact_message\".\"subject\") BETWEEN 1 AND 150"
-        },
-        "contact_message_message_length": {
-          "name": "contact_message_message_length",
-          "value": "char_length(\"contact_message\".\"message\") BETWEEN 1 AND 5000"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.contact_note": {
-      "name": "contact_note",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "message_id": {
-          "name": "message_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "author_user_id": {
-          "name": "author_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "body": {
-          "name": "body",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "contact_note_message_id_created_at_idx": {
-          "name": "contact_note_message_id_created_at_idx",
-          "columns": [
-            {
-              "expression": "message_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "contact_note_message_id_contact_message_id_fk": {
-          "name": "contact_note_message_id_contact_message_id_fk",
-          "tableFrom": "contact_note",
-          "tableTo": "contact_message",
+        "consent_event_document_id_consent_document_id_fk": {
+          "name": "consent_event_document_id_consent_document_id_fk",
+          "tableFrom": "consent_event",
+          "tableTo": "consent_document",
           "columnsFrom": [
-            "message_id"
+            "document_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "contact_note_author_user_id_user_id_fk": {
-          "name": "contact_note_author_user_id_user_id_fk",
-          "tableFrom": "contact_note",
-          "tableTo": "user",
-          "columnsFrom": [
-            "author_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "contact_note_body_length": {
-          "name": "contact_note_body_length",
-          "value": "char_length(\"contact_note\".\"body\") BETWEEN 1 AND 5000"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.form_rate_limit": {
-      "name": "form_rate_limit",
-      "schema": "",
-      "columns": {
-        "form": {
-          "name": "form",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key_hash": {
-          "name": "key_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "window_start": {
-          "name": "window_start",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "count": {
-          "name": "count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "form_rate_limit_window_start_idx": {
-          "name": "form_rate_limit_window_start_idx",
-          "columns": [
-            {
-              "expression": "window_start",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "form_rate_limit_form_scope_key_hash_window_start_pk": {
-          "name": "form_rate_limit_form_scope_key_hash_window_start_pk",
-          "columns": [
-            "form",
-            "scope",
-            "key_hash",
-            "window_start"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "form_rate_limit_count_positive": {
-          "name": "form_rate_limit_count_positive",
-          "value": "\"form_rate_limit\".\"count\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.human_check_redemption": {
-      "name": "human_check_redemption",
-      "schema": "",
-      "columns": {
-        "salt": {
-          "name": "salt",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "redeemed_at": {
-          "name": "redeemed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "human_check_redemption_redeemed_at_idx": {
-          "name": "human_check_redemption_redeemed_at_idx",
-          "columns": [
-            {
-              "expression": "redeemed_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -1441,36 +1245,38 @@
         "failed"
       ]
     },
-    "public.contact_close_reason": {
-      "name": "contact_close_reason",
+    "public.consent_event_action": {
+      "name": "consent_event_action",
       "schema": "public",
       "values": [
-        "resolved",
-        "no_action_needed",
-        "spam",
-        "duplicate"
+        "given",
+        "withdrawn"
       ]
     },
-    "public.contact_message_status": {
-      "name": "contact_message_status",
+    "public.consent_method": {
+      "name": "consent_method",
       "schema": "public",
       "values": [
-        "new",
-        "in_progress",
-        "closed"
+        "web_form",
+        "otp_link",
+        "paper_form",
+        "staff_recorded"
       ]
     },
-    "public.contact_topic": {
-      "name": "contact_topic",
+    "public.consent_purpose": {
+      "name": "consent_purpose",
       "schema": "public",
       "values": [
-        "GENERAL",
-        "SCHOOLS",
-        "NGOS",
-        "ADOPTION",
-        "VOLUNTEERING",
-        "DONATIONS",
-        "MEDIA"
+        "privacy_notice",
+        "terms",
+        "messages"
+      ]
+    },
+    "public.consent_subject_type": {
+      "name": "consent_subject_type",
+      "schema": "public",
+      "values": [
+        "user"
       ]
     }
   },

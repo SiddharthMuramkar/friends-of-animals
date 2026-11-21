@@ -13,9 +13,15 @@
 // here and in src/server/deps.ts. Outbox events are not a port: `drain()`
 // runs the real relay over these deps. See docs/agents/seam-1.md.
 
+import { randomBytes } from "node:crypto";
 import { onTestFinished, vi } from "vitest";
 
 import { createApp, type UseCases } from "@/server/app";
+import {
+  createBlindIndex,
+  type BlindIndexKey,
+} from "@/server/crypto/blind-index";
+import { createFieldCipher } from "@/server/crypto/field-cipher";
 import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
@@ -30,6 +36,8 @@ import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
 import { FakeErrorReporter } from "./fakes/errors";
+import { FakeSettings } from "./fakes/settings";
+import { FakeSms } from "./fakes/sms";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -41,6 +49,13 @@ export interface Harness {
   clock: FakeClock;
   /** Every email use cases sent. */
   email: FakeEmail;
+  /** Every SMS use cases sent. */
+  sms: FakeSms;
+  /**
+   * Runtime settings, at their defaults (SMS off) until a test sets one:
+   * `h.settings.set("sms.enabled", true)`.
+   */
+  settings: FakeSettings;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
   /** Every error use cases reported, scrubbed as Sentry would get it. */
@@ -102,14 +117,24 @@ export async function createHarness(
     onChange: (now) => vi.setSystemTime(now),
   });
   const email = new FakeEmail(clock);
+  const sms = new FakeSms(clock);
+  const settings = new FakeSettings();
   const cookies = new FakeCookieJar(clock);
   const errors = new FakeErrorReporter();
   const deps: Deps = {
     db,
     clock,
     email,
+    sms,
     cookies,
     auth: TEST_AUTH,
+    // Fresh keys per harness, as a deployment has its own.
+    cipher: createFieldCipher({
+      primary: 1,
+      keys: new Map([[1, randomBytes(32)]]),
+    }),
+    blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
+    settings,
     errors,
     // The real check, made easy: a few hashes to solve (src/test/human-check.ts).
     humanCheck: proofOfWorkHumanCheck({
@@ -129,6 +154,8 @@ export async function createHarness(
     db,
     clock,
     email,
+    sms,
+    settings,
     cookies,
     errors,
     deps,
