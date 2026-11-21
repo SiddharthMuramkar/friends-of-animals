@@ -12,11 +12,13 @@
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
 import type { AppDb } from "../db/app-db";
+import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendWelcomeEmail } from "../notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
+import type { MediaProcessor } from "../ports/media";
 import type { ObjectStorage } from "../ports/storage";
 import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
@@ -27,6 +29,8 @@ export type OutboxDeps = {
   email: EmailSender;
   storage: ObjectStorage;
   scanner: MalwareScanner;
+  /** Used only by the media queue's handlers, in worker-media. */
+  media: MediaProcessor;
 };
 
 /** The event a handler listens to, from SUBSCRIBERS. */
@@ -56,6 +60,7 @@ export const HANDLERS: Handlers = {
   "notifications.send_welcome_email": (deps, { payload }) =>
     sendWelcomeEmail(deps, payload),
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
+  "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
 };
 
 /** Whether this code has a handler by that name. */

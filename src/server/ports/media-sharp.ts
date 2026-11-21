@@ -19,7 +19,7 @@
 // Loads under plain Node (the worker): relative imports only.
 
 import decodeHeif from "heic-decode";
-import sharp from "sharp";
+import sharp, { type Sharp, type SharpOptions } from "sharp";
 
 import {
   DERIVATIVE_KINDS,
@@ -46,7 +46,7 @@ export type SharpMediaOptions = {
 const DEFAULT_TIMEOUT_SECONDS = 60;
 
 /** A sharp pipeline that reads the decoded original, fresh each time. */
-type Decoded = { source: MediaResult["source"]; load: () => sharp.Sharp };
+type Decoded = { source: MediaResult["source"]; load: () => Sharp };
 
 function tooLarge(size: PixelSize, maxInputPixels: number): boolean {
   return size.width * size.height > maxInputPixels;
@@ -56,7 +56,7 @@ async function decodeRaster(
   bytes: Uint8Array,
   maxInputPixels: number
 ): Promise<Decoded> {
-  const options: sharp.SharpOptions = {
+  const options: SharpOptions = {
     // sharp checks this again on decode; the check below types the error.
     limitInputPixels: maxInputPixels,
     autoOrient: true,

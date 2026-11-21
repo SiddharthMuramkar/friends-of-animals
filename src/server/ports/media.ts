@@ -84,3 +84,35 @@ const MEDIA_ERROR_MESSAGES: Record<MediaErrorCode, string> = {
 
 /** The most pixels an adapter decodes by default: 100 megapixels. */
 export const DEFAULT_MAX_INPUT_PIXELS = 100_000_000;
+
+/**
+ * Why a file's media job failed for good: a MediaErrorCode, or
+ * processing_error when it kept failing without one (storage or the
+ * worker itself) until its last try.
+ */
+export const FILE_PROCESSING_ERROR_CODES = [
+  ...MEDIA_ERROR_CODES,
+  "processing_error",
+] as const;
+
+export type FileProcessingErrorCode =
+  (typeof FILE_PROCESSING_ERROR_CODES)[number];
+
+/** Thrown while a deployment has no media processor: the app on Vercel. */
+export class MediaNotConfiguredError extends Error {
+  constructor() {
+    super(
+      "No media processor here: images are processed in worker-media, " +
+        "which drains the media queue."
+    );
+    this.name = "MediaNotConfiguredError";
+  }
+}
+
+/**
+ * The app's processor. The web app and the default worker never run the
+ * media queue, so this is never called; if it were, it would refuse.
+ */
+export const unconfiguredMedia: MediaProcessor = {
+  processImage: () => Promise.reject(new MediaNotConfiguredError()),
+};

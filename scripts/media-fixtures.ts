@@ -13,7 +13,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 import exifr from "exifr";
 import decodeHeic from "heic-decode";
-import sharp from "sharp";
+import sharp, { type Exif } from "sharp";
 
 const DIR = new URL("../fixtures/media/", import.meta.url);
 const file = (name: string) => new URL(name, DIR);
@@ -213,10 +213,7 @@ function withHeifExif(heif: Buffer, exif: Buffer): Buffer {
  * The raw EXIF block sharp writes for `exif` and `orientation`, as in a
  * JPEG's APP1. (sharp sets Orientation from its own field, not from `exif`.)
  */
-async function exifBlock(
-  exif: sharp.Exif,
-  orientation: number
-): Promise<Buffer> {
+async function exifBlock(exif: Exif, orientation: number): Promise<Buffer> {
   const jpeg = await raw(8, 8)
     .jpeg()
     .withExif(exif)

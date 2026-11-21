@@ -17,6 +17,11 @@ export {
   type FailedDelivery,
   type OutboxDeps,
 } from "./relay";
+export {
+  DEDICATED_QUEUES,
+  type DedicatedQueue,
+  type QueueName,
+} from "./queues";
 export { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry-policy";
 export {
   SCHEDULES,

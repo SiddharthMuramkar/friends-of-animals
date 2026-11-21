@@ -23,6 +23,7 @@ import {
   unconfiguredScanner,
   type MalwareScanner,
 } from "./ports/malware-scanner";
+import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 
 export interface Deps extends DbWithClock {
@@ -36,6 +37,11 @@ export interface Deps extends DbWithClock {
   files: FilesConfig;
   /** Scans each upload before anyone but its uploader may open it (#63). */
   scanner: MalwareScanner;
+  /**
+   * Makes image derivatives (#85). Only worker-media's relay runs the media
+   * queue, so the app's is unconfigured and never called.
+   */
+  media: MediaProcessor;
 }
 
 /** Where the Files module keeps objects, and for which environment. */
@@ -91,6 +97,7 @@ export function productionDeps(): Deps {
         appEnv: config.APP_ENV,
       },
       scanner: unconfiguredScanner,
+      media: unconfiguredMedia,
     };
   }
   return production;
