@@ -36,6 +36,8 @@ export interface Deps extends DbWithClock {
   auth: { secret: string; baseUrl: string };
   /** The human check on public forms (proof of work, signed by the secret). */
   humanCheck: HumanCheck;
+  /** The contact form's limits per IP and per address. */
+  contactLimits: ContactRateLimits;
 }
 
 /**
@@ -60,8 +62,15 @@ export function emailSenderFor(
     : captureEmailSender(deps);
 }
 
-export function contactLimitsFor(_appEnv: Env["APP_ENV"]): ContactRateLimits {
-  return CONTACT_RATE_LIMITS;
+/**
+ * The contact form's limits until #62's settings hold them (HR-51). Local
+ * runs and previews let one IP send many more: every E2E run reaches a
+ * preview from the CI runner's one address.
+ */
+export function contactLimitsFor(appEnv: Env["APP_ENV"]): ContactRateLimits {
+  return appEnv === "local" || appEnv === "preview"
+    ? { ...CONTACT_RATE_LIMITS, perIpPerHour: 100 }
+    : CONTACT_RATE_LIMITS;
 }
 
 let production: Deps | undefined;
@@ -84,6 +93,7 @@ export function productionDeps(): Deps {
         secret,
         difficulty: HUMAN_CHECK_DIFFICULTY,
       }),
+      contactLimits: contactLimitsFor(config.APP_ENV),
     };
   }
   return production;

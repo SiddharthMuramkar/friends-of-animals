@@ -109,7 +109,10 @@ export async function submitContactMessage(
       const network = ipNetwork(sender.ip);
       const allowance = await takeFormAllowance(tx, {
         form: "contact",
-        rules: contactRateRules({ ip: network, email: submission.email }),
+        rules: contactRateRules(
+          { ip: network, email: submission.email },
+          ctx.contactLimits
+        ),
         now,
         hash,
       });

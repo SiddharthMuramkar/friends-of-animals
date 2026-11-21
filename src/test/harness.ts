@@ -20,6 +20,7 @@ import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
+import { CONTACT_RATE_LIMITS } from "@/server/modules/contact/domain/submission";
 import { proofOfWorkHumanCheck } from "@/server/modules/public-forms/proof-of-work-check";
 import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
@@ -110,6 +111,7 @@ export async function createHarness(
       secret: TEST_AUTH.secret,
       difficulty: TEST_HUMAN_CHECK_DIFFICULTY,
     }),
+    contactLimits: CONTACT_RATE_LIMITS,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
