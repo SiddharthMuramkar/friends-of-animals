@@ -12,7 +12,10 @@ describe("getCompetitionDocumentVersion", () => {
 
     const read = await h
       .as(h.visitor())
-      .getCompetitionDocumentVersion({ purpose: "competition_terms", version: 1 });
+      .getCompetitionDocumentVersion({
+        purpose: "competition_terms",
+        version: 1,
+      });
 
     expect(read).toMatchObject({
       id: v1.id,
@@ -32,7 +35,10 @@ describe("getCompetitionDocumentVersion", () => {
     expect(
       await h
         .as(h.visitor())
-        .getCompetitionDocumentVersion({ purpose: "privacy_notice", version: 2 })
+        .getCompetitionDocumentVersion({
+          purpose: "privacy_notice",
+          version: 2,
+        })
     ).toBeNull();
   });
 

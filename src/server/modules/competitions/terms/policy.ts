@@ -10,13 +10,18 @@ import {
   role,
   type Policy,
   type Resource,
+  type Rule,
 } from "../../../access/domain/policy";
+
+/** Allows everyone: published document versions are public text. */
+const anyone: Rule = () => ({ allowed: true, role: null });
 
 export const COMPETITION_TERMS_POLICY = {
   "competition.view_terms": role("competition_manager"),
   "competition.set_fees": role("competition_manager"),
   "competition.set_awards": role("competition_manager"),
   "competition.attach_document": role("competition_manager"),
+  "competition.read_document": anyone,
 } satisfies Policy<string>;
 
 export type CompetitionTermsAction = keyof typeof COMPETITION_TERMS_POLICY;

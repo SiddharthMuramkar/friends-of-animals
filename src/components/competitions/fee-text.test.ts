@@ -30,7 +30,10 @@ describe("feeText", () => {
 
   it("stays exact above 2^31 paise", () => {
     expect(
-      feeText({ route: "institution", kind: "amount", paise: 2147483649n }, intl)
+      feeText(
+        { route: "institution", kind: "amount", paise: 2147483649n },
+        intl
+      )
     ).toBe("₹2,14,74,836.49");
   });
 
