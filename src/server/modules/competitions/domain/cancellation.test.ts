@@ -247,4 +247,46 @@ describe("planCancellation()", () => {
     expect(plan.cancelRegistrations).toEqual([]);
     expect(plan.notify).toEqual(["reg-1"]);
   });
+
+  it("tells each family how its fee comes back", () => {
+    const plan = planCancellation({
+      ...EMPTY,
+      registrations: [
+        { id: "reg-card", standing: "confirmed" },
+        { id: "reg-cash", standing: "confirmed" },
+        { id: "reg-held", standing: "confirmed" },
+        { id: "reg-free", standing: "confirmed" },
+        { id: "reg-unpaid", standing: "unpaid" },
+      ],
+      paidBatches: [
+        { id: "batch-card", method: "gateway" },
+        { id: "batch-cash", method: "offline" },
+      ],
+      paidItems: [
+        item({
+          itemId: "item-card",
+          registrationId: "reg-card",
+          batchId: "batch-card",
+        }),
+        item({
+          itemId: "item-cash",
+          registrationId: "reg-cash",
+          batchId: "batch-cash",
+        }),
+        item({
+          itemId: "item-held",
+          registrationId: "reg-held",
+          batchId: "batch-card",
+          refund: { kind: "held" },
+        }),
+      ],
+    });
+    expect(plan.notify.registrations).toEqual([
+      { registrationId: "reg-card", refund: "gateway" },
+      { registrationId: "reg-cash", refund: "manual" },
+      { registrationId: "reg-held", refund: "gateway" },
+      { registrationId: "reg-free", refund: "none" },
+      { registrationId: "reg-unpaid", refund: "none" },
+    ]);
+  });
 });
