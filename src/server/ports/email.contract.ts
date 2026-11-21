@@ -61,6 +61,21 @@ export function emailSenderContract(name: string, setup: EmailContractSetup) {
       expect(subjects).toEqual(["2", "1"]);
     });
 
+    it("lists messages sent at the same instant newest first", async () => {
+      // A code sent again within one millisecond of the first, as a test
+      // that never advances the clock does.
+      const { sender, inbox } = await setup();
+      const sent = Array.from({ length: 10 }, (_, n) => String(n));
+      for (const subject of sent) {
+        await sender.send({ to: "asha@example.test", subject, text: subject });
+      }
+
+      const subjects = (await inbox("asha@example.test")).map(
+        (message) => message.subject
+      );
+      expect(subjects).toEqual(sent.toReversed());
+    });
+
     it("matches the recipient's address whatever its case", async () => {
       const { sender, inbox } = await setup();
       await sender.send({ to: " Asha@Example.TEST ", subject: "S", text: "t" });

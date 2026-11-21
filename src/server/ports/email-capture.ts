@@ -9,7 +9,7 @@ import { and, desc, eq } from "drizzle-orm";
 
 import type { AppDb, DbWithClock } from "../db/app-db";
 import { capturedMessage } from "../db/schema";
-import { uuidv7 } from "../ids";
+import { monotonicUuidv7 } from "../ids";
 import {
   normaliseEmailAddress,
   type EmailSender,
@@ -17,11 +17,15 @@ import {
 } from "./email";
 
 export function captureEmailSender({ db, clock }: DbWithClock): EmailSender {
+  // Messages sent in the same millisecond (a code sent again at once, or a
+  // test that never advances its clock) get ids in send order, which
+  // readCapturedEmail sorts by after the time.
+  const nextId = monotonicUuidv7();
   return {
     async send(message) {
       const now = clock.now();
       await db.insert(capturedMessage).values({
-        id: uuidv7(now),
+        id: nextId(now),
         channel: "email",
         toAddress: normaliseEmailAddress(message.to),
         subject: message.subject,
