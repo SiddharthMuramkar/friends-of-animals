@@ -159,15 +159,19 @@ export function filesConfigFor(
 }
 
 /**
- * clamd once CLAMD_HOST is set. Without it a local run scans with the
- * local scanner, which flags the EICAR test file, and a deployment gets one
- * that passes nothing: Vercel never reaches clamd, so its uploads wait,
- * unscanned, for the VPS worker, which sets CLAMD_HOST.
+ * clamd once CLAMD_HOST is set. Without it a local run on the disk store
+ * scans with the local scanner, which flags the EICAR test file, and
+ * anything else gets one that passes nothing: a deployment (Vercel never
+ * reaches clamd, so its uploads wait, unscanned, for the VPS worker, which
+ * sets CLAMD_HOST), and a run with R2, whose files are real uploads, even
+ * when APP_ENV is left at its default, local.
  */
 export function scannerFor(
-  env: ScannerEnv & { APP_ENV: Env["APP_ENV"] }
+  env: ScannerEnv & StorageEnv & { APP_ENV: Env["APP_ENV"] }
 ): MalwareScanner {
-  if (!env.CLAMD_HOST && env.APP_ENV === "local") return localScanner;
+  if (!env.CLAMD_HOST && env.APP_ENV === "local" && !r2ConfigOf(env)) {
+    return localScanner;
+  }
   return malwareScannerFor(env);
 }
 

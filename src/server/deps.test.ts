@@ -139,6 +139,16 @@ describe("scannerFor", () => {
     });
   });
 
+  // APP_ENV defaults to local, so a worker started without it would
+  // otherwise pass every real upload in a real bucket.
+  it("passes nothing on a local run with R2 but without clamd", async () => {
+    const scanner = scannerFor({ APP_ENV: "local", CLAMD_PORT: 3310, ...R2 });
+
+    expect(await scanner.scan(streamOf(HARMLESS))).toMatchObject({
+      verdict: "error",
+    });
+  });
+
   it("asks clamd once CLAMD_HOST is set, on a local run too", async () => {
     // A "clamd" that hangs up on every connection: only the ClamAV
     // adapter would notice, and it gives no verdict.

@@ -26,7 +26,15 @@ export type GetFileStatusResult =
 
 const getFileStatusInput = z.object({ fileId: z.uuid() });
 
-/** The file's status. Throws forbidden for a caller who may not read it. */
+/**
+ * The file's status. Throws forbidden for a caller who may not read it.
+ *
+ * The row is loaded before the policy is asked, because the policy needs
+ * the owner, as in getFileDownloadUrl and completeUpload. So a caller who
+ * may not read the file can tell an id that exists (forbidden) from one
+ * that doesn't (not_found), and learns nothing more: ids are UUIDv7, about
+ * 74 random bits, so they can't be guessed.
+ */
 export async function getFileStatus(
   ctx: FilesContext,
   input: GetFileStatusInput

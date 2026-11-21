@@ -2,8 +2,7 @@
 // what it sends with the PUT, how often it asks about the scan, and how it
 // shows a file's status. No React, so they're tested on their own.
 
-import type { FileStatus } from "@/server/modules/files/domain/file-status";
-import type { StorableContentType } from "@/server/modules/files/domain/purposes";
+import type { FileStatus, StorableContentType } from "@/server/modules/files";
 
 import type { UploadError } from "./upload-steps";
 
