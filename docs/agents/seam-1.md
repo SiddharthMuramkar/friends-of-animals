@@ -91,8 +91,11 @@ drain again (sent). Failed deliveries are listed by `listFailedDeliveries(h.db)`
 
 A use case that takes an upload goes through the Files module
 (`src/server/modules/files`): `requestUpload` presigns, the test PUTs with
-`h.storage.put(uploadUrl, bytes, headers)`, then `completeUpload` checks the
-stored object. `h.storage.get(url)` opens a download URL. Both check the
+`h.storage.put(uploadUrl, bytes, headers)`, then `completeUpload` moves the
+object from the upload key (`<prefix>incoming/<id>`) to the file's storage key
+and checks it there. To plant an object the browser sent, `plant()` it at the
+upload key. `h.storage.get(url)` opens a download URL. Both check the
 signature, method, signed headers and expiry against `h.clock`, so
 `h.clock.advance({ seconds: 301 })` makes a download URL fail with `expired`.
+An upload URL, like R2's, takes another PUT until it expires.
 To stand in for the scan, set the row's `status` to `clean` directly.

@@ -1,7 +1,10 @@
 // The malware scan: the worker's handler for files.file_uploaded (#63).
 //
 // It reads the stored object once, as a stream, and that one pass feeds the
-// scanner, the SHA-256 and the type sniffer (the first bytes). What the
+// scanner, the SHA-256 and the type sniffer (the first bytes). The object
+// is at the file's storage key, which no upload URL names: completing the
+// upload moved it there (use-cases/upload.ts), so nothing can change it
+// after this read, and a clean file is served as it was scanned. What the
 // file becomes is scanOutcome's call (domain/scan-outcome.ts):
 //   - clean        deliverable to anyone `can()` allows;
 //   - quarantined  moved to `<prefix>quarantine/<id>`, audited, never
@@ -39,7 +42,7 @@ import {
   sniffContentType,
   type SniffedContentType,
 } from "./domain/sniff";
-import { quarantineKeyFor } from "./domain/storage-key";
+import { quarantineKeyFor, storagePrefixOf } from "./domain/storage-key";
 
 export type ScanDeps = {
   db: AppDb;
@@ -214,7 +217,10 @@ async function settle(
       if (await recordVerdict(tx, file, verdict)) await storage.delete(object);
       return;
     }
-    const to = quarantineKeyFor({ prefix: prefixOf(file), fileId: file.id });
+    const to = quarantineKeyFor({
+      prefix: storagePrefixOf(file),
+      fileId: file.id,
+    });
     if (!(await recordVerdict(tx, file, { ...verdict, storageKey: to }))) {
       return;
     }
@@ -245,13 +251,4 @@ async function recordVerdict(
     .where(and(eq(fileAsset.id, file.id), eq(fileAsset.status, file.status)))
     .returning({ id: fileAsset.id });
   return updated.length > 0;
-}
-
-/** The environment prefix of the file's key, `<prefix><purpose>/<id>`. */
-function prefixOf(file: FileAssetRow): string {
-  const suffix = `${file.purpose}/${file.id}`;
-  if (!file.storageKey.endsWith(suffix)) {
-    throw new Error(`File ${file.id} isn't stored under its purpose`);
-  }
-  return file.storageKey.slice(0, -suffix.length);
 }

@@ -5,6 +5,16 @@
 // (src/server/db/database-url.ts), so when the sweeper drops that database
 // `storagePrefixForDatabase` finds the prefix to purge.
 //
+// Under the prefix, an object passes through these keys:
+//   <prefix>incoming/<id>     where the browser PUTs it: the only key an
+//                             upload URL ever names;
+//   <prefix><purpose>/<id>    the file's storage key, where completing the
+//                             upload moves it, and the only key the scan
+//                             reads and downloads serve;
+//   <prefix>quarantine/<id>   where a file the scan flagged is moved.
+// An upload URL can be used again until it expires, so whatever it sends
+// after completing lands in `incoming/` and never reaches the file.
+//
 // Keys are built only from the prefix, the purpose and the file's UUID:
 // never from anything the uploader sent.
 
@@ -88,7 +98,13 @@ function assertSafe(prefix: string, fileId: string): void {
   }
 }
 
-/** `<prefix><purpose>/<fileId>`. */
+/** Folders of the layout above that no purpose may be named after. */
+export const RESERVED_FOLDERS: readonly string[] = ["incoming", "quarantine"];
+
+/**
+ * `<prefix><purpose>/<fileId>`: the file's storage key. No upload URL ever
+ * names it, so only completing the upload writes it.
+ */
 export function storageKeyFor({
   prefix,
   purpose,
@@ -99,7 +115,38 @@ export function storageKeyFor({
   fileId: string;
 }): string {
   assertSafe(prefix, fileId);
+  if (RESERVED_FOLDERS.includes(purpose)) {
+    throw new Error(`A purpose can't be named ${JSON.stringify(purpose)}`);
+  }
   return `${prefix}${purpose}/${fileId}`;
+}
+
+/**
+ * `<prefix>incoming/<fileId>`: where the browser PUTs the file, the only
+ * key an upload URL names. Completing the upload moves it on.
+ */
+export function uploadKeyFor({
+  prefix,
+  fileId,
+}: {
+  prefix: string;
+  fileId: string;
+}): string {
+  assertSafe(prefix, fileId);
+  return `${prefix}incoming/${fileId}`;
+}
+
+/** The environment prefix a file's storage key, `<prefix><purpose>/<id>`, is under. */
+export function storagePrefixOf(file: {
+  id: string;
+  purpose: FilePurpose;
+  storageKey: string;
+}): string {
+  const suffix = `${file.purpose}/${file.id}`;
+  if (!file.storageKey.endsWith(suffix)) {
+    throw new Error(`File ${file.id} isn't stored under its purpose`);
+  }
+  return file.storageKey.slice(0, -suffix.length);
 }
 
 /** `<prefix>quarantine/<fileId>`: where a flagged file is moved. */
