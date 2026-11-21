@@ -72,7 +72,45 @@ class MalformedEnvelope extends Error {}
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const encoder = new TextEncoder();
 
+/**
+ * How deeply an envelope line's JSON may nest. Real events stay far below
+ * it; deeper ones are refused before parsing, so no runtime's stack depth
+ * decides whether scrubbing and re-serialising them can fail.
+ */
+const MAX_JSON_DEPTH = 64;
+
+const QUOTE = 0x22;
+const BACKSLASH = 0x5c;
+const OPENERS: ReadonlySet<number> = new Set([0x5b, 0x7b]); // [ {
+const CLOSERS: ReadonlySet<number> = new Set([0x5d, 0x7d]); // ] }
+
+/**
+ * Whether JSON text nests deeper than MAX_JSON_DEPTH. It scans the UTF-8
+ * bytes: brackets and quotes are ASCII, and no multi-byte character
+ * contains an ASCII byte.
+ */
+function nestsTooDeep(bytes: Uint8Array): boolean {
+  let depth = 0;
+  let inString = false;
+  for (let at = 0; at < bytes.byteLength; at++) {
+    const byte = bytes[at]!;
+    if (inString) {
+      if (byte === BACKSLASH) at++;
+      else if (byte === QUOTE) inString = false;
+    } else if (byte === QUOTE) {
+      inString = true;
+    } else if (OPENERS.has(byte)) {
+      depth++;
+      if (depth > MAX_JSON_DEPTH) return true;
+    } else if (CLOSERS.has(byte)) {
+      depth--;
+    }
+  }
+  return false;
+}
+
 function parseJsonObject(bytes: Uint8Array): Record<string, unknown> {
+  if (nestsTooDeep(bytes)) throw new MalformedEnvelope();
   let value: unknown;
   try {
     value = JSON.parse(decoder.decode(bytes));
