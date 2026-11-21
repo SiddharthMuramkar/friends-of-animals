@@ -85,6 +85,7 @@ describe("messageKeyFor", () => {
     ["empty", "empty"],
     ["type_not_allowed", "typeNotAllowed"],
     ["purpose_unavailable", "switchedOff"],
+    ["storage_unavailable", "switchedOff"],
     ["upload_missing", "uploadFailed"],
     ["upload_rejected", "uploadRejected"],
     ["unknown", "unknown"],
