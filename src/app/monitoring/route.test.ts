@@ -1,13 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { POST } from "./route";
-
 const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
 
-let config: { NEXT_PUBLIC_SENTRY_DSN?: string; APP_ENV: string };
-vi.mock("@/env", () => ({ env: () => config }));
+/**
+ * POST as a staging server runs it, with `dsn` as NEXT_PUBLIC_SENTRY_DSN.
+ * The route reads its config through the real `env()`, which parses
+ * process.env on first use and keeps the result, so each test stubs the
+ * variables first and then loads a fresh copy of the route.
+ */
+async function stagingPost(dsn: string | undefined) {
+  vi.stubEnv("APP_ENV", "staging");
+  vi.stubEnv("APP_URL", "https://staging.example.invalid");
+  // Required by the schema; nothing here connects to it.
+  vi.stubEnv("DATABASE_URL", "postgres://localhost:5432/foa");
+  // Staging refuses to start without a session secret of 32 characters.
+  vi.stubEnv("BETTER_AUTH_SECRET", "x".repeat(32));
+  vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", dsn);
+  vi.resetModules();
+  const { POST } = await import("./route");
+  return POST;
+}
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
@@ -18,14 +33,23 @@ const event = [
 ].join("\n");
 
 const post = () =>
-  new Request("https://shipped-it.dev/monitoring", {
+  new Request("https://staging.example.invalid/monitoring", {
     method: "POST",
     body: event,
   });
 
 describe("POST /monitoring", () => {
   it("answers 404 while NEXT_PUBLIC_SENTRY_DSN is unset", async () => {
-    config = { APP_ENV: "staging" };
+    const POST = await stagingPost(undefined);
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    expect((await POST(post())).status).toBe(404);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 while NEXT_PUBLIC_SENTRY_DSN is empty, as .env.example leaves it", async () => {
+    const POST = await stagingPost("");
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
 
@@ -34,7 +58,7 @@ describe("POST /monitoring", () => {
   });
 
   it("forwards to the configured project, tagged with the server's APP_ENV", async () => {
-    config = { NEXT_PUBLIC_SENTRY_DSN: DSN, APP_ENV: "staging" };
+    const POST = await stagingPost(DSN);
     const fetch = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetch);
 
