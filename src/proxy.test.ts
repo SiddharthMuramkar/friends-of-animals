@@ -1,9 +1,14 @@
 import { getScriptNonceFromHeader } from "next/dist/server/app-render/get-script-nonce-from-header";
-import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import {
+  getRewrittenUrl,
+  unstable_doesMiddlewareMatch,
+} from "next/experimental/testing/server";
 import { NextRequest, type NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SIGNED_IN_PREFIXES } from "@/lib/app-routes";
+import { publicCsp } from "@/lib/csp";
+import { cspContext } from "@/lib/csp-sources";
 
 import { config, proxy } from "./proxy";
 
@@ -103,6 +108,23 @@ describe("proxy: the signed-in nonce policy", () => {
       "chosenbyclient"
     );
     expect(page.get("x-nonce")).not.toBe("chosenbyclient");
+  });
+
+  it("answers any other signed-in path with the static 404 under the public policy", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    // A request-time notFound() under the signed-in layout could only stream
+    // a 200; the prerendered 404 has no nonce on its scripts.
+    for (const path of ["/account", "/account/nope", "/account/sessions/x"]) {
+      const response = proxy(request(path, SESSION));
+
+      expect(getRewrittenUrl(response), path).toBe(
+        "https://foa.example.test/__not-found"
+      );
+      expect(response.headers.get("content-security-policy"), path).toBe(
+        publicCsp(cspContext()).value
+      );
+      expect(forwarded(response), path).toBeUndefined();
+    }
   });
 
   it("still sends a visitor with no session cookie to sign in", () => {
