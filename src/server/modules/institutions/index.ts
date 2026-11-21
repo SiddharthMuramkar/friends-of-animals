@@ -3,7 +3,7 @@
 // Institution ID. Its use cases join `as(actor)` through
 // `institutionUseCases`.
 
-import type { UseCaseContext } from "../use-cases";
+import type { UseCaseContext } from "../../use-cases";
 import { decideInstitution, type DecideInstitutionInput } from "./decide";
 import type { RegisterInstitutionInput } from "./domain/registration";
 import {

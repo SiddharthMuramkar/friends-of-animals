@@ -6,7 +6,7 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
-import type { RegisterInstitutionResult } from "@/server/institutions";
+import type { RegisterInstitutionResult } from "@/server/modules/institutions";
 
 import {
   afterResult,

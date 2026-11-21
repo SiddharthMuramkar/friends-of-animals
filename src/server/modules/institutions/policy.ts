@@ -4,7 +4,7 @@
 // super admins review and decide. The institution's own admin can't decide
 // about it.
 
-import { role, signedIn, type Policy } from "../access/domain/policy";
+import { role, signedIn, type Policy } from "../../access/domain/policy";
 
 const foaAdmin = role("staff_admin", "super_admin");
 

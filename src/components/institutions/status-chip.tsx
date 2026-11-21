@@ -1,7 +1,7 @@
 import { BadgeCheck, CircleX, Clock, PauseCircle } from "lucide-react";
 
 import { Chip } from "@/components/site/chip";
-import type { InstitutionStatus } from "@/server/institutions";
+import type { InstitutionStatus } from "@/server/modules/institutions";
 
 const LOOK = {
   pending_verification: { tone: "marigold", Icon: Clock },

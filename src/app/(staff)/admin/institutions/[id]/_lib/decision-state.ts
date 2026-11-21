@@ -5,12 +5,12 @@
 import type {
   DecideInstitutionInput,
   DecideInstitutionResult,
-} from "@/server/institutions";
+} from "@/server/modules/institutions";
 // The pure status table: this file loads in the browser too.
 import {
   INSTITUTION_DECISIONS,
   type InstitutionDecision,
-} from "@/server/institutions/domain/status";
+} from "@/server/modules/institutions/domain/status";
 
 export type DecisionFormState = {
   /** Counts submissions, so the form remounts with the reason below. */

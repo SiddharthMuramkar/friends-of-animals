@@ -3,7 +3,7 @@
 // the use case refused, and an alert for the whole form. Pure, so it
 // loads in the client form and the Server Action alike.
 
-import type { RegisterInstitutionResult } from "@/server/institutions";
+import type { RegisterInstitutionResult } from "@/server/modules/institutions";
 
 export const REGISTRATION_FIELDS = [
   "name",

@@ -7,12 +7,12 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import type { E164Phone } from "../../lib/phone";
-import { authorize } from "../access/can";
-import { institution, user, type Institution } from "../db/schema";
-import { signedInUser } from "../identity/account";
-import { invalidInput, type InvalidInput } from "../input";
-import type { UseCaseContext } from "../use-cases";
+import type { E164Phone } from "../../../lib/phone";
+import { authorize } from "../../access/can";
+import { institution, user, type Institution } from "../../db/schema";
+import { signedInUser } from "../../identity/account";
+import { invalidInput, type InvalidInput } from "../../input";
+import type { UseCaseContext } from "../../use-cases";
 import type { InstitutionType } from "./domain/registration";
 import { INSTITUTION_STATUSES, type InstitutionStatus } from "./domain/status";
 import { openPrincipalContact } from "./principal-contact";

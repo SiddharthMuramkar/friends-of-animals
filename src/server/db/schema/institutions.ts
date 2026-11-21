@@ -1,13 +1,14 @@
 // Institutions (#73): schools, colleges and universities that take part
 // through FOA. The authorised person (`created_by`) registers one; FOA
 // staff verify, reject or suspend it. The first verification gives it its
-// Institution ID (`FOA-I-` and 5 Crockford base32 symbols, src/server/codes)
-// and the authorised person the institution_admin role scoped to it.
+// Institution ID (`FOA-I-` and 5 Crockford base32 symbols,
+// src/server/modules/codes) and the authorised person the institution_admin
+// role scoped to it.
 //
 // The principal's email and phone are encrypted with the field cipher. The
 // institution's own address and contact details, and the principal's name,
 // are stored plain; the data inventory lists all of them
-// (src/server/privacy/inventory.ts).
+// (src/server/modules/privacy/inventory.ts).
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
@@ -29,8 +30,8 @@ import {
 import {
   INSTITUTION_TYPES,
   MAX_EXPECTED_PARTICIPANTS,
-} from "../../institutions/domain/registration";
-import { INSTITUTION_STATUSES } from "../../institutions/domain/status";
+} from "../../modules/institutions/domain/registration";
+import { INSTITUTION_STATUSES } from "../../modules/institutions/domain/status";
 import { encryptedText } from "../types/encrypted-text";
 import { user } from "./identity";
 

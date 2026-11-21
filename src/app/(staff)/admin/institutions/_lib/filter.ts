@@ -5,7 +5,7 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import {
   INSTITUTION_STATUSES,
   type InstitutionStatus,
-} from "@/server/institutions";
+} from "@/server/modules/institutions";
 
 export type StatusFilter = InstitutionStatus | "all";
 

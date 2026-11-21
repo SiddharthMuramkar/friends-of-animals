@@ -3,8 +3,8 @@
 // leaked backup shows neither. Loads under plain Node (the seed script):
 // relative imports only, no "server-only".
 
-import type { E164Phone } from "../../lib/phone";
-import type { Ciphertext, FieldCipher } from "../crypto/field-cipher";
+import type { E164Phone } from "../../../lib/phone";
+import type { Ciphertext, FieldCipher } from "../../crypto/field-cipher";
 
 /** The purposes the cipher binds each value to. */
 export const PRINCIPAL_EMAIL = "institution.principal_email";

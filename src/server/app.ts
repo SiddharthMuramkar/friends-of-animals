@@ -21,7 +21,7 @@ import { identityUseCases, resolveActor } from "./identity";
 import { notificationsUseCases } from "./modules/notifications";
 import { secondFactorUseCases } from "./modules/second-factor";
 import { settingsUseCases } from "./modules/settings";
-import { institutionUseCases } from "./institutions";
+import { institutionUseCases } from "./modules/institutions";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(

@@ -2,10 +2,11 @@
 
 FOA keeps a list of every database column that holds personal data, with what
 it is kept for and for how long. The list lives in code, in
-[`src/server/privacy/inventory.ts`](../../src/server/privacy/inventory.ts), so
-a test can check it against the schema:
-[`inventory.test.ts`](../../src/server/privacy/inventory.test.ts) fails when an
-encrypted column (one whose name ends in `_ciphertext`) isn't listed.
+[`src/server/modules/privacy/inventory.ts`](../../src/server/modules/privacy/inventory.ts),
+so a test can check it against the schema:
+[`inventory.test.ts`](../../src/server/modules/privacy/inventory.test.ts)
+fails when an encrypted column (one whose name ends in `_ciphertext`) isn't
+listed.
 
 ## Adding a column
 

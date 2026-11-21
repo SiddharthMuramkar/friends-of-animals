@@ -18,7 +18,7 @@ import {
   allowedDecisions,
   DECISION_REASON_MAX_LENGTH,
   type InstitutionOutcome,
-} from "@/server/institutions";
+} from "@/server/modules/institutions";
 
 import { isForbidden } from "../_lib/refused";
 import {

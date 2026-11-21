@@ -3,13 +3,13 @@
 // waits for FOA staff (./decide.ts). One open registration per person: a
 // second waits until the first is rejected.
 
-import { authorize } from "../access/can";
-import { recordAudit } from "../audit/record";
-import { institution } from "../db/schema";
-import { signedInUser } from "../identity/account";
-import { uuidv7 } from "../ids";
-import { invalidInput, type InvalidInput } from "../input";
-import type { UseCaseContext } from "../use-cases";
+import { authorize } from "../../access/can";
+import { recordAudit } from "../../audit/record";
+import { institution } from "../../db/schema";
+import { signedInUser } from "../../identity/account";
+import { uuidv7 } from "../../ids";
+import { invalidInput, type InvalidInput } from "../../input";
+import type { UseCaseContext } from "../../use-cases";
 import {
   registrationSchema,
   type RegisterInstitutionInput,

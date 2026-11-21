@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 
-import { parsePhoneNumber, type E164Phone } from "../../../lib/phone";
+import { parsePhoneNumber, type E164Phone } from "../../../../lib/phone";
 
 /** The kinds of institution FOA works with. */
 export const INSTITUTION_TYPES = [

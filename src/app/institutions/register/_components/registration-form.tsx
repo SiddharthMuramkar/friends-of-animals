@@ -11,7 +11,7 @@ import {
 } from "@/components/form";
 import { SiteLink } from "@/components/site/site-link";
 import { APP_ROUTES } from "@/lib/app-routes";
-import type { InstitutionType } from "@/server/institutions";
+import type { InstitutionType } from "@/server/modules/institutions";
 
 import { registerInstitutionAction } from "../_lib/actions";
 import {

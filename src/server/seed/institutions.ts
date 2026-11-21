@@ -7,8 +7,8 @@
 
 import { institution } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
-import type { InstitutionDecision } from "../institutions/domain/status";
-import { sealPrincipalContact } from "../institutions/principal-contact";
+import type { InstitutionDecision } from "../modules/institutions/domain/status";
+import { sealPrincipalContact } from "../modules/institutions/principal-contact";
 import type { E164Phone } from "../../lib/phone";
 import { ensureGrant } from "./access";
 import { SEED_SCOPES } from "./scopes";

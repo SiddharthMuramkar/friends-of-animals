@@ -8,14 +8,18 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../access/can";
-import { recordAudit } from "../audit/record";
+import { authorize } from "../../access/can";
+import { recordAudit } from "../../audit/record";
 import { INSTITUTION_CODE, withUniqueCode } from "../codes/codes";
-import type { AppDb } from "../db/app-db";
-import { institution, INSTITUTION_CODE_UNIQUE, userRole } from "../db/schema";
-import { uuidv7 } from "../ids";
-import { invalidInput, type InvalidInput } from "../input";
-import type { UseCaseContext } from "../use-cases";
+import type { AppDb } from "../../db/app-db";
+import {
+  institution,
+  INSTITUTION_CODE_UNIQUE,
+  userRole,
+} from "../../db/schema";
+import { uuidv7 } from "../../ids";
+import { invalidInput, type InvalidInput } from "../../input";
+import type { UseCaseContext } from "../../use-cases";
 import {
   decideInstitutionStatus,
   INSTITUTION_DECISIONS,

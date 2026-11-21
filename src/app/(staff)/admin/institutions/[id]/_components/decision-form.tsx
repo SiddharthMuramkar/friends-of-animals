@@ -4,7 +4,7 @@ import { OctagonAlert } from "lucide-react";
 import { useActionState } from "react";
 
 import { FormAlert, inputStyles, SubmitButton } from "@/components/form";
-import type { InstitutionDecision } from "@/server/institutions";
+import type { InstitutionDecision } from "@/server/modules/institutions";
 
 import { decideInstitutionAction } from "../_lib/actions";
 import { START, type DecisionFormState } from "../_lib/decision-state";

@@ -8,7 +8,7 @@ import { Section } from "@/components/site/section";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import { INSTITUTION_TYPES } from "@/server/institutions";
+import { INSTITUTION_TYPES } from "@/server/modules/institutions";
 
 import {
   RegistrationForm,

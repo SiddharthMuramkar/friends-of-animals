@@ -13,7 +13,7 @@ import { adminInstitutionPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
-import type { InstitutionSummary } from "@/server/institutions";
+import type { InstitutionSummary } from "@/server/modules/institutions";
 
 import { filterHref, STATUS_FILTERS, statusFilter } from "./_lib/filter";
 import { isForbidden } from "./_lib/refused";
