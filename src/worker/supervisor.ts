@@ -8,8 +8,8 @@
 //   no longer listed is closed. Single-database mode lists one fixed name.
 // - A tenant whose tick says its database is gone (SQLSTATE 3D000: the
 //   sweeper dropped the preview) is closed at once, before the next listing.
-//   Other failures are logged, once until the tenant recovers, and retried
-//   on the next tick.
+//   Other failures are logged and passed to `onError` (Sentry, #66), once
+//   until the tenant recovers, and retried on the next tick.
 // - Health: `beat()` (the heartbeat file Docker's health check reads) runs
 //   after a tick while the last listing succeeded and, with
 //   `everyTenantMustTick` (single mode), every listed database has a tenant
@@ -64,6 +64,7 @@ export function createSupervisor({
   startTenant,
   beat,
   log,
+  onError,
 }: SupervisorOptions): Supervisor {
   const tenants = new Map<string, Attached>();
   let listedAt: number | undefined;
@@ -156,6 +157,7 @@ export function createSupervisor({
           database,
           error: summary,
         });
+        onError(error, { tenant: database });
       }
       attached.failure = summary;
       return false;
