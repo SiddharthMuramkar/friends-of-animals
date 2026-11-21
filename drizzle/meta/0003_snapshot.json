@@ -1,5 +1,5 @@
 {
-  "id": "0b8141be-2870-4e7b-a602-bb04766ec0ec",
+  "id": "4316b7ff-4fc8-437c-84ee-7214f3ce2a9d",
   "prevId": "2f79bf5d-a4e3-4e49-845b-3ee54712e4ea",
   "version": "7",
   "dialect": "postgresql",
@@ -498,8 +498,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.user_role": {
-      "name": "user_role",
+    "public.outbox": {
+      "name": "outbox",
       "schema": "",
       "columns": {
         "id": {
@@ -508,135 +508,40 @@
           "primaryKey": true,
           "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
+        "event_id": {
+          "name": "event_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "role": {
-          "name": "role",
-          "type": "role",
-          "typeSchema": "public",
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "scope_type": {
-          "name": "scope_type",
-          "type": "role_scope_type",
-          "typeSchema": "public",
+        "aggregate_type": {
+          "name": "aggregate_type",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "scope_id": {
-          "name": "scope_id",
+        "aggregate_id": {
+          "name": "aggregate_id",
           "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "granted_by_user_id": {
-          "name": "granted_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "granted_at": {
-          "name": "granted_at",
-          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
-        }
-      },
-      "indexes": {
-        "user_role_role_idx": {
-          "name": "user_role_role_idx",
-          "columns": [
-            {
-              "expression": "role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         },
-        "user_role_granted_by_user_id_idx": {
-          "name": "user_role_granted_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "granted_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "user_role_user_id_user_id_fk": {
-          "name": "user_role_user_id_user_id_fk",
-          "tableFrom": "user_role",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+        "handler": {
+          "name": "handler",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
-        "user_role_granted_by_user_id_user_id_fk": {
-          "name": "user_role_granted_by_user_id_user_id_fk",
-          "tableFrom": "user_role",
-          "tableTo": "user",
-          "columnsFrom": [
-            "granted_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "user_role_grant_unique": {
-          "name": "user_role_grant_unique",
-          "nullsNotDistinct": true,
-          "columns": [
-            "user_id",
-            "role",
-            "scope_type",
-            "scope_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "user_role_scope_id_matches_type": {
-          "name": "user_role_scope_id_matches_type",
-          "value": "(\"user_role\".\"scope_type\" = 'global') = (\"user_role\".\"scope_id\" IS NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.audit_log": {
-      "name": "audit_log",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
           "notNull": true
         },
         "occurred_at": {
@@ -645,141 +550,81 @@
           "primaryKey": false,
           "notNull": true
         },
-        "actor_kind": {
-          "name": "actor_kind",
-          "type": "audit_actor_kind",
+        "available_at": {
+          "name": "available_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "outbox_status",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'pending'"
         },
-        "actor_user_id": {
-          "name": "actor_user_id",
-          "type": "uuid",
+        "dispatched_at": {
+          "name": "dispatched_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "actor_process": {
-          "name": "actor_process",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "actor_role": {
-          "name": "actor_role",
-          "type": "role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "action": {
-          "name": "action",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_type": {
-          "name": "entity_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "before": {
-          "name": "before",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "after": {
-          "name": "after",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ip": {
-          "name": "ip",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_agent": {
-          "name": "user_agent",
-          "type": "text",
+        "failed_at": {
+          "name": "failed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {
-        "audit_log_actor_user_id_idx": {
-          "name": "audit_log_actor_user_id_idx",
+        "outbox_pending_available_at_idx": {
+          "name": "outbox_pending_available_at_idx",
           "columns": [
             {
-              "expression": "actor_user_id",
+              "expression": "available_at",
               "isExpression": false,
               "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
               "nulls": "last"
             }
           ],
           "isUnique": false,
+          "where": "\"outbox\".\"status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "audit_log_entity_idx": {
-          "name": "audit_log_entity_idx",
+        "outbox_failed_failed_at_idx": {
+          "name": "outbox_failed_failed_at_idx",
           "columns": [
             {
-              "expression": "entity_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
+              "expression": "failed_at",
               "isExpression": false,
               "asc": false,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "audit_log_action_idx": {
-          "name": "audit_log_action_idx",
-          "columns": [
-            {
-              "expression": "action",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
+          "where": "\"outbox\".\"status\" = 'failed'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -787,16 +632,29 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "outbox_event_id_handler_key": {
+          "name": "outbox_event_id_handler_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "event_id",
+            "handler"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {
-        "audit_log_actor_user_matches_kind": {
-          "name": "audit_log_actor_user_matches_kind",
-          "value": "(\"audit_log\".\"actor_kind\" = 'user') = (\"audit_log\".\"actor_user_id\" IS NOT NULL)"
+        "outbox_attempts_not_negative": {
+          "name": "outbox_attempts_not_negative",
+          "value": "\"outbox\".\"attempts\" >= 0"
         },
-        "audit_log_actor_process_matches_kind": {
-          "name": "audit_log_actor_process_matches_kind",
-          "value": "(\"audit_log\".\"actor_kind\" = 'system') = (\"audit_log\".\"actor_process\" IS NOT NULL)"
+        "outbox_dispatched_at_when_dispatched": {
+          "name": "outbox_dispatched_at_when_dispatched",
+          "value": "(\"outbox\".\"status\" = 'dispatched') = (\"outbox\".\"dispatched_at\" IS NOT NULL)"
+        },
+        "outbox_failed_at_when_failed": {
+          "name": "outbox_failed_at_when_failed",
+          "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
@@ -811,45 +669,13 @@
         "sms"
       ]
     },
-    "public.role": {
-      "name": "role",
+    "public.outbox_status": {
+      "name": "outbox_status",
       "schema": "public",
       "values": [
-        "member",
-        "participant",
-        "guardian",
-        "institution_admin",
-        "institution_coordinator",
-        "judge",
-        "volunteer",
-        "organisation_representative",
-        "staff_admin",
-        "super_admin",
-        "competition_manager",
-        "content_manager",
-        "community_manager",
-        "finance",
-        "auction_manager",
-        "adoption_coordinator"
-      ]
-    },
-    "public.role_scope_type": {
-      "name": "role_scope_type",
-      "schema": "public",
-      "values": [
-        "global",
-        "institution",
-        "competition",
-        "organisation"
-      ]
-    },
-    "public.audit_actor_kind": {
-      "name": "audit_actor_kind",
-      "schema": "public",
-      "values": [
-        "visitor",
-        "user",
-        "system"
+        "pending",
+        "dispatched",
+        "failed"
       ]
     }
   },
