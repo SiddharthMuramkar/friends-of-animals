@@ -49,7 +49,10 @@ export type MigrationJournal = {
  * after the newest one a database already has, so a database migrated from
  * an older ./drizzle can't take a regenerated one; a new fingerprint gives
  * the preview a fresh database instead. An applied migration edited by hand
- * keeps its tag and date and goes unnoticed, as it does for the migrator.
+ * keeps its tag and date and goes unnoticed, as it does for the migrator:
+ * regenerate an edited custom migration so it is re-dated (README, "Databases
+ * on Vercel"). The SQL files themselves aren't hashed because the deployed
+ * bundle has only the journal, which it imports.
  */
 export function migrationsFingerprint({ entries }: MigrationJournal): string {
   return createHash("sha256")
