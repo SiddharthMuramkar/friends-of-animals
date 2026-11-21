@@ -196,9 +196,9 @@ describe("exitOnUncaught", () => {
   ])("reports an %s, flushes, then exits 1", async (event, where) => {
     const reporter = new FakeErrorReporter();
     let flushed!: (sent: boolean) => void;
-    vi.spyOn(reporter, "flush").mockReturnValue(
-      new Promise((resolve) => (flushed = resolve))
-    );
+    const flush = vi
+      .spyOn(reporter, "flush")
+      .mockReturnValue(new Promise((resolve) => (flushed = resolve)));
     const proc = new EventEmitter();
     const exit = vi.fn();
     exitOnUncaught(reporter, { process: proc, exit, log });
@@ -209,7 +209,7 @@ describe("exitOnUncaught", () => {
     expect(reporter.reported).toEqual([
       expect.objectContaining({ error, tags: { where } }),
     ]);
-    expect(reporter.flush).toHaveBeenCalledWith(2000);
+    expect(flush).toHaveBeenCalledWith(2000);
     expect(exit).not.toHaveBeenCalled();
     flushed(true);
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(1));
@@ -220,7 +220,9 @@ describe("exitOnUncaught", () => {
 
   it("flushes and exits once when a second error arrives while flushing", async () => {
     const reporter = new FakeErrorReporter();
-    vi.spyOn(reporter, "flush").mockReturnValue(new Promise(() => {}));
+    const flush = vi
+      .spyOn(reporter, "flush")
+      .mockReturnValue(new Promise(() => {}));
     const proc = new EventEmitter();
     const exit = vi.fn();
     exitOnUncaught(reporter, { process: proc, exit, log });
@@ -229,6 +231,6 @@ describe("exitOnUncaught", () => {
     proc.emit("unhandledRejection", new Error("second"));
 
     expect(reporter.reported).toHaveLength(2);
-    expect(reporter.flush).toHaveBeenCalledTimes(1);
+    expect(flush).toHaveBeenCalledTimes(1);
   });
 });

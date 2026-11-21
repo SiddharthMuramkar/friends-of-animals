@@ -63,9 +63,9 @@ export type WorkerErrors = {
   /** Sentry when SENTRY_DSN is set, silent otherwise. */
   reporter: ErrorReporter;
   /** The supervisor's onError: a tenant's tick failed. */
-  tenantFailed(error: unknown, where: { tenant: string }): void;
+  tenantFailed: (error: unknown, where: { tenant: string }) => void;
   /** Sends what is queued, waiting at most 2 s. Call before exiting. */
-  flush(): Promise<boolean>;
+  flush: () => Promise<boolean>;
 };
 
 export type StartWorkerErrorsInput = {
