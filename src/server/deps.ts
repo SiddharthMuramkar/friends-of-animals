@@ -54,6 +54,15 @@ export function emailSenderFor(
     : captureEmailSender(deps);
 }
 
+export function smsSenderFor(
+  _appEnv: Env["APP_ENV"],
+  _deps: DbWithClock,
+  _msg91: { authKey?: string | undefined; otpTemplateId?: string | undefined },
+  _fetch: typeof fetch = fetch
+): import("./ports/sms").SmsSender {
+  return { send: () => Promise.reject(new Error("not built yet")) };
+}
+
 let production: Deps | undefined;
 
 /** The app's deps, built on first use from `env()`. */
