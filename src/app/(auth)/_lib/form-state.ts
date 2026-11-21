@@ -53,9 +53,18 @@ function fieldErrors(fields: string[]): EmailCodeFormState["fieldErrors"] {
   );
 }
 
+type Step = EmailCodeFormState["step"];
+
+/**
+ * After asking for a code, from the email step or ("Send a new code") from
+ * the code step. A refused new code keeps the code step: the last code
+ * still works. Fields to fix always go back to the email step, where they
+ * show.
+ */
 export function afterRequest(
   result: RequestEmailCodeResult,
-  entered: Entered
+  entered: Entered,
+  from: Step = "email"
 ): EmailCodeFormState {
   if (result.ok) return { step: "code", ...entered, sent: true };
   if (result.error === "invalid_input") {
@@ -66,11 +75,16 @@ export function afterRequest(
     };
   }
   return {
-    step: "email",
+    step: from,
     ...entered,
     alert: "rate_limited",
     retryAfterMinutes: Math.ceil(result.retryAfterSeconds / 60),
   };
+}
+
+/** When a use case fails outright: stay where the form was, and say so. */
+export function afterFailure(from: Step, entered: Entered): EmailCodeFormState {
+  return { step: from, ...entered, alert: "failed" };
 }
 
 /** For a failed verification; success redirects instead. */

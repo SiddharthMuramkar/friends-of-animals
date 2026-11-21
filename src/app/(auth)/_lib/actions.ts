@@ -9,6 +9,7 @@ import { errorSummaryForLogs } from "@/server/errors";
 import { EMAIL_CODE } from "@/server/identity/settings";
 
 import {
+  afterFailure,
   afterRequest,
   afterVerify,
   START,
@@ -67,6 +68,9 @@ export async function emailCodeAction(
   const intent =
     field(formData, "intent") === "sign-up" ? "sign-up" : "sign-in";
   const step = field(formData, "step") || "email";
+  // The step the form was showing; "Send a new code" asks for a code
+  // (step "email") from the code step.
+  const from = field(formData, "from") === "code" ? "code" : "email";
   const entered = {
     email: field(formData, "email"),
     name: field(formData, "name"),
@@ -95,7 +99,8 @@ export async function emailCodeAction(
               ? { intent, ...entered }
               : { intent, email: entered.email }
           ),
-          entered
+          entered,
+          from
         )
       );
     }
@@ -105,11 +110,7 @@ export async function emailCodeAction(
     console.error(
       `Email code form: the use case failed: ${errorSummaryForLogs(error)}`
     );
-    return withText({
-      step: step === "code" ? "code" : "email",
-      ...entered,
-      alert: "failed",
-    });
+    return withText(afterFailure(step === "code" ? "code" : from, entered));
   }
   // Signed in: the session cookie is set. Outside the try, because
   // redirect() works by throwing.

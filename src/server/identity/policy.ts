@@ -21,9 +21,14 @@ export const IDENTITY_POLICY = {
   // Signing up and signing in are for people who aren't signed in.
   requestEmailCode: signedOut,
   verifyEmailCode: signedOut,
-  // Their own account and session only: there is no id to name another.
+  // A signed-in user, for their own account and sessions only. Most of
+  // these take no id; signOutSession takes a session id, and its query
+  // matches only the actor's own sessions (session.user_id), so another
+  // user's session is "not found".
   getAccount: signedIn,
-  signOut: signedIn,
+  listSessions: signedIn,
+  signOutSession: signedIn,
+  signOutEverywhere: signedIn,
 } satisfies Policy<string>;
 
 export type IdentityAction = keyof typeof IDENTITY_POLICY;
