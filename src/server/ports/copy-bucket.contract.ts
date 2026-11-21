@@ -1,7 +1,8 @@
 // Shared contract for every CopyBucket adapter. The in-memory fake runs it in
 // every `pnpm test`; the S3 adapter runs it against a real R2 or B2 bucket
-// only with OFFSITE_CONTRACT=1 (./copy-bucket-s3.live.test.ts). A fake that
-// passes a check a real bucket fails is wrong. Only imported by test files.
+// only by hand, with OFFSITE_CONTRACT=1 (./copy-bucket-s3.live.test.ts).
+// A fake that passes a check a real bucket fails is wrong. Only imported by
+// test files.
 
 import { createHash } from "node:crypto";
 
