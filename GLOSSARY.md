@@ -31,9 +31,14 @@ One signed-in device or browser of a User, which the User can see and end.
 _Avoid_: Login, token
 
 **Sign-in code**:
-A short-lived number emailed (or, later, texted) to a User to prove they hold
-that address; it is how people sign up and sign in, with no password.
+A short-lived number emailed or texted to a User to prove they hold that
+address or phone; it is how people sign up and sign in, with no password.
 _Avoid_: OTP (in copy), password, token
+
+**Sign-in method**:
+A way to receive sign-in codes: email, always on, or SMS, which stays off
+until FOA's SMS sender registration is approved.
+_Avoid_: Login type, provider
 
 **Role**:
 What a User is to the platform, such as a judge, an institution coordinator or
@@ -81,6 +86,25 @@ who made it, with which Role, to what, before and after, from where and when.
 Nobody can edit or delete an entry.
 _Avoid_: Activity log, history, event log
 
+## Personal data
+
+**Encrypted field**:
+Personal data, such as a User's phone number, that the database holds only in
+encrypted form, so a leaked backup or a raw query can't read it.
+_Avoid_: Hashed field, masked field, secure column
+
+**Blind index**:
+A keyed fingerprint kept beside an Encrypted field, so the platform can find a
+record by that value (a User by phone at sign-in) without storing it readably.
+_Avoid_: Phone hash, lookup hash
+
+## Operations
+
+**Setting**:
+A switch or value staff can change on a running site without a deploy, such
+as whether sign-in codes may go by SMS.
+_Avoid_: Feature flag, config, environment variable
+
 ## Messages
 
 **Capture mailbox**:
@@ -112,6 +136,19 @@ _Avoid_: Job, task, message
 One round of carrying out every delivery that is due: the worker does it all
 the time, a preview does it on request, and a Seam 1 test does it in process.
 _Avoid_: Flush, process the queue
+
+**Worker**:
+The platform's always-on background process, which keeps draining and runs
+scheduled jobs. Production and staging each have their own; one shared
+preview worker serves every live preview and lets go of a preview once it is
+removed.
+_Avoid_: Cron, daemon, job runner
+
+**Scheduled job**:
+Work the platform does on a timetable rather than in answer to one change,
+such as a reminder sweep, a status flip at a deadline or a retention purge.
+Previews never run them.
+_Avoid_: Cron job, recurring task
 
 ## Running the platform
 

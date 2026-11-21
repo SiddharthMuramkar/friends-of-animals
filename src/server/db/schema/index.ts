@@ -11,3 +11,4 @@ export * from "./audit";
 export * from "./second-factor";
 export * from "./outbox";
 export * from "./settings";
+export * from "./worker";
