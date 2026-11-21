@@ -31,17 +31,20 @@ function keptSince(now: Date): Date {
 }
 
 /**
- * The capture mailbox couldn't store a message. Only the Postgres error
- * code survives: the database's error (a DrizzleQueryError) lists the
+ * The capture mailbox couldn't store or read messages. Only the Postgres
+ * error code survives: the database's error (a DrizzleQueryError) lists the
  * query's parameters, the address and the body with its sign-in code, and
  * whatever logs this error must not see them.
  */
 export class CaptureFailedError extends Error {
   readonly code: string | undefined;
 
-  constructor(code: string | undefined) {
+  constructor(
+    task: "store a message" | "read messages",
+    code: string | undefined
+  ) {
     super(
-      `The capture mailbox could not store a message` +
+      `The capture mailbox could not ${task}` +
         (code ? ` (Postgres ${code}).` : ".")
     );
     this.name = "CaptureFailedError";
@@ -72,7 +75,7 @@ export function captureEmailSender({ db, clock }: DbWithClock): EmailSender {
         });
       } catch (error) {
         // Deliberately without `cause`: see CaptureFailedError.
-        throw new CaptureFailedError(sqlState(error));
+        throw new CaptureFailedError("store a message", sqlState(error));
       }
     },
   };
@@ -86,18 +89,24 @@ export async function readCapturedEmail(
   { db, clock }: DbWithClock,
   { to, limit = 20 }: { to: string; limit?: number }
 ): Promise<ReceivedEmail[]> {
-  const rows = await db
-    .select()
-    .from(capturedMessage)
-    .where(
-      and(
-        eq(capturedMessage.channel, "email"),
-        eq(capturedMessage.toAddress, normaliseEmailAddress(to)),
-        gte(capturedMessage.createdAt, keptSince(clock.now()))
+  let rows;
+  try {
+    rows = await db
+      .select()
+      .from(capturedMessage)
+      .where(
+        and(
+          eq(capturedMessage.channel, "email"),
+          eq(capturedMessage.toAddress, normaliseEmailAddress(to)),
+          gte(capturedMessage.createdAt, keptSince(clock.now()))
+        )
       )
-    )
-    .orderBy(desc(capturedMessage.createdAt), desc(capturedMessage.id))
-    .limit(limit);
+      .orderBy(desc(capturedMessage.createdAt), desc(capturedMessage.id))
+      .limit(limit);
+  } catch (error) {
+    // The query's error lists the address: keep only the SQLSTATE.
+    throw new CaptureFailedError("read messages", sqlState(error));
+  }
   return rows.map((row) => ({
     to: row.toAddress,
     subject: row.subject ?? "",

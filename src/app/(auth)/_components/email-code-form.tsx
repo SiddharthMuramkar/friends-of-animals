@@ -46,6 +46,7 @@ export function EmailCodeForm({
   return (
     <form action={formAction} noValidate className="flex flex-col gap-6">
       <input type="hidden" name="intent" value={intent} />
+      <input type="hidden" name="from" value={view.step} />
 
       {text.alert ? (
         <FormAlert tone="danger" label={labels.problem}>
