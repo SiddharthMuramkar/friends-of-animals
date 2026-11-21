@@ -71,7 +71,10 @@ export const offsiteCopySchedule: ScheduleDefinition = {
   // 01:30 IST: an hour before pgBackRest's 02:30 backup.
   cron: "30 1 * * *",
   tz: "Asia/Kolkata",
-  retry: { limit: 3, delaySeconds: 15 * 60, backoff: true },
+  // Three retries, 15 minutes apart at first, then further apart (backoff).
+  retryLimit: 3,
+  retryDelay: 15 * 60,
+  retryBackoff: true,
   // The copy stops starting new objects after two hours (RUN_BUDGET_MS).
   expireInSeconds: 3 * 60 * 60,
   run: (deps, job) => runScheduledOffsiteCopy(deps, job, { env: process.env }),

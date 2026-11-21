@@ -27,11 +27,14 @@ export type ScheduleDefinition = {
   cron: string;
   /** The zone `cron` is read in. */
   tz: "Asia/Kolkata" | "UTC";
-  /**
-   * How pg-boss retries a run that throws: up to `limit` more attempts,
-   * `delaySeconds` apart, doubling each time with `backoff`. None if unset.
-   */
-  retry?: { limit: number; delaySeconds: number; backoff: boolean };
+  // How pg-boss retries a run that throws, under pg-boss's own option
+  // names, so the worker passes them on unchanged. Unset: pg-boss's default.
+  /** Attempts after the first. */
+  retryLimit?: number;
+  /** Seconds before the first retry. */
+  retryDelay?: number;
+  /** Double the delay before each later retry. */
+  retryBackoff?: boolean;
   /** pg-boss fails an attempt still running after this long. */
   expireInSeconds?: number;
   /** `job` is absent when the caller can't tell (a test, a manual run). */
