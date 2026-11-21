@@ -40,6 +40,7 @@
       "problem": "Problem",
       "done": "Done",
       "failed": "Something went wrong on our side. Nothing was published. Please try again.",
+      "publishedByCms": "The privacy policy and the terms of use are their pages' text. Publish the page from Site content instead. Nothing was published here.",
       "fixErrors": "Fix these before you publish:",
       "lineError": "Line {line}: {message}",
       "errors": {
