@@ -6,7 +6,7 @@ const INSTITUTION = "01938a00-0000-7000-8000-00000000a001";
 const COMPETITION = "01938a00-0000-7000-8000-00000000c001";
 
 describe("the role catalogue", () => {
-  it("lists the sixteen roles of the platform spec", () => {
+  it("lists the platform spec's sixteen roles and the grievance officer", () => {
     expect([...ROLES].sort()).toEqual([
       "adoption_coordinator",
       "auction_manager",
@@ -14,6 +14,7 @@ describe("the role catalogue", () => {
       "competition_manager",
       "content_manager",
       "finance",
+      "grievance_officer",
       "guardian",
       "institution_admin",
       "institution_coordinator",
@@ -36,9 +37,25 @@ describe("the role catalogue", () => {
       "competition_manager",
       "content_manager",
       "finance",
+      "grievance_officer",
       "staff_admin",
       "super_admin",
     ]);
+  });
+
+  it("grants the grievance officer only globally", () => {
+    expect(
+      grantSchema.safeParse({
+        role: "grievance_officer",
+        scope: { type: "global" },
+      }).success
+    ).toBe(true);
+    expect(
+      grantSchema.safeParse({
+        role: "grievance_officer",
+        scope: { type: "institution", id: INSTITUTION },
+      }).success
+    ).toBe(false);
   });
 });
 

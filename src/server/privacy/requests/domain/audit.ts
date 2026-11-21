@@ -15,13 +15,18 @@ import {
   type PrivacyRequestStatus,
   type PrivacyRequestType,
 } from "./request-status";
-import type { PrivacySubjectKind, RequestRelation } from "./filing";
+import {
+  PRIVACY_SUBJECT_KINDS,
+  REQUEST_RELATIONS,
+  type PrivacySubjectKind,
+  type RequestRelation,
+} from "./filing";
 
 export const privacyRequestAuditSchema = z.strictObject({
   type: z.enum(PRIVACY_REQUEST_TYPES),
   status: z.enum(PRIVACY_REQUEST_STATUSES),
-  relation: z.enum(["self", "guardian"]),
-  subjectKind: z.enum(["user", "participant_profile"]),
+  relation: z.enum(REQUEST_RELATIONS),
+  subjectKind: z.enum(PRIVACY_SUBJECT_KINDS),
   assignedToUserId: z.uuid().nullable(),
   /** How many internal notes the request has; never their text. */
   notes: z.int().min(0).optional(),

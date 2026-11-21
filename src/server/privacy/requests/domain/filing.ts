@@ -26,10 +26,14 @@ export type FilingTarget =
     };
 
 /** How the requester relates to the data principal. */
-export type RequestRelation = "self" | "guardian";
+export const REQUEST_RELATIONS = ["self", "guardian"] as const;
+
+export type RequestRelation = (typeof REQUEST_RELATIONS)[number];
 
 /** Whose data: an account, or a guardian-managed participant profile. */
-export type PrivacySubjectKind = "user" | "participant_profile";
+export const PRIVACY_SUBJECT_KINDS = ["user", "participant_profile"] as const;
+
+export type PrivacySubjectKind = (typeof PRIVACY_SUBJECT_KINDS)[number];
 
 export type FilingRefusal =
   | "not_your_child"

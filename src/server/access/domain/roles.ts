@@ -24,6 +24,8 @@ export const ROLES = [
   "finance",
   "auction_manager",
   "adoption_coordinator",
+  // Appended by later tickets, each in its own migration (enum order).
+  "grievance_officer",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -70,6 +72,7 @@ export const ROLE_SCOPE_TYPES: Readonly<Record<Role, readonly ScopeType[]>> = {
   finance: ["global"],
   auction_manager: ["global"],
   adoption_coordinator: ["global", "organisation"],
+  grievance_officer: ["global"],
 };
 
 /** FOA's own people. Staff roles need a second factor (#60). */
@@ -82,6 +85,7 @@ const STAFF_ROLES: ReadonlySet<Role> = new Set<Role>([
   "finance",
   "auction_manager",
   "adoption_coordinator",
+  "grievance_officer",
 ]);
 
 export function isStaffRole(role: Role): boolean {
