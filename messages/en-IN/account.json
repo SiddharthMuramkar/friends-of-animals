@@ -1,0 +1,31 @@
+{
+  "account": {
+    "sessions": {
+      "meta": {
+        "title": "Your sessions",
+        "description": "Where you are signed in to Friends of Animals."
+      },
+      "eyebrow": "Your account",
+      "title": "Your sessions",
+      "lead": "Where you're signed in to Friends of Animals.",
+      "loading": "Loading your account…",
+      "signedInAs": "You're signed in as {name} ({email}).",
+      "listTitle": "Signed in on",
+      "device": "{browser} on {os}",
+      "deviceBrowserOnly": "{browser}",
+      "deviceOsOnly": "A browser on {os}",
+      "deviceUnknown": "An unknown browser",
+      "thisDevice": "This device",
+      "started": "Signed in {date}",
+      "ip": "IP address {address}",
+      "network": "Network {address}",
+      "signOut": "Sign out",
+      "signOutOf": "Sign out of {device}, signed in {date}",
+      "signingOut": "Signing out…",
+      "signedOut": "That device is signed out. It needs a new code to sign in again.",
+      "everywhereTitle": "Sign out everywhere",
+      "everywhereLead": "Signs you out on every device on this list, this one too. Use it if you lose a phone or sign in on a shared computer.",
+      "everywhere": "Sign out everywhere"
+    }
+  }
+}
