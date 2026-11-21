@@ -40,6 +40,7 @@ describe("someUseCase", () => {
 | `h.errors`         | `FakeErrorReporter`: `reported`, each as Sentry would get it (scrubbed) plus the `error`                   |
 | `h.db`             | This test's database, for asserting on rows (audit rows count as behaviour)                                |
 | `h.deps`           | `{ db, clock, email, cookies, errors, auth }`: what `productionDeps()` wires in `src/server/deps.ts`       |
+| `h.drain()`        | Delivers due outbox events in process with the real relay, pass after pass; returns the `DrainReport`      |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
 `h.clock`, because Better Auth reads `new Date()` for code and session expiry.
@@ -66,3 +67,21 @@ migrations. In watch mode, restart Vitest after changing a migration.
   and `createHarness()`.
 - A new module with preview data adds one seeder to `seeders` in
   `src/server/seed/index.ts`. Seeders must be safe to run again.
+
+## Events and the outbox
+
+A use case that must trigger work elsewhere (an email, a scan, a status
+change later) emits a domain event in the transaction that saves its change,
+`emit(tx, ctx.clock, event)` from `src/server/outbox`. Add the event and its
+handlers in `src/server/outbox/events.ts` and `handlers.ts`. A test then
+drains and asserts on what the handler did:
+
+```ts
+const result = await h.as(h.visitor()).verifyEmailCode({ intent: "sign-up", ... });
+await h.drain();
+expect(h.email.lastTo(ASHA)?.subject).toBe("Welcome to Friends of Animals");
+```
+
+`h.drain()` runs the same relay as the VPS worker, so retries follow the fake
+clock: `h.email.failNext(1)`, drain (retried), `h.clock.advance({ seconds: 30 })`,
+drain again (sent). Failed deliveries are listed by `listFailedDeliveries(h.db)`.
