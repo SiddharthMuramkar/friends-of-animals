@@ -2,10 +2,12 @@ import { expect, test } from "@playwright/test";
 
 import { recordCspViolations } from "./support/csp";
 
-// #118: a preview sends no analytics. Only staging and production builds
-// with Umami configured render the tracker island, and only they proxy
-// /stats/. Across the smoke routes a preview loads no tracker, makes no
-// /stats/ request, sets no cookie and hits no CSP violation.
+// #118: local runs and previews send no analytics. Only staging and
+// production builds with Umami configured render the tracker island, and
+// only they proxy /stats/. CI runs this against `next start` built with
+// APP_ENV=local (docs/adr/0001-ci-e2e-and-prebuilt-deploys.md): across the
+// smoke routes it loads no tracker, makes no /stats/ request, sets no cookie
+// and hits no CSP violation.
 
 // Vercel's toolbar isn't part of the site (see the #65 spec).
 test.use({ extraHTTPHeaders: { "x-vercel-skip-toolbar": "1" } });
@@ -20,7 +22,7 @@ const ROUTES = [
   "/sign-up",
 ];
 
-test("a preview loads no tracker, sends no page view and sets no cookie", async ({
+test("a local build loads no tracker, sends no page view and sets no cookie", async ({
   page,
   context,
 }) => {
@@ -55,7 +57,7 @@ test("a preview loads no tracker, sends no page view and sets no cookie", async 
   expect(violations).toEqual([]);
 });
 
-test("a preview doesn't proxy Umami", async ({ request }) => {
+test("a local build doesn't proxy Umami", async ({ request }) => {
   for (const path of ["/stats/script.js", "/stats/api/send"]) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status(), `HTTP status of ${path}`).toBe(404);
