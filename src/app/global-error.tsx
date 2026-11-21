@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { reportBoundaryError } from "@/lib/observability/boundary";
+
 import messages from "../../messages/en-IN/error.json";
 
 import "./globals.css";
@@ -18,7 +20,7 @@ export default function GlobalError({
   retry: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    reportBoundaryError(error);
   }, [error]);
 
   return (

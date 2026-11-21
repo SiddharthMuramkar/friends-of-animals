@@ -77,6 +77,31 @@ Where every message the platform would send outside production is kept instead,
 so staff and automated journeys can read it and no real person receives it.
 _Avoid_: Dev inbox, outbox (the outbox is a different thing)
 
+## Events and background work
+
+**Domain event**:
+A record that something meaningful happened on the platform, such as a User
+signing up, saved in the same step as the change it describes and naming what
+changed only by id, never by personal details.
+_Avoid_: Notification, message, job
+
+**Outbox**:
+Where domain events wait for the work that follows them; because an event is
+saved with its change, the platform never acts on a change that didn't happen
+or forgets one that did.
+_Avoid_: Queue, job queue, event bus
+
+**Delivery**:
+One domain event on its way to one piece of follow-up work, such as the welcome
+email after a sign-up. It is retried with growing waits and ends either
+dispatched or failed, and a failed delivery stays visible to staff.
+_Avoid_: Job, task, message
+
+**Drain**:
+One round of carrying out every delivery that is due: the worker does it all
+the time, a preview does it on request, and a Seam 1 test does it in process.
+_Avoid_: Flush, process the queue
+
 ## Engineering
 
 **Seed builder**:
