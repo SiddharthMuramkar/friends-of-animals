@@ -1,9 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 
 // The route keeps its report budget per server instance, in module state:
 // each test loads a fresh copy under a fake clock.
 let POST: (request: Request) => Promise<Response>;
-let warn: ReturnType<typeof vi.spyOn>;
+let warn: MockInstance<typeof console.warn>;
 
 beforeEach(async () => {
   vi.useFakeTimers({ now: new Date("2026-11-21T10:00:00Z") });
