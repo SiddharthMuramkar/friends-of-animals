@@ -45,6 +45,12 @@ import {
 import { SECOND_FACTOR_SETTINGS } from "./settings";
 import { requireStepUpOnceEnrolled, type SecondFactorContext } from "./totp";
 
+/**
+ * EdDSA, ES256 and RS256 (COSE ids): what platform authenticators use.
+ * Named, so the library doesn't probe for experimental post-quantum ones.
+ */
+const ALGORITHMS = [-8, -7, -257];
+
 function relyingParty(baseUrl: string) {
   const url = new URL(baseUrl);
   return { id: url.hostname, origin: url.origin };
@@ -171,6 +177,7 @@ export async function startPasskeyRegistration(
       residentKey: "preferred",
       userVerification: "required",
     },
+    supportedAlgorithmIDs: ALGORITHMS,
   });
   await storeChallenge(ctx, actor, "register", options.challenge);
   return { ok: true, options };
@@ -211,6 +218,7 @@ export async function finishPasskeyRegistration(
         expectedOrigin: rp.origin,
         expectedRPID: rp.id,
         requireUserVerification: true,
+        supportedAlgorithmIDs: ALGORITHMS,
       });
       info = verified.verified ? verified.registrationInfo : undefined;
     } catch {
