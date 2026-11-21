@@ -673,6 +673,11 @@ sessions, which transaction pooling breaks. None publishes a port.
 
 ### Preview databases: attach and detach
 
+There are no Vercel previews today
+(`docs/adr/0001-ci-e2e-and-prebuilt-deploys.md`), so `worker-preview` finds
+no preview database and idles, still healthy. If previews come back, it
+behaves as follows.
+
 `worker-preview` lists pg-nonprod's databases every 60 s from `postgres`
 and serves exactly those the sweeper would recognise: `foa_pr_<n>[_<fp>]`
 labelled `foa-preview pr=<n>`, or `foa_br_…` labelled `foa-preview
@@ -699,49 +704,40 @@ WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
 docker compose -f workers.yml ps      # all three "healthy"
 ```
 
-Then open a PR, sign up on its preview and check the welcome email in the
-preview's capture mailbox; after the PR closes and the hourly sweep runs,
-`docker compose -f workers.yml logs worker-preview` shows
-`tenant.detached` for its database.
+Then check that each single-database worker's heartbeat row is fresh (its
+`last_seen_at` moves every 5 s):
+
+```sh
+docker exec foa-pg-prod psql -U postgres -d foa -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
+docker exec foa-pg-nonprod psql -U postgres -d foa_staging -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
+```
+
+`worker-preview` writes a row only in the previews it serves, so with no
+previews it has none; `ps` showing it healthy means it can list them.
 
 ### Run, restart and read the logs
 
 Run from `/srv/foa/docker`. `WORKER_VERSION` is only recorded in the
 heartbeat rows; leave it out and they say `unknown`.
 
-| Worker           | Run (build and start)                                                                         | Restart                                                | Logs                                                              |
-| ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
-| `worker-prod`    | `docker compose -f workers.yml up -d --build --wait worker-prod`                              | `docker compose -f workers.yml restart worker-prod`    | `docker compose -f workers.yml logs -f --tail=200 worker-prod`    |
-| `worker-staging` | `docker compose -f workers.yml up -d --build --wait worker-staging`                           | `docker compose -f workers.yml restart worker-staging` | `docker compose -f workers.yml logs -f --tail=200 worker-staging` |
-| `worker-preview` | `docker compose -f <checkout>/docker/workers.yml up -d --build --wait worker-preview` (below) | `docker compose -f workers.yml restart worker-preview` | `docker compose -f workers.yml logs -f --tail=200 worker-preview` |
+| Worker           | Run (build and start)                                               | Restart                                                | Logs                                                              |
+| ---------------- | ------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| `worker-prod`    | `docker compose -f workers.yml up -d --build --wait worker-prod`    | `docker compose -f workers.yml restart worker-prod`    | `docker compose -f workers.yml logs -f --tail=200 worker-prod`    |
+| `worker-staging` | `docker compose -f workers.yml up -d --build --wait worker-staging` | `docker compose -f workers.yml restart worker-staging` | `docker compose -f workers.yml logs -f --tail=200 worker-staging` |
+| `worker-preview` | `docker compose -f workers.yml up -d --build --wait worker-preview` | `docker compose -f workers.yml restart worker-preview` | `docker compose -f workers.yml logs -f --tail=200 worker-preview` |
 
 - Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
   its poll, stops pg-boss and closes its connections within 30 s).
-- Updating prod and staging: `git -C /srv/foa pull`, then the "Run" line;
-  only a changed image is recreated.
+- Updating: `git -C /srv/foa pull`, then the "Run" line; only a changed
+  image is recreated. All three build from `/srv/foa` (main), and each has
+  its own image (`foa-workers/worker-<name>`), so rebuilding one never swaps
+  another's.
 - Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
 - Rotating a worker password: replace its file in `/etc/foa/secrets`, rerun
   `scripts/worker-roles.sh`, restart that worker.
 - A local run needs none of this: `pnpm worker:dev` drains the local
   database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
   email, and restarts on code changes.
-
-### Redeploying `worker-preview` per milestone (HR-10)
-
-Previews run milestone branches (`M1`, `M2`, …) that add handlers before
-`main` has them, so from M1 on, rebuild **only** `worker-preview` from the
-milestone tip, in a separate checkout (never check out `M<k>` in
-`/srv/foa`, which prod and staging build from):
-
-```sh
-git clone --branch M<k> --depth 1 https://github.com/SiddharthMuramkar/friends-of-animals.git /srv/foa-m<k>
-WORKER_VERSION=$(git -C /srv/foa-m<k> rev-parse --short HEAD) \
-  docker compose -f /srv/foa-m<k>/docker/workers.yml up -d --build --wait worker-preview
-```
-
-It keeps the project name `foa-workers` and its own image
-(`foa-workers/worker-preview`), so prod and staging are untouched. Never
-`down` from that checkout: it would stop all three.
 
 ## Checks
 
