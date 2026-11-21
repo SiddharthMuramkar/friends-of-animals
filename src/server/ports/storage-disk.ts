@@ -282,6 +282,29 @@ export function diskStorage(
     }
   }
 
+  /** Stores `bytes` at `ref` with `contentType`, replacing any object. */
+  async function store(
+    ref: ObjectRef,
+    bytes: Uint8Array,
+    contentType: string
+  ): Promise<void> {
+    const { folder, object, type } = locate(root, ref);
+    await mkdir(
+      /* turbopackIgnore: true */ join(folder, "objects"),
+      PRIVATE_FOLDER
+    );
+    await mkdir(
+      /* turbopackIgnore: true */ join(folder, "types"),
+      PRIVATE_FOLDER
+    );
+    // Written beside the objects, then renamed in, so a reader never sees
+    // half an object.
+    const partial = join(folder, `.partial-${randomUUID()}`);
+    await writeFile(/* turbopackIgnore: true */ partial, bytes, PRIVATE_FILE);
+    await writeFile(/* turbopackIgnore: true */ type, contentType, PRIVATE_FILE);
+    await rename(/* turbopackIgnore: true */ partial, object);
+  }
+
   async function remove(ref: ObjectRef): Promise<void> {
     const { object, type } = locate(root, ref);
     await rm(/* turbopackIgnore: true */ object, { force: true });
@@ -310,6 +333,10 @@ export function diskStorage(
 
     head,
     read,
+
+    async write({ bucket, key, body, contentType }) {
+      await store({ bucket, key }, body, contentType);
+    },
 
     async move({ bucket, from, to }) {
       const source = locate(root, { bucket, key: from });
@@ -371,25 +398,7 @@ export function diskStorage(
       const bytes = await readExactly(body, Number(length));
       if (!bytes) return { ok: false, error: "header_mismatch" };
 
-      const { folder, object, type } = locate(root, checked.ref);
-      await mkdir(
-        /* turbopackIgnore: true */ join(folder, "objects"),
-        PRIVATE_FOLDER
-      );
-      await mkdir(
-        /* turbopackIgnore: true */ join(folder, "types"),
-        PRIVATE_FOLDER
-      );
-      // Written beside the objects, then renamed in, so a reader never
-      // sees half an object.
-      const partial = join(folder, `.partial-${randomUUID()}`);
-      await writeFile(/* turbopackIgnore: true */ partial, bytes, PRIVATE_FILE);
-      await writeFile(
-        /* turbopackIgnore: true */ type,
-        contentType ?? "",
-        PRIVATE_FILE
-      );
-      await rename(/* turbopackIgnore: true */ partial, object);
+      await store(checked.ref, bytes, contentType ?? "");
       return { ok: true };
     },
 
