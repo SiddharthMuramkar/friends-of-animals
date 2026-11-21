@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { SAMPLE_COMPETITIONS } from "@/content/sample";
 import { placeholder } from "@/lib/site";
+import type { PublicCompetition } from "@/server/modules/competitions";
 
 import {
   ageRange,
@@ -14,7 +15,6 @@ import {
   primaryAction,
   timeline,
   type KeyDate,
-  type PublishedCompetition,
 } from "./model";
 
 const open = SAMPLE_COMPETITIONS.find((c) => c.status === "REGISTRATION_OPEN")!;
@@ -152,7 +152,7 @@ describe("fileRules", () => {
 });
 
 describe("fromPublic", () => {
-  const published: PublishedCompetition = {
+  const published: PublicCompetition = {
     id: "0190f5a2-0000-7000-8000-000000000001",
     code: "NEIGH27",
     slug: "neighbours-on-my-street",
@@ -231,7 +231,7 @@ describe("fromPublic", () => {
   });
 
   it("offers only the ways in the competition allows", () => {
-    const routes = (participation: PublishedCompetition["participation"]) =>
+    const routes = (participation: PublicCompetition["participation"]) =>
       fromPublic({ ...published, participation }).routes.map((r) => r.route);
     expect(routes("individuals")).toEqual(["INDIVIDUAL"]);
     expect(routes("institutions")).toEqual(["INSTITUTION"]);

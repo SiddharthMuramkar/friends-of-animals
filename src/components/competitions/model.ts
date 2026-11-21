@@ -18,13 +18,14 @@ import type {
 import type { KeyDateKind } from "@/content/sample/selectors";
 import type { SiteImageId } from "@/lib/images";
 import { placeholder } from "@/lib/site";
-import type { KeyDateKind as StoredKeyDateKind } from "@/server/modules/competitions/domain/key-dates";
 import type {
   DigitalScope,
   Discipline as StoredDiscipline,
+  KeyDateKind as StoredKeyDateKind,
   Participation,
   PhysicalArtwork,
-} from "@/server/modules/competitions/domain/vocabulary";
+  PublicCompetition,
+} from "@/server/modules/competitions";
 
 export type { CompetitionStatus, Discipline, KeyDateKind, ParticipationRoute };
 export { DISCIPLINES } from "@/content/sample/model";
@@ -183,39 +184,6 @@ export function fileRules(disciplines: readonly Discipline[]): FileRule[] {
   }));
 }
 
-/**
- * A published competition as the competitions module returns it (its
- * read model), and as the admin preview returns a draft. fromPublic reads
- * these fields.
- */
-export type PublishedCompetition = {
-  id: string;
-  code: string;
-  slug: string;
-  name: string;
-  theme: string;
-  welfareMessage: string;
-  status: "published";
-  participation: Participation;
-  disciplines: readonly StoredDiscipline[];
-  ageGroups: readonly AgeGroup[];
-  categories: readonly { discipline: StoredDiscipline; ageGroup: string }[];
-  /** YYYY-MM-DD. */
-  ageCutoffDate: string;
-  rules: string;
-  permittedMaterials: string;
-  duration: string;
-  digitalScope: DigitalScope;
-  shortlistPerCategory: number;
-  schoolPositions: number;
-  physicalArtwork: PhysicalArtwork;
-  publicDisplay: boolean;
-  auctionPermitted: boolean;
-  /** In timeline order. */
-  keyDates: readonly { kind: StoredKeyDateKind; at: Date }[];
-  publishedAt: Date;
-};
-
 /** What a competition's page shows: the card, and the rest of its rules. */
 export type CompetitionView = CompetitionCardModel & {
   welfareMessage: string;
@@ -240,6 +208,10 @@ const KEY_DATE_KIND: Record<StoredKeyDateKind, KeyDateKind> = {
   school_round_closes: "shortlistCloses",
 };
 
+const STATUS: Record<PublicCompetition["status"], CompetitionStatus> = {
+  published: "PUBLISHED",
+};
+
 const toDiscipline = (d: StoredDiscipline) => d.toUpperCase() as Discipline;
 
 /**
@@ -255,14 +227,17 @@ const ROUTES: Record<Participation, CompetitionCardModel["routes"]> = {
   ],
 };
 
-/** A published competition as its page and card show it. */
-export function fromPublic(c: PublishedCompetition): CompetitionView {
+/**
+ * A competition from the module's public view (the read model, or a
+ * draft's preview) as its page and card show it.
+ */
+export function fromPublic(c: PublicCompetition): CompetitionView {
   const disciplines = c.disciplines.map(toDiscipline);
   return {
     slug: c.slug,
     name: c.name,
     theme: c.theme,
-    status: "PUBLISHED",
+    status: STATUS[c.status],
     sample: false,
     coverImageId: coverFor(disciplines),
     disciplines,
