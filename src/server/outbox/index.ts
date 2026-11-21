@@ -5,6 +5,7 @@
 
 export { emit } from "./emit";
 export type { DomainEvent, EventType, HandlerName } from "./events";
+export type { Delivery } from "./handlers";
 export {
   DEFAULT_DRAIN_LIMIT,
   drainOutbox,
@@ -17,3 +18,8 @@ export {
   type OutboxDeps,
 } from "./relay";
 export { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry-policy";
+export {
+  SCHEDULES,
+  scheduleProblems,
+  type ScheduleDefinition,
+} from "./schedules";
