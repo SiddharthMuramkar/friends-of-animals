@@ -7,14 +7,21 @@ import {
 } from "@playwright/test";
 
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
-import { freshEmail, readCode } from "./support/mailbox";
+import { freshEmail, freshLongEmail, readCode } from "./support/mailbox";
 
 // #57: a member sees where they are signed in and signs out of one session,
 // or all of them. Two browser contexts stand in for two devices.
 
-/** Another browser with this project's settings (base URL, bypass cookie). */
-async function newDevice(browser: Browser, testInfo: TestInfo) {
-  const { baseURL, storageState, viewport, userAgent } = testInfo.project.use;
+/**
+ * Another browser with this project's settings (base URL, bypass cookie),
+ * at the project's screen size unless `viewport` is given.
+ */
+async function newDevice(
+  browser: Browser,
+  testInfo: TestInfo,
+  viewport = testInfo.project.use.viewport
+) {
+  const { baseURL, storageState, userAgent } = testInfo.project.use;
   const context = await browser.newContext({
     baseURL,
     storageState,
@@ -83,4 +90,28 @@ test("a member signs out of another device, then everywhere", async ({
   await expect(page).toHaveURL(/\/sign-in$/);
 
   await laptop.context().close();
+});
+
+test("a long address doesn't push the sessions page sideways at 320 px", async ({
+  browser,
+  request,
+}, testInfo) => {
+  const email = freshLongEmail(testInfo.project.name);
+  const narrow = await newDevice(browser, testInfo, {
+    width: 320,
+    height: 640,
+  });
+
+  await narrow.goto("/sign-up");
+  await narrow.getByRole("textbox", { name: "Your name" }).fill("Meera Iyer");
+  await signInWithCode(narrow, request, email);
+  await expect(narrow.getByText(`(${email})`)).toBeVisible();
+
+  const { scrollWidth, clientWidth } = await narrow.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(scrollWidth, "page width at 320 px").toBeLessThanOrEqual(clientWidth);
+
+  await narrow.context().close();
 });

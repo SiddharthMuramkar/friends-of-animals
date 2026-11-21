@@ -69,7 +69,10 @@ async function Sessions() {
 
   return (
     <div className="mt-8 flex flex-col gap-10">
-      <p className="text-lead text-ink">{t("signedInAs", account)}</p>
+      {/* An email is one long word: let it break anywhere on a phone. */}
+      <p className="text-lead text-ink wrap-anywhere">
+        {t("signedInAs", account)}
+      </p>
 
       <section aria-labelledby="sessions-list">
         <SectionHeading id="sessions-list" title={t("listTitle")} />

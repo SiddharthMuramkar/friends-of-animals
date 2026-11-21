@@ -55,8 +55,19 @@ export async function readCode(
   return code!;
 }
 
+function uniqueId(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
 /** An address nobody has used: one per test, project and run. */
 export function freshEmail(project: string): string {
-  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-  return `e2e+${project}-${id}@example.test`;
+  return `e2e+${project}-${uniqueId()}@example.test`;
+}
+
+/**
+ * A fresh address of about 55 characters with no hyphen, so a browser has
+ * nowhere to break it: for checking that long addresses wrap.
+ */
+export function freshLongEmail(project: string): string {
+  return `e2e.longaddress.narrowscreen.${project}${uniqueId()}@example.test`;
 }
