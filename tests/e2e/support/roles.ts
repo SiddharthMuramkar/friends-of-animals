@@ -2,8 +2,13 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import { migrationEnvSchema, parseEnv } from "../../../src/env.schema";
+import {
+  fieldKeyEnvSchema,
+  migrationEnvSchema,
+  parseEnv,
+} from "../../../src/env.schema";
 import type { Role } from "../../../src/server/access/domain/roles";
+import { fieldCryptoFor } from "../../../src/server/crypto/keys";
 import { directTls } from "../../../src/server/db/database-url";
 import * as schema from "../../../src/server/db/schema";
 import { DEVELOPMENT_AUTH_SECRET } from "../../../src/server/identity/settings";
@@ -44,10 +49,11 @@ export async function grantGlobalRole(
       {
         db,
         clock: systemClock,
-        // As the seed script picks it; granting a role doesn't use it.
+        // As the seed script picks them; granting a role uses none.
         auth: {
           secret: process.env.BETTER_AUTH_SECRET || DEVELOPMENT_AUTH_SECRET,
         },
+        ...fieldCryptoFor(parseEnv(fieldKeyEnvSchema, process.env)),
       },
       account.id,
       { role, scope: { type: "global" } }
