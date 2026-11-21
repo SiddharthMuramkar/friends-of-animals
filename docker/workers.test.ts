@@ -69,11 +69,12 @@ describe("docker/workers.yml", () => {
     }
   );
 
-  it("restarts the workers, keeps bounded json-file logs and publishes no port", () => {
+  it("restarts the workers, logs through the shared anchor and publishes no port", () => {
     expect(shared()).toMatch(/^ {2}restart: unless-stopped$/m);
-    expect(shared()).toMatch(/driver: json-file/);
-    expect(shared()).toMatch(/max-size: "\d+m"/);
-    expect(shared()).toMatch(/max-file: "\d+"/);
+    // #66: journald, kept a year (docker/logging.test.ts), not json-file.
+    expect(shared()).toMatch(/^ {2}logging: \*logging$/m);
+    expect(block("x-logging")).toMatch(/^ {2}driver: journald$/m);
+    expect(TEXT).not.toMatch(/json-file|max-size|max-file/);
     expect(TEXT).not.toMatch(/^\s+ports:/m);
     expect(TEXT).not.toMatch(/^\s+expose:/m);
   });
