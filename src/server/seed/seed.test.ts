@@ -9,7 +9,11 @@ import { SEED_ACCOUNTS } from "./accounts";
 import { createSeedBuilders, seedPreview } from "./index";
 
 async function seedDeps() {
-  return { db: await createTestDb(), clock: new FakeClock() };
+  return {
+    db: await createTestDb(),
+    clock: new FakeClock(),
+    auth: { secret: "seed-test-secret-0123456789abcdef" },
+  };
 }
 
 async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {

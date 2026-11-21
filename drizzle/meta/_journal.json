@@ -43,6 +43,41 @@
       "when": 1795246028322,
       "tag": "0005_59_audit_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795247391995,
+      "tag": "0006_64_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795247393276,
+      "tag": "0007_64_consent_document_immutable",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795247394276,
+      "tag": "0008_60_staff_two_factor",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795247395276,
+      "tag": "0009_111_cms",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795247396276,
+      "tag": "0010_111_cms_revision_guard",
+      "breakpoints": true
     }
   ]
 }

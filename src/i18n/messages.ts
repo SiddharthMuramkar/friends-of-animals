@@ -5,10 +5,13 @@
 import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
+import adminCms from "../../messages/en-IN/adminCms.json";
 import auth from "../../messages/en-IN/auth.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
+import consent from "../../messages/en-IN/consent.json";
+import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
 import donate from "../../messages/en-IN/donate.json";
@@ -24,6 +27,7 @@ import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import sample from "../../messages/en-IN/sample.json";
 import schools from "../../messages/en-IN/schools.json";
+import security from "../../messages/en-IN/security.json";
 import showcase from "../../messages/en-IN/showcase.json";
 import stories from "../../messages/en-IN/stories.json";
 import styleguide from "../../messages/en-IN/styleguide.json";
@@ -32,10 +36,13 @@ export const NAMESPACES = [
   "a11y",
   "about",
   "account",
+  "adminCms",
   "auth",
   "awareness",
   "common",
   "competitions",
+  "consent",
+  "consentAdmin",
   "contact",
   "credits",
   "donate",
@@ -51,6 +58,7 @@ export const NAMESPACES = [
   "refunds",
   "sample",
   "schools",
+  "security",
   "showcase",
   "stories",
   "styleguide",
@@ -63,10 +71,13 @@ export const messages = {
   ...a11y,
   ...about,
   ...account,
+  ...adminCms,
   ...auth,
   ...awareness,
   ...common,
   ...competitions,
+  ...consent,
+  ...consentAdmin,
   ...contact,
   ...credits,
   ...donate,
@@ -82,6 +93,7 @@ export const messages = {
   ...refunds,
   ...sample,
   ...schools,
+  ...security,
   ...showcase,
   ...stories,
   ...styleguide,
