@@ -126,6 +126,19 @@ One round of carrying out every delivery that is due: the worker does it all
 the time, a preview does it on request, and a Seam 1 test does it in process.
 _Avoid_: Flush, process the queue
 
+**Worker**:
+The platform's always-on background process, which keeps draining and runs
+scheduled jobs. Production and staging each have their own; one shared
+preview worker serves every live preview and lets go of a preview once it is
+removed.
+_Avoid_: Cron, daemon, job runner
+
+**Scheduled job**:
+Work the platform does on a timetable rather than in answer to one change,
+such as a reminder sweep, a status flip at a deadline or a retention purge.
+Previews never run them.
+_Avoid_: Cron job, recurring task
+
 ## Engineering
 
 **Seed builder**:

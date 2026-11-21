@@ -50,6 +50,13 @@
       "when": 1795262127275,
       "tag": "0006_58_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795262528065,
+      "tag": "0007_61_worker_heartbeat",
+      "breakpoints": true
     }
   ]
 }
