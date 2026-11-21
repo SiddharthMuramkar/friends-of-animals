@@ -49,6 +49,29 @@ export async function signInByCode(
   await expect(page).toHaveURL(/\/account\/sessions$/);
 }
 
+/**
+ * Signs up a new account by SMS code (#58), so it has a phone and no email
+ * address, reading the code from the capture mailbox. Lands on the sessions
+ * page.
+ */
+export async function signUpByPhone(
+  page: Page,
+  request: APIRequestContext,
+  phone: string,
+  name: string
+) {
+  await page.goto("/sign-up/phone");
+  await page.getByRole("textbox", { name: "Your name" }).fill(name);
+  await page.getByRole("textbox", { name: "Mobile number" }).fill(phone);
+  await page.getByRole("button", { name: "Text me a code" }).click();
+  // The code is stored before this shows, so the newest code is this one.
+  await expect(page.getByRole("status")).toContainText(phone);
+  const code = await readCode(request, phone);
+  await page.getByRole("textbox", { name: "6-digit code" }).fill(code);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page).toHaveURL(/\/account\/sessions$/);
+}
+
 /** The page has no sideways scroll on a 320 px wide screen. */
 export async function expectNoSidewaysScrollAt320(page: Page, label: string) {
   const before = page.viewportSize();

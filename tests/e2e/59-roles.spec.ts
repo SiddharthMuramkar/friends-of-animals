@@ -7,27 +7,31 @@ import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
-import { freshEmail } from "./support/mailbox";
+import { freshEmail, freshPhone } from "./support/mailbox";
 import {
   expectNoSidewaysScrollAt320,
   newDevice,
   signInByCode,
+  signUpByPhone,
 } from "./support/sign-in";
 
 // #59: a super admin gives a member a scoped role and takes it away, the
-// audit log shows the change, a member with several roles switches areas,
+// audit log shows the change, a member who signed up by phone (#58) is
+// found and given a role too, a member with several roles switches areas,
 // and people without the role are refused or sent to sign in.
 //
-// Sign-in codes: each project asks for three (a fresh member, the seeded
-// super admin, the seeded multi-role member). Seeded addresses allow 5
-// codes in 15 minutes and 20 a day, so one preview database takes two
-// runs in 15 minutes, ten a day. With #57's journeys, a run asks for 18
-// codes from one IP, under its limit of 20 in 15 minutes. #60 adds the
-// staff second factor to the grant and revoke steps.
+// Sign-in codes: each project asks for five (a fresh member by email, a
+// fresh member by phone, the seeded super admin twice, the seeded
+// multi-role member). A seeded address allows 5 codes in 15 minutes and 20
+// a day, so one database takes one run of both projects in 15 minutes. CI
+// gives each project and shard its own database, so the limit of 20 codes
+// in 15 minutes per IP counts one shard's journeys. #60 adds the staff
+// second factor to the grant and revoke steps.
 
 const SCHOOL = SEED_SCOPES.institution.id;
 const COORDINATOR = `Institution coordinator for institution ${SCHOOL}`;
 const DENIED = "This page is for staff who manage access";
+const NO_EMAIL = "No email address: signs in with a mobile number";
 
 test("a super admin gives a member a scoped role, sees it in the audit log, then takes it away", async ({
   browser,
@@ -172,6 +176,59 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   ).toBeVisible();
 
   await member.context().close();
+});
+
+test("a super admin finds a member who signed up by phone, with no email address, and gives them a role", async ({
+  browser,
+  page,
+  request,
+}, testInfo) => {
+  // The member: a fresh account made by SMS code, so it has no email
+  // address. Search finds it by name, so the number's last digits make the
+  // name this test's own.
+  const phone = freshPhone();
+  const memberName = `Ravi Iyer ${phone.slice(-5)}`;
+  const member = await newDevice(browser, testInfo);
+  await signUpByPhone(member, request, phone, memberName);
+  await member.context().close();
+
+  await signInByCode(page, request, SEED_ACCOUNTS.superAdmin.email);
+  await page.goto("/admin/roles");
+  await page
+    .getByRole("searchbox", { name: "Name or email address" })
+    .fill(memberName);
+  await page.getByRole("button", { name: "Search" }).click();
+  // Where an email address would be, a note says there isn't one.
+  const found = page
+    .getByRole("region", { name: "People found" })
+    .getByRole("link", { name: memberName });
+  await expect(found).toContainText(NO_EMAIL);
+  await found.click();
+  const roles = page.getByRole("region", { name: `Roles of ${memberName}` });
+  await expect(roles.getByText(NO_EMAIL)).toBeVisible();
+  await expect(roles.getByText(`${memberName} has no roles.`)).toBeVisible();
+  await expectAccessible(page, "/admin/roles, a member with no email address");
+
+  // Their roles are managed like anyone's.
+  const grantForm = page.getByRole("region", { name: "Give a role" });
+  await grantForm
+    .getByRole("combobox", { name: "Role" })
+    .selectOption("institution_coordinator");
+  await grantForm
+    .getByRole("combobox", { name: "Where it applies" })
+    .selectOption("institution");
+  await grantForm
+    .getByRole("textbox", {
+      name: "Institution, competition or organisation id",
+    })
+    .fill(SCHOOL);
+  await grantForm.getByRole("button", { name: "Give role" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Role given." })
+  ).toBeVisible();
+  await expect(
+    roles.getByRole("listitem").filter({ hasText: COORDINATOR })
+  ).toContainText("by Seed Super Admin");
 });
 
 test("a member with several roles switches between their areas", async ({
