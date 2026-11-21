@@ -23,7 +23,7 @@
       "signOutOf": "Sign out of {device}, signed in {date}",
       "signingOut": "Signing out…",
       "everywhereTitle": "Sign out everywhere",
-      "everywhereLead": "Signs you out on every device on this list, this one too. Use it if you lose a phone or signed in on a shared computer.",
+      "everywhereLead": "Signs you out on every device on this list, this one too. Use it if you lose a phone or sign in on a shared computer.",
       "everywhere": "Sign out everywhere"
     }
   }
