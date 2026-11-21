@@ -10,8 +10,16 @@ import type { ErrorReporter } from "../../ports/errors";
 import type { OffsiteConfig } from "./config";
 import { contentMd5ForEtag } from "./domain/etag";
 import { offsiteKeyFor } from "./domain/keys";
+import { decideRunOutcome } from "./domain/outcome";
 import { planOffsiteCopy, type SourceObject } from "./domain/plan";
-import { manifestOf, recordCopy } from "./manifest";
+import { OffsiteCopyIncompleteError } from "./errors";
+import {
+  clearDeletedInSource,
+  forgetCopy,
+  manifestOf,
+  markDeletedInSource,
+  recordCopy,
+} from "./manifest";
 
 /** The B2 metadata key holding the etag the object had in R2. */
 export const SOURCE_ETAG_METADATA = "foa-source-etag";
@@ -73,23 +81,38 @@ function emptyTotals(): OffsiteTotals {
 
 export async function runOffsiteCopy(
   deps: OffsiteDeps,
-  _input: { finalAttempt: boolean }
+  input: { finalAttempt: boolean }
 ): Promise<OffsiteRunReport> {
   if (deps.config.appEnv !== "production") {
     return { status: "skipped", reason: "not_production" };
   }
   const totals = emptyTotals();
+  const failedBuckets: string[] = [];
   for (const bucket of deps.config.sourceBuckets) {
-    await copyBucket(deps, bucket, totals);
+    const refused = await copyBucket(deps, bucket, totals);
+    if (refused) failedBuckets.push(bucket);
   }
-  return { status: "complete", failedBuckets: [], ...totals };
+  const outcome = decideRunOutcome(
+    {
+      failedObjects: totals.failed,
+      failedBuckets: failedBuckets.length,
+      massDeletionBuckets: 0,
+    },
+    input
+  );
+  const report = { status: outcome.status, failedBuckets, ...totals };
+  if (report.status === "incomplete") {
+    throw new OffsiteCopyIncompleteError(report);
+  }
+  return report;
 }
 
+/** Copies one bucket; true if its listing was refused. */
 async function copyBucket(
   deps: OffsiteDeps,
   bucket: string,
   totals: OffsiteTotals
-): Promise<void> {
+): Promise<boolean> {
   const source: SourceObject[] = [];
   for await (const object of deps.source.list({ bucket })) source.push(object);
   const plan = planOffsiteCopy({
@@ -100,9 +123,31 @@ async function copyBucket(
   });
   totals.unchanged += plan.unchanged;
   totals.skippedNonProduction += plan.skippedNonProduction;
+  if (plan.refused !== null) return true;
+
   await eachAtMost(deps.config.concurrency, plan.copy, async ({ object }) => {
     if (await copyObject(deps, bucket, object)) totals.copied += 1;
   });
+
+  await clearDeletedInSource(deps.db, bucket, plan.clearDeleted);
+  totals.clearedDeleted += plan.clearDeleted.length;
+  await markDeletedInSource(
+    deps.db,
+    bucket,
+    plan.markDeleted,
+    deps.clock.now()
+  );
+  totals.markedDeleted += plan.markDeleted.length;
+  totals.held += plan.held;
+  for (const key of plan.purge) {
+    await deps.target.delete({
+      bucket: deps.config.targetBucket,
+      key: offsiteKeyFor({ bucket, key }),
+    });
+    await forgetCopy(deps.db, { sourceBucket: bucket, key });
+    totals.purged += 1;
+  }
+  return false;
 }
 
 /**
