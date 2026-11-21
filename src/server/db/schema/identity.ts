@@ -20,6 +20,15 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+/**
+ * A Postgres regex class for what never belongs in a stored address:
+ * whitespace and control characters, and the Unicode spaces JavaScript's
+ * trim() strips (no-break, en to hair, line and paragraph separators,
+ * narrow no-break, medium mathematical, ideographic, zero-width no-break).
+ */
+const NOT_IN_AN_EMAIL =
+  "[[:space:][:cntrl:]\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]";
+
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" });
 
@@ -31,7 +40,9 @@ export const user = pgTable(
     /**
      * Stored trimmed and lower-cased (normaliseEmailAddress); one account
      * per address. A check constraint holds every writer to that, Better
-     * Auth included, so "Asha@x" can't sit next to "asha@x".
+     * Auth included, so "Asha@x" can't sit next to "asha@x": lower case,
+     * and no whitespace or control character anywhere (JavaScript's trim()
+     * strips Unicode spaces that Postgres's btrim() keeps).
      */
     email: text().notNull().unique(),
     emailVerified: boolean("email_verified").notNull().default(false),
@@ -42,7 +53,7 @@ export const user = pgTable(
   (table) => [
     check(
       "user_email_normalised",
-      sql`${table.email} = lower(btrim(${table.email}))`
+      sql`${table.email} = lower(${table.email}) AND ${table.email} !~ ${sql.raw(`'${NOT_IN_AN_EMAIL}'`)}`
     ),
   ]
 );

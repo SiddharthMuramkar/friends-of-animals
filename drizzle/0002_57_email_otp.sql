@@ -43,9 +43,11 @@ CREATE TABLE "verification" (
 	"updated_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "user" DROP CONSTRAINT "user_email_normalised";--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_user_id_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "otp_rate_limit_window_start_idx" ON "otp_rate_limit" USING btree ("window_start");--> statement-breakpoint
 CREATE INDEX "session_user_id_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");
+CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
+ALTER TABLE "user" ADD CONSTRAINT "user_email_normalised" CHECK ("user"."email" = lower("user"."email") AND "user"."email" !~ '[[:space:][:cntrl:]\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]');

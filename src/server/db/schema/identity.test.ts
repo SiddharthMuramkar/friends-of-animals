@@ -40,6 +40,12 @@ describe("user", () => {
       "Asha@Example.test",
       " asha@example.test",
       "asha@example.test ",
+      "asha@example.test\t",
+      "asha@example.test\n",
+      "\u00a0asha@example.test",
+      "asha@example.test\u2003",
+      "\ufeffasha@example.test",
+      "asha@exam\u0007ple.test",
     ]) {
       expect(await refusal(db.insert(user).values(account(email)))).toEqual(
         expect.stringMatching(/user_email_normalised/)
