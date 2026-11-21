@@ -10,21 +10,8 @@
 //
 // Plain TypeScript, no I/O: the caller passes the time from the clock.
 
+import { KEY_DATE_KINDS, type KeyDateKind, type KeyDates } from "./key-dates";
 import { canTransition, type CompetitionStatus } from "./status-machine";
-
-/** The dated milestones a competition can have, in timeline order. */
-export const KEY_DATE_KINDS = [
-  "registration_open",
-  "registration_close",
-  "submission_deadline",
-  "school_judging_deadline",
-  "results",
-] as const;
-
-export type KeyDateKind = (typeof KEY_DATE_KINDS)[number];
-
-/** A competition's key dates that are set, as UTC instants. */
-export type KeyDates = Partial<Record<KeyDateKind, Date>>;
 
 /** One scheduled job: run at `dueAt`, for the key date `kind`. */
 export type StatusJob = { kind: KeyDateKind; dueAt: Date };
@@ -43,11 +30,11 @@ const RULES: readonly {
   to: CompetitionStatus;
   keyDate: KeyDateKind;
 }[] = [
-  { from: "published", to: "registration_open", keyDate: "registration_open" },
+  { from: "published", to: "registration_open", keyDate: "registration_opens" },
   {
     from: "registration_open",
     to: "registration_closed",
-    keyDate: "registration_close",
+    keyDate: "registration_closes",
   },
 ];
 
