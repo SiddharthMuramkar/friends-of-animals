@@ -15,6 +15,12 @@ async function stagingPost(dsn: string | undefined) {
   vi.stubEnv("DATABASE_URL", "postgres://localhost:5432/foa");
   // Staging refuses to start without a session secret of 32 characters.
   vi.stubEnv("BETTER_AUTH_SECRET", "x".repeat(32));
+  // And the field keys (#58).
+  vi.stubEnv(
+    "FIELD_ENCRYPTION_KEYS",
+    "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+  );
+  vi.stubEnv("FIELD_HMAC_KEY", "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=");
   vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", dsn);
   vi.resetModules();
   const { POST } = await import("./route");
