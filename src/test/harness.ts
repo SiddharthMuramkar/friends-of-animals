@@ -10,7 +10,8 @@
 //
 // Each harness has its own PGlite database (real migrations), fake clock and
 // fakes, so tests share nothing. Tickets that add a port append its fake
-// here and in src/server/deps.ts. See docs/agents/seam-1.md.
+// here and in src/server/deps.ts. Outbox events are not a port: `drain()`
+// runs the real relay over these deps. See docs/agents/seam-1.md.
 
 import { onTestFinished, vi } from "vitest";
 
@@ -19,12 +20,14 @@ import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
+import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 
 import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
+import { FakeErrorReporter } from "./fakes/errors";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -38,6 +41,8 @@ export interface Harness {
   email: FakeEmail;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
+  /** Every error use cases reported, scrubbed as Sentry would get it. */
+  errors: FakeErrorReporter;
   /** What use cases run against: the fakes above plus test auth config. */
   deps: Deps;
   /** The use cases, acting as `actor`: the same ones server actions call. */
@@ -59,6 +64,12 @@ export interface Harness {
   signIn(user: { email: string }, meta?: Partial<RequestMeta>): Promise<Actor>;
   /** Builders that write to this database with this clock. */
   seed: SeedBuilders;
+  /**
+   * Delivers every outbox event due now, in process, the way the worker
+   * does (the same relay, on this database, fakes and clock), until a pass
+   * finds nothing due. Retries wait for `clock.advance()`.
+   */
+  drain(): Promise<DrainReport>;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -87,7 +98,8 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const cookies = new FakeCookieJar(clock);
-  const deps: Deps = { db, clock, email, cookies, auth: TEST_AUTH };
+  const errors = new FakeErrorReporter();
+  const deps: Deps = { db, clock, email, cookies, auth: TEST_AUTH, errors };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
     ...DEFAULT_META,
@@ -100,6 +112,7 @@ export async function createHarness(
     clock,
     email,
     cookies,
+    errors,
     deps,
     as: (actor) => app.as(actor),
     visitor: (overrides) => ({ kind: "visitor", meta: meta(overrides) }),
@@ -127,6 +140,7 @@ export async function createHarness(
       );
     },
     seed: createSeedBuilders(deps),
+    drain: () => drainUntilIdle(deps),
   };
   return harness;
 }
