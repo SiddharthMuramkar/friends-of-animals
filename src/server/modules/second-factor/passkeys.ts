@@ -36,6 +36,7 @@ import {
 } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
+import { accountName } from "./account-name";
 import { guardedAttempt, type Locked } from "./attempts";
 import {
   signedInUser,
@@ -165,7 +166,11 @@ export async function startPasskeyRegistration(
   await requireStepUpOnceEnrolled(ctx, actor);
 
   const [account] = await ctx.db
-    .select({ email: user.email, name: user.name })
+    .select({
+      email: user.email,
+      phoneCiphertext: user.phoneCiphertext,
+      name: user.name,
+    })
     .from(user)
     .where(eq(user.id, actor.userId));
   if (!account) throw new Error("The signed-in user has no account row");
@@ -173,7 +178,7 @@ export async function startPasskeyRegistration(
   const options = await generateRegistrationOptions({
     rpName: SECOND_FACTOR_SETTINGS.issuer,
     rpID: rp.id,
-    userName: account.email,
+    userName: accountName(ctx, account),
     userDisplayName: account.name,
     userID: Buffer.from(actor.userId.replaceAll("-", ""), "hex"),
     attestationType: "none",

@@ -19,6 +19,7 @@ import { secondFactor, user, type SecondFactorKind } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
+import { accountName } from "./account-name";
 import { guardedAttempt, type Locked } from "./attempts";
 import { base32Encode } from "./domain/base32";
 import {
@@ -42,7 +43,7 @@ import { SECOND_FACTOR_SETTINGS } from "./settings";
 
 export type SecondFactorContext = Pick<
   UseCaseContext,
-  "db" | "clock" | "actor" | "auth"
+  "db" | "clock" | "actor" | "auth" | "cipher"
 >;
 
 const label = z.string().trim().min(1).max(60);
@@ -147,7 +148,7 @@ export async function startTotpEnrolment(
       createdAt: now,
     });
     const [row] = await tx
-      .select({ email: user.email })
+      .select({ email: user.email, phoneCiphertext: user.phoneCiphertext })
       .from(user)
       .where(eq(user.id, actor.userId));
     return row;
@@ -160,7 +161,7 @@ export async function startTotpEnrolment(
     secret: base32Encode(secret),
     uri: otpauthUri({
       issuer: SECOND_FACTOR_SETTINGS.issuer,
-      account: account.email,
+      account: accountName(ctx, account),
       secret,
     }),
   };
