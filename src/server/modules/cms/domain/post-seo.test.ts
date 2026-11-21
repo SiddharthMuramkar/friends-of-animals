@@ -96,7 +96,9 @@ describe("blogPostingJsonLd", () => {
       blogPostingJsonLd(post, BASE, {
         siteImageSrc: "/_next/static/media/se-kites-uttarayan.0a1b2c.jpg",
       }).image
-    ).toBe("https://foa.example/_next/static/media/se-kites-uttarayan.0a1b2c.jpg");
+    ).toBe(
+      "https://foa.example/_next/static/media/se-kites-uttarayan.0a1b2c.jpg"
+    );
   });
 
   it("falls back to the site's social card without a cover", () => {
@@ -148,7 +150,9 @@ describe("postMetadata", () => {
     expect(meta.title).toBe("Kinder skies in kite season");
     // 141 characters of the 160 allowed: both sentences fit.
     expect(meta.description).toBe(POST.excerpt);
-    expect(meta.alternates?.canonical).toBe("/blog/kinder-skies-in-kite-season");
+    expect(meta.alternates?.canonical).toBe(
+      "/blog/kinder-skies-in-kite-season"
+    );
   });
 
   it("prefers the search title and cuts a long excerpt at a sentence", () => {
