@@ -17,9 +17,9 @@ const user: Actor = {
 };
 const system: Actor = { kind: "system", process: "seed" };
 
-// One database per test, not per check: a clone costs about 0.4 s, and a
-// test that cloned one for each of its checks ran past Vitest's timeout.
 let db: TestDb;
+
+// One database per test: can() reads a signed-in user's grants from it.
 beforeEach(async () => {
   db = await createTestDb();
 });
