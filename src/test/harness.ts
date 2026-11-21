@@ -19,6 +19,7 @@ import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
+import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 
 import { createTestDb, type TestDb } from "./db";
@@ -59,6 +60,12 @@ export interface Harness {
   signIn(user: { email: string }, meta?: Partial<RequestMeta>): Promise<Actor>;
   /** Builders that write to this database with this clock. */
   seed: SeedBuilders;
+  /**
+   * Delivers every outbox event due now, in process, the way the worker
+   * does (the same relay, on this database, fakes and clock), until a pass
+   * finds nothing due. Retries wait for `clock.advance()`.
+   */
+  drain(): Promise<DrainReport>;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -127,6 +134,7 @@ export async function createHarness(
       );
     },
     seed: createSeedBuilders(deps),
+    drain: () => drainUntilIdle(deps),
   };
   return harness;
 }
