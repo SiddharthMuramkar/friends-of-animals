@@ -895,14 +895,15 @@ Secrets (never in git):
 | `/etc/foa/secrets/umami_admin_password` | 0400 root   | Umami's `admin` password, which replaced the seeded one                |
 
 Bring-up (owner, HR-52), with the database stack and the edge running.
-Umami starts with the login `admin` / `umami`, which everyone knows, so the
-bootstrap replaces it as soon as Umami is up:
+The stats site serves 503 until the bootstrap replaces Umami's seeded admin
+login. The bootstrap closes the site before starting Umami on each run and
+reopens it only after the login replacement succeeds.
 
 ```sh
 cd /srv/foa && git pull
 # Env file, role and database umami, pg_hba reload; then Umami, and its
 # seeded admin login replaced by a random password in
-# /etc/foa/secrets/umami_admin_password:
+# /etc/foa/secrets/umami_admin_password. This opens the stats site:
 sudo docker/scripts/analytics-bootstrap.sh
 ```
 
@@ -934,11 +935,14 @@ replacing whatever the browser sent: a header visitors can set lets them
 forge the counts. Until then page views are right but unique visitors
 collapse onto Vercel's addresses.
 
-Upgrade: bump the image tag in `analytics.yml`, `git pull`, then
-`docker compose -f docker/analytics.yml up -d --wait`. Rotate the database
-password: delete the `DATABASE_URL` line from `analytics.env`, rerun the
-bootstrap script, then `docker compose -f docker/analytics.yml up -d
---force-recreate umami`.
+Upgrade: bump the image tag in `analytics.yml`, `git pull`, then rerun the
+bootstrap. The bootstrap uses `/var/lib/foa/caddy/gates/stats` to control
+when Caddy can reach Umami. If the login step fails, correct the problem and
+rerun the bootstrap to reopen the site.
+
+To rotate the database password, delete the `DATABASE_URL` line from
+`analytics.env` and rerun the bootstrap. Compose recreates Umami with the
+new environment.
 
 ```sh
 docker compose -f docker/analytics.yml ps

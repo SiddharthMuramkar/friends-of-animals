@@ -45,5 +45,11 @@ stats.friendsofanimals.dev {
 		Strict-Transport-Security "max-age=31536000"
 		-Server
 	}
+	# The bootstrap creates this file only after replacing Umami's seeded login.
+	@closed not file {
+		root /srv/gates
+		try_files /stats
+	}
+	respond @closed 503
 	reverse_proxy 10.112.12.30:3000
 }

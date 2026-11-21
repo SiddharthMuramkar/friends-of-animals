@@ -35,6 +35,7 @@ services:
       - ./caddy:/etc/caddy:ro
       - /var/lib/foa/caddy/data:/data
       - /var/lib/foa/caddy/config:/config
+      - /var/lib/foa/caddy/gates:/srv/gates:ro
       - /var/lib/foa/acme-webroot:/srv/acme:ro
     healthcheck:
       test:
