@@ -78,7 +78,11 @@ function lazyCipher(env: FieldKeyEnv): FieldCipher {
 export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   let supervisor: Supervisor | undefined;
   const cleanups: (() => Promise<void>)[] = [];
-  const cipher = lazyCipher({ APP_ENV: config.appEnv });
+  const cipher = lazyCipher({
+    APP_ENV: config.appEnv,
+    FIELD_ENCRYPTION_KEYS: config.fieldEncryptionKeys,
+    FIELD_HMAC_KEY: config.fieldHmacKey,
+  });
 
   const depsFor = (db: AppDb): OutboxDeps => ({
     db,
@@ -88,7 +92,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     // (it is off there until DLT approval, HR-14); elsewhere it captures.
     sms: smsSenderFor(config.appEnv, { db, clock: io.clock }, {}),
     cipher,
-    auth: {},
+    auth: { baseUrl: config.siteUrl },
   });
 
   async function startSingle(

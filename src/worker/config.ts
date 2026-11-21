@@ -20,13 +20,23 @@
 //                                    Compose secret), for a URL without one
 //   SENTRY_DSN                       the workers' Sentry project (#66); unset
 //                                    turns error tracking off (./errors.ts)
+//   APP_URL                          the site's base URL, for links in messages
+//                                    (#74's invitations); a local run falls back
+//                                    to http://localhost:3000
+//   FIELD_ENCRYPTION_KEYS            the app's field cipher key ring and blind
+//   FIELD_HMAC_KEY                   index key (#58), to read what a message
+//                                    sends to (an invitee's address); without
+//                                    them staging and production can't, and
+//                                    such a delivery fails until they are set
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
 import { z } from "zod";
 
-import { parseEnv } from "../env.schema";
+import { fieldKey, LOCAL_APP_URL, parseEnv } from "../env.schema";
 import { parseDsn } from "../lib/observability/config";
+import { parseBlindIndexKey } from "../server/crypto/blind-index";
+import { parseKeyRing } from "../server/crypto/field-cipher";
 import type { WorkerIdentity } from "./tenant";
 
 type Common = {
@@ -43,6 +53,11 @@ type Common = {
   passwordFile: string | undefined;
   /** Where errors go; unset, nowhere. */
   sentryDsn: string | undefined;
+  /** The site's base URL, for links in messages; unset, none. */
+  siteUrl: string | undefined;
+  /** The app's field keys (FIELD_ENCRYPTION_KEYS, FIELD_HMAC_KEY). */
+  fieldEncryptionKeys: string | undefined;
+  fieldHmacKey: string | undefined;
 };
 
 export type WorkerConfig =
@@ -95,6 +110,11 @@ const schema = z
           "Client Keys page, or leave it empty to turn error tracking off.",
       })
       .optional(),
+    APP_URL: z
+      .url({ protocol: /^https?$/, error: "must be an http(s) URL" })
+      .optional(),
+    FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
+    FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
   })
   .superRefine((env, ctx) => {
     if (env.WORKER_MODE === "preview") {
@@ -152,6 +172,10 @@ export function workerConfig(
     heartbeatFile: env.WORKER_HEARTBEAT_FILE,
     passwordFile: env.WORKER_PASSWORD_FILE,
     sentryDsn: env.SENTRY_DSN,
+    siteUrl:
+      env.APP_URL ?? (env.APP_ENV === "local" ? LOCAL_APP_URL : undefined),
+    fieldEncryptionKeys: env.FIELD_ENCRYPTION_KEYS,
+    fieldHmacKey: env.FIELD_HMAC_KEY,
   };
   if (env.WORKER_MODE === "preview") {
     // The refinement above guarantees it.
