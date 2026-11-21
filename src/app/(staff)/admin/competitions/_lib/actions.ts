@@ -4,6 +4,8 @@ import { getTranslations } from "next-intl/server";
 import { updateTag } from "next/cache";
 import { redirect, RedirectType } from "next/navigation";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
+import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type { Actor } from "@/server/actor";
@@ -16,7 +18,11 @@ import { refusalOutcome, type FieldName, type SaveRefusal } from "./form-view";
 import { competitionHref } from "./href";
 import { translate } from "./translate";
 
-/** Whether a use case threw because the policy refused the actor. */
+/**
+ * Whether a use case threw because the policy refused the actor. A refusal
+ * for want of the second factor (#60) redirects instead, through
+ * orSecondFactor, to the page that lifts it and back.
+ */
 function isRefusal(error: unknown): boolean {
   return error instanceof DomainError && error.code === "forbidden";
 }
@@ -69,7 +75,10 @@ export async function createCompetitionAction(
   const fields = fieldsFromForm(formData);
   let result;
   try {
-    result = await as(actor).createCompetition(fields);
+    result = await orSecondFactor(
+      () => as(actor).createCompetition(fields),
+      APP_ROUTES.adminNewCompetition
+    );
   } catch (error) {
     if (!isRefusal(error)) throw error;
     return refusedView(previous, fields, "refused");
@@ -97,10 +106,14 @@ export async function updateCompetitionAction(
   const fields = fieldsFromForm(formData);
   let result;
   try {
-    result = await as(actor).updateCompetition({
-      competitionId: target.competitionId,
-      ...fields,
-    });
+    result = await orSecondFactor(
+      () =>
+        as(actor).updateCompetition({
+          competitionId: target.competitionId,
+          ...fields,
+        }),
+      competitionHref(target.competitionId, "edit")
+    );
   } catch (error) {
     if (!isRefusal(error)) throw error;
     return refusedView(previous, fields, "refused");
@@ -130,7 +143,10 @@ export async function publishCompetitionAction(
   const actor = await signedInActor();
   let result;
   try {
-    result = await as(actor).publishCompetition({ competitionId });
+    result = await orSecondFactor(
+      () => as(actor).publishCompetition({ competitionId }),
+      competitionHref(competitionId, "preview")
+    );
   } catch (error) {
     if (!isRefusal(error)) throw error;
     redirect(competitionHref(competitionId, "preview", { refused: "refused" }));

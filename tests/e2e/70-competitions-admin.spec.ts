@@ -3,25 +3,37 @@ import {
   test,
   type APIRequestContext,
   type Page,
+  type TestInfo,
 } from "@playwright/test";
 
-import { SEED_COMPETITION_MANAGER } from "../../src/server/seed/competitions";
+import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
+import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
+import { SEED_COMPETITION_MANAGERS } from "../../src/server/seed/competitions";
 import { SEED_SCOPES } from "../../src/server/seed/scopes";
+import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {
   expectAccessible,
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
+import { recordCspViolations } from "./support/csp";
 import { freshEmail, readCode } from "./support/mailbox";
 
-// #70: the seeded competition manager creates a draft, fills it in,
-// previews it and publishes it; the four admin pages pass axe in light
-// and dark. People without the role are refused, visitors sent to sign in.
-// 70b adds the public page's side of the journey.
+// #70: a seeded competition manager signs in, passes the staff second
+// factor (#60) with the seed authenticator and sees what the seeded draft
+// still needs; then creates a draft, fills it in, previews it and
+// publishes it. The four admin pages pass axe in light and dark. People
+// without the role are refused, visitors sent to sign in. 70b adds the
+// public page's side of the journey.
 //
-// Sign-in codes: each project asks for two (the seeded manager, a fresh
-// member). Seeded addresses allow 5 codes in 15 minutes, so one preview
-// database takes two runs in 15 minutes. #60 adds the staff second factor.
+// An authenticator code works once, so each project signs in its own
+// seeded manager, and only once. Sign-in codes: each project asks for two
+// (its manager, a fresh member). Seeded addresses allow 5 codes in 15
+// minutes, so one preview database takes two runs in 15 minutes.
+//
+// The admin pages are signed-in pages under #65's nonce policy, which local
+// runs enforce, so each journey also records CSP violations and expects
+// none: a blocked script would leave the form without its enhancements.
 
 /** Signs in by email code, read from the capture mailbox. */
 async function signIn(page: Page, request: APIRequestContext, email: string) {
@@ -35,6 +47,30 @@ async function signIn(page: Page, request: APIRequestContext, email: string) {
     .fill(await readCode(request, email));
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/account\/sessions$/);
+}
+
+/**
+ * Signs this project's seeded competition manager in, then passes the
+ * second factor the admin pages ask for, with the seed authenticator.
+ */
+async function signInAsManager(
+  page: Page,
+  request: APIRequestContext,
+  testInfo: TestInfo
+) {
+  const [desktop, mobile] = SEED_COMPETITION_MANAGERS;
+  const manager = testInfo.project.name === "mobile" ? mobile : desktop;
+  await signIn(page, request, manager.email);
+
+  await page.goto("/admin/competitions");
+  await expect(page).toHaveURL(
+    /\/auth\/second-factor\?next=%2Fadmin%2Fcompetitions$/
+  );
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(base32Decode(SEED_TOTP_SECRET), new Date()));
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(/\/admin\/competitions$/);
 }
 
 /** A competition code nobody has used: 6 letters from the clock, then 27. */
@@ -53,11 +89,24 @@ async function checkBothThemes(page: Page, label: string) {
   await expectAccessibleInDark(page, label);
 }
 
-test("a competition manager creates, edits, previews and publishes a competition", async ({
+test("a competition manager sees what a draft needs, then creates, edits, previews and publishes one", async ({
   page,
   request,
-}) => {
-  await signIn(page, request, SEED_COMPETITION_MANAGER.email);
+}, testInfo) => {
+  const violations = await recordCspViolations(page);
+  await signInAsManager(page, request, testInfo);
+
+  // The seeded draft has gaps: its preview lists what publishing needs.
+  await expectRendersAccessibly(
+    page,
+    `/admin/competitions/${SEED_SCOPES.competition.id}/preview`
+  );
+  await expect(
+    page.getByRole("heading", { name: "Before you can publish" })
+  ).toBeVisible();
+  await expect(page.getByText("Rules: fill this in.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0);
+  await expectAccessibleInDark(page, "the seeded draft's preview");
 
   // The list.
   await expectRendersAccessibly(page, "/admin/competitions");
@@ -76,16 +125,21 @@ test("a competition manager creates, edits, previews and publishes a competition
   // The edit form, with the draft saved.
   await expect(page).toHaveURL(/\/admin\/competitions\/[0-9a-f-]+\/edit\?/);
   await expect(page.getByRole("status")).toContainText("Draft saved.");
-  await expect(page.getByText("Draft", { exact: true })).toBeVisible();
+  // Next keeps up to 3 visited routes in the DOM, hidden (React Activity),
+  // and the list's chips match too: look only at the page on screen.
+  await expect(
+    page.getByText("Draft", { exact: true }).filter({ visible: true })
+  ).toBeVisible();
   await checkBothThemes(page, "/admin/competitions/[id]/edit");
 
-  // A wrong date is refused against its own field, keeping what was typed.
+  // A wrong code is refused against its own field, keeping what was typed.
   await page.getByRole("textbox", { name: "Theme" }).fill("Birds of the hills");
   await page
     .getByRole("textbox", { name: "Competition code" })
     .fill("NOT A CODE");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(
+  // In <main>: Next's route announcer is an alert too.
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "The competition code needs fixing."
   );
   await expect(page.getByRole("textbox", { name: "Theme" })).toHaveValue(
@@ -110,10 +164,12 @@ test("a competition manager creates, edits, previews and publishes a competition
       .getByRole("group", { name: "Drawing" })
       .getByRole("checkbox", { name: "Juniors" })
   ).toBeChecked();
-  await page.getByLabel("Age cut-off date").fill("2027-06-01");
-  await page.getByLabel("Registration opens (IST)").fill("2027-04-01T09:00");
-  await page.getByLabel("Registration closes (IST)").fill("2027-05-01T17:30");
-  await page.getByLabel("Submissions close (IST)").fill("2027-05-15T17:30");
+  // By role, which skips the hidden new-draft form Next keeps in the DOM.
+  const field = (name: string) => page.getByRole("textbox", { name });
+  await field("Age cut-off date").fill("2027-06-01");
+  await field("Registration opens (IST)").fill("2027-04-01T09:00");
+  await field("Registration closes (IST)").fill("2027-05-01T17:30");
+  await field("Submissions close (IST)").fill("2027-05-15T17:30");
   await page
     .getByRole("textbox", { name: "Rules", exact: true })
     .fill("One drawing each, your own work.");
@@ -123,7 +179,7 @@ test("a competition manager creates, edits, previews and publishes a competition
   await page.getByRole("textbox", { name: "Duration" }).fill("1 hour");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Changes saved.");
-  await expect(page.getByLabel("Registration opens (IST)")).toHaveValue(
+  await expect(field("Registration opens (IST)")).toHaveValue(
     "2027-04-01T09:00"
   );
 
@@ -151,7 +207,9 @@ test("a competition manager creates, edits, previews and publishes a competition
   expect((await request.get("/competitions")).ok()).toBe(true);
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByRole("status")).toContainText("Published.");
-  await expect(page.getByText("Published", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Published", { exact: true }).filter({ visible: true })
+  ).toBeVisible();
 
   // The list shows it published.
   await page
@@ -175,30 +233,14 @@ test("a competition manager creates, edits, previews and publishes a competition
   await expect(
     page.locator("main").getByRole("heading", { level: 1 })
   ).toHaveText(name);
-});
-
-test("a draft with gaps lists what publishing still needs", async ({
-  page,
-  request,
-}) => {
-  await signIn(page, request, SEED_COMPETITION_MANAGER.email);
-
-  await expectRendersAccessibly(
-    page,
-    `/admin/competitions/${SEED_SCOPES.competition.id}/preview`
-  );
-  await expect(
-    page.getByRole("heading", { name: "Before you can publish" })
-  ).toBeVisible();
-  await expect(page.getByText("Rules: fill this in.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0);
-  await expectAccessibleInDark(page, "the seeded draft's preview");
+  expect(violations).toEqual([]);
 });
 
 test("a member without the role is refused, and a visitor is sent to sign in", async ({
   page,
   request,
 }, testInfo) => {
+  const violations = await recordCspViolations(page);
   await page.goto("/admin/competitions");
   await expect(page).toHaveURL(/\/sign-in$/);
 
@@ -224,4 +266,5 @@ test("a member without the role is refused, and a visitor is sent to sign in", a
   await expect(page.getByRole("link", { name: "New competition" })).toHaveCount(
     0
   );
+  expect(violations).toEqual([]);
 });

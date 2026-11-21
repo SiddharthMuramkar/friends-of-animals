@@ -7,6 +7,7 @@ import { isSignedInPage, isSignedInPath } from "@/lib/app-routes";
 import { createNonce, publicCsp, signedInCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
 import { ROUTES } from "@/lib/routes";
+import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
@@ -41,6 +42,9 @@ function withNonceCsp(request: NextRequest): NextResponse {
   headers.delete("content-security-policy-report-only");
   headers.set(policy.key, policy.value);
   headers.set("x-nonce", nonce);
+  // The page's path, so the staff gate (#60) can send the user back to it;
+  // set here, so one the browser sent never reaches the page.
+  headers.set(PATH_HEADER, request.nextUrl.pathname + request.nextUrl.search);
   const response = NextResponse.next({ request: { headers } });
   response.headers.set(policy.key, policy.value);
   return response;

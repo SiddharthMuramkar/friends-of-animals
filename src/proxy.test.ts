@@ -6,8 +6,9 @@ import {
 import { NextRequest, type NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SIGNED_IN_PREFIXES } from "@/lib/app-routes";
+import { APP_ROUTES, SIGNED_IN_PREFIXES } from "@/lib/app-routes";
 import { publicCsp } from "@/lib/csp";
+import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { cspContext } from "@/lib/csp-sources";
 import { createProxy } from "@/request-proxy";
 
@@ -121,7 +122,16 @@ describe("proxy: the signed-in nonce policy", () => {
     vi.stubEnv("APP_ENV", "preview");
     // A request-time notFound() under the signed-in layout could only stream
     // a 200; the prerendered 404 has no nonce on its scripts.
-    for (const path of ["/account", "/account/nope", "/account/sessions/x"]) {
+    for (const path of [
+      "/account",
+      "/account/nope",
+      "/account/sessions/x",
+      "/admin",
+      "/admin/competitions/x",
+      "/admin/competitions/x/delete",
+      "/admin/competitions/x/edit/more",
+      "/admin/competitions//edit",
+    ]) {
       const response = await proxy(request(path, SESSION));
 
       expect(getRewrittenUrl(response), path).toBe(
@@ -134,31 +144,17 @@ describe("proxy: the signed-in nonce policy", () => {
     }
   });
 
-  it("sends a competition's edit and preview pages the nonce policy, for any id", async () => {
+  it("sends a competition's edit and preview pages the nonce policy too", async () => {
     vi.stubEnv("APP_ENV", "preview");
-    for (const path of [
-      "/admin/competitions/0193f5d2-7a1b-7c3d-8e4f-a1b2c3d4e5f6/edit",
-      "/admin/competitions/0193f5d2-7a1b-7c3d-8e4f-a1b2c3d4e5f6/preview",
-      "/admin/competitions/any-id/preview",
-    ]) {
+    for (const page of ["edit", "preview"]) {
+      const path = `/admin/competitions/01938a00-0000-7000-8000-000000002001/${page}`;
       const response = await proxy(request(path, SESSION));
-      expect(getRewrittenUrl(response), path).toBeNull();
-      const page = pageHeaders(response);
-      expect(page.get("x-nonce"), path).toEqual(expect.any(String));
-    }
-  });
 
-  it("still answers admin paths that aren't pages with the static 404", async () => {
-    for (const path of [
-      "/admin",
-      "/admin/competitions/an-id",
-      "/admin/competitions/an-id/delete",
-      "/admin/competitions/an-id/edit/more",
-      "/admin/competitions//edit",
-    ]) {
-      const response = await proxy(request(path, SESSION));
-      expect(getRewrittenUrl(response), path).toBe(
-        "https://foa.example.test/__not-found"
+      expect(getRewrittenUrl(response), path).toBeNull();
+      const policy = response.headers.get("content-security-policy");
+      expect(policy, path).toMatch(/script-src 'self' 'nonce-[^']+'/);
+      expect(pageHeaders(response).get("x-nonce"), path).toBe(
+        getScriptNonceFromHeader(policy!)
       );
     }
   });
@@ -193,5 +189,45 @@ describe("proxy: the signed-in nonce policy", () => {
         expect(unstable_doesMiddlewareMatch({ config, url }), path).toBe(true);
       }
     }
+  });
+});
+
+describe("proxy: the page's path, for the staff gate (#60)", () => {
+  it.each([
+    APP_ROUTES.accountSecurity,
+    APP_ROUTES.secondFactor,
+    APP_ROUTES.stepUp,
+  ])(
+    "sends a visitor without a session cookie from %s to sign in",
+    async (path) => {
+      const response = await proxy(request(path));
+      expect(response.status).toBe(307);
+      expect(new URL(response.headers.get("location")!).pathname).toBe(
+        "/sign-in"
+      );
+    }
+  );
+
+  it("renders a signed-in page knowing its path and query, to come back to", async () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const path = `${APP_ROUTES.stepUp}?next=%2Fadmin%2Froles`;
+
+    expect(
+      pageHeaders(await proxy(request(path, SESSION))).get(PATH_HEADER)
+    ).toBe(path);
+  });
+
+  it("never passes on a path header the browser sent itself", async () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const response = await proxy(
+      request(APP_ROUTES.accountSecurity, {
+        ...SESSION,
+        [PATH_HEADER]: "https://example.com",
+      })
+    );
+
+    expect(pageHeaders(response).get(PATH_HEADER)).toBe(
+      APP_ROUTES.accountSecurity
+    );
   });
 });

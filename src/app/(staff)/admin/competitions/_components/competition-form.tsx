@@ -160,6 +160,11 @@ function Fields({
 }) {
   const { values } = view;
   const error = (field: FieldName) => view.errors[field];
+  // Next keeps up to 3 visited routes in the DOM, hidden (React Activity),
+  // so a new and an edit form can share a document: every id is scoped to
+  // this form, or labels would name both forms' fields.
+  const scope = useId();
+  const fieldId = (field: string) => `${scope}${field}`;
 
   const [disciplines, setDisciplines] = useState<ReadonlySet<Discipline>>(
     () => new Set(values.disciplines)
@@ -204,7 +209,7 @@ function Fields({
     <>
       <Section title={labels.basics}>
         <TextField
-          id="code"
+          id={fieldId("code")}
           name="code"
           required
           maxLength={12}
@@ -217,7 +222,7 @@ function Fields({
           error={error("code")}
         />
         <TextField
-          id="name"
+          id={fieldId("name")}
           name="name"
           required
           maxLength={120}
@@ -226,7 +231,7 @@ function Fields({
           error={error("name")}
         />
         <TextField
-          id="theme"
+          id={fieldId("theme")}
           name="theme"
           maxLength={300}
           defaultValue={values.theme}
@@ -234,7 +239,7 @@ function Fields({
           error={error("theme")}
         />
         <TextArea
-          id="welfareMessage"
+          id={fieldId("welfareMessage")}
           name="welfareMessage"
           maxLength={10_000}
           defaultValue={values.welfareMessage}
@@ -246,7 +251,7 @@ function Fields({
 
       <Section title={labels.whoAndWhat}>
         <ChoiceGroup
-          id="participation"
+          id={fieldId("participation")}
           legend={labels.participation}
           error={error("participation")}
         >
@@ -265,7 +270,7 @@ function Fields({
         </ChoiceGroup>
 
         <ChoiceGroup
-          id="disciplines"
+          id={fieldId("disciplines")}
           legend={labels.disciplines}
           error={error("disciplines")}
         >
@@ -289,7 +294,7 @@ function Fields({
         </ChoiceGroup>
 
         <ChoiceGroup
-          id="ageGroups"
+          id={fieldId("ageGroups")}
           legend={labels.ageGroups}
           hint={labels.ageGroupsHint}
           error={error("ageGroups")}
@@ -297,7 +302,7 @@ function Fields({
           <ol className="flex flex-col gap-4">
             {rows.map((row, index) => {
               const name = fill(labels.ageGroupRow, { row: index + 1 });
-              const stem = `ageGroup-${row.key}`;
+              const stem = fieldId(`ageGroup-${row.key}`);
               return (
                 <li key={row.key}>
                   <fieldset className="rounded-2xl border-2 border-border p-4">
@@ -376,7 +381,7 @@ function Fields({
         </ChoiceGroup>
 
         <TextField
-          id="ageCutoffDate"
+          id={fieldId("ageCutoffDate")}
           name="ageCutoffDate"
           type="date"
           defaultValue={values.ageCutoffDate}
@@ -385,7 +390,7 @@ function Fields({
         />
 
         <ChoiceGroup
-          id="categories"
+          id={fieldId("categories")}
           legend={labels.categories}
           hint={labels.categoriesHint}
           error={error("categories")}
@@ -437,7 +442,7 @@ function Fields({
         {KEY_DATE_KINDS.map((kind) => (
           <TextField
             key={kind}
-            id={`keyDates-${kind}`}
+            id={fieldId(`keyDates-${kind}`)}
             name={`keyDates.${kind}`}
             type="datetime-local"
             defaultValue={values.keyDates[kind] ?? ""}
@@ -454,7 +459,7 @@ function Fields({
 
       <Section title={labels.rulesSection}>
         <TextArea
-          id="rules"
+          id={fieldId("rules")}
           name="rules"
           maxLength={10_000}
           defaultValue={values.rules}
@@ -462,7 +467,7 @@ function Fields({
           error={error("rules")}
         />
         <TextArea
-          id="permittedMaterials"
+          id={fieldId("permittedMaterials")}
           name="permittedMaterials"
           maxLength={10_000}
           defaultValue={values.permittedMaterials}
@@ -470,7 +475,7 @@ function Fields({
           error={error("permittedMaterials")}
         />
         <TextField
-          id="duration"
+          id={fieldId("duration")}
           name="duration"
           maxLength={120}
           defaultValue={values.duration}
@@ -482,7 +487,7 @@ function Fields({
 
       <Section title={labels.judging}>
         <ChoiceGroup
-          id="digitalScope"
+          id={fieldId("digitalScope")}
           legend={labels.digitalScope}
           error={error("digitalScope")}
         >
@@ -500,7 +505,7 @@ function Fields({
           ))}
         </ChoiceGroup>
         <TextField
-          id="shortlistPerCategory"
+          id={fieldId("shortlistPerCategory")}
           name="shortlistPerCategory"
           inputMode="numeric"
           pattern="[0-9]*"
@@ -510,7 +515,7 @@ function Fields({
           error={error("shortlistPerCategory")}
         />
         <TextField
-          id="schoolPositions"
+          id={fieldId("schoolPositions")}
           name="schoolPositions"
           inputMode="numeric"
           pattern="[0-9]*"
@@ -520,7 +525,7 @@ function Fields({
           error={error("schoolPositions")}
         />
         <ChoiceGroup
-          id="physicalArtwork"
+          id={fieldId("physicalArtwork")}
           legend={labels.physicalArtwork}
           error={error("physicalArtwork")}
         >
@@ -537,7 +542,7 @@ function Fields({
             </label>
           ))}
           <TextField
-            id="physicalArtworkTopN"
+            id={fieldId("physicalArtworkTopN")}
             name="physicalArtworkTopN"
             inputMode="numeric"
             pattern="[0-9]*"

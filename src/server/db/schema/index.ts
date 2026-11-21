@@ -10,3 +10,5 @@ export * from "./outbox";
 export * from "./access";
 export * from "./audit";
 export * from "./competitions";
+export * from "./second-factor";
+export * from "./outbox";
