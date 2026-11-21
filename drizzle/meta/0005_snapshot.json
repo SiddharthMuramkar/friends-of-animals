@@ -1,6 +1,6 @@
 {
-  "id": "7dc42603-7101-49b0-b9c3-5af13e2762ee",
-  "prevId": "b7d3648f-2c0f-4b66-a35a-e3d18b022736",
+  "id": "c7b0fa6a-5515-4f1a-9fb5-087c00dc9b5f",
+  "prevId": "a46ceed8-38a2-422b-9a30-74fb3a19459c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -498,167 +498,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.outbox": {
-      "name": "outbox",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "event_type": {
-          "name": "event_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "aggregate_type": {
-          "name": "aggregate_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "aggregate_id": {
-          "name": "aggregate_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "handler": {
-          "name": "handler",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "available_at": {
-          "name": "available_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "locked_until": {
-          "name": "locked_until",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "outbox_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "dispatched_at": {
-          "name": "dispatched_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "failed_at": {
-          "name": "failed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "outbox_pending_available_at_idx": {
-          "name": "outbox_pending_available_at_idx",
-          "columns": [
-            {
-              "expression": "available_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"outbox\".\"status\" = 'pending'",
-          "concurrently": false
-        },
-        "outbox_failed_failed_at_idx": {
-          "name": "outbox_failed_failed_at_idx",
-          "columns": [
-            {
-              "expression": "failed_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"outbox\".\"status\" = 'failed'",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "outbox_event_id_handler_key": {
-          "name": "outbox_event_id_handler_key",
-          "columns": [
-            "event_id",
-            "handler"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "outbox_attempts_not_negative": {
-          "name": "outbox_attempts_not_negative",
-          "value": "\"outbox\".\"attempts\" >= 0"
-        },
-        "outbox_dispatched_at_when_dispatched": {
-          "name": "outbox_dispatched_at_when_dispatched",
-          "value": "(\"outbox\".\"status\" = 'dispatched') = (\"outbox\".\"dispatched_at\" IS NOT NULL)"
-        },
-        "outbox_failed_at_when_failed": {
-          "name": "outbox_failed_at_when_failed",
-          "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.user_role": {
       "name": "user_role",
       "schema": "",
@@ -961,6 +800,167 @@
         }
       },
       "isRLSEnabled": false
+    },
+    "public.outbox": {
+      "name": "outbox",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aggregate_type": {
+          "name": "aggregate_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aggregate_id": {
+          "name": "aggregate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "handler": {
+          "name": "handler",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "available_at": {
+          "name": "available_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "outbox_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "dispatched_at": {
+          "name": "dispatched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failed_at": {
+          "name": "failed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "outbox_pending_available_at_idx": {
+          "name": "outbox_pending_available_at_idx",
+          "columns": [
+            {
+              "expression": "available_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"outbox\".\"status\" = 'pending'",
+          "concurrently": false
+        },
+        "outbox_failed_failed_at_idx": {
+          "name": "outbox_failed_failed_at_idx",
+          "columns": [
+            {
+              "expression": "failed_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"outbox\".\"status\" = 'failed'",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "outbox_event_id_handler_key": {
+          "name": "outbox_event_id_handler_key",
+          "columns": [
+            "event_id",
+            "handler"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "outbox_attempts_not_negative": {
+          "name": "outbox_attempts_not_negative",
+          "value": "\"outbox\".\"attempts\" >= 0"
+        },
+        "outbox_dispatched_at_when_dispatched": {
+          "name": "outbox_dispatched_at_when_dispatched",
+          "value": "(\"outbox\".\"status\" = 'dispatched') = (\"outbox\".\"dispatched_at\" IS NOT NULL)"
+        },
+        "outbox_failed_at_when_failed": {
+          "name": "outbox_failed_at_when_failed",
+          "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -970,15 +970,6 @@
       "values": [
         "email",
         "sms"
-      ]
-    },
-    "public.outbox_status": {
-      "name": "outbox_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "dispatched",
-        "failed"
       ]
     },
     "public.role": {
@@ -1020,6 +1011,15 @@
         "visitor",
         "user",
         "system"
+      ]
+    },
+    "public.outbox_status": {
+      "name": "outbox_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "dispatched",
+        "failed"
       ]
     }
   },
