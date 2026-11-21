@@ -11,7 +11,7 @@
 export type PickCandidate = {
   entryId: string;
   /** The competition category the entry is in. */
-  categoryKey: string;
+  categoryId: string;
   /** Only entries that reached `submitted` can be shortlisted. */
   submitted: boolean;
 };
@@ -43,7 +43,7 @@ export type PickProblem =
   | { code: "duplicate_entry"; entryId: string }
   /** More picks than the competition's shortlist size. */
   | { code: "shortlist_full"; limit: number; count: number }
-  /** Not a whole number from 1 to the competition's number of positions. */
+  /** Not a whole number from 1 to `availablePositions(limits)`. */
   | {
       code: "position_out_of_range";
       entryId: string;
@@ -59,8 +59,8 @@ export type CategoryPicksCheck =
 
 /**
  * Throws a RangeError unless the limits make sense: at least one shortlisted
- * entry, and no more positions than shortlisted entries. Competition
- * settings are validated when saved, so this only catches a bug.
+ * entry, and no negative number of positions. Competition settings are
+ * validated when published, so this only catches a bug.
  */
 function assertLimits({ shortlistSize, positions }: ShortlistLimits): void {
   if (!Number.isInteger(shortlistSize) || shortlistSize < 1) {
@@ -73,11 +73,16 @@ function assertLimits({ shortlistSize, positions }: ShortlistLimits): void {
       `positions must be a whole number of at least 0, not ${positions}`
     );
   }
-  if (positions > shortlistSize) {
-    throw new RangeError(
-      `positions (${positions}) cannot exceed shortlistSize (${shortlistSize})`
-    );
-  }
+}
+
+/**
+ * The positions a school can actually declare per category: the
+ * competition's number, but never more than its shortlist size, because
+ * only shortlisted entries hold a position. (A competition may be saved
+ * with more positions than shortlisted entries.)
+ */
+export function availablePositions(limits: ShortlistLimits): number {
+  return Math.min(limits.positions, limits.shortlistSize);
 }
 
 /**
@@ -87,13 +92,14 @@ function assertLimits({ shortlistSize, positions }: ShortlistLimits): void {
  * themselves are impossible.
  */
 export function checkCategoryPicks(input: {
-  categoryKey: string;
+  categoryId: string;
   /** Every entry of the round, in any category. */
   candidates: readonly PickCandidate[];
   picks: readonly Pick[];
   limits: ShortlistLimits;
 }): CategoryPicksCheck {
   assertLimits(input.limits);
+  const positionLimit = availablePositions(input.limits);
   const candidates = new Map(
     input.candidates.map((candidate) => [candidate.entryId, candidate])
   );
@@ -107,7 +113,7 @@ export function checkCategoryPicks(input: {
       problems.push({ code: "duplicate_entry", entryId });
     } else if (!candidate) {
       problems.push({ code: "unknown_entry", entryId });
-    } else if (candidate.categoryKey !== input.categoryKey) {
+    } else if (candidate.categoryId !== input.categoryId) {
       problems.push({ code: "wrong_category", entryId });
     } else if (!candidate.submitted) {
       problems.push({ code: "not_submitted", entryId });
@@ -118,13 +124,13 @@ export function checkCategoryPicks(input: {
     if (
       !Number.isInteger(position) ||
       position < 1 ||
-      position > input.limits.positions
+      position > positionLimit
     ) {
       problems.push({
         code: "position_out_of_range",
         entryId,
         position,
-        limit: input.limits.positions,
+        limit: positionLimit,
       });
     } else if (taken.has(position)) {
       problems.push({ code: "position_taken", entryId, position });

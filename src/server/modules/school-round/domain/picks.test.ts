@@ -8,9 +8,9 @@ const LIMITS = { shortlistSize: 5, positions: 3 };
 const DRAWING = "drawing:9-12";
 const PAINTING = "painting:9-12";
 
-const submitted = (entryId: string, categoryKey = DRAWING): PickCandidate => ({
+const submitted = (entryId: string, categoryId = DRAWING): PickCandidate => ({
   entryId,
-  categoryKey,
+  categoryId,
   submitted: true,
 });
 
@@ -30,7 +30,7 @@ describe("checkCategoryPicks()", () => {
 
     expect(
       checkCategoryPicks({
-        categoryKey: DRAWING,
+        categoryId: DRAWING,
         candidates: SIX_DRAWINGS,
         picks,
         limits: LIMITS,
@@ -42,12 +42,12 @@ describe("checkCategoryPicks()", () => {
     const candidates = [
       submitted("e1"),
       submitted("p1", PAINTING),
-      { entryId: "e2", categoryKey: DRAWING, submitted: false },
+      { entryId: "e2", categoryId: DRAWING, submitted: false },
     ];
 
     expect(
       checkCategoryPicks({
-        categoryKey: DRAWING,
+        categoryId: DRAWING,
         candidates,
         picks: [
           { entryId: "elsewhere", position: null },
@@ -72,7 +72,7 @@ describe("checkCategoryPicks()", () => {
   it("refuses a sixth entry when the shortlist size is 5", () => {
     expect(
       checkCategoryPicks({
-        categoryKey: DRAWING,
+        categoryId: DRAWING,
         candidates: SIX_DRAWINGS,
         picks: SIX_DRAWINGS.map(({ entryId }) => ({ entryId, position: null })),
         limits: LIMITS,
@@ -91,7 +91,7 @@ describe("checkCategoryPicks()", () => {
     ];
     const check = (shortlistSize: number) =>
       checkCategoryPicks({
-        categoryKey: DRAWING,
+        categoryId: DRAWING,
         candidates: SIX_DRAWINGS,
         picks,
         limits: { shortlistSize, positions: 0 },
@@ -104,7 +104,7 @@ describe("checkCategoryPicks()", () => {
   it("refuses a position past the competition's number of positions, and a position given twice", () => {
     expect(
       checkCategoryPicks({
-        categoryKey: DRAWING,
+        categoryId: DRAWING,
         candidates: SIX_DRAWINGS,
         picks: [
           { entryId: "e1", position: 1 },
@@ -134,7 +134,7 @@ describe("checkCategoryPicks()", () => {
   it("follows the competition's number of positions", () => {
     const check = (positions: number) =>
       checkCategoryPicks({
-        categoryKey: DRAWING,
+        categoryId: DRAWING,
         candidates: SIX_DRAWINGS,
         picks: [{ entryId: "e1", position: 3 }],
         limits: { shortlistSize: 5, positions },
@@ -151,7 +151,7 @@ describe("checkCategoryPicks()", () => {
     ];
     expect(
       checkCategoryPicks({
-        categoryKey: DRAWING,
+        categoryId: DRAWING,
         candidates: SIX_DRAWINGS,
         picks,
         limits: LIMITS,
@@ -159,16 +159,37 @@ describe("checkCategoryPicks()", () => {
     ).toEqual({ ok: true, picks });
   });
 
+  it("offers no more positions than the shortlist size, since only shortlisted entries hold one", () => {
+    // A competition may be saved with more positions than shortlisted
+    // entries per category.
+    const check = (position: number) =>
+      checkCategoryPicks({
+        categoryId: DRAWING,
+        candidates: SIX_DRAWINGS,
+        picks: [{ entryId: "e1", position }],
+        limits: { shortlistSize: 3, positions: 4 },
+      });
+
+    expect(check(3)).toEqual({
+      ok: true,
+      picks: [{ entryId: "e1", position: 3 }],
+    });
+    expect(check(4)).toEqual({
+      ok: false,
+      problems: [
+        { code: "position_out_of_range", entryId: "e1", position: 4, limit: 3 },
+      ],
+    });
+  });
+
   it.each([
     { shortlistSize: 0, positions: 0 },
     { shortlistSize: 2.5, positions: 0 },
     { shortlistSize: 5, positions: -1 },
-    // Positions go to shortlisted entries, so there can't be more of them.
-    { shortlistSize: 3, positions: 4 },
   ])("throws on impossible limits %o", (limits) => {
     expect(() =>
       checkCategoryPicks({
-        categoryKey: DRAWING,
+        categoryId: DRAWING,
         candidates: SIX_DRAWINGS,
         picks: [],
         limits,
@@ -179,7 +200,7 @@ describe("checkCategoryPicks()", () => {
   it("accepts an empty shortlist", () => {
     expect(
       checkCategoryPicks({
-        categoryKey: DRAWING,
+        categoryId: DRAWING,
         candidates: [],
         picks: [],
         limits: LIMITS,
