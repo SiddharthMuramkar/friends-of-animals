@@ -5,6 +5,7 @@ import {
   afterSubmit,
   EMPTY,
   enteredFrom,
+  keepsProof,
   type ContactFormEntered,
 } from "./form-state";
 
@@ -85,5 +86,43 @@ describe("enteredFrom", () => {
       topic: "MEDIA",
       name: "Ravi",
     });
+  });
+});
+
+describe("keepsProof", () => {
+  it("keeps the proof a refused send left unspent, so its 3 seconds run on", () => {
+    expect(
+      keepsProof(
+        afterSubmit(
+          { ok: false, error: "invalid_input", fields: ["message"] },
+          entered
+        )
+      )
+    ).toBe(true);
+    expect(
+      keepsProof(
+        afterSubmit(
+          {
+            ok: false,
+            error: "rate_limited",
+            retryAfter: new Date("2027-01-15T05:30:00Z"),
+            retryAfterSeconds: 3600,
+          },
+          entered
+        )
+      )
+    ).toBe(true);
+  });
+
+  it("drops one that was spent, refused itself, or may have been", () => {
+    expect(
+      keepsProof(afterSubmit({ ok: true, reference: "CM-27-8H3TZ0" }, entered))
+    ).toBe(false);
+    expect(
+      keepsProof(
+        afterSubmit({ ok: false, error: "human_check_failed" }, entered)
+      )
+    ).toBe(false);
+    expect(keepsProof(afterFailure(entered))).toBe(false);
   });
 });

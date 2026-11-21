@@ -88,6 +88,20 @@ export function afterSubmit(
   }
 }
 
+/**
+ * Whether the human-check proof sent with the submission behind `state` is
+ * still unspent, so the island sends it again. The use case checks the
+ * fields before it redeems a proof, and a refused send rolls the
+ * redemption back. Reusing it keeps the bot screen's clock running from
+ * when the visitor started, so fixing a field and sending at once isn't
+ * taken for a bot. A sent message spent it; a failed check refused it;
+ * an outright failure may have spent it.
+ */
+export function keepsProof(state: ContactFormState): boolean {
+  if (state.step === "sent") return false;
+  return state.alert === undefined || state.alert === "rate_limited";
+}
+
 /** When the use case fails outright: keep what was typed, and say so. */
 export function afterFailure(entered: ContactFormEntered): ContactFormState {
   return { step: "form", entered, alert: "failed" };

@@ -22,7 +22,11 @@ import { solveProofOfWork } from "@/lib/proof-of-work";
 import { ROUTES } from "@/lib/routes";
 
 import { issueChallengeAction, submitContactAction } from "../_lib/actions";
-import { START_VIEW, type ContactFormView } from "../_lib/form-state";
+import {
+  keepsProof,
+  START_VIEW,
+  type ContactFormView,
+} from "../_lib/form-state";
 
 /** Picking it shows where to go instead; the form never sends it. */
 const SAFEGUARDING = "SAFEGUARDING";
@@ -119,9 +123,10 @@ function ContactFormRound({
       // Sent without a proof, the server answers "human check failed",
       // which asks the visitor to press Send again.
     }
-    // Each proof works once: the next send solves a new one.
-    proof.current = null;
-    return submitContactAction(previous, formData);
+    const next = await submitContactAction(previous, formData);
+    // A proof works once: once spent, the next send solves a new one.
+    if (!keepsProof(next)) proof.current = null;
+    return next;
   }
 
   const [view, formAction, sending] = useActionState(send, START_VIEW);

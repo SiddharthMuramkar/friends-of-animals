@@ -78,7 +78,12 @@ test("a visitor sends a message through the contact form", async ({
   );
 });
 
-/** Sends a General message through the form; returns its reference. */
+/**
+ * Sends a General message as a visitor who first forgets the message, then
+ * writes it; returns its reference. The refused send leaves its proof
+ * unspent, and the island sends it again, so the bot screen counts from
+ * when the visitor started (it drops anything sent within 3 s of that).
+ */
 async function sendMessage(page: Page, testInfo: TestInfo, subject: string) {
   await page.goto("/contact");
   const form = page
@@ -90,6 +95,12 @@ async function sendMessage(page: Page, testInfo: TestInfo, subject: string) {
     .getByRole("textbox", { name: "Your email address" })
     .fill(freshEmail(testInfo.project.name));
   await form.getByRole("textbox", { name: "Subject" }).fill(subject);
+  await form.getByRole("button", { name: "Send message" }).click();
+  await expect(
+    form.getByText("Enter your message, in up to 5,000 characters.")
+  ).toBeVisible({ timeout: 30_000 });
+  // Writing the message takes a person more than the screen's 3 s.
+  await page.waitForTimeout(3_000);
   await form
     .getByRole("textbox", { name: "Your message" })
     .fill("How can I help at the next adoption camp?");
