@@ -1,0 +1,16 @@
+{
+  "competitionStatus": {
+    "label": {
+      "draft": "Draft",
+      "published": "Upcoming",
+      "registration_open": "Registration open",
+      "registration_closed": "Registration closed"
+    },
+    "countdown": {
+      "opens": "Registration opens {at} ({relative})",
+      "opensDue": "Registration opening shortly",
+      "closes": "Registration closes {at} ({relative})",
+      "closesDue": "Registration closing shortly"
+    }
+  }
+}
