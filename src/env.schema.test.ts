@@ -296,6 +296,32 @@ describe("envSchema: error tracking", () => {
   });
 });
 
+describe("envSchema: malware scanner", () => {
+  it("reads where clamd listens", () => {
+    const config = parseEnv(envSchema, {
+      DATABASE_URL,
+      CLAMD_HOST: "clamav",
+      CLAMD_PORT: "3311",
+    });
+    expect(config).toMatchObject({ CLAMD_HOST: "clamav", CLAMD_PORT: 3311 });
+  });
+
+  it("leaves CLAMD_HOST out and CLAMD_PORT at clamd's 3310 by default", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config).not.toHaveProperty("CLAMD_HOST");
+    expect(config).toHaveProperty("CLAMD_PORT", 3310);
+  });
+
+  it.each(["clamd", "0", "65536", "33.1"])(
+    "refuses CLAMD_PORT=%s",
+    (CLAMD_PORT) => {
+      expect(() =>
+        parseEnv(envSchema, { DATABASE_URL, CLAMD_HOST: "clamav", CLAMD_PORT })
+      ).toThrow(/at CLAMD_PORT/);
+    }
+  );
+});
+
 describe("migrationEnvSchema", () => {
   it("reads DIRECT_URL", () => {
     const url = "postgresql://migrator:p@db.example.org:6432/foa";
