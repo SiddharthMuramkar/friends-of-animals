@@ -441,19 +441,28 @@ describe("analytics-bootstrap.sh bring-up", () => {
 
 describe("analytics-bootstrap.sh usage", () => {
   it("prints its usage with --help", () => {
-    const run = spawnSync("bash", [SCRIPT, "--help"], { encoding: "utf8" });
+    const run = spawnSync("bash", [SCRIPT, "--help"], {
+      ...UNPRIVILEGED,
+      encoding: "utf8",
+    });
     expect(run.status).toBe(0);
     expect(run.stdout).toMatch(/Usage: .*analytics-bootstrap\.sh/);
   });
 
   it("refuses an unknown argument", () => {
-    const run = spawnSync("bash", [SCRIPT, "--force"], { encoding: "utf8" });
+    const run = spawnSync("bash", [SCRIPT, "--force"], {
+      ...UNPRIVILEGED,
+      encoding: "utf8",
+    });
     expect(run.status).toBe(2);
     expect(run.stderr).toMatch(/unknown argument: --force/);
   });
 
   it("says nothing about a tunnel in its usage", () => {
-    const run = spawnSync("bash", [SCRIPT, "--help"], { encoding: "utf8" });
+    const run = spawnSync("bash", [SCRIPT, "--help"], {
+      ...UNPRIVILEGED,
+      encoding: "utf8",
+    });
     expect(run.stdout).not.toMatch(/tunnel|cloudflare/i);
   });
 });
