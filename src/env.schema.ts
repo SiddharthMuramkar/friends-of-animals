@@ -369,6 +369,20 @@ export const migrationEnvSchema = z
 export type MigrationEnv = z.output<typeof migrationEnvSchema>;
 
 /**
+ * What `pnpm files:purge-preview` reads (scripts/purge-preview-files.ts):
+ * APP_ENV and all four R2 variables, the non-production bucket's. Purging
+ * without storage can't do anything, so none of them is optional here.
+ */
+export const purgeEnvSchema = z
+  .object({ APP_ENV: appEnv, ...storageVariables })
+  .required({
+    R2_ACCOUNT_ID: true,
+    R2_ACCESS_KEY_ID: true,
+    R2_SECRET_ACCESS_KEY: true,
+    R2_BUCKET: true,
+  });
+
+/**
  * Parses an env-like object, usually process.env, against `schema`. Empty
  * strings count as unset, so `FOO=` in a .env file behaves like a missing
  * variable. Throws one readable error that lists every problem.
