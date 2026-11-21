@@ -37,11 +37,6 @@ export type S3BucketConfig = {
   serverSideEncryption?: "AES256";
 };
 
-/** R2's S3 endpoint for a Cloudflare account. */
-export function r2Endpoint(accountId: string): string {
-  return `https://${accountId}.r2.cloudflarestorage.com`;
-}
-
 /** S3's answer to bytes that don't match their Content-MD5. */
 const DIGEST_ERRORS = new Set(["BadDigest", "InvalidDigest"]);
 
