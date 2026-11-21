@@ -17,6 +17,14 @@ import type {
 } from "@/content/sample/model";
 import type { KeyDateKind } from "@/content/sample/selectors";
 import type { SiteImageId } from "@/lib/images";
+import { placeholder } from "@/lib/site";
+import type { KeyDateKind as StoredKeyDateKind } from "@/server/modules/competitions/domain/key-dates";
+import type {
+  DigitalScope,
+  Discipline as StoredDiscipline,
+  Participation,
+  PhysicalArtwork,
+} from "@/server/modules/competitions/domain/vocabulary";
 
 export type { CompetitionStatus, Discipline, KeyDateKind, ParticipationRoute };
 export { DISCIPLINES } from "@/content/sample/model";
@@ -173,4 +181,115 @@ export function fileRules(disciplines: readonly Discipline[]): FileRule[] {
     discipline,
     ...FILE_RULES[discipline],
   }));
+}
+
+/**
+ * A published competition as the competitions module returns it (its
+ * read model), and as the admin preview returns a draft. fromPublic reads
+ * these fields.
+ */
+export type PublishedCompetition = {
+  id: string;
+  code: string;
+  slug: string;
+  name: string;
+  theme: string;
+  welfareMessage: string;
+  status: "published";
+  participation: Participation;
+  disciplines: readonly StoredDiscipline[];
+  ageGroups: readonly AgeGroup[];
+  categories: readonly { discipline: StoredDiscipline; ageGroup: string }[];
+  /** YYYY-MM-DD. */
+  ageCutoffDate: string;
+  rules: string;
+  permittedMaterials: string;
+  duration: string;
+  digitalScope: DigitalScope;
+  shortlistPerCategory: number;
+  schoolPositions: number;
+  physicalArtwork: PhysicalArtwork;
+  publicDisplay: boolean;
+  auctionPermitted: boolean;
+  /** In timeline order. */
+  keyDates: readonly { kind: StoredKeyDateKind; at: Date }[];
+  publishedAt: Date;
+};
+
+/** What a competition's page shows: the card, and the rest of its rules. */
+export type CompetitionView = CompetitionCardModel & {
+  welfareMessage: string;
+  categories: readonly { discipline: Discipline; ageGroup: string }[];
+  /** YYYY-MM-DD: ages count on this day. */
+  ageCutoffDate: string;
+  rules: string;
+  permittedMaterials: string;
+  duration: string;
+  digitalScope: DigitalScope;
+  shortlistPerCategory: number;
+  schoolPositions: number;
+  physicalArtwork: PhysicalArtwork;
+  publicDisplay: boolean;
+  auctionPermitted: boolean;
+};
+
+const KEY_DATE_KIND: Record<StoredKeyDateKind, KeyDateKind> = {
+  registration_opens: "registrationOpens",
+  registration_closes: "registrationCloses",
+  submissions_close: "entriesClose",
+  school_round_closes: "shortlistCloses",
+};
+
+const toDiscipline = (d: StoredDiscipline) => d.toUpperCase() as Discipline;
+
+/**
+ * Schools first, as the page recommends them. Fees arrive with #72; until
+ * then each shows as still to be confirmed, never an invented amount.
+ */
+const ROUTES: Record<Participation, CompetitionCardModel["routes"]> = {
+  individuals: [{ route: "INDIVIDUAL", fee: placeholder("feeIndividual") }],
+  institutions: [{ route: "INSTITUTION", fee: placeholder("feeSchool") }],
+  both: [
+    { route: "INSTITUTION", fee: placeholder("feeSchool") },
+    { route: "INDIVIDUAL", fee: placeholder("feeIndividual") },
+  ],
+};
+
+/** A published competition as its page and card show it. */
+export function fromPublic(c: PublishedCompetition): CompetitionView {
+  const disciplines = c.disciplines.map(toDiscipline);
+  return {
+    slug: c.slug,
+    name: c.name,
+    theme: c.theme,
+    status: "PUBLISHED",
+    sample: false,
+    coverImageId: coverFor(disciplines),
+    disciplines,
+    ageGroups: c.ageGroups.map(({ label, minAge, maxAge }) => ({
+      label,
+      minAge,
+      maxAge,
+    })),
+    routes: ROUTES[c.participation],
+    keyDates: c.keyDates.map((d) => ({
+      kind: KEY_DATE_KIND[d.kind],
+      at: d.at.toISOString(),
+    })),
+    welfareMessage: c.welfareMessage,
+    categories: c.categories.map((cat) => ({
+      discipline: toDiscipline(cat.discipline),
+      ageGroup: cat.ageGroup,
+    })),
+    ageCutoffDate: c.ageCutoffDate,
+    rules: c.rules,
+    permittedMaterials: c.permittedMaterials,
+    duration: c.duration,
+    digitalScope: c.digitalScope,
+    shortlistPerCategory: c.shortlistPerCategory,
+    schoolPositions: c.schoolPositions,
+    physicalArtwork: c.physicalArtwork,
+    publicDisplay: c.publicDisplay,
+    auctionPermitted: c.auctionPermitted,
+  };
 }
