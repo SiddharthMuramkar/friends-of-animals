@@ -11,6 +11,8 @@ import {
 } from "../identity/verified-account";
 import { ensureGrant } from "./access";
 import { seedPhone } from "./identity";
+import { competitionBuilder } from "./competitions";
+import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
 
 const MEMBER_NAMES = [
@@ -72,6 +74,14 @@ export function seedFunctions(seeders: readonly Seeder[]) {
         });
         return account;
       },
+      /**
+       * Gives `user` a confirmed authenticator app with SEED_TOTP_SECRET
+       * (no audit entry: it is seed data).
+       */
+      authenticator: (user: { id: string }) =>
+        ensureSeedAuthenticator(deps, user.id),
+      /** A complete competition (draft unless told), no audit entry. */
+      competition: competitionBuilder(deps),
       /** Everything `pnpm db:seed` puts in a preview database. */
       preview: () => seedPreview(deps),
     };

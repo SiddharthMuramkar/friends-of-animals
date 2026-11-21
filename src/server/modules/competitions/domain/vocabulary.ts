@@ -2,6 +2,13 @@
 // input validation and the admin form share. Pure, and loads under plain
 // Node (drizzle-kit, the seed script): relative imports only.
 
+/**
+ * Where a competition is in its life. A draft is never public; #71 adds the
+ * statuses that follow publishing, #80 cancelled.
+ */
+export const COMPETITION_STATUSES = ["draft", "published"] as const;
+export type CompetitionStatus = (typeof COMPETITION_STATUSES)[number];
+
 /** The seven disciplines FOA runs. */
 export const DISCIPLINES = [
   "drawing",

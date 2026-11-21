@@ -57,6 +57,20 @@
       "when": 1795262528065,
       "tag": "0007_61_worker_heartbeat",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795263014008,
+      "tag": "0008_60_staff_two_factor",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795263153676,
+      "tag": "0009_70_competitions",
+      "breakpoints": true
     }
   ]
 }

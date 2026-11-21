@@ -14,6 +14,7 @@ async function seedDeps() {
     db: await createTestDb(),
     clock: new FakeClock(),
     ...fieldCryptoFor({ APP_ENV: "local" }),
+    auth: { secret: "seed-test-secret-0123456789abcdef" },
   };
 }
 
@@ -25,11 +26,13 @@ async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {
 }
 
 describe("seedPreview", () => {
-  it("creates a super admin and three members", async () => {
+  it("creates a super admin, three members and two competition managers", async () => {
     const deps = await seedDeps();
     await seedPreview(deps);
 
     expect((await accounts(deps)).map((account) => account.email)).toEqual([
+      "competition-manager-2@example.test",
+      "competition-manager@example.test",
       "member1@example.test",
       "member2@example.test",
       "member3@example.test",
