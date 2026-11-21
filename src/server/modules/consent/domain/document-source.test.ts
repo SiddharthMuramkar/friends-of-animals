@@ -1,37 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_DOCS, resolveLegalDoc, type ShownInline } from "@/content/legal";
+import { LEGAL_DOCS } from "@/content/legal";
 
-import type { ConsentDocumentBody } from "./document-body";
+import {
+  toConsentDocumentBody,
+  type ConsentDocumentBody,
+} from "./document-body";
 import {
   formatConsentDocumentSource,
   parseConsentDocumentSource,
 } from "./document-source";
 
 const source = (...lines: string[]) => lines.join("\n");
-
-/** `body` with each run of side-by-side text joined into one string. */
-function joinText(body: ConsentDocumentBody): ConsentDocumentBody {
-  const join = (text: ShownInline[]) =>
-    text.reduce<ShownInline[]>((out, inline) => {
-      const last = out.at(-1);
-      if (typeof inline === "string" && typeof last === "string") {
-        out[out.length - 1] = last + inline;
-      } else {
-        out.push(inline);
-      }
-      return out;
-    }, []);
-  return {
-    short: body.short.map(join),
-    sections: body.sections.map((section) => ({
-      ...section,
-      blocks: section.blocks.map((block) =>
-        "p" in block ? { p: join(block.p) } : { list: block.list.map(join) }
-      ),
-    })),
-  };
-}
 
 describe("parseConsentDocumentSource", () => {
   it("reads short points, sections, paragraphs, lists and inline marks", () => {
@@ -279,13 +259,10 @@ describe("formatConsentDocumentSource", () => {
     );
   });
 
-  // As a preview shows it, every clause's facts shown. Settling a clause
-  // can leave runs of text side by side, which the source writes as one.
   it.each(Object.entries(LEGAL_DOCS))(
     "round-trips the %s policy unchanged",
     (_name, doc) => {
-      const { short, sections } = resolveLegalDoc(doc, () => true);
-      const body = joinText({ short, sections });
+      const body = toConsentDocumentBody(doc);
 
       expect(
         parseConsentDocumentSource(formatConsentDocumentSource(body))

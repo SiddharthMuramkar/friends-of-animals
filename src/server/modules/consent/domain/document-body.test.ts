@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_DOCS, resolveLegalDoc } from "@/content/legal";
+import { LEGAL_DOCS, type LegalDoc } from "@/content/legal";
 
 import {
   parseConsentDocumentBody,
+  toConsentDocumentBody,
   type ConsentDocumentBody,
 } from "./document-body";
 
@@ -46,12 +47,10 @@ describe("parseConsentDocumentBody", () => {
     expect(parseConsentDocumentBody(VALID)).toEqual({ ok: true, body: VALID });
   });
 
-  // Every clause's facts shown, as the preview seed publishes it.
   it.each(Object.entries(LEGAL_DOCS))(
-    "accepts the %s policy as a preview shows it",
+    "accepts the %s policy as a published version holds it",
     (_name, doc) => {
-      const { short, sections } = resolveLegalDoc(doc, () => true);
-      const body = { short, sections };
+      const body = toConsentDocumentBody(doc);
       expect(parseConsentDocumentBody(body)).toEqual({ ok: true, body });
     }
   );
@@ -79,6 +78,9 @@ describe("parseConsentDocumentBody", () => {
     ["empty strong text", withInline({ strong: "" })],
     ["an unknown fact", withInline({ fact: "bankAccount" })],
     ["an unknown inline", withInline({ html: "<b>hi</b>" })],
+    // A published version holds its words as agreed: whether production
+    // shows a clause is settled before publishing, not when a page renders.
+    ["a clause", withInline({ clause: ["Write to ", { fact: "email" }] })],
     [
       "a block of unknown kind",
       withSection({ blocks: [{ html: "x" }] } as never),
@@ -111,5 +113,63 @@ describe("parseConsentDocumentBody", () => {
     expect(parseConsentDocumentBody(withInline({ link: "x", href })).ok).toBe(
       false
     );
+  });
+});
+
+describe("toConsentDocumentBody", () => {
+  const POLICY: LegalDoc = {
+    updated: "2026-11-18",
+    short: [
+      [
+        "Friends of Animals",
+        { clause: [" (registered name: ", { fact: "legalName" }, ")"] },
+        " runs this site.",
+      ],
+    ],
+    sections: [
+      {
+        id: "contact",
+        title: "Contact",
+        blocks: [
+          {
+            p: [
+              {
+                clause: ["Write to our officer."],
+                needs: ["grievanceOfficerEmail"],
+                otherwise: ["Our officer handles requests."],
+              },
+              " We reply in 30 days.",
+            ],
+          },
+          { list: [[{ clause: ["Post: ", { fact: "address" }] }]] },
+        ],
+      },
+    ],
+  };
+
+  it("keeps every clause's words and facts, and joins neighbouring words", () => {
+    expect(toConsentDocumentBody(POLICY)).toEqual({
+      short: [
+        [
+          "Friends of Animals (registered name: ",
+          { fact: "legalName" },
+          ") runs this site.",
+        ],
+      ],
+      sections: [
+        {
+          id: "contact",
+          title: "Contact",
+          blocks: [
+            { p: ["Write to our officer. We reply in 30 days."] },
+            { list: [["Post: ", { fact: "address" }]] },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("keeps the policy's date out: a version has its own publication time", () => {
+    expect(toConsentDocumentBody(POLICY)).not.toHaveProperty("updated");
   });
 });

@@ -15,9 +15,12 @@ import { LEGAL_FACTS, type LegalFact } from "@/content/legal";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import type { ConsentDocumentVersion, ConsentPurpose } from "@/server/consent";
-import { formatConsentDocumentSource } from "@/server/consent/domain/document-source";
-import { CONSENT_PURPOSES } from "@/server/consent/domain/purposes";
+import type {
+  ConsentDocumentVersion,
+  ConsentPurpose,
+} from "@/server/modules/consent";
+import { formatConsentDocumentSource } from "@/server/modules/consent/domain/document-source";
+import { CONSENT_PURPOSES } from "@/server/modules/consent/domain/purposes";
 import { DomainError } from "@/server/errors";
 
 import { PublishForm } from "./_components/publish-form";

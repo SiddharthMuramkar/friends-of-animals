@@ -1,11 +1,13 @@
 import { count, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_DOCS, resolveLegalDoc } from "@/content/legal";
+import { LEGAL_DOCS } from "@/content/legal";
 import { MESSAGES_CONSENT_DRAFT } from "@/content/legal/messages-consent";
 import { auditLog, consentDocument } from "@/server/db/schema";
 import { SEED_ACCOUNTS } from "@/server/seed";
 import { createHarness, type Harness } from "@/test/harness";
+
+import { toConsentDocumentBody } from "./domain/document-body";
 
 const SOURCE_V1 = [
   "- We keep only what a competition needs.",
@@ -319,12 +321,6 @@ describe("currentConsentDocument", () => {
 });
 
 describe("the preview seed", () => {
-  /** A repo policy as a preview shows it: every clause's facts shown. */
-  const asPreviewShows = (doc: (typeof LEGAL_DOCS)["privacy"]) => {
-    const { short, sections } = resolveLegalDoc(doc, () => true);
-    return { short, sections };
-  };
-
   it("publishes version 1 of the privacy notice, the terms and the messages consent, once", async () => {
     const h = await createHarness();
     await h.seed.preview();
@@ -350,7 +346,7 @@ describe("the preview seed", () => {
       {
         version: 1,
         title: "Privacy policy",
-        body: asPreviewShows(LEGAL_DOCS.privacy),
+        body: toConsentDocumentBody(LEGAL_DOCS.privacy),
         publishedBy: seededAdmin,
       },
     ]);
@@ -358,7 +354,7 @@ describe("the preview seed", () => {
       {
         version: 1,
         title: "Terms of use",
-        body: asPreviewShows(LEGAL_DOCS.terms),
+        body: toConsentDocumentBody(LEGAL_DOCS.terms),
         publishedBy: seededAdmin,
       },
     ]);

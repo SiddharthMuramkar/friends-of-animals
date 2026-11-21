@@ -6,8 +6,11 @@
 // only if the account does. Better Auth's email-OTP plugin runs with
 // `disableSignUp`, so it never creates one.
 
-import { recordSignUpConsent, type SignUpConsentOutcome } from "../consent";
 import type { Ciphertext } from "../crypto/field-cipher";
+import {
+  recordSignUpConsent,
+  type SignUpConsentOutcome,
+} from "../modules/consent";
 import { user } from "../db/schema";
 import { uuidv7 } from "../ids";
 import { emit } from "../outbox";

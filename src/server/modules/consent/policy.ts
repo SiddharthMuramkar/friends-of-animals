@@ -12,7 +12,7 @@ import {
   signedIn,
   type Policy,
   type Rule,
-} from "../access/domain/policy";
+} from "../../access/domain/policy";
 
 /** Allows everyone, signed in or not. */
 const anyone: Rule = () => ({ allowed: true, role: null });

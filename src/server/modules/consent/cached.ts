@@ -10,8 +10,8 @@ import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { Actor } from "../actor";
-import { as } from "../app";
+import type { Actor } from "../../actor";
+import { as } from "../../app";
 import type { PublishedConsentDocument } from "./documents";
 import type { ConsentPurpose } from "./domain/purposes";
 

@@ -4,6 +4,11 @@
 // ever stored or sanitised. Bodies are stored as jsonb and parsed here on
 // the way in and on the way out.
 //
+// A body holds its words as agreed, so it has none of the repo text's
+// clauses (words that only hold once FOA confirms their facts): what
+// production leaves out is settled before publishing, not when a page
+// renders.
+//
 // Loads under plain Node (schema, seed): relative imports only.
 
 import { z } from "zod";
@@ -12,7 +17,8 @@ import {
   LEGAL_FACTS,
   type LegalDoc,
   type ShownInline,
-} from "../../../content/legal/model";
+} from "../../../../content/legal/model";
+import { resolveLegalDoc } from "../../../../content/legal/resolve";
 
 export type ConsentDocumentBody = Pick<
   LegalDoc<ShownInline>,
@@ -77,5 +83,40 @@ export function parseConsentDocumentBody(value: unknown): ParsedBody {
     issues: result.error.issues.map(
       (issue) => `${issue.path.join(".")}: ${issue.message}`
     ),
+  };
+}
+
+/** Joins neighbouring words into one string, as the staff markup reads them. */
+function joinWords(text: ShownInline[]): ShownInline[] {
+  const out: ShownInline[] = [];
+  for (const inline of text) {
+    const last = out.at(-1);
+    if (typeof inline === "string" && typeof last === "string") {
+      out[out.length - 1] = last + inline;
+    } else {
+      out.push(inline);
+    }
+  }
+  return out;
+}
+
+/**
+ * A repo policy (src/content/legal) as the body of a published version,
+ * as the seed publishes version 1: every clause keeps its words and facts
+ * (which a page shows as tiles until FOA confirms them), and neighbouring
+ * words join, so the body reads back unchanged through the staff markup.
+ */
+export function toConsentDocumentBody(doc: LegalDoc): ConsentDocumentBody {
+  const { short, sections } = resolveLegalDoc(doc, () => true);
+  return {
+    short: short.map(joinWords),
+    sections: sections.map((section) => ({
+      ...section,
+      blocks: section.blocks.map((block) =>
+        "p" in block
+          ? { p: joinWords(block.p) }
+          : { list: block.list.map(joinWords) }
+      ),
+    })),
   };
 }

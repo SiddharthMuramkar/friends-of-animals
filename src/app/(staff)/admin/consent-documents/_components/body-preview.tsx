@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { LegalFact, ShownInline } from "@/content/legal";
-import type { ConsentDocumentBody } from "@/server/consent";
+import type { ConsentDocumentBody } from "@/server/modules/consent";
 
 // A consent document body drawn in the browser, for the publish form's
 // preview: the same blocks as src/components/legal/legal-text.tsx, which

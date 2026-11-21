@@ -2,7 +2,7 @@
 // and withdrawn as an event log. Its use cases join `as(actor)` through
 // `consentUseCases`.
 
-import type { UseCaseContext } from "../use-cases";
+import type { UseCaseContext } from "../../use-cases";
 import {
   giveConsent,
   myConsents,

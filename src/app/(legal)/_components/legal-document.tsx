@@ -21,8 +21,8 @@ import {
 import type {
   ConsentPurpose,
   PublishedConsentDocument,
-} from "@/server/consent";
-import { cachedConsentDocument } from "@/server/consent/cached";
+} from "@/server/modules/consent";
+import { cachedConsentDocument } from "@/server/modules/consent/cached";
 import { errorSummaryForLogs } from "@/server/errors";
 
 const NS = {
@@ -38,8 +38,8 @@ type LegalText = Pick<LegalDoc<ShownInline>, "short" | "sections">;
  * A policy page: header, a "last updated" line, the short version first,
  * then the full text with a table of contents. `top` renders above the
  * short version (e.g. helplines); `after` adds content after a section.
- * In production, clauses about unconfirmed facts give way to their
- * production wording, and emptied sections go (resolveLegalDoc).
+ * In production, the repo text's clauses about unconfirmed facts give way
+ * to their production wording, and emptied sections go (shownLegalDoc).
  *
  * With `purpose`, the page shows the current published version of that
  * consent document and its number (#64). The header stays in the static

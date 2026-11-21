@@ -5,8 +5,8 @@
 
 import { and, desc, eq } from "drizzle-orm";
 
-import type { AppDb } from "../db/app-db";
-import { consentDocument, consentEvent, user } from "../db/schema";
+import type { AppDb } from "../../db/app-db";
+import { consentDocument, consentEvent, user } from "../../db/schema";
 import type { ConsentDocumentBody } from "./domain/document-body";
 import type { ConsentPurpose, ConsentSubjectType } from "./domain/purposes";
 

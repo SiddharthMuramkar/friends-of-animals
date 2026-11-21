@@ -3,7 +3,7 @@
 // an action defined twice fails type-checking. Each rule names its roles;
 // super admin is not a wildcard.
 
-import { CONSENT_POLICY } from "../consent/policy";
+import { CONSENT_POLICY } from "../modules/consent/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
 import { NOTIFICATIONS_POLICY } from "../modules/notifications/policy";
 import { SECOND_FACTOR_POLICY } from "../modules/second-factor/policy";

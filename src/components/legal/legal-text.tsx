@@ -15,7 +15,9 @@ import { isFactShown, type OrgFact, SITE } from "@/lib/site";
 // The typed blocks of a policy or consent document as HTML: the policy
 // pages draw the repo's text and the published versions with these, so
 // the two always look the same. Server Components (facts read their
-// "to be confirmed" words on the server).
+// "to be confirmed" words on the server). They draw text as shown, with
+// no clauses left: a published version has none, and the repo's text
+// goes through shownLegalDoc first.
 
 const LINK =
   "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
@@ -29,6 +31,15 @@ const FACT_VALUE: Record<LegalFact, unknown> = {
   grievanceOfficerEmail: SITE.org.grievanceOfficer.email,
 };
 
+/**
+ * A repo policy as this deployment shows it: in production, clauses about
+ * unconfirmed facts give way to their production wording, and emptied
+ * sections go (resolveLegalDoc).
+ */
+export function shownLegalDoc(doc: LegalDoc): LegalDoc<ShownInline> {
+  return resolveLegalDoc(doc, (fact) => isFactShown(FACT_VALUE[fact]));
+}
+
 /** A confirmed fact as text (or a mailto/tel link); else a visible placeholder. */
 function Fact({ fact }: { fact: LegalFact }) {
   const value = FACT_VALUE[fact] as OrgFact;
@@ -36,15 +47,6 @@ function Fact({ fact }: { fact: LegalFact }) {
   if (fact.toLowerCase().includes("email"))
     return <ContactFact kind="email" fact={value} />;
   return <Placeholder fact={value} />;
-}
-
-/**
- * A repo document as this deployment shows it: in production, clauses
- * about unconfirmed facts give way to their production wording, and
- * emptied sections go (resolveLegalDoc).
- */
-export function shownLegalDoc(doc: LegalDoc): LegalDoc<ShownInline> {
-  return resolveLegalDoc(doc, (fact) => isFactShown(FACT_VALUE[fact]));
 }
 
 /** One run of text with its strong words, links and facts. */

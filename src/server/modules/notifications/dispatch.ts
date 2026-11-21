@@ -25,8 +25,8 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import type { E164Phone } from "../../../lib/phone";
-import { currentConsent } from "../../consent/domain/consent-state";
-import { subjectEvents } from "../../consent/repository";
+import { currentConsent } from "../consent/domain/consent-state";
+import { subjectEvents } from "../consent/repository";
 import type { AppDb } from "../../db/app-db";
 import {
   inboxItem,
