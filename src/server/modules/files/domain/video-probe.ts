@@ -8,8 +8,6 @@
 
 import { z } from "zod";
 
-export { DURATION_TOLERANCE_MS, isOverDuration } from "./video-duration";
-
 export type VideoProbe = {
   /** Null when neither the container nor the video stream says. */
   durationMs: number | null;
