@@ -7,23 +7,16 @@
 
 import { and, desc, eq } from "drizzle-orm";
 
-import type { AppDb } from "../db/app-db";
+import type { AppDb, DbWithClock } from "../db/app-db";
 import { capturedMessage } from "../db/schema";
 import { uuidv7 } from "../ids";
-import type { Clock } from "./clock";
 import {
   normaliseEmailAddress,
   type EmailSender,
   type ReceivedEmail,
 } from "./email";
 
-export function captureEmailSender({
-  db,
-  clock,
-}: {
-  db: AppDb;
-  clock: Clock;
-}): EmailSender {
+export function captureEmailSender({ db, clock }: DbWithClock): EmailSender {
   return {
     async send(message) {
       const now = clock.now();
