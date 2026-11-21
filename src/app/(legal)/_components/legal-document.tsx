@@ -1,4 +1,5 @@
 import { getFormatter, getTranslations } from "next-intl/server";
+import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 
@@ -22,6 +23,7 @@ import type {
   PublishedConsentDocument,
 } from "@/server/consent";
 import { cachedConsentDocument } from "@/server/consent/cached";
+import { errorSummaryForLogs } from "@/server/errors";
 
 const NS = {
   privacy: "legal.privacy",
@@ -121,7 +123,9 @@ export async function LegalDocument({
 
 /**
  * Renders `children` with the purpose's current published version, read
- * at request time, or `fallback` while none is published.
+ * at request time, or `fallback` while none is published. If the database
+ * can't be read, the page keeps the repo's text rather than failing: a
+ * policy page must always be readable.
  */
 async function Published({
   purpose,
@@ -133,7 +137,16 @@ async function Published({
   children: (published: PublishedConsentDocument) => ReactNode;
 }) {
   await connection();
-  const published = await cachedConsentDocument(purpose);
+  let published: PublishedConsentDocument | null;
+  try {
+    published = await cachedConsentDocument(purpose);
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(
+      `Legal page: could not read the published ${purpose}: ${errorSummaryForLogs(error)}`
+    );
+    return fallback;
+  }
   return published ? children(published) : fallback;
 }
 
