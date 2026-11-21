@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { LEGAL_PAGE_PURPOSE } from "@/server/consent/domain/purposes";
+import { LEGAL_PAGE_PURPOSE } from "@/server/modules/consent/domain/purposes";
 
 import { LegalDocument } from "../_components/legal-document";
 

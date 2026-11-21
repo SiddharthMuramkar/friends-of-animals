@@ -12,8 +12,8 @@ import { MESSAGES_CONSENT_DRAFT } from "../../content/legal/messages-consent";
 import {
   parseConsentDocumentBody,
   toConsentDocumentBody,
-} from "../consent/domain/document-body";
-import type { ConsentPurpose } from "../consent/domain/purposes";
+} from "../modules/consent/domain/document-body";
+import type { ConsentPurpose } from "../modules/consent/domain/purposes";
 import { consentDocument } from "../db/schema";
 import { uuidv7 } from "../ids";
 import { SEED_ACCOUNTS } from "./accounts";

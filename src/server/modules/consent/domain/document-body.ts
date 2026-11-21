@@ -17,8 +17,8 @@ import {
   LEGAL_FACTS,
   type LegalDoc,
   type ShownInline,
-} from "../../../content/legal/model";
-import { resolveLegalDoc } from "../../../content/legal/resolve";
+} from "../../../../content/legal/model";
+import { resolveLegalDoc } from "../../../../content/legal/resolve";
 
 export type ConsentDocumentBody = Pick<
   LegalDoc<ShownInline>,

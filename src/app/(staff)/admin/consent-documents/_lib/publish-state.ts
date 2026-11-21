@@ -6,7 +6,7 @@ import type {
   PreviewConsentDocumentResult,
   PublishConsentDocumentResult,
   SourceError,
-} from "@/server/consent";
+} from "@/server/modules/consent";
 
 export type PublishFormState = {
   /** What was typed, put back after the form resets. */

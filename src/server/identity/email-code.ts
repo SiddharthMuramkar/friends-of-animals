@@ -15,7 +15,7 @@ import { z } from "zod";
 
 import { authorize } from "../access/can";
 import type { RequestMeta } from "../actor";
-import type { SignUpConsentOutcome } from "../consent";
+import type { SignUpConsentOutcome } from "../modules/consent";
 import { user } from "../db/schema";
 import { invalidInput, type InvalidInput } from "../input";
 import type { CookieJar } from "../ports/cookies";

@@ -19,7 +19,7 @@ import {
   LEGAL_FACTS,
   type LegalFact,
   type ShownInline,
-} from "../../../content/legal/model";
+} from "../../../../content/legal/model";
 import {
   isAllowedHref,
   parseConsentDocumentBody,

@@ -6,7 +6,7 @@ import {
   LegalShortList,
 } from "@/components/legal/legal-text";
 import { Disclosure } from "@/components/site/disclosure";
-import { cachedConsentDocument } from "@/server/consent/cached";
+import { cachedConsentDocument } from "@/server/modules/consent/cached";
 
 /**
  * The sign-up form's optional box for news and updates by email (#64).

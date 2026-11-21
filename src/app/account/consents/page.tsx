@@ -15,7 +15,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import type { MyConsent } from "@/server/consent";
+import type { MyConsent } from "@/server/modules/consent";
 
 import { ChangeNotice } from "./_components/change-notice";
 import { giveConsentAction, withdrawConsentAction } from "./_lib/actions";

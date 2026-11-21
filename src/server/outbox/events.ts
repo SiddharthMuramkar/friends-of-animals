@@ -12,7 +12,7 @@ import {
   GIVABLE_PURPOSES,
   type ConsentSubjectType,
   type GivablePurpose,
-} from "../consent/domain/purposes";
+} from "../modules/consent/domain/purposes";
 
 export type DomainEvent =
   | {

@@ -21,8 +21,8 @@ import {
 import type {
   ConsentPurpose,
   PublishedConsentDocument,
-} from "@/server/consent";
-import { cachedConsentDocument } from "@/server/consent/cached";
+} from "@/server/modules/consent";
+import { cachedConsentDocument } from "@/server/modules/consent/cached";
 import { errorSummaryForLogs } from "@/server/errors";
 
 const NS = {
