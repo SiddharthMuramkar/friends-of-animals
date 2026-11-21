@@ -9,6 +9,7 @@ export * from "./mailbox";
 export * from "./access";
 export * from "./audit";
 export * from "./outbox";
+export * from "./worker";
 export * from "./consent";
 export * from "./settings";
 export * from "./notifications";

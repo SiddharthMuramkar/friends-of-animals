@@ -92,6 +92,13 @@
       "when": 1795259193496,
       "tag": "0012_69_notification_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795262528065,
+      "tag": "0007_61_worker_heartbeat",
+      "breakpoints": true
     }
   ]
 }
