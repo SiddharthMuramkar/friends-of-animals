@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { DomainError } from "@/server/errors";
 
-import { afterChange, afterError, IDLE } from "./form-state";
+import {
+  afterChange,
+  afterError,
+  IDLE,
+  secondFactorRedirect,
+} from "./form-state";
 
 describe("afterChange", () => {
   it("says a stored value was saved, or that it already applied", () => {
@@ -57,6 +62,30 @@ describe("afterError", () => {
       status: "refused",
       reason: "failed",
     });
+  });
+});
+
+describe("secondFactorRedirect", () => {
+  it("sends a stale second factor to step up, then back to the settings", () => {
+    expect(
+      secondFactorRedirect(new DomainError("step_up_required", "refused"))
+    ).toBe("/auth/step-up?next=%2Fadmin%2Fsettings");
+  });
+
+  it("sends a session without its second factor to pass or add one", () => {
+    expect(
+      secondFactorRedirect(new DomainError("second_factor_required", "refused"))
+    ).toBe("/auth/second-factor?next=%2Fadmin%2Fsettings");
+    expect(
+      secondFactorRedirect(new DomainError("enrolment_required", "refused"))
+    ).toBe("/account/security?next=%2Fadmin%2Fsettings");
+  });
+
+  it("leaves any other refusal or failure to the form", () => {
+    expect(
+      secondFactorRedirect(new DomainError("forbidden", "refused"))
+    ).toBeNull();
+    expect(secondFactorRedirect(new Error("select … from setting"))).toBeNull();
   });
 });
 
