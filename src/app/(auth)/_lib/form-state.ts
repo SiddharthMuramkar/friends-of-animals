@@ -30,6 +30,18 @@ export type EmailCodeFormState = {
 
 export const START: EmailCodeFormState = { step: "email", email: "", name: "" };
 
+/** The state plus its words, translated by the action on the server. */
+export type EmailCodeFormView = EmailCodeFormState & {
+  text: {
+    alert?: string;
+    sent?: string;
+    codeHint?: string;
+    errors: Partial<Record<FormField, string>>;
+  };
+};
+
+export const START_VIEW: EmailCodeFormView = { ...START, text: { errors: {} } };
+
 type Entered = { email: string; name: string };
 
 function fieldErrors(fields: string[]): EmailCodeFormState["fieldErrors"] {
