@@ -113,7 +113,7 @@ export const verification = pgTable(
  * What a sign-in code limit counts by. Text checked against this list, not
  * a Postgres enum, so a new scope (a phone number, #58) needs no migration.
  */
-export const OTP_RATE_LIMIT_SCOPES = ["email", "ip"] as const;
+export const OTP_RATE_LIMIT_SCOPES = ["email", "ip", "email_day"] as const;
 
 export type OtpRateLimitScope = (typeof OTP_RATE_LIMIT_SCOPES)[number];
 

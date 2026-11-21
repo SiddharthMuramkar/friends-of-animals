@@ -25,9 +25,12 @@ async function withText(state: EmailCodeFormState): Promise<EmailCodeFormView> {
   if (state.fieldErrors?.code) errors.code = t("code.error");
   let alert: string | undefined;
   if (state.alert === "rate_limited") {
-    alert = t("alerts.rate_limited", {
-      minutes: state.retryAfterMinutes ?? 15,
-    });
+    const minutes = state.retryAfterMinutes ?? 15;
+    // The daily limit can mean hours of waiting.
+    alert =
+      minutes > 60
+        ? t("alerts.rate_limited_hours", { hours: Math.ceil(minutes / 60) })
+        : t("alerts.rate_limited", { minutes });
   } else if (state.alert) {
     alert = t(`alerts.${state.alert}`);
   }

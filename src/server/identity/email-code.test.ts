@@ -106,6 +106,30 @@ describe("requestEmailCode", () => {
     expect(h.email.sent).toHaveLength(5);
   });
 
+  it("refuses a 21st code for one address in a day", async () => {
+    const h = await createHarness();
+    for (let i = 0; i < 20; i++) {
+      expect(await h.as(h.visitor()).requestEmailCode({ email: ASHA })).toEqual(
+        { ok: true }
+      );
+      h.clock.advance({ minutes: 15 });
+    }
+
+    const refused = await h.as(h.visitor()).requestEmailCode({ email: ASHA });
+    h.clock.set("2027-01-16T00:00:00.000Z");
+    const nextDay = await h.as(h.visitor()).requestEmailCode({ email: ASHA });
+
+    // 20 codes, one every 15 minutes from 04:30, so it is now 09:30 UTC;
+    // the day's count starts again at midnight UTC, 14.5 hours on.
+    expect(refused).toEqual({
+      ok: false,
+      error: "rate_limited",
+      retryAfterSeconds: 52_200,
+    });
+    expect(nextDay).toEqual({ ok: true });
+    expect(h.email.sent).toHaveLength(21);
+  });
+
   it("counts an address however it is typed", async () => {
     const h = await createHarness();
     for (const email of [ASHA, "ASHA@example.test", " Asha@Example.Test "]) {
