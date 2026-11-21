@@ -202,7 +202,7 @@ describe("sanitizePostBody", () => {
       footnotes: [
         SOURCE,
         { id: "f1", text: "Duplicate", url: "https://example.test/dup" },
-        { id: "f2", text: "Not https", url: "http://example.test/" },
+        { id: "f2", text: "Unsafe", url: "javascript:alert(1)" },
         { id: "f3", text: "Never cited", url: "https://example.test/3" },
         { id: "x4", text: "Bad id", url: "https://example.test/4" },
       ],
