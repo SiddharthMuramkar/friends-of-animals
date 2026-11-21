@@ -70,10 +70,7 @@ exit "\${FAKE_DOCKER_EXIT:-0}"`
   );
   // It reads its config (the token header) from stdin, as curl does; left
   // unread, the sweeper's pipe could fail and the PR read as unknown.
-  writeScript(
-    join(bin, "curl"),
-    `cat >/dev/null\necho '{"state":"closed"}'`
-  );
+  writeScript(join(bin, "curl"), `cat >/dev/null\necho '{"state":"closed"}'`);
   const read = (name: string) =>
     existsSync(join(dir, name)) ? readFileSync(join(dir, name), "utf8") : "";
   return {
@@ -88,14 +85,10 @@ exit "\${FAKE_DOCKER_EXIT:-0}"`
   };
 }
 
-function run(
-  script: string,
-  args: string[],
-  env: Record<string, string> = {}
-) {
+function run(script: string, args: string[], env: Record<string, string> = {}) {
   const result = spawnSync("bash", [script, ...args], {
     encoding: "utf8",
-    env: { HOME: process.env.HOME ?? "/tmp", ...env },
+    env: { NODE_ENV: "test", HOME: process.env.HOME ?? "/tmp", ...env },
   });
   return {
     status: result.status,
@@ -112,7 +105,9 @@ describe("the scripts' syntax", () => {
 
 describe("50-purge-files.sh", () => {
   /** The hook with a non-production credentials file and a fake docker. */
-  function world(envFile = `R2_ACCOUNT_ID=0123\nR2_SECRET_ACCESS_KEY=${SECRET}\n`) {
+  function world(
+    envFile = `R2_ACCOUNT_ID=0123\nR2_SECRET_ACCESS_KEY=${SECRET}\n`
+  ) {
     const bin = fakeBin();
     const credentials = join(bin.dir, "preview-files.env");
     writeFileSync(credentials, envFile);
@@ -207,23 +202,26 @@ describe("50-purge-files.sh", () => {
     expect(bin.dockerCalls()).toEqual([]);
   });
 
-  it.each(["APP_ENV=production", "export APP_ENV=staging", "  APP_ENV=preview"])(
-    "refuses a credentials file that sets %s",
-    (line) => {
-      const { bin, env } = world(`R2_BUCKET=foa-files-nonprod\n${line}\n`);
+  it.each([
+    "APP_ENV=production",
+    "export APP_ENV=staging",
+    "  APP_ENV=preview",
+  ])("refuses a credentials file that sets %s", (line) => {
+    const { bin, env } = world(`R2_BUCKET=foa-files-nonprod\n${line}\n`);
 
-      const result = run(PURGE_HOOK, [DB], env);
+    const result = run(PURGE_HOOK, [DB], env);
 
-      expect(result.status).toBe(2);
-      expect(result.stderr).toMatch(/APP_ENV/);
-      expect(bin.dockerCalls()).toEqual([]);
-    }
-  );
+    expect(result.status).toBe(2);
+    expect(result.stderr).toMatch(/APP_ENV/);
+    expect(bin.dockerCalls()).toEqual([]);
+  });
 });
 
 describe("run-preview-dropped-hooks.sh", () => {
   /** The runner copied next to a preview-dropped.d holding `hooks`. */
-  function world(hooks: Record<string, { body: string; executable?: boolean }>) {
+  function world(
+    hooks: Record<string, { body: string; executable?: boolean }>
+  ) {
     const dir = tempDir();
     const runner = join(dir, "run-preview-dropped-hooks.sh");
     copyFileSync(RUNNER, runner);

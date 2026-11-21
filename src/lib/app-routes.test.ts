@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  APP_ROUTES,
-  isNonProductionPath,
-  isSignedInPath,
-} from "./app-routes";
+import { APP_ROUTES, isNonProductionPath, isSignedInPath } from "./app-routes";
 
 describe("isSignedInPath", () => {
   it("covers the account pages", () => {
