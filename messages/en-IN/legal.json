@@ -4,6 +4,7 @@
       "eyebrow": "Policies",
       "shortVersion": "The short version",
       "lastUpdated": "Last updated {date}",
+      "versionUpdated": "Version {version} · Last updated {date}",
       "toc": "On this page",
       "fullText": "The full text",
       "questions": "Questions about this page? Write to"

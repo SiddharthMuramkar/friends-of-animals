@@ -14,7 +14,7 @@ import type { AccessContext } from "./manage-roles";
 /** At most this many users per search. */
 export const USER_SEARCH_LIMIT = 20;
 
-export type FoundUser = { id: string; name: string; email: string };
+export type FoundUser = { id: string; name: string; email: string | null };
 
 export type SearchUsersResult = { ok: true; users: FoundUser[] } | InvalidInput;
 

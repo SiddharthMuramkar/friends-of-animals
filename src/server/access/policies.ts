@@ -3,14 +3,18 @@
 // an action defined twice fails type-checking. Each rule names its roles;
 // super admin is not a wildcard.
 
+import { CONSENT_POLICY } from "../consent/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
 import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
+import { SETTINGS_POLICY } from "../settings/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
 export const POLICY = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
+  CONSENT_POLICY,
+  SETTINGS_POLICY,
   SAFEGUARDING_POLICY
 );
 
