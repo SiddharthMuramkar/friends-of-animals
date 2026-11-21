@@ -7,6 +7,8 @@
 // Pure: no database, no clock of its own. Loads under plain Node (the seed
 // script), so relative imports only and no "server-only".
 
+import type { FileStatus } from "../../files/domain/file-status";
+
 /** What the `consent_form_status` column holds. */
 export const FORM_STATUSES = [
   "pending_review",
@@ -29,16 +31,6 @@ export type RejectionReason = (typeof REJECTION_REASONS)[number];
 
 /** The longest note a reviewer may add to a rejection. */
 export const REJECTION_NOTE_MAX = 500;
-
-/** The Files module's `file_asset_status` (#63). */
-export type FileStatus =
-  | "pending_upload"
-  | "uploaded"
-  | "scanning"
-  | "clean"
-  | "quarantined"
-  | "rejected"
-  | "deleted";
 
 export type SubmitInput = {
   /** Public uses the guardian ticked, as the coordinator records them. */

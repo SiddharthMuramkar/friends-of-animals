@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import type { FileStatus } from "../../files/domain/file-status";
 import {
   decideReview,
   decideSubmit,
   decideWithdraw,
   REJECTION_NOTE_MAX,
-  type FileStatus,
   type FormStatus,
   type ReviewInput,
 } from "./review";

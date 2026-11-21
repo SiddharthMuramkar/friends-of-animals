@@ -10,7 +10,7 @@ type AppEnv = Env["APP_ENV"];
 
 const MiB = 1024 * 1024;
 
-export const FILE_PURPOSES = ["test_upload"] as const;
+export const FILE_PURPOSES = ["test_upload", "consent_form"] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
 
@@ -41,6 +41,12 @@ export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
     contentTypes: STORABLE_CONTENT_TYPES,
     maxBytes: 10 * MiB,
     environments: "non_production",
+  },
+  /** A scan of a paper consent form a guardian signed (#83). */
+  consent_form: {
+    contentTypes: ["application/pdf", "image/jpeg", "image/png"],
+    maxBytes: 10 * MiB,
+    environments: "all",
   },
 };
 

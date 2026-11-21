@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   decideSchoolRouteUse,
-  isPublicUse,
-  PUBLIC_USES,
+  isPublicPurpose,
+  PUBLIC_PURPOSES,
   type ConsentMethod,
   type CurrentConsent,
   type Use,
@@ -25,9 +25,9 @@ const decide = (
   consent: CurrentConsent
 ) => decideSchoolRouteUse({ use, institutionDeclared, consent });
 
-describe("isPublicUse", () => {
+describe("isPublicPurpose", () => {
   it("covers display, credit fields, social media and auction", () => {
-    expect(PUBLIC_USES).toEqual([
+    expect(PUBLIC_PURPOSES).toEqual([
       "public_display",
       "display_school",
       "display_city",
@@ -37,9 +37,9 @@ describe("isPublicUse", () => {
   });
 
   it("leaves out participation and communications", () => {
-    expect(isPublicUse("participation")).toBe(false);
-    expect(isPublicUse("communications")).toBe(false);
-    expect(isPublicUse("judging")).toBe(false);
+    expect(isPublicPurpose("participation")).toBe(false);
+    expect(isPublicPurpose("communications")).toBe(false);
+    expect(isPublicPurpose("judging")).toBe(false);
   });
 });
 
@@ -78,7 +78,7 @@ describe("decideSchoolRouteUse: participation and judging", () => {
 
 describe("decideSchoolRouteUse: public uses", () => {
   it("never follow from the declaration alone", () => {
-    for (const use of PUBLIC_USES) {
+    for (const use of PUBLIC_PURPOSES) {
       expect(decide(use, true, never)).toEqual({
         allowed: false,
         reason: "no_guardian_consent",

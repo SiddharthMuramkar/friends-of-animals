@@ -8,22 +8,24 @@
 // Pure: callers load the subject's current consent for one purpose in one
 // competition and pass it in. Loads under plain Node: relative imports only.
 
+import type { GuardianPurpose } from "./guardian-purposes";
+
 /**
- * Purposes that make a minor's work or name public. These mirror #82's
- * consent purposes; communications is not public, and participation is
- * covered by the declaration.
+ * The guardian purposes that make a minor's work or name public: all but
+ * participation, which the declaration covers, and communications, which
+ * isn't public.
  */
-export const PUBLIC_USES = [
+export const PUBLIC_PURPOSES = [
   "public_display",
   "display_school",
   "display_city",
   "social_media",
   "auction",
-] as const;
-export type PublicUse = (typeof PUBLIC_USES)[number];
+] as const satisfies readonly GuardianPurpose[];
+export type PublicPurpose = (typeof PUBLIC_PURPOSES)[number];
 
 /** Everything a school-route student's work can be used for. */
-export type Use = "participation" | "judging" | PublicUse;
+export type Use = "participation" | "judging" | PublicPurpose;
 
 /** How consent was given, as #64's `consent_method` enum names it. */
 export type ConsentMethod =
@@ -64,8 +66,8 @@ const GUARDIAN_BASIS: Partial<Record<ConsentMethod, UseBasis>> = {
   web_form: "web_form",
 };
 
-export function isPublicUse(purpose: string): purpose is PublicUse {
-  return (PUBLIC_USES as readonly string[]).includes(purpose);
+export function isPublicPurpose(purpose: string): purpose is PublicPurpose {
+  return (PUBLIC_PURPOSES as readonly string[]).includes(purpose);
 }
 
 /** Whether a guardian's consent supports the use, and on what basis. */
@@ -94,7 +96,7 @@ export function decideSchoolRouteUse(input: {
   consent: CurrentConsent;
 }): UseDecision {
   const { use, institutionDeclared, consent } = input;
-  if (isPublicUse(use)) return guardianConsent(consent);
+  if (isPublicPurpose(use)) return guardianConsent(consent);
   if (consent.status === "withdrawn") {
     return { allowed: false, reason: "withdrawn" };
   }
