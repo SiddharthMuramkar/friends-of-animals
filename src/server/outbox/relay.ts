@@ -13,6 +13,7 @@ import {
   and,
   asc,
   count,
+  desc,
   eq,
   inArray,
   isNull,
@@ -194,7 +195,8 @@ export async function drainOutbox(
   for (const row of claimed) {
     const outcome = await run(deps, row);
     const settlement = settleDelivery(row, outcome, deps.clock.now(), policy);
-    await deps.db
+    // Still ours only if no other relay claimed it after our lease ran out.
+    const settled = await deps.db
       .update(outbox)
       .set(settlement)
       .where(
@@ -203,7 +205,9 @@ export async function drainOutbox(
           eq(outbox.status, "pending"),
           eq(outbox.attempts, row.attempts)
         )
-      );
+      )
+      .returning({ id: outbox.id });
+    if (settled.length === 0) continue;
     report[settlement.status === "pending" ? "retried" : settlement.status] +=
       1;
   }
@@ -260,9 +264,35 @@ export type FailedDelivery = Pick<
   | "occurredAt"
 > & { lastError: string; failedAt: Date };
 
+/** Failed deliveries, newest failure first. */
 export async function listFailedDeliveries(
-  _db: AppDb,
-  _options: { limit?: number } = {}
+  db: AppDb,
+  { limit = 50 }: { limit?: number } = {}
 ): Promise<FailedDelivery[]> {
-  return [];
+  const rows = await db
+    .select({
+      id: outbox.id,
+      eventId: outbox.eventId,
+      eventType: outbox.eventType,
+      aggregateType: outbox.aggregateType,
+      aggregateId: outbox.aggregateId,
+      handler: outbox.handler,
+      attempts: outbox.attempts,
+      occurredAt: outbox.occurredAt,
+      lastError: outbox.lastError,
+      failedAt: outbox.failedAt,
+    })
+    .from(outbox)
+    .where(eq(outbox.status, "failed"))
+    .orderBy(desc(outbox.failedAt), desc(outbox.id))
+    .limit(limit);
+  return rows.map(({ lastError, failedAt, ...row }) => {
+    // outbox_failed_at_when_failed holds both on every failed row.
+    if (lastError === null || failedAt === null) {
+      throw new Error(
+        `Failed delivery ${row.id} lacks last_error or failed_at`
+      );
+    }
+    return { ...row, lastError, failedAt };
+  });
 }
