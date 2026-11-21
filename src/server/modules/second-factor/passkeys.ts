@@ -168,7 +168,8 @@ export async function startPasskeyRegistration(
   const options = await generateRegistrationOptions({
     rpName: SECOND_FACTOR_SETTINGS.issuer,
     rpID: rp.id,
-    userName: account.email,
+    // A phone-only account (#58) has no address; its name stands in.
+    userName: account.email ?? account.name,
     userDisplayName: account.name,
     userID: Buffer.from(actor.userId.replaceAll("-", ""), "hex"),
     attestationType: "none",

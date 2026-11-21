@@ -116,7 +116,7 @@ export async function startTotpEnrolment(
       createdAt: now,
     });
     const [row] = await tx
-      .select({ email: user.email })
+      .select({ email: user.email, name: user.name })
       .from(user)
       .where(eq(user.id, actor.userId));
     return row;
@@ -129,7 +129,8 @@ export async function startTotpEnrolment(
     secret: base32Encode(secret),
     uri: otpauthUri({
       issuer: SECOND_FACTOR_SETTINGS.issuer,
-      account: account.email,
+      // A phone-only account (#58) has no address; its name stands in.
+      account: account.email ?? account.name,
       secret,
     }),
   };

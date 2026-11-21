@@ -85,7 +85,11 @@ export async function ensureSeedAuthenticator(
 /** An authenticator for each seeded account holding a staff role. */
 export async function seedSecondFactor(deps: SeedDeps): Promise<void> {
   for (const account of [SEED_ACCOUNTS.superAdmin, ...SEED_ACCOUNTS.members]) {
-    const { id } = await ensureVerifiedAccount(deps, account);
+    const { id } = await ensureVerifiedAccount(deps, {
+      id: account.id,
+      name: account.name,
+      email: account.email,
+    });
     const grants = await grantsOf(deps.db, id);
     if (grants.some((grant) => isStaffRole(grant.role))) {
       await ensureSeedAuthenticator(deps, id);
