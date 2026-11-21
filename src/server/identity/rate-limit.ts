@@ -45,8 +45,8 @@ function windowAt(now: Date, windowMs: number) {
 
 /**
  * Takes one code from the email's and the IP's allowance for this window,
- * and from the email's allowance for the day, or reports when the window
- * that is full ends.
+ * and from the email's allowance for the day, or reports when the last of
+ * the full windows ends.
  */
 export async function takeCodeAllowance(
   db: AppDb,
@@ -81,6 +81,9 @@ export async function takeCodeAllowance(
 
   try {
     await db.transaction(async (tx) => {
+      // Check every counter: with two full, the visitor must wait for the
+      // later one to reopen.
+      let wait = 0;
       for (const { scope, key, limit, windowMs: length } of counters) {
         const window = windowAt(now, length);
         const [row] = await tx
@@ -101,9 +104,10 @@ export async function takeCodeAllowance(
           })
           .returning({ count: otpRateLimit.count });
         if (!row || row.count > limit) {
-          throw new LimitReached(window.retryAfterSeconds);
+          wait = Math.max(wait, window.retryAfterSeconds);
         }
       }
+      if (wait > 0) throw new LimitReached(wait);
       // Windows that started over a day ago have ended: even a day's
       // window starts at most a day before now.
       await tx

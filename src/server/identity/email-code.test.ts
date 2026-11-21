@@ -140,6 +140,31 @@ describe("requestEmailCode", () => {
     expect(h.email.sent).toHaveLength(21);
   });
 
+  it("reports the longer wait when the window and the day are both full", async () => {
+    const h = await createHarness();
+    // 15 codes, one per 15-minute window from 04:30, then 5 more in the
+    // window that opens at 08:15: 20 today, and that window full too.
+    for (let i = 0; i < 15; i++) {
+      await h.as(h.visitor()).requestEmailCode({ email: ASHA });
+      h.clock.advance({ minutes: 15 });
+    }
+    for (let i = 0; i < 5; i++) {
+      await h.as(h.visitor()).requestEmailCode({ email: ASHA });
+      h.clock.advance({ minutes: 1 });
+    }
+    expect(h.email.sent).toHaveLength(20);
+
+    const refused = await h.as(h.visitor()).requestEmailCode({ email: ASHA });
+
+    // It is 08:20 UTC. The window reopens at 08:30, but the day only at
+    // midnight UTC, 15 h 40 min on: waiting 10 minutes would not be enough.
+    expect(refused).toEqual({
+      ok: false,
+      error: "rate_limited",
+      retryAfterSeconds: 56_400,
+    });
+  });
+
   it("counts an address however it is typed", async () => {
     const h = await createHarness();
     for (const email of [ASHA, "ASHA@example.test", " Asha@Example.Test "]) {
