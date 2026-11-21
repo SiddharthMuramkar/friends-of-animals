@@ -17,7 +17,7 @@ describe("securityHeaders", () => {
     });
   });
 
-  it("sends no CSP yet (#15) and no duplicate keys", () => {
+  it("leaves the CSP to csp.ts and sends no duplicate keys", () => {
     for (const appEnv of [undefined, "local", "preview", "production"]) {
       const keys = securityHeaders(appEnv).map((h) => h.key.toLowerCase());
       expect(keys).not.toContain("content-security-policy");
