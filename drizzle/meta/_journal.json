@@ -43,6 +43,13 @@
       "when": 1795246028322,
       "tag": "0005_59_audit_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795248004571,
+      "tag": "0006_60_staff_two_factor",
+      "breakpoints": true
     }
   ]
 }

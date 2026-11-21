@@ -54,6 +54,17 @@ The Users holding one of FOA's own Roles: the admins, managers and finance.
 Judges, coordinators and volunteers are not Staff.
 _Avoid_: Admins, employees, team
 
+**Second factor**:
+A second proof that a User is who they say, after the Sign-in code: a code from
+an authenticator app or a passkey on their device. Staff must add one and pass
+it once in each Session before any staff page or staff action.
+_Avoid_: 2FA (in copy), MFA, OTP
+
+**Step-up**:
+Passing the Second factor again, within the last 10 minutes, before a sensitive
+action such as granting a Role, publishing results or moving money.
+_Avoid_: Re-authentication, sudo mode
+
 **Policy**:
 The rules that decide whether an Actor may take an action, from the Actor's
 Grants and the Scopes and owner of what they act on.
