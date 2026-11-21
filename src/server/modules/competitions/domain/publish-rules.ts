@@ -93,7 +93,8 @@ export type PublishProblem =
 
 const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-function isCalendarDate(value: string): boolean {
+/** Whether `value` is YYYY-MM-DD and that day exists. */
+export function isCalendarDate(value: string): boolean {
   const match = CALENDAR_DATE.exec(value);
   if (!match) return false;
   const [year, month, day] = match.slice(1).map(Number);
