@@ -93,22 +93,44 @@ export function errorTracking({
 
 type Scrubbed = <T extends object>(item: T) => T;
 
+/**
+ * Sentry 11 collects user info, cookies, headers, bodies, query strings,
+ * frame variables and query data by default (`sendDefaultPii` no longer
+ * exists). All of it stays off; the scrubber is the second line.
+ */
+const NO_DATA_COLLECTION = {
+  userInfo: false,
+  cookies: false,
+  httpHeaders: false,
+  httpBodies: [],
+  urlQueryParams: false,
+  stackFrameVariables: false,
+  databaseQueryData: false,
+  queues: false,
+  graphQL: { document: false, variables: false },
+  genAI: { inputs: false, outputs: false },
+  mcp: { inputs: false, outputs: false },
+};
+
 /** What `sentryOptions` returns: a subset of every SDK's init options. */
 export type SentryOptions = {
   dsn: string;
   environment: string;
   release?: string;
-  /** Never attach IPs, cookies, headers or the signed-in user by default. */
-  sendDefaultPii: false;
+  /**
+   * 0, not unset: unset lets SENTRY_TRACES_SAMPLE_RATE turn tracing on,
+   * and streamed spans never pass through `beforeSend`.
+   */
+  tracesSampleRate: 0;
+  dataCollection: typeof NO_DATA_COLLECTION;
   beforeSend: Scrubbed;
-  beforeSendTransaction: Scrubbed;
   beforeBreadcrumb: Scrubbed;
 };
 
 /**
  * The init options shared by `@sentry/nextjs` (server and browser) and
- * `@sentry/node` (worker). No `tracesSampleRate`: errors only, no
- * performance tracing, so no request timings or URLs leave as spans.
+ * `@sentry/node` (worker): errors only, no performance tracing, so no
+ * request timings or URLs leave as spans, and no default data collection.
  * `hashUserId` (src/server/ports/errors.ts) is passed on the server and
  * in the worker; the browser leaves it out and sends no user.
  */
@@ -120,9 +142,9 @@ export function sentryOptions(
     dsn: tracking.dsn,
     environment: tracking.environment,
     ...(tracking.release === undefined ? {} : { release: tracking.release }),
-    sendDefaultPii: false,
+    tracesSampleRate: 0,
+    dataCollection: NO_DATA_COLLECTION,
     beforeSend: (event) => scrubEvent(event, scrub),
-    beforeSendTransaction: (event) => scrubEvent(event, scrub),
     beforeBreadcrumb: (crumb) => scrubBreadcrumb(crumb),
   };
 }
