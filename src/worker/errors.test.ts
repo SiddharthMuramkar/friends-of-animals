@@ -77,7 +77,7 @@ describe("startWorkerErrors", () => {
     const errors = await startWorkerErrors({
       dsn: DSN,
       appEnv: "preview",
-      release: "4f2a9c1",
+      version: "4f2a9c1",
       loadSdk: async () => recordingSentry(envelopes),
       log,
     });
@@ -102,6 +102,27 @@ describe("startWorkerErrors", () => {
     expect(event.exception.values[0].value).toMatch(/^Welcome email to /);
     expect(envelopes.join("\n")).not.toContain(email);
   });
+
+  it.each(["dev", "unknown"])(
+    "names no release for a worker built as %s",
+    async (version) => {
+      const envelopes: string[] = [];
+      const errors = await startWorkerErrors({
+        dsn: DSN,
+        appEnv: "local",
+        version,
+        loadSdk: async () => recordingSentry(envelopes),
+        log,
+      });
+
+      errors.tenantFailed(new Error("relay failed"), { tenant: "foa" });
+      await errors.flush();
+
+      const [event] = sentEvents(envelopes);
+      expect(event.environment).toBe("local");
+      expect(event.release).toBeUndefined();
+    }
+  );
 
   it("leaves uncaught errors to the worker: the SDK adds no process handlers", async () => {
     const before = {
