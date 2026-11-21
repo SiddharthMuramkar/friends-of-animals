@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { competitionParams } from "@/app/competitions/_lib/view";
-import { isStorySlug } from "@/content/stories";
 import { getSampleCompetitions } from "@/content/sample";
 import { isSignedInPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
+import { publishedPostSlugs } from "@/server/modules/cms/posts/proxy-slugs";
 
 // Unlisted slugs render at request time, and the header's <Suspense> starts
 // streaming before the page's notFound() runs, so they kept a 200 status
@@ -18,7 +18,7 @@ const COMPETITION_SLUGS = new Set(
 // No route matches this path, so Next serves app/not-found.tsx with a 404.
 const MISSING = "/__not-found";
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Pages behind sign-in: a request without a session cookie goes straight
   // to sign in. With one, the page checks the session itself.
   if (isSignedInPath(request.nextUrl.pathname)) {
@@ -35,8 +35,11 @@ export function proxy(request: NextRequest) {
     // A malformed escape can't be a real slug.
     slug = "";
   }
+  // Only public posts: a draft, archived or unknown slug gets a 404.
   const known =
-    section === "blog" ? isStorySlug(slug) : COMPETITION_SLUGS.has(slug);
+    section === "blog"
+      ? await publishedPostSlugs.has(slug)
+      : COMPETITION_SLUGS.has(slug);
   if (known) return NextResponse.next();
   return NextResponse.rewrite(new URL(MISSING, request.url));
 }

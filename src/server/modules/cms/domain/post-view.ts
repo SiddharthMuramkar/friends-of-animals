@@ -28,11 +28,11 @@ export type PostImage =
     };
 
 /** A body block as it renders: image blocks carry a resolved image. */
-export type PostBlock =
+export type PostBlockView =
   | Exclude<Block, { type: "image" }>
   | { type: "image"; image: PostImage; caption?: string | undefined };
 
-export type PostBodyView = { blocks: PostBlock[]; footnotes: Footnote[] };
+export type PostBodyView = { blocks: PostBlockView[]; footnotes: Footnote[] };
 
 /** What a card or a list needs: everything but the body. */
 export type PostCard = {

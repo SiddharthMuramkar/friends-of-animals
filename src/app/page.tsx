@@ -25,10 +25,11 @@ import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
 import { getSampleCompetitions, getSampleImpact } from "@/content/sample";
 import { homeCompetitions } from "@/content/sample/selectors";
-import { latestStories } from "@/content/stories";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { latestPosts } from "@/server/modules/cms/domain/post-listing";
+import { loadPublishedPosts } from "@/server/modules/cms/posts/loaders";
 
 import {
   activeAnnouncement,
@@ -312,7 +313,10 @@ async function Impact() {
 }
 
 async function Stories() {
-  const t = await getTranslations("home.stories");
+  const [t, posts] = await Promise.all([
+    getTranslations("home.stories"),
+    loadPublishedPosts(),
+  ]);
   return (
     <Section labelledBy="home-stories" width="wide" tone="tint" hue="yellow">
       <SectionHeading
@@ -323,7 +327,7 @@ async function Stories() {
         lead={t("lead")}
       />
       <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {latestStories(3).map((story) => (
+        {latestPosts(posts, 3).map((story) => (
           <li key={story.slug} className="flex">
             <StoryCard story={story} headingLevel={3} className="w-full" />
           </li>
