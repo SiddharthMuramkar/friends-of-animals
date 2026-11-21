@@ -1,11 +1,11 @@
 // Seam 1 for runtime settings (#62): the typed accessor and the settings
 // use cases, on PGlite with the real migrations.
 
-import { count } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { Actor } from "@/server/actor";
-import { auditLog, setting } from "@/server/db/schema";
+import { auditLog, session, setting } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { readSetting } from "./index";
@@ -249,5 +249,80 @@ describe("changeSetting", () => {
     await h.passSecondFactor(admin);
     h.clock.advance({ minutes: 9, seconds: 59 });
     expect(await change(true)).toEqual({ ok: true, changed: true });
+  });
+});
+
+describe("the staff session lifetime setting", () => {
+  const HOUR = 60 * 60 * 1000;
+
+  async function storedExpiry(h: Harness, actor: Actor) {
+    if (actor.kind !== "user") throw new Error("Not signed in");
+    const [row] = await h.db
+      .select({ expiresAt: session.expiresAt })
+      .from(session)
+      .where(eq(session.id, actor.sessionId));
+    return row?.expiresAt;
+  }
+
+  /** A staff admin, signed in now; returns their browser's cookie. */
+  async function staffSignsIn(h: Harness) {
+    const staff = await h.seed.member();
+    await h.seed.grant(staff, {
+      role: "staff_admin",
+      scope: { type: "global" },
+    });
+    const actor = await h.signIn(staff);
+    return { actor, browser: h.cookies.header() };
+  }
+
+  const seenAs = async (h: Harness, browser: string) =>
+    (await h.currentActor(undefined, browser)).kind;
+
+  it("ends staff sessions that start afterwards that many hours after sign-in", async () => {
+    const h = await createHarness();
+    const admin = await h.signIn(await h.seed.superAdmin());
+    await h
+      .as(admin)
+      .changeSetting({ key: "auth.staffSessionHours", value: 2 });
+
+    h.clock.advance({ minutes: 1 });
+    const signedInAt = h.clock.now().getTime();
+    const { actor, browser } = await staffSignsIn(h);
+
+    expect(await storedExpiry(h, actor)).toEqual(
+      new Date(signedInAt + 2 * HOUR)
+    );
+    h.clock.advance({ hours: 1, minutes: 59 });
+    expect(await seenAs(h, browser)).toBe("user");
+    h.clock.advance({ minutes: 1 });
+    expect(await seenAs(h, browser)).toBe("visitor");
+  });
+
+  it("ends a live staff session at once when the lifetime drops below its age", async () => {
+    const h = await createHarness();
+    const { browser } = await staffSignsIn(h);
+    h.clock.advance({ hours: 3 });
+    const admin = await h.signIn(await h.seed.superAdmin());
+
+    await h
+      .as(admin)
+      .changeSetting({ key: "auth.staffSessionHours", value: 2 });
+
+    expect(await seenAs(h, browser)).toBe("visitor");
+  });
+
+  it("never stretches a live staff session when the lifetime goes up", async () => {
+    const h = await createHarness();
+    const { actor, browser } = await staffSignsIn(h);
+    const expiry = await storedExpiry(h, actor);
+    const admin = await h.signIn(await h.seed.superAdmin());
+
+    await h
+      .as(admin)
+      .changeSetting({ key: "auth.staffSessionHours", value: 24 });
+
+    expect(await storedExpiry(h, actor)).toEqual(expiry);
+    h.clock.advance({ hours: 12 });
+    expect(await seenAs(h, browser)).toBe("visitor");
   });
 });
