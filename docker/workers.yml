@@ -101,8 +101,8 @@ services:
 
   worker-preview:
     <<: *worker
-    # Rebuilt from each milestone tip in a separate checkout (README,
-    # "Workers"), so it has an image of its own.
+    # With no Vercel previews (docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)
+    # it lists none and idles, healthy.
     image: foa-workers/worker-preview
     container_name: foa-worker-preview
     environment:
