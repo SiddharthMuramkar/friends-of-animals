@@ -27,6 +27,7 @@ import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
+import { FakeErrorReporter } from "./fakes/errors";
 import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakeStorage } from "./fakes/storage";
 
@@ -42,6 +43,8 @@ export interface Harness {
   email: FakeEmail;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
+  /** Every error use cases reported, scrubbed as Sentry would get it. */
+  errors: FakeErrorReporter;
   /** What use cases run against: the fakes above plus test auth config. */
   deps: Deps;
   /** The use cases, acting as `actor`: the same ones server actions call. */
@@ -114,6 +117,7 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const cookies = new FakeCookieJar(clock);
+  const errors = new FakeErrorReporter();
   const storage = new FakeStorage(clock);
   const scanner = new FakeMalwareScanner();
   const deps: Deps = {
@@ -122,6 +126,7 @@ export async function createHarness(
     email,
     cookies,
     auth: TEST_AUTH,
+    errors,
     storage,
     files: TEST_FILES,
     scanner,
@@ -138,6 +143,7 @@ export async function createHarness(
     clock,
     email,
     cookies,
+    errors,
     deps,
     as: (actor) => app.as(actor),
     visitor: (overrides) => ({ kind: "visitor", meta: meta(overrides) }),

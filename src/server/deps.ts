@@ -14,11 +14,13 @@ import type { Env } from "@/env.schema";
 import { db } from "./db";
 import type { DbWithClock } from "./db/app-db";
 import { storagePrefixFor } from "./modules/files/domain/storage-key";
+import { serverErrorReporter } from "./observability/server-reporter";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
+import type { ErrorReporter } from "./ports/errors";
 import {
   unconfiguredScanner,
   type MalwareScanner,
@@ -31,6 +33,8 @@ export interface Deps extends DbWithClock {
   cookies: CookieJar;
   /** Better Auth's secret and the site's base URL. */
   auth: { secret: string; baseUrl: string };
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
   /** The private buckets uploaded files go to (#63). */
   storage: ObjectStorage;
   files: FilesConfig;
@@ -84,6 +88,8 @@ export function productionDeps(): Deps {
         secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
         baseUrl: config.APP_URL,
       },
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
       storage: unconfiguredStorage,
       files: {
         bucket: "unconfigured",

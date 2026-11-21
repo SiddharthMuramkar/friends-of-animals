@@ -56,6 +56,7 @@ describe("createHarness", () => {
     expect(h.deps.db).toBe(h.db);
     expect(h.deps.clock).toBe(h.clock);
     expect(h.deps.email).toBe(h.email);
+    expect(h.deps.errors).toBe(h.errors);
   });
 });
 
