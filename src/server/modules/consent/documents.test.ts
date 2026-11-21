@@ -106,14 +106,14 @@ describe("publishConsentDocument", () => {
   });
 });
 
-describe("publishConsentDocument: who may publish", () => {
+describe("publishConsentDocument and listConsentDocumentVersions: who may", () => {
   const draft = {
     purpose: "privacy_notice",
     title: "Privacy policy",
     source: SOURCE_V1,
   } as const;
 
-  it("refuses a member, a visitor and a holder of a scoped role, and writes nothing", async () => {
+  it("refuses to publish or list versions for a member, a visitor and a holder of a scoped role, and writes nothing", async () => {
     const h = await createHarness();
     const member = await h.signIn(await h.seed.member());
     const coordinator = await h.seed.member();

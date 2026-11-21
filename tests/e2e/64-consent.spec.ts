@@ -41,13 +41,15 @@ async function shownVersion(page: Page): Promise<number> {
 test("the privacy and terms pages show the published version and its text", async ({
   page,
 }) => {
-  await page.goto("/privacy");
+  await expectRendersAccessibly(page, "/privacy");
+  await expectAccessibleInDark(page, "/privacy");
   expect(await shownVersion(page)).toBeGreaterThanOrEqual(1);
   await expect(
     page.getByRole("heading", { name: "Who we are", level: 2 })
   ).toBeVisible();
 
-  await page.goto("/terms");
+  await expectRendersAccessibly(page, "/terms");
+  await expectAccessibleInDark(page, "/terms");
   expect(await shownVersion(page)).toBeGreaterThanOrEqual(1);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Terms of use"

@@ -82,6 +82,31 @@ describe("giveConsent and withdrawConsent", () => {
       }),
     });
   });
+
+  it("changes only the signed-in member's consent, and shows each member only their own", async () => {
+    const h = await createHarness();
+    const document = await publishMessages(h);
+    const asha = await h.signIn(await h.seed.member({ name: "Asha Rao" }));
+    const ravi = await h.signIn(await h.seed.member({ name: "Ravi Kumar" }));
+
+    await h
+      .as(asha)
+      .giveConsent({ purpose: "messages", documentId: document.id });
+
+    const ashas = await h.as(asha).myConsents();
+    expect(ashas[0]?.state).toMatchObject({ status: "given" });
+    expect(ashas[0]?.history).toHaveLength(1);
+    const [ravis] = await h.as(ravi).myConsents();
+    expect(ravis?.state).toEqual({ status: "never" });
+    expect(ravis?.history).toEqual([]);
+
+    // Ravi withdrawing touches nothing of Asha's.
+    expect(await h.as(ravi).withdrawConsent({ purpose: "messages" })).toEqual({
+      ok: true,
+      changed: false,
+    });
+    expect(await h.as(asha).myConsents()).toEqual(ashas);
+  });
 });
 
 describe("the audit log", () => {
