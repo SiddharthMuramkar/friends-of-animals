@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { SmsOffCallout } from "@/app/(auth)/_components/sms-off-callout";
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
 import { CompetitionCard } from "@/components/showcase/competition-card";
 import { ImpactCounters } from "@/components/showcase/impact-counters";
@@ -417,6 +418,11 @@ export default async function Page() {
               </Callout>
             ))}
           </div>
+        </Sub>
+        <Sub title={t("primitives.calloutWithLink")}>
+          {/* What staging and production show on the phone pages until
+              DLT approval; here, axe checks it in every E2E run. */}
+          <SmsOffCallout intent="sign-in" className="max-w-xl" />
         </Sub>
         <Sub title={t("primitives.disclosure")}>
           <Disclosure

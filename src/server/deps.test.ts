@@ -5,38 +5,9 @@ import { FakeClock } from "@/test/fakes/clock";
 
 import type { E164Phone } from "@/lib/phone";
 
-import { emailSenderFor, smsSenderFor } from "./deps";
-import { EmailNotConfiguredError } from "./ports/email";
-import { readCapturedEmail } from "./ports/email-capture";
+import { settingsFor, smsSenderFor } from "./deps";
 import { SmsNotConfiguredError } from "./ports/sms";
 import { readCapturedSms } from "./ports/sms-capture";
-
-const message = { to: "asha@example.test", subject: "Code", text: "123456" };
-
-describe("emailSenderFor", () => {
-  it.each(["local", "preview", "staging"] as const)(
-    "captures email on %s instead of sending it",
-    async (appEnv) => {
-      const deps = { db: await createTestDb(), clock: new FakeClock() };
-      const sender = emailSenderFor(appEnv, deps);
-
-      await sender.send(message);
-
-      const inbox = await readCapturedEmail(deps, { to: message.to });
-      expect(inbox.map((received) => received.text)).toEqual(["123456"]);
-    }
-  );
-
-  it("never captures in production, and refuses while SES is not wired", async () => {
-    const deps = { db: await createTestDb(), clock: new FakeClock() };
-    const sender = emailSenderFor("production", deps);
-
-    await expect(sender.send(message)).rejects.toBeInstanceOf(
-      EmailNotConfiguredError
-    );
-    expect(await readCapturedEmail(deps, { to: message.to })).toEqual([]);
-  });
-});
 
 const sms = {
   to: "+919876543210" as E164Phone,
@@ -98,4 +69,25 @@ describe("smsSenderFor", () => {
     expect(counter.calls).toBe(0);
     expect(await readCapturedSms(deps, { to: sms.to })).toEqual([]);
   });
+});
+
+describe("settingsFor", () => {
+  it.each([
+    ["local", true],
+    ["preview", true],
+    ["staging", false],
+    ["production", false],
+  ] as const)("reads sms.enabled on %s as %s", async (appEnv, enabled) => {
+    expect(await settingsFor(appEnv).get("sms.enabled")).toBe(enabled);
+  });
+
+  it.each(["local", "preview", "staging", "production"] as const)(
+    "keeps FOA's ceiling on texts on %s: 200 an hour, 1,000 a day",
+    async (appEnv) => {
+      const settings = settingsFor(appEnv);
+
+      expect(await settings.get("sms.maxPerHour")).toBe(200);
+      expect(await settings.get("sms.maxPerDay")).toBe(1000);
+    }
+  );
 });

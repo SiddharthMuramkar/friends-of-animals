@@ -19,15 +19,15 @@ import type { DbWithClock } from "./db/app-db";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
-import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
-import { captureEmailSender } from "./ports/email-capture";
-import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
-import type { ErrorReporter } from "./ports/errors";
-import { serverErrorReporter } from "./observability/server-reporter";
 import { unconfiguredSmsSender, type SmsSender } from "./ports/sms";
 import { captureSmsSender } from "./ports/sms-capture";
 import { msg91SmsSender } from "./ports/sms-msg91";
 import { fixedSettings, type Settings } from "./ports/settings";
+import type { EmailSender } from "./ports/email";
+import { emailSenderFor } from "./ports/email-sender-for";
+import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
+import type { ErrorReporter } from "./ports/errors";
+import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -36,31 +36,17 @@ export interface Deps extends DbWithClock {
   cookies: CookieJar;
   /** Better Auth's secret and the site's base URL. */
   auth: { secret: string; baseUrl: string };
-  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
-  errors: ErrorReporter;
   /** Encrypts personal-data columns (a user's phone). */
   cipher: FieldCipher;
   /** Keyed hashes to find rows by an encrypted value. */
   blindIndex: BlindIndex;
   /** Runtime settings, such as whether codes go by SMS. */
   settings: Settings;
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
-
-/**
- * Production sends real email (SES, once FOA's account exists; until then
- * it refuses). Every other environment captures, so no real email leaves
- * staging, previews or a local run, and codes stay readable.
- */
-export function emailSenderFor(
-  appEnv: Env["APP_ENV"],
-  deps: DbWithClock
-): EmailSender {
-  return appEnv === "production"
-    ? unconfiguredEmailSender
-    : captureEmailSender(deps);
-}
 
 /**
  * Production sends real SMS through MSG91 once its keys are set (after
@@ -120,10 +106,10 @@ export function productionDeps(): Deps {
         secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
         baseUrl: config.APP_URL,
       },
-      // Started by src/instrumentation.ts; silent without a DSN.
-      errors: serverErrorReporter,
       ...fieldCryptoFor(config),
       settings: settingsFor(config.APP_ENV),
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
     };
   }
   return production;

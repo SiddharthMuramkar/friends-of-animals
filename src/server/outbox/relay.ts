@@ -332,7 +332,9 @@ export async function listFailedDeliveries(
     })
     .from(outbox)
     .where(eq(outbox.status, "failed"))
-    .orderBy(desc(outbox.failedAt), desc(outbox.id))
+    // NULLS LAST, as outbox_failed_failed_at_idx is built, so Postgres reads
+    // the index in order instead of sorting every failed row.
+    .orderBy(sql`${outbox.failedAt} desc nulls last`, desc(outbox.id))
     .limit(limit);
   return rows.map(({ lastError, failedAt, ...row }) => {
     // outbox_failed_at_when_failed holds both on every failed row.

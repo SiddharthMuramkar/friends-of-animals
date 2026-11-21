@@ -14,3 +14,4 @@ export * from "./settings";
 export * from "./institutions";
 export * from "./notifications";
 export * from "./second-factor";
+export * from "./worker";

@@ -22,7 +22,7 @@ import { codeEmail } from "./code-email";
 import { createAccount } from "./create-account";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
-import { EMAIL_CODE } from "./settings";
+import { SIGN_IN_CODE } from "./settings";
 import {
   codeInput as code,
   nameInput as name,
@@ -113,7 +113,7 @@ export async function requestEmailCode(
     body: { email: parsed.data.email, type: "sign-in" },
   });
   await ctx.email.send(
-    codeEmail(parsed.data.email, otp, EMAIL_CODE.lifetimeMinutes)
+    codeEmail(parsed.data.email, otp, SIGN_IN_CODE.lifetimeMinutes)
   );
   return { ok: true };
 }
