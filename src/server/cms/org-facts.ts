@@ -1,17 +1,25 @@
-// The one read of FOA's organisation facts (#111) for pages, the footer and
-// JSON-LD: the tax facts from settings merged with the `site_facts` CMS
-// document (see ./domain/org-facts.ts).
+// The one read of FOA's organisation facts (#111) for pages and JSON-LD:
+// the tax facts merged with the published `site_facts` document (see
+// ./domain/org-facts.ts). Like every published read, call it at request
+// time, inside <Suspense> (WithOrgFacts does both).
 //
-// Until the CMS core's cached loader and the settings module are merged in,
-// both sources are their empty defaults, which renders every fact as
-// "To be confirmed", exactly as the code facts did.
+// The tax facts are their empty defaults until the settings module's
+// org.* settings are merged in.
 
 import "server-only";
 
-import { type OrgFacts, unconfirmedOrgFacts } from "./domain/org-facts";
+import { loadPublishedDocument } from "./cached";
+import {
+  EMPTY_TAX_FACTS,
+  type OrgFacts,
+  orgFactsFrom,
+} from "./domain/org-facts";
 
 export type { OrgFacts };
 
 export async function getOrgFacts(): Promise<OrgFacts> {
-  return unconfirmedOrgFacts();
+  return orgFactsFrom(
+    EMPTY_TAX_FACTS,
+    await loadPublishedDocument("site_facts")
+  );
 }

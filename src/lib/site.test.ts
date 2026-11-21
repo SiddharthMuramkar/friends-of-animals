@@ -36,7 +36,7 @@ describe("findPlaceholders()", () => {
   });
 
   it("finds the org facts FOA has not confirmed yet", () => {
-    expect(findPlaceholders(SITE.org)).toContain("legalName");
+    expect(findPlaceholders(SITE.org)).toContain("fees.school");
   });
 });
 

@@ -2,7 +2,7 @@ import { BadgeCheck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Placeholder } from "@/components/site/placeholder";
-import { getOrgFacts } from "@/server/cms/org-facts";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { cn } from "@/lib/utils";
 
 const POINTS = ["sources", "quotes", "numbers", "noLink"] as const;
@@ -10,7 +10,6 @@ const POINTS = ["sources", "quotes", "numbers", "noLink"] as const;
 /** "How we check facts": the promise behind every story. */
 export async function FactChecks({ className }: { className?: string }) {
   const t = await getTranslations("stories.checks");
-  const facts = await getOrgFacts();
   return (
     <aside
       aria-labelledby="fact-checks"
@@ -42,16 +41,20 @@ export async function FactChecks({ className }: { className?: string }) {
       </ul>
       <p className="mt-5 flex flex-wrap items-center gap-2 text-ink-muted">
         {t("mistake")}{" "}
-        <Placeholder fact={facts.email}>
-          {(email) => (
-            <a
-              href={`mailto:${email}`}
-              className="text-link underline underline-offset-2"
-            >
-              {email}
-            </a>
+        <WithOrgFacts>
+          {(facts) => (
+            <Placeholder fact={facts.email}>
+              {(email) => (
+                <a
+                  href={`mailto:${email}`}
+                  className="text-link underline underline-offset-2"
+                >
+                  {email}
+                </a>
+              )}
+            </Placeholder>
           )}
-        </Placeholder>
+        </WithOrgFacts>
       </p>
     </aside>
   );

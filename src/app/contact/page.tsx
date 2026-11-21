@@ -14,7 +14,7 @@ import { TileMarker } from "@/components/site/tile";
 import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { getOrgFacts } from "@/server/cms/org-facts";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("contact.meta");
@@ -49,11 +49,10 @@ const call = (number: string) => (chunks: ReactNode) => (
 
 export default async function Page() {
   const t = await getTranslations("contact");
-  const { email, phone, address } = await getOrgFacts();
   const details = [
-    { key: "email", icon: Mail, fact: email },
-    { key: "phone", icon: Phone, fact: phone },
-    { key: "address", icon: MapPin, fact: address },
+    { key: "email", icon: Mail },
+    { key: "phone", icon: Phone },
+    { key: "address", icon: MapPin },
   ] as const;
 
   return (
@@ -119,7 +118,7 @@ export default async function Page() {
           <div>
             <SectionHeading id="details-title" title={t("details.title")} />
             <dl className="mt-8 grid gap-4">
-              {details.map(({ key, icon: Icon, fact }) => (
+              {details.map(({ key, icon: Icon }) => (
                 <div
                   key={key}
                   className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 rounded-3xl border-2 border-border bg-surface p-4"
@@ -136,11 +135,15 @@ export default async function Page() {
                     </span>
                   </dt>
                   <dd className="col-start-2 mt-0.5">
-                    {key === "address" ? (
-                      <Placeholder fact={fact} />
-                    ) : (
-                      <ContactFact kind={key} fact={fact} />
-                    )}
+                    <WithOrgFacts>
+                      {(facts) =>
+                        key === "address" ? (
+                          <Placeholder fact={facts.address} />
+                        ) : (
+                          <ContactFact kind={key} fact={facts[key]} />
+                        )
+                      }
+                    </WithOrgFacts>
                   </dd>
                 </div>
               ))}

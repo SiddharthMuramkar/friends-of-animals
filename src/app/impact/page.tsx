@@ -13,7 +13,8 @@ import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { isSampleContentEnabled } from "@/lib/site";
-import { loadImpact } from "@/server/cms/site-pages";
+import { Live } from "@/components/site/live";
+import { loadImpact, seedImpact } from "@/server/cms/site-pages";
 
 import { EasyRead } from "@/components/site/easy-read";
 
@@ -47,7 +48,6 @@ const PUBLISH = [
 export default async function Page() {
   const t = await getTranslations("impact");
   const tc = await getTranslations("competitions");
-  const impact = await loadImpact();
   const sample = isSampleContentEnabled();
 
   return (
@@ -153,21 +153,29 @@ export default async function Page() {
       </Section>
 
       <Section hue={HUE} tone="tint">
-        {impact?.counters.length ? (
-          <>
-            {sample ? (
-              <p className="mb-6 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-                <SampleTag />
-                {t("counters.sampleNote")}
-              </p>
-            ) : null}
-            <ImpactCounters impact={impact} sample={sample} />
-          </>
-        ) : (
-          <ExplainState title={t("counters.empty.title")} className="max-w-2xl">
-            <p>{t("counters.empty.body")}</p>
-          </ExplainState>
-        )}
+        {/* The published counters, read at request time. */}
+        <Live fallback={seedImpact()} load={loadImpact}>
+          {(impact) =>
+            impact?.counters.length ? (
+              <>
+                {sample ? (
+                  <p className="mb-6 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
+                    <SampleTag />
+                    {t("counters.sampleNote")}
+                  </p>
+                ) : null}
+                <ImpactCounters impact={impact} sample={sample} />
+              </>
+            ) : (
+              <ExplainState
+                title={t("counters.empty.title")}
+                className="max-w-2xl"
+              >
+                <p>{t("counters.empty.body")}</p>
+              </ExplainState>
+            )
+          }
+        </Live>
       </Section>
 
       <Section labelledBy="publish-title" hue={HUE}>

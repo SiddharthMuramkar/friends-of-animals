@@ -3,8 +3,9 @@ import type { ReactNode } from "react";
 import { ContactFact } from "@/components/site/contact-fact";
 import { Placeholder } from "@/components/site/placeholder";
 import { SiteLink } from "@/components/site/site-link";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 import type { LegalBlock, LegalFact, LegalInline } from "@/content/legal";
-import { type OrgFact, SITE } from "@/lib/site";
+import { legalFactValue } from "@/server/cms/domain/org-facts";
 
 // The typed blocks of a policy or consent document as HTML: the policy
 // pages draw the repo's text and the published versions with these, so
@@ -14,22 +15,19 @@ import { type OrgFact, SITE } from "@/lib/site";
 const LINK =
   "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
 
-const FACT_VALUE: Record<LegalFact, unknown> = {
-  legalName: SITE.org.legalName,
-  email: SITE.org.email,
-  phone: SITE.org.phone,
-  address: SITE.org.address,
-  grievanceOfficerName: SITE.org.grievanceOfficer.name,
-  grievanceOfficerEmail: SITE.org.grievanceOfficer.email,
-};
-
 /** A confirmed fact as text (or a mailto/tel link); else a visible placeholder. */
 function Fact({ fact }: { fact: LegalFact }) {
-  const value = FACT_VALUE[fact] as OrgFact;
-  if (fact === "phone") return <ContactFact kind="phone" fact={value} />;
-  if (fact.toLowerCase().includes("email"))
-    return <ContactFact kind="email" fact={value} />;
-  return <Placeholder fact={value} />;
+  return (
+    <WithOrgFacts>
+      {(facts) => {
+        const value = legalFactValue(facts, fact);
+        if (fact === "phone") return <ContactFact kind="phone" fact={value} />;
+        if (fact.toLowerCase().includes("email"))
+          return <ContactFact kind="email" fact={value} />;
+        return <Placeholder fact={value} />;
+      }}
+    </WithOrgFacts>
+  );
 }
 
 /** One run of text with its strong words, links and facts. */

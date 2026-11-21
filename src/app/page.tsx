@@ -30,7 +30,12 @@ import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { isSampleContentEnabled } from "@/lib/site";
-import { loadHome, loadImpact } from "@/server/cms/site-pages";
+import { Live } from "@/components/site/live";
+import {
+  type HomePage,
+  loadHomePage,
+  seedHomePage,
+} from "@/server/cms/site-pages";
 
 import {
   activeAnnouncement,
@@ -97,9 +102,9 @@ async function Announcement() {
   );
 }
 
-type BlockProps = { home: HomeLayout };
+type BlockProps = HomePage;
 
-function Hero({ home }: BlockProps) {
+function Hero({ home }: { home: HomeLayout }) {
   const { hero } = home;
   return (
     <section aria-labelledby="home-title" className="relative bg-surface-muted">
@@ -286,9 +291,8 @@ async function Gallery() {
   );
 }
 
-async function Impact({ home }: BlockProps) {
+async function Impact({ home, impact }: BlockProps) {
   const t = await getTranslations("home.impact");
-  const impact = await loadImpact();
   const counters = impact?.counters.length
     ? {
         ...impact,
@@ -448,16 +452,27 @@ const SECTIONS: Record<
   events: () => null,
 };
 
-export default async function Page() {
-  const home = await loadHome();
+function HomeContent(page: HomePage) {
+  return (
+    <>
+      <Hero home={page.home} />
+      {visibleSections(page.home).map((key) => {
+        const Block = SECTIONS[key];
+        return <Block key={key} {...page} />;
+      })}
+    </>
+  );
+}
+
+// The hero and sections come from the published home document, read at
+// request time; the static shell holds the seed copy (see Live).
+export default function Page() {
   return (
     <>
       <Announcement />
-      <Hero home={home} />
-      {visibleSections(home).map((key) => {
-        const Block = SECTIONS[key];
-        return <Block key={key} home={home} />;
-      })}
+      <Live fallback={seedHomePage()} load={loadHomePage}>
+        {(page) => <HomeContent {...page} />}
+      </Live>
     </>
   );
 }

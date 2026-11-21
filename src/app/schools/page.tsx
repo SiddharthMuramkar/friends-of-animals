@@ -13,7 +13,7 @@ import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { getOrgFacts } from "@/server/cms/org-facts";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { cn } from "@/lib/utils";
 
 import { EasyRead } from "@/components/site/easy-read";
@@ -49,7 +49,6 @@ type Item = { title: string; body: string };
 
 export default async function Page() {
   const t = await getTranslations("schools");
-  const facts = await getOrgFacts();
   const steps = t.raw("steps.items") as Item[];
   const duties = t.raw("coordinator.items") as string[];
   const provides = t.raw("provides.items") as Item[];
@@ -234,7 +233,9 @@ export default async function Page() {
           <p>{t("contact.openBody")}</p>
           <p className="flex flex-wrap items-center gap-2">
             {t("contact.contactLabel")}
-            <ContactFact kind="email" fact={facts.email} />
+            <WithOrgFacts>
+              {(facts) => <ContactFact kind="email" fact={facts.email} />}
+            </WithOrgFacts>
           </p>
         </ExplainState>
         <ButtonLink href={ROUTES.contact.path} size="lg" className="mt-8">

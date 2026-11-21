@@ -1,7 +1,7 @@
 import { type LegalDoc, POLICIES_UPDATED } from "./model";
 
 // Covers registration and fees, refunds, consent and minors. Fee amounts stay
-// placeholders (SITE.org).
+// placeholders (SITE.org.fees).
 export const terms: LegalDoc = {
   updated: POLICIES_UPDATED,
   short: [

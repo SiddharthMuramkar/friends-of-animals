@@ -10,16 +10,20 @@ import { ButtonLink } from "@/components/site/button-link";
 import { Disclosure } from "@/components/site/disclosure";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
+import { LegalBlockView } from "@/components/legal/legal-text";
 import { Placeholder } from "@/components/site/placeholder";
-import { RichBlocks } from "@/components/site/rich-blocks";
+import { Live } from "@/components/site/live";
 import { Section } from "@/components/site/section";
 import { TileDivider, TileMarker } from "@/components/site/tile";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
-import { getOrgFacts } from "@/server/cms/org-facts";
-import { loadAbout } from "@/server/cms/site-pages";
+import {
+  type AboutPage,
+  loadAboutPage,
+  seedAboutPage,
+} from "@/server/cms/site-pages";
 
 import { EasyRead } from "@/components/site/easy-read";
 
@@ -55,10 +59,18 @@ const PEOPLE_TILES = [
   "pink",
 ] as const;
 
-export default async function Page() {
+// The copy comes from the published about document, read at request
+// time; the static shell holds the seed copy (see Live).
+export default function Page() {
+  return (
+    <Live fallback={seedAboutPage()} load={loadAboutPage}>
+      {(page) => <AboutContent {...page} />}
+    </Live>
+  );
+}
+
+async function AboutContent({ about, facts }: AboutPage) {
   const t = await getTranslations("about");
-  const about = await loadAbout();
-  const facts = await getOrgFacts();
 
   return (
     <>
@@ -160,13 +172,17 @@ export default async function Page() {
               <p>{about.skill.easy}</p>
             </EasyRead>
             <div className="mt-6 max-w-prose space-y-4 text-body text-ink">
-              <RichBlocks blocks={about.skill.body} facts={facts} />
+              {about.skill.body.map((block, k) => (
+                <LegalBlockView key={k} block={block} />
+              ))}
             </div>
             <Disclosure
               summary={about.skill.detailSummary}
               className="mt-6 max-w-prose"
             >
-              <RichBlocks blocks={about.skill.detail} facts={facts} />
+              {about.skill.detail.map((block, k) => (
+                <LegalBlockView key={k} block={block} />
+              ))}
             </Disclosure>
           </div>
         </div>
