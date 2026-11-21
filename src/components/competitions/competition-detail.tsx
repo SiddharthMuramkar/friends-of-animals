@@ -67,10 +67,16 @@ function Paragraphs({ text, className }: { text: string; className?: string }) {
 export async function CompetitionDetail({
   competition: c,
   breadcrumb,
+  titleAs: Title = "h1",
 }: {
   competition: CompetitionView;
   /** Shown above the heading, e.g. the public page's breadcrumb. */
   breadcrumb?: ReactNode;
+  /**
+   * The competition's name heads the public page; under another page's
+   * heading (the admin preview's) it's an h2, so the page keeps one h1.
+   */
+  titleAs?: "h1" | "h2";
 }) {
   const t = await getTranslations("competitions.detail");
   const ts = await getTranslations("sample");
@@ -115,9 +121,9 @@ export async function CompetitionDetail({
               <StatusChip status={c.status} />
               {c.sample ? <SampleTag /> : null}
             </div>
-            <h1 className="mt-4 text-(--section-heading,var(--ink))">
+            <Title className="mt-4 text-(--section-heading,var(--ink))">
               {c.name}
-            </h1>
+            </Title>
             {c.theme ? (
               <p className="mt-5 max-w-prose text-lead text-ink">{c.theme}</p>
             ) : null}
