@@ -18,13 +18,15 @@ import { auditUseCases } from "./audit";
 import { consentUseCases } from "./consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
+import { settingsUseCases } from "./settings";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
   identityUseCases,
   accessUseCases,
   auditUseCases,
-  consentUseCases
+  consentUseCases,
+  settingsUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

@@ -64,6 +64,13 @@
       "when": 1795246730543,
       "tag": "0008_58_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795246843925,
+      "tag": "0009_62_runtime_settings",
+      "breakpoints": true
     }
   ]
 }
