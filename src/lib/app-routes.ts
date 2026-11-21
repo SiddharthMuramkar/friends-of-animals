@@ -29,7 +29,28 @@ export function isSignedInPath(pathname: string): boolean {
   );
 }
 
-/** Whether `pathname` is one of the pages in APP_ROUTES. */
+/**
+ * Pages behind sign-in with a dynamic segment, written as their routes
+ * are: `[name]` stands for any one non-empty path segment.
+ */
+export const DYNAMIC_APP_ROUTES = ["/admin/templates/[key]"] as const;
+
+/** Whether `pathname` fills in `route`, segment by segment. */
+function fillsRoute(route: string, pathname: string): boolean {
+  const want = route.split("/");
+  const got = pathname.split("/");
+  return (
+    want.length === got.length &&
+    want.every((segment, i) =>
+      /^\[[^\]/]+\]$/.test(segment) ? got[i] !== "" : segment === got[i]
+    )
+  );
+}
+
+/** Whether `pathname` is one of the pages in APP_ROUTES or DYNAMIC_APP_ROUTES. */
 export function isSignedInPage(pathname: string): boolean {
-  return (Object.values(APP_ROUTES) as string[]).includes(pathname);
+  return (
+    (Object.values(APP_ROUTES) as string[]).includes(pathname) ||
+    DYNAMIC_APP_ROUTES.some((route) => fillsRoute(route, pathname))
+  );
 }

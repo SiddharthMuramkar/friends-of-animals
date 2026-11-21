@@ -128,6 +128,21 @@ describe("proxy: the signed-in nonce policy", () => {
     }
   });
 
+  it("serves a template's editor, a page with a dynamic segment, but no deeper path (#69)", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const editor = proxy(request("/admin/templates/identity.welcome", SESSION));
+
+    expect(pageHeaders(editor).get("x-nonce")).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+    for (const path of [
+      "/admin/templates/identity.welcome/x",
+      "/admin/templates/",
+    ]) {
+      expect(getRewrittenUrl(proxy(request(path, SESSION))), path).toBe(
+        "https://foa.example.test/__not-found"
+      );
+    }
+  });
+
   it("still sends a visitor with no session cookie to sign in", () => {
     const response = proxy(request("/account/sessions"));
 
