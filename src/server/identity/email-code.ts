@@ -1,7 +1,8 @@
 // Sign-up and sign-in by email one-time code.
 //
 //   requestEmailCode({ intent?, email, name? })      → a code by email
-//   verifyEmailCode({ intent, email, code, name? })  → signed in
+//   verifyEmailCode({ intent, email, code, name?, messagesConsent? })
+//                                                    → signed in
 //
 // Codes are only ever emailed, whatever the address, so a request never
 // reveals whether an account exists; verifying needs the code, so saying
@@ -14,6 +15,7 @@ import { z } from "zod";
 
 import { authorize } from "../access/can";
 import type { RequestMeta } from "../actor";
+import type { SignUpConsentOutcome } from "../modules/consent";
 import { user } from "../db/schema";
 import { invalidInput, type InvalidInput } from "../input";
 import type { CookieJar } from "../ports/cookies";
@@ -41,7 +43,14 @@ const requestEmailCodeInput = z.discriminatedUnion("intent", [
 ]);
 
 const verifyEmailCodeInput = z.discriminatedUnion("intent", [
-  z.object({ intent: z.literal("sign-up"), name, email, code }),
+  z.object({
+    intent: z.literal("sign-up"),
+    name,
+    email,
+    code,
+    // The messages consent document the form showed, if its box was ticked.
+    messagesConsent: z.uuid().optional(),
+  }),
   z.object({ intent: z.literal("sign-in"), email, code }),
 ]);
 
@@ -57,7 +66,13 @@ export type RequestEmailCodeResult =
   | { ok: false; error: "rate_limited"; retryAfterSeconds: number };
 
 export type VerifyEmailCodeResult =
-  | { ok: true; userId: string; isNewAccount: boolean }
+  | {
+      ok: true;
+      userId: string;
+      isNewAccount: boolean;
+      /** Only when a new account was created with the consent box ticked. */
+      messagesConsent?: SignUpConsentOutcome;
+    }
   | InvalidInput
   | {
       ok: false;
@@ -155,6 +170,7 @@ export async function verifyEmailCode(
     .where(eq(user.email, data.email));
 
   let isNewAccount = false;
+  let messagesConsent: SignUpConsentOutcome | undefined;
   if (!existing) {
     // Better Auth checks the code first (a wrong guess counts) and only
     // then reports that no user has the address, leaving a right code
@@ -171,10 +187,13 @@ export async function verifyEmailCode(
       // Never create an account from the sign-in page.
       if (data.intent === "sign-in") return { ok: false, error: "no_account" };
       // The account and its welcome event, in one transaction.
-      isNewAccount = await createAccount(ctx, {
+      const account = await createAccount(ctx, {
         email: data.email,
         name: data.name,
+        messagesConsent: data.messagesConsent,
       });
+      isNewAccount = account.created;
+      if (account.created) messagesConsent = account.messagesConsent;
     }
   }
 
@@ -185,7 +204,12 @@ export async function verifyEmailCode(
       returnHeaders: true,
     });
     await storeCookies(ctx.cookies, headers);
-    return { ok: true, userId: response.user.id, isNewAccount };
+    return {
+      ok: true,
+      userId: response.user.id,
+      isNewAccount,
+      ...(messagesConsent ? { messagesConsent } : {}),
+    };
   } catch (error) {
     return codeError(error);
   }
