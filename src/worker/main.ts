@@ -73,8 +73,9 @@ function realIo(config: WorkerConfig): WorkerIo {
         max: BOSS_CONNECTIONS,
         application_name: "foa-worker-boss",
         // On the VPS the bootstrap SQL makes the worker role own schema
-        // pgboss (docker/postgres/bootstrap/workers.sql); the role has no
-        // CREATE on the database. A local run's role owns everything.
+        // pgboss (docker/postgres/bootstrap/workers-prod.sql and
+        // workers-nonprod.sql); the role has no CREATE on the database. A
+        // local run's role owns everything.
         createSchema: config.appEnv === "local",
       });
       boss.on("error", (error) =>

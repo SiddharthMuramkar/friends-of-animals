@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
 
-import { emailSenderFor } from "./deps";
-import { EmailNotConfiguredError } from "./ports/email";
-import { readCapturedEmail } from "./ports/email-capture";
+import { EmailNotConfiguredError } from "./email";
+import { readCapturedEmail } from "./email-capture";
+import { emailSenderFor } from "./email-sender-for";
 
 const message = { to: "asha@example.test", subject: "Code", text: "123456" };
 
