@@ -17,9 +17,10 @@ const user: Actor = {
   meta,
 };
 const system: Actor = { kind: "system", process: "seed" };
-const clock = new FakeClock();
 
 let db: TestDb;
+// can() dates a step-up by the clock; these rules never ask for one.
+const clock = new FakeClock();
 
 // One database per test: can() reads a signed-in user's grants from it.
 beforeEach(async () => {

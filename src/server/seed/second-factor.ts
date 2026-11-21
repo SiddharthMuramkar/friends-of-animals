@@ -10,11 +10,11 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { isStaffRole } from "../access/domain/roles";
 import { grantsOf } from "../access/grants";
 import { secondFactor } from "../db/schema";
+import { ensureVerifiedAccount } from "../identity/verified-account";
 import { uuidv7 } from "../ids";
 import { base32Decode } from "../second-factor/domain/base32";
 import { openTotpSecret, sealTotpSecret } from "../second-factor/secret-box";
 import { SEED_ACCOUNTS } from "./accounts";
-import { ensureVerifiedAccount } from "../identity/verified-account";
 import type { SeedDeps } from "./types";
 
 /**

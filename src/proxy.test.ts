@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SIGNED_IN_PREFIXES } from "@/lib/app-routes";
 import { publicCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
+import { PATH_HEADER } from "@/lib/second-factor-routes";
 
 import { config, proxy } from "./proxy";
 
@@ -157,5 +158,38 @@ describe("proxy: the signed-in nonce policy", () => {
         expect(unstable_doesMiddlewareMatch({ config, url }), path).toBe(true);
       }
     }
+  });
+});
+
+describe("proxy: the path the staff gate comes back to", () => {
+  it.each(["/admin/roles", "/auth/step-up", "/account/security"])(
+    "sends a visitor without a session cookie from %s to sign in",
+    (path) => {
+      const response = proxy(request(path));
+      expect(response.status).toBe(307);
+      expect(new URL(response.headers.get("location")!).pathname).toBe(
+        "/sign-in"
+      );
+    }
+  );
+
+  it("passes the page's path and query on, for the staff gate to come back to", () => {
+    const response = proxy(request("/account/security?tab=passkeys", SESSION));
+
+    expect(response.headers.get("location")).toBeNull();
+    expect(pageHeaders(response).get(PATH_HEADER)).toBe(
+      "/account/security?tab=passkeys"
+    );
+  });
+
+  it("overwrites a path header the browser sent itself", () => {
+    const sneaky = request("/account/security", {
+      ...SESSION,
+      [PATH_HEADER]: "https://example.com",
+    });
+
+    expect(pageHeaders(proxy(sneaky)).get(PATH_HEADER)).toBe(
+      "/account/security"
+    );
   });
 });
