@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { buildCustomRoute } from "next/dist/lib/build-custom-route";
+import { modifyRouteRegex } from "next/dist/lib/redirect-status";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { describe, expect, it } from "vitest";
 
@@ -267,10 +268,13 @@ describe("cspHeaderRules", () => {
     pathname: string
   ) {
     return rules.flatMap((rule) => {
+      // The options next/dist/server/lib/router-utils/filesystem.js uses.
       const atRuntime =
-        getPathMatch(rule.source, { strict: true, removeUnnamedParams: true })(
-          pathname
-        ) !== false;
+        getPathMatch(rule.source, {
+          strict: true,
+          removeUnnamedParams: true,
+          regexModifier: (regex) => modifyRouteRegex(regex),
+        })(pathname) !== false;
       const inManifest = new RegExp(
         buildCustomRoute("header", rule).regex
       ).test(pathname);
