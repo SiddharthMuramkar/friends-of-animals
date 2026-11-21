@@ -18,6 +18,11 @@ import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
+import type { HumanCheck } from "./ports/human-check";
+import {
+  HUMAN_CHECK_DIFFICULTY,
+  proofOfWorkHumanCheck,
+} from "./modules/public-forms/proof-of-work-check";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -25,6 +30,8 @@ export interface Deps extends DbWithClock {
   cookies: CookieJar;
   /** Better Auth's secret and the site's base URL. */
   auth: { secret: string; baseUrl: string };
+  /** The human check on public forms (proof of work, signed by the secret). */
+  humanCheck: HumanCheck;
 }
 
 /**
@@ -55,15 +62,20 @@ let production: Deps | undefined;
 export function productionDeps(): Deps {
   if (!production) {
     const config = env();
+    const secret = config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET;
     production = {
       db,
       clock: systemClock,
       email: emailSenderFor(config.APP_ENV, { db, clock: systemClock }),
       cookies: nextCookieJar,
       auth: {
-        secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
+        secret,
         baseUrl: config.APP_URL,
       },
+      humanCheck: proofOfWorkHumanCheck({
+        secret,
+        difficulty: HUMAN_CHECK_DIFFICULTY,
+      }),
     };
   }
   return production;

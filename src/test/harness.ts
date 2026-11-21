@@ -20,6 +20,7 @@ import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
+import { proofOfWorkHumanCheck } from "@/server/modules/public-forms/proof-of-work-check";
 import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 
@@ -80,6 +81,9 @@ export const TEST_AUTH = {
   baseUrl: "http://localhost:3000",
 };
 
+/** Leading zero bits the harness's human check asks for: about 16 hashes. */
+export const TEST_HUMAN_CHECK_DIFFICULTY = 4;
+
 export async function createHarness(
   options: { now?: Date | string } = {}
 ): Promise<Harness> {
@@ -95,7 +99,18 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const cookies = new FakeCookieJar(clock);
-  const deps: Deps = { db, clock, email, cookies, auth: TEST_AUTH };
+  const deps: Deps = {
+    db,
+    clock,
+    email,
+    cookies,
+    auth: TEST_AUTH,
+    // The real check, made easy: a few hashes to solve (src/test/human-check.ts).
+    humanCheck: proofOfWorkHumanCheck({
+      secret: TEST_AUTH.secret,
+      difficulty: TEST_HUMAN_CHECK_DIFFICULTY,
+    }),
+  };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
     ...DEFAULT_META,

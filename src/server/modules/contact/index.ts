@@ -1,24 +1,15 @@
-// The contact inbox (#113): the public contact form and the staff inbox.
+// The contact inbox (#113): the public contact form, routed by topic to a
+// staff team. Its use cases join `as(actor)` through `contactUseCases`.
 
 import type { UseCaseContext } from "../../use-cases";
+import { submitContactMessage, type SubmitContactMessageInput } from "./submit";
 
-export type SubmitContactMessageResult =
-  | { ok: true; reference: string }
-  | { ok: false; error: "invalid_input"; fields: string[] }
-  | { ok: false; error: "human_check_failed" }
-  | {
-      ok: false;
-      error: "rate_limited";
-      retryAfter: Date;
-      retryAfterSeconds: number;
-    };
+export type {
+  SubmitContactMessageInput,
+  SubmitContactMessageResult,
+} from "./submit";
 
 export const contactUseCases = (ctx: UseCaseContext) => ({
-  submitContactMessage: async (
-    input: unknown
-  ): Promise<SubmitContactMessageResult> => {
-    void ctx;
-    void input;
-    throw new Error("not built yet");
-  },
+  submitContactMessage: (input: SubmitContactMessageInput) =>
+    submitContactMessage(ctx, input),
 });
