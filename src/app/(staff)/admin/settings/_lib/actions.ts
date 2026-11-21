@@ -7,8 +7,8 @@ import { redirect } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
-import { isSettingKey, SETTINGS } from "@/server/settings/catalogue";
-import { settingValueFromForm } from "@/server/settings/form";
+import { isSettingKey, SETTINGS } from "@/server/modules/settings/catalogue";
+import { settingValueFromForm } from "@/server/modules/settings/form";
 
 import { afterChange, afterError, type SettingFormState } from "./form-state";
 

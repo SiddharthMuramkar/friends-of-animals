@@ -11,7 +11,7 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
-import type { SettingView } from "@/server/settings";
+import type { SettingView } from "@/server/modules/settings";
 
 import {
   SettingForm,

@@ -12,11 +12,11 @@
 
 import { eq } from "drizzle-orm";
 
-import { authorize } from "../access/can";
-import { recordAudit } from "../audit/record";
-import type { AppDb } from "../db/app-db";
-import { setting, user } from "../db/schema";
-import type { UseCaseContext } from "../use-cases";
+import { authorize } from "../../access/can";
+import { recordAudit } from "../../audit/record";
+import type { AppDb } from "../../db/app-db";
+import { setting, user } from "../../db/schema";
+import type { UseCaseContext } from "../../use-cases";
 import { isSettingKey, SETTINGS } from "./catalogue";
 import type { SettingInput } from "./definition";
 import {

@@ -2,7 +2,7 @@ import { asc } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { setting } from "@/server/db/schema";
-import { readSetting } from "@/server/settings";
+import { readSetting } from "@/server/modules/settings";
 import { createHarness } from "@/test/harness";
 
 describe("the settings seed", () => {

@@ -5,8 +5,8 @@
 
 import { eq } from "drizzle-orm";
 
-import type { AppDb } from "../db/app-db";
-import { setting } from "../db/schema";
+import type { AppDb } from "../../db/app-db";
+import { setting } from "../../db/schema";
 import type { SettingKey, SettingValue } from "./catalogue";
 import { resolveSetting } from "./values";
 

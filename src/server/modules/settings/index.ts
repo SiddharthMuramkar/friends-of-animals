@@ -2,7 +2,7 @@
 // without a deploy, and the typed accessor app code reads them through.
 // Its use cases join `as(actor)` through `settingsUseCases`.
 
-import type { UseCaseContext } from "../use-cases";
+import type { UseCaseContext } from "../../use-cases";
 import {
   changeSetting,
   listSettings,

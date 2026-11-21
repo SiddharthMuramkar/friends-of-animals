@@ -5,7 +5,7 @@ import { DomainError, type DomainErrorCode } from "@/server/errors";
 import type {
   ChangeSettingResult,
   SettingValueProblem,
-} from "@/server/settings";
+} from "@/server/modules/settings";
 
 export type SettingRefusal = DomainErrorCode | "unknown_setting" | "failed";
 

@@ -5,7 +5,7 @@
 
 import { IDENTITY_POLICY } from "../identity/policy";
 import { SECOND_FACTOR_POLICY } from "../second-factor/policy";
-import { SETTINGS_POLICY } from "../settings/policy";
+import { SETTINGS_POLICY } from "../modules/settings/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 

@@ -18,7 +18,7 @@ import { auditUseCases } from "./audit";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
 import { secondFactorUseCases } from "./second-factor";
-import { settingsUseCases } from "./settings";
+import { settingsUseCases } from "./modules/settings";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
