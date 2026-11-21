@@ -12,7 +12,8 @@
 //   on the next tick.
 // - Health: `beat()` (the heartbeat file Docker's health check reads) runs
 //   after a tick while the last listing succeeded and, with
-//   `everyTenantMustTick` (single mode), the tenant ticked.
+//   `everyTenantMustTick` (single mode), every listed database has a tenant
+//   that ticked.
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
@@ -67,9 +68,13 @@ export function createSupervisor({
 }: SupervisorOptions): Supervisor {
   const tenants = new Map<string, Attached>();
   let listedAt: number | undefined;
+  let listed: readonly string[] = [];
   let listingFailed = false;
 
-  async function detach(database: string, reason: "unlisted" | "gone") {
+  async function detach(
+    database: string,
+    reason: "unlisted" | "gone" | "stopping"
+  ) {
     const attached = tenants.get(database);
     if (!attached) return;
     tenants.delete(database);
@@ -106,7 +111,6 @@ export function createSupervisor({
 
   async function discover(now: number) {
     if (listedAt !== undefined && now - listedAt < discoveryIntervalMs) return;
-    let listed: readonly string[];
     try {
       listed = await listDatabases();
     } catch (error) {
@@ -169,13 +173,15 @@ export function createSupervisor({
       );
       const healthy =
         !listingFailed &&
-        (!everyTenantMustTick || results.every((ticked) => ticked));
+        (!everyTenantMustTick ||
+          (listed.every((database) => tenants.has(database)) &&
+            results.every((ticked) => ticked)));
       if (healthy) await beat(clock.now());
     },
     serving: () => [...tenants.keys()].sort(),
     async stop() {
       for (const database of [...tenants.keys()]) {
-        await detach(database, "unlisted");
+        await detach(database, "stopping");
       }
     },
   };
