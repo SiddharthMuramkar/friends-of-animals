@@ -1,0 +1,8 @@
+{
+  "emails": {
+    "welcome": {
+      "subject": "Welcome to Friends of Animals",
+      "text": "Hello {name},\n\nThank you for creating a Friends of Animals account.\n\nTo sign in, enter your email address and we'll email you a code. There's no password to remember.\n\nFriends of Animals"
+    }
+  }
+}
