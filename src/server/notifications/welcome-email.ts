@@ -33,8 +33,9 @@ export function welcomeEmail(account: {
 
 /**
  * Sends the new account its welcome email. The event carries only the id,
- * so the address and name are read now; an account erased in the meantime
- * gets nothing, and the delivery still counts as done.
+ * so the address and name are read now; an account erased in the meantime,
+ * or made by phone with no address (#58), gets nothing, and the delivery
+ * still counts as done.
  */
 export async function sendWelcomeEmail(
   deps: { db: AppDb; email: EmailSender },
@@ -44,6 +45,6 @@ export async function sendWelcomeEmail(
     .select({ name: user.name, email: user.email })
     .from(user)
     .where(eq(user.id, payload.userId));
-  if (!account) return;
-  await deps.email.send(welcomeEmail(account));
+  if (!account || account.email === null) return;
+  await deps.email.send(welcomeEmail({ ...account, email: account.email }));
 }

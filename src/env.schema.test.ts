@@ -197,6 +197,8 @@ describe("envSchema", () => {
         APP_ENV: "staging",
         APP_URL: SITE,
         BETTER_AUTH_SECRET: SECRET,
+        FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+        FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
       }).APP_ENV
     ).toBe("staging");
   });
@@ -233,6 +235,129 @@ describe("envSchema", () => {
     expect(() =>
       parseEnv(envSchema, { DATABASE_URL, CAPTURE_MAILBOX_TOKEN: "short" })
     ).toThrow(/at least 32 characters[\s\S]*at CAPTURE_MAILBOX_TOKEN/);
+  });
+});
+
+describe("envSchema: field encryption keys", () => {
+  const KEYS = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+  const HMAC = "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=";
+  const deployed = {
+    DATABASE_URL,
+    APP_URL: SITE,
+    BETTER_AUTH_SECRET: SECRET,
+    // Production also needs error tracking (#66).
+    NEXT_PUBLIC_SENTRY_DSN: "https://abc123@o1.ingest.us.sentry.io/4507",
+  };
+
+  it.each(["staging", "production"] as const)(
+    "requires FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY on %s",
+    (APP_ENV) => {
+      expect(() => parseEnv(envSchema, { ...deployed, APP_ENV })).toThrow(
+        /FIELD_ENCRYPTION_KEYS is not set[\s\S]*FIELD_HMAC_KEY is not set/
+      );
+      const config = parseEnv(envSchema, {
+        ...deployed,
+        APP_ENV,
+        FIELD_ENCRYPTION_KEYS: KEYS,
+        FIELD_HMAC_KEY: HMAC,
+      });
+      expect(config).toMatchObject({
+        FIELD_ENCRYPTION_KEYS: KEYS,
+        FIELD_HMAC_KEY: HMAC,
+      });
+    }
+  );
+
+  it("lets a local run or a preview go without them", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config.FIELD_ENCRYPTION_KEYS).toBeUndefined();
+    expect(config.FIELD_HMAC_KEY).toBeUndefined();
+  });
+
+  it("refuses keys that aren't 32 bytes of base64", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        FIELD_ENCRYPTION_KEYS: "1:short",
+        FIELD_HMAC_KEY: "short",
+      })
+    ).toThrow(
+      /openssl rand -base64 32[\s\S]*at FIELD_ENCRYPTION_KEYS[\s\S]*at FIELD_HMAC_KEY/
+    );
+  });
+
+  it("never echoes a key in its error", () => {
+    const leaked = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, FIELD_ENCRYPTION_KEYS: leaked })
+    ).toThrow(
+      expect.objectContaining({
+        message: expect.not.stringContaining("MDEyMzQ1"),
+      })
+    );
+  });
+});
+
+describe("envSchema: error tracking", () => {
+  const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
+  const staging = {
+    DATABASE_URL,
+    APP_ENV: "staging",
+    APP_URL: SITE,
+    BETTER_AUTH_SECRET: SECRET,
+    // Staging and production also need field keys (#58).
+    FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+    FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
+  };
+  const production = { ...staging, APP_ENV: "production" };
+
+  it("leaves NEXT_PUBLIC_SENTRY_DSN optional outside production", () => {
+    for (const appEnv of ["local", "preview", "staging"]) {
+      const config = parseEnv(envSchema, {
+        ...staging,
+        APP_ENV: appEnv,
+        VERCEL_GIT_COMMIT_REF: "map",
+      });
+      expect(config).not.toHaveProperty("NEXT_PUBLIC_SENTRY_DSN");
+    }
+    expect(
+      parseEnv(envSchema, { ...staging, NEXT_PUBLIC_SENTRY_DSN: DSN })
+    ).toHaveProperty("NEXT_PUBLIC_SENTRY_DSN", DSN);
+  });
+
+  it("fails the start on a malformed DSN without repeating it", () => {
+    const malformed = "https://secret-key-9f2c@o1.ingest.us.sentry.io/";
+    let message = "";
+    try {
+      parseEnv(envSchema, { ...staging, NEXT_PUBLIC_SENTRY_DSN: malformed });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toMatch(
+      /not a valid Sentry DSN[\s\S]*NEXT_PUBLIC_SENTRY_DSN/
+    );
+    expect(message).not.toContain("secret-key-9f2c");
+  });
+
+  it("requires NEXT_PUBLIC_SENTRY_DSN in production", () => {
+    expect(() => parseEnv(envSchema, production)).toThrow(
+      /NEXT_PUBLIC_SENTRY_DSN is not set/
+    );
+    expect(
+      parseEnv(envSchema, { ...production, NEXT_PUBLIC_SENTRY_DSN: DSN })
+    ).toHaveProperty("NEXT_PUBLIC_SENTRY_DSN", DSN);
+  });
+
+  it("is never needed by `next build`", () => {
+    expect(
+      parseEnv(buildEnvSchema, { APP_ENV: "production", APP_URL: SITE })
+    ).not.toHaveProperty("NEXT_PUBLIC_SENTRY_DSN");
+  });
+
+  it("keeps the commit the deployment was built from as the release", () => {
+    expect(
+      parseEnv(envSchema, { ...staging, VERCEL_GIT_COMMIT_SHA: "6f97d80" })
+    ).toHaveProperty("VERCEL_GIT_COMMIT_SHA", "6f97d80");
   });
 });
 

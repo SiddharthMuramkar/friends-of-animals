@@ -31,9 +31,68 @@ One signed-in device or browser of a User, which the User can see and end.
 _Avoid_: Login, token
 
 **Sign-in code**:
-A short-lived number emailed (or, later, texted) to a User to prove they hold
-that address; it is how people sign up and sign in, with no password.
+A short-lived number emailed or texted to a User to prove they hold that
+address or phone; it is how people sign up and sign in, with no password.
 _Avoid_: OTP (in copy), password, token
+
+**Sign-in method**:
+A way to receive sign-in codes: email, always on, or SMS, which stays off
+until FOA's SMS sender registration is approved.
+_Avoid_: Login type, provider
+
+**Role**:
+What a User is to the platform, such as a judge, an institution coordinator or
+a super admin, which decides what they may do. A User may hold several.
+_Avoid_: Permission, group, user type
+
+**Scope**:
+Where a Role applies: everywhere (global), or one institution, competition or
+organisation.
+_Avoid_: Tenant, context
+
+**Grant**:
+One Role held by one User at one Scope. A super admin grants and revokes them.
+_Avoid_: Assignment, role membership
+
+**Staff**:
+The Users holding one of FOA's own Roles: the admins, managers and finance.
+Judges, coordinators and volunteers are not Staff.
+_Avoid_: Admins, employees, team
+
+**Policy**:
+The rules that decide whether an Actor may take an action, from the Actor's
+Grants and the Scopes and owner of what they act on.
+_Avoid_: Permissions, ACL
+
+**Dashboard**:
+The part of the platform one kind of Role works in, such as the admin or one
+institution's. A User with several Roles switches between their Dashboards.
+_Avoid_: Portal, home, active role
+
+**Audit log**:
+The record of every change to who may do what, and later to other records:
+who made it, with which Role, to what, before and after, from where and when.
+Nobody can edit or delete an entry.
+_Avoid_: Activity log, history, event log
+
+## Personal data
+
+**Encrypted field**:
+Personal data, such as a User's phone number, that the database holds only in
+encrypted form, so a leaked backup or a raw query can't read it.
+_Avoid_: Hashed field, masked field, secure column
+
+**Blind index**:
+A keyed fingerprint kept beside an Encrypted field, so the platform can find a
+record by that value (a User by phone at sign-in) without storing it readably.
+_Avoid_: Phone hash, lookup hash
+
+## Operations
+
+**Setting**:
+A switch or value staff can change on a running site without a deploy, such
+as whether sign-in codes may go by SMS.
+_Avoid_: Feature flag, config, environment variable
 
 ## Messages
 

@@ -1,13 +1,23 @@
 name: CI
 
-# Lint, typecheck, format check and Vitest on every PR and on main. Any
-# failure fails the check. The Playwright journeys run in e2e.yml, once the
-# PR's Vercel preview is ready.
+# Every check a change must pass, as separate jobs that all feed one required
+# check, "CI gate" (the ruleset on main requires only that). Vercel builds
+# nothing here: the Playwright journeys run against `next start` and a
+# Postgres service on the runner (docs/adr/0001-ci-e2e-and-prebuilt-deploys.md).
+#
+# To stay inside GitHub's concurrent-job budget, the E2E and real-Postgres
+# jobs run on main, by hand, in the merge queue, and on PRs whose branch
+# starts with train/ or revert/ or that carry the `full-ci` label. Other PRs
+# run every other job; "CI gate" accepts those two as skipped only then.
 
 on:
   pull_request:
+    # `labeled` too, so adding `full-ci` to an open PR starts the full run.
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
+  merge_group:
+  workflow_dispatch:
 
 # A new push to a PR cancels its older run; every commit on main keeps its own.
 concurrency:
@@ -18,29 +28,365 @@ permissions:
   contents: read
 
 jobs:
-  check:
-    name: Lint, typecheck, format, Vitest
+  scope:
+    name: Choose the jobs to run
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      full: ${{ steps.full.outputs.full }}
+    steps:
+      # The one place that decides whether e2e and pg-concurrency run.
+      - id: full
+        env:
+          FULL: >-
+            ${{
+              github.event_name != 'pull_request' ||
+              startsWith(github.head_ref, 'train/') ||
+              startsWith(github.head_ref, 'revert/') ||
+              contains(github.event.pull_request.labels.*.name, 'full-ci')
+            }}
+        run: |
+          echo "full=$FULL" >> "$GITHUB_OUTPUT"
+          echo "Full run (e2e, pg-concurrency): $FULL"
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm lint
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm typecheck
+
+  format:
+    name: Format check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm format:check
+
+  vitest:
+    name: Vitest (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - env:
+          SHARD: ${{ matrix.shard }}
+        run: pnpm exec vitest run --shard="$SHARD/4"
+
+  integrity:
+    name: Test integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Vercel must never build from Git: production deploys are prebuilt
+      # (deploy-production.yml), and there are no previews.
+      - name: Git deployments stay off in vercel.json
+        run: jq -e '.git.deploymentEnabled == false' vercel.json
+
+      # No test may be skipped, focused, marked to fail, retried, or weakened
+      # in axe; and none mocks an app module (`vi.mock("@/…")`): tests go
+      # through the harness and fakes at the ports instead.
+      - name: No weakened tests
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(git ls-files -- tests src/test '*.test.ts' '*.test.tsx' '*.spec.ts')
+          weakened='\.(skip|only|todo)\(|\bfixme\b|test\.fail\(|retry:|retries:|disableRules|\.exclude\(|withTags'
+          internal_mock='vi\.mock\(["'"'"']@/'
+          failed=0
+          if grep -nE "$weakened" -- "${tests[@]}"; then failed=1; fi
+          if grep -nE "$internal_mock" -- "${tests[@]}"; then failed=1; fi
+          if grep -nE 'retries:\s*[1-9]' playwright.config.ts; then failed=1; fi
+          if grep -nE 'retry:\s*[1-9]' vitest*.config.ts; then failed=1; fi
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::A test above is skipped, focused, retried, weakened or mocks an app module."
+            exit 1
+          fi
+          echo "Checked ${#tests[@]} test files."
+
+  build:
+    name: Build without a database
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/setup
+      # Pages must prerender with no database at all; check:build then checks
+      # the output. The variables are set to empty, not left unset.
+      - name: Build
+        env:
+          DATABASE_URL: ""
+          DIRECT_URL: ""
+          APP_ENV: local
+        run: pnpm build && pnpm check:build
 
-      - id: setup
+  migrations:
+    name: Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18.7-trixie
+        env:
+          POSTGRES_USER: foa
+          POSTGRES_PASSWORD: foa
+          POSTGRES_DB: foa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U foa -d foa"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      APP_ENV: local
+      DIRECT_URL: postgres://foa:foa@127.0.0.1:5432/foa
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      # The migrator applies an entry only if it is newer than the last one
+      # applied, so out-of-order `when` values would be skipped silently.
+      - name: Journal is in order
+        run: |
+          jq -e '
+            .entries
+            | (map(.idx) == [range(0; length)])
+              and ([.[].when] as $when
+                   | [range(1; $when | length)]
+                   | all($when[.] > $when[. - 1]))
+          ' drizzle/meta/_journal.json
+
+      - name: drizzle-kit check
+        run: pnpm exec drizzle-kit check
+
+      - name: Migrate an empty database
+        run: pnpm db:migrate
+
+      # Generating again must find nothing: the schema and the migrations
+      # agree. It runs in a throwaway worktree, so the probe is never kept.
+      # (The binary is called directly: `pnpm exec` would install into the
+      # worktree first.)
+      - name: Schema has no ungenerated changes
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/probe"
+          git worktree add --detach "$probe" HEAD
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$probe/node_modules"
+          (cd "$probe" && "$GITHUB_WORKSPACE/node_modules/.bin/drizzle-kit" generate --name ci_probe)
+          changes="$(git -C "$probe" status --porcelain --untracked-files=all -- drizzle)"
+          git worktree remove --force "$probe"
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            echo "::error::The schema has changes with no migration. Run pnpm db:generate and commit the result."
+            exit 1
+          fi
+
+  e2e:
+    name: E2E ${{ matrix.project }} (shard ${{ matrix.shard }}/3)
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop, mobile]
+        shard: [1, 2, 3]
+    services:
+      postgres:
+        image: postgres:18.7-trixie
+        env:
+          POSTGRES_USER: foa
+          POSTGRES_PASSWORD: foa
+          POSTGRES_DB: foa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U foa -d foa"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    # A local run: sample content, the capture mailbox and every provider on
+    # its fake or capture adapter. APP_ENV is fixed at build time too.
+    env:
+      APP_ENV: local
+      APP_URL: http://localhost:3000
+      DATABASE_URL: postgres://foa:foa@127.0.0.1:5432/foa
+      DIRECT_URL: postgres://foa:foa@127.0.0.1:5432/foa
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      # A fresh token per run, so no repository secret is needed. The server
+      # and the tests read the same value.
+      - name: Generate the capture mailbox token
+        run: |
+          token="$(openssl rand -hex 32)"
+          echo "::add-mask::$token"
+          echo "CAPTURE_MAILBOX_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Migrate, seed and build
+        run: pnpm db:migrate && pnpm db:seed && pnpm build && pnpm check:build
+
+      - name: Start the server
+        run: |
+          nohup pnpm start > "$RUNNER_TEMP/next-start.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://localhost:3000/api/health; then
+              echo "Server is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::next start did not answer on :3000 within 2 minutes."
+          cat "$RUNNER_TEMP/next-start.log"
+          exit 1
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          PROJECT: ${{ matrix.project }}
+          SHARD: ${{ matrix.shard }}
+        run: pnpm test:e2e --project="$PROJECT" --shard="$SHARD/3"
+
+      - name: Server log
+        if: failure()
+        run: tail -n 200 "$RUNNER_TEMP/next-start.log" || true
+
+      # The report and traces only: never .vercel or env files.
+      - name: Upload the report and traces
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-${{ matrix.project }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  pg-concurrency:
+    # Races from separate connections on a real Postgres. PGlite is one
+    # serial connection, so `pnpm test` can't see them.
+    name: Real-Postgres concurrency (pnpm test:pg)
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18.7-trixie
+        env:
+          POSTGRES_USER: foa
+          POSTGRES_PASSWORD: foa
+          POSTGRES_DB: foa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U foa -d foa"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      APP_ENV: local
+      DATABASE_URL: postgres://foa:foa@127.0.0.1:5432/foa
+      DIRECT_URL: postgres://foa:foa@127.0.0.1:5432/foa
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # #132 adds the `test:pg` script; until then there is nothing to run.
+      - id: suite
+        name: Find the test:pg script
+        run: |
+          if jq -e '.scripts["test:pg"]' package.json > /dev/null; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No test:pg script in package.json yet (#132): nothing to run."
+          fi
+
+      - if: steps.suite.outputs.present == 'true'
         uses: ./.github/actions/setup
+      - if: steps.suite.outputs.present == 'true'
+        run: pnpm db:migrate
+      - if: steps.suite.outputs.present == 'true'
+        run: pnpm test:pg
 
-      # Each check runs even if one before it failed, so a PR sees every
-      # problem at once; any failure still fails the job.
-      - name: Lint
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm lint
-      - name: Typecheck
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm typecheck
-      - name: Format check
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm format:check
-      - name: Vitest
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm test
+  gate:
+    # The one required check. Every job must succeed; e2e and pg-concurrency
+    # may be skipped only on a PR that `scope` chose not to run in full.
+    name: CI gate
+    if: always()
+    needs:
+      - scope
+      - lint
+      - typecheck
+      - format
+      - vitest
+      - integrity
+      - build
+      - migrations
+      - e2e
+      - pg-concurrency
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+          FULL: ${{ needs.scope.outputs.full }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$NEEDS" | jq -e --arg full "$FULL" '
+            to_entries
+            | all(
+                .value.result == "success"
+                or (.value.result == "skipped"
+                    and (.key == "e2e" or .key == "pg-concurrency")
+                    and $full == "false")
+              )
+          ' > /dev/null

@@ -5,6 +5,9 @@
 
 import { z } from "zod";
 
+import { parseBlindIndexKey } from "./server/crypto/blind-index";
+import { parseKeyRing } from "./server/crypto/field-cipher";
+import { parseDsn } from "./lib/observability/config";
 import { previewDatabase } from "./server/db/database-url";
 
 /** A postgres:// URL; `whenUnset` is the error shown when it is missing. */
@@ -78,6 +81,28 @@ function secret() {
     .optional();
 }
 
+/**
+ * A field-encryption key variable, checked with its own parser. The parser's
+ * message names the problem, never the key.
+ */
+function fieldKey(parse: (value: string) => unknown) {
+  return z
+    .string()
+    .superRefine((value, ctx) => {
+      try {
+        parse(value);
+      } catch (error) {
+        ctx.issues.push({
+          code: "custom",
+          // Never the key itself: errors are logged.
+          input: undefined,
+          message: error instanceof Error ? error.message : "is malformed",
+        });
+      }
+    })
+    .optional();
+}
+
 /** Secrets the app server reads. */
 const secretVariables = {
   /**
@@ -92,6 +117,43 @@ const secretVariables = {
    * route answers 404.
    */
   CAPTURE_MAILBOX_TOKEN: secret(),
+  /**
+   * The field cipher's key ring, "<version>:<base64 32 bytes>,..." (the
+   * highest version encrypts), and the blind index key (base64 32 bytes).
+   * Required on staging and production; a local run or a preview without
+   * them uses public development keys (src/server/crypto/keys.ts).
+   */
+  FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
+  FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+  /**
+   * MSG91, production's SMS provider: the account's auth key and the id of
+   * the DLT-approved sign-in code template. Optional: without them
+   * production refuses to send SMS (sign-in by phone stays switched off
+   * until DLT approval), and other environments never call MSG91.
+   */
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+};
+
+/**
+ * Error tracking (#66). Read by the server at runtime; the browser gets
+ * NEXT_PUBLIC_SENTRY_DSN baked in at build time.
+ */
+const errorTrackingVariables = {
+  /**
+   * The app's Sentry DSN, public by design. Unset turns error tracking
+   * off; production requires it. The message never repeats a bad value.
+   */
+  NEXT_PUBLIC_SENTRY_DSN: z
+    .string()
+    .refine((value) => parseDsn(value) !== undefined, {
+      error:
+        "is not a valid Sentry DSN. Copy it from the Sentry project's " +
+        "Client Keys page, or leave it empty to turn error tracking off.",
+    })
+    .optional(),
+  /** Set by Vercel: the commit the deployment was built from. */
+  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
 };
 
 type AppEnv = (typeof APP_ENVS)[number];
@@ -221,6 +283,67 @@ function requireAuthSecret(
   }
 }
 
+/** Production reports its errors, so it can't start without a DSN. */
+function requireSentryInProduction(
+  values: { APP_ENV?: AppEnv | undefined; NEXT_PUBLIC_SENTRY_DSN?: string },
+  ctx: z.RefinementCtx<{
+    APP_ENV?: AppEnv | undefined;
+    NEXT_PUBLIC_SENTRY_DSN?: string;
+  }>
+) {
+  if (values.APP_ENV === "production" && !values.NEXT_PUBLIC_SENTRY_DSN) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["NEXT_PUBLIC_SENTRY_DSN"],
+      input: values.NEXT_PUBLIC_SENTRY_DSN,
+      message:
+        "NEXT_PUBLIC_SENTRY_DSN is not set. APP_ENV=production reports " +
+        "its errors to Sentry: set the app project's DSN at build time " +
+        "and at runtime.",
+    });
+  }
+}
+
+/**
+ * Staging and production encrypt personal data under keys of their own;
+ * the development keys are public.
+ */
+function requireFieldKeys(
+  values: {
+    APP_ENV?: AppEnv | undefined;
+    FIELD_ENCRYPTION_KEYS?: string | undefined;
+    FIELD_HMAC_KEY?: string | undefined;
+  },
+  ctx: z.RefinementCtx<{
+    APP_ENV?: AppEnv | undefined;
+    FIELD_ENCRYPTION_KEYS?: string | undefined;
+    FIELD_HMAC_KEY?: string | undefined;
+  }>
+) {
+  if (values.APP_ENV !== "staging" && values.APP_ENV !== "production") return;
+  if (values.FIELD_ENCRYPTION_KEYS === undefined) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["FIELD_ENCRYPTION_KEYS"],
+      input: undefined,
+      message:
+        `FIELD_ENCRYPTION_KEYS is not set. APP_ENV=${values.APP_ENV} needs ` +
+        'its own key ring, e.g. "1:$(openssl rand -base64 32)". Keep an ' +
+        "offline copy: a lost key loses every value stored under it.",
+    });
+  }
+  if (values.FIELD_HMAC_KEY === undefined) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["FIELD_HMAC_KEY"],
+      input: undefined,
+      message:
+        `FIELD_HMAC_KEY is not set. APP_ENV=${values.APP_ENV} needs its own ` +
+        "blind index key (openssl rand -base64 32).",
+    });
+  }
+}
+
 /**
  * Run each check even when another variable is invalid, so the error lists
  * every problem at once.
@@ -278,11 +401,14 @@ export const envSchema = z
         "postgres://foa:foa@localhost:5432/foa (see .env.example)."
     ),
     ...secretVariables,
+    ...errorTrackingVariables,
   })
   .superRefine(requireAppEnvOnVercel, always)
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
   .superRefine(requireAuthSecret, always)
+  .superRefine(requireFieldKeys, always)
+  .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 
 export type Env = z.output<typeof envSchema>;
@@ -310,6 +436,22 @@ export const migrationEnvSchema = z
   .superRefine(requirePreviewDatabase, always);
 
 export type MigrationEnv = z.output<typeof migrationEnvSchema>;
+
+/**
+ * The keys the seed script encrypts seeded personal data with, read as the
+ * app reads them, so the app finds and reads what the seed stored. The seed
+ * runs only on previews and local runs, so they may be left out.
+ */
+export const fieldKeyEnvSchema = z
+  .object({
+    APP_ENV: appEnv,
+    FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
+    FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+  })
+  .transform(({ APP_ENV, ...keys }) => ({
+    ...keys,
+    APP_ENV: APP_ENV ?? "local",
+  }));
 
 /**
  * Parses an env-like object, usually process.env, against `schema`. Empty
