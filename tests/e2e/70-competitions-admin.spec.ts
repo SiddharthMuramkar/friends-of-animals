@@ -125,16 +125,21 @@ test("a competition manager sees what a draft needs, then creates, edits, previe
   // The edit form, with the draft saved.
   await expect(page).toHaveURL(/\/admin\/competitions\/[0-9a-f-]+\/edit\?/);
   await expect(page.getByRole("status")).toContainText("Draft saved.");
-  await expect(page.getByText("Draft", { exact: true })).toBeVisible();
+  // Next keeps up to 3 visited routes in the DOM, hidden (React Activity),
+  // and the list's chips match too: look only at the page on screen.
+  await expect(
+    page.getByText("Draft", { exact: true }).filter({ visible: true })
+  ).toBeVisible();
   await checkBothThemes(page, "/admin/competitions/[id]/edit");
 
-  // A wrong date is refused against its own field, keeping what was typed.
+  // A wrong code is refused against its own field, keeping what was typed.
   await page.getByRole("textbox", { name: "Theme" }).fill("Birds of the hills");
   await page
     .getByRole("textbox", { name: "Competition code" })
     .fill("NOT A CODE");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(
+  // In <main>: Next's route announcer is an alert too.
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "The competition code needs fixing."
   );
   await expect(page.getByRole("textbox", { name: "Theme" })).toHaveValue(
@@ -159,10 +164,12 @@ test("a competition manager sees what a draft needs, then creates, edits, previe
       .getByRole("group", { name: "Drawing" })
       .getByRole("checkbox", { name: "Juniors" })
   ).toBeChecked();
-  await page.getByLabel("Age cut-off date").fill("2027-06-01");
-  await page.getByLabel("Registration opens (IST)").fill("2027-04-01T09:00");
-  await page.getByLabel("Registration closes (IST)").fill("2027-05-01T17:30");
-  await page.getByLabel("Submissions close (IST)").fill("2027-05-15T17:30");
+  // By role, which skips the hidden new-draft form Next keeps in the DOM.
+  const field = (name: string) => page.getByRole("textbox", { name });
+  await field("Age cut-off date").fill("2027-06-01");
+  await field("Registration opens (IST)").fill("2027-04-01T09:00");
+  await field("Registration closes (IST)").fill("2027-05-01T17:30");
+  await field("Submissions close (IST)").fill("2027-05-15T17:30");
   await page
     .getByRole("textbox", { name: "Rules", exact: true })
     .fill("One drawing each, your own work.");
@@ -172,7 +179,7 @@ test("a competition manager sees what a draft needs, then creates, edits, previe
   await page.getByRole("textbox", { name: "Duration" }).fill("1 hour");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Changes saved.");
-  await expect(page.getByLabel("Registration opens (IST)")).toHaveValue(
+  await expect(field("Registration opens (IST)")).toHaveValue(
     "2027-04-01T09:00"
   );
 
@@ -186,7 +193,9 @@ test("a competition manager sees what a draft needs, then creates, edits, previe
   await checkBothThemes(page, "/admin/competitions/[id]/preview");
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByRole("status")).toContainText("Published.");
-  await expect(page.getByText("Published", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Published", { exact: true }).filter({ visible: true })
+  ).toBeVisible();
 
   // The list shows it published.
   await page
