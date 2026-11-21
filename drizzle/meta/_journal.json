@@ -57,6 +57,13 @@
       "when": 1795262528065,
       "tag": "0007_61_worker_heartbeat",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795263381137,
+      "tag": "0008_60_staff_two_factor",
+      "breakpoints": true
     }
   ]
 }
