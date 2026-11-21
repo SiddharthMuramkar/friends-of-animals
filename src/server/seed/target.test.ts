@@ -44,12 +44,12 @@ describe("seedTarget", () => {
     for (const APP_ENV of [undefined, "local"] as const) {
       const target = seedTarget({
         DIRECT_URL:
-          "postgres://foa_migrator:x@db.shipped-it.dev:6432/foa?sslmode=verify-full",
+          "postgres://foa_migrator:x@db.friendsofanimals.dev:6432/foa?sslmode=verify-full",
         APP_ENV,
       });
       expect(target).toEqual({
         seed: false,
-        reason: expect.stringMatching(/db\.shipped-it\.dev/),
+        reason: expect.stringMatching(/db\.friendsofanimals\.dev/),
       });
     }
   });
@@ -58,7 +58,7 @@ describe("seedTarget", () => {
     // postgres-js connects to ?host= over the URL's own host.
     for (const param of ["host", "hostaddr"]) {
       const target = seedTarget({
-        DIRECT_URL: `postgres://foa:foa@localhost:5432/foa?${param}=db.shipped-it.dev`,
+        DIRECT_URL: `postgres://foa:foa@localhost:5432/foa?${param}=db.friendsofanimals.dev`,
       });
       expect(target).toEqual({
         seed: false,
@@ -71,9 +71,9 @@ describe("seedTarget", () => {
     // The guard reads the URL as WHATWG does, which ends the host at "#";
     // postgres-js ignores "#" and takes the host after the last "@".
     for (const url of [
-      "postgres://foa:foa@localhost#@db.shipped-it.dev:6432/foa_staging",
+      "postgres://foa:foa@localhost#@db.friendsofanimals.dev:6432/foa_staging",
       "postgres://foa:foa@localhost:5432/foa#local",
-      "postgres://foa@localhost:x@db.shipped-it.dev:6432/foa",
+      "postgres://foa@localhost:x@db.friendsofanimals.dev:6432/foa",
     ]) {
       expect(seedTarget({ DIRECT_URL: url }), url).toEqual({
         seed: false,
