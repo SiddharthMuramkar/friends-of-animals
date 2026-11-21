@@ -7,7 +7,8 @@ type Rule = [pattern: RegExp, name: string];
 // Order matters: Edge, Samsung Internet and Opera also say "Chrome", and
 // Chrome also says "Safari".
 const BROWSERS: Rule[] = [
-  [/\bEdgi?A?\//, "Edge"],
+  // Edg/ (desktop), EdgA/ (Android), EdgiOS/ (iOS), Edge/ (old Edge).
+  [/\bEdg(e|A|iOS)?\//, "Edge"],
   [/\bSamsungBrowser\//, "Samsung Internet"],
   [/\bOPR\//, "Opera"],
   [/\b(Firefox|FxiOS)\//, "Firefox"],
