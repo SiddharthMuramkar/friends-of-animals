@@ -46,4 +46,18 @@ describe("decideGuardianRequest", () => {
       })
     ).toEqual({ ok: false, reason: "guardian_details_required" });
   });
+
+  it("sends nothing new when the same guardian was asked and the link still works", () => {
+    expect(
+      decideGuardianRequest({
+        guardianContact: mother,
+        ownContacts: [teenEmail],
+        pending: {
+          sameContact: true,
+          expiresAt: new Date("2026-11-25T10:00:00Z"),
+        },
+        now,
+      })
+    ).toEqual({ ok: true, action: "reuse" });
+  });
 });
