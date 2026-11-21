@@ -8,7 +8,7 @@
 //
 // Consent itself is an event log: each give and each withdrawal is one
 // row, and the current state for a subject and purpose is its latest
-// event (src/server/consent/domain/consent-state.ts).
+// event (src/server/modules/consent/domain/consent-state.ts).
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
@@ -27,12 +27,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { ConsentDocumentBody } from "../../consent/domain/document-body";
+import type { ConsentDocumentBody } from "../../modules/consent/domain/document-body";
 import {
   CONSENT_METHODS,
   CONSENT_PURPOSES,
   CONSENT_SUBJECT_TYPES,
-} from "../../consent/domain/purposes";
+} from "../../modules/consent/domain/purposes";
 import { cmsRevision } from "./cms";
 import { user } from "./identity";
 

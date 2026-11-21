@@ -16,9 +16,9 @@ import { z } from "zod";
 import type { Role } from "../../access/domain/roles";
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
-import { parseConsentDocumentBody } from "../../consent/domain/document-body";
-import { insertConsentDocumentVersion } from "../../consent/insert-version";
-import { consentDocumentTag } from "../../consent/tags";
+import { parseConsentDocumentBody } from "../consent/domain/document-body";
+import { insertConsentDocumentVersion } from "../consent/insert-version";
+import { consentDocumentTag } from "../consent/tags";
 import type { AppDb } from "../../db/app-db";
 import {
   CMS_DOCUMENT_KEYS,

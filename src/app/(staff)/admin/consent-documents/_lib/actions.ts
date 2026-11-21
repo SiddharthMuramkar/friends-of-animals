@@ -7,11 +7,11 @@ import { redirect } from "next/navigation";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import { consentDocumentTag } from "@/server/consent/cached";
+import { consentDocumentTag } from "@/server/modules/consent/cached";
 import {
   CONSENT_PURPOSES,
   type ConsentPurpose,
-} from "@/server/consent/domain/purposes";
+} from "@/server/modules/consent/domain/purposes";
 import { errorSummaryForLogs } from "@/server/errors";
 
 import {

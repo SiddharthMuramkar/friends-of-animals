@@ -3,7 +3,7 @@
 // mapping is tested without a page.
 
 import type { SaveDraftResult } from "@/server/modules/cms";
-import type { SourceError } from "@/server/consent";
+import type { SourceError } from "@/server/modules/consent";
 
 export type EditorState = {
   /** What was typed, put back after the form resets. */

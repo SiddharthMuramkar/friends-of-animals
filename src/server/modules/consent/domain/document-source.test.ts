@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { LEGAL_DOCS } from "@/content/legal";
 
-import type { ConsentDocumentBody } from "./document-body";
+import {
+  toConsentDocumentBody,
+  type ConsentDocumentBody,
+} from "./document-body";
 import {
   formatConsentDocumentSource,
   parseConsentDocumentSource,
@@ -259,7 +262,7 @@ describe("formatConsentDocumentSource", () => {
   it.each(Object.entries(LEGAL_DOCS))(
     "round-trips the %s policy unchanged",
     (_name, doc) => {
-      const body = { short: doc.short, sections: doc.sections };
+      const body = toConsentDocumentBody(doc);
 
       expect(
         parseConsentDocumentSource(formatConsentDocumentSource(body))

@@ -5,10 +5,10 @@
 //
 // Loads under plain Node: relative imports only.
 
-import { MESSAGES_CONSENT_DRAFT } from "../../content/legal/messages-consent";
-import type { AppDb } from "../db/app-db";
-import { consentDocument } from "../db/schema";
-import { uuidv7 } from "../ids";
+import { MESSAGES_CONSENT_DRAFT } from "../../../content/legal/messages-consent";
+import type { AppDb } from "../../db/app-db";
+import { consentDocument } from "../../db/schema";
+import { uuidv7 } from "../../ids";
 import type { ConsentDocumentBody } from "./domain/document-body";
 import type { ConsentPurpose } from "./domain/purposes";
 import { latestDocument, type DocumentRow } from "./repository";

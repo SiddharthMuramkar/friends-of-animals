@@ -12,7 +12,7 @@ import {
   isCmsDocumentKey,
   type CmsDocumentKey,
 } from "@/server/modules/cms/domain/documents";
-import { parseConsentDocumentSource } from "@/server/consent/domain/document-source";
+import { parseConsentDocumentSource } from "@/server/modules/consent/domain/document-source";
 import { DomainError, errorSummaryForLogs } from "@/server/errors";
 
 import {

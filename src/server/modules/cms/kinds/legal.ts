@@ -11,7 +11,7 @@ import { LEGAL_DOCS } from "../../../../content/legal";
 import {
   parseConsentDocumentBody,
   type ConsentDocumentBody,
-} from "../../../consent/domain/document-body";
+} from "../../consent/domain/document-body";
 import { sanitizeDocumentBody } from "../../../rich-text/blocks";
 import { legalDocOf } from "../domain/documents";
 import type { CmsKind } from "./kind";
