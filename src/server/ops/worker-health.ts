@@ -4,7 +4,10 @@
 // alerts as itself and not as "the app is down". docker/README.md,
 // "Monitoring and alerts", lists the checks.
 
+import { eq } from "drizzle-orm";
+
 import type { DbWithClock } from "../db/app-db";
+import { workerHeartbeat } from "../db/schema";
 
 /** One worker's last beat in this database. */
 export type HeartbeatBeat = { worker: string; lastSeenAt: Date };
@@ -42,10 +45,23 @@ export function workerFreshness(
   };
 }
 
-/** The health of `environment`'s worker in this database. */
+/**
+ * The health of `environment`'s worker in this database: the app passes
+ * its own APP_ENV, so staging reports worker-staging and never a stray
+ * row another environment's worker left behind.
+ */
 export async function readWorkerHealth(
-  _deps: DbWithClock,
-  _environment: string
+  { db, clock }: DbWithClock,
+  environment: string
 ): Promise<WorkerFreshness> {
-  return { status: "missing" };
+  const beats = await db
+    .select({
+      worker: workerHeartbeat.worker,
+      lastSeenAt: workerHeartbeat.lastSeenAt,
+    })
+    .from(workerHeartbeat)
+    .where(eq(workerHeartbeat.environment, environment));
+  return workerFreshness(beats, clock.now(), {
+    maxAgeSeconds: WORKER_MAX_AGE_SECONDS,
+  });
 }
