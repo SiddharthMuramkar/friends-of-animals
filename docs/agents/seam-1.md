@@ -37,8 +37,10 @@ describe("someUseCase", () => {
 | `h.db`             | This test's database, for asserting on rows (audit rows count as behaviour)                                |
 | `h.deps`           | `{ db, clock, email }`: what `productionDeps()` wires for real in `src/server/deps.ts`                     |
 
-Each `createHarness()` builds a fresh database (a clone of a template migrated
-once per Vitest worker, about 0.4 s) and fresh fakes, so tests share nothing.
+Each `createHarness()` builds a fresh database (a copy of a template that
+`src/test/global-setup.ts` migrates once per `vitest run`, before any test, about
+0.3 s) and fresh fakes, so tests share nothing and no test pays for the
+migrations. In watch mode, restart Vitest after changing a migration.
 
 ## Rules
 
