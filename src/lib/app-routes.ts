@@ -8,6 +8,7 @@ export const APP_ROUTES = {
   accountSessions: "/account/sessions",
   accountConsents: "/account/consents",
   adminConsentDocuments: "/admin/consent-documents",
+  adminCms: "/admin/cms",
   accountSecurity: "/account/security",
   secondFactor: "/auth/second-factor",
   stepUp: "/auth/step-up",
@@ -28,4 +29,9 @@ export function isSignedInPath(pathname: string): boolean {
 /** Whether `pathname` is one of the pages in APP_ROUTES. */
 export function isSignedInPage(pathname: string): boolean {
   return (Object.values(APP_ROUTES) as string[]).includes(pathname);
+}
+
+/** The editor page of one CMS document (#111). */
+export function adminCmsDocumentPath(key: string): `/admin/cms/${string}` {
+  return `/admin/cms/${key}`;
 }
