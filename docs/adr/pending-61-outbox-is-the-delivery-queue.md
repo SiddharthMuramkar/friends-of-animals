@@ -29,10 +29,9 @@ could see them.
 ## Consequences
 
 - Later tickets code against `emit(tx, clock, event, { availableAt? })` for
-  work that follows a change, and `SCHEDULES` for recurring jobs, not a
-  `JobQueue` port. A follow-up that must wait (a reminder for one record) can
-  be an event with `availableAt`, which works on previews and under the fake
-  clock.
+  work that follows a change (with `availableAt` when it must wait), and
+  `SCHEDULES` for scheduled jobs (#55: status flips, reminders, retention,
+  nightly copies), not a `JobQueue` port.
 - FOA creates accounts itself, so the sign-up event shares the account's
   transaction: Better Auth's after-create hooks run only after its own write
   commits, and its sign-up path is switched off.
