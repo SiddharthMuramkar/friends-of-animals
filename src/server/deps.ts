@@ -13,11 +13,17 @@ import type { Env } from "@/env.schema";
 
 import { db } from "./db";
 import type { DbWithClock } from "./db/app-db";
+import { storagePrefixFor } from "./modules/files/domain/storage-key";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
+import {
+  unconfiguredScanner,
+  type MalwareScanner,
+} from "./ports/malware-scanner";
+import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -25,7 +31,21 @@ export interface Deps extends DbWithClock {
   cookies: CookieJar;
   /** Better Auth's secret and the site's base URL. */
   auth: { secret: string; baseUrl: string };
+  /** The private buckets uploaded files go to (#63). */
+  storage: ObjectStorage;
+  files: FilesConfig;
+  /** Scans each upload before anyone but its uploader may open it (#63). */
+  scanner: MalwareScanner;
 }
+
+/** Where the Files module keeps objects, and for which environment. */
+export type FilesConfig = {
+  bucket: string;
+  /** `storagePrefixFor(env)`: "" in production, else `staging/`, `pr-<n>/`… */
+  keyPrefix: string;
+  /** Some purposes (test uploads) are refused in production. */
+  appEnv: Env["APP_ENV"];
+};
 
 /**
  * A local run or a preview without BETTER_AUTH_SECRET signs with this. It is
@@ -64,6 +84,13 @@ export function productionDeps(): Deps {
         secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
         baseUrl: config.APP_URL,
       },
+      storage: unconfiguredStorage,
+      files: {
+        bucket: "unconfigured",
+        keyPrefix: storagePrefixFor(config),
+        appEnv: config.APP_ENV,
+      },
+      scanner: unconfiguredScanner,
     };
   }
   return production;

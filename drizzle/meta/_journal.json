@@ -26,8 +26,29 @@
     {
       "idx": 3,
       "version": "7",
-      "when": 1795244914302,
-      "tag": "0003_61_outbox",
+      "when": 1795243186266,
+      "tag": "0003_59_roles_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795243186835,
+      "tag": "0004_59_audit_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795244850956,
+      "tag": "0005_61_outbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795245501656,
+      "tag": "0006_63_file_asset",
       "breakpoints": true
     }
   ]

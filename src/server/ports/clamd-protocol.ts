@@ -5,6 +5,8 @@
 // answers `stream: OK`, `stream: <signature> FOUND` or `<message> ERROR`,
 // null-terminated. Pure functions only, so they are tested without a socket.
 
+import type { ScanVerdict } from "./malware-scanner";
+
 const encoder = new TextEncoder();
 
 export const INSTREAM_COMMAND = encoder.encode("zINSTREAM\0");
@@ -41,11 +43,6 @@ export function* splitIntoChunks(data: Uint8Array): Generator<Uint8Array> {
   }
 }
 
-export type ClamdVerdict =
-  | { verdict: "clean" }
-  | { verdict: "infected"; signature: string }
-  | { verdict: "error"; message: string };
-
 /** The reply without its terminator and an optional `<id>: ` session prefix. */
 function body(reply: string): string {
   return reply
@@ -58,7 +55,7 @@ function body(reply: string): string {
  * What clamd's reply to an INSTREAM means. Anything unexpected is an error,
  * so a garbled reply can never pass a file.
  */
-export function parseClamdReply(reply: string): ClamdVerdict {
+export function parseClamdReply(reply: string): ScanVerdict {
   const text = body(reply);
   if (text === "stream: OK") return { verdict: "clean" };
   const found = /^stream: (\S.*) FOUND$/.exec(text);

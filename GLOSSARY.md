@@ -35,6 +35,41 @@ A short-lived number emailed (or, later, texted) to a User to prove they hold
 that address; it is how people sign up and sign in, with no password.
 _Avoid_: OTP (in copy), password, token
 
+**Role**:
+What a User is to the platform, such as a judge, an institution coordinator or
+a super admin, which decides what they may do. A User may hold several.
+_Avoid_: Permission, group, user type
+
+**Scope**:
+Where a Role applies: everywhere (global), or one institution, competition or
+organisation.
+_Avoid_: Tenant, context
+
+**Grant**:
+One Role held by one User at one Scope. A super admin grants and revokes them.
+_Avoid_: Assignment, role membership
+
+**Staff**:
+The Users holding one of FOA's own Roles: the admins, managers and finance.
+Judges, coordinators and volunteers are not Staff.
+_Avoid_: Admins, employees, team
+
+**Policy**:
+The rules that decide whether an Actor may take an action, from the Actor's
+Grants and the Scopes and owner of what they act on.
+_Avoid_: Permissions, ACL
+
+**Dashboard**:
+The part of the platform one kind of Role works in, such as the admin or one
+institution's. A User with several Roles switches between their Dashboards.
+_Avoid_: Portal, home, active role
+
+**Audit log**:
+The record of every change to who may do what, and later to other records:
+who made it, with which Role, to what, before and after, from where and when.
+Nobody can edit or delete an entry.
+_Avoid_: Activity log, history, event log
+
 ## Messages
 
 **Capture mailbox**:

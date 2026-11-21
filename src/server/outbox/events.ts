@@ -7,11 +7,18 @@
 
 import { z } from "zod";
 
-export type DomainEvent = {
-  type: "identity.user_signed_up";
-  aggregate: { type: "user"; id: string };
-  payload: { userId: string };
-};
+export type DomainEvent =
+  | {
+      type: "identity.user_signed_up";
+      aggregate: { type: "user"; id: string };
+      payload: { userId: string };
+    }
+  | {
+      /** An upload matched its declaration and awaits its malware scan. */
+      type: "files.file_uploaded";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    };
 
 export type EventType = DomainEvent["type"];
 
@@ -25,11 +32,13 @@ export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
  */
 export const EVENT_PAYLOADS = {
   "identity.user_signed_up": z.object({ userId: z.uuid() }),
+  "files.file_uploaded": z.object({ fileId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /** The handlers each event is delivered to, one outbox row apiece. */
 export const SUBSCRIBERS = {
   "identity.user_signed_up": ["notifications.send_welcome_email"],
+  "files.file_uploaded": ["files.scan_file"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];
