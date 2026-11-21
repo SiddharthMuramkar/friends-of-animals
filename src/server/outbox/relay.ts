@@ -246,3 +246,23 @@ export async function drainUntilIdle(
   }
   throw new DrainNeverIdleError(maxPasses);
 }
+
+/** A delivery that failed for good, as staff see it. */
+export type FailedDelivery = Pick<
+  OutboxRow,
+  | "id"
+  | "eventId"
+  | "eventType"
+  | "aggregateType"
+  | "aggregateId"
+  | "handler"
+  | "attempts"
+  | "occurredAt"
+> & { lastError: string; failedAt: Date };
+
+export async function listFailedDeliveries(
+  _db: AppDb,
+  _options: { limit?: number } = {}
+): Promise<FailedDelivery[]> {
+  return [];
+}

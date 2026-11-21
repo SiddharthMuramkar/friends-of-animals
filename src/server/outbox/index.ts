@@ -8,7 +8,12 @@ export type { DomainEvent, EventType, HandlerName } from "./events";
 export {
   DEFAULT_DRAIN_LIMIT,
   drainOutbox,
+  DrainNeverIdleError,
   drainUntilIdle,
+  listFailedDeliveries,
+  type DrainOptions,
   type DrainReport,
+  type FailedDelivery,
   type OutboxDeps,
 } from "./relay";
+export { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry-policy";
