@@ -23,6 +23,8 @@ import { captureEmailSender } from "./ports/email-capture";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 import { r2Storage } from "./ports/storage-r2";
 import type { ErrorReporter } from "./ports/errors";
+import type { MalwareScanner } from "./ports/malware-scanner";
+import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
@@ -36,6 +38,8 @@ export interface Deps extends DbWithClock {
   files: FilesConfig;
   /** Errors a use case catches but can't handle (Sentry, scrubbed). */
   errors: ErrorReporter;
+  /** Scans each upload before anyone but its uploader may open it (#63). */
+  scanner: MalwareScanner;
 }
 
 /** Where the Files module keeps objects, and for which environment. */
@@ -128,6 +132,9 @@ export function productionDeps(): Deps {
       files: filesConfigFor(config),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
+      // Vercel never reaches clamd: the preview drain route's scans fail
+      // and wait for the VPS worker, which sets CLAMD_HOST.
+      scanner: malwareScannerFor(config),
     };
   }
   return production;

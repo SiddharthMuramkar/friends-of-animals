@@ -1,0 +1,45 @@
+{
+  "files": {
+    "meta": {
+      "title": "Upload a test file",
+      "description": "Try a private upload. Every file is checked for viruses before anyone can open it."
+    },
+    "eyebrow": "Your account",
+    "title": "Upload a test file",
+    "lead": "Try a private upload. We check every file for viruses before anyone can open it, and only you and FOA staff can open yours.",
+    "testOnly": "This page is for testing. It isn't on the live site.",
+    "loading": "Loading the upload form…",
+    "field": {
+      "label": "Choose a file",
+      "hint": "{types}, up to {maxMb} MB."
+    },
+    "types": {
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "webp": "WebP",
+      "pdf": "PDF"
+    },
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "status": {
+      "uploading": "Uploading your file…",
+      "checking": "Checking for viruses…",
+      "ready": "Ready",
+      "readyLead": "Your file passed the virus check.",
+      "slow": "The virus check is taking longer than usual. Your file is stored; try again later."
+    },
+    "downloadFile": "Download your file",
+    "errors": {
+      "noFile": "Choose a file first.",
+      "tooLarge": "That file is too big. Files can be up to {maxMb} MB.",
+      "empty": "That file is empty. Choose another one.",
+      "typeNotAllowed": "We can't take that kind of file. Choose a {types} file.",
+      "switchedOff": "Uploads are switched off here.",
+      "uploadFailed": "The upload didn't finish. Check your connection and try again.",
+      "uploadRejected": "The file we got didn't match the one you chose. Try again.",
+      "blocked": "This file can't be opened. It didn't pass our checks.",
+      "signedOut": "You're signed out. Sign in again to upload a file.",
+      "unknown": "Something went wrong. Try again."
+    }
+  }
+}

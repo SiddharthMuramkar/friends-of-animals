@@ -16,10 +16,18 @@ import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendWelcomeEmail } from "../notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
+import type { MalwareScanner } from "../ports/malware-scanner";
+import type { ObjectStorage } from "../ports/storage";
 import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
-export type OutboxDeps = { db: AppDb; clock: Clock; email: EmailSender };
+export type OutboxDeps = {
+  db: AppDb;
+  clock: Clock;
+  email: EmailSender;
+  storage: ObjectStorage;
+  scanner: MalwareScanner;
+};
 
 /** The event a handler listens to, from SUBSCRIBERS. */
 type EventFor<H extends HandlerName> = {
