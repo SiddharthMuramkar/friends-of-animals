@@ -3,8 +3,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { competitionParams } from "@/app/competitions/_lib/view";
 import { isStorySlug } from "@/content/stories";
 import { getSampleCompetitions } from "@/content/sample";
-import { isSignedInPath } from "@/lib/app-routes";
+import { isNonProductionPath, isSignedInPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 
 // Unlisted slugs render at request time, and the header's <Suspense> starts
@@ -19,6 +20,15 @@ const COMPETITION_SLUGS = new Set(
 const MISSING = "/__not-found";
 
 export function proxy(request: NextRequest) {
+  // Demo pages don't exist in production: a 404 for everyone, visitors
+  // included, before the sign-in check.
+  if (
+    appEnv() === "production" &&
+    isNonProductionPath(request.nextUrl.pathname)
+  ) {
+    return NextResponse.rewrite(new URL(MISSING, request.url));
+  }
+
   // Pages behind sign-in: a request without a session cookie goes straight
   // to sign in. With one, the page checks the session itself.
   if (isSignedInPath(request.nextUrl.pathname)) {

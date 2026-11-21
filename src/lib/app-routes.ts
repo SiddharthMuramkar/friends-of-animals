@@ -5,6 +5,8 @@
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  /** The file upload demo (#63): every environment but production. */
+  accountFiles: "/account/files",
 } as const;
 
 /**
@@ -15,6 +17,18 @@ export const SIGNED_IN_PREFIXES = ["/account"] as const;
 
 export function isSignedInPath(pathname: string): boolean {
   return SIGNED_IN_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+/**
+ * Pages that exist everywhere but production: src/proxy.ts answers 404
+ * for them there, before anything renders.
+ */
+export const NON_PRODUCTION_PREFIXES = [APP_ROUTES.accountFiles] as const;
+
+export function isNonProductionPath(pathname: string): boolean {
+  return NON_PRODUCTION_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }
