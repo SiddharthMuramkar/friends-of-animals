@@ -39,8 +39,10 @@ describe("redactText", () => {
 
   it("drops the query string and fragment of absolute URLs", () => {
     expect(
-      redactText("GET https://shipped-it.dev/sign-in?email=a%40b.c#top 500")
-    ).toBe("GET https://shipped-it.dev/sign-in 500");
+      redactText(
+        "GET https://friendsofanimals.dev/sign-in?email=a%40b.c#top 500"
+      )
+    ).toBe("GET https://friendsofanimals.dev/sign-in 500");
   });
 });
 
@@ -152,8 +154,8 @@ describe("redactText on a URL with a user and password in it", () => {
 
 describe("stripQuery", () => {
   it("keeps the path of absolute and relative URLs", () => {
-    expect(stripQuery("https://shipped-it.dev/a/b?x=1#y")).toBe(
-      "https://shipped-it.dev/a/b"
+    expect(stripQuery("https://friendsofanimals.dev/a/b?x=1#y")).toBe(
+      "https://friendsofanimals.dev/a/b"
     );
     expect(stripQuery("/api/x?phone=9876543210")).toBe("/api/x");
     expect(stripQuery("/plain")).toBe("/plain");
@@ -179,7 +181,7 @@ describe("scrubEvent", () => {
       },
       request: {
         method: "POST",
-        url: "https://shipped-it.dev/sign-in?email=asha%40example.test",
+        url: "https://friendsofanimals.dev/sign-in?email=asha%40example.test",
         query_string: "email=asha%40example.test",
         data: { email: "asha@example.test", name: "Asha Rao" },
         cookies: { "better-auth.session_token": "secret-cookie" },
@@ -248,7 +250,7 @@ describe("scrubEvent", () => {
       user: { id: "u_01938a0000007000" },
       request: {
         method: "POST",
-        url: "https://shipped-it.dev/sign-in",
+        url: "https://friendsofanimals.dev/sign-in",
         headers: {
           "Content-Type": "application/json",
           "x-vercel-id": "bom1::abc",

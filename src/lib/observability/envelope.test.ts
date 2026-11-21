@@ -50,7 +50,7 @@ describe("tunnelEnvelope", () => {
         {
           message: "No account for asha@example.test",
           environment: "production",
-          request: { url: "https://shipped-it.dev/x?phone=9876543210" },
+          request: { url: "https://friendsofanimals.dev/x?phone=9876543210" },
         }
       ),
       options
@@ -67,7 +67,7 @@ describe("tunnelEnvelope", () => {
     expect(JSON.parse(forwarded.items[0]!.payload)).toEqual({
       message: "No account for [email]",
       environment: "staging",
-      request: { url: "https://shipped-it.dev/x" },
+      request: { url: "https://friendsofanimals.dev/x" },
     });
   });
 
