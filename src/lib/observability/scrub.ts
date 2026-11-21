@@ -120,7 +120,8 @@ const PLATFORM_CONTEXTS: ReadonlySet<string> = new Set([
 /** A user id as `hashUserId` returns it, left alone on a second pass. */
 const HASHED_USER_ID = /^u_[0-9a-f]{16,64}$/;
 
-const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
+const EMAIL =
+  /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
 
 /**
  * An Indian mobile number: 10 digits starting 6-9, with an optional +91,
@@ -332,7 +333,8 @@ export function scrubEvent<E extends object>(
   if (exception !== undefined) {
     scrubbed.exception = scrubValues(exception, scrubException);
   }
-  if (threads !== undefined) scrubbed.threads = scrubValues(threads, scrubThread);
+  if (threads !== undefined)
+    scrubbed.threads = scrubValues(threads, scrubThread);
   if (Array.isArray(breadcrumbs)) {
     scrubbed.breadcrumbs = breadcrumbs.map((crumb) =>
       isRecord(crumb) ? scrubBreadcrumb(crumb) : crumb

@@ -44,11 +44,15 @@ describe("envelopeUrl", () => {
 describe("tunnelEnvelope", () => {
   it("forwards a scrubbed event, tagged with the server's environment", () => {
     const decision = tunnelEnvelope(
-      envelope(header, { type: "event" }, {
-        message: "No account for asha@example.test",
-        environment: "production",
-        request: { url: "https://shipped-it.dev/x?phone=9876543210" },
-      }),
+      envelope(
+        header,
+        { type: "event" },
+        {
+          message: "No account for asha@example.test",
+          environment: "production",
+          request: { url: "https://shipped-it.dev/x?phone=9876543210" },
+        }
+      ),
       options
     );
 
@@ -96,12 +100,19 @@ describe("tunnelEnvelope", () => {
       ).toEqual({ kind: "reject", status: 400, reason: "dsn" });
     }
     expect(
-      tunnelEnvelope(envelope({ event_id: "e1" }, { type: "event" }, {}), options)
+      tunnelEnvelope(
+        envelope({ event_id: "e1" }, { type: "event" }, {}),
+        options
+      )
     ).toEqual({ kind: "reject", status: 400, reason: "dsn" });
   });
 
   it("refuses an envelope larger than the limit before reading it", () => {
-    const body = envelope(header, { type: "event" }, { message: "x".repeat(50) });
+    const body = envelope(
+      header,
+      { type: "event" },
+      { message: "x".repeat(50) }
+    );
     expect(tunnelEnvelope(body, { ...options, maxBytes: 40 })).toEqual({
       kind: "reject",
       status: 413,
@@ -158,7 +169,10 @@ describe("tunnelEnvelope", () => {
 
   it("forwards nothing when no item may go through", () => {
     expect(
-      tunnelEnvelope(envelope(header, { type: "session" }, { did: "u" }), options)
+      tunnelEnvelope(
+        envelope(header, { type: "session" }, { did: "u" }),
+        options
+      )
     ).toEqual({ kind: "drop" });
   });
 
