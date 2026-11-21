@@ -183,9 +183,50 @@ describe("changeSetting", () => {
     expect(await rowCounts(h)).toEqual({ settings: 1, auditEntries: 1 });
   });
 
+  it("replaces a stored value that no longer fits, even with the default", async () => {
+    const h = await createHarness();
+    const admin = await h.signIn(await h.seed.superAdmin());
+    // Stored before the setting's schema changed: 99 hours no longer fits,
+    // so the default of 12 applies and the screen asks for a new value.
+    await h.db.insert(setting).values({
+      key: "auth.staffSessionHours",
+      value: 99,
+      updatedAt: h.clock.now(),
+    });
+
+    expect(
+      await h
+        .as(admin)
+        .changeSetting({ key: "auth.staffSessionHours", value: 12 })
+    ).toEqual({ ok: true, changed: true });
+
+    const listed = await h.as(admin).listSettings();
+    expect(
+      listed.find((each) => each.key === "auth.staffSessionHours")
+    ).toMatchObject({ value: 12, source: "stored", storedInvalid: false });
+    const audit = await h.as(admin).searchAuditLog({ entityType: "setting" });
+    expect(audit).toMatchObject({
+      ok: true,
+      entries: [
+        {
+          action: "setting.changed",
+          entity: { type: "setting", id: "auth.staffSessionHours" },
+          before: { value: 12, source: "default" },
+          after: { value: 12 },
+        },
+      ],
+    });
+    expect(audit.ok && audit.entries).toHaveLength(1);
+  });
+
   it.each([
     { value: 0, problem: { reason: "too_small", min: 1 } },
     { value: 25, problem: { reason: "too_big", max: 24 } },
+    // Past 2^53, zod's own safe-integer bound fails too; the setting's
+    // bound is still the one to report.
+    { value: 2 ** 53, problem: { reason: "too_big", max: 24 } },
+    { value: 1e20, problem: { reason: "too_big", max: 24 } },
+    { value: -1e20, problem: { reason: "too_small", min: 1 } },
     { value: 1.5, problem: { reason: "wrong_type" } },
     { value: "12", problem: { reason: "wrong_type" } },
     { value: null, problem: { reason: "wrong_type" } },
