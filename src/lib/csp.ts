@@ -199,11 +199,39 @@ export function reportingEndpoints(): SecurityHeader {
 /** One next.config.ts `headers()` rule. */
 export type HeaderRule = { source: string; headers: SecurityHeader[] };
 
+/** A path prefix of plain lower-case segments, safe inside a pattern. */
+const PREFIX_PATTERN = /^\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/;
+
+/**
+ * The CSP's next.config.ts `headers()` rules. Every path names the report
+ * endpoint. Every path outside `signedInPrefixes` gets the public policy;
+ * those trees get the nonce policy from src/proxy.ts instead, so no
+ * response carries two policies.
+ *
+ * Next matches these sources case-insensitively and the proxy's matcher
+ * case-sensitively, so a wrong-case path such as /Account gets neither
+ * policy. No page lives there: it is the static 404.
+ */
 export function cspHeaderRules(
-  _context: CspContext,
-  _signedInPrefixes: readonly `/${string}`[]
+  context: CspContext,
+  signedInPrefixes: readonly `/${string}`[]
 ): HeaderRule[] {
-  return [];
+  const trees = signedInPrefixes.map((prefix) => {
+    if (!PREFIX_PATTERN.test(prefix)) {
+      throw new RangeError(
+        `A signed-in prefix must be lower-case path segments, not ${JSON.stringify(prefix)}`
+      );
+    }
+    return prefix.slice(1);
+  });
+  const outside =
+    trees.length === 0
+      ? "/:path*"
+      : `/:path((?!(?:${trees.join("|")})(?:/|$)).*)`;
+  return [
+    { source: "/:path*", headers: [reportingEndpoints()] },
+    { source: outside, headers: [publicCsp(context)] },
+  ];
 }
 
 /** The policy for prerendered public pages: no nonce. */
