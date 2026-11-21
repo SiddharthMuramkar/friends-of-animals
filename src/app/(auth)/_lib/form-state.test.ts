@@ -113,6 +113,28 @@ describe("afterVerify", () => {
   });
 });
 
+describe("the messages consent box", () => {
+  const ticked = {
+    ...asha,
+    messagesConsent: "01938a00-0000-7000-8000-000000000c01",
+  };
+
+  it("stays ticked from the email step through the code step", () => {
+    const onCode = afterRequest({ ok: true }, ticked);
+    expect(onCode).toEqual({ step: "code", ...ticked, sent: true });
+    expect(afterVerify({ ok: false, error: "code_invalid" }, onCode)).toEqual({
+      step: "code",
+      ...ticked,
+      fieldErrors: { code: true },
+    });
+    expect(afterFailure("code", ticked)).toEqual({
+      step: "code",
+      ...ticked,
+      alert: "failed",
+    });
+  });
+});
+
 describe("START", () => {
   it("asks for the email first", () => {
     expect(START).toEqual({ step: "email", email: "", name: "" });

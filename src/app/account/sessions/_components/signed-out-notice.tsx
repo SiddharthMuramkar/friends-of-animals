@@ -9,6 +9,11 @@ import { FormAlert } from "@/components/form";
  * pressed has gone with its row, so focus would otherwise drop to the top
  * of the page with nothing announced. The page gives it a new `key` for
  * each sign-out, so it mounts (and takes focus) again.
+ *
+ * It says so once: having taken focus, it drops `?signedOut` from the
+ * address with the history API (which Next.js folds into its router
+ * without fetching the page again), so a reload or a return to this entry
+ * doesn't announce it a second time.
  */
 export function SignedOutNotice({
   label,
@@ -20,6 +25,7 @@ export function SignedOutNotice({
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ref.current?.focus();
+    window.history.replaceState(null, "", window.location.pathname);
   }, []);
   return (
     <div ref={ref} tabIndex={-1} className="outline-none">

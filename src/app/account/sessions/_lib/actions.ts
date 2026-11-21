@@ -10,8 +10,8 @@ import { as, currentActor } from "@/server/app";
  * Signs one session out; this browser's own sends it to sign in. Another
  * device's comes back to the list with `?signedOut=<token>`, so the page
  * says it worked and moves focus there. The token is new each time, so a
- * second sign-out is announced too. A session that was already gone ends
- * the same way: that device isn't signed in.
+ * second sign-out is announced too. A session that was already gone (not
+ * found) just comes back to the list: nothing was signed out.
  */
 export async function signOutSessionAction(formData: FormData): Promise<void> {
   const actor = await currentActor();
@@ -21,6 +21,7 @@ export async function signOutSessionAction(formData: FormData): Promise<void> {
     sessionId: typeof sessionId === "string" ? sessionId : "",
   });
   if (result.ok && result.signedOutHere) redirect(ROUTES.signIn.path);
+  if (!result.ok) redirect(APP_ROUTES.accountSessions, RedirectType.replace);
   const token = Date.now().toString(36);
   redirect(
     `${APP_ROUTES.accountSessions}?signedOut=${token}`,

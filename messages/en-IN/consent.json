@@ -1,0 +1,46 @@
+{
+  "consent": {
+    "meta": {
+      "title": "Messages from us",
+      "description": "Choose whether Friends of Animals emails you news and updates, and see what you agreed to and when."
+    },
+    "eyebrow": "Your account",
+    "title": "Messages from us",
+    "lead": "Choose whether we email you news and updates. Emails about your account, like sign-in codes and receipts, come either way.",
+    "loading": "Loading your choices…",
+    "statusTitle": "News and updates by email",
+    "status": {
+      "given": "You get news and updates",
+      "withdrawn": "You don't get news and updates",
+      "never": "You haven't chosen yet"
+    },
+    "givenSince": "You agreed to version {version} on {date}.",
+    "withdrawnSince": "You stopped them on {date}.",
+    "newerVersion": "We've changed the text since you agreed. Read version {version} below and agree to it to keep getting news and updates.",
+    "noDocument": "We don't send news and updates yet. When we do, you can choose here.",
+    "documentTitle": "What you agree to",
+    "readFull": "Read the full text (version {version})",
+    "give": "Yes, email me news and updates",
+    "giveNewVersion": "Agree to version {version}",
+    "withdraw": "Stop news and updates",
+    "saving": "Saving…",
+    "notice": {
+      "given": "Done. We'll email you news and updates.",
+      "withdrawn": "Done. We won't email you news and updates any more.",
+      "outdated": "We changed the text while you were reading. Read the new version below, then choose again."
+    },
+    "historyTitle": "Your history",
+    "historyEmpty": "Nothing yet.",
+    "history": {
+      "given": "Agreed to version {version}",
+      "withdrawn": "Stopped news and updates (version {version})"
+    },
+    "method": {
+      "web_form": "on this website",
+      "otp_link": "by a link we emailed",
+      "paper_form": "on a paper form",
+      "staff_recorded": "recorded by our staff"
+    },
+    "historyWhen": "{date}, {method}"
+  }
+}

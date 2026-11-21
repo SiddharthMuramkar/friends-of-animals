@@ -5,11 +5,11 @@ import { uuidv7 } from "@/server/ids";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { emit } from "./emit";
-import type { DomainEvent } from "./events";
+import type { EventOf } from "./events";
 import { userSignedUp } from "./testing";
 
 /** identity.user_signed_up for an account id made now. */
-function signedUp(h: Harness): DomainEvent {
+function signedUp(h: Harness): EventOf<"identity.user_signed_up"> {
   return userSignedUp(uuidv7(h.clock.now()));
 }
 
@@ -26,7 +26,7 @@ describe("emit", () => {
         eventType: "identity.user_signed_up",
         aggregateType: "user",
         aggregateId: event.aggregate.id,
-        handler: "notifications.send_welcome_email",
+        handler: "notifications.dispatch",
         payload: { userId: event.payload.userId },
         status: "pending",
         attempts: 0,

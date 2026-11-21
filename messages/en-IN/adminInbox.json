@@ -1,0 +1,132 @@
+{
+  "adminInbox": {
+    "meta": {
+      "title": "Contact inbox",
+      "description": "Messages sent through the contact form, for the team each topic goes to."
+    },
+    "eyebrow": "Staff",
+    "title": "Contact inbox",
+    "lead": "Each message from the contact form goes to the team its topic belongs to. Assign it, move it along and note what you did. Reply from your own email.",
+    "loading": "Loading messages…",
+    "denied": {
+      "title": "This page is for staff",
+      "body": "Only the teams that answer contact messages can open the inbox.",
+      "back": "Go to the home page"
+    },
+    "filters": {
+      "title": "Filter messages",
+      "status": "Status",
+      "team": "Team",
+      "topic": "Topic",
+      "assignee": "Assigned to",
+      "any": "Any",
+      "me": "Me",
+      "unassigned": "Nobody",
+      "apply": "Show messages",
+      "clear": "Clear filters",
+      "invalid": "These filters don't work together. Clear them and choose again."
+    },
+    "list": {
+      "title": "Messages",
+      "count": "{count, plural, =0 {No messages} one {# message} other {# messages}}",
+      "empty": "No messages match these filters.",
+      "from": "From {name}",
+      "received": "Received {date}",
+      "assignedTo": "Assigned to {name}",
+      "unassigned": "Not assigned"
+    },
+    "status": {
+      "new": "New",
+      "in_progress": "In progress",
+      "closed": "Closed"
+    },
+    "closeReasons": {
+      "resolved": "Resolved",
+      "no_action_needed": "No action needed",
+      "spam": "Spam",
+      "duplicate": "Duplicate"
+    },
+    "teams": {
+      "staff_admin": "Staff admins",
+      "competition_manager": "Competition managers",
+      "community_manager": "Community managers",
+      "adoption_coordinator": "Adoption coordinators",
+      "finance": "Finance team",
+      "content_manager": "Content managers"
+    },
+    "detail": {
+      "meta": {
+        "title": "Contact message",
+        "description": "One message from the contact form: who sent it, what it says and what staff did."
+      },
+      "back": "All messages",
+      "notFound": "There is no message here, or it belongs to another team.",
+      "forbidden": "Only the teams that answer contact messages can change them.",
+      "sender": "Sender",
+      "name": "Name",
+      "email": "Email",
+      "organisation": "School or organisation",
+      "notGiven": "Not given",
+      "details": "Details",
+      "reference": "Reference",
+      "topic": "Topic",
+      "team": "Team",
+      "received": "Received",
+      "statusLabel": "Status",
+      "closedOn": "Closed {date}: {reason}",
+      "assignee": "Assigned to",
+      "nobody": "Nobody",
+      "message": "Message",
+      "reply": "Reply from your own email to {email}. Mention the reference in the subject.",
+      "statusForm": {
+        "title": "Status",
+        "start": "Mark in progress",
+        "reopen": "Reopen",
+        "reason": "Why you're closing it",
+        "chooseReason": "Choose a reason",
+        "close": "Close message",
+        "saving": "Saving…",
+        "saved": "The status is saved.",
+        "unchanged": "The status is already that.",
+        "refused": {
+          "not_found": "This message is gone, or no longer yours to handle.",
+          "invalid_input": "Choose a status and try again.",
+          "transition_not_allowed": "A message can't go back to new. Choose another status.",
+          "close_reason_required": "Choose why you're closing it.",
+          "close_reason_not_allowed": "Only a closed message has a reason. Try again."
+        }
+      },
+      "assignForm": {
+        "title": "Assignee",
+        "label": "Assign to",
+        "save": "Assign",
+        "saving": "Assigning…",
+        "saved": "The assignee is saved.",
+        "unchanged": "It's already assigned to them.",
+        "closed": "Reopen the message to assign it.",
+        "refused": {
+          "not_found": "This message is gone, or no longer yours to handle.",
+          "invalid_input": "Choose who to assign it to and try again.",
+          "message_closed": "Reopen the message to assign it.",
+          "assignee_not_allowed": "They can't handle this team's messages. Choose someone else."
+        }
+      },
+      "notes": {
+        "title": "Notes",
+        "empty": "No notes yet.",
+        "by": "{name}, {date}",
+        "formerStaff": "A former member of staff",
+        "label": "Add a note",
+        "hint": "Only staff see notes. A note can't be changed once it's added.",
+        "save": "Add note",
+        "saving": "Adding…",
+        "saved": "The note is added.",
+        "unchanged": "The note is added.",
+        "refused": {
+          "not_found": "This message is gone, or no longer yours to handle.",
+          "invalid_input": "Write a note of up to 5,000 characters."
+        }
+      }
+    }
+  }
+}
