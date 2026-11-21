@@ -12,7 +12,7 @@
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
 import type { AppDb } from "../db/app-db";
-import { sendWelcomeEmail } from "../notifications/welcome-email";
+import { sendWelcomeEmail } from "../modules/notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
