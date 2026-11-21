@@ -26,11 +26,14 @@
 
 name: foa-vps
 
+# Container logs go to the host's journal, kept a year by
+# systemd/journald-foa.conf (#66; README "Logs"). `docker logs`, and so
+# CrowdSec's `source: docker`, still read them. docker/workers.yml carries
+# the same anchor; docker/logging.test.ts keeps the two identical.
 x-logging: &logging
-  driver: json-file
+  driver: journald
   options:
-    max-size: "50m"
-    max-file: "5"
+    tag: "{{.Name}}"
 
 x-postgres: &postgres
   # Built once, by pg-prod; pg-nonprod reuses the tag (pull_policy: never).

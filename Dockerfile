@@ -4,10 +4,12 @@
 #   docker compose up -d --build --wait      # db + migrate + app, see docker-compose.yml
 #   docker build --build-arg APP_URL=https://friendsofanimals.dev -t foa-app .   # runner (default target)
 #   docker build --target migrate -t foa-migrate .
+#   docker compose -f docker/workers.yml up -d --build   # worker, see docker/README.md
 #
 # Targets:
 #   runner   Next.js standalone server on :3000, as a non-root user.
 #   migrate  Applies pending Drizzle migrations (`pnpm db:migrate`), then exits.
+#   worker   The VPS background worker (src/worker/main.ts), as a non-root user.
 
 ARG NODE_IMAGE=node:26-trixie-slim
 
@@ -54,6 +56,26 @@ COPY src/env.schema.ts ./src/env.schema.ts
 COPY src/server/db/database-url.ts ./src/server/db/database-url.ts
 USER node
 CMD ["pnpm", "db:migrate"]
+
+# ---- worker: the VPS background worker (#61) ----------------------------------
+# Runs src/worker/main.ts through tsx, like the migrate target's script: the
+# worker imports only plain-Node modules (the outbox, ports, schema), never
+# Next.js. docker/workers.yml runs it as worker-prod, worker-staging and
+# worker-preview.
+FROM base AS worker
+ENV NODE_ENV=production
+# The commit, recorded in each database's worker_heartbeat row.
+ARG WORKER_VERSION=unknown
+ENV WORKER_VERSION=${WORKER_VERSION}
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
+# database-url.ts reads the migrations journal; the welcome email its words.
+COPY drizzle ./drizzle
+COPY messages ./messages
+COPY scripts/load-env.ts ./scripts/load-env.ts
+COPY src ./src
+USER node
+CMD ["node", "--import", "tsx", "src/worker/main.ts"]
 
 # ---- runner: the standalone server --------------------------------------------
 FROM ${NODE_IMAGE} AS runner
