@@ -1,8 +1,9 @@
 /**
  * The SPEC §13.1 response headers other than the CSP, sent on every route
  * (HTML and static assets) by `headers()` in next.config.ts. That applies on
- * Vercel and in the standalone server alike. The CSP is tracked in #15; until
- * it adds `frame-ancestors 'none'`, X-Frame-Options blocks framing.
+ * Vercel and in the standalone server alike. The CSP is built in ./csp.ts.
+ * X-Frame-Options stays: browsers ignore the CSP's `frame-ancestors 'none'`
+ * while the policy is report-only on staging and production (HR-19).
  *
  * Keep this file free of Next.js and server-only imports: next.config.ts
  * loads it under plain Node.
