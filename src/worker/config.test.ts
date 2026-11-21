@@ -175,6 +175,36 @@ describe("workerConfig", () => {
   });
 });
 
+describe("the worker's error tracking setting", () => {
+  const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
+  const staging = {
+    APP_ENV: "staging",
+    WORKER_DATABASE_URL: PROD_URL,
+  };
+
+  it("is off without SENTRY_DSN", () => {
+    expect(workerConfig(staging).sentryDsn).toBeUndefined();
+  });
+
+  it("sends to SENTRY_DSN", () => {
+    expect(workerConfig({ ...staging, SENTRY_DSN: DSN }).sentryDsn).toBe(DSN);
+  });
+
+  it("refuses a malformed SENTRY_DSN without repeating it", () => {
+    const bad = "https://sentry.example.test/not-a-project";
+    let message = "";
+    try {
+      workerConfig({ ...staging, SENTRY_DSN: bad });
+    } catch (error) {
+      message = String(error);
+    }
+
+    expect(message).toMatch(/^Error: Invalid environment/);
+    expect(message).toMatch(/SENTRY_DSN/);
+    expect(message).not.toContain(bad);
+  });
+});
+
 describe("withPassword", () => {
   it("puts the password from the secret file into the database URL", () => {
     const config = workerConfig({
