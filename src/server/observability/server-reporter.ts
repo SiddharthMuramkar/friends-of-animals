@@ -6,8 +6,20 @@
 
 import { silentErrorReporter, type ErrorReporter } from "@/server/ports/errors";
 
+const KEY = Symbol.for("foa.serverErrorReporter");
+
+type Holder = { [KEY]?: ErrorReporter };
+
+const started = (): ErrorReporter =>
+  (globalThis as Holder)[KEY] ?? silentErrorReporter;
+
 /** Makes `reporter` the one `serverErrorReporter` reports through. */
-export function useServerErrorReporter(_reporter: ErrorReporter): void {}
+export function useServerErrorReporter(reporter: ErrorReporter): void {
+  (globalThis as Holder)[KEY] = reporter;
+}
 
 /** Reports through the reporter the server started; silent until then. */
-export const serverErrorReporter: ErrorReporter = silentErrorReporter;
+export const serverErrorReporter: ErrorReporter = {
+  report: (error, context) => started().report(error, context),
+  flush: (timeoutMs) => started().flush(timeoutMs),
+};

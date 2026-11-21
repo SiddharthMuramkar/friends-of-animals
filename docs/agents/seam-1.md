@@ -37,8 +37,9 @@ describe("someUseCase", () => {
 | `h.signIn(user)`   | Signs `user` in through the real email-code flow (fresh IP) and returns the signed-in actor                |
 | `h.currentActor()` | Who the server sees on the browser's next request, from `h.cookies`, resolved as in production             |
 | `h.cookies`        | The browser's cookie store; `header()` saves a browser to pass to `currentActor(meta, cookie)` later       |
+| `h.errors`         | `FakeErrorReporter`: `reported`, each as Sentry would get it (scrubbed) plus the `error`                   |
 | `h.db`             | This test's database, for asserting on rows (audit rows count as behaviour)                                |
-| `h.deps`           | `{ db, clock, email }`: what `productionDeps()` wires for real in `src/server/deps.ts`                     |
+| `h.deps`           | `{ db, clock, email, cookies, errors, auth }`: what `productionDeps()` wires in `src/server/deps.ts`       |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
 `h.clock`, because Better Auth reads `new Date()` for code and session expiry.

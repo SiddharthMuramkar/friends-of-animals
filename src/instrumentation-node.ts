@@ -3,6 +3,7 @@ import {
   requestErrorHandler,
   startErrorTracking,
 } from "./server/observability/request-error";
+import { useServerErrorReporter } from "./server/observability/server-reporter";
 import type { ErrorReporter } from "./server/ports/errors";
 
 /**
@@ -34,6 +35,10 @@ export function errorReporter(): Promise<ErrorReporter> {
       appEnv: config.APP_ENV,
       release: config.VERCEL_GIT_COMMIT_SHA,
       loadSdk: () => import("@sentry/nextjs"),
+    }).then((started) => {
+      // `deps.errors` in route handlers and server actions reports here.
+      useServerErrorReporter(started);
+      return started;
     });
   }
   return reporter;
