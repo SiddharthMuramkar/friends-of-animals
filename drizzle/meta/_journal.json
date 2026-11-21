@@ -64,6 +64,13 @@
       "when": 1795247159145,
       "tag": "0008_70_competitions",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795247178178,
+      "tag": "0009_72_competition_terms",
+      "breakpoints": true
     }
   ]
 }
