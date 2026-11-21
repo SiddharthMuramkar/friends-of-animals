@@ -197,6 +197,8 @@ describe("envSchema", () => {
         APP_ENV: "staging",
         APP_URL: SITE,
         BETTER_AUTH_SECRET: SECRET,
+        FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+        FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
       }).APP_ENV
     ).toBe("staging");
   });
@@ -236,6 +238,66 @@ describe("envSchema", () => {
   });
 });
 
+describe("envSchema: field encryption keys", () => {
+  const KEYS = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+  const HMAC = "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=";
+  const deployed = {
+    DATABASE_URL,
+    APP_URL: SITE,
+    BETTER_AUTH_SECRET: SECRET,
+    // Production also needs error tracking (#66).
+    NEXT_PUBLIC_SENTRY_DSN: "https://abc123@o1.ingest.us.sentry.io/4507",
+  };
+
+  it.each(["staging", "production"] as const)(
+    "requires FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY on %s",
+    (APP_ENV) => {
+      expect(() => parseEnv(envSchema, { ...deployed, APP_ENV })).toThrow(
+        /FIELD_ENCRYPTION_KEYS is not set[\s\S]*FIELD_HMAC_KEY is not set/
+      );
+      const config = parseEnv(envSchema, {
+        ...deployed,
+        APP_ENV,
+        FIELD_ENCRYPTION_KEYS: KEYS,
+        FIELD_HMAC_KEY: HMAC,
+      });
+      expect(config).toMatchObject({
+        FIELD_ENCRYPTION_KEYS: KEYS,
+        FIELD_HMAC_KEY: HMAC,
+      });
+    }
+  );
+
+  it("lets a local run or a preview go without them", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config.FIELD_ENCRYPTION_KEYS).toBeUndefined();
+    expect(config.FIELD_HMAC_KEY).toBeUndefined();
+  });
+
+  it("refuses keys that aren't 32 bytes of base64", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        FIELD_ENCRYPTION_KEYS: "1:short",
+        FIELD_HMAC_KEY: "short",
+      })
+    ).toThrow(
+      /openssl rand -base64 32[\s\S]*at FIELD_ENCRYPTION_KEYS[\s\S]*at FIELD_HMAC_KEY/
+    );
+  });
+
+  it("never echoes a key in its error", () => {
+    const leaked = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, FIELD_ENCRYPTION_KEYS: leaked })
+    ).toThrow(
+      expect.objectContaining({
+        message: expect.not.stringContaining("MDEyMzQ1"),
+      })
+    );
+  });
+});
+
 describe("envSchema: error tracking", () => {
   const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
   const staging = {
@@ -243,6 +305,9 @@ describe("envSchema: error tracking", () => {
     APP_ENV: "staging",
     APP_URL: SITE,
     BETTER_AUTH_SECRET: SECRET,
+    // Staging and production also need field keys (#58).
+    FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+    FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
   };
   const production = { ...staging, APP_ENV: "production" };
 
@@ -423,6 +488,9 @@ describe("envSchema storage", () => {
       APP_URL: SITE,
       BETTER_AUTH_SECRET: SECRET,
       NEXT_PUBLIC_SENTRY_DSN: DSN,
+      // Production also needs field keys (#58).
+      FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+      FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
     });
     expect(production.R2_BUCKET).toBeUndefined();
   });
