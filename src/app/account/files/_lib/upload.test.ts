@@ -4,6 +4,7 @@ import {
   POLL_INTERVAL_MS,
   POLL_LIMIT_MS,
   downloadPathFor,
+  messageKeyFor,
   nextPollDelay,
   phaseForStatus,
   putHeaders,
@@ -74,5 +75,20 @@ describe("typeNameKeys", () => {
     expect(
       typeNameKeys(["image/png", "image/jpeg", "image/webp", "application/pdf"])
     ).toEqual(["png", "jpeg", "webp", "pdf"]);
+  });
+});
+
+describe("messageKeyFor", () => {
+  it.each([
+    ["signed_out", "signedOut"],
+    ["too_large", "tooLarge"],
+    ["empty", "empty"],
+    ["type_not_allowed", "typeNotAllowed"],
+    ["purpose_unavailable", "switchedOff"],
+    ["upload_missing", "uploadFailed"],
+    ["upload_rejected", "uploadRejected"],
+    ["unknown", "unknown"],
+  ] as const)("words %s with files.errors.%s", (error, key) => {
+    expect(messageKeyFor(error)).toBe(key);
   });
 });
