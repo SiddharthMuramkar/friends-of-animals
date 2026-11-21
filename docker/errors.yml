@@ -1,0 +1,96 @@
+# foa-errors: GlitchTip 7.0.0, the error tracker for friendsofanimals.dev (LAUNCH §15.7, DECISIONS R-11, R-I01).
+# - Own small Postgres (foa-glitchtip-pg), NOT pg-prod: pg-prod's pg_hba/prod.conf are repo files and GlitchTip
+#   needs max_locks_per_transaction=512 (R-I01).
+# - No Valkey: VALKEY_URL="" makes Postgres the task queue, cache and session store.
+# - No published ports. foa-caddy (host network) proxies https://errors.friendsofanimals.dev -> 10.112.13.10:8000.
+# - Secrets: /etc/foa/secrets/glitchtip.env (SECRET_KEY, DATABASE_URL; 0600) and glitchtip_pg_password (0400 uid 70).
+# Up:   docker compose -f /root/foa-work/launch/infra/errors/compose.yml up -d --wait
+# Later unit x-edge adopts this as docker/errors.yml with the same project, container names and data paths.
+name: foa-errors
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+services:
+  glitchtip-pg:
+    image: postgres:18.7-alpine
+    container_name: foa-glitchtip-pg
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - max_locks_per_transaction=512
+      - -c
+      - max_connections=40
+      - -c
+      - shared_buffers=128MB
+    environment:
+      POSTGRES_USER: glitchtip
+      POSTGRES_DB: glitchtip
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - /var/lib/foa/glitchtip/pg:/var/lib/postgresql
+      - /etc/foa/secrets/glitchtip_pg_password:/run/secrets/pg_password:ro
+    networks:
+      errors: { ipv4_address: 10.112.13.11 }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip -h 127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    shm_size: 128m
+    mem_limit: 512m
+    memswap_limit: 512m
+    oom_score_adj: 500
+    logging: *logging
+
+  glitchtip:
+    image: glitchtip/glitchtip:7.0.0
+    container_name: foa-glitchtip
+    restart: unless-stopped
+    depends_on:
+      glitchtip-pg: { condition: service_healthy }
+    env_file: /etc/foa/secrets/glitchtip.env
+    environment:
+      VALKEY_URL: ""
+      GLITCHTIP_DOMAIN: https://errors.friendsofanimals.dev
+      ALLOWED_HOSTS: errors.friendsofanimals.dev,10.112.13.10,localhost,127.0.0.1
+      CSRF_TRUSTED_ORIGINS: https://errors.friendsofanimals.dev
+      DEFAULT_FROM_EMAIL: errors@friendsofanimals.dev
+      EMAIL_URL: consolemail://
+      ENABLE_USER_REGISTRATION: "False"
+      ENABLE_ORGANIZATION_CREATION: "False"
+      ENABLE_ADMIN: "False"
+      ENABLE_OPENAPI: "False"
+      GLITCHTIP_ENABLE_MCP: "False"
+      GLITCHTIP_ENABLE_UPTIME: "False"
+      GLITCHTIP_ENABLE_LOGS: "False"
+      SESSION_COOKIE_SECURE: "True"
+      PORT: "8000"
+    volumes:
+      - /var/lib/foa/glitchtip/uploads:/code/uploads
+    networks:
+      errors: { ipv4_address: 10.112.13.10 }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/_health/', timeout=4).status == 200 else 1)"]
+      interval: 15s
+      timeout: 6s
+      retries: 20
+      start_period: 120s
+    mem_limit: 1g
+    memswap_limit: 1g
+    oom_score_adj: 500
+    logging: *logging
+
+networks:
+  errors:
+    name: foa-errors
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-foa-errors
+    ipam:
+      config:
+        - subnet: 10.112.13.0/24

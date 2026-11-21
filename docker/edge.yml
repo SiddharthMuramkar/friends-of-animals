@@ -1,0 +1,32 @@
+# foa-edge: Caddy 2.11.9 TLS edge on the VPS (LAUNCH §15.6, DECISIONS R-11/R-12).
+# network_mode host: binds :80/:443 directly; firewalld (services http, https) governs them, DOCKER-USER doesn't apply.
+# Certificates and ACME state live in /var/lib/foa/caddy. /var/lib/foa/acme-webroot is lego's webroot for the
+# PgBouncer SAN cert renewals (cert-renew-san.sh switches to webroot mode while Caddy owns :80).
+# Up:   docker compose -f /root/foa-work/launch/infra/edge/compose.yml up -d --wait
+# Reload Caddyfile: docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile
+# Later unit x-edge adopts this as docker/edge.yml with the same project, container name and data paths.
+name: foa-edge
+
+services:
+  caddy:
+    image: caddy:2.11.9
+    container_name: foa-caddy
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /var/lib/foa/caddy/data:/data
+      - /var/lib/foa/caddy/config:/config
+      - /var/lib/foa/acme-webroot:/srv/acme:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: 256m
+    memswap_limit: 256m
+    oom_score_adj: 500
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }

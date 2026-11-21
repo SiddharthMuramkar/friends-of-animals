@@ -1,0 +1,35 @@
+# foa-edge Caddyfile (LAUNCH §15.6/§15.7, DECISIONS R-11/R-12). Host network: firewalld governs 80/443.
+# Let's Encrypt production CA (staging CA verified first, 2026-11-21).
+{
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
+	admin 127.0.0.1:2019
+	servers {
+		protocols h1 h2
+	}
+}
+
+# db.* only need port 80 for lego's webroot HTTP-01 renewals of the PgBouncer SAN cert (R-12).
+# Explicit http:// so Caddy never manages a certificate for these names.
+http://db.friendsofanimals.dev, http://db.shipped-it.dev {
+	handle /.well-known/acme-challenge/* {
+		root * /srv/acme
+		file_server
+	}
+	handle {
+		respond 404
+	}
+}
+
+errors.friendsofanimals.dev {
+	encode zstd gzip
+	request_body {
+		max_size 20MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy 10.112.13.10:8000
+}
+
+# stats.friendsofanimals.dev -> Umami (10.112.12.30:3000) is added at B5, after units 118 and x-edge land.
