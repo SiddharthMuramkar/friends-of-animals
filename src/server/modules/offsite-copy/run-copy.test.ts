@@ -256,6 +256,7 @@ describe("runOffsiteCopy: the retention window", () => {
   it("marks an object gone from R2 and keeps its copy", async () => {
     const { h, upload, remove, copyOf, manifest, run } = await world();
     const bytes = await upload("avatar/a", "keep me");
+    await upload("avatar/b", "still here");
     await run();
     h.clock.advance({ hours: 20 });
     await remove("avatar/a");
@@ -298,6 +299,7 @@ describe("runOffsiteCopy: the retention window", () => {
   it("unmarks an object back in R2 unchanged, without copying it again", async () => {
     const { h, b2, upload, remove, copyOf, manifest, run } = await world();
     await upload("avatar/a", "same bytes");
+    await upload("avatar/b", "still here");
     await run();
     await remove("avatar/a");
     await run();
@@ -310,13 +312,14 @@ describe("runOffsiteCopy: the retention window", () => {
     expect((await manifest())["avatar/a"]?.deletedInSourceAt).toBeNull();
 
     h.clock.advance(RETENTION_MS);
-    expect(await run()).toMatchObject({ purged: 0, unchanged: 1 });
+    expect(await run()).toMatchObject({ purged: 0, unchanged: 2 });
     expect(await copyOf("avatar/a")).not.toBeNull();
   });
 
   it("copies an object back in R2 changed, and unmarks it", async () => {
     const { h, upload, remove, copyOf, manifest, run } = await world();
     await upload("avatar/a", "old");
+    await upload("avatar/b", "still here");
     await run();
     await remove("avatar/a");
     await run();
