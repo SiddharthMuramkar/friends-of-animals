@@ -111,11 +111,9 @@ test("a member gives and withdraws consent in their settings", async ({
 
   await page.getByRole("button", { name: "Stop news and updates" }).click();
   await expect(
-    page
-      .getByRole("status")
-      .filter({
-        hasText: "Done. We won't email you news and updates any more.",
-      })
+    page.getByRole("status").filter({
+      hasText: "Done. We won't email you news and updates any more.",
+    })
   ).toBeVisible();
   await expect(page.getByText("You don't get news and updates")).toBeVisible();
   const history = page
