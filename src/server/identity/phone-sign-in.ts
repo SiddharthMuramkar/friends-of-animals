@@ -7,7 +7,9 @@
 // Both refuse while SMS is switched off (the `sms.enabled` setting, off
 // until FOA's DLT registration is approved). Codes per phone and per IP
 // are limited as for email, and an IP's email and phone codes count
-// together (./rate-limit.ts).
+// together. Texts to everyone together also have a ceiling per hour and
+// per day (the `sms.maxPerHour` and `sms.maxPerDay` settings), which caps
+// FOA's SMS bill (./rate-limit.ts).
 //
 // The number is read into E.164 (src/lib/phone.ts), so every usual way of
 // typing it reaches one account. It is stored encrypted, and found through
@@ -30,7 +32,7 @@ import { createAccount } from "./create-account";
 import { checkPhoneCode, issuePhoneCode } from "./phone-code";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
-import { EMAIL_CODE } from "./settings";
+import { SIGN_IN_CODE } from "./settings";
 import {
   codeInput as code,
   nameInput as name,
@@ -128,8 +130,12 @@ export async function requestPhoneCode(
   }
   const { phone: to } = parsed.data;
 
+  const [perHour, perDay] = await Promise.all([
+    ctx.settings.get("sms.maxPerHour"),
+    ctx.settings.get("sms.maxPerDay"),
+  ]);
   const allowance = await takeCodeAllowance(ctx.db, {
-    to: { channel: "phone", key: to },
+    to: { channel: "phone", key: to, smsCeiling: { perHour, perDay } },
     ip: meta.ip,
     now: ctx.clock.now(),
     secret: ctx.auth.secret,
@@ -146,7 +152,7 @@ export async function requestPhoneCode(
   // send rejects, so the visitor is told; the stored code was never seen,
   // and expires.
   const code = await issuePhoneCode(ctx, phoneHashOf(ctx, to));
-  await ctx.sms.send(codeSms(to, code, EMAIL_CODE.lifetimeMinutes));
+  await ctx.sms.send(codeSms(to, code, SIGN_IN_CODE.lifetimeMinutes));
   return { ok: true };
 }
 

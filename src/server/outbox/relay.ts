@@ -27,7 +27,12 @@ import {
 
 import type { AppDb } from "../db/app-db";
 import { outbox, type OutboxRow } from "../db/schema";
-import { EVENT_PAYLOADS, SUBSCRIBERS, type EventType } from "./events";
+import {
+  EVENT_PAYLOADS,
+  LEGACY_WELCOME_HANDLER,
+  SUBSCRIBERS,
+  type EventType,
+} from "./events";
 import { describeFailure } from "./failure";
 import {
   HANDLERS,
@@ -171,7 +176,10 @@ function payloadOf(row: OutboxRow) {
   )
     ? SUBSCRIBERS[row.eventType as EventType]
     : undefined;
-  if (!subscribers?.includes(row.handler)) {
+  const legacyWelcome =
+    row.eventType === "identity.user_signed_up" &&
+    row.handler === LEGACY_WELCOME_HANDLER;
+  if (!subscribers?.includes(row.handler) && !legacyWelcome) {
     throw new Error(
       `Handler ${row.handler} does not handle ${row.eventType} events`
     );
@@ -332,7 +340,9 @@ export async function listFailedDeliveries(
     })
     .from(outbox)
     .where(eq(outbox.status, "failed"))
-    .orderBy(desc(outbox.failedAt), desc(outbox.id))
+    // NULLS LAST, as outbox_failed_failed_at_idx is built, so Postgres reads
+    // the index in order instead of sorting every failed row.
+    .orderBy(sql`${outbox.failedAt} desc nulls last`, desc(outbox.id))
     .limit(limit);
   return rows.map(({ lastError, failedAt, ...row }) => {
     // outbox_failed_at_when_failed holds both on every failed row.

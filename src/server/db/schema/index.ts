@@ -15,3 +15,4 @@ export * from "./notifications";
 export * from "./second-factor";
 export * from "./contact";
 export * from "./public-forms";
+export * from "./worker";

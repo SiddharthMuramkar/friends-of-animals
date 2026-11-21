@@ -19,8 +19,8 @@ import type { DbWithClock } from "./db/app-db";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
-import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
-import { captureEmailSender } from "./ports/email-capture";
+import type { EmailSender } from "./ports/email";
+import { emailSenderFor } from "./ports/email-sender-for";
 import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
 import type { ErrorReporter } from "./ports/errors";
 import { serverErrorReporter } from "./observability/server-reporter";
@@ -60,20 +60,6 @@ export interface Deps extends DbWithClock {
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
-
-/**
- * Production sends real email (SES, once FOA's account exists; until then
- * it refuses). Every other environment captures, so no real email leaves
- * staging, previews or a local run, and codes stay readable.
- */
-export function emailSenderFor(
-  appEnv: Env["APP_ENV"],
-  deps: DbWithClock
-): EmailSender {
-  return appEnv === "production"
-    ? unconfiguredEmailSender
-    : captureEmailSender(deps);
-}
 
 /**
  * Production sends real SMS through MSG91 once its keys are set (after

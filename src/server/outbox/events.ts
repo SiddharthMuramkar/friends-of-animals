@@ -79,4 +79,9 @@ export const SUBSCRIBERS = {
   ],
 } as const satisfies { [T in EventType]: readonly string[] };
 
-export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];
+/** Welcome deliveries written before the notification dispatcher was added. */
+export const LEGACY_WELCOME_HANDLER = "notifications.send_welcome_email";
+
+export type HandlerName =
+  | (typeof SUBSCRIBERS)[EventType][number]
+  | typeof LEGACY_WELCOME_HANDLER;

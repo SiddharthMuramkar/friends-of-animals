@@ -203,7 +203,81 @@ describe("limits on phone codes", () => {
       "ip",
       "phone",
       "phone_day",
+      "sms_day",
+      "sms_hour",
     ]);
     expect(JSON.stringify(counters)).not.toContain("9876543210");
+  });
+});
+
+// Per-phone and per-IP limits alone let a pool of networks text thousands
+// of numbers on FOA's bill; a ceiling on all texts together stops that.
+describe("the ceiling on sign-in texts from everyone together", () => {
+  /** A visitor from the nth of a run of different IP addresses. */
+  const from = (h: Harness, n: number) =>
+    h.as(h.visitor({ ip: `198.51.100.${n}` }));
+
+  it("refuses a text over the hourly ceiling, whatever the phone or IP, until the hour ends", async () => {
+    const h = await harness({ sms: "on" });
+    h.settings.set("sms.maxPerHour", 3);
+    for (let n = 0; n < 3; n++) {
+      expect(await from(h, n).requestPhoneCode({ phone: nthPhone(n) })).toEqual(
+        { ok: true }
+      );
+    }
+
+    // 04:30 UTC: the hour ends in 30 minutes.
+    expect(await from(h, 3).requestPhoneCode({ phone: nthPhone(3) })).toEqual({
+      ok: false,
+      error: "rate_limited",
+      retryAfterSeconds: 30 * 60,
+    });
+    expect(h.sms.sent).toHaveLength(3);
+
+    h.clock.advance({ minutes: 30 });
+    expect(await from(h, 3).requestPhoneCode({ phone: nthPhone(3) })).toEqual({
+      ok: true,
+    });
+  });
+
+  it("refuses a text over the daily ceiling until midnight UTC", async () => {
+    const h = await harness({ sms: "on" });
+    h.settings.set("sms.maxPerDay", 4);
+    for (let n = 0; n < 4; n++) {
+      expect(await from(h, n).requestPhoneCode({ phone: nthPhone(n) })).toEqual(
+        { ok: true }
+      );
+      h.clock.advance({ hours: 1 });
+    }
+
+    // 08:30 UTC: the day ends in 15.5 hours.
+    expect(await from(h, 4).requestPhoneCode({ phone: nthPhone(4) })).toEqual({
+      ok: false,
+      error: "rate_limited",
+      retryAfterSeconds: 15.5 * 60 * 60,
+    });
+    expect(h.sms.sent).toHaveLength(4);
+  });
+
+  it("counts neither email codes nor texts another limit refused", async () => {
+    const h = await harness({ sms: "on" });
+    h.settings.set("sms.maxPerHour", 1);
+    const busy = h.as(h.visitor({ ip: "203.0.113.7" }));
+    for (let n = 0; n < 20; n++) {
+      expect(
+        await busy.requestEmailCode({ email: `person${n}@example.test` })
+      ).toEqual({ ok: true });
+    }
+    // The IP's 20 codes are used up, so its text is refused...
+    expect(await busy.requestPhoneCode({ phone: nthPhone(0) })).toMatchObject({
+      ok: false,
+      error: "rate_limited",
+    });
+
+    // ...and leaves the one text this hour to someone else.
+    expect(await from(h, 1).requestPhoneCode({ phone: nthPhone(1) })).toEqual({
+      ok: true,
+    });
+    expect(h.sms.sent).toHaveLength(1);
   });
 });

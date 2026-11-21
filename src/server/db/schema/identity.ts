@@ -156,6 +156,9 @@ export const OTP_RATE_LIMIT_SCOPES = [
   "email_day",
   "phone",
   "phone_day",
+  // Texts to everyone together, under one fixed key.
+  "sms_hour",
+  "sms_day",
 ] as const;
 
 export type OtpRateLimitScope = (typeof OTP_RATE_LIMIT_SCOPES)[number];

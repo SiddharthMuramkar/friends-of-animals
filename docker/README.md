@@ -24,8 +24,9 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
 - **pg-nonprod** holds `foa_staging`, the template `foa_seed` and one
   database per preview (`foa_pr_<n>_<fp>`, `foa_br_<slug>_<hash>_<fp>`). No
   archiving, no PITR.
-- **PgBouncer** is the only public endpoint: `db.shipped-it.dev:6432`, TLS
-  required (Let's Encrypt), SCRAM, transaction pooling.
+- **PgBouncer** is the only public endpoint: `db.friendsofanimals.dev:6432`
+  (`FOA_DB_DOMAIN`, see TLS certificate), TLS required (Let's Encrypt),
+  SCRAM, transaction pooling.
 - **One Postgres image**: only pg-prod has `build: ./postgres`; pg-nonprod
   runs the same tag with `pull_policy: never`. Two services building one tag
   export it twice in parallel, which the containerd image store (Docker 29's
@@ -58,6 +59,7 @@ backups, restore drill, preview sweep) and CrowdSec (`crowdsec/`).
 | `crowdsec/`                                                  | Both OSes: acquisition, local parser, whitelist, drop-ins   |
 | `crowdsec/crowdsec.repo`, `*-bouncer-nftables.yaml.local`    | Fedora: dnf repository, nftables bouncer settings           |
 | `crowdsec/crowdsec.sources`, `*-bouncer-iptables.yaml.local` | Ubuntu: apt source, iptables bouncer settings               |
+| `analytics.yml`                                              | Umami and its Cloudflare Tunnel (below)                     |
 
 ## Secrets
 
@@ -75,6 +77,10 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_nonprod_staging_migrator_password` | 999, 0400       | `staging_migrator`                    |
 | `/etc/foa/secrets/pg_nonprod_staging_app_password`      | 999, 0400       | `staging_app`                         |
 | `/etc/foa/secrets/pgbouncer_auth_password`              | 999, 0400       | `pgbouncer_auth` on both servers      |
+| `/etc/foa/secrets/pg_prod_foa_worker_password`          | 1000, 0400      | `foa_worker` (worker-prod)            |
+| `/etc/foa/secrets/pg_nonprod_staging_worker_password`   | 1000, 0400      | `staging_worker` (worker-staging)     |
+| `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
+| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for all three workers   |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
 | `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
@@ -82,12 +88,14 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/lego/`                                        | root, 0700      | ACME account key, certificate, key    |
 | `/etc/foa/pgbouncer-tls/`                               | root:6432, 0750 | Installed cert (0444) and key (0400)  |
 
-999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours.
+999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours;
+1000 is `node` in the worker image. The worker secrets come from
+`scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`.
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
-`vercel-urls.env` has exactly these keys (host `db.shipped-it.dev`, port 6432,
-`?sslmode=verify-full`):
+`vercel-urls.env` has exactly these keys (host `FOA_DB_DOMAIN`, default
+`db.friendsofanimals.dev`; port 6432; `?sslmode=verify-full`):
 
 | Key                    | Role               | Database               | PgBouncer pool |
 | ---------------------- | ------------------ | ---------------------- | -------------- |
@@ -224,13 +232,13 @@ cscli allowlists add foa-admin 189.72.156.29 2a02:4780:63:e413::1 \
     sed -E 's/:[0-9]+$//; s/^\[//; s/\]$//' | sort -u)
 systemctl start foa-pgbackrest-full.service  # first full backup
 scripts/restore-drill.sh
-scripts/smoke-test.sh                        # client checks through db.shipped-it.dev:6432
+scripts/smoke-test.sh                        # client checks through db.friendsofanimals.dev:6432
 ```
 
 Then copy the values from `/etc/foa/vercel-urls.env` into Vercel, as
-`DATABASE_URL` and `DIRECT_URL`: `PROD_*` into Production, `STAGING_*` into
-the `staging` custom environment (`shipped-it.dev`, deployed from `main`)
-and `PREVIEW_*` into Preview.
+`DATABASE_URL` and `DIRECT_URL`: `PROD_*` into Production. `STAGING_*` and
+`PREVIEW_*` stay unused while Vercel has no staging environment and no
+previews ([ADR 0001](../docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)).
 
 To rebuild production from backups instead of starting empty, run the
 `pgbackrest restore` (below) into the `foa-vps_pg-prod-data` volume _before_
@@ -302,6 +310,9 @@ Roles and databases (`postgres/bootstrap/`):
 | pg-nonprod | `staging_app`      | LOGIN; CONNECT on `foa_staging`; same DML-only defaults (`FOR ROLE staging_migrator`). pg_hba: `foa_staging` only                                                                                                                 |
 | pg-nonprod | `nonprod_migrator` | Previews. LOGIN CREATEDB; owns `foa_seed` and the previews it creates; CONNECT on `postgres`. No CONNECT on `foa_staging`, and pg_hba rejects it there                                                                            |
 | pg-nonprod | `nonprod_app`      | Previews. LOGIN; same DML-only defaults (`FOR ROLE nonprod_migrator`); kept out of `foa_staging` the same way                                                                                                                     |
+| pg-prod    | `foa_worker`       | worker-prod. LOGIN; member of `foa_app` (DML); owns schema `pgboss` in `foa`. `workers-prod.sql`                                                                                                                                  |
+| pg-nonprod | `staging_worker`   | worker-staging. LOGIN; member of `staging_app`; owns schema `pgboss` in `foa_staging`. pg_hba: `foa_staging` only. `workers-nonprod.sql`                                                                                          |
+| pg-nonprod | `nonprod_worker`   | worker-preview. LOGIN; member of `nonprod_app`; CONNECT on `postgres` (lists previews) and, through PUBLIC, on each preview. Never `foa_staging`. `workers-nonprod.sql`                                                           |
 | both       | `pgbouncer_auth`   | LOGIN NOINHERIT; CONNECT on `postgres`; EXECUTE `pgbouncer.get_auth`                                                                                                                                                              |
 | both       | `postgres`         | superuser: container socket, or TCP from 10.112.12.1 (SSH tunnel) only                                                                                                                                                            |
 
@@ -351,28 +362,99 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
 
 ## TLS certificate
 
-- Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`,
-  listening only on the public address, `189.72.156.29:80`, for the seconds a
-  challenge takes). Not DNS-01: that would need an account-wide Vercel token
-  on this box. No ACME account e-mail is registered (set `FOA_ACME_EMAIL` to
-  add one).
+- PgBouncer's host name is `FOA_DB_DOMAIN`, default `db.friendsofanimals.dev`
+  (an A record to 189.72.156.29). `cert-renew.sh`, `install-cert.sh`,
+  `bootstrap-secrets.sh` and `smoke-test.sh` read it through
+  `scripts/db-host.sh`, which stops them (exit 2) on a value that isn't a
+  lower-case host name. Given `--print-config`, each prints its settings
+  (`cert-renew.sh` also the lego command) and changes nothing.
+  `foa-cert-renew.service` reads optional settings from
+  `/etc/foa/db-host.env` (not secret), for example:
+
+  ```sh
+  # More names on the certificate, space-separated
+  FOA_DB_DOMAIN_ALIASES=db.old.example
+  # ACME account e-mail
+  FOA_ACME_EMAIL=ops@example.org
+  ```
+
+  systemd reads that file (`EnvironmentFile=`) and keeps everything after
+  the `=` as the value, a `#` included, so a comment goes on a line of its
+  own. `cert-renew.sh` refuses (exit 2) a name, e-mail or webroot with a
+  comment left in it rather than pass it to lego. A shell's
+  `. /etc/foa/db-host.env` drops such a comment, so check the file the way
+  the timer reads it:
+
+  ```sh
+  systemd-run --wait --pipe -q -p EnvironmentFile=/etc/foa/db-host.env \
+    /srv/foa/docker/scripts/cert-renew.sh --print-config
+  ```
+
+  Only that service reads the file. Run by hand, the scripts take
+  `FOA_DB_DOMAIN` from the environment, so if the file sets it, export the
+  same value first. (`smoke-test.sh` stops when a URL in `vercel-urls.env`
+  names another host.)
+
+- Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`).
+  Not DNS-01: that would need an account-wide Vercel token on this box. No
+  ACME account e-mail is registered (set `FOA_ACME_EMAIL` to add one).
+  - While nothing else holds port 80 on the public address, lego answers the
+    challenge itself, listening only on `189.72.156.29:80` for the seconds a
+    challenge takes (a service on `127.0.0.1:80` doesn't count).
+  - Once another server holds it (foa-caddy listens on every address), lego
+    writes the challenge into `FOA_ACME_WEBROOT` (default
+    `/var/lib/foa/acme-webroot`), and that server must serve the directory's
+    `/.well-known/acme-challenge/` on port 80 for every name on the
+    certificate. The webroot must be a directory under `/var/lib/foa`: the
+    run makes it root's with mode 0755, even one that already exists.
+    foa-caddy (compose project `foa-edge`, whose files aren't in this repo
+    yet) mounts the directory read-only at `/srv/acme` and has a site block
+    for each name:
+
+    ```caddyfile
+    http://db.friendsofanimals.dev {
+    	handle /.well-known/acme-challenge/* {
+    		root * /srv/acme
+    		file_server
+    	}
+    	handle {
+    		respond 404
+    	}
+    }
+    ```
+- `FOA_DB_DOMAIN_ALIASES` (space-separated) puts more names on the same
+  certificate, after the host: PgBouncer serves one certificate, so a host
+  name being retired keeps working until it is dropped from the list. The
+  certificate holds exactly the host and these names (lego
+  `--force-cert-domains`; a name listed twice counts once). The first run
+  after the list changes re-issues it, with a new name added or a dropped
+  one taken off. Every name must resolve to this host whenever lego orders,
+  or the whole order fails, so drop a name from the list before its DNS
+  goes.
 - Port 80 must get through the host's INPUT filter: on Fedora that is the
   `http` service in firewalld's public zone (Firewall, below); on Ubuntu ufw
   is inactive. `cert-renew.sh` warns, and changes nothing, when firewalld's
   zone for that address allows neither the `http` service nor 80/tcp.
-- db.shipped-it.dev has no AAAA record. Adding one would break renewals:
+- The database host has no AAAA record. Adding one would break renewals:
   Let's Encrypt tries IPv6 first and falls back to IPv4 only on a timeout,
-  and lego listens on the IPv4 address only.
+  and port 80 answers on the IPv4 address only.
 - `foa-cert-renew.timer` runs `scripts/cert-renew.sh` daily: `lego run
   --renew-days 30` renews below 30 days left (or when the CA's renewal info
-  asks), then `scripts/install-cert.sh` copies cert + key into
-  `/etc/foa/pgbouncer-tls` if they changed and sends SIGHUP (RELOAD) to
-  PgBouncer. New connections get the new certificate; open ones keep theirs.
+  asks, or the names changed), then `scripts/install-cert.sh` copies cert +
+  key into `/etc/foa/pgbouncer-tls` if they changed and sends SIGHUP
+  (RELOAD) to PgBouncer. New connections get the new certificate; open ones
+  keep theirs.
+- A certificate issued elsewhere (for example from Caddy's storage) goes in
+  with `FOA_CERT_CRT=<crt> FOA_CERT_KEY=<key> scripts/install-cert.sh`: the
+  same key match check, owners, modes and reload. It refuses one variable
+  without the other, a missing or empty file, or a certificate that doesn't
+  name `FOA_DB_DOMAIN` or has a day or less left (exit 1, nothing
+  installed). `cert-renew.sh` always installs lego's pair.
 - Let's Encrypt lifetimes drop to 64 days on 2027-02-10 and 45 days on
   2028-02-16; the daily timer covers both. Watch `journalctl -u
   foa-cert-renew` (alerting is a TODO).
 - Manual: `systemctl start foa-cert-renew.service`; check with
-  `openssl s_client -connect db.shipped-it.dev:6432 -starttls postgres -servername db.shipped-it.dev </dev/null`.
+  `openssl s_client -connect db.friendsofanimals.dev:6432 -starttls postgres -servername db.friendsofanimals.dev </dev/null`.
 
 ## Firewall
 
@@ -629,10 +711,118 @@ prints what it would drop. Unauthenticated GitHub API calls are limited to 60
 an hour; with many open previews, or if the repo goes private, put a read-only
 `GITHUB_TOKEN=...` in `/etc/foa/sweeper.env` (0600).
 
+## Workers
+
+`workers.yml` (Compose project `foa-workers`, issue #61) runs the background
+workers next to the database stack, on its `db` network (`foa-vps_db`, so
+start `compose.yml` first). Each runs `src/worker/main.ts` from the
+Dockerfile's `worker` target, drains its database's outbox every 5 s and
+connects to Postgres directly, never through PgBouncer: pg-boss holds
+sessions, which transaction pooling breaks. None publishes a port.
+
+| Service          | Database                       | Role             | Does                                 | Limits          |
+| ---------------- | ------------------------------ | ---------------- | ------------------------------------ | --------------- |
+| `worker-prod`    | pg-prod `foa`                  | `foa_worker`     | outbox relay, `SCHEDULES` on pg-boss | 1 CPU, 512 MB   |
+| `worker-staging` | pg-nonprod `foa_staging`       | `staging_worker` | outbox relay, `SCHEDULES` on pg-boss | 0.5 CPU, 384 MB |
+| `worker-preview` | pg-nonprod, every live preview | `nonprod_worker` | outbox relay only, 1 connection each | 0.5 CPU, 512 MB |
+
+- **Health:** after each healthy poll the worker touches
+  `/tmp/foa-worker-heartbeat` (a tmpfs; the root file system is read-only),
+  and the health check passes while it is under 120 s old. Single-database
+  workers stop touching it while their database fails; `worker-preview`
+  while it can't list the previews (one broken preview doesn't count). Each
+  poll also upserts the worker's row in `worker_heartbeat` in every database
+  it drains (worker, environment, last seen, version), which
+  `/api/health/worker` reads ("Monitoring and alerts").
+  `restart: unless-stopped` restarts a worker that exits; Docker doesn't
+  restart an unhealthy one, so watch `docker ps`.
+- **Logs:** one JSON object per line (`event`, `database`, counts), with
+  error classes and codes but never messages or addresses; in the host's
+  journal for a year ("Logs").
+- **Errors:** a failed tick (once, until that database recovers), an
+  uncaught exception or unhandled rejection (then the worker exits 1 and
+  restarts), and a failed start go to Sentry, scrubbed, tagged with the
+  database and APP_ENV, when `/etc/foa/secrets/worker_sentry.env` holds
+  `SENTRY_DSN=...` (HR-22). Without it they are only logged.
+- **Email:** staging and previews capture every message in their database's
+  mailbox; production refuses until SES exists (HR-12), so its deliveries
+  retry and end `failed`, visible to staff.
+- **Schedules:** `SCHEDULES` (`src/server/outbox/schedules.ts`) is registered
+  with pg-boss in schema `pgboss` (owned by the worker role) at every start;
+  a schedule removed from the code is unscheduled. Previews run none.
+
+### Preview databases: attach and detach
+
+There are no Vercel previews today
+(`docs/adr/0001-ci-e2e-and-prebuilt-deploys.md`), so `worker-preview` finds
+no preview database and idles, still healthy. If previews come back, it
+behaves as follows.
+
+`worker-preview` lists pg-nonprod's databases every 60 s from `postgres`
+and serves exactly those the sweeper would recognise: `foa_pr_<n>[_<fp>]`
+labelled `foa-preview pr=<n>`, or `foa_br_…` labelled `foa-preview
+branch=<ref>`. A new preview is attached at the next listing, with no
+manual step (its first deploy's migration creates and labels the database).
+When the sweeper drops a preview (`WITH (FORCE)` ends the worker's
+session), the next drain sees SQLSTATE 3D000 and the worker lets go at
+once; a database that just stops being listed is let go at the next
+listing. Each attach and detach is logged (`tenant.attached`,
+`tenant.detached`). The worker runs one code version for every preview:
+deliveries for handlers it doesn't have are left pending (`skipped`), and
+the preview drain route (`POST /api/preview/drain`) covers Seam 2 journeys
+meanwhile.
+
+### First start (owner, HR-07)
+
+```sh
+cd /srv/foa/docker
+docker exec foa-pg-prod psql -U postgres -c 'SELECT pg_reload_conf()'     # after git pull: pg_hba
+docker exec foa-pg-nonprod psql -U postgres -c 'SELECT pg_reload_conf()'
+scripts/worker-roles.sh               # roles + /etc/foa/secrets/*_worker_password
+WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
+  docker compose -f workers.yml up -d --build --wait
+docker compose -f workers.yml ps      # all three "healthy"
+```
+
+Then check that each single-database worker's heartbeat row is fresh (its
+`last_seen_at` moves every 5 s):
+
+```sh
+docker exec foa-pg-prod psql -U postgres -d foa -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
+docker exec foa-pg-nonprod psql -U postgres -d foa_staging -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
+```
+
+`worker-preview` writes a row only in the previews it serves, so with no
+previews it has none; `ps` showing it healthy means it can list them.
+
+### Run, restart and read the logs
+
+Run from `/srv/foa/docker`. `WORKER_VERSION` is only recorded in the
+heartbeat rows; leave it out and they say `unknown`.
+
+| Worker           | Run (build and start)                                               | Restart                                                | Logs                                                              |
+| ---------------- | ------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| `worker-prod`    | `docker compose -f workers.yml up -d --build --wait worker-prod`    | `docker compose -f workers.yml restart worker-prod`    | `docker compose -f workers.yml logs -f --tail=200 worker-prod`    |
+| `worker-staging` | `docker compose -f workers.yml up -d --build --wait worker-staging` | `docker compose -f workers.yml restart worker-staging` | `docker compose -f workers.yml logs -f --tail=200 worker-staging` |
+| `worker-preview` | `docker compose -f workers.yml up -d --build --wait worker-preview` | `docker compose -f workers.yml restart worker-preview` | `docker compose -f workers.yml logs -f --tail=200 worker-preview` |
+
+- Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
+  its poll, stops pg-boss and closes its connections within 30 s).
+- Updating: `git -C /srv/foa pull`, then the "Run" line; only a changed
+  image is recreated. All three build from `/srv/foa` (main), and each has
+  its own image (`foa-workers/worker-<name>`), so rebuilding one never swaps
+  another's.
+- Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
+- Rotating a worker password: replace its file in `/etc/foa/secrets`, rerun
+  `scripts/worker-roles.sh`, restart that worker.
+- A local run needs none of this: `pnpm worker:dev` drains the local
+  database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
+  email, and restarts on code changes.
+
 ## Checks
 
 `scripts/smoke-test.sh` runs 31 client-side checks through
-`db.shipped-it.dev:6432` from a throwaway `postgres:18.7-trixie` container:
+`db.friendsofanimals.dev:6432` from a throwaway `postgres:18.7-trixie` container:
 each URL logs in as the right role and database with `verify-full`, direct
 TLS and TLS 1.3, parameterized and named prepared statements through the
 transaction pool, `foa_app` cannot create in `public`, `nonprod_migrator` can
@@ -646,6 +836,179 @@ afterwards. It needs the real certificate (its `verify-full` checks fail
 against the placeholder by design). The container gets the host's CA bundle
 as one file, symlinks resolved: on Fedora `/etc/ssl/certs/ca-certificates.crt`
 links into `/etc/pki/ca-trust`, which would dangle inside the container.
+
+## Monitoring and alerts
+
+Uptime checks run at an outside provider (HR-23: provider, account and
+alert target are the owner's choice), so they see what users see, and they
+only call public URLs: nothing on the VPS needs to be reachable for them.
+Each check alerts on its own, so a stalled worker never pages as "the app
+is down". The app and worker checks call production,
+`https://friendsofanimals.dev`: Vercel has no staging environment
+([ADR 0001](../docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)).
+
+| Check  | Target                                      | Runs from                     | Alerts when                                                                                         | Alert goes to             | Silence and un-silence                                                                                                        |
+| ------ | ------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| App    | `GET` `/api/health`                         | Uptime provider, every minute | Not 200 on 2 checks in a row. 503 means the app can't query its database                            | Owner (HR-23)             | Pause the monitor (or open a maintenance window) in the provider; resume it after. A paused monitor never re-alerts by itself |
+| Pooler | TCP `db.friendsofanimals.dev:6432`          | Uptime provider, every minute | Connect fails on 2 checks in a row. TCP connect only, no login: probes must not fill CrowdSec's log | Owner (HR-23)             | Same as App. If CrowdSec ever bans the provider's addresses, add them to `crowdsec/foa-whitelist.yaml`                        |
+| Worker | `GET` `/api/health/worker`                  | Uptime provider, every minute | Not 200 on 2 checks in a row: 503 `stale` (newest heartbeat over 120 s old) or `missing` (none)     | Owner (HR-23)             | Same as App. Pause it while the workers are stopped on purpose, and until HR-07 first starts them                             |
+| Errors | Sentry projects for the app and the workers | Sentry (`SENTRY_DSN`, HR-22)  | A new issue, or a resolved one that comes back                                                      | Owner (Sentry alert rule) | In Sentry, Archive the issue (until it escalates, or for a time); Unarchive to hear about it again                            |
+
+`/api/health/worker` answers from the app's own database: each worker
+writes its `worker_heartbeat` row there after every poll (5 s), so the
+staging URL reports `worker-staging` and production's reports
+`worker-prod`. 200 is `{ "status": "ok", "worker": { "name", "ageSeconds" } }`;
+503 is `stale` (with the same `worker`) or `missing`. Previews are not
+monitored.
+
+**Forced failure** (HR-23, and per milestone on staging, HR-27), without
+touching production:
+
+1. Worker: `docker compose -f /srv/foa/docker/workers.yml stop worker-staging`.
+   After 120 s staging's `/api/health/worker` turns 503 `stale`, and two
+   failed checks later (about 4 minutes in all) the alert arrives;
+   `start worker-staging` clears it.
+2. App and pooler: add a throwaway monitor for `/api/health/does-not-exist`
+   and one for TCP `db.friendsofanimals.dev:6433` (closed). Both alert;
+   delete them after.
+3. Errors, with the workers' DSN set: start a throwaway staging worker
+   pointed at a port nothing listens on. It fails to start, reports that
+   to Sentry (`where` `worker.main`, `environment` `staging`) and exits 1;
+   the alert rule fires.
+
+   ```sh
+   docker compose -f /srv/foa/docker/workers.yml run --rm \
+     -e WORKER_DATABASE_URL=postgres://staging_worker@10.112.12.11:5999/foa_staging \
+     worker-staging
+   ```
+
+## Logs
+
+Logs are kept for 365 days. On the VPS they stay in the host's journal
+today; an off-box copy, and the app's logs from Vercel, go to one store
+once the owner picks it (HR-24).
+
+| Source                                                                    | Goes to                                                      | Kept                                                      | Read with                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Containers: `foa-pg-prod`, `foa-pg-nonprod`, `foa-pgbouncer`, the workers | Host journal, through Docker's journald driver (`x-logging`) | 12 to 13 months, at most 20 GiB                           | `docker logs foa-pgbouncer`, `docker compose -f /srv/foa/docker/workers.yml logs worker-staging`, `journalctl -t foa-pg-prod --since 2026-11-01`; after a container is gone, `journalctl CONTAINER_NAME=foa-pg-prod` |
+| Host units (`foa-*` timers and services, CrowdSec, sshd)                  | Host journal                                                 | Same                                                      | `journalctl -u foa-pgbackrest-full.service --since -7d`                                                                                                                                                              |
+| Restore drills                                                            | `/var/log/foa/` (never pruned)                               | Forever                                                   | See "Restore drill"                                                                                                                                                                                                  |
+| The app on Vercel (functions, builds, requests)                           | Vercel's runtime logs, then a Vercel log drain (HR-24)       | Vercel: a short, plan-bound window. Drain store: 365 days | Vercel dashboard or `vercel logs`; the store's search once the drain exists                                                                                                                                          |
+
+`docker/systemd/journald-foa.conf` sets the year (`MaxRetentionSec=1year`,
+monthly files), the 20 GiB cap and a higher rate limit, since every
+container's lines reach journald through dockerd and share one limit. If
+the cap fills first, the oldest files go early: `journalctl --disk-usage`
+shows how close it is, and the off-box store is the answer, not a bigger
+cap on the database disk. Container logs carry client IP addresses
+(PgBouncer, CrowdSec); keeping them a year waits on counsel (HR-30).
+
+Install, once (HR-24):
+
+```sh
+install -D -m 0644 /srv/foa/docker/systemd/journald-foa.conf \
+  /etc/systemd/journald.conf.d/foa.conf
+systemctl restart systemd-journald
+journalctl --disk-usage
+# Recreates the containers with the journald driver. Postgres restarts:
+# pick a quiet moment. Lines logged before the switch go with the old containers.
+docker compose -f /srv/foa/docker/compose.yml up -d --wait
+docker inspect -f '{{.HostConfig.LogConfig.Type}}' foa-pgbouncer   # journald
+```
+
+Off-box (HR-24): in Vercel, Team Settings → Drains → add a log drain for
+the project to the chosen store; on the VPS, a shipper that reads the
+journal (for example `systemd-journal-upload`, or the store's own agent)
+sends the same entries there. The store keeps 365 days.
+
+## Analytics (Umami)
+
+Cookieless page views for the public site (#118). Compose project
+`foa-analytics` (`analytics.yml`), separate from `foa-vps`, so bringing the
+database stack down or up never touches it.
+
+| Container         | Image                                | Address                                 | Published | Limits          |
+| ----------------- | ------------------------------------ | --------------------------------------- | --------- | --------------- |
+| `foa-umami`       | `ghcr.io/umami-software/umami:3.5.0` | 10.112.12.30:3000 (`db`), plus `tunnel` | no        | 1 CPU, 1 GB     |
+| `foa-cloudflared` | `cloudflare/cloudflared:2026.11.1`   | `tunnel` only                           | no        | 0.5 CPU, 256 MB |
+
+- **Data**: database `umami` on pg-prod, owned by role `umami`
+  (`postgres/bootstrap/umami.sql`, connection limit 10). pgBackRest backs up
+  the whole pg-prod cluster, so `umami` is in every backup and restore drill.
+  Umami runs its own migrations when it starts.
+- **Ingress**: a remotely managed Cloudflare Tunnel. cloudflared dials out and
+  Cloudflare serves `stats.<domain>` over TLS: no port, no FOA-INBOUND rule
+  and no certificate here.
+- **What the site sends**: only staging and production builds with
+  `NEXT_PUBLIC_UMAMI_WEBSITE_ID` and `UMAMI_ORIGIN` set render the tracker.
+  The site loads it as `/stats/script.js` and posts to `/stats/api/send` on
+  its own origin; Next rewrites just those two paths to `UMAMI_ORIGIN`. No
+  cookies, no query strings or fragments, and none of the site's own pages
+  as referrers. Nothing is sent from signed-in
+  pages, sign-in and sign-up, or from a browser that showed a signed-in page
+  in the last 30 days (`src/lib/analytics/umami.ts`).
+
+Secrets (never in git):
+
+| Path                                        | Mode, owner | What                                                                   |
+| ------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
+| `/etc/foa/analytics.env`                    | 0600 root   | `DATABASE_URL` (role umami), `APP_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` |
+| `/etc/foa/secrets/umami_admin_password`     | 0400 root   | Umami's `admin` password, which replaced the seeded one                |
+| `/etc/foa/secrets/cloudflared_tunnel_token` | 0400 65532  | The tunnel token (cloudflared runs as 65532)                           |
+
+Bring-up (owner, HR-52), with the database stack running. Umami starts with
+the login `admin` / `umami`, which everyone knows, so the bootstrap replaces
+it before anything outside the VPS can reach Umami. Start the tunnel only
+after the bootstrap succeeded:
+
+```sh
+cd /srv/foa && git pull
+# 1. Cloudflare Zero Trust > Networks > Tunnels: create a cloudflared tunnel,
+#    add the public hostname stats.<domain> -> http://umami:3000, copy the
+#    token, then paste it here and end with Ctrl-D (never as an argument):
+sudo install -m 0400 -o 65532 -g 65532 /dev/stdin /etc/foa/secrets/cloudflared_tunnel_token
+# 2. Env file, role and database umami, pg_hba reload; then Umami alone (no
+#    tunnel, so unreachable from outside) and its seeded admin login replaced
+#    by a random password in /etc/foa/secrets/umami_admin_password:
+sudo docker/scripts/analytics-bootstrap.sh
+# 3. Only now the tunnel: start it and wait for both health checks:
+docker compose -f docker/analytics.yml up -d --wait
+```
+
+Then at `https://stats.<domain>`: sign in as `admin` with the password in
+`/etc/foa/secrets/umami_admin_password` (read it on the VPS yourself; if you
+change it in the dashboard, put the new one in that file too), turn on
+two-factor authentication, and add two websites, one for staging
+(`shipped-it.dev`) and one for production. In Vercel, set
+`NEXT_PUBLIC_UMAMI_WEBSITE_ID` (each environment its own website id) and
+`UMAMI_ORIGIN=https://stats.<domain>` for staging and Production only, then
+redeploy. Check that a page view arrives, and that `pgbackrest info` after
+the next backup and the next restore drill both show `umami`.
+
+To keep the dashboard off the internet altogether, give the tunnel's public
+hostname the path `^/(script\.js|api/send)$` (a regular expression; type the
+leading slash). Only the tracker and the collect endpoint stay public, and
+the site's rewrites need nothing else. Reach the dashboard over SSH instead:
+`ssh -L 3000:10.112.12.30:3000 <vps>`, then open `http://localhost:3000`.
+
+Umami counts unique visitors by IP address. Requests reach it through
+Vercel's rewrite and then Cloudflare, so check which header carries the
+visitor's address (not Vercel's) and set `CLIENT_IP_HEADER` in
+`analytics.env` to it. Pick one that Vercel or Cloudflare sets itself,
+replacing whatever the browser sent: a header visitors can set lets them
+forge the counts. Until then page views are right but unique visitors
+collapse onto Vercel's addresses.
+
+Upgrade: bump the image tag in `analytics.yml`, `git pull`, then
+`docker compose -f docker/analytics.yml up -d --wait`. Rotate the database
+password: delete the `DATABASE_URL` line from `analytics.env`, rerun the
+bootstrap script, then `docker compose -f docker/analytics.yml up -d
+--force-recreate umami`.
+
+```sh
+docker compose -f docker/analytics.yml ps
+docker exec foa-umami curl -fsS http://127.0.0.1:3000/api/heartbeat   # {"ok":true}
+```
 
 ## TODO and owner actions
 
@@ -671,9 +1034,9 @@ links into `/etc/pki/ca-trust`, which would dangle inside the container.
    (`pg_stat_archiver.failed_count`), and a periodic `pgbackrest check`. The
    restore drill cannot see archiving that has stalled, because it can only
    replay the WAL that reached the repository.
-6. The future worker connects directly on the `db` network (pg_hba already
-   allows the app roles from 10.112.12.0/24); give it its own role if it
-   needs rights beyond `foa_app`.
+6. **Workers (HR-07):** apply the roles and start `workers.yml` (Workers,
+   "First start"), and settle the CPU and memory caps there for the shared
+   VPS.
 7. **One build per branch** (owner): Vercel → Project Settings → Build and
    Deployment → On-Demand Concurrent Builds → "Run up to one build per
    branch". The API refused the change for lack of permission. Meanwhile the

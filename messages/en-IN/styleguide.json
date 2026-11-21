@@ -88,6 +88,7 @@
       "tiles": "Tiles",
       "callouts": "Callouts",
       "calloutBody": "One idea per box, with an icon and a word as well as a colour.",
+      "calloutWithLink": "Callout with a way on: phone sign-in while SMS is off",
       "disclosure": "Disclosure",
       "disclosureSummary": "For parents and teachers",
       "disclosureBody": "Native details element: no JavaScript, keyboard ready. Give a group the same name to open one at a time.",
