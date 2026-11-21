@@ -95,7 +95,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
         }),
       beat: io.beat,
       log: io.log,
-      onError: () => {},
+      onError: io.onTenantError,
     });
   }
 
@@ -121,7 +121,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
       },
       beat: io.beat,
       log: io.log,
-      onError: () => {},
+      onError: io.onTenantError,
     });
   }
 
