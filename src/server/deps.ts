@@ -19,6 +19,10 @@ import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
+import {
+  unconfiguredScanner,
+  type MalwareScanner,
+} from "./ports/malware-scanner";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 
 export interface Deps extends DbWithClock {
@@ -30,6 +34,8 @@ export interface Deps extends DbWithClock {
   /** The private buckets uploaded files go to (#63). */
   storage: ObjectStorage;
   files: FilesConfig;
+  /** Scans each upload before anyone but its uploader may open it (#63). */
+  scanner: MalwareScanner;
 }
 
 /** Where the Files module keeps objects, and for which environment. */
@@ -84,6 +90,7 @@ export function productionDeps(): Deps {
         keyPrefix: storagePrefixFor(config),
         appEnv: config.APP_ENV,
       },
+      scanner: unconfiguredScanner,
     };
   }
   return production;

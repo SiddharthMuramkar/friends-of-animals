@@ -27,6 +27,7 @@ import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
+import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakeStorage } from "./fakes/storage";
 
 export interface Harness {
@@ -73,6 +74,11 @@ export interface Harness {
    * presigned URL as the browser does, checked against the fake clock.
    */
   storage: FakeStorage;
+  /**
+   * Flags the EICAR test file (src/test/eicar.ts); counts scans and fails
+   * the next ones with `failNext(n)`.
+   */
+  scanner: FakeMalwareScanner;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -109,6 +115,7 @@ export async function createHarness(
   const email = new FakeEmail(clock);
   const cookies = new FakeCookieJar(clock);
   const storage = new FakeStorage(clock);
+  const scanner = new FakeMalwareScanner();
   const deps: Deps = {
     db,
     clock,
@@ -117,6 +124,7 @@ export async function createHarness(
     auth: TEST_AUTH,
     storage,
     files: TEST_FILES,
+    scanner,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
@@ -159,6 +167,7 @@ export async function createHarness(
     seed: createSeedBuilders(deps),
     drain: () => drainUntilIdle(deps),
     storage,
+    scanner,
   };
   return harness;
 }
