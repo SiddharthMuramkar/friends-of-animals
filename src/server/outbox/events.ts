@@ -31,6 +31,12 @@ export type DomainEvent =
         purpose: GivablePurpose;
         documentId: string;
       };
+    }
+  | {
+      /** A message arrived through the contact form (#113). */
+      type: "contact_message.received";
+      aggregate: { type: "contact_message"; id: string };
+      payload: { messageId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -52,6 +58,7 @@ export const EVENT_PAYLOADS = {
     purpose: z.enum(GIVABLE_PURPOSES),
     documentId: z.uuid(),
   }),
+  "contact_message.received": z.object({ messageId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -64,6 +71,12 @@ export const SUBSCRIBERS = {
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
   "consent.withdrawn": ["notifications.dispatch"],
+  // The team's in-app note goes by route row; the sender, who has no
+  // account, gets the acknowledgement from the contact module.
+  "contact_message.received": [
+    "notifications.dispatch",
+    "contact.send_acknowledgement",
+  ],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

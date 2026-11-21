@@ -61,6 +61,7 @@ type Handlers = {
 export const HANDLERS: Handlers = {
   // Sends the messages the event's route rows name (#69).
   "notifications.dispatch": dispatchEvent,
+  "contact.send_acknowledgement": async () => {},
 };
 
 /** Whether this code has a handler by that name. */

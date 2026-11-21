@@ -29,6 +29,8 @@ function subjectUserOf(delivery: Delivery): string | null {
       return delivery.payload.subjectType === "user"
         ? delivery.payload.subjectId
         : null;
+    case "contact_message.received":
+      return null;
   }
 }
 
@@ -59,6 +61,7 @@ type EventVariables<T extends EventType> = {
 export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "identity.user_signed_up": { names: [], load: async () => ({}) },
   "consent.withdrawn": { names: [], load: async () => ({}) },
+  "contact_message.received": { names: [], load: async () => ({}) },
 };
 
 /** The variables a template on a route for `eventType` may use. */
