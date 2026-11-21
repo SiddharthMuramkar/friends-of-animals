@@ -5,6 +5,7 @@ import { APP_ROUTES, isSignedInPath } from "./app-routes";
 describe("isSignedInPath", () => {
   it("covers the account pages", () => {
     expect(isSignedInPath(APP_ROUTES.accountSessions)).toBe(true);
+    expect(isSignedInPath(APP_ROUTES.accountConsents)).toBe(true);
     expect(isSignedInPath("/account")).toBe(true);
   });
 
