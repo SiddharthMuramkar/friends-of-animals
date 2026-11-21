@@ -6,10 +6,23 @@
 import type { UseCaseContext } from "../use-cases";
 import { decideInstitution, type DecideInstitutionInput } from "./decide";
 import type { RegisterInstitutionInput } from "./domain/registration";
-import { getMyInstitution } from "./queries";
+import {
+  getInstitutionForReview,
+  getMyInstitution,
+  listInstitutions,
+  type ListInstitutionsInput,
+} from "./queries";
 import { registerInstitution } from "./register";
 
-export type { InstitutionDetails, GetMyInstitutionResult } from "./queries";
+export type {
+  GetInstitutionForReviewResult,
+  GetMyInstitutionResult,
+  InstitutionDetails,
+  InstitutionForReview,
+  InstitutionSummary,
+  ListInstitutionsInput,
+  ListInstitutionsResult,
+} from "./queries";
 export type { RegisterInstitutionResult } from "./register";
 export type { DecideInstitutionInput, DecideInstitutionResult } from "./decide";
 export type {
@@ -35,6 +48,10 @@ export const institutionUseCases = (ctx: UseCaseContext) => ({
   registerInstitution: (input: RegisterInstitutionInput) =>
     registerInstitution(ctx, input),
   getMyInstitution: () => getMyInstitution(ctx),
+  listInstitutions: (input: ListInstitutionsInput = {}) =>
+    listInstitutions(ctx, input),
+  getInstitutionForReview: (input: { institutionId: string }) =>
+    getInstitutionForReview(ctx, input),
   decideInstitution: (input: DecideInstitutionInput) =>
     decideInstitution(ctx, input),
 });

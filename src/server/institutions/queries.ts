@@ -1,16 +1,20 @@
 // Reading institutions (#73).
 //
-//   getMyInstitution()  → the institution the signed-in user registered
+//   getMyInstitution()                          → the one the signed-in user registered
+//   listInstitutions({ status? })               → FOA admins' queue, oldest first
+//   getInstitutionForReview({ institutionId })  → every detail, for FOA admins
 
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
+import { z } from "zod";
 
 import type { E164Phone } from "../../lib/phone";
 import { authorize } from "../access/can";
-import { institution, type Institution } from "../db/schema";
+import { institution, user, type Institution } from "../db/schema";
 import { signedInUser } from "../identity/account";
+import { invalidInput, type InvalidInput } from "../input";
 import type { UseCaseContext } from "../use-cases";
 import type { InstitutionType } from "./domain/registration";
-import type { InstitutionStatus } from "./domain/status";
+import { INSTITUTION_STATUSES, type InstitutionStatus } from "./domain/status";
 import { openPrincipalContact } from "./principal-contact";
 
 /** An institution as its authorised person and FOA staff see it. */
@@ -86,4 +90,95 @@ export async function getMyInstitution(
     .limit(1);
   if (!row) return { ok: false, error: "not_found" };
   return { ok: true, institution: detailsOf(ctx, row) };
+}
+
+/** At most this many institutions per list. */
+export const INSTITUTION_LIST_LIMIT = 200;
+
+/** One line of the staff queue. */
+export type InstitutionSummary = {
+  id: string;
+  name: string;
+  type: InstitutionType;
+  city: string;
+  state: string;
+  status: InstitutionStatus;
+  institutionCode: string | null;
+  registeredAt: Date;
+};
+
+export type ListInstitutionsInput = { status?: InstitutionStatus };
+
+export type ListInstitutionsResult =
+  | { ok: true; institutions: InstitutionSummary[] }
+  | InvalidInput;
+
+const listInstitutionsInput = z.object({
+  status: z.enum(INSTITUTION_STATUSES).optional(),
+});
+
+/** Institutions in one status, or all, oldest registration first. */
+export async function listInstitutions(
+  ctx: UseCaseContext,
+  input: ListInstitutionsInput
+): Promise<ListInstitutionsResult> {
+  await authorize(ctx, "institution.list");
+  const parsed = listInstitutionsInput.safeParse(input);
+  if (!parsed.success) return invalidInput(parsed.error);
+  const { status } = parsed.data;
+
+  const institutions = await ctx.db
+    .select({
+      id: institution.id,
+      name: institution.name,
+      type: institution.type,
+      city: institution.city,
+      state: institution.state,
+      status: institution.status,
+      institutionCode: institution.institutionCode,
+      registeredAt: institution.createdAt,
+    })
+    .from(institution)
+    .where(status ? eq(institution.status, status) : undefined)
+    .orderBy(asc(institution.createdAt), asc(institution.id))
+    .limit(INSTITUTION_LIST_LIMIT);
+  return { ok: true, institutions };
+}
+
+/** Everything staff need to decide, including who registered it. */
+export type InstitutionForReview = InstitutionDetails & {
+  authorisedPerson: { id: string; name: string; email: string | null };
+};
+
+export type GetInstitutionForReviewResult =
+  | { ok: true; institution: InstitutionForReview }
+  | InvalidInput
+  | { ok: false; error: "not_found" };
+
+const getInstitutionForReviewInput = z.object({ institutionId: z.uuid() });
+
+export async function getInstitutionForReview(
+  ctx: UseCaseContext,
+  input: { institutionId: string }
+): Promise<GetInstitutionForReviewResult> {
+  await authorize(ctx, "institution.review");
+  const parsed = getInstitutionForReviewInput.safeParse(input);
+  if (!parsed.success) return invalidInput(parsed.error);
+
+  const [found] = await ctx.db
+    .select({
+      row: institution,
+      person: { id: user.id, name: user.name, email: user.email },
+    })
+    .from(institution)
+    .innerJoin(user, eq(user.id, institution.createdBy))
+    .where(eq(institution.id, parsed.data.institutionId));
+  if (!found) return { ok: false, error: "not_found" };
+  return {
+    ok: true,
+    institution: {
+      ...detailsOf(ctx, found.row),
+      authorisedPerson: found.person,
+    },
+  };
 }
