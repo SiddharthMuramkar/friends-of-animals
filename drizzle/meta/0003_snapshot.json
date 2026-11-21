@@ -1,5 +1,5 @@
 {
-  "id": "de6026b9-9c55-4690-bb3b-a03ee69cf8d2",
+  "id": "0b8141be-2870-4e7b-a602-bb04766ec0ec",
   "prevId": "2f79bf5d-a4e3-4e49-845b-3ee54712e4ea",
   "version": "7",
   "dialect": "postgresql",
@@ -553,6 +553,21 @@
           "columns": [
             {
               "expression": "role",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_role_granted_by_user_id_idx": {
+          "name": "user_role_granted_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "granted_by_user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
