@@ -90,7 +90,10 @@ async function authorizeIn(tx: AppDb, ctx: SettingsContext) {
       .where(eq(user.id, ctx.actor.userId))
       .for("share");
   }
-  return authorize({ db: tx, actor: ctx.actor }, "setting.change");
+  return authorize(
+    { db: tx, clock: ctx.clock, actor: ctx.actor },
+    "setting.change"
+  );
 }
 
 /**

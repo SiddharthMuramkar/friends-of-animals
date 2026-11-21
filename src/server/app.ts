@@ -17,6 +17,7 @@ import type { Actor } from "./actor";
 import { auditUseCases } from "./audit";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
+import { secondFactorUseCases } from "./second-factor";
 import { settingsUseCases } from "./settings";
 import { composeUseCases } from "./use-cases";
 
@@ -24,6 +25,7 @@ const useCases = composeUseCases(
   identityUseCases,
   accessUseCases,
   auditUseCases,
+  secondFactorUseCases,
   settingsUseCases
 );
 

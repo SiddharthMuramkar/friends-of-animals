@@ -7,6 +7,7 @@ import type { Grant } from "../access/domain/roles";
 import type { User } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import { ensureGrant } from "./access";
+import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
 
 const MEMBER_NAMES = [
@@ -27,7 +28,7 @@ export function seedFunctions(seeders: readonly Seeder[]) {
    */
   async function seedPreview(deps: SeedDeps): Promise<void> {
     await deps.db.transaction(async (tx) => {
-      for (const seed of seeders) await seed({ db: tx, clock: deps.clock });
+      for (const seed of seeders) await seed({ ...deps, db: tx });
     });
   }
 
@@ -61,6 +62,12 @@ export function seedFunctions(seeders: readonly Seeder[]) {
         });
         return account;
       },
+      /**
+       * Gives `user` a confirmed authenticator app with SEED_TOTP_SECRET
+       * (no audit entry: it is seed data).
+       */
+      authenticator: (user: { id: string }) =>
+        ensureSeedAuthenticator(deps, user.id),
       /** Everything `pnpm db:seed` puts in a preview database. */
       preview: () => seedPreview(deps),
     };
