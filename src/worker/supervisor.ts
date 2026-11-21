@@ -42,11 +42,11 @@ export type SupervisorOptions = {
    */
   everyTenantMustTick: boolean;
   /** The databases to serve, by name. */
-  listDatabases(): Promise<readonly string[]>;
+  listDatabases: () => Promise<readonly string[]>;
   /** Opens a database's connections and returns its tenant. */
-  startTenant(database: string): Promise<Tenant>;
+  startTenant: (database: string) => Promise<Tenant>;
   /** Records that the worker is healthy at `at`. */
-  beat(at: Date): Promise<void>;
+  beat: (at: Date) => Promise<void>;
   log: WorkerLog;
 };
 
@@ -179,7 +179,8 @@ export function createSupervisor({
     },
     serving: () => [...tenants.keys()].sort(),
     async stop() {
-      for (const database of [...tenants.keys()]) {
+      // Deleting the entry being visited is safe in a Map's iteration.
+      for (const database of tenants.keys()) {
         await detach(database, "stopping");
       }
     },

@@ -25,23 +25,25 @@ import { createSupervisor, type Supervisor } from "./supervisor";
 import { createTenant } from "./tenant";
 
 /** A database client and how to end its connections. */
-export type OpenedDatabase = { db: AppDb; end(): Promise<void> };
+export type OpenedDatabase = { db: AppDb; end: () => Promise<void> };
 
 /** What the worker does I/O through. */
 export type WorkerIo = {
   clock: Clock;
   log: WorkerLog;
   /** A client for `url` holding at most `connections` connections. */
-  openDatabase(url: string, connections: number): OpenedDatabase;
+  openDatabase: (url: string, connections: number) => OpenedDatabase;
   /** pg-nonprod's databases and their comments, through `adminUrl`. */
-  openCatalog(adminUrl: string): {
-    list(): Promise<ListedDatabase[]>;
-    end(): Promise<void>;
+  openCatalog: (adminUrl: string) => {
+    list: () => Promise<ListedDatabase[]>;
+    end: () => Promise<void>;
   };
   /** A started pg-boss on `url`. */
-  startBoss(url: string): Promise<ScheduleBoss & { stop(): Promise<void> }>;
+  startBoss: (
+    url: string
+  ) => Promise<ScheduleBoss & { stop: () => Promise<void> }>;
   /** Marks the worker healthy at `at` (the heartbeat file). */
-  beat(at: Date): Promise<void>;
+  beat: (at: Date) => Promise<void>;
 };
 
 export type Worker = {

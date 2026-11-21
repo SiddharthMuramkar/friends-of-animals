@@ -29,9 +29,9 @@ export type Tenant = {
    * if the database can't be reached (`isDatabaseGone` tells if it was
    * dropped); a failing handler doesn't reject, the relay retries it.
    */
-  tick(): Promise<DrainReport>;
+  tick: () => Promise<DrainReport>;
   /** Ends the database connections. */
-  close(): Promise<void>;
+  close: () => Promise<void>;
 };
 
 export function createTenant({
@@ -45,7 +45,7 @@ export function createTenant({
   deps: OutboxDeps;
   identity: WorkerIdentity;
   /** Ends `deps.db`'s connections. */
-  end(): Promise<void>;
+  end: () => Promise<void>;
 }): Tenant {
   return {
     database,
