@@ -130,13 +130,15 @@ export type SettingChangeDecision<K extends SettingKey> =
       value: SettingValue<K>;
       audit: SettingChangeAudit<K>;
     }
-  /** The value already applies: store nothing, audit nothing. */
+  /** The value already applies, from a valid row: store and audit nothing. */
   | { ok: true; changed: false }
   | { ok: false; error: "invalid_value"; problem: SettingValueProblem };
 
 /**
  * Whether submitting `raw` for a setting whose value is now `current`
- * changes it, and if so what to store and what the audit row records.
+ * changes it, and if so what to store and what the audit row records. A
+ * stored value that no longer passes the schema is always replaced, even
+ * by the default that applies in its place.
  */
 export function decideSettingChange<K extends SettingKey>(
   current: ResolvedSetting<K>,
@@ -144,7 +146,10 @@ export function decideSettingChange<K extends SettingKey>(
 ): SettingChangeDecision<K> {
   const parsed = parseSettingValue(current.key, raw);
   if (!parsed.ok) return parsed;
-  if (isDeepStrictEqual(parsed.value, current.value)) {
+  if (
+    !current.storedInvalid &&
+    isDeepStrictEqual(parsed.value, current.value)
+  ) {
     return { ok: true, changed: false };
   }
   return {
