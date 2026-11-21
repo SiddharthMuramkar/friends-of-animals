@@ -1,11 +1,7 @@
 import { count, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import {
-  auditLog,
-  competition,
-  competitionKeyDate,
-} from "@/server/db/schema";
+import { auditLog, competition, competitionKeyDate } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { completeFields, signInManager, signInWith } from "./testing";

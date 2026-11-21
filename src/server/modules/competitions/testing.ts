@@ -39,10 +39,12 @@ export function completeFields(
   return {
     code: "NEIGH27",
     name: "Neighbours on My Street",
-    theme: "An animal that shares your street, and one kind thing you do for it.",
+    theme:
+      "An animal that shares your street, and one kind thing you do for it.",
     welfareMessage: "Every street animal deserves water, shade and kindness.",
     rules: "One original artwork per participant. No AI-generated work.",
-    permittedMaterials: "Pencil, crayon, watercolour or poster colour on A3 paper.",
+    permittedMaterials:
+      "Pencil, crayon, watercolour or poster colour on A3 paper.",
     duration: "2 hours",
     participation: "both",
     disciplines: ["drawing", "painting"],
