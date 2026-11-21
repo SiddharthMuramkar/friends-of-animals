@@ -9,10 +9,13 @@ import { firstParam, type SearchParams } from "../../_lib/search-params";
 
 export type AuditField = "person" | "entityType" | "action";
 
-export type AuditFilters = Partial<Record<AuditField | "cursor", string>>;
+/** The form's fields, the page's cursor and its size, all from the URL. */
+export type AuditFilters = Partial<
+  Record<AuditField | "cursor" | "limit", string>
+>;
 
 /** In URL order. */
-const PARAMS = ["person", "entityType", "action", "cursor"] as const;
+const PARAMS = ["person", "entityType", "action", "cursor", "limit"] as const;
 
 const FIELDS: readonly string[] = ["person", "entityType", "action"];
 
@@ -36,11 +39,13 @@ export function auditHref(filters: AuditFilters): string {
 }
 
 /**
- * The form fields an invalid search names, and whether the page link
- * (the cursor, which only the page writes) was broken.
+ * The form fields an invalid search names, and whether the page link (the
+ * cursor or size, which only links write) was broken.
  */
-export function searchInput(_filters: AuditFilters): SearchAuditLogInput {
-  throw new Error("Not implemented");
+/** The filters as the search takes them; it checks every value. */
+export function searchInput(filters: AuditFilters): SearchAuditLogInput {
+  const { limit, ...rest } = filters;
+  return limit === undefined ? rest : { ...rest, limit: Number(limit) };
 }
 
 export function fieldsAtFault(fields: readonly string[]): {
@@ -49,6 +54,6 @@ export function fieldsAtFault(fields: readonly string[]): {
 } {
   return {
     fields: fields.filter((name): name is AuditField => FIELDS.includes(name)),
-    badPage: fields.includes("cursor"),
+    badPage: fields.includes("cursor") || fields.includes("limit"),
   };
 }

@@ -24,6 +24,7 @@ import {
   auditHref,
   fieldsAtFault,
   readAuditFilters,
+  searchInput,
   type AuditField,
   type AuditFilters,
 } from "./_lib/filters";
@@ -78,7 +79,7 @@ async function search(
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   try {
-    return await as(actor).searchAuditLog(filters);
+    return await as(actor).searchAuditLog(searchInput(filters));
   } catch (error) {
     if (isRefusal(error)) return undefined;
     throw error;
@@ -110,7 +111,11 @@ async function Audit({ searchParams }: { searchParams: SearchParams }) {
           {fault.badPage ? (
             <p className="mt-2">
               <SiteLink
-                href={auditHref({ ...filters, cursor: undefined })}
+                href={auditHref({
+                  ...filters,
+                  cursor: undefined,
+                  limit: undefined,
+                })}
                 className={LINK}
               >
                 {t("newest")}
