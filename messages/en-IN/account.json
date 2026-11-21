@@ -20,7 +20,7 @@
       "ip": "IP address {address}",
       "network": "Network {address}",
       "signOut": "Sign out",
-      "signOutOf": "of {device}, signed in {date}",
+      "signOutOf": "Sign out of {device}, signed in {date}",
       "signingOut": "Signing out…",
       "everywhereTitle": "Sign out everywhere",
       "everywhereLead": "Signs you out on every device on this list, this one too. Use it if you lose a phone or signed in on a shared computer.",

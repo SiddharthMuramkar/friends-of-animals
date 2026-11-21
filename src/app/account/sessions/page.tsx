@@ -102,9 +102,11 @@ async function Sessions() {
                     variant="secondary"
                     pendingLabel={t("signingOut")}
                   >
-                    {t("signOut")}
+                    {/* One sentence for screen readers, so it translates
+                        whole; it starts with the visible words (WCAG
+                        2.5.3). */}
+                    <span aria-hidden="true">{t("signOut")}</span>
                     <span className="sr-only">
-                      {" "}
                       {t("signOutOf", { device, date })}
                     </span>
                   </SubmitButton>
