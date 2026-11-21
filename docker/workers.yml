@@ -1,9 +1,10 @@
-# FOA background workers (#61): the outbox relay and the pg-boss schedules,
+# FOA background workers (#61) and their scan, PDF and media sidecars,
 # next to the database stack (docker/compose.yml) on the VPS.
 #
-#   docker compose -f /srv/foa/docker/workers.yml up -d --build --wait
+#   docker compose -f /srv/foa/docker/workers.yml up -d --build --wait \
+#     worker-prod foa-clamav foa-gotenberg
 #
-# Runbook: docker/README.md, "Workers". Each worker connects to Postgres
+# Runbook: docker/README.md, "Workers". The database workers connect to Postgres
 # directly on the `db` network, never through PgBouncer: pg-boss holds
 # sessions (LISTEN, advisory locks), which transaction pooling breaks. Each
 # logs in as its own role (docker/scripts/worker-roles.sh makes them and
@@ -67,6 +68,11 @@ x-worker: &worker
     start_interval: 5s
   networks:
     - db
+    - scan
+
+x-clamd: &clamd
+  CLAMD_HOST: foa-clamav
+  CLAMD_PORT: "3310"
 
 services:
   worker-prod:
@@ -74,6 +80,7 @@ services:
     image: foa-workers/worker-prod
     container_name: foa-worker-prod
     environment:
+      <<: *clamd
       WORKER_MODE: single
       APP_ENV: production
       WORKER_DATABASE_URL: postgres://foa_worker@10.112.12.10:5432/foa
@@ -89,6 +96,7 @@ services:
     image: foa-workers/worker-staging
     container_name: foa-worker-staging
     environment:
+      <<: *clamd
       WORKER_MODE: single
       APP_ENV: staging
       WORKER_DATABASE_URL: postgres://staging_worker@10.112.12.11:5432/foa_staging
@@ -106,6 +114,7 @@ services:
     image: foa-workers/worker-preview
     container_name: foa-worker-preview
     environment:
+      <<: *clamd
       WORKER_MODE: preview
       APP_ENV: preview
       WORKER_ADMIN_URL: postgres://nonprod_worker@10.112.12.11:5432/postgres
@@ -118,11 +127,104 @@ services:
     cpus: 0.5
     mem_limit: 512m
 
+  foa-clamav:
+    image: clamav/clamav:1.5.5
+    container_name: foa-clamav
+    user: clamav
+    entrypoint: /init-unprivileged
+    init: true
+    environment:
+      CLAMAV_NO_FRESHCLAMD: "false"
+    volumes:
+      - foa-clamav-db:/var/lib/clamav
+      - ./clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+      - ./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 6m
+    networks:
+      scan:
+        # Keep this listener address in sync with clamav/clamd.conf.
+        ipv4_address: 10.112.14.2
+      clamav-updates: {}
+    mem_limit: 2g
+    oom_score_adj: 500
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  foa-gotenberg:
+    image: gotenberg/gotenberg:9.9.1
+    container_name: foa-gotenberg
+    command:
+      - gotenberg
+      - --api-timeout=30s
+      - --chromium-allow-list=^file:///tmp/
+      - --libreoffice-allow-list=^file:///tmp/
+      - --libreoffice-enable-macros=false
+      - --api-disable-download-from=true
+      - --webhook-disable=true
+      - --pdf-deny-list=.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - pdf
+    mem_limit: 1g
+    oom_score_adj: 500
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  worker-media:
+    <<: *worker
+    # Enable when #85a ships the media entry point and queue connection.
+    profiles:
+      - media
+    image: foa-workers/worker-media:${WORKER_VERSION:-unknown}
+    container_name: foa-worker-media
+    command: ["node", "--import", "tsx", "src/worker-media/main.ts"]
+    environment:
+      APP_ENV: production
+      GOTENBERG_URL: http://foa-gotenberg:3000
+    networks:
+      - pdf
+    cpus: 1
+    pids_limit: 128
+    mem_limit: 2g
+    oom_score_adj: 500
+
 networks:
   # docker/compose.yml's network (project foa-vps); start that stack first.
   db:
     external: true
     name: foa-vps_db
+  scan:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.112.14.0/28
+  # Only FreshClam needs a route to the signature mirror. clamd binds to
+  # the scan bridge and loopback.
+  clamav-updates: {}
+  pdf:
+    internal: true
+
+volumes:
+  foa-clamav-db:
+    name: foa-clamav-db
 
 secrets:
   # Owned by uid 1000 (`node` in the image), mode 0400:
