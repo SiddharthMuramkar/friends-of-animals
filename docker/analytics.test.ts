@@ -29,6 +29,9 @@ const top = lines(compose);
 const services = block(top, /^services:$/);
 const service = (name: string) =>
   block(services, new RegExp(`^ {2}${name}:$`)).join("\n");
+/** `text` on one line, with flow sequences as `["a", "b"]` however wrapped. */
+const oneLine = (text: string) =>
+  text.replace(/\s+/g, " ").replace(/\[ /g, "[").replace(/,? \]/g, "]");
 const serviceNames = services
   .filter((line) => indent(line) === 2)
   .map((line) => line.trim().replace(/:$/, ""));
@@ -55,7 +58,7 @@ describe("docker/analytics.yml", () => {
 
   it("checks Umami's heartbeat and restarts it", () => {
     const umami = service("umami");
-    expect(umami).toMatch(
+    expect(oneLine(umami)).toMatch(
       /test: \["CMD", "curl", "-fsS", "http:\/\/127\.0\.0\.1:3000\/api\/heartbeat"\]/
     );
     expect(umami).toMatch(/^ {4}restart: unless-stopped$/m);
@@ -63,7 +66,7 @@ describe("docker/analytics.yml", () => {
 
   it("checks the tunnel's edge connection and restarts it", () => {
     const tunnel = service("cloudflared");
-    expect(tunnel).toMatch(
+    expect(oneLine(tunnel)).toMatch(
       /test: \["CMD", "cloudflared", "tunnel", "--metrics", "127\.0\.0\.1:\d+", "ready"\]/
     );
     expect(tunnel).toMatch(/^ {4}restart: unless-stopped$/m);
@@ -84,7 +87,7 @@ describe("docker/analytics.yml", () => {
   });
 
   it("keeps its data in pg-prod: no database and no volume of its own", () => {
-    expect(top.some((line) => /^volumes:/.test(line))).toBe(false);
+    expect(top.some((line) => line.startsWith("volumes:"))).toBe(false);
     expect(top.some((line) => /^\s+volumes:/.test(line))).toBe(false);
     expect(compose).not.toMatch(/image: .*postgres/);
     expect(compose).not.toMatch(/DATABASE_URL/);
@@ -108,7 +111,7 @@ describe("docker/analytics.yml", () => {
 
   it("reads the tunnel token from a secret file, never the environment", () => {
     const tunnel = service("cloudflared");
-    expect(tunnel).toMatch(
+    expect(oneLine(tunnel)).toMatch(
       /"--token-file", "\/run\/secrets\/cloudflared_tunnel_token"/
     );
     expect(compose).not.toMatch(/TUNNEL_TOKEN[^_]|"--token"/);
