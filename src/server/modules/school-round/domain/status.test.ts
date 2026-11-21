@@ -17,6 +17,8 @@ const ALLOWED: readonly (readonly [
 ])[] = [
   // Opened when the competition enters school judging.
   [null, "open"],
+  // The coordinator attests the judging and finalises the shortlist.
+  ["open", "finalised"],
 ];
 
 const FROM: readonly (SchoolRoundStatus | null)[] = [
