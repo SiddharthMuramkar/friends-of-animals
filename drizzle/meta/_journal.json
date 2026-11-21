@@ -33,8 +33,22 @@
     {
       "idx": 4,
       "version": "7",
-      "when": 1795246955337,
-      "tag": "0004_113_contact_inbox",
+      "when": 1795246027580,
+      "tag": "0004_59_roles_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795246028322,
+      "tag": "0005_59_audit_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795247877186,
+      "tag": "0006_113_contact_inbox",
       "breakpoints": true
     }
   ]

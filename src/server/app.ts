@@ -12,7 +12,9 @@ import "server-only";
 
 import { headers } from "next/headers";
 
+import { accessUseCases } from "./access";
 import type { Actor } from "./actor";
+import { auditUseCases } from "./audit";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
 import { contactUseCases } from "./modules/contact";
@@ -21,6 +23,8 @@ import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
   identityUseCases,
+  accessUseCases,
+  auditUseCases,
   publicFormUseCases,
   contactUseCases
 );
