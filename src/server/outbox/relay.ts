@@ -71,9 +71,9 @@ export type DrainOptions = {
 };
 
 /**
- * Small enough that one pass's handlers finish well inside one lease
- * (DEFAULT_RETRY_POLICY.leaseMs, 5 minutes); a claim whose lease runs out
- * first may be taken over and its handler run twice.
+ * Small enough that one pass's handlers normally finish inside one lease
+ * (DEFAULT_RETRY_POLICY.leaseMs, 5 minutes). Deliveries whose lease runs
+ * out before their turn are left for the next claim.
  */
 export const DEFAULT_DRAIN_LIMIT = 25;
 
@@ -223,8 +223,9 @@ async function run(deps: OutboxDeps, row: OutboxRow): Promise<DeliveryOutcome> {
 
 /**
  * One pass: claims up to `limit` due deliveries, runs each one's handler in
- * turn and settles it. A delivery whose claim was taken over meanwhile (its
- * lease ran out and another relay claimed it) is left to that relay.
+ * turn and settles it. A delivery whose lease has run out before its turn
+ * is not started, and one whose claim was taken over while its handler ran
+ * is left to the relay that took it.
  */
 export async function drainOutbox(
   deps: OutboxDeps,
@@ -243,6 +244,9 @@ export async function drainOutbox(
     skipped: await countSkipped(deps.db, now),
   };
   for (const row of claimed) {
+    // An earlier handler in this pass took so long that this claim's lease
+    // ran out: another relay may have it now, so don't start it here.
+    if (row.lockedUntil && deps.clock.now() >= row.lockedUntil) continue;
     const outcome = await run(deps, row);
     const settlement = settleDelivery(row, outcome, deps.clock.now(), policy);
     // Still ours only if no other relay claimed it after our lease ran out.
