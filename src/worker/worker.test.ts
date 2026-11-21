@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import type { AppDb } from "@/server/db/app-db";
 import { capturedMessage, outbox, workerHeartbeat } from "@/server/db/schema";
-import { emit } from "@/server/outbox";
+import { emitUserSignedUp } from "@/server/outbox/testing";
 import { FakeClock } from "@/test/fakes/clock";
-import { createHarness, type Harness } from "@/test/harness";
+import { createHarness } from "@/test/harness";
 
 import type { WorkerConfig } from "./config";
 import type { WorkerLogEntry } from "./log";
@@ -48,15 +48,6 @@ const PREVIEW_CONFIG: WorkerConfig = {
   connectionsPerDatabase: 2,
 };
 
-async function signedUp(h: Harness, userId: string) {
-  await h.db.transaction((tx) =>
-    emit(tx, h.clock, {
-      type: "identity.user_signed_up",
-      aggregate: { type: "user", id: userId },
-      payload: { userId },
-    })
-  );
-}
 
 /**
  * Fake I/O: `databases` maps a URL's database name to a test database;
@@ -127,7 +118,7 @@ describe("a single-database worker", () => {
   it("drains its database, captures the email and beats", async () => {
     const h = await createHarness();
     const member = await h.seed.member();
-    await signedUp(h, member.id);
+    await emitUserSignedUp(h, member.id);
     const { io, record } = fakeIo({ foa: h.db });
 
     const worker = createWorker(singleConfig("local"), io);
@@ -162,7 +153,7 @@ describe("a single-database worker", () => {
   it("refuses to send in production while no provider is set up", async () => {
     const h = await createHarness();
     const member = await h.seed.member();
-    await signedUp(h, member.id);
+    await emitUserSignedUp(h, member.id);
     const { io } = fakeIo({ foa: h.db });
 
     const worker = createWorker(singleConfig("production"), io);
@@ -189,7 +180,7 @@ describe("the shared preview worker", () => {
     const pr1 = await createHarness();
     const pr2 = await createHarness();
     const member = await pr1.seed.member();
-    await signedUp(pr1, member.id);
+    await emitUserSignedUp(pr1, member.id);
     const { io, record } = fakeIo(
       { foa_pr_1_0a1b2c3d: pr1.db, foa_pr_2_0a1b2c3d: pr2.db },
       catalog

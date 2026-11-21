@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { workerHeartbeat } from "@/server/db/schema";
-import { emit } from "@/server/outbox";
+import { emitUserSignedUp } from "@/server/outbox/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { createTenant, type WorkerIdentity } from "./tenant";
@@ -12,16 +12,6 @@ const PREVIEW_WORKER: WorkerIdentity = {
   version: "0123abc",
 };
 
-/** Emits identity.user_signed_up for `userId`, as sign-up does. */
-async function signedUp(h: Harness, userId: string) {
-  await h.db.transaction((tx) =>
-    emit(tx, h.clock, {
-      type: "identity.user_signed_up",
-      aggregate: { type: "user", id: userId },
-      payload: { userId },
-    })
-  );
-}
 
 function tenantFor(h: Harness, identity = PREVIEW_WORKER) {
   return createTenant({
@@ -36,7 +26,7 @@ describe("a tenant's tick", () => {
   it("sends what is due and records the worker's heartbeat", async () => {
     const h = await createHarness();
     const member = await h.seed.member({ name: "Asha Rao" });
-    await signedUp(h, member.id);
+    await emitUserSignedUp(h, member.id);
 
     const report = await tenantFor(h).tick();
 
