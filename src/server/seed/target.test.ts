@@ -67,6 +67,21 @@ describe("seedTarget", () => {
     }
   });
 
+  it("refuses a local URL that postgres-js would read differently", () => {
+    // The guard reads the URL as WHATWG does, which ends the host at "#";
+    // postgres-js ignores "#" and takes the host after the last "@".
+    for (const url of [
+      "postgres://foa:foa@localhost#@db.shipped-it.dev:6432/foa_staging",
+      "postgres://foa:foa@localhost:5432/foa#local",
+      "postgres://foa@localhost:x@db.shipped-it.dev:6432/foa",
+    ]) {
+      expect(seedTarget({ DIRECT_URL: url }), url).toEqual({
+        seed: false,
+        reason: expect.stringMatching(/"#" or more than one "@"/),
+      });
+    }
+  });
+
   it("refuses a local URL that tunnels into a deployed database", () => {
     // An SSH tunnel (docker/README.md) or PgBouncer on the database server
     // reaches pg-prod or pg-nonprod through a loopback address, so a local
