@@ -221,7 +221,7 @@ export type UserGrant = Grant & {
 export type ListUserRolesResult =
   | {
       ok: true;
-      user: { id: string; name: string; email: string };
+      user: { id: string; name: string; email: string | null };
       grants: UserGrant[];
     }
   | InvalidInput
