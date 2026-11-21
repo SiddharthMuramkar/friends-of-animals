@@ -29,9 +29,11 @@
   }
 }
 
-/* Keep the browser's centred popover on narrow or short screens so a note
-   can use the full viewport when it fits on neither side of its reference. */
+/* Restore the browser's centred popover margins after Tailwind's reset.
+   A centred note can use the full height on a short or narrow screen. */
 .note {
+  inset: 0;
+  margin: auto;
   max-block-size: calc(100dvh - 2rem);
   overflow-y: auto;
   overscroll-behavior: contain;
