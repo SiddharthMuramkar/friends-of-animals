@@ -4,12 +4,14 @@
 // `institutionUseCases`.
 
 import type { UseCaseContext } from "../use-cases";
+import { decideInstitution, type DecideInstitutionInput } from "./decide";
 import type { RegisterInstitutionInput } from "./domain/registration";
 import { getMyInstitution } from "./queries";
 import { registerInstitution } from "./register";
 
 export type { InstitutionDetails, GetMyInstitutionResult } from "./queries";
 export type { RegisterInstitutionResult } from "./register";
+export type { DecideInstitutionInput, DecideInstitutionResult } from "./decide";
 export type {
   InstitutionType,
   RegisterInstitutionInput,
@@ -33,4 +35,6 @@ export const institutionUseCases = (ctx: UseCaseContext) => ({
   registerInstitution: (input: RegisterInstitutionInput) =>
     registerInstitution(ctx, input),
   getMyInstitution: () => getMyInstitution(ctx),
+  decideInstitution: (input: DecideInstitutionInput) =>
+    decideInstitution(ctx, input),
 });

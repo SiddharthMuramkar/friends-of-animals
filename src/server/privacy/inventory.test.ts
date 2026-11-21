@@ -6,7 +6,7 @@ import * as schema from "@/server/db/schema";
 
 import { DATA_INVENTORY } from "./inventory";
 
-const tables = Object.values(schema)
+const tables = (Object.values(schema) as unknown[])
   .filter((value): value is PgTable => is(value, PgTable))
   .map((table) => getTableConfig(table));
 
