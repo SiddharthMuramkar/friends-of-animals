@@ -2,6 +2,7 @@ import { count, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { user } from "@/server/db/schema";
+import { SEED_ACCOUNTS } from "@/server/seed";
 import { createHarness, type Harness } from "@/test/harness";
 
 const ASHA = "asha@example.test";
@@ -305,5 +306,21 @@ describe("verifyEmailCode", () => {
       error: "invalid_input",
       fields: ["name"],
     });
+  });
+});
+
+describe("seeded accounts", () => {
+  it("sign in by email code, as on a preview", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+
+    for (const account of [
+      SEED_ACCOUNTS.superAdmin,
+      ...SEED_ACCOUNTS.members,
+    ]) {
+      h.cookies.clear();
+      const actor = await h.signIn(account);
+      expect(actor).toMatchObject({ kind: "user", userId: account.id });
+    }
   });
 });
