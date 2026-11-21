@@ -1,14 +1,18 @@
 // Consent seed data (#64): version 1 of the privacy notice, the terms and
 // the messages consent, published by the seeded super admin, so previews
 // show versioned legal pages and ask for consent at sign-up. The privacy
-// and terms bodies are the repo's policy text; the messages consent is a
+// and terms bodies are the repo's policy text, every clause kept (a
+// preview shows unconfirmed facts as tiles); the messages consent is a
 // draft (HR-20). Production gets no seed: staff publish version 1 there
 // once counsel approves the words. Loads under plain Node (the seed
 // script): relative imports only, no "server-only".
 
 import { LEGAL_DOCS } from "../../content/legal";
 import { MESSAGES_CONSENT_DRAFT } from "../../content/legal/messages-consent";
-import { parseConsentDocumentBody } from "../consent/domain/document-body";
+import {
+  parseConsentDocumentBody,
+  toConsentDocumentBody,
+} from "../consent/domain/document-body";
 import type { ConsentPurpose } from "../consent/domain/purposes";
 import { consentDocument } from "../db/schema";
 import { uuidv7 } from "../ids";
@@ -24,18 +28,12 @@ const SEED_DOCUMENTS: ReadonlyArray<{
   {
     purpose: "privacy_notice",
     title: "Privacy policy",
-    body: {
-      short: LEGAL_DOCS.privacy.short,
-      sections: LEGAL_DOCS.privacy.sections,
-    },
+    body: toConsentDocumentBody(LEGAL_DOCS.privacy),
   },
   {
     purpose: "terms",
     title: "Terms of use",
-    body: {
-      short: LEGAL_DOCS.terms.short,
-      sections: LEGAL_DOCS.terms.sections,
-    },
+    body: toConsentDocumentBody(LEGAL_DOCS.terms),
   },
   {
     purpose: "messages",

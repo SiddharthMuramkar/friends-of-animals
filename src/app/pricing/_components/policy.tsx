@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
+import { showsPlaceholders } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 /**
@@ -80,8 +81,12 @@ export function PolicyBlock({
   );
 }
 
-/** A dashed "To be confirmed" tile for a policy fact not set yet. */
+/**
+ * A dashed "To be confirmed" tile for a policy fact not set yet. Production
+ * renders nothing: leave out its line there too (showsPlaceholders()).
+ */
 export async function Tbc({ label }: { label: string }) {
+  if (!showsPlaceholders()) return null;
   const t = await getTranslations("common");
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2 rounded-xl border-2 border-dashed border-border-strong bg-surface-muted px-2.5 py-0.5 text-sm">

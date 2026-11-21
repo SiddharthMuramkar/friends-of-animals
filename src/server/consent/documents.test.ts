@@ -7,6 +7,8 @@ import { auditLog, consentDocument } from "@/server/db/schema";
 import { SEED_ACCOUNTS } from "@/server/seed";
 import { createHarness, type Harness } from "@/test/harness";
 
+import { toConsentDocumentBody } from "./domain/document-body";
+
 const SOURCE_V1 = [
   "- We keep only what a competition needs.",
   "",
@@ -344,10 +346,7 @@ describe("the preview seed", () => {
       {
         version: 1,
         title: "Privacy policy",
-        body: {
-          short: LEGAL_DOCS.privacy.short,
-          sections: LEGAL_DOCS.privacy.sections,
-        },
+        body: toConsentDocumentBody(LEGAL_DOCS.privacy),
         publishedBy: seededAdmin,
       },
     ]);
@@ -355,10 +354,7 @@ describe("the preview seed", () => {
       {
         version: 1,
         title: "Terms of use",
-        body: {
-          short: LEGAL_DOCS.terms.short,
-          sections: LEGAL_DOCS.terms.sections,
-        },
+        body: toConsentDocumentBody(LEGAL_DOCS.terms),
         publishedBy: seededAdmin,
       },
     ]);

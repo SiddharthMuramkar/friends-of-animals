@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { LegalFact, LegalInline } from "@/content/legal";
+import type { LegalFact, ShownInline } from "@/content/legal";
 import type { ConsentDocumentBody } from "@/server/consent";
 
 // A consent document body drawn in the browser, for the publish form's
@@ -15,7 +15,7 @@ function Inlines({
   text,
   factLabels,
 }: {
-  text: LegalInline[];
+  text: ShownInline[];
   factLabels: Record<LegalFact, string>;
 }) {
   return text.map((i, k): ReactNode => {
