@@ -1,5 +1,5 @@
 {
-  "id": "eb825001-d56c-4c24-9bfc-9b5c1f6f8a38",
+  "id": "94e474b5-fe74-496b-a88c-4d0ac55d7589",
   "prevId": "d2395a81-9e2f-4a5c-966e-453801958553",
   "version": "7",
   "dialect": "postgresql",
@@ -996,151 +996,44 @@
       },
       "isRLSEnabled": false
     },
-    "public.file_asset": {
-      "name": "file_asset",
+    "public.worker_heartbeat": {
+      "name": "worker_heartbeat",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
+        "worker": {
+          "name": "worker",
+          "type": "text",
           "primaryKey": true,
           "notNull": true
         },
-        "owner_user_id": {
-          "name": "owner_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "purpose": {
-          "name": "purpose",
-          "type": "file_asset_purpose",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content_type": {
-          "name": "content_type",
+        "environment": {
+          "name": "environment",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bucket": {
-          "name": "bucket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "storage_key": {
-          "name": "storage_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "file_asset_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending_upload'"
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "scan_result": {
-          "name": "scan_result",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "scanned_at": {
-          "name": "scanned_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "uploaded_at": {
-          "name": "uploaded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
+        "last_seen_at": {
+          "name": "last_seen_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
+        "version": {
+          "name": "version",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         }
       },
-      "indexes": {
-        "file_asset_owner_created_idx": {
-          "name": "file_asset_owner_created_idx",
-          "columns": [
-            {
-              "expression": "owner_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "file_asset_owner_user_id_user_id_fk": {
-          "name": "file_asset_owner_user_id_user_id_fk",
-          "tableFrom": "file_asset",
-          "tableTo": "user",
-          "columnsFrom": [
-            "owner_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "file_asset_storage_key_unique": {
-          "name": "file_asset_storage_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "storage_key"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "file_asset_size_bytes_positive": {
-          "name": "file_asset_size_bytes_positive",
-          "value": "\"file_asset\".\"size_bytes\" > 0"
+        "worker_heartbeat_environment_known": {
+          "name": "worker_heartbeat_environment_known",
+          "value": "\"worker_heartbeat\".\"environment\" IN ('local', 'preview', 'staging', 'production')"
         }
       },
       "isRLSEnabled": false
@@ -1203,26 +1096,6 @@
         "pending",
         "dispatched",
         "failed"
-      ]
-    },
-    "public.file_asset_purpose": {
-      "name": "file_asset_purpose",
-      "schema": "public",
-      "values": [
-        "test_upload"
-      ]
-    },
-    "public.file_asset_status": {
-      "name": "file_asset_status",
-      "schema": "public",
-      "values": [
-        "pending_upload",
-        "uploaded",
-        "scanning",
-        "clean",
-        "quarantined",
-        "rejected",
-        "deleted"
       ]
     }
   },

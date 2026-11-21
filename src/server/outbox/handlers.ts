@@ -14,7 +14,7 @@
 import type { AppDb } from "../db/app-db";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
-import { sendWelcomeEmail } from "../notifications/welcome-email";
+import { sendWelcomeEmail } from "../modules/notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";

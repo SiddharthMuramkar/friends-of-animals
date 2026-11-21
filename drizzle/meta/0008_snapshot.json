@@ -1,6 +1,6 @@
 {
-  "id": "b4b6e8b9-7903-4970-8fb5-269b04f0f109",
-  "prevId": "eb825001-d56c-4c24-9bfc-9b5c1f6f8a38",
+  "id": "0920a847-f2f4-4513-9226-2371433581b2",
+  "prevId": "94e474b5-fe74-496b-a88c-4d0ac55d7589",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1145,205 +1145,44 @@
       },
       "isRLSEnabled": false
     },
-    "public.file_derivative": {
-      "name": "file_derivative",
+    "public.worker_heartbeat": {
+      "name": "worker_heartbeat",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
+        "worker": {
+          "name": "worker",
+          "type": "text",
           "primaryKey": true,
           "notNull": true
         },
-        "file_asset_id": {
-          "name": "file_asset_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
+        "environment": {
+          "name": "environment",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "bucket": {
-          "name": "bucket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "storage_key": {
-          "name": "storage_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content_type": {
-          "name": "content_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "width": {
-          "name": "width",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "height": {
-          "name": "height",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "duration_ms": {
-          "name": "duration_ms",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
+        "last_seen_at": {
+          "name": "last_seen_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "file_derivative_file_asset_id_file_asset_id_fk": {
-          "name": "file_derivative_file_asset_id_file_asset_id_fk",
-          "tableFrom": "file_derivative",
-          "tableTo": "file_asset",
-          "columnsFrom": [
-            "file_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "file_derivative_storage_key_unique": {
-          "name": "file_derivative_storage_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "storage_key"
-          ]
-        },
-        "file_derivative_file_asset_id_kind_key": {
-          "name": "file_derivative_file_asset_id_kind_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "file_asset_id",
-            "kind"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "file_derivative_size_bytes_positive": {
-          "name": "file_derivative_size_bytes_positive",
-          "value": "\"file_derivative\".\"size_bytes\" > 0"
-        },
-        "file_derivative_size_positive": {
-          "name": "file_derivative_size_positive",
-          "value": "(\"file_derivative\".\"width\" IS NULL OR \"file_derivative\".\"width\" > 0) AND (\"file_derivative\".\"height\" IS NULL OR \"file_derivative\".\"height\" > 0)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.file_processing": {
-      "name": "file_processing",
-      "schema": "",
-      "columns": {
-        "file_asset_id": {
-          "name": "file_asset_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "file_processing_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'queued'"
-        },
-        "error_code": {
-          "name": "error_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "queued_at": {
-          "name": "queued_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "file_processing_file_asset_id_file_asset_id_fk": {
-          "name": "file_processing_file_asset_id_file_asset_id_fk",
-          "tableFrom": "file_processing",
-          "tableTo": "file_asset",
-          "columnsFrom": [
-            "file_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "file_processing_attempts_not_negative": {
-          "name": "file_processing_attempts_not_negative",
-          "value": "\"file_processing\".\"attempts\" >= 0"
-        },
-        "file_processing_error_code_when_failed": {
-          "name": "file_processing_error_code_when_failed",
-          "value": "(\"file_processing\".\"status\" = 'failed') = (\"file_processing\".\"error_code\" IS NOT NULL)"
-        },
-        "file_processing_finished_at_when_finished": {
-          "name": "file_processing_finished_at_when_finished",
-          "value": "(\"file_processing\".\"status\" = 'queued') = (\"file_processing\".\"finished_at\" IS NULL)"
+        "worker_heartbeat_environment_known": {
+          "name": "worker_heartbeat_environment_known",
+          "value": "\"worker_heartbeat\".\"environment\" IN ('local', 'preview', 'staging', 'production')"
         }
       },
       "isRLSEnabled": false
@@ -1426,15 +1265,6 @@
         "quarantined",
         "rejected",
         "deleted"
-      ]
-    },
-    "public.file_processing_status": {
-      "name": "file_processing_status",
-      "schema": "public",
-      "values": [
-        "queued",
-        "done",
-        "failed"
       ]
     }
   },
