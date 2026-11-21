@@ -1,7 +1,7 @@
 // The accounts every preview and local database is seeded with. All use the
 // reserved example.test domain, sign in by email code through the capture
-// mailbox, and keep fixed ids so links and journeys can name them. Playwright
-// reads these constants (tests/e2e/support/accounts.ts).
+// mailbox, and keep fixed ids so links and journeys can name them. Seam 2
+// journeys will read these constants (57b adds tests/e2e/support/accounts.ts).
 //
 // The super admin role arrives with #59's seeder; until then this is a plain
 // account.

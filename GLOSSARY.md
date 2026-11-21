@@ -44,6 +44,11 @@ _Avoid_: Dev inbox, outbox (the outbox is a different thing)
 
 ## Engineering
 
+**Seed builder**:
+A function that writes one realistic record, such as a Member, to a database
+through the clock it is given. Seam 1 tests and the seed command share them.
+_Avoid_: Factory, fixture
+
 **Seed data**:
 The realistic fake records every preview and local database starts with,
 including a super admin and a few Members, built by seed builders that tests

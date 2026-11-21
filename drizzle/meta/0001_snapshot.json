@@ -1,5 +1,5 @@
 {
-  "id": "bec26094-eca7-4b74-949d-a3c237d2575e",
+  "id": "4d3eaf32-5358-4ac5-98a5-b257fb237a82",
   "prevId": "6e13cb79-b556-4160-b1d5-d1b3d00343dc",
   "version": "7",
   "dialect": "postgresql",
@@ -65,7 +65,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "user_email_normalised": {
+          "name": "user_email_normalised",
+          "value": "\"user\".\"email\" = lower(btrim(\"user\".\"email\"))"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.captured_message": {

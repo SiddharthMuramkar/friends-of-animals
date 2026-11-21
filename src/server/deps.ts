@@ -10,16 +10,14 @@ import { env } from "@/env";
 import type { Env } from "@/env.schema";
 
 import { db } from "./db";
-import type { AppDb } from "./db/app-db";
-import { systemClock, type Clock } from "./ports/clock";
+import type { DbWithClock } from "./db/app-db";
+import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
 
-export interface Deps {
-  db: AppDb;
-  clock: Clock;
+export interface Deps extends DbWithClock {
   email: EmailSender;
   /** The response's cookies (the session cookie). */
   cookies: CookieJar;
@@ -42,7 +40,7 @@ export const DEVELOPMENT_AUTH_SECRET =
  */
 export function emailSenderFor(
   appEnv: Env["APP_ENV"],
-  deps: { db: AppDb; clock: Clock }
+  deps: DbWithClock
 ): EmailSender {
   return appEnv === "production"
     ? unconfiguredEmailSender

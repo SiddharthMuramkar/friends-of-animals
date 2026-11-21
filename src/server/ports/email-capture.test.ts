@@ -16,6 +16,34 @@ emailSenderContract("captureEmailSender", async () => {
   };
 });
 
+describe("captureEmailSender", () => {
+  // Staging captures real visitors' addresses and codes, so the mailbox
+  // keeps a week of messages, not everything ever sent.
+  it("drops captured messages more than seven days old", async () => {
+    const db = await createTestDb();
+    const clock = new FakeClock();
+    const sender = captureEmailSender({ db, clock });
+    const to = "asha@example.test";
+
+    await sender.send({ to, subject: "first", text: "Your code is 111111" });
+    clock.advance({ days: 7 });
+    await sender.send({
+      to,
+      subject: "a week on",
+      text: "Your code is 222222",
+    });
+    clock.advance({ milliseconds: 1 });
+    await sender.send({
+      to: "ravi@example.test",
+      subject: "for Ravi",
+      text: "Your code is 333333",
+    });
+
+    const kept = await readCapturedEmail(db, { to });
+    expect(kept.map((message) => message.subject)).toEqual(["a week on"]);
+  });
+});
+
 describe("readCapturedEmail", () => {
   it("returns at most `limit` messages, newest first", async () => {
     const db = await createTestDb();

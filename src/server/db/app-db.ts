@@ -1,5 +1,6 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 
+import type { Clock } from "../ports/clock";
 import type * as schema from "./schema";
 
 /**
@@ -11,3 +12,9 @@ import type * as schema from "./schema";
  * `{ rows }`), so use the query builder rather than indexing them.
  */
 export type AppDb = PgDatabase<PgQueryResultHKT, typeof schema>;
+
+/**
+ * A database and the clock that stamps what is written to it: what adapters
+ * and seed builders that write rows take. `Deps` adds the provider ports.
+ */
+export type DbWithClock = { db: AppDb; clock: Clock };

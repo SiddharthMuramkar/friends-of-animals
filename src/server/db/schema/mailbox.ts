@@ -1,7 +1,8 @@
 // The capture mailbox (#57): outside production, every email (and, from
 // #58, every SMS) is stored here instead of being sent, so staff and the
 // Seam 2 journeys can read sign-in codes. The table exists in every
-// environment's schema; production never writes to it.
+// environment's schema; production never writes to it. Messages are kept
+// for a week (CAPTURE_RETENTION_MS in src/server/ports/email-capture.ts).
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".

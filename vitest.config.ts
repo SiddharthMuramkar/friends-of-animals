@@ -25,6 +25,8 @@ export default defineConfig({
       "tests/e2e/**/*.test.ts",
     ],
     environment: "node",
+    // Migrates the PGlite template once per run, before any test file.
+    globalSetup: ["src/test/global-setup.ts"],
     setupFiles: ["./src/test/setup.ts"],
   },
 });

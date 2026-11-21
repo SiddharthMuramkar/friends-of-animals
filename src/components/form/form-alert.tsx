@@ -1,26 +1,18 @@
-import { CircleCheck, type LucideIcon, OctagonAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
+import {
+  CALLOUT_TONE,
+  calloutBox,
+  type CalloutTone,
+} from "@/components/site/callout-tone";
 import { cn } from "@/lib/utils";
 
-type Tone = "danger" | "success";
+type Tone = Extract<CalloutTone, "danger" | "success">;
 
-const TONE: Record<
-  Tone,
-  { icon: LucideIcon; box: string; word: string; role: "alert" | "status" }
-> = {
-  danger: {
-    icon: OctagonAlert,
-    box: "border-danger-border bg-danger-bg",
-    word: "text-danger",
-    role: "alert",
-  },
-  success: {
-    icon: CircleCheck,
-    box: "border-success-border bg-success-bg",
-    word: "text-success",
-    role: "status",
-  },
+/** A problem is announced at once, good news politely. */
+const ROLE: Record<Tone, "alert" | "status"> = {
+  danger: "alert",
+  success: "status",
 };
 
 /**
@@ -28,7 +20,8 @@ const TONE: Record<
  * field. A problem is announced at once (role="alert"), good news politely
  * (role="status"). Meaning never rides on colour alone: it shows an icon and
  * a word (`label`, e.g. common.callout.danger, "Important"). Holds no state,
- * so it works in Client Components, which can't render <Callout>.
+ * so it works in Client Components, which can't render <Callout>; both take
+ * their look from ../site/callout-tone.ts.
  */
 export function FormAlert({
   tone,
@@ -41,12 +34,9 @@ export function FormAlert({
   children: ReactNode;
   className?: string;
 }) {
-  const { icon: Icon, box, word, role } = TONE[tone];
+  const { icon: Icon, box, label: word } = CALLOUT_TONE[tone];
   return (
-    <div
-      role={role}
-      className={cn("rounded-3xl border-2 p-5 text-ink sm:p-6", box, className)}
-    >
+    <div role={ROLE[tone]} className={cn(calloutBox, box, className)}>
       <p className={cn("flex items-center gap-2 font-semibold", word)}>
         <Icon aria-hidden="true" className="size-5 shrink-0" />
         <span>{label}</span>

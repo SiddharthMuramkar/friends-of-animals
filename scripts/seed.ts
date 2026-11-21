@@ -4,7 +4,9 @@
 //
 // It connects through DIRECT_URL, like the migration, to the same database:
 // on a preview, the preview's own. Staging and production are never seeded:
-// it exits 0 without connecting, so `vercel-build` can always run it.
+// it exits 0 without connecting, so `vercel-build` can always run it. A
+// local run (APP_ENV local or unset) seeds only a database on this machine
+// or the Compose `db` service, and exits 0 for any other host.
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";

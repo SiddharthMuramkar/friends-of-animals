@@ -5,30 +5,43 @@
 //
 // Loads under plain Node (seed script), so no "server-only" here.
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 
-import type { AppDb } from "../db/app-db";
+import type { AppDb, DbWithClock } from "../db/app-db";
 import { capturedMessage } from "../db/schema";
-import { uuidv7 } from "../ids";
-import type { Clock } from "./clock";
+import { monotonicUuidv7 } from "../ids";
 import {
   normaliseEmailAddress,
   type EmailSender,
   type ReceivedEmail,
 } from "./email";
 
-export function captureEmailSender({
-  db,
-  clock,
-}: {
-  db: AppDb;
-  clock: Clock;
-}): EmailSender {
+/**
+ * How long the capture mailbox keeps a message. Staging captures real
+ * visitors' addresses and codes, and staff or a Seam 2 journey read a code
+ * within minutes, so a week is plenty. Each send drops older messages, of
+ * every channel.
+ */
+export const CAPTURE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function captureEmailSender({ db, clock }: DbWithClock): EmailSender {
+  // Messages sent in the same millisecond (a code sent again at once, or a
+  // test that never advances its clock) get ids in send order, which
+  // readCapturedEmail sorts by after the time.
+  const nextId = monotonicUuidv7();
   return {
     async send(message) {
       const now = clock.now();
+      await db
+        .delete(capturedMessage)
+        .where(
+          lt(
+            capturedMessage.createdAt,
+            new Date(now.getTime() - CAPTURE_RETENTION_MS)
+          )
+        );
       await db.insert(capturedMessage).values({
-        id: uuidv7(now),
+        id: nextId(now),
         channel: "email",
         toAddress: normaliseEmailAddress(message.to),
         subject: message.subject,
