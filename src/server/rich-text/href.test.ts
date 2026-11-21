@@ -13,6 +13,7 @@ describe("safeHref", () => {
       "https://en.wikipedia.org/wiki/Dog_(animal)",
       "https://en.wikipedia.org/wiki/Dog_(animal)",
     ],
+    ["https://example.test/@friends", "https://example.test/@friends"],
     ["mailto:hello@example.test", "mailto:hello@example.test"],
     ["tel:+91-80-1234-5678", "tel:+91-80-1234-5678"],
     ["  /about  ", "/about"],
@@ -37,6 +38,9 @@ describe("safeHref", () => {
     "https://",
     "https:///path",
     "https://exa mple.test",
+    // A look-alike: the host is evil.test, not friendsofanimals.org.
+    "https://friendsofanimals.org@evil.test/",
+    "https://user:pass@evil.test",
     "about:blank",
     "relative/path",
     "#",
