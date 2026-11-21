@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import type { RequestMeta } from "../actor";
 import { user } from "../db/schema";
+import { invalidInput, type InvalidInput } from "../input";
 import type { CookieJar } from "../ports/cookies";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
@@ -49,8 +50,6 @@ export type RequestEmailCodeInput =
   | { intent: "sign-up"; name: string; email: string };
 export type VerifyEmailCodeInput = z.input<typeof verifyEmailCodeInput>;
 
-type InvalidInput = { ok: false; error: "invalid_input"; fields: string[] };
-
 export type RequestEmailCodeResult =
   | { ok: true }
   | InvalidInput
@@ -67,11 +66,6 @@ export type VerifyEmailCodeResult =
         | "too_many_attempts"
         | "no_account";
     };
-
-function invalidInput(error: z.ZodError): InvalidInput {
-  const fields = new Set(error.issues.map((issue) => String(issue.path[0])));
-  return { ok: false, error: "invalid_input", fields: [...fields] };
-}
 
 /** The visitor's request details; `authorize` has ruled out other actors. */
 function visitorMeta(ctx: UseCaseContext): RequestMeta {

@@ -7,6 +7,7 @@
 // A module with preview data adds one line to `seeders`, after the modules
 // its data depends on.
 
+import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
 import { seedIdentity } from "./identity";
 import type { Seeder } from "./types";
@@ -14,10 +15,12 @@ import type { Seeder } from "./types";
 export type { SeedDeps, Seeder } from "./types";
 export type { SeedBuilders } from "./builders";
 export { SEED_ACCOUNTS } from "./accounts";
+export { SEED_SCOPES } from "./scopes";
 
 const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
   seedIdentity,
+  seedAccess,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);
