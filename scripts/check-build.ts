@@ -6,17 +6,23 @@
 //   (iOS 16.0): a Next.js or React upgrade could ship it again (#51).
 // - Each prerendered page's initial JS, gzipped, stays within the §13.2
 //   budget (#45).
+// - Public pages stay prerendered, signed-in pages don't, and no page has
+//   an inline handler: the Content-Security-Policy relies on all three
+//   (#65, ./csp-output.ts).
 
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 
+import { SIGNED_IN_PREFIXES } from "../src/lib/app-routes";
+import { ROUTES } from "../src/lib/routes";
 import {
   INITIAL_JS_BUDGET,
   initialScripts,
   newerSyntax,
   prerenderedPage,
 } from "./client-bundle";
+import { cspOutputFailures, type PrerenderManifest } from "./csp-output";
 
 const NEXT_DIR = path.resolve(process.argv[2] ?? ".next");
 const CHUNKS_DIR = path.join(NEXT_DIR, "static", "chunks");
@@ -91,7 +97,29 @@ function checkInitialJs(): string[] {
   return failures;
 }
 
-const failures = [...checkSyntax(), ...checkInitialJs()];
+function checkCsp(): string[] {
+  const manifest = JSON.parse(
+    readFileSync(path.join(NEXT_DIR, "prerender-manifest.json"), "utf8")
+  ) as PrerenderManifest;
+  const pages = filesUnder(SERVER_DIR, ".html").flatMap((file) => {
+    const page = prerenderedPage(path.relative(SERVER_DIR, file));
+    return page === undefined
+      ? []
+      : [{ page, html: readFileSync(file, "utf8") }];
+  });
+  console.log(
+    `Checked ${Object.keys(manifest.routes).length} prerendered routes and ` +
+      `${pages.length} pages against the CSP.`
+  );
+  return cspOutputFailures({
+    manifest,
+    routes: Object.values(ROUTES),
+    signedInPrefixes: SIGNED_IN_PREFIXES,
+    pages,
+  });
+}
+
+const failures = [...checkSyntax(), ...checkInitialJs(), ...checkCsp()];
 if (failures.length > 0) {
   console.error(`\nBuild check failed:\n- ${failures.join("\n- ")}`);
   process.exitCode = 1;
