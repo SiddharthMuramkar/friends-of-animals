@@ -48,6 +48,12 @@ export const AUDIENCES = {
     const userId = subjectUserOf(delivery);
     return userId ? [userId] : [];
   },
+  /**
+   * Whoever wrote through the contact form (#113). They have no account, so
+   * no user receives it here: the contact module emails their address with
+   * this route's template while the route is enabled.
+   */
+  contact_sender: async () => [],
   /** The staff team a contact message was routed to (#113). */
   contact_team: async (db, delivery) =>
     delivery.eventType === "contact_message.received"

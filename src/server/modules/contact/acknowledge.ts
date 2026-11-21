@@ -1,8 +1,10 @@
 // The outbox handler contact.send_acknowledgement: emails the sender of a
-// contact message their reference (#113). The sender has no account, so
-// notifications' route rows, which address users, can't reach them; this
-// handler renders notifications' `contact.acknowledgement` email template
-// (staff edit its wording, HR-50) and sends it through the email port.
+// contact message their reference (#113). The sender has no account, so the
+// dispatcher, which sends to users, can't reach them: their route row
+// (audience `contact_sender`) resolves to nobody. This handler reads that
+// row instead. While it is enabled with email, it renders the row's
+// template (staff edit its wording, HR-50) and sends it to the sender's
+// address through the email port.
 //
 // Anti-relay: the email says only the reference and the topic, never the
 // name, subject or message the sender typed. Otherwise the form would mail
@@ -14,9 +16,9 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
-import { contactMessage, messageTemplate } from "../../db/schema";
+import { contactMessage, messageRoute, messageTemplate } from "../../db/schema";
 import {
   renderEmailHtml,
   renderTemplate,
@@ -25,7 +27,8 @@ import { DEFAULT_LOCALE } from "../../notifications/locale";
 import type { Delivery, OutboxDeps } from "../../outbox/handlers";
 import { contactMessageValues } from "./notify";
 
-export const ACKNOWLEDGEMENT_TEMPLATE = "contact.acknowledgement";
+/** The audience of the route row that tells the sender. */
+export const SENDER_AUDIENCE = "contact_sender";
 
 export async function sendContactAcknowledgement(
   deps: OutboxDeps,
@@ -42,18 +45,36 @@ export async function sendContactAcknowledgement(
   // Gone (erased) or already acknowledged: nothing to send.
   if (!message || message.acknowledgedAt) return;
 
+  // Switched off, or not by email: the sender isn't told.
+  const [route] = await deps.db
+    .select({
+      templateKey: messageRoute.templateKey,
+      channels: messageRoute.channels,
+    })
+    .from(messageRoute)
+    .where(
+      and(
+        eq(messageRoute.eventType, delivery.eventType),
+        eq(messageRoute.audience, SENDER_AUDIENCE),
+        eq(messageRoute.enabled, true)
+      )
+    )
+    .orderBy(asc(messageRoute.createdAt))
+    .limit(1);
+  if (!route?.channels.includes("email")) return;
+
   const [template] = await deps.db
     .select({ subject: messageTemplate.subject, body: messageTemplate.body })
     .from(messageTemplate)
     .where(
       and(
-        eq(messageTemplate.key, ACKNOWLEDGEMENT_TEMPLATE),
+        eq(messageTemplate.key, route.templateKey),
         eq(messageTemplate.channel, "email"),
         eq(messageTemplate.locale, DEFAULT_LOCALE)
       )
     );
   if (!template) {
-    throw new Error(`Template ${ACKNOWLEDGEMENT_TEMPLATE} has no email`);
+    throw new Error(`Template ${route.templateKey} has no email`);
   }
   const values = await contactMessageValues(deps.db, messageId);
   if (!values) return;

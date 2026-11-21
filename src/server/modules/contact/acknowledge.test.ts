@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Role } from "@/server/access";
 import type { Actor } from "@/server/actor";
-import { contactMessage } from "@/server/db/schema";
+import { contactMessage, messageRoute } from "@/server/db/schema";
 import { emit } from "@/server/outbox";
 import { createHarness, type Harness } from "@/test/harness";
 import { solvedHumanCheck } from "@/test/human-check";
@@ -89,6 +89,30 @@ describe("the acknowledgement to the sender", () => {
     await h.drain();
 
     expect(h.email.sent).toEqual([]);
+  });
+
+  it("sends nothing while its route is switched off", async () => {
+    const h = await createHarness();
+    await h.db
+      .update(messageRoute)
+      .set({ enabled: false })
+      .where(eq(messageRoute.templateKey, "contact.acknowledgement"));
+
+    await send(h);
+    await h.drain();
+
+    expect(h.email.inbox(SENDER)).toEqual([]);
+  });
+
+  it("is listed for content managers with the event that sends it", async () => {
+    const h = await createHarness();
+    const editor = await staff(h, "content_manager", "Leela Das");
+
+    const templates = await h.as(editor).listMessageTemplates();
+
+    expect(
+      templates.find((t) => t.key === "contact.acknowledgement")?.events
+    ).toEqual(["contact_message.received"]);
   });
 
   it("uses the wording content managers last saved", async () => {

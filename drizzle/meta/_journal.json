@@ -99,6 +99,13 @@
       "when": 1795258736330,
       "tag": "0013_113_contact_note_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795259157785,
+      "tag": "0014_113_contact_notification_defaults",
+      "breakpoints": true
     }
   ]
 }
