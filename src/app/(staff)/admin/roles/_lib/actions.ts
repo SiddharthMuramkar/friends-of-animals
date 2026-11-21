@@ -3,6 +3,7 @@
 import { getTranslations } from "next-intl/server";
 import { redirect, RedirectType } from "next/navigation";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
@@ -66,10 +67,13 @@ async function changeRole(
   let result: RoleChangeResult;
   try {
     const app = as(actor);
-    result =
-      change === "granted"
-        ? await app.grantRole(parsed.input)
-        : await app.revokeRole(parsed.input);
+    result = await orSecondFactor(
+      () =>
+        change === "granted"
+          ? app.grantRole(parsed.input)
+          : app.revokeRole(parsed.input),
+      rolesHref({ user: parsed.input.userId })
+    );
   } catch (error) {
     if (!isRefusal(error)) throw error;
     result = REFUSED;

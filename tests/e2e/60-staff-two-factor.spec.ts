@@ -14,8 +14,8 @@ import { freshEmail, readCode } from "./support/mailbox";
 
 // #60: the second factor. A new member adds an authenticator app from the
 // setup key on the page; seeded staff pass the second factor and step up
-// with the preview-only SEED_TOTP_SECRET. Each project signs in its own
-// seeded staff account: a code works once per authenticator.
+// with the preview-only SEED_TOTP_SECRET. This journey uses the seeded
+// staff admin so it cannot reuse the super admin's codes in the #59 journey.
 //
 // These pages are signed-in pages under #65's nonce policy, which local runs
 // enforce: a page left with a static shell would have its scripts blocked,
@@ -92,10 +92,8 @@ test("a member adds an authenticator app, then steps up to remove it", async ({
 test("staff pass their second factor, then step up for a sensitive change", async ({
   page,
   request,
-}, testInfo) => {
-  const [, ravi] = SEED_ACCOUNTS.members;
-  const staff =
-    testInfo.project.name === "mobile" ? ravi : SEED_ACCOUNTS.superAdmin;
+}) => {
+  const [, staff] = SEED_ACCOUNTS.members;
   const secret = base32Decode(SEED_TOTP_SECRET);
   const violations = await recordCspViolations(page);
   await signIn(page, request, staff.email);
@@ -107,7 +105,9 @@ test("staff pass their second factor, then step up for a sensitive change", asyn
   await expectAccessibleInDark(page, "/auth/second-factor");
   await page.getByRole("textbox", { name: "6-digit code" }).fill("000000");
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("alert")).toContainText("didn't match");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "didn't match"
+  );
 
   await page
     .getByRole("textbox", { name: "6-digit code" })

@@ -1,7 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
+import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
+import {
+  TOTP,
+  totpCode,
+} from "../../src/server/modules/second-factor/domain/totp";
 import { SEED_ACCOUNTS } from "../../src/server/seed/accounts";
 import { SEED_SCOPES } from "../../src/server/seed/scopes";
+import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {
   expectAccessible,
   expectAccessibleInDark,
@@ -20,18 +26,23 @@ import {
 // found and given a role too, a member with several roles switches areas,
 // and people without the role are refused or sent to sign in.
 //
-// Sign-in codes: each project asks for five (a fresh member by email, a
-// fresh member by phone, the seeded super admin twice, the seeded
-// multi-role member). A seeded address allows 5 codes in 15 minutes and 20
-// a day, so one database takes one run of both projects in 15 minutes. CI
-// gives each project and shard its own database, so the limit of 20 codes
-// in 15 minutes per IP counts one shard's journeys. #60 adds the staff
-// second factor to the grant and revoke steps.
+// Both grant scenarios use one staff session because a TOTP step can
+// only be used once per authenticator. CI gives each project and shard
+// its own database. The #60 journey uses a different seeded staff account.
 
 const SCHOOL = SEED_SCOPES.institution.id;
 const COORDINATOR = `Institution coordinator for institution ${SCHOOL}`;
 const DENIED = "This page is for staff who manage access";
 const NO_EMAIL = "No email address: signs in with a mobile number";
+const SEED_AUTHENTICATOR = base32Decode(SEED_TOTP_SECRET);
+
+async function verifyStaffCode(page: Page, stepsAhead = 0) {
+  const at = new Date(Date.now() + stepsAhead * TOTP.periodSeconds * 1000);
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(SEED_AUTHENTICATOR, at));
+  await page.getByRole("button", { name: "Continue" }).click();
+}
 
 test("a super admin gives a member a scoped role, sees it in the audit log, then takes it away", async ({
   browser,
@@ -56,6 +67,10 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
 
   // The super admin finds the member.
   await signInByCode(page, request, SEED_ACCOUNTS.superAdmin.email);
+  await page.goto("/admin/roles");
+  await expect(page).toHaveURL(/\/auth\/second-factor\?next=%2Fadmin%2Froles$/);
+  await verifyStaffCode(page);
+  await expect(page).toHaveURL(/\/admin\/roles$/);
   await expectRendersAccessibly(page, "/admin/roles");
   await expectAccessibleInDark(page, "/admin/roles");
   await page
@@ -70,6 +85,19 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   await expect(roles.getByText(`${memberName} has no roles.`)).toBeVisible();
   const memberId = new URL(page.url()).searchParams.get("user");
   expect(memberId, "the chosen user's id in the URL").toBeTruthy();
+
+  // Confirm a fresh factor and return to the chosen person's roles.
+  const chosenRolesUrl = page.url();
+  const { pathname, search } = new URL(chosenRolesUrl);
+  await page.goto(
+    `/auth/step-up?next=${encodeURIComponent(pathname + search)}`
+  );
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Confirm it's you"
+  );
+  // The first factor used the current step, so submit the next code.
+  await verifyStaffCode(page, 1);
+  await expect(page).toHaveURL(chosenRolesUrl);
 
   // A role at a scope it can't have is refused with a message, no code.
   const grantForm = page.getByRole("region", { name: "Give a role" });
@@ -176,59 +204,57 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   ).toBeVisible();
 
   await member.context().close();
-});
 
-test("a super admin finds a member who signed up by phone, with no email address, and gives them a role", async ({
-  browser,
-  page,
-  request,
-}, testInfo) => {
-  // The member: a fresh account made by SMS code, so it has no email
-  // address. Search finds it by name, so the number's last digits make the
-  // name this test's own.
-  const phone = freshPhone();
-  const memberName = `Ravi Iyer ${phone.slice(-5)}`;
-  const member = await newDevice(browser, testInfo);
-  await signUpByPhone(member, request, phone, memberName);
-  await member.context().close();
+  await test.step("give a role to a member who signed up by phone", async () => {
+    // The member: a fresh account made by SMS code, so it has no email
+    // address. Search finds it by name, so the number's last digits make the
+    // name this test's own.
+    const phone = freshPhone();
+    const memberName = `Ravi Iyer ${phone.slice(-5)}`;
+    const member = await newDevice(browser, testInfo);
+    await signUpByPhone(member, request, phone, memberName);
+    await member.context().close();
 
-  await signInByCode(page, request, SEED_ACCOUNTS.superAdmin.email);
-  await page.goto("/admin/roles");
-  await page
-    .getByRole("searchbox", { name: "Name or email address" })
-    .fill(memberName);
-  await page.getByRole("button", { name: "Search" }).click();
-  // Where an email address would be, a note says there isn't one.
-  const found = page
-    .getByRole("region", { name: "People found" })
-    .getByRole("link", { name: memberName });
-  await expect(found).toContainText(NO_EMAIL);
-  await found.click();
-  const roles = page.getByRole("region", { name: `Roles of ${memberName}` });
-  await expect(roles.getByText(NO_EMAIL)).toBeVisible();
-  await expect(roles.getByText(`${memberName} has no roles.`)).toBeVisible();
-  await expectAccessible(page, "/admin/roles, a member with no email address");
+    await page.goto("/admin/roles");
+    await page
+      .getByRole("searchbox", { name: "Name or email address" })
+      .fill(memberName);
+    await page.getByRole("button", { name: "Search" }).click();
+    // Where an email address would be, a note says there isn't one.
+    const found = page
+      .getByRole("region", { name: "People found" })
+      .getByRole("link", { name: memberName });
+    await expect(found).toContainText(NO_EMAIL);
+    await found.click();
+    const roles = page.getByRole("region", { name: `Roles of ${memberName}` });
+    await expect(roles.getByText(NO_EMAIL)).toBeVisible();
+    await expect(roles.getByText(`${memberName} has no roles.`)).toBeVisible();
+    await expectAccessible(
+      page,
+      "/admin/roles, a member with no email address"
+    );
 
-  // Their roles are managed like anyone's.
-  const grantForm = page.getByRole("region", { name: "Give a role" });
-  await grantForm
-    .getByRole("combobox", { name: "Role" })
-    .selectOption("institution_coordinator");
-  await grantForm
-    .getByRole("combobox", { name: "Where it applies" })
-    .selectOption("institution");
-  await grantForm
-    .getByRole("textbox", {
-      name: "Institution, competition or organisation id",
-    })
-    .fill(SCHOOL);
-  await grantForm.getByRole("button", { name: "Give role" }).click();
-  await expect(
-    page.getByRole("status").filter({ hasText: "Role given." })
-  ).toBeVisible();
-  await expect(
-    roles.getByRole("listitem").filter({ hasText: COORDINATOR })
-  ).toContainText("by Seed Super Admin");
+    // Their roles are managed like anyone's.
+    const grantForm = page.getByRole("region", { name: "Give a role" });
+    await grantForm
+      .getByRole("combobox", { name: "Role" })
+      .selectOption("institution_coordinator");
+    await grantForm
+      .getByRole("combobox", { name: "Where it applies" })
+      .selectOption("institution");
+    await grantForm
+      .getByRole("textbox", {
+        name: "Institution, competition or organisation id",
+      })
+      .fill(SCHOOL);
+    await grantForm.getByRole("button", { name: "Give role" }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Role given." })
+    ).toBeVisible();
+    await expect(
+      roles.getByRole("listitem").filter({ hasText: COORDINATOR })
+    ).toContainText("by Seed Super Admin");
+  });
 });
 
 test("a member with several roles switches between their areas", async ({

@@ -4,6 +4,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import { TextField } from "@/components/form";
 import { buttonStyles } from "@/components/site/button-link";
 import { Chip } from "@/components/site/chip";
@@ -86,10 +87,15 @@ async function load(params: RolesParams): Promise<Loaded | undefined> {
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const app = as(actor);
   try {
-    const [found, chosen] = await Promise.all([
-      app.searchUsers({ query: params.q ?? "" }),
-      params.user ? app.listUserRoles({ userId: params.user }) : undefined,
-    ]);
+    const userId = params.user;
+    const [found, chosen] = await orSecondFactor(
+      () =>
+        Promise.all([
+          app.searchUsers({ query: params.q ?? "" }),
+          userId ? app.listUserRoles({ userId }) : undefined,
+        ]),
+      rolesHref({ user: userId })
+    );
     return { found, chosen };
   } catch (error) {
     if (isRefusal(error)) return undefined;
