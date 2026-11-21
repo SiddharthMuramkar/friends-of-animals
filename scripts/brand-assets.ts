@@ -44,12 +44,15 @@ const renderPng = (art: Artwork, canvas: Canvas): Buffer =>
     .render()
     .asPng();
 
-/** A white square with the artwork filling its width. */
+/**
+ * A transparent square with the artwork filling its width. The tile row is
+ * about 2:1, so an opaque square would show bands above and below it: a white
+ * box on grey and dark browser tabs.
+ */
 const square = (size: number): Canvas => ({
   width: size,
   height: size,
   logoWidth: size,
-  background: WHITE,
 });
 
 /** ICO container holding PNG-encoded frames (supported by every current browser). */
@@ -109,8 +112,8 @@ for (const [name, fill] of Object.entries(SINGLE_COLOURS)) {
   );
 }
 
-// Favicon: the tiles alone on a white square (#17); the wordmark is unreadable
-// at 16–48 px.
+// Favicon: the tiles alone (#17) on a transparent square; the wordmark is
+// unreadable at 16–48 px.
 write("/brand/favicon.svg", canvasSvg(tiles, square(512), SITE.name) + "\n");
 const favicon = ico(
   [16, 32, 48].map((size) => ({ size, png: renderPng(tiles, square(size)) }))
