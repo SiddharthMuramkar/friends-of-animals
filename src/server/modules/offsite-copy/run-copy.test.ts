@@ -356,3 +356,212 @@ describe("runOffsiteCopy: the retention window", () => {
     expect(rows["avatar/b"]?.deletedInSourceAt).toBeNull();
   });
 });
+
+describe("runOffsiteCopy: failures, retries and reports", () => {
+  it("copies the rest when a B2 write fails, then throws so pg-boss retries", async () => {
+    const { b2, upload, copyOf, manifest, incompleteRun } = await world();
+    await upload("avatar/a", "a");
+    await upload("avatar/b", "b");
+    await upload("avatar/c", "c");
+    b2.breakObject("write", { bucket: OFFSITE, key: `${FILES}/avatar/b` });
+
+    const error = await incompleteRun();
+
+    expect(error.report).toMatchObject({
+      status: "incomplete",
+      copied: 2,
+      failed: 1,
+      failedBuckets: [],
+    });
+    expect(await copyOf("avatar/b")).toBeNull();
+    expect(Object.keys(await manifest()).sort()).toEqual([
+      "avatar/a",
+      "avatar/c",
+    ]);
+  });
+
+  it("copies only what failed when it runs again", async () => {
+    const { b2, upload, copyOf, incompleteRun, run } = await world();
+    await upload("avatar/a", "a");
+    const bytes = await upload("avatar/b", "b");
+    b2.breakObject("write", { bucket: OFFSITE, key: `${FILES}/avatar/b` });
+    await incompleteRun();
+    b2.heal();
+    const writes = b2.writes.length;
+
+    expect(await run()).toMatchObject({
+      status: "complete",
+      copied: 1,
+      unchanged: 1,
+    });
+    expect(b2.writes.slice(writes)).toEqual([
+      { bucket: OFFSITE, key: `${FILES}/avatar/b` },
+    ]);
+    expect((await copyOf("avatar/b"))?.bytes).toEqual(bytes);
+  });
+
+  it("reports nothing to Sentry on an attempt pg-boss will retry", async () => {
+    const { h, b2, upload, incompleteRun } = await world();
+    await upload("avatar/a", "a");
+    b2.breakObject("write", { bucket: OFFSITE, key: `${FILES}/avatar/a` });
+
+    await incompleteRun({ finalAttempt: false });
+
+    expect(h.errors.reported).toEqual([]);
+  });
+
+  it("reports one event on the final attempt, with counts and the failed keys", async () => {
+    const { h, b2, upload, incompleteRun } = await world();
+    await upload("avatar/a", "a");
+    await upload("avatar/b", "b");
+    b2.breakObject("write", { bucket: OFFSITE, key: `${FILES}/avatar/b` });
+
+    const error = await incompleteRun({ finalAttempt: true });
+
+    expect(h.errors.reported).toEqual([
+      {
+        error,
+        type: "OffsiteCopyIncompleteError",
+        message: expect.any(String),
+        tags: { job: "offsite_copy", where: "offsite_copy" },
+        extra: {
+          copied: 1,
+          deferred: 0,
+          failed: 1,
+          failedBuckets: [],
+          failures: {
+            total: 1,
+            byError: { FakeOutageError: 1 },
+            examples: [
+              {
+                bucket: FILES,
+                key: "avatar/b",
+                error: expect.stringContaining("FakeOutageError"),
+              },
+            ],
+          },
+        },
+      },
+    ]);
+  });
+
+  it("names at most ten failed keys in the event", async () => {
+    const { h, b2, upload, incompleteRun } = await world();
+    for (let i = 10; i < 22; i += 1) {
+      await upload(`avatar/${i}`, `bytes ${i}`);
+      b2.breakObject("write", { bucket: OFFSITE, key: `${FILES}/avatar/${i}` });
+    }
+
+    await incompleteRun({ finalAttempt: true });
+
+    expect(h.errors.reported).toHaveLength(1);
+    const { extra } = h.errors.reported[0]!;
+    expect(extra).toMatchObject({
+      failed: 12,
+      failures: { total: 12, examples: expect.any(Array) },
+    });
+    expect((extra.failures as { examples: unknown[] }).examples).toHaveLength(
+      10
+    );
+  });
+
+  it("gives up a bucket whose listing fails part-way, before marking anything", async () => {
+    const { h, r2, upload, remove, manifest, run, incompleteRun } =
+      await world();
+    await upload("avatar/a", "a");
+    await upload("avatar/b", "b");
+    await upload("avatar/c", "c");
+    await run();
+    await remove("avatar/c");
+    r2.breakListing(FILES, { afterObjects: 1 });
+
+    const error = await incompleteRun({ finalAttempt: true });
+
+    expect(error.report).toMatchObject({
+      failedBuckets: [FILES],
+      markedDeleted: 0,
+    });
+    expect((await manifest())["avatar/c"]?.deletedInSourceAt).toBeNull();
+    expect(h.errors.reported[0]?.extra).toMatchObject({
+      failedBuckets: [
+        {
+          bucket: FILES,
+          reason: "listing_failed",
+          error: expect.stringContaining("FakeOutageError"),
+        },
+      ],
+    });
+  });
+
+  it("still copies the other buckets when one bucket's listing fails", async () => {
+    const { r2, upload, offsiteKeys, incompleteRun } = await world({
+      sourceBuckets: [FILES, MEDIA],
+    });
+    await upload("avatar/a", "a");
+    await upload("gallery/b", "b", { bucket: MEDIA });
+    r2.breakListing(FILES);
+
+    const error = await incompleteRun();
+
+    expect(error.report).toMatchObject({ failedBuckets: [FILES], copied: 1 });
+    expect(await offsiteKeys()).toEqual([`${MEDIA}/gallery/b`]);
+  });
+
+  it("keeps the manifest row of a copy whose purge failed, for the next run", async () => {
+    const { h, b2, upload, remove, copyOf, manifest, run, incompleteRun } =
+      await world();
+    await upload("avatar/a", "a");
+    await upload("avatar/b", "b");
+    await run();
+    await remove("avatar/a");
+    await run();
+    h.clock.advance({ days: 30 });
+    b2.breakObject("delete", { bucket: OFFSITE, key: `${FILES}/avatar/a` });
+
+    expect((await incompleteRun()).report).toMatchObject({
+      failed: 1,
+      purged: 0,
+    });
+    expect(await copyOf("avatar/a")).not.toBeNull();
+    expect(Object.keys(await manifest()).sort()).toEqual([
+      "avatar/a",
+      "avatar/b",
+    ]);
+
+    b2.heal();
+    expect(await run()).toMatchObject({ purged: 1 });
+    expect(await copyOf("avatar/a")).toBeNull();
+  });
+
+  it("warns once, and still marks them, when a run marks over a tenth of a bucket's copies", async () => {
+    const { h, upload, remove, manifest, run } = await world();
+    for (let i = 10; i < 30; i += 1) await upload(`avatar/${i}`, `bytes ${i}`);
+    await run();
+    for (let i = 10; i < 20; i += 1) await remove(`avatar/${i}`);
+
+    expect(await run()).toMatchObject({
+      status: "complete",
+      markedDeleted: 10,
+    });
+    expect(h.errors.reported).toEqual([
+      expect.objectContaining({
+        type: "OffsiteMassDeletionWarning",
+        tags: { job: "offsite_copy", level: "warning", where: "offsite_copy" },
+        extra: { buckets: [{ bucket: FILES, marked: 10, live: 20 }] },
+      }),
+    ]);
+    expect((await manifest())["avatar/10"]?.deletedInSourceAt).toEqual(
+      h.clock.now()
+    );
+  });
+
+  it("doesn't warn about fewer than ten marks", async () => {
+    const { h, upload, remove, run } = await world();
+    for (let i = 10; i < 30; i += 1) await upload(`avatar/${i}`, `bytes ${i}`);
+    await run();
+    for (let i = 10; i < 19; i += 1) await remove(`avatar/${i}`);
+
+    expect(await run()).toMatchObject({ markedDeleted: 9 });
+    expect(h.errors.reported).toEqual([]);
+  });
+});

@@ -22,3 +22,17 @@ export class OffsiteCopyIncompleteError extends Error {
     this.report = report;
   }
 }
+
+/**
+ * Reported (as a warning) when a run marks an unusually large share of a
+ * bucket's copies as gone from R2. The copies are kept for the retention
+ * window, so there is time to look before anything is purged.
+ */
+export class OffsiteMassDeletionWarning extends Error {
+  constructor(buckets: readonly string[]) {
+    super(
+      `The off-site copy marked many objects as deleted from R2 in ${buckets.join(", ")}`
+    );
+    this.name = "OffsiteMassDeletionWarning";
+  }
+}

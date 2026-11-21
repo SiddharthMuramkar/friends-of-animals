@@ -23,6 +23,16 @@ type Stored = {
 
 const realClock: Clock = { now: () => new Date() };
 
+/** What a broken fake throws, as a network or provider failure would. */
+export class FakeOutageError extends Error {
+  constructor(what: string) {
+    super(`Simulated outage: ${what}`);
+    this.name = "FakeOutageError";
+  }
+}
+
+type BreakableOperation = "read" | "write" | "delete";
+
 function md5(bytes: Uint8Array, encoding: "hex" | "base64"): string {
   return createHash("md5").update(bytes).digest(encoding);
 }
@@ -45,6 +55,10 @@ export class FakeCopyBucket implements CopyBucket {
   readonly #clock: Clock;
   readonly #buckets = new Map<string, Map<string, Stored>>();
   readonly #writes: { bucket: string; key: string }[] = [];
+  /** `<operation> <bucket>/<key>` for each broken object. */
+  readonly #brokenObjects = new Set<string>();
+  /** Broken listings: how many objects each yields before it throws. */
+  readonly #brokenListings = new Map<string, number>();
 
   constructor(options: { clock?: Clock } = {}) {
     this.#clock = options.clock ?? realClock;
@@ -70,9 +84,15 @@ export class FakeCopyBucket implements CopyBucket {
     const keys = [...objects.keys()]
       .filter((key) => key.startsWith(prefix))
       .sort(byKeyBytes);
+    const failAfter = this.#brokenListings.get(bucket);
+    let yielded = 0;
     for (const key of keys) {
+      if (yielded === failAfter) {
+        throw new FakeOutageError(`listing ${bucket}`);
+      }
       const stored = objects.get(key);
       if (stored === undefined) continue;
+      yielded += 1;
       yield {
         key,
         etag: stored.etag,
@@ -80,6 +100,7 @@ export class FakeCopyBucket implements CopyBucket {
         lastModified: new Date(stored.lastModified),
       };
     }
+    if (yielded === failAfter) throw new FakeOutageError(`listing ${bucket}`);
   }
 
   async read({
@@ -89,6 +110,7 @@ export class FakeCopyBucket implements CopyBucket {
     bucket: string;
     key: string;
   }): Promise<ReadObject | null> {
+    this.#throwIfBroken("read", { bucket, key });
     const stored = this.#bucket(bucket).get(key);
     if (stored === undefined) return null;
     return {
@@ -101,6 +123,7 @@ export class FakeCopyBucket implements CopyBucket {
   }
 
   async write(input: WriteObject): Promise<void> {
+    this.#throwIfBroken("write", input);
     const bytes = new Uint8Array(await new Response(input.body).arrayBuffer());
     if (bytes.length !== input.sizeBytes) {
       throw new Error(
@@ -129,10 +152,42 @@ export class FakeCopyBucket implements CopyBucket {
   }
 
   async delete({ bucket, key }: { bucket: string; key: string }) {
+    this.#throwIfBroken("delete", { bucket, key });
     this.#bucket(bucket).delete(key);
   }
 
   async exists({ bucket, key }: { bucket: string; key: string }) {
     return this.#bucket(bucket).has(key);
+  }
+
+  /** Makes every later `operation` on this object throw, until `heal()`. */
+  breakObject(
+    operation: BreakableOperation,
+    { bucket, key }: { bucket: string; key: string }
+  ): void {
+    this.#brokenObjects.add(`${operation} ${bucket}/${key}`);
+  }
+
+  /**
+   * Makes every later listing of `bucket` throw after yielding
+   * `afterObjects` objects (none by default), as a failed page would.
+   */
+  breakListing(bucket: string, { afterObjects = 0 } = {}): void {
+    this.#brokenListings.set(bucket, afterObjects);
+  }
+
+  /** Ends every outage `breakObject` and `breakListing` started. */
+  heal(): void {
+    this.#brokenObjects.clear();
+    this.#brokenListings.clear();
+  }
+
+  #throwIfBroken(
+    operation: BreakableOperation,
+    { bucket, key }: { bucket: string; key: string }
+  ): void {
+    if (this.#brokenObjects.has(`${operation} ${bucket}/${key}`)) {
+      throw new FakeOutageError(`${operation} ${bucket}/${key}`);
+    }
   }
 }
