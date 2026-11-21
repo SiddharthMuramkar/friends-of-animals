@@ -1,11 +1,26 @@
+import { and, eq, isNotNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { AppDb } from "@/server/db/app-db";
-import { capturedMessage, outbox, workerHeartbeat } from "@/server/db/schema";
+import {
+  capturedMessage,
+  fileDerivative,
+  fileProcessing,
+  outbox,
+  workerHeartbeat,
+} from "@/server/db/schema";
+import { drainUntilIdle } from "@/server/outbox";
 import { emitUserSignedUp } from "@/server/outbox/testing";
+import type { MalwareScanner } from "@/server/ports/malware-scanner";
+import type { MediaProcessor } from "@/server/ports/media";
+import type { ObjectStorage } from "@/server/ports/storage";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
-import { createHarness } from "@/test/harness";
+import { FakeMalwareScanner } from "@/test/fakes/malware-scanner";
+import { FakeMediaProcessor } from "@/test/fakes/media";
+import { FakeStorage } from "@/test/fakes/storage";
+import { createHarness, type Harness } from "@/test/harness";
+import { readMediaFixture } from "@/test/media-fixtures";
 
 import type { WorkerConfig } from "./config";
 import type { WorkerLogEntry } from "./log";
@@ -38,8 +53,16 @@ function singleConfig(
       version: "dev",
     },
     connectionsPerDatabase: 1,
+    queue: { name: "default" },
   };
 }
+
+/** worker-media: production's media queue, 90 s a job. */
+const MEDIA_CONFIG: WorkerConfig = {
+  ...singleConfig("production"),
+  identity: { worker: "worker-media", environment: "production", version: "dev" },
+  queue: { name: "media", timeoutSeconds: 90 },
+};
 
 const PREVIEW_CONFIG: WorkerConfig = {
   ...COMMON,
@@ -52,6 +75,7 @@ const PREVIEW_CONFIG: WorkerConfig = {
     version: "9af49ce",
   },
   connectionsPerDatabase: 2,
+  queue: { name: "default" },
 };
 
 /** A database whose every query fails (its connection is closed). */
@@ -67,8 +91,14 @@ async function brokenDb(): Promise<AppDb> {
  */
 function fakeIo(
   databases: Record<string, AppDb>,
-  catalog: ListedDatabase[] = []
+  catalog: ListedDatabase[] = [],
+  ports: {
+    storage?: ObjectStorage;
+    scanner?: MalwareScanner;
+    media?: MediaProcessor;
+  } = {}
 ) {
+  const clock = new FakeClock();
   const record = {
     opened: [] as { url: string; connections: number }[],
     ended: [] as string[],
@@ -79,9 +109,16 @@ function fakeIo(
     beats: [] as Date[],
     log: [] as WorkerLogEntry[],
     errors: [] as { error: unknown; tenant: string }[],
+    mediaMade: [] as { timeoutSeconds: number }[],
   };
   const io: WorkerIo = {
-    clock: new FakeClock(),
+    clock,
+    storage: ports.storage ?? new FakeStorage(clock),
+    scanner: ports.scanner ?? new FakeMalwareScanner(),
+    async makeMediaProcessor(options) {
+      record.mediaMade.push(options);
+      return ports.media ?? new FakeMediaProcessor();
+    },
     log: (entry) => record.log.push(entry),
     onTenantError: (error, { tenant }) => record.errors.push({ error, tenant }),
     openDatabase(url, connections) {
@@ -275,5 +312,93 @@ describe("the shared preview worker", () => {
     expect(record.bossStartedOn).toEqual([]);
     expect(record.ended).toEqual(["foa_pr_1_0a1b2c3d"]);
     expect(record.catalogEnded).toBe(1);
+  });
+});
+
+const JPEG = readMediaFixture("gpsJpeg");
+
+/**
+ * `count` JPEGs one member uploads, scanned clean by the default queue (as
+ * the VPS worker would), so each has a media job waiting.
+ */
+async function cleanImages(h: Harness, count = 1): Promise<string[]> {
+  const owner = await h.signIn(await h.seed.member());
+  const ids: string[] = [];
+  for (let n = 0; n < count; n += 1) {
+    const requested = await h.as(owner).requestUpload({
+      purpose: "test_upload",
+      contentType: "image/jpeg",
+      sizeBytes: JPEG.length,
+    });
+    if (!requested.ok) throw new Error(`refused: ${requested.error}`);
+    const stored = await h.storage.put(
+      requested.uploadUrl,
+      JPEG,
+      requested.headers
+    );
+    if (!stored.ok) throw new Error(`not stored: ${stored.error}`);
+    const completed = await h
+      .as(owner)
+      .completeUpload({ fileId: requested.fileId });
+    if (!completed.ok) throw new Error(`not completed: ${completed.error}`);
+    ids.push(requested.fileId);
+  }
+  await drainUntilIdle(h.deps);
+  return ids;
+}
+
+describe("worker-media", () => {
+  it("makes each clean image's derivatives, and runs nothing else", async () => {
+    const h = await createHarness();
+    const [fileId] = await cleanImages(h);
+    const member = await h.seed.member();
+    await emitUserSignedUp(h, member.id);
+    const { io } = fakeIo({ foa: h.db }, [], {
+      storage: h.storage,
+      media: h.media,
+    });
+
+    const worker = createWorker(MEDIA_CONFIG, io);
+    await worker.start();
+    await worker.tick();
+    await worker.stop();
+
+    expect(
+      await h.db
+        .select({ file: fileProcessing.fileAssetId, status: fileProcessing.status })
+        .from(fileProcessing)
+    ).toEqual([{ file: fileId, status: "done" }]);
+    expect(
+      await h.db
+        .select({ kind: fileDerivative.kind })
+        .from(fileDerivative)
+        .orderBy(fileDerivative.kind)
+    ).toEqual([{ kind: "display_1600" }, { kind: "thumb_320" }]);
+    // The welcome email is the default workers' to send.
+    expect(
+      await h.db
+        .select({ status: outbox.status })
+        .from(outbox)
+        .where(eq(outbox.handler, "notifications.send_welcome_email"))
+    ).toEqual([{ status: "pending" }]);
+    expect(await h.db.select().from(capturedMessage)).toEqual([]);
+  });
+
+  it("runs no schedules and writes no heartbeat row, but stays healthy", async () => {
+    const h = await createHarness();
+    const { io, record } = fakeIo({ foa: h.db });
+
+    const worker = createWorker(MEDIA_CONFIG, io);
+    await worker.start();
+    await worker.tick();
+    await worker.stop();
+
+    // Schedules are the default worker's, on pg-boss.
+    expect(record.bossStartedOn).toEqual([]);
+    // /api/health/worker judges production's default worker by its row; a
+    // media worker's row would hide a stalled worker-prod.
+    expect(await h.db.select().from(workerHeartbeat)).toEqual([]);
+    // The container's health check reads the heartbeat file.
+    expect(record.beats).toEqual([io.clock.now()]);
   });
 });

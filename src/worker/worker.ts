@@ -11,9 +11,16 @@
 
 import type { AppDb } from "../server/db/app-db";
 import { withDatabase } from "../server/db/database-url";
-import { SCHEDULES, type OutboxDeps } from "../server/outbox";
+import {
+  SCHEDULES,
+  type DrainOptions,
+  type OutboxDeps,
+} from "../server/outbox";
 import type { Clock } from "../server/ports/clock";
 import { emailSenderFor } from "../server/ports/email-sender-for";
+import type { MalwareScanner } from "../server/ports/malware-scanner";
+import { unconfiguredMedia, type MediaProcessor } from "../server/ports/media";
+import type { ObjectStorage } from "../server/ports/storage";
 import type { WorkerConfig } from "./config";
 import type { WorkerLog } from "./log";
 import {
@@ -31,6 +38,17 @@ export type OpenedDatabase = { db: AppDb; end: () => Promise<void> };
 export type WorkerIo = {
   clock: Clock;
   log: WorkerLog;
+  /** Where uploaded files and their derivatives are kept (#63, #85). */
+  storage: ObjectStorage;
+  /** Checks each upload for malware (#63). */
+  scanner: MalwareScanner;
+  /**
+   * Makes worker-media's media processor (sharp, #85). Only the media queue
+   * calls it, so the default workers never load the image libraries.
+   */
+  makeMediaProcessor: (options: {
+    timeoutSeconds: number;
+  }) => Promise<MediaProcessor>;
   /** A client for `url` holding at most `connections` connections. */
   openDatabase: (url: string, connections: number) => OpenedDatabase;
   /** pg-nonprod's databases and their comments, through `adminUrl`. */
@@ -60,11 +78,18 @@ export type Worker = {
 export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   let supervisor: Supervisor | undefined;
   const cleanups: (() => Promise<void>)[] = [];
+  /** The default workers never process media: their queue has no media job. */
+  let media: MediaProcessor = unconfiguredMedia;
+  const isMedia = config.queue.name === "media";
+  const drain: DrainOptions = { queue: config.queue.name };
 
   const depsFor = (db: AppDb): OutboxDeps => ({
     db,
     clock: io.clock,
     email: emailSenderFor(config.appEnv, { db, clock: io.clock }),
+    storage: io.storage,
+    scanner: io.scanner,
+    media,
   });
 
   async function startSingle(
@@ -77,9 +102,12 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     );
     cleanups.push(opened.end);
     const deps = depsFor(opened.db);
-    const boss = await io.startBoss(single.databaseUrl);
-    cleanups.unshift(() => boss.stop());
-    await registerSchedules(boss, SCHEDULES, deps);
+    // The schedules run once per database, on its default worker.
+    if (!isMedia) {
+      const boss = await io.startBoss(single.databaseUrl);
+      cleanups.unshift(() => boss.stop());
+      await registerSchedules(boss, SCHEDULES, deps);
+    }
     return createSupervisor({
       clock: io.clock,
       discoveryIntervalMs: 0,
@@ -92,6 +120,8 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
           identity: single.identity,
           // The client outlives the tenant; stop() ends it.
           end: async () => {},
+          drain,
+          heartbeatRow: !isMedia,
         }),
       beat: io.beat,
       log: io.log,
@@ -117,6 +147,8 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
           deps: depsFor(opened.db),
           identity: preview.identity,
           end: opened.end,
+          drain,
+          heartbeatRow: !isMedia,
         });
       },
       beat: io.beat,
@@ -127,6 +159,11 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
 
   return {
     async start() {
+      if (config.queue.name === "media") {
+        media = await io.makeMediaProcessor({
+          timeoutSeconds: config.queue.timeoutSeconds,
+        });
+      }
       supervisor =
         config.mode === "single"
           ? await startSingle(config)

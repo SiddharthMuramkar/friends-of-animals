@@ -7,6 +7,7 @@
 
 import {
   drainUntilIdle,
+  type DrainOptions,
   type DrainReport,
   type OutboxDeps,
 } from "../server/outbox";
@@ -39,6 +40,8 @@ export function createTenant({
   deps,
   identity,
   end,
+  drain = {},
+  heartbeatRow = true,
 }: {
   database: string;
   /** What the relay and handlers run against, on this database. */
@@ -46,12 +49,22 @@ export function createTenant({
   identity: WorkerIdentity;
   /** Ends `deps.db`'s connections. */
   end: () => Promise<void>;
+  /** Which queue it drains (the default one unless told). */
+  drain?: DrainOptions;
+  /**
+   * Whether it upserts its worker_heartbeat row. worker-media doesn't:
+   * /api/health/worker judges an environment by its rows, so a media
+   * worker's beat would stand in for a stalled default worker's.
+   */
+  heartbeatRow?: boolean;
 }): Tenant {
   return {
     database,
     async tick() {
-      const report = await drainUntilIdle(deps);
-      await recordHeartbeat(deps.db, identity, deps.clock.now());
+      const report = await drainUntilIdle(deps, drain);
+      if (heartbeatRow) {
+        await recordHeartbeat(deps.db, identity, deps.clock.now());
+      }
       return report;
     },
     close: end,
