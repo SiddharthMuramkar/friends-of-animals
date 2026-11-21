@@ -27,6 +27,8 @@ import {
   CONTACT_RATE_LIMITS,
   type ContactRateLimits,
 } from "./modules/contact/domain/submission";
+import type { ErrorReporter } from "./ports/errors";
+import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -38,6 +40,8 @@ export interface Deps extends DbWithClock {
   humanCheck: HumanCheck;
   /** The contact form's limits per IP and per address. */
   contactLimits: ContactRateLimits;
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
 }
 
 /**
@@ -94,6 +98,8 @@ export function productionDeps(): Deps {
         difficulty: HUMAN_CHECK_DIFFICULTY,
       }),
       contactLimits: contactLimitsFor(config.APP_ENV),
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
     };
   }
   return production;
