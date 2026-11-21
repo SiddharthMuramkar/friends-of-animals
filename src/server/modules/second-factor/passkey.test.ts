@@ -6,6 +6,8 @@ import { createHarness, TEST_AUTH, type Harness } from "@/test/harness";
 import { FakePasskey } from "@/test/fakes/passkey";
 
 import type { Actor } from "../../actor";
+import { base32Decode } from "./domain/base32";
+import { totpCode } from "./domain/totp";
 
 const ORIGIN = new URL(TEST_AUTH.baseUrl).origin;
 
@@ -203,6 +205,81 @@ describe("passkeys", () => {
     await expect(
       h.as(intruder).startPasskeyRegistration()
     ).rejects.toMatchObject({ code: "step_up_required" });
+  });
+
+  it("needs step-up to finish a passkey started before the user enrolled another factor", async () => {
+    const h = await createHarness();
+    const member = await h.seed.member();
+    // Someone who got into the mailbox starts a passkey of their own while
+    // the user has no factor yet...
+    const intruder = await h.signIn(member);
+    const started = await h.as(intruder).startPasskeyRegistration();
+    // ...and the user enrols an authenticator app meanwhile.
+    await h.passSecondFactor(await h.signIn(member));
+
+    await expect(
+      h.as(intruder).finishPasskeyRegistration({
+        label: "Mine",
+        response: new FakePasskey({ origin: ORIGIN }).register(started.options),
+      })
+    ).rejects.toMatchObject({ code: "step_up_required" });
+    expect(
+      await h.db
+        .select({ id: secondFactor.id })
+        .from(secondFactor)
+        .where(eq(secondFactor.kind, "passkey"))
+    ).toEqual([]);
+  });
+
+  it("needs step-up to confirm an authenticator app started before the user enrolled a passkey, even days later", async () => {
+    const h = await createHarness();
+    const staff = await h.seed.member();
+    await h.seed.grant(staff, {
+      role: "content_manager",
+      scope: { type: "global" },
+    });
+    const emailOnly = { secondFactor: false };
+    // Someone who got into the mailbox signs in before the staff member
+    // has a factor, and starts an authenticator app with a secret they know.
+    const planting = await h.signIn(staff, undefined, emailOnly);
+    const planted = await h.as(planting).startTotpEnrolment({ label: "Mine" });
+    if (!planted.ok) throw new Error("Could not start");
+    // The staff member enrols a passkey.
+    await registerPasskey(h, await h.signIn(staff, undefined, emailOnly));
+    // Days later the intruder signs in by email code again.
+    h.clock.advance({ days: 2 });
+    const intruder = await h.signIn(staff, undefined, emailOnly);
+
+    await expect(
+      h.as(intruder).confirmTotpEnrolment({
+        factorId: planted.factorId,
+        code: totpCode(base32Decode(planted.secret), h.clock.now()),
+      })
+    ).rejects.toMatchObject({ code: "step_up_required" });
+    expect(await h.as(intruder).staffAccess()).toEqual({
+      ok: false,
+      code: "second_factor_required",
+    });
+    expect(await h.as(intruder).mySecondFactors()).toMatchObject({
+      verifiedAt: null,
+      factors: [{ kind: "passkey" }],
+    });
+  });
+
+  it("drops authenticator apps still waiting for their first code once a passkey is added", async () => {
+    const h = await createHarness();
+    const member = await h.seed.member();
+    const elsewhere = await h.signIn(member);
+    const pending = await h.as(elsewhere).startTotpEnrolment({ label: "App" });
+    if (!pending.ok) throw new Error("Could not start");
+
+    await registerPasskey(h, await h.signIn(member));
+
+    expect(
+      await h.db
+        .select({ kind: secondFactor.kind, label: secondFactor.label })
+        .from(secondFactor)
+    ).toEqual([{ kind: "passkey", label: "Laptop" }]);
   });
 
   it("records the passkey's signature counter", async () => {

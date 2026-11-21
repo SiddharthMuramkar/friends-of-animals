@@ -17,4 +17,6 @@ export const SECOND_FACTOR_SETTINGS = {
   sessionLifetimes: SESSION_LIFETIME_DEFAULTS,
   /** How long a passkey challenge can be answered. */
   passkeyChallengeMs: 5 * 60 * 1000,
+  /** How long a new authenticator app waits for its first code. */
+  totpEnrolmentMs: 10 * 60 * 1000,
 } as const;

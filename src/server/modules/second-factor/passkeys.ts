@@ -43,7 +43,12 @@ import {
   type SignedInUser,
 } from "./session-factor";
 import { SECOND_FACTOR_SETTINGS } from "./settings";
-import { requireStepUpOnceEnrolled, type SecondFactorContext } from "./totp";
+import {
+  dropPendingAuthenticators,
+  requireStepUpOnceEnrolled,
+  requireStepUpToFinishAdding,
+  type SecondFactorContext,
+} from "./totp";
 
 /**
  * EdDSA, ES256 and RS256 (COSE ids): what platform authenticators use.
@@ -193,7 +198,8 @@ export type FinishPasskeyRegistrationResult =
 
 /**
  * Checks the browser's new passkey against the challenge and keeps it as
- * a factor. This session has then passed its second factor.
+ * a factor. This session has then passed its second factor. If the user
+ * holds another factor by now, this needs step-up, however adding started.
  */
 export async function finishPasskeyRegistration(
   ctx: SecondFactorContext,
@@ -207,6 +213,7 @@ export async function finishPasskeyRegistration(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
+    await requireStepUpToFinishAdding(tx, ctx, actor);
     const challenge = await takeChallenge(tx, ctx, actor, "register");
     if (!challenge) return { ok: false, error: "challenge_expired" } as const;
 
@@ -246,6 +253,7 @@ export async function finishPasskeyRegistration(
     if (!inserted) {
       return { ok: false, error: "already_registered" } as const;
     }
+    await dropPendingAuthenticators(tx, actor.userId);
     await stampSession(tx, actor.sessionId, now, "passkey");
     await recordAudit(tx, ctx, {
       action: "second_factor.enrolled",

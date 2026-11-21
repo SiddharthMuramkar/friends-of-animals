@@ -158,6 +158,28 @@ describe("startTotpEnrolment and confirmTotpEnrolment", () => {
     expect(await secondFactorAudit(h)).toEqual([]);
   });
 
+  it("gives a new authenticator app 10 minutes for its first code", async () => {
+    const h = await createHarness();
+    const actor = await h.signIn(await h.seed.member());
+    const confirmAfter = async (wait: { minutes: number; seconds: number }) => {
+      const started = await h.as(actor).startTotpEnrolment({ label: "Phone" });
+      if (!started.ok) throw new Error(started.error);
+      h.clock.advance(wait);
+      return h.as(actor).confirmTotpEnrolment({
+        factorId: started.factorId,
+        code: totpCode(base32Decode(started.secret), h.clock.now()),
+      });
+    };
+
+    expect(await confirmAfter({ minutes: 10, seconds: 1 })).toEqual({
+      ok: false,
+      error: "not_found",
+    });
+    expect(await confirmAfter({ minutes: 9, seconds: 59 })).toEqual({
+      ok: true,
+    });
+  });
+
   it("starting again replaces a pending factor", async () => {
     const h = await createHarness();
     const actor = await h.signIn(await h.seed.member());

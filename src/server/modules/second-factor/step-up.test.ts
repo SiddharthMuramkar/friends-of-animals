@@ -11,6 +11,8 @@ import {
 import { createHarness, type Harness } from "@/test/harness";
 
 import type { Actor } from "../../actor";
+import { base32Decode } from "./domain/base32";
+import { totpCode } from "./domain/totp";
 
 const judge = { role: "judge", scope: { type: "global" } } as const;
 
@@ -225,6 +227,34 @@ describe("adding another factor", () => {
     await expect(
       h.as(intruder).startTotpEnrolment({ label: "Mine now" })
     ).rejects.toMatchObject({ code: "step_up_required" });
+  });
+
+  it("asks for step-up again at the code if the second factor went stale since adding started", async () => {
+    const h = await createHarness();
+    const member = await h.seed.member();
+    const actor = await h.signIn(member);
+    await h.passSecondFactor(actor);
+    h.clock.advance({ minutes: 9 });
+    const started = await h
+      .as(actor)
+      .startTotpEnrolment({ label: "Backup phone" });
+    if (!started.ok) throw new Error("Could not start");
+    const confirm = () =>
+      h.as(actor).confirmTotpEnrolment({
+        factorId: started.factorId,
+        code: totpCode(base32Decode(started.secret), h.clock.now()),
+      });
+
+    h.clock.advance({ minutes: 1, seconds: 1 });
+    await expect(confirm()).rejects.toMatchObject({
+      code: "step_up_required",
+    });
+    expect((await h.as(actor).mySecondFactors()).factors).toHaveLength(1);
+
+    // The step-up screen asks for the factor again; then the code counts.
+    await h.passSecondFactor(actor);
+    expect(await confirm()).toEqual({ ok: true });
+    expect((await h.as(actor).mySecondFactors()).factors).toHaveLength(2);
   });
 });
 

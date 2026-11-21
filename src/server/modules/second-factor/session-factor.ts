@@ -9,6 +9,7 @@ import {
   secondFactor,
   secondFactorLockout,
   sessionSecondFactor,
+  user,
   type SecondFactorKind,
 } from "../../db/schema";
 import { DomainError } from "../../errors";
@@ -76,6 +77,19 @@ export async function stampSession(
       target: sessionSecondFactor.sessionId,
       set: { verifiedAt: at, method },
     });
+}
+
+/**
+ * Locks the user's row until the transaction ends, so two factors being
+ * added at once queue: the second then sees the first. `no key update`
+ * still lets rows that reference the user be written meanwhile.
+ */
+export async function lockUser(tx: AppDb, userId: string): Promise<void> {
+  await tx
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.id, userId))
+    .for("no key update");
 }
 
 /**

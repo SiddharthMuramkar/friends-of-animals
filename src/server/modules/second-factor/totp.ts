@@ -7,13 +7,14 @@
 //
 // Loads under plain Node: relative imports only.
 
-import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, gte, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
 import { isStaffRole } from "../../access/domain/roles";
 import { grantsOf } from "../../access/grants";
 import { recordAudit } from "../../audit/record";
+import type { AppDb } from "../../db/app-db";
 import { secondFactor, user, type SecondFactorKind } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
@@ -31,6 +32,7 @@ import { DomainError } from "../../errors";
 import { secondFactorRefusal } from "./requirement";
 import {
   isEnrolled,
+  lockUser,
   secondFactorStatus,
   signedInUser,
   stampSession,
@@ -69,6 +71,42 @@ export async function requireStepUpOnceEnrolled(
   }
 }
 
+/**
+ * The same rule again when adding a factor completes, in its transaction:
+ * the user may have enrolled another factor since adding started, and a
+ * factor someone started back then must not slip in now. The user's row
+ * stays locked until the transaction ends, so of two factors completing
+ * at once, the second needs step-up.
+ */
+export async function requireStepUpToFinishAdding(
+  tx: AppDb,
+  ctx: SecondFactorContext,
+  actor: SignedInUser
+): Promise<void> {
+  await lockUser(tx, actor.userId);
+  await requireStepUpOnceEnrolled({ ...ctx, db: tx }, actor);
+}
+
+/**
+ * Drops the user's authenticator apps still waiting for their first code.
+ * Starting again drops them, and so does confirming any factor: from then
+ * on, adding one needs step-up, so none is left over to confirm later.
+ */
+export async function dropPendingAuthenticators(
+  tx: AppDb,
+  userId: string
+): Promise<void> {
+  await tx
+    .delete(secondFactor)
+    .where(
+      and(
+        eq(secondFactor.userId, userId),
+        eq(secondFactor.kind, "totp"),
+        isNull(secondFactor.confirmedAt)
+      )
+    );
+}
+
 export type StartTotpEnrolmentResult =
   | {
       ok: true;
@@ -82,7 +120,8 @@ export type StartTotpEnrolmentResult =
 
 /**
  * Makes a new authenticator secret for the signed-in user, pending until
- * its first code confirms it. Starting again replaces a pending one.
+ * its first code confirms it, for 10 minutes at most. Starting again
+ * replaces a pending one.
  */
 export async function startTotpEnrolment(
   ctx: SecondFactorContext,
@@ -98,15 +137,7 @@ export async function startTotpEnrolment(
   const factorId = uuidv7(now);
   const secret = generateTotpSecret();
   const account = await ctx.db.transaction(async (tx) => {
-    await tx
-      .delete(secondFactor)
-      .where(
-        and(
-          eq(secondFactor.userId, actor.userId),
-          eq(secondFactor.kind, "totp"),
-          isNull(secondFactor.confirmedAt)
-        )
-      );
+    await dropPendingAuthenticators(tx, actor.userId);
     await tx.insert(secondFactor).values({
       id: factorId,
       userId: actor.userId,
@@ -142,7 +173,8 @@ export type ConfirmTotpEnrolmentResult =
 
 /**
  * Confirms a pending authenticator with its first code. It then counts as
- * a factor, and this session has passed it.
+ * a factor, and this session has passed it. If the user holds another
+ * factor by now, this needs step-up, however adding started.
  */
 export async function confirmTotpEnrolment(
   ctx: SecondFactorContext,
@@ -153,8 +185,14 @@ export async function confirmTotpEnrolment(
   const parsed = confirmInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const now = ctx.clock.now();
+  const startedSince = new Date(
+    now.getTime() - SECOND_FACTOR_SETTINGS.totpEnrolmentMs
+  );
 
   return ctx.db.transaction(async (tx) => {
+    await requireStepUpToFinishAdding(tx, ctx, actor);
+    // A pending factor lapses 10 minutes after it was started, and then
+    // reads as "not found", as if replaced.
     const [pending] = await tx
       .select({
         id: secondFactor.id,
@@ -167,7 +205,8 @@ export async function confirmTotpEnrolment(
           eq(secondFactor.id, parsed.data.factorId),
           eq(secondFactor.userId, actor.userId),
           eq(secondFactor.kind, "totp"),
-          isNull(secondFactor.confirmedAt)
+          isNull(secondFactor.confirmedAt),
+          gte(secondFactor.createdAt, startedSince)
         )
       )
       .for("update");
@@ -185,6 +224,7 @@ export async function confirmTotpEnrolment(
       .update(secondFactor)
       .set({ confirmedAt: now, totpLastUsedStep: check.step })
       .where(eq(secondFactor.id, pending.id));
+    await dropPendingAuthenticators(tx, actor.userId);
     await stampSession(tx, actor.sessionId, now, "totp");
     await recordAudit(tx, ctx, {
       action: "second_factor.enrolled",
