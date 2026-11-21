@@ -330,18 +330,20 @@ describe("analytics-bootstrap.sh bring-up", () => {
    * `docker` stubbed. The stubs record each call, shell-quoted, one per
    * line; docker also records whether Caddy's gate for the stats site was
    * open at that moment, and keeps what foa-umami's exec read from stdin.
+   * With `swapFails`, foa-umami's exec (the login swap) exits 1.
    */
-  const bringUp = () =>
+  const bringUp = ({ swapFails = false } = {}) =>
     bootstrapWith(
       UNPRIVILEGED,
       [
         'root="$1"',
+        `swap_status=${swapFails ? 1 : 0}`,
         'ENV_FILE="$root/analytics.env"',
         'ADMIN_FILE="$root/secrets/umami_admin_password"',
         'GATE_FILE="$root/gates/stats"',
         "id() { echo 0; }",
         'install() { echo "install $*" >>"$root/calls"; }',
-        'docker() { printf "%q " "$@" >>"$root/calls"; echo >>"$root/calls"; if [ -e "$GATE_FILE" ]; then echo open; else echo closed; fi >>"$root/gate"; if [ "$1 $3" = "exec foa-umami" ]; then cat >"$root/umami-stdin"; else cat >/dev/null; fi; }',
+        'docker() { printf "%q " "$@" >>"$root/calls"; echo >>"$root/calls"; if [ -e "$GATE_FILE" ]; then echo open; else echo closed; fi >>"$root/gate"; if [ "$1 $3" = "exec foa-umami" ]; then cat >"$root/umami-stdin"; return "$swap_status"; else cat >/dev/null; fi; }',
         "main",
       ].join("; "),
       root
@@ -384,6 +386,26 @@ describe("analytics-bootstrap.sh bring-up", () => {
     expect(admin).toMatch(/^exec -i foa-umami /);
     expect(gateAtCalls().slice(1, 3)).toEqual(["closed", "closed"]);
     expect(existsSync(gateFile())).toBe(true);
+  });
+
+  it("closes the stats site before Umami starts, on a rerun too", () => {
+    writeFileSync(gateFile(), ""); // opened by an earlier run
+
+    const run = bringUp();
+
+    expect(run.status).toBe(0);
+    // A rerun may meet a fresh Umami database, seeded login and all.
+    expect(gateAtCalls().slice(1, 3)).toEqual(["closed", "closed"]);
+    expect(existsSync(gateFile())).toBe(true);
+  });
+
+  it("leaves the stats site closed when replacing the seeded login fails", () => {
+    writeFileSync(gateFile(), ""); // opened by an earlier run
+
+    const run = bringUp({ swapFails: true });
+
+    expect(run.status).not.toBe(0);
+    expect(existsSync(gateFile())).toBe(false);
   });
 
   it("asks for no tunnel token: Caddy (edge.yml) is Umami's ingress", () => {
