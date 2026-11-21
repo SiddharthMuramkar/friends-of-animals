@@ -33,22 +33,15 @@
     {
       "idx": 4,
       "version": "7",
-      "when": 1795246147406,
+      "when": 1795246027580,
       "tag": "0004_59_roles_audit",
       "breakpoints": true
     },
     {
       "idx": 5,
       "version": "7",
-      "when": 1795246148432,
+      "when": 1795246028322,
       "tag": "0005_59_audit_append_only",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1795246424822,
-      "tag": "0006_62_runtime_settings",
       "breakpoints": true
     }
   ]
