@@ -1,15 +1,13 @@
-import { Suspense } from "react";
-
 import { buildEnv } from "@/env";
 import { umamiConfig } from "@/lib/analytics/umami";
 
-import { UmamiTracker } from "./umami-tracker";
+import { UmamiLoader } from "./umami-loader";
 
 /**
  * Cookieless page views through the self-hosted Umami
- * (src/lib/analytics/umami.ts). Renders the tracker island only on a
- * staging or production build with Umami configured; elsewhere nothing,
- * so local runs and previews ship no analytics code at all.
+ * (src/lib/analytics/umami.ts). Renders the tracker island's loader only
+ * on a staging or production build with Umami configured; elsewhere
+ * nothing, and the island's own chunk is never fetched.
  */
 export function UmamiAnalytics() {
   const env = buildEnv();
@@ -20,11 +18,5 @@ export function UmamiAnalytics() {
     origin: env.UMAMI_ORIGIN,
   });
   if (config === null) return null;
-  return (
-    // The island's usePathname suspends while a page with a param that
-    // isn't known at build time is prerendered; the island shows nothing.
-    <Suspense fallback={null}>
-      <UmamiTracker config={config} />
-    </Suspense>
-  );
+  return <UmamiLoader config={config} />;
 }
