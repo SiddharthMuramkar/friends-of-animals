@@ -149,7 +149,7 @@ describe("README.md", () => {
   /** What the uptime checks call: the app, the pooler and the worker. */
   const CHECK_TARGETS = [
     "`/api/health`",
-    "`db.shipped-it.dev:6432`",
+    "`db.friendsofanimals.dev:6432`",
     "`/api/health/worker`",
   ];
 

@@ -44,7 +44,7 @@ const buildVariables = {
   VERCEL: vercel,
   APP_ENV: appEnv,
   /**
-   * Canonical base URL, e.g. https://shipped-it.dev. Only the server reads
+   * Canonical base URL, e.g. https://friendsofanimals.dev. Only the server reads
    * it, so it needs no NEXT_PUBLIC_ prefix, but prerendered pages bake it
    * in at build time.
    */
@@ -222,7 +222,7 @@ function requireAppUrl(
       input: values.APP_URL,
       message:
         `APP_URL is not set. APP_ENV=${deployed} needs its canonical base ` +
-        "URL, e.g. https://shipped-it.dev, at build time and at runtime." +
+        "URL, e.g. https://friendsofanimals.dev, at build time and at runtime." +
         (deployed === "preview"
           ? " (Previews default to https://$VERCEL_BRANCH_URL, which is not set either.)"
           : ""),

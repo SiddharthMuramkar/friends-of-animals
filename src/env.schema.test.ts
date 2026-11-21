@@ -9,7 +9,7 @@ import {
 } from "./env.schema";
 
 const DATABASE_URL = "postgres://foa:foa@localhost:5432/foa";
-const SITE = "https://shipped-it.dev";
+const SITE = "https://friendsofanimals.dev";
 const SECRET = "0123456789abcdef0123456789abcdef";
 
 describe("parseEnv", () => {
