@@ -46,7 +46,8 @@
       },
       "form": {
         "title": "An online report form is coming",
-        "body": "We are building a form that works without an account and lets you stay anonymous. Until it opens, please use the email or phone above.",
+        "body": "We are building a form that works without an account and lets you stay anonymous.",
+        "until": "Until it opens, please use the email or phone above.",
         "back": "Child protection policy"
       }
     },
