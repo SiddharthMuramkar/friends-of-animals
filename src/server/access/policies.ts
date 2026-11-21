@@ -17,7 +17,7 @@ export const POLICY = composePolicies(
   CONSENT_POLICY,
   SETTINGS_POLICY,
   NOTIFICATIONS_POLICY,
-  SECOND_FACTOR_POLICY,
+  SECOND_FACTOR_POLICY
 );
 
 export type Action = keyof typeof POLICY;

@@ -30,7 +30,7 @@ const useCases = composeUseCases(
   consentUseCases,
   settingsUseCases,
   notificationsUseCases,
-  secondFactorUseCases,
+  secondFactorUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

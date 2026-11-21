@@ -2,7 +2,12 @@
 // own factors; there is no id to name another user's, except a super
 // admin's reset. Loads under plain Node: relative imports only.
 
-import { role, signedIn, stepUp, type Policy } from "../../access/domain/policy";
+import {
+  role,
+  signedIn,
+  stepUp,
+  type Policy,
+} from "../../access/domain/policy";
 
 export const SECOND_FACTOR_POLICY = {
   /** Their own factors and whether this session has passed one. */
