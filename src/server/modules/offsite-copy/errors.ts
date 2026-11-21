@@ -36,3 +36,17 @@ export class OffsiteMassDeletionWarning extends Error {
     this.name = "OffsiteMassDeletionWarning";
   }
 }
+
+/** Thrown by a production run whose settings are missing or wrong. */
+export class OffsiteCopyNotConfiguredError extends Error {
+  readonly problems: readonly string[];
+
+  constructor(problems: readonly string[]) {
+    super(
+      `The off-site copy can't run in production: ${problems.length} ` +
+        "setting(s) missing or wrong (see docker/README.md)"
+    );
+    this.name = "OffsiteCopyNotConfiguredError";
+    this.problems = problems;
+  }
+}

@@ -21,3 +21,15 @@ export type OffsiteConfig = {
   /** How many copies stream at once. */
   concurrency: number;
 };
+
+export function readOffsiteSettings(
+  _env: Record<string, string | undefined>
+): unknown {
+  throw new Error("not implemented");
+}
+
+export function readRestoreSettings(
+  _env: Record<string, string | undefined>
+): unknown {
+  throw new Error("not implemented");
+}
