@@ -6,7 +6,7 @@
 
 import type { Actor } from "../actor";
 import type { DbWithClock } from "../db/app-db";
-import { ensureAccount } from "../seed/identity";
+import { ensureVerifiedAccount } from "../identity/verified-account";
 import { grantRole } from "./manage-roles";
 
 const COMMAND_LINE: Actor = { kind: "system", process: "cli" };
@@ -20,7 +20,7 @@ export async function bootstrapSuperAdmin(
   deps: DbWithClock,
   account: { email: string; name: string }
 ): Promise<{ userId: string; changed: boolean }> {
-  const { id: userId } = await ensureAccount(deps, account);
+  const { id: userId } = await ensureVerifiedAccount(deps, account);
   const result = await grantRole(
     { ...deps, actor: COMMAND_LINE },
     { userId, role: "super_admin", scope: { type: "global" } }
