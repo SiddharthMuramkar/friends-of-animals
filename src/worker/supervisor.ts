@@ -48,6 +48,8 @@ export type SupervisorOptions = {
   /** Records that the worker is healthy at `at`. */
   beat: (at: Date) => Promise<void>;
   log: WorkerLog;
+  /** A tenant's tick failed (#66: Sentry, ./errors.ts). */
+  onError: (error: unknown, where: { tenant: string }) => void;
 };
 
 type Attached = {

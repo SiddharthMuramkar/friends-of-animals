@@ -20,6 +20,7 @@ const COMMON = {
   discoveryMs: 60_000,
   heartbeatFile: "/tmp/foa-worker-heartbeat",
   passwordFile: undefined,
+  sentryDsn: undefined,
 } as const;
 
 function singleConfig(
