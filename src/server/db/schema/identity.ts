@@ -13,7 +13,6 @@ import {
   check,
   index,
   integer,
-  pgEnum,
   pgTable,
   primaryKey,
   text,
@@ -110,10 +109,13 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)]
 );
 
-export const otpRateLimitScope = pgEnum("otp_rate_limit_scope", [
-  "email",
-  "ip",
-]);
+/**
+ * What a sign-in code limit counts by. Text checked against this list, not
+ * a Postgres enum, so a new scope (a phone number, #58) needs no migration.
+ */
+export const OTP_RATE_LIMIT_SCOPES = ["email", "ip"] as const;
+
+export type OtpRateLimitScope = (typeof OTP_RATE_LIMIT_SCOPES)[number];
 
 /**
  * Sign-in codes requested per email address and per IP in a fixed window.
@@ -122,7 +124,7 @@ export const otpRateLimitScope = pgEnum("otp_rate_limit_scope", [
 export const otpRateLimit = pgTable(
   "otp_rate_limit",
   {
-    scope: otpRateLimitScope().notNull(),
+    scope: text({ enum: OTP_RATE_LIMIT_SCOPES }).notNull(),
     keyHash: text("key_hash").notNull(),
     windowStart: timestamptz("window_start").notNull(),
     count: integer().notNull(),

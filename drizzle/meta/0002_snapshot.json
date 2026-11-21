@@ -1,5 +1,5 @@
 {
-  "id": "1eaef424-92e0-4ea1-b6db-02f44ba631e1",
+  "id": "c018c869-81d4-4596-87b0-8f26a76c5519",
   "prevId": "4d3eaf32-5358-4ac5-98a5-b257fb237a82",
   "version": "7",
   "dialect": "postgresql",
@@ -131,8 +131,7 @@
       "columns": {
         "scope": {
           "name": "scope",
-          "type": "otp_rate_limit_scope",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -501,14 +500,6 @@
     }
   },
   "enums": {
-    "public.otp_rate_limit_scope": {
-      "name": "otp_rate_limit_scope",
-      "schema": "public",
-      "values": [
-        "email",
-        "ip"
-      ]
-    },
     "public.captured_message_channel": {
       "name": "captured_message_channel",
       "schema": "public",

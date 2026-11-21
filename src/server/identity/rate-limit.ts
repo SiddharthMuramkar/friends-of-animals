@@ -10,7 +10,7 @@ import { createHmac } from "node:crypto";
 import { and, lt, sql } from "drizzle-orm";
 
 import type { AppDb } from "../db/app-db";
-import { otpRateLimit } from "../db/schema";
+import { otpRateLimit, type OtpRateLimitScope } from "../db/schema";
 import { CODE_REQUEST_LIMITS } from "./settings";
 
 const WINDOW_MS = CODE_REQUEST_LIMITS.windowMinutes * 60 * 1000;
@@ -19,7 +19,7 @@ type Allowance = { ok: true } | { ok: false; retryAfterSeconds: number };
 
 class LimitReached extends Error {}
 
-function keyHash(secret: string, scope: "email" | "ip", value: string) {
+function keyHash(secret: string, scope: OtpRateLimitScope, value: string) {
   return createHmac("sha256", secret)
     .update(`otp-rate-limit:${scope}:${value}`)
     .digest("base64url");

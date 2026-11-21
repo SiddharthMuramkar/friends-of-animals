@@ -1,4 +1,3 @@
-CREATE TYPE "public"."otp_rate_limit_scope" AS ENUM('email', 'ip');--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"user_id" uuid NOT NULL,
@@ -16,7 +15,7 @@ CREATE TABLE "account" (
 );
 --> statement-breakpoint
 CREATE TABLE "otp_rate_limit" (
-	"scope" "otp_rate_limit_scope" NOT NULL,
+	"scope" text NOT NULL,
 	"key_hash" text NOT NULL,
 	"window_start" timestamp with time zone NOT NULL,
 	"count" integer NOT NULL,
