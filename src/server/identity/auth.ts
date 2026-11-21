@@ -1,7 +1,8 @@
 // Better Auth, configured for FOA and kept behind the identity module: only
-// files in src/server/identity/ import it. It owns sign-in codes (made,
-// hashed, expired and counted by its email-OTP plugin) and database
-// sessions. FOA adds what it lacks: per-email and per-IP limits on codes
+// files in src/server/identity/ import it. It owns email sign-in codes
+// (made, hashed, expired and counted by its email-OTP plugin) and database
+// sessions. Phone codes are FOA's (./phone-code.ts), and a verified phone
+// starts its session through `startVerifiedSession` below. FOA adds what it lacks: per-email and per-IP limits on codes
 // (./rate-limit.ts), the use cases and can() (./policy.ts). FOA also sends
 // the codes itself (./email-code.ts), so a failed send reaches the use case
 // instead of being caught and logged by Better Auth.
@@ -10,9 +11,12 @@
 // case, so Better Auth's own endpoints (which would skip FOA's limits) are
 // not reachable over HTTP.
 
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, createAuthEndpoint } from "better-auth/api";
+import { setSessionCookie } from "better-auth/cookies";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { z } from "zod";
 
 import type { AppDb } from "../db/app-db";
 import { account, session, user, verification } from "../db/schema";
@@ -34,6 +38,33 @@ const logger = {
     write(`[Better Auth] ${message}`);
   },
 };
+
+/**
+ * Starts a session for a user FOA has already verified: verifyPhoneCode
+ * calls it once a phone's code checks out, because Better Auth has no
+ * phone flow for an encrypted number. Server-only: it is never on Better
+ * Auth's HTTP router (and no /api/auth/* handler is mounted anyway), so
+ * only FOA's own server code can reach it, through `auth.api`.
+ */
+const verifiedSessions = {
+  id: "foa-verified-session",
+  endpoints: {
+    startVerifiedSession: createAuthEndpoint.serverOnly(
+      { method: "POST", body: z.object({ userId: z.string() }) },
+      async (ctx) => {
+        const found = await ctx.context.internalAdapter.findUserById(
+          ctx.body.userId
+        );
+        if (!found) throw new APIError("BAD_REQUEST");
+        const session = await ctx.context.internalAdapter.createSession(
+          found.id
+        );
+        await setSessionCookie(ctx, { session, user: found });
+        return ctx.json({ userId: found.id });
+      }
+    ),
+  },
+} satisfies BetterAuthPlugin;
 
 function createAuth({ db, clock, auth: config }: Deps) {
   return betterAuth({
@@ -76,6 +107,7 @@ function createAuth({ db, clock, auth: config }: Deps) {
           throw new Error("FOA sends sign-in codes from requestEmailCode");
         },
       }),
+      verifiedSessions,
     ],
   });
 }

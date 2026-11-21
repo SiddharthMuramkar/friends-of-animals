@@ -9,6 +9,8 @@ import { DomainError } from "../errors";
 export type IdentityAction =
   | "requestEmailCode"
   | "verifyEmailCode"
+  | "requestPhoneCode"
+  | "verifyPhoneCode"
   | "getAccount"
   | "listSessions"
   | "signOutSession"
@@ -18,6 +20,8 @@ export function can(actor: Actor, action: IdentityAction): boolean {
   switch (action) {
     case "requestEmailCode":
     case "verifyEmailCode":
+    case "requestPhoneCode":
+    case "verifyPhoneCode":
       // Signing up and signing in are for people who aren't signed in.
       return actor.kind === "visitor";
     case "getAccount":

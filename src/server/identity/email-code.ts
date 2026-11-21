@@ -8,13 +8,10 @@
 // "no account" there reveals nothing to someone without the mailbox.
 
 import { isAPIError } from "better-auth/api";
-import { parseSetCookieHeader, toCookieOptions } from "better-auth/cookies";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import type { RequestMeta } from "../actor";
 import { user } from "../db/schema";
-import type { CookieJar } from "../ports/cookies";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { codeEmail } from "./code-email";
@@ -22,14 +19,16 @@ import { authorize } from "./policy";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
 import { EMAIL_CODE } from "./settings";
+import {
+  codeInput as code,
+  invalidInput,
+  nameInput as name,
+  storeCookies,
+  visitorMeta,
+  type InvalidInput,
+} from "./sign-in-shared";
 
 const email = z.string().trim().toLowerCase().pipe(z.email().max(254));
-const code = z
-  .string()
-  .trim()
-  .regex(new RegExp(`^\\d{${EMAIL_CODE.length}}$`));
-
-const name = z.string().trim().min(1).max(100);
 
 // A sign-up sends its name with the email, so a missing one is caught
 // before a code goes out.
@@ -49,8 +48,6 @@ export type RequestEmailCodeInput =
   | { intent: "sign-up"; name: string; email: string };
 export type VerifyEmailCodeInput = z.input<typeof verifyEmailCodeInput>;
 
-type InvalidInput = { ok: false; error: "invalid_input"; fields: string[] };
-
 export type RequestEmailCodeResult =
   | { ok: true }
   | InvalidInput
@@ -67,17 +64,6 @@ export type VerifyEmailCodeResult =
         | "too_many_attempts"
         | "no_account";
     };
-
-function invalidInput(error: z.ZodError): InvalidInput {
-  const fields = new Set(error.issues.map((issue) => String(issue.path[0])));
-  return { ok: false, error: "invalid_input", fields: [...fields] };
-}
-
-/** The visitor's request details; `authorize` has ruled out other actors. */
-function visitorMeta(ctx: UseCaseContext): RequestMeta {
-  if (ctx.actor.kind !== "visitor") throw new Error("unreachable");
-  return ctx.actor.meta;
-}
 
 export async function requestEmailCode(
   ctx: UseCaseContext,
@@ -133,14 +119,6 @@ function codeError(error: unknown) {
     };
   }
   throw error;
-}
-
-async function storeCookies(jar: CookieJar, headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-  if (!setCookie) return;
-  for (const [name, attributes] of parseSetCookieHeader(setCookie)) {
-    await jar.set(name, attributes.value, toCookieOptions(attributes));
-  }
 }
 
 export async function verifyEmailCode(

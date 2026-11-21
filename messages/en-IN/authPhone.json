@@ -1,0 +1,9 @@
+{
+  "authPhone": {
+    "sms": {
+      "code": {
+        "text": "Your Friends of Animals sign-in code is {code}. It works for {minutes} minutes. Nobody from FOA will ask you for it."
+      }
+    }
+  }
+}

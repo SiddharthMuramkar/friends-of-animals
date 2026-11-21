@@ -60,14 +60,12 @@ async function rawUsers(h: Harness) {
 /** Signs `phone` up through the real flow and returns the new user's id. */
 async function signUpByPhone(h: Harness, phone: string, name = "Asha Rao") {
   await h.as(h.visitor()).requestPhoneCode({ intent: "sign-up", name, phone });
-  const result = await h
-    .as(h.visitor())
-    .verifyPhoneCode({
-      intent: "sign-up",
-      name,
-      phone,
-      code: codeFor(h, phone),
-    });
+  const result = await h.as(h.visitor()).verifyPhoneCode({
+    intent: "sign-up",
+    name,
+    phone,
+    code: codeFor(h, phone),
+  });
   if (!result.ok) throw new Error(`Phone sign-up failed: ${result.error}`);
   return result.userId;
 }
