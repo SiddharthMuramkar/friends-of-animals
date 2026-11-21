@@ -58,7 +58,9 @@ backups, restore drill, preview sweep) and CrowdSec (`crowdsec/`).
 | `crowdsec/`                                                  | Both OSes: acquisition, local parser, whitelist, drop-ins   |
 | `crowdsec/crowdsec.repo`, `*-bouncer-nftables.yaml.local`    | Fedora: dnf repository, nftables bouncer settings           |
 | `crowdsec/crowdsec.sources`, `*-bouncer-iptables.yaml.local` | Ubuntu: apt source, iptables bouncer settings               |
-| `analytics.yml`                                              | Umami and its Cloudflare Tunnel (below)                     |
+| `analytics.yml`                                              | Umami (Analytics, below)                                    |
+| `edge.yml`, `caddy/Caddyfile`                                | Caddy, the TLS edge (Edge, below)                           |
+| `errors.yml`                                                 | GlitchTip (Errors, below)                                   |
 
 ## Secrets
 
@@ -374,6 +376,9 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
   foa-cert-renew` (alerting is a TODO).
 - Manual: `systemctl start foa-cert-renew.service`; check with
   `openssl s_client -connect db.shipped-it.dev:6432 -starttls postgres -servername db.shipped-it.dev </dev/null`.
+- While foa-caddy runs it owns port 80 (Edge, below), so lego can't listen
+  there: renewals must use lego's webroot mode instead (TODO and owner
+  actions, below).
 
 ## Firewall
 
@@ -431,8 +436,16 @@ Host ports are INPUT traffic, which this unit never touches:
   firewall-cmd --permanent --zone=public --add-service=http
   ```
 
-  It stays open, IPv4 and IPv6: outside a challenge nothing listens, and the
-  kernel answers with a reset. Ubuntu: ufw is inactive, nothing to do.
+  It stays open, IPv4 and IPv6. Caddy listens there (Edge, below); while it
+  is stopped, nothing listens outside a challenge, and the kernel answers
+  with a reset. Ubuntu: ufw is inactive, nothing to do.
+
+- **Port 443** for Caddy (Edge, below), opened the same way:
+
+  ```sh
+  firewall-cmd --zone=public --add-service=https
+  firewall-cmd --permanent --zone=public --add-service=https
+  ```
 
 CrowdSec's bouncer blocks banned addresses on top of all this (below). Any
 port published later must bind 127.0.0.1; this chain drops it on eth0
@@ -654,18 +667,17 @@ Cookieless page views for the public site (#118). Compose project
 `foa-analytics` (`analytics.yml`), separate from `foa-vps`, so bringing the
 database stack down or up never touches it.
 
-| Container         | Image                                | Address                                 | Published | Limits          |
-| ----------------- | ------------------------------------ | --------------------------------------- | --------- | --------------- |
-| `foa-umami`       | `ghcr.io/umami-software/umami:3.5.0` | 10.112.12.30:3000 (`db`), plus `tunnel` | no        | 1 CPU, 1 GB     |
-| `foa-cloudflared` | `cloudflare/cloudflared:2026.11.1`   | `tunnel` only                           | no        | 0.5 CPU, 256 MB |
+| Container   | Image                                | Address                  | Published | Limits      |
+| ----------- | ------------------------------------ | ------------------------ | --------- | ----------- |
+| `foa-umami` | `ghcr.io/umami-software/umami:3.5.0` | 10.112.12.30:3000 (`db`) | no        | 1 CPU, 1 GB |
 
 - **Data**: database `umami` on pg-prod, owned by role `umami`
   (`postgres/bootstrap/umami.sql`, connection limit 10). pgBackRest backs up
   the whole pg-prod cluster, so `umami` is in every backup and restore drill.
   Umami runs its own migrations when it starts.
-- **Ingress**: a remotely managed Cloudflare Tunnel. cloudflared dials out and
-  Cloudflare serves `stats.<domain>` over TLS: no port, no FOA-INBOUND rule
-  and no certificate here.
+- **Ingress**: Caddy (Edge, below) serves `https://stats.friendsofanimals.dev`
+  and proxies it to 10.112.12.30:3000 across the `db` bridge. Umami publishes
+  no port and holds no certificate.
 - **What the site sends**: only staging and production builds with
   `NEXT_PUBLIC_UMAMI_WEBSITE_ID` and `UMAMI_ORIGIN` set render the tracker.
   The site loads it as `/stats/script.js` and posts to `/stats/api/send` on
@@ -676,35 +688,34 @@ database stack down or up never touches it.
 
 Secrets (never in git):
 
-| Path                                        | Mode, owner | What                                                                   |
-| ------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
-| `/etc/foa/analytics.env`                    | 0600 root   | `DATABASE_URL` (role umami), `APP_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` |
-| `/etc/foa/secrets/cloudflared_tunnel_token` | 0400 65532  | The tunnel token (cloudflared runs as 65532)                           |
+| Path                     | Mode, owner | What                                                                   |
+| ------------------------ | ----------- | ---------------------------------------------------------------------- |
+| `/etc/foa/analytics.env` | 0600 root   | `DATABASE_URL` (role umami), `APP_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` |
 
-Bring-up (owner, HR-52), with the database stack running:
+Bring-up (owner, HR-52), with the database stack and the edge running:
 
 ```sh
 cd /srv/foa && git pull
-# 1. Cloudflare Zero Trust > Networks > Tunnels: create a cloudflared tunnel,
-#    add the public hostname stats.<domain> -> http://umami:3000, copy the
-#    token, then paste it here and end with Ctrl-D (never as an argument):
-sudo install -m 0400 -o 65532 -g 65532 /dev/stdin /etc/foa/secrets/cloudflared_tunnel_token
-# 2. Env file, role and database umami, pg_hba reload:
+# 1. Env file, role and database umami, pg_hba reload:
 sudo docker/scripts/analytics-bootstrap.sh
-# 3. Start and wait for both health checks:
+# 2. Start and wait for the health check:
 docker compose -f docker/analytics.yml up -d --wait
 ```
 
-Then at `https://stats.<domain>`: sign in as `admin` / `umami`, change the
-password (3.5 asks for it), turn on two-factor authentication, and add two
-websites, one for staging (`shipped-it.dev`) and one for production. In
-Vercel, set `NEXT_PUBLIC_UMAMI_WEBSITE_ID` (each environment its own website
-id) and `UMAMI_ORIGIN=https://stats.<domain>` for staging and Production
-only, then redeploy. Check that a page view arrives, and that `pgbackrest
-info` after the next backup and the next restore drill both show `umami`.
+The stats site is already in `caddy/Caddyfile`; its A record must point at
+the VPS before Caddy can get its certificate (Edge, below).
+
+Then at `https://stats.friendsofanimals.dev`: sign in as `admin` / `umami`,
+change the password (3.5 asks for it), turn on two-factor authentication,
+and add two websites, one for staging (`shipped-it.dev`) and one for
+production. In Vercel, set `NEXT_PUBLIC_UMAMI_WEBSITE_ID` (each environment
+its own website id) and `UMAMI_ORIGIN=https://stats.friendsofanimals.dev`
+for staging and Production only, then redeploy. Check that a page view
+arrives, and that `pgbackrest info` after the next backup and the next
+restore drill both show `umami`.
 
 Umami counts unique visitors by IP address. Requests reach it through
-Vercel's rewrite and then Cloudflare, so check which header carries the
+Vercel's rewrite and then Caddy, so check which header carries the
 visitor's address (not Vercel's) and set `CLIENT_IP_HEADER` in
 `analytics.env` to it. Until then page views are right but unique visitors
 collapse onto Vercel's addresses.
@@ -719,6 +730,113 @@ bootstrap script, then `docker compose -f docker/analytics.yml up -d
 docker compose -f docker/analytics.yml ps
 docker exec foa-umami curl -fsS http://127.0.0.1:3000/api/heartbeat   # {"ok":true}
 ```
+
+## Edge (Caddy)
+
+Caddy terminates TLS on the VPS for the services that need a public HTTPS
+name (#118). Compose project `foa-edge` (`edge.yml`), sites in
+`caddy/Caddyfile`.
+
+| Container   | Image          | Network | Listens            | Limits                      |
+| ----------- | -------------- | ------- | ------------------ | --------------------------- |
+| `foa-caddy` | `caddy:2.11.9` | host    | :80, :443 (h1, h2) | 256 MB, `oom_score_adj` 500 |
+
+| Site                                                         | Serves                                           |
+| ------------------------------------------------------------ | ------------------------------------------------ |
+| `stats.friendsofanimals.dev`                                 | Umami at 10.112.12.30:3000 (Analytics, above)    |
+| `errors.friendsofanimals.dev`                                | GlitchTip at 10.112.13.10:8000 (Errors, below)   |
+| `http://db.friendsofanimals.dev`, `http://db.shipped-it.dev` | Port 80 only: lego's challenge files, else a 404 |
+
+- **Host network**: Caddy binds :80 and :443 on the host itself, so
+  firewalld's `http` and `https` services govern them (Firewall, above);
+  Docker makes no rules for it and `FOA-INBOUND` doesn't apply. Umami and
+  GlitchTip publish no port: Caddy reaches them across their bridges. The
+  admin API listens on 127.0.0.1:2019 only.
+- **Certificates**: Caddy gets and renews the stats and errors certificates
+  itself from Let's Encrypt; `acme_ca` pins the production CA. Each name
+  needs its A record (189.72.156.29, no AAAA) before Caddy loads its site.
+  Certificates and ACME state live in `/var/lib/foa/caddy/{data,config}`:
+  keep them across recreates, or Caddy asks for new certificates, and Let's
+  Encrypt issues at most 5 a week for the same set of names.
+- **One owner of port 80**: only one process can listen there, and while
+  foa-caddy runs, Caddy does. lego must then renew PgBouncer's certificate in
+  webroot mode: it writes the challenge file into `/var/lib/foa/acme-webroot`,
+  which Caddy serves read-only for the `http://db.*` names (TODO and owner
+  actions, below). Caddy never manages a certificate for those names; lego's
+  standalone listener works only while Caddy is stopped.
+- **New host**: point `acme_ca` at Let's Encrypt's staging CA
+  (`https://acme-staging-v02.api.letsencrypt.org/directory`) for the first
+  start, and back to production once a certificate is issued, so a mistake
+  can't run into production's rate limits.
+
+Start, reload and recreate, from `/srv/foa`:
+
+```sh
+cd /srv/foa && git pull
+firewall-cmd --zone=public --add-service=https             # Firewall, above
+firewall-cmd --permanent --zone=public --add-service=https
+docker compose -f docker/edge.yml up -d --wait
+# After a Caddyfile change:
+docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile
+docker logs --since 10m foa-caddy     # certificate issuance and errors
+```
+
+`caddy/` is mounted as a directory, so a reload reads the Caddyfile that git
+just wrote; a single-file mount would keep showing the old one. A recreate
+keeps the project, container and data paths, so the certificates survive it.
+
+## Errors (GlitchTip)
+
+GlitchTip collects the site's and the workers' errors through the Sentry SDK
+(#66) at `https://errors.friendsofanimals.dev`. Compose project `foa-errors`
+(`errors.yml`), network `foa-errors` = `10.112.13.0/24` on bridge
+`br-foa-errors`.
+
+| Container          | Image                       | Address           | Published | Limits                      |
+| ------------------ | --------------------------- | ----------------- | --------- | --------------------------- |
+| `foa-glitchtip`    | `glitchtip/glitchtip:7.0.0` | 10.112.13.10:8000 | no        | 1 GB, `oom_score_adj` 500   |
+| `foa-glitchtip-pg` | `postgres:18.7-alpine`      | 10.112.13.11:5432 | no        | 512 MB, `oom_score_adj` 500 |
+
+- **One container** runs GlitchTip's web server and its workers.
+  `VALKEY_URL` is empty, so Postgres is the task queue, cache and session
+  store: no Valkey or Redis.
+- **Its own Postgres**, not pg-prod: GlitchTip's partitioned tables need
+  `max_locks_per_transaction=512`, and pg-prod's settings and `pg_hba` are
+  tuned for `foa`. Data in `/var/lib/foa/glitchtip/pg` (owned by 70, the
+  image's postgres user), uploads in `/var/lib/foa/glitchtip/uploads` (owned
+  by 5000, GlitchTip's user). Neither is in pgBackRest: losing them loses the
+  error history, nothing else.
+- **Closed**: self-sign-up ends with the first user, only superusers create
+  organisations, and the Django admin, the OpenAPI page, MCP, uptime checks
+  and log ingestion are off. Mail goes to the container log
+  (`EMAIL_URL=consolemail://`).
+- **Ingress**: Caddy (Edge, above). Browsers send their events through the
+  site's own `/monitoring` route (#66), so its CSP keeps `connect-src
+  'self'`.
+
+Secrets (never in git, never printed; each value is `openssl rand -hex
+32`):
+
+| Path                                     | Mode, owner | What                                                                             |
+| ---------------------------------------- | ----------- | -------------------------------------------------------------------------------- |
+| `/etc/foa/secrets/glitchtip.env`         | 0600 root   | `SECRET_KEY`, and `DATABASE_URL` for role glitchtip at 10.112.13.11:5432         |
+| `/etc/foa/secrets/glitchtip_pg_password` | 0400 70     | The same password, for foa-glitchtip-pg's first start (`POSTGRES_PASSWORD_FILE`) |
+
+Start and recreate, with the edge running:
+
+```sh
+cd /srv/foa && git pull
+# GlitchTip migrates its database on start: up to 2 minutes.
+docker compose -f docker/errors.yml up -d --wait
+docker compose -f docker/errors.yml ps
+```
+
+The organisation `foa` and its two projects, one for the site and one for
+the workers, live in GlitchTip's database. Their DSNs are Vercel
+Production's `NEXT_PUBLIC_SENTRY_DSN` and `/etc/foa/secrets/worker_sentry.env`.
+On a new host, create the first user straight after the first start, or
+with `docker exec -it foa-glitchtip ./manage.py createsuperuser`. Upgrade:
+bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
 
 ## TODO and owner actions
 
@@ -736,7 +854,8 @@ docker exec foa-umami curl -fsS http://127.0.0.1:3000/api/heartbeat   # {"ok":tr
    bucket-locked R2 bucket kept 35 days. Until then backups live on the same
    disk as the database.
 3. **Hostinger managed firewall**: if it is ever enabled it must allow TCP 22,
-   80 (ACME renewals) and 6432, with the SSH rule added first.
+   80 (ACME renewals, Caddy), 443 (Caddy) and 6432, with the SSH rule added
+   first.
 4. **Offline copy** of `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` with
    the owner.
 5. **Alerting** (operations ticket): failed `foa-pgbackrest-*`,
@@ -752,3 +871,8 @@ docker exec foa-umami curl -fsS http://127.0.0.1:3000/api/heartbeat   # {"ok":tr
    branch". The API refused the change for lack of permission. Meanwhile the
    migration's advisory lock keeps concurrent builds of one branch from
    applying the same migration twice.
+8. **lego behind Caddy**: `scripts/cert-renew.sh` still runs lego's
+   standalone listener on port 80, which fails while foa-caddy holds it.
+   Switch it to webroot mode (`--http.webroot`, `/var/lib/foa/acme-webroot`)
+   when port 80 is taken (Edge, above). Until it does, the VPS renews from a
+   drop-in on `foa-cert-renew.service` that does exactly that.
