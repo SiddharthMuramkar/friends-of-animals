@@ -14,19 +14,19 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../../access/can";
-import type { Grant } from "../../access/domain/roles";
-import { grantKey } from "../../access/domain/roles";
-import { grantRow, grantsOf } from "../../access/grants";
-import { recordAudit } from "../../audit/record";
+import { authorize } from "../../../access/can";
+import type { Grant } from "../../../access/domain/roles";
+import { grantKey } from "../../../access/domain/roles";
+import { grantRow, grantsOf } from "../../../access/grants";
+import { recordAudit } from "../../../audit/record";
 import {
   institution,
   institutionInvitation,
   user,
   userRole,
-} from "../../db/schema";
-import { invalidInput, type InvalidInput } from "../../input";
-import type { UseCaseContext } from "../../use-cases";
+} from "../../../db/schema";
+import { invalidInput, type InvalidInput } from "../../../input";
+import type { UseCaseContext } from "../../../use-cases";
 import {
   decideInvitation,
   invitationStatus,

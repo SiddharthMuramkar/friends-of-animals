@@ -12,15 +12,15 @@
 import { eq } from "drizzle-orm";
 import { createTranslator } from "next-intl";
 
-import coordinators from "../../../../messages/en-IN/coordinators.json";
-import { formats, LOCALE } from "../../../i18n/formats";
-import { invitationPath } from "../../../lib/app-routes";
-import type { FieldCipher } from "../../crypto/field-cipher";
-import type { AppDb } from "../../db/app-db";
-import { institution, institutionInvitation, user } from "../../db/schema";
-import type { Clock } from "../../ports/clock";
-import type { EmailSender } from "../../ports/email";
-import type { SmsSender } from "../../ports/sms";
+import coordinators from "../../../../../messages/en-IN/coordinators.json";
+import { formats, LOCALE } from "../../../../i18n/formats";
+import { invitationPath } from "../../../../lib/app-routes";
+import type { FieldCipher } from "../../../crypto/field-cipher";
+import type { AppDb } from "../../../db/app-db";
+import { institution, institutionInvitation, user } from "../../../db/schema";
+import type { Clock } from "../../../ports/clock";
+import type { EmailSender } from "../../../ports/email";
+import type { SmsSender } from "../../../ports/sms";
 import { invitationStatus } from "../domain/invitation";
 import { INVITATION_TOKEN, readInvitee } from "./invitee";
 

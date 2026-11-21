@@ -8,10 +8,10 @@
 
 import { z } from "zod";
 
-import { parsePhoneNumber, type E164Phone } from "../../../lib/phone";
-import type { BlindIndex } from "../../crypto/blind-index";
-import type { Ciphertext, FieldCipher } from "../../crypto/field-cipher";
-import { normaliseEmailAddress } from "../../ports/email";
+import { parsePhoneNumber, type E164Phone } from "../../../../lib/phone";
+import type { BlindIndex } from "../../../crypto/blind-index";
+import type { Ciphertext, FieldCipher } from "../../../crypto/field-cipher";
+import { normaliseEmailAddress } from "../../../ports/email";
 import type { InviteeChannel } from "../domain/mask-identifier";
 
 /** The purpose the cipher and blind index bind an invitee's address to. */

@@ -11,21 +11,24 @@
 
 import { eq } from "drizzle-orm";
 
-import { authorize } from "../../access/can";
-import { sortGrants, type Grant } from "../../access/domain/roles";
-import { grantsOf } from "../../access/grants";
-import { recordAudit } from "../../audit/record";
-import type { AppDb } from "../../db/app-db";
+import { authorize } from "../../../access/can";
+import { sortGrants, type Grant } from "../../../access/domain/roles";
+import { grantsOf } from "../../../access/grants";
+import { recordAudit } from "../../../audit/record";
+import type { AppDb } from "../../../db/app-db";
 import {
   institution,
   institutionInvitation,
   user,
   userRole,
-} from "../../db/schema";
-import { readStoredPhone } from "../../identity/stored-phone";
-import { uuidv7 } from "../../ids";
-import { hashLinkToken, isWellFormedLinkToken } from "../../tokens/link-token";
-import type { UseCaseContext } from "../../use-cases";
+} from "../../../db/schema";
+import { readStoredPhone } from "../../../identity/stored-phone";
+import { uuidv7 } from "../../../ids";
+import {
+  hashLinkToken,
+  isWellFormedLinkToken,
+} from "../../../crypto/link-token";
+import type { UseCaseContext } from "../../../use-cases";
 import {
   decideInvitation,
   invitationStatus,

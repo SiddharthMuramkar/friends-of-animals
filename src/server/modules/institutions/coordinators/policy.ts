@@ -9,7 +9,7 @@ import {
   signedIn,
   signedOut,
   type Policy,
-} from "../../access/domain/policy";
+} from "../../../access/domain/policy";
 
 export const COORDINATORS_POLICY = {
   // Inviting, listing and removing coordinators, and withdrawing an

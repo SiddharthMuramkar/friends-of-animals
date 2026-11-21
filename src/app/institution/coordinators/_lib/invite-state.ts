@@ -6,7 +6,7 @@ import type {
   InviteCoordinatorResult,
   RemoveCoordinatorResult,
   RevokeInvitationResult,
-} from "@/server/institutions/coordinators";
+} from "@/server/modules/institutions/coordinators";
 
 export type InviteProblem =
   | "invalid_input"

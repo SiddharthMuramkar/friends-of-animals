@@ -17,7 +17,7 @@ import type { Actor } from "./actor";
 import { auditUseCases } from "./audit";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
-import { coordinatorsUseCases } from "./institutions/coordinators";
+import { coordinatorsUseCases } from "./modules/institutions/coordinators";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(

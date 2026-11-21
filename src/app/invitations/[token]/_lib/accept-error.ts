@@ -1,7 +1,7 @@
 // Why an accept failed, as the invitation page reads it back from the
 // address bar: only reasons acceptInvitation returns are shown.
 
-import type { AcceptInvitationResult } from "@/server/institutions/coordinators";
+import type { AcceptInvitationResult } from "@/server/modules/institutions/coordinators";
 
 export type AcceptError = Extract<
   AcceptInvitationResult,

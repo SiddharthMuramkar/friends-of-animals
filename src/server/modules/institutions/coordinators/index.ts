@@ -3,7 +3,7 @@
 // authorised person lists and removes coordinators. Its use cases join
 // `as(actor)` through `coordinatorsUseCases`.
 
-import type { UseCaseContext } from "../../use-cases";
+import type { UseCaseContext } from "../../../use-cases";
 import { acceptInvitation, viewInvitation } from "./accept-invitation";
 import {
   listCoordinators,

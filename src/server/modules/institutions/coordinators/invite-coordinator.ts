@@ -11,23 +11,23 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../../access/can";
-import { grantRow } from "../../access/grants";
-import type { Actor } from "../../actor";
-import { recordAudit } from "../../audit/record";
-import type { AppDb } from "../../db/app-db";
+import { authorize } from "../../../access/can";
+import { grantRow } from "../../../access/grants";
+import type { Actor } from "../../../actor";
+import { recordAudit } from "../../../audit/record";
+import type { AppDb } from "../../../db/app-db";
 import {
   institution,
   institutionInvitation,
   user,
   userRole,
-} from "../../db/schema";
-import { phoneHashOf } from "../../identity/stored-phone";
-import { uuidv7 } from "../../ids";
-import { invalidInput, type InvalidInput } from "../../input";
-import { emit } from "../../outbox";
-import { createLinkToken } from "../../tokens/link-token";
-import type { UseCaseContext } from "../../use-cases";
+} from "../../../db/schema";
+import { phoneHashOf } from "../../../identity/stored-phone";
+import { uuidv7 } from "../../../ids";
+import { invalidInput, type InvalidInput } from "../../../input";
+import { emit } from "../../../outbox";
+import { createLinkToken } from "../../../crypto/link-token";
+import type { UseCaseContext } from "../../../use-cases";
 import { invitationExpiresAt } from "../domain/invitation";
 import {
   INVITATION_TOKEN,

@@ -13,7 +13,7 @@
 
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
-import { sendCoordinatorInvitation } from "../institutions/coordinators/invitation-message";
+import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
 import { sendWelcomeEmail } from "../modules/notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";

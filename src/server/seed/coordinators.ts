@@ -5,9 +5,9 @@
 
 import { institution, institutionInvitation } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
-import { invitationExpiresAt } from "../institutions/domain/invitation";
-import { storedInvitee } from "../institutions/coordinators/invitee";
-import { createLinkToken } from "../tokens/link-token";
+import { invitationExpiresAt } from "../modules/institutions/domain/invitation";
+import { storedInvitee } from "../modules/institutions/coordinators/invitee";
+import { createLinkToken } from "../crypto/link-token";
 import { ensureGrant } from "./access";
 import { SEED_ACCOUNTS } from "./accounts";
 import { SEED_SCOPES } from "./scopes";
