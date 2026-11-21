@@ -40,14 +40,9 @@ import { noticeOf, type EditorNotice as Notice } from "../_lib/editor-state";
 // it will read; Preview opens the public page in Draft Mode; Publish makes
 // the draft the next version. Kinds without an editor yet (111b's) say so.
 
-type Params = Promise<{ key: string }>;
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+type Props = PageProps<"/admin/cms/[key]">;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Params;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const [{ key }, t] = await Promise.all([params, getTranslations("adminCms")]);
   return {
     title: isCmsDocumentKey(key)
@@ -58,13 +53,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function Page({
-  params,
-  searchParams,
-}: {
-  params: Params;
-  searchParams: SearchParams;
-}) {
+export default async function Page({ params, searchParams }: Props) {
   const t = await getTranslations("adminCms");
   return (
     <Section hue="neutral" tone="tint" className="pt-10 sm:pt-14">
@@ -109,13 +98,7 @@ async function editorDataFor(
   }
 }
 
-async function Editor({
-  params,
-  searchParams,
-}: {
-  params: Params;
-  searchParams: SearchParams;
-}) {
+async function Editor({ params, searchParams }: Props) {
   const [{ key }, query] = await Promise.all([params, searchParams]);
   if (!isCmsDocumentKey(key)) notFound();
   const actor = await currentActor();

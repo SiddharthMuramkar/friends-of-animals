@@ -4,8 +4,8 @@
 // (src/server/modules/cms/domain/documents.ts). Its text lives in
 // revisions: at most one open draft, which content managers edit in place,
 // and at most one published revision; publishing numbers the draft and
-// supersedes the one before. Published and superseded revisions never change again: a
-// trigger refuses any other UPDATE or DELETE of them
+// supersedes the one before. Published and superseded revisions never
+// change again: a trigger refuses any other UPDATE or DELETE of them
 // (drizzle/*_111_cms_revision_guard.sql).
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports

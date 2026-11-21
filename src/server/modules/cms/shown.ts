@@ -12,6 +12,7 @@ import "server-only";
 
 import { draftMode } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
+import { cache } from "react";
 
 import { as, currentActor } from "../../app";
 import { DomainError, errorSummaryForLogs } from "../../errors";
@@ -46,9 +47,10 @@ async function previewDraft(key: CmsDocumentKey) {
 
 /**
  * What `key`'s page shows now, or null to keep the repo's copy (nothing
- * published and no draft to preview, or the database failed).
+ * published and no draft to preview, or the database failed). Read once
+ * per request (React cache), however many holes of the page show it.
  */
-export async function loadShownDocument(
+export const loadShownDocument = cache(async function loadShownDocument(
   key: CmsDocumentKey
 ): Promise<ShownCmsDocument | null> {
   try {
@@ -73,4 +75,4 @@ export async function loadShownDocument(
     );
     return null;
   }
-}
+});
