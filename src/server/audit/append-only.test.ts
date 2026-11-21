@@ -11,6 +11,18 @@ async function auditRows(h: Harness) {
   return row?.rows;
 }
 
+/**
+ * The trigger's refusal. Drizzle wraps the driver's error in its own, whose
+ * message is the failed query, and keeps what Postgres said as `cause`.
+ */
+function refusedWith(operation: string) {
+  return {
+    cause: {
+      message: `audit_log is append-only: ${operation} is not allowed`,
+    },
+  };
+}
+
 /** One audit row, written the way a use case writes it. */
 async function recordOne(h: Harness) {
   const member = await h.seed.member();
@@ -92,7 +104,7 @@ describe("the audit log", () => {
 
     await expect(
       h.db.execute(sql`update audit_log set action = 'role.revoked'`)
-    ).rejects.toThrow(/append-only.*UPDATE/s);
+    ).rejects.toMatchObject(refusedWith("UPDATE"));
     expect(
       await h.db.select({ action: auditLog.action }).from(auditLog)
     ).toEqual([{ action: "role.granted" }]);
@@ -102,9 +114,9 @@ describe("the audit log", () => {
     const h = await createHarness();
     await recordOne(h);
 
-    await expect(h.db.execute(sql`delete from audit_log`)).rejects.toThrow(
-      /append-only.*DELETE/s
-    );
+    await expect(
+      h.db.execute(sql`delete from audit_log`)
+    ).rejects.toMatchObject(refusedWith("DELETE"));
     expect(await auditRows(h)).toBe(1);
   });
 
@@ -112,8 +124,8 @@ describe("the audit log", () => {
     const h = await createHarness();
     await recordOne(h);
 
-    await expect(h.db.execute(sql`truncate audit_log`)).rejects.toThrow(
-      /append-only.*TRUNCATE/s
+    await expect(h.db.execute(sql`truncate audit_log`)).rejects.toMatchObject(
+      refusedWith("TRUNCATE")
     );
     expect(await auditRows(h)).toBe(1);
   });
