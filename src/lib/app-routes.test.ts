@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { APP_ROUTES, isSignedInPath } from "./app-routes";
+import { APP_ROUTES, isSignedInPage, isSignedInPath } from "./app-routes";
 
 describe("isSignedInPath", () => {
   it("covers the account pages", () => {
@@ -13,5 +13,20 @@ describe("isSignedInPath", () => {
     expect(isSignedInPath("/sign-in")).toBe(false);
     expect(isSignedInPath("/accountability")).toBe(false);
     expect(isSignedInPath("/")).toBe(false);
+  });
+});
+
+describe("isSignedInPage", () => {
+  it("knows the contact inbox and each message in it", () => {
+    expect(isSignedInPage(APP_ROUTES.adminInbox)).toBe(true);
+    expect(
+      isSignedInPage("/admin/inbox/01938a00-0000-7000-8113-000000000001")
+    ).toBe(true);
+  });
+
+  it("knows no other path under a page with a dynamic segment", () => {
+    expect(isSignedInPage("/admin/inbox/")).toBe(false);
+    expect(isSignedInPage("/admin/inbox/a/b")).toBe(false);
+    expect(isSignedInPage("/admin/inboxes/a")).toBe(false);
   });
 });

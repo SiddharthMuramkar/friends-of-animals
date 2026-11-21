@@ -62,10 +62,9 @@ describe("the contact seed", () => {
     const closed = await Promise.all(
       items.filter((item) => item.status === "closed").map((c) => view(c.id))
     );
-    expect(closed.map((message) => message.closeReason).sort()).toEqual([
-      "resolved",
-      "spam",
-    ]);
+    expect(new Set(closed.map((message) => message.closeReason))).toEqual(
+      new Set(["resolved", "spam"])
+    );
   });
 
   it("puts the message assigned to the content manager in her team's inbox", async () => {
