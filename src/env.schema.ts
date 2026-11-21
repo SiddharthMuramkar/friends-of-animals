@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { parseBlindIndexKey } from "./server/crypto/blind-index";
 import { parseKeyRing } from "./server/crypto/field-cipher";
+import { isUmamiOrigin } from "./lib/analytics/umami";
 import { parseDsn } from "./lib/observability/config";
 import { previewDatabase } from "./server/db/database-url";
 
@@ -58,6 +59,22 @@ const buildVariables = {
    */
   VERCEL_BRANCH_URL: z.string().optional(),
   VERCEL_URL: z.string().optional(),
+  /**
+   * Cookieless page views (src/lib/analytics/umami.ts): this deployment's
+   * Umami website (staging and production each have one) and the Umami
+   * server's origin, e.g. https://stats.shipped-it.dev. Pages send nothing
+   * outside staging and production, or while either is unset.
+   */
+  NEXT_PUBLIC_UMAMI_WEBSITE_ID: z
+    .uuid({ error: "must be an Umami website id (a UUID)" })
+    .optional(),
+  UMAMI_ORIGIN: z
+    .url({ protocol: /^https$/, error: "must be an https URL" })
+    .refine(isUmamiOrigin, {
+      error:
+        "must be an origin with no path, e.g. https://stats.shipped-it.dev",
+    })
+    .optional(),
 };
 
 /**
