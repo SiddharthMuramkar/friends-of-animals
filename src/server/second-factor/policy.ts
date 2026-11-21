@@ -15,6 +15,8 @@ export const SECOND_FACTOR_POLICY = {
   "second-factor.enrol": signedIn,
   /** Passing a second factor for this session. */
   "second-factor.verify": signedIn,
+  /** Whether staff screens may open; anyone signed in may ask. */
+  "second-factor.staff-access": signedIn,
 } satisfies Policy<string>;
 
 export type SecondFactorAction = keyof typeof SECOND_FACTOR_POLICY;

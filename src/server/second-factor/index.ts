@@ -2,6 +2,7 @@
 // step-up. Its use cases join `as(actor)` through `secondFactorUseCases`.
 
 import type { UseCaseContext } from "../use-cases";
+import { staffAccess } from "./staff-access";
 import {
   confirmTotpEnrolment,
   mySecondFactors,
@@ -9,6 +10,7 @@ import {
   verifySecondFactor,
 } from "./totp";
 
+export type { StaffAccess } from "./staff-access";
 export type {
   ConfirmTotpEnrolmentResult,
   FactorSummary,
@@ -25,4 +27,5 @@ export const secondFactorUseCases = (ctx: UseCaseContext) => ({
   verifySecondFactor: (input: { code: string }) =>
     verifySecondFactor(ctx, input),
   mySecondFactors: () => mySecondFactors(ctx),
+  staffAccess: () => staffAccess(ctx),
 });
