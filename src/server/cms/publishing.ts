@@ -36,6 +36,7 @@ import {
   type CmsRevisionStatus,
 } from "./domain/revisions";
 import { kindOf } from "./kinds";
+import { mirrorIntoConsent } from "./legal";
 import {
   documentStates,
   ensureDocument,
@@ -263,10 +264,16 @@ export async function publishRevision(
       },
       actorRole: role,
     });
+    const consentTags = await mirrorIntoConsent(tx, ctx, {
+      key,
+      revisionId: target.id,
+      body: target.body,
+      actorRole: role,
+    });
     return {
       ok: true,
       version: decision.version,
-      tags: tagsToRefresh(key),
+      tags: [...tagsToRefresh(key), ...consentTags],
     } as const;
   });
 }

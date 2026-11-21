@@ -105,6 +105,27 @@ export function cmsPublicPath(key: CmsDocumentKey): `/${string}` {
   return PUBLIC_PATH[key];
 }
 
+/**
+ * The consent document whose text a page is (#64): publishing the page
+ * publishes the purpose's next version with the same body, linked to the
+ * revision. The messages consent has its own text, so no page mirrors it.
+ */
+const MIRRORED_PURPOSE = {
+  legal_privacy: "privacy_notice",
+  legal_terms: "terms",
+} as const satisfies Partial<Record<CmsDocumentKey, LinkedConsentPurpose>>;
+
+export type MirroredConsentPurpose =
+  (typeof MIRRORED_PURPOSE)[keyof typeof MIRRORED_PURPOSE];
+
+export function mirroredConsentPurpose(
+  key: CmsDocumentKey
+): MirroredConsentPurpose | null {
+  return Object.hasOwn(MIRRORED_PURPOSE, key)
+    ? MIRRORED_PURPOSE[key as keyof typeof MIRRORED_PURPOSE]
+    : null;
+}
+
 /** The tag a document's public read caches under. */
 export function cmsTag(key: CmsDocumentKey): string {
   return `cms:${key}`;

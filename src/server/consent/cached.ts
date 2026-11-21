@@ -14,11 +14,9 @@ import type { Actor } from "../actor";
 import { as } from "../app";
 import type { PublishedConsentDocument } from "./documents";
 import type { ConsentPurpose } from "./domain/purposes";
+import { consentDocumentTag } from "./tags";
 
-/** The tag on a purpose's cached current document. */
-export function consentDocumentTag(purpose: ConsentPurpose): string {
-  return `consent-document:${purpose}`;
-}
+export { consentDocumentTag };
 
 /**
  * Who reads a published document for everyone. A cached function can't

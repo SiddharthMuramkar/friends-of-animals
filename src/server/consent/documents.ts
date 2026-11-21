@@ -14,8 +14,8 @@ import { z } from "zod";
 
 import { authorize } from "../access/can";
 import { recordAudit } from "../audit/record";
-import { consentDocument } from "../db/schema";
-import { uuidv7 } from "../ids";
+import { legalKeyForConsentPurpose } from "../cms/domain/documents";
+import { publishedRevisionId } from "../cms/repository";
 import { invalidInput, type InvalidInput } from "../input";
 import type { UseCaseContext } from "../use-cases";
 import type { ConsentDocumentBody } from "./domain/document-body";
@@ -24,6 +24,7 @@ import {
   type SourceError,
 } from "./domain/document-source";
 import { CONSENT_PURPOSES, type ConsentPurpose } from "./domain/purposes";
+import { insertConsentDocumentVersion } from "./insert-version";
 import { documentVersions, latestDocument } from "./repository";
 
 export type ConsentContext = Pick<UseCaseContext, "db" | "clock" | "actor">;
@@ -102,18 +103,29 @@ export async function publishConsentDocument(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
-    const latest = await latestDocument(tx, purpose);
-    const id = uuidv7(now);
-    const version = (latest?.version ?? 0) + 1;
-    await tx.insert(consentDocument).values({
+    const {
       id,
-      purpose,
       version,
-      title,
-      body: parsed.body,
-      publishedAt: now,
-      publishedByUserId: ctx.actor.kind === "user" ? ctx.actor.userId : null,
-    });
+      previous: latest,
+    } = await insertConsentDocumentVersion(
+      tx,
+      {
+        now,
+        publishedByUserId: ctx.actor.kind === "user" ? ctx.actor.userId : null,
+      },
+      {
+        purpose,
+        title,
+        body: parsed.body,
+        // The messages consent rests on the privacy page (#111); the
+        // privacy notice and terms versions the CMS publishes link their
+        // own page revision.
+        legalRevisionId:
+          purpose === "messages"
+            ? await publishedRevisionId(tx, legalKeyForConsentPurpose(purpose))
+            : null,
+      }
+    );
     await recordAudit(tx, ctx, {
       action: "consent_document.published",
       entity: { type: "consent_document", id },

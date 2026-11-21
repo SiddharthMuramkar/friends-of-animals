@@ -64,6 +64,7 @@ export async function lockRevision(tx: AppDb, revisionId: string) {
       id: cmsRevision.id,
       status: cmsRevision.status,
       version: cmsRevision.version,
+      body: cmsRevision.body,
       documentId: cmsRevision.documentId,
       key: cmsDocument.key,
     })
@@ -153,4 +154,12 @@ export async function revisionBodyOf(
     .innerJoin(cmsDocument, eq(cmsDocument.id, cmsRevision.documentId))
     .where(and(eq(cmsDocument.key, key), eq(cmsRevision.status, status)));
   return row ?? null;
+}
+
+/** The id of a document's published revision, or null. */
+export async function publishedRevisionId(
+  db: AppDb,
+  key: CmsDocumentKey
+): Promise<string | null> {
+  return (await revisionBodyOf(db, key, "published"))?.id ?? null;
 }
