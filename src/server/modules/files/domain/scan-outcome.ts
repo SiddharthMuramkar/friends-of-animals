@@ -3,13 +3,8 @@
 // what to record. A scanner failure is never a pass: the job retries and the
 // file stays undeliverable to anyone but its uploader meanwhile.
 
+import type { ScanVerdict } from "../../../ports/malware-scanner";
 import type { SniffedContentType } from "./sniff";
-
-/** What a malware scanner reports for one stream. */
-export type ScanVerdict =
-  | { verdict: "clean" }
-  | { verdict: "infected"; signature: string }
-  | { verdict: "error"; message: string };
 
 export type ScanOutcome =
   | {
