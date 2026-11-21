@@ -3,6 +3,7 @@
 // filters with no client state.
 
 import { APP_ROUTES } from "@/lib/app-routes";
+import type { SearchAuditLogInput } from "@/server/audit";
 
 import { firstParam, type SearchParams } from "../../_lib/search-params";
 
@@ -38,6 +39,10 @@ export function auditHref(filters: AuditFilters): string {
  * The form fields an invalid search names, and whether the page link
  * (the cursor, which only the page writes) was broken.
  */
+export function searchInput(_filters: AuditFilters): SearchAuditLogInput {
+  throw new Error("Not implemented");
+}
+
 export function fieldsAtFault(fields: readonly string[]): {
   fields: AuditField[];
   badPage: boolean;

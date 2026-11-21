@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { auditHref, fieldsAtFault, readAuditFilters } from "./filters";
+import {
+  auditHref,
+  fieldsAtFault,
+  readAuditFilters,
+  searchInput,
+} from "./filters";
 
 const ASHA = "01938a00-0000-7000-8000-000000000101";
 const CURSOR = "019a4c2e-7f00-7000-8000-00000000abcd";
@@ -80,5 +85,33 @@ describe("fieldsAtFault", () => {
       fields: ["entityType"],
       badPage: true,
     });
+  });
+});
+
+describe("the page size", () => {
+  it("is read and kept across pages like a filter", () => {
+    const filters = readAuditFilters({ person: ASHA, limit: "1" });
+    expect(filters).toEqual({ person: ASHA, limit: "1" });
+    expect(auditHref({ ...filters, cursor: CURSOR })).toBe(
+      `/admin/audit?person=${ASHA}&cursor=${CURSOR}&limit=1`
+    );
+  });
+
+  it("goes to the search as a number", () => {
+    expect(searchInput({ action: "role.granted", limit: "20" })).toEqual({
+      action: "role.granted",
+      limit: 20,
+    });
+    expect(searchInput({ action: "role.granted" })).toEqual({
+      action: "role.granted",
+    });
+  });
+
+  it("goes as not-a-number when it isn't one, for the search to refuse", () => {
+    expect(searchInput({ limit: "lots" }).limit).toBeNaN();
+  });
+
+  it("counts as a broken page link when the search refuses it", () => {
+    expect(fieldsAtFault(["limit"])).toEqual({ fields: [], badPage: true });
   });
 });
