@@ -1,6 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
+import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
 import { SEED_ACCOUNTS } from "../../src/server/seed/accounts";
+import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {
   expectAccessible,
   expectAccessibleInDark,
@@ -124,27 +127,48 @@ test("a member gives and withdraws consent in their settings", async ({
   await expect(history.last()).toContainText("Agreed to version");
 });
 
-test("a staff admin publishes a new version, which the legal page shows", async ({
+test("a staff admin publishes a new version of the messages consent", async ({
   page,
   request,
 }, testInfo) => {
-  // Each project publishes a different document as a different admin, so
-  // the two never race for the same version number or code limit.
-  const [admin, documentName, path] =
+  // Each project signs in a different admin, so the two never race for
+  // the same version number or code limit, nor use the seeded
+  // authenticator's code that #60's journey uses in the same project.
+  const admin =
     testInfo.project.name === "desktop"
-      ? [SEED_ACCOUNTS.members[1], "Privacy policy", "/privacy"]
-      : [SEED_ACCOUNTS.superAdmin, "Terms of use", "/terms"];
-
-  await page.goto(path);
-  const before = await shownVersion(page);
+      ? SEED_ACCOUNTS.members[1]
+      : SEED_ACCOUNTS.superAdmin;
 
   await page.goto("/sign-in");
   await finishWithCode(page, request, admin.email);
   await expect(page).toHaveURL(/\/account\/sessions$/);
 
-  await expectRendersAccessibly(page, "/admin/consent-documents");
+  // Staff pass the second factor first (#60), with the seeded authenticator.
+  await page.goto("/admin/consent-documents");
+  await expect(page).toHaveURL(/\/auth\/second-factor/);
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(base32Decode(SEED_TOTP_SECRET), new Date()));
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(/\/admin\/consent-documents$/);
+
+  await expectAccessible(page, "/admin/consent-documents");
   await expectAccessibleInDark(page, "/admin/consent-documents");
-  const card = page.getByRole("region", { name: documentName });
+  // The privacy policy and the terms are their policy pages' text: only
+  // publishing the page in the CMS publishes them (#111).
+  for (const name of ["Privacy policy", "Terms of use"]) {
+    await expect(
+      page
+        .getByRole("region", { name })
+        .getByRole("button", { name: /^Publish/ })
+    ).toHaveCount(0);
+  }
+
+  const card = page.getByRole("region", { name: "News and updates by email" });
+  const current = card.getByText(/^Version \d+, published /);
+  const before = Number(
+    /^Version (\d+)/.exec((await current.textContent()) ?? "")?.[1]
+  );
   // The form starts from the current version's text: preview it unchanged.
   await card.getByRole("button", { name: "Preview" }).click();
   await expect(
@@ -154,16 +178,13 @@ test("a staff admin publishes a new version, which the legal page shows", async 
 
   await card.getByRole("button", { name: /^Publish version \d+$/ }).click();
   const notice = page
-    .getByRole("region", { name: documentName })
+    .getByRole("region", { name: "News and updates by email" })
     .getByRole("status");
   await expect(notice).toHaveText(/Published version \d+\./);
   const published = Number(
     /Published version (\d+)/.exec((await notice.textContent()) ?? "")?.[1]
   );
-  expect(published).toBeGreaterThan(before);
-
-  await page.goto(path);
-  expect(await shownVersion(page)).toBeGreaterThanOrEqual(published);
+  expect(published).toBe(before + 1);
 });
 
 test("a member is refused on the consent documents page", async ({
