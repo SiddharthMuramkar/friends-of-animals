@@ -1,9 +1,16 @@
 import { isValidElement, type ReactElement, type ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { placeholder } from "@/lib/site";
+import { renderHtml, visibleText } from "@/test/render";
 
 import { ContactFact } from "./contact-fact";
+
+vi.mock("next-intl/server", () => import("@/test/next-intl-server"));
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 type PlaceholderProps = {
   fact: unknown;
@@ -43,5 +50,31 @@ describe("<ContactFact>", () => {
       fact,
     }) as ReactElement<PlaceholderProps>;
     expect(el.props.fact).toBe(fact);
+  });
+
+  it("renders nothing for an unconfirmed contact in production", async () => {
+    vi.stubEnv("APP_ENV", "production");
+    const html = await renderHtml(
+      <ContactFact kind="phone" fact={placeholder("phone")} />
+    );
+    expect(html).toBe("");
+  });
+
+  it("keeps the tile for an unconfirmed contact on preview", async () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const html = await renderHtml(
+      <ContactFact kind="phone" fact={placeholder("phone")} />
+    );
+    expect(visibleText(html)).toBe("Phone numberTo be confirmed");
+  });
+
+  it("links a confirmed contact in production", async () => {
+    vi.stubEnv("APP_ENV", "production");
+    const html = await renderHtml(
+      <ContactFact kind="email" fact="hello@example.org" />
+    );
+    expect(html).toMatch(
+      /<a href="mailto:hello@example.org"[^>]*>hello@example.org<\/a>/
+    );
   });
 });
