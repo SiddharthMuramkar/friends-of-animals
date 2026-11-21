@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 const CHECKBOX =
-  "mt-1 size-6 shrink-0 rounded-md border-2 border-border-strong accent-primary";
+  "size-6 shrink-0 rounded-md border-2 border-border-strong accent-primary";
 
 /**
  * One channel a user can choose for their messages (#69): its box, its
@@ -23,25 +23,23 @@ export function ChannelChoice({
 }) {
   const hintId = `${id}-hint`;
   return (
-    <div className="flex items-start gap-3">
-      <input
-        id={id}
-        type="checkbox"
-        name={name}
-        defaultChecked={defaultChecked}
-        aria-describedby={hintId}
-        className={CHECKBOX}
-      />
-      <div>
-        <label
-          htmlFor={id}
-          className="inline-flex min-h-8 items-center font-semibold text-ink"
-        >
-          {label}
-        </label>
-        <div id={hintId} className="text-ink-muted wrap-anywhere">
-          {hint}
-        </div>
+    <div>
+      <label
+        htmlFor={id}
+        className="flex min-h-11 items-center gap-3 font-semibold text-ink"
+      >
+        <input
+          id={id}
+          type="checkbox"
+          name={name}
+          defaultChecked={defaultChecked}
+          aria-describedby={hintId}
+          className={CHECKBOX}
+        />
+        {label}
+      </label>
+      <div id={hintId} className="ms-9 text-ink-muted wrap-anywhere">
+        {hint}
       </div>
     </div>
   );
