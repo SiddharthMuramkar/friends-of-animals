@@ -1,5 +1,7 @@
 # Self-hosted Umami for cookieless page views (issue #118), reached through a
-# Cloudflare Tunnel. A Compose project of its own, next to the database stack:
+# Cloudflare Tunnel. A Compose project of its own, next to the database stack.
+# scripts/analytics-bootstrap.sh starts Umami alone and replaces its seeded
+# admin/umami login; only after that does this start the tunnel:
 #
 #   docker compose -f /srv/foa/docker/analytics.yml up -d --wait
 #
@@ -18,6 +20,7 @@
 #
 # Secrets, made by scripts/analytics-bootstrap.sh and never in git:
 #   /etc/foa/analytics.env                      0600 root
+#   /etc/foa/secrets/umami_admin_password       0400 root (Umami's admin login)
 #   /etc/foa/secrets/cloudflared_tunnel_token   0400 65532 (cloudflared's user)
 
 name: foa-analytics

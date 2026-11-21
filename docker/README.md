@@ -670,7 +670,8 @@ database stack down or up never touches it.
   `NEXT_PUBLIC_UMAMI_WEBSITE_ID` and `UMAMI_ORIGIN` set render the tracker.
   The site loads it as `/stats/script.js` and posts to `/stats/api/send` on
   its own origin; Next rewrites just those two paths to `UMAMI_ORIGIN`. No
-  cookies and no query strings or fragments. Nothing is sent from signed-in
+  cookies, no query strings or fragments, and none of the site's own pages
+  as referrers. Nothing is sent from signed-in
   pages, sign-in and sign-up, or from a browser that showed a signed-in page
   in the last 30 days (`src/lib/analytics/umami.ts`).
 
@@ -679,9 +680,13 @@ Secrets (never in git):
 | Path                                        | Mode, owner | What                                                                   |
 | ------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
 | `/etc/foa/analytics.env`                    | 0600 root   | `DATABASE_URL` (role umami), `APP_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` |
+| `/etc/foa/secrets/umami_admin_password`     | 0400 root   | Umami's `admin` password, which replaced the seeded one                |
 | `/etc/foa/secrets/cloudflared_tunnel_token` | 0400 65532  | The tunnel token (cloudflared runs as 65532)                           |
 
-Bring-up (owner, HR-52), with the database stack running:
+Bring-up (owner, HR-52), with the database stack running. Umami starts with
+the login `admin` / `umami`, which everyone knows, so the bootstrap replaces
+it before anything outside the VPS can reach Umami. Start the tunnel only
+after the bootstrap succeeded:
 
 ```sh
 cd /srv/foa && git pull
@@ -689,24 +694,36 @@ cd /srv/foa && git pull
 #    add the public hostname stats.<domain> -> http://umami:3000, copy the
 #    token, then paste it here and end with Ctrl-D (never as an argument):
 sudo install -m 0400 -o 65532 -g 65532 /dev/stdin /etc/foa/secrets/cloudflared_tunnel_token
-# 2. Env file, role and database umami, pg_hba reload:
+# 2. Env file, role and database umami, pg_hba reload; then Umami alone (no
+#    tunnel, so unreachable from outside) and its seeded admin login replaced
+#    by a random password in /etc/foa/secrets/umami_admin_password:
 sudo docker/scripts/analytics-bootstrap.sh
-# 3. Start and wait for both health checks:
+# 3. Only now the tunnel: start it and wait for both health checks:
 docker compose -f docker/analytics.yml up -d --wait
 ```
 
-Then at `https://stats.<domain>`: sign in as `admin` / `umami`, change the
-password (3.5 asks for it), turn on two-factor authentication, and add two
-websites, one for staging (`shipped-it.dev`) and one for production. In
-Vercel, set `NEXT_PUBLIC_UMAMI_WEBSITE_ID` (each environment its own website
-id) and `UMAMI_ORIGIN=https://stats.<domain>` for staging and Production
-only, then redeploy. Check that a page view arrives, and that `pgbackrest
-info` after the next backup and the next restore drill both show `umami`.
+Then at `https://stats.<domain>`: sign in as `admin` with the password in
+`/etc/foa/secrets/umami_admin_password` (read it on the VPS yourself; if you
+change it in the dashboard, put the new one in that file too), turn on
+two-factor authentication, and add two websites, one for staging
+(`shipped-it.dev`) and one for production. In Vercel, set
+`NEXT_PUBLIC_UMAMI_WEBSITE_ID` (each environment its own website id) and
+`UMAMI_ORIGIN=https://stats.<domain>` for staging and Production only, then
+redeploy. Check that a page view arrives, and that `pgbackrest info` after
+the next backup and the next restore drill both show `umami`.
+
+To keep the dashboard off the internet altogether, give the tunnel's public
+hostname the path `^/(script\.js|api/send)$` (a regular expression; type the
+leading slash). Only the tracker and the collect endpoint stay public, and
+the site's rewrites need nothing else. Reach the dashboard over SSH instead:
+`ssh -L 3000:10.112.12.30:3000 <vps>`, then open `http://localhost:3000`.
 
 Umami counts unique visitors by IP address. Requests reach it through
 Vercel's rewrite and then Cloudflare, so check which header carries the
 visitor's address (not Vercel's) and set `CLIENT_IP_HEADER` in
-`analytics.env` to it. Until then page views are right but unique visitors
+`analytics.env` to it. Pick one that Vercel or Cloudflare sets itself,
+replacing whatever the browser sent: a header visitors can set lets them
+forge the counts. Until then page views are right but unique visitors
 collapse onto Vercel's addresses.
 
 Upgrade: bump the image tag in `analytics.yml`, `git pull`, then

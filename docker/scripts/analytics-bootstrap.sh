@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Umami's secrets and its database role on pg-prod (#118, analytics.yml).
-# Idempotent: an existing secret is never replaced. Prints file names, never
-# values.
+# Umami's secrets, its database role on pg-prod, and Umami itself, started
+# alone with its seeded login replaced (#118, analytics.yml). Idempotent: an
+# existing secret is never replaced. Prints file names, never values.
 #
 #   1. /etc/foa/analytics.env (0600 root): DATABASE_URL with a random password
 #      for role umami, APP_SECRET, TWO_FACTOR_ENCRYPTION_KEY (32 random bytes
@@ -10,20 +10,32 @@
 #   2. postgres/bootstrap/umami.sql in foa-pg-prod: role and database umami,
 #      with that password, passed over stdin and never as an argument. Then
 #      pg_reload_conf(), so pg_hba.prod.conf's umami rule applies.
-#   3. The tunnel token: if /etc/foa/secrets/cloudflared_tunnel_token exists,
+#   3. Umami alone (`up -d --wait umami`), never cloudflared: without the
+#      tunnel nothing outside the VPS reaches it.
+#   4. /etc/foa/secrets/umami_admin_password (0400 root, 32 random bytes as
+#      hex) replaces Umami's seeded admin/umami login, which everyone knows,
+#      from inside the container (umami-admin-password.mjs, the password over
+#      stdin). So the dashboard is never on the internet with that login.
+#   5. The tunnel token: if /etc/foa/secrets/cloudflared_tunnel_token exists,
 #      make it 0400 for cloudflared's user (65532); else say how to create it.
 #
-# Run after `git pull` in /srv/foa and with the database stack up, before
-# `docker compose -f docker/analytics.yml up -d --wait` (docker/README.md).
+# Run after `git pull` in /srv/foa and with the database stack up. Start the
+# tunnel only after it succeeds: `docker compose -f docker/analytics.yml up -d
+# --wait` (docker/README.md).
 #
 # Usage: sudo analytics-bootstrap.sh
 # The functions above main() are tested by analytics-bootstrap.test.ts, which
 # sources this file.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/analytics.yml"
+ADMIN_SCRIPT="$SCRIPT_DIR/umami-admin-password.mjs"
 ENV_FILE=/etc/foa/analytics.env
 TOKEN_FILE=/etc/foa/secrets/cloudflared_tunnel_token
+ADMIN_FILE=/etc/foa/secrets/umami_admin_password
 CLOUDFLARED_UID=65532 # nonroot in the distroless cloudflared image
+UMAMI_CONTAINER=foa-umami
 PG_CONTAINER=foa-pg-prod
 PG_HOST=10.112.12.10 # pg-prod on network db (compose.yml)
 SQL_FILE=/opt/foa/bootstrap/umami.sql # postgres/bootstrap, mounted in pg-prod
@@ -31,8 +43,9 @@ SQL_FILE=/opt/foa/bootstrap/umami.sql # postgres/bootstrap, mounted in pg-prod
 usage() {
   cat <<EOF
 Usage: $0
-Writes Umami's env file, creates its role and database on pg-prod and checks
-the Cloudflare Tunnel token. Idempotent; run as root.
+Writes Umami's env file, creates its role and database on pg-prod, starts
+Umami alone and replaces its seeded admin login, and checks the Cloudflare
+Tunnel token. Then start the tunnel. Idempotent; run as root.
 EOF
 }
 
@@ -107,6 +120,47 @@ apply_sql() {
       psql -X -q -v ON_ERROR_STOP=1 -h /var/run/postgresql -U postgres -d postgres
 }
 
+# private_dir DIR: create DIR (0700 root) if it is missing. An existing one
+# keeps its mode and owner.
+private_dir() {
+  [ -d "$1" ] || install -d -m 0700 -o root -g root "$1"
+}
+
+# start_umami: Umami alone, once its health check passes. Not cloudflared:
+# the tunnel would put the dashboard on the internet before
+# replace_seeded_login has run.
+start_umami() {
+  docker compose -f "$COMPOSE_FILE" up -d --wait umami
+}
+
+# write_admin_password FILE: create FILE (0400) with a random password for
+# Umami's admin, unless it exists.
+write_admin_password() {
+  local file=$1 tmp
+  if [ -e "$file" ]; then
+    is_hex64 "$(<"$file")" ||
+      die "the admin password in $file must be 64 hex characters (openssl rand -hex 32)"
+    echo "kept $file"
+    return 0
+  fi
+  tmp="$(mktemp "$(dirname "$file")/.umami_admin_password.XXXXXX")"
+  new_hex >"$tmp"
+  chmod 0400 "$tmp"
+  mv -f "$tmp" "$file"
+  echo "wrote $file"
+}
+
+# replace_seeded_login FILE: inside foa-umami, swap the seeded admin/umami
+# login for the password in FILE (umami-admin-password.mjs, which talks to
+# Umami's own port). The password goes over stdin, never as an argument.
+replace_seeded_login() {
+  local file=$1
+  is_hex64 "$(<"$file")" ||
+    die "the admin password in $file must be 64 hex characters"
+  docker exec -i "$UMAMI_CONTAINER" node --input-type=module \
+    -e "$(<"$ADMIN_SCRIPT")" <"$file"
+}
+
 check_token() {
   if [ -s "$TOKEN_FILE" ]; then
     chown "$CLOUDFLARED_UID:$CLOUDFLARED_UID" "$TOKEN_FILE"
@@ -130,11 +184,17 @@ main() {
   command -v docker >/dev/null || die "docker not found"
   umask 077
 
-  install -d -m 0700 -o root -g root "$(dirname "$ENV_FILE")" "$(dirname "$TOKEN_FILE")"
+  private_dir "$(dirname "$ENV_FILE")"
+  private_dir "$(dirname "$TOKEN_FILE")"
+  private_dir "$(dirname "$ADMIN_FILE")"
   write_env "$ENV_FILE"
   apply_sql "$(db_password "$(env_value "$ENV_FILE" DATABASE_URL)")"
   echo "applied umami.sql on $PG_CONTAINER and reloaded its configuration"
+  start_umami
+  write_admin_password "$ADMIN_FILE"
+  replace_seeded_login "$ADMIN_FILE"
   check_token
+  echo "next: docker compose -f $COMPOSE_FILE up -d --wait (starts the tunnel)"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi
