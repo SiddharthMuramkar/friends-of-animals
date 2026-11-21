@@ -122,20 +122,9 @@ jobs:
           mapfile -t tests < <(git ls-files -- tests src/test '*.test.ts' '*.test.tsx' '*.spec.ts')
           weakened='\.(skip|only|todo)\(|\bfixme\b|test\.fail\(|retry:|retries:|disableRules|\.exclude\(|withTags'
           internal_mock='vi\.mock\(["'"'"']@/'
-          # The two app-module mocks that predate this check. Unit x-mocks
-          # moves them onto the harness and vi.stubEnv, then deletes this
-          # list. Never add to it.
-          allowed_mocks=(
-            src/app/api/health/route.test.ts
-            src/app/monitoring/route.test.ts
-          )
-          mocked=()
-          for file in "${tests[@]}"; do
-            [[ " ${allowed_mocks[*]} " == *" $file "* ]] || mocked+=("$file")
-          done
           failed=0
           if grep -nE "$weakened" -- "${tests[@]}"; then failed=1; fi
-          if grep -nE "$internal_mock" -- "${mocked[@]}"; then failed=1; fi
+          if grep -nE "$internal_mock" -- "${tests[@]}"; then failed=1; fi
           if grep -nE 'retries:\s*[1-9]' playwright.config.ts; then failed=1; fi
           if grep -nE 'retry:\s*[1-9]' vitest*.config.ts; then failed=1; fi
           if [ "$failed" -ne 0 ]; then
