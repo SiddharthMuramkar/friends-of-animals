@@ -146,6 +146,9 @@ test("a competition manager creates, edits, previews and publishes a competition
     ).toBeVisible();
   }
   await checkBothThemes(page, "/admin/competitions/[id]/preview");
+  // The public list is read once before publishing, so the check after it
+  // shows the publish refreshed the cached list (70b).
+  expect((await request.get("/competitions")).ok()).toBe(true);
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByRole("status")).toContainText("Published.");
   await expect(page.getByText("Published", { exact: true })).toBeVisible();
@@ -157,6 +160,21 @@ test("a competition manager creates, edits, previews and publishes a competition
   await expect(
     page.getByRole("listitem").filter({ hasText: name })
   ).toContainText("Published");
+
+  // The public pages show it straight away, with no deploy (70b).
+  const list = await page.goto("/competitions");
+  expect(list?.status()).toBeLessThan(400);
+  const href = await page
+    .locator("main")
+    .getByRole("link", { name })
+    .first()
+    .getAttribute("href");
+  expect(href).toMatch(/^\/competitions\/[a-z0-9-]+$/);
+  const detail = await page.goto(href!);
+  expect(detail?.status(), href!).toBe(200);
+  await expect(
+    page.locator("main").getByRole("heading", { level: 1 })
+  ).toHaveText(name);
 });
 
 test("a draft with gaps lists what publishing still needs", async ({
