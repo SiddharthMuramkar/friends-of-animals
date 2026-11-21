@@ -185,3 +185,34 @@ describe("docker/caddy/Caddyfile", () => {
     ]);
   });
 });
+
+describe("the stats site's gate", () => {
+  // Umami starts with the seeded login admin/umami, which everyone knows.
+  // scripts/analytics-bootstrap.sh replaces it, and only then creates the
+  // gate file; until that file exists, Caddy answers stats with a 503.
+  const GATE_DIR = "/var/lib/foa/caddy/gates";
+
+  it("is a host directory Caddy reads but can't write", () => {
+    expect(volumes).toContain(`${GATE_DIR}:/srv/gates:ro`);
+  });
+
+  it("answers stats with a 503 while the gate file is missing", () => {
+    const stats = site(STATS);
+    const at = stats.indexOf("@closed not file {");
+    expect(at).toBeGreaterThan(-1);
+    expect(stats.slice(at, at + 5)).toEqual([
+      "@closed not file {",
+      "root /srv/gates",
+      "try_files /stats",
+      "}",
+      "respond @closed 503",
+    ]);
+    expect(stats).toContain("reverse_proxy 10.112.12.30:3000");
+  });
+
+  it("is the file analytics-bootstrap.sh creates once the login is replaced", () => {
+    expect(read("./scripts/analytics-bootstrap.sh")).toMatch(
+      new RegExp(`^GATE_FILE=${GATE_DIR}/stats$`, "m")
+    );
+  });
+});
