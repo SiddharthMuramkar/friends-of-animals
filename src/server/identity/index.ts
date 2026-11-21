@@ -26,6 +26,14 @@ export { resolveActor } from "./session";
 export { requestMeta } from "./request";
 
 export const identityUseCases = (ctx: UseCaseContext) => ({
+  // Not built yet: ./phone-sign-in.test.ts describes them.
+  requestPhoneCode: async (_input: unknown): Promise<never> => {
+    void ctx;
+    throw new Error("not built yet");
+  },
+  verifyPhoneCode: async (_input: unknown): Promise<never> => {
+    throw new Error("not built yet");
+  },
   requestEmailCode: (input: RequestEmailCodeInput) =>
     requestEmailCode(ctx, input),
   verifyEmailCode: (input: VerifyEmailCodeInput) => verifyEmailCode(ctx, input),

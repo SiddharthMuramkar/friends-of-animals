@@ -31,6 +31,7 @@ import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
+import { FakeSettings } from "./fakes/settings";
 import { FakeSms } from "./fakes/sms";
 
 export interface Harness {
@@ -45,6 +46,11 @@ export interface Harness {
   email: FakeEmail;
   /** Every SMS use cases sent. */
   sms: FakeSms;
+  /**
+   * Runtime settings, at their defaults (SMS off) until a test sets one:
+   * `h.settings.set("sms.enabled", true)`.
+   */
+  settings: FakeSettings;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
   /** What use cases run against: the fakes above plus test auth config. */
@@ -96,6 +102,7 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const sms = new FakeSms(clock);
+  const settings = new FakeSettings();
   const cookies = new FakeCookieJar(clock);
   const deps: Deps = {
     db,
@@ -110,6 +117,7 @@ export async function createHarness(
       keys: new Map([[1, randomBytes(32)]]),
     }),
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
+    settings,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
@@ -123,6 +131,7 @@ export async function createHarness(
     clock,
     email,
     sms,
+    settings,
     cookies,
     deps,
     as: (actor) => app.as(actor),
