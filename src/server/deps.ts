@@ -25,6 +25,8 @@ import {
 } from "./ports/malware-scanner";
 import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
+import type { ErrorReporter } from "./ports/errors";
+import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -42,6 +44,8 @@ export interface Deps extends DbWithClock {
    * queue, so the app's is unconfigured and never called.
    */
   media: MediaProcessor;
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
 }
 
 /** Where the Files module keeps objects, and for which environment. */
@@ -98,6 +102,8 @@ export function productionDeps(): Deps {
       },
       scanner: unconfiguredScanner,
       media: unconfiguredMedia,
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
     };
   }
   return production;
