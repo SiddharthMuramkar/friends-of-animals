@@ -101,6 +101,10 @@ export async function startWorkerErrors({
       const sdk = await loadSdk();
       sdk.init({
         ...sentryOptions(tracking, { hashUserId }),
+        // Always given: left out, the SDK names one from the environment
+        // (SENTRY_RELEASE, or GITHUB_SHA and other CI variables), so a build
+        // with no commit would carry its host's. An empty release is none.
+        release: tracking.release ?? "",
         integrations: (defaults) =>
           defaults.filter(({ name }) => !SDK_PROCESS_HANDLERS.has(name)),
       });

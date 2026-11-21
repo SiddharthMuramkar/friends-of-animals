@@ -108,8 +108,9 @@ describe("startWorkerErrors", () => {
     "names no release for a worker built as %s, whatever commit its host names",
     async (version) => {
       // GitHub Actions sets this, and the SDK names it as the release when
-      // it is given none.
-      vi.stubEnv("GITHUB_SHA", "bfc64e6acd65a40174d1a0c8ac56e3daa58c5adc");
+      // it is given none. Made at run time, as the address above is.
+      const hostCommit = randomBytes(20).toString("hex");
+      vi.stubEnv("GITHUB_SHA", hostCommit);
       const envelopes: string[] = [];
       const errors = await startWorkerErrors({
         dsn: DSN,
@@ -125,6 +126,7 @@ describe("startWorkerErrors", () => {
       const [event] = sentEvents(envelopes);
       expect(event.environment).toBe("local");
       expect(event.release).toBeUndefined();
+      expect(envelopes.join("\n")).not.toContain(hostCommit);
     }
   );
 
