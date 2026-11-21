@@ -23,7 +23,10 @@ type AttemptContext = { clock: Clock; actor: SignedInUser };
 
 /**
  * Runs `attempt` unless the user is locked out, in `tx`, which must be a
- * transaction: the user's lockout row stays locked until it ends.
+ * transaction: the user's lockout row stays locked until it ends. Lock
+ * the factor rows `attempt` checks before calling this: every path takes
+ * a user's factor rows before their lockout row (resetSecondFactors
+ * too), so two at once queue rather than deadlock.
  */
 export async function guardedAttempt<Failure extends string>(
   tx: AppDb,

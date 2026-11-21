@@ -107,7 +107,9 @@ test("staff pass their second factor, then step up for a sensitive change", asyn
   await expectAccessibleInDark(page, "/auth/second-factor");
   await page.getByRole("textbox", { name: "6-digit code" }).fill("000000");
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("alert")).toContainText("didn't match");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "didn't match"
+  );
 
   await page
     .getByRole("textbox", { name: "6-digit code" })

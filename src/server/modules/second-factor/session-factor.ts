@@ -8,12 +8,16 @@ import type { AppDb } from "../../db/app-db";
 import {
   secondFactor,
   secondFactorLockout,
+  session,
   sessionSecondFactor,
+  user,
   type SecondFactorKind,
 } from "../../db/schema";
 import { DomainError } from "../../errors";
+import type { Clock } from "../../ports/clock";
 import type { SecondFactorStatus } from "./domain/gate";
 import { NO_FAILURES, type LockoutState } from "./domain/lockout";
+import { isLiveSession } from "./session-lifetimes";
 
 export type SignedInUser = Extract<Actor, { kind: "user" }>;
 
@@ -76,6 +80,42 @@ export async function stampSession(
       target: sessionSecondFactor.sessionId,
       set: { verifiedAt: at, method },
     });
+}
+
+/**
+ * Serializes factor changes for the user. This lock also makes a new
+ * primary session's foreign key check wait for a reset or removal.
+ */
+export async function lockUser(tx: AppDb, userId: string): Promise<boolean> {
+  const [account] = await tx
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.id, userId))
+    .for("update");
+  return account !== undefined;
+}
+
+/** Locks the account first and checks for revocation since the request resolved its actor. */
+export async function lockFactorSession(
+  tx: AppDb,
+  actor: SignedInUser,
+  clock: Clock
+): Promise<void> {
+  await lockUser(tx, actor.userId);
+  const [primary] = await tx
+    .select({
+      userId: session.userId,
+      createdAt: session.createdAt,
+      expiresAt: session.expiresAt,
+    })
+    .from(session)
+    .where(
+      and(eq(session.id, actor.sessionId), eq(session.userId, actor.userId))
+    )
+    .for("key share");
+  if (!primary || !(await isLiveSession(tx, primary, clock.now()))) {
+    throw new DomainError("forbidden", "The primary session has ended");
+  }
 }
 
 /**
