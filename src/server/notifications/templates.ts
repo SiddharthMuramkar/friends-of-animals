@@ -25,9 +25,7 @@ import {
   type RevisionProblem,
   type TemplateVersion,
 } from "./domain/revision";
-
-/** Every template is in this locale until a second one arrives. */
-export const DEFAULT_LOCALE = "en-IN";
+import { DEFAULT_LOCALE } from "./locale";
 
 export type TemplateSummary = {
   channel: MessageChannel;
