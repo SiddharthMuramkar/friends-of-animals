@@ -80,6 +80,15 @@ test("a member signs out of another device, then everywhere", async ({
     .getByRole("button", { name: /^Sign out/ })
     .click();
   await expect(sessions).toHaveCount(1);
+  // The pressed button went with its row: the page says it worked, and
+  // focus moves to that message instead of dropping to the top.
+  await expect(
+    page.getByRole("status").filter({ hasText: "That device is signed out." })
+  ).toBeVisible();
+  await expect(page.locator(":focus")).toContainText(
+    "That device is signed out."
+  );
+  await expectAccessible(page, "/account/sessions after a sign-out");
   await laptop.goto("/account/sessions");
   await expect(laptop).toHaveURL(/\/sign-in$/);
 

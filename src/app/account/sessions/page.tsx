@@ -12,6 +12,7 @@ import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type { SessionSummary } from "@/server/identity";
 
+import { SignedOutNotice } from "./_components/signed-out-notice";
 import { signOutEverywhereAction, signOutSessionAction } from "./_lib/actions";
 import { sessionAddress } from "./_lib/address";
 import { describeDevice } from "./_lib/device";
@@ -25,7 +26,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function Page() {
+type SearchParams = Promise<{ signedOut?: string | string[] }>;
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const t = await getTranslations("account.sessions");
   return (
     <Section hue="blue" tone="tint" width="prose" className="pt-10 sm:pt-14">
@@ -40,7 +47,7 @@ export default async function Page() {
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
-        <Sessions />
+        <Sessions searchParams={searchParams} />
       </Suspense>
     </Section>
   );
@@ -49,15 +56,18 @@ export default async function Page() {
 const CARD =
   "rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
 
-async function Sessions() {
+async function Sessions({ searchParams }: { searchParams: SearchParams }) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, format, account, sessions] = await Promise.all([
-    getTranslations("account.sessions"),
-    getFormatter(),
-    as(actor).getAccount(),
-    as(actor).listSessions(),
-  ]);
+  const [t, callout, format, account, sessions, { signedOut }] =
+    await Promise.all([
+      getTranslations("account.sessions"),
+      getTranslations("common.callout"),
+      getFormatter(),
+      as(actor).getAccount(),
+      as(actor).listSessions(),
+      searchParams,
+    ]);
 
   const deviceName = (session: SessionSummary) => {
     const { browser, os } = describeDevice(session.userAgent);
@@ -73,6 +83,14 @@ async function Sessions() {
       <p className="text-lead text-ink wrap-anywhere">
         {t("signedInAs", account)}
       </p>
+
+      {typeof signedOut === "string" ? (
+        <SignedOutNotice
+          key={signedOut}
+          label={callout("success")}
+          message={t("signedOut")}
+        />
+      ) : null}
 
       <section aria-labelledby="sessions-list">
         <SectionHeading id="sessions-list" title={t("listTitle")} />

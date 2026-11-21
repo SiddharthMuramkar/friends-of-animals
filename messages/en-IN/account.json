@@ -22,6 +22,7 @@
       "signOut": "Sign out",
       "signOutOf": "Sign out of {device}, signed in {date}",
       "signingOut": "Signing out…",
+      "signedOut": "That device is signed out. It needs a new code to sign in again.",
       "everywhereTitle": "Sign out everywhere",
       "everywhereLead": "Signs you out on every device on this list, this one too. Use it if you lose a phone or sign in on a shared computer.",
       "everywhere": "Sign out everywhere"

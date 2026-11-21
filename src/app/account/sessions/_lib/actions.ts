@@ -1,12 +1,18 @@
 "use server";
 
-import { refresh } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 
+import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
-/** Signs one session out; this browser's own sends it to sign in. */
+/**
+ * Signs one session out; this browser's own sends it to sign in. Another
+ * device's comes back to the list with `?signedOut=<token>`, so the page
+ * says it worked and moves focus there. The token is new each time, so a
+ * second sign-out is announced too. A session that was already gone ends
+ * the same way: that device isn't signed in.
+ */
 export async function signOutSessionAction(formData: FormData): Promise<void> {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
@@ -15,8 +21,11 @@ export async function signOutSessionAction(formData: FormData): Promise<void> {
     sessionId: typeof sessionId === "string" ? sessionId : "",
   });
   if (result.ok && result.signedOutHere) redirect(ROUTES.signIn.path);
-  // Show the list without the session (or unchanged, if it was gone).
-  refresh();
+  const token = Date.now().toString(36);
+  redirect(
+    `${APP_ROUTES.accountSessions}?signedOut=${token}`,
+    RedirectType.replace
+  );
 }
 
 /** Signs every session out, this one too, then goes to sign in. */
