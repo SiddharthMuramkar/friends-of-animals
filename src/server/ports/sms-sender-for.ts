@@ -1,0 +1,40 @@
+// Which SMS adapter an environment uses. Shared by the app
+// (src/server/deps.ts) and the VPS worker (src/worker), so both send the
+// same way.
+//
+// Loads under plain Node (the worker): no "server-only", no Next imports.
+
+import type { Env } from "../../env.schema";
+import type { DbWithClock } from "../db/app-db";
+import { unconfiguredSmsSender, type SmsSender } from "./sms";
+import { captureSmsSender } from "./sms-capture";
+import { msg91SmsSender } from "./sms-msg91";
+
+/** MSG91's keys, once FOA's DLT registration gives them. */
+export type Msg91Keys = {
+  authKey?: string | undefined;
+  otpTemplateId?: string | undefined;
+};
+
+/**
+ * Production sends real SMS through MSG91 once its keys are set (after
+ * FOA's DLT registration); until then it refuses. Every other environment
+ * captures, so no real SMS leaves staging, previews or a local run, and
+ * MSG91 is never called there.
+ */
+export function smsSenderFor(
+  appEnv: Env["APP_ENV"],
+  deps: DbWithClock,
+  msg91: Msg91Keys,
+  fetchImpl: typeof fetch = fetch
+): SmsSender {
+  if (appEnv !== "production") return captureSmsSender(deps);
+  if (!msg91.authKey || !msg91.otpTemplateId) return unconfiguredSmsSender;
+  return msg91SmsSender(
+    {
+      authKey: msg91.authKey,
+      templates: { "sign-in-code": msg91.otpTemplateId },
+    },
+    fetchImpl
+  );
+}

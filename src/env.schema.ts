@@ -103,6 +103,16 @@ function fieldKey(parse: (value: string) => unknown) {
     .optional();
 }
 
+/**
+ * The field cipher's key ring, "<version>:<base64 32 bytes>,..." (the
+ * highest version encrypts), and the blind index key (base64 32 bytes).
+ * The app and the VPS worker (src/worker/config.ts) read them alike.
+ */
+export const fieldKeyVariables = {
+  FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
+  FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+};
+
 /** Secrets the app server reads. */
 const secretVariables = {
   /**
@@ -118,13 +128,11 @@ const secretVariables = {
    */
   CAPTURE_MAILBOX_TOKEN: secret(),
   /**
-   * The field cipher's key ring, "<version>:<base64 32 bytes>,..." (the
-   * highest version encrypts), and the blind index key (base64 32 bytes).
-   * Required on staging and production; a local run or a preview without
-   * them uses public development keys (src/server/crypto/keys.ts).
+   * The field cipher's keys. Required on staging and production; a local
+   * run or a preview without them uses public development keys
+   * (src/server/crypto/keys.ts).
    */
-  FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
-  FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+  ...fieldKeyVariables,
   /**
    * MSG91, production's SMS provider: the account's auth key and the id of
    * the DLT-approved sign-in code template. Optional: without them
@@ -445,8 +453,7 @@ export type MigrationEnv = z.output<typeof migrationEnvSchema>;
 export const fieldKeyEnvSchema = z
   .object({
     APP_ENV: appEnv,
-    FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
-    FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+    ...fieldKeyVariables,
   })
   .transform(({ APP_ENV, ...keys }) => ({
     ...keys,

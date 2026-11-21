@@ -20,12 +20,17 @@
 //                                    Compose secret), for a URL without one
 //   SENTRY_DSN                       the workers' Sentry project (#66); unset
 //                                    turns error tracking off (./errors.ts)
+//   FIELD_ENCRYPTION_KEYS            the deployment's field cipher keys, as the
+//   FIELD_HMAC_KEY                   app reads them: messages read a stored
+//                                    phone (#69). Required on staging and
+//                                    production; elsewhere the public
+//                                    development keys apply
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
 import { z } from "zod";
 
-import { parseEnv } from "../env.schema";
+import { fieldKeyVariables, parseEnv } from "../env.schema";
 import { parseDsn } from "../lib/observability/config";
 import type { WorkerIdentity } from "./tenant";
 
@@ -43,6 +48,9 @@ type Common = {
   passwordFile: string | undefined;
   /** Where errors go; unset, nowhere. */
   sentryDsn: string | undefined;
+  /** The field cipher's keys (src/server/crypto/keys.ts). */
+  fieldEncryptionKeys: string | undefined;
+  fieldHmacKey: string | undefined;
 };
 
 export type WorkerConfig =
@@ -95,6 +103,7 @@ const schema = z
           "Client Keys page, or leave it empty to turn error tracking off.",
       })
       .optional(),
+    ...fieldKeyVariables,
   })
   .superRefine((env, ctx) => {
     if (env.WORKER_MODE === "preview") {
@@ -152,6 +161,8 @@ export function workerConfig(
     heartbeatFile: env.WORKER_HEARTBEAT_FILE,
     passwordFile: env.WORKER_PASSWORD_FILE,
     sentryDsn: env.SENTRY_DSN,
+    fieldEncryptionKeys: env.FIELD_ENCRYPTION_KEYS,
+    fieldHmacKey: env.FIELD_HMAC_KEY,
   };
   if (env.WORKER_MODE === "preview") {
     // The refinement above guarantees it.

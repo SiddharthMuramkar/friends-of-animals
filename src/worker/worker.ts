@@ -9,11 +9,14 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import { fieldCryptoFor } from "../server/crypto/keys";
 import type { AppDb } from "../server/db/app-db";
 import { withDatabase } from "../server/db/database-url";
 import { SCHEDULES, type OutboxDeps } from "../server/outbox";
 import type { Clock } from "../server/ports/clock";
 import { emailSenderFor } from "../server/ports/email-sender-for";
+import { settingsFor } from "../server/ports/settings";
+import { smsSenderFor } from "../server/ports/sms-sender-for";
 import type { WorkerConfig } from "./config";
 import type { WorkerLog } from "./log";
 import {
@@ -61,11 +64,27 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   let supervisor: Supervisor | undefined;
   const cleanups: (() => Promise<void>)[] = [];
 
-  const depsFor = (db: AppDb): OutboxDeps => ({
-    db,
-    clock: io.clock,
-    email: emailSenderFor(config.appEnv, { db, clock: io.clock }),
+  // Messages read a recipient's stored phone (#69). Like the app, staging
+  // and production refuse to start without their own keys.
+  const { cipher } = fieldCryptoFor({
+    APP_ENV: config.appEnv,
+    FIELD_ENCRYPTION_KEYS: config.fieldEncryptionKeys,
+    FIELD_HMAC_KEY: config.fieldHmacKey,
   });
+  const settings = settingsFor(config.appEnv);
+
+  const depsFor = (db: AppDb): OutboxDeps => {
+    const store = { db, clock: io.clock };
+    return {
+      ...store,
+      email: emailSenderFor(config.appEnv, store),
+      // MSG91's keys don't reach the worker yet, so production refuses
+      // SMS; it stays switched off until DLT approval (HR-14) anyway.
+      sms: smsSenderFor(config.appEnv, store, {}),
+      settings,
+      cipher,
+    };
+  };
 
   async function startSingle(
     single: Extract<WorkerConfig, { mode: "single" }>

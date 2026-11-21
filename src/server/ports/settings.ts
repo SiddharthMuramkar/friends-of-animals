@@ -6,6 +6,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import type { Env } from "../../env.schema";
 import { CODE_REQUEST_LIMITS } from "../identity/settings";
 
 /** Every setting, with the value it has until someone changes it. */
@@ -32,4 +33,17 @@ export interface Settings {
 export function fixedSettings(values: Partial<SettingValues> = {}): Settings {
   const all: SettingValues = { ...SETTING_DEFAULTS, ...values };
   return { get: async (key) => all[key] };
+}
+
+/**
+ * The settings each deployment reads until #62's settings table holds
+ * them; the app (src/server/deps.ts) and the VPS worker (src/worker) read
+ * the same. Local runs and previews send SMS to the capture mailbox, so
+ * sign-in by phone is on there (the Seam 2 journey uses it); staging and
+ * production keep the default, off, until DLT approval (HR-14).
+ */
+export function settingsFor(appEnv: Env["APP_ENV"]): Settings {
+  return appEnv === "local" || appEnv === "preview"
+    ? fixedSettings({ "sms.enabled": true })
+    : fixedSettings();
 }

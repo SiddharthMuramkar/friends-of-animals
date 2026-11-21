@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { DEVELOPMENT_FIELD_KEYS } from "@/server/crypto/keys";
 import type { AppDb } from "@/server/db/app-db";
 import { capturedMessage, outbox, workerHeartbeat } from "@/server/db/schema";
 import { emitUserSignedUp } from "@/server/outbox/testing";
@@ -21,6 +22,9 @@ const COMMON = {
   heartbeatFile: "/tmp/foa-worker-heartbeat",
   passwordFile: undefined,
   sentryDsn: undefined,
+  // Staging and production need keys of their own; any valid ones do here.
+  fieldEncryptionKeys: DEVELOPMENT_FIELD_KEYS.FIELD_ENCRYPTION_KEYS,
+  fieldHmacKey: DEVELOPMENT_FIELD_KEYS.FIELD_HMAC_KEY,
 } as const;
 
 function singleConfig(

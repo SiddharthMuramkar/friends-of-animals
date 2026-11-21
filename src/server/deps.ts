@@ -9,7 +9,6 @@
 import "server-only";
 
 import { env } from "@/env";
-import type { Env } from "@/env.schema";
 
 import type { BlindIndex } from "./crypto/blind-index";
 import type { FieldCipher } from "./crypto/field-cipher";
@@ -20,10 +19,9 @@ import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
-import { unconfiguredSmsSender, type SmsSender } from "./ports/sms";
-import { captureSmsSender } from "./ports/sms-capture";
-import { msg91SmsSender } from "./ports/sms-msg91";
-import { fixedSettings, type Settings } from "./ports/settings";
+import type { SmsSender } from "./ports/sms";
+import { smsSenderFor } from "./ports/sms-sender-for";
+import { settingsFor, type Settings } from "./ports/settings";
 import type { EmailSender } from "./ports/email";
 import { emailSenderFor } from "./ports/email-sender-for";
 import type { ErrorReporter } from "./ports/errors";
@@ -47,41 +45,6 @@ export interface Deps extends DbWithClock {
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
-
-/**
- * Production sends real SMS through MSG91 once its keys are set (after
- * FOA's DLT registration); until then it refuses. Every other environment
- * captures, so no real SMS leaves staging, previews or a local run, and
- * MSG91 is never called there.
- */
-export function smsSenderFor(
-  appEnv: Env["APP_ENV"],
-  deps: DbWithClock,
-  msg91: { authKey?: string | undefined; otpTemplateId?: string | undefined },
-  fetchImpl: typeof fetch = fetch
-): SmsSender {
-  if (appEnv !== "production") return captureSmsSender(deps);
-  if (!msg91.authKey || !msg91.otpTemplateId) return unconfiguredSmsSender;
-  return msg91SmsSender(
-    {
-      authKey: msg91.authKey,
-      templates: { "sign-in-code": msg91.otpTemplateId },
-    },
-    fetchImpl
-  );
-}
-
-/**
- * The runtime settings each deployment reads until #62's settings table
- * holds them. Local runs and previews send SMS to the capture mailbox, so
- * sign-in by phone is on there (the Seam 2 journey uses it); staging and
- * production keep the default, off, until DLT approval (HR-14).
- */
-export function settingsFor(appEnv: Env["APP_ENV"]): Settings {
-  return appEnv === "local" || appEnv === "preview"
-    ? fixedSettings({ "sms.enabled": true })
-    : fixedSettings();
-}
 
 let production: Deps | undefined;
 
