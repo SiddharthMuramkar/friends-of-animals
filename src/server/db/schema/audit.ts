@@ -1,7 +1,8 @@
 // The audit log (#59): who did what to which record, when, from where, and
 // what it looked like before and after. Append-only: a trigger refuses any
-// UPDATE, DELETE or TRUNCATE (drizzle/*_59_audit_append_only.sql), so not
-// even the migrator can rewrite history.
+// UPDATE, DELETE or TRUNCATE, and no role but the owner holds those rights
+// (drizzle/*_59_audit_append_only.sql), so not even the migrator can
+// rewrite history.
 //
 // `before` and `after` hold ids and the fields that changed, never a whole
 // row, so personal data stays out of a table nobody can edit.
