@@ -73,6 +73,8 @@ At 16–48 px the tile edges and gaps fall between pixels and blur, so `hintedTi
 - At 16 and 24 px the traced letters are 3–5 px tall and blur away, so F, O and A are placed pixel by pixel instead.
 - There's no SVG favicon: a vector can't be sharp at every size, and browsers would prefer it over the ICO.
 
+[`docs/brand/favicon-hinting.png`](../../docs/brand/favicon-hinting.png) shows the favicon at 16, 24 and 32 px, zoomed 6×, on a light and a dark tab. The top row is the old unhinted icon on a white square, and the bottom row is the hinted one.
+
 ## Uses FOA approved
 
 FOA answered in [#17](https://github.com/SiddharthMuramkar/friends-of-animals/issues/17):
