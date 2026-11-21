@@ -4,6 +4,7 @@
 //
 // Never import "server-only" here or in any schema file: drizzle-kit loads
 // the schema under plain Node, where that import throws.
+export * from "./event-registrations";
 export * from "./identity";
 export * from "./mailbox";
 export * from "./outbox";
