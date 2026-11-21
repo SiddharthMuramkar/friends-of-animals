@@ -18,12 +18,15 @@
 //   WORKER_VERSION                   dev: the commit the image was built from
 //   WORKER_PASSWORD_FILE             a file holding the role's password (a
 //                                    Compose secret), for a URL without one
+//   SENTRY_DSN                       the workers' Sentry project (#66); unset
+//                                    turns error tracking off (./errors.ts)
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
 import { z } from "zod";
 
 import { parseEnv } from "../env.schema";
+import { parseDsn } from "../lib/observability/config";
 import type { WorkerIdentity } from "./tenant";
 
 type Common = {
@@ -38,6 +41,8 @@ type Common = {
   heartbeatFile: string;
   /** Read at start and put into the URL with `withPassword`. */
   passwordFile: string | undefined;
+  /** Where errors go; unset, nowhere. */
+  sentryDsn: string | undefined;
 };
 
 export type WorkerConfig =
@@ -82,6 +87,14 @@ const schema = z
     WORKER_HEARTBEAT_FILE: z.string().default("/tmp/foa-worker-heartbeat"),
     WORKER_VERSION: z.string().default("dev"),
     WORKER_PASSWORD_FILE: z.string().optional(),
+    SENTRY_DSN: z
+      .string()
+      .refine((value) => parseDsn(value) !== undefined, {
+        error:
+          "is not a valid Sentry DSN. Copy it from the Sentry project's " +
+          "Client Keys page, or leave it empty to turn error tracking off.",
+      })
+      .optional(),
   })
   .superRefine((env, ctx) => {
     if (env.WORKER_MODE === "preview") {
@@ -138,6 +151,7 @@ export function workerConfig(
     connectionsPerDatabase: env.WORKER_CONNECTIONS_PER_DATABASE,
     heartbeatFile: env.WORKER_HEARTBEAT_FILE,
     passwordFile: env.WORKER_PASSWORD_FILE,
+    sentryDsn: env.SENTRY_DSN,
   };
   if (env.WORKER_MODE === "preview") {
     // The refinement above guarantees it.

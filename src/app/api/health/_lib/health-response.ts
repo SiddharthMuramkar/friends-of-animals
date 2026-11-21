@@ -2,8 +2,9 @@ import { sql } from "drizzle-orm";
 
 import type { AppDb } from "@/server/db/app-db";
 
-// The answer GET /api/health gives uptime monitors. Today it checks the
-// database; the queue and worker heartbeat join it with the worker.
+// The answer GET /api/health gives uptime monitors: the app and its
+// database. The worker has its own check, GET /api/health/worker, so a
+// stalled worker never pages as "the app is down".
 
 /** Monitors and CDNs must never see a cached answer. */
 const headers = { "Cache-Control": "no-store" };

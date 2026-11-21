@@ -250,31 +250,42 @@ describe("tunnelEnvelope", () => {
   });
 
   it("answers a 1 MiB envelope of worst-case strings in well under a second", () => {
-    // One string per pattern that made a regex rescan the rest of the
-    // string from every position: /monitoring takes 1 MiB from anyone.
-    const event = {
-      message: "a".repeat(200_000), // an email's local part, no @
-      extra: {
-        url: "http://".repeat(28_000),
-        path: "(/".repeat(100_000),
-        key: "Key (".repeat(40_000),
-        quoted: ': "a'.repeat(37_500),
-      },
-    };
+    // 126 strings, each of which made an unbounded regex rescan the rest
+    // of it from every position, and each under the scrubber's
+    // 8192-character cut, so the patterns run over all of it. Duplicate
+    // keys weigh most: the cut already holds their old regex to a few
+    // times the bounded one's cost, so only many of them show the bound.
+    const worstCase = [
+      ...Array<string>(96).fill("Key (".repeat(1600)),
+      ...Array<string>(6).fill("a".repeat(8000)), // an email with no @
+      ...Array<string>(6).fill("9".repeat(8000)),
+      ...Array<string>(6).fill("(/".repeat(4000)),
+      ...Array<string>(6).fill("http://".repeat(1150)),
+      ...Array<string>(3).fill(': "a'.repeat(2000)), // quoted values
+      ...Array<string>(3).fill("a.".repeat(4000)), // URL schemes, no ://
+    ];
+    const extra = Object.fromEntries(
+      worstCase.map((text, i) => [`s${i}`, text])
+    );
     const body = encoder.encode(
       [
         JSON.stringify(header),
         JSON.stringify({ type: "event" }),
-        JSON.stringify(event),
+        JSON.stringify({ message: "worst case", extra }),
       ].join("\n")
     );
+    expect(body.byteLength).toBeGreaterThan(900 * 1024);
     expect(body.byteLength).toBeLessThanOrEqual(1024 * 1024);
 
-    const started = performance.now();
-    const decision = tunnelEnvelope(body, options);
-    const elapsed = performance.now() - started;
+    // The fastest of three runs: other work on the machine only ever adds
+    // time, so the minimum is the scrubber's own cost. Every run counts.
+    const runs = Array.from({ length: 3 }, () => {
+      const started = performance.now();
+      const decision = tunnelEnvelope(body, options);
+      return { decision, elapsed: performance.now() - started };
+    });
 
-    expect(decision.kind).toBe("forward");
-    expect(elapsed).toBeLessThan(1000);
+    for (const { decision } of runs) expect(decision.kind).toBe("forward");
+    expect(Math.min(...runs.map((run) => run.elapsed))).toBeLessThan(1000);
   });
 });

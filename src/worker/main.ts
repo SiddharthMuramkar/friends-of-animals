@@ -1,8 +1,9 @@
 // The VPS worker's entry point: `pnpm worker` (Docker target `worker`,
 // docker/workers.yml) and `pnpm worker:dev` (a local run). Reads its
-// configuration (./config.ts), starts the worker (./worker.ts) and ticks it
-// every WORKER_POLL_SECONDS until SIGTERM or SIGINT, then finishes the tick
-// in flight, stops pg-boss and closes every connection.
+// configuration (./config.ts), starts error tracking (./errors.ts) and the
+// worker (./worker.ts) and ticks it every WORKER_POLL_SECONDS until SIGTERM
+// or SIGINT, then finishes the tick in flight, stops pg-boss, closes every
+// connection and sends the errors still queued (at most 2 s).
 //
 // Runs under plain Node through tsx: it never imports "server-only",
 // "@/env" or src/server/db/index.ts (the app's pooled client).
@@ -18,6 +19,7 @@ import { directTls } from "../server/db/database-url";
 import * as schema from "../server/db/schema";
 import { systemClock } from "../server/ports/clock";
 import { withPassword, workerConfig, type WorkerConfig } from "./config";
+import { exitOnUncaught, startWorkerErrors, type WorkerErrors } from "./errors";
 import { summarizeError, type WorkerLog } from "./log";
 import type { ListedDatabase } from "./preview-databases";
 import { createWorker, type WorkerIo } from "./worker";
@@ -46,8 +48,9 @@ function client(url: string, max: number) {
   });
 }
 
-function realIo(config: WorkerConfig): WorkerIo {
+function realIo(config: WorkerConfig, errors: WorkerErrors): WorkerIo {
   return {
+    onTenantError: errors.tenantFailed,
     clock: systemClock,
     log,
     openDatabase(url, connections) {
@@ -103,14 +106,31 @@ function realIo(config: WorkerConfig): WorkerIo {
   };
 }
 
+/** Started once the configuration parses; reports until the worker exits. */
+let errors: WorkerErrors | undefined;
+
 async function main() {
   loadEnvFiles();
   const parsed = workerConfig(process.env);
+  const started = await startWorkerErrors({
+    dsn: parsed.sentryDsn,
+    appEnv: parsed.appEnv,
+    version: parsed.identity.version,
+    // Loaded only when SENTRY_DSN is set.
+    loadSdk: () => import("@sentry/node"),
+    log,
+  });
+  errors = started;
+  exitOnUncaught(started.reporter, {
+    process,
+    exit: (code) => process.exit(code),
+    log,
+  });
   const config =
     parsed.passwordFile === undefined
       ? parsed
       : withPassword(parsed, await readFile(parsed.passwordFile, "utf8"));
-  const worker = createWorker(config, realIo(config));
+  const worker = createWorker(config, realIo(config, started));
 
   let stopping = false;
   let wake: (() => void) | undefined;
@@ -135,6 +155,7 @@ async function main() {
     wake = undefined;
   }
   await worker.stop();
+  await started.flush();
 }
 
 main().catch((error: unknown) => {
@@ -144,5 +165,10 @@ main().catch((error: unknown) => {
       ? error.message
       : summarizeError(error);
   log({ level: "error", event: "worker.failed", error: message });
-  process.exit(1);
+  // A failure after error tracking started (pg-boss or a database that
+  // won't start) reaches Sentry too, before the exit.
+  errors?.reporter.report(error, { where: "worker.main" });
+  void (errors?.flush() ?? Promise.resolve(true)).finally(() =>
+    process.exit(1)
+  );
 });

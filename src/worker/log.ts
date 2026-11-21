@@ -1,5 +1,6 @@
 // The worker's log: one JSON object per line on stdout, which Docker's
-// json-file driver keeps (`docker compose -f docker/workers.yml logs`).
+// journald driver keeps for a year (`docker compose -f docker/workers.yml
+// logs`; docker/README.md, "Logs").
 // Entries name databases and counts, never personal data.
 //
 // Loads under plain Node: no "server-only", no Next imports.

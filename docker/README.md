@@ -78,6 +78,7 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_prod_foa_worker_password`          | 1000, 0400      | `foa_worker` (worker-prod)            |
 | `/etc/foa/secrets/pg_nonprod_staging_worker_password`   | 1000, 0400      | `staging_worker` (worker-staging)     |
 | `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
+| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for all three workers   |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
 | `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
@@ -658,12 +659,18 @@ sessions, which transaction pooling breaks. None publishes a port.
   workers stop touching it while their database fails; `worker-preview`
   while it can't list the previews (one broken preview doesn't count). Each
   poll also upserts the worker's row in `worker_heartbeat` in every database
-  it drains (worker, environment, last seen, version), which `/api/health`
-  can read (#66). `restart: unless-stopped` restarts a worker that exits;
-  Docker doesn't restart an unhealthy one, so watch `docker ps`.
+  it drains (worker, environment, last seen, version), which
+  `/api/health/worker` reads ("Monitoring and alerts").
+  `restart: unless-stopped` restarts a worker that exits; Docker doesn't
+  restart an unhealthy one, so watch `docker ps`.
 - **Logs:** one JSON object per line (`event`, `database`, counts), with
-  error classes and codes but never messages or addresses; json-file, 5 ×
-  20 MB per worker.
+  error classes and codes but never messages or addresses; in the host's
+  journal for a year ("Logs").
+- **Errors:** a failed tick (once, until that database recovers), an
+  uncaught exception or unhandled rejection (then the worker exits 1 and
+  restarts), and a failed start go to Sentry, scrubbed, tagged with the
+  database and APP_ENV, when `/etc/foa/secrets/worker_sentry.env` holds
+  `SENTRY_DSN=...` (HR-22). Without it they are only logged.
 - **Email:** staging and previews capture every message in their database's
   mailbox; production refuses until SES exists (HR-12), so its deliveries
   retry and end `failed`, visible to staff.
@@ -756,6 +763,89 @@ afterwards. It needs the real certificate (its `verify-full` checks fail
 against the placeholder by design). The container gets the host's CA bundle
 as one file, symlinks resolved: on Fedora `/etc/ssl/certs/ca-certificates.crt`
 links into `/etc/pki/ca-trust`, which would dangle inside the container.
+
+## Monitoring and alerts
+
+Uptime checks run at an outside provider (HR-23: provider, account and
+alert target are the owner's choice), so they see what users see, and they
+only call public URLs: nothing on the VPS needs to be reachable for them.
+Each check alerts on its own, so a stalled worker never pages as "the app
+is down". Staging is `https://shipped-it.dev`; production gets the same
+app and worker checks once its domain is live.
+
+| Check  | Target                                      | Runs from                     | Alerts when                                                                                         | Alert goes to             | Silence and un-silence                                                                                                        |
+| ------ | ------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| App    | `GET` `/api/health`                         | Uptime provider, every minute | Not 200 on 2 checks in a row. 503 means the app can't query its database                            | Owner (HR-23)             | Pause the monitor (or open a maintenance window) in the provider; resume it after. A paused monitor never re-alerts by itself |
+| Pooler | TCP `db.shipped-it.dev:6432`                | Uptime provider, every minute | Connect fails on 2 checks in a row. TCP connect only, no login: probes must not fill CrowdSec's log | Owner (HR-23)             | Same as App. If CrowdSec ever bans the provider's addresses, add them to `crowdsec/foa-whitelist.yaml`                        |
+| Worker | `GET` `/api/health/worker`                  | Uptime provider, every minute | Not 200 on 2 checks in a row: 503 `stale` (newest heartbeat over 120 s old) or `missing` (none)     | Owner (HR-23)             | Same as App. Pause it while the workers are stopped on purpose, and until HR-07 first starts them                             |
+| Errors | Sentry projects for the app and the workers | Sentry (`SENTRY_DSN`, HR-22)  | A new issue, or a resolved one that comes back                                                      | Owner (Sentry alert rule) | In Sentry, Archive the issue (until it escalates, or for a time); Unarchive to hear about it again                            |
+
+`/api/health/worker` answers from the app's own database: each worker
+writes its `worker_heartbeat` row there after every poll (5 s), so the
+staging URL reports `worker-staging` and production's reports
+`worker-prod`. 200 is `{ "status": "ok", "worker": { "name", "ageSeconds" } }`;
+503 is `stale` (with the same `worker`) or `missing`. Previews are not
+monitored.
+
+**Forced failure** (HR-23, and per milestone on staging, HR-27), without
+touching production:
+
+1. Worker: `docker compose -f /srv/foa/docker/workers.yml stop worker-staging`.
+   After 120 s `https://shipped-it.dev/api/health/worker` turns 503
+   `stale`, and two failed checks later (about 4 minutes in all) the alert
+   arrives; `start worker-staging` clears it.
+2. App and pooler: add a throwaway monitor for `/api/health/does-not-exist`
+   and one for TCP `db.shipped-it.dev:6433` (closed). Both alert; delete
+   them after.
+3. Errors, with the workers' DSN set: start a throwaway staging worker
+   pointed at a port nothing listens on. It fails to start, reports that
+   to Sentry (`where` `worker.main`, `environment` `staging`) and exits 1;
+   the alert rule fires.
+
+   ```sh
+   docker compose -f /srv/foa/docker/workers.yml run --rm \
+     -e WORKER_DATABASE_URL=postgres://staging_worker@10.112.12.11:5999/foa_staging \
+     worker-staging
+   ```
+
+## Logs
+
+Logs are kept for 365 days. On the VPS they stay in the host's journal
+today; an off-box copy, and the app's logs from Vercel, go to one store
+once the owner picks it (HR-24).
+
+| Source                                                                    | Goes to                                                      | Kept                                                      | Read with                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Containers: `foa-pg-prod`, `foa-pg-nonprod`, `foa-pgbouncer`, the workers | Host journal, through Docker's journald driver (`x-logging`) | 12 to 13 months, at most 20 GiB                           | `docker logs foa-pgbouncer`, `docker compose -f /srv/foa/docker/workers.yml logs worker-staging`, `journalctl -t foa-pg-prod --since 2026-11-01`; after a container is gone, `journalctl CONTAINER_NAME=foa-pg-prod` |
+| Host units (`foa-*` timers and services, CrowdSec, sshd)                  | Host journal                                                 | Same                                                      | `journalctl -u foa-pgbackrest-full.service --since -7d`                                                                                                                                                              |
+| Restore drills                                                            | `/var/log/foa/` (never pruned)                               | Forever                                                   | See "Restore drill"                                                                                                                                                                                                  |
+| The app on Vercel (functions, builds, requests)                           | Vercel's runtime logs, then a Vercel log drain (HR-24)       | Vercel: a short, plan-bound window. Drain store: 365 days | Vercel dashboard or `vercel logs`; the store's search once the drain exists                                                                                                                                          |
+
+`docker/systemd/journald-foa.conf` sets the year (`MaxRetentionSec=1year`,
+monthly files), the 20 GiB cap and a higher rate limit, since every
+container's lines reach journald through dockerd and share one limit. If
+the cap fills first, the oldest files go early: `journalctl --disk-usage`
+shows how close it is, and the off-box store is the answer, not a bigger
+cap on the database disk. Container logs carry client IP addresses
+(PgBouncer, CrowdSec); keeping them a year waits on counsel (HR-30).
+
+Install, once (HR-24):
+
+```sh
+install -D -m 0644 /srv/foa/docker/systemd/journald-foa.conf \
+  /etc/systemd/journald.conf.d/foa.conf
+systemctl restart systemd-journald
+journalctl --disk-usage
+# Recreates the containers with the journald driver. Postgres restarts:
+# pick a quiet moment. Lines logged before the switch go with the old containers.
+docker compose -f /srv/foa/docker/compose.yml up -d --wait
+docker inspect -f '{{.HostConfig.LogConfig.Type}}' foa-pgbouncer   # journald
+```
+
+Off-box (HR-24): in Vercel, Team Settings → Drains → add a log drain for
+the project to the chosen store; on the VPS, a shipper that reads the
+journal (for example `systemd-journal-upload`, or the store's own agent)
+sends the same entries there. The store keeps 365 days.
 
 ## TODO and owner actions
 

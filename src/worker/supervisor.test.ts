@@ -35,6 +35,7 @@ function world({ everyTenantMustTick = false } = {}) {
     closed: [] as string[],
     beats: [] as Date[],
     log: [] as WorkerLogEntry[],
+    errors: [] as { error: unknown; tenant: string }[],
     startFails: undefined as Error | undefined,
   };
   const startTenant = (database: string): Tenant => {
@@ -66,6 +67,7 @@ function world({ everyTenantMustTick = false } = {}) {
       state.beats.push(at);
     },
     log: (entry) => state.log.push(entry),
+    onError: (error, { tenant }) => state.errors.push({ error, tenant }),
   });
   const reset = () => {
     state.ticked = [];
@@ -75,6 +77,28 @@ function world({ everyTenantMustTick = false } = {}) {
 }
 
 describe("the supervisor", () => {
+  it("reports a failing tick once until it recovers, and never a dropped database", async () => {
+    const { state, supervisor } = world();
+    state.listed = ["foa_pr_1_0a1b2c3d", "foa_pr_2_0a1b2c3d"];
+    const first = new Error("relay failed");
+    state.failing.set("foa_pr_1_0a1b2c3d", first);
+    await supervisor.tick();
+    await supervisor.tick();
+
+    state.failing.delete("foa_pr_1_0a1b2c3d");
+    await supervisor.tick();
+    const second = new Error("relay failed again");
+    state.failing.set("foa_pr_1_0a1b2c3d", second);
+    state.failing.set("foa_pr_2_0a1b2c3d", gone("foa_pr_2_0a1b2c3d"));
+    await supervisor.tick();
+    await supervisor.tick();
+
+    expect(state.errors).toEqual([
+      { error: first, tenant: "foa_pr_1_0a1b2c3d" },
+      { error: second, tenant: "foa_pr_1_0a1b2c3d" },
+    ]);
+  });
+
   it("serves every listed database from its first tick", async () => {
     const { state, supervisor } = world();
     state.listed = ["foa_pr_1_0a1b2c3d", "foa_pr_2_0a1b2c3d"];

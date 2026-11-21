@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AppDb } from "@/server/db/app-db";
 import { capturedMessage, outbox, workerHeartbeat } from "@/server/db/schema";
 import { emitUserSignedUp } from "@/server/outbox/testing";
+import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
 import { createHarness } from "@/test/harness";
 
@@ -19,6 +20,7 @@ const COMMON = {
   discoveryMs: 60_000,
   heartbeatFile: "/tmp/foa-worker-heartbeat",
   passwordFile: undefined,
+  sentryDsn: undefined,
 } as const;
 
 function singleConfig(
@@ -52,6 +54,13 @@ const PREVIEW_CONFIG: WorkerConfig = {
   connectionsPerDatabase: 2,
 };
 
+/** A database whose every query fails (its connection is closed). */
+async function brokenDb(): Promise<AppDb> {
+  const db = await createTestDb();
+  await db.$client.close();
+  return db;
+}
+
 /**
  * Fake I/O: `databases` maps a URL's database name to a test database;
  * `catalog` is what pg-nonprod lists. Records what the worker opened.
@@ -69,10 +78,12 @@ function fakeIo(
     catalogEnded: 0,
     beats: [] as Date[],
     log: [] as WorkerLogEntry[],
+    errors: [] as { error: unknown; tenant: string }[],
   };
   const io: WorkerIo = {
     clock: new FakeClock(),
     log: (entry) => record.log.push(entry),
+    onTenantError: (error, { tenant }) => record.errors.push({ error, tenant }),
     openDatabase(url, connections) {
       record.opened.push({ url, connections });
       const name = new URL(url).pathname.slice(1);
@@ -167,6 +178,39 @@ describe("a single-database worker", () => {
     const [delivery] = await h.db.select().from(outbox);
     expect(delivery).toMatchObject({ status: "pending", attempts: 1 });
     expect(delivery?.lastError).toContain("EmailNotConfiguredError");
+  });
+});
+
+describe("a worker's failed ticks", () => {
+  it("are reported with the database in single mode", async () => {
+    const { io, record } = fakeIo({ foa: await brokenDb() });
+
+    const worker = createWorker(singleConfig("staging"), io);
+    await worker.start();
+    await worker.tick();
+
+    expect(record.errors).toEqual([
+      { error: expect.any(Error), tenant: "foa" },
+    ]);
+  });
+
+  it("are reported for the one broken preview only", async () => {
+    const pr1 = await createHarness();
+    const { io, record } = fakeIo(
+      { foa_pr_1_0a1b2c3d: pr1.db, foa_pr_2_0a1b2c3d: await brokenDb() },
+      [
+        { datname: "foa_pr_1_0a1b2c3d", comment: "foa-preview pr=1" },
+        { datname: "foa_pr_2_0a1b2c3d", comment: "foa-preview pr=2" },
+      ]
+    );
+
+    const worker = createWorker(PREVIEW_CONFIG, io);
+    await worker.start();
+    await worker.tick();
+
+    expect(record.errors).toEqual([
+      { error: expect.any(Error), tenant: "foa_pr_2_0a1b2c3d" },
+    ]);
   });
 });
 
