@@ -3,6 +3,12 @@
 
 import type { UseCaseContext } from "../use-cases";
 import { removeSecondFactor, resetSecondFactors } from "./manage";
+import {
+  finishPasskeyRegistration,
+  finishPasskeyVerification,
+  startPasskeyRegistration,
+  startPasskeyVerification,
+} from "./passkeys";
 import { staffAccess } from "./staff-access";
 import {
   confirmTotpEnrolment,
@@ -15,6 +21,12 @@ export type {
   RemoveSecondFactorResult,
   ResetSecondFactorsResult,
 } from "./manage";
+export type {
+  FinishPasskeyRegistrationResult,
+  FinishPasskeyVerificationResult,
+  StartPasskeyRegistrationResult,
+  StartPasskeyVerificationResult,
+} from "./passkeys";
 export type { StaffAccess } from "./staff-access";
 export type {
   ConfirmTotpEnrolmentResult,
@@ -37,4 +49,12 @@ export const secondFactorUseCases = (ctx: UseCaseContext) => ({
     removeSecondFactor(ctx, input),
   resetSecondFactors: (input: { userId: string }) =>
     resetSecondFactors(ctx, input),
+  startPasskeyRegistration: () => startPasskeyRegistration(ctx),
+  finishPasskeyRegistration: (
+    input: Parameters<typeof finishPasskeyRegistration>[1]
+  ) => finishPasskeyRegistration(ctx, input),
+  startPasskeyVerification: () => startPasskeyVerification(ctx),
+  finishPasskeyVerification: (
+    input: Parameters<typeof finishPasskeyVerification>[1]
+  ) => finishPasskeyVerification(ctx, input),
 });
