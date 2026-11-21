@@ -15,8 +15,10 @@ import {
   count,
   desc,
   eq,
+  gte,
   inArray,
   isNull,
+  lt,
   lte,
   notInArray,
   or,
@@ -49,7 +51,10 @@ export type DrainReport = {
   dispatched: number;
   /** Failed, and due again after a backoff. */
   retried: number;
-  /** Failed for the last time: kept as failed for staff to see. */
+  /**
+   * Failed for the last time, or used its last try without a result (the
+   * lease ran out): kept as failed for staff to see.
+   */
   failed: number;
   /**
    * Due, but for a handler this code doesn't have: left pending and
@@ -84,9 +89,42 @@ function due(now: Date) {
 }
 
 /**
+ * Marks failed every delivery that used all its tries without a result:
+ * its last claim's lease ran out and no relay settled it (the worker died,
+ * or the handler hung). settleDelivery() caps tries only for a handler that
+ * returns or throws, so without this such a delivery would be claimed
+ * again every lease, forever, and never show as failed.
+ */
+async function failLostClaims(
+  db: AppDb,
+  now: Date,
+  policy: RetryPolicy
+): Promise<number> {
+  const failed = await db
+    .update(outbox)
+    .set({
+      status: "failed",
+      failedAt: now,
+      lockedUntil: null,
+      lastError: sql`'No result after ' || ${outbox.attempts} || ' attempts: the lease ran out'`,
+    })
+    .where(
+      and(
+        eq(outbox.status, "pending"),
+        lte(outbox.lockedUntil, now),
+        gte(outbox.attempts, policy.maxAttempts),
+        inArray(outbox.handler, KNOWN_HANDLERS)
+      )
+    )
+    .returning({ id: outbox.id });
+  return failed.length;
+}
+
+/**
  * Claims up to `limit` due deliveries in one statement: each gets one more
  * attempt and a lease. SKIP LOCKED keeps two relays on one database from
- * claiming the same row.
+ * claiming the same row. A delivery that has used all its tries is never
+ * claimed again (failLostClaims() fails it).
  */
 async function claim(
   db: AppDb,
@@ -97,7 +135,13 @@ async function claim(
   const ids = db
     .select({ id: outbox.id })
     .from(outbox)
-    .where(and(due(now), inArray(outbox.handler, KNOWN_HANDLERS)))
+    .where(
+      and(
+        due(now),
+        lt(outbox.attempts, policy.maxAttempts),
+        inArray(outbox.handler, KNOWN_HANDLERS)
+      )
+    )
     .orderBy(asc(outbox.availableAt), asc(outbox.id))
     .limit(limit)
     .for("update", { skipLocked: true });
@@ -190,11 +234,12 @@ export async function drainOutbox(
   }: DrainOptions = {}
 ): Promise<DrainReport> {
   const now = deps.clock.now();
+  const lost = await failLostClaims(deps.db, now, policy);
   const claimed = await claim(deps.db, now, limit, policy);
   const report: DrainReport = {
     dispatched: 0,
     retried: 0,
-    failed: 0,
+    failed: lost,
     skipped: await countSkipped(deps.db, now),
   };
   for (const row of claimed) {
