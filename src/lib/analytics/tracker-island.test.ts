@@ -19,6 +19,8 @@ type FakeOptions = {
   stored?: Record<string, string>;
   /** Reading window.localStorage throws, as with storage blocked. */
   blockedStorage?: boolean;
+  /** localStorage.setItem throws, as with the origin's storage full. */
+  fullStorage?: boolean;
   doNotTrack?: string | null;
   globalPrivacyControl?: boolean;
 };
@@ -32,7 +34,12 @@ function fakeWindow(options: FakeOptions = {}) {
   const cookieAccess: string[] = [];
   const storage = {
     getItem: (key: string) => stored.get(key) ?? null,
-    setItem: (key: string, value: string) => void stored.set(key, value),
+    setItem: (key: string, value: string) => {
+      if (options.fullStorage) {
+        throw new DOMException("full", "QuotaExceededError");
+      }
+      stored.set(key, value);
+    },
   };
   const win: AnalyticsWindow & { document: { cookie: string } } = {
     location: { pathname: options.pathname ?? "/" },
@@ -153,6 +160,18 @@ describe("startAnalytics on a signed-in page", () => {
 
     win.location.pathname = "/awareness";
     expect(start(win)).toBeNull();
+  });
+
+  it("keeps the tab off when storage refuses the mark", () => {
+    const { win } = fakeWindow({
+      pathname: "/account/sessions",
+      fullStorage: true,
+    });
+    expect(start(win)).toBeNull();
+
+    win.location.pathname = "/competitions";
+    expect(start(win)).toBeNull();
+    expect(win[BEFORE_SEND_GLOBAL]).toBeUndefined();
   });
 
   it("lets a visitor who left sign-in without signing in be counted", () => {

@@ -151,6 +151,24 @@ describe("buildEnvSchema", () => {
       );
     }
   });
+
+  // next.config.ts's rewrites refuse these too, but only once a build loads.
+  it("refuses an Umami origin with a path, query or fragment", () => {
+    for (const origin of [
+      "https://shipped-it.dev/umami",
+      "https://stats.shipped-it.dev/?site=1",
+      "https://stats.shipped-it.dev/#top",
+    ]) {
+      expect(() => parseEnv(buildEnvSchema, { UMAMI_ORIGIN: origin })).toThrow(
+        /UMAMI_ORIGIN/
+      );
+    }
+    expect(
+      parseEnv(buildEnvSchema, {
+        UMAMI_ORIGIN: "https://stats.shipped-it.dev/",
+      }).UMAMI_ORIGIN
+    ).toBe("https://stats.shipped-it.dev/");
+  });
 });
 
 describe("envSchema", () => {

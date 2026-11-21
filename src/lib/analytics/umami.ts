@@ -11,11 +11,16 @@
  *   a signed-in page is marked for 30 days, so its later public pages send
  *   nothing either: public pages are prerendered and can't know who is
  *   signed in.
- * - Query strings and fragments never leave the browser.
+ * - Query strings and fragments never leave the browser, and neither do
+ *   the site's own pages as referrers.
  *
- * Keep this file free of Next.js, `@/` and server-only imports:
- * next.config.ts loads it under plain Node, and a client island runs it.
+ * Keep this file free of Next.js, `@/` and server-only imports (relative
+ * imports of plain modules only): next.config.ts loads it under plain Node,
+ * and a client island runs it.
  */
+
+import { isUnderPrefix } from "../app-routes";
+import { ROUTES } from "../routes";
 
 /** Where the site serves Umami's tracker script (proxied, see below). */
 const SCRIPT_PATH = "/stats/script.js";
@@ -35,8 +40,8 @@ export const ANALYTICS_MARKER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
  * come from the route registry and are added by the caller.
  */
 export const ANALYTICS_EXCLUDED_PREFIXES = [
-  "/sign-in",
-  "/sign-up",
+  ROUTES.signIn.path,
+  ROUTES.signUp.path,
   "/consent",
   "/receipts",
   "/donate/checkout",
@@ -81,33 +86,42 @@ export function umamiConfig(env: UmamiEnv): UmamiConfig | null {
 export type UmamiRewrite = { source: string; destination: string };
 
 /**
+ * Whether `value` can be UMAMI_ORIGIN: an https origin with no path, query
+ * or fragment (a trailing slash is fine). The rewrites below would drop a
+ * path silently.
+ */
+export function isUmamiOrigin(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  return (
+    url.protocol === "https:" &&
+    url.pathname === "/" &&
+    url.search === "" &&
+    url.hash === ""
+  );
+}
+
+/**
  * next.config.ts rewrites: the tracker script and the collect endpoint
  * only. A /stats/:path* wildcard would put Umami's dashboard and API on
  * the site's origin. None while UMAMI_ORIGIN is unset.
  */
 export function umamiRewrites(origin: string | undefined): UmamiRewrite[] {
   if (!origin) return [];
-  let url: URL | undefined;
-  try {
-    url = new URL(origin);
-  } catch {
-    url = undefined;
-  }
-  if (
-    url === undefined ||
-    url.protocol !== "https:" ||
-    url.pathname !== "/" ||
-    url.search !== "" ||
-    url.hash !== ""
-  ) {
+  if (!isUmamiOrigin(origin)) {
     throw new RangeError(
       "UMAMI_ORIGIN must be an https origin with no path, e.g. " +
         `https://stats.shipped-it.dev, not ${JSON.stringify(origin)}`
     );
   }
+  const base = new URL(origin).origin;
   return [
-    { source: SCRIPT_PATH, destination: `${url.origin}/script.js` },
-    { source: "/stats/api/send", destination: `${url.origin}/api/send` },
+    { source: SCRIPT_PATH, destination: `${base}/script.js` },
+    { source: "/stats/api/send", destination: `${base}/api/send` },
   ];
 }
 
@@ -133,15 +147,11 @@ export function trackerScript(config: UmamiConfig): {
   };
 }
 
-/** True when `pathname` is one of `prefixes` or below one. */
-export function isExcludedPath(
-  pathname: string,
-  prefixes: readonly string[]
-): boolean {
-  return prefixes.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
-}
+/**
+ * True when `pathname` is one of `prefixes` or below one, by whole
+ * segments: the route registry's matcher, which the proxy uses too.
+ */
+export const isExcludedPath = isUnderPrefix;
 
 /** `url` without its query string and fragment. */
 export function scrubUrl(url: string): string {
@@ -167,7 +177,20 @@ export type AnalyticsContext = {
 };
 
 /** What the tracker hands `data-before-send` (website, title, ...). */
-type Payload = { url?: unknown; referrer?: unknown; [field: string]: unknown };
+type Payload = {
+  url?: unknown;
+  referrer?: unknown;
+  hostname?: unknown;
+  [field: string]: unknown;
+};
+
+/**
+ * Marks that localStorage refused to store (full or blocked), by storage
+ * object, so the tab stays off anyway: every guard in a tab gets the same
+ * window.localStorage. Each lasts until the mark would have run out, or
+ * until the page reloads.
+ */
+const unsavedMarks = new WeakMap<MarkerStorage, number>();
 
 export type AnalyticsGuard = {
   /** Whether to load the tracker on a page first opened at `pathname`. */
@@ -197,21 +220,22 @@ export function createAnalyticsGuard(ctx: AnalyticsContext): AnalyticsGuard {
   }
 
   function mark() {
+    if (ctx.storage === null) return;
+    const until = ctx.now() + ANALYTICS_MARKER_TTL_MS;
     try {
-      ctx.storage?.setItem(
-        ANALYTICS_MARKER_KEY,
-        String(ctx.now() + ANALYTICS_MARKER_TTL_MS)
-      );
+      ctx.storage.setItem(ANALYTICS_MARKER_KEY, String(until));
     } catch {
-      // Storage full or blocked: the page itself still sends nothing.
+      // Storage full or blocked: keep the mark for this tab instead.
+      unsavedMarks.set(ctx.storage, until);
     }
   }
 
   /** Unreadable storage counts as marked: it can't rule a sign-in out. */
   function isMarked(): boolean {
+    if (ctx.storage === null) return true;
+    if (ctx.now() < (unsavedMarks.get(ctx.storage) ?? 0)) return true;
     let value: string | null;
     try {
-      if (ctx.storage === null) return true;
       value = ctx.storage.getItem(ANALYTICS_MARKER_KEY);
     } catch {
       return true;
@@ -225,24 +249,48 @@ export function createAnalyticsGuard(ctx: AnalyticsContext): AnalyticsGuard {
     return ctx.doNotTrack === "1" || ctx.globalPrivacyControl === true;
   }
 
+  /**
+   * The referrer to send with a page view of `page`: another site's page,
+   * without its query and fragment, or nothing. The site's own pages never
+   * go out as referrers. On client navigation Umami's tracker passes the
+   * page before (its origin stripped), which may be a token or signed-in
+   * page that sends nothing itself, listed here or not yet.
+   */
+  function outsideReferrer(
+    referrer: unknown,
+    page: URL,
+    hostname: unknown
+  ): string {
+    if (typeof referrer !== "string") return "";
+    let from: URL;
+    try {
+      from = new URL(referrer, page);
+    } catch {
+      return "";
+    }
+    const own = from.hostname === page.hostname || from.hostname === hostname;
+    if (own || isExcludedPath(from.pathname, excluded)) return "";
+    return scrubUrl(referrer);
+  }
+
   return {
     shouldLoad(pathname) {
       return admitPage(pathname) && !optedOut();
     },
     beforeSend(type, payload) {
       if (type !== "event" || typeof payload.url !== "string") return false;
-      let pathname: string;
+      let page: URL;
       try {
-        pathname = new URL(payload.url, "https://origin.invalid").pathname;
+        page = new URL(payload.url, "https://origin.invalid");
       } catch {
         return false;
       }
-      if (!admitPage(pathname) || optedOut()) return false;
+      if (!admitPage(page.pathname) || optedOut()) return false;
       return {
         ...payload,
         url: scrubUrl(payload.url),
-        ...(typeof payload.referrer === "string" && {
-          referrer: scrubUrl(payload.referrer),
+        ...(payload.referrer !== undefined && {
+          referrer: outsideReferrer(payload.referrer, page, payload.hostname),
         }),
       };
     },

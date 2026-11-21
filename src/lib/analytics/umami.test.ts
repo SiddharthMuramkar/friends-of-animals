@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { SESSION_LIFETIME_DAYS } from "../../server/identity/settings";
 import { publicCsp, signedInCsp } from "../csp";
 import { CSP_SOURCES, cspContext } from "../csp-sources";
 
 import {
   ANALYTICS_EXCLUDED_PREFIXES,
+  ANALYTICS_MARKER_TTL_MS,
   createAnalyticsGuard,
   isExcludedPath,
   scrubUrl,
@@ -263,6 +265,27 @@ describe("createAnalyticsGuard: whether the tracker loads at all", () => {
     expect(createAnalyticsGuard(ctx).shouldLoad("/account")).toBe(false);
   });
 
+  it("keeps the tab off for 30 days when storage refuses the mark", () => {
+    const { ctx, advance } = context({
+      storage: memoryStorage("write").storage,
+    });
+    const guard = createAnalyticsGuard(ctx);
+    expect(guard.beforeSend("event", pageview("/account/sessions"))).toBe(
+      false
+    );
+    expect(guard.beforeSend("event", pageview("/competitions"))).toBe(false);
+    // Every guard in the tab shares its localStorage, and so the mark.
+    expect(createAnalyticsGuard(ctx).shouldLoad("/competitions")).toBe(false);
+    advance(30 * DAY_MS);
+    expect(createAnalyticsGuard(ctx).shouldLoad("/competitions")).toBe(true);
+  });
+
+  it("keeps a signed-in browser marked at least as long as a session lasts", () => {
+    expect(ANALYTICS_MARKER_TTL_MS).toBeGreaterThanOrEqual(
+      SESSION_LIFETIME_DAYS * DAY_MS
+    );
+  });
+
   it("treats a stored value it doesn't understand as signed in", () => {
     const { ctx, items } = context();
     items.set("foa.analytics.off", "yes");
@@ -303,6 +326,76 @@ describe("createAnalyticsGuard: every send the tracker makes", () => {
       guard.beforeSend("event", pageview("https://shipped-it.dev/receipts/t"))
     ).toBe(false);
     expect(guard.beforeSend("event", pageview("/about"))).not.toBe(false);
+  });
+
+  // On client navigation Umami's tracker sends the page before as the
+  // referrer, with the origin stripped when it is the site's own (3.5.0).
+  it("never sends a page that sends nothing as the next page's referrer", () => {
+    const guard = createAnalyticsGuard(context().ctx);
+    expect(
+      guard.beforeSend(
+        "event",
+        pageview("https://shipped-it.dev/receipts/SECRET-TOKEN")
+      )
+    ).toBe(false);
+    for (const referrer of [
+      "/receipts/SECRET-TOKEN",
+      "https://shipped-it.dev/receipts/SECRET-TOKEN?x=1",
+    ]) {
+      expect(
+        guard.beforeSend("event", pageview("https://shipped-it.dev/", referrer))
+      ).toMatchObject({ referrer: "" });
+    }
+  });
+
+  it("never sends a signed-in page as the referrer", () => {
+    const guard = createAnalyticsGuard(context().ctx);
+    for (const referrer of [
+      "/account/sessions",
+      "https://shipped-it.dev/account/sessions",
+    ]) {
+      expect(
+        guard.beforeSend(
+          "event",
+          pageview("https://shipped-it.dev/about", referrer)
+        )
+      ).toMatchObject({ referrer: "" });
+    }
+  });
+
+  it("never sends the site's own pages as referrers, listed or not", () => {
+    const guard = createAnalyticsGuard(context().ctx);
+    // A token page nobody has listed yet, and a plain public page.
+    for (const referrer of [
+      "/invitations/SECRET-TOKEN",
+      "https://shipped-it.dev/blog/x",
+    ]) {
+      expect(
+        guard.beforeSend(
+          "event",
+          pageview("https://shipped-it.dev/about", referrer)
+        )
+      ).toMatchObject({ referrer: "" });
+    }
+    // A relative page url (umami.track({ url })) still names its host.
+    expect(
+      guard.beforeSend(
+        "event",
+        pageview("/about", "https://shipped-it.dev/invitations/SECRET-TOKEN")
+      )
+    ).toMatchObject({ referrer: "" });
+  });
+
+  it("drops an outside referrer whose path never sends here", () => {
+    expect(
+      createAnalyticsGuard(context().ctx).beforeSend(
+        "event",
+        pageview(
+          "https://shipped-it.dev/",
+          "https://www.shipped-it.dev/receipts/SECRET-TOKEN"
+        )
+      )
+    ).toMatchObject({ referrer: "" });
   });
 
   it("cancels everything while the browser is marked", () => {
