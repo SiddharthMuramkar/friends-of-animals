@@ -18,5 +18,8 @@ export const CODE_REQUEST_LIMITS = {
   perIp: 20,
 } as const;
 
-/** How long a member stays signed in. */
+/**
+ * How long a session lasts from sign-in. It is absolute: using the site
+ * doesn't extend it.
+ */
 export const SESSION_LIFETIME_DAYS = 30;

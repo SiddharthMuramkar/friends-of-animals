@@ -45,10 +45,9 @@ function createAuth({ db, clock, auth: config }: Deps) {
       schema: { user, session, account, verification },
     }),
     emailAndPassword: { enabled: false },
-    session: {
-      expiresIn: SESSION_LIFETIME_DAYS * DAY_SECONDS,
-      updateAge: DAY_SECONDS,
-    },
+    // An absolute lifetime (the HR-19 default): resolveActor reads sessions
+    // with disableRefresh, so using the site never extends one.
+    session: { expiresIn: SESSION_LIFETIME_DAYS * DAY_SECONDS },
     // FOA limits codes per email and per IP in Postgres; Better Auth's own
     // limiter keys on IP and path only, and its default store is memory,
     // which serverless instances don't share.
