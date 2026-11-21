@@ -205,6 +205,62 @@ describe("the worker's error tracking setting", () => {
   });
 });
 
+describe("the worker's links and field keys (#74)", () => {
+  const staging = {
+    APP_ENV: "staging",
+    WORKER_DATABASE_URL: PROD_URL,
+  };
+  const FIELD_KEYS = `1:${Buffer.alloc(32, 7).toString("base64")}`;
+  const HMAC_KEY = Buffer.alloc(32, 9).toString("base64");
+
+  it("reads the site's URL and the field keys, as the app has them", () => {
+    const config = workerConfig({
+      ...staging,
+      APP_URL: "https://staging.foa.test",
+      FIELD_ENCRYPTION_KEYS: FIELD_KEYS,
+      FIELD_HMAC_KEY: HMAC_KEY,
+    });
+
+    expect(config).toMatchObject({
+      siteUrl: "https://staging.foa.test",
+      fieldEncryptionKeys: FIELD_KEYS,
+      fieldHmacKey: HMAC_KEY,
+    });
+  });
+
+  it("links to http://localhost:3000 on a local run without APP_URL, and nowhere elsewhere", () => {
+    const local = "postgres://foa:foa@localhost:5432/foa";
+
+    expect(workerConfig({ APP_ENV: "local", DIRECT_URL: local }).siteUrl).toBe(
+      "http://localhost:3000"
+    );
+    expect(workerConfig(staging).siteUrl).toBeUndefined();
+    expect(workerConfig(staging).fieldEncryptionKeys).toBeUndefined();
+  });
+
+  it("refuses a malformed APP_URL or field key without repeating the key", () => {
+    const badRing = "1:c2VjcmV0LXJpbmc=";
+    const badHmac = "c2VjcmV0LWhtYWM=";
+    let message = "";
+    try {
+      workerConfig({
+        ...staging,
+        APP_URL: "ftp://staging.foa.test",
+        FIELD_ENCRYPTION_KEYS: badRing,
+        FIELD_HMAC_KEY: badHmac,
+      });
+    } catch (error) {
+      message = String(error);
+    }
+
+    expect(message).toMatch(/APP_URL/);
+    expect(message).toMatch(/FIELD_ENCRYPTION_KEYS/);
+    expect(message).toMatch(/FIELD_HMAC_KEY/);
+    expect(message).not.toContain(badRing);
+    expect(message).not.toContain(badHmac.slice(0, 12));
+  });
+});
+
 describe("withPassword", () => {
   it("puts the password from the secret file into the database URL", () => {
     const config = workerConfig({

@@ -1,11 +1,15 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { createApp } from "@/server/app";
+import { fieldCryptoFor } from "@/server/crypto/keys";
 import type { AppDb } from "@/server/db/app-db";
 import { capturedMessage, outbox, workerHeartbeat } from "@/server/db/schema";
 import { emitUserSignedUp } from "@/server/outbox/testing";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
-import { createHarness } from "@/test/harness";
+import { createHarness, type Harness } from "@/test/harness";
+import { seedInstitution } from "@/test/institutions";
 
 import type { WorkerConfig } from "./config";
 import type { WorkerLogEntry } from "./log";
@@ -21,6 +25,9 @@ const COMMON = {
   heartbeatFile: "/tmp/foa-worker-heartbeat",
   passwordFile: undefined,
   sentryDsn: undefined,
+  siteUrl: undefined,
+  fieldEncryptionKeys: undefined,
+  fieldHmacKey: undefined,
 } as const;
 
 function singleConfig(
@@ -275,5 +282,87 @@ describe("the shared preview worker", () => {
     expect(record.bossStartedOn).toEqual([]);
     expect(record.ended).toEqual(["foa_pr_1_0a1b2c3d"]);
     expect(record.catalogEnded).toBe(1);
+  });
+});
+
+describe("a worker delivering a coordinator invitation (#74)", () => {
+  const TEACHER = "t@school.test";
+  const KEYS = {
+    fieldEncryptionKeys: `1:${Buffer.alloc(32, 7).toString("base64")}`,
+    fieldHmacKey: Buffer.alloc(32, 9).toString("base64"),
+  };
+
+  /** An invitation stored under the worker's keys, as its app stores it. */
+  async function invite(h: Harness) {
+    const { institution, admin } = await seedInstitution(h, {
+      name: "Green Valley School",
+    });
+    const actor = await h.signIn(admin);
+    const app = createApp({
+      ...h.deps,
+      ...fieldCryptoFor({
+        APP_ENV: "staging",
+        FIELD_ENCRYPTION_KEYS: KEYS.fieldEncryptionKeys,
+        FIELD_HMAC_KEY: KEYS.fieldHmacKey,
+      }),
+    });
+    const result = await app
+      .as(actor)
+      .inviteCoordinator({
+        institutionId: institution.id,
+        identifier: TEACHER,
+      });
+    expect(result.ok).toBe(true);
+  }
+
+  async function capturedFor(h: Harness, address: string) {
+    return h.db
+      .select()
+      .from(capturedMessage)
+      .where(eq(capturedMessage.toAddress, address));
+  }
+
+  it("sends its link under APP_URL, read with the worker's field keys", async () => {
+    const h = await createHarness();
+    await invite(h);
+    const { io } = fakeIo({ foa: h.db });
+
+    const worker = createWorker(
+      {
+        ...singleConfig("staging"),
+        ...KEYS,
+        siteUrl: "https://staging.foa.test",
+      },
+      io
+    );
+    await worker.start();
+    await worker.tick();
+
+    const [message, ...more] = await capturedFor(h, TEACHER);
+    expect(more).toEqual([]);
+    expect(message?.subject).toBe(
+      "Join Green Valley School as a coordinator on Friends of Animals"
+    );
+    expect(message?.bodyText).toMatch(
+      /\nhttps:\/\/staging\.foa\.test\/invitations\/[A-Za-z0-9_-]{43}\n/
+    );
+  });
+
+  it("keeps it waiting, to retry, while the worker has no APP_URL or keys", async () => {
+    const h = await createHarness();
+    await invite(h);
+    const { io } = fakeIo({ foa: h.db });
+
+    const worker = createWorker(singleConfig("staging"), io);
+    await worker.start();
+    await worker.tick();
+
+    expect(await capturedFor(h, TEACHER)).toEqual([]);
+    const [delivery] = await h.db
+      .select()
+      .from(outbox)
+      .where(eq(outbox.handler, "institutions.send_coordinator_invitation"));
+    expect(delivery).toMatchObject({ status: "pending", attempts: 1 });
+    expect(delivery?.lastError).not.toContain(TEACHER);
   });
 });
