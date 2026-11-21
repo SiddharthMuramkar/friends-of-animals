@@ -22,7 +22,8 @@
       "notFound": "We couldn't find that person. Their account may have been deleted. Search again.",
       "none": "{name} has no roles. Everyone who is signed in can use the member pages.",
       "grantedAt": "Given {date}",
-      "grantedBy": "Given {date} by {name}"
+      "grantedBy": "Given {date} by {name}",
+      "audit": "See changes to {name}'s account in the audit log"
     },
     "revoke": {
       "submit": "Remove",

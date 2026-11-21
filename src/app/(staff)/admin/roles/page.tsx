@@ -20,6 +20,7 @@ import { ROLES, SCOPE_TYPES } from "@/server/access/domain/roles";
 import { AdminDenied } from "../_components/admin-denied";
 import { grantLabel } from "../_lib/grant-label";
 import { isRefusal } from "../_lib/refusal";
+import { auditHref } from "../audit/_lib/filters";
 import { ChangeNotice } from "./_components/change-notice";
 import { GrantForm } from "./_components/grant-form";
 import { RevokeForm } from "./_components/revoke-form";
@@ -64,6 +65,9 @@ export default async function Page({
 
 const CARD =
   "rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
+
+const LINK =
+  "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
 
 type Loaded = { found: SearchUsersResult; chosen?: ListUserRolesResult };
 
@@ -220,6 +224,11 @@ async function Chosen({
           title={t("user.title", { name: user.name })}
         />
         <p className="mt-2 text-ink-muted wrap-anywhere">{user.email}</p>
+        <p className="mt-2">
+          <SiteLink href={auditHref({ person: user.id })} className={LINK}>
+            {t("user.audit", { name: user.name })}
+          </SiteLink>
+        </p>
       </div>
 
       {grants.length === 0 ? (

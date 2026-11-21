@@ -4,6 +4,8 @@
 
 import { APP_ROUTES } from "@/lib/app-routes";
 
+import { firstParam, type SearchParams } from "../../_lib/search-params";
+
 export type RolesDone = "granted" | "revoked" | "unchanged";
 
 export type RolesParams = {
@@ -24,18 +26,6 @@ export function rolesHref(params: RolesParams): string {
   }
   const search = query.toString();
   return search ? `${APP_ROUTES.adminRoles}?${search}` : APP_ROUTES.adminRoles;
-}
-
-type SearchParams = Record<string, string | string[] | undefined>;
-
-/** The first value of a search param, if it has a non-empty one. */
-export function firstParam(
-  searchParams: SearchParams,
-  name: string
-): string | undefined {
-  const raw = searchParams[name];
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  return value ? value : undefined;
 }
 
 export function readRolesParams(searchParams: SearchParams): RolesParams {
