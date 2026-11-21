@@ -27,10 +27,11 @@ describe("afterSave", () => {
   });
 
   it("calls anything else a failure the form can't point at", () => {
-    for (const result of [
+    const refusals: Parameters<typeof afterSave>[0][] = [
       { ok: false, error: "invalid_input", fields: ["key"] },
       { ok: false, error: "not_editable" },
-    ] as const) {
+    ];
+    for (const result of refusals) {
       expect(afterSave(result, SOURCE)).toEqual({
         source: SOURCE,
         alert: "failed",
