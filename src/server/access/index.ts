@@ -8,6 +8,7 @@ import {
   revokeRole,
   type GrantChangeInput,
 } from "./manage-roles";
+import { searchUsers } from "./search-users";
 
 export type {
   GrantChangeInput,
@@ -16,10 +17,12 @@ export type {
   RevokeRoleResult,
   UserGrant,
 } from "./manage-roles";
+export type { FoundUser, SearchUsersResult } from "./search-users";
 export { authorize, can } from "./can";
 
 export const accessUseCases = (ctx: UseCaseContext) => ({
   grantRole: (input: GrantChangeInput) => grantRole(ctx, input),
   revokeRole: (input: GrantChangeInput) => revokeRole(ctx, input),
   listUserRoles: (input: { userId: string }) => listUserRoles(ctx, input),
+  searchUsers: (input: { query: string }) => searchUsers(ctx, input),
 });
