@@ -15,9 +15,15 @@ import { headers } from "next/headers";
 import type { Actor } from "./actor";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
+import { contactUseCases } from "./modules/contact";
+import { publicFormUseCases } from "./modules/public-forms";
 import { composeUseCases } from "./use-cases";
 
-const useCases = composeUseCases(identityUseCases);
+const useCases = composeUseCases(
+  identityUseCases,
+  publicFormUseCases,
+  contactUseCases
+);
 
 /** Every use case, by name, bound to one actor. */
 export type UseCases = ReturnType<typeof useCases>;
