@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Role } from "../../access/domain/roles";
+import type { Role } from "../../../access/domain/roles";
 
 import {
   capSessionExpiry,

@@ -5,9 +5,9 @@
 // navigation and a Server Action can be called directly. Loads under plain
 // Node: relative imports only.
 
-import { authorize } from "../access/can";
-import { isStaffRole } from "../access/domain/roles";
-import { grantsOf } from "../access/grants";
+import { authorize } from "../../access/can";
+import { isStaffRole } from "../../access/domain/roles";
+import { grantsOf } from "../../access/grants";
 import type { SecondFactorRefusal } from "./domain/gate";
 import { secondFactorRefusal } from "./requirement";
 import { signedInUser } from "./session-factor";

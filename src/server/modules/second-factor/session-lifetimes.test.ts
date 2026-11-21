@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { session } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
-import type { Actor } from "../actor";
+import type { Actor } from "../../actor";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;

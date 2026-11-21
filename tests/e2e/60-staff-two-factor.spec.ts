@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { base32Decode } from "../../src/server/second-factor/domain/base32";
-import { totpCode } from "../../src/server/second-factor/domain/totp";
+import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
+import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
 import { SEED_ACCOUNTS } from "../../src/server/seed/accounts";
 import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {

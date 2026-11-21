@@ -49,7 +49,7 @@ export const secondFactor = pgTable(
     label: text().notNull(),
     /** Null while a TOTP factor waits for its first code. */
     confirmedAt: timestamptz("confirmed_at"),
-    /** The TOTP shared secret, sealed (src/server/second-factor/secret-box.ts). */
+    /** The TOTP shared secret, sealed (src/server/modules/second-factor/secret-box.ts). */
     totpSecretSealed: text("totp_secret_sealed"),
     /** The time step of the last accepted code, so a code works once. */
     totpLastUsedStep: bigint("totp_last_used_step", { mode: "number" }),
