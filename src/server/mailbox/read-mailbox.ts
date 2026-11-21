@@ -28,8 +28,11 @@ export type MailboxResponse =
     }
   | { status: 400 | 401 | 404 };
 
-/** Equal tokens, in time that doesn't depend on where they differ. */
-function sameToken(provided: string, configured: string): boolean {
+/**
+ * Equal tokens, in time that doesn't depend on where they differ. The
+ * preview drain route checks the same token with it.
+ */
+export function sameToken(provided: string, configured: string): boolean {
   const digest = (value: string) => createHash("sha256").update(value).digest();
   return timingSafeEqual(digest(provided), digest(configured));
 }

@@ -13,6 +13,7 @@ import competitions from "../../messages/en-IN/competitions.json";
 import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
 import donate from "../../messages/en-IN/donate.json";
+import emails from "../../messages/en-IN/emails.json";
 import error from "../../messages/en-IN/error.json";
 import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
@@ -40,6 +41,7 @@ export const NAMESPACES = [
   "contact",
   "credits",
   "donate",
+  "emails",
   "error",
   "footer",
   "home",
@@ -71,6 +73,7 @@ export const messages = {
   ...contact,
   ...credits,
   ...donate,
+  ...emails,
   ...error,
   ...footer,
   ...home,

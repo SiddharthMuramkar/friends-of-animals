@@ -10,7 +10,8 @@
 //
 // Each harness has its own PGlite database (real migrations), fake clock and
 // fakes, so tests share nothing. Tickets that add a port append its fake
-// here and in src/server/deps.ts. See docs/agents/seam-1.md.
+// here and in src/server/deps.ts. Outbox events are not a port: `drain()`
+// runs the real relay over these deps. See docs/agents/seam-1.md.
 
 import { randomBytes } from "node:crypto";
 import { onTestFinished, vi } from "vitest";
@@ -25,6 +26,7 @@ import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
+import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 
 import { createTestDb, type TestDb } from "./db";
@@ -74,6 +76,12 @@ export interface Harness {
   signIn(user: { email: string }, meta?: Partial<RequestMeta>): Promise<Actor>;
   /** Builders that write to this database with this clock. */
   seed: SeedBuilders;
+  /**
+   * Delivers every outbox event due now, in process, the way the worker
+   * does (the same relay, on this database, fakes and clock), until a pass
+   * finds nothing due. Retries wait for `clock.advance()`.
+   */
+  drain(): Promise<DrainReport>;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -160,6 +168,7 @@ export async function createHarness(
       );
     },
     seed: createSeedBuilders(deps),
+    drain: () => drainUntilIdle(deps),
   };
   return harness;
 }

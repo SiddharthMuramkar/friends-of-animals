@@ -10,16 +10,18 @@ function mailboxToken(): string {
   return token;
 }
 
+type CapturedEmail = { subject: string; text: string; sentAt: string };
+
 /**
- * The newest sign-in code sent to `email` (an email address, or a phone
- * number for a text), from the deployment's capture mailbox
- * (GET /api/capture-mailbox), or undefined if none was sent. The address
- * goes in a header, so it stays out of request logs.
+ * The newest messages to `email` (an email address, or a phone number
+ * for texts) in the deployment's capture mailbox (GET
+ * /api/capture-mailbox), newest first. The address goes in a header, so it
+ * stays out of request logs.
  */
-async function latestCode(
+async function inbox(
   request: APIRequestContext,
   email: string
-): Promise<string | undefined> {
+): Promise<CapturedEmail[]> {
   const response = await request.get("/api/capture-mailbox", {
     headers: {
       "x-capture-mailbox-token": mailboxToken(),
@@ -28,9 +30,25 @@ async function latestCode(
   });
   expect(response.status(), "capture mailbox status").toBe(200);
   const { messages } = (await response.json()) as {
-    messages: { text: string }[];
+    messages: CapturedEmail[];
   };
-  return /\b(\d{6})\b/.exec(messages[0]?.text ?? "")?.[1];
+  return messages;
+}
+
+/**
+ * The newest sign-in code sent to `email`, or undefined if none was sent.
+ * Other mail (the welcome email, #61) may have arrived since, so this
+ * reads the newest message that holds a code, not just the newest one.
+ */
+async function latestCode(
+  request: APIRequestContext,
+  email: string
+): Promise<string | undefined> {
+  for (const message of await inbox(request, email)) {
+    const code = /\b(\d{6})\b/.exec(message.text)?.[1];
+    if (code) return code;
+  }
+  return undefined;
 }
 
 /**
@@ -84,4 +102,41 @@ export function freshPhone(): string {
     .padStart(4, "0");
   const national = `9${(Number(digits) + Number(random)).toString().padStart(9, "0").slice(-9)}`;
   return `+91 ${national.slice(0, 5)} ${national.slice(5)}`;
+}
+
+/**
+ * Delivers the deployment's due outbox events now (POST /api/preview/drain)
+ * with the deployment's own code, rather than waiting for the shared VPS
+ * worker. Staging and production answer 404: their own worker delivers.
+ */
+export async function drainOutbox(request: APIRequestContext): Promise<void> {
+  const response = await request.post("/api/preview/drain", {
+    headers: { "x-capture-mailbox-token": mailboxToken() },
+  });
+  expect([200, 404], "outbox drain status").toContain(response.status());
+}
+
+/**
+ * Waits for the newest email to `email` with this subject and returns it.
+ * After drainOutbox() on a preview it is there at once; where a worker
+ * delivers (staging), it may take up to the worker's poll interval.
+ */
+export async function readEmail(
+  request: APIRequestContext,
+  email: string,
+  subject: string
+): Promise<CapturedEmail> {
+  let found: CapturedEmail | undefined;
+  await expect
+    .poll(
+      async () => {
+        found = (await inbox(request, email)).find(
+          (message) => message.subject === subject
+        );
+        return found !== undefined;
+      },
+      { message: `an email "${subject}" to ${email}`, timeout: 60_000 }
+    )
+    .toBe(true);
+  return found!;
 }
