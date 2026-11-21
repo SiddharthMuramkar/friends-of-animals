@@ -1,10 +1,9 @@
 // Which preview databases on pg-nonprod the shared preview worker serves.
 // Preview builds create `foa_pr_<n>_<fp>` or `foa_br_<slug>_<hash>_<fp>`
 // (src/server/db/database-url.ts; `<fp>` is the migrations fingerprint) and
-// label it
-// with a database comment (scripts/preview-database.ts); the hourly sweeper
-// (docker/scripts/sweep-preview-dbs.sh) drops it once its PR closes or its
-// branch is gone. The worker serves exactly what the sweeper would recognise,
+// label it with a database comment (scripts/preview-database.ts); the hourly
+// sweeper (docker/scripts/sweep-preview-dbs.sh) drops it once its PR closes
+// or its branch is gone. The worker serves exactly what the sweeper would recognise,
 // with the same name and label rules, and stops when a database disappears.
 //
 // Pure, and loads under plain Node: no "server-only", no Next imports.
@@ -40,9 +39,8 @@ function isServedPreview({ datname, comment }: ListedDatabase): boolean {
  * The preview databases to serve, in name order: a `foa_pr_<n>` or
  * `foa_pr_<n>_<fp>` labelled `foa-preview pr=<n>` (same n; a PR whose
  * migrations changed has one per fingerprint until it closes), or a
- * `foa_br_…` labelled
- * `foa-preview branch=<ref>`. Anything else, including `foa_seed`,
- * `foa_staging`, `postgres` and the templates, is never served.
+ * `foa_br_…` labelled `foa-preview branch=<ref>`. Anything else, including
+ * `foa_seed`, `foa_staging`, `postgres` and the templates, is never served.
  */
 export function previewDatabasesToServe(
   listed: readonly ListedDatabase[]
