@@ -4,7 +4,8 @@
 // sessions. FOA adds what it lacks: per-email and per-IP limits on codes
 // (./rate-limit.ts), the use cases and can() (./policy.ts). FOA also sends
 // the codes itself (./email-code.ts), so a failed send reaches the use case
-// instead of being caught and logged by Better Auth.
+// instead of being caught and logged by Better Auth, and creates accounts
+// itself (./create-account.ts), so the welcome event is saved with them.
 //
 // No /api/auth/* route handler is mounted: every call goes through a use
 // case, so Better Auth's own endpoints (which would skip FOA's limits) are
@@ -69,6 +70,9 @@ function createAuth({ db, clock, auth: config }: Deps) {
         expiresIn: EMAIL_CODE.lifetimeMinutes * 60,
         allowedAttempts: EMAIL_CODE.attempts,
         storeOTP: "hashed",
+        // FOA creates accounts itself, with their welcome event in the same
+        // transaction (./create-account.ts); a sign-in never creates one.
+        disableSignUp: true,
         // requestEmailCode makes the code with createVerificationOTP and
         // sends it through the email port itself. Nothing FOA calls makes
         // Better Auth send one.
