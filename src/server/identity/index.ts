@@ -2,7 +2,13 @@
 // sessions. Its use cases join `as(actor)` through `identityUseCases`.
 
 import type { UseCaseContext } from "../use-cases";
-import { getAccount, signOut } from "./account";
+import { getAccount } from "./account";
+import {
+  listSessions,
+  signOutEverywhere,
+  signOutSession,
+  type SignOutSessionInput,
+} from "./sessions";
 import {
   requestEmailCode,
   verifyEmailCode,
@@ -11,6 +17,7 @@ import {
 } from "./email-code";
 
 export type { Account } from "./account";
+export type { SessionSummary, SignOutSessionResult } from "./sessions";
 export type {
   RequestEmailCodeResult,
   VerifyEmailCodeResult,
@@ -23,5 +30,7 @@ export const identityUseCases = (ctx: UseCaseContext) => ({
     requestEmailCode(ctx, input),
   verifyEmailCode: (input: VerifyEmailCodeInput) => verifyEmailCode(ctx, input),
   getAccount: () => getAccount(ctx),
-  signOut: () => signOut(ctx),
+  listSessions: () => listSessions(ctx),
+  signOutSession: (input: SignOutSessionInput) => signOutSession(ctx, input),
+  signOutEverywhere: () => signOutEverywhere(ctx),
 });

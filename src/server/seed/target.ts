@@ -22,6 +22,18 @@ const DEPLOYED_DATABASE = /^(foa_staging|foa_seed|foa_pr(_.+)?|foa_br(_.+)?)$/;
 
 /** Why a local seed must not use `url`, or undefined if it may. */
 function notLocal(url: string): string | undefined {
+  // postgres-js ends the authority at the first "/" or "?" and splits it at
+  // the last "@", ignoring "#"; the WHATWG parser below ends it at "#". So
+  // "…@localhost#@remote/…" would pass this check and connect to remote.
+  // Refuse anything the two could read differently.
+  const authority = url.slice(url.indexOf("://") + 3).split(/[/?]/)[0] ?? "";
+  if (url.includes("#") || authority.split("@").length > 2) {
+    return (
+      `APP_ENV=local but DIRECT_URL has "#" or more than one "@" before ` +
+      `its path, so the database client could connect to another host ` +
+      `than this check sees.`
+    );
+  }
   const parsed = new URL(url);
   // postgres-js connects to a host named in the query over the URL's own.
   for (const param of ["host", "hostaddr"]) {

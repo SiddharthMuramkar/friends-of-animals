@@ -1,5 +1,6 @@
 import type { Actor } from "../actor";
 import type { Deps } from "../deps";
+import { errorSummaryForLogs } from "../errors";
 import { authFor } from "./auth";
 import { requestMeta } from "./request";
 
@@ -13,12 +14,20 @@ export async function resolveActor(
   headers: Headers
 ): Promise<Actor> {
   const meta = requestMeta(headers);
-  const found = await authFor(deps).api.getSession({
-    headers,
-    // A Server Component can't set cookies, so never extend a session
-    // while rendering: the cookie and the database would disagree.
-    query: { disableRefresh: true },
-  });
+  let found;
+  try {
+    found = await authFor(deps).api.getSession({
+      headers,
+      // A Server Component can't set cookies, so never extend a session
+      // while rendering: the cookie and the database would disagree.
+      query: { disableRefresh: true },
+    });
+  } catch (error) {
+    // Better Auth's error wraps the database's, whose message lists the
+    // query's parameters: the session token. Keep only the class and the
+    // Postgres code, and no cause, since Next logs what a render throws.
+    throw new Error(`Session lookup failed: ${errorSummaryForLogs(error)}`);
+  }
   return found
     ? {
         kind: "user",

@@ -53,6 +53,9 @@ function createAuth({ db, clock, auth: config }: Deps) {
     // limiter keys on IP and path only, and its default store is memory,
     // which serverless instances don't share.
     rateLimit: { enabled: false },
+    // A code's row is keyed "sign-in-otp-<address>", for addresses with no
+    // account too. Store a SHA-256 of that key instead of the address.
+    verification: { storeIdentifier: "hashed" },
     telemetry: { enabled: false },
     logger,
     advanced: {
