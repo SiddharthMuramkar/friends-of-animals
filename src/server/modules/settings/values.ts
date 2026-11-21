@@ -90,19 +90,31 @@ export function parseSettingValue<K extends SettingKey>(
   return {
     ok: false,
     error: "invalid_value",
-    problem: problemOf(parsed.error.issues[0]),
+    problem: problemOf(parsed.error.issues),
   };
 }
 
-function problemOf(issue: z.core.$ZodIssue | undefined): SettingValueProblem {
-  switch (issue?.code) {
-    case "too_small":
-      return { reason: "too_small", min: Number(issue.minimum) };
-    case "too_big":
-      return { reason: "too_big", max: Number(issue.maximum) };
-    default:
-      return { reason: "wrong_type" };
+/**
+ * Why the schema refused a value. A value can break more than one bound
+ * the same way: past 2^53, `z.int()` fails its own safe-integer bound as
+ * well as the setting's, and reports it first. The tightest bound is the
+ * one to report, since meeting it meets the others; for a setting, that is
+ * the setting's own.
+ */
+function problemOf(issues: readonly z.core.$ZodIssue[]): SettingValueProblem {
+  const maxima = issues.flatMap((issue) =>
+    issue.code === "too_big" ? [Number(issue.maximum)] : []
+  );
+  if (maxima.length > 0) {
+    return { reason: "too_big", max: Math.min(...maxima) };
   }
+  const minima = issues.flatMap((issue) =>
+    issue.code === "too_small" ? [Number(issue.minimum)] : []
+  );
+  if (minima.length > 0) {
+    return { reason: "too_small", min: Math.max(...minima) };
+  }
+  return { reason: "wrong_type" };
 }
 
 /** What a change records in the audit log: no personal data, just values. */
