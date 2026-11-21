@@ -726,8 +726,9 @@ run runs none). `50-purge-files.sh` deletes that preview's files
 ## Workers
 
 `workers.yml` (Compose project `foa-workers`, issue #61) runs the background
-workers next to the database stack, on its `db` network (`foa-vps_db`, so
-start `compose.yml` first). Each runs `src/worker/main.ts` from the
+workers and their sidecars next to the database stack. The database workers
+join its `db` network (`foa-vps_db`, so start `compose.yml` first). Each runs
+`src/worker/main.ts` from the
 Dockerfile's `worker` target, drains its database's outbox every 5 s and
 connects to Postgres directly, never through PgBouncer: pg-boss holds
 sessions, which transaction pooling breaks. None publishes a port.
@@ -792,16 +793,16 @@ docker exec foa-pg-prod psql -U postgres -c 'SELECT pg_reload_conf()'     # afte
 docker exec foa-pg-nonprod psql -U postgres -c 'SELECT pg_reload_conf()'
 scripts/worker-roles.sh               # roles + /etc/foa/secrets/*_worker_password
 WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
-  docker compose -f workers.yml up -d --build --wait
-docker compose -f workers.yml ps      # all three "healthy"
+  docker compose -f workers.yml up -d --build --wait --wait-timeout 480 \
+  worker-prod foa-clamav foa-gotenberg
+docker compose -f workers.yml ps worker-prod foa-clamav foa-gotenberg
 ```
 
-Then check that each single-database worker's heartbeat row is fresh (its
-`last_seen_at` moves every 5 s):
+Then check that the production worker's heartbeat row is fresh. Its
+`last_seen_at` moves every 5 s.
 
 ```sh
 docker exec foa-pg-prod psql -U postgres -d foa -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
-docker exec foa-pg-nonprod psql -U postgres -d foa_staging -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
 ```
 
 `worker-preview` writes a row only in the previews it serves, so with no
@@ -821,7 +822,7 @@ heartbeat rows; leave it out and they say `unknown`.
 - Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
   its poll, stops pg-boss and closes its connections within 30 s).
 - Updating: `git -C /srv/foa pull`, then the "Run" line; only a changed
-  image is recreated. All three build from `/srv/foa` (main), and each has
+  image is recreated. The database workers build from `/srv/foa` (main), and each has
   its own image (`foa-workers/worker-<name>`), so rebuilding one never swaps
   another's.
 - Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
@@ -830,6 +831,46 @@ heartbeat rows; leave it out and they say `unknown`.
 - A local run needs none of this: `pnpm worker:dev` drains the local
   database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
   email, and restarts on code changes.
+
+### Scan, PDF and media sidecars (B10)
+
+| Service         | Connection and health check                                                                                          | Memory |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- | ------ |
+| `foa-clamav`    | Database workers use `CLAMD_HOST=foa-clamav` and `CLAMD_PORT=3310`. `clamdcheck.sh` checks the local clamd listener. | 2 GiB  |
+| `foa-gotenberg` | Media uses `GOTENBERG_URL=http://foa-gotenberg:3000`. The health check calls `GET /health` on loopback.              | 1 GiB  |
+| `worker-media`  | Runs the media entry point with a read-only root and `/tmp` tmpfs. Health requires a heartbeat under 120 s old.      | 2 GiB  |
+
+All three log to journald and use private networks. Clamd listens on the
+internal `scan` bridge and loopback. FreshClam uses a separate bridge to
+reach the signature mirror and keeps its databases in `foa-clamav-db`.
+Allow six minutes for the initial signature load. Scans wait during a
+signature reload so ClamAV can stay within its memory limit. Check the
+journal for signature-load failures. The upload scan also requires the
+worker's environment-specific R2 configuration (HR-06).
+
+Gotenberg and the media worker share the internal `pdf` network. Send
+documents and their assets as file uploads. Chromium and LibreOffice
+accept local URLs under `/tmp` and API requests time out after 30 s.
+
+To recreate the scan and PDF sidecars after updating their image or
+configuration, run from `/srv/foa/docker`. Keep the signature volume
+attached so ClamAV can reuse its database.
+
+```sh
+docker compose -f workers.yml up -d --force-recreate --wait --wait-timeout 480 \
+  foa-clamav foa-gotenberg
+docker compose -f workers.yml ps foa-clamav foa-gotenberg
+```
+
+The `media` profile is opt-in. Enable it once 85a ships the media entry
+point, media queue connection, and heartbeat. The PDF adapter in #100
+uses the Gotenberg endpoint.
+
+```sh
+WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
+  docker compose -f workers.yml --profile media up -d --build --wait \
+  worker-media foa-gotenberg
+```
 
 ## Checks
 

@@ -52,11 +52,16 @@ function healthCommand(): string {
 }
 
 describe("docker/workers.yml", () => {
-  it("defines the production, staging and shared preview workers", () => {
+  it("defines the production, staging and shared preview workers and their sidecars", () => {
     const names = [...block("services").matchAll(/^ {2}([a-z-]+):$/gm)].map(
       (m) => m[1]
     );
-    expect(names).toEqual(SERVICES);
+    expect(names).toEqual([
+      ...SERVICES,
+      "foa-clamav",
+      "foa-gotenberg",
+      "worker-media",
+    ]);
   });
 
   it.each(SERVICES)(
@@ -156,6 +161,108 @@ describe("docker/workers.yml", () => {
     expect(service("worker-preview")).toContain(
       "WORKER_CONNECTIONS_PER_DATABASE: 1"
     );
+  });
+
+  it("keeps ClamAV scanning on the private bridge while FreshClam updates", () => {
+    const clamav = service("foa-clamav");
+    expect(clamav).toMatch(/^ {4}image: clamav\/clamav:\d+\.\d+\.\d+$/m);
+    expect(clamav).toContain("entrypoint: /init-unprivileged");
+    expect(clamav).toContain("user: clamav");
+    expect(clamav).toContain('CLAMAV_NO_FRESHCLAMD: "false"');
+    expect(clamav).toContain("foa-clamav-db:/var/lib/clamav");
+    expect(block("volumes")).toContain("foa-clamav-db:");
+    expect(clamav).toContain("clamdcheck.sh");
+    expect(clamav).toContain("start_period: 6m");
+    expect(block("networks")).toContain("scan:\n    internal: true");
+    expect(clamav).toMatch(/^ {6}scan:$/m);
+    expect(clamav).toMatch(/^ {8}ipv4_address: 10\.112\.14\.2$/m);
+    expect(clamav).toMatch(/^ {6}clamav-updates: \{\}$/m);
+    expect(clamav).toContain("./clamav/clamd.conf:/etc/clamav/clamd.conf:ro");
+    const clamd = readFileSync(
+      new URL("./clamav/clamd.conf", import.meta.url),
+      "utf8"
+    );
+    expect(clamd.match(/^TCPAddr .+$/gm)).toEqual([
+      "TCPAddr 127.0.0.1",
+      "TCPAddr 10.112.14.2",
+    ]);
+    expect(clamd).toContain("TCPSocket 3310");
+    expect(clamd).toContain("ConcurrentDatabaseReload no");
+    expect(clamav).toContain(
+      "./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro"
+    );
+    const freshclam = readFileSync(
+      new URL("./clamav/freshclam.conf", import.meta.url),
+      "utf8"
+    );
+    expect(freshclam).toContain("NotifyClamd /etc/clamav/clamd.conf");
+    expect(freshclam).toContain("TestDatabases no");
+  });
+
+  it("configures every database worker to scan through foa-clamav:3310", () => {
+    expect(shared()).toMatch(/^ {4}- scan$/m);
+    for (const name of SERVICES) {
+      expect(service(name)).toContain("<<: *clamd");
+    }
+    const scanner = block("x-clamd");
+    expect(scanner).toContain("CLAMD_HOST: foa-clamav");
+    expect(scanner).toContain('CLAMD_PORT: "3310"');
+  });
+
+  it("renders PDFs from local files through a private Gotenberg 9 API", () => {
+    const gotenberg = service("foa-gotenberg");
+    const image = /^ {4}image: gotenberg\/gotenberg:9\.(\d+)\.\d+$/m.exec(
+      gotenberg
+    );
+    expect(image).not.toBeNull();
+    expect(Number(image?.[1])).toBeGreaterThanOrEqual(8);
+    expect(gotenberg).toContain("http://127.0.0.1:3000/health");
+    expect(gotenberg).toMatch(/^ {4}networks:\n {6}- pdf$/m);
+    expect(block("networks")).toContain("pdf:\n    internal: true");
+    expect(gotenberg).toContain("--api-timeout=30s");
+    expect(gotenberg).toContain("--chromium-allow-list=^file:///tmp/");
+    expect(gotenberg).toContain("--libreoffice-allow-list=^file:///tmp/");
+    expect(gotenberg).toContain("--libreoffice-enable-macros=false");
+    expect(gotenberg).toContain("--api-disable-download-from=true");
+    expect(gotenberg).toContain("--webhook-disable=true");
+    expect(gotenberg).toContain("--pdf-deny-list=.");
+  });
+
+  it("keeps the media worker opt-in on the PDF bridge and uses the media entry point", () => {
+    const media = service("worker-media");
+    expect(media).toMatch(/^ {4}profiles:\n {6}- media$/m);
+    expect(media).toContain("<<: *worker");
+    expect(media).toContain(
+      "image: foa-workers/worker-media:${WORKER_VERSION:-unknown}"
+    );
+    expect(media).toContain(
+      'command: ["node", "--import", "tsx", "src/worker-media/main.ts"]'
+    );
+    expect(media).toContain("GOTENBERG_URL: http://foa-gotenberg:3000");
+    expect(media).toMatch(/^ {4}networks:\n {6}- pdf$/m);
+    expect(media).toContain("cpus: 1");
+    expect(media).toContain("pids_limit: 128");
+    expect(media).not.toMatch(/^ {4}secrets:|WORKER_DATABASE_URL/m);
+    expect(shared()).toContain("read_only: true");
+    expect(shared()).toMatch(/^ {4}- \/tmp$/m);
+    expect(healthCommand()).toContain("/tmp/foa-worker-heartbeat");
+  });
+
+  it.each([
+    ["foa-clamav", "2g"],
+    ["foa-gotenberg", "1g"],
+    ["worker-media", "2g"],
+  ])("limits %s to %s and drops container privileges", (name, memory) => {
+    const own = service(name);
+    expect(own).toMatch(new RegExp(`^ {4}mem_limit: ${memory}$`, "m"));
+    expect(own).toMatch(/^ {4}oom_score_adj: 500$/m);
+    expect(own).not.toMatch(/^ {4}network_mode:|^ {6}(?:- db$|db:)/m);
+    const settings = name === "worker-media" ? shared() : own;
+    expect(settings).toMatch(/^ +healthcheck:$/m);
+    expect(settings).toMatch(/^ +restart: unless-stopped$/m);
+    expect(settings).toMatch(/^ +logging: \*logging$/m);
+    expect(settings).toMatch(/cap_drop:\n +- ALL\n/);
+    expect(settings).toMatch(/security_opt:\n +- no-new-privileges:true\n/);
   });
 
   describe("its health check", () => {
