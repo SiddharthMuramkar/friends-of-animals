@@ -290,3 +290,89 @@ describe("planShortlistOnlyOutcomes", () => {
     });
   });
 });
+
+describe("checkShortlistOnlyPicks", () => {
+  const limits = { shortlistSize: 5, positions: 3 };
+  // Created entries are `school_shortlisted`: they never pass through
+  // `submitted`, yet they are the shortlist.
+  const createdEntries = [
+    { entryId: "entry-a", categoryKey: "painting-junior" },
+    { entryId: "entry-b", categoryKey: "painting-junior" },
+    { entryId: "entry-c", categoryKey: "painting-senior" },
+  ];
+
+  it("lets the coordinator change positions while every created entry stays", () => {
+    expect(
+      checkShortlistOnlyPicks({
+        categoryKey: "painting-junior",
+        createdEntries,
+        picks: [
+          { entryId: "entry-b", position: 1 },
+          { entryId: "entry-a", position: null },
+        ],
+        limits,
+      })
+    ).toEqual({
+      ok: true,
+      picks: [
+        { entryId: "entry-b", position: 1 },
+        { entryId: "entry-a", position: null },
+      ],
+    });
+  });
+
+  it("refuses to drop a created entry from the shortlist", () => {
+    expect(
+      checkShortlistOnlyPicks({
+        categoryKey: "painting-junior",
+        createdEntries,
+        picks: [{ entryId: "entry-b", position: 1 }],
+        limits,
+      })
+    ).toEqual({
+      ok: false,
+      problems: [
+        { code: "created_entry_must_stay_shortlisted", entryId: "entry-a" },
+      ],
+    });
+  });
+
+  it("leaves out the created entries of other categories", () => {
+    expect(
+      checkShortlistOnlyPicks({
+        categoryKey: "painting-senior",
+        createdEntries,
+        picks: [{ entryId: "entry-c", position: 1 }],
+        limits,
+      })
+    ).toEqual({ ok: true, picks: [{ entryId: "entry-c", position: 1 }] });
+  });
+
+  it("still applies the shortlist rules, reporting every problem at once", () => {
+    expect(
+      checkShortlistOnlyPicks({
+        categoryKey: "painting-junior",
+        createdEntries,
+        picks: [
+          { entryId: "entry-a", position: 4 },
+          { entryId: "entry-x", position: null },
+          { entryId: "entry-c", position: null },
+        ],
+        limits,
+      })
+    ).toEqual({
+      ok: false,
+      problems: [
+        {
+          code: "position_out_of_range",
+          entryId: "entry-a",
+          position: 4,
+          limit: 3,
+        },
+        { code: "unknown_entry", entryId: "entry-x" },
+        { code: "wrong_category", entryId: "entry-c" },
+        { code: "created_entry_must_stay_shortlisted", entryId: "entry-b" },
+      ],
+    });
+  });
+});
