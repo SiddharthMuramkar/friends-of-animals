@@ -5,6 +5,7 @@
 import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
+import adminTemplates from "../../messages/en-IN/adminTemplates.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -17,10 +18,12 @@ import donate from "../../messages/en-IN/donate.json";
 import error from "../../messages/en-IN/error.json";
 import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
+import inbox from "../../messages/en-IN/inbox.json";
 import impact from "../../messages/en-IN/impact.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
+import notificationSettings from "../../messages/en-IN/notificationSettings.json";
 import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import sample from "../../messages/en-IN/sample.json";
@@ -33,6 +36,7 @@ export const NAMESPACES = [
   "a11y",
   "about",
   "account",
+  "adminTemplates",
   "auth",
   "authPhone",
   "awareness",
@@ -45,10 +49,12 @@ export const NAMESPACES = [
   "error",
   "footer",
   "home",
+  "inbox",
   "impact",
   "legal",
   "nav",
   "notFound",
+  "notificationSettings",
   "pricing",
   "refunds",
   "sample",
@@ -65,6 +71,7 @@ export const messages = {
   ...a11y,
   ...about,
   ...account,
+  ...adminTemplates,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -77,10 +84,12 @@ export const messages = {
   ...error,
   ...footer,
   ...home,
+  ...inbox,
   ...impact,
   ...legal,
   ...nav,
   ...notFound,
+  ...notificationSettings,
   ...pricing,
   ...refunds,
   ...sample,

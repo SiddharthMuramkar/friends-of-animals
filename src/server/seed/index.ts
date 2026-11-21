@@ -11,6 +11,7 @@ import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
 import { seedConsent } from "./consent";
 import { seedIdentity } from "./identity";
+import { seedNotifications } from "./notifications";
 import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
 
@@ -25,6 +26,7 @@ const seeders: readonly Seeder[] = [
   seedAccess,
   seedConsent,
   seedSettings,
+  seedNotifications,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);
