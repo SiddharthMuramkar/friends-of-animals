@@ -171,6 +171,8 @@ export const competitionAgeGroup = pgTable(
   ]
 );
 
+export type CompetitionAgeGroup = typeof competitionAgeGroup.$inferSelect;
+
 export const competitionCategory = pgTable(
   "competition_category",
   {

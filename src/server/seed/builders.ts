@@ -7,6 +7,7 @@ import type { Grant } from "../access/domain/roles";
 import type { User } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import { ensureGrant } from "./access";
+import { competitionBuilder } from "./competitions";
 import type { SeedDeps, Seeder } from "./types";
 
 const MEMBER_NAMES = [
@@ -61,6 +62,8 @@ export function seedFunctions(seeders: readonly Seeder[]) {
         });
         return account;
       },
+      /** A complete competition (draft unless told), no audit entry. */
+      competition: competitionBuilder(deps),
       /** Everything `pnpm db:seed` puts in a preview database. */
       preview: () => seedPreview(deps),
     };
