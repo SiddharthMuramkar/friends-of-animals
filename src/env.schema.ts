@@ -124,6 +124,14 @@ const secretVariables = {
    */
   FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
   FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+  /**
+   * MSG91, production's SMS provider: the account's auth key and the id of
+   * the DLT-approved sign-in code template. Optional: without them
+   * production refuses to send SMS (sign-in by phone stays switched off
+   * until DLT approval), and other environments never call MSG91.
+   */
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
 };
 
 type AppEnv = (typeof APP_ENVS)[number];

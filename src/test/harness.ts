@@ -31,6 +31,7 @@ import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
+import { FakeSms } from "./fakes/sms";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -42,6 +43,8 @@ export interface Harness {
   clock: FakeClock;
   /** Every email use cases sent. */
   email: FakeEmail;
+  /** Every SMS use cases sent. */
+  sms: FakeSms;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
   /** What use cases run against: the fakes above plus test auth config. */
@@ -92,11 +95,13 @@ export async function createHarness(
     onChange: (now) => vi.setSystemTime(now),
   });
   const email = new FakeEmail(clock);
+  const sms = new FakeSms(clock);
   const cookies = new FakeCookieJar(clock);
   const deps: Deps = {
     db,
     clock,
     email,
+    sms,
     cookies,
     auth: TEST_AUTH,
     // Fresh keys per harness, as a deployment has its own.
@@ -117,6 +122,7 @@ export async function createHarness(
     db,
     clock,
     email,
+    sms,
     cookies,
     deps,
     as: (actor) => app.as(actor),
