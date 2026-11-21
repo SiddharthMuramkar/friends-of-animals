@@ -12,6 +12,11 @@ import {
   markInboxItemRead,
 } from "./inbox";
 import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  type NotificationPreferences,
+} from "./preferences";
+import {
   getMessageTemplate,
   listMessageTemplates,
   updateMessageTemplate,
@@ -28,6 +33,10 @@ export type {
   UpdateMessageTemplateResult,
 } from "./templates";
 export type { InboxItemView, MarkInboxItemReadResult } from "./inbox";
+export type {
+  NotificationPreferences,
+  UpdateNotificationPreferencesResult,
+} from "./preferences";
 export type { MessageChannel } from "./domain/channels";
 export type { RevisionProblem } from "./domain/revision";
 
@@ -41,4 +50,7 @@ export const notificationsUseCases = (ctx: UseCaseContext) => ({
   countUnread: () => countUnread(ctx),
   markInboxItemRead: (input: { id: string }) => markInboxItemRead(ctx, input),
   markAllInboxRead: () => markAllInboxRead(ctx),
+  getNotificationPreferences: () => getNotificationPreferences(ctx),
+  updateNotificationPreferences: (input: NotificationPreferences) =>
+    updateNotificationPreferences(ctx, input),
 });
