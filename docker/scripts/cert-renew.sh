@@ -5,20 +5,24 @@
 # The host is FOA_DB_DOMAIN (default db.friendsofanimals.dev). Names in
 # FOA_DB_DOMAIN_ALIASES (space-separated) go on the same certificate after
 # it: PgBouncer serves one certificate, so a host name being retired keeps
-# working until it is dropped from the list. Every name must resolve to this
-# host, or the whole order fails. foa-cert-renew.service reads these settings
-# from /etc/foa/db-host.env when that file exists (EnvironmentFile=, which
-# keeps a comment after a value in the value). A setting that doesn't look
-# right stops the run (exit 2) before lego is called.
+# working until it is dropped from the list. The certificate holds exactly
+# these names (lego --force-cert-domains): the first run after the list
+# changes re-issues it, so a dropped name comes off it then. Every name must
+# resolve to this host, or the whole order fails. foa-cert-renew.service
+# reads these settings from /etc/foa/db-host.env when that file exists
+# (EnvironmentFile=, which keeps a comment after a value in the value). A
+# setting that doesn't look right stops the run (exit 2) before lego is
+# called.
 #
 # HTTP-01, not DNS-01: DNS-01 would need a Vercel token with account-wide DNS
 # rights on this box. While nothing else holds port 80 on the public address,
 # lego answers the challenge itself, listening on that address only (not every
 # address, so it never clashes with a local service on 127.0.0.1:80) for the
 # few seconds of a challenge. Once another server holds it (foa-caddy listens
-# on every address), lego writes the challenge file into FOA_ACME_WEBROOT
-# (default /var/lib/foa/acme-webroot) instead, and that server must serve the
-# directory's /.well-known/acme-challenge/ on port 80 for every name.
+# on every address), lego writes the challenge file into FOA_ACME_WEBROOT (a
+# directory under /var/lib/foa, default /var/lib/foa/acme-webroot) instead,
+# and that server must serve the directory's /.well-known/acme-challenge/ on
+# port 80 for every name.
 #
 # lego runs with --network host, so it is a host process for the firewall:
 # Docker makes no rules for host networking and DOCKER-USER does not apply.
@@ -32,14 +36,15 @@
 # on the IPv6 address too (Let's Encrypt validates over IPv6 first).
 #
 # `lego run` renews only when fewer than 30 days are left (or when the CA's
-# renewal info says so), so a daily timer is cheap. No ACME account e-mail is
-# registered (lego allows none); set FOA_ACME_EMAIL to add one.
+# renewal info says so, or the names changed), so a daily timer is cheap. No
+# ACME account e-mail is registered (lego allows none); set FOA_ACME_EMAIL to
+# add one.
 #
 # Usage: sudo cert-renew.sh [--staging] [--print-config]
 #   --staging       use the Let's Encrypt staging CA and a separate data dir
 #                   (/etc/foa/lego-staging); nothing is installed.
-#   --print-config  print the settings (names, CA, e-mail, challenge mode)
-#                   and exit; changes nothing.
+#   --print-config  print the settings (names, CA, e-mail, challenge mode,
+#                   the lego command) and exit; changes nothing.
 set -euo pipefail
 
 # shellcheck source=SCRIPTDIR/db-host.sh
@@ -63,19 +68,32 @@ for arg in "$@"; do
 done
 
 # The host first: lego names the files after it, as install-cert.sh expects.
-read -r -a aliases <<<"${FOA_DB_DOMAIN_ALIASES:-}"
-for name in "${aliases[@]}"; do
-  require_host_name FOA_DB_DOMAIN_ALIASES "$name"
-done
-domains=("$DOMAIN" "${aliases[@]}")
-
-# A path docker can mount: absolute, no space or ':'.
-webroot_re='^/[^[:space:]:]*$'
-if [[ ! $WEBROOT =~ $webroot_re ]]; then
-  printf 'cert-renew: FOA_ACME_WEBROOT: %q is not an absolute path\n' "$WEBROOT" >&2
+# Each name once: lego compares the names it gets with the certificate's, a
+# repeat included, and would re-issue it on every run. One line only: `read`
+# would drop the names after the first.
+alias_list=${FOA_DB_DOMAIN_ALIASES:-}
+if [[ $alias_list == *$'\n'* ]]; then
+  printf 'cert-renew: FOA_DB_DOMAIN_ALIASES: %q is more than one line\n' "$alias_list" >&2
   exit 2
 fi
-email_re='^[^[:space:]@]+@[^[:space:]@]+$'
+read -r -a aliases <<<"$alias_list"
+domains=("$DOMAIN")
+for name in "${aliases[@]}"; do
+  require_host_name FOA_DB_DOMAIN_ALIASES "$name"
+  [[ " ${domains[*]} " == *" $name "* ]] || domains+=("$name")
+done
+
+# A directory of its own under /var/lib/foa: the run makes it root's with
+# mode 0755 (an existing one too) and mounts it read-write into the lego
+# container. Each step starts with a letter, digit or '_' (no '.' or '..'),
+# and there is no space or ':' for docker's -v to trip on.
+webroot_re='^/var/lib/foa(/[[:alnum:]_][[:alnum:]_.-]*)+$'
+if [[ ! $WEBROOT =~ $webroot_re ]]; then
+  printf 'cert-renew: FOA_ACME_WEBROOT: %q is not a directory under /var/lib/foa\n' "$WEBROOT" >&2
+  exit 2
+fi
+# No leading '-': lego would read the address as an option.
+email_re='^[^-[:space:]@][^[:space:]@]*@[^[:space:]@]+$'
 email_domain=${EMAIL#*@}
 if [ -n "$EMAIL" ] && { [[ ! $EMAIL =~ $email_re ]] || ! is_host_name "${email_domain,,}"; }; then
   printf 'cert-renew: FOA_ACME_EMAIL: %q is not an e-mail address\n' "$EMAIL" >&2
@@ -101,9 +119,24 @@ else
   http_args=(--http.address "$LISTEN")
 fi
 
+# --force-cert-domains: without it a renewal keeps every name already on the
+# certificate, so one dropped from FOA_DB_DOMAIN_ALIASES would stay on, and
+# every order would fail once that name no longer resolves to this host.
+lego_args=(run --accept-tos --server "$SERVER" --path /data)
+for name in "${domains[@]}"; do
+  lego_args+=(--domains "$name")
+done
+lego_args+=(--force-cert-domains --key-type EC256 --http "${http_args[@]}"
+  --renew-days 30 --log.format text)
+if [ -n "$EMAIL" ]; then
+  lego_args+=(--email "$EMAIL")
+fi
+
 if [ "$PRINT_CONFIG" -eq 1 ]; then
+  # No argument holds a space (the checks above), so one line shows them all.
   printf '%s\n' "domain=$DOMAIN" "domains=${domains[*]}" "server=$SERVER" \
-    "lego_dir=$LEGO_DIR" "email=$EMAIL" "challenge=$challenge"
+    "lego_dir=$LEGO_DIR" "email=$EMAIL" "challenge=$challenge" \
+    "lego=${lego_args[*]}"
   if [ "$challenge" = webroot ]; then
     echo "webroot=$WEBROOT"
   else
@@ -135,29 +168,10 @@ if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>
   fi
 fi
 
-domain_args=()
-for name in "${domains[@]}"; do
-  domain_args+=(--domains "$name")
-done
-
-email_args=()
-if [ -n "$EMAIL" ]; then
-  email_args=(--email "$EMAIL")
-fi
-
 echo "cert-renew: ${domains[*]} ($challenge)"
 docker run --rm --name foa-lego --network host \
   "${mounts[@]}" \
-  "$LEGO_IMAGE" run \
-  --accept-tos \
-  --server "$SERVER" \
-  --path /data \
-  "${domain_args[@]}" \
-  --key-type EC256 \
-  --http "${http_args[@]}" \
-  --renew-days 30 \
-  --log.format text \
-  "${email_args[@]}"
+  "$LEGO_IMAGE" "${lego_args[@]}"
 
 if [ "$STAGING" -eq 1 ]; then
   echo "cert-renew: staging run done; nothing installed"

@@ -356,8 +356,9 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
   (an A record to 189.72.156.29). `cert-renew.sh`, `install-cert.sh`,
   `bootstrap-secrets.sh` and `smoke-test.sh` read it through
   `scripts/db-host.sh`, which stops them (exit 2) on a value that isn't a
-  lower-case host name. Given `--print-config`, each prints its settings and
-  changes nothing. `foa-cert-renew.service` reads optional settings from
+  lower-case host name. Given `--print-config`, each prints its settings
+  (`cert-renew.sh` also the lego command) and changes nothing.
+  `foa-cert-renew.service` reads optional settings from
   `/etc/foa/db-host.env` (not secret), for example:
 
   ```sh
@@ -379,6 +380,11 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
     /srv/foa/docker/scripts/cert-renew.sh --print-config
   ```
 
+  Only that service reads the file. Run by hand, the scripts take
+  `FOA_DB_DOMAIN` from the environment, so if the file sets it, export the
+  same value first. (`smoke-test.sh` stops when a URL in `vercel-urls.env`
+  names another host.)
+
 - Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`).
   Not DNS-01: that would need an account-wide Vercel token on this box. No
   ACME account e-mail is registered (set `FOA_ACME_EMAIL` to add one).
@@ -389,9 +395,11 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
     writes the challenge into `FOA_ACME_WEBROOT` (default
     `/var/lib/foa/acme-webroot`), and that server must serve the directory's
     `/.well-known/acme-challenge/` on port 80 for every name on the
-    certificate. foa-caddy (compose project `foa-edge`, whose files aren't in
-    this repo yet) mounts the directory read-only at `/srv/acme` and has a
-    site block for each name:
+    certificate. The webroot must be a directory under `/var/lib/foa`: the
+    run makes it root's with mode 0755, even one that already exists.
+    foa-caddy (compose project `foa-edge`, whose files aren't in this repo
+    yet) mounts the directory read-only at `/srv/acme` and has a site block
+    for each name:
 
     ```caddyfile
     http://db.friendsofanimals.dev {
@@ -406,8 +414,13 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
     ```
 - `FOA_DB_DOMAIN_ALIASES` (space-separated) puts more names on the same
   certificate, after the host: PgBouncer serves one certificate, so a host
-  name being retired keeps working until it is dropped from the list. Every
-  name must resolve to this host when lego renews, or the whole order fails.
+  name being retired keeps working until it is dropped from the list. The
+  certificate holds exactly the host and these names (lego
+  `--force-cert-domains`; a name listed twice counts once). The first run
+  after the list changes re-issues it, with a new name added or a dropped
+  one taken off. Every name must resolve to this host whenever lego orders,
+  or the whole order fails, so drop a name from the list before its DNS
+  goes.
 - Port 80 must get through the host's INPUT filter: on Fedora that is the
   `http` service in firewalld's public zone (Firewall, below); on Ubuntu ufw
   is inactive. `cert-renew.sh` warns, and changes nothing, when firewalld's
@@ -417,14 +430,16 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
   and port 80 answers on the IPv4 address only.
 - `foa-cert-renew.timer` runs `scripts/cert-renew.sh` daily: `lego run
   --renew-days 30` renews below 30 days left (or when the CA's renewal info
-  asks), then `scripts/install-cert.sh` copies cert + key into
-  `/etc/foa/pgbouncer-tls` if they changed and sends SIGHUP (RELOAD) to
-  PgBouncer. New connections get the new certificate; open ones keep theirs.
+  asks, or the names changed), then `scripts/install-cert.sh` copies cert +
+  key into `/etc/foa/pgbouncer-tls` if they changed and sends SIGHUP
+  (RELOAD) to PgBouncer. New connections get the new certificate; open ones
+  keep theirs.
 - A certificate issued elsewhere (for example from Caddy's storage) goes in
   with `FOA_CERT_CRT=<crt> FOA_CERT_KEY=<key> scripts/install-cert.sh`: the
   same key match check, owners, modes and reload. It refuses one variable
-  without the other, or a missing or empty file. `cert-renew.sh` always
-  installs lego's pair.
+  without the other, a missing or empty file, or a certificate that doesn't
+  name `FOA_DB_DOMAIN` or has a day or less left (exit 1, nothing
+  installed). `cert-renew.sh` always installs lego's pair.
 - Let's Encrypt lifetimes drop to 64 days on 2027-02-10 and 45 days on
   2028-02-16; the daily timer covers both. Watch `journalctl -u
   foa-cert-renew` (alerting is a TODO).

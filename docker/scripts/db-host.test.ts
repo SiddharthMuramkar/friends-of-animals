@@ -17,7 +17,7 @@ import { afterAll, describe, expect, it } from "vitest";
 // FOA_DB_DOMAIN, through db-host.sh, which also checks it. `--print-config`
 // resolves and checks a script's settings, prints them as name=value lines
 // and exits before it touches /etc, docker or the network, so these tests
-// run anywhere, as any user.
+// run anywhere, as any user. They need openssl, as install-cert.sh does.
 
 const PRODUCTION_HOST = "db.friendsofanimals.dev";
 const SCRIPTS = [
@@ -159,6 +159,43 @@ describe("install-cert.sh", () => {
   writeFileSync(key, "key\n");
   writeFileSync(empty, "");
 
+  /** A self-signed certificate for `names`, valid for `days`, and its key. */
+  function issue(file: string, days: number, ...names: string[]) {
+    const pair = {
+      crt: join(dir, `${file}.crt`),
+      key: join(dir, `${file}.key`),
+    };
+    const openssl = spawnSync(
+      "openssl",
+      [
+        "req",
+        "-x509",
+        "-newkey",
+        "ec",
+        "-pkeyopt",
+        "ec_paramgen_curve:P-256",
+        "-nodes",
+        "-days",
+        String(days),
+        "-subj",
+        `/CN=${names[0]}`,
+        "-addext",
+        `subjectAltName=${names.map((name) => `DNS:${name}`).join(",")}`,
+        "-keyout",
+        pair.key,
+        "-out",
+        pair.crt,
+      ],
+      { encoding: "utf8" }
+    );
+    if (openssl.error) throw openssl.error;
+    if (openssl.status !== 0) throw new Error(`openssl: ${openssl.stderr}`);
+    // A throwaway key, readable by nobody (the scripts' user under root).
+    chmodSync(pair.key, 0o644);
+    return pair;
+  }
+  const issued = issue("issued", 30, PRODUCTION_HOST, "db.old.example");
+
   it("installs lego's certificate for db.friendsofanimals.dev by default", () => {
     expect(printConfig("install-cert.sh")).toMatchObject({
       status: 0,
@@ -187,11 +224,62 @@ describe("install-cert.sh", () => {
 
   it("installs an issued pair from FOA_CERT_CRT and FOA_CERT_KEY instead of lego's", () => {
     expect(
-      printConfig("install-cert.sh", { FOA_CERT_CRT: crt, FOA_CERT_KEY: key })
+      printConfig("install-cert.sh", {
+        FOA_CERT_CRT: issued.crt,
+        FOA_CERT_KEY: issued.key,
+      })
     ).toMatchObject({
       status: 0,
-      config: { domain: PRODUCTION_HOST, source: "override", crt, key },
+      config: {
+        domain: PRODUCTION_HOST,
+        source: "override",
+        crt: issued.crt,
+        key: issued.key,
+      },
     });
+  });
+
+  it("installs an issued pair whose other names include FOA_DB_DOMAIN", () => {
+    expect(
+      printConfig("install-cert.sh", {
+        FOA_DB_DOMAIN: "db.old.example",
+        FOA_CERT_CRT: issued.crt,
+        FOA_CERT_KEY: issued.key,
+      })
+    ).toMatchObject({
+      status: 0,
+      config: { domain: "db.old.example", source: "override" },
+    });
+  });
+
+  // PgBouncer would serve it, and every verify-full client would refuse it.
+  // --print-config runs the same checks before it prints anything.
+  it.each([
+    [
+      "a certificate for another host",
+      () => issue("other-host", 30, "db.example.test"),
+      /is not a certificate for db\.friendsofanimals\.dev; not installing/,
+    ],
+    [
+      "a file that isn't a certificate",
+      () => ({ crt, key: issued.key }),
+      /is not a certificate for db\.friendsofanimals\.dev; not installing/,
+    ],
+    [
+      "a certificate that runs out within a day",
+      () => issue("last-day", 1, PRODUCTION_HOST),
+      /has run out or runs out within a day; not installing/,
+    ],
+  ])("refuses an issued pair with %s", (_, pair, message) => {
+    const { crt: certificate, key: privateKey } = pair();
+    const run = printConfig("install-cert.sh", {
+      FOA_CERT_CRT: certificate,
+      FOA_CERT_KEY: privateKey,
+    });
+    expect(run.status).toBe(1);
+    expect(run.stdout).toBe("");
+    expect(run.stderr).toContain(certificate);
+    expect(run.stderr).toMatch(message);
   });
 
   it.each([
@@ -251,6 +339,52 @@ describe("cert-renew.sh", () => {
     });
   });
 
+  /** The names in the lego command (`lego=`), in order. */
+  const orderedNames = (lego: string) => {
+    const args = lego.split(" ");
+    return args.flatMap((arg, at) =>
+      arg === "--domains" ? [args[at + 1]] : []
+    );
+  };
+
+  // A renewal keeps every name already on the certificate unless lego gets
+  // --force-cert-domains. Without it, a name dropped from the list would stay
+  // on, and every renewal would fail once that name stops resolving here.
+  it.each([
+    [
+      "while it lists an alias",
+      "db.old.example",
+      [PRODUCTION_HOST, "db.old.example"],
+    ],
+    ["once the alias is dropped", "", [PRODUCTION_HOST]],
+  ])(
+    "has lego put exactly FOA_DB_DOMAIN and FOA_DB_DOMAIN_ALIASES on the certificate, %s",
+    (_, aliases, names) => {
+      const run = printConfig("cert-renew.sh", {
+        FOA_DB_DOMAIN_ALIASES: aliases,
+      });
+      expect(run.status).toBe(0);
+      expect(run.config.lego.split(" ")).toContain("--force-cert-domains");
+      expect(orderedNames(run.config.lego)).toEqual(names);
+    }
+  );
+
+  // lego compares the names it gets with the certificate's, a repeat
+  // included, so a name listed twice would re-issue it on every run.
+  it("asks for each name once", () => {
+    const run = printConfig("cert-renew.sh", {
+      FOA_DB_DOMAIN_ALIASES: `db.old.example ${PRODUCTION_HOST} db.old.example`,
+    });
+    expect(run).toMatchObject({
+      status: 0,
+      config: { domains: `${PRODUCTION_HOST} db.old.example` },
+    });
+    expect(orderedNames(run.config.lego)).toEqual([
+      PRODUCTION_HOST,
+      "db.old.example",
+    ]);
+  });
+
   it("uses the staging CA and its own directory with --staging", () => {
     expect(printConfig("cert-renew.sh", {}, "--staging")).toMatchObject({
       status: 0,
@@ -304,13 +438,33 @@ describe("cert-renew.sh", () => {
     expect(
       printConfig("cert-renew.sh", {
         FAKE_SS_LISTENERS: "LISTEN 0      4096   *:80      *:*\n",
-        FOA_ACME_WEBROOT: "/srv/acme",
+        FOA_ACME_WEBROOT: "/var/lib/foa/acme-challenges",
       })
     ).toMatchObject({
       status: 0,
-      config: { challenge: "webroot", webroot: "/srv/acme" },
+      config: { challenge: "webroot", webroot: "/var/lib/foa/acme-challenges" },
     });
   });
+
+  // The run makes the webroot root's with mode 0755 (an existing directory
+  // too) and mounts it read-write into the lego container.
+  it.each([
+    "/",
+    "/etc/foa",
+    "/var/lib/foa",
+    "/var/lib/foa/../../etc/foa",
+    "/srv/acme",
+  ])(
+    "refuses FOA_ACME_WEBROOT=%s, which isn't a directory under /var/lib/foa",
+    (webroot) => {
+      const run = printConfig("cert-renew.sh", { FOA_ACME_WEBROOT: webroot });
+      expect(run.status).toBe(2);
+      expect(run.stdout).toBe("");
+      expect(run.stderr).toMatch(
+        /^cert-renew: FOA_ACME_WEBROOT: .+ is not a directory under \/var\/lib\/foa/
+      );
+    }
+  );
 
   it("refuses an unknown argument", () => {
     const run = printConfig("cert-renew.sh", {}, "--force");
@@ -339,14 +493,26 @@ describe("cert-renew.sh", () => {
     );
   });
 
-  it("refuses an FOA_ACME_WEBROOT with a comment after it", () => {
+  // `read` would take the first line and drop the names after it.
+  it("refuses FOA_DB_DOMAIN_ALIASES on more than one line", () => {
     const run = printConfig("cert-renew.sh", {
-      FOA_ACME_WEBROOT: "/srv/acme   # served by foa-caddy",
+      FOA_DB_DOMAIN_ALIASES: "db.old.example\ndb.older.example",
     });
     expect(run.status).toBe(2);
     expect(run.stdout).toBe("");
     expect(run.stderr).toMatch(
-      /^cert-renew: FOA_ACME_WEBROOT: .+ is not an absolute path/
+      /^cert-renew: FOA_DB_DOMAIN_ALIASES: .+ is more than one line/
+    );
+  });
+
+  it("refuses an FOA_ACME_WEBROOT with a comment after it", () => {
+    const run = printConfig("cert-renew.sh", {
+      FOA_ACME_WEBROOT: "/var/lib/foa/acme-webroot   # served by foa-caddy",
+    });
+    expect(run.status).toBe(2);
+    expect(run.stdout).toBe("");
+    expect(run.stderr).toMatch(
+      /^cert-renew: FOA_ACME_WEBROOT: .+ is not a directory under \/var\/lib\/foa/
     );
   });
 
@@ -359,6 +525,18 @@ describe("cert-renew.sh", () => {
   it("refuses an FOA_ACME_EMAIL with a comment after it", () => {
     const run = printConfig("cert-renew.sh", {
       FOA_ACME_EMAIL: "ops@example.test         # ACME account e-mail",
+    });
+    expect(run.status).toBe(2);
+    expect(run.stdout).toBe("");
+    expect(run.stderr).toMatch(
+      /^cert-renew: FOA_ACME_EMAIL: .+ is not an e-mail address/
+    );
+  });
+
+  // lego would read it as an option, not as the address.
+  it("refuses an FOA_ACME_EMAIL that starts with '-'", () => {
+    const run = printConfig("cert-renew.sh", {
+      FOA_ACME_EMAIL: "--server=x@evil.example",
     });
     expect(run.status).toBe(2);
     expect(run.stdout).toBe("");

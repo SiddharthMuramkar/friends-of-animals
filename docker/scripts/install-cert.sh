@@ -4,7 +4,9 @@
 # The host is FOA_DB_DOMAIN (default db.friendsofanimals.dev). The pair to
 # install is lego's for that host (/etc/foa/lego/certificates/<host>.crt and
 # .key), or an already issued certificate and key named by FOA_CERT_CRT and
-# FOA_CERT_KEY (for example from Caddy's storage). Set both or neither.
+# FOA_CERT_KEY (for example from Caddy's storage). Set both or neither. Such
+# a pair must name the host and have more than a day left, or nothing is
+# installed (exit 1): verify-full clients would refuse it.
 #
 # Copies the pair into /etc/foa/pgbouncer-tls (mounted read-only into the
 # pgbouncer container) when it changed and the certificate matches the key,
@@ -18,8 +20,8 @@
 # to the placeholder.
 #
 # Usage: sudo install-cert.sh [--print-config]   (also run by cert-renew.sh)
-#   --print-config  print the settings (host, pair to install) and exit;
-#                   changes nothing
+#   --print-config  check a FOA_CERT_* pair, print the settings (host, pair
+#                   to install) and exit; changes nothing
 set -euo pipefail
 umask 077
 
@@ -54,6 +56,18 @@ if [ -n "${FOA_CERT_CRT:-}" ] || [ -n "${FOA_CERT_KEY:-}" ]; then
       exit 1
     fi
   done
+  # Two runs, and the host check's answer is read: openssl x509 skips
+  # -checkhost when -checkend is given, and before OpenSSL 3.2 it exits 0
+  # when the name doesn't match.
+  if [ "$(openssl x509 -noout -checkhost "$DOMAIN" -in "$src_crt" 2>/dev/null)" != \
+    "Hostname $DOMAIN does match certificate" ]; then
+    echo "install-cert: $src_crt is not a certificate for $DOMAIN; not installing" >&2
+    exit 1
+  fi
+  if ! openssl x509 -noout -checkend 86400 -in "$src_crt" >/dev/null 2>&1; then
+    echo "install-cert: $src_crt has run out or runs out within a day; not installing" >&2
+    exit 1
+  fi
 else
   pair=lego
   src_crt="$LEGO_DIR/certificates/$DOMAIN.crt"
