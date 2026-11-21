@@ -25,7 +25,7 @@ async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {
 }
 
 describe("seedPreview", () => {
-  it("creates a super admin and three members", async () => {
+  it("creates a super admin, three members and a principal", async () => {
     const deps = await seedDeps();
     await seedPreview(deps);
 
@@ -33,6 +33,7 @@ describe("seedPreview", () => {
       "member1@example.test",
       "member2@example.test",
       "member3@example.test",
+      "principal@example.test",
       "super-admin@example.test",
     ]);
   });
