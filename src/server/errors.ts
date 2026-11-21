@@ -13,15 +13,19 @@ export class DomainError extends Error {
   }
 }
 
-/** A five-character SQLSTATE, as Postgres drivers put on `code`. */
-function postgresCode(value: unknown): string | undefined {
-  if (typeof value !== "object" || value === null || !("code" in value)) {
-    return undefined;
+/**
+ * The Postgres error code (a five-character SQLSTATE) on a driver error, or
+ * on an error it wraps (a DrizzleQueryError's `cause`).
+ */
+export function sqlState(error: unknown): string | undefined {
+  let current = error;
+  for (let depth = 0; depth < 3; depth++) {
+    if (typeof current !== "object" || current === null) return undefined;
+    const code = "code" in current ? current.code : undefined;
+    if (typeof code === "string" && /^[0-9A-Z]{5}$/.test(code)) return code;
+    current = "cause" in current ? current.cause : undefined;
   }
-  const { code } = value;
-  return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code)
-    ? code
-    : undefined;
+  return undefined;
 }
 
 /**
@@ -33,6 +37,6 @@ export function errorSummaryForLogs(error: unknown): string {
   if (!(error instanceof Error)) return `a thrown ${typeof error}`;
   const name =
     error.constructor.name === "Error" ? error.name : error.constructor.name;
-  const code = postgresCode(error) ?? postgresCode(error.cause);
+  const code = sqlState(error);
   return code ? `${name} (Postgres ${code})` : name;
 }

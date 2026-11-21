@@ -3,6 +3,7 @@ import { connection, type NextRequest } from "next/server";
 import { env } from "@/env";
 import { db } from "@/server/db";
 import { readMailbox } from "@/server/mailbox/read-mailbox";
+import { systemClock } from "@/server/ports/clock";
 
 // The capture mailbox for the Seam 2 journeys: GET with the address in the
 // x-capture-mailbox-to header (not the URL, which request logs keep) and the
@@ -17,12 +18,15 @@ export async function GET(request: NextRequest) {
   // Wait for a real request, so `next build` never prerenders this.
   await connection();
   const config = env();
-  const result = await readMailbox(db, {
-    appEnv: config.APP_ENV,
-    configuredToken: config.CAPTURE_MAILBOX_TOKEN,
-    providedToken: request.headers.get("x-capture-mailbox-token"),
-    to: request.headers.get("x-capture-mailbox-to"),
-  });
+  const result = await readMailbox(
+    { db, clock: systemClock },
+    {
+      appEnv: config.APP_ENV,
+      configuredToken: config.CAPTURE_MAILBOX_TOKEN,
+      providedToken: request.headers.get("x-capture-mailbox-token"),
+      to: request.headers.get("x-capture-mailbox-to"),
+    }
+  );
   return result.status === 200
     ? Response.json(result.body, { headers })
     : new Response(null, { status: result.status, headers });

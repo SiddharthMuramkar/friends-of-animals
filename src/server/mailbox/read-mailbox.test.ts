@@ -29,16 +29,16 @@ const request = {
 
 describe("readMailbox", () => {
   it("gives the token holder an address's newest messages", async () => {
-    const { db, clock } = await mailboxWithOneCode();
+    const mailbox = await mailboxWithOneCode();
 
-    expect(await readMailbox(db, request)).toEqual({
+    expect(await readMailbox(mailbox, request)).toEqual({
       status: 200,
       body: {
         messages: [
           {
             subject: "Your sign-in code",
             text: "Your sign-in code is 482913.",
-            sentAt: clock.now().toISOString(),
+            sentAt: mailbox.clock.now().toISOString(),
           },
         ],
       },
@@ -46,16 +46,16 @@ describe("readMailbox", () => {
   });
 
   it("does not exist in production, even with the token", async () => {
-    const { db } = await mailboxWithOneCode();
-    expect(await readMailbox(db, { ...request, appEnv: "production" })).toEqual(
-      { status: 404 }
-    );
+    const mailbox = await mailboxWithOneCode();
+    expect(
+      await readMailbox(mailbox, { ...request, appEnv: "production" })
+    ).toEqual({ status: 404 });
   });
 
   it("stays closed while no token is configured", async () => {
-    const { db } = await mailboxWithOneCode();
+    const mailbox = await mailboxWithOneCode();
     expect(
-      await readMailbox(db, { ...request, configuredToken: undefined })
+      await readMailbox(mailbox, { ...request, configuredToken: undefined })
     ).toEqual({ status: 404 });
   });
 
@@ -64,15 +64,15 @@ describe("readMailbox", () => {
     ["a wrong token", "capture-mailbox-token-0123456789abcdeX"],
     ["a token of another length", "short"],
   ])("refuses %s", async (_, providedToken) => {
-    const { db } = await mailboxWithOneCode();
-    expect(await readMailbox(db, { ...request, providedToken })).toEqual({
+    const mailbox = await mailboxWithOneCode();
+    expect(await readMailbox(mailbox, { ...request, providedToken })).toEqual({
       status: 401,
     });
   });
 
   it("asks for an address to read", async () => {
-    const { db } = await mailboxWithOneCode();
-    expect(await readMailbox(db, { ...request, to: null })).toEqual({
+    const mailbox = await mailboxWithOneCode();
+    expect(await readMailbox(mailbox, { ...request, to: null })).toEqual({
       status: 400,
     });
   });
