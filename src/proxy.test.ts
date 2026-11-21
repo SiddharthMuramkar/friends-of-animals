@@ -170,9 +170,9 @@ describe("proxy: the file upload demo", () => {
       expect(getRewrittenUrl(response)).toBe(
         "https://foa.example.test/__not-found"
       );
-      expect(response.headers.get("content-security-policy")).toBe(
-        publicCsp(cspContext()).value
-      );
+      // Production only reports, so the policy's own key names the header.
+      const policy = publicCsp(cspContext());
+      expect(response.headers.get(policy.key)).toBe(policy.value);
       expect(response.headers.get("location")).toBeNull();
     }
   });
