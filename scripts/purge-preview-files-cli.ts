@@ -88,7 +88,12 @@ export async function runPurgePreviewFiles({
 
   try {
     const { prefix, deleted } = await purgePreviewFiles(
-      { storage, bucket: config.R2_BUCKET, appEnv: config.APP_ENV },
+      {
+        storage,
+        bucket: config.R2_BUCKET,
+        // Unset means a local run, as everywhere else.
+        appEnv: config.APP_ENV ?? "local",
+      },
       { database: args.database }
     );
     log(

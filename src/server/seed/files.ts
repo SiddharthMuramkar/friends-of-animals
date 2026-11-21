@@ -6,10 +6,12 @@
 // database is dropped. Loads under plain Node (the seed script): relative
 // imports only, no "server-only".
 
-import type { DatabaseEnv } from "../db/database-url";
 import { fileAsset } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
-import { storageKeyFor, storagePrefixFor } from "../modules/files/domain/storage-key";
+import {
+  storageKeyFor,
+  storagePrefixFor,
+} from "../modules/files/domain/storage-key";
 import { SEED_ACCOUNTS } from "./accounts";
 import type { Seeder } from "./types";
 
@@ -30,7 +32,7 @@ export type SeedFilesLocation = { bucket: string; keyPrefix: string };
  * the deployment's variables, before the app starts.
  */
 export function seedFilesLocation(
-  env: DatabaseEnv & { R2_BUCKET?: string | undefined } = process.env
+  env: Readonly<Record<string, string | undefined>> = process.env
 ): SeedFilesLocation {
   return {
     bucket: env.R2_BUCKET || "unconfigured",
