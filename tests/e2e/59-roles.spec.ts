@@ -87,6 +87,10 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   await expect(grantForm.getByRole("alert")).not.toContainText(
     "scope_not_allowed"
   );
+  // What was entered stays, so only the role needs changing.
+  await expect(
+    grantForm.getByRole("combobox", { name: "Where it applies" })
+  ).toHaveValue("institution");
   await expectAccessible(page, "/admin/roles, a refused grant");
 
   // Institution coordinator at the seeded institution: listed at once.
@@ -101,6 +105,11 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
     .getByRole("listitem")
     .filter({ hasText: COORDINATOR });
   await expect(coordinator).toContainText("by Seed Super Admin");
+  // The form starts afresh: the earlier refusal is gone.
+  await expect(grantForm.getByRole("alert")).toHaveCount(0);
+  await expect(grantForm.getByRole("combobox", { name: "Role" })).toHaveValue(
+    ""
+  );
   await expectAccessible(page, "/admin/roles with a grant");
   await expectAccessibleInDark(page, "/admin/roles with a grant");
   await expectNoSidewaysScrollAt320(page, "/admin/roles with a grant");

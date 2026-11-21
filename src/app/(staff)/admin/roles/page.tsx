@@ -150,7 +150,15 @@ async function Roles({ searchParams }: { searchParams: SearchParams }) {
 
       {found.ok ? <Found users={found.users} params={params} /> : null}
 
-      {chosen ? <Chosen result={chosen} params={params} /> : null}
+      {chosen ? (
+        // A new key after each change, so its forms start afresh: a
+        // refusal shown before a grant that worked mustn't linger.
+        <Chosen
+          key={`${params.user}:${params.at ?? ""}`}
+          result={chosen}
+          params={params}
+        />
+      ) : null}
     </div>
   );
 }
