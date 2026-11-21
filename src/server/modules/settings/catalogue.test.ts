@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
+import type { AppDb } from "../../db/app-db";
 import { isSettingKey, SETTING_KEYS, SETTINGS } from "./catalogue";
+import { readSetting } from "./read";
 
 describe("the settings catalogue", () => {
   it("holds the first settings with their documented defaults", () => {
@@ -35,5 +37,19 @@ describe("the settings catalogue", () => {
     expect(isSettingKey("sms.disabled")).toBe(false);
     expect(isSettingKey("toString")).toBe(false);
     expect(isSettingKey("__proto__")).toBe(false);
+  });
+
+  it("types app code's reads: catalogue keys only, each with its own value type", () => {
+    // pnpm typecheck is the assertion: nothing here reads a database.
+    expectTypeOf(
+      readSetting<"auth.staffSessionHours">
+    ).returns.resolves.toEqualTypeOf<number>();
+    expectTypeOf(
+      readSetting<"sms.enabled">
+    ).returns.resolves.toEqualTypeOf<boolean>();
+    const readUnknown = (db: AppDb) =>
+      // @ts-expect-error "org.unknown" isn't in the catalogue
+      readSetting(db, "org.unknown");
+    expectTypeOf(readUnknown).toBeFunction();
   });
 });
