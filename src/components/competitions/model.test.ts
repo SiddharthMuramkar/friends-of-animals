@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import { SAMPLE_COMPETITIONS } from "@/content/sample";
+import { placeholder } from "@/lib/site";
 
 import {
   ageRange,
   coverFor,
   fileRules,
+  fromPublic,
   fromSample,
   nextKeyDate,
   primaryAction,
   timeline,
   type KeyDate,
+  type PublishedCompetition,
 } from "./model";
 
 const open = SAMPLE_COMPETITIONS.find((c) => c.status === "REGISTRATION_OPEN")!;
@@ -144,5 +147,106 @@ describe("fileRules", () => {
     expect(essay.maxWords).toBe(1000);
     expect(essay.minPx).toBeUndefined();
     expect(fileRules(["DRAWING"])[0].maxWords).toBeUndefined();
+  });
+});
+
+describe("fromPublic", () => {
+  const published: PublishedCompetition = {
+    id: "0190f5a2-0000-7000-8000-000000000001",
+    code: "NEIGH27",
+    slug: "neighbours-on-my-street",
+    name: "Neighbours on My Street",
+    theme: "Show one kind thing you do for an animal on your street.",
+    welfareMessage: "Watch from a distance.\n\nTell a grown-up.",
+    status: "published",
+    participation: "both",
+    disciplines: ["drawing", "photography"],
+    ageGroups: [
+      { label: "Group A", minAge: 5, maxAge: 8 },
+      { label: "Group B", minAge: 9, maxAge: 12 },
+    ],
+    categories: [
+      { discipline: "drawing", ageGroup: "Group A" },
+      { discipline: "drawing", ageGroup: "Group B" },
+      { discipline: "photography", ageGroup: "Group B" },
+    ],
+    ageCutoffDate: "2027-01-01",
+    rules: "One entry per category.",
+    permittedMaterials: "Pencils, crayons, a phone camera.",
+    duration: "Two weeks",
+    digitalScope: "all_participants",
+    shortlistPerCategory: 5,
+    schoolPositions: 3,
+    physicalArtwork: { kind: "top_n", count: 2 },
+    publicDisplay: true,
+    auctionPermitted: false,
+    keyDates: [
+      { kind: "registration_opens", at: new Date("2026-12-01T03:30:00Z") },
+      { kind: "registration_closes", at: new Date("2027-01-15T18:29:00Z") },
+      { kind: "submissions_close", at: new Date("2027-02-05T11:30:00Z") },
+      { kind: "school_round_closes", at: new Date("2027-02-20T11:30:00Z") },
+    ],
+    publishedAt: new Date("2026-11-21T04:30:00Z"),
+  };
+
+  it("maps a published competition onto the UI's words, with ISO dates", () => {
+    const view = fromPublic(published);
+    expect(view).toEqual({
+      slug: "neighbours-on-my-street",
+      name: "Neighbours on My Street",
+      theme: published.theme,
+      status: "PUBLISHED",
+      sample: false,
+      coverImageId: coverFor(["DRAWING"]),
+      disciplines: ["DRAWING", "PHOTOGRAPHY"],
+      ageGroups: published.ageGroups,
+      routes: [
+        { route: "INSTITUTION", fee: placeholder("feeSchool") },
+        { route: "INDIVIDUAL", fee: placeholder("feeIndividual") },
+      ],
+      keyDates: [
+        { kind: "registrationOpens", at: "2026-12-01T03:30:00.000Z" },
+        { kind: "registrationCloses", at: "2027-01-15T18:29:00.000Z" },
+        { kind: "entriesClose", at: "2027-02-05T11:30:00.000Z" },
+        { kind: "shortlistCloses", at: "2027-02-20T11:30:00.000Z" },
+      ],
+      welfareMessage: published.welfareMessage,
+      categories: [
+        { discipline: "DRAWING", ageGroup: "Group A" },
+        { discipline: "DRAWING", ageGroup: "Group B" },
+        { discipline: "PHOTOGRAPHY", ageGroup: "Group B" },
+      ],
+      ageCutoffDate: "2027-01-01",
+      rules: published.rules,
+      permittedMaterials: published.permittedMaterials,
+      duration: "Two weeks",
+      digitalScope: "all_participants",
+      shortlistPerCategory: 5,
+      schoolPositions: 3,
+      physicalArtwork: { kind: "top_n", count: 2 },
+      publicDisplay: true,
+      auctionPermitted: false,
+    });
+  });
+
+  it("offers only the ways in the competition allows", () => {
+    const routes = (participation: PublishedCompetition["participation"]) =>
+      fromPublic({ ...published, participation }).routes.map((r) => r.route);
+    expect(routes("individuals")).toEqual(["INDIVIDUAL"]);
+    expect(routes("institutions")).toEqual(["INSTITUTION"]);
+    expect(routes("both")).toEqual(["INSTITUTION", "INDIVIDUAL"]);
+  });
+
+  it("survives JSON, as a cached read's result must", () => {
+    const view = fromPublic(published);
+    expect(JSON.parse(JSON.stringify(view))).toEqual(view);
+  });
+
+  it("fills the card fields the list's filters read", () => {
+    const view = fromPublic(published);
+    expect(
+      nextKeyDate(view.keyDates, new Date("2026-12-10T00:00:00Z"))
+    ).toEqual({ kind: "registrationCloses", at: "2027-01-15T18:29:00.000Z" });
+    expect(ageRange(view.ageGroups)).toEqual({ min: 5, max: 12 });
   });
 });
