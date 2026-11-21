@@ -78,6 +78,10 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_nonprod_staging_migrator_password` | 999, 0400       | `staging_migrator`                    |
 | `/etc/foa/secrets/pg_nonprod_staging_app_password`      | 999, 0400       | `staging_app`                         |
 | `/etc/foa/secrets/pgbouncer_auth_password`              | 999, 0400       | `pgbouncer_auth` on both servers      |
+| `/etc/foa/secrets/pg_prod_foa_worker_password`          | 1000, 0400      | `foa_worker` (worker-prod)            |
+| `/etc/foa/secrets/pg_nonprod_staging_worker_password`   | 1000, 0400      | `staging_worker` (worker-staging)     |
+| `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
+| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for all three workers   |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
 | `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
@@ -85,7 +89,9 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/lego/`                                        | root, 0700      | ACME account key, certificate, key    |
 | `/etc/foa/pgbouncer-tls/`                               | root:6432, 0750 | Installed cert (0444) and key (0400)  |
 
-999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours.
+999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours;
+1000 is `node` in the worker image. The worker secrets come from
+`scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`.
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
@@ -305,6 +311,9 @@ Roles and databases (`postgres/bootstrap/`):
 | pg-nonprod | `staging_app`      | LOGIN; CONNECT on `foa_staging`; same DML-only defaults (`FOR ROLE staging_migrator`). pg_hba: `foa_staging` only                                                                                                                 |
 | pg-nonprod | `nonprod_migrator` | Previews. LOGIN CREATEDB; owns `foa_seed` and the previews it creates; CONNECT on `postgres`. No CONNECT on `foa_staging`, and pg_hba rejects it there                                                                            |
 | pg-nonprod | `nonprod_app`      | Previews. LOGIN; same DML-only defaults (`FOR ROLE nonprod_migrator`); kept out of `foa_staging` the same way                                                                                                                     |
+| pg-prod    | `foa_worker`       | worker-prod. LOGIN; member of `foa_app` (DML); owns schema `pgboss` in `foa`. `workers-prod.sql`                                                                                                                                  |
+| pg-nonprod | `staging_worker`   | worker-staging. LOGIN; member of `staging_app`; owns schema `pgboss` in `foa_staging`. pg_hba: `foa_staging` only. `workers-nonprod.sql`                                                                                          |
+| pg-nonprod | `nonprod_worker`   | worker-preview. LOGIN; member of `nonprod_app`; CONNECT on `postgres` (lists previews) and, through PUBLIC, on each preview. Never `foa_staging`. `workers-nonprod.sql`                                                           |
 | both       | `pgbouncer_auth`   | LOGIN NOINHERIT; CONNECT on `postgres`; EXECUTE `pgbouncer.get_auth`                                                                                                                                                              |
 | both       | `postgres`         | superuser: container socket, or TCP from 10.112.12.1 (SSH tunnel) only                                                                                                                                                            |
 
@@ -643,6 +652,114 @@ prints what it would drop. Unauthenticated GitHub API calls are limited to 60
 an hour; with many open previews, or if the repo goes private, put a read-only
 `GITHUB_TOKEN=...` in `/etc/foa/sweeper.env` (0600).
 
+## Workers
+
+`workers.yml` (Compose project `foa-workers`, issue #61) runs the background
+workers next to the database stack, on its `db` network (`foa-vps_db`, so
+start `compose.yml` first). Each runs `src/worker/main.ts` from the
+Dockerfile's `worker` target, drains its database's outbox every 5 s and
+connects to Postgres directly, never through PgBouncer: pg-boss holds
+sessions, which transaction pooling breaks. None publishes a port.
+
+| Service          | Database                       | Role             | Does                                 | Limits          |
+| ---------------- | ------------------------------ | ---------------- | ------------------------------------ | --------------- |
+| `worker-prod`    | pg-prod `foa`                  | `foa_worker`     | outbox relay, `SCHEDULES` on pg-boss | 1 CPU, 512 MB   |
+| `worker-staging` | pg-nonprod `foa_staging`       | `staging_worker` | outbox relay, `SCHEDULES` on pg-boss | 0.5 CPU, 384 MB |
+| `worker-preview` | pg-nonprod, every live preview | `nonprod_worker` | outbox relay only, 1 connection each | 0.5 CPU, 512 MB |
+
+- **Health:** after each healthy poll the worker touches
+  `/tmp/foa-worker-heartbeat` (a tmpfs; the root file system is read-only),
+  and the health check passes while it is under 120 s old. Single-database
+  workers stop touching it while their database fails; `worker-preview`
+  while it can't list the previews (one broken preview doesn't count). Each
+  poll also upserts the worker's row in `worker_heartbeat` in every database
+  it drains (worker, environment, last seen, version), which
+  `/api/health/worker` reads ("Monitoring and alerts").
+  `restart: unless-stopped` restarts a worker that exits; Docker doesn't
+  restart an unhealthy one, so watch `docker ps`.
+- **Logs:** one JSON object per line (`event`, `database`, counts), with
+  error classes and codes but never messages or addresses; in the host's
+  journal for a year ("Logs").
+- **Errors:** a failed tick (once, until that database recovers), an
+  uncaught exception or unhandled rejection (then the worker exits 1 and
+  restarts), and a failed start go to Sentry, scrubbed, tagged with the
+  database and APP_ENV, when `/etc/foa/secrets/worker_sentry.env` holds
+  `SENTRY_DSN=...` (HR-22). Without it they are only logged.
+- **Email:** staging and previews capture every message in their database's
+  mailbox; production refuses until SES exists (HR-12), so its deliveries
+  retry and end `failed`, visible to staff.
+- **Schedules:** `SCHEDULES` (`src/server/outbox/schedules.ts`) is registered
+  with pg-boss in schema `pgboss` (owned by the worker role) at every start;
+  a schedule removed from the code is unscheduled. Previews run none.
+
+### Preview databases: attach and detach
+
+There are no Vercel previews today
+(`docs/adr/0001-ci-e2e-and-prebuilt-deploys.md`), so `worker-preview` finds
+no preview database and idles, still healthy. If previews come back, it
+behaves as follows.
+
+`worker-preview` lists pg-nonprod's databases every 60 s from `postgres`
+and serves exactly those the sweeper would recognise: `foa_pr_<n>[_<fp>]`
+labelled `foa-preview pr=<n>`, or `foa_br_…` labelled `foa-preview
+branch=<ref>`. A new preview is attached at the next listing, with no
+manual step (its first deploy's migration creates and labels the database).
+When the sweeper drops a preview (`WITH (FORCE)` ends the worker's
+session), the next drain sees SQLSTATE 3D000 and the worker lets go at
+once; a database that just stops being listed is let go at the next
+listing. Each attach and detach is logged (`tenant.attached`,
+`tenant.detached`). The worker runs one code version for every preview:
+deliveries for handlers it doesn't have are left pending (`skipped`), and
+the preview drain route (`POST /api/preview/drain`) covers Seam 2 journeys
+meanwhile.
+
+### First start (owner, HR-07)
+
+```sh
+cd /srv/foa/docker
+docker exec foa-pg-prod psql -U postgres -c 'SELECT pg_reload_conf()'     # after git pull: pg_hba
+docker exec foa-pg-nonprod psql -U postgres -c 'SELECT pg_reload_conf()'
+scripts/worker-roles.sh               # roles + /etc/foa/secrets/*_worker_password
+WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
+  docker compose -f workers.yml up -d --build --wait
+docker compose -f workers.yml ps      # all three "healthy"
+```
+
+Then check that each single-database worker's heartbeat row is fresh (its
+`last_seen_at` moves every 5 s):
+
+```sh
+docker exec foa-pg-prod psql -U postgres -d foa -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
+docker exec foa-pg-nonprod psql -U postgres -d foa_staging -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
+```
+
+`worker-preview` writes a row only in the previews it serves, so with no
+previews it has none; `ps` showing it healthy means it can list them.
+
+### Run, restart and read the logs
+
+Run from `/srv/foa/docker`. `WORKER_VERSION` is only recorded in the
+heartbeat rows; leave it out and they say `unknown`.
+
+| Worker           | Run (build and start)                                               | Restart                                                | Logs                                                              |
+| ---------------- | ------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| `worker-prod`    | `docker compose -f workers.yml up -d --build --wait worker-prod`    | `docker compose -f workers.yml restart worker-prod`    | `docker compose -f workers.yml logs -f --tail=200 worker-prod`    |
+| `worker-staging` | `docker compose -f workers.yml up -d --build --wait worker-staging` | `docker compose -f workers.yml restart worker-staging` | `docker compose -f workers.yml logs -f --tail=200 worker-staging` |
+| `worker-preview` | `docker compose -f workers.yml up -d --build --wait worker-preview` | `docker compose -f workers.yml restart worker-preview` | `docker compose -f workers.yml logs -f --tail=200 worker-preview` |
+
+- Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
+  its poll, stops pg-boss and closes its connections within 30 s).
+- Updating: `git -C /srv/foa pull`, then the "Run" line; only a changed
+  image is recreated. All three build from `/srv/foa` (main), and each has
+  its own image (`foa-workers/worker-<name>`), so rebuilding one never swaps
+  another's.
+- Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
+- Rotating a worker password: replace its file in `/etc/foa/secrets`, rerun
+  `scripts/worker-roles.sh`, restart that worker.
+- A local run needs none of this: `pnpm worker:dev` drains the local
+  database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
+  email, and restarts on code changes.
+
 ## Checks
 
 `scripts/smoke-test.sh` runs 31 client-side checks through
@@ -660,6 +777,89 @@ afterwards. It needs the real certificate (its `verify-full` checks fail
 against the placeholder by design). The container gets the host's CA bundle
 as one file, symlinks resolved: on Fedora `/etc/ssl/certs/ca-certificates.crt`
 links into `/etc/pki/ca-trust`, which would dangle inside the container.
+
+## Monitoring and alerts
+
+Uptime checks run at an outside provider (HR-23: provider, account and
+alert target are the owner's choice), so they see what users see, and they
+only call public URLs: nothing on the VPS needs to be reachable for them.
+Each check alerts on its own, so a stalled worker never pages as "the app
+is down". Staging is `https://shipped-it.dev`; production gets the same
+app and worker checks once its domain is live.
+
+| Check  | Target                                      | Runs from                     | Alerts when                                                                                         | Alert goes to             | Silence and un-silence                                                                                                        |
+| ------ | ------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| App    | `GET` `/api/health`                         | Uptime provider, every minute | Not 200 on 2 checks in a row. 503 means the app can't query its database                            | Owner (HR-23)             | Pause the monitor (or open a maintenance window) in the provider; resume it after. A paused monitor never re-alerts by itself |
+| Pooler | TCP `db.shipped-it.dev:6432`                | Uptime provider, every minute | Connect fails on 2 checks in a row. TCP connect only, no login: probes must not fill CrowdSec's log | Owner (HR-23)             | Same as App. If CrowdSec ever bans the provider's addresses, add them to `crowdsec/foa-whitelist.yaml`                        |
+| Worker | `GET` `/api/health/worker`                  | Uptime provider, every minute | Not 200 on 2 checks in a row: 503 `stale` (newest heartbeat over 120 s old) or `missing` (none)     | Owner (HR-23)             | Same as App. Pause it while the workers are stopped on purpose, and until HR-07 first starts them                             |
+| Errors | Sentry projects for the app and the workers | Sentry (`SENTRY_DSN`, HR-22)  | A new issue, or a resolved one that comes back                                                      | Owner (Sentry alert rule) | In Sentry, Archive the issue (until it escalates, or for a time); Unarchive to hear about it again                            |
+
+`/api/health/worker` answers from the app's own database: each worker
+writes its `worker_heartbeat` row there after every poll (5 s), so the
+staging URL reports `worker-staging` and production's reports
+`worker-prod`. 200 is `{ "status": "ok", "worker": { "name", "ageSeconds" } }`;
+503 is `stale` (with the same `worker`) or `missing`. Previews are not
+monitored.
+
+**Forced failure** (HR-23, and per milestone on staging, HR-27), without
+touching production:
+
+1. Worker: `docker compose -f /srv/foa/docker/workers.yml stop worker-staging`.
+   After 120 s `https://shipped-it.dev/api/health/worker` turns 503
+   `stale`, and two failed checks later (about 4 minutes in all) the alert
+   arrives; `start worker-staging` clears it.
+2. App and pooler: add a throwaway monitor for `/api/health/does-not-exist`
+   and one for TCP `db.shipped-it.dev:6433` (closed). Both alert; delete
+   them after.
+3. Errors, with the workers' DSN set: start a throwaway staging worker
+   pointed at a port nothing listens on. It fails to start, reports that
+   to Sentry (`where` `worker.main`, `environment` `staging`) and exits 1;
+   the alert rule fires.
+
+   ```sh
+   docker compose -f /srv/foa/docker/workers.yml run --rm \
+     -e WORKER_DATABASE_URL=postgres://staging_worker@10.112.12.11:5999/foa_staging \
+     worker-staging
+   ```
+
+## Logs
+
+Logs are kept for 365 days. On the VPS they stay in the host's journal
+today; an off-box copy, and the app's logs from Vercel, go to one store
+once the owner picks it (HR-24).
+
+| Source                                                                    | Goes to                                                      | Kept                                                      | Read with                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Containers: `foa-pg-prod`, `foa-pg-nonprod`, `foa-pgbouncer`, the workers | Host journal, through Docker's journald driver (`x-logging`) | 12 to 13 months, at most 20 GiB                           | `docker logs foa-pgbouncer`, `docker compose -f /srv/foa/docker/workers.yml logs worker-staging`, `journalctl -t foa-pg-prod --since 2026-11-01`; after a container is gone, `journalctl CONTAINER_NAME=foa-pg-prod` |
+| Host units (`foa-*` timers and services, CrowdSec, sshd)                  | Host journal                                                 | Same                                                      | `journalctl -u foa-pgbackrest-full.service --since -7d`                                                                                                                                                              |
+| Restore drills                                                            | `/var/log/foa/` (never pruned)                               | Forever                                                   | See "Restore drill"                                                                                                                                                                                                  |
+| The app on Vercel (functions, builds, requests)                           | Vercel's runtime logs, then a Vercel log drain (HR-24)       | Vercel: a short, plan-bound window. Drain store: 365 days | Vercel dashboard or `vercel logs`; the store's search once the drain exists                                                                                                                                          |
+
+`docker/systemd/journald-foa.conf` sets the year (`MaxRetentionSec=1year`,
+monthly files), the 20 GiB cap and a higher rate limit, since every
+container's lines reach journald through dockerd and share one limit. If
+the cap fills first, the oldest files go early: `journalctl --disk-usage`
+shows how close it is, and the off-box store is the answer, not a bigger
+cap on the database disk. Container logs carry client IP addresses
+(PgBouncer, CrowdSec); keeping them a year waits on counsel (HR-30).
+
+Install, once (HR-24):
+
+```sh
+install -D -m 0644 /srv/foa/docker/systemd/journald-foa.conf \
+  /etc/systemd/journald.conf.d/foa.conf
+systemctl restart systemd-journald
+journalctl --disk-usage
+# Recreates the containers with the journald driver. Postgres restarts:
+# pick a quiet moment. Lines logged before the switch go with the old containers.
+docker compose -f /srv/foa/docker/compose.yml up -d --wait
+docker inspect -f '{{.HostConfig.LogConfig.Type}}' foa-pgbouncer   # journald
+```
+
+Off-box (HR-24): in Vercel, Team Settings → Drains → add a log drain for
+the project to the chosen store; on the VPS, a shipper that reads the
+journal (for example `systemd-journal-upload`, or the store's own agent)
+sends the same entries there. The store keeps 365 days.
 
 ## Analytics (Umami)
 
@@ -863,9 +1063,9 @@ bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
    (`pg_stat_archiver.failed_count`), and a periodic `pgbackrest check`. The
    restore drill cannot see archiving that has stalled, because it can only
    replay the WAL that reached the repository.
-6. The future worker connects directly on the `db` network (pg_hba already
-   allows the app roles from 10.112.12.0/24); give it its own role if it
-   needs rights beyond `foa_app`.
+6. **Workers (HR-07):** apply the roles and start `workers.yml` (Workers,
+   "First start"), and settle the CPU and memory caps there for the shared
+   VPS.
 7. **One build per branch** (owner): Vercel → Project Settings → Build and
    Deployment → On-Demand Concurrent Builds → "Run up to one build per
    branch". The API refused the change for lack of permission. Meanwhile the
