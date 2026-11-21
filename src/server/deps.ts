@@ -10,6 +10,7 @@ import "server-only";
 
 import { env } from "@/env";
 import type { Env } from "@/env.schema";
+import type { DatabaseEnv } from "@/server/db/database-url";
 
 import { db } from "./db";
 import type { DbWithClock } from "./db/app-db";
@@ -61,6 +62,24 @@ export function emailSenderFor(
   return appEnv === "production"
     ? unconfiguredEmailSender
     : captureEmailSender(deps);
+}
+
+/** The R2 variables (src/env.schema.ts): all of them, or none. */
+export type StorageEnv = {
+  R2_ACCOUNT_ID?: string | undefined;
+  R2_ACCESS_KEY_ID?: string | undefined;
+  R2_SECRET_ACCESS_KEY?: string | undefined;
+  R2_BUCKET?: string | undefined;
+};
+
+export function storageFor(_env: StorageEnv): ObjectStorage {
+  return unconfiguredStorage;
+}
+
+export function filesConfigFor(
+  _env: StorageEnv & DatabaseEnv & { APP_ENV: Env["APP_ENV"] }
+): FilesConfig {
+  throw new Error("filesConfigFor is not built yet");
 }
 
 let production: Deps | undefined;
