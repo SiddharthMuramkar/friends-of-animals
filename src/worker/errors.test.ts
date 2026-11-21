@@ -54,6 +54,7 @@ const log = vi.fn();
 afterEach(async () => {
   await Sentry.close(2000);
   log.mockReset();
+  vi.unstubAllEnvs();
 });
 
 describe("startWorkerErrors", () => {
@@ -104,8 +105,11 @@ describe("startWorkerErrors", () => {
   });
 
   it.each(["dev", "unknown"])(
-    "names no release for a worker built as %s",
+    "names no release for a worker built as %s, whatever commit its host names",
     async (version) => {
+      // GitHub Actions sets this, and the SDK names it as the release when
+      // it is given none.
+      vi.stubEnv("GITHUB_SHA", "bfc64e6acd65a40174d1a0c8ac56e3daa58c5adc");
       const envelopes: string[] = [];
       const errors = await startWorkerErrors({
         dsn: DSN,
