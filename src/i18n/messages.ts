@@ -5,12 +5,18 @@
 import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
+import admin from "../../messages/en-IN/admin.json";
+import adminAudit from "../../messages/en-IN/adminAudit.json";
+import adminRoles from "../../messages/en-IN/adminRoles.json";
+import adminRubrics from "../../messages/en-IN/adminRubrics.json";
 import auth from "../../messages/en-IN/auth.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
+import competitionStatus from "../../messages/en-IN/competitionStatus.json";
 import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
+import dashboard from "../../messages/en-IN/dashboard.json";
 import donate from "../../messages/en-IN/donate.json";
 import emails from "../../messages/en-IN/emails.json";
 import error from "../../messages/en-IN/error.json";
@@ -32,12 +38,18 @@ export const NAMESPACES = [
   "a11y",
   "about",
   "account",
+  "admin",
+  "adminAudit",
+  "adminRoles",
+  "adminRubrics",
   "auth",
   "awareness",
   "common",
   "competitions",
+  "competitionStatus",
   "contact",
   "credits",
+  "dashboard",
   "donate",
   "emails",
   "error",
@@ -63,12 +75,18 @@ export const messages = {
   ...a11y,
   ...about,
   ...account,
+  ...admin,
+  ...adminAudit,
+  ...adminRoles,
+  ...adminRubrics,
   ...auth,
   ...awareness,
   ...common,
   ...competitions,
+  ...competitionStatus,
   ...contact,
   ...credits,
+  ...dashboard,
   ...donate,
   ...emails,
   ...error,
