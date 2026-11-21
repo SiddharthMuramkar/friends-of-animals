@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { Role } from "../../access/domain/roles";
+
 import {
   capSessionExpiry,
   isSessionLive,
@@ -9,6 +11,8 @@ import {
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
+type Session = { createdAt: Date; expiresAt: Date; roles: Role[] };
+
 const createdAt = new Date("2027-01-15T04:30:00.000Z");
 const after = (ms: number) => new Date(createdAt.getTime() + ms);
 
@@ -82,7 +86,7 @@ describe("capSessionExpiry", () => {
 
 describe("isSessionLive", () => {
   it("ends a staff session after 12 hours, whatever expiry is stored", () => {
-    const session = {
+    const session: Session = {
       createdAt,
       expiresAt: after(30 * DAY),
       roles: ["staff_admin"],
@@ -94,7 +98,7 @@ describe("isSessionLive", () => {
   });
 
   it("keeps a member session for 30 days", () => {
-    const session = {
+    const session: Session = {
       createdAt,
       expiresAt: after(30 * DAY),
       roles: ["member"],
