@@ -8,7 +8,7 @@
 
 import { z } from "zod";
 
-import { LEGAL_FACTS, type LegalDoc } from "../../../../content/legal/model";
+import { LEGAL_FACTS, type LegalDoc } from "../../../content/legal/model";
 
 export type ConsentDocumentBody = Pick<LegalDoc, "short" | "sections">;
 
