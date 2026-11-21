@@ -6,7 +6,7 @@ import { article as rukmini } from "@/content/stories/articles/rukmini-devi-and-
 import { article as stork } from "@/content/stories/articles/the-stork-that-gets-a-baby-shower";
 import { article as pilots } from "@/content/stories/articles/two-pilots-two-puppies";
 
-import type { PostBody } from "./post-body";
+import { sanitizePostBody, type PostBody } from "./post-body";
 import { formatPostSource, parsePostSource } from "./post-source";
 
 const IMAGE_A = "0190f0e0-0000-7000-8000-00000000000a";
@@ -225,7 +225,11 @@ describe("formatPostSource", () => {
     ["two-pilots-two-puppies", pilots],
     ["kinder-skies-in-kite-season", kites],
   ])("round-trips the published story %s", (_slug, article) => {
-    expect(parsePostSource(formatPostSource(article))).toEqual({
+    // A story's type allows any quote id string; the post type names the
+    // bank's ids, so the story goes in through the sanitiser.
+    const body = sanitizePostBody(article);
+
+    expect(parsePostSource(formatPostSource(body))).toEqual({
       ok: true,
       body: article,
     });
