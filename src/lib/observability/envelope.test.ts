@@ -217,4 +217,35 @@ describe("tunnelEnvelope", () => {
       reason: "malformed",
     });
   });
+
+  it("refuses an event nested deeper than 64 levels, on any runtime's stack", () => {
+    const nested = (depth: number) =>
+      encoder.encode(
+        [
+          JSON.stringify(header),
+          JSON.stringify({ type: "event" }),
+          // The event object itself is level 1.
+          `{"message":"x","zz":${"[".repeat(depth - 1)}${"]".repeat(depth - 1)}}`,
+        ].join("\n")
+      );
+
+    expect(tunnelEnvelope(nested(64), options).kind).toBe("forward");
+    expect(tunnelEnvelope(nested(65), options)).toEqual({
+      kind: "reject",
+      status: 400,
+      reason: "malformed",
+    });
+  });
+
+  it("counts brackets inside strings as text, not nesting", () => {
+    const body = encoder.encode(
+      [
+        JSON.stringify(header),
+        JSON.stringify({ type: "event" }),
+        JSON.stringify({ message: `${"[{".repeat(100)} \\" ]` }),
+      ].join("\n")
+    );
+
+    expect(tunnelEnvelope(body, options).kind).toBe("forward");
+  });
 });
