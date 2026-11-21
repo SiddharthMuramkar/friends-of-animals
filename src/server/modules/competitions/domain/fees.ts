@@ -3,11 +3,10 @@
 // Money is bigint paise end to end (column `bigint`, mode "bigint"), so an
 // amount never passes through a float on its way to the database.
 //
-// Plain TypeScript with no imports, so the schema file and the seed script
-// can load it under plain Node.
+// Plain TypeScript with type-only relative imports, so the schema file and
+// the seed script can load it under plain Node.
 
-/** How a competition takes entries (70a's `competition_participation`). */
-export type Participation = "individuals" | "institutions" | "both";
+import type { Participation } from "./vocabulary";
 
 /** Who pays: a person entering alone, or an institution for its students. */
 export const PARTICIPATION_ROUTES = ["individual", "institution"] as const;
@@ -20,11 +19,16 @@ export const FEE_CURRENCY = "INR";
 /** The largest amount a Postgres `bigint` column holds. */
 export const MAX_PAISE = 9_223_372_036_854_775_807n;
 
-/** The routes a competition offers, in `PARTICIPATION_ROUTES` order. */
+/**
+ * The routes a competition offers, in `PARTICIPATION_ROUTES` order. None
+ * while a draft has no participation chosen.
+ */
 export function offeredRoutes(
-  participation: Participation
+  participation: Participation | null
 ): ParticipationRoute[] {
   switch (participation) {
+    case null:
+      return [];
     case "individuals":
       return ["individual"];
     case "institutions":
@@ -169,11 +173,37 @@ export type FeeLine =
  * fee for a route it no longer offers is left out; an offered route with no
  * stored fee is "not set" (registration on it must wait).
  */
-export function feeView(participation: Participation, stored: Fees): FeeLine[] {
+export function feeView(
+  participation: Participation | null,
+  stored: Fees
+): FeeLine[] {
   return offeredRoutes(participation).map((route): FeeLine => {
     const paise = stored[route];
     if (paise === undefined) return { route, kind: "not_set" };
     if (paise === 0n) return { route, kind: "free" };
     return { route, kind: "amount", paise };
   });
+}
+
+/** Paise as audit text: JSON has no bigint. */
+type AuditAmounts = Partial<Record<ParticipationRoute, string | null>>;
+
+/**
+ * The routes whose fee changes between `before` and `after`, each with its
+ * old and new amount (null where there is none), or null when nothing
+ * changes. This is what the audit log records.
+ */
+export function feeChanges(
+  before: Fees,
+  after: Fees
+): { before: AuditAmounts; after: AuditAmounts } | null {
+  const changed = PARTICIPATION_ROUTES.filter(
+    (route) => before[route] !== after[route]
+  );
+  if (changed.length === 0) return null;
+  const amounts = (fees: Fees): AuditAmounts =>
+    Object.fromEntries(
+      changed.map((route) => [route, fees[route]?.toString() ?? null])
+    );
+  return { before: amounts(before), after: amounts(after) };
 }

@@ -8,7 +8,7 @@
 // Plain TypeScript with type-only relative imports, so the schema file and
 // the seed script can load it under plain Node.
 
-import type { Participation } from "./fees";
+import type { Participation } from "./vocabulary";
 
 export const AWARD_SCHEMES = ["ranked_123", "medals_gsb", "grades_ab"] as const;
 
@@ -38,10 +38,13 @@ export const MAX_PRIZE_LENGTH = 200;
 
 /**
  * The rounds a competition runs: the FOA final always, and a school round
- * only when institutions take part (individual entries skip it, #55).
+ * only when institutions take part (individual entries skip it, #55). A
+ * draft with no participation chosen has only the final so far.
  */
-export function offeredRounds(participation: Participation): AwardRound[] {
-  return participation === "individuals"
+export function offeredRounds(
+  participation: Participation | null
+): AwardRound[] {
+  return participation === null || participation === "individuals"
     ? ["foa_final"]
     : ["school", "foa_final"];
 }
@@ -67,7 +70,7 @@ export type RoundAwardPlan = {
  * default scheme; a stored prize for a band the scheme lacks is ignored.
  */
 export function awardPlan(
-  participation: Participation,
+  participation: Participation | null,
   stored: readonly StoredRoundAwards[]
 ): RoundAwardPlan[] {
   return offeredRounds(participation).map((roundKey) => {
@@ -113,7 +116,7 @@ const characterCount = (text: string): number =>
  * bands, so prizes for the old bands go.
  */
 export function decideRoundAwards(
-  participation: Participation,
+  participation: Participation | null,
   input: RoundAwardsInput
 ):
   | { ok: true; value: StoredRoundAwards }
@@ -138,4 +141,40 @@ export function decideRoundAwards(
     prizes[band as AwardBand] = prize;
   }
   return { ok: true, value: { roundKey, scheme, prizes } };
+}
+
+/** The same prizes, whatever order their bands were written in. */
+function samePrizes(a: Prizes, b: Prizes): boolean {
+  const entries = (prizes: Prizes) =>
+    JSON.stringify(
+      Object.entries(prizes).sort(([x], [y]) => x.localeCompare(y))
+    );
+  return entries(a) === entries(b);
+}
+
+type AuditRoundAwards = {
+  round: AwardRound;
+  scheme?: AwardScheme;
+  prizes?: Prizes;
+};
+
+/**
+ * What changes for one round between `current` (a round with nothing
+ * stored is the default with no prizes) and `next`: the round and only the
+ * fields that differ, or null when nothing does. This is what the audit
+ * log records.
+ */
+export function awardsChange(
+  current: StoredRoundAwards,
+  next: StoredRoundAwards
+): { before: AuditRoundAwards; after: AuditRoundAwards } | null {
+  const schemeChanged = current.scheme !== next.scheme;
+  const prizesChanged = !samePrizes(current.prizes, next.prizes);
+  if (!schemeChanged && !prizesChanged) return null;
+  const fields = (awards: StoredRoundAwards): AuditRoundAwards => ({
+    round: awards.roundKey,
+    ...(schemeChanged && { scheme: awards.scheme }),
+    ...(prizesChanged && { prizes: awards.prizes }),
+  });
+  return { before: fields(current), after: fields(next) };
 }
