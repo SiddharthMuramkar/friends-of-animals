@@ -1,5 +1,5 @@
 [Unit]
-Description=FOA: daily check to renew the db.shipped-it.dev certificate (renews below 30 days left)
+Description=FOA: daily check to renew the database host's certificate (renews below 30 days left)
 
 [Timer]
 OnCalendar=*-*-* 03:15:00 UTC

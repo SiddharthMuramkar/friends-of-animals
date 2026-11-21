@@ -64,14 +64,17 @@ describe("jsonLdScript()", () => {
 });
 
 describe("organizationJsonLd()", () => {
-  const data = organizationJsonLd(new URL("https://shipped-it.dev"), "About.");
+  const data = organizationJsonLd(
+    new URL("https://friendsofanimals.dev"),
+    "About."
+  );
 
   it("describes FOA as an NGO with absolute URLs", () => {
     expect(data).toMatchObject({
       "@type": "NGO",
       name: "Friends of Animals",
-      url: "https://shipped-it.dev/",
-      logo: "https://shipped-it.dev/brand/foa-logo.svg",
+      url: "https://friendsofanimals.dev/",
+      logo: "https://friendsofanimals.dev/brand/foa-logo.svg",
     });
   });
 
@@ -84,7 +87,7 @@ describe("organizationJsonLd()", () => {
 
 describe("breadcrumbJsonLd()", () => {
   it("numbers the crumbs from 1 with absolute URLs", () => {
-    const data = breadcrumbJsonLd(new URL("https://shipped-it.dev"), [
+    const data = breadcrumbJsonLd(new URL("https://friendsofanimals.dev"), [
       { name: "Competitions", path: "/competitions" },
       { name: "Kinder Skies", path: "/competitions/kinder-skies" },
     ]);
@@ -94,13 +97,13 @@ describe("breadcrumbJsonLd()", () => {
         "@type": "ListItem",
         position: 1,
         name: "Competitions",
-        item: "https://shipped-it.dev/competitions",
+        item: "https://friendsofanimals.dev/competitions",
       },
       {
         "@type": "ListItem",
         position: 2,
         name: "Kinder Skies",
-        item: "https://shipped-it.dev/competitions/kinder-skies",
+        item: "https://friendsofanimals.dev/competitions/kinder-skies",
       },
     ]);
   });
