@@ -7,7 +7,11 @@ import { cn } from "@/lib/utils";
 export const inputStyles =
   "block min-h-11 w-full rounded-2xl border-2 border-border-strong bg-surface px-4 py-2 text-body text-ink placeholder:text-ink-faint aria-invalid:border-danger";
 
-type TextFieldProps = Omit<ComponentProps<"input">, "id" | "children"> & {
+/** The error prop, not aria-invalid, marks the input invalid. */
+type TextFieldProps = Omit<
+  ComponentProps<"input">,
+  "id" | "children" | "aria-invalid"
+> & {
   /** Also the stem of the hint's and error's ids. Unique on the page. */
   id: string;
   name: string;
@@ -16,6 +20,8 @@ type TextFieldProps = Omit<ComponentProps<"input">, "id" | "children"> & {
   hint?: ReactNode;
   /** Shown above the input and read out with it; marks the input invalid. */
   error?: ReactNode;
+  /** More ids to read out with the input, before the hint and error. */
+  "aria-describedby"?: string;
 };
 
 /**
@@ -29,11 +35,14 @@ export function TextField({
   hint,
   error,
   className,
+  "aria-describedby": callerDescribedBy,
   ...input
 }: TextFieldProps) {
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(" ");
+  const describedBy = [callerDescribedBy, hintId, errorId]
+    .filter(Boolean)
+    .join(" ");
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <label htmlFor={id} className="font-semibold text-ink">
@@ -53,12 +62,13 @@ export function TextField({
           <span>{error}</span>
         </p>
       ) : null}
+      {/* The rest first, so nothing a caller passes can undo the wiring. */}
       <input
+        {...input}
         id={id}
         aria-describedby={describedBy || undefined}
         aria-invalid={error ? true : undefined}
         className={inputStyles}
-        {...input}
       />
     </div>
   );

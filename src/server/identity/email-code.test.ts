@@ -1,7 +1,10 @@
 import { count, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { inspect } from "node:util";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { createApp } from "@/server/app";
 import { user } from "@/server/db/schema";
+import type { EmailSender } from "@/server/ports/email";
 import { SEED_ACCOUNTS } from "@/server/seed";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -12,6 +15,18 @@ function codeFor(h: Harness, address: string): string {
   const code = h.email.codeFor(address);
   if (!code) throw new Error(`No code was emailed to ${address}`);
   return code;
+}
+
+/** Everything written to the console from now until the test ends. */
+function captureConsole(): () => string {
+  const lines: string[] = [];
+  for (const method of ["debug", "info", "log", "warn", "error"] as const) {
+    const spy = vi.spyOn(console, method).mockImplementation((...args) => {
+      lines.push(args.map((arg) => inspect(arg, { depth: 5 })).join(" "));
+    });
+    onTestFinished(() => spy.mockRestore());
+  }
+  return () => lines.join("\n");
 }
 
 async function accountCount(h: Harness) {
@@ -45,6 +60,32 @@ describe("requestEmailCode", () => {
     expect(h.email.sent).toEqual([]);
   });
 
+  it("asks a sign-up for a name before sending a code", async () => {
+    const h = await createHarness();
+
+    const result = await h
+      .as(h.visitor())
+      .requestEmailCode({ intent: "sign-up", name: "  ", email: ASHA });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "invalid_input",
+      fields: ["name"],
+    });
+    expect(h.email.sent).toEqual([]);
+  });
+
+  it("sends a sign-up its code once it has a name", async () => {
+    const h = await createHarness();
+
+    const result = await h
+      .as(h.visitor())
+      .requestEmailCode({ intent: "sign-up", name: "Asha", email: ASHA });
+
+    expect(result).toEqual({ ok: true });
+    expect(codeFor(h, ASHA)).toMatch(/^\d{6}$/);
+  });
+
   it("refuses a 6th code for one address within 15 minutes", async () => {
     const h = await createHarness();
     for (let i = 0; i < 5; i++) {
@@ -63,6 +104,30 @@ describe("requestEmailCode", () => {
       retryAfterSeconds: 600,
     });
     expect(h.email.sent).toHaveLength(5);
+  });
+
+  it("refuses a 21st code for one address in a day", async () => {
+    const h = await createHarness();
+    for (let i = 0; i < 20; i++) {
+      expect(await h.as(h.visitor()).requestEmailCode({ email: ASHA })).toEqual(
+        { ok: true }
+      );
+      h.clock.advance({ minutes: 15 });
+    }
+
+    const refused = await h.as(h.visitor()).requestEmailCode({ email: ASHA });
+    h.clock.set("2027-01-16T00:00:00.000Z");
+    const nextDay = await h.as(h.visitor()).requestEmailCode({ email: ASHA });
+
+    // 20 codes, one every 15 minutes from 04:30, so it is now 09:30 UTC;
+    // the day's count starts again at midnight UTC, 14.5 hours on.
+    expect(refused).toEqual({
+      ok: false,
+      error: "rate_limited",
+      retryAfterSeconds: 52_200,
+    });
+    expect(nextDay).toEqual({ ok: true });
+    expect(h.email.sent).toHaveLength(21);
   });
 
   it("counts an address however it is typed", async () => {
@@ -105,6 +170,72 @@ describe("requestEmailCode", () => {
 
     expect(refused).toMatchObject({ ok: false, error: "rate_limited" });
     expect(otherIp).toEqual({ ok: true });
+  });
+
+  it("counts every address in one IPv6 /64 network as one IP", async () => {
+    const h = await createHarness();
+    for (let i = 1; i <= 20; i++) {
+      const ip = `2001:db8:1:2::${i.toString(16)}`;
+      await h
+        .as(h.visitor({ ip }))
+        .requestEmailCode({ email: `p${i}@example.test` });
+    }
+
+    const sameNetwork = await h
+      .as(h.visitor({ ip: "2001:db8:1:2:ffff:ffff:ffff:fffe" }))
+      .requestEmailCode({ email: "p21@example.test" });
+    const otherNetwork = await h
+      .as(h.visitor({ ip: "2001:db8:1:3::1" }))
+      .requestEmailCode({ email: "p21@example.test" });
+
+    expect(sameNetwork).toMatchObject({ ok: false, error: "rate_limited" });
+    expect(otherNetwork).toEqual({ ok: true });
+  });
+
+  it("counts an IPv4-mapped IPv6 address as its IPv4 address", async () => {
+    const h = await createHarness();
+    for (let i = 1; i <= 20; i++) {
+      await h
+        .as(h.visitor({ ip: "198.51.100.20" }))
+        .requestEmailCode({ email: `p${i}@example.test` });
+    }
+
+    const mapped = await h
+      .as(h.visitor({ ip: "::ffff:198.51.100.20" }))
+      .requestEmailCode({ email: "p21@example.test" });
+
+    expect(mapped).toMatchObject({ ok: false, error: "rate_limited" });
+  });
+
+  it("fails, and says so, when the code can't be sent", async () => {
+    const h = await createHarness();
+    h.email.failNext(1);
+
+    await expect(
+      h.as(h.visitor()).requestEmailCode({ email: ASHA })
+    ).rejects.toThrow("FakeEmail: send failed");
+    expect(h.email.sent).toEqual([]);
+  });
+
+  it("logs neither the address nor the code when a send fails", async () => {
+    const h = await createHarness();
+    // Like a failed insert into the capture mailbox, whose error message
+    // lists the query's parameters: the address and the email's text.
+    const leakyFailure: EmailSender = {
+      async send(message) {
+        throw new Error(`insert failed, params: ${message.to},${message.text}`);
+      },
+    };
+    const app = createApp({ ...h.deps, email: leakyFailure });
+    const logged = captureConsole();
+
+    await app
+      .as(h.visitor())
+      .requestEmailCode({ email: ASHA })
+      .catch(() => {});
+
+    expect(logged()).not.toContain(ASHA);
+    expect(logged()).not.toMatch(/\d{6}/);
   });
 
   it("is not for someone already signed in", async () => {

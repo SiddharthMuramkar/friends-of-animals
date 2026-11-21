@@ -1,6 +1,7 @@
 // can(actor, action): the one place that decides who may run a use case.
-// Every identity use case calls `authorize` first. #59 replaces the inside
-// with scoped roles; the call sites stay.
+// Every identity use case calls `authorize` first. It denies by default:
+// an action without a rule here is refused. #59 replaces the inside with
+// scoped roles; the call sites stay.
 
 import type { Actor } from "../actor";
 import { DomainError } from "../errors";
@@ -27,6 +28,9 @@ export function can(actor: Actor, action: IdentityAction): boolean {
     case "signOutEverywhere":
       // Their own account and session only: there is no id to name another.
       return actor.kind === "user";
+    default:
+      // Deny by default: an action without a rule is no one's.
+      return false;
   }
 }
 

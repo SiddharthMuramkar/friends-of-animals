@@ -1,16 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { SEED_ACCOUNTS } from "./support/accounts";
 import {
   expectAccessible,
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
-import { freshEmail, latestCode, readCode } from "./support/mailbox";
+import { freshEmail, readCode } from "./support/mailbox";
 
 // #57: sign up and sign in by email one-time code, reading the code from
 // the preview's capture mailbox. Each test uses its own address, so runs and
-// projects don't share codes or rate limits per address.
+// projects don't share codes or rate limits per address. (A fixed seeded
+// address would hit its limit of 5 codes in 15 minutes on the 6th run
+// against one preview database.) Seeded accounts signing in is proved at
+// Seam 1, and vercel-build fails if the seed does.
 
 async function askForCode(page: Page, email: string) {
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
@@ -44,7 +46,7 @@ test("a visitor signs up by email code, signs out and signs back in", async ({
   await expect(
     page.getByText(`You're signed in as Asha Rao (${email}).`)
   ).toBeVisible();
-  await expectAccessible(page, "/account/sessions");
+  await expectRendersAccessibly(page, "/account/sessions");
   await expectAccessibleInDark(page, "/account/sessions");
 
   await page
@@ -58,39 +60,18 @@ test("a visitor signs up by email code, signs out and signs back in", async ({
   await askForCode(page, email);
   await enterCode(page, await readCode(request, email, signUpCode), "Sign in");
   await expect(page).toHaveURL(/\/account\/sessions$/);
-  await expect(page.getByText(`(${email})`)).toBeVisible();
-});
-
-test("a seeded member signs in by email code", async ({
-  page,
-  request,
-}, testInfo) => {
-  // One member per project, so parallel projects never share a code.
-  const member =
-    SEED_ACCOUNTS.members[testInfo.project.name === "mobile" ? 1 : 0];
-
-  await expectRendersAccessibly(page, "/sign-in");
-  await expectAccessibleInDark(page, "/sign-in");
-  const before = await latestCode(request, member.email);
-  await askForCode(page, member.email);
-  await expectAccessible(page, "/sign-in, code step");
-  await enterCode(
-    page,
-    await readCode(request, member.email, before),
-    "Sign in"
-  );
-
-  await expect(page).toHaveURL(/\/account\/sessions$/);
   await expect(
-    page.getByText(`You're signed in as ${member.name} (${member.email}).`)
+    page.getByText(`You're signed in as Asha Rao (${email}).`)
   ).toBeVisible();
 });
 
 test("a wrong code is refused and named on the field", async ({
   page,
 }, testInfo) => {
-  await page.goto("/sign-in");
+  await expectRendersAccessibly(page, "/sign-in");
+  await expectAccessibleInDark(page, "/sign-in");
   await askForCode(page, freshEmail(testInfo.project.name));
+  await expectAccessible(page, "/sign-in, code step");
 
   await enterCode(page, "000000", "Sign in");
 

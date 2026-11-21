@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { APP_ROUTES } from "@/lib/app-routes";
 import { as, currentActor } from "@/server/app";
+import { errorSummaryForLogs } from "@/server/errors";
 import { EMAIL_CODE } from "@/server/identity/settings";
 
 import {
@@ -24,9 +25,12 @@ async function withText(state: EmailCodeFormState): Promise<EmailCodeFormView> {
   if (state.fieldErrors?.code) errors.code = t("code.error");
   let alert: string | undefined;
   if (state.alert === "rate_limited") {
-    alert = t("alerts.rate_limited", {
-      minutes: state.retryAfterMinutes ?? 15,
-    });
+    const minutes = state.retryAfterMinutes ?? 15;
+    // The daily limit can mean hours of waiting.
+    alert =
+      minutes > 60
+        ? t("alerts.rate_limited_hours", { hours: Math.ceil(minutes / 60) })
+        : t("alerts.rate_limited", { minutes });
   } else if (state.alert) {
     alert = t(`alerts.${state.alert}`);
   }
@@ -86,14 +90,21 @@ export async function emailCodeAction(
     } else {
       return withText(
         afterRequest(
-          await as(actor).requestEmailCode({ email: entered.email }),
+          await as(actor).requestEmailCode(
+            intent === "sign-up"
+              ? { intent, ...entered }
+              : { intent, email: entered.email }
+          ),
           entered
         )
       );
     }
   } catch (error) {
-    // The details stay in the server logs (no personal data in them).
-    console.error("Email code form: the use case failed.", error);
+    // Only the error's class and Postgres code: its message can hold the
+    // address or the code.
+    console.error(
+      `Email code form: the use case failed: ${errorSummaryForLogs(error)}`
+    );
     return withText({
       step: step === "code" ? "code" : "email",
       ...entered,

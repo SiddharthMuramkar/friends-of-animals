@@ -14,9 +14,18 @@ export const CODE_REQUEST_LIMITS = {
   windowMinutes: 15,
   /** Codes per email address per window. */
   perEmail: 5,
-  /** Codes per IP address per window. */
+  /** Codes per IP network (ipNetwork) per window. */
   perIp: 20,
+  /**
+   * Codes per email address per day (midnight to midnight UTC). Each code
+   * allows `EMAIL_CODE.attempts` guesses, so this caps guesses at one
+   * address at 100 a day, not about 2,400. FOA's own default beside HR-19.
+   */
+  perEmailPerDay: 20,
 } as const;
 
-/** How long a member stays signed in. */
+/**
+ * How long a session lasts from sign-in. It is absolute: using the site
+ * doesn't extend it.
+ */
 export const SESSION_LIFETIME_DAYS = 30;

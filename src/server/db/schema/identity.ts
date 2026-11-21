@@ -7,11 +7,12 @@
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
 
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
   integer,
-  pgEnum,
   pgTable,
   primaryKey,
   text,
@@ -19,19 +20,43 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+/**
+ * A Postgres regex class for what never belongs in a stored address:
+ * whitespace and control characters, and the Unicode spaces JavaScript's
+ * trim() strips (no-break, en to hair, line and paragraph separators,
+ * narrow no-break, medium mathematical, ideographic, zero-width no-break).
+ */
+const NOT_IN_AN_EMAIL =
+  "[[:space:][:cntrl:]\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]";
+
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" });
 
-export const user = pgTable("user", {
-  id: uuid().primaryKey(),
-  name: text().notNull(),
-  /** Stored trimmed and lower-cased; one account per address. */
-  email: text().notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
-  image: text(),
-  createdAt: timestamptz("created_at").notNull(),
-  updatedAt: timestamptz("updated_at").notNull(),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: uuid().primaryKey(),
+    name: text().notNull(),
+    /**
+     * Stored trimmed and lower-cased (normaliseEmailAddress); one account
+     * per address. A check constraint holds every writer to that, Better
+     * Auth included, so "Asha@x" can't sit next to "asha@x": lower case,
+     * and no whitespace or control character anywhere (JavaScript's trim()
+     * strips Unicode spaces that Postgres's btrim() keeps).
+     */
+    email: text().notNull().unique(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check(
+      "user_email_normalised",
+      sql`${table.email} = lower(${table.email}) AND ${table.email} !~ ${sql.raw(`'${NOT_IN_AN_EMAIL}'`)}`
+    ),
+  ]
+);
 
 export type User = typeof user.$inferSelect;
 
@@ -95,10 +120,13 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)]
 );
 
-export const otpRateLimitScope = pgEnum("otp_rate_limit_scope", [
-  "email",
-  "ip",
-]);
+/**
+ * What a sign-in code limit counts by. Text checked against this list, not
+ * a Postgres enum, so a new scope (a phone number, #58) needs no migration.
+ */
+export const OTP_RATE_LIMIT_SCOPES = ["email", "ip", "email_day"] as const;
+
+export type OtpRateLimitScope = (typeof OTP_RATE_LIMIT_SCOPES)[number];
 
 /**
  * Sign-in codes requested per email address and per IP in a fixed window.
@@ -107,7 +135,7 @@ export const otpRateLimitScope = pgEnum("otp_rate_limit_scope", [
 export const otpRateLimit = pgTable(
   "otp_rate_limit",
   {
-    scope: otpRateLimitScope().notNull(),
+    scope: text({ enum: OTP_RATE_LIMIT_SCOPES }).notNull(),
     keyHash: text("key_hash").notNull(),
     windowStart: timestamptz("window_start").notNull(),
     count: integer().notNull(),

@@ -1,6 +1,6 @@
 {
-  "id": "b40ddb7c-37b1-4592-85dc-b666e13c9fef",
-  "prevId": "bec26094-eca7-4b74-949d-a3c237d2575e",
+  "id": "2f79bf5d-a4e3-4e49-845b-3ee54712e4ea",
+  "prevId": "4d3eaf32-5358-4ac5-98a5-b257fb237a82",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -131,8 +131,7 @@
       "columns": {
         "scope": {
           "name": "scope",
-          "type": "otp_rate_limit_scope",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -348,7 +347,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "user_email_normalised": {
+          "name": "user_email_normalised",
+          "value": "\"user\".\"email\" = lower(\"user\".\"email\") AND \"user\".\"email\" !~ '[[:space:][:cntrl:]\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.verification": {
@@ -496,14 +500,6 @@
     }
   },
   "enums": {
-    "public.otp_rate_limit_scope": {
-      "name": "otp_rate_limit_scope",
-      "schema": "public",
-      "values": [
-        "email",
-        "ip"
-      ]
-    },
     "public.captured_message_channel": {
       "name": "captured_message_channel",
       "schema": "public",

@@ -1,6 +1,6 @@
 // Sign-up and sign-in by email one-time code.
 //
-//   requestEmailCode({ email })                      → a code by email
+//   requestEmailCode({ intent?, email, name? })      → a code by email
 //   verifyEmailCode({ intent, email, code, name? })  → signed in
 //
 // Codes are only ever emailed, whatever the address, so a request never
@@ -17,6 +17,7 @@ import { user } from "../db/schema";
 import type { CookieJar } from "../ports/cookies";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
+import { codeEmail } from "./code-email";
 import { authorize } from "./policy";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
@@ -28,19 +29,24 @@ const code = z
   .trim()
   .regex(new RegExp(`^\\d{${EMAIL_CODE.length}}$`));
 
-const requestEmailCodeInput = z.object({ email });
+const name = z.string().trim().min(1).max(100);
+
+// A sign-up sends its name with the email, so a missing one is caught
+// before a code goes out.
+const requestEmailCodeInput = z.discriminatedUnion("intent", [
+  z.object({ intent: z.literal("sign-up"), name, email }),
+  z.object({ intent: z.literal("sign-in"), email }),
+]);
 
 const verifyEmailCodeInput = z.discriminatedUnion("intent", [
-  z.object({
-    intent: z.literal("sign-up"),
-    name: z.string().trim().min(1).max(100),
-    email,
-    code,
-  }),
+  z.object({ intent: z.literal("sign-up"), name, email, code }),
   z.object({ intent: z.literal("sign-in"), email, code }),
 ]);
 
-export type RequestEmailCodeInput = z.input<typeof requestEmailCodeInput>;
+/** Without `intent`, a sign-in. */
+export type RequestEmailCodeInput =
+  | { intent?: "sign-in"; email: string }
+  | { intent: "sign-up"; name: string; email: string };
 export type VerifyEmailCodeInput = z.input<typeof verifyEmailCodeInput>;
 
 type InvalidInput = { ok: false; error: "invalid_input"; fields: string[] };
@@ -79,7 +85,10 @@ export async function requestEmailCode(
 ): Promise<RequestEmailCodeResult> {
   authorize(ctx.actor, "requestEmailCode");
   const meta = visitorMeta(ctx);
-  const parsed = requestEmailCodeInput.safeParse(input);
+  const parsed = requestEmailCodeInput.safeParse({
+    intent: "sign-in",
+    ...input,
+  });
   if (!parsed.success) return invalidInput(parsed.error);
 
   const allowance = await takeCodeAllowance(ctx.db, {
@@ -96,10 +105,15 @@ export async function requestEmailCode(
     };
   }
 
-  await authFor(ctx).api.sendVerificationOTP({
+  // Straight through the email port, not the outbox (#55 ruling). A failed
+  // send rejects, so the visitor is told; the stored code was never seen,
+  // and expires.
+  const otp = await authFor(ctx).api.createVerificationOTP({
     body: { email: parsed.data.email, type: "sign-in" },
-    headers: headersFor(meta),
   });
+  await ctx.email.send(
+    codeEmail(parsed.data.email, otp, EMAIL_CODE.lifetimeMinutes)
+  );
   return { ok: true };
 }
 

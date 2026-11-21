@@ -12,16 +12,19 @@ function mailboxToken(): string {
 
 /**
  * The newest sign-in code sent to `email`, from the deployment's capture
- * mailbox (GET /api/capture-mailbox), or undefined if none was sent.
+ * mailbox (GET /api/capture-mailbox), or undefined if none was sent. The
+ * address goes in a header, so it stays out of request logs.
  */
-export async function latestCode(
+async function latestCode(
   request: APIRequestContext,
   email: string
 ): Promise<string | undefined> {
-  const response = await request.get(
-    `/api/capture-mailbox?to=${encodeURIComponent(email)}`,
-    { headers: { "x-capture-mailbox-token": mailboxToken() } }
-  );
+  const response = await request.get("/api/capture-mailbox", {
+    headers: {
+      "x-capture-mailbox-token": mailboxToken(),
+      "x-capture-mailbox-to": email,
+    },
+  });
   expect(response.status(), "capture mailbox status").toBe(200);
   const { messages } = (await response.json()) as {
     messages: { text: string }[];

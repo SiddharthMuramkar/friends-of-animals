@@ -9,7 +9,7 @@
 
 import { createHash, timingSafeEqual } from "node:crypto";
 
-import type { AppDb } from "../db/app-db";
+import type { DbWithClock } from "../db/app-db";
 import { readCapturedEmail } from "../ports/email-capture";
 
 export type MailboxRequest = {
@@ -33,7 +33,7 @@ function sameToken(provided: string, configured: string): boolean {
 }
 
 export async function readMailbox(
-  db: AppDb,
+  mailbox: DbWithClock,
   { appEnv, configuredToken, providedToken, to }: MailboxRequest
 ): Promise<MailboxResponse> {
   if (appEnv === "production" || !configuredToken) return { status: 404 };
@@ -41,7 +41,7 @@ export async function readMailbox(
     return { status: 401 };
   }
   if (!to) return { status: 400 };
-  const messages = await readCapturedEmail(db, { to, limit: 5 });
+  const messages = await readCapturedEmail(mailbox, { to, limit: 5 });
   return {
     status: 200,
     body: {
