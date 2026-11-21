@@ -20,8 +20,6 @@ import { emailSenderFor } from "./ports/email-sender-for";
 import type { ErrorReporter } from "./ports/errors";
 import { serverErrorReporter } from "./observability/server-reporter";
 
-export { emailSenderFor } from "./ports/email-sender-for";
-
 export interface Deps extends DbWithClock {
   email: EmailSender;
   /** The response's cookies (the session cookie). */
