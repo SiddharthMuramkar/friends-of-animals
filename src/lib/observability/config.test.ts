@@ -117,7 +117,7 @@ describe("sentryOptions", () => {
       attributes: {
         "http.method": "GET",
         "http.target": "/sign-in?email=asha@example.test",
-        "url.full": "https://shipped-it.dev/sign-in?code=482913",
+        "url.full": "https://friendsofanimals.dev/sign-in?code=482913",
         "url.query": "email=asha@example.test",
         "http.query": "code=482913",
         "user.email": "asha@example.test",
@@ -129,7 +129,7 @@ describe("sentryOptions", () => {
       attributes: {
         "http.method": "GET",
         "http.target": "/sign-in",
-        "url.full": "https://shipped-it.dev/sign-in",
+        "url.full": "https://friendsofanimals.dev/sign-in",
         "user.email": "[email]",
       },
     });
