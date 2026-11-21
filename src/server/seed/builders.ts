@@ -37,7 +37,7 @@ export function seedFunctions(seeders: readonly Seeder[]) {
      * A verified account. Pass `email` or `name` to choose them, and
      * `phone` (an Indian mobile, typed any usual way) to give it one.
      */
-    function member(
+    async function member(
       details: { name?: string; email?: string; phone?: string } = {}
     ): Promise<SeededUser> {
       members += 1;
