@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 
+import { parseDsn } from "./lib/observability/config";
 import { previewDatabase } from "./server/db/database-url";
 
 /** A postgres:// URL; `whenUnset` is the error shown when it is missing. */
@@ -66,6 +67,27 @@ const previewDatabaseVariables = {
   VERCEL_GIT_PULL_REQUEST_ID: z.string().optional(),
   /** The branch the deployment was built from. */
   VERCEL_GIT_COMMIT_REF: z.string().optional(),
+};
+
+/**
+ * Error tracking (#66). Read by the server at runtime; the browser gets
+ * NEXT_PUBLIC_SENTRY_DSN baked in at build time.
+ */
+const errorTrackingVariables = {
+  /**
+   * The app's Sentry DSN, public by design. Unset turns error tracking
+   * off; production requires it. The message never repeats a bad value.
+   */
+  NEXT_PUBLIC_SENTRY_DSN: z
+    .string()
+    .refine((value) => parseDsn(value) !== undefined, {
+      error:
+        "is not a valid Sentry DSN. Copy it from the Sentry project's " +
+        "Client Keys page, or leave it empty to turn error tracking off.",
+    })
+    .optional(),
+  /** Set by Vercel: the commit the deployment was built from. */
+  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
 };
 
 type AppEnv = (typeof APP_ENVS)[number];
@@ -169,6 +191,27 @@ function requirePreviewDatabase(
   }
 }
 
+/** Production reports its errors, so it can't start without a DSN. */
+function requireSentryInProduction(
+  values: { APP_ENV?: AppEnv | undefined; NEXT_PUBLIC_SENTRY_DSN?: string },
+  ctx: z.RefinementCtx<{
+    APP_ENV?: AppEnv | undefined;
+    NEXT_PUBLIC_SENTRY_DSN?: string;
+  }>
+) {
+  if (values.APP_ENV === "production" && !values.NEXT_PUBLIC_SENTRY_DSN) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["NEXT_PUBLIC_SENTRY_DSN"],
+      input: values.NEXT_PUBLIC_SENTRY_DSN,
+      message:
+        "NEXT_PUBLIC_SENTRY_DSN is not set. APP_ENV=production reports " +
+        "its errors to Sentry: set the app project's DSN at build time " +
+        "and at runtime.",
+    });
+  }
+}
+
 /**
  * Run each check even when another variable is invalid, so the error lists
  * every problem at once.
@@ -225,10 +268,12 @@ export const envSchema = z
       "DATABASE_URL is not set. Point it at a Postgres database, e.g. " +
         "postgres://foa:foa@localhost:5432/foa (see .env.example)."
     ),
+    ...errorTrackingVariables,
   })
   .superRefine(requireAppEnvOnVercel, always)
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
+  .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 
 export type Env = z.output<typeof envSchema>;
