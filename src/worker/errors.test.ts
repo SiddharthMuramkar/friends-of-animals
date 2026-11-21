@@ -4,6 +4,7 @@
 // No network.
 
 import * as Sentry from "@sentry/node";
+import { randomBytes } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -81,10 +82,12 @@ describe("startWorkerErrors", () => {
       log,
     });
 
-    errors.tenantFailed(
-      new Error("Welcome email to asha@example.test bounced"),
-      { tenant: "foa_pr_142_3fa9c2d1" }
-    );
+    // Made at run time: the SDK sends the source line of each stack frame,
+    // so a literal address in this file would leave anyway.
+    const email = `asha.${randomBytes(6).toString("hex")}@example.test`;
+    errors.tenantFailed(new Error(`Welcome email to ${email} bounced`), {
+      tenant: "foa_pr_142_3fa9c2d1",
+    });
     await expect(errors.flush()).resolves.toBe(true);
 
     const events = sentEvents(envelopes);
@@ -97,7 +100,7 @@ describe("startWorkerErrors", () => {
       tenant: "foa_pr_142_3fa9c2d1",
     });
     expect(event.exception.values[0].value).toMatch(/^Welcome email to /);
-    expect(envelopes.join("\n")).not.toContain("asha@example.test");
+    expect(envelopes.join("\n")).not.toContain(email);
   });
 
   it("leaves uncaught errors to the worker: the SDK adds no process handlers", async () => {
