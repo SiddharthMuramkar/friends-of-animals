@@ -37,22 +37,19 @@ const serviceNames = services
   .map((line) => line.trim().replace(/:$/, ""));
 
 describe("docker/analytics.yml", () => {
-  it("is its own Compose project with Umami and the tunnel only", () => {
+  it("is its own Compose project with Umami only", () => {
     expect(top).toContain("name: foa-analytics");
-    expect(serviceNames.sort()).toEqual(["cloudflared", "umami"]);
+    expect(serviceNames.sort()).toEqual(["umami"]);
   });
 
   it("pins every image to an exact version", () => {
     const images = top.filter((line) => /^\s+image:/.test(line));
-    expect(images).toHaveLength(2);
+    expect(images).toHaveLength(1);
     for (const image of images) {
       expect(image).toMatch(/:\d+(?:\.\d+){2}$/);
     }
     expect(service("umami")).toMatch(
       /image: ghcr\.io\/umami-software\/umami:\d+\.\d+\.\d+$/m
-    );
-    expect(service("cloudflared")).toMatch(
-      /image: cloudflare\/cloudflared:\d{4}\.\d+\.\d+$/m
     );
   });
 
@@ -64,15 +61,7 @@ describe("docker/analytics.yml", () => {
     expect(umami).toMatch(/^ {4}restart: unless-stopped$/m);
   });
 
-  it("checks the tunnel's edge connection and restarts it", () => {
-    const tunnel = service("cloudflared");
-    expect(oneLine(tunnel)).toMatch(
-      /test: \["CMD", "cloudflared", "tunnel", "--metrics", "127\.0\.0\.1:\d+", "ready"\]/
-    );
-    expect(tunnel).toMatch(/^ {4}restart: unless-stopped$/m);
-  });
-
-  it.each(["umami", "cloudflared"])("limits %s's CPU and memory", (name) => {
+  it.each(["umami"])("limits %s's CPU and memory", (name) => {
     expect(service(name)).toMatch(/^ {4}cpus: [\d.]+$/m);
     expect(service(name)).toMatch(/^ {4}mem_limit: \d+[mg]$/m);
   });
@@ -84,6 +73,10 @@ describe("docker/analytics.yml", () => {
     for (const port of published) {
       expect(port).toMatch(/^\s+- "127\.0\.0\.1:/);
     }
+  });
+
+  it("publishes no port at all: Caddy on the host reaches Umami on db", () => {
+    expect(top.some((line) => /^\s+(ports|expose):/.test(line))).toBe(false);
   });
 
   it("keeps its data in pg-prod: no database and no volume of its own", () => {
@@ -106,18 +99,20 @@ describe("docker/analytics.yml", () => {
     expect(
       block(block(lines(service("umami")), /^ {4}networks:$/), /db:$/)
     ).toEqual(["        ipv4_address: 10.112.12.30"]);
-    expect(service("cloudflared")).not.toMatch(/^ {6}db:/m);
+    // db only: Caddy (edge.yml) proxies stats.friendsofanimals.dev there.
+    expect(
+      block(top, /^networks:$/).filter((line) => indent(line) === 2)
+    ).toEqual(["  db:"]);
+    expect(
+      block(lines(service("umami")), /^ {4}networks:$/).filter(
+        (line) => indent(line) === 6
+      )
+    ).toEqual(["      db:"]);
   });
 
-  it("reads the tunnel token from a secret file, never the environment", () => {
-    const tunnel = service("cloudflared");
-    expect(oneLine(tunnel)).toMatch(
-      /"--token-file", "\/run\/secrets\/cloudflared_tunnel_token"/
-    );
-    expect(compose).not.toMatch(/TUNNEL_TOKEN[^_]|"--token"/);
-    expect(
-      block(block(top, /^secrets:$/), /^ {2}cloudflared_tunnel_token:$/)
-    ).toEqual(["    file: /etc/foa/secrets/cloudflared_tunnel_token"]);
+  it("has no Cloudflare Tunnel: no cloudflared service, network or secret", () => {
+    expect(top.join("\n")).not.toMatch(/cloudflare|tunnel/i);
+    expect(top.some((line) => line.startsWith("secrets:"))).toBe(false);
   });
 });
 

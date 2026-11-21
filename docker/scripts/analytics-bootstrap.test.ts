@@ -186,6 +186,28 @@ describe("analytics-bootstrap.sh usage", () => {
   });
 });
 
+describe("analytics-bootstrap.sh run", () => {
+  it("writes the env file and the role, and asks for no tunnel token", () => {
+    // main() as root, with install and docker stubbed and the env file in
+    // the temporary directory. Caddy (edge.yml) is Umami's ingress, so
+    // there is no Cloudflare Tunnel token to check.
+    const run = bootstrap(
+      'ENV_FILE="$1"; id() { echo 0; }; install() { :; }; docker() { cat >/dev/null; }; main',
+      envFile
+    );
+    expect(run).toMatchObject({
+      status: 0,
+      stdout: `wrote ${envFile}\napplied umami.sql on foa-pg-prod and reloaded its configuration\n`,
+      stderr: "",
+    });
+  });
+
+  it("says nothing about a tunnel in its usage", () => {
+    const run = spawnSync("bash", [SCRIPT, "--help"], { encoding: "utf8" });
+    expect(run.stdout).not.toMatch(/tunnel|cloudflare/i);
+  });
+});
+
 describe("umami.sql", () => {
   const sql = UMAMI_SQL.replace(/--.*$/gm, "");
 
