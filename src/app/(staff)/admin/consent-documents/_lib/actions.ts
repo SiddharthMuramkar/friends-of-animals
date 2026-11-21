@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { isMirroredConsentPurpose } from "@/server/modules/cms/domain/documents";
 import { consentDocumentTag } from "@/server/modules/consent/cached";
 import {
   CONSENT_PURPOSES,
@@ -50,7 +51,9 @@ function isPurpose(value: string): value is ConsentPurpose {
  * The publish form's one action. `intent` (from the pressed button) says
  * what to do: preview the source, or publish it as the next version.
  * Publishing refreshes the cached current version, then goes back to the
- * page, which lists the new version and says so.
+ * page, which lists the new version and says so. The privacy notice and
+ * the terms are their policy pages' text: only publishing the page in the
+ * CMS publishes them (#111), so this form has none to offer.
  */
 export async function publishFormAction(
   _previous: PublishFormView | null,
@@ -63,7 +66,9 @@ export async function publishFormAction(
     title: field(formData, "title"),
     source: field(formData, "source"),
   };
-  if (!isPurpose(purpose)) return withText({ ...entered, alert: "failed" });
+  if (!isPurpose(purpose) || isMirroredConsentPurpose(purpose)) {
+    return withText({ ...entered, alert: "failed" });
+  }
 
   let version: number;
   try {

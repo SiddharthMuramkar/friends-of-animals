@@ -15,6 +15,7 @@ import { LEGAL_FACTS, type LegalFact } from "@/content/legal";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { isMirroredConsentPurpose } from "@/server/modules/cms/domain/documents";
 import type {
   ConsentDocumentVersion,
   ConsentPurpose,
@@ -171,34 +172,39 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
               </div>
             ) : null}
 
-            <div className="mt-6">
-              <PublishForm
-                // A new current version resets the form to its text.
-                key={current?.id ?? "none"}
-                purpose={purpose}
-                defaults={{
-                  title: current?.title ?? t(`purposes.${purpose}`),
-                  source: current
-                    ? formatConsentDocumentSource(current.body)
-                    : "",
-                }}
-                labels={{
-                  title: tf("title.label"),
-                  source: {
-                    label: tf("source.label"),
-                    hint: tf("source.hint"),
-                  },
-                  preview: tf("preview"),
-                  previewing: tf("previewing"),
-                  publish: tf("publish", { version: nextVersion }),
-                  publishing: tf("publishing"),
-                  previewTitle: tf("previewTitle", { version: nextVersion }),
-                  fixErrors: tf("fixErrors"),
-                  problem: callout("danger"),
-                }}
-                factLabels={factLabels}
-              />
-            </div>
+            {isMirroredConsentPurpose(purpose) ? (
+              // Its policy page's text: the CMS publishes it (#111).
+              <p className="mt-4 max-w-prose">{t("fromCms")}</p>
+            ) : (
+              <div className="mt-6">
+                <PublishForm
+                  // A new current version resets the form to its text.
+                  key={current?.id ?? "none"}
+                  purpose={purpose}
+                  defaults={{
+                    title: current?.title ?? t(`purposes.${purpose}`),
+                    source: current
+                      ? formatConsentDocumentSource(current.body)
+                      : "",
+                  }}
+                  labels={{
+                    title: tf("title.label"),
+                    source: {
+                      label: tf("source.label"),
+                      hint: tf("source.hint"),
+                    },
+                    preview: tf("preview"),
+                    previewing: tf("previewing"),
+                    publish: tf("publish", { version: nextVersion }),
+                    publishing: tf("publishing"),
+                    previewTitle: tf("previewTitle", { version: nextVersion }),
+                    fixErrors: tf("fixErrors"),
+                    problem: callout("danger"),
+                  }}
+                  factLabels={factLabels}
+                />
+              </div>
+            )}
 
             {current ? (
               <div className="mt-8">
