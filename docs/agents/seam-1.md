@@ -27,18 +27,20 @@ describe("someUseCase", () => {
 
 ## What the harness gives a test
 
-| Field              | What it is                                                                                                 |
-| ------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `h.as(actor)`      | The app's use cases, acting as `actor`, over the harness deps (`createApp(deps)` from `src/server/app.ts`) |
-| `h.visitor(meta?)` | A signed-out actor with documentation IP `203.0.113.10`; pass `{ ip }` to vary it                          |
-| `h.seed`           | `src/server/seed/` builders on this database and clock: `member()`, `superAdmin()`, `grant()`, `preview()` |
-| `h.clock`          | `FakeClock`: `now()`, `advance({ minutes: 10 })`, `set(instant)`. Starts at `DEFAULT_TEST_INSTANT`         |
-| `h.email`          | `FakeEmail`: `sent`, `lastTo(address)`, `codeFor(address)`, `failNext(n, error)`                           |
-| `h.signIn(user)`   | Signs `user` in through the real email-code flow (fresh IP) and returns the signed-in actor                |
-| `h.currentActor()` | Who the server sees on the browser's next request, from `h.cookies`, resolved as in production             |
-| `h.cookies`        | The browser's cookie store; `header()` saves a browser to pass to `currentActor(meta, cookie)` later       |
-| `h.db`             | This test's database, for asserting on rows (audit rows count as behaviour)                                |
-| `h.deps`           | `{ db, clock, email }`: what `productionDeps()` wires for real in `src/server/deps.ts`                     |
+| Field                       | What it is                                                                                                                                                                                                     |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `h.as(actor)`               | The app's use cases, acting as `actor`, over the harness deps (`createApp(deps)` from `src/server/app.ts`)                                                                                                     |
+| `h.visitor(meta?)`          | A signed-out actor with documentation IP `203.0.113.10`; pass `{ ip }` to vary it                                                                                                                              |
+| `h.seed`                    | `src/server/seed/` builders on this database and clock: `member()`, `superAdmin()`, `grant()`, `authenticator()`, `preview()`                                                                                  |
+| `h.clock`                   | `FakeClock`: `now()`, `advance({ minutes: 10 })`, `set(instant)`. Starts at `DEFAULT_TEST_INSTANT`                                                                                                             |
+| `h.email`                   | `FakeEmail`: `sent`, `lastTo(address)`, `codeFor(address)`, `failNext(n, error)`                                                                                                                               |
+| `h.signIn(user)`            | Signs `user` in through the real email-code flow (fresh IP) and returns the signed-in actor. Staff then pass their second factor too; `signIn(user, meta, { secondFactor: false })` stops after the email code |
+| `h.passSecondFactor(actor)` | Passes the second factor for the actor's session with the seed authenticator (`SEED_TOTP_SECRET`), adding it if the user has no factor                                                                         |
+| `h.totpCode(at?)`           | The seed authenticator's code at `at` (default now)                                                                                                                                                            |
+| `h.currentActor()`          | Who the server sees on the browser's next request, from `h.cookies`, resolved as in production                                                                                                                 |
+| `h.cookies`                 | The browser's cookie store; `header()` saves a browser to pass to `currentActor(meta, cookie)` later                                                                                                           |
+| `h.db`                      | This test's database, for asserting on rows (audit rows count as behaviour)                                                                                                                                    |
+| `h.deps`                    | `{ db, clock, email }`: what `productionDeps()` wires for real in `src/server/deps.ts`                                                                                                                         |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
 `h.clock`, because Better Auth reads `new Date()` for code and session expiry.
@@ -65,3 +67,7 @@ migrations. In watch mode, restart Vitest after changing a migration.
   and `createHarness()`.
 - A new module with preview data adds one seeder to `seeders` in
   `src/server/seed/index.ts`. Seeders must be safe to run again.
+- A staff use case needs a staff actor who passed the second factor, which
+  `h.signIn` gives by default. A step-up action (`stepUp(...)` in the
+  policy) also needs it passed in the last 10 minutes: `h.passSecondFactor`
+  again after `h.clock.advance`.
