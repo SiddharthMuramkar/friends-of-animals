@@ -19,7 +19,7 @@ import { user, userRole } from "../db/schema";
 import { uuidv7 } from "../ids";
 import { invalidInput, type InvalidInput } from "../input";
 import { recordAudit } from "../audit/record";
-import { capSessionsAtStaffLifetime } from "../second-factor/session-lifetimes";
+import { capSessionsAtStaffLifetime } from "../modules/second-factor/session-lifetimes";
 import type { UseCaseContext } from "../use-cases";
 import { authorize } from "./can";
 import {

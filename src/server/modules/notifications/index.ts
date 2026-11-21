@@ -4,7 +4,7 @@
 // cases join `as(actor)` through `notificationsUseCases`. Producers never
 // call it: they emit an outbox event, and a route row decides the rest.
 
-import type { UseCaseContext } from "../use-cases";
+import type { UseCaseContext } from "../../use-cases";
 import {
   countUnread,
   listInbox,

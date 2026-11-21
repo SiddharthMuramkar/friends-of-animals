@@ -18,8 +18,8 @@ import { auditUseCases } from "./audit";
 import { consentUseCases } from "./consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
-import { notificationsUseCases } from "./notifications";
-import { secondFactorUseCases } from "./second-factor";
+import { notificationsUseCases } from "./modules/notifications";
+import { secondFactorUseCases } from "./modules/second-factor";
 import { settingsUseCases } from "./settings";
 import { composeUseCases } from "./use-cases";
 

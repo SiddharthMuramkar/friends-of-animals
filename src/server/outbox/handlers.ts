@@ -13,7 +13,7 @@
 
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
-import { dispatchEvent } from "../notifications/dispatch";
+import { dispatchEvent } from "../modules/notifications/dispatch";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { Settings } from "../ports/settings";

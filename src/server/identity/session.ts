@@ -1,7 +1,7 @@
 import type { Actor } from "../actor";
 import type { Deps } from "../deps";
 import { errorSummaryForLogs } from "../errors";
-import { isLiveSession } from "../second-factor/session-lifetimes";
+import { isLiveSession } from "../modules/second-factor/session-lifetimes";
 import { authFor } from "./auth";
 import { requestMeta } from "./request";
 

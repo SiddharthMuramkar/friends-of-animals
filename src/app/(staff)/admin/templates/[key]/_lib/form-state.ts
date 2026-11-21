@@ -5,7 +5,7 @@
 import type {
   RevisionProblem,
   UpdateMessageTemplateResult,
-} from "@/server/notifications";
+} from "@/server/modules/notifications";
 
 export type TemplateField = "subject" | "body" | "dltTemplateId";
 

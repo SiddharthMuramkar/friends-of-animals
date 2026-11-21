@@ -11,9 +11,9 @@
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../access/can";
-import { inboxItem } from "../db/schema";
-import type { UseCaseContext } from "../use-cases";
+import { authorize } from "../../access/can";
+import { inboxItem } from "../../db/schema";
+import type { UseCaseContext } from "../../use-cases";
 import { isInboxLink } from "./domain/inbox-link";
 
 export type InboxItemView = {

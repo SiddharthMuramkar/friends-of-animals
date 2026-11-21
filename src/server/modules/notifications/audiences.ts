@@ -13,8 +13,8 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import type { AppDb } from "../db/app-db";
-import type { Delivery, EventType } from "../outbox";
+import type { AppDb } from "../../db/app-db";
+import type { Delivery, EventType } from "../../outbox";
 
 /** The variables every message has about the person receiving it. */
 export const RECIPIENT_VARIABLES = ["recipient.name"] as const;

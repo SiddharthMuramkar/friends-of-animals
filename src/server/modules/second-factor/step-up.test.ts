@@ -10,7 +10,7 @@ import {
 } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
-import type { Actor } from "../actor";
+import type { Actor } from "../../actor";
 
 const judge = { role: "judge", scope: { type: "global" } } as const;
 

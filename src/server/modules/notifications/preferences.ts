@@ -1,6 +1,6 @@
 // A user's channel choices (#69): email, SMS or both. In-app is the
 // inbox, always on. Messages the law requires ignore these choices
-// (src/server/notifications/domain/delivery-plan.ts), and SMS goes only
+// (src/server/modules/notifications/domain/delivery-plan.ts), and SMS goes only
 // while `sms.enabled` is on and its template is DLT-registered.
 //
 //   getNotificationPreferences()                  → { email, sms }
@@ -8,10 +8,10 @@
 
 import { z } from "zod";
 
-import { authorize } from "../access/can";
-import { notificationPreference } from "../db/schema";
-import type { InvalidInput } from "../input";
-import type { UseCaseContext } from "../use-cases";
+import { authorize } from "../../access/can";
+import { notificationPreference } from "../../db/schema";
+import type { InvalidInput } from "../../input";
+import type { UseCaseContext } from "../../use-cases";
 import { preferencesOf } from "./dispatch";
 
 export type NotificationPreferences = { email: boolean; sms: boolean };

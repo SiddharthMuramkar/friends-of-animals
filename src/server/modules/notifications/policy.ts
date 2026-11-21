@@ -4,7 +4,7 @@
 // own: the use cases only ever touch the actor's rows. Loads under plain
 // Node: relative imports only.
 
-import { role, signedIn, type Policy } from "../access/domain/policy";
+import { role, signedIn, type Policy } from "../../access/domain/policy";
 
 export const NOTIFICATIONS_POLICY = {
   "message_template.view": role("content_manager", "super_admin"),

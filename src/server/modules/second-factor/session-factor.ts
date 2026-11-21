@@ -3,15 +3,15 @@
 
 import { and, eq, isNotNull } from "drizzle-orm";
 
-import type { Actor } from "../actor";
-import type { AppDb } from "../db/app-db";
+import type { Actor } from "../../actor";
+import type { AppDb } from "../../db/app-db";
 import {
   secondFactor,
   secondFactorLockout,
   sessionSecondFactor,
   type SecondFactorKind,
-} from "../db/schema";
-import { DomainError } from "../errors";
+} from "../../db/schema";
+import { DomainError } from "../../errors";
 import type { SecondFactorStatus } from "./domain/gate";
 import { NO_FAILURES, type LockoutState } from "./domain/lockout";
 

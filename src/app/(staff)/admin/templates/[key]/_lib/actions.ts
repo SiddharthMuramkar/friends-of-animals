@@ -7,8 +7,8 @@ import { z } from "zod";
 
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import type { RevisionProblem } from "@/server/notifications";
-import { placeholderFor } from "@/server/notifications/preview";
+import type { RevisionProblem } from "@/server/modules/notifications";
+import { placeholderFor } from "@/server/modules/notifications/preview";
 
 import { templateFormState, type TemplateFormState } from "./form-state";
 

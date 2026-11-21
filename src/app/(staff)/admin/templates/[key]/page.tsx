@@ -14,7 +14,7 @@ import { as, currentActor } from "@/server/app";
 import {
   placeholderFor,
   renderTemplateWith,
-} from "@/server/notifications/preview";
+} from "@/server/modules/notifications/preview";
 
 import { lookupName, nameOr, type NameTree } from "../_lib/labels";
 import { unlessForbidden } from "../_lib/refusal";

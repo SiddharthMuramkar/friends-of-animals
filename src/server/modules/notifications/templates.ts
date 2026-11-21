@@ -14,11 +14,11 @@
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../access/can";
-import { recordAudit } from "../audit";
-import { messageRoute, messageTemplate, user } from "../db/schema";
-import { invalidInput, type InvalidInput } from "../input";
-import type { UseCaseContext } from "../use-cases";
+import { authorize } from "../../access/can";
+import { recordAudit } from "../../audit";
+import { messageRoute, messageTemplate, user } from "../../db/schema";
+import { invalidInput, type InvalidInput } from "../../input";
+import type { UseCaseContext } from "../../use-cases";
 import { MESSAGE_CHANNELS, type MessageChannel } from "./domain/channels";
 import {
   reviseTemplate,

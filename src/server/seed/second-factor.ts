@@ -12,8 +12,8 @@ import { grantsOf } from "../access/grants";
 import { secondFactor } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import { uuidv7 } from "../ids";
-import { base32Decode } from "../second-factor/domain/base32";
-import { openTotpSecret, sealTotpSecret } from "../second-factor/secret-box";
+import { base32Decode } from "../modules/second-factor/domain/base32";
+import { openTotpSecret, sealTotpSecret } from "../modules/second-factor/secret-box";
 import { SEED_ACCOUNTS } from "./accounts";
 import type { SeedDeps } from "./types";
 

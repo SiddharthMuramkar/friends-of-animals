@@ -23,7 +23,7 @@ import type { AppDb } from "../db/app-db";
 import { account, session, user, verification } from "../db/schema";
 import type { Deps } from "../deps";
 import { uuidv7 } from "../ids";
-import { cappedSessionExpiry } from "../second-factor/session-lifetimes";
+import { cappedSessionExpiry } from "../modules/second-factor/session-lifetimes";
 import { EMAIL_CODE, SESSION_LIFETIME_DAYS } from "./settings";
 
 const DAY_SECONDS = 24 * 60 * 60;
