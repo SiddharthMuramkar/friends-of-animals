@@ -14,9 +14,15 @@
 # (systemd/foa-docker-user-fw.service drops everything else arriving on eth0
 # anyway).
 #
-# Memory limits are hard: memswap_limit = mem_limit keeps the containers out of
-# swap (Docker otherwise lets a container swap as much again as mem_limit; the
-# Fedora VPS has zram swap and shares RAM with interactive work).
+# Memory limits are hard (mem_limit). memswap_limit = mem_limit is meant to
+# keep the containers out of swap (Docker otherwise lets a container swap as
+# much again as mem_limit; the Fedora VPS has zram swap and shares RAM with
+# interactive work), but on Docker 29.10 with runc 1.5.3 and the systemd cgroup
+# driver it never reaches the cgroup: memory.swap.max stays "max" and the
+# scope shows MemorySwapMax=infinity. Kept so it applies once runc does.
+#
+# oom_score_adj -900: under memory pressure the kernel's OOM killer takes the
+# agents and test runs that share this box before any database process.
 
 name: foa-vps
 
@@ -96,6 +102,7 @@ services:
     cpus: 4
     mem_limit: 10g
     memswap_limit: 10g
+    oom_score_adj: -900
     networks:
       db:
         ipv4_address: 10.112.12.10
@@ -136,6 +143,7 @@ services:
     cpus: 2
     mem_limit: 4g
     memswap_limit: 4g
+    oom_score_adj: -900
     networks:
       db:
         ipv4_address: 10.112.12.11
@@ -184,6 +192,7 @@ services:
     cpus: 1
     mem_limit: 512m
     memswap_limit: 512m
+    oom_score_adj: -900
     logging: *logging
     healthcheck:
       # Listening on TCP 6432 (0x1920). Deliberately not a login: probes would

@@ -34,10 +34,14 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
   commands in this runbook work, but `docker compose up pg-nonprod` on its own
   fails until pg-prod's image exists (build it first with
   `docker compose -f compose.yml build pg-prod`).
-- **Memory limits are hard**: `memswap_limit` equals `mem_limit` on all three
-  (`memory.swap.max` = 0), so none of them swaps. Docker otherwise lets a
-  container swap as much again as its limit, and the VPS has zram swap and
-  shares its RAM with interactive work.
+- **Memory limits are hard** (`mem_limit`). `memswap_limit` equals `mem_limit`
+  on all three to keep them out of swap, but on Docker 29.10 with runc 1.5.3
+  and the systemd cgroup driver that never reaches the cgroup
+  (`memory.swap.max` stays `max`), so today they can still swap into zram
+  under pressure. The setting stays so it applies once runc passes it on.
+- **OOM order**: `oom_score_adj: -900` on all three, so under memory pressure
+  the kernel kills the agents and test runs sharing the box before any
+  database process.
 
 Host side: systemd units in `systemd/` (firewall, certificate renewal,
 backups, restore drill, preview sweep) and CrowdSec (`crowdsec/`).
