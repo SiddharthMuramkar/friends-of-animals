@@ -178,7 +178,7 @@ describe("scrubEvent", () => {
       environment: "staging",
       message: "Could not send code to [email] or [phone]",
       transaction: "GET /sign-in",
-      logentry: { message: "Sign-in failed for %s", params: ["[email]"] },
+      logentry: { message: "Sign-in failed for %s", params: "[redacted]" },
       user: { id: "u_01938a0000007000" },
       request: {
         method: "POST",
