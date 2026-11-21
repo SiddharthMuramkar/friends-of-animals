@@ -8,12 +8,12 @@ import { z } from "zod";
 import type { RequestMeta } from "../actor";
 import type { CookieJar } from "../ports/cookies";
 import type { UseCaseContext } from "../use-cases";
-import { EMAIL_CODE } from "./settings";
+import { SIGN_IN_CODE } from "./settings";
 
 export const codeInput = z
   .string()
   .trim()
-  .regex(new RegExp(`^\\d{${EMAIL_CODE.length}}$`));
+  .regex(new RegExp(`^\\d{${SIGN_IN_CODE.length}}$`));
 
 export const nameInput = z.string().trim().min(1).max(100);
 
