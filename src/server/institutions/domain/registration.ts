@@ -58,11 +58,14 @@ export const registrationSchema = z.object({
     .max(MAX_EXPECTED_PARTICIPANTS),
 });
 
-/** As the form sends it; `expectedParticipants` may still be text. */
+/**
+ * As the form sends it: the schema checks the type, and
+ * `expectedParticipants` may still be text.
+ */
 export type RegisterInstitutionInput = Omit<
   z.input<typeof registrationSchema>,
-  "expectedParticipants"
-> & { expectedParticipants: number | string };
+  "type" | "expectedParticipants"
+> & { type: string; expectedParticipants: number | string };
 
 /** Checked, trimmed and normalised. */
 export type Registration = z.output<typeof registrationSchema>;

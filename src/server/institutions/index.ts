@@ -39,6 +39,7 @@ export type {
   InstitutionStatus,
 } from "./domain/status";
 export {
+  allowedDecisions,
   DECISION_REASON_MAX_LENGTH,
   INSTITUTION_DECISIONS,
   INSTITUTION_STATUSES,

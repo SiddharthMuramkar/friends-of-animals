@@ -5,6 +5,7 @@
 import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
+import adminInstitutions from "../../messages/en-IN/adminInstitutions.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -18,6 +19,7 @@ import error from "../../messages/en-IN/error.json";
 import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
+import institutions from "../../messages/en-IN/institutions.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
@@ -33,6 +35,7 @@ export const NAMESPACES = [
   "a11y",
   "about",
   "account",
+  "adminInstitutions",
   "auth",
   "authPhone",
   "awareness",
@@ -46,6 +49,7 @@ export const NAMESPACES = [
   "footer",
   "home",
   "impact",
+  "institutions",
   "legal",
   "nav",
   "notFound",
@@ -65,6 +69,7 @@ export const messages = {
   ...a11y,
   ...about,
   ...account,
+  ...adminInstitutions,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -78,6 +83,7 @@ export const messages = {
   ...footer,
   ...home,
   ...impact,
+  ...institutions,
   ...legal,
   ...nav,
   ...notFound,

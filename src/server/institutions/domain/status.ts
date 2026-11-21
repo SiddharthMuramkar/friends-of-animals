@@ -86,3 +86,12 @@ export function decideInstitutionStatus(input: {
     reason,
   };
 }
+
+/** The decisions staff can make about an institution in status `from`. */
+export function allowedDecisions(
+  from: InstitutionStatus
+): InstitutionDecision[] {
+  return INSTITUTION_DECISIONS.filter(
+    (decision) => TRANSITIONS[from][decision] !== undefined
+  );
+}

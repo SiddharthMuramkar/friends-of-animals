@@ -119,9 +119,7 @@ describe("registerInstitution", () => {
 
       const result = await h
         .as(actor)
-        .registerInstitution(
-          validRegistration(overrides as Record<string, unknown>)
-        );
+        .registerInstitution(validRegistration(overrides));
 
       expect(result).toEqual({
         ok: false,
