@@ -1,7 +1,10 @@
 import { count } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { user } from "@/server/db/schema";
+import { outbox, user } from "@/server/db/schema";
+import { uuidv7 } from "@/server/ids";
+import { DEFAULT_DRAIN_LIMIT, drainOutbox } from "@/server/outbox";
+import { emitUserSignedUp } from "@/server/outbox/testing";
 
 import { createHarness } from "./harness";
 
@@ -53,5 +56,40 @@ describe("createHarness", () => {
     expect(h.deps.db).toBe(h.db);
     expect(h.deps.clock).toBe(h.clock);
     expect(h.deps.email).toBe(h.email);
+  });
+});
+
+describe("drain", () => {
+  it("delivers every due event in process, pass after pass, until none is due", async () => {
+    const h = await createHarness();
+    const events = DEFAULT_DRAIN_LIMIT + 5;
+    for (let i = 0; i < events; i += 1) {
+      // Accounts that don't exist: each delivery succeeds, sending nothing.
+      await emitUserSignedUp(h.deps, uuidv7(h.clock.now()));
+    }
+
+    const report = await h.drain();
+
+    expect(report).toEqual({
+      dispatched: events,
+      retried: 0,
+      failed: 0,
+      skipped: 0,
+    });
+    const statuses = await h.db.select({ status: outbox.status }).from(outbox);
+    expect(new Set(statuses.map((row) => row.status))).toEqual(
+      new Set(["dispatched"])
+    );
+    expect(await drainOutbox(h.deps)).toMatchObject({ dispatched: 0 });
+  });
+
+  it("needs nothing but the harness: no worker, no queue", async () => {
+    const h = await createHarness();
+    expect(await h.drain()).toEqual({
+      dispatched: 0,
+      retried: 0,
+      failed: 0,
+      skipped: 0,
+    });
   });
 });
