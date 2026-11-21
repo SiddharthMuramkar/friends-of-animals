@@ -10,7 +10,7 @@
 // admin can't finish a change they started. Loads under
 // plain Node (the bootstrap command): relative imports only.
 
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -31,7 +31,7 @@ import {
   type Role,
   type Scope,
 } from "./domain/roles";
-import { grantOf, grantRow, grantsOf } from "./grants";
+import { globalSuperAdminRows, grantOf, grantRow, grantsOf } from "./grants";
 
 /** What the access use cases use: the database, the clock and the actor. */
 export type AccessContext = Pick<UseCaseContext, "db" | "clock" | "actor">;
@@ -163,13 +163,7 @@ async function lockGlobalSuperAdmins(tx: AppDb): Promise<number> {
   const rows = await tx
     .select({ id: userRole.id })
     .from(userRole)
-    .where(
-      and(
-        eq(userRole.role, "super_admin"),
-        eq(userRole.scopeType, "global"),
-        isNull(userRole.scopeId)
-      )
-    )
+    .where(globalSuperAdminRows)
     .orderBy(asc(userRole.id))
     .for("update");
   return rows.length;
