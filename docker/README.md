@@ -56,6 +56,7 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_prod_foa_worker_password`          | 1000, 0400      | `foa_worker` (worker-prod)            |
 | `/etc/foa/secrets/pg_nonprod_staging_worker_password`   | 1000, 0400      | `staging_worker` (worker-staging)     |
 | `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
+| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for all three workers   |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
 | `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
@@ -450,12 +451,17 @@ sessions, which transaction pooling breaks. None publishes a port.
   workers stop touching it while their database fails; `worker-preview`
   while it can't list the previews (one broken preview doesn't count). Each
   poll also upserts the worker's row in `worker_heartbeat` in every database
-  it drains (worker, environment, last seen, version), which `/api/health`
-  can read (#66). `restart: unless-stopped` restarts a worker that exits;
+  it drains (worker, environment, last seen, version), which
+  `/api/health/worker` reads ("Monitoring and alerts"). `restart: unless-stopped` restarts a worker that exits;
   Docker doesn't restart an unhealthy one, so watch `docker ps`.
 - **Logs:** one JSON object per line (`event`, `database`, counts), with
-  error classes and codes but never messages or addresses; json-file, 5 ×
-  20 MB per worker.
+  error classes and codes but never messages or addresses; in the host's
+  journal for a year ("Logs").
+- **Errors:** a failed tick (once, until that database recovers), an
+  uncaught exception or unhandled rejection (then the worker exits 1 and
+  restarts), and a failed start go to Sentry, scrubbed, tagged with the
+  database and APP_ENV, when `/etc/foa/secrets/worker_sentry.env` holds
+  `SENTRY_DSN=...` (HR-22). Without it they are only logged.
 - **Email:** staging and previews capture every message in their database's
   mailbox; production refuses until SES exists (HR-12), so its deliveries
   retry and end `failed`, visible to staff.
@@ -582,9 +588,16 @@ touching production:
 2. App and pooler: add a throwaway monitor for `/api/health/does-not-exist`
    and one for TCP `db.shipped-it.dev:6433` (closed). Both alert; delete
    them after.
-3. Errors: with the DSN set, a worker started with a database it can't
-   reach reports its first failed tick to Sentry, tagged with the database
-   and `environment` = APP_ENV.
+3. Errors, with the workers' DSN set: start a throwaway staging worker
+   pointed at a port nothing listens on. It fails to start, reports that
+   to Sentry (`where` `worker.main`, `environment` `staging`) and exits 1;
+   the alert rule fires.
+
+   ```sh
+   docker compose -f /srv/foa/docker/workers.yml run --rm \
+     -e WORKER_DATABASE_URL=postgres://staging_worker@10.112.12.11:5999/foa_staging \
+     worker-staging
+   ```
 
 ## Logs
 
