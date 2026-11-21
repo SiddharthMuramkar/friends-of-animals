@@ -4,9 +4,14 @@
 // super admin is not a wildcard.
 
 import { IDENTITY_POLICY } from "../identity/policy";
+import { COORDINATORS_POLICY } from "../institutions/coordinators/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
-export const POLICY = composePolicies(IDENTITY_POLICY, ACCESS_POLICY);
+export const POLICY = composePolicies(
+  IDENTITY_POLICY,
+  ACCESS_POLICY,
+  COORDINATORS_POLICY
+);
 
 export type Action = keyof typeof POLICY;

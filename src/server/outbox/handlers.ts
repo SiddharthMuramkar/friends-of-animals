@@ -11,14 +11,26 @@
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
+import { sendCoordinatorInvitation } from "../institutions/coordinators/invitation-message";
 import { sendWelcomeEmail } from "../notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
+import type { SmsSender } from "../ports/sms";
 import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
-export type OutboxDeps = { db: AppDb; clock: Clock; email: EmailSender };
+export type OutboxDeps = {
+  db: AppDb;
+  clock: Clock;
+  email: EmailSender;
+  sms: SmsSender;
+  /** Decrypts what a message needs at send time (an invitation's link). */
+  cipher: FieldCipher;
+  /** The site's base URL, for links in messages. */
+  auth: { baseUrl: string };
+};
 
 /** The event a handler listens to, from SUBSCRIBERS. */
 type EventFor<H extends HandlerName> = {
@@ -46,6 +58,8 @@ type Handlers = {
 export const HANDLERS: Handlers = {
   "notifications.send_welcome_email": (deps, { payload }) =>
     sendWelcomeEmail(deps, payload),
+  "institutions.send_coordinator_invitation": (deps, { payload }) =>
+    sendCoordinatorInvitation(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */
