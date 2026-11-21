@@ -25,17 +25,17 @@ import {
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../access/can";
-import { recordAudit } from "../audit/record";
-import type { AppDb } from "../db/app-db";
+import { authorize } from "../../access/can";
+import { recordAudit } from "../../audit/record";
+import type { AppDb } from "../../db/app-db";
 import {
   secondFactor,
   user,
   webauthnChallenge,
   type WebauthnPurpose,
-} from "../db/schema";
-import { uuidv7 } from "../ids";
-import { invalidInput, type InvalidInput } from "../input";
+} from "../../db/schema";
+import { uuidv7 } from "../../ids";
+import { invalidInput, type InvalidInput } from "../../input";
 import { guardedAttempt, type Locked } from "./attempts";
 import {
   signedInUser,

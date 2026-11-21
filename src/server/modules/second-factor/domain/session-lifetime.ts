@@ -6,7 +6,7 @@
 // The defaults are the settings defaults (HR-19); the runtime settings
 // screen (#62) passes stored values instead. Pure: no I/O.
 
-import type { Role } from "../../access/domain/roles";
+import type { Role } from "../../../access/domain/roles";
 import { isStaffRole } from "./gate";
 
 const HOUR = 60 * 60 * 1000;

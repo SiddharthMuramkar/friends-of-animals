@@ -15,8 +15,8 @@ import type { Actor } from "../actor";
 import type { AppDb } from "../db/app-db";
 import { DomainError } from "../errors";
 import type { Clock } from "../ports/clock";
-import type { SecondFactorRefusal } from "../second-factor/domain/gate";
-import { secondFactorRefusal } from "../second-factor/requirement";
+import type { SecondFactorRefusal } from "../modules/second-factor/domain/gate";
+import { secondFactorRefusal } from "../modules/second-factor/requirement";
 import {
   decide,
   type Decision,

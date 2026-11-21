@@ -6,7 +6,7 @@
 import { CMS_POLICY } from "../modules/cms/policy";
 import { CONSENT_POLICY } from "../consent/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
-import { SECOND_FACTOR_POLICY } from "../second-factor/policy";
+import { SECOND_FACTOR_POLICY } from "../modules/second-factor/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 

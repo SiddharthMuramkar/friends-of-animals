@@ -19,7 +19,7 @@ import { cmsUseCases } from "./modules/cms";
 import { consentUseCases } from "./consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
-import { secondFactorUseCases } from "./second-factor";
+import { secondFactorUseCases } from "./modules/second-factor";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(

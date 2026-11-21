@@ -20,12 +20,12 @@ import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
-import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { isStaffRole } from "@/server/access/domain/roles";
 import { grantsOf } from "@/server/access/grants";
-import { base32Decode } from "@/server/second-factor/domain/base32";
-import { TOTP, totpCode } from "@/server/second-factor/domain/totp";
-import { isEnrolled } from "@/server/second-factor/session-factor";
+import { base32Decode } from "@/server/modules/second-factor/domain/base32";
+import { TOTP, totpCode } from "@/server/modules/second-factor/domain/totp";
+import { isEnrolled } from "@/server/modules/second-factor/session-factor";
+import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 import { SEED_TOTP_SECRET } from "@/server/seed/second-factor";
 
