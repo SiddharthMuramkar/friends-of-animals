@@ -33,10 +33,11 @@ function recordingBoss(existing: string[] = []) {
   return { boss, calls, handlers };
 }
 
+const clock = new FakeClock();
 const deps = {
   db: {} as OutboxDeps["db"],
-  clock: new FakeClock(),
-  email: new FakeEmail(),
+  clock,
+  email: new FakeEmail(clock),
 } satisfies OutboxDeps;
 
 function definition(
