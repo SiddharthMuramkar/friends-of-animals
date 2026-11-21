@@ -93,7 +93,7 @@ function plain(value: unknown): string {
  * has no https (three published stories cite one), http. It is only ever
  * a link, so http is no risk to the page.
  */
-function sourceUrl(raw: unknown): string | null {
+export function sourceUrl(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const url = raw.trim();
   const asHttps = url.startsWith("http://") ? `https://${url.slice(7)}` : url;
