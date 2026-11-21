@@ -120,6 +120,32 @@ stories and tips. Sign-in codes, receipts and notices the law requires are not
 News and updates and never depend on it.
 _Avoid_: Marketing, newsletter, messages (alone)
 
+## Site content
+
+**Content document**:
+One fixed page or block of the site's words that content managers change
+without a deploy: the home page's sections, the about page, the impact
+counters, the site facts, or one of the four policy pages. Its words live in
+Revisions.
+_Avoid_: Page (a page is what visitors open), post, entry
+
+**Revision**:
+One text of a Content document. A document has at most one Draft and at most
+one published Revision; publishing a Draft gives it the next version number
+and replaces the published one, which stays in the history unchanged.
+_Avoid_: Edit, copy
+
+**Draft**:
+The Revision content managers are still editing. Nobody else sees it, except
+through a Draft preview, until it is published.
+_Avoid_: Pending changes, unpublished version
+
+**Draft preview**:
+A content manager seeing a public page with its Draft in place of the
+published Revision, under a "Draft preview" status, until they leave it.
+Everyone else sees the published Revision.
+_Avoid_: Staging, preview deployment (a preview deployment is a whole site)
+
 ## Messages
 
 **Capture mailbox**:
