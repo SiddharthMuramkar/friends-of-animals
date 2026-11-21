@@ -64,7 +64,9 @@
         "lead": "This is what publishing will show. Preview it on the site to see it in place.",
         "none": "There is no draft yet.",
         "preview": "Preview on the site",
+        "previewing": "Opening the preview…",
         "publish": "Publish as version {version}",
+        "publishing": "Publishing…",
         "shortVersion": "The short version"
       },
       "notices": {
