@@ -3,15 +3,17 @@
 //   createCompetition({ code, name, ... })            → a global competition manager
 //   getCompetitionForEdit({ competitionId })          → a manager covering it
 //   updateCompetition({ competitionId, ...changes })  → a manager covering it
+//   listCompetitionsForAdmin()                        → any competition manager
 //
 // Expected refusals come back as results; an actor the policy refuses gets
 // DomainError("forbidden"). Loads under plain Node: relative imports only.
 
-import { eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
 import type { Resource } from "../../access/domain/policy";
+import { grantsOf } from "../../access/grants";
 import type { AppDb } from "../../db/app-db";
 import { recordAudit } from "../../audit/record";
 import { competition } from "../../db/schema";
@@ -19,6 +21,7 @@ import { sqlState } from "../../errors";
 import { uuidv7 } from "../../ids";
 import type { UseCaseContext } from "../../use-cases";
 import { orderedKeyDates } from "./domain/key-dates";
+import { publishProblems, type PublishProblem } from "./domain/publish-rules";
 import { competitionSlugCandidates } from "./domain/slug";
 import type { CompetitionStatus } from "./domain/vocabulary";
 import {
@@ -250,13 +253,17 @@ export type UpdateCompetitionInput = {
 export type UpdateCompetitionResult =
   | { ok: true; changed: boolean }
   | FieldsRefusal
-  | { ok: false; error: "code_taken" | "not_found" };
+  | { ok: false; error: "code_taken" | "code_locked" | "not_found" }
+  | { ok: false; error: "not_ready"; problems: PublishProblem[] };
 
 /**
  * Saves changes to a competition: the fields given, the others as they
  * were. Age groups, categories and key dates are replaced whole when
  * given. New disciplines or age groups without categories make every
  * pairing a category. Changing nothing records nothing (`changed: false`).
+ *
+ * Once published, a competition keeps its code (registration numbers are
+ * made from it: `code_locked`) and must stay publishable (`not_ready`).
  */
 export async function updateCompetition(
   ctx: CompetitionsContext,
@@ -286,6 +293,15 @@ export async function updateCompetition(
       const parsed = parseFields(merged);
       if (!parsed.ok) return parsed;
       const { values } = parsed;
+      if (stored.row.status !== "draft") {
+        if (values.code !== stored.values.code) {
+          return { ok: false, error: "code_locked" } as const;
+        }
+        const problems = publishProblems(values);
+        if (problems.length > 0) {
+          return { ok: false, error: "not_ready", problems } as const;
+        }
+      }
       if (await codeTaken(tx, values.code, competitionId)) {
         return { ok: false, error: "code_taken" } as const;
       }
@@ -318,6 +334,49 @@ export async function updateCompetition(
     if (isCodeTaken(error)) return { ok: false, error: "code_taken" };
     throw error;
   }
+}
+
+/** A row of the admin area's competition list. */
+export type AdminCompetitionListItem = {
+  id: string;
+  code: string;
+  slug: string;
+  name: string;
+  status: CompetitionStatus;
+  publishedAt: Date | null;
+  updatedAt: Date;
+};
+
+/**
+ * The competitions the actor manages, the latest change first: every one
+ * for a global competition manager, else those their grants name.
+ */
+export async function listCompetitionsForAdmin(
+  ctx: CompetitionsContext
+): Promise<AdminCompetitionListItem[]> {
+  await authorize(ctx, "competition.list");
+  if (ctx.actor.kind !== "user") return [];
+  const grants = (await grantsOf(ctx.db, ctx.actor.userId)).filter(
+    (grant) => grant.role === "competition_manager"
+  );
+  const global = grants.some((grant) => grant.scope.type === "global");
+  const ids = grants.flatMap((grant) =>
+    grant.scope.type === "competition" ? [grant.scope.id] : []
+  );
+  if (!global && ids.length === 0) return [];
+  return ctx.db
+    .select({
+      id: competition.id,
+      code: competition.code,
+      slug: competition.slug,
+      name: competition.name,
+      status: competition.status,
+      publishedAt: competition.publishedAt,
+      updatedAt: competition.updatedAt,
+    })
+    .from(competition)
+    .where(global ? undefined : inArray(competition.id, ids))
+    .orderBy(desc(competition.updatedAt), desc(competition.id));
 }
 
 /** `input` without the keys whose value is undefined. */

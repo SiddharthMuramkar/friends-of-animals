@@ -3,7 +3,7 @@
 // competition is stored one way. Loads under plain Node (the seed script):
 // relative imports only, no "server-only".
 
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
 import {
@@ -12,10 +12,19 @@ import {
   competitionCategory,
   competitionKeyDate,
   type Competition,
+  type CompetitionAgeGroup,
 } from "../../db/schema";
 import { uuidv7 } from "../../ids";
-import { orderedKeyDates, type KeyDates } from "./domain/key-dates";
-import { DISCIPLINES, type PhysicalArtwork } from "./domain/vocabulary";
+import {
+  orderedKeyDates,
+  type KeyDateKind,
+  type KeyDates,
+} from "./domain/key-dates";
+import {
+  DISCIPLINES,
+  type Discipline,
+  type PhysicalArtwork,
+} from "./domain/vocabulary";
 import type { CompetitionValues } from "./fields";
 
 /** A stored competition: its row and its values. */
@@ -41,73 +50,98 @@ export async function loadCompetition(
   { lock = false }: { lock?: boolean } = {}
 ): Promise<StoredCompetition | null> {
   const query = db.select().from(competition).where(eq(competition.id, id));
-  const [row] = await (lock ? query.for("update") : query);
-  if (!row) return null;
+  const rows = await (lock ? query.for("update") : query);
+  const [stored] = await withValues(db, rows);
+  return stored ?? null;
+}
 
+/** These competition rows with their values, in the same order. */
+export async function withValues(
+  db: AppDb,
+  rows: readonly Competition[]
+): Promise<StoredCompetition[]> {
+  if (rows.length === 0) return [];
+  const ids = rows.map((row) => row.id);
   const [groups, categories, keyDateRows] = await Promise.all([
     db
       .select()
       .from(competitionAgeGroup)
-      .where(eq(competitionAgeGroup.competitionId, id))
+      .where(inArray(competitionAgeGroup.competitionId, ids))
       .orderBy(asc(competitionAgeGroup.position)),
     db
       .select({
+        competitionId: competitionCategory.competitionId,
         discipline: competitionCategory.discipline,
         ageGroupId: competitionCategory.ageGroupId,
       })
       .from(competitionCategory)
-      .where(eq(competitionCategory.competitionId, id)),
+      .where(inArray(competitionCategory.competitionId, ids)),
     db
-      .select({ kind: competitionKeyDate.kind, at: competitionKeyDate.at })
+      .select({
+        competitionId: competitionKeyDate.competitionId,
+        kind: competitionKeyDate.kind,
+        at: competitionKeyDate.at,
+      })
       .from(competitionKeyDate)
-      .where(eq(competitionKeyDate.competitionId, id)),
+      .where(inArray(competitionKeyDate.competitionId, ids)),
   ]);
+  return rows.map((row) => ({
+    row,
+    values: valuesOf(
+      row,
+      groups.filter((group) => group.competitionId === row.id),
+      categories.filter((category) => category.competitionId === row.id),
+      keyDateRows.filter((date) => date.competitionId === row.id)
+    ),
+  }));
+}
 
+function valuesOf(
+  row: Competition,
+  groups: readonly CompetitionAgeGroup[],
+  categories: readonly { discipline: Discipline; ageGroupId: string }[],
+  keyDateRows: readonly { kind: KeyDateKind; at: Date }[]
+): CompetitionValues {
   const position = new Map(groups.map((group, index) => [group.id, index]));
   const keyDates: KeyDates = {};
   for (const { kind, at } of keyDateRows) keyDates[kind] = at;
-  const disciplines = DISCIPLINES.filter((d) => row.disciplines.includes(d));
-
   return {
-    row,
-    values: {
-      code: row.code,
-      name: row.name,
-      theme: row.theme,
-      welfareMessage: row.welfareMessage,
-      rules: row.rules,
-      permittedMaterials: row.permittedMaterials,
-      duration: row.duration,
-      participation: row.participation,
-      disciplines,
-      ageGroups: groups.map(({ label, minAge, maxAge }) => ({
-        label,
-        minAge,
-        maxAge,
+    code: row.code,
+    name: row.name,
+    theme: row.theme,
+    welfareMessage: row.welfareMessage,
+    rules: row.rules,
+    permittedMaterials: row.permittedMaterials,
+    duration: row.duration,
+    participation: row.participation,
+    disciplines: DISCIPLINES.filter((d) => row.disciplines.includes(d)),
+    ageGroups: groups.map(({ label, minAge, maxAge }) => ({
+      label,
+      minAge,
+      maxAge,
+    })),
+    categories: categories
+      .map((c) => ({
+        discipline: c.discipline,
+        group: position.get(c.ageGroupId)!,
+      }))
+      .sort(
+        (a, b) =>
+          DISCIPLINES.indexOf(a.discipline) -
+            DISCIPLINES.indexOf(b.discipline) || a.group - b.group
+      )
+      .map(({ discipline, group }) => ({
+        discipline,
+        ageGroup: groups[group]!.label,
       })),
-      categories: categories
-        .map((c) => ({
-          discipline: c.discipline,
-          group: position.get(c.ageGroupId)!,
-        }))
-        .sort(
-          (a, b) =>
-            DISCIPLINES.indexOf(a.discipline) -
-              DISCIPLINES.indexOf(b.discipline) || a.group - b.group
-        )
-        .map(({ discipline, group }) => ({
-          discipline,
-          ageGroup: groups[group]!.label,
-        })),
-      ageCutoffDate: row.ageCutoffDate,
-      digitalScope: row.digitalScope,
-      shortlistPerCategory: row.shortlistPerCategory,
-      schoolPositions: row.schoolPositions,
-      physicalArtwork: physicalArtworkOf(row),
-      publicDisplay: row.publicDisplay,
-      auctionPermitted: row.auctionPermitted,
-      keyDates,
-    },
+    ageCutoffDate: row.ageCutoffDate,
+    digitalScope: row.digitalScope,
+    shortlistPerCategory: row.shortlistPerCategory,
+    schoolPositions: row.schoolPositions,
+    physicalArtwork: physicalArtworkOf(row),
+    publicDisplay: row.publicDisplay,
+    auctionPermitted: row.auctionPermitted,
+    keyDates,
   };
 }
 
