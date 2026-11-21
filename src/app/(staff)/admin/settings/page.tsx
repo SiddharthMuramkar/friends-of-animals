@@ -38,8 +38,9 @@ export default async function Page() {
         lead={t("lead")}
       />
       {/* Settings are read per request, uncached, so a change shows at
-          once; they stream in behind this boundary while the heading
-          above is prerendered. */}
+          once. The staff layout waits for the request, so the whole page
+          renders at request time: the heading streams first, and the
+          settings follow behind this boundary. */}
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
@@ -119,7 +120,10 @@ async function Settings() {
       <SectionHeading id="settings-list" title={t("listTitle")} />
       <ul className="mt-5 flex flex-col gap-5">
         {settings.map((setting) => {
-          const headingId = `setting-${setting.key.replace(/\W/g, "-")}-title`;
+          // Every id in this setting's card starts with this, the
+          // heading's and the form's alike, so none can clash.
+          const idPrefix = `setting-${setting.key.replace(/\W/g, "-")}`;
+          const headingId = `${idPrefix}-title`;
           return (
             <li key={setting.key}>
               <article aria-labelledby={headingId} className={CARD}>
@@ -159,6 +163,7 @@ async function Settings() {
                 ) : null}
                 <div className="mt-5">
                   <SettingForm
+                    idPrefix={idPrefix}
                     settingKey={setting.key}
                     input={setting.input}
                     value={setting.value}
