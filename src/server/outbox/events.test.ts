@@ -5,13 +5,20 @@ import { EVENT_PAYLOADS } from "./events";
 
 /**
  * The fields of `payload` that could carry personal data: anything but an
- * id (UUID), an enum, a whole number, a boolean or an ISO date. Widening
- * this list is a decision for a reviewer, not a side effect of a new event.
+ * id (UUID), an enum, a whole number, a boolean or an ISO date, plus
+ * "(undeclared keys)" when the payload keeps keys it doesn't declare
+ * (z.looseObject, .catchall()). Widening this list is a decision for a
+ * reviewer, not a side effect of a new event.
  */
 function fieldsThatMayCarryPersonalData(payload: z.ZodObject): string[] {
-  return Object.entries(payload.shape)
+  const fields = Object.entries(payload.shape)
     .filter(([, field]) => !isIdLike(field as z.ZodType))
     .map(([name]) => name);
+  // Unset: extra keys are stripped. ZodNever: they are refused.
+  const { catchall } = payload._zod.def;
+  return catchall === undefined || catchall instanceof z.ZodNever
+    ? fields
+    : [...fields, "(undeclared keys)"];
 }
 
 function isIdLike(field: z.ZodType): boolean {
