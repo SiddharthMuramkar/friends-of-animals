@@ -115,7 +115,8 @@ export async function runCodeForm(
   channel: CodeFormChannel,
   formData: FormData
 ): Promise<CodeFormView> {
-  const intent = field(formData, "intent") === "sign-up" ? "sign-up" : "sign-in";
+  const intent =
+    field(formData, "intent") === "sign-up" ? "sign-up" : "sign-in";
   const messagesConsent =
     intent === "sign-up" ? field(formData, "messagesConsent") : "";
   const typed = {

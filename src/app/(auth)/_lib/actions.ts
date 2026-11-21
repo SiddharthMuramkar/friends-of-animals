@@ -17,7 +17,13 @@ const EMAIL: CodeFormChannel = {
   verify: (actor, { intent, contact: email, name, messagesConsent }, code) =>
     as(actor).verifyEmailCode(
       intent === "sign-up"
-        ? { intent, email, name, code, ...(messagesConsent ? { messagesConsent } : {}) }
+        ? {
+            intent,
+            email,
+            name,
+            code,
+            ...(messagesConsent ? { messagesConsent } : {}),
+          }
         : { intent, email, code }
     ),
   shown: (email) => email,
