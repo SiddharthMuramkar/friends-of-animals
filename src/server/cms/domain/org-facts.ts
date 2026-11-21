@@ -70,9 +70,23 @@ export function mergeOrgFacts(tax: TaxFacts, site: SiteFactsBody): OrgFacts {
   };
 }
 
+/**
+ * The facts from the tax settings and the published site facts document
+ * (null while none is published: every display fact unconfirmed).
+ */
+export function orgFactsFrom(
+  tax: TaxFacts,
+  siteFacts: { body: unknown } | null
+): OrgFacts {
+  return mergeOrgFacts(
+    tax,
+    siteFacts ? factsKind.sanitize(siteFacts.body) : factsKind.seedBody()
+  );
+}
+
 /** Every fact still to be confirmed: before FOA enters any, or with no database. */
 export function unconfirmedOrgFacts(): OrgFacts {
-  return mergeOrgFacts(EMPTY_TAX_FACTS, factsKind.seedBody());
+  return orgFactsFrom(EMPTY_TAX_FACTS, null);
 }
 
 /** The facts still to be confirmed, by placeholder key, in page order. */
