@@ -171,6 +171,27 @@ const errorTrackingVariables = {
   VERCEL_GIT_COMMIT_SHA: z.string().optional(),
 };
 
+/**
+ * The malware scanner (#63): clamd in the `clamav` sidecar, which only the
+ * VPS workers can reach (docker/workers.yml). Without CLAMD_HOST every scan
+ * is an error and uploads wait unscanned, as they do on Vercel, which
+ * never reaches clamd; the workers set it (HR-08).
+ */
+const scannerVariables = {
+  CLAMD_HOST: z.string().optional(),
+  CLAMD_PORT: z.coerce
+    .number({ error: "must be a TCP port, 1 to 65535" })
+    .int({ error: "must be a TCP port, 1 to 65535" })
+    .min(1, { error: "must be a TCP port, 1 to 65535" })
+    .max(65_535, { error: "must be a TCP port, 1 to 65535" })
+    .default(3310),
+};
+
+/** Where the scan job finds clamd; the worker parses it too. */
+export const scannerEnvSchema = z.object(scannerVariables);
+
+export type ScannerEnv = z.output<typeof scannerEnvSchema>;
+
 type AppEnv = (typeof APP_ENVS)[number];
 
 type DeploymentVariables = {
@@ -378,6 +399,7 @@ export const envSchema = z
     ...secretVariables,
     ...storageVariables,
     ...errorTrackingVariables,
+    ...scannerVariables,
   })
   .superRefine(requireAppEnvOnVercel, always)
   .superRefine(requireAppUrl, always)
