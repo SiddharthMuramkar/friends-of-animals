@@ -29,7 +29,10 @@ import {
   silentErrorReporter,
   type ErrorReporter,
 } from "../server/ports/errors";
-import { sentryErrorReporter, type SentrySdk } from "../server/ports/errors-sentry";
+import {
+  sentryErrorReporter,
+  type SentrySdk,
+} from "../server/ports/errors-sentry";
 
 /** The SDK integrations that install process handlers; ours replace them. */
 const SDK_PROCESS_HANDLERS = new Set([
@@ -128,8 +131,7 @@ export function exitOnUncaught(
 ): void {
   let exiting = false;
   const handle =
-    (event: "uncaughtException" | "unhandledRejection") =>
-    (error: unknown) => {
+    (event: "uncaughtException" | "unhandledRejection") => (error: unknown) => {
       reporter.report(error, { where: `worker.${event}` });
       io.log({
         level: "error",
@@ -138,9 +140,7 @@ export function exitOnUncaught(
       });
       if (exiting) return;
       exiting = true;
-      void reporter
-        .flush(DEFAULT_FLUSH_TIMEOUT_MS)
-        .finally(() => io.exit(1));
+      void reporter.flush(DEFAULT_FLUSH_TIMEOUT_MS).finally(() => io.exit(1));
     };
   io.process.on("uncaughtException", handle("uncaughtException"));
   io.process.on("unhandledRejection", handle("unhandledRejection"));

@@ -172,33 +172,30 @@ describe("exitOnUncaught", () => {
   it.each([
     ["uncaughtException", "worker.uncaughtException"],
     ["unhandledRejection", "worker.unhandledRejection"],
-  ])(
-    "reports an %s, flushes, then exits 1",
-    async (event, where) => {
-      const reporter = new FakeErrorReporter();
-      let flushed!: (sent: boolean) => void;
-      vi.spyOn(reporter, "flush").mockReturnValue(
-        new Promise((resolve) => (flushed = resolve))
-      );
-      const proc = new EventEmitter();
-      const exit = vi.fn();
-      exitOnUncaught(reporter, { process: proc, exit, log });
-      const error = new Error("tick lost track of a promise");
+  ])("reports an %s, flushes, then exits 1", async (event, where) => {
+    const reporter = new FakeErrorReporter();
+    let flushed!: (sent: boolean) => void;
+    vi.spyOn(reporter, "flush").mockReturnValue(
+      new Promise((resolve) => (flushed = resolve))
+    );
+    const proc = new EventEmitter();
+    const exit = vi.fn();
+    exitOnUncaught(reporter, { process: proc, exit, log });
+    const error = new Error("tick lost track of a promise");
 
-      proc.emit(event, error);
+    proc.emit(event, error);
 
-      expect(reporter.reported).toEqual([
-        expect.objectContaining({ error, tags: { where } }),
-      ]);
-      expect(reporter.flush).toHaveBeenCalledWith(2000);
-      expect(exit).not.toHaveBeenCalled();
-      flushed(true);
-      await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(1));
-      expect(log).toHaveBeenCalledWith(
-        expect.objectContaining({ level: "error", error: "Error" })
-      );
-    }
-  );
+    expect(reporter.reported).toEqual([
+      expect.objectContaining({ error, tags: { where } }),
+    ]);
+    expect(reporter.flush).toHaveBeenCalledWith(2000);
+    expect(exit).not.toHaveBeenCalled();
+    flushed(true);
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(1));
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({ level: "error", error: "Error" })
+    );
+  });
 
   it("flushes and exits once when a second error arrives while flushing", async () => {
     const reporter = new FakeErrorReporter();
