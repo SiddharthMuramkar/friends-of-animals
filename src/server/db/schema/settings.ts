@@ -7,19 +7,33 @@
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
 
-import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { user } from "./identity";
 
-export const setting = pgTable("setting", {
-  /** `<group>.<name>`, e.g. `auth.staffSessionHours`. */
-  key: text().primaryKey(),
-  value: jsonb().notNull(),
-  /** Null for seed data, or once the changing user's account is gone. */
-  updatedByUserId: uuid("updated_by_user_id").references(() => user.id, {
-    onDelete: "set null",
-  }),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
+export const setting = pgTable(
+  "setting",
+  {
+    /** `<group>.<name>`, e.g. `auth.staffSessionHours`. */
+    key: text().primaryKey(),
+    value: jsonb().notNull(),
+    /** Null for seed data, or once the changing user's account is gone. */
+    updatedByUserId: uuid("updated_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    // Deleting a user sets this to null; the index keeps that from scanning.
+    index("setting_updated_by_user_id_idx").on(table.updatedByUserId),
+  ]
+);
 
 export type Setting = typeof setting.$inferSelect;
