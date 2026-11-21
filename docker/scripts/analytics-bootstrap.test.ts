@@ -2,6 +2,7 @@ import { spawnSync, type SpawnSyncOptions } from "node:child_process";
 import {
   chmodSync,
   chownSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -311,8 +312,14 @@ describe("analytics-bootstrap.sh bring-up", () => {
     // Everything main() may write lives here, owned by whoever runs it.
     root = join(dir, "etc-foa");
     mkdirSync(join(root, "secrets"), { recursive: true });
+    mkdirSync(join(root, "gates"));
     if (AS_ROOT) {
-      for (const path of [dir, root, join(root, "secrets")]) {
+      for (const path of [
+        dir,
+        root,
+        join(root, "secrets"),
+        join(root, "gates"),
+      ]) {
         chownSync(path, 65534, 0);
       }
     }
@@ -321,7 +328,8 @@ describe("analytics-bootstrap.sh bring-up", () => {
   /**
    * main() with every file it writes in `root`, and `id`, `install` and
    * `docker` stubbed. The stubs record each call, shell-quoted, one per
-   * line; docker keeps what foa-umami's exec read from stdin.
+   * line; docker also records whether Caddy's gate for the stats site was
+   * open at that moment, and keeps what foa-umami's exec read from stdin.
    */
   const bringUp = () =>
     bootstrapWith(
@@ -330,9 +338,10 @@ describe("analytics-bootstrap.sh bring-up", () => {
         'root="$1"',
         'ENV_FILE="$root/analytics.env"',
         'ADMIN_FILE="$root/secrets/umami_admin_password"',
+        'GATE_FILE="$root/gates/stats"',
         "id() { echo 0; }",
         'install() { echo "install $*" >>"$root/calls"; }',
-        'docker() { printf "%q " "$@" >>"$root/calls"; echo >>"$root/calls"; if [ "$1 $3" = "exec foa-umami" ]; then cat >"$root/umami-stdin"; else cat >/dev/null; fi; }',
+        'docker() { printf "%q " "$@" >>"$root/calls"; echo >>"$root/calls"; if [ -e "$GATE_FILE" ]; then echo open; else echo closed; fi >>"$root/gate"; if [ "$1 $3" = "exec foa-umami" ]; then cat >"$root/umami-stdin"; else cat >/dev/null; fi; }',
         "main",
       ].join("; "),
       root
@@ -342,6 +351,10 @@ describe("analytics-bootstrap.sh bring-up", () => {
       .trimEnd()
       .split("\n")
       .map((line) => line.trimEnd());
+  /** "open" or "closed": Caddy's gate for the stats site at each docker call. */
+  const gateAtCalls = () =>
+    readFileSync(join(root, "gate"), "utf8").trimEnd().split("\n");
+  const gateFile = () => join(root, "gates", "stats");
 
   it("writes the env file and the role, starts Umami, then replaces its seeded login", () => {
     const run = bringUp();
@@ -358,6 +371,19 @@ describe("analytics-bootstrap.sh bring-up", () => {
     );
     expect(admin).toMatch(/^exec -i foa-umami node --input-type=module -e /);
     expect(rest).toEqual([]);
+  });
+
+  it("opens Caddy's stats site only after Umami's seeded login is replaced", () => {
+    const run = bringUp();
+
+    expect(run.status).toBe(0);
+    // Umami starts, and its admin/umami login is swapped, while Caddy still
+    // answers stats.friendsofanimals.dev with 503 (caddy/Caddyfile).
+    const [, start, admin] = calls();
+    expect(start).toMatch(/ up -d --wait umami$/);
+    expect(admin).toMatch(/^exec -i foa-umami /);
+    expect(gateAtCalls().slice(1, 3)).toEqual(["closed", "closed"]);
+    expect(existsSync(gateFile())).toBe(true);
   });
 
   it("asks for no tunnel token: Caddy (edge.yml) is Umami's ingress", () => {
