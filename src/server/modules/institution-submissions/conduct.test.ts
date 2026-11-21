@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { DomainError } from "@/server/errors";
 import { createHarness } from "@/test/harness";
 
-import { requireConductCertified } from "./conduct";
+import {
+  CONDUCT_STATEMENT_VERSION,
+  recordConductCertification,
+  requireConductCertified,
+} from "./conduct";
 
 // Institution registrations (#75) are plain ids here until their table is
 // on this branch.
@@ -19,5 +23,19 @@ describe("requireConductCertified", () => {
     await expect(check).rejects.toMatchObject({
       code: "conduct_not_certified",
     });
+  });
+
+  it("passes once the registration's conduct is certified", async () => {
+    const h = await createHarness();
+    const coordinator = await h.seed.member({ name: "Meera Iyer" });
+    await recordConductCertification(h.deps, {
+      institutionRegistrationId: REGISTRATION_X,
+      certifiedByUserId: coordinator.id,
+      statementVersion: CONDUCT_STATEMENT_VERSION,
+    });
+
+    await expect(
+      requireConductCertified(h.db, REGISTRATION_X)
+    ).resolves.toBeUndefined();
   });
 });
