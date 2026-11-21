@@ -5,6 +5,7 @@ import {
   AWARD_SCHEMES,
   DEFAULT_AWARD_SCHEME,
   awardPlan,
+  awardsChange,
   decideRoundAwards,
   offeredRounds,
 } from "./award-schemes";
@@ -25,6 +26,10 @@ describe("award schemes", () => {
 });
 
 describe("offeredRounds", () => {
+  it("has only the FOA final while a draft has no participation chosen", () => {
+    expect(offeredRounds(null)).toEqual(["foa_final"]);
+  });
+
   it("always has the FOA final, and a school round only with institutions", () => {
     expect(offeredRounds("individuals")).toEqual(["foa_final"]);
     expect(offeredRounds("institutions")).toEqual(["school", "foa_final"]);
@@ -178,5 +183,41 @@ describe("decideRoundAwards", () => {
         prizes: { first: "x".repeat(200) },
       }).ok
     ).toBe(true);
+  });
+});
+
+describe("awardsChange", () => {
+  const ranked = { roundKey: "school", scheme: "ranked_123", prizes: {} } as const;
+
+  it("is null when the scheme and prizes stay the same", () => {
+    expect(
+      awardsChange(
+        { roundKey: "school", scheme: "medals_gsb", prizes: { gold: "Cup", silver: "Medal" } },
+        { roundKey: "school", scheme: "medals_gsb", prizes: { silver: "Medal", gold: "Cup" } }
+      )
+    ).toBeNull();
+  });
+
+  it("names the round and only the fields that changed", () => {
+    expect(
+      awardsChange(ranked, {
+        roundKey: "school",
+        scheme: "grades_ab",
+        prizes: {},
+      })
+    ).toEqual({
+      before: { round: "school", scheme: "ranked_123" },
+      after: { round: "school", scheme: "grades_ab" },
+    });
+    expect(
+      awardsChange(ranked, {
+        roundKey: "school",
+        scheme: "ranked_123",
+        prizes: { first: "Trophy" },
+      })
+    ).toEqual({
+      before: { round: "school", prizes: {} },
+      after: { round: "school", prizes: { first: "Trophy" } },
+    });
   });
 });

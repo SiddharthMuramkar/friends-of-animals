@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   decideFees,
+  feeChanges,
   feeEditAllowed,
   feeView,
   formatPaiseForInput,
@@ -61,6 +62,10 @@ describe("formatPaiseForInput", () => {
 });
 
 describe("offeredRoutes", () => {
+  it("offers no route while a draft has no participation chosen", () => {
+    expect(offeredRoutes(null)).toEqual([]);
+  });
+
   it("follows the competition's participation", () => {
     expect(offeredRoutes("individuals")).toEqual(["individual"]);
     expect(offeredRoutes("institutions")).toEqual(["institution"]);
@@ -183,5 +188,41 @@ describe("feeView", () => {
     expect(
       feeView("individuals", { individual: 100n, institution: 200n })
     ).toEqual([{ route: "individual", kind: "amount", paise: 100n }]);
+  });
+});
+
+describe("feeChanges", () => {
+  it("is null when every amount stays the same", () => {
+    expect(
+      feeChanges(
+        { individual: 150000n, institution: 0n },
+        { institution: 0n, individual: 150000n }
+      )
+    ).toBeNull();
+  });
+
+  it("lists only the routes that changed, with paise as text", () => {
+    expect(
+      feeChanges(
+        { individual: 150000n, institution: 2500050n },
+        { individual: 150000n, institution: 2147483649n }
+      )
+    ).toEqual({
+      before: { institution: "2500050" },
+      after: { institution: "2147483649" },
+    });
+  });
+
+  it("shows a newly set route as null before, a removed one as null after", () => {
+    expect(feeChanges({ institution: 100n }, { individual: 0n })).toEqual({
+      before: { individual: null, institution: "100" },
+      after: { individual: "0", institution: null },
+    });
+  });
+});
+
+describe("feeView without a participation", () => {
+  it("shows no route", () => {
+    expect(feeView(null, { individual: 100n })).toEqual([]);
   });
 });
