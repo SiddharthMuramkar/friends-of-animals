@@ -15,9 +15,13 @@ import {
 
 import type { FilePurpose } from "./purposes";
 
-const PR_DATABASE = /^foa_pr_([1-9][0-9]*)$/;
-/** `foa_br_<slug>_<hash>` or `foa_br_<hash>`; the hash is always last. */
-const BRANCH_DATABASE = /^foa_br_(?:[a-z0-9_]+_)?([0-9a-f]{8})$/;
+// Every preview database name ends in `_<fp>`, the migrations fingerprint,
+// so a PR or branch may have had several databases. They all map to one
+// prefix: the sweeper drops them together, once the PR or branch is gone.
+/** `foa_pr_<n>_<fp>`. */
+const PR_DATABASE = /^foa_pr_([1-9][0-9]*)_[0-9a-f]{8}$/;
+/** `foa_br_<slug>_<hash>_<fp>` or `foa_br_<hash>_<fp>`. */
+const BRANCH_DATABASE = /^foa_br_(?:[a-z0-9_]+_)?([0-9a-f]{8})_[0-9a-f]{8}$/;
 
 /** "" or one lower-case folder ending in "/". */
 const PREFIX = /^(?:[a-z0-9-]+\/)?$/;
