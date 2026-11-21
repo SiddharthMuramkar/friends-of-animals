@@ -10,6 +10,7 @@ import "server-only";
 
 import { env } from "@/env";
 import type { Env } from "@/env.schema";
+import type { DatabaseEnv } from "@/server/db/database-url";
 
 import { db } from "./db";
 import type { DbWithClock } from "./db/app-db";
@@ -22,6 +23,7 @@ import { captureEmailSender } from "./ports/email-capture";
 import type { ErrorReporter } from "./ports/errors";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 import { serverErrorReporter } from "./observability/server-reporter";
+import { r2Storage } from "./ports/storage-r2";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -67,6 +69,46 @@ export function emailSenderFor(
     : captureEmailSender(deps);
 }
 
+/** The R2 variables (src/env.schema.ts): all of them, or none. */
+export type StorageEnv = {
+  R2_ACCOUNT_ID?: string | undefined;
+  R2_ACCESS_KEY_ID?: string | undefined;
+  R2_SECRET_ACCESS_KEY?: string | undefined;
+  R2_BUCKET?: string | undefined;
+};
+
+/**
+ * R2 when the deployment has its variables (the schema allows all or
+ * none); otherwise storage that refuses every call, so no upload is
+ * accepted that couldn't be stored.
+ */
+export function storageFor(env: StorageEnv): ObjectStorage {
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = env;
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+    return unconfiguredStorage;
+  }
+  return r2Storage(
+    {
+      accountId: R2_ACCOUNT_ID,
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+    },
+    systemClock
+  );
+}
+
+/** The bucket, this environment's key prefix, and the environment. */
+export function filesConfigFor(
+  env: StorageEnv & DatabaseEnv & { APP_ENV: Env["APP_ENV"] }
+): FilesConfig {
+  return {
+    // Unconfigured storage refuses before a bucket is ever used.
+    bucket: env.R2_BUCKET ?? "unconfigured",
+    keyPrefix: storagePrefixFor(env),
+    appEnv: env.APP_ENV,
+  };
+}
+
 let production: Deps | undefined;
 
 /** The app's deps, built on first use from `env()`. */
@@ -82,12 +124,8 @@ export function productionDeps(): Deps {
         secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
         baseUrl: config.APP_URL,
       },
-      storage: unconfiguredStorage,
-      files: {
-        bucket: "unconfigured",
-        keyPrefix: storagePrefixFor(config),
-        appEnv: config.APP_ENV,
-      },
+      storage: storageFor(config),
+      files: filesConfigFor(config),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
     };

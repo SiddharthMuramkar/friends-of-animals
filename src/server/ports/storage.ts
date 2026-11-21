@@ -86,6 +86,24 @@ export function isPurgeablePrefix(prefix: string): boolean {
   return PURGEABLE_PREFIX.test(prefix);
 }
 
+/** Download names the platform generates: `test_upload-01938a00.png`. */
+const DOWNLOAD_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+
+/**
+ * The Content-Disposition a presigned GET asks for. The name is never
+ * quoted or escaped, so anything that would need it is refused: it would
+ * mean the name came from somewhere it shouldn't.
+ */
+export function contentDispositionFor(
+  disposition: "inline" | "attachment",
+  filename: string
+): string {
+  if (!DOWNLOAD_NAME.test(filename)) {
+    throw new Error(`Not a download name: ${JSON.stringify(filename)}`);
+  }
+  return `${disposition}; filename="${filename}"`;
+}
+
 /** Thrown by `deletePrefix` for a prefix `isPurgeablePrefix` rejects. */
 export class UnsafePrefixError extends Error {
   constructor(prefix: string) {

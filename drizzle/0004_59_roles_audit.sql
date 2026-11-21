@@ -34,6 +34,7 @@ CREATE TABLE "audit_log" (
 ALTER TABLE "user_role" ADD CONSTRAINT "user_role_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_role" ADD CONSTRAINT "user_role_granted_by_user_id_user_id_fk" FOREIGN KEY ("granted_by_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "user_role_role_idx" ON "user_role" USING btree ("role");--> statement-breakpoint
+CREATE INDEX "user_role_granted_by_user_id_idx" ON "user_role" USING btree ("granted_by_user_id");--> statement-breakpoint
 CREATE INDEX "audit_log_actor_user_id_idx" ON "audit_log" USING btree ("actor_user_id","id" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "audit_log_entity_idx" ON "audit_log" USING btree ("entity_type","entity_id","id" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "audit_log_action_idx" ON "audit_log" USING btree ("action","id" DESC NULLS LAST);

@@ -8,6 +8,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import type { Clock } from "@/server/ports/clock";
 import {
+  contentDispositionFor,
   isPurgeablePrefix,
   ObjectMissingError,
   UnsafePrefixError,
@@ -75,7 +76,10 @@ export class FakeStorage implements ObjectStorage {
   }) {
     const url = this.#sign(input, "GET", input.expiresInSeconds, {
       "response-content-type": input.contentType,
-      "response-content-disposition": `${input.disposition}; filename="${input.filename}"`,
+      "response-content-disposition": contentDispositionFor(
+        input.disposition,
+        input.filename
+      ),
     });
     return { url };
   }

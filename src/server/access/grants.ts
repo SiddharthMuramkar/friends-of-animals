@@ -44,3 +44,10 @@ export function grantRow(userId: string, grant: Grant): SQL {
       : eq(userRole.scopeId, grant.scope.id)
   )!;
 }
+
+/** The rows of global super admin grants. */
+export const globalSuperAdminRows: SQL = and(
+  eq(userRole.role, "super_admin"),
+  eq(userRole.scopeType, "global"),
+  isNull(userRole.scopeId)
+)!;

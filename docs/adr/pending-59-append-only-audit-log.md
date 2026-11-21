@@ -5,7 +5,8 @@ Status: proposed
 # The audit log is append-only in the database, for everyone
 
 `audit_log` refuses every UPDATE, DELETE and TRUNCATE with a trigger, so not
-even the migrator or a bug in the app can rewrite who changed what. Use cases
+even the migrator or a bug in the app can rewrite who changed what; the same
+migration also revokes those rights from every role but the table's owner. Use cases
 write entries themselves (`recordAudit`) in the same transaction as the
 change, rather than through generic row triggers: those would need per-session
 actor settings, which PgBouncer's transaction mode doesn't keep, and would copy

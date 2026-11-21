@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 const fromRoot = (path: string) =>
   fileURLToPath(new URL(path, import.meta.url));
@@ -24,6 +24,8 @@ export default defineConfig({
       "docker/**/*.test.ts",
       "tests/e2e/**/*.test.ts",
     ],
+    // Contracts against real providers: `pnpm test:live` (vitest.live.config.ts).
+    exclude: [...configDefaults.exclude, "**/*.live.test.ts"],
     environment: "node",
     // Migrates the PGlite template once per run, before any test file.
     globalSetup: ["src/test/global-setup.ts"],
