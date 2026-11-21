@@ -1,6 +1,6 @@
 {
-  "id": "59bb5d43-2345-4e81-96e7-0ddb07092dc4",
-  "prevId": "eae20d46-df83-411d-aede-e824a4e7b533",
+  "id": "540b41fa-3530-442d-a10e-077e5aae01b7",
+  "prevId": "4316b7ff-4fc8-437c-84ee-7214f3ce2a9d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -613,23 +613,18 @@
           "method": "btree",
           "with": {}
         },
-        "outbox_aggregate_idx": {
-          "name": "outbox_aggregate_idx",
+        "outbox_failed_failed_at_idx": {
+          "name": "outbox_failed_failed_at_idx",
           "columns": [
             {
-              "expression": "aggregate_type",
+              "expression": "failed_at",
               "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "aggregate_id",
-              "isExpression": false,
-              "asc": true,
+              "asc": false,
               "nulls": "last"
             }
           ],
           "isUnique": false,
+          "where": "\"outbox\".\"status\" = 'failed'",
           "concurrently": false,
           "method": "btree",
           "with": {}
