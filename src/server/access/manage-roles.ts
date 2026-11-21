@@ -4,11 +4,13 @@
 //   revokeRole({ userId, role, scope })  → super admin
 //   listUserRoles({ userId })            → the user, a super or staff admin
 //
-// A change locks the grantee's user row, so concurrent changes to one user
-// queue and each audit entry's before and after are exact. Loads under
+// A change locks the grantee's and the actor's user rows and checks the
+// actor again inside its transaction, so concurrent changes to one user
+// queue, each audit entry's before and after are exact, and a revoked
+// admin can't finish a change they started. Loads under
 // plain Node (the bootstrap command): relative imports only.
 
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -63,14 +65,40 @@ function parseGrantChange(input: GrantChangeInput): ParsedGrantChange {
   return { ok: true, userId, grant: { role, scope } };
 }
 
-/** Locks the user's row until the transaction ends; false if there is none. */
-async function lockUser(tx: AppDb, userId: string): Promise<boolean> {
-  const [row] = await tx
+/**
+ * Locks the user's row, and the acting user's, until the transaction ends;
+ * false if the user doesn't exist. Rows are locked in id order in one
+ * statement, so two admins changing each other's roles at once queue
+ * rather than deadlock, and a revoke of the actor's own role waits for
+ * this change or this change waits for it.
+ */
+async function lockUsers(
+  tx: AppDb,
+  userId: string,
+  actor: AccessContext["actor"]
+): Promise<boolean> {
+  const ids = new Set([userId]);
+  if (actor.kind === "user") ids.add(actor.userId);
+  const rows = await tx
     .select({ id: user.id })
     .from(user)
-    .where(eq(user.id, userId))
+    .where(inArray(user.id, [...ids]))
+    .orderBy(asc(user.id))
     .for("no key update");
-  return row !== undefined;
+  return rows.some((row) => row.id === userId);
+}
+
+/**
+ * The check again, inside the change's transaction once the rows are
+ * locked: a revoke of the actor's own role that committed since the first
+ * check counts. Returns the role that allows it, for the audit log.
+ */
+async function authorizeIn(
+  tx: AppDb,
+  ctx: AccessContext,
+  action: "role.grant" | "role.revoke"
+) {
+  return authorize({ db: tx, actor: ctx.actor }, action);
 }
 
 /**
@@ -81,16 +109,16 @@ export async function grantRole(
   ctx: AccessContext,
   input: GrantChangeInput
 ): Promise<GrantRoleResult> {
-  const { role: actorRole } = await authorize(ctx, "role.grant");
+  await authorize(ctx, "role.grant");
   const parsed = parseGrantChange(input);
   if (!parsed.ok) return parsed;
   const { userId, grant } = parsed;
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
-    if (!(await lockUser(tx, userId))) {
-      return { ok: false, error: "not_found" } as const;
-    }
+    const found = await lockUsers(tx, userId, ctx.actor);
+    const { role: actorRole } = await authorizeIn(tx, ctx, "role.grant");
+    if (!found) return { ok: false, error: "not_found" } as const;
     const before = await grantsOf(tx, userId);
     const [inserted] = await tx
       .insert(userRole)
@@ -159,15 +187,15 @@ export async function revokeRole(
   ctx: AccessContext,
   input: GrantChangeInput
 ): Promise<RevokeRoleResult> {
-  const { role: actorRole } = await authorize(ctx, "role.revoke");
+  await authorize(ctx, "role.revoke");
   const parsed = parseGrantChange(input);
   if (!parsed.ok) return parsed;
   const { userId, grant } = parsed;
 
   return ctx.db.transaction(async (tx) => {
-    if (!(await lockUser(tx, userId))) {
-      return { ok: false, error: "not_found" } as const;
-    }
+    const found = await lockUsers(tx, userId, ctx.actor);
+    const { role: actorRole } = await authorizeIn(tx, ctx, "role.revoke");
+    if (!found) return { ok: false, error: "not_found" } as const;
     const before = await grantsOf(tx, userId);
     const key = grantKey(grant);
     if (!before.some((held) => grantKey(held) === key)) {
