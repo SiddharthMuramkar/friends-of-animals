@@ -1,15 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  resolvePeriod,
-  type ResolvedPeriod,
-} from "../../objective-reports/domain/period";
-import type { SocialChannel } from "./snapshot";
+import { resolvePeriod, type ResolvedPeriod } from "./period";
+import type { SocialChannel } from "./social-snapshot";
 import {
   socialTrend,
   summariseSocialPeriod,
   type SocialSnapshot,
-} from "./trend";
+} from "./social-trend";
 
 const NOW = new Date("2027-01-15T04:30:00.000Z");
 

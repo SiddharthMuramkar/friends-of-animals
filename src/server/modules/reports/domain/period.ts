@@ -333,8 +333,10 @@ export function granularityFor(days: number): Granularity {
 function nextBucketStart(day: string, granularity: Granularity): string {
   const number = requireDayNumber(day);
   if (granularity === "week") {
-    // Day 0 (1 January 1970) was a Thursday: Monday is 0 at (n + 3) % 7.
-    return dayOfNumber(number + 7 - ((number + 3) % 7));
+    // Day 0 (1 January 1970) was a Thursday, so Monday is 0 at (n + 3) mod
+    // 7. Days before 1970 are negative, and `%` keeps the sign: add 7.
+    const weekday = (((number + 3) % 7) + 7) % 7;
+    return dayOfNumber(number + 7 - weekday);
   }
   const [year, month] = day.split("-").map(Number) as [number, number];
   return month === 12

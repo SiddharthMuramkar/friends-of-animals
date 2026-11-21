@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_METRIC, SOCIAL_CHANNELS, socialSnapshotInput } from "./snapshot";
+import {
+  MAX_METRIC,
+  SOCIAL_CHANNELS,
+  socialSnapshotInput,
+} from "./social-snapshot";
 
 // 10:00 IST on 15 January 2027.
 const NOW = new Date("2027-01-15T04:30:00.000Z");

@@ -11,10 +11,7 @@
 
 import { z } from "zod";
 
-import {
-  isCalendarDay,
-  istDateOf,
-} from "../../objective-reports/domain/period";
+import { isCalendarDay, istDateOf } from "./period";
 
 /** FOA's channels, in the order reports list them. */
 export const SOCIAL_CHANNELS = [

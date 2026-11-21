@@ -405,4 +405,18 @@ describe("splitPeriod", () => {
       )
     ).toEqual([{ from: "2027-01-13", to: "2027-01-13" }]);
   });
+
+  it("starts weeks on Mondays before 1970 too", () => {
+    // 1 January 1960 was a Friday; 4 January the Monday after.
+    expect(
+      splitPeriod(
+        resolved({ kind: "range", from: "1960-01-01", to: "1960-01-12" }),
+        "week"
+      )
+    ).toEqual([
+      { from: "1960-01-01", to: "1960-01-03" },
+      { from: "1960-01-04", to: "1960-01-10" },
+      { from: "1960-01-11", to: "1960-01-12" },
+    ]);
+  });
 });

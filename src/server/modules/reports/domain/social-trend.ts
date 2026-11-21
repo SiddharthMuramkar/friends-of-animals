@@ -9,18 +9,14 @@
 //
 // Pure: relative imports only.
 
-import {
-  compareWithPrevious,
-  percentOf,
-  type Comparison,
-} from "../../objective-reports/domain/figures";
+import { compareWithPrevious, percentOf, type Comparison } from "./figures";
 import {
   granularityFor,
   splitPeriod,
   type Granularity,
   type ResolvedPeriod,
-} from "../../objective-reports/domain/period";
-import { SOCIAL_CHANNELS, type SocialChannel } from "./snapshot";
+} from "./period";
+import { SOCIAL_CHANNELS, type SocialChannel } from "./social-snapshot";
 
 /** One stored snapshot, as the report reads it. */
 export type SocialSnapshot = {
