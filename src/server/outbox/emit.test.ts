@@ -5,9 +5,9 @@ import { uuidv7 } from "@/server/ids";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { emit } from "./emit";
-import type { DomainEvent } from "./events";
+import type { EventOf } from "./events";
 
-function signedUp(h: Harness): DomainEvent {
+function signedUp(h: Harness): EventOf<"identity.user_signed_up"> {
   const userId = uuidv7(h.clock.now());
   return {
     type: "identity.user_signed_up",
