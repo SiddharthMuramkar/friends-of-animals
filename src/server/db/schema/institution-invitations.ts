@@ -6,8 +6,9 @@
 // itself: no separate member table.
 //
 // Stored statuses are pending, accepted and revoked. "Expired" is read from
-// `expires_at` against the clock (src/server/institutions/domain/
-// invitation.ts), so no job flips rows.
+// `expires_at` against the clock
+// (src/server/modules/institutions/domain/invitation.ts), so no job flips
+// rows.
 //
 // Personal data: the invitee's email or phone, encrypted (field cipher,
 // purpose "institution_invitation.identifier") with a blind index beside it.
