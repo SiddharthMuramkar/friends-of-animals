@@ -15,7 +15,7 @@ const valid: EventDetailsInput = {
   kind: "event",
   title: "Beach clean-up at Juhu",
   summary: "Join volunteers to clear plastic from the shore before the tide.",
-  description: "<p>Bring a water bottle and a hat.</p>",
+  description: [{ p: ["Bring a water bottle and a hat."] }],
   startsAt,
   endsAt,
   venueName: "Juhu Beach, Gate 4",

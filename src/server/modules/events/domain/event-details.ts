@@ -4,8 +4,9 @@
 // checks every field and the rules between them. Problems are reported as
 // codes on the field they belong to, for the form to show next to it.
 //
-// The description is rich text. This schema only bounds its length: the use
-// case runs it through the one sanitiser (#111) before storing it.
+// The description is rich text: typed blocks (paragraphs and lists), never
+// HTML. This schema only bounds its size: the use case runs it through the
+// one sanitiser (#111) before storing it.
 //
 // Pure: no I/O, no "server-only", no `@/` imports.
 
@@ -22,6 +23,9 @@ export const EVENT_LIMITS = {
   titleMin: 3,
   titleMax: 120,
   summaryMax: 280,
+  /** Paragraphs and lists in the description. */
+  descriptionBlocksMax: 100,
+  /** The description's stored size, in characters of JSON. */
   descriptionMax: 20_000,
   venueNameMax: 120,
   addressMax: 300,
@@ -64,7 +68,14 @@ export const eventDetailsSchema = z
       .min(EVENT_LIMITS.titleMin)
       .max(EVENT_LIMITS.titleMax),
     summary: z.string().trim().min(1).max(EVENT_LIMITS.summaryMax),
-    description: z.string().max(EVENT_LIMITS.descriptionMax),
+    /** Rich-text blocks as typed, unsanitised. */
+    description: z
+      .array(z.unknown())
+      .max(EVENT_LIMITS.descriptionBlocksMax)
+      .refine(
+        (blocks) => JSON.stringify(blocks).length <= EVENT_LIMITS.descriptionMax,
+        { message: "too_long" }
+      ),
     startsAt: z.date(),
     endsAt: z.date(),
     venueName: optionalText(EVENT_LIMITS.venueNameMax),
