@@ -28,6 +28,32 @@ describe("seedTarget", () => {
     });
   });
 
+  it("seeds a local database on this machine or in Compose", () => {
+    for (const url of [
+      "postgres://foa:foa@127.0.0.1:5432/foa",
+      "postgres://foa:foa@[::1]:5432/foa",
+      "postgres://foa:foa@db:5432/foa",
+    ]) {
+      expect(seedTarget({ DIRECT_URL: url })).toEqual({ seed: true, url });
+    }
+  });
+
+  it("refuses a local run aimed at another host", () => {
+    // APP_ENV unset counts as local. A hand-run seed with a deployed
+    // DIRECT_URL must not plant the seed accounts there.
+    for (const APP_ENV of [undefined, "local"] as const) {
+      const target = seedTarget({
+        DIRECT_URL:
+          "postgres://foa_migrator:x@db.shipped-it.dev:6432/foa?sslmode=verify-full",
+        APP_ENV,
+      });
+      expect(target).toEqual({
+        seed: false,
+        reason: expect.stringMatching(/db\.shipped-it\.dev/),
+      });
+    }
+  });
+
   it.each(["staging", "production"] as const)("never seeds %s", (APP_ENV) => {
     const target = seedTarget({ DIRECT_URL, APP_ENV });
     expect(target.seed).toBe(false);
