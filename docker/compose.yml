@@ -160,9 +160,9 @@ services:
       pg-nonprod:
         condition: service_healthy
     ports:
-      # The only published port on the VPS. IPv4 only: db.shipped-it.dev has
-      # no AAAA record, and an IPv6 publish to this IPv4-only network would go
-      # through docker-proxy, hiding client addresses from PgBouncer's log
+      # The only published port on the VPS. IPv4 only: db.friendsofanimals.dev
+      # has no AAAA record, and an IPv6 publish to this IPv4-only network would
+      # go through docker-proxy, hiding client addresses from PgBouncer's log
       # (and so from CrowdSec). The host's eth0 IPv6 address stays closed.
       - "0.0.0.0:6432:6432"
     secrets:

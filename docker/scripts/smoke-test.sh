@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Client-side checks of the public endpoint db.shipped-it.dev:6432, run from
-# a throwaway postgres:18.7-trixie container on the host network with the
-# credentials from /etc/foa/vercel-urls.env (never printed). Exit 1 if any
-# check fails.
+# Client-side checks of PgBouncer's public endpoint, FOA_DB_DOMAIN:6432
+# (default db.friendsofanimals.dev), run from a throwaway postgres:18.7-trixie
+# container on the host network with the credentials from
+# /etc/foa/vercel-urls.env (never printed). Exit 1 if any check fails.
 #
 # No password ever appears on a command line, where `ps` on the host would
 # show it: the URLs are split here into user, password and database, written
@@ -26,10 +26,11 @@
 # CA store instead.
 #
 # Needs: docker, the stack up with the real Let's Encrypt certificate
-# installed (cert-renew.sh), db.shipped-it.dev resolving to this host, and
+# installed (cert-renew.sh), the host name resolving to this host, and
 # Docker Hub reachable for the postgres:18.7-trixie pull on first run.
 #
-# Usage: sudo smoke-test.sh
+# Usage: sudo smoke-test.sh [--print-config]
+#   --print-config  print the endpoint and URL file it checks, and exit
 set -uo pipefail
 
 URLS=/etc/foa/vercel-urls.env
@@ -37,9 +38,15 @@ SU_SECRET=/etc/foa/secrets/pg_prod_postgres_password
 IMAGE=postgres:18.7-trixie
 NONPROD=foa-pg-nonprod
 SCRATCH_DBS=(t_check t_check_staging t_check_timeout)
-DBHOST=db.shipped-it.dev
+DBHOST="${FOA_DB_DOMAIN:-db.friendsofanimals.dev}"
 DBPORT=6432
 passed=0 failed=0
+
+case "${1:-}" in
+  "") ;;
+  --print-config) printf '%s\n' "domain=$DBHOST" "port=$DBPORT" "urls=$URLS"; exit 0 ;;
+  *) echo "usage: $0 [--print-config]" >&2; exit 2 ;;
+esac
 
 die() { echo "smoke-test: $*" >&2; exit 2; }
 [ -r "$URLS" ] || die "cannot read $URLS (run as root)"

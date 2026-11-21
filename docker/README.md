@@ -24,8 +24,9 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
 - **pg-nonprod** holds `foa_staging`, the template `foa_seed` and one
   database per preview (`foa_pr_<n>_<fp>`, `foa_br_<slug>_<hash>_<fp>`). No
   archiving, no PITR.
-- **PgBouncer** is the only public endpoint: `db.shipped-it.dev:6432`, TLS
-  required (Let's Encrypt), SCRAM, transaction pooling.
+- **PgBouncer** is the only public endpoint: `db.friendsofanimals.dev:6432`
+  (`FOA_DB_DOMAIN`, see TLS certificate), TLS required (Let's Encrypt),
+  SCRAM, transaction pooling.
 - **One Postgres image**: only pg-prod has `build: ./postgres`; pg-nonprod
   runs the same tag with `pull_policy: never`. Two services building one tag
   export it twice in parallel, which the containerd image store (Docker 29's
@@ -86,8 +87,8 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
-`vercel-urls.env` has exactly these keys (host `db.shipped-it.dev`, port 6432,
-`?sslmode=verify-full`):
+`vercel-urls.env` has exactly these keys (host `FOA_DB_DOMAIN`, default
+`db.friendsofanimals.dev`; port 6432; `?sslmode=verify-full`):
 
 | Key                    | Role               | Database               | PgBouncer pool |
 | ---------------------- | ------------------ | ---------------------- | -------------- |
@@ -224,13 +225,13 @@ cscli allowlists add foa-admin 189.72.156.29 2a02:4780:63:e413::1 \
     sed -E 's/:[0-9]+$//; s/^\[//; s/\]$//' | sort -u)
 systemctl start foa-pgbackrest-full.service  # first full backup
 scripts/restore-drill.sh
-scripts/smoke-test.sh                        # client checks through db.shipped-it.dev:6432
+scripts/smoke-test.sh                        # client checks through db.friendsofanimals.dev:6432
 ```
 
 Then copy the values from `/etc/foa/vercel-urls.env` into Vercel, as
-`DATABASE_URL` and `DIRECT_URL`: `PROD_*` into Production, `STAGING_*` into
-the `staging` custom environment (`shipped-it.dev`, deployed from `main`)
-and `PREVIEW_*` into Preview.
+`DATABASE_URL` and `DIRECT_URL`: `PROD_*` into Production. `STAGING_*` and
+`PREVIEW_*` stay unused while Vercel has no staging environment and no
+previews ([ADR 0001](../docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)).
 
 To rebuild production from backups instead of starting empty, run the
 `pgbackrest restore` (below) into the `foa-vps_pg-prod-data` volume _before_
@@ -351,28 +352,58 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
 
 ## TLS certificate
 
-- Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`,
-  listening only on the public address, `189.72.156.29:80`, for the seconds a
-  challenge takes). Not DNS-01: that would need an account-wide Vercel token
-  on this box. No ACME account e-mail is registered (set `FOA_ACME_EMAIL` to
-  add one).
+- PgBouncer's host name is `FOA_DB_DOMAIN`, default `db.friendsofanimals.dev`
+  (an A record to 189.72.156.29). `cert-renew.sh`, `install-cert.sh`,
+  `bootstrap-secrets.sh` and `smoke-test.sh` read it; given `--print-config`,
+  each prints its settings and changes nothing. `foa-cert-renew.service`
+  reads optional settings from `/etc/foa/db-host.env` (not secret), for
+  example:
+
+  ```sh
+  FOA_DB_DOMAIN_ALIASES=db.old.example   # more names on the certificate
+  FOA_ACME_EMAIL=ops@example.org         # ACME account e-mail
+  ```
+
+  Manual runs see only exported variables: to match the timer, run
+  `set -a; . /etc/foa/db-host.env; set +a` first.
+
+- Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`).
+  Not DNS-01: that would need an account-wide Vercel token on this box. No
+  ACME account e-mail is registered (set `FOA_ACME_EMAIL` to add one).
+  - While nothing else holds port 80 on the public address, lego answers the
+    challenge itself, listening only on `189.72.156.29:80` for the seconds a
+    challenge takes (a service on `127.0.0.1:80` doesn't count).
+  - Once another server holds it (foa-caddy listens on every address), lego
+    writes the challenge into `FOA_ACME_WEBROOT` (default
+    `/var/lib/foa/acme-webroot`), and that server must serve the directory's
+    `/.well-known/acme-challenge/` on port 80 for every name on the
+    certificate.
+- `FOA_DB_DOMAIN_ALIASES` (space-separated) puts more names on the same
+  certificate, after the host: PgBouncer serves one certificate, so a host
+  name being retired keeps working until it is dropped from the list. Every
+  name must resolve to this host when lego renews, or the whole order fails.
 - Port 80 must get through the host's INPUT filter: on Fedora that is the
   `http` service in firewalld's public zone (Firewall, below); on Ubuntu ufw
   is inactive. `cert-renew.sh` warns, and changes nothing, when firewalld's
   zone for that address allows neither the `http` service nor 80/tcp.
-- db.shipped-it.dev has no AAAA record. Adding one would break renewals:
+- The database host has no AAAA record. Adding one would break renewals:
   Let's Encrypt tries IPv6 first and falls back to IPv4 only on a timeout,
-  and lego listens on the IPv4 address only.
+  and port 80 answers on the IPv4 address only.
 - `foa-cert-renew.timer` runs `scripts/cert-renew.sh` daily: `lego run
   --renew-days 30` renews below 30 days left (or when the CA's renewal info
   asks), then `scripts/install-cert.sh` copies cert + key into
   `/etc/foa/pgbouncer-tls` if they changed and sends SIGHUP (RELOAD) to
   PgBouncer. New connections get the new certificate; open ones keep theirs.
+- A certificate issued elsewhere (for example from Caddy's storage) goes in
+  with `FOA_CERT_CRT=<crt> FOA_CERT_KEY=<key> scripts/install-cert.sh`: the
+  same key match check, owners, modes and reload. It refuses one variable
+  without the other, or a missing or empty file. `cert-renew.sh` always
+  installs lego's pair.
 - Let's Encrypt lifetimes drop to 64 days on 2027-02-10 and 45 days on
   2028-02-16; the daily timer covers both. Watch `journalctl -u
   foa-cert-renew` (alerting is a TODO).
 - Manual: `systemctl start foa-cert-renew.service`; check with
-  `openssl s_client -connect db.shipped-it.dev:6432 -starttls postgres -servername db.shipped-it.dev </dev/null`.
+  `openssl s_client -connect db.friendsofanimals.dev:6432 -starttls postgres -servername db.friendsofanimals.dev </dev/null`.
 
 ## Firewall
 
@@ -632,7 +663,7 @@ an hour; with many open previews, or if the repo goes private, put a read-only
 ## Checks
 
 `scripts/smoke-test.sh` runs 31 client-side checks through
-`db.shipped-it.dev:6432` from a throwaway `postgres:18.7-trixie` container:
+`db.friendsofanimals.dev:6432` from a throwaway `postgres:18.7-trixie` container:
 each URL logs in as the right role and database with `verify-full`, direct
 TLS and TLS 1.3, parameterized and named prepared statements through the
 transaction pool, `foa_app` cannot create in `public`, `nonprod_migrator` can
