@@ -12,7 +12,7 @@ import {
   SAFEGUARDING_RETENTION_POLICY,
   safeguardingRetentionCandidates,
 } from "./inventory";
-import { CONCERN, fileReport, signInLead } from "./testing";
+import { CONCERN, fileReport } from "./testing";
 
 /** Every column built with #58's encryptedText(), by its SQL name. */
 function encryptedColumns(
@@ -65,25 +65,24 @@ describe("the safeguarding data inventory", () => {
 describe("which safeguarding reports retention may delete", () => {
   it("picks resolved reports past both dates, never an open one", async () => {
     const h = await createHarness({ now: "2026-01-10T04:00:00Z" });
-    const { actor } = await signInLead(h);
-    const app = h.as(actor);
-    const resolve = async (reportId: string) => {
-      await app.moveSafeguardingReport({
-        reportId,
-        action: { event: "triage", severity: "low" },
-      });
-      await app.moveSafeguardingReport({
-        reportId,
-        action: { event: "resolve", outcome: "Done" },
-      });
-    };
+    // Resolved the day they were filed: stored directly, since this is
+    // about which rows retention picks, not how they got resolved.
+    const resolved = (subjectAge: number) =>
+      fileReport(
+        h,
+        { ...CONCERN, subjectAge },
+        {
+          status: "resolved",
+          severity: "low",
+          outcome: "Done",
+          resolvedAt: h.clock.now(),
+        }
+      );
     // A 17-year-old turns 25 within 8 years, so 7 years after resolution
     // is not enough; a 10-year-old needs 15 years.
-    const older = await fileReport(h, { ...CONCERN, subjectAge: 17 });
-    const younger = await fileReport(h, { ...CONCERN, subjectAge: 10 });
+    const older = await resolved(17);
+    const younger = await resolved(10);
     const open = await fileReport(h);
-    await resolve(older);
-    await resolve(younger);
 
     const at = (iso: string) =>
       safeguardingRetentionCandidates(h.db, new Date(iso));

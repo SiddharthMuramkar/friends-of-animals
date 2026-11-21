@@ -5,7 +5,10 @@ import { asc, like, sql } from "drizzle-orm";
 
 import type { Actor } from "@/server/actor";
 import { auditLog } from "@/server/db/schema";
-import { ensureSafeguardingReport } from "@/server/seed/safeguarding";
+import {
+  ensureSafeguardingReport,
+  type ReportSeed,
+} from "@/server/seed/safeguarding";
 import type { Harness } from "@/test/harness";
 
 import type { Concern } from "./domain/concern";
@@ -33,10 +36,14 @@ export const CONCERN_WORDS = [
   "pelican@example.test",
 ];
 
-/** Stores a `new` report directly, as the form would have. */
+/**
+ * Stores a report directly, `new` as the form would have, or with
+ * `state` (a status and the fields that status needs).
+ */
 export async function fileReport(
   h: Harness,
-  concern: Concern = CONCERN
+  concern: Concern = CONCERN,
+  state: Omit<ReportSeed, "id" | "reference" | "concern" | "createdAt"> = {}
 ): Promise<string> {
   reports += 1;
   const id = `01938a00-0000-7000-8000-${String(reports).padStart(12, "0")}`;
@@ -45,6 +52,7 @@ export async function fileReport(
     reference: `SG-26-TEST${String(reports % 100).padStart(2, "0")}`,
     concern,
     createdAt: h.clock.now(),
+    ...state,
   });
   return id;
 }
