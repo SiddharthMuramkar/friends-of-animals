@@ -98,7 +98,9 @@ describe("timeline", () => {
 
 describe("coverFor", () => {
   it("gives each discipline a fixed credited photo, by the first discipline", () => {
-    expect(coverFor(["PHOTOGRAPHY", "DRAWING"])).toBe(coverFor(["PHOTOGRAPHY"]));
+    expect(coverFor(["PHOTOGRAPHY", "DRAWING"])).toBe(
+      coverFor(["PHOTOGRAPHY"])
+    );
     expect(coverFor(["DRAWING"])).not.toBe(coverFor(["PHOTOGRAPHY"]));
   });
 
