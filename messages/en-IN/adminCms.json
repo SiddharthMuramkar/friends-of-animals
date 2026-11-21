@@ -1,0 +1,104 @@
+{
+  "adminCms": {
+    "meta": {
+      "title": "Site content",
+      "description": "Edit the site's pages, preview a draft and publish it."
+    },
+    "eyebrow": "Admin",
+    "title": "Site content",
+    "lead": "Edit a page as a draft, see it on the site before anyone else does, then publish it as the next version.",
+    "loading": "Loading the pages…",
+    "denied": {
+      "title": "Only content managers can open this page",
+      "body": "Editing the site's pages is for content managers. Ask a super admin if you need the role.",
+      "back": "Back to your account"
+    },
+    "documents": {
+      "home": "Home page",
+      "about": "About page",
+      "impact": "Impact counters",
+      "site_facts": "Site facts",
+      "legal_privacy": "Privacy policy",
+      "legal_terms": "Terms of use",
+      "legal_safeguarding": "Safeguarding policy",
+      "legal_child_protection": "Child protection policy"
+    },
+    "list": {
+      "caption": "Every page you can edit, with its published version and any draft",
+      "page": "Page",
+      "published": "Published",
+      "draft": "Draft",
+      "version": "Version {version}, {date}",
+      "notPublished": "Not published yet",
+      "hasDraft": "Unpublished changes",
+      "noDraft": "None",
+      "edit": "Edit",
+      "editLabel": "Edit the {document}",
+      "later": "Editor coming soon"
+    },
+    "editor": {
+      "back": "All pages",
+      "later": {
+        "title": "This page's editor isn't ready yet",
+        "body": "It still shows the text in the code. Its editor comes with the next part of the site content work."
+      },
+      "state": {
+        "published": "Published: version {version}, {date}.",
+        "notPublished": "Not published yet. Until you publish version 1, the page shows the text in the code.",
+        "draft": "Draft saved {date}.",
+        "noDraft": "No draft. Saving starts one from the text below."
+      },
+      "form": {
+        "heading": "Edit the draft",
+        "label": "Text",
+        "hint": "Short-version points go first, each on a line starting with a dash. Start each section with two hash signs and its title. Write **bold** for strong words and [words](/page) for a link.",
+        "save": "Save draft",
+        "saving": "Saving…",
+        "fixErrors": "Fix these before you save:",
+        "invalidBody": "The text doesn't make a complete page. Check that every section has a title and some text.",
+        "failed": "Something went wrong on our side. Nothing was saved. Please try again.",
+        "problem": "Problem"
+      },
+      "draft": {
+        "heading": "The draft",
+        "lead": "This is what publishing will show. Preview it on the site to see it in place.",
+        "none": "There is no draft yet.",
+        "preview": "Preview on the site",
+        "publish": "Publish as version {version}",
+        "shortVersion": "The short version"
+      },
+      "notices": {
+        "done": "Done",
+        "saved": "Draft saved.",
+        "published": "Published version {version}. The page shows it now.",
+        "problem": "Problem",
+        "not_draft": "That draft was already published. Here is the page as it is now.",
+        "not_found": "We couldn't find that draft. Here is the page as it is now.",
+        "failed": "Something went wrong on our side. Nothing changed. Please try again."
+      },
+      "revisions": {
+        "heading": "Versions",
+        "caption": "Every version of this page, newest first",
+        "version": "Version",
+        "status": "Status",
+        "date": "Date",
+        "by": "By",
+        "draftVersion": "Draft",
+        "seed": "Seed data",
+        "statuses": {
+          "draft": "Draft",
+          "published": "Published",
+          "superseded": "Replaced"
+        },
+        "savedOn": "Saved {date}",
+        "publishedOn": "Published {date}"
+      }
+    },
+    "preview": {
+      "status": "Draft preview",
+      "draft": "You're seeing the unpublished draft. Everyone else sees the published version.",
+      "noDraft": "This page has no unpublished draft, so you're seeing the published version.",
+      "exit": "Exit preview"
+    }
+  }
+}

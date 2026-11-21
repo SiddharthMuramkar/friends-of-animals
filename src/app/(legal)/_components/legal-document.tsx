@@ -1,20 +1,21 @@
 import { getFormatter, getTranslations } from "next-intl/server";
-import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 
+import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
 import { LegalBlockView, LegalInlines } from "@/components/legal/legal-text";
 import { PageHeader } from "@/components/site/heading";
 import { InPageLink } from "@/components/site/in-page-link";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
 import { LEGAL_DOCS, type LegalDoc, type LegalDocId } from "@/content/legal";
-import type {
-  ConsentPurpose,
-  PublishedConsentDocument,
-} from "@/server/consent";
-import { cachedConsentDocument } from "@/server/consent/cached";
-import { errorSummaryForLogs } from "@/server/errors";
+import {
+  cmsPublicPath,
+  legalDocumentKey,
+  type CmsDocumentKey,
+} from "@/server/cms/domain/documents";
+import { legalKind } from "@/server/cms/kinds/legal";
+import { loadShownDocument, type ShownCmsDocument } from "@/server/cms/shown";
 
 const NS = {
   privacy: "legal.privacy",
@@ -26,27 +27,28 @@ const NS = {
 type LegalText = Pick<LegalDoc, "short" | "sections">;
 
 /**
- * A policy page: header, a "last updated" line, the short version first,
+ * A policy page: header, a "Version n" line, the short version first,
  * then the full text with a table of contents. `top` renders above the
  * short version (e.g. helplines); `after` adds content after a section.
  *
- * With `purpose`, the page shows the current published version of that
- * consent document and its number (#64). The header stays in the static
- * shell; the date line and the text are dynamic holes that fall back to
- * the repo's text, which is also what shows before version 1 exists.
+ * The text is the page's published CMS revision (#111), which content
+ * managers edit; publishing the privacy or terms page also publishes the
+ * consent document people agree to. The header stays in the static shell;
+ * the version line and the text are dynamic holes that fall back to the
+ * repo's text, which is also what shows before version 1 exists. In Draft
+ * Mode a content manager sees the draft, under a "Draft preview" status.
  */
 export async function LegalDocument({
   id,
-  purpose,
   top,
   after = {},
 }: {
   id: LegalDocId;
-  purpose?: ConsentPurpose;
   top?: ReactNode;
   after?: Partial<Record<string, ReactNode>>;
 }) {
   const doc = LEGAL_DOCS[id];
+  const key = legalDocumentKey(id);
   const [t, tp] = await Promise.all([
     getTranslations("legal.common"),
     getTranslations(NS[id]),
@@ -54,15 +56,16 @@ export async function LegalDocument({
   const shortTitle =
     id === "childProtection" ? tp("shortVersion") : t("shortVersion");
   const repoDate = <UpdatedLine updated={new Date(doc.updated)} />;
-  const repoText = (
+  const body = (text: LegalText) => (
     <LegalBody
-      text={doc}
+      text={text}
       shortTitle={shortTitle}
       tocTitle={t("toc")}
       top={top}
       after={after}
     />
   );
+  const repoText = body(doc);
 
   return (
     <>
@@ -73,70 +76,61 @@ export async function LegalDocument({
           title={tp("title")}
           lead={tp("lead")}
         />
-        {purpose ? (
-          <Suspense fallback={repoDate}>
-            <Published purpose={purpose} fallback={repoDate}>
-              {(published) => (
-                <UpdatedLine
-                  updated={published.publishedAt}
-                  version={published.version}
-                />
-              )}
-            </Published>
-          </Suspense>
-        ) : (
-          repoDate
-        )}
+        <Suspense fallback={repoDate}>
+          <Shown cmsKey={key} fallback={repoDate}>
+            {(shown) => (
+              <>
+                {shown.published ? (
+                  <UpdatedLine
+                    updated={shown.published.publishedAt}
+                    version={shown.published.version}
+                  />
+                ) : shown.body === null ? (
+                  repoDate
+                ) : null}
+                {shown.previewing ? (
+                  <CmsDraftPreview
+                    path={cmsPublicPath(key)}
+                    showingDraft={
+                      shown.published === null && shown.body !== null
+                    }
+                  />
+                ) : null}
+              </>
+            )}
+          </Shown>
+        </Suspense>
       </Section>
 
-      {purpose ? (
-        <Suspense fallback={repoText}>
-          <Published purpose={purpose} fallback={repoText}>
-            {(published) => (
-              <LegalBody
-                text={published.body}
-                shortTitle={shortTitle}
-                tocTitle={t("toc")}
-                top={top}
-                after={after}
-              />
-            )}
-          </Published>
-        </Suspense>
-      ) : (
-        repoText
-      )}
+      <Suspense fallback={repoText}>
+        <Shown cmsKey={key} fallback={repoText}>
+          {(shown) =>
+            shown.body === null
+              ? repoText
+              : body(legalKind.sanitize(shown.body))
+          }
+        </Shown>
+      </Suspense>
     </>
   );
 }
 
 /**
- * Renders `children` with the purpose's current published version, read
- * at request time, or `fallback` while none is published. If the database
- * can't be read, the page keeps the repo's text rather than failing: a
- * policy page must always be readable.
+ * Renders `children` with what the page shows now (read at request time),
+ * or `fallback` while nothing is published or the database can't be read.
  */
-async function Published({
-  purpose,
+async function Shown({
+  cmsKey,
   fallback,
   children,
 }: {
-  purpose: ConsentPurpose;
+  cmsKey: CmsDocumentKey;
   fallback: ReactNode;
-  children: (published: PublishedConsentDocument) => ReactNode;
+  children: (shown: ShownCmsDocument) => ReactNode;
 }) {
   await connection();
-  let published: PublishedConsentDocument | null;
-  try {
-    published = await cachedConsentDocument(purpose);
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error(
-      `Legal page: could not read the published ${purpose}: ${errorSummaryForLogs(error)}`
-    );
-    return fallback;
-  }
-  return published ? children(published) : fallback;
+  const shown = await loadShownDocument(cmsKey);
+  return shown ? children(shown) : fallback;
 }
 
 async function UpdatedLine({
