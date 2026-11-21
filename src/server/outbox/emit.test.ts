@@ -6,14 +6,11 @@ import { createHarness, type Harness } from "@/test/harness";
 
 import { emit } from "./emit";
 import type { EventOf } from "./events";
+import { userSignedUp } from "./testing";
 
+/** identity.user_signed_up for an account id made now. */
 function signedUp(h: Harness): EventOf<"identity.user_signed_up"> {
-  const userId = uuidv7(h.clock.now());
-  return {
-    type: "identity.user_signed_up",
-    aggregate: { type: "user", id: userId },
-    payload: { userId },
-  };
+  return userSignedUp(uuidv7(h.clock.now()));
 }
 
 describe("emit", () => {

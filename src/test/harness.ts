@@ -10,7 +10,8 @@
 //
 // Each harness has its own PGlite database (real migrations), fake clock and
 // fakes, so tests share nothing. Tickets that add a port append its fake
-// here and in src/server/deps.ts. See docs/agents/seam-1.md.
+// here and in src/server/deps.ts. Outbox events are not a port: `drain()`
+// runs the real relay over these deps. See docs/agents/seam-1.md.
 
 import { onTestFinished, vi } from "vitest";
 

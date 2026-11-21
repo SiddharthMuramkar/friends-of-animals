@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import { outbox, user } from "@/server/db/schema";
 import { uuidv7 } from "@/server/ids";
-import { DEFAULT_DRAIN_LIMIT, drainOutbox, emit } from "@/server/outbox";
+import { DEFAULT_DRAIN_LIMIT, drainOutbox } from "@/server/outbox";
+import { emitUserSignedUp } from "@/server/outbox/testing";
 
 import { createHarness } from "./harness";
 
@@ -62,17 +63,10 @@ describe("drain", () => {
   it("delivers every due event in process, pass after pass, until none is due", async () => {
     const h = await createHarness();
     const events = DEFAULT_DRAIN_LIMIT + 5;
-    await h.db.transaction(async (tx) => {
-      for (let i = 0; i < events; i += 1) {
-        // Accounts that don't exist: each delivery succeeds, sending nothing.
-        const userId = uuidv7(h.clock.now());
-        await emit(tx, h.clock, {
-          type: "identity.user_signed_up",
-          aggregate: { type: "user", id: userId },
-          payload: { userId },
-        });
-      }
-    });
+    for (let i = 0; i < events; i += 1) {
+      // Accounts that don't exist: each delivery succeeds, sending nothing.
+      await emitUserSignedUp(h.deps, uuidv7(h.clock.now()));
+    }
 
     const report = await h.drain();
 

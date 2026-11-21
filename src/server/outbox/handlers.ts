@@ -4,6 +4,11 @@
 // lease runs out), so make it safe to repeat, or pass `delivery.id` to a
 // provider that takes an idempotency key.
 //
+// What a handler throws is kept in outbox.last_error for staff to read
+// (./failure.ts hides addresses, numbers, URL tokens and credentials it can
+// spot). Never put personal data (a name, an address), a code or a secret
+// in a thrown message: name the record by its id instead.
+//
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
 import type { AppDb } from "../db/app-db";
