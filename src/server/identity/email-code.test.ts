@@ -148,6 +148,41 @@ describe("requestEmailCode", () => {
     expect(otherIp).toEqual({ ok: true });
   });
 
+  it("counts every address in one IPv6 /64 network as one IP", async () => {
+    const h = await createHarness();
+    for (let i = 1; i <= 20; i++) {
+      const ip = `2001:db8:1:2::${i.toString(16)}`;
+      await h
+        .as(h.visitor({ ip }))
+        .requestEmailCode({ email: `p${i}@example.test` });
+    }
+
+    const sameNetwork = await h
+      .as(h.visitor({ ip: "2001:db8:1:2:ffff:ffff:ffff:fffe" }))
+      .requestEmailCode({ email: "p21@example.test" });
+    const otherNetwork = await h
+      .as(h.visitor({ ip: "2001:db8:1:3::1" }))
+      .requestEmailCode({ email: "p21@example.test" });
+
+    expect(sameNetwork).toMatchObject({ ok: false, error: "rate_limited" });
+    expect(otherNetwork).toEqual({ ok: true });
+  });
+
+  it("counts an IPv4-mapped IPv6 address as its IPv4 address", async () => {
+    const h = await createHarness();
+    for (let i = 1; i <= 20; i++) {
+      await h
+        .as(h.visitor({ ip: "198.51.100.20" }))
+        .requestEmailCode({ email: `p${i}@example.test` });
+    }
+
+    const mapped = await h
+      .as(h.visitor({ ip: "::ffff:198.51.100.20" }))
+      .requestEmailCode({ email: "p21@example.test" });
+
+    expect(mapped).toMatchObject({ ok: false, error: "rate_limited" });
+  });
+
   it("fails, and says so, when the code can't be sent", async () => {
     const h = await createHarness();
     h.email.failNext(1);

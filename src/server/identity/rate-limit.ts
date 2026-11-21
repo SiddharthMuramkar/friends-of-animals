@@ -3,11 +3,15 @@
 // Fixed windows: each request adds one to its email's and its IP's counter
 // for the current window with an atomic upsert; a request that would pass
 // either limit is rolled back, so refused requests don't count. Keys are
-// HMACs, so the table holds no address or IP.
+// HMACs, so the table holds no address or IP. An IP counts by its network
+// (ipNetwork): one IPv6 connection holds a whole /64, and would otherwise
+// get a fresh allowance per address.
 
 import { createHmac } from "node:crypto";
 
 import { and, lt, sql } from "drizzle-orm";
+
+import { ipNetwork } from "@/lib/ip-network";
 
 import type { AppDb } from "../db/app-db";
 import { otpRateLimit, type OtpRateLimitScope } from "../db/schema";
@@ -46,7 +50,7 @@ export async function takeCodeAllowance(
   );
   const counters = [
     { scope: "email", key: email, limit: CODE_REQUEST_LIMITS.perEmail },
-    { scope: "ip", key: ip, limit: CODE_REQUEST_LIMITS.perIp },
+    { scope: "ip", key: ipNetwork(ip), limit: CODE_REQUEST_LIMITS.perIp },
   ] as const;
 
   try {
