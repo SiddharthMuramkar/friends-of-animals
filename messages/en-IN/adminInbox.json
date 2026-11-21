@@ -61,6 +61,7 @@
       },
       "back": "All messages",
       "notFound": "There is no message here, or it belongs to another team.",
+      "forbidden": "Only the teams that answer contact messages can change them.",
       "sender": "Sender",
       "name": "Name",
       "email": "Email",

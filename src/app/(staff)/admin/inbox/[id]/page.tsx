@@ -14,7 +14,8 @@ import { as, currentActor } from "@/server/app";
 import { CONTACT_NOTE_MAX } from "@/server/modules/contact/inbox";
 import { CONTACT_CLOSE_REASONS } from "@/server/modules/contact/domain/status";
 
-import { unlessForbidden } from "../_lib/refusal";
+import { secondStepRedirect } from "../_lib/form-state";
+import { unlessRefused } from "../_lib/refusal";
 import { STATUS_TONE } from "../_lib/status-tone";
 import { AssignForm, NoteForm, StatusForm } from "./_components/message-forms";
 
@@ -60,34 +61,40 @@ async function Message({ params }: { params: Params }) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const { id } = await params;
-  const [t, tc, topics, format, result] = await Promise.all([
+  const [t, tc, topics, format, loaded] = await Promise.all([
     getTranslations("adminInbox"),
     getTranslations("common.callout"),
     getTranslations("contact.topics.items"),
     getFormatter(),
-    unlessForbidden(() => as(actor).getContactMessage({ messageId: id })),
+    unlessRefused(() => as(actor).getContactMessage({ messageId: id })),
   ]);
+  if (!loaded.ok) {
+    // Staff short of their second step enter it, then come back (#60).
+    const lift = secondStepRedirect(loaded.refusal, id);
+    if (lift) redirect(lift);
+  }
+  const denied = !loaded.ok;
 
-  if (result === null || !result.ok) {
+  if (!loaded.ok || !loaded.value.ok) {
     return (
       <>
         <PageHeader eyebrow={t("eyebrow")} tile="teal" title={t("title")} />
         <ExplainState
-          title={result === null ? t("denied.title") : t("detail.notFound")}
+          title={denied ? t("denied.title") : t("detail.notFound")}
           back={
-            result === null
+            denied
               ? { href: ROUTES.home.path, label: t("denied.back") }
               : { href: APP_ROUTES.adminInbox, label: t("detail.back") }
           }
           className="mt-8"
         >
-          {result === null ? <p>{t("denied.body")}</p> : null}
+          {denied ? <p>{t("denied.body")}</p> : null}
         </ExplainState>
       </>
     );
   }
 
-  const { message } = result;
+  const { message } = loaded.value;
   const when = (date: Date) => format.dateTime(date, "longDateTime");
   const callout = { problem: tc("danger"), done: tc("success") };
 

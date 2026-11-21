@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { inboxFormState } from "./form-state";
+import { inboxFormState, secondStepRedirect } from "./form-state";
 
 const TEXTS = {
   saved: "Saved.",
@@ -43,5 +43,25 @@ describe("inboxFormState", () => {
       message: "Reopen the message to assign it.",
       typed: "Call back on Monday",
     });
+  });
+});
+
+describe("secondStepRedirect", () => {
+  const ID = "01938a00-0000-7000-8113-000000000001";
+
+  it("sends staff short of their second step to lift it, then back", () => {
+    expect(secondStepRedirect("second_factor_required", ID)).toBe(
+      `/auth/second-factor?next=%2Fadmin%2Finbox%2F${ID}`
+    );
+    expect(secondStepRedirect("step_up_required", ID)).toBe(
+      `/auth/step-up?next=%2Fadmin%2Finbox%2F${ID}`
+    );
+    expect(secondStepRedirect("enrolment_required")).toBe(
+      "/account/security?next=%2Fadmin%2Finbox"
+    );
+  });
+
+  it("leaves a refusal no second step can lift to the page", () => {
+    expect(secondStepRedirect("forbidden", ID)).toBeNull();
   });
 });

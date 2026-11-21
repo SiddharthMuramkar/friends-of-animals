@@ -1,11 +1,15 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
+import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
+import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
+
 import {
   expectAccessible,
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
 import { freshEmail, readCode } from "./support/mailbox";
+import { grantGlobalRole } from "./support/roles";
 
 // #113: the public contact form on the prerendered /contact page, in its
 // empty, error and success states. The island solves a real proof-of-work
@@ -16,9 +20,6 @@ import { freshEmail, readCode } from "./support/mailbox";
 // every run comes from the CI runner's one address.
 
 const REFERENCE = /CM-\d{2}-[0-9A-HJKMNP-TV-Z]{6}/;
-
-/** The seeded staff admin (seed/access.ts), who sees every team's messages. */
-const STAFF_ADMIN = { email: "member2@example.test", name: "Ravi Kumar" };
 
 test("a visitor sends a message through the contact form", async ({
   page,
@@ -110,6 +111,45 @@ async function sendMessage(page: Page, testInfo: TestInfo, subject: string) {
   return (await done.textContent())!.match(REFERENCE)![0];
 }
 
+/**
+ * A new staff admin, made for this test and project as the preview seed
+ * makes its staff (a code of the seeded staff's authenticator works once,
+ * and other journeys use theirs), who adds an authenticator at #60's
+ * staff gate on the way into the inbox.
+ */
+async function newStaffAdmin(
+  page: Page,
+  request: Parameters<typeof readCode>[0],
+  testInfo: TestInfo,
+  name: string
+) {
+  const email = freshEmail(testInfo.project.name);
+  await page.goto("/sign-up");
+  await page.getByRole("textbox", { name: "Your name" }).fill(name);
+  await page.getByRole("textbox", { name: "Email address" }).fill(email);
+  await page.getByRole("button", { name: "Email me a code" }).click();
+  await expect(page.getByRole("status")).toContainText(email);
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(await readCode(request, email));
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page).toHaveURL(/\/account\/sessions$/);
+  await grantGlobalRole(email, "staff_admin");
+
+  await page.goto("/admin/inbox");
+  await expect(page).toHaveURL(/\/account\/security\?next=%2Fadmin%2Finbox$/);
+  await page.getByRole("textbox", { name: "Name it" }).first().fill("Phone");
+  await page.getByRole("button", { name: "Set up an app" }).click();
+  const key = await page
+    .getByText(/^([A-Z2-7]{4} ){7}[A-Z2-7]{4}$/)
+    .textContent();
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(base32Decode(key ?? ""), new Date()));
+  await page.getByRole("button", { name: "Confirm" }).click();
+  await expect(page).toHaveURL(/\/admin\/inbox$/);
+}
+
 test("a staff admin assigns, notes and closes a message in the inbox", async ({
   page,
   request,
@@ -117,17 +157,8 @@ test("a staff admin assigns, notes and closes a message in the inbox", async ({
   // A message of this test's own, so the shared seed data stays as it is.
   const subject = `Helping at camp (${testInfo.project.name})`;
   const reference = await sendMessage(page, testInfo, subject);
-
-  await page.goto("/sign-in");
-  await page
-    .getByRole("textbox", { name: "Email address" })
-    .fill(STAFF_ADMIN.email);
-  await page.getByRole("button", { name: "Email me a code" }).click();
-  await page
-    .getByRole("textbox", { name: "6-digit code" })
-    .fill(await readCode(request, STAFF_ADMIN.email));
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/account\/sessions$/);
+  const staffName = `Leela Das (${testInfo.project.name})`;
+  await newStaffAdmin(page, request, testInfo, staffName);
 
   await expectRendersAccessibly(page, "/admin/inbox");
   await expectAccessibleInDark(page, "/admin/inbox");
@@ -144,7 +175,7 @@ test("a staff admin assigns, notes and closes a message in the inbox", async ({
   const assignee = page.getByRole("region", { name: "Assignee" });
   await assignee
     .getByRole("combobox", { name: "Assign to" })
-    .selectOption({ label: STAFF_ADMIN.name });
+    .selectOption({ label: staffName });
   await assignee.getByRole("button", { name: "Assign" }).click();
   await expect(assignee.getByRole("status")).toContainText(
     "The assignee is saved."

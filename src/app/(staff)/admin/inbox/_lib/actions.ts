@@ -7,12 +7,19 @@ import { redirect } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
-import { inboxFormState, type InboxFormState } from "./form-state";
+import {
+  inboxFormState,
+  secondStepRedirect,
+  type InboxFormState,
+} from "./form-state";
+import { unlessRefused } from "./refusal";
 
 // The staff forms on a contact message. Each calls one use case, which
-// authorizes (the message's team, staff admins and super admins) and
-// checks the input; the action maps its answer to words and refreshes the
-// page after a change, so the status, assignee and notes follow.
+// authorizes (the message's team, staff admins and super admins, with
+// this session's second step, #60) and checks the input; the action maps
+// its answer to words and refreshes the page after a change, so the
+// status, assignee and notes follow. A refusal for want of a second step
+// sends the user to enter it, then back to the message.
 
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -26,6 +33,25 @@ async function signedIn() {
 }
 
 /**
+ * Runs the use case; a refusal goes to #60's screens when a second step
+ * lifts it, and otherwise comes back as the form's refusal.
+ */
+async function handle<T>(
+  messageId: string,
+  run: () => Promise<T>
+): Promise<{ ok: true; value: T } | { ok: false; state: InboxFormState }> {
+  const outcome = await unlessRefused(run);
+  if (outcome.ok) return outcome;
+  const lift = secondStepRedirect(outcome.refusal, messageId);
+  if (lift) redirect(lift);
+  const t = await getTranslations("adminInbox.detail");
+  return {
+    ok: false,
+    state: { status: "refused", message: t("forbidden"), typed: "" },
+  };
+}
+
+/**
  * Moves the message to the status of the button pressed (`status`). Only
  * closing sends the chosen reason, so a reason picked before pressing
  * another button doesn't refuse it.
@@ -35,13 +61,18 @@ export async function changeStatusAction(
   formData: FormData
 ): Promise<InboxFormState> {
   const actor = await signedIn();
+  const messageId = field(formData, "messageId");
   const status = field(formData, "status");
   const closeReason = field(formData, "closeReason");
-  const result = await as(actor).changeContactMessageStatus({
-    messageId: field(formData, "messageId"),
-    status,
-    ...(status === "closed" && closeReason !== "" ? { closeReason } : {}),
-  });
+  const outcome = await handle(messageId, () =>
+    as(actor).changeContactMessageStatus({
+      messageId,
+      status,
+      ...(status === "closed" && closeReason !== "" ? { closeReason } : {}),
+    })
+  );
+  if (!outcome.ok) return outcome.state;
+  const result = outcome.value;
   const t = await getTranslations("adminInbox.detail.statusForm");
   const next = inboxFormState(result, {
     saved: t("saved"),
@@ -64,11 +95,16 @@ export async function assignAction(
   formData: FormData
 ): Promise<InboxFormState> {
   const actor = await signedIn();
+  const messageId = field(formData, "messageId");
   const assigneeId = field(formData, "assigneeId");
-  const result = await as(actor).assignContactMessage({
-    messageId: field(formData, "messageId"),
-    assigneeId: assigneeId === "" ? null : assigneeId,
-  });
+  const outcome = await handle(messageId, () =>
+    as(actor).assignContactMessage({
+      messageId,
+      assigneeId: assigneeId === "" ? null : assigneeId,
+    })
+  );
+  if (!outcome.ok) return outcome.state;
+  const result = outcome.value;
   const t = await getTranslations("adminInbox.detail.assignForm");
   const next = inboxFormState(result, {
     saved: t("saved"),
@@ -90,11 +126,13 @@ export async function addNoteAction(
   formData: FormData
 ): Promise<InboxFormState> {
   const actor = await signedIn();
+  const messageId = field(formData, "messageId");
   const body = field(formData, "body");
-  const result = await as(actor).addContactNote({
-    messageId: field(formData, "messageId"),
-    body,
-  });
+  const outcome = await handle(messageId, () =>
+    as(actor).addContactNote({ messageId, body })
+  );
+  if (!outcome.ok) return { ...outcome.state, typed: body };
+  const result = outcome.value;
   const t = await getTranslations("adminInbox.detail.notes");
   const next = inboxFormState(
     result,

@@ -19,7 +19,8 @@ import {
 } from "@/server/modules/contact/domain/routing";
 import { CONTACT_MESSAGE_STATUSES } from "@/server/modules/contact/domain/status";
 
-import { unlessForbidden } from "./_lib/refusal";
+import { secondStepRedirect } from "./_lib/form-state";
+import { unlessRefused } from "./_lib/refusal";
 import { STATUS_TONE } from "./_lib/status-tone";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -72,13 +73,16 @@ async function Inbox({ searchParams }: { searchParams: SearchParams }) {
     const value = query[name];
     if (typeof value === "string" && value !== "") filters[name] = value;
   }
-  const [t, tc, format, result] = await Promise.all([
+  const [t, tc, format, loaded] = await Promise.all([
     getTranslations("adminInbox"),
     getTranslations("contact.topics.items"),
     getFormatter(),
-    unlessForbidden(() => as(actor).listContactInbox(filters)),
+    unlessRefused(() => as(actor).listContactInbox(filters)),
   ]);
-  if (result === null) {
+  if (!loaded.ok) {
+    // Staff short of their second step enter it, then come back (#60).
+    const lift = secondStepRedirect(loaded.refusal);
+    if (lift) redirect(lift);
     return (
       <ExplainState
         title={t("denied.title")}
@@ -89,6 +93,7 @@ async function Inbox({ searchParams }: { searchParams: SearchParams }) {
       </ExplainState>
     );
   }
+  const result = loaded.value;
 
   const choices = {
     status: CONTACT_MESSAGE_STATUSES.map((value) => ({
