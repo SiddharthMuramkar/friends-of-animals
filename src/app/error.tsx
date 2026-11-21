@@ -4,6 +4,7 @@ import { SiteLink } from "@/components/site/site-link";
 import { useEffect } from "react";
 
 import { buttonStyles } from "@/components/site/button-link";
+import { reportBoundaryError } from "@/lib/observability/boundary";
 
 // Client component: strings come from the message file directly (no next-intl
 // client runtime on every page).
@@ -19,7 +20,7 @@ export default function ErrorPage({
   retry: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    reportBoundaryError(error);
   }, [error]);
 
   // Server errors reach the browser without their message in production;
