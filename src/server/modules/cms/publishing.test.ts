@@ -292,12 +292,12 @@ describe("publishRevision", () => {
   });
 });
 
-describe("a published revision", () => {
-  /** Postgres's refusal, which Drizzle keeps as the error's `cause`. */
-  function refused(message: RegExp) {
-    return { cause: { message: expect.stringMatching(message) } };
-  }
+/** Postgres's refusal, which Drizzle keeps as the error's `cause`. */
+function refused(message: RegExp) {
+  return { cause: { message: expect.stringMatching(message) } };
+}
 
+describe("a published revision", () => {
   async function published(h: Harness) {
     const { actor } = await contentManager(h);
     const v1 = await publish(h, actor, "legal_safeguarding", legalBody("One."));
@@ -376,6 +376,31 @@ describe("a published revision", () => {
     ).rejects.toMatchObject({
       cause: { constraint: "cms_revision_one_draft" },
     });
+  });
+});
+
+describe("a draft", () => {
+  it("can't be superseded without being published, even by a raw UPDATE", async () => {
+    const h = await createHarness();
+    const { actor } = await contentManager(h);
+    await publish(h, actor, "legal_safeguarding", legalBody("One."));
+    const saved = await h.as(actor).saveDraft({
+      key: "legal_safeguarding",
+      body: legalBody("Two."),
+    });
+    if (!saved.ok) throw new Error("Could not save the draft");
+
+    await expect(
+      h.db.execute(
+        sql`UPDATE cms_revision SET status = 'superseded', version = 2, published_at = now() WHERE id = ${saved.revisionId}`
+      )
+    ).rejects.toMatchObject(
+      refused(/cms_revision .* is a draft: it can't be superseded/)
+    );
+    const draft = (await revisionsOf(h, "legal_safeguarding")).find(
+      (r) => r.id === saved.revisionId
+    );
+    expect(draft).toMatchObject({ status: "draft", version: null });
   });
 });
 

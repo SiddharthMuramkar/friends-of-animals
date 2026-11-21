@@ -1,6 +1,7 @@
 -- Custom SQL migration file, put your code below! --
 -- Published CMS revisions never change (#111). Only a draft's row may be
--- edited or deleted. Once published, a revision's only move is to
+-- edited or deleted, and a draft's only move is to published: it can't
+-- skip to superseded. Once published, a revision's only move is to
 -- superseded (when the next version is published), and nothing else about
 -- it changes: not its body, number, date or publisher. A change is a new
 -- draft. Whoever runs the statement, the migrator included, gets the error.
@@ -15,6 +16,10 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege';
   END IF;
   IF OLD.status = 'draft' THEN
+    IF NEW.status = 'superseded' THEN
+      RAISE EXCEPTION 'cms_revision % is a draft: it can''t be superseded before it is published', OLD.id
+        USING ERRCODE = 'insufficient_privilege';
+    END IF;
     RETURN NEW;
   END IF;
   IF NEW.id IS DISTINCT FROM OLD.id
