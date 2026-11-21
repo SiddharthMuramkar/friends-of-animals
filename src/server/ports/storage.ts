@@ -57,6 +57,15 @@ export interface ObjectStorage {
   /** The object's bytes, streamed. Rejects if there is no object. */
   read(input: ObjectRef): Promise<ReadableStream<Uint8Array>>;
 
+  /**
+   * Stores `body` at the key with `contentType`, replacing any object
+   * there. For objects the server makes (#85's derivatives); a browser
+   * uploads through `presignPut` instead.
+   */
+  write(
+    input: ObjectRef & { body: Uint8Array; contentType: string }
+  ): Promise<void>;
+
   /** Moves an object to another key in its bucket. Rejects if it is missing. */
   move(input: { bucket: string; from: string; to: string }): Promise<void>;
 
@@ -125,6 +134,7 @@ export const unconfiguredStorage: ObjectStorage = {
   presignGet: refuse,
   head: refuse,
   read: refuse,
+  write: refuse,
   move: refuse,
   delete: refuse,
   deletePrefix: refuse,

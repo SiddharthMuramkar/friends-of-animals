@@ -199,6 +199,35 @@ export function objectStorageContract(
       expect(await download(await getUrl(keyFor()))).toBeNull();
     });
 
+    it("stores what the server writes, replacing what was there", async () => {
+      const { storage, bucket, keyFor, download, getUrl } = await world();
+      const key = keyFor("derived");
+      const first = new Uint8Array([0x52, 0x49, 0x46, 0x46, 1, 2, 3]);
+      const second = new Uint8Array([0x52, 0x49, 0x46, 0x46, 9]);
+
+      await storage.write({
+        bucket,
+        key,
+        body: first,
+        contentType: "image/webp",
+      });
+      expect(await storage.head({ bucket, key })).toEqual({
+        sizeBytes: first.length,
+        contentType: "image/webp",
+      });
+      await storage.write({
+        bucket,
+        key,
+        body: second,
+        contentType: "image/webp",
+      });
+
+      expect(await bytesOf(await storage.read({ bucket, key }))).toEqual(
+        second
+      );
+      expect((await download(await getUrl(key)))?.bytes).toEqual(second);
+    });
+
     it("streams an object's bytes, and rejects a missing one", async () => {
       const { storage, bucket, keyFor, store } = await world();
       const key = keyFor();
