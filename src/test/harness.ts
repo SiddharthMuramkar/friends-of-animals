@@ -40,8 +40,8 @@ import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
 import { FakeErrorReporter } from "./fakes/errors";
-import { FakeSettings } from "./fakes/settings";
 import { FakeSms } from "./fakes/sms";
+import { TestSettings } from "./settings";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -56,10 +56,11 @@ export interface Harness {
   /** Every SMS use cases sent. */
   sms: FakeSms;
   /**
-   * Runtime settings, at their defaults (SMS off) until a test sets one:
-   * `h.settings.set("sms.enabled", true)`.
+   * Runtime settings, from this database's settings table as the app reads
+   * them, at their defaults (SMS off) until a test sets one:
+   * `await h.settings.set("sms.enabled", true)`.
    */
-  settings: FakeSettings;
+  settings: TestSettings;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
   /** Every error use cases reported, scrubbed as Sentry would get it. */
@@ -134,7 +135,7 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const sms = new FakeSms(clock);
-  const settings = new FakeSettings();
+  const settings = new TestSettings({ db, clock });
   const cookies = new FakeCookieJar(clock);
   const errors = new FakeErrorReporter();
   const deps: Deps = {

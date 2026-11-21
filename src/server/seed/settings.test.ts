@@ -6,7 +6,7 @@ import { readSetting } from "@/server/modules/settings";
 import { createHarness } from "@/test/harness";
 
 describe("the settings seed", () => {
-  it("stores the first four settings at their defaults, once however often it runs", async () => {
+  it("stores the first four settings, at their defaults but with SMS on, once however often it runs", async () => {
     const h = await createHarness();
     const rows = () => h.db.select().from(setting).orderBy(asc(setting.key));
 
@@ -20,7 +20,8 @@ describe("the settings seed", () => {
       { key: "auth.staffSessionHours", value: 12 },
       { key: "org.fcraEnabled", value: false },
       { key: "org.has80G", value: false },
-      { key: "sms.enabled", value: false },
+      // Previews and local runs capture every text, so SMS is on there.
+      { key: "sms.enabled", value: true },
     ]);
   });
 

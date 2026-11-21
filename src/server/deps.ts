@@ -23,11 +23,12 @@ import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
 import { unconfiguredSmsSender, type SmsSender } from "./ports/sms";
 import { captureSmsSender } from "./ports/sms-capture";
 import { msg91SmsSender } from "./ports/sms-msg91";
-import { fixedSettings, type Settings } from "./ports/settings";
+import type { Settings } from "./ports/settings";
 import type { EmailSender } from "./ports/email";
 import { emailSenderFor } from "./ports/email-sender-for";
 import type { ErrorReporter } from "./ports/errors";
 import { serverErrorReporter } from "./observability/server-reporter";
+import { storedSettings } from "./modules/settings";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -40,7 +41,11 @@ export interface Deps extends DbWithClock {
   cipher: FieldCipher;
   /** Keyed hashes to find rows by an encrypted value. */
   blindIndex: BlindIndex;
-  /** Runtime settings, such as whether codes go by SMS. */
+  /**
+   * Runtime settings, such as whether codes go by SMS: the settings table
+   * (#62), read on every call, so a change on /admin/settings counts at
+   * once.
+   */
   settings: Settings;
   /** Errors a use case catches but can't handle (Sentry, scrubbed). */
   errors: ErrorReporter;
@@ -71,18 +76,6 @@ export function smsSenderFor(
   );
 }
 
-/**
- * The runtime settings each deployment reads until #62's settings table
- * holds them. Local runs and previews send SMS to the capture mailbox, so
- * sign-in by phone is on there (the Seam 2 journey uses it); staging and
- * production keep the default, off, until DLT approval (HR-14).
- */
-export function settingsFor(appEnv: Env["APP_ENV"]): Settings {
-  return appEnv === "local" || appEnv === "preview"
-    ? fixedSettings({ "sms.enabled": true })
-    : fixedSettings();
-}
-
 let production: Deps | undefined;
 
 /** The app's deps, built on first use from `env()`. */
@@ -107,7 +100,7 @@ export function productionDeps(): Deps {
         baseUrl: config.APP_URL,
       },
       ...fieldCryptoFor(config),
-      settings: settingsFor(config.APP_ENV),
+      settings: storedSettings(db),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
     };

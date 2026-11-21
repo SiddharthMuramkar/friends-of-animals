@@ -4,13 +4,29 @@
 // "server-only".
 
 import { setting } from "../db/schema";
-import { SETTING_KEYS, SETTINGS } from "../modules/settings/catalogue";
+import {
+  SETTING_KEYS,
+  SETTINGS,
+  type SettingKey,
+  type SettingValue,
+} from "../modules/settings/catalogue";
 import type { SeedDeps } from "./types";
 
 /**
- * Stores each setting's default unless a value is stored already, so a
- * value someone changed on the preview survives every later seed. Seed
- * data, not an admin's change: it names no user and writes no audit entry.
+ * Where a preview or a local run differs from the defaults. Only they are
+ * seeded (staging and production never are), and they send every text to
+ * the capture mailbox, so SMS is on there: sign-in by phone works, and
+ * the Seam 2 journey uses it.
+ */
+const PREVIEW_VALUES: { [K in SettingKey]?: SettingValue<K> } = {
+  "sms.enabled": true,
+};
+
+/**
+ * Stores each setting's preview value unless a value is stored already,
+ * so a value someone changed on the preview survives every later seed.
+ * Seed data, not an admin's change: it names no user and writes no audit
+ * entry.
  *
  * The trade-off, accepted for the brief's seeded settings (AC 8): a seeded
  * database shows every setting as stored, changed on the seed's date, not
@@ -25,7 +41,7 @@ export async function seedSettings({ db, clock }: SeedDeps): Promise<void> {
     .values(
       SETTING_KEYS.map((key) => ({
         key,
-        value: SETTINGS[key].default,
+        value: PREVIEW_VALUES[key] ?? SETTINGS[key].default,
         updatedAt: now,
       }))
     )

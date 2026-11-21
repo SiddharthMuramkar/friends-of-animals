@@ -135,7 +135,7 @@ describe("getNotificationPreferences and updateNotificationPreferences", () => {
 describe("a user who turns SMS off", () => {
   it("gets the email but no SMS for an ordinary message", async () => {
     const h = await createHarness();
-    h.settings.set("sms.enabled", true);
+    await h.settings.set("sms.enabled", true);
     await registerWelcomeSms(h);
     await welcomeRoute(h, { channels: ["email", "sms"], requiredByLaw: false });
     const { account, actor } = await memberWithPhone(h);
@@ -156,7 +156,7 @@ describe("a user who turns SMS off", () => {
 
   it("still gets the SMS for a message the law requires", async () => {
     const h = await createHarness();
-    h.settings.set("sms.enabled", true);
+    await h.settings.set("sms.enabled", true);
     await registerWelcomeSms(h);
     await welcomeRoute(h, { channels: ["email", "sms"], requiredByLaw: true });
     const { account, actor } = await memberWithPhone(h);
@@ -260,7 +260,7 @@ describe("the SMS switch on the settings screen", () => {
 describe("an SMS template without a DLT id", () => {
   it("is held back as unregistered, and email covers for it", async () => {
     const h = await createHarness();
-    h.settings.set("sms.enabled", true);
+    await h.settings.set("sms.enabled", true);
     await welcomeRoute(h, { channels: ["sms"], requiredByLaw: true });
     const { account } = await memberWithPhone(h);
 
