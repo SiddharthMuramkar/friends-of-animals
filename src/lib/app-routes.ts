@@ -11,6 +11,7 @@ export const APP_ROUTES = {
   accountConsents: "/account/consents",
   adminConsentDocuments: "/admin/consent-documents",
   adminTemplates: "/admin/templates",
+  adminSettings: "/admin/settings",
 } as const;
 
 /**

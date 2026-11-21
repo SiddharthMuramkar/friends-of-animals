@@ -34,3 +34,12 @@ export const CODE_REQUEST_LIMITS = {
  * doesn't extend it.
  */
 export const SESSION_LIFETIME_DAYS = 30;
+
+/**
+ * A local run or a preview without BETTER_AUTH_SECRET signs with this. It is
+ * public, so it protects nothing; staging and production must set their own
+ * (src/env.schema.ts refuses to start without it). Here rather than in
+ * deps.ts so the seed script, which can't load "server-only", reads it too.
+ */
+export const DEVELOPMENT_AUTH_SECRET =
+  "foa-development-secret-not-for-staging-or-production";

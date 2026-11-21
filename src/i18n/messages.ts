@@ -6,6 +6,7 @@ import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
 import adminTemplates from "../../messages/en-IN/adminTemplates.json";
+import adminSettings from "../../messages/en-IN/adminSettings.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -38,6 +39,7 @@ export const NAMESPACES = [
   "about",
   "account",
   "adminTemplates",
+  "adminSettings",
   "auth",
   "authPhone",
   "awareness",
@@ -74,6 +76,7 @@ export const messages = {
   ...about,
   ...account,
   ...adminTemplates,
+  ...adminSettings,
   ...auth,
   ...authPhone,
   ...awareness,
