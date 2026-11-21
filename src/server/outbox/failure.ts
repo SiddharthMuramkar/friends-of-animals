@@ -1,7 +1,12 @@
 // Turns whatever a handler threw into the short text kept in
-// `outbox.last_error`. Staff read it, and it may reach logs, so it holds no
-// personal data: email addresses and phone numbers are hidden, only the first
-// line is kept (no stack, no payload dump), and objects are never serialised.
+// `outbox.last_error`. Staff read it, and it may reach logs, so it should
+// hold no personal data or secrets. Only the first line is kept (no stack,
+// no payload dump), objects are never serialised, and what can be spotted
+// is hidden: email addresses (percent-encoded too), phone numbers, bare
+// numbers of four digits or more (one-time codes), URL query strings and
+// fragments, and Bearer or Basic credentials. A name can't be spotted, so
+// handlers must never throw messages with personal data in them
+// (./handlers.ts).
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
@@ -19,10 +24,23 @@ function digitsIn(text: string): number {
   return text.replaceAll(/\D/g, "").length;
 }
 
+// A URL's query string or fragment, where tokens and addresses travel.
+const URL_QUERY = /(\bhttps?:\/\/[^\s?#]*)[?#]\S*/gi;
+
+const CREDENTIAL = /\b(Bearer|Basic)\s+[\w.~+/=-]+/gi;
+
+// Four or more digits standing alone, as a one-time code or a PIN does; a
+// Postgres error code ("Postgres 23505", "SQLSTATE 40001") is kept.
+const NUMBER = /(?<![\w-])(?<!(?:Postgres|SQLSTATE) )\d{4,}(?![\w-])/gi;
+
 function redact(text: string): string {
   return text
+    .replaceAll(/%40/gi, "@")
+    .replaceAll(URL_QUERY, "$1?[query]")
+    .replaceAll(CREDENTIAL, "$1 [credential]")
     .replaceAll(EMAIL, "[email]")
-    .replaceAll(PHONE, (match) => (digitsIn(match) >= 10 ? "[phone]" : match));
+    .replaceAll(PHONE, (match) => (digitsIn(match) >= 10 ? "[phone]" : match))
+    .replaceAll(NUMBER, "[number]");
 }
 
 function firstLine(text: string): string {

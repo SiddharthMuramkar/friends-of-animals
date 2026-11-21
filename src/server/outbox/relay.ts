@@ -15,8 +15,10 @@ import {
   count,
   desc,
   eq,
+  gte,
   inArray,
   isNull,
+  lt,
   lte,
   notInArray,
   or,
@@ -38,7 +40,6 @@ import {
   claimUntil,
   settleDelivery,
   type DeliveryOutcome,
-  type RetryPolicy,
 } from "./retry-policy";
 
 export type { OutboxDeps } from "./handlers";
@@ -49,7 +50,10 @@ export type DrainReport = {
   dispatched: number;
   /** Failed, and due again after a backoff. */
   retried: number;
-  /** Failed for the last time: kept as failed for staff to see. */
+  /**
+   * Failed for the last time, or used its last try without a result (the
+   * lease ran out): kept as failed for staff to see.
+   */
   failed: number;
   /**
    * Due, but for a handler this code doesn't have: left pending and
@@ -62,17 +66,18 @@ export type DrainReport = {
 export type DrainOptions = {
   /** The most deliveries one pass claims. */
   limit?: number;
-  policy?: RetryPolicy;
 };
 
 /**
- * Small enough that one pass's handlers finish well inside one lease
- * (DEFAULT_RETRY_POLICY.leaseMs, 5 minutes); a claim whose lease runs out
- * first may be taken over and its handler run twice.
+ * Small enough that one pass's handlers normally finish inside one lease
+ * (DEFAULT_RETRY_POLICY.leaseMs, 5 minutes). Deliveries whose lease runs
+ * out before their turn are left for the next claim.
  */
 export const DEFAULT_DRAIN_LIMIT = 25;
 
 const KNOWN_HANDLERS = Object.keys(HANDLERS);
+
+const POLICY = DEFAULT_RETRY_POLICY;
 
 /** Pending, due by `now`, and not held by a live claim. */
 function due(now: Date) {
@@ -84,20 +89,54 @@ function due(now: Date) {
 }
 
 /**
+ * Marks failed every delivery that used all its tries without a result:
+ * its last claim's lease ran out and no relay settled it (the worker died,
+ * or the handler hung). settleDelivery() caps tries only for a handler that
+ * returns or throws, so without this such a delivery would be claimed
+ * again every lease, forever, and never show as failed.
+ */
+async function failLostClaims(db: AppDb, now: Date): Promise<number> {
+  const failed = await db
+    .update(outbox)
+    .set({
+      status: "failed",
+      failedAt: now,
+      lockedUntil: null,
+      lastError: sql`'No result after ' || ${outbox.attempts} || ' attempts: the lease ran out'`,
+    })
+    .where(
+      and(
+        eq(outbox.status, "pending"),
+        lte(outbox.lockedUntil, now),
+        gte(outbox.attempts, POLICY.maxAttempts),
+        inArray(outbox.handler, KNOWN_HANDLERS)
+      )
+    )
+    .returning({ id: outbox.id });
+  return failed.length;
+}
+
+/**
  * Claims up to `limit` due deliveries in one statement: each gets one more
  * attempt and a lease. SKIP LOCKED keeps two relays on one database from
- * claiming the same row.
+ * claiming the same row. A delivery that has used all its tries is never
+ * claimed again (failLostClaims() fails it).
  */
 async function claim(
   db: AppDb,
   now: Date,
-  limit: number,
-  policy: RetryPolicy
+  limit: number
 ): Promise<OutboxRow[]> {
   const ids = db
     .select({ id: outbox.id })
     .from(outbox)
-    .where(and(due(now), inArray(outbox.handler, KNOWN_HANDLERS)))
+    .where(
+      and(
+        due(now),
+        lt(outbox.attempts, POLICY.maxAttempts),
+        inArray(outbox.handler, KNOWN_HANDLERS)
+      )
+    )
     .orderBy(asc(outbox.availableAt), asc(outbox.id))
     .limit(limit)
     .for("update", { skipLocked: true });
@@ -105,7 +144,7 @@ async function claim(
     .update(outbox)
     .set({
       attempts: sql`${outbox.attempts} + 1`,
-      lockedUntil: claimUntil(now, policy),
+      lockedUntil: claimUntil(now, POLICY),
     })
     .where(inArray(outbox.id, ids))
     .returning();
@@ -179,27 +218,29 @@ async function run(deps: OutboxDeps, row: OutboxRow): Promise<DeliveryOutcome> {
 
 /**
  * One pass: claims up to `limit` due deliveries, runs each one's handler in
- * turn and settles it. A delivery whose claim was taken over meanwhile (its
- * lease ran out and another relay claimed it) is left to that relay.
+ * turn and settles it. A delivery whose lease has run out before its turn
+ * is not started, and one whose claim was taken over while its handler ran
+ * is left to the relay that took it.
  */
 export async function drainOutbox(
   deps: OutboxDeps,
-  {
-    limit = DEFAULT_DRAIN_LIMIT,
-    policy = DEFAULT_RETRY_POLICY,
-  }: DrainOptions = {}
+  { limit = DEFAULT_DRAIN_LIMIT }: DrainOptions = {}
 ): Promise<DrainReport> {
   const now = deps.clock.now();
-  const claimed = await claim(deps.db, now, limit, policy);
+  const lost = await failLostClaims(deps.db, now);
+  const claimed = await claim(deps.db, now, limit);
   const report: DrainReport = {
     dispatched: 0,
     retried: 0,
-    failed: 0,
+    failed: lost,
     skipped: await countSkipped(deps.db, now),
   };
   for (const row of claimed) {
+    // An earlier handler in this pass took so long that this claim's lease
+    // ran out: another relay may have it now, so don't start it here.
+    if (row.lockedUntil && deps.clock.now() >= row.lockedUntil) continue;
     const outcome = await run(deps, row);
-    const settlement = settleDelivery(row, outcome, deps.clock.now(), policy);
+    const settlement = settleDelivery(row, outcome, deps.clock.now(), POLICY);
     // Still ours only if no other relay claimed it after our lease ran out.
     const settled = await deps.db
       .update(outbox)
