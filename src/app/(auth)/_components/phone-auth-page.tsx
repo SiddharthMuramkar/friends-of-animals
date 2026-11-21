@@ -9,7 +9,7 @@ import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
 import { phoneCodeAction } from "../_lib/phone-actions";
-import { PhoneCodeForm } from "./phone-code-form";
+import { CodeForm } from "./code-form";
 import { SmsOffCallout } from "./sms-off-callout";
 
 type Intent = "sign-up" | "sign-in";
@@ -66,21 +66,22 @@ async function PhoneMethod({ intent }: { intent: Intent }) {
   return (
     <>
       <div className="mt-8 max-w-xl rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-8">
-        <PhoneCodeForm
+        <CodeForm
           action={phoneCodeAction}
+          channel="phone"
           intent={intent}
           signUpPath={ROUTES.signUpPhone.path}
           emailPath={email.path}
           labels={{
             name: { label: tf("name.label"), hint: tf("name.hint") },
-            phone: { label: tf("phone.label"), hint: tf("phone.hint") },
+            contact: { label: tf("phone.label"), hint: tf("phone.hint") },
             code: { label: tf("code.label") },
             sendCode: tf("sendCode"),
             sending: tf("sending"),
             verify: intent === "sign-up" ? tf("signUp") : tf("signIn"),
             checking: tf("checking"),
             resend: tf("resend"),
-            changePhone: tf("changePhone"),
+            changeContact: tf("changePhone"),
             signUpInstead: tf("signUpInstead"),
             useEmail: t("useEmail"),
             problem: tc("danger"),

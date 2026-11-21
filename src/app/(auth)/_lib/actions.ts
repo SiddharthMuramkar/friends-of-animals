@@ -1,118 +1,34 @@
 "use server";
 
-import { getTranslations } from "next-intl/server";
-import { redirect } from "next/navigation";
+import { as } from "@/server/app";
 
-import { APP_ROUTES } from "@/lib/app-routes";
-import { as, currentActor } from "@/server/app";
-import { errorSummaryForLogs } from "@/server/errors";
-import { SIGN_IN_CODE } from "@/server/identity/settings";
+import { runCodeForm, type CodeFormChannel } from "./code-form-action";
+import type { CodeFormView } from "./code-form-state";
 
-import {
-  afterFailure,
-  afterRequest,
-  afterVerify,
-  START,
-  type EmailCodeFormState,
-  type EmailCodeFormView,
-  type FormField,
-} from "./form-state";
-
-async function withText(state: EmailCodeFormState): Promise<EmailCodeFormView> {
-  const t = await getTranslations("auth.form");
-  const errors: Partial<Record<FormField, string>> = {};
-  if (state.fieldErrors?.email) errors.email = t("email.error");
-  if (state.fieldErrors?.name) errors.name = t("name.error");
-  if (state.fieldErrors?.code) errors.code = t("code.error");
-  let alert: string | undefined;
-  if (state.alert === "rate_limited") {
-    const minutes = state.retryAfterMinutes ?? 15;
-    // The daily limit can mean hours of waiting.
-    alert =
-      minutes > 60
-        ? t("alerts.rate_limited_hours", { hours: Math.ceil(minutes / 60) })
-        : t("alerts.rate_limited", { minutes });
-  } else if (state.alert) {
-    alert = t(`alerts.${state.alert}`);
-  }
-  return {
-    ...state,
-    text: {
-      alert,
-      sent: state.sent ? t("sent", { email: state.email }) : undefined,
-      codeHint:
-        state.step === "code"
-          ? t("code.hint", {
-              email: state.email,
-              minutes: SIGN_IN_CODE.lifetimeMinutes,
-            })
-          : undefined,
-      errors,
-    },
-  };
-}
-
-function field(formData: FormData, name: string): string {
-  const value = formData.get(name);
-  return typeof value === "string" ? value : "";
-}
+const EMAIL: CodeFormChannel = {
+  channel: "email",
+  messages: "auth.form",
+  label: "Email code form",
+  request: (actor, { intent, contact: email, name }) =>
+    as(actor).requestEmailCode(
+      intent === "sign-up" ? { intent, email, name } : { intent, email }
+    ),
+  verify: (actor, { intent, contact: email, name }, code) =>
+    as(actor).verifyEmailCode(
+      intent === "sign-up"
+        ? { intent, email, name, code }
+        : { intent, email, code }
+    ),
+  shown: (email) => email,
+};
 
 /**
- * The sign-up and sign-in form's one action. `step` (from the pressed
- * button) says what to do: email a code, check the code, or start again.
+ * The email sign-up and sign-in form's one action: email a code, check
+ * the code, or start again (./code-form-action.ts).
  */
 export async function emailCodeAction(
-  _previous: EmailCodeFormView,
+  _previous: CodeFormView,
   formData: FormData
-): Promise<EmailCodeFormView> {
-  const intent =
-    field(formData, "intent") === "sign-up" ? "sign-up" : "sign-in";
-  const step = field(formData, "step") || "email";
-  // The step the form was showing; "Send a new code" asks for a code
-  // (step "email") from the code step.
-  const from = field(formData, "from") === "code" ? "code" : "email";
-  const entered = {
-    email: field(formData, "email"),
-    name: field(formData, "name"),
-  };
-
-  const actor = await currentActor();
-  if (actor.kind !== "visitor") redirect(APP_ROUTES.accountSessions);
-  if (step === "restart") return withText({ ...START, name: entered.name });
-
-  try {
-    if (step === "code") {
-      const code = field(formData, "code");
-      const result = await as(actor).verifyEmailCode(
-        intent === "sign-up"
-          ? { intent, ...entered, code }
-          : { intent, email: entered.email, code }
-      );
-      if (!result.ok) {
-        return withText(afterVerify(result, { step: "code", ...entered }));
-      }
-    } else {
-      return withText(
-        afterRequest(
-          await as(actor).requestEmailCode(
-            intent === "sign-up"
-              ? { intent, ...entered }
-              : { intent, email: entered.email }
-          ),
-          entered,
-          from
-        )
-      );
-    }
-  } catch (error) {
-    // Only the error's class and Postgres code: its message can hold the
-    // address or the code.
-    console.error(
-      `Email code form: the use case failed: ${errorSummaryForLogs(error)}`
-    );
-    return withText(afterFailure(step === "code" ? "code" : from, entered));
-  }
-  // Signed in: the session cookie is set. Outside the try, because
-  // redirect() works by throwing.
-  redirect(APP_ROUTES.accountSessions);
+): Promise<CodeFormView> {
+  return runCodeForm(EMAIL, formData);
 }

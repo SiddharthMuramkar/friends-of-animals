@@ -3,59 +3,70 @@
 import { useActionState } from "react";
 
 import { FormAlert, SubmitButton, TextField } from "@/components/form";
+import { inlineLink } from "@/components/site/link-styles";
 import { SiteLink } from "@/components/site/site-link";
 
 import {
-  PHONE_START_VIEW,
-  type PhoneCodeFormView,
-} from "../_lib/phone-form-state";
+  START_VIEW,
+  type CodeChannel,
+  type CodeFormView,
+} from "../_lib/code-form-state";
 
-export type PhoneCodeFormLabels = {
+export type CodeFormLabels = {
   name: { label: string; hint: string };
-  phone: { label: string; hint: string };
+  /** The email address or mobile number field. */
+  contact: { label: string; hint: string };
   code: { label: string };
   sendCode: string;
   sending: string;
   verify: string;
   checking: string;
   resend: string;
-  changePhone: string;
+  changeContact: string;
   signUpInstead: string;
-  useEmail: string;
+  /** By phone: the way to email, for numbers we can't text. */
+  useEmail?: string | undefined;
   /** common.callout words: meaning never by colour alone. */
   problem: string;
   done: string;
 };
 
-const LINK =
-  "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
+/** The contact field's input, by channel. */
+const CONTACT_INPUT = {
+  email: { type: "email", autoComplete: "email", maxLength: 254 },
+  phone: { type: "tel", autoComplete: "tel", maxLength: 20 },
+} as const;
 
 /**
- * Sign up or sign in by SMS code, in two steps on one form: the mobile
- * number (and, to sign up, a name), then the code we text. Every message
- * comes translated from `action`; static words come in `labels`.
+ * Sign up or sign in by a code, in two steps on one form: the email
+ * address or mobile number (and, to sign up, a name), then the code we
+ * send. Every message comes translated from `action`; static words come
+ * in `labels`.
  */
-export function PhoneCodeForm({
+export function CodeForm({
   action,
+  channel,
   intent,
   labels,
   signUpPath,
   emailPath,
 }: {
-  action: (
-    previous: PhoneCodeFormView,
-    formData: FormData
-  ) => Promise<PhoneCodeFormView>;
+  action: (previous: CodeFormView, formData: FormData) => Promise<CodeFormView>;
+  channel: CodeChannel;
   intent: "sign-up" | "sign-in";
-  labels: PhoneCodeFormLabels;
+  labels: CodeFormLabels;
   /** Where "Create an account instead" goes. */
   signUpPath: string;
-  /** The email form for this intent, for numbers we can't text. */
-  emailPath: string;
+  /** By phone: the email form for this intent, for numbers we can't text. */
+  emailPath?: string;
 }) {
-  const [view, formAction] = useActionState(action, PHONE_START_VIEW);
+  const [view, formAction] = useActionState(action, START_VIEW);
   const { text } = view;
   const toEmail =
+    emailPath && labels.useEmail
+      ? { href: emailPath, text: labels.useEmail }
+      : undefined;
+  const pointsToEmail =
     view.alert === "unsupported_country" || view.alert === "sms_disabled";
 
   return (
@@ -68,14 +79,14 @@ export function PhoneCodeForm({
           <p>{text.alert}</p>
           {view.alert === "no_account" ? (
             <p>
-              <SiteLink href={signUpPath} className={LINK}>
+              <SiteLink href={signUpPath} className={inlineLink}>
                 {labels.signUpInstead}
               </SiteLink>
             </p>
-          ) : toEmail ? (
+          ) : pointsToEmail && toEmail ? (
             <p>
-              <SiteLink href={emailPath} className={LINK}>
-                {labels.useEmail}
+              <SiteLink href={toEmail.href} className={inlineLink}>
+                {toEmail.text}
               </SiteLink>
             </p>
           ) : null}
@@ -86,7 +97,7 @@ export function PhoneCodeForm({
         </FormAlert>
       ) : null}
 
-      {view.step === "phone" ? (
+      {view.step === "contact" ? (
         <>
           {intent === "sign-up" ? (
             <TextField
@@ -102,22 +113,20 @@ export function PhoneCodeForm({
             />
           ) : null}
           <TextField
-            id="phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
+            id={channel}
+            name={channel}
+            {...CONTACT_INPUT[channel]}
             spellCheck={false}
             required
-            maxLength={20}
-            defaultValue={view.phone}
-            label={labels.phone.label}
-            hint={labels.phone.hint}
-            error={text.errors.phone}
+            defaultValue={view.contact}
+            label={labels.contact.label}
+            hint={labels.contact.hint}
+            error={text.errors.contact}
           />
           <div>
             <SubmitButton
               name="step"
-              value="phone"
+              value="contact"
               pendingLabel={labels.sending}
             >
               {labels.sendCode}
@@ -126,7 +135,7 @@ export function PhoneCodeForm({
         </>
       ) : (
         <>
-          <input type="hidden" name="phone" value={view.phone} />
+          <input type="hidden" name={channel} value={view.contact} />
           <input type="hidden" name="name" value={view.name} />
           <TextField
             id="code"
@@ -152,7 +161,7 @@ export function PhoneCodeForm({
             </SubmitButton>
             <SubmitButton
               name="step"
-              value="phone"
+              value="contact"
               variant="secondary"
               pendingLabel={labels.sending}
             >
@@ -162,9 +171,9 @@ export function PhoneCodeForm({
               name="step"
               value="restart"
               variant="quiet"
-              pendingLabel={labels.changePhone}
+              pendingLabel={labels.changeContact}
             >
-              {labels.changePhone}
+              {labels.changeContact}
             </SubmitButton>
           </div>
         </>
