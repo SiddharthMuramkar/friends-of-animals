@@ -11,6 +11,8 @@ import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
 import competitionStatus from "../../messages/en-IN/competitionStatus.json";
 import competitionTerms from "../../messages/en-IN/competitionTerms.json";
+import consent from "../../messages/en-IN/consent.json";
+import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
 import donate from "../../messages/en-IN/donate.json";
@@ -40,6 +42,8 @@ export const NAMESPACES = [
   "competitions",
   "competitionStatus",
   "competitionTerms",
+  "consent",
+  "consentAdmin",
   "contact",
   "credits",
   "donate",
@@ -73,6 +77,8 @@ export const messages = {
   ...competitions,
   ...competitionStatus,
   ...competitionTerms,
+  ...consent,
+  ...consentAdmin,
   ...contact,
   ...credits,
   ...donate,
