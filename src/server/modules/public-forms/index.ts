@@ -24,7 +24,7 @@ export {
 async function issueHumanCheckChallenge(
   ctx: UseCaseContext
 ): Promise<HumanCheckChallenge> {
-  publicSender(ctx.actor, "issueHumanCheckChallenge");
+  await publicSender(ctx, "human-check.issue");
   return ctx.humanCheck.challenge(ctx.clock.now());
 }
 

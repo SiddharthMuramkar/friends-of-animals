@@ -80,7 +80,7 @@ export async function submitContactMessage(
   ctx: UseCaseContext,
   input: SubmitContactMessageInput
 ): Promise<SubmitContactMessageResult> {
-  const sender = publicSender(ctx.actor, "submitContactMessage");
+  const sender = await publicSender(ctx, "contact.message.submit");
   const parsed = parseContactSubmission(input);
   if (!parsed.ok) {
     return { ok: false, error: "invalid_input", fields: parsed.fields };

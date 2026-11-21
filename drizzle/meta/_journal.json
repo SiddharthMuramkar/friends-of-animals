@@ -50,6 +50,13 @@
       "when": 1795247877186,
       "tag": "0006_113_contact_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795248106828,
+      "tag": "0007_113_contact_note_append_only",
+      "breakpoints": true
     }
   ]
 }
