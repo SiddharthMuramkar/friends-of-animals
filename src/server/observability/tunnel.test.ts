@@ -204,4 +204,23 @@ describe("handleTunnelRequest", () => {
 
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
+
+  it("releases Sentry's response body once it has its status", async () => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull: (controller) => controller.enqueue(new TextEncoder().encode("{}")),
+      cancel: () => {
+        cancelled = true;
+      },
+    });
+    const fetch = vi.fn(async () => new Response(body, { status: 200 }));
+
+    const response = await handleTunnelRequest(post(browserEvent), {
+      ...tunnel(),
+      fetch,
+    });
+
+    expect(response.status).toBe(200);
+    expect(cancelled).toBe(true);
+  });
 });
