@@ -4,6 +4,9 @@ import type {
   Discipline,
 } from "@/content/sample/model";
 import { type StatusLabel, statusChip } from "@/content/sample/selectors";
+import { COMPETITION_SLUG_PATTERN } from "@/server/modules/competitions/domain/slug";
+
+import type { SlugLookup } from "./slug-lookup";
 
 /**
  * Age bands for the /competitions age filter. Fixed, so the filter's CSS can
@@ -145,4 +148,23 @@ export function competitionParams(
     .filter((c) => c.status !== "DRAFT")
     .map((c) => ({ slug: c.slug }));
   return slugs.length > 0 ? slugs : [{ slug: PLACEHOLDER_SLUG }];
+}
+
+/**
+ * Whether `/competitions/<raw>` is a published competition, for src/proxy.ts.
+ * `raw` is the path segment as requested. A malformed escape or a segment
+ * outside the slug pattern (the build's placeholder among them) can't be
+ * one, so only well-formed slugs reach the lookup.
+ */
+export async function isListedCompetitionSlug(
+  raw: string,
+  lookup: SlugLookup
+): Promise<boolean> {
+  let slug: string;
+  try {
+    slug = decodeURIComponent(raw);
+  } catch {
+    return false;
+  }
+  return COMPETITION_SLUG_PATTERN.test(slug) && lookup(slug);
 }
