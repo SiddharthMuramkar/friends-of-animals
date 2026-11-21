@@ -22,6 +22,8 @@ import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 import { r2Storage } from "./ports/storage-r2";
+import type { ErrorReporter } from "./ports/errors";
+import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -32,6 +34,8 @@ export interface Deps extends DbWithClock {
   /** The private buckets uploaded files go to (#63). */
   storage: ObjectStorage;
   files: FilesConfig;
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
 }
 
 /** Where the Files module keeps objects, and for which environment. */
@@ -122,6 +126,8 @@ export function productionDeps(): Deps {
       },
       storage: storageFor(config),
       files: filesConfigFor(config),
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
     };
   }
   return production;
