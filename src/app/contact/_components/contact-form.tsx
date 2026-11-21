@@ -1,7 +1,14 @@
 "use client";
 
 import { OctagonAlert, ShieldAlert } from "lucide-react";
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  type FormEvent,
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   FormAlert,
@@ -117,7 +124,18 @@ function ContactFormRound({
     return submitContactAction(previous, formData);
   }
 
-  const [view, formAction] = useActionState(send, START_VIEW);
+  const [view, formAction, sending] = useActionState(send, START_VIEW);
+
+  // Sent from the submit event, not a form `action`: React prerenders a
+  // client action as a javascript: URL, which the CSP blocks
+  // (scripts/csp-output.ts). The form status only follows `action`, so
+  // the button gets the action's own pending state.
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (sending) return;
+    const formData = new FormData(event.currentTarget);
+    startTransition(() => formAction(formData));
+  }
 
   // Start solving when the visitor first reaches the form, not on every
   // page view: most visitors never write.
@@ -151,8 +169,11 @@ function ContactFormRound({
   const safeguarding = topic === SAFEGUARDING;
 
   return (
+    // Pressed before the island hydrates, it posts to this page and sends
+    // nothing; a POST keeps what was typed out of the address and logs.
     <form
-      action={formAction}
+      method="post"
+      onSubmit={onSubmit}
       noValidate
       ref={formRef}
       className="flex flex-col gap-6"
@@ -292,7 +313,7 @@ function ContactFormRound({
             </SiteLink>
           </p>
           <div>
-            <SubmitButton pendingLabel={labels.sending}>
+            <SubmitButton pending={sending} pendingLabel={labels.sending}>
               {labels.send}
             </SubmitButton>
           </div>
