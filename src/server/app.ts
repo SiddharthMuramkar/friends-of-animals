@@ -12,9 +12,10 @@ import "server-only";
 
 import type { Actor } from "./actor";
 import { productionDeps, type Deps } from "./deps";
+import { identityUseCases } from "./identity";
 import { composeUseCases } from "./use-cases";
 
-const useCases = composeUseCases();
+const useCases = composeUseCases(identityUseCases);
 
 /** Every use case, by name, bound to one actor. */
 export type UseCases = ReturnType<typeof useCases>;
