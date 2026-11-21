@@ -4,9 +4,9 @@ import { outbox } from "@/server/db/schema";
 import type { EmailSender } from "@/server/ports/email";
 import { createHarness, type Harness } from "@/test/harness";
 
-import { emit } from "./emit";
 import { drainOutbox, listFailedDeliveries } from "./relay";
 import { DEFAULT_RETRY_POLICY } from "./retry-policy";
+import { emitUserSignedUp } from "./testing";
 
 const NOTHING = { dispatched: 0, retried: 0, failed: 0, skipped: 0 };
 const { maxAttempts, leaseMs } = DEFAULT_RETRY_POLICY;
@@ -14,13 +14,7 @@ const { maxAttempts, leaseMs } = DEFAULT_RETRY_POLICY;
 /** A member who just signed up: their welcome delivery is due. */
 async function newMember(h: Harness) {
   const member = await h.seed.member({ name: "Asha Rao" });
-  await h.db.transaction((tx) =>
-    emit(tx, h.clock, {
-      type: "identity.user_signed_up",
-      aggregate: { type: "user", id: member.id },
-      payload: { userId: member.id },
-    })
-  );
+  await emitUserSignedUp(h.deps, member.id);
   return member;
 }
 

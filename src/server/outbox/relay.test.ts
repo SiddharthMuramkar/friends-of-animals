@@ -11,27 +11,17 @@ import {
   drainOutbox,
   drainUntilIdle,
 } from "./relay";
+import { emitUserSignedUp, userSignedUp } from "./testing";
 
 const NOTHING = { dispatched: 0, retried: 0, failed: 0, skipped: 0 };
 
 /** Emits identity.user_signed_up for `userId`, as sign-up does. */
-async function signedUp(
+function signedUp(
   h: Harness,
   userId: string,
   options: { availableAt?: Date } = {}
 ) {
-  await h.db.transaction((tx) =>
-    emit(
-      tx,
-      h.clock,
-      {
-        type: "identity.user_signed_up",
-        aggregate: { type: "user", id: userId },
-        payload: { userId },
-      },
-      options
-    )
-  );
+  return emitUserSignedUp(h.deps, userId, options);
 }
 
 describe("drainOutbox", () => {
@@ -145,11 +135,7 @@ describe("drainOutbox", () => {
 
     await expect(
       h.db.transaction(async (tx) => {
-        await emit(tx, h.clock, {
-          type: "identity.user_signed_up",
-          aggregate: { type: "user", id: member.id },
-          payload: { userId: member.id },
-        });
+        await emit(tx, h.clock, userSignedUp(member.id));
         throw new Error("The change failed after its event was emitted");
       })
     ).rejects.toThrow();

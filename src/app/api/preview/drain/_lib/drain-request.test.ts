@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { outbox } from "@/server/db/schema";
-import { emit } from "@/server/outbox";
+import { emitUserSignedUp } from "@/server/outbox/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { drainRequest, type DrainRequest } from "./drain-request";
@@ -17,13 +17,7 @@ const PREVIEW: DrainRequest = {
 /** A member whose welcome delivery is due. */
 async function newMember(h: Harness) {
   const member = await h.seed.member({ name: "Asha Rao" });
-  await h.db.transaction((tx) =>
-    emit(tx, h.clock, {
-      type: "identity.user_signed_up",
-      aggregate: { type: "user", id: member.id },
-      payload: { userId: member.id },
-    })
-  );
+  await emitUserSignedUp(h.deps, member.id);
   return member;
 }
 
