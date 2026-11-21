@@ -134,6 +134,17 @@ test("a competition manager creates, edits, previews and publishes a competition
     page.getByRole("heading", { name: "Ready to publish" })
   ).toBeVisible();
   await expect(page.getByText("1 April 2027 at 9:00 am IST")).toBeVisible();
+  // The public page's own body (70b), so the preview shows what goes live.
+  for (const heading of [
+    "Who can enter, and with what",
+    "Dates to remember",
+    "The rules",
+  ]) {
+    await expect(
+      page.getByRole("heading", { name: heading }),
+      heading
+    ).toBeVisible();
+  }
   await checkBothThemes(page, "/admin/competitions/[id]/preview");
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByRole("status")).toContainText("Published.");
