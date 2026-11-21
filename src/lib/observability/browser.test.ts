@@ -79,7 +79,13 @@ describe("startBrowserErrorTracking", () => {
     expect(options).toMatchObject({
       dsn: DSN,
       tunnel: "/monitoring",
-      sendDefaultPii: false,
+      tracesSampleRate: 0,
+      dataCollection: expect.objectContaining({
+        userInfo: false,
+        cookies: false,
+        httpHeaders: false,
+        httpBodies: [],
+      }),
     });
     expect(
       options.beforeSend({ message: "Wrong code for asha@example.test" })

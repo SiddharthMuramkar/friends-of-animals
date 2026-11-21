@@ -81,18 +81,35 @@ describe("sentryOptions", () => {
     environment: "staging",
   };
 
-  it("sends no default personal data and no performance traces", () => {
+  it("collects no personal data and sends no traces, whatever the environment says", () => {
     const options = sentryOptions(tracking);
     expect(options).toMatchObject({
       dsn: DSN,
       environment: "staging",
-      sendDefaultPii: false,
+      // 0, not unset: unset lets SENTRY_TRACES_SAMPLE_RATE turn tracing on,
+      // and streamed spans never pass through beforeSend.
+      tracesSampleRate: 0,
+      // Sentry 11 collects all of this by default; sendDefaultPii is gone.
+      dataCollection: {
+        userInfo: false,
+        cookies: false,
+        httpHeaders: false,
+        httpBodies: [],
+        urlQueryParams: false,
+        stackFrameVariables: false,
+        databaseQueryData: false,
+        queues: false,
+        graphQL: { document: false, variables: false },
+        genAI: { inputs: false, outputs: false },
+        mcp: { inputs: false, outputs: false },
+      },
     });
-    expect(options).not.toHaveProperty("tracesSampleRate");
+    expect(options).not.toHaveProperty("sendDefaultPii");
+    expect(options).not.toHaveProperty("beforeSendTransaction");
     expect(options).not.toHaveProperty("release");
   });
 
-  it("scrubs every event, transaction and breadcrumb before it is sent", () => {
+  it("scrubs every event and breadcrumb before it is sent", () => {
     const options = sentryOptions(tracking, {
       hashUserId: () => "u_0123456789abcdef",
     });
@@ -102,9 +119,6 @@ describe("sentryOptions", () => {
         user: { id: "1", email: "asha@example.test" },
       })
     ).toEqual({ message: "to [email]", user: { id: "u_0123456789abcdef" } });
-    expect(
-      options.beforeSendTransaction({ transaction: "GET /a?email=x@y.test" })
-    ).toEqual({ transaction: "GET /a" });
     expect(
       options.beforeBreadcrumb({ category: "console", message: "9876543210" })
     ).toEqual({ category: "console", message: "[phone]" });

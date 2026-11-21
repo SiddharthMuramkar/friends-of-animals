@@ -163,7 +163,13 @@ describe("startErrorTracking", () => {
       dsn: DSN,
       environment: "staging",
       release: "6f97d80",
-      sendDefaultPii: false,
+      tracesSampleRate: 0,
+      dataCollection: expect.objectContaining({
+        userInfo: false,
+        cookies: false,
+        httpHeaders: false,
+        httpBodies: [],
+      }),
     });
     const event = options?.beforeSend({
       message: "No account for asha@example.test",
