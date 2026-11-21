@@ -41,6 +41,7 @@ describe("someUseCase", () => {
 | `h.db`             | This test's database, for asserting on rows (audit rows count as behaviour)                                          |
 | `h.deps`           | `{ db, clock, email, cookies, errors, auth, storage, files }`: what `productionDeps()` wires in `src/server/deps.ts` |
 | `h.drain()`        | Delivers due outbox events in process with the real relay, pass after pass; returns the `DrainReport`                |
+| `h.storage`        | `FakeStorage`: `put(url, bytes, headers)` and `get(url)` use presigned URLs as a browser does; `plant()`             |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
 `h.clock`, because Better Auth reads `new Date()` for code and session expiry.
