@@ -105,6 +105,13 @@ export function anyOf(...rules: Rule[]): Rule {
   };
 }
 
+/** Merges policies into one. Not built yet. */
+export function composePolicies<
+  const Policies extends readonly Policy<string>[],
+>(...policies: Policies): Policies[number] {
+  return policies[0] ?? {};
+}
+
 /** Decides one action. An action the policy doesn't define is refused. */
 export function decide<Action extends string>(
   policy: Policy<Action>,

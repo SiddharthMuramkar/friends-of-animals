@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   anyOf,
+  composePolicies,
   decide,
   owner,
   role,
@@ -176,5 +177,38 @@ describe("decide", () => {
     expect(
       decide(policy, user(globalStaffAdmin), "unknown" as "role.grant", {})
     ).toEqual({ allowed: false });
+  });
+});
+
+describe("composePolicies", () => {
+  it("merges policies into one that decides each action by its own rule", () => {
+    const identity = { "session.start": signedOut } satisfies Policy<string>;
+    const access = {
+      "role.grant": role("super_admin"),
+    } satisfies Policy<string>;
+    const platform = composePolicies(identity, access);
+
+    expect(decide(platform, visitor, "session.start")).toEqual({
+      allowed: true,
+      role: null,
+    });
+    expect(
+      decide(
+        platform,
+        user({ role: "super_admin", scope: { type: "global" } }),
+        "role.grant"
+      )
+    ).toEqual({ allowed: true, role: "super_admin" });
+    expect(decide(platform, visitor, "role.grant")).toEqual({ allowed: false });
+  });
+
+  it("throws when two policies define the same action", () => {
+    expect(() =>
+      composePolicies(
+        { "dashboard.view": signedIn },
+        // @ts-expect-error two policies define "dashboard.view"
+        { "dashboard.view": signedOut }
+      )
+    ).toThrow('Action "dashboard.view" is defined in more than one policy');
   });
 });
