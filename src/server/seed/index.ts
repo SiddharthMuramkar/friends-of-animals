@@ -9,6 +9,7 @@
 
 import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
+import { seedCompetitionTerms } from "./competition-terms";
 import { seedConsent } from "./consent";
 import { seedCompetitions } from "./competitions";
 import { seedIdentity } from "./identity";
@@ -26,6 +27,7 @@ const seeders: readonly Seeder[] = [
   seedAccess,
   seedConsent,
   seedCompetitions,
+  seedCompetitionTerms,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);
