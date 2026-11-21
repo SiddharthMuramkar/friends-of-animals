@@ -222,6 +222,34 @@ describe("planErasure", () => {
       expect.objectContaining({ category: "financial", rows: 2, until: later }),
     ]);
   });
+
+  it("counts a row kept by its floor once per category", () => {
+    const plan = planErasure({
+      now,
+      onLegalHold: false,
+      entries: [
+        entry(
+          "receipt",
+          "amount",
+          "delete_row",
+          "legal_obligation",
+          "financial"
+        ),
+        entry("receipt", "upi_note", "delete_row", "consent", "financial"),
+      ],
+      subjectRows: [rows("receipt", { id: "r1", floorLapsesAt: later })],
+    });
+    expect(plan.retained).toEqual([
+      {
+        table: "receipt",
+        category: "financial",
+        reason: "floor",
+        basis: "legal_obligation",
+        rows: 1,
+        until: later,
+      },
+    ]);
+  });
 });
 
 describe("planErasure: the fingerprint the officer approves", () => {

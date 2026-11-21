@@ -173,8 +173,14 @@ function planTable(input: {
       const heldWithRow = entries.filter(
         (e) => e.onExpiry === "delete_row" && !legal.includes(e)
       );
-      tally.add(legal, "floor", row.floorLapsesAt);
-      tally.add(heldWithRow, "floor", row.floorLapsesAt, "legal_obligation");
+      // Every legal entry's basis is legal_obligation already, so one call
+      // counts the row once per category.
+      tally.add(
+        [...legal, ...heldWithRow],
+        "floor",
+        row.floorLapsesAt,
+        "legal_obligation"
+      );
     }
     const blankable = entries.filter(
       (e) => e.onExpiry !== "retain" && !(keptByFloor && legal.includes(e))
