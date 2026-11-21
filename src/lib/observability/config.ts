@@ -57,7 +57,7 @@ export type ErrorTracking =
     };
 
 export type ErrorTrackingInput = {
-  /** SENTRY_DSN (server and worker) or NEXT_PUBLIC_SENTRY_DSN (browser). */
+  /** NEXT_PUBLIC_SENTRY_DSN (app server and browser) or SENTRY_DSN (worker). */
   dsn?: string | undefined;
   /** APP_ENV. Unset means a local run. */
   appEnv?: string | undefined;
@@ -109,8 +109,8 @@ export type SentryOptions = {
  * The init options shared by `@sentry/nextjs` (server and browser) and
  * `@sentry/node` (worker). No `tracesSampleRate`: errors only, no
  * performance tracing, so no request timings or URLs leave as spans.
- * `hashUserId` is passed on the server, where a user id can be hashed
- * with a secret; the browser leaves it out and sends no user.
+ * `hashUserId` (src/server/ports/errors.ts) is passed on the server and
+ * in the worker; the browser leaves it out and sends no user.
  */
 export function sentryOptions(
   tracking: Extract<ErrorTracking, { enabled: true }>,
