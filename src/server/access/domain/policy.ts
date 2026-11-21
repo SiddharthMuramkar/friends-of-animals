@@ -28,9 +28,10 @@ export type Resource = {
 /**
  * Allowed, with the role that allowed it (recorded in the audit log), or
  * `null` when no role was needed: the owner, the system, a signed-in user.
+ * `stepUp` asks for a fresh second factor first (#60; can() checks it).
  */
 export type Decision =
-  | { allowed: true; role: Role | null }
+  | { allowed: true; role: Role | null; stepUp?: true }
   | { allowed: false };
 
 export type Rule = (subject: Subject, resource: Resource) => Decision;
@@ -92,6 +93,22 @@ export function system(
     subject.kind === "system" && processes.includes(subject.process)
       ? { allowed: true, role: null }
       : REFUSED;
+}
+
+/**
+ * Allows what `rule` allows, but a signed-in user must also have passed a
+ * second factor within the step-up window (#60): for sensitive actions
+ * such as granting roles, publishing results, moving money or exporting
+ * data. The platform's own processes have no second factor and are not
+ * asked.
+ */
+export function stepUp(rule: Rule): Rule {
+  return (subject, resource) => {
+    const decision = rule(subject, resource);
+    return decision.allowed && subject.kind === "user"
+      ? { ...decision, stepUp: true }
+      : decision;
+  };
 }
 
 /** Allows when any of `rules` does; the first that allows decides. */

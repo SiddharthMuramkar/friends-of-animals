@@ -27,10 +27,14 @@ import {
   verifyTotp,
 } from "./domain/totp";
 import { openTotpSecret, sealTotpSecret } from "./secret-box";
+import { DomainError } from "../errors";
+import { secondFactorRefusal } from "./requirement";
 import {
+  isEnrolled,
   secondFactorStatus,
   signedInUser,
   stampSession,
+  type SignedInUser,
 } from "./session-factor";
 import { SECOND_FACTOR_SETTINGS } from "./settings";
 
@@ -48,6 +52,22 @@ const code = z
 const startInput = z.object({ label });
 const confirmInput = z.object({ factorId: z.uuid(), code });
 const verifyInput = z.object({ code });
+
+/**
+ * A first factor needs only a signed-in session. Once one exists, adding
+ * another needs a fresh second factor: otherwise anyone who got into the
+ * mailbox could sign in with an email code and add their own.
+ */
+export async function requireStepUpOnceEnrolled(
+  ctx: SecondFactorContext,
+  actor: SignedInUser
+): Promise<void> {
+  if (!(await isEnrolled(ctx.db, actor.userId))) return;
+  const refusal = await secondFactorRefusal(ctx, actor, "step-up", []);
+  if (refusal) {
+    throw new DomainError(refusal, "Adding a factor needs a fresh one");
+  }
+}
 
 export type StartTotpEnrolmentResult =
   | {
@@ -72,6 +92,7 @@ export async function startTotpEnrolment(
   const actor = signedInUser(ctx.actor);
   const parsed = startInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
+  await requireStepUpOnceEnrolled(ctx, actor);
 
   const now = ctx.clock.now();
   const factorId = uuidv7(now);

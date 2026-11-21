@@ -7,7 +7,8 @@
 //
 // An action a staff role allows also needs the session's second factor
 // (#60): a staff member who hasn't enrolled, or hasn't passed it in this
-// session, is refused with that reason instead of forbidden.
+// session, is refused with that reason instead of forbidden. An action
+// marked `stepUp` needs one passed within the last 10 minutes.
 
 import type { Actor } from "../actor";
 import type { AppDb } from "../db/app-db";
@@ -66,10 +67,19 @@ export function policyCheck<A extends string>(policy: Policy<A>) {
   ): Promise<CanDecision> {
     const decision = decide(policy, await subjectOf(ctx), action, resource);
     if (!decision.allowed || ctx.actor.kind !== "user") return decision;
-    if (!decision.role || !isStaffRole(decision.role)) return decision;
-    const refusal = await secondFactorRefusal(ctx, ctx.actor, "staff", [
-      decision.role,
-    ]);
+    const { role } = decision;
+    const requirement = decision.stepUp
+      ? "step-up"
+      : role && isStaffRole(role)
+        ? "staff"
+        : null;
+    if (!requirement) return decision;
+    const refusal = await secondFactorRefusal(
+      ctx,
+      ctx.actor,
+      requirement,
+      role ? [role] : []
+    );
     return refusal ? { allowed: false, secondFactor: refusal } : decision;
   }
 

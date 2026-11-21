@@ -2,7 +2,7 @@
 // own factors; there is no id to name another user's, except a super
 // admin's reset. Loads under plain Node: relative imports only.
 
-import { signedIn, type Policy } from "../access/domain/policy";
+import { role, signedIn, stepUp, type Policy } from "../access/domain/policy";
 
 export const SECOND_FACTOR_POLICY = {
   /** Their own factors and whether this session has passed one. */
@@ -17,6 +17,13 @@ export const SECOND_FACTOR_POLICY = {
   "second-factor.verify": signedIn,
   /** Whether staff screens may open; anyone signed in may ask. */
   "second-factor.staff-access": signedIn,
+  /** Removing one of their own factors, after a fresh second factor. */
+  "second-factor.remove": stepUp(signedIn),
+  /**
+   * Clearing someone's factors when they lost them all (HR-19's recovery
+   * default): a super admin, after a fresh second factor.
+   */
+  "second-factor.reset": stepUp(role("super_admin")),
 } satisfies Policy<string>;
 
 export type SecondFactorAction = keyof typeof SECOND_FACTOR_POLICY;
