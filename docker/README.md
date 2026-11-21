@@ -4,6 +4,10 @@ Postgres and PgBouncer for FOA on the Hostinger Mumbai VPS (issue #12). This
 directory is the whole deployment; the VPS runs it from a clone at **`/srv/foa`** (systemd
 units and bind mounts point there, never at a developer worktree).
 
+The VPS runs **Fedora 44** (firewalld on nftables, dnf, Docker 29 with the
+containerd image store). It ran Ubuntu before, and the scripts still handle
+both; where the two differ, this runbook says which is which.
+
 ## What runs
 
 Compose project `foa-vps` (`docker/compose.yml`), network `db` =
@@ -22,9 +26,25 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
   archiving, no PITR.
 - **PgBouncer** is the only public endpoint: `db.shipped-it.dev:6432`, TLS
   required (Let's Encrypt), SCRAM, transaction pooling.
+- **One Postgres image**: only pg-prod has `build: ./postgres`; pg-nonprod
+  runs the same tag with `pull_policy: never`. Two services building one tag
+  export it twice in parallel, which the containerd image store (Docker 29's
+  default on a fresh install) can fail with `image "...": already exists`.
+  `up --build` builds before it creates containers, so the whole-stack
+  commands in this runbook work, but `docker compose up pg-nonprod` on its own
+  fails until pg-prod's image exists (build it first with
+  `docker compose -f compose.yml build pg-prod`).
+- **Memory limits are hard** (`mem_limit`). `memswap_limit` equals `mem_limit`
+  on all three to keep them out of swap, but on Docker 29.10 with runc 1.5.3
+  and the systemd cgroup driver that never reaches the cgroup
+  (`memory.swap.max` stays `max`), so today they can still swap into zram
+  under pressure. The setting stays so it applies once runc passes it on.
+- **OOM order**: `oom_score_adj: -900` on all three, so under memory pressure
+  the kernel kills the agents and test runs sharing the box before any
+  database process.
 
 Host side: systemd units in `systemd/` (firewall, certificate renewal,
-backups, preview sweep) and CrowdSec (`crowdsec/`).
+backups, restore drill, preview sweep) and CrowdSec (`crowdsec/`).
 
 | Path                                                         | What                                                        |
 | ------------------------------------------------------------ | ----------------------------------------------------------- |
@@ -35,7 +55,9 @@ backups, preview sweep) and CrowdSec (`crowdsec/`).
 | `pgbouncer/pgbouncer.ini`                                    | Routing, pooling, TLS                                       |
 | `scripts/`                                                   | Host scripts (all idempotent, run as root)                  |
 | `systemd/`                                                   | Units, linked into `/etc/systemd/system`                    |
-| `crowdsec/`                                                  | CrowdSec apt source, acquisition, local parser, whitelist   |
+| `crowdsec/`                                                  | Both OSes: acquisition, local parser, whitelist, drop-ins   |
+| `crowdsec/crowdsec.repo`, `*-bouncer-nftables.yaml.local`    | Fedora: dnf repository, nftables bouncer settings           |
+| `crowdsec/crowdsec.sources`, `*-bouncer-iptables.yaml.local` | Ubuntu: apt source, iptables bouncer settings               |
 | `analytics.yml`                                              | Umami and its Cloudflare Tunnel (below)                     |
 
 ## Secrets
@@ -104,6 +126,81 @@ be rotated (below).
 
 ## Bring-up on a fresh VPS
 
+**Fedora prerequisites**, as root, before the bring-up block below:
+
+1. Install Docker from Docker's own repository
+   (`download.docker.com/linux/fedora`), `docker-buildx-plugin` included:
+   Compose refuses `up --build` without buildx 0.17 or later. Then check the
+   host tools the scripts call (`gdbus` from `glib2` runs the firewall unit's
+   watcher, `flock` comes with `util-linux`) and `dnf install` any that are
+   missing.
+
+   ```sh
+   dnf config-manager addrepo --from-repofile https://download.docker.com/linux/fedora/docker-ce.repo
+   dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+   rpm -q openssl diffutils coreutils gawk jq git-core curl iproute ca-certificates glib2 util-linux
+   ```
+
+2. Write `/etc/docker/daemon.json` before Docker's first start.
+   `"firewall-backend": "iptables"` pins the backend that has `DOCKER-USER`,
+   which the firewall unit needs (the nftables backend, experimental in
+   Docker 29, has none), and `iptables` and `ip6tables` make Docker create
+   that chain for both families. The other keys are the defaults plus log
+   rotation for the throwaway containers (lego, smoke test, restore drill);
+   the compose services set their own. Left out on purpose:
+   `ip-forward-no-drop` (Docker sets the FORWARD policy to DROP, which is
+   wanted, because firewalld's public zone allows forwarding) and
+   `live-restore` (containers should get a clean SIGINT when Docker stops).
+
+   ```sh
+   install -d -m 0755 /etc/docker
+   cat > /etc/docker/daemon.json <<'EOF'
+   {
+     "firewall-backend": "iptables",
+     "iptables": true,
+     "ip6tables": true,
+     "userland-proxy": true,
+     "log-driver": "json-file",
+     "log-opts": { "max-size": "50m", "max-file": "5" }
+   }
+   EOF
+   chmod 0644 /etc/docker/daemon.json
+   dockerd --validate --config-file=/etc/docker/daemon.json   # configuration OK
+   ```
+
+3. Add two systemd drop-ins. On `systemctl stop docker` or
+   `systemctl restart docker`, dockerd gives Postgres its 120 s
+   `stop_grace_period` for the shutdown checkpoint, but systemd kills dockerd
+   after Fedora's default 45 s (docker.service sets no stop timeout of its
+   own); 180 s lets the grace period apply. A reboot is different: systemd
+   stops the container scopes itself, with the 45 s default, and a slow
+   checkpoint then ends in crash recovery on the next start (safe, just
+   slower). Fedora's systemd-oomd also watches `system.slice`, where Docker
+   runs the containers (`10-oomd-per-slice-defaults.conf`, kill at 80 %
+   memory pressure), so pressure from interactive work could SIGKILL
+   foa-pg-prod. `auto` takes `system.slice`, sshd included, off its list; the
+   kernel OOM killer still applies, and `user@0.service` is still watched, so
+   interactive work is killed first.
+
+   ```sh
+   install -d -m 0755 /etc/systemd/system/docker.service.d /etc/systemd/system/system.slice.d
+   printf '[Service]\nTimeoutStopSec=180s\n' > /etc/systemd/system/docker.service.d/50-foa-stop-timeout.conf
+   printf '[Slice]\nManagedOOMMemoryPressure=auto\n' > /etc/systemd/system/system.slice.d/50-foa-no-oomd-kill.conf
+   systemctl daemon-reload
+   ```
+
+4. Start Docker. The RPM neither enables nor starts it (Fedora's preset
+   enables only `docker.socket`), and the stack needs dockerd from boot;
+   `scripts/install-systemd.sh` enables it again later.
+
+   ```sh
+   systemctl enable --now docker
+   docker info 2>/dev/null | grep -E 'Firewall Backend|Storage Driver|driver-type|Cgroup Driver|Logging Driver'
+   #   iptables+firewalld, overlayfs (containerd snapshotter), systemd, json-file
+   ```
+
+**Bring-up**, on either OS (the `firewall-cmd` lines are Fedora-only):
+
 ```sh
 git clone https://github.com/SiddharthMuramkar/friends-of-animals.git /srv/foa
 cd /srv/foa/docker
@@ -113,10 +210,19 @@ docker compose -f compose.yml up -d --build --wait
 #   first start runs postgres/initdb -> bootstrap: roles, foa, foa_seed, foa_staging
 docker exec -u postgres foa-pg-prod pgbackrest --stanza=foa stanza-create
 docker exec -u postgres foa-pg-prod pgbackrest --stanza=foa check
+#   Fedora: let Let's Encrypt reach lego on port 80 (runtime + permanent, no reload)
+firewall-cmd --zone=public --add-service=http
+firewall-cmd --permanent --zone=public --add-service=http
 scripts/cert-renew.sh --staging              # optional dry run against LE staging
 scripts/cert-renew.sh                        # real certificate, installs + reloads PgBouncer
-scripts/install-systemd.sh                   # firewall unit + timers
-scripts/install-crowdsec.sh
+scripts/install-systemd.sh                   # enables docker.service, firewall unit + timers
+scripts/install-crowdsec.sh                  # dnf + nftables bouncer (Ubuntu: apt + iptables)
+#   at once, with the owner's SSH session open: the foa-admin allowlist (CrowdSec)
+cscli allowlists inspect foa-admin >/dev/null 2>&1 ||
+  cscli allowlists create foa-admin -d "FOA: VPS addresses and the owner's SSH client"
+cscli allowlists add foa-admin 189.72.156.29 2a02:4780:63:e413::1 \
+  $(ss -Htn state established '( sport = :22 )' | awk '{print $4}' |
+    sed -E 's/:[0-9]+$//; s/^\[//; s/\]$//' | sort -u)
 systemctl start foa-pgbackrest-full.service  # first full backup
 scripts/restore-drill.sh
 scripts/smoke-test.sh                        # client checks through db.shipped-it.dev:6432
@@ -135,13 +241,19 @@ off-site repo2; the local repo1 dies with the old VPS.
 
 Updating: `git -C /srv/foa pull`, then `docker compose -f
 /srv/foa/docker/compose.yml up -d --build --wait` and, if units changed,
-`systemctl daemon-reload`. Config-only PgBouncer changes: `docker kill -s HUP
-foa-pgbouncer`. Postgres config changes: `SELECT pg_reload_conf()` (or
-`docker restart foa-pg-prod` for settings that need a server start);
+`systemctl daemon-reload`; if the firewall unit or `docker-user-fw.sh`
+changed, also `systemctl restart foa-docker-user-fw` (its watcher goes on
+running the old version until then). Config-only PgBouncer changes: `docker
+kill -s HUP foa-pgbouncer`. Postgres config changes: `SELECT pg_reload_conf()`
+(or `docker restart foa-pg-prod` for settings that need a server start);
 `pgbackrest.conf` is read by every pgBackRest command. That works because
 the config is mounted as directories (`postgres/` at `/etc/postgresql`,
 `pgbouncer/` at `/etc/pgbouncer/foa`): git replaces a file on checkout, and a
 single-file bind mount would go on showing the container the old one.
+
+Docker upgrades restart dockerd and with it the whole stack (`live-restore`
+is off), so schedule them. On Fedora, dnf5-automatic (security updates only)
+never upgrades Docker, because Docker's repository publishes no advisories.
 
 ## Routing and roles
 
@@ -241,10 +353,17 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
 ## TLS certificate
 
 - Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`,
-  listening on `189.72.156.29:80` for the seconds a challenge takes;
-  127.0.0.1:80 belongs to another service). Not DNS-01: that would need an
-  account-wide Vercel token on this box. No ACME account e-mail is registered
-  (set `FOA_ACME_EMAIL` to add one).
+  listening only on the public address, `189.72.156.29:80`, for the seconds a
+  challenge takes). Not DNS-01: that would need an account-wide Vercel token
+  on this box. No ACME account e-mail is registered (set `FOA_ACME_EMAIL` to
+  add one).
+- Port 80 must get through the host's INPUT filter: on Fedora that is the
+  `http` service in firewalld's public zone (Firewall, below); on Ubuntu ufw
+  is inactive. `cert-renew.sh` warns, and changes nothing, when firewalld's
+  zone for that address allows neither the `http` service nor 80/tcp.
+- db.shipped-it.dev has no AAAA record. Adding one would break renewals:
+  Let's Encrypt tries IPv6 first and falls back to IPv4 only on a timeout,
+  and lego listens on the IPv4 address only.
 - `foa-cert-renew.timer` runs `scripts/cert-renew.sh` daily: `lego run
   --renew-days 30` renews below 30 days left (or when the CA's renewal info
   asks), then `scripts/install-cert.sh` copies cert + key into
@@ -258,10 +377,17 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
 
 ## Firewall
 
-Docker-published ports bypass ufw (inactive here anyway) and INPUT.
-`foa-docker-user-fw.service` (oneshot, `PartOf=docker.service`, so it re-runs
-whenever Docker restarts) runs `scripts/docker-user-fw.sh`, which keeps a
-chain `FOA-INBOUND`, jumped to from `DOCKER-USER` for `-i eth0`, IPv4 and
+The host firewall is firewalld on Fedora (nftables backend, eth0 in zone
+`public`) and ufw on Ubuntu (inactive there). Neither filters
+Docker-published ports: Docker DNATs them before INPUT, so they take the
+FORWARD path. firewalld puts Docker's bridges in its `docker` zone with a
+`docker-forwarding` policy, and with `StrictForwardPorts=no` it accepts every
+DNAT-ed connection, so a published port passes whatever the public zone
+lists. Don't add 6432 to firewalld; it isn't needed.
+
+`foa-docker-user-fw.service` runs `scripts/docker-user-fw.sh`, which keeps a
+chain `FOA-INBOUND`, jumped to from `DOCKER-USER` for `-i eth0` (set
+`FOA_EXT_IF` in `/etc/foa/firewall.env` for another interface), IPv4 and
 IPv6:
 
 1. `ESTABLISHED,RELATED` → RETURN
@@ -269,38 +395,120 @@ IPv6:
    (from anywhere for now)
 3. everything else → DROP
 
-`scripts/docker-user-fw.sh show` prints it. CrowdSec's bouncer adds its own
-jump at the top of `DOCKER-USER` and `INPUT`. Any port published later must
-bind 127.0.0.1; this chain drops it on eth0 regardless. Port 80
-for ACME is a host process (INPUT, open). SSH config and ufw are untouched.
+`DOCKER-USER` exists only with Docker's iptables firewall backend
+(iptables-nft on Fedora), hence the pin in `/etc/docker/daemon.json`.
+iptables-nft's FORWARD chain runs before firewalld's (priority filter against
+filter + 10), and an nftables drop is final, so the DROP holds whatever
+firewalld accepts afterwards.
+
+The unit is `Type=simple`. `ExecStartPre` runs `apply`, which waits up to
+about 30 s for `DOCKER-USER`; `ExecStart` runs `watch`, which follows
+firewalld on D-Bus (`gdbus monitor`) and re-applies the rules, IPv4 and IPv6,
+after every firewalld reload and whenever firewalld starts or stops.
+`PartOf=docker.service` re-runs it whenever Docker restarts. A failed apply or
+a dead watcher is retried every 30 s, re-applying first. Without firewalld
+installed (Ubuntu), `watch` exits at once and the unit stays active (exited).
+`systemctl reload foa-docker-user-fw` re-applies the rules;
+`scripts/docker-user-fw.sh show` prints the FORWARD jump, `DOCKER-USER` and
+`FOA-INBOUND`.
+
+**Never use `firewall-cmd --direct` or `/etc/firewalld/direct.xml`.**
+firewalld leaves the iptables-nft tables alone only while it has no direct
+configuration of its own. With any direct rule, chain or passthrough it
+flushes them on every reload, start and stop, taking Docker's NAT and
+`FOA-INBOUND` with them, and adding the first one flushes them at once, with
+no signal for the watcher to catch (`systemctl restart docker` restores them).
+
+Host ports are INPUT traffic, which this unit never touches:
+
+- **SSH**: the `ssh` service in firewalld's public zone and the SSH config
+  are left untouched (Ubuntu: ufw untouched).
+- **Port 80** for ACME (lego runs on the host network), opened in the runtime
+  and the permanent configuration, so no reload is needed:
+
+  ```sh
+  firewall-cmd --zone=public --add-service=http
+  firewall-cmd --permanent --zone=public --add-service=http
+  ```
+
+  It stays open, IPv4 and IPv6: outside a challenge nothing listens, and the
+  kernel answers with a reset. Ubuntu: ufw is inactive, nothing to do.
+
+CrowdSec's bouncer blocks banned addresses on top of all this (below). Any
+port published later must bind 127.0.0.1; this chain drops it on eth0
+regardless. Docker enables IP forwarding and sets the iptables FORWARD policy
+to DROP, so a future rootful podman or libvirt bridge would need its own
+accept in `DOCKER-USER`.
 
 **Allowlist (TODO):** when Vercel Static IPs are bought, put them in
 `/etc/foa/firewall.env` as `PGBOUNCER_ALLOWED_SOURCES="<ip>/32 <ip>/32"` and
-`systemctl restart foa-docker-user-fw`; also allow only them on 6432 in the
-Hostinger firewall and whitelist them in CrowdSec (`crowdsec/foa-whitelist.yaml`).
+`systemctl restart foa-docker-user-fw` (restart, not reload: the running
+watcher would put the old list back at the next firewalld event); also allow
+only them on 6432 in the Hostinger firewall and whitelist them in CrowdSec
+(`crowdsec/foa-whitelist.yaml` and a LAPI allowlist, below).
 
 ## CrowdSec
 
-`scripts/install-crowdsec.sh` installs CrowdSec 1.8 and
-`crowdsec-firewall-bouncer-iptables` from CrowdSec's apt repo (written as a
-deb822 source with a pinned key fingerprint; Ubuntu's archive only has 1.4.6),
-the `crowdsecurity/pgsql` collection, the acquisition of the `foa-pgbouncer`
-container's docker logs (`type: pgbouncer`), a local parser for PgBouncer's
-`closing because: no such user` (logins as `postgres` or unknown roles, which
-the hub parser misses), and a whitelist for the VPS's own IP and the compose
-subnet. The bouncer blocks in `INPUT` and `DOCKER-USER`; a systemd drop-in
-starts it after Docker. Brute force (5 failures, leaking 1 per 10 s) bans the
-source.
+`scripts/install-crowdsec.sh` installs CrowdSec 1.8 and its firewall bouncer
+from CrowdSec's own package repository on packagecloud (no `curl | bash`; the
+signing keys' fingerprints are pinned in the script). It picks the OS by `ID`
+in `/etc/os-release`:
+
+- **Fedora** (this VPS): dnf, with `crowdsec/crowdsec.repo`, packagecloud's
+  `rpm_any` tree of EL9 builds (static Go binaries): Fedora's repositories
+  have no crowdsec, and packagecloud's Fedora trees are empty. dnf checks the
+  repository metadata and every package against the two pinned keys, and
+  `includepkgs` keeps the repository to CrowdSec's own packages. The bouncer
+  is `crowdsec-firewall-bouncer-nftables`
+  (`crowdsec-firewall-bouncer-nftables.yaml.local`). It keeps its own tables,
+  `ip crowdsec` and `ip6 crowdsec6`, with a chain on the input hook (SSH and
+  other host services) and one on the forward hook (PgBouncer's published
+  port, DNAT-ed before it could reach input), at priority -10: ahead of
+  Docker's FORWARD (0) and firewalld (+10), and a drop is final. firewalld and
+  Docker never touch these tables, so bans survive `firewall-cmd --reload` and
+  Docker restarts. The RPM signing key expires 2027-05-12; re-running the
+  script fetches the extended key.
+- **Ubuntu**: apt, with `crowdsec/crowdsec.sources` as a deb822 source
+  (Ubuntu's archive only has 1.4.6; upstream's `noble` builds are used), and
+  `crowdsec-firewall-bouncer-iptables`
+  (`crowdsec-firewall-bouncer-iptables.yaml.local`), which adds its own jump
+  at the top of `INPUT` and `DOCKER-USER`.
+
+On both it installs the `crowdsecurity/pgsql` collection, the acquisition of
+the `foa-pgbouncer` container's docker logs (`type: pgbouncer`), a local
+parser for PgBouncer's `closing because: no such user` (logins as `postgres`
+or unknown roles, which the hub parser misses), and a whitelist for the VPS's
+own addresses (IPv4 and IPv6) and the compose subnet. systemd drop-ins start
+crowdsec (its docker acquisition makes it exit if the Docker API is not up
+yet) and the bouncer after Docker. Brute force (5 failures, leaking 1 per
+10 s) bans the source.
+
+That whitelist is a parser whitelist: it stops local alerts only, not
+community blocklist entries. The LAPI allowlist **`foa-admin`** covers both.
+It holds the VPS's two addresses and the owner's SSH clients, added right
+after the install (Bring-up, above). **SSH lock-out:** a ban drops
+established SSH sessions too, the Fedora RPM turns on the sshd scenarios, and
+a home IP can change after the allowlist was made; add a new one with
+`cscli allowlists add foa-admin <ip>`. If the owner is locked out anyway,
+open the Hostinger browser console and run `cscli decisions delete --ip <ip>`.
 
 ```sh
 cscli metrics show acquisition parsers   # docker:foa-pgbouncer lines read/parsed
 cscli alerts list; cscli decisions list
 cscli decisions delete --ip <ip>         # unban
+cscli allowlists inspect foa-admin
 cscli explain --type pgbouncer --log '<log line>'
+nft list table ip crowdsec               # Fedora: the bouncer's chains and ban sets
 ```
 
 Shared Vercel egress IPs could be banned if the app fails logins repeatedly
-(or land on a community blocklist): whitelist the Static IPs when they exist.
+(or land on a community blocklist): whitelist the Static IPs when they exist,
+in `crowdsec/foa-whitelist.yaml` and a LAPI allowlist.
+
+CrowdSec issue #4781: the docker acquisition leaks a stream in dockerd for
+every container log line over 64 KiB. PgBouncer's lines are short, but if
+`ls /proc/$(pidof dockerd)/fd | wc -l` keeps growing, run
+`systemctl restart crowdsec`.
 
 ## Backups (pgBackRest) and restore
 
@@ -435,7 +643,10 @@ query as `foa_app` is cancelled), and refusals (superuser, admin console,
 `foa_seed`, cross-environment logins, plaintext, wrong host name). Passwords
 never appear on a command line (`ps`): the URLs are split into libpq
 variables in a 0600 env file, passed with `docker run --env-file` and removed
-afterwards.
+afterwards. It needs the real certificate (its `verify-full` checks fail
+against the placeholder by design). The container gets the host's CA bundle
+as one file, symlinks resolved: on Fedora `/etc/ssl/certs/ca-certificates.crt`
+links into `/etc/pki/ca-trust`, which would dangle inside the container.
 
 ## Analytics (Umami)
 
@@ -512,7 +723,8 @@ docker exec foa-umami curl -fsS http://127.0.0.1:3000/api/heartbeat   # {"ok":tr
 ## TODO and owner actions
 
 1. **Vercel Static IPs** (deferred): allowlist them in
-   `/etc/foa/firewall.env`, the Hostinger firewall and the CrowdSec whitelist.
+   `/etc/foa/firewall.env`, the Hostinger firewall and CrowdSec (whitelist
+   and LAPI allowlist).
    Until then 6432 is open to the internet, protected by TLS, SCRAM with
    32-byte random passwords, PgBouncer 1.26.1 and CrowdSec. Vercel **builds**
    run in `iad1` (Washington), not in `bom1` with the functions, and the
