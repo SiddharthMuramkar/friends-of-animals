@@ -315,3 +315,28 @@ describe("calls that change nothing", () => {
     });
   });
 });
+
+describe("the consent tables", () => {
+  it("index every foreign key, so deleting a user or a document never reads the whole log", async () => {
+    const h = await createHarness();
+
+    // Deleting a referenced row looks up the rows that point at it. With
+    // no index led by the key's columns, that lookup scans the table.
+    const unindexed = await h.db.execute<{ foreignKey: string }>(sql`
+      select c.conname as "foreignKey"
+      from pg_constraint c
+      where c.contype = 'f'
+        and c.conrelid in ('consent_document'::regclass, 'consent_event'::regclass)
+        and not exists (
+          select 1
+          from pg_index i
+          where i.indrelid = c.conrelid
+            and i.indpred is null
+            and (i.indkey::int2[])[0:cardinality(c.conkey) - 1] @> c.conkey
+        )
+      order by c.conname
+    `);
+
+    expect(unindexed.rows).toEqual([]);
+  });
+});
