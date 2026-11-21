@@ -117,4 +117,31 @@ describe("describeFailure", () => {
     expect(described).not.toContain("meera");
     expect(described).not.toContain("example.test");
   });
+
+  it.each([
+    ["one long word", "a".repeat(64 * 1024)],
+    ["a URL with a long path", `https://x.test/${"p/".repeat(32 * 1024)}?t=1`],
+  ])(
+    "describes a long one-line message (%s) in linear time",
+    (_shape, message) => {
+      const started = performance.now();
+      const described = describeFailure(new Error(message));
+      const elapsed = performance.now() - started;
+
+      expect(described).toHaveLength(MAX_FAILURE_LENGTH);
+      expect(elapsed).toBeLessThan(100);
+    }
+  );
+
+  it("hides an address that straddles the cut made before redacting", () => {
+    // Each [email] is shorter than the address it hides, so text after the
+    // first 4 × MAX_FAILURE_LENGTH characters can't reach the description.
+    const addresses = "a@b.in ".repeat(1000);
+    const described = describeFailure(
+      new Error(`${addresses}meera.iyer@example.test`)
+    );
+
+    expect(described).not.toContain("meera");
+    expect(described).not.toContain("example");
+  });
 });
