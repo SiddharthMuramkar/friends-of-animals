@@ -20,8 +20,11 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "db"]);
 const DEPLOYED_ROLE = /^(postgres|foa_app|foa_migrator|staging_.+|nonprod_.+)$/;
 const DEPLOYED_DATABASE = /^(foa_staging|foa_seed|foa_pr(_.+)?|foa_br(_.+)?)$/;
 
-/** Why a local seed must not use `url`, or undefined if it may. */
-function notLocal(url: string): string | undefined {
+/**
+ * Why the database client could connect to another host than `url` names,
+ * or undefined. Messages start with "DIRECT_URL" and never quote the URL.
+ */
+export function hostInDoubt(url: string): string | undefined {
   // postgres-js ends the authority at the first "/" or "?" and splits it at
   // the last "@", ignoring "#"; the WHATWG parser below ends it at "#". So
   // "…@localhost#@remote/…" would pass this check and connect to remote.
@@ -29,22 +32,35 @@ function notLocal(url: string): string | undefined {
   const authority = url.slice(url.indexOf("://") + 3).split(/[/?]/)[0] ?? "";
   if (url.includes("#") || authority.split("@").length > 2) {
     return (
-      `APP_ENV=local but DIRECT_URL has "#" or more than one "@" before ` +
+      `DIRECT_URL has "#" or more than one "@" before ` +
       `its path, so the database client could connect to another host ` +
       `than this check sees.`
     );
   }
-  const parsed = new URL(url);
   // postgres-js connects to a host named in the query over the URL's own.
   for (const param of ["host", "hostaddr"]) {
-    if (parsed.searchParams.has(param)) {
-      return `APP_ENV=local but DIRECT_URL names a host in ?${param}=: a local seed takes its host from the URL alone.`;
+    if (new URL(url).searchParams.has(param)) {
+      return `DIRECT_URL names a host in ?${param}=: the host must come from the URL alone.`;
     }
   }
+  return undefined;
+}
+
+/**
+ * Why `url` isn't a local database that `purpose` may use, or undefined if
+ * it is. Messages start with "DIRECT_URL" and never quote credentials.
+ */
+export function notLocal(
+  url: string,
+  purpose = "a local seed"
+): string | undefined {
+  const doubt = hostInDoubt(url);
+  if (doubt) return doubt;
+  const parsed = new URL(url);
   const host = parsed.hostname.toLowerCase();
   if (!LOCAL_HOSTS.has(host)) {
     return (
-      `APP_ENV=local but DIRECT_URL points at ${host}: a local seed ` +
+      `DIRECT_URL points at ${host}: ${purpose} ` +
       `goes only into a database on this machine or the Compose db ` +
       `service (${[...LOCAL_HOSTS].join(", ")}).`
     );
@@ -53,8 +69,8 @@ function notLocal(url: string): string | undefined {
   const database = decodeURIComponent(parsed.pathname.slice(1));
   if (DEPLOYED_ROLE.test(role) || DEPLOYED_DATABASE.test(database)) {
     return (
-      `APP_ENV=local but DIRECT_URL uses the deployed role or database ` +
-      `${role}@${database} (a tunnel?): a local seed uses the Compose ` +
+      `DIRECT_URL uses the deployed role or database ` +
+      `${role}@${database} (a tunnel?): ${purpose} uses the Compose ` +
       `login, foa@foa.`
     );
   }
@@ -84,5 +100,7 @@ export function seedTarget(
   }
   const { url } = migrationTarget(env);
   const refused = appEnv === "local" ? notLocal(url) : undefined;
-  return refused ? { seed: false, reason: refused } : { seed: true, url };
+  return refused
+    ? { seed: false, reason: `APP_ENV=local but ${refused}` }
+    : { seed: true, url };
 }
