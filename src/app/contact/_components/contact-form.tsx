@@ -53,7 +53,7 @@ const LINK =
 /**
  * The contact form island on the prerendered /contact page. When the form
  * first gets focus it fetches a human-check challenge and solves it in the
- * background (src/lib/proof-of-work.ts), so the proof is usually ready by
+ * background (../_lib/proof-keeper.ts), so the proof is usually ready by
  * the time the visitor presses Send. Every message comes translated from
  * the action; static words come in `labels`.
  */
@@ -86,7 +86,8 @@ function ContactFormRound({
     proofKeeper({
       fetchChallenge: issueChallengeAction,
       solve: solveProofOfWork,
-      now: () => Date.now(),
+      now: () => performance.now(),
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     })
   );
 
@@ -118,14 +119,15 @@ function ContactFormRound({
   }
 
   // Start solving when the visitor first reaches the form, not on every
-  // page view: most visitors never write.
+  // page view: most visitors never write. Later focus finds the proof
+  // ready, or tries again after a failed fetch.
   useEffect(() => {
     const form = formRef.current;
     if (!form) return;
-    const start = () => void keeper.warm();
-    form.addEventListener("focusin", start, { once: true });
-    return () => form.removeEventListener("focusin", start);
-  });
+    const warm = () => void keeper.warm();
+    form.addEventListener("focusin", warm);
+    return () => form.removeEventListener("focusin", warm);
+  }, [keeper]);
   const { text } = view;
   const [topic, setTopic] = useState(view.entered.topic);
 

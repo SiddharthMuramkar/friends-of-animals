@@ -14,7 +14,7 @@ import { grantGlobalRole } from "./support/roles";
 // #113: the public contact form on the prerendered /contact page, in its
 // empty, error and success states. The island solves a real proof-of-work
 // challenge (16 bits) in the browser. The acknowledgement email is proved
-// at Seam 1 (a preview's worker may lag M5's tip, HR-10), so this only
+// at Seam 1 (a preview's worker may lag the trunk, HR-10), so this only
 // checks what the sender sees. Each run uses a fresh address, so the
 // per-address limit never trips; previews allow 100 per IP an hour, since
 // every run comes from the CI runner's one address.
@@ -80,12 +80,35 @@ test("a visitor sends a message through the contact form", async ({
 });
 
 /**
- * Sends a General message as a visitor who first forgets the message, then
- * writes it; returns its reference. The refused send leaves its proof
- * unspent, and the island sends it again, so the bot screen counts from
- * when the visitor started (it drops anything sent within 3 s of that).
+ * Fails the contact island's human-check challenge requests while
+ * `failing` is set, as a dropped connection would. The island asks with a
+ * Server Action that takes no arguments: a POST to the page whose body is
+ * "[]". The form's own action posts form data, so it goes through.
+ */
+async function failChallenges(page: Page) {
+  const challenges = { failing: true };
+  await page.route("**/contact", async (route) => {
+    const request = route.request();
+    const isChallenge =
+      request.method() === "POST" &&
+      request.headers()["next-action"] !== undefined &&
+      request.postData() === "[]";
+    if (challenges.failing && isChallenge) await route.abort();
+    else await route.fallback();
+  });
+  return challenges;
+}
+
+/**
+ * Sends a General message as a visitor whose first send the human check
+ * refuses, because no challenge came through; returns its reference. The
+ * visitor presses Send again at once: the island fetches a new challenge
+ * then, and holds the message until the bot screen (which drops anything
+ * sent within 3 s of its challenge) takes it as a person's. The staff test
+ * then finds the message in the inbox, so it wasn't dropped.
  */
 async function sendMessage(page: Page, testInfo: TestInfo, subject: string) {
+  const challenges = await failChallenges(page);
   await page.goto("/contact");
   const form = page
     .getByRole("region", { name: "Send us a message" })
@@ -96,15 +119,17 @@ async function sendMessage(page: Page, testInfo: TestInfo, subject: string) {
     .getByRole("textbox", { name: "Your email address" })
     .fill(freshEmail(testInfo.project.name));
   await form.getByRole("textbox", { name: "Subject" }).fill(subject);
-  await form.getByRole("button", { name: "Send message" }).click();
-  await expect(
-    form.getByText("Enter your message, in up to 5,000 characters.")
-  ).toBeVisible({ timeout: 30_000 });
-  // Writing the message takes a person more than the screen's 3 s.
-  await page.waitForTimeout(3_000);
   await form
     .getByRole("textbox", { name: "Your message" })
     .fill("How can I help at the next adoption camp?");
+  await form.getByRole("button", { name: "Send message" }).click();
+  await expect(
+    form.getByText(
+      "We couldn't confirm that a person sent this. Please press Send again."
+    )
+  ).toBeVisible({ timeout: 30_000 });
+
+  challenges.failing = false;
   await form.getByRole("button", { name: "Send message" }).click();
   const done = page.getByRole("status").filter({ hasText: "Your reference" });
   await expect(done).toContainText(REFERENCE, { timeout: 30_000 });

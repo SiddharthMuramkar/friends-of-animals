@@ -161,6 +161,7 @@ describe("the human check", () => {
       token: expect.any(String),
       salt: expect.stringMatching(/^[A-Za-z0-9_-]{22}$/),
       difficulty: expect.any(Number),
+      issuedAt: h.clock.now(),
       expiresAt: new Date(h.clock.now().getTime() + 2 * 60 * 60 * 1000),
     });
     expect(await counts(h)).toEqual(NOTHING);
