@@ -13,7 +13,7 @@ import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { isSampleContentEnabled } from "@/lib/site";
-import { loadImpact } from "@/server/modules/cms/site-pages";
+import { loadImpact } from "@/server/cms/site-pages";
 
 import { EasyRead } from "@/components/site/easy-read";
 

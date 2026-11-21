@@ -2,7 +2,7 @@ import { BadgeCheck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Placeholder } from "@/components/site/placeholder";
-import { getOrgFacts } from "@/server/modules/cms/org-facts";
+import { getOrgFacts } from "@/server/cms/org-facts";
 import { cn } from "@/lib/utils";
 
 const POINTS = ["sources", "quotes", "numbers", "noLink"] as const;

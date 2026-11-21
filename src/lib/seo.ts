@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import {
   type OrgFacts,
   unconfirmedOrgFacts,
-} from "../server/modules/cms/domain/org-facts";
+} from "../server/cms/domain/org-facts";
 import { isPlaceholder, SITE } from "./site";
 
 type SocialImage = { url: string; width: number; height: number; alt: string };

@@ -1,0 +1,21 @@
+// The platform's policy: one rule per action, from every module. A module
+// with use cases keeps its rules next to them and adds one argument here;
+// an action defined twice fails type-checking. Each rule names its roles;
+// super admin is not a wildcard.
+
+import { CMS_POLICY } from "../cms/policy";
+import { CONSENT_POLICY } from "../consent/policy";
+import { IDENTITY_POLICY } from "../identity/policy";
+import { SECOND_FACTOR_POLICY } from "../second-factor/policy";
+import { ACCESS_POLICY } from "./domain/access-policy";
+import { composePolicies } from "./domain/policy";
+
+export const POLICY = composePolicies(
+  IDENTITY_POLICY,
+  ACCESS_POLICY,
+  CONSENT_POLICY,
+  SECOND_FACTOR_POLICY,
+  CMS_POLICY
+);
+
+export type Action = keyof typeof POLICY;

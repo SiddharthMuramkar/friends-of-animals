@@ -3,8 +3,11 @@
 // union, so that file holds only import and list lines. Loads under plain
 // Node: relative imports only, no "server-only".
 
+import type { Grant } from "../access/domain/roles";
 import type { User } from "../db/schema";
-import { ensureAccount } from "./identity";
+import { ensureVerifiedAccount } from "../identity/verified-account";
+import { ensureGrant } from "./access";
+import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
 
 const MEMBER_NAMES = [
@@ -25,23 +28,46 @@ export function seedFunctions(seeders: readonly Seeder[]) {
    */
   async function seedPreview(deps: SeedDeps): Promise<void> {
     await deps.db.transaction(async (tx) => {
-      for (const seed of seeders) await seed({ db: tx, clock: deps.clock });
+      for (const seed of seeders) await seed({ ...deps, db: tx });
     });
   }
 
   /** Builders for tests: each call makes a new record unless told otherwise. */
   function createSeedBuilders(deps: SeedDeps) {
     let members = 0;
+    /** A verified account. Pass `email` or `name` to choose them. */
+    function member(
+      details: { name?: string; email?: string } = {}
+    ): Promise<User> {
+      members += 1;
+      return ensureVerifiedAccount(deps, {
+        name:
+          details.name ?? MEMBER_NAMES[(members - 1) % MEMBER_NAMES.length]!,
+        email: details.email ?? `test-member-${members}@example.test`,
+      });
+    }
+    /** Gives `user` a grant (no audit entry: it is seed data). */
+    async function grant(user: { id: string }, ...grants: Grant[]) {
+      for (const each of grants) await ensureGrant(deps, user.id, each);
+    }
     return {
-      /** A verified account. Pass `email` or `name` to choose them. */
-      member(details: { name?: string; email?: string } = {}): Promise<User> {
-        members += 1;
-        return ensureAccount(deps, {
-          name:
-            details.name ?? MEMBER_NAMES[(members - 1) % MEMBER_NAMES.length]!,
-          email: details.email ?? `test-member-${members}@example.test`,
+      member,
+      grant,
+      /** A verified account holding the global super admin role. */
+      async superAdmin(details: { name?: string; email?: string } = {}) {
+        const account = await member(details);
+        await grant(account, {
+          role: "super_admin",
+          scope: { type: "global" },
         });
+        return account;
       },
+      /**
+       * Gives `user` a confirmed authenticator app with SEED_TOTP_SECRET
+       * (no audit entry: it is seed data).
+       */
+      authenticator: (user: { id: string }) =>
+        ensureSeedAuthenticator(deps, user.id),
       /** Everything `pnpm db:seed` puts in a preview database. */
       preview: () => seedPreview(deps),
     };

@@ -14,7 +14,7 @@ import { TileMarker } from "@/components/site/tile";
 import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { getOrgFacts } from "@/server/modules/cms/org-facts";
+import { getOrgFacts } from "@/server/cms/org-facts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("contact.meta");

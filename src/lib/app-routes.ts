@@ -1,10 +1,13 @@
 /**
  * Pages behind sign-in. They are never in navigation for visitors, the
  * sitemap or search results (each sets robots noindex), and they render at
- * request time. Public pages are in ./routes.ts.
+ * request time. Public pages are in ./routes.ts. src/proxy.ts answers any
+ * other path under SIGNED_IN_PREFIXES with the 404, so list every page.
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  accountConsents: "/account/consents",
+  adminConsentDocuments: "/admin/consent-documents",
 } as const;
 
 /**
@@ -17,4 +20,9 @@ export function isSignedInPath(pathname: string): boolean {
   return SIGNED_IN_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
+}
+
+/** Whether `pathname` is one of the pages in APP_ROUTES. */
+export function isSignedInPage(pathname: string): boolean {
+  return (Object.values(APP_ROUTES) as string[]).includes(pathname);
 }

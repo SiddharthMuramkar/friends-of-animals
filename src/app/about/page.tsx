@@ -18,8 +18,8 @@ import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
-import { getOrgFacts } from "@/server/modules/cms/org-facts";
-import { loadAbout } from "@/server/modules/cms/site-pages";
+import { getOrgFacts } from "@/server/cms/org-facts";
+import { loadAbout } from "@/server/cms/site-pages";
 
 import { EasyRead } from "@/components/site/easy-read";
 

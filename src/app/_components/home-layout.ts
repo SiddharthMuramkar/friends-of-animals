@@ -1,6 +1,6 @@
 import { homeCompetitions } from "@/content/sample/selectors";
 import type { Competition } from "@/content/sample/model";
-import type { HomeBody, HomeSectionKey } from "@/server/modules/cms/kinds/home";
+import type { HomeBody, HomeSectionKey } from "@/server/cms/kinds/home";
 
 /**
  * The home page's layout is the `home` CMS document: the hero's text and

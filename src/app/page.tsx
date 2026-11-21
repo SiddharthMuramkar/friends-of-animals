@@ -30,7 +30,7 @@ import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { isSampleContentEnabled } from "@/lib/site";
-import { loadHome, loadImpact } from "@/server/modules/cms/site-pages";
+import { loadHome, loadImpact } from "@/server/cms/site-pages";
 
 import {
   activeAnnouncement,

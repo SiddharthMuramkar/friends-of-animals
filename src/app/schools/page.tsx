@@ -13,7 +13,7 @@ import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { getOrgFacts } from "@/server/modules/cms/org-facts";
+import { getOrgFacts } from "@/server/cms/org-facts";
 import { cn } from "@/lib/utils";
 
 import { EasyRead } from "@/components/site/easy-read";

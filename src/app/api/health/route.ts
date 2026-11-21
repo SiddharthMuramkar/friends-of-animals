@@ -3,8 +3,8 @@ import { connection } from "next/server";
 
 import { appEnv } from "@/lib/site";
 import { db } from "@/server/db";
-import { missingOrgFacts } from "@/server/modules/cms/domain/org-facts";
-import { getOrgFacts } from "@/server/modules/cms/org-facts";
+import { missingOrgFacts } from "@/server/cms/domain/org-facts";
+import { getOrgFacts } from "@/server/cms/org-facts";
 
 // Health check for uptime monitors. Today it checks the database; the
 // queue and worker heartbeat join it with the worker. In production it

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { unconfirmedOrgFacts } from "@/server/modules/cms/domain/org-facts";
+import { unconfirmedOrgFacts } from "@/server/cms/domain/org-facts";
 import { createTestDb, type TestDb } from "@/test/db";
 
 import { GET } from "./route";
 
 const orgFacts = vi.hoisted(() => ({ current: null as unknown }));
-vi.mock("@/server/modules/cms/org-facts", () => ({
+vi.mock("@/server/cms/org-facts", () => ({
   getOrgFacts: async () => orgFacts.current,
 }));
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SAMPLE_COMPETITIONS } from "@/content/sample";
-import { homeKind } from "@/server/modules/cms/kinds/home";
+import { homeKind } from "@/server/cms/kinds/home";
 
 import {
   activeAnnouncement,

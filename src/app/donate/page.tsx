@@ -16,7 +16,7 @@ import { siteUrl } from "@/env";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
-import { getOrgFacts } from "@/server/modules/cms/org-facts";
+import { getOrgFacts } from "@/server/cms/org-facts";
 
 import { EasyRead } from "@/components/site/easy-read";
 import { ButtonLink } from "@/components/site/button-link";

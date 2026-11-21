@@ -8,7 +8,7 @@ import { ContactFact } from "@/components/site/contact-fact";
 import { Section } from "@/components/site/section";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { getOrgFacts } from "@/server/modules/cms/org-facts";
+import { getOrgFacts } from "@/server/cms/org-facts";
 
 import { PolicyBlock, PolicyTop, Tbc } from "../pricing/_components/policy";
 

@@ -7,7 +7,7 @@ import type { LegalBlock, LegalFact, LegalInline } from "@/content/legal";
 import {
   legalFactValue,
   type OrgFacts,
-} from "@/server/modules/cms/domain/org-facts";
+} from "@/server/cms/domain/org-facts";
 import { linkRel } from "@/server/rich-text/href";
 
 const LINK =

@@ -28,7 +28,7 @@ import { STORIES } from "@/content/stories";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { isSampleContentEnabled } from "@/lib/site";
-import { getOrgFacts } from "@/server/modules/cms/org-facts";
+import { getOrgFacts } from "@/server/cms/org-facts";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {

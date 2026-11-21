@@ -4,7 +4,7 @@ import { SAMPLE_COMPETITIONS } from "@/content/sample";
 import {
   EMPTY_TAX_FACTS,
   mergeOrgFacts,
-} from "@/server/modules/cms/domain/org-facts";
+} from "@/server/cms/domain/org-facts";
 import { STORIES } from "@/content/stories";
 import { metaDescription } from "@/content/stories/text";
 import { messages } from "@/i18n/messages";
