@@ -11,11 +11,13 @@ import { recordCspViolations } from "./support/csp";
 // from the database. Runs against a seeded database (pnpm db:seed, as
 // every preview does): the preview seed publishes this competition and
 // keeps one draft.
-const PUBLISHED = { slug: "neighbours-on-my-street", name: /Neighbours/ };
-const DRAFT_SLUG = "draft-competition-preview";
-
-/** A date with its time in IST, as the page's longDateTime format shows. */
-const IST_DATE_TIME = /\d{1,2} [A-Z][a-z]+ \d{4} at \d{1,2}:\d{2} [ap]m IST/;
+const PUBLISHED = {
+  slug: "neighbours-on-my-street",
+  name: "Neighbours on My Street",
+  // Its registration opens 2026-11-01T09:00 IST, as the manager typed it.
+  opens: "1 November 2026 at 9:00 am IST",
+};
+const DRAFT_SLUG = "seed-drawing-competition";
 
 async function hasNoSidewaysScroll(page: Page, label: string) {
   for (const width of [320, 412]) {
@@ -83,7 +85,7 @@ test("a competition page shows its theme, categories, rules, scope and IST key d
   const dates = main
     .getByRole("region", { name: "Dates to remember" })
     .locator("time");
-  await expect(dates.first()).toHaveText(IST_DATE_TIME);
+  await expect(dates.first()).toHaveText(PUBLISHED.opens);
 
   await expectAccessibleInDark(page, path);
   await hasNoSidewaysScroll(page, path);
