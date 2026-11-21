@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { recordAudit } from "./record";
+import type { SearchAuditLogResult } from "./search";
 
 const SCHOOL_A = "01938a00-0000-7000-8000-00000000a001";
 const COMPETITION = "01938a00-0000-7000-8000-00000000c001";
@@ -51,7 +52,7 @@ async function world(h: Harness) {
 }
 
 /** Each entry as "action entity-id", newest first. */
-function summary(result: Awaited<ReturnType<Harness["as"]>["searchAuditLog"]>) {
+function summary(result: SearchAuditLogResult) {
   if (!result.ok) throw new Error(`search failed: ${result.error}`);
   return result.entries.map((entry) => `${entry.action} ${entry.entity.id}`);
 }
