@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { workerConfig } from "./config";
+import { withPassword, workerConfig } from "./config";
 
 const PROD_URL = "postgres://foa_worker:s3cret-pw@10.112.12.10:5432/foa";
 const ADMIN_URL =
@@ -28,6 +28,7 @@ describe("workerConfig", () => {
       discoveryMs: 60_000,
       connectionsPerDatabase: 1,
       heartbeatFile: "/tmp/foa-worker-heartbeat",
+      passwordFile: undefined,
     });
   });
 
@@ -42,6 +43,7 @@ describe("workerConfig", () => {
         WORKER_CONNECTIONS_PER_DATABASE: "2",
         WORKER_HEARTBEAT_FILE: "/run/worker/heartbeat",
         WORKER_VERSION: "9af49ce",
+        WORKER_PASSWORD_FILE: "/run/secrets/db_password",
       })
     ).toEqual({
       mode: "preview",
@@ -56,6 +58,7 @@ describe("workerConfig", () => {
       discoveryMs: 30_000,
       connectionsPerDatabase: 2,
       heartbeatFile: "/run/worker/heartbeat",
+      passwordFile: "/run/secrets/db_password",
     });
   });
 
@@ -169,5 +172,35 @@ describe("workerConfig", () => {
 
     expect(message).toMatch(/APP_ENV/);
     expect(message).not.toContain("s3cret-pw");
+  });
+});
+
+describe("withPassword", () => {
+  it("puts the password from the secret file into the database URL", () => {
+    const config = workerConfig({
+      WORKER_MODE: "single",
+      APP_ENV: "staging",
+      WORKER_DATABASE_URL:
+        "postgres://staging_worker@10.112.12.11:5432/foa_staging",
+    });
+
+    expect(withPassword(config, "0a1b2c\n")).toMatchObject({
+      databaseUrl:
+        "postgres://staging_worker:0a1b2c@10.112.12.11:5432/foa_staging",
+      database: "foa_staging",
+    });
+  });
+
+  it("puts it into the preview worker's admin URL", () => {
+    const config = workerConfig({
+      WORKER_MODE: "preview",
+      APP_ENV: "preview",
+      WORKER_ADMIN_URL: "postgres://nonprod_worker@10.112.12.11:5432/postgres",
+    });
+
+    expect(withPassword(config, "p@ss/word")).toMatchObject({
+      adminUrl:
+        "postgres://nonprod_worker:p%40ss%2Fword@10.112.12.11:5432/postgres",
+    });
   });
 });

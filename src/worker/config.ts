@@ -145,3 +145,8 @@ export function workerConfig(
     database: decodeURIComponent(new URL(databaseUrl).pathname.slice(1)),
   };
 }
+
+/** Stub. */
+export function withPassword(config: WorkerConfig, _password: string): WorkerConfig {
+  return config;
+}
