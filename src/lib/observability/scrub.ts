@@ -170,10 +170,18 @@ const DATABASE_VALUES: readonly [RegExp, string | Replacer][] = [
   [/Failing row contains [^\n]*/g, "Failing row contains [redacted]"],
   // The columns may hold parentheses (`lower(email)`), so up to the first
   // ")=" within 256 characters; the value runs to the line's last ")".
+  // With no ")" left on its line the value holds a newline, so it runs to
+  // the end of the text, as a quoted value does below.
+  [/(Key \([^\n]{0,256}?\)=)\([^)\n]*\n[\s\S]*$/, "$1[redacted]"],
   [
     /(Key \([^\n]{0,256}?\)=)\(([^\n]*)/g,
-    (_match: string, key: string, rest: string) =>
-      `${key}[redacted]${rest.slice(rest.lastIndexOf(")") + 1)}`,
+    (_match: string, key: string, rest: string) => {
+      // Cut off by truncation, the value's own ")" is gone, so any ")"
+      // left is inside it: hide it all and keep the marker.
+      if (rest.endsWith(TRUNCATED)) return `${key}[redacted]${TRUNCATED}`;
+      const close = rest.lastIndexOf(")");
+      return `${key}[redacted]${close < 0 ? "" : rest.slice(close + 1)}`;
+    },
   ],
   // Postgres echoes the value raw, quotes and newlines included: with no
   // quote left on its line, it runs to the end; otherwise to the line's end.
