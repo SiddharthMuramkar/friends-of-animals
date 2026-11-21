@@ -10,7 +10,17 @@ import {
   publishRevision,
   saveDraft,
 } from "./publishing";
+import {
+  getDraftForPreview,
+  getPublishedDocument,
+  startPreview,
+} from "./reading";
 
+export type {
+  CmsDraftPreview,
+  PublishedCmsDocument,
+  StartPreviewResult,
+} from "./reading";
 export type {
   CmsDocumentSummary,
   CmsRevisionSummary,
@@ -27,4 +37,9 @@ export const cmsUseCases = (ctx: UseCaseContext) => ({
     saveDraft(ctx, input),
   publishRevision: (input: { revisionId: string }) =>
     publishRevision(ctx, input),
+  getPublishedDocument: (input: { key: CmsDocumentKey }) =>
+    getPublishedDocument(ctx, input),
+  getDraftForPreview: (input: { key: CmsDocumentKey }) =>
+    getDraftForPreview(ctx, input),
+  startPreview: (input: { key: CmsDocumentKey }) => startPreview(ctx, input),
 });
