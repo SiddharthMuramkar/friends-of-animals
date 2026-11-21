@@ -2,7 +2,7 @@ import { BadgeCheck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Placeholder } from "@/components/site/placeholder";
-import { SITE } from "@/lib/site";
+import { isFactShown, SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 const POINTS = ["sources", "quotes", "numbers", "noLink"] as const;
@@ -39,19 +39,22 @@ export async function FactChecks({ className }: { className?: string }) {
           </li>
         ))}
       </ul>
-      <p className="mt-5 flex flex-wrap items-center gap-2 text-ink-muted">
-        {t("mistake")}{" "}
-        <Placeholder fact={SITE.org.email}>
-          {(email) => (
-            <a
-              href={`mailto:${email}`}
-              className="text-link underline underline-offset-2"
-            >
-              {email}
-            </a>
-          )}
-        </Placeholder>
-      </p>
+      {/* Production drops the line until FOA's email is confirmed. */}
+      {isFactShown(SITE.org.email) ? (
+        <p className="mt-5 flex flex-wrap items-center gap-2 text-ink-muted">
+          {t("mistake")}{" "}
+          <Placeholder fact={SITE.org.email}>
+            {(email) => (
+              <a
+                href={`mailto:${email}`}
+                className="text-link underline underline-offset-2"
+              >
+                {email}
+              </a>
+            )}
+          </Placeholder>
+        </p>
+      ) : null}
     </aside>
   );
 }
