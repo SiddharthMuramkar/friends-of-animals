@@ -26,10 +26,9 @@
 name: foa-analytics
 
 x-logging: &logging
-  driver: json-file
+  driver: journald
   options:
-    max-size: "50m"
-    max-file: "5"
+    tag: "{{.Name}}"
 
 services:
   umami:
