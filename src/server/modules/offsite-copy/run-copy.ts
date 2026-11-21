@@ -99,6 +99,7 @@ type BucketFailure = {
 
 /** What a run has done so far, across buckets. */
 type RunState = {
+  startedAt: Date;
   totals: OffsiteTotals;
   failures: CopyFailure[];
   bucketFailures: BucketFailure[];
@@ -113,6 +114,7 @@ export async function runOffsiteCopy(
     return { status: "skipped", reason: "not_production" };
   }
   const run: RunState = {
+    startedAt: deps.clock.now(),
     totals: emptyTotals(),
     failures: [],
     bucketFailures: [],
@@ -202,6 +204,10 @@ async function copyBucket(
   }
 
   await eachAtMost(deps.config.concurrency, plan.copy, async ({ object }) => {
+    if (outOfTime(deps, run)) {
+      totals.deferred += 1;
+      return;
+    }
     try {
       if (await copyObject(deps, bucket, object)) totals.copied += 1;
     } catch (error) {
@@ -239,6 +245,12 @@ async function copyBucket(
       run.failures.push({ bucket, key, error });
     }
   }
+}
+
+/** Whether the run has used up its budget: then no copy starts. */
+function outOfTime(deps: OffsiteDeps, run: RunState): boolean {
+  const elapsed = deps.clock.now().getTime() - run.startedAt.getTime();
+  return elapsed >= deps.config.budgetMs;
 }
 
 /**
