@@ -16,6 +16,7 @@ import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
+import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -25,13 +26,7 @@ export interface Deps extends DbWithClock {
   auth: { secret: string; baseUrl: string };
 }
 
-/**
- * A local run or a preview without BETTER_AUTH_SECRET signs with this. It is
- * public, so it protects nothing; staging and production must set their own
- * (src/env.schema.ts refuses to start without it).
- */
-export const DEVELOPMENT_AUTH_SECRET =
-  "foa-development-secret-not-for-staging-or-production";
+export { DEVELOPMENT_AUTH_SECRET };
 
 /**
  * Production sends real email (SES, once FOA's account exists; until then

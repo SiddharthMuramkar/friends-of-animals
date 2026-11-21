@@ -3,6 +3,7 @@
 
 import { eq } from "drizzle-orm";
 
+import type { DbWithClock } from "../db/app-db";
 import { user, type User } from "../db/schema";
 import { uuidv7 } from "../ids";
 import { normaliseEmailAddress } from "../ports/email";
@@ -17,7 +18,7 @@ export type AccountInput = { id?: string; name: string; email: string };
  * seeded address) changes nothing.
  */
 export async function ensureAccount(
-  { db, clock }: SeedDeps,
+  { db, clock }: DbWithClock,
   input: AccountInput
 ): Promise<User> {
   const now = clock.now();

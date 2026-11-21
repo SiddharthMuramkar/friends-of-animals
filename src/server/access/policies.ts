@@ -3,11 +3,13 @@
 // Each rule names its roles; super admin is not a wildcard.
 
 import { IDENTITY_POLICY } from "../identity/policy";
+import { SECOND_FACTOR_POLICY } from "../second-factor/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 
 export const POLICY = {
   ...IDENTITY_POLICY,
   ...ACCESS_POLICY,
+  ...SECOND_FACTOR_POLICY,
 };
 
 export type Action = keyof typeof POLICY;
