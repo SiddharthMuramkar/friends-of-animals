@@ -4,6 +4,7 @@
 // /dashboard; #73 (institutions), #95 (judging) and the rest point
 // theirs at real routes here.
 
+import { APP_ROUTES } from "@/lib/app-routes";
 import type { Dashboard } from "@/server/access";
 
 export type DashboardLink = {
@@ -15,6 +16,25 @@ export type DashboardLink = {
   href: string;
 };
 
-export function dashboardLinks(_dashboards: Dashboard[]): DashboardLink[] {
-  throw new Error("Not implemented");
+function linkTo(area: Dashboard["area"], id?: string): DashboardLink {
+  const section = id === undefined ? area : `${area}-${id}`;
+  return {
+    area,
+    ...(id === undefined ? {} : { id }),
+    section,
+    href: `${APP_ROUTES.dashboard}#${section}`,
+  };
+}
+
+export function dashboardLinks(dashboards: Dashboard[]): DashboardLink[] {
+  return dashboards.map((dashboard) => {
+    switch (dashboard.area) {
+      case "institution":
+        return linkTo("institution", dashboard.institutionId);
+      case "organisation":
+        return linkTo("organisation", dashboard.organisationId);
+      default:
+        return linkTo(dashboard.area);
+    }
+  });
 }

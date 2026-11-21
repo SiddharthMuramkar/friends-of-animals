@@ -5,12 +5,28 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import { buttonStyles } from "@/components/site/button-link";
+import { isSignedInPath } from "@/lib/app-routes";
 import { cn } from "@/lib/utils";
 
 import { NavLink } from "./nav-link";
 import { ThemeSwitch } from "./theme-toggle";
 
 type Item = { href: string; label: string };
+
+/**
+ * The header's links, plus `dashboard` on pages behind sign-in: whoever
+ * sees those is signed in. Public pages stay static, so the header never
+ * reads the session to decide (#59).
+ */
+function withDashboard(
+  items: Item[],
+  dashboard: Item | undefined,
+  pathname: string | null
+): Item[] {
+  return dashboard && pathname !== null && isSignedInPath(pathname)
+    ? [...items, dashboard]
+    : items;
+}
 
 // The current page gets a cue that doesn't rely on colour alone, in the
 // section-blue heading colour (over 3:1 on the tint in both themes): an
@@ -24,17 +40,19 @@ const MENU_LINK =
 /** Desktop navigation (lg and up). */
 export function DesktopNavView({
   items,
+  dashboard,
   label,
   pathname,
 }: {
   items: Item[];
+  dashboard?: Item;
   label: string;
   pathname: string | null;
 }) {
   return (
     <nav aria-label={label} className="hidden lg:block">
       <ul className="flex items-center gap-1">
-        {items.map((item) => (
+        {withDashboard(items, dashboard, pathname).map((item) => (
           <li key={item.href}>
             <NavLink
               href={item.href}
@@ -50,7 +68,11 @@ export function DesktopNavView({
   );
 }
 
-export function DesktopNav(props: { items: Item[]; label: string }) {
+export function DesktopNav(props: {
+  items: Item[];
+  dashboard?: Item;
+  label: string;
+}) {
   return <DesktopNavView {...props} pathname={usePathname()} />;
 }
 
@@ -73,11 +95,13 @@ const MENU_ID = "mobile-menu";
  */
 export function MobileMenuView({
   items,
+  dashboard,
   labels,
   donateHref,
   pathname,
 }: {
   items: Item[];
+  dashboard?: Item;
   labels: MenuLabels;
   donateHref: string;
   pathname: string | null;
@@ -139,7 +163,7 @@ export function MobileMenuView({
           className="flex-1 overflow-y-auto overscroll-contain px-3 py-4"
         >
           <ul className="flex flex-col gap-1">
-            {items.map((item) => (
+            {withDashboard(items, dashboard, pathname).map((item) => (
               <li key={item.href}>
                 <NavLink
                   href={item.href}
@@ -175,6 +199,7 @@ export function MobileMenuView({
 
 export function MobileMenu(props: {
   items: Item[];
+  dashboard?: Item;
   labels: MenuLabels;
   donateHref: string;
 }) {
