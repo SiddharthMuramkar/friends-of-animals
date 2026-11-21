@@ -128,6 +128,29 @@ describe("buildEnvSchema", () => {
     );
     expect(parseEnv(buildEnvSchema, { APP_URL: SITE }).APP_URL).toBe(SITE);
   });
+
+  it("reads the Umami website id and origin, which may be left out", () => {
+    const umami = {
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: "94db1cb1-74f4-4a40-ad6c-962362670409",
+      UMAMI_ORIGIN: "https://stats.shipped-it.dev",
+    };
+    expect(parseEnv(buildEnvSchema, umami)).toMatchObject(umami);
+    expect(parseEnv(buildEnvSchema, {})).not.toHaveProperty("UMAMI_ORIGIN");
+  });
+
+  it("refuses an Umami website id that isn't a UUID", () => {
+    expect(() =>
+      parseEnv(buildEnvSchema, { NEXT_PUBLIC_UMAMI_WEBSITE_ID: "shipped-it" })
+    ).toThrow(/NEXT_PUBLIC_UMAMI_WEBSITE_ID/);
+  });
+
+  it("refuses an Umami origin that isn't https", () => {
+    for (const origin of ["http://stats.shipped-it.dev", "stats.example"]) {
+      expect(() => parseEnv(buildEnvSchema, { UMAMI_ORIGIN: origin })).toThrow(
+        /UMAMI_ORIGIN/
+      );
+    }
+  });
 });
 
 describe("envSchema", () => {
