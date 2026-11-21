@@ -10,7 +10,6 @@ export type IdentityAction =
   | "requestEmailCode"
   | "verifyEmailCode"
   | "getAccount"
-  | "signOut"
   | "listSessions"
   | "signOutSession"
   | "signOutEverywhere";
@@ -22,11 +21,13 @@ export function can(actor: Actor, action: IdentityAction): boolean {
       // Signing up and signing in are for people who aren't signed in.
       return actor.kind === "visitor";
     case "getAccount":
-    case "signOut":
     case "listSessions":
     case "signOutSession":
     case "signOutEverywhere":
-      // Their own account and session only: there is no id to name another.
+      // A signed-in user, for their own account and sessions only. Most of
+      // these take no id; signOutSession takes a session id, and its query
+      // matches only the actor's own sessions (session.user_id), so
+      // another user's session is "not found".
       return actor.kind === "user";
     default:
       // Deny by default: an action without a rule is no one's.

@@ -18,8 +18,13 @@ describe("can", () => {
     }
   });
 
-  it("lets only a signed-in user see their account and sign out", () => {
-    for (const action of ["getAccount", "signOut"] as const) {
+  it("lets only a signed-in user see and end their own sessions", () => {
+    for (const action of [
+      "getAccount",
+      "listSessions",
+      "signOutSession",
+      "signOutEverywhere",
+    ] as const) {
       expect(can(user, action)).toBe(true);
       expect(can(visitor, action)).toBe(false);
       expect(can(system, action)).toBe(false);

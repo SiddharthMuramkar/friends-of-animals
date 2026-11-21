@@ -104,14 +104,23 @@ describe("signOutSession", () => {
 
   it("signs this browser out when it names this session", async () => {
     const h = await createHarness();
-    const { phone } = await memberOnTwoDevices(h);
+    const { laptop, laptopCookie, phone, phoneCookie } =
+      await memberOnTwoDevices(h);
 
     const result = await h
       .as(phone)
       .signOutSession({ sessionId: sessionIdOf(phone) });
 
     expect(result).toEqual({ ok: true, signedOutHere: true });
+    // The cookie is gone, and so is the session: the old cookie is dead.
+    expect(h.cookies.header()).toBe("");
     expect((await h.currentActor(PHONE)).kind).toBe("visitor");
+    expect((await h.currentActor(PHONE, phoneCookie)).kind).toBe("visitor");
+    // The user's other sessions stay signed in.
+    expect(await h.currentActor(LAPTOP, laptopCookie)).toMatchObject({
+      kind: "user",
+      sessionId: sessionIdOf(laptop),
+    });
   });
 
   it("signs this browser out when it names this session in upper case", async () => {
@@ -166,13 +175,15 @@ describe("signOutSession", () => {
 describe("signOutEverywhere", () => {
   it("signs every one of the user's devices out, and only theirs", async () => {
     const h = await createHarness();
-    const { laptopCookie, phone, phoneCookie } = await memberOnTwoDevices(h);
-    h.cookies.clear();
     const other = await h.signIn(await h.seed.member());
     const otherCookie = h.cookies.header();
+    h.cookies.clear();
+    // The browser now holds the phone's session.
+    const { laptopCookie, phone, phoneCookie } = await memberOnTwoDevices(h);
 
     await h.as(phone).signOutEverywhere();
 
+    expect(h.cookies.header()).toBe("");
     expect((await h.currentActor(LAPTOP, laptopCookie)).kind).toBe("visitor");
     expect((await h.currentActor(PHONE, phoneCookie)).kind).toBe("visitor");
     expect(await h.currentActor({}, otherCookie)).toMatchObject({

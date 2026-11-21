@@ -1,8 +1,8 @@
-// A signed-in user's own account and session.
+// A signed-in user's own account, and helpers the session use cases share.
 
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { session, user } from "../db/schema";
+import { user } from "../db/schema";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { authorize } from "./policy";
@@ -41,14 +41,4 @@ export async function expireSessionCookie(ctx: UseCaseContext): Promise<void> {
       | undefined,
     maxAge: 0,
   });
-}
-
-/** Ends the session the user is acting through; other sessions stay. */
-export async function signOut(ctx: UseCaseContext): Promise<void> {
-  authorize(ctx.actor, "signOut");
-  const { userId, sessionId } = signedInUser(ctx);
-  await ctx.db
-    .delete(session)
-    .where(and(eq(session.id, sessionId), eq(session.userId, userId)));
-  await expireSessionCookie(ctx);
 }
