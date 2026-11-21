@@ -1,9 +1,9 @@
-// Recurring jobs: purges, reminders sweeps, reports. The VPS worker
-// registers each one as a pg-boss schedule in single-database mode (#61's
-// worker runtime); previews run none. Empty until a ticket adds one.
-// Something to do once, for one record, is an event with `availableAt`
-// instead (./emit.ts), so it also runs on previews and under the fake
-// clock.
+// Scheduled jobs: status flips, reminders, retention, nightly copies (#55).
+// The VPS worker registers each one as a pg-boss schedule in
+// single-database mode (#61's worker runtime); previews run none, and a
+// Seam 1 test calls `run(h.deps)` itself after moving the clock. Empty
+// until a ticket adds one. Work that follows one change goes through the
+// outbox instead (./emit.ts), with `availableAt` when it must wait.
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 

@@ -5,6 +5,11 @@
 // in the preview drain route and in the Seam 1 harness. Payloads hold ids
 // only, never personal data: rows stay here, and staff read failed ones.
 //
+// Retention: nothing deletes rows yet. Purging dispatched rows after a
+// while belongs to #114 (data inventory and retention jobs), or to a
+// SCHEDULES purge once the worker runs schedules. Failed rows stay until
+// staff resolve them.
+//
 // Loads under plain Node (drizzle-kit, the worker): relative imports only,
 // no "server-only".
 
@@ -65,7 +70,9 @@ export const outbox = pgTable(
     index("outbox_pending_available_at_idx")
       .on(table.availableAt)
       .where(sql`${table.status} = 'pending'`),
-    index("outbox_aggregate_idx").on(table.aggregateType, table.aggregateId),
+    index("outbox_failed_failed_at_idx")
+      .on(table.failedAt.desc())
+      .where(sql`${table.status} = 'failed'`),
     check("outbox_attempts_not_negative", sql`${table.attempts} >= 0`),
     check(
       "outbox_dispatched_at_when_dispatched",

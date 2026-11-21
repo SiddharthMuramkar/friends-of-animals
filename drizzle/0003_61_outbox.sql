@@ -22,4 +22,4 @@ CREATE TABLE "outbox" (
 );
 --> statement-breakpoint
 CREATE INDEX "outbox_pending_available_at_idx" ON "outbox" USING btree ("available_at") WHERE "outbox"."status" = 'pending';--> statement-breakpoint
-CREATE INDEX "outbox_aggregate_idx" ON "outbox" USING btree ("aggregate_type","aggregate_id");
+CREATE INDEX "outbox_failed_failed_at_idx" ON "outbox" USING btree ("failed_at" DESC NULLS LAST) WHERE "outbox"."status" = 'failed';
