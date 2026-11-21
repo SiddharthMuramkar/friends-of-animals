@@ -362,7 +362,8 @@ describe("analytics-bootstrap.sh bring-up", () => {
     const run = bringUp();
 
     expect(run).toMatchObject({ status: 0, stderr: "" });
-    expect(run.stdout.split("\n").slice(0, 2)).toEqual([
+    expect(run.stdout.split("\n").slice(0, 3)).toEqual([
+      `closed ${gateFile()}: Caddy answers stats.friendsofanimals.dev with 503`,
       `wrote ${join(root, "analytics.env")}`,
       "applied umami.sql on foa-pg-prod and reloaded its configuration",
     ]);
@@ -388,14 +389,14 @@ describe("analytics-bootstrap.sh bring-up", () => {
     expect(existsSync(gateFile())).toBe(true);
   });
 
-  it("closes the stats site before Umami starts, on a rerun too", () => {
+  it("closes the stats site before changing the database, on a rerun too", () => {
     writeFileSync(gateFile(), ""); // opened by an earlier run
 
     const run = bringUp();
 
     expect(run.status).toBe(0);
-    // A rerun may meet a fresh Umami database, seeded login and all.
-    expect(gateAtCalls().slice(1, 3)).toEqual(["closed", "closed"]);
+    // Umami may already be running and see the newly provisioned database.
+    expect(gateAtCalls()).toEqual(["closed", "closed", "closed"]);
     expect(existsSync(gateFile())).toBe(true);
   });
 
