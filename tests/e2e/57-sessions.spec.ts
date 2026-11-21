@@ -91,6 +91,8 @@ test("a member signs out of another device, then everywhere", async ({
   await expect(page.locator(":focus")).toContainText(
     "That device is signed out."
   );
+  // The router refresh can render the notice before the title is restored.
+  await expect(page).toHaveTitle("Your sessions · Friends of Animals");
   await expectAccessible(page, "/account/sessions after a sign-out");
   await expect(page).toHaveURL(/\/account\/sessions$/);
 

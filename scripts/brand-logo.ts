@@ -179,3 +179,111 @@ export function canvasSvg(
     `<g transform="translate(${round(x)} ${round(y)}) scale(${round(scale, 6)})">${markup}</g></svg>`
   );
 }
+
+/** Whole-pixel tile layout for one square icon size. */
+export interface PixelGrid {
+  /** The icon's width and height in pixels. */
+  size: number;
+  tileWidth: number;
+  tileHeight: number;
+  /** Pixels between neighbouring tiles. */
+  gap: number;
+  /**
+   * Hand-placed letters for sizes where the traced ones are too fine to read:
+   * one bitmap per tile ("X" is a white pixel), centred across the tile and
+   * `top` pixels below its top edge.
+   */
+  letters?: { top: number; bitmaps: readonly (readonly string[])[] };
+}
+
+/** Each icon size in favicon.ico and its whole-pixel layout. */
+export const FAVICON_GRIDS: readonly PixelGrid[] = [
+  {
+    size: 16,
+    tileWidth: 5,
+    tileHeight: 7,
+    gap: 0,
+    // At 16 and 24 px the traced letters are 3–5 px tall and blur away.
+    letters: {
+      top: 2,
+      bitmaps: [
+        ["XXX", "X..", "XX.", "X.."],
+        ["XXX", "X.X", "X.X", "XXX"],
+        [".X.", "X.X", "XXX", "X.X"],
+      ],
+    },
+  },
+  {
+    size: 24,
+    tileWidth: 7,
+    tileHeight: 10,
+    gap: 1,
+    letters: {
+      top: 4,
+      bitmaps: [
+        [".XXXX", ".X...", ".XXX.", ".X...", ".X..."],
+        // The ring, with a dot for the paw.
+        [".XXX.", "X...X", "X.X.X", "X...X", ".XXX."],
+        ["..X..", ".X.X.", "X...X", "XXXXX", "X...X"],
+      ],
+    },
+  },
+  { size: 32, tileWidth: 10, tileHeight: 15, gap: 1 },
+  { size: 48, tileWidth: 15, tileHeight: 22, gap: 1 },
+];
+
+/** White 1 px squares for the "X"s of a bitmap, one rect per run. */
+function bitmapRects(bitmap: readonly string[], left: number, top: number) {
+  return bitmap
+    .flatMap((row, y) =>
+      [...row.matchAll(/X+/g)].map(
+        (run) =>
+          `<rect x="${left + (run.index ?? 0)}" y="${top + y}" width="${run[0].length}" height="1"/>`
+      )
+    )
+    .join("");
+}
+
+/**
+ * The tiles alone (#17), hinted for one small icon size. Each tile, with its
+ * letter, is moved and scaled onto whole pixels: a few per cent at most, which
+ * nobody can see at 16–48 px. Without it the tile edges and gaps fall between
+ * pixels and the colours blur into each other.
+ */
+export function hintedTiles(
+  { inner, tiles, wordmarkElement }: Master,
+  { size, tileWidth, tileHeight, gap, letters }: PixelGrid
+): Artwork {
+  const row = 3 * tileWidth + 2 * gap;
+  if (row > size || tileHeight > size) {
+    throw new Error(`hintedTiles: the tiles don't fit in ${size} px`);
+  }
+  const left = Math.floor((size - row) / 2);
+  const top = Math.floor((size - tileHeight) / 2);
+  let art = inner.replace(wordmarkElement, "");
+  if (letters) art = art.replace(pathElement(inner, "letters"), "");
+  // Without ids, because the markup is repeated once per tile.
+  art = art.replace(/\sid="[^"]*"/g, "").trim();
+  const markup = tiles
+    .map((t, i) => {
+      const x = left + i * (tileWidth + gap);
+      const sx = round(tileWidth / t.width, 6);
+      const sy = round(tileHeight / t.height, 6);
+      const clip = `foa-tile-${size}-${i}`;
+      const bitmap = letters?.bitmaps[i];
+      return (
+        `<clipPath id="${clip}"><rect x="${t.x}" y="${t.y}" width="${t.width}" height="${t.height}"/></clipPath>` +
+        `<g transform="translate(${x} ${top}) scale(${sx} ${sy}) translate(${-t.x} ${-t.y})">` +
+        `<g clip-path="url(#${clip})">${art}</g></g>` +
+        (bitmap && letters
+          ? `<g fill="#FFF">${bitmapRects(
+              bitmap,
+              x + Math.floor((tileWidth - bitmap[0].length) / 2),
+              top + letters.top
+            )}</g>`
+          : "")
+      );
+    })
+    .join("");
+  return { markup, viewBox: { x: 0, y: 0, width: size, height: size } };
+}
