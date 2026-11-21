@@ -1,8 +1,8 @@
 name: CI
 
-# Lint, typecheck, format check and Vitest on every PR and on main. Any
-# failure fails the check. The Playwright journeys run in e2e.yml, once the
-# PR's Vercel preview is ready.
+# Lint, typecheck, format check, Vitest and a build with no database, on
+# every PR and on main. Any failure fails the check. The Playwright
+# journeys run in e2e.yml, once the PR's Vercel preview is ready.
 
 on:
   pull_request:
@@ -44,3 +44,24 @@ jobs:
       - name: Vitest
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm test
+
+  build:
+    name: Build without a database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: setup
+        uses: ./.github/actions/setup
+
+      # Pages must prerender with no database at all; check:build then checks
+      # the output. The variables are set to empty, not left unset.
+      - name: Build
+        env:
+          DATABASE_URL: ""
+          DIRECT_URL: ""
+          APP_ENV: local
+        run: pnpm build && pnpm check:build

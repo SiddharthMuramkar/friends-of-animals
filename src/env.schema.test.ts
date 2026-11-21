@@ -10,6 +10,7 @@ import {
 
 const DATABASE_URL = "postgres://foa:foa@localhost:5432/foa";
 const SITE = "https://shipped-it.dev";
+const SECRET = "0123456789abcdef0123456789abcdef";
 
 describe("parseEnv", () => {
   it("treats empty strings as unset", () => {
@@ -191,9 +192,107 @@ describe("envSchema", () => {
 
   it("only needs them on previews", () => {
     expect(
-      parseEnv(envSchema, { DATABASE_URL, APP_ENV: "staging", APP_URL: SITE })
-        .APP_ENV
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        APP_ENV: "staging",
+        APP_URL: SITE,
+        BETTER_AUTH_SECRET: SECRET,
+      }).APP_ENV
     ).toBe("staging");
+  });
+
+  it.each(["staging", "production"])(
+    "requires BETTER_AUTH_SECRET on %s",
+    (APP_ENV) => {
+      expect(() =>
+        parseEnv(envSchema, { DATABASE_URL, APP_ENV, APP_URL: SITE })
+      ).toThrow(/BETTER_AUTH_SECRET is not set[\s\S]*at BETTER_AUTH_SECRET/);
+    }
+  );
+
+  it("lets a local run or a preview go without BETTER_AUTH_SECRET", () => {
+    expect(parseEnv(envSchema, { DATABASE_URL }).BETTER_AUTH_SECRET).toBe(
+      undefined
+    );
+  });
+
+  it("refuses a BETTER_AUTH_SECRET shorter than 32 characters", () => {
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, BETTER_AUTH_SECRET: "short" })
+    ).toThrow(/at least 32 characters[\s\S]*at BETTER_AUTH_SECRET/);
+  });
+
+  it("reads CAPTURE_MAILBOX_TOKEN, which may be left out", () => {
+    expect(parseEnv(envSchema, { DATABASE_URL }).CAPTURE_MAILBOX_TOKEN).toBe(
+      undefined
+    );
+    expect(
+      parseEnv(envSchema, { DATABASE_URL, CAPTURE_MAILBOX_TOKEN: SECRET })
+        .CAPTURE_MAILBOX_TOKEN
+    ).toBe(SECRET);
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, CAPTURE_MAILBOX_TOKEN: "short" })
+    ).toThrow(/at least 32 characters[\s\S]*at CAPTURE_MAILBOX_TOKEN/);
+  });
+});
+
+describe("envSchema: error tracking", () => {
+  const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
+  const staging = {
+    DATABASE_URL,
+    APP_ENV: "staging",
+    APP_URL: SITE,
+    BETTER_AUTH_SECRET: SECRET,
+  };
+  const production = { ...staging, APP_ENV: "production" };
+
+  it("leaves NEXT_PUBLIC_SENTRY_DSN optional outside production", () => {
+    for (const appEnv of ["local", "preview", "staging"]) {
+      const config = parseEnv(envSchema, {
+        ...staging,
+        APP_ENV: appEnv,
+        VERCEL_GIT_COMMIT_REF: "map",
+      });
+      expect(config).not.toHaveProperty("NEXT_PUBLIC_SENTRY_DSN");
+    }
+    expect(
+      parseEnv(envSchema, { ...staging, NEXT_PUBLIC_SENTRY_DSN: DSN })
+    ).toHaveProperty("NEXT_PUBLIC_SENTRY_DSN", DSN);
+  });
+
+  it("fails the start on a malformed DSN without repeating it", () => {
+    const malformed = "https://secret-key-9f2c@o1.ingest.us.sentry.io/";
+    let message = "";
+    try {
+      parseEnv(envSchema, { ...staging, NEXT_PUBLIC_SENTRY_DSN: malformed });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toMatch(
+      /not a valid Sentry DSN[\s\S]*NEXT_PUBLIC_SENTRY_DSN/
+    );
+    expect(message).not.toContain("secret-key-9f2c");
+  });
+
+  it("requires NEXT_PUBLIC_SENTRY_DSN in production", () => {
+    expect(() => parseEnv(envSchema, production)).toThrow(
+      /NEXT_PUBLIC_SENTRY_DSN is not set/
+    );
+    expect(
+      parseEnv(envSchema, { ...production, NEXT_PUBLIC_SENTRY_DSN: DSN })
+    ).toHaveProperty("NEXT_PUBLIC_SENTRY_DSN", DSN);
+  });
+
+  it("is never needed by `next build`", () => {
+    expect(
+      parseEnv(buildEnvSchema, { APP_ENV: "production", APP_URL: SITE })
+    ).not.toHaveProperty("NEXT_PUBLIC_SENTRY_DSN");
+  });
+
+  it("keeps the commit the deployment was built from as the release", () => {
+    expect(
+      parseEnv(envSchema, { ...staging, VERCEL_GIT_COMMIT_SHA: "6f97d80" })
+    ).toHaveProperty("VERCEL_GIT_COMMIT_SHA", "6f97d80");
   });
 });
 
