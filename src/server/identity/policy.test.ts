@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createTestDb, type TestDb } from "@/test/db";
+import { FakeClock } from "@/test/fakes/clock";
 
 import { authorize, can } from "../access/can";
 import type { Action } from "../access/policies";
@@ -16,6 +17,7 @@ const user: Actor = {
   meta,
 };
 const system: Actor = { kind: "system", process: "seed" };
+const clock = new FakeClock();
 
 let db: TestDb;
 
@@ -29,7 +31,7 @@ afterEach(async () => {
 
 /** Whether `actor` may take `action`, by the platform policy. */
 async function allowed(actor: Actor, action: Action) {
-  return (await can({ db, actor }, action)).allowed;
+  return (await can({ db, clock, actor }, action)).allowed;
 }
 
 describe("can, for the identity use cases", () => {
@@ -66,9 +68,9 @@ describe("can, for the identity use cases", () => {
 describe("authorize, for the identity use cases", () => {
   it("throws forbidden when can() says no, and nothing when it says yes", async () => {
     await expect(
-      authorize({ db, actor: visitor }, "requestEmailCode")
+      authorize({ db, clock, actor: visitor }, "requestEmailCode")
     ).resolves.toEqual({ role: null });
-    const refused = authorize({ db, actor: visitor }, "getAccount");
+    const refused = authorize({ db, clock, actor: visitor }, "getAccount");
     await expect(refused).rejects.toBeInstanceOf(DomainError);
     await expect(refused).rejects.toMatchObject({ code: "forbidden" });
   });

@@ -10,3 +10,4 @@ export * from "./access";
 export * from "./audit";
 export * from "./outbox";
 export * from "./consent";
+export * from "./second-factor";
