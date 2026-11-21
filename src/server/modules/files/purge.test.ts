@@ -8,7 +8,10 @@ import { purgePreviewFiles } from "./purge";
 const BUCKET = "foa-files-nonprod";
 const FP = "0123abcd";
 
-/** Objects of two PR previews, a branch preview, staging and a local run. */
+/**
+ * Objects of two PR previews, a branch preview, staging and a local run,
+ * sorted as `FakeStorage.keys()` lists them.
+ */
 const KEYS = [
   "pr-12/test_upload/01938a00-0000-7000-8000-000000000001",
   "pr-12/quarantine/01938a00-0000-7000-8000-000000000002",
@@ -16,7 +19,7 @@ const KEYS = [
   "staging/test_upload/01938a00-0000-7000-8000-000000000004",
   "br-abcd1234/test_upload/01938a00-0000-7000-8000-000000000005",
   "local/test_upload/01938a00-0000-7000-8000-000000000006",
-];
+].sort();
 
 function world(appEnv: "local" | "preview" | "staging" | "production") {
   const storage = new FakeStorage(new FakeClock());
