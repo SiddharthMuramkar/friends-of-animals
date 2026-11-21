@@ -35,7 +35,68 @@ export type BrowserErrorTrackingInput = {
   loadSdk: () => Promise<BrowserSentrySdk>;
 };
 
+/**
+ * Default integrations the browser never runs: sessions and tracing send
+ * page views and timings, not errors (the tunnel drops them anyway).
+ */
+const DROPPED_INTEGRATIONS: ReadonlySet<string> = new Set([
+  "BrowserSession",
+  "BrowserTracing",
+  "Replay",
+  "ReplayCanvas",
+  "Feedback",
+]);
+
 /** Watches for errors and loads Sentry on the first one. */
-export function startBrowserErrorTracking(
-  _input: BrowserErrorTrackingInput
-): void {}
+export function startBrowserErrorTracking({
+  dsn,
+  target,
+  loadSdk,
+}: BrowserErrorTrackingInput): void {
+  if (!dsn) return;
+  const seen: unknown[] = [];
+  let loading: Promise<void> | undefined;
+
+  const stop = () => {
+    target.removeEventListener("error", onError);
+    target.removeEventListener("unhandledrejection", onRejection);
+  };
+
+  const start = async () => {
+    try {
+      const [{ errorTracking, sentryOptions }, sdk] = await Promise.all([
+        import("./config"),
+        loadSdk(),
+      ]);
+      const tracking = errorTracking({ dsn });
+      if (!tracking.enabled) return;
+      sdk.init({
+        // No hashUserId: the browser never sends a user. The tunnel
+        // replaces the environment with the server's APP_ENV.
+        ...sentryOptions(tracking),
+        tunnel: TUNNEL_PATH,
+        integrations: (defaults) =>
+          defaults.filter(({ name }) => !DROPPED_INTEGRATIONS.has(name)),
+      });
+      for (const error of seen.splice(0)) sdk.captureException(error);
+    } catch {
+      // No SDK, no reports: an error tracker must not cause errors.
+    } finally {
+      stop();
+    }
+  };
+
+  const capture = (error: unknown) => {
+    seen.push(error);
+    loading ??= start();
+  };
+  function onError(event: Event) {
+    capture("error" in event ? event.error : event);
+  }
+  function onRejection(event: Event) {
+    capture("reason" in event ? event.reason : event);
+  }
+
+  target.addEventListener("error", onError);
+  target.addEventListener("unhandledrejection", onRejection);
+}
