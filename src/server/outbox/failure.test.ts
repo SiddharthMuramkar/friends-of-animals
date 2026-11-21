@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_FAILURE_LENGTH, describeFailure } from "./failure";
 
+/** `from`, `from + 1`, …, `to`. */
+function range(from: number, to: number): number[] {
+  return Array.from({ length: to - from + 1 }, (_, index) => from + index);
+}
+
+/** The descriptions of these messages in which `leak` is found. */
+function leaking(messages: string[], leak: RegExp): string[] {
+  return messages
+    .map((message) => describeFailure(new Error(message)))
+    .filter((described) => leak.test(described));
+}
+
 describe("describeFailure", () => {
   it("names the error and keeps its message", () => {
     expect(describeFailure(new TypeError("Cannot read properties"))).toBe(
@@ -134,8 +146,8 @@ describe("describeFailure", () => {
   );
 
   it("hides an address that straddles the cut made before redacting", () => {
-    // Each [email] is shorter than the address it hides, so text after the
-    // first 4 × MAX_FAILURE_LENGTH characters can't reach the description.
+    // The cut made before redacting falls among the short addresses, far
+    // before meera's, so no part of hers may reach the description.
     const addresses = "a@b.in ".repeat(1000);
     const described = describeFailure(
       new Error(`${addresses}meera.iyer@example.test`)
@@ -143,5 +155,51 @@ describe("describeFailure", () => {
 
     expect(described).not.toContain("meera");
     expect(described).not.toContain("example");
+  });
+
+  // Only the start of a long message is redacted. Redacting shrinks a long
+  // URL query to ?[query] and an address to [email], which brings text from
+  // next to that cut into the description, so the cut must split no address
+  // or phone number: the part before it would no longer be recognised. Each
+  // test moves one across the cut, a character at a time.
+  const longQuery = `https://x.test/p?${"t".repeat(1560)}`;
+
+  it("hides every address of a long recipient list, wherever the cut falls", () => {
+    const recipients = range(10, 69)
+      .map((n) => `meera.iyer.parent.of.student${n}@school-district.example`)
+      .join(",");
+    const messages = range(1, 55).map(
+      (shift) => `Rejected${" ".repeat(shift)}recipients: ${recipients}`
+    );
+
+    expect(leaking(messages, /meera/)).toEqual([]);
+  });
+
+  it("hides an address that a long unbroken word carries across the cut", () => {
+    const messages = range(380, 420).map(
+      (length) => `${longQuery} ${"z".repeat(length)}meera.iyer@example.test`
+    );
+
+    expect(leaking(messages, /meera/)).toEqual([]);
+  });
+
+  it("keeps no digit of a phone number that straddles the cut", () => {
+    const messages = [
+      ...range(1940, 1980).map(
+        (length) =>
+          `https://x.test/p?${"t".repeat(length)} Call +91 98765 43210`
+      ),
+      ...range(380, 420).map(
+        (length) => `${longQuery} ${"z".repeat(length)}/098765-43210`
+      ),
+    ];
+
+    expect(leaking(messages, /\d/)).toEqual([]);
+  });
+
+  it("ends with … when the message was cut before redacting, however short the rest", () => {
+    expect(
+      describeFailure(new Error(`GET https://x.test/p?${"t".repeat(3000)} 403`))
+    ).toBe("Error: GET https://x.test/p?[query]…");
   });
 });

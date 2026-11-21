@@ -68,17 +68,49 @@ const LONGEST_ADDRESS = 64 + 1 + 253 + 1 + 63;
  */
 const REDACTED_LENGTH = 4 * MAX_FAILURE_LENGTH;
 
+// What EMAIL and PHONE match is one unbroken run of these characters ("%40"
+// included), so a cut where such a run stops splits neither.
+const ADDRESS_CHARACTER = /[^\s<>()[\]"',;:]/;
+const PHONE_CHARACTER = /[+\d -]/;
+
 /**
- * The first REDACTED_LENGTH characters. A word the cut splits is dropped if
- * it could be the start of an address; a longer one is cut where it is.
+ * Where to cut `text` instead of at `end`: at the start of the run of
+ * `character`s that `end` splits, if the run has a `sign` ("@" or "%40" for
+ * an address, a digit for a phone number) within LONGEST_ADDRESS characters
+ * of `end`. Otherwise at `end`, as nothing redacted can straddle it.
+ */
+function cutOutside(
+  text: string,
+  end: number,
+  character: RegExp,
+  sign: RegExp
+): number {
+  const inRun = (index: number) => character.test(text.charAt(index));
+  if (!inRun(end - 1) || !inRun(end)) return end;
+  let start = end - 1;
+  while (inRun(start - 1)) start--;
+  let stop = end + 1;
+  while (stop < end + LONGEST_ADDRESS && inRun(stop)) stop++;
+  const near = text.slice(Math.max(start, end - LONGEST_ADDRESS), stop);
+  return sign.test(near) ? start : end;
+}
+
+/**
+ * The first REDACTED_LENGTH characters of `text`, or fewer: the cut moves
+ * back until no address or phone number straddles it, since the part before
+ * it would no longer be recognised and would be kept. A long word with
+ * neither near the cut is cut where it is.
  */
 function head(text: string): string {
-  if (text.length <= REDACTED_LENGTH) return text;
-  const cut = text.slice(0, REDACTED_LENGTH);
-  const lastSpace = cut.search(/\s\S*$/);
-  return lastSpace >= REDACTED_LENGTH - LONGEST_ADDRESS
-    ? cut.slice(0, lastSpace)
-    : cut;
+  let end = Math.min(text.length, REDACTED_LENGTH);
+  let previous: number;
+  do {
+    // Moving out of one kind of run can land inside the other.
+    previous = end;
+    end = cutOutside(text, end, ADDRESS_CHARACTER, /@|%40/);
+    end = cutOutside(text, end, PHONE_CHARACTER, /\d/);
+  } while (end !== previous);
+  return text.slice(0, end);
 }
 
 /**
@@ -88,8 +120,10 @@ function head(text: string): string {
 export function describeFailure(error: unknown): string {
   // Redact before the final cut, so it never leaves part of an address
   // behind; only a bounded head is redacted, so this takes linear time.
-  const described = redact(head(raw(error)));
-  return described.length > MAX_FAILURE_LENGTH
+  const text = raw(error);
+  const kept = head(text);
+  const described = redact(kept);
+  return kept.length < text.length || described.length > MAX_FAILURE_LENGTH
     ? `${described.slice(0, MAX_FAILURE_LENGTH - 1)}…`
     : described;
 }
