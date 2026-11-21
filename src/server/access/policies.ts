@@ -5,6 +5,7 @@
 
 import { CONSENT_POLICY } from "../consent/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
+import { NOTIFICATIONS_POLICY } from "../notifications/policy";
 import { SETTINGS_POLICY } from "../settings/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
@@ -13,7 +14,8 @@ export const POLICY = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
   CONSENT_POLICY,
-  SETTINGS_POLICY
+  SETTINGS_POLICY,
+  NOTIFICATIONS_POLICY
 );
 
 export type Action = keyof typeof POLICY;

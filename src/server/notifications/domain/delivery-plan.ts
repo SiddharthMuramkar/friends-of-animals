@@ -18,17 +18,21 @@
 
 import type { MessageChannel } from "./channels";
 
-export type SuppressionReason =
+/** Why a wanted channel did not go out. The first that applies is kept. */
+export const SUPPRESSION_REASONS = [
   /** The user turned this channel off. */
-  | "preference_off"
+  "preference_off",
   /** The user withdrew consent to messages. */
-  | "consent_withdrawn"
+  "consent_withdrawn",
   /** The platform-wide SMS switch (`sms.enabled`) is off. */
-  | "sms_disabled"
+  "sms_disabled",
   /** The SMS template has no DLT template id, so operators would drop it. */
-  | "sms_unregistered"
+  "sms_unregistered",
   /** No email address, or no verified phone number. */
-  | "no_contact";
+  "no_contact",
+] as const;
+
+export type SuppressionReason = (typeof SUPPRESSION_REASONS)[number];
 
 export type DeliveryPlanInput = {
   /** The channels the event's route asks for. */
