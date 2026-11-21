@@ -7,7 +7,8 @@ CREATE TABLE "user" (
 	"image" text,
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
-	CONSTRAINT "user_email_unique" UNIQUE("email")
+	CONSTRAINT "user_email_unique" UNIQUE("email"),
+	CONSTRAINT "user_email_normalised" CHECK ("user"."email" = lower(btrim("user"."email")))
 );
 --> statement-breakpoint
 CREATE TABLE "captured_message" (
