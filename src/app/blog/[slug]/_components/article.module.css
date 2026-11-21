@@ -29,22 +29,26 @@
   }
 }
 
-/* Footnotes open in place: each reference button anchors its own popover.
-   Without anchor positioning, the popover keeps the browser's centred
-   default, which still works. The area spans the full width: a phone-width
-   note is wider than the space to one side of a reference, and an area it
-   overflows sideways never flips. It opens below, or above when below
-   would run off the screen. */
-@supports (anchor-name: --a) {
-  .ref {
-    anchor-name: var(--anchor);
-  }
-  .note {
-    position-anchor: var(--anchor);
-    position-area: bottom span-all;
-    position-try-fallbacks: flip-block;
-    inset: auto;
-    margin: 0.5rem 0;
+/* Keep the browser's centred popover on narrow or short screens so a note
+   can use the full viewport when it fits on neither side of its reference. */
+.note {
+  max-block-size: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 40rem) and (min-height: 32rem) {
+  @supports (position-area: block-end) {
+    .ref {
+      anchor-name: var(--anchor);
+    }
+    .note {
+      position-anchor: var(--anchor);
+      position-area: block-end span-all;
+      position-try-fallbacks: flip-block;
+      inset: auto;
+      margin: 0.5rem 0;
+    }
   }
 }
 
