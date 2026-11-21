@@ -8,6 +8,7 @@ import {
   competitionParams,
   filterTokens,
   fileRules,
+  isListedCompetitionSlug,
   primaryAction,
   timeline,
 } from "./view";
@@ -155,5 +156,48 @@ describe("competitionParams", () => {
   it("never lists drafts", () => {
     const draft = { ...open, slug: "draft-one", status: "DRAFT" } as const;
     expect(competitionParams([draft])).toEqual([{ slug: "__placeholder__" }]);
+  });
+});
+
+describe("isListedCompetitionSlug", () => {
+  /** A lookup over the published slugs that records what it was asked. */
+  function lookupOf(published: string[]) {
+    const asked: string[] = [];
+    const lookup = async (slug: string) => {
+      asked.push(slug);
+      return published.includes(slug);
+    };
+    return { asked, lookup };
+  }
+
+  it("is true for a published slug and false for one that isn't", async () => {
+    const { asked, lookup } = lookupOf(["kinder-skies"]);
+    expect(await isListedCompetitionSlug("kinder-skies", lookup)).toBe(true);
+    expect(await isListedCompetitionSlug("draft-one", lookup)).toBe(false);
+    expect(asked).toEqual(["kinder-skies", "draft-one"]);
+  });
+
+  it("decodes the path segment before looking it up", async () => {
+    const { asked, lookup } = lookupOf(["kinder-skies"]);
+    expect(await isListedCompetitionSlug("kinder%2Dskies", lookup)).toBe(true);
+    expect(asked).toEqual(["kinder-skies"]);
+  });
+
+  it("never asks about a malformed escape or a segment outside the slug pattern", async () => {
+    const { asked, lookup } = lookupOf(["kinder-skies"]);
+    for (const raw of [
+      "%E0%A4%A",
+      "%",
+      "",
+      "ab",
+      "Kinder-Skies",
+      "__placeholder__",
+      "kinder%2Fskies",
+      "kinder skies",
+      "a".repeat(81),
+    ]) {
+      expect(await isListedCompetitionSlug(raw, lookup), raw).toBe(false);
+    }
+    expect(asked).toEqual([]);
   });
 });
