@@ -228,3 +228,40 @@ describe("a delivery whose relay died mid-handler", () => {
     expect(await delivery(h)).toMatchObject({ status: "pending" });
   });
 });
+
+describe("a relay that runs past its lease", () => {
+  it("starts none of its batch's remaining deliveries once its lease has run out", async () => {
+    const h = await createHarness();
+    const first = await newMember(h);
+    h.clock.advance({ seconds: 1 });
+    const second = await newMember(h);
+    const startedBySlowRelay: string[] = [];
+    let firstSendStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      firstSendStarted = resolve;
+    });
+    let release!: () => void;
+    const slow: EmailSender = {
+      send: (message) => {
+        startedBySlowRelay.push(message.to);
+        if (startedBySlowRelay.length > 1) return Promise.resolve();
+        firstSendStarted();
+        return new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      },
+    };
+
+    // The slow relay claims both, and its first send outlasts the lease.
+    const slowRelay = drainOutbox({ ...h.deps, email: slow });
+    await started;
+    h.clock.advance(leaseMs);
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 2 });
+    release();
+
+    expect(await slowRelay).toEqual(NOTHING);
+    expect(startedBySlowRelay).toEqual([first.email]);
+    expect(h.email.inbox(first.email)).toHaveLength(1);
+    expect(h.email.inbox(second.email)).toHaveLength(1);
+  });
+});
