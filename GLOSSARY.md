@@ -102,6 +102,18 @@ One round of carrying out every delivery that is due: the worker does it all
 the time, a preview does it on request, and a Seam 1 test does it in process.
 _Avoid_: Flush, process the queue
 
+**Off-site copy**:
+The nightly copy of production's uploaded files from Cloudflare R2 to a
+Backblaze B2 bucket, because R2 keeps no old versions. A copy outlives its file
+by the retention window, so a file deleted by mistake can still be restored
+one at a time.
+_Avoid_: Backup (that is the database's pgBackRest backup), sync, mirror
+
+**Retention window**:
+How long the off-site copy keeps a file after it has gone from R2 (30 days
+unless set), counted from the first night the copy found it gone.
+_Avoid_: Grace period, TTL
+
 ## Engineering
 
 **Seed builder**:
