@@ -6,21 +6,10 @@
 // stay as the school's draft, and families hear nothing until the round is
 // decided again.
 //
-// Pure: no imports. The status unions below match the school round's and
-// the entries' machines, which own the full lists.
+// Pure: it imports only the round's and the entries' status types.
 
-type RoundStatus = "open" | "overdue" | "finalised" | "closed_on_behalf";
-
-type EntryStatus =
-  | "processing"
-  | "submitted"
-  | "rejected"
-  | "failed"
-  | "school_shortlisted"
-  | "not_shortlisted"
-  | "submitted_to_foa"
-  | "foa_verified"
-  | "sent_back";
+import type { EntryStatus } from "../../entries/domain/status";
+import type { SchoolRoundStatus as RoundStatus } from "./status";
 
 /** Statuses an entry can be in when its round is decided. */
 const BEFORE_DECISION: readonly EntryStatus[] = [

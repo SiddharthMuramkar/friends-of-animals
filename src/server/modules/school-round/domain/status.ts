@@ -26,10 +26,25 @@ export const SCHOOL_ROUND_TRANSITIONS: readonly Transition[] = [
   // One round per confirmed institution registration, opened when the
   // competition enters school judging.
   { from: null, to: "open" },
+  // The shortlist deadline passed before the school finalised. Nothing
+  // finalises it automatically: the school can still finalise late, or a
+  // competition manager closes it on the school's behalf.
+  { from: "open", to: "overdue" },
+  { from: "overdue", to: "finalised" },
+  { from: "overdue", to: "closed_on_behalf" },
+  // A competition manager reopens a decided round during school judging:
+  // open before the shortlist deadline, overdue after it.
+  { from: "finalised", to: "open" },
+  { from: "finalised", to: "overdue" },
+  { from: "closed_on_behalf", to: "open" },
+  { from: "closed_on_behalf", to: "overdue" },
 ];
 
-/** Statuses in which the coordinator may still change panel and picks. */
-const EDITABLE_STATUSES: readonly SchoolRoundStatus[] = ["open"];
+/**
+ * Statuses in which the coordinator may still change panel and picks. An
+ * overdue round stays editable, so the school can still finish it late.
+ */
+const EDITABLE_STATUSES: readonly SchoolRoundStatus[] = ["open", "overdue"];
 
 export function canTransitionSchoolRound(
   from: SchoolRoundStatus | null,

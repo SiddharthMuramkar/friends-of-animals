@@ -55,7 +55,8 @@ export type EntryTrigger =
   | "file_live"
   | "file_infected"
   | "file_failed"
-  | "upload_retried";
+  | "upload_retried"
+  | "round_reopened";
 
 export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   { from: null, to: "processing", trigger: "upload_completed" },
@@ -64,6 +65,19 @@ export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   { from: "processing", to: "failed", trigger: "file_failed" },
   { from: "rejected", to: "processing", trigger: "upload_retried" },
   { from: "failed", to: "processing", trigger: "upload_retried" },
+  // A competition manager reopens the entry's decided school round: the
+  // entry goes back to where it was before the decision (an entry then
+  // processing whose file has gone live since comes back submitted).
+  { from: "submitted_to_foa", to: "submitted", trigger: "round_reopened" },
+  {
+    from: "submitted_to_foa",
+    to: "school_shortlisted",
+    trigger: "round_reopened",
+  },
+  { from: "not_shortlisted", to: "processing", trigger: "round_reopened" },
+  { from: "not_shortlisted", to: "submitted", trigger: "round_reopened" },
+  { from: "not_shortlisted", to: "rejected", trigger: "round_reopened" },
+  { from: "not_shortlisted", to: "failed", trigger: "round_reopened" },
 ];
 
 export type EntryFileTrigger =

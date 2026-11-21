@@ -17,6 +17,18 @@ const ALLOWED: readonly (readonly [
 ])[] = [
   // Opened when the competition enters school judging.
   [null, "open"],
+  // The shortlist deadline passed before the school finalised.
+  ["open", "overdue"],
+  // The school finalises late, or a competition manager closes the round
+  // on its behalf.
+  ["overdue", "finalised"],
+  ["overdue", "closed_on_behalf"],
+  // A competition manager reopens a decided round: open before the
+  // shortlist deadline, overdue after it.
+  ["finalised", "open"],
+  ["finalised", "overdue"],
+  ["closed_on_behalf", "open"],
+  ["closed_on_behalf", "overdue"],
 ];
 
 const FROM: readonly (SchoolRoundStatus | null)[] = [
@@ -70,24 +82,27 @@ describe("school round status machine", () => {
 
   it("names both ends of a forbidden transition", () => {
     try {
-      assertSchoolRoundTransition("finalised", "open");
-      expect.unreachable("finalised -> open is forbidden");
+      assertSchoolRoundTransition("open", "closed_on_behalf");
+      expect.unreachable("open -> closed_on_behalf is forbidden");
     } catch (error) {
       expect(error).toBeInstanceOf(SchoolRoundTransitionError);
       const refused = error as SchoolRoundTransitionError;
-      expect(refused.from).toBe("finalised");
-      expect(refused.to).toBe("open");
-      expect(refused.message).toContain("finalised -> open");
+      expect(refused.from).toBe("open");
+      expect(refused.to).toBe("closed_on_behalf");
+      expect(refused.message).toContain("open -> closed_on_behalf");
     }
   });
 });
 
 describe("isSchoolRoundEditable()", () => {
-  it("lets the coordinator change an open round", () => {
-    expect(isSchoolRoundEditable("open")).toBe(true);
-  });
+  it.each(["open", "overdue"] as const)(
+    "lets the coordinator change an %s round",
+    (status) => {
+      expect(isSchoolRoundEditable(status)).toBe(true);
+    }
+  );
 
-  it.each(["overdue", "finalised", "closed_on_behalf"] as const)(
+  it.each(["finalised", "closed_on_behalf"] as const)(
     "keeps a %s round as it is",
     (status) => {
       expect(isSchoolRoundEditable(status)).toBe(false);

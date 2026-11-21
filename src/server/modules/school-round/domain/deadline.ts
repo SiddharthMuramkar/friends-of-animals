@@ -8,10 +8,10 @@
 // over from a deadline that has since moved does nothing, as competition
 // status jobs do.
 //
-// Pure: no imports. The status union below matches the school round's
-// machine, which owns the full list.
+// Pure: it imports only the round's status type, so the schema and the
+// worker can load it.
 
-type RoundStatus = "open" | "overdue" | "finalised" | "closed_on_behalf";
+import type { SchoolRoundStatus as RoundStatus } from "./status";
 
 const FINISHED: readonly RoundStatus[] = ["finalised", "closed_on_behalf"];
 

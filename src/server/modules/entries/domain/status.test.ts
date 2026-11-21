@@ -21,6 +21,14 @@ const ALLOWED_ENTRY_MOVES: ReadonlyArray<[EntryStatus | null, EntryStatus]> = [
   ["processing", "failed"],
   ["rejected", "processing"],
   ["failed", "processing"],
+  // Reopening a decided school round puts each entry back where it was
+  // before the decision.
+  ["submitted_to_foa", "submitted"],
+  ["submitted_to_foa", "school_shortlisted"],
+  ["not_shortlisted", "processing"],
+  ["not_shortlisted", "submitted"],
+  ["not_shortlisted", "rejected"],
+  ["not_shortlisted", "failed"],
 ];
 
 const ALLOWED_FILE_MOVES: ReadonlyArray<
