@@ -40,6 +40,9 @@ const SDK_PROCESS_HANDLERS = new Set([
   "OnUnhandledRejection",
 ]);
 
+/** Versions that name no commit: a local run, an image built without one. */
+const NO_COMMIT = new Set(["dev", "unknown"]);
+
 export type WorkerSentryOptions = SentryOptions & {
   integrations: <T extends { name: string }>(defaults: T[]) => T[];
 };
@@ -70,8 +73,8 @@ export type StartWorkerErrorsInput = {
   dsn: string | undefined;
   /** APP_ENV, which every event carries as its environment. */
   appEnv: string;
-  /** The commit the worker runs (WORKER_VERSION), when known. */
-  release?: string | undefined;
+  /** WORKER_VERSION: the commit, or "dev" / "unknown" when there is none. */
+  version?: string | undefined;
   /** Loads the SDK. Called only when a DSN is set. */
   loadSdk: () => Promise<WorkerSentrySdk>;
   log: ErrorLog;
@@ -85,10 +88,12 @@ export type StartWorkerErrorsInput = {
 export async function startWorkerErrors({
   dsn,
   appEnv,
-  release,
+  version,
   loadSdk,
   log,
 }: StartWorkerErrorsInput): Promise<WorkerErrors> {
+  const release =
+    version === undefined || NO_COMMIT.has(version) ? undefined : version;
   const tracking = errorTracking({ dsn, appEnv, release });
   let reporter: ErrorReporter = silentErrorReporter;
   if (tracking.enabled) {
