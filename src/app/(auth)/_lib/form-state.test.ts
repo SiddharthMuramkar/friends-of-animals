@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { afterRequest, afterVerify, START } from "./form-state";
+import { afterFailure, afterRequest, afterVerify, START } from "./form-state";
 
 const asha = { email: "asha@example.test", name: "Asha Rao" };
 
@@ -33,6 +33,46 @@ describe("afterRequest", () => {
       ...asha,
       alert: "rate_limited",
       retryAfterMinutes: 2,
+    });
+  });
+});
+
+describe("afterRequest, for a new code asked for on the code step", () => {
+  it("stays on the code step when it is refused: the last code still works", () => {
+    expect(
+      afterRequest(
+        { ok: false, error: "rate_limited", retryAfterSeconds: 600 },
+        asha,
+        "code"
+      )
+    ).toEqual({
+      step: "code",
+      ...asha,
+      alert: "rate_limited",
+      retryAfterMinutes: 10,
+    });
+  });
+
+  it("moves on to the code, as from the email step, once it is sent", () => {
+    expect(afterRequest({ ok: true }, asha, "code")).toEqual({
+      step: "code",
+      ...asha,
+      sent: true,
+    });
+  });
+});
+
+describe("afterFailure", () => {
+  it("stays on the step the form was showing", () => {
+    expect(afterFailure("code", asha)).toEqual({
+      step: "code",
+      ...asha,
+      alert: "failed",
+    });
+    expect(afterFailure("email", asha)).toEqual({
+      step: "email",
+      ...asha,
+      alert: "failed",
     });
   });
 });

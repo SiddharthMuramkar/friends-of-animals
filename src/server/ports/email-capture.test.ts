@@ -90,6 +90,28 @@ describe("readCapturedEmail", () => {
     expect(latest.map((message) => message.subject)).toEqual(["3", "2"]);
   });
 
+  it("fails with no address in the error", async () => {
+    const db = await createTestDb();
+    const clock = new FakeClock();
+    await db.$client.exec(
+      'ALTER TABLE "captured_message" RENAME TO "captured_message_gone"'
+    );
+
+    const error: unknown = await readCapturedEmail(
+      { db, clock },
+      { to: "asha@example.test" }
+    ).then(
+      () => null,
+      (failure: unknown) => failure
+    );
+
+    expect(error).toBeInstanceOf(Error);
+    expect(inspect(error, { depth: 10, showHidden: true })).not.toContain(
+      "asha@example.test"
+    );
+    expect(error).toMatchObject({ code: "42P01" });
+  });
+
   it("leaves out messages past the week, even before a send drops them", async () => {
     const db = await createTestDb();
     const clock = new FakeClock();
