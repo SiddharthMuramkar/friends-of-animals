@@ -42,6 +42,10 @@ export const identityUseCases = (ctx: UseCaseContext) => ({
   requestPhoneCode: (input: RequestPhoneCodeInput) =>
     requestPhoneCode(ctx, input),
   verifyPhoneCode: (input: VerifyPhoneCodeInput) => verifyPhoneCode(ctx, input),
+  // Not built yet: ./phone-limits.test.ts describes it.
+  signInMethods: async (): Promise<never> => {
+    throw new Error("not built yet");
+  },
   getAccount: () => getAccount(ctx),
   listSessions: () => listSessions(ctx),
   signOutSession: (input: SignOutSessionInput) => signOutSession(ctx, input),
