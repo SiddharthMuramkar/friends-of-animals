@@ -13,13 +13,6 @@
       "body": "Your account doesn't have the content manager role. A super admin can give it to you.",
       "back": "Back to the home page"
     },
-    "secondFactor": {
-      "title": "Enter your second step first",
-      "enrolment_required": "Your staff role needs a second step. Add an authenticator app or a passkey, then open this page again.",
-      "second_factor_required": "Staff pages need a code from your authenticator app, or your passkey, once each time you sign in. Enter your second step, then open this page again.",
-      "step_up_required": "This needs a fresh second step. Enter your second step again, then open this page again.",
-      "back": "Back to your account"
-    },
     "listTitle": "Templates",
     "sentWhen": "Sent when {events}",
     "notSent": "No event sends it yet.",
@@ -59,12 +52,7 @@
       "unchanged": "Nothing changed.",
       "stale": "Someone saved a newer version while you were editing. Reload the page to see it, then make your change again.",
       "invalid": "Check the message and try again.",
-      "refused": {
-        "forbidden": "Only content managers and super admins can edit templates.",
-        "enrolment_required": "Your staff role needs a second step. Add an authenticator app or a passkey, then save again.",
-        "second_factor_required": "Enter your second step for this session first, then save again.",
-        "step_up_required": "This change needs a fresh second step. Enter your second step again, then save again."
-      },
+      "forbidden": "Only content managers and super admins can edit templates.",
       "preview": "Preview",
       "previewHint": "With sample values, as last saved.",
       "changed": "Version {version}, saved {date} by {name}",

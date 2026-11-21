@@ -11,9 +11,10 @@ import { Section } from "@/components/site/section";
 import { messages } from "@/i18n/messages";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { secondFactorPath } from "@/lib/second-factor-routes";
 import { as, currentActor } from "@/server/app";
 
-import { Refused } from "./_components/refused";
+import { Denied } from "./_components/denied";
 import { nameOr, type NameTree } from "./_lib/labels";
 import { unlessRefused } from "./_lib/refusal";
 
@@ -55,7 +56,12 @@ async function Templates() {
     getTranslations("adminTemplates"),
     unlessRefused(() => as(actor).listMessageTemplates()),
   ]);
-  if (!loaded.ok) return <Refused refusal={loaded.refusal} className="mt-8" />;
+  if (!loaded.ok) {
+    // Staff short of their second step enter it, then come back (#60).
+    const lift = secondFactorPath(loaded.refusal, APP_ROUTES.adminTemplates);
+    if (lift) redirect(lift);
+    return <Denied className="mt-8" />;
+  }
   const templates = loaded.value;
 
   const eventNames: NameTree = messages.adminTemplates.events;

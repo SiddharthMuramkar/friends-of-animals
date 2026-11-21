@@ -13,6 +13,7 @@ import { placeholderFor } from "@/server/modules/notifications/preview";
 import { unlessRefused } from "../../_lib/refusal";
 import {
   refusedFormState,
+  secondStepRedirect,
   templateFormState,
   type TemplateFormState,
 } from "./form-state";
@@ -31,7 +32,8 @@ const form = z.object({
  * authorizes (content managers and super admins, with this session's
  * second step, #60) and checks the wording; this maps its answer to what
  * the form shows, then refreshes the page so its preview and version line
- * follow.
+ * follow. A refusal for want of a second step sends the user to enter it,
+ * then back here to save again.
  */
 export async function saveTemplateAction(
   previous: TemplateFormState,
@@ -54,8 +56,10 @@ export async function saveTemplateAction(
     })
   );
   if (!outcome.ok) {
-    const tr = await getTranslations("adminTemplates.editor.refused");
-    return refusedFormState({ version }, submitted, tr(outcome.refusal));
+    const lift = secondStepRedirect(outcome.refusal, key);
+    if (lift) redirect(lift);
+    const te = await getTranslations("adminTemplates.editor");
+    return refusedFormState({ version }, submitted, te("forbidden"));
   }
   const result = outcome.value;
   const t = await getTranslations("adminTemplates.editor.problems");

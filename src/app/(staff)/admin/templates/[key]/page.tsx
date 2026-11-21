@@ -16,10 +16,11 @@ import {
   renderTemplateWith,
 } from "@/server/modules/notifications/preview";
 
-import { Refused } from "../_components/refused";
+import { Denied } from "../_components/denied";
 import { lookupName, nameOr, type NameTree } from "../_lib/labels";
 import { unlessRefused } from "../_lib/refusal";
 import { TemplateForm } from "./_components/template-form";
+import { secondStepRedirect } from "./_lib/form-state";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("adminTemplates.editor.meta");
@@ -62,6 +63,11 @@ async function Editor({ params }: { params: Params }) {
   ]);
   const back = { href: APP_ROUTES.adminTemplates, label: t("editor.back") };
 
+  if (!result.ok) {
+    // Staff short of their second step enter it, then come back (#60).
+    const lift = secondStepRedirect(result.refusal, key);
+    if (lift) redirect(lift);
+  }
   if (!result.ok || !result.value.ok) {
     return (
       <>
@@ -75,7 +81,7 @@ async function Editor({ params }: { params: Params }) {
             {null}
           </ExplainState>
         ) : (
-          <Refused refusal={result.refusal} className="mt-8" />
+          <Denied className="mt-8" />
         )}
       </>
     );

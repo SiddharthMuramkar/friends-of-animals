@@ -2,6 +2,9 @@
 // field at fault, and the submitted values so nothing typed is lost. Pure,
 // so the action stays small; messages arrive already translated.
 
+import { APP_ROUTES } from "@/lib/app-routes";
+import { secondFactorPath } from "@/lib/second-factor-routes";
+import type { DomainErrorCode } from "@/server/errors";
 import type {
   RevisionProblem,
   UpdateMessageTemplateResult,
@@ -73,9 +76,8 @@ export function templateFormState(
 }
 
 /**
- * A save the use case refused: the actor isn't a content manager, or is
- * staff who hasn't passed this session's second factor (#60). Says why
- * and keeps what was typed.
+ * A save the use case refused and no second step can lift (the actor
+ * isn't a content manager): says why and keeps what was typed.
  */
 export function refusedFormState(
   before: { version: number },
@@ -89,4 +91,19 @@ export function refusedFormState(
     values: submitted,
     message,
   };
+}
+
+/**
+ * Where a save refused for want of a second step sends the user: to add,
+ * enter or renew it (#60), then back to this template's editor to save
+ * again. Null for a refusal no second step can lift, which the form says.
+ */
+export function secondStepRedirect(
+  refusal: DomainErrorCode,
+  key: string
+): string | null {
+  return secondFactorPath(
+    refusal,
+    `${APP_ROUTES.adminTemplates}/${encodeURIComponent(key)}`
+  );
 }
