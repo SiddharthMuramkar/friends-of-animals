@@ -3,10 +3,12 @@
 
 import type { DbWithClock } from "../db/app-db";
 import { emit } from "./emit";
-import type { DomainEvent } from "./events";
+import type { EventOf } from "./events";
 
 /** identity.user_signed_up for `userId`, as sign-up emits it. */
-export function userSignedUp(userId: string): DomainEvent {
+export function userSignedUp(
+  userId: string
+): EventOf<"identity.user_signed_up"> {
   return {
     type: "identity.user_signed_up",
     aggregate: { type: "user", id: userId },
