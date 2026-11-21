@@ -12,9 +12,15 @@
 // fakes, so tests share nothing. Tickets that add a port append its fake
 // here and in src/server/deps.ts. See docs/agents/seam-1.md.
 
+import { randomBytes } from "node:crypto";
 import { onTestFinished, vi } from "vitest";
 
 import { createApp, type UseCases } from "@/server/app";
+import {
+  createBlindIndex,
+  type BlindIndexKey,
+} from "@/server/crypto/blind-index";
+import { createFieldCipher } from "@/server/crypto/field-cipher";
 import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
@@ -87,7 +93,19 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const cookies = new FakeCookieJar(clock);
-  const deps: Deps = { db, clock, email, cookies, auth: TEST_AUTH };
+  const deps: Deps = {
+    db,
+    clock,
+    email,
+    cookies,
+    auth: TEST_AUTH,
+    // Fresh keys per harness, as a deployment has its own.
+    cipher: createFieldCipher({
+      primary: 1,
+      keys: new Map([[1, randomBytes(32)]]),
+    }),
+    blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
+  };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
     ...DEFAULT_META,

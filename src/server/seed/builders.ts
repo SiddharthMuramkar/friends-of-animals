@@ -3,8 +3,7 @@
 // union, so that file holds only import and list lines. Loads under plain
 // Node: relative imports only, no "server-only".
 
-import type { User } from "../db/schema";
-import { ensureAccount } from "./identity";
+import { ensureAccount, seedPhone, type SeededUser } from "./identity";
 import type { SeedDeps, Seeder } from "./types";
 
 const MEMBER_NAMES = [
@@ -25,7 +24,7 @@ export function seedFunctions(seeders: readonly Seeder[]) {
    */
   async function seedPreview(deps: SeedDeps): Promise<void> {
     await deps.db.transaction(async (tx) => {
-      for (const seed of seeders) await seed({ db: tx, clock: deps.clock });
+      for (const seed of seeders) await seed({ ...deps, db: tx });
     });
   }
 
@@ -33,13 +32,20 @@ export function seedFunctions(seeders: readonly Seeder[]) {
   function createSeedBuilders(deps: SeedDeps) {
     let members = 0;
     return {
-      /** A verified account. Pass `email` or `name` to choose them. */
-      member(details: { name?: string; email?: string } = {}): Promise<User> {
+      /**
+       * A verified account. Pass `email` or `name` to choose them, and
+       * `phone` (an Indian mobile, typed any usual way) to give it one.
+       */
+      async member(
+        details: { name?: string; email?: string; phone?: string } = {}
+      ): Promise<SeededUser> {
         members += 1;
         return ensureAccount(deps, {
           name:
             details.name ?? MEMBER_NAMES[(members - 1) % MEMBER_NAMES.length]!,
           email: details.email ?? `test-member-${members}@example.test`,
+          phone:
+            details.phone === undefined ? undefined : seedPhone(details.phone),
         });
       },
       /** Everything `pnpm db:seed` puts in a preview database. */

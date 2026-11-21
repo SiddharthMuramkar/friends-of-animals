@@ -7,7 +7,8 @@ import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { authorize } from "./policy";
 
-export type Account = { name: string; email: string };
+/** `email` is null for an account made by phone. */
+export type Account = { name: string; email: string | null };
 
 /** The signed-in user; `authorize` has ruled out other actors. */
 export function signedInUser(ctx: UseCaseContext) {

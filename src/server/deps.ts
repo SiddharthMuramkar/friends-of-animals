@@ -1,14 +1,17 @@
 // What use cases run against: the database, the clock and the provider
 // ports. `productionDeps()` wires the real ones for server actions and route
 // handlers; the Seam 1 harness (src/test/harness.ts) wires PGlite, a fake
-// clock and in-memory fakes. Later ports (SMS #58, jobs #61, storage #63)
-// are appended here and in the harness by the ticket that adds them.
+// clock and in-memory fakes. Later ports (jobs #61, storage #63) are
+// appended here and in the harness by the ticket that adds them.
 
 import "server-only";
 
 import { env } from "@/env";
 import type { Env } from "@/env.schema";
 
+import type { BlindIndex } from "./crypto/blind-index";
+import type { FieldCipher } from "./crypto/field-cipher";
+import { fieldCryptoFor } from "./crypto/keys";
 import { db } from "./db";
 import type { DbWithClock } from "./db/app-db";
 import { systemClock } from "./ports/clock";
@@ -23,6 +26,10 @@ export interface Deps extends DbWithClock {
   cookies: CookieJar;
   /** Better Auth's secret and the site's base URL. */
   auth: { secret: string; baseUrl: string };
+  /** Encrypts personal-data columns (a user's phone). */
+  cipher: FieldCipher;
+  /** Keyed hashes to find rows by an encrypted value. */
+  blindIndex: BlindIndex;
 }
 
 /**
@@ -62,6 +69,7 @@ export function productionDeps(): Deps {
         secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
         baseUrl: config.APP_URL,
       },
+      ...fieldCryptoFor(config),
     };
   }
   return production;
