@@ -62,4 +62,22 @@ describe("EVENT_PAYLOADS", () => {
       "details",
     ]);
   });
+
+  it("would refuse a payload that keeps keys it doesn't declare", () => {
+    const declared = { userId: z.uuid() };
+
+    for (const loose of [
+      z.looseObject(declared),
+      z.object(declared).catchall(z.string()),
+      z.object(declared).catchall(z.uuid()),
+    ]) {
+      expect(fieldsThatMayCarryPersonalData(loose)).toEqual([
+        "(undeclared keys)",
+      ]);
+    }
+    expect(fieldsThatMayCarryPersonalData(z.object(declared))).toEqual([]);
+    expect(fieldsThatMayCarryPersonalData(z.strictObject(declared))).toEqual(
+      []
+    );
+  });
 });
