@@ -186,6 +186,11 @@ describe("changeSetting", () => {
   it.each([
     { value: 0, problem: { reason: "too_small", min: 1 } },
     { value: 25, problem: { reason: "too_big", max: 24 } },
+    // Past 2^53, zod's own safe-integer bound fails too; the setting's
+    // bound is still the one to report.
+    { value: 2 ** 53, problem: { reason: "too_big", max: 24 } },
+    { value: 1e20, problem: { reason: "too_big", max: 24 } },
+    { value: -1e20, problem: { reason: "too_small", min: 1 } },
     { value: 1.5, problem: { reason: "wrong_type" } },
     { value: "12", problem: { reason: "wrong_type" } },
     { value: null, problem: { reason: "wrong_type" } },
