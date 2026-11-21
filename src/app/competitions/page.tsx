@@ -118,20 +118,20 @@ async function OpenCompetitions() {
 async function OpenCompetitionsFallback() {
   const t = await getTranslations("competitions.list");
   return (
-    <div role="status" className="mt-8">
+    <output className="mt-8 block">
       <span className="sr-only">{t("loading")}</span>
-      <div
+      <span
         aria-hidden="true"
         className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
       >
         {[0, 1, 2].map((i) => (
-          <div
+          <span
             key={i}
-            className="h-96 rounded-3xl border-2 border-border bg-surface-muted motion-safe:animate-pulse"
+            className="block h-96 rounded-3xl border-2 border-border bg-surface-muted motion-safe:animate-pulse"
           />
         ))}
-      </div>
-    </div>
+      </span>
+    </output>
   );
 }
 

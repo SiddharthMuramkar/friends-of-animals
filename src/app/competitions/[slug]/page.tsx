@@ -128,13 +128,13 @@ export default function Page(props: PageProps<"/competitions/[slug]">) {
 async function DetailFallback() {
   const t = await getTranslations("competitions.detail");
   return (
-    <div role="status" className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
+    <output className="mx-auto block max-w-7xl px-4 py-16 sm:px-6">
       <span className="sr-only">{t("loading")}</span>
-      <div aria-hidden="true" className="grid max-w-xl gap-4">
-        <div className="h-8 w-32 rounded-full bg-surface-muted" />
-        <div className="h-14 rounded-2xl bg-surface-muted" />
-        <div className="h-24 rounded-2xl bg-surface-muted" />
-      </div>
-    </div>
+      <span aria-hidden="true" className="grid max-w-xl gap-4">
+        <span className="block h-8 w-32 rounded-full bg-surface-muted" />
+        <span className="block h-14 rounded-2xl bg-surface-muted" />
+        <span className="block h-24 rounded-2xl bg-surface-muted" />
+      </span>
+    </output>
   );
 }
