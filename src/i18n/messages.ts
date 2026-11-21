@@ -10,6 +10,7 @@ import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
 import competitionStatus from "../../messages/en-IN/competitionStatus.json";
+import competitionTerms from "../../messages/en-IN/competitionTerms.json";
 import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
 import donate from "../../messages/en-IN/donate.json";
@@ -38,6 +39,7 @@ export const NAMESPACES = [
   "common",
   "competitions",
   "competitionStatus",
+  "competitionTerms",
   "contact",
   "credits",
   "donate",
@@ -70,6 +72,7 @@ export const messages = {
   ...common,
   ...competitions,
   ...competitionStatus,
+  ...competitionTerms,
   ...contact,
   ...credits,
   ...donate,
