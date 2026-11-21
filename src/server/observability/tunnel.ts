@@ -106,5 +106,8 @@ export async function handleTunnelRequest(
     const value = upstream.headers.get(name);
     if (value !== null) passed[name] = value;
   }
+  // Only the status and headers go back: free the connection. Not
+  // awaited, since a cancel can wait on other readers of the body.
+  upstream.body?.cancel().catch(() => {});
   return answer(upstream.status, passed);
 }
