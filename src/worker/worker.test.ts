@@ -64,7 +64,11 @@ function singleConfig(
 /** worker-media: production's media queue, 90 s a job. */
 const MEDIA_CONFIG: WorkerConfig = {
   ...singleConfig("production"),
-  identity: { worker: "worker-media", environment: "production", version: "dev" },
+  identity: {
+    worker: "worker-media",
+    environment: "production",
+    version: "dev",
+  },
   queue: { name: "media", timeoutSeconds: 90 },
 };
 
@@ -391,7 +395,7 @@ describe("worker-media", () => {
     const [fileId] = await cleanImages(h);
     const member = await h.seed.member();
     await emitUserSignedUp(h, member.id);
-    const { io } = fakeIo({ foa: h.db }, [], {
+    const { io, record } = fakeIo({ foa: h.db }, [], {
       storage: h.storage,
       media: h.media,
     });
@@ -403,7 +407,10 @@ describe("worker-media", () => {
 
     expect(
       await h.db
-        .select({ file: fileProcessing.fileAssetId, status: fileProcessing.status })
+        .select({
+          file: fileProcessing.fileAssetId,
+          status: fileProcessing.status,
+        })
         .from(fileProcessing)
     ).toEqual([{ file: fileId, status: "done" }]);
     expect(
@@ -412,6 +419,7 @@ describe("worker-media", () => {
         .from(fileDerivative)
         .orderBy(fileDerivative.kind)
     ).toEqual([{ kind: "display_1600" }, { kind: "thumb_320" }]);
+    expect(record.mediaMade).toEqual([{ timeoutSeconds: 90 }]);
     // The welcome email is the default workers' to send.
     expect(
       await h.db

@@ -71,24 +71,3 @@ export function derivativeKeyFor({
   }
   return `${prefix}derived/${fileId}/${kind}.webp`;
 }
-
-/**
- * The environment prefix of an original stored at `<prefix><purpose>/<id>`
- * (storage-key.ts), so its derivatives sit under the same one.
- */
-export function storagePrefixOf({
-  storageKey,
-  purpose,
-  id,
-}: {
-  storageKey: string;
-  purpose: FilePurpose;
-  id: string;
-}): string {
-  const suffix = `${purpose}/${id}`;
-  const prefix = storageKey.slice(0, -suffix.length);
-  if (!storageKey.endsWith(suffix) || !PREFIX.test(prefix)) {
-    throw new Error(`File ${id} isn't stored under its purpose`);
-  }
-  return prefix;
-}

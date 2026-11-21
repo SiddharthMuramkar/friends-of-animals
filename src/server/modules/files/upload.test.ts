@@ -190,6 +190,7 @@ function withFailingMove(storage: ObjectStorage): ObjectStorage {
     presignGet: (input) => storage.presignGet(input),
     head: (ref) => storage.head(ref),
     read: (ref) => storage.read(ref),
+    write: (input) => storage.write(input),
     move: () => Promise.reject(new Error("storage move failed")),
     delete: (ref) => storage.delete(ref),
     deletePrefix: (input) => storage.deletePrefix(input),

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { OutboxDeps, ScheduleDefinition } from "@/server/outbox";
+import { unconfiguredMedia } from "@/server/ports/media";
 import { FakeClock } from "@/test/fakes/clock";
 import { FakeEmail } from "@/test/fakes/email";
 import { FakeMalwareScanner } from "@/test/fakes/malware-scanner";
@@ -42,6 +43,7 @@ const deps = {
   email: new FakeEmail(clock),
   storage: new FakeStorage(clock),
   scanner: new FakeMalwareScanner(),
+  media: unconfiguredMedia,
 } satisfies OutboxDeps;
 
 function definition(

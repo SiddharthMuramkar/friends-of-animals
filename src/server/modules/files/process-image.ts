@@ -42,11 +42,8 @@ import {
   type MediaResult,
 } from "../../ports/media";
 import type { ObjectStorage } from "../../ports/storage";
-import {
-  derivativeKeyFor,
-  derivativeKindsFor,
-  storagePrefixOf,
-} from "./domain/media-work";
+import { derivativeKeyFor, derivativeKindsFor } from "./domain/media-work";
+import { storagePrefixOf } from "./domain/storage-key";
 
 export type MediaJobDeps = {
   db: AppDb;
@@ -87,15 +84,15 @@ export async function processImageAsset(
 ): Promise<void> {
   const file = await startJob(deps, payload.fileId);
   if (!file) return;
-  let result: MediaResult;
   try {
     const bytes = await readAll(
       await deps.storage.read({ bucket: file.bucket, key: file.storageKey })
     );
-    result = await deps.media.processImage({
+    const result = await deps.media.processImage({
       bytes,
       kinds: derivativeKindsFor(file),
     });
+    await storeDerivatives(deps, file, result);
   } catch (error) {
     if (error instanceof MediaError) {
       await finishFailed(deps, file.id, error.code);
@@ -106,7 +103,6 @@ export async function processImageAsset(
     }
     throw error;
   }
-  await storeDerivatives(deps, file, result);
 }
 
 /**

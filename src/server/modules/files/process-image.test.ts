@@ -283,6 +283,33 @@ describe("the media job", () => {
     ]);
   });
 
+  it("records a failed outcome when it can never write the derivatives", async () => {
+    const h = await world();
+    const { fileId } = await upload(h, "image/jpeg", JPEG);
+    h.storage.write = async () => {
+      throw new Error("The object store is unavailable");
+    };
+
+    for (
+      let attempt = 1;
+      attempt <= DEFAULT_RETRY_POLICY.maxAttempts;
+      attempt += 1
+    ) {
+      await h.drain();
+      h.clock.advance({ minutes: 30 });
+    }
+
+    expect(await processing(h, fileId)).toMatchObject({
+      status: "failed",
+      errorCode: "processing_error",
+      attempts: DEFAULT_RETRY_POLICY.maxAttempts,
+    });
+    expect(await derivatives(h, fileId)).toEqual([]);
+    expect(await mediaDeliveries(h)).toEqual([
+      { status: "failed", attempts: DEFAULT_RETRY_POLICY.maxAttempts },
+    ]);
+  });
+
   describe("the media queue", () => {
     it("is left alone by the default relay", async () => {
       const h = await world();

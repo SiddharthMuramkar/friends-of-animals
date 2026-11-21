@@ -77,6 +77,10 @@ COPY src ./src
 USER node
 CMD ["node", "--import", "tsx", "src/worker/main.ts"]
 
+# ---- worker-media: isolated image processing (#85) --------------------------
+FROM worker AS worker-media
+CMD ["node", "--import", "tsx", "src/worker-media/main.ts"]
+
 # ---- runner: the standalone server --------------------------------------------
 FROM ${NODE_IMAGE} AS runner
 # The same APP_ENV at runtime as the headers were built with.

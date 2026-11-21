@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  derivativeKeyFor,
-  derivativeKindsFor,
-  storagePrefixOf,
-} from "./media-work";
+import { derivativeKeyFor, derivativeKindsFor } from "./media-work";
+import { storagePrefixOf } from "./storage-key";
 
 const FILE_ID = "01938a00-0000-7000-8000-000000000001";
 

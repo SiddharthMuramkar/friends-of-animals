@@ -58,12 +58,15 @@ export type MediaErrorCode =
   /** It claims to be an image we take, but its pixels don't decode. */
   | "media_decode_failed"
   /** More pixels than the processor will decode (a decompression bomb). */
-  | "image_too_large";
+  | "image_too_large"
+  /** The media process ran past its deadline. */
+  | "media_timeout";
 
 export const MEDIA_ERROR_CODES = [
   "unsupported_type",
   "media_decode_failed",
   "image_too_large",
+  "media_timeout",
 ] as const satisfies readonly MediaErrorCode[];
 
 export class MediaError extends Error {
@@ -80,6 +83,7 @@ const MEDIA_ERROR_MESSAGES: Record<MediaErrorCode, string> = {
   unsupported_type: "The file is not an image type the platform processes",
   media_decode_failed: "The image could not be decoded",
   image_too_large: "The image has more pixels than the platform processes",
+  media_timeout: "The image took too long to process",
 };
 
 /** The most pixels an adapter decodes by default: 100 megapixels. */

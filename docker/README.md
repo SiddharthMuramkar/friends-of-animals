@@ -862,9 +862,17 @@ docker compose -f workers.yml up -d --force-recreate --wait --wait-timeout 480 \
 docker compose -f workers.yml ps foa-clamav foa-gotenberg
 ```
 
-The `media` profile is opt-in. Enable it once 85a ships the media entry
-point, media queue connection, and heartbeat. The PDF adapter in #100
-uses the Gotenberg endpoint.
+The `media` profile is opt-in. After the Files migrations are applied,
+configure `/etc/foa/secrets/worker_prod_files.env` (root, mode 0600) with the
+four `R2_*` variables for the private production bucket. Both `worker-prod`
+and `worker-media` read it. The token must allow reads and writes in that bucket.
+
+The default worker scans uploads and queues image derivatives. The media worker
+connects directly to the same database and drains only those deliveries, one
+image at a time. `MEDIA_TIMEOUT_SECONDS` defaults to 60 seconds for image
+processing. It uses the container heartbeat file for health checks. The
+database heartbeat read by `/api/health/worker` continues to track the
+default worker. The PDF adapter in #100 uses the Gotenberg endpoint.
 
 ```sh
 WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \

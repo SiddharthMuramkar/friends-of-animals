@@ -301,7 +301,11 @@ export function diskStorage(
     // half an object.
     const partial = join(folder, `.partial-${randomUUID()}`);
     await writeFile(/* turbopackIgnore: true */ partial, bytes, PRIVATE_FILE);
-    await writeFile(/* turbopackIgnore: true */ type, contentType, PRIVATE_FILE);
+    await writeFile(
+      /* turbopackIgnore: true */ type,
+      contentType,
+      PRIVATE_FILE
+    );
     await rename(/* turbopackIgnore: true */ partial, object);
   }
 

@@ -31,7 +31,7 @@ x-logging: &logging
     tag: "{{.Name}}"
 
 x-worker: &worker
-  build:
+  build: &worker-build
     context: ..
     dockerfile: Dockerfile
     target: worker
@@ -79,6 +79,11 @@ services:
     <<: *worker
     image: foa-workers/worker-prod
     container_name: foa-worker-prod
+    env_file: &worker-prod-env
+      - path: /etc/foa/secrets/worker_sentry.env
+        required: false
+      - path: /etc/foa/secrets/worker_prod_files.env
+        required: false
     environment:
       <<: *clamd
       WORKER_MODE: single
@@ -190,16 +195,30 @@ services:
 
   worker-media:
     <<: *worker
-    # Enable when #85a ships the media entry point and queue connection.
+    # Start explicitly after the Files migrations and production R2 setup.
     profiles:
       - media
+    build:
+      <<: *worker-build
+      target: worker-media
     image: foa-workers/worker-media:${WORKER_VERSION:-unknown}
     container_name: foa-worker-media
     command: ["node", "--import", "tsx", "src/worker-media/main.ts"]
+    stop_grace_period: 75s
+    env_file: *worker-prod-env
     environment:
       APP_ENV: production
+      WORKER_MODE: single
+      WORKER_QUEUE: media
+      WORKER_DATABASE_URL: postgres://foa_worker@10.112.12.10:5432/foa
+      WORKER_PASSWORD_FILE: /run/secrets/db_password
+      MEDIA_TIMEOUT_SECONDS: "60"
       GOTENBERG_URL: http://foa-gotenberg:3000
+    secrets:
+      - source: pg_prod_foa_worker_password
+        target: db_password
     networks:
+      - db
       - pdf
     cpus: 1
     pids_limit: 128

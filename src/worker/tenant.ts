@@ -6,6 +6,7 @@
 // Loads under plain Node: relative imports only, no "server-only".
 
 import {
+  drainOutbox,
   drainUntilIdle,
   type DrainOptions,
   type DrainReport,
@@ -61,7 +62,10 @@ export function createTenant({
   return {
     database,
     async tick() {
-      const report = await drainUntilIdle(deps, drain);
+      const report =
+        drain.queue === "media"
+          ? await drainOutbox(deps, { queue: "media", limit: 1 })
+          : await drainUntilIdle(deps, drain);
       if (heartbeatRow) {
         await recordHeartbeat(deps.db, identity, deps.clock.now());
       }
