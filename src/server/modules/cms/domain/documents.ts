@@ -126,6 +126,16 @@ export function mirroredConsentPurpose(
     : null;
 }
 
+/**
+ * Whether a consent purpose's text is a policy page's, so only publishing
+ * that page in the CMS publishes its next version, never #64's screen.
+ */
+export function isMirroredConsentPurpose(
+  purpose: string
+): purpose is MirroredConsentPurpose {
+  return (Object.values(MIRRORED_PURPOSE) as string[]).includes(purpose);
+}
+
 /** The tag a document's public read caches under. */
 export function cmsTag(key: CmsDocumentKey): string {
   return `cms:${key}`;
