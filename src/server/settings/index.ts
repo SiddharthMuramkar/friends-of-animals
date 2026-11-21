@@ -3,11 +3,13 @@
 // Its use cases join `as(actor)` through `settingsUseCases`.
 
 import type { UseCaseContext } from "../use-cases";
-import { listSettings } from "./use-cases";
+import { changeSetting, listSettings } from "./use-cases";
 
 export type { SettingKey, SettingValue } from "./catalogue";
 export { readSetting } from "./read";
 
 export const settingsUseCases = (ctx: UseCaseContext) => ({
   listSettings: () => listSettings(ctx),
+  changeSetting: (input: { key: string; value: unknown }) =>
+    changeSetting(ctx, input),
 });

@@ -54,3 +54,10 @@ export async function listSettings(
     };
   });
 }
+
+export async function changeSetting(
+  _ctx: SettingsContext,
+  _input: { key: string; value: unknown }
+): Promise<{ ok: true; changed: boolean }> {
+  throw new Error("changeSetting is not built yet");
+}

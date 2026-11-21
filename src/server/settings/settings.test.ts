@@ -1,12 +1,20 @@
 // Seam 1 for runtime settings (#62): the typed accessor and the settings
 // use cases, on PGlite with the real migrations.
 
+import { count } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { Actor } from "@/server/actor";
+import { auditLog, setting } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { readSetting } from "./index";
+
+async function rowCounts(h: Harness) {
+  const [settings] = await h.db.select({ n: count() }).from(setting);
+  const [entries] = await h.db.select({ n: count() }).from(auditLog);
+  return { settings: settings?.n, auditEntries: entries?.n };
+}
 
 /** Everyone who isn't a super admin: a staff admin, a member, a visitor. */
 async function notSuperAdmins(h: Harness): Promise<[string, Actor][]> {
@@ -91,5 +99,89 @@ describe("listSettings", () => {
         code: "forbidden",
       });
     }
+  });
+});
+
+describe("changeSetting", () => {
+  it("takes effect at once, with no deploy or restart", async () => {
+    const h = await createHarness();
+    const account = await h.seed.superAdmin({ name: "Sunita Admin" });
+    const admin = await h.signIn(account);
+    h.clock.advance({ minutes: 1 });
+
+    expect(
+      await h.as(admin).changeSetting({ key: "org.has80G", value: true })
+    ).toEqual({ ok: true, changed: true });
+
+    expect(await readSetting(h.db, "org.has80G")).toBe(true);
+    const listed = await h.as(admin).listSettings();
+    expect(listed.find((each) => each.key === "org.has80G")).toEqual({
+      key: "org.has80G",
+      value: true,
+      defaultValue: false,
+      source: "stored",
+      storedInvalid: false,
+      input: { kind: "boolean" },
+      updatedAt: h.clock.now(),
+      updatedBy: { id: account.id, name: "Sunita Admin" },
+    });
+  });
+
+  it("records one audit entry per change, with the value before and after", async () => {
+    const h = await createHarness();
+    const account = await h.seed.superAdmin();
+    const admin = await h.signIn(account, {
+      ip: "198.51.100.20",
+      userAgent: "Admin browser",
+    });
+
+    await h
+      .as(admin)
+      .changeSetting({ key: "auth.staffSessionHours", value: 8 });
+    h.clock.advance({ minutes: 1 });
+    await h
+      .as(admin)
+      .changeSetting({ key: "auth.staffSessionHours", value: 6 });
+
+    const audit = await h
+      .as(admin)
+      .searchAuditLog({ entityType: "setting" });
+    expect(audit).toMatchObject({
+      ok: true,
+      entries: [
+        {
+          action: "setting.changed",
+          entity: { type: "setting", id: "auth.staffSessionHours" },
+          before: { value: 8, source: "stored" },
+          after: { value: 6 },
+        },
+        {
+          action: "setting.changed",
+          entity: { type: "setting", id: "auth.staffSessionHours" },
+          before: { value: 12, source: "default" },
+          after: { value: 8 },
+          actor: { kind: "user", userId: account.id, role: "super_admin" },
+          ip: "198.51.100.20",
+          userAgent: "Admin browser",
+        },
+      ],
+    });
+    expect(audit.ok && audit.entries).toHaveLength(2);
+  });
+
+  it("stores and records nothing when the value already applies", async () => {
+    const h = await createHarness();
+    const admin = await h.signIn(await h.seed.superAdmin());
+
+    expect(
+      await h.as(admin).changeSetting({ key: "org.has80G", value: false })
+    ).toEqual({ ok: true, changed: false });
+    expect(await rowCounts(h)).toEqual({ settings: 0, auditEntries: 0 });
+
+    await h.as(admin).changeSetting({ key: "org.has80G", value: true });
+    expect(
+      await h.as(admin).changeSetting({ key: "org.has80G", value: true })
+    ).toEqual({ ok: true, changed: false });
+    expect(await rowCounts(h)).toEqual({ settings: 1, auditEntries: 1 });
   });
 });
