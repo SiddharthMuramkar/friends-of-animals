@@ -22,7 +22,7 @@ import {
   user,
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
-import { signedInUser } from "./session-factor";
+import { isEnrolled, signedInUser } from "./session-factor";
 import type { SecondFactorContext } from "./totp";
 
 const removeInput = z.object({ factorId: z.uuid() });
@@ -60,6 +60,15 @@ export async function removeSecondFactor(
         confirmedAt: secondFactor.confirmedAt,
       });
     if (!removed) return { ok: false, error: "not_found" } as const;
+    // With no factor left, no session counts as having passed one, so a
+    // factor added later can't revive an old session's second factor.
+    if (!(await isEnrolled(tx, actor.userId))) {
+      await tx
+        .delete(sessionSecondFactor)
+        .where(
+          inArray(sessionSecondFactor.sessionId, sessionsOf(tx, actor.userId))
+        );
+    }
     if (removed.confirmedAt) {
       await recordAudit(tx, ctx, {
         action: "second_factor.removed",

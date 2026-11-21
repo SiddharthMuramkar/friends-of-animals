@@ -1,11 +1,14 @@
 // What a setting's form shows after a save, from changeSetting's result or
-// the error it threw. Pure, so the mapping is tested without a page.
+// the error it threw, or where a refusal sends the user instead. Pure, so
+// the mapping is tested without a page.
 
+import { APP_ROUTES } from "@/lib/app-routes";
+import { secondFactorPath } from "@/lib/second-factor-routes";
 import { DomainError, type DomainErrorCode } from "@/server/errors";
 import type {
   ChangeSettingResult,
   SettingValueProblem,
-} from "@/server/settings";
+} from "@/server/modules/settings";
 
 export type SettingRefusal = DomainErrorCode | "unknown_setting" | "failed";
 
@@ -39,4 +42,14 @@ export function afterError(error: unknown): SettingFormState {
     status: "refused",
     reason: error instanceof DomainError ? error.code : "failed",
   };
+}
+
+/**
+ * Where a change refused for want of a second factor sends the user: to
+ * step up, or to pass or add a second factor (#60), then back to the
+ * settings to save again. Null for anything else, which the form says.
+ */
+export function secondFactorRedirect(error: unknown): string | null {
+  if (!(error instanceof DomainError)) return null;
+  return secondFactorPath(error.code, APP_ROUTES.adminSettings);
 }

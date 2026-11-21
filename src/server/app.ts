@@ -20,7 +20,7 @@ import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
 import { notificationsUseCases } from "./modules/notifications";
 import { secondFactorUseCases } from "./modules/second-factor";
-import { settingsUseCases } from "./settings";
+import { settingsUseCases } from "./modules/settings";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(

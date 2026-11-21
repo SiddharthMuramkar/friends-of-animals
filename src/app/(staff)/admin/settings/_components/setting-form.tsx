@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import { FormAlert, SubmitButton, TextField } from "@/components/form";
-import type { SettingInput } from "@/server/settings";
+import type { SettingInput } from "@/server/modules/settings";
 
 import { changeSettingAction, type SettingFormView } from "../_lib/actions";
 

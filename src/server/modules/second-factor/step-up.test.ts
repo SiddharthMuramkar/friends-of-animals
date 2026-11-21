@@ -156,6 +156,18 @@ describe("removeSecondFactor", () => {
     expect(JSON.stringify(entries)).not.toMatch(/v1\./);
   });
 
+  it("forgets every session's second factor once the last factor is gone", async () => {
+    const h = await createHarness();
+    const { member, actor, factor } = await enrolledMember(h);
+    const otherDevice = await h.signIn(member);
+    h.clock.advance({ seconds: 30 });
+    await h.passSecondFactor(otherDevice);
+
+    await h.as(actor).removeSecondFactor({ factorId: factor.id });
+
+    expect(await h.db.select().from(sessionSecondFactor)).toEqual([]);
+  });
+
   it("needs step-up", async () => {
     const h = await createHarness();
     const { actor, factor } = await enrolledMember(h);

@@ -30,6 +30,7 @@ import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import sample from "../../messages/en-IN/sample.json";
 import schools from "../../messages/en-IN/schools.json";
+import security from "../../messages/en-IN/security.json";
 import showcase from "../../messages/en-IN/showcase.json";
 import stories from "../../messages/en-IN/stories.json";
 import styleguide from "../../messages/en-IN/styleguide.json";
@@ -63,6 +64,7 @@ export const NAMESPACES = [
   "refunds",
   "sample",
   "schools",
+  "security",
   "showcase",
   "stories",
   "styleguide",
@@ -100,6 +102,7 @@ export const messages = {
   ...refunds,
   ...sample,
   ...schools,
+  ...security,
   ...showcase,
   ...stories,
   ...styleguide,

@@ -7,10 +7,15 @@ import { redirect } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
-import { isSettingKey, SETTINGS } from "@/server/settings/catalogue";
-import { settingValueFromForm } from "@/server/settings/form";
+import { isSettingKey, SETTINGS } from "@/server/modules/settings/catalogue";
+import { settingValueFromForm } from "@/server/modules/settings/form";
 
-import { afterChange, afterError, type SettingFormState } from "./form-state";
+import {
+  afterChange,
+  afterError,
+  secondFactorRedirect,
+  type SettingFormState,
+} from "./form-state";
 
 /** The form's state plus its words, translated here on the server. */
 export type SettingFormView = SettingFormState & { message?: string };
@@ -46,7 +51,8 @@ async function withMessage(
  * for the setting's input. changeSetting checks who may (a super admin,
  * with a fresh second factor) and the value; this only turns the field
  * into a typed value and the result into words. A stored value refreshes
- * the page, so every setting shows what applies now.
+ * the page, so every setting shows what applies now. A refusal for want of
+ * a second factor sends the user to lift it (#60), then back here.
  */
 export async function changeSettingAction(
   _previous: SettingFormView,
@@ -68,6 +74,9 @@ export async function changeSettingAction(
     });
     state = afterChange(result, entered);
   } catch (error) {
+    // redirect() throws; from the catch block, this try doesn't catch it.
+    const lift = secondFactorRedirect(error);
+    if (lift) redirect(lift);
     state = afterError(error);
     if (state.status === "refused" && state.reason === "failed") {
       console.error("changeSettingAction:", errorSummaryForLogs(error));
