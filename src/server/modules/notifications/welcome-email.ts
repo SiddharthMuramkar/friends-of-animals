@@ -9,10 +9,10 @@
 import { eq } from "drizzle-orm";
 import { createTranslator } from "next-intl";
 
-import emails from "../../../messages/en-IN/emails.json";
-import type { AppDb } from "../db/app-db";
-import { user } from "../db/schema";
-import type { EmailMessage, EmailSender } from "../ports/email";
+import emails from "../../../../messages/en-IN/emails.json";
+import type { AppDb } from "../../db/app-db";
+import { user } from "../../db/schema";
+import type { EmailMessage, EmailSender } from "../../ports/email";
 
 /** The welcome email for one account, worded from messages/en-IN. */
 export function welcomeEmail(account: {
