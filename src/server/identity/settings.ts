@@ -2,7 +2,7 @@
 // them later; until then they live here.
 
 /** Sign-in codes, by email and by SMS alike. */
-export const EMAIL_CODE = {
+export const SIGN_IN_CODE = {
   /** Digits in a code. */
   length: 6,
   /** How long a code works. */
@@ -22,7 +22,7 @@ export const CODE_REQUEST_LIMITS = {
   perIp: 20,
   /**
    * Codes per email address or phone number per day (midnight to midnight
-   * UTC). Each code allows `EMAIL_CODE.attempts` guesses, so this caps
+   * UTC). Each code allows `SIGN_IN_CODE.attempts` guesses, so this caps
    * guesses at one address or phone at 100 a day, not about 2,400, and
    * texts to one phone at 20 a day. FOA's own default beside HR-19.
    */

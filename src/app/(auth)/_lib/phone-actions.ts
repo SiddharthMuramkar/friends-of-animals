@@ -7,7 +7,7 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { formatPhoneNumber, parsePhoneNumber } from "@/lib/phone";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
-import { EMAIL_CODE } from "@/server/identity/settings";
+import { SIGN_IN_CODE } from "@/server/identity/settings";
 
 import {
   afterPhoneFailure,
@@ -50,7 +50,7 @@ async function withText(state: PhoneCodeFormState): Promise<PhoneCodeFormView> {
       sent: state.sent ? t("sent", { phone }) : undefined,
       codeHint:
         state.step === "code"
-          ? t("code.hint", { phone, minutes: EMAIL_CODE.lifetimeMinutes })
+          ? t("code.hint", { phone, minutes: SIGN_IN_CODE.lifetimeMinutes })
           : undefined,
       errors,
     },

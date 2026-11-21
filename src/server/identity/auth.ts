@@ -23,7 +23,7 @@ import type { AppDb } from "../db/app-db";
 import { account, session, user, verification } from "../db/schema";
 import type { Deps } from "../deps";
 import { uuidv7 } from "../ids";
-import { EMAIL_CODE, SESSION_LIFETIME_DAYS } from "./settings";
+import { SIGN_IN_CODE, SESSION_LIFETIME_DAYS } from "./settings";
 
 const DAY_SECONDS = 24 * 60 * 60;
 
@@ -97,9 +97,9 @@ function createAuth({ db, clock, auth: config }: Deps) {
     },
     plugins: [
       emailOTP({
-        otpLength: EMAIL_CODE.length,
-        expiresIn: EMAIL_CODE.lifetimeMinutes * 60,
-        allowedAttempts: EMAIL_CODE.attempts,
+        otpLength: SIGN_IN_CODE.length,
+        expiresIn: SIGN_IN_CODE.lifetimeMinutes * 60,
+        allowedAttempts: SIGN_IN_CODE.attempts,
         storeOTP: "hashed",
         // FOA creates accounts itself, with their welcome event in the same
         // transaction (./create-account.ts); a sign-in never creates one.

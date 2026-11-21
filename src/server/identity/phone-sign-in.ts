@@ -32,7 +32,7 @@ import { createAccount } from "./create-account";
 import { checkPhoneCode, issuePhoneCode } from "./phone-code";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
-import { EMAIL_CODE } from "./settings";
+import { SIGN_IN_CODE } from "./settings";
 import {
   codeInput as code,
   nameInput as name,
@@ -152,7 +152,7 @@ export async function requestPhoneCode(
   // send rejects, so the visitor is told; the stored code was never seen,
   // and expires.
   const code = await issuePhoneCode(ctx, phoneHashOf(ctx, to));
-  await ctx.sms.send(codeSms(to, code, EMAIL_CODE.lifetimeMinutes));
+  await ctx.sms.send(codeSms(to, code, SIGN_IN_CODE.lifetimeMinutes));
   return { ok: true };
 }
 

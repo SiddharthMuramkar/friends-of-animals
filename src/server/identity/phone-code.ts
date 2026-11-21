@@ -1,7 +1,7 @@
 // One-time sign-in codes sent by SMS. Better Auth's email-OTP plugin keeps
 // email codes; it has no phone flow that works with an encrypted number,
 // so FOA keeps phone codes itself, in the same `verification` table and
-// with the same rules (EMAIL_CODE: 6 digits, 10 minutes, 5 wrong guesses):
+// with the same rules (SIGN_IN_CODE: 6 digits, 10 minutes, 5 wrong guesses):
 //
 //   - a row's identifier is "sms-sign-in:<phone_hash>", the phone's blind
 //     index, so the table never holds the number;
@@ -19,7 +19,7 @@ import { eq } from "drizzle-orm";
 import { verification } from "../db/schema";
 import { uuidv7 } from "../ids";
 import type { UseCaseContext } from "../use-cases";
-import { EMAIL_CODE } from "./settings";
+import { SIGN_IN_CODE } from "./settings";
 
 const MINUTE_MS = 60 * 1000;
 
@@ -54,8 +54,8 @@ export async function issuePhoneCode(
   phoneHash: string
 ): Promise<string> {
   const identifier = identifierFor(phoneHash);
-  const code = String(randomInt(10 ** EMAIL_CODE.length)).padStart(
-    EMAIL_CODE.length,
+  const code = String(randomInt(10 ** SIGN_IN_CODE.length)).padStart(
+    SIGN_IN_CODE.length,
     "0"
   );
   const now = clock.now();
@@ -68,7 +68,7 @@ export async function issuePhoneCode(
       identifier,
       value: `${codeHash(auth.secret, identifier, code)}:0`,
       expiresAt: new Date(
-        now.getTime() + EMAIL_CODE.lifetimeMinutes * MINUTE_MS
+        now.getTime() + SIGN_IN_CODE.lifetimeMinutes * MINUTE_MS
       ),
       createdAt: now,
       updatedAt: now,
@@ -102,7 +102,7 @@ export async function checkPhoneCode(
   const colon = row.value.lastIndexOf(":");
   const stored = row.value.slice(0, colon);
   const wrongGuesses = Number(row.value.slice(colon + 1)) || 0;
-  if (wrongGuesses >= EMAIL_CODE.attempts) return "too_many_attempts";
+  if (wrongGuesses >= SIGN_IN_CODE.attempts) return "too_many_attempts";
 
   const right = sameHash(stored, codeHash(auth.secret, identifier, code));
   if (!right || keep) {

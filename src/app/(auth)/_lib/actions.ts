@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
-import { EMAIL_CODE } from "@/server/identity/settings";
+import { SIGN_IN_CODE } from "@/server/identity/settings";
 
 import {
   afterFailure,
@@ -44,7 +44,7 @@ async function withText(state: EmailCodeFormState): Promise<EmailCodeFormView> {
         state.step === "code"
           ? t("code.hint", {
               email: state.email,
-              minutes: EMAIL_CODE.lifetimeMinutes,
+              minutes: SIGN_IN_CODE.lifetimeMinutes,
             })
           : undefined,
       errors,
