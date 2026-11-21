@@ -87,7 +87,11 @@ export async function emailCodeAction(
     } else {
       return withText(
         afterRequest(
-          await as(actor).requestEmailCode({ email: entered.email }),
+          await as(actor).requestEmailCode(
+            intent === "sign-up"
+              ? { intent, ...entered }
+              : { intent, email: entered.email }
+          ),
           entered
         )
       );

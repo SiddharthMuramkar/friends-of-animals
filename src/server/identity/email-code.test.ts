@@ -60,6 +60,32 @@ describe("requestEmailCode", () => {
     expect(h.email.sent).toEqual([]);
   });
 
+  it("asks a sign-up for a name before sending a code", async () => {
+    const h = await createHarness();
+
+    const result = await h
+      .as(h.visitor())
+      .requestEmailCode({ intent: "sign-up", name: "  ", email: ASHA });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "invalid_input",
+      fields: ["name"],
+    });
+    expect(h.email.sent).toEqual([]);
+  });
+
+  it("sends a sign-up its code once it has a name", async () => {
+    const h = await createHarness();
+
+    const result = await h
+      .as(h.visitor())
+      .requestEmailCode({ intent: "sign-up", name: "Asha", email: ASHA });
+
+    expect(result).toEqual({ ok: true });
+    expect(codeFor(h, ASHA)).toMatch(/^\d{6}$/);
+  });
+
   it("refuses a 6th code for one address within 15 minutes", async () => {
     const h = await createHarness();
     for (let i = 0; i < 5; i++) {
