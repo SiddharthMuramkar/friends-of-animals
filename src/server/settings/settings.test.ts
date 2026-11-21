@@ -143,9 +143,7 @@ describe("changeSetting", () => {
       .as(admin)
       .changeSetting({ key: "auth.staffSessionHours", value: 6 });
 
-    const audit = await h
-      .as(admin)
-      .searchAuditLog({ entityType: "setting" });
+    const audit = await h.as(admin).searchAuditLog({ entityType: "setting" });
     expect(audit).toMatchObject({
       ok: true,
       entries: [
