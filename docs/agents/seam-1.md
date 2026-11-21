@@ -42,6 +42,7 @@ describe("someUseCase", () => {
 | `h.db`             | This test's database, for asserting on rows (audit rows count as behaviour)                                                                                  |
 | `h.deps`           | `{ db, clock, email, sms, settings, cipher, blindIndex, ... }`: what `productionDeps()` wires for real in `src/server/deps.ts`; fresh field keys per harness |
 | `h.drain()`        | Delivers due outbox events in process with the real relay, pass after pass; returns the `DrainReport`                                                        |
+| `h.errors`         | `FakeErrorReporter`: `reported`, each as Sentry would get it (scrubbed) plus the `error`                                                                     |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
 `h.clock`, because Better Auth reads `new Date()` for code and session expiry.
