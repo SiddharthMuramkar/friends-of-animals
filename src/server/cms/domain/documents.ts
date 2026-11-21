@@ -11,6 +11,7 @@
 // Loads under plain Node (schema, seed): relative imports only.
 
 import type { LegalDocId } from "../../../content/legal";
+import { ROUTES } from "../../../lib/routes";
 
 export const CMS_DOCUMENT_KINDS = [
   "home",
@@ -83,6 +84,25 @@ export function legalKeyForConsentPurpose(
   purpose: LinkedConsentPurpose
 ): CmsDocumentKey {
   return CONSENT_PURPOSE_PAGE[purpose];
+}
+
+/**
+ * The public page that shows a document, where previewing its draft
+ * starts. Site facts show in the footer of every page, so on the home page.
+ */
+const PUBLIC_PATH: Record<CmsDocumentKey, `/${string}`> = {
+  home: ROUTES.home.path,
+  about: ROUTES.about.path,
+  impact: ROUTES.impact.path,
+  site_facts: ROUTES.home.path,
+  legal_privacy: ROUTES.privacy.path,
+  legal_terms: ROUTES.terms.path,
+  legal_safeguarding: ROUTES.safeguarding.path,
+  legal_child_protection: ROUTES.childProtection.path,
+};
+
+export function cmsPublicPath(key: CmsDocumentKey): `/${string}` {
+  return PUBLIC_PATH[key];
 }
 
 /** The tag a document's public read caches under. */

@@ -134,3 +134,23 @@ export async function revisionsOf(db: AppDb, key: CmsDocumentKey) {
     .where(eq(cmsDocument.key, key))
     .orderBy(desc(cmsRevision.createdAt), desc(cmsRevision.id));
 }
+
+/** A document's draft or published revision with its body, if any. */
+export async function revisionBodyOf(
+  db: AppDb,
+  key: CmsDocumentKey,
+  status: Exclude<CmsRevisionStatus, "superseded">
+) {
+  const [row] = await db
+    .select({
+      id: cmsRevision.id,
+      version: cmsRevision.version,
+      body: cmsRevision.body,
+      updatedAt: cmsRevision.updatedAt,
+      publishedAt: cmsRevision.publishedAt,
+    })
+    .from(cmsRevision)
+    .innerJoin(cmsDocument, eq(cmsDocument.id, cmsRevision.documentId))
+    .where(and(eq(cmsDocument.key, key), eq(cmsRevision.status, status)));
+  return row ?? null;
+}
