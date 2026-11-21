@@ -1,6 +1,8 @@
 // The malware scan (#63): the worker's handler for files.file_uploaded,
 // driven through `h.drain()` after a real upload.
 
+import { createHash } from "node:crypto";
+
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
@@ -33,7 +35,7 @@ async function upload(h: Harness, contentType: string, bytes: Uint8Array) {
   if (!stored.ok) throw new Error(`not stored: ${stored.error}`);
   const completed = await h.as(owner).completeUpload({ fileId });
   if (!completed.ok) throw new Error(`not completed: ${completed.error}`);
-  return { owner, fileId };
+  return { owner, fileId, uploadUrl, headers };
 }
 
 async function fileRow(h: Harness, fileId: string) {
@@ -281,5 +283,95 @@ describe("the malware scan", () => {
       );
       expect(await scanDeliveries(h)).toEqual([{ status: "dispatched" }]);
     });
+  });
+});
+
+// A presigned PUT isn't single-use: R2, like S3, takes the same URL again
+// until it expires (10 minutes), with any body of the signed type and
+// length. Whatever the uploader sends once completing has taken the file
+// must never become what the scan passed or what staff open.
+describe("the upload URL, used again", () => {
+  /** A harmless PNG, as long as one carrying the EICAR test file. */
+  const HARMLESS = new Uint8Array([
+    ...PNG_SIGNATURE,
+    ...new Uint8Array(EICAR_TEST_BYTES.length).fill(0x20),
+  ]);
+  /** The same type and length, with the EICAR test file inside. */
+  const INFECTED = new Uint8Array([...PNG_SIGNATURE, ...EICAR_TEST_BYTES]);
+
+  const sha256Of = (bytes: Uint8Array) =>
+    createHash("sha256").update(bytes).digest("hex");
+
+  /** What a staff admin is served for the file. */
+  async function servedToStaff(h: Harness, fileId: string) {
+    const result = await h.as(await staffAdmin(h)).getFileDownloadUrl({
+      fileId,
+    });
+    if (!result.ok) throw new Error(`refused: ${result.error}`);
+    const served = await h.storage.get(result.url);
+    if (!served.ok) throw new Error(`not served: ${served.error}`);
+    return served.bytes;
+  }
+
+  it("can't replace a file once its scan has passed", async () => {
+    const h = await createHarness();
+    const { fileId, uploadUrl, headers } = await upload(
+      h,
+      "image/png",
+      HARMLESS
+    );
+    h.clock.advance({ minutes: 1 });
+    await h.drain();
+    expect((await fileRow(h, fileId)).status).toBe("clean");
+    h.clock.advance({ minutes: 1 });
+
+    // Storage takes it, as R2 would: the URL hasn't expired.
+    expect(await h.storage.put(uploadUrl, INFECTED, headers)).toEqual({
+      ok: true,
+    });
+
+    const served = await servedToStaff(h, fileId);
+    expect(served).toEqual(HARMLESS);
+    expect(sha256Of(served)).toBe((await fileRow(h, fileId)).sha256);
+  });
+
+  it("can't reach a file whose upload is complete but not yet scanned", async () => {
+    const h = await createHarness();
+    const { fileId, uploadUrl, headers } = await upload(
+      h,
+      "image/png",
+      HARMLESS
+    );
+
+    expect(await h.storage.put(uploadUrl, INFECTED, headers)).toEqual({
+      ok: true,
+    });
+    await h.drain();
+
+    expect(await fileRow(h, fileId)).toMatchObject({
+      status: "clean",
+      sha256: sha256Of(HARMLESS),
+    });
+    expect(await servedToStaff(h, fileId)).toEqual(HARMLESS);
+  });
+
+  it("can't replace a file by completing it again", async () => {
+    const h = await createHarness();
+    const { owner, fileId, uploadUrl, headers } = await upload(
+      h,
+      "image/png",
+      HARMLESS
+    );
+    await h.storage.put(uploadUrl, INFECTED, headers);
+
+    expect(await h.as(owner).completeUpload({ fileId })).toEqual({
+      ok: true,
+      fileId,
+      status: "uploaded",
+    });
+    await h.drain();
+
+    expect((await fileRow(h, fileId)).status).toBe("clean");
+    expect(await servedToStaff(h, fileId)).toEqual(HARMLESS);
   });
 });

@@ -28,12 +28,19 @@
 //                                    image's processing may take before the
 //                                    job fails as media_timeout
 //
+//   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, the bucket the malware scan reads uploads
+//   R2_SECRET_ACCESS_KEY, R2_BUCKET  from (#63): all four or none; without
+//                                    them every scan fails and files wait
+//   CLAMD_HOST, CLAMD_PORT           clamd (3310), which the scan asks; without
+//                                    a host every scan fails and files wait
+//
 // Loads under plain Node: relative imports only, no "server-only".
 
 import { z } from "zod";
 
-import { parseEnv } from "../env.schema";
+import { parseEnv, scanJobEnvSchema, type ScannerEnv } from "../env.schema";
 import { parseDsn } from "../lib/observability/config";
+import type { R2Config } from "../server/ports/storage-r2";
 import type { WorkerIdentity } from "./tenant";
 
 type Common = {
@@ -50,6 +57,10 @@ type Common = {
   passwordFile: string | undefined;
   /** Where errors go; unset, nowhere. */
   sentryDsn: string | undefined;
+  /** R2, where the malware scan reads uploads; unset, every scan fails. */
+  r2: R2Config | undefined;
+  /** clamd, which the malware scan asks; without a host every scan fails. */
+  clamd: ScannerEnv;
   queue: WorkerQueue;
 };
 
@@ -175,7 +186,7 @@ const schema = z
 export function workerConfig(
   source: Record<string, string | undefined>
 ): WorkerConfig {
-  const env = parseEnv(schema, source);
+  const env = parseEnv(z.intersection(schema, scanJobEnvSchema), source);
   const media = env.WORKER_QUEUE === "media";
   const common: Common = {
     appEnv: env.APP_ENV,
@@ -193,6 +204,16 @@ export function workerConfig(
     queue: media
       ? { name: "media", timeoutSeconds: env.MEDIA_TIMEOUT_SECONDS }
       : { name: "default" },
+    // The schema takes all four R2 variables or none.
+    r2:
+      env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY
+        ? {
+            accountId: env.R2_ACCOUNT_ID,
+            accessKeyId: env.R2_ACCESS_KEY_ID,
+            secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+          }
+        : undefined,
+    clamd: { CLAMD_HOST: env.CLAMD_HOST, CLAMD_PORT: env.CLAMD_PORT },
   };
   if (env.WORKER_MODE === "preview") {
     // The refinement above guarantees it.

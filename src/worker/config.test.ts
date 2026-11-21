@@ -30,6 +30,8 @@ describe("workerConfig", () => {
       heartbeatFile: "/tmp/foa-worker-heartbeat",
       passwordFile: undefined,
       queue: { name: "default" },
+      r2: undefined,
+      clamd: { CLAMD_HOST: undefined, CLAMD_PORT: 3310 },
     });
   });
 
@@ -61,6 +63,8 @@ describe("workerConfig", () => {
       heartbeatFile: "/run/worker/heartbeat",
       passwordFile: "/run/secrets/db_password",
       queue: { name: "default" },
+      r2: undefined,
+      clamd: { CLAMD_HOST: undefined, CLAMD_PORT: 3310 },
     });
   });
 
@@ -260,6 +264,100 @@ describe("the worker's error tracking setting", () => {
     expect(message).toMatch(/^Error: Invalid environment/);
     expect(message).toMatch(/SENTRY_DSN/);
     expect(message).not.toContain(bad);
+  });
+});
+
+describe("withPassword", () => {
+  it("puts the password from the secret file into the database URL", () => {
+    const config = workerConfig({
+      WORKER_MODE: "single",
+      APP_ENV: "staging",
+      WORKER_DATABASE_URL:
+        "postgres://staging_worker@10.112.12.11:5432/foa_staging",
+    });
+
+    expect(withPassword(config, "0a1b2c\n")).toMatchObject({
+      databaseUrl:
+        "postgres://staging_worker:0a1b2c@10.112.12.11:5432/foa_staging",
+      database: "foa_staging",
+    });
+  });
+
+  it("puts it into the preview worker's admin URL", () => {
+    const config = workerConfig({
+      WORKER_MODE: "preview",
+      APP_ENV: "preview",
+      WORKER_ADMIN_URL: "postgres://nonprod_worker@10.112.12.11:5432/postgres",
+    });
+
+    expect(withPassword(config, "p@ss/word")).toMatchObject({
+      adminUrl:
+        "postgres://nonprod_worker:p%40ss%2Fword@10.112.12.11:5432/postgres",
+    });
+  });
+});
+
+describe("the worker's malware scan settings", () => {
+  const production = {
+    APP_ENV: "production",
+    WORKER_DATABASE_URL: PROD_URL,
+  };
+  const R2 = {
+    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+    R2_ACCESS_KEY_ID: "worker-access-key-id",
+    R2_SECRET_ACCESS_KEY: "worker-s3cret-access-key",
+    R2_BUCKET: "foa-files",
+  };
+
+  it("reads R2 and clamd", () => {
+    const config = workerConfig({
+      ...production,
+      ...R2,
+      CLAMD_HOST: "clamav",
+      CLAMD_PORT: "3311",
+    });
+
+    expect(config.r2).toEqual({
+      accountId: R2.R2_ACCOUNT_ID,
+      accessKeyId: R2.R2_ACCESS_KEY_ID,
+      secretAccessKey: R2.R2_SECRET_ACCESS_KEY,
+    });
+    expect(config.clamd).toEqual({ CLAMD_HOST: "clamav", CLAMD_PORT: 3311 });
+  });
+
+  it("has neither without their variables, so every scan fails", () => {
+    const config = workerConfig(production);
+
+    expect(config.r2).toBeUndefined();
+    expect(config.clamd.CLAMD_HOST).toBeUndefined();
+  });
+
+  it("refuses half of R2, naming what is missing and never the secret", () => {
+    let message = "";
+    try {
+      workerConfig({
+        ...production,
+        R2_SECRET_ACCESS_KEY: R2.R2_SECRET_ACCESS_KEY,
+      });
+    } catch (error) {
+      message = String(error);
+    }
+
+    expect(message).toMatch(/^Error: Invalid environment/);
+    expect(message).toMatch(/R2_ACCOUNT_ID/);
+    expect(message).not.toContain(R2.R2_SECRET_ACCESS_KEY);
+  });
+
+  it("names every problem at once, the worker's own included", () => {
+    let message = "";
+    try {
+      workerConfig({ APP_ENV: "production", CLAMD_PORT: "70000" });
+    } catch (error) {
+      message = String(error);
+    }
+
+    expect(message).toMatch(/WORKER_DATABASE_URL/);
+    expect(message).toMatch(/CLAMD_PORT/);
   });
 });
 

@@ -529,6 +529,9 @@ describe("envSchema storage", () => {
       APP_URL: SITE,
       BETTER_AUTH_SECRET: SECRET,
       NEXT_PUBLIC_SENTRY_DSN: DSN,
+      // Production also needs field keys (#58).
+      FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+      FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
     });
     expect(production.R2_BUCKET).toBeUndefined();
   });

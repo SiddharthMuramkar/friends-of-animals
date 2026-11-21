@@ -24,7 +24,6 @@ import {
   storageBucketFor,
   storagePrefixFor,
 } from "./modules/files/domain/storage-key";
-import { serverErrorReporter } from "./observability/server-reporter";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
@@ -34,14 +33,15 @@ import { msg91SmsSender } from "./ports/sms-msg91";
 import { fixedSettings, type Settings } from "./ports/settings";
 import type { EmailSender } from "./ports/email";
 import { emailSenderFor } from "./ports/email-sender-for";
+import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
+import { diskStorage, type DiskStorage } from "./ports/storage-disk";
+import { r2Storage, type R2Config } from "./ports/storage-r2";
 import type { ErrorReporter } from "./ports/errors";
 import type { MalwareScanner } from "./ports/malware-scanner";
 import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { localScanner } from "./ports/malware-scanner-local";
 import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
-import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
-import { diskStorage, type DiskStorage } from "./ports/storage-disk";
-import { r2Storage, type R2Config } from "./ports/storage-r2";
+import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -56,17 +56,14 @@ export interface Deps extends DbWithClock {
   blindIndex: BlindIndex;
   /** Runtime settings, such as whether codes go by SMS. */
   settings: Settings;
-  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
-  errors: ErrorReporter;
   /** The private buckets uploaded files go to (#63). */
   storage: ObjectStorage;
   files: FilesConfig;
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
   /** Scans each upload before anyone but its uploader may open it (#63). */
   scanner: MalwareScanner;
-  /**
-   * Makes image derivatives (#85). Only worker-media's relay runs the media
-   * queue, so the app's is unconfigured and never called.
-   */
+  /** Processes derivatives on the media queue in worker-media. */
   media: MediaProcessor;
 }
 
@@ -200,15 +197,19 @@ export function filesConfigFor(
 }
 
 /**
- * clamd once CLAMD_HOST is set. Without it a local run scans with the
- * local scanner, which flags the EICAR test file, and a deployment gets one
- * that passes nothing: Vercel never reaches clamd, so its uploads wait,
- * unscanned, for the VPS worker, which sets CLAMD_HOST.
+ * clamd once CLAMD_HOST is set. Without it a local run on the disk store
+ * scans with the local scanner, which flags the EICAR test file, and
+ * anything else gets one that passes nothing: a deployment (Vercel never
+ * reaches clamd, so its uploads wait, unscanned, for the VPS worker, which
+ * sets CLAMD_HOST), and a run with R2, whose files are real uploads, even
+ * when APP_ENV is left at its default, local.
  */
 export function scannerFor(
-  env: ScannerEnv & { APP_ENV: Env["APP_ENV"] }
+  env: ScannerEnv & StorageEnv & { APP_ENV: Env["APP_ENV"] }
 ): MalwareScanner {
-  if (!env.CLAMD_HOST && env.APP_ENV === "local") return localScanner;
+  if (!env.CLAMD_HOST && env.APP_ENV === "local" && !r2ConfigOf(env)) {
+    return localScanner;
+  }
   return malwareScannerFor(env);
 }
 
@@ -237,10 +238,10 @@ export function productionDeps(): Deps {
       },
       ...fieldCryptoFor(config),
       settings: settingsFor(config.APP_ENV),
-      // Started by src/instrumentation.ts; silent without a DSN.
-      errors: serverErrorReporter,
       storage: storageFor(config),
       files: filesConfigFor(config),
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
       scanner: scannerFor(config),
       media: unconfiguredMedia,
     };

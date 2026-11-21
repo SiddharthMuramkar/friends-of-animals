@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { createApp } from "@/server/app";
 import { fileAsset, outbox } from "@/server/db/schema";
+import type { ObjectStorage } from "@/server/ports/storage";
 import { createHarness, type Harness } from "@/test/harness";
 
 const MiB = 1024 * 1024;
@@ -64,12 +65,20 @@ describe("requestUpload", () => {
     expect(await h.storage.put(result.uploadUrl, PNG, result.headers)).toEqual({
       ok: true,
     });
+    // The PUT lands at the upload key, never at the storage key: the URL
+    // takes another PUT until it expires, so only completing writes there.
+    expect(
+      await h.storage.head({
+        bucket: h.deps.files.bucket,
+        key: `local/incoming/${result.fileId}`,
+      })
+    ).toEqual({ sizeBytes: PNG.length, contentType: "image/png" });
     expect(
       await h.storage.head({
         bucket: h.deps.files.bucket,
         key: `local/test_upload/${result.fileId}`,
       })
-    ).toEqual({ sizeBytes: PNG.length, contentType: "image/png" });
+    ).toBeNull();
   });
 
   it("stores the declared type trimmed and lower-cased", async () => {
@@ -160,21 +169,37 @@ describe("requestUpload", () => {
   });
 });
 
-/** A member who has presigned a PNG upload. */
+/**
+ * A member who has presigned a PNG upload. `uploadRef` is where the
+ * browser's PUT lands, `storedRef` the file's storage key.
+ */
 async function presigned() {
   const ctx = await world();
   const result = await ctx.h.as(ctx.actor).requestUpload(pngUpload);
   if (!result.ok) throw new Error(`refused: ${result.error}`);
-  const ref = {
-    bucket: ctx.h.deps.files.bucket,
-    key: `local/test_upload/${result.fileId}`,
+  const bucket = ctx.h.deps.files.bucket;
+  const uploadRef = { bucket, key: `local/incoming/${result.fileId}` };
+  const storedRef = { bucket, key: `local/test_upload/${result.fileId}` };
+  return { ...ctx, ...result, uploadRef, storedRef };
+}
+
+/** `storage`, except that every move fails as an outage would. */
+function withFailingMove(storage: ObjectStorage): ObjectStorage {
+  return {
+    presignPut: (input) => storage.presignPut(input),
+    presignGet: (input) => storage.presignGet(input),
+    head: (ref) => storage.head(ref),
+    read: (ref) => storage.read(ref),
+    move: () => Promise.reject(new Error("storage move failed")),
+    delete: (ref) => storage.delete(ref),
+    deletePrefix: (input) => storage.deletePrefix(input),
   };
-  return { ...ctx, ...result, ref };
 }
 
 describe("completeUpload", () => {
   it("confirms the stored object and emits files.file_uploaded with it", async () => {
-    const { h, actor, fileId, uploadUrl, headers } = await presigned();
+    const { h, actor, fileId, uploadUrl, headers, uploadRef, storedRef } =
+      await presigned();
     await h.storage.put(uploadUrl, PNG, headers);
     h.clock.advance({ seconds: 5 });
 
@@ -184,6 +209,12 @@ describe("completeUpload", () => {
       status: "uploaded",
     });
 
+    // Moved to the storage key, which no upload URL names.
+    expect(await h.storage.head(storedRef)).toEqual({
+      sizeBytes: PNG.length,
+      contentType: "image/png",
+    });
+    expect(await h.storage.head(uploadRef)).toBeNull();
     expect(await fileRows(h)).toEqual([
       expect.objectContaining({
         id: fileId,
@@ -234,6 +265,41 @@ describe("completeUpload", () => {
     });
   });
 
+  it("changes nothing when storage can't take the upload, so a retry can", async () => {
+    const { h, actor, fileId, uploadUrl, headers, uploadRef } =
+      await presigned();
+    await h.storage.put(uploadUrl, PNG, headers);
+    const outage = createApp({
+      ...h.deps,
+      storage: withFailingMove(h.deps.storage),
+    });
+
+    await expect(outage.as(actor).completeUpload({ fileId })).rejects.toThrow(
+      "storage move failed"
+    );
+    expect((await fileRows(h))[0]?.status).toBe("pending_upload");
+    expect(await uploadedEvents(h)).toEqual([]);
+    expect(await h.storage.head(uploadRef)).not.toBeNull();
+
+    expect(await h.as(actor).completeUpload({ fileId })).toMatchObject({
+      ok: true,
+      status: "uploaded",
+    });
+  });
+
+  it("confirms an upload an earlier call moved but didn't confirm", async () => {
+    const { h, actor, fileId, storedRef } = await presigned();
+    // As if a call moved the object, then failed before its status change.
+    h.storage.plant({ ...storedRef, bytes: PNG, contentType: "image/png" });
+
+    expect(await h.as(actor).completeUpload({ fileId })).toEqual({
+      ok: true,
+      fileId,
+      status: "uploaded",
+    });
+    expect(await uploadedEvents(h)).toHaveLength(1);
+  });
+
   it.each([
     [
       "a size",
@@ -244,8 +310,8 @@ describe("completeUpload", () => {
   ])(
     "rejects and deletes an object with %s other than declared",
     async (_case, stored) => {
-      const { h, actor, fileId, ref } = await presigned();
-      h.storage.plant({ ...ref, ...stored });
+      const { h, actor, fileId, uploadRef, storedRef } = await presigned();
+      h.storage.plant({ ...uploadRef, ...stored });
 
       expect(await h.as(actor).completeUpload({ fileId })).toEqual({
         ok: false,
@@ -253,7 +319,8 @@ describe("completeUpload", () => {
       });
 
       expect((await fileRows(h))[0]?.status).toBe("rejected");
-      expect(await h.storage.head(ref)).toBeNull();
+      expect(await h.storage.head(uploadRef)).toBeNull();
+      expect(await h.storage.head(storedRef)).toBeNull();
       expect(await uploadedEvents(h)).toEqual([]);
       expect(await h.as(actor).completeUpload({ fileId })).toEqual({
         ok: false,

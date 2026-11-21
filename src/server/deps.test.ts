@@ -82,27 +82,6 @@ describe("smsSenderFor", () => {
   });
 });
 
-describe("settingsFor", () => {
-  it.each([
-    ["local", true],
-    ["preview", true],
-    ["staging", false],
-    ["production", false],
-  ] as const)("reads sms.enabled on %s as %s", async (appEnv, enabled) => {
-    expect(await settingsFor(appEnv).get("sms.enabled")).toBe(enabled);
-  });
-
-  it.each(["local", "preview", "staging", "production"] as const)(
-    "keeps FOA's ceiling on texts on %s: 200 an hour, 1,000 a day",
-    async (appEnv) => {
-      const settings = settingsFor(appEnv);
-
-      expect(await settings.get("sms.maxPerHour")).toBe(200);
-      expect(await settings.get("sms.maxPerDay")).toBe(1000);
-    }
-  );
-});
-
 const R2 = {
   R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
   R2_ACCESS_KEY_ID: "test-access-key-id",
@@ -198,6 +177,16 @@ describe("scannerFor", () => {
     });
   });
 
+  // APP_ENV defaults to local, so a worker started without it would
+  // otherwise pass every real upload in a real bucket.
+  it("passes nothing on a local run with R2 but without clamd", async () => {
+    const scanner = scannerFor({ APP_ENV: "local", CLAMD_PORT: 3310, ...R2 });
+
+    expect(await scanner.scan(streamOf(HARMLESS))).toMatchObject({
+      verdict: "error",
+    });
+  });
+
   it("asks clamd once CLAMD_HOST is set, on a local run too", async () => {
     // A "clamd" that hangs up on every connection: only the ClamAV
     // adapter would notice, and it gives no verdict.
@@ -248,4 +237,25 @@ describe("filesConfigFor", () => {
       appEnv: "local",
     });
   });
+});
+
+describe("settingsFor", () => {
+  it.each([
+    ["local", true],
+    ["preview", true],
+    ["staging", false],
+    ["production", false],
+  ] as const)("reads sms.enabled on %s as %s", async (appEnv, enabled) => {
+    expect(await settingsFor(appEnv).get("sms.enabled")).toBe(enabled);
+  });
+
+  it.each(["local", "preview", "staging", "production"] as const)(
+    "keeps FOA's ceiling on texts on %s: 200 an hour, 1,000 a day",
+    async (appEnv) => {
+      const settings = settingsFor(appEnv);
+
+      expect(await settings.get("sms.maxPerHour")).toBe(200);
+      expect(await settings.get("sms.maxPerDay")).toBe(1000);
+    }
+  );
 });

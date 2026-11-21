@@ -47,7 +47,7 @@ export function seedFilesAt({ bucket, keyPrefix }: SeedFilesLocation): Seeder {
     const now = deps.clock.now();
     for (const { account, id } of SEED_FILES) {
       // By address, as the access seed does: the account keeps its own id.
-      // Its phone, if any, is the identity seed's to store.
+      // The identity seed, which runs first, has already given it its phone.
       const owner = await ensureVerifiedAccount(deps, {
         id: account.id,
         name: account.name,

@@ -564,6 +564,17 @@ export const purgeEnvSchema = z
   });
 
 /**
+ * What the worker's scan job reads besides its database
+ * (src/worker/config.ts): the R2 variables, all four or none, and where
+ * clamd is. Without R2 or CLAMD_HOST every scan fails and uploads wait.
+ */
+export const scanJobEnvSchema = z
+  .object({ ...storageVariables, ...scannerVariables })
+  .superRefine(requireWholeStorageConfig);
+
+export type ScanJobEnv = z.output<typeof scanJobEnvSchema>;
+
+/**
  * Parses an env-like object, usually process.env, against `schema`. Empty
  * strings count as unset, so `FOO=` in a .env file behaves like a missing
  * variable. Throws one readable error that lists every problem.

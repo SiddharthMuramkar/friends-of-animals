@@ -2,10 +2,9 @@
 // what it sends with the PUT, how often it asks about the scan, and how it
 // shows a file's status. No React, so they're tested on their own.
 
-import type { FileStatus } from "@/server/modules/files/domain/file-status";
-import type { StorableContentType } from "@/server/modules/files/domain/purposes";
+import type { FileStatus, StorableContentType } from "@/server/modules/files";
 
-import type { UploadError } from "./actions";
+import type { UploadError } from "./upload-steps";
 
 /** How often the page asks whether the scan is done. */
 export const POLL_INTERVAL_MS = 2_000;
@@ -106,6 +105,8 @@ const MESSAGE_KEY = {
   empty: "empty",
   type_not_allowed: "typeNotAllowed",
   purpose_unavailable: "switchedOff",
+  // A deployment without object storage takes no uploads at all.
+  storage_unavailable: "switchedOff",
   // Storage has nothing: the PUT never arrived.
   upload_missing: "uploadFailed",
   upload_rejected: "uploadRejected",
