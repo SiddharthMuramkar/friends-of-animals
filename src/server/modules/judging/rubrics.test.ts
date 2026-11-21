@@ -87,12 +87,10 @@ describe("writing and publishing a rubric", () => {
   it("starts a draft from the default judging guide, saves edits and publishes it", async () => {
     const { h, competition, manager } = await setUp();
 
-    const created = await h
-      .as(manager)
-      .createRubricDraft({
-        competitionId: competition.id,
-        discipline: "drawing",
-      });
+    const created = await h.as(manager).createRubricDraft({
+      competitionId: competition.id,
+      discipline: "drawing",
+    });
     expect(created).toMatchObject({
       ok: true,
       rubric: {
@@ -148,12 +146,10 @@ describe("writing and publishing a rubric", () => {
 
   it("saves a half-finished draft, and keeps the criteria in the order given", async () => {
     const { h, competition, manager } = await setUp();
-    const created = await h
-      .as(manager)
-      .createRubricDraft({
-        competitionId: competition.id,
-        discipline: "essay",
-      });
+    const created = await h.as(manager).createRubricDraft({
+      competitionId: competition.id,
+      discipline: "essay",
+    });
     if (!created.ok) throw new Error(created.error);
     const rubricId = created.rubric.id;
     const halfDone = [CRITERIA[1]!, CRITERIA[0]!];
@@ -165,12 +161,10 @@ describe("writing and publishing a rubric", () => {
 
   it("refuses criteria that break the rules, and keeps the draft as it was", async () => {
     const { h, competition, manager } = await setUp();
-    const created = await h
-      .as(manager)
-      .createRubricDraft({
-        competitionId: competition.id,
-        discipline: "drawing",
-      });
+    const created = await h.as(manager).createRubricDraft({
+      competitionId: competition.id,
+      discipline: "drawing",
+    });
     if (!created.ok) throw new Error(created.error);
     const rubricId = created.rubric.id;
 
@@ -277,14 +271,12 @@ describe("a published rubric is read-only", () => {
     ).toBe("rubric_not_editable");
     expect(
       await refusal(
-        h.db
-          .insert(rubricCriterion)
-          .values({
-            ...CRITERIA[0]!,
-            id: crypto.randomUUID(),
-            rubricId: published.id,
-            position: 9,
-          })
+        h.db.insert(rubricCriterion).values({
+          ...CRITERIA[0]!,
+          id: crypto.randomUUID(),
+          rubricId: published.id,
+          position: 9,
+        })
       )
     ).toBe("rubric_not_editable");
     expect(
@@ -327,12 +319,10 @@ describe("revising a published rubric", () => {
       { ...CRITERIA[0]!, weight: 50 },
       { ...CRITERIA[1]!, weight: 50 },
     ];
-    await h
-      .as(manager)
-      .updateRubricDraft({
-        rubricId: revision.rubric.id,
-        criteria: v2Criteria,
-      });
+    await h.as(manager).updateRubricDraft({
+      rubricId: revision.rubric.id,
+      criteria: v2Criteria,
+    });
     // Until the new version is published, the old one is the one in force.
     expect(await criteriaRows(h, v1.id)).toEqual(CRITERIA);
 
@@ -398,12 +388,10 @@ describe("revising a published rubric", () => {
     });
     const manager = await signedInWith(h, managerOf(competition.id));
     const drawing = await publishedRubric(h, manager, competition.id);
-    const essay = await h
-      .as(manager)
-      .createRubricDraft({
-        competitionId: competition.id,
-        discipline: "essay",
-      });
+    const essay = await h.as(manager).createRubricDraft({
+      competitionId: competition.id,
+      discipline: "essay",
+    });
     if (!essay.ok) throw new Error(essay.error);
     await h
       .as(manager)
@@ -433,12 +421,10 @@ describe("revising a published rubric", () => {
 describe("publishing checks the criteria", () => {
   it("names every problem and changes nothing", async () => {
     const { h, competition, manager } = await setUp();
-    const created = await h
-      .as(manager)
-      .createRubricDraft({
-        competitionId: competition.id,
-        discipline: "drawing",
-      });
+    const created = await h.as(manager).createRubricDraft({
+      competitionId: competition.id,
+      discipline: "drawing",
+    });
     if (!created.ok) throw new Error(created.error);
     const rubricId = created.rubric.id;
 
@@ -563,12 +549,10 @@ describe("who may manage rubrics", () => {
     });
     const manager = await signedInWith(h, managerOf(competition.id));
     const published = await publishedRubric(h, manager, competition.id);
-    const draft = await h
-      .as(manager)
-      .createRubricDraft({
-        competitionId: competition.id,
-        discipline: "essay",
-      });
+    const draft = await h.as(manager).createRubricDraft({
+      competitionId: competition.id,
+      discipline: "essay",
+    });
     if (!draft.ok) throw new Error(draft.error);
     await h
       .as(manager)

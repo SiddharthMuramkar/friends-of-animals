@@ -18,13 +18,15 @@ import { auditUseCases } from "./audit";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
 import { competitionsUseCases } from "./modules/competitions";
+import { judgingUseCases } from "./modules/judging";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
   identityUseCases,
   accessUseCases,
   auditUseCases,
-  competitionsUseCases
+  competitionsUseCases,
+  judgingUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

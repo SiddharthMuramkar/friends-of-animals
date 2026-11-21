@@ -5,13 +5,15 @@
 
 import { IDENTITY_POLICY } from "../identity/policy";
 import { COMPETITIONS_POLICY } from "../modules/competitions/policy";
+import { JUDGING_POLICY } from "../modules/judging/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
 export const POLICY = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
-  COMPETITIONS_POLICY
+  COMPETITIONS_POLICY,
+  JUDGING_POLICY
 );
 
 export type Action = keyof typeof POLICY;
