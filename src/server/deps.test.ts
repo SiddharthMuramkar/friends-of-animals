@@ -5,7 +5,8 @@ import { FakeClock } from "@/test/fakes/clock";
 
 import type { E164Phone } from "@/lib/phone";
 
-import { emailSenderFor, smsSenderFor } from "./deps";
+import { contactLimitsFor, emailSenderFor, smsSenderFor } from "./deps";
+import { CONTACT_RATE_LIMITS } from "./modules/contact/domain/submission";
 import { EmailNotConfiguredError } from "./ports/email";
 import { readCapturedEmail } from "./ports/email-capture";
 import { SmsNotConfiguredError } from "./ports/sms";
@@ -98,4 +99,23 @@ describe("smsSenderFor", () => {
     expect(counter.calls).toBe(0);
     expect(await readCapturedSms(deps, { to: sms.to })).toEqual([]);
   });
+});
+
+describe("contactLimitsFor", () => {
+  it.each(["staging", "production"] as const)(
+    "keeps FOA's contact form limits on %s",
+    (appEnv) => {
+      expect(contactLimitsFor(appEnv)).toEqual(CONTACT_RATE_LIMITS);
+    }
+  );
+
+  it.each(["local", "preview"] as const)(
+    "lets one IP send many more on %s, where every E2E run shares the CI's address",
+    (appEnv) => {
+      expect(contactLimitsFor(appEnv)).toEqual({
+        perIpPerHour: 100,
+        perEmailPerDay: CONTACT_RATE_LIMITS.perEmailPerDay,
+      });
+    }
+  );
 });

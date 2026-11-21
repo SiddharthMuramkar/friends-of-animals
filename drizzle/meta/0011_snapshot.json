@@ -1,6 +1,6 @@
 {
-  "id": "d32b7697-fb47-481d-9cbb-cbb1f1f6a77c",
-  "prevId": "1f0892d2-f567-41eb-9941-0b3116faca39",
+  "id": "ed9fa5d0-c8f1-4c70-98f0-fa1533ed4714",
+  "prevId": "d8a94560-6715-49da-80ef-1fecdc926be6",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1270,117 +1270,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.safeguarding_incident_log": {
-      "name": "safeguarding_incident_log",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "report_id": {
-          "name": "report_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "incident_log_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "to_status": {
-          "name": "to_status",
-          "type": "safeguarding_report_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "severity": {
-          "name": "severity",
-          "type": "safeguarding_severity",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "body": {
-          "name": "body",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "author_user_id": {
-          "name": "author_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "safeguarding_incident_log_report_id_idx": {
-          "name": "safeguarding_incident_log_report_id_idx",
-          "columns": [
-            {
-              "expression": "report_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "safeguarding_incident_log_report_id_safeguarding_report_id_fk": {
-          "name": "safeguarding_incident_log_report_id_safeguarding_report_id_fk",
-          "tableFrom": "safeguarding_incident_log",
-          "columnsFrom": [
-            "report_id"
-          ],
-          "tableTo": "safeguarding_report",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "safeguarding_incident_log_note_has_body": {
-          "name": "safeguarding_incident_log_note_has_body",
-          "value": "\"safeguarding_incident_log\".\"kind\" <> 'note' OR \"safeguarding_incident_log\".\"body\" IS NOT NULL"
-        },
-        "safeguarding_incident_log_move_has_status": {
-          "name": "safeguarding_incident_log_move_has_status",
-          "value": "(\"safeguarding_incident_log\".\"kind\" = 'note') = (\"safeguarding_incident_log\".\"to_status\" IS NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.safeguarding_report": {
-      "name": "safeguarding_report",
+    "public.contact_message": {
+      "name": "contact_message",
       "schema": "",
       "columns": {
         "id": {
@@ -1395,65 +1286,60 @@
           "primaryKey": false,
           "notNull": true
         },
-        "category": {
-          "name": "category",
+        "topic": {
+          "name": "topic",
+          "type": "contact_topic",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team": {
+          "name": "team",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "description": {
-          "name": "description",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "subject_details": {
-          "name": "subject_details",
+        "email": {
+          "name": "email",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "subject_age": {
-          "name": "subject_age",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reporter_is_child": {
-          "name": "reporter_is_child",
-          "type": "boolean",
           "primaryKey": false,
           "notNull": true
         },
-        "anonymous": {
-          "name": "anonymous",
-          "type": "boolean",
+        "organisation": {
+          "name": "organisation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "reporter_name": {
-          "name": "reporter_name",
+        "message": {
+          "name": "message",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
-        },
-        "reporter_contact": {
-          "name": "reporter_contact",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "status": {
           "name": "status",
-          "type": "safeguarding_report_status",
+          "type": "contact_message_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
           "default": "'new'"
         },
-        "severity": {
-          "name": "severity",
-          "type": "safeguarding_severity",
+        "close_reason": {
+          "name": "close_reason",
+          "type": "contact_close_reason",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
@@ -1464,17 +1350,11 @@
           "primaryKey": false,
           "notNull": false
         },
-        "escalation_reference": {
-          "name": "escalation_reference",
+        "ip_hash": {
+          "name": "ip_hash",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
-        },
-        "outcome": {
-          "name": "outcome",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
@@ -1488,17 +1368,23 @@
           "primaryKey": false,
           "notNull": true
         },
-        "resolved_at": {
-          "name": "resolved_at",
+        "closed_at": {
+          "name": "closed_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {
-        "safeguarding_report_status_created_at_idx": {
-          "name": "safeguarding_report_status_created_at_idx",
+        "contact_message_team_status_created_at_idx": {
+          "name": "contact_message_team_status_created_at_idx",
           "columns": [
+            {
+              "expression": "team",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "status",
               "isExpression": false,
@@ -1517,8 +1403,8 @@
           "method": "btree",
           "concurrently": false
         },
-        "safeguarding_report_assigned_to_user_id_idx": {
-          "name": "safeguarding_report_assigned_to_user_id_idx",
+        "contact_message_assigned_to_user_id_idx": {
+          "name": "contact_message_assigned_to_user_id_idx",
           "columns": [
             {
               "expression": "assigned_to_user_id",
@@ -1534,9 +1420,9 @@
         }
       },
       "foreignKeys": {
-        "safeguarding_report_assigned_to_user_id_user_id_fk": {
-          "name": "safeguarding_report_assigned_to_user_id_user_id_fk",
-          "tableFrom": "safeguarding_report",
+        "contact_message_assigned_to_user_id_user_id_fk": {
+          "name": "contact_message_assigned_to_user_id_user_id_fk",
+          "tableFrom": "contact_message",
           "columnsFrom": [
             "assigned_to_user_id"
           ],
@@ -1550,8 +1436,8 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "safeguarding_report_reference_unique": {
-          "name": "safeguarding_report_reference_unique",
+        "contact_message_reference_unique": {
+          "name": "contact_message_reference_unique",
           "columns": [
             "reference"
           ],
@@ -1560,27 +1446,247 @@
       },
       "policies": {},
       "checkConstraints": {
-        "safeguarding_report_subject_age_range": {
-          "name": "safeguarding_report_subject_age_range",
-          "value": "\"safeguarding_report\".\"subject_age\" BETWEEN 0 AND 17"
+        "contact_message_team_known": {
+          "name": "contact_message_team_known",
+          "value": "\"contact_message\".\"team\" IN ('staff_admin', 'competition_manager', 'community_manager', 'adoption_coordinator', 'finance', 'content_manager')"
         },
-        "safeguarding_report_anonymous_has_no_reporter": {
-          "name": "safeguarding_report_anonymous_has_no_reporter",
-          "value": "NOT \"safeguarding_report\".\"anonymous\" OR (\"safeguarding_report\".\"reporter_name\" IS NULL AND \"safeguarding_report\".\"reporter_contact\" IS NULL)"
+        "contact_message_closed_with_reason": {
+          "name": "contact_message_closed_with_reason",
+          "value": "(\"contact_message\".\"status\" = 'closed') = (\"contact_message\".\"close_reason\" IS NOT NULL AND \"contact_message\".\"closed_at\" IS NOT NULL)"
         },
-        "safeguarding_report_severity_after_triage": {
-          "name": "safeguarding_report_severity_after_triage",
-          "value": "(\"safeguarding_report\".\"status\" = 'new') = (\"safeguarding_report\".\"severity\" IS NULL)"
+        "contact_message_name_length": {
+          "name": "contact_message_name_length",
+          "value": "char_length(\"contact_message\".\"name\") BETWEEN 1 AND 100"
         },
-        "safeguarding_report_escalated_has_reference": {
-          "name": "safeguarding_report_escalated_has_reference",
-          "value": "\"safeguarding_report\".\"status\" <> 'escalated' OR \"safeguarding_report\".\"escalation_reference\" IS NOT NULL"
+        "contact_message_email_length": {
+          "name": "contact_message_email_length",
+          "value": "char_length(\"contact_message\".\"email\") BETWEEN 1 AND 254"
         },
-        "safeguarding_report_resolved_has_outcome": {
-          "name": "safeguarding_report_resolved_has_outcome",
-          "value": "(\"safeguarding_report\".\"status\" = 'resolved') = (\"safeguarding_report\".\"outcome\" IS NOT NULL AND \"safeguarding_report\".\"resolved_at\" IS NOT NULL)"
+        "contact_message_organisation_length": {
+          "name": "contact_message_organisation_length",
+          "value": "\"contact_message\".\"organisation\" IS NULL OR char_length(\"contact_message\".\"organisation\") BETWEEN 1 AND 150"
+        },
+        "contact_message_subject_length": {
+          "name": "contact_message_subject_length",
+          "value": "char_length(\"contact_message\".\"subject\") BETWEEN 1 AND 150"
+        },
+        "contact_message_message_length": {
+          "name": "contact_message_message_length",
+          "value": "char_length(\"contact_message\".\"message\") BETWEEN 1 AND 5000"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.contact_note": {
+      "name": "contact_note",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_user_id": {
+          "name": "author_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "contact_note_message_id_created_at_idx": {
+          "name": "contact_note_message_id_created_at_idx",
+          "columns": [
+            {
+              "expression": "message_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "contact_note_message_id_contact_message_id_fk": {
+          "name": "contact_note_message_id_contact_message_id_fk",
+          "tableFrom": "contact_note",
+          "columnsFrom": [
+            "message_id"
+          ],
+          "tableTo": "contact_message",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "contact_note_author_user_id_user_id_fk": {
+          "name": "contact_note_author_user_id_user_id_fk",
+          "tableFrom": "contact_note",
+          "columnsFrom": [
+            "author_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "contact_note_body_length": {
+          "name": "contact_note_body_length",
+          "value": "char_length(\"contact_note\".\"body\") BETWEEN 1 AND 5000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.form_rate_limit": {
+      "name": "form_rate_limit",
+      "schema": "",
+      "columns": {
+        "form": {
+          "name": "form",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_hash": {
+          "name": "key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "window_start": {
+          "name": "window_start",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "form_rate_limit_window_start_idx": {
+          "name": "form_rate_limit_window_start_idx",
+          "columns": [
+            {
+              "expression": "window_start",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "form_rate_limit_form_scope_key_hash_window_start_pk": {
+          "name": "form_rate_limit_form_scope_key_hash_window_start_pk",
+          "columns": [
+            "form",
+            "scope",
+            "key_hash",
+            "window_start"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "form_rate_limit_count_positive": {
+          "name": "form_rate_limit_count_positive",
+          "value": "\"form_rate_limit\".\"count\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.human_check_redemption": {
+      "name": "human_check_redemption",
+      "schema": "",
+      "columns": {
+        "salt": {
+          "name": "salt",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "redeemed_at": {
+          "name": "redeemed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "human_check_redemption_redeemed_at_idx": {
+          "name": "human_check_redemption_redeemed_at_idx",
+          "columns": [
+            {
+              "expression": "redeemed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },
@@ -1621,8 +1727,7 @@
         "community_manager",
         "finance",
         "auction_manager",
-        "adoption_coordinator",
-        "safeguarding_lead"
+        "adoption_coordinator"
       ]
     },
     "public.role_scope_type": {
@@ -1678,34 +1783,36 @@
         "user"
       ]
     },
-    "public.incident_log_kind": {
-      "name": "incident_log_kind",
+    "public.contact_close_reason": {
+      "name": "contact_close_reason",
       "schema": "public",
       "values": [
-        "note",
-        "status_change",
-        "escalation"
+        "resolved",
+        "no_action_needed",
+        "spam",
+        "duplicate"
       ]
     },
-    "public.safeguarding_report_status": {
-      "name": "safeguarding_report_status",
+    "public.contact_message_status": {
+      "name": "contact_message_status",
       "schema": "public",
       "values": [
         "new",
-        "triaged",
-        "investigating",
-        "escalated",
-        "resolved"
+        "in_progress",
+        "closed"
       ]
     },
-    "public.safeguarding_severity": {
-      "name": "safeguarding_severity",
+    "public.contact_topic": {
+      "name": "contact_topic",
       "schema": "public",
       "values": [
-        "critical",
-        "high",
-        "medium",
-        "low"
+        "GENERAL",
+        "SCHOOLS",
+        "NGOS",
+        "ADOPTION",
+        "VOLUNTEERING",
+        "DONATIONS",
+        "MEDIA"
       ]
     }
   },

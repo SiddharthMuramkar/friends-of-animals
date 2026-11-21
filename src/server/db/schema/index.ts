@@ -13,3 +13,5 @@ export * from "./outbox";
 export * from "./consent";
 export * from "./settings";
 export * from "./safeguarding";
+export * from "./contact";
+export * from "./public-forms";

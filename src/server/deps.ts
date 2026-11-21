@@ -27,6 +27,15 @@ import { msg91SmsSender } from "./ports/sms-msg91";
 import { fixedSettings, type Settings } from "./ports/settings";
 import type { ErrorReporter } from "./ports/errors";
 import { serverErrorReporter } from "./observability/server-reporter";
+import type { HumanCheck } from "./ports/human-check";
+import {
+  HUMAN_CHECK_DIFFICULTY,
+  proofOfWorkHumanCheck,
+} from "./modules/public-forms/proof-of-work-check";
+import {
+  CONTACT_RATE_LIMITS,
+  type ContactRateLimits,
+} from "./modules/contact/domain/submission";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -43,6 +52,10 @@ export interface Deps extends DbWithClock {
   settings: Settings;
   /** Errors a use case catches but can't handle (Sentry, scrubbed). */
   errors: ErrorReporter;
+  /** The human check on public forms (proof of work, signed by the secret). */
+  humanCheck: HumanCheck;
+  /** The contact form's limits per IP and per address. */
+  contactLimits: ContactRateLimits;
 }
 
 /**
@@ -102,12 +115,24 @@ export function settingsFor(appEnv: Env["APP_ENV"]): Settings {
     : fixedSettings();
 }
 
+/**
+ * The contact form's limits until #62's settings hold them (HR-51). Local
+ * runs and previews let one IP send many more: every E2E run reaches a
+ * preview from the CI runner's one address.
+ */
+export function contactLimitsFor(appEnv: Env["APP_ENV"]): ContactRateLimits {
+  return appEnv === "local" || appEnv === "preview"
+    ? { ...CONTACT_RATE_LIMITS, perIpPerHour: 100 }
+    : CONTACT_RATE_LIMITS;
+}
+
 let production: Deps | undefined;
 
 /** The app's deps, built on first use from `env()`. */
 export function productionDeps(): Deps {
   if (!production) {
     const config = env();
+    const secret = config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET;
     production = {
       db,
       clock: systemClock,
@@ -122,13 +147,18 @@ export function productionDeps(): Deps {
       ),
       cookies: nextCookieJar,
       auth: {
-        secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
+        secret,
         baseUrl: config.APP_URL,
       },
       ...fieldCryptoFor(config),
       settings: settingsFor(config.APP_ENV),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
+      humanCheck: proofOfWorkHumanCheck({
+        secret,
+        difficulty: HUMAN_CHECK_DIFFICULTY,
+      }),
+      contactLimits: contactLimitsFor(config.APP_ENV),
     };
   }
   return production;
