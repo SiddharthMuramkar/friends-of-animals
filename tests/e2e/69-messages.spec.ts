@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
+import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
+import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {
   expectAccessibleInDark,
   expectRendersAccessibly,
@@ -11,6 +14,9 @@ import { drainOutbox, freshEmail, readCode } from "./support/mailbox";
 // message templates. The new member's welcome is drained on the preview
 // itself (POST /api/preview/drain), running this PR's dispatcher. The
 // template pages are only viewed, so shared seed data stays as it is.
+// Staff pages need the second step (#60): the content manager enters the
+// seed authenticator's code (the preview-only SEED_TOTP_SECRET) on #60's
+// second-step page first.
 
 /** The seeded member who holds the content manager role (seed/access.ts). */
 const CONTENT_MANAGER = "member1@example.test";
@@ -28,6 +34,40 @@ async function enterCode(
     .fill(await readCode(request, email));
   await page.getByRole("button", { name: button }).click();
   await expect(page).toHaveURL(/\/account\/sessions$/);
+}
+
+/**
+ * Enters the seed authenticator's code on #60's second-step page, which
+ * then sends the browser to `next`. A code works once per authenticator,
+ * and the other project may have just used this window's, so a refused
+ * code is followed by the next window's, which one step of drift allows.
+ */
+async function enterSecondStep(page: Page, next: string) {
+  const secret = base32Decode(SEED_TOTP_SECRET);
+  await page.goto(`/auth/second-factor?next=${encodeURIComponent(next)}`);
+  for (const stepsAhead of [0, 1]) {
+    await page
+      .getByRole("textbox", { name: "6-digit code" })
+      .fill(totpCode(secret, new Date(Date.now() + stepsAhead * 30_000)));
+    await page.getByRole("button", { name: "Continue" }).click();
+    const outcome = await Promise.race([
+      page
+        .waitForURL((url) => url.pathname === next)
+        .then(
+          () => "passed" as const,
+          () => "waiting" as const
+        ),
+      page
+        .getByRole("alert")
+        .waitFor()
+        .then(
+          () => "refused" as const,
+          () => "waiting" as const
+        ),
+    ]);
+    if (outcome === "passed") return;
+  }
+  await expect(page).toHaveURL((url) => url.pathname === next);
 }
 
 test("a new member reads their inbox, and the unread count drops", async ({
@@ -78,6 +118,7 @@ test("a content manager opens the message templates", async ({
     .getByRole("textbox", { name: "Email address" })
     .fill(CONTENT_MANAGER);
   await enterCode(page, request, CONTENT_MANAGER, "Sign in");
+  await enterSecondStep(page, "/admin/templates");
 
   await expectRendersAccessibly(page, "/admin/templates");
   await expectAccessibleInDark(page, "/admin/templates");

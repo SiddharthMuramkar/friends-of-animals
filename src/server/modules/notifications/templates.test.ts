@@ -280,4 +280,35 @@ describe("who may use the template use cases", () => {
     expect(await templateRow(h, "email")).toEqual(before);
     expect(await auditCount(h)).toBe(0);
   });
+
+  it("refuses a content manager who hasn't passed the second factor this session (#60), and writes nothing", async () => {
+    const h = await createHarness();
+    const before = await templateRow(h, "email");
+    const account = await h.seed.member();
+    await h.seed.grant(account, {
+      role: "content_manager",
+      scope: { type: "global" },
+    });
+    await h.seed.authenticator(account);
+    const app = h.as(await h.signIn(account, {}, { secondFactor: false }));
+
+    for (const call of [
+      () => app.listMessageTemplates(),
+      () => app.getMessageTemplate({ key: WELCOME }),
+      () =>
+        app.updateMessageTemplate({
+          key: WELCOME,
+          channel: "email",
+          subject: "Hacked",
+          body: "Hacked",
+        }),
+    ]) {
+      await expect(call()).rejects.toMatchObject({
+        name: "DomainError",
+        code: "second_factor_required",
+      });
+    }
+    expect(await templateRow(h, "email")).toEqual(before);
+    expect(await auditCount(h)).toBe(0);
+  });
 });

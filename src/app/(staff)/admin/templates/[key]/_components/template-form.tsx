@@ -73,7 +73,11 @@ export function TemplateForm({
       <input type="hidden" name="channel" value={channel} />
       <input type="hidden" name="version" value={state.version} />
 
-      {state.status === "invalid" || state.status === "stale" ? (
+      {state.status === "refused" ? (
+        <FormAlert tone="danger" label={labels.problem}>
+          <p>{state.message}</p>
+        </FormAlert>
+      ) : state.status === "invalid" || state.status === "stale" ? (
         <FormAlert tone="danger" label={labels.problem}>
           <p>{state.status === "stale" ? labels.stale : labels.invalid}</p>
         </FormAlert>

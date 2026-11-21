@@ -10,7 +10,12 @@ import { as, currentActor } from "@/server/app";
 import type { RevisionProblem } from "@/server/modules/notifications";
 import { placeholderFor } from "@/server/modules/notifications/preview";
 
-import { templateFormState, type TemplateFormState } from "./form-state";
+import { unlessRefused } from "../../_lib/refusal";
+import {
+  refusedFormState,
+  templateFormState,
+  type TemplateFormState,
+} from "./form-state";
 
 const form = z.object({
   key: z.string(),
@@ -23,9 +28,10 @@ const form = z.object({
 
 /**
  * Saves one channel of a template as the next version. The use case
- * authorizes (content managers and super admins) and checks the wording;
- * this maps its answer to what the form shows, then refreshes the page so
- * its preview and version line follow.
+ * authorizes (content managers and super admins, with this session's
+ * second step, #60) and checks the wording; this maps its answer to what
+ * the form shows, then refreshes the page so its preview and version line
+ * follow.
  */
 export async function saveTemplateAction(
   previous: TemplateFormState,
@@ -37,14 +43,21 @@ export async function saveTemplateAction(
   if (!parsed.success) return { ...previous, status: "stale" };
   const { key, channel, version, ...submitted } = parsed.data;
 
-  const result = await as(actor).updateMessageTemplate({
-    key,
-    channel,
-    version,
-    subject: channel === "sms" ? null : submitted.subject,
-    body: submitted.body,
-    ...(channel === "sms" ? { dltTemplateId: submitted.dltTemplateId } : {}),
-  });
+  const outcome = await unlessRefused(() =>
+    as(actor).updateMessageTemplate({
+      key,
+      channel,
+      version,
+      subject: channel === "sms" ? null : submitted.subject,
+      body: submitted.body,
+      ...(channel === "sms" ? { dltTemplateId: submitted.dltTemplateId } : {}),
+    })
+  );
+  if (!outcome.ok) {
+    const tr = await getTranslations("adminTemplates.editor.refused");
+    return refusedFormState({ version }, submitted, tr(outcome.refusal));
+  }
+  const result = outcome.value;
   const t = await getTranslations("adminTemplates.editor.problems");
   const describe = (problem: RevisionProblem) => {
     switch (problem.code) {

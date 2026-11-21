@@ -16,12 +16,14 @@ export type TemplateFormValues = {
 };
 
 export type TemplateFormState = {
-  status: "idle" | "saved" | "unchanged" | "stale" | "invalid";
+  status: "idle" | "saved" | "unchanged" | "stale" | "invalid" | "refused";
   /** The version the next save starts from. */
   version: number;
   fieldErrors: Partial<Record<TemplateField, string>>;
   /** What was submitted, shown again after a refusal. */
   values: TemplateFormValues | null;
+  /** Why a `refused` save was refused, already translated. */
+  message?: string;
 };
 
 export type FormTexts = {
@@ -68,4 +70,23 @@ export function templateFormState(
   }
   // stale, or the template is gone: reload to see what is there now.
   return { ...base, status: "stale", values: submitted };
+}
+
+/**
+ * A save the use case refused: the actor isn't a content manager, or is
+ * staff who hasn't passed this session's second factor (#60). Says why
+ * and keeps what was typed.
+ */
+export function refusedFormState(
+  before: { version: number },
+  submitted: TemplateFormValues,
+  message: string
+): TemplateFormState {
+  return {
+    status: "refused",
+    version: before.version,
+    fieldErrors: {},
+    values: submitted,
+    message,
+  };
 }

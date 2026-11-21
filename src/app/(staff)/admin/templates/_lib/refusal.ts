@@ -1,12 +1,22 @@
-import { DomainError } from "@/server/errors";
+import { DomainError, type DomainErrorCode } from "@/server/errors";
 
-/** Runs `load`; a refused actor gets null instead of the error. */
-export async function unlessForbidden<T>(load: () => Promise<T>) {
+export type Loaded<T> =
+  | { ok: true; value: T }
+  | { ok: false; refusal: DomainErrorCode };
+
+/**
+ * Runs `load`. An actor the use case refuses gets why instead of the
+ * error: not a content manager (`forbidden`), or a staff member who hasn't
+ * passed this session's second factor (#60). Any other error goes on.
+ */
+export async function unlessRefused<T>(
+  load: () => Promise<T>
+): Promise<Loaded<T>> {
   try {
-    return await load();
+    return { ok: true, value: await load() };
   } catch (error) {
-    if (error instanceof DomainError && error.code === "forbidden") {
-      return null;
+    if (error instanceof DomainError) {
+      return { ok: false, refusal: error.code };
     }
     throw error;
   }
