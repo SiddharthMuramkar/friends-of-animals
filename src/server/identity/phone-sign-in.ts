@@ -20,23 +20,22 @@ import { z } from "zod";
 
 import { parsePhoneNumber, type E164Phone } from "@/lib/phone";
 
+import { authorize } from "../access/can";
 import { user } from "../db/schema";
+import { invalidInput, type InvalidInput } from "../input";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { codeSms } from "./code-sms";
 import { createAccount } from "./create-account";
 import { checkPhoneCode, issuePhoneCode } from "./phone-code";
-import { authorize } from "./policy";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
 import { EMAIL_CODE } from "./settings";
 import {
   codeInput as code,
-  invalidInput,
   nameInput as name,
   storeCookies,
   visitorMeta,
-  type InvalidInput,
 } from "./sign-in-shared";
 import { phoneHashOf, storedPhone } from "./stored-phone";
 
@@ -104,7 +103,7 @@ export type SignInMethods = { email: true; phone: boolean };
 export async function signInMethods(
   ctx: UseCaseContext
 ): Promise<SignInMethods> {
-  authorize(ctx.actor, "signInMethods");
+  await authorize(ctx, "signInMethods");
   return { email: true, phone: await ctx.settings.get("sms.enabled") };
 }
 
@@ -114,7 +113,7 @@ export async function requestPhoneCode(
   ctx: UseCaseContext,
   input: RequestPhoneCodeInput
 ): Promise<RequestPhoneCodeResult> {
-  authorize(ctx.actor, "requestPhoneCode");
+  await authorize(ctx, "requestPhoneCode");
   const meta = visitorMeta(ctx);
   // Off means off: no text, no stored code, nothing counted.
   if (!(await ctx.settings.get("sms.enabled"))) return SMS_DISABLED;
@@ -163,7 +162,7 @@ export async function verifyPhoneCode(
   ctx: UseCaseContext,
   input: VerifyPhoneCodeInput
 ): Promise<VerifyPhoneCodeResult> {
-  authorize(ctx.actor, "verifyPhoneCode");
+  await authorize(ctx, "verifyPhoneCode");
   const meta = visitorMeta(ctx);
   // Switching SMS off also stops codes already texted from working.
   if (!(await ctx.settings.get("sms.enabled"))) return SMS_DISABLED;

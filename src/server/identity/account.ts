@@ -4,10 +4,10 @@ import { eq } from "drizzle-orm";
 
 import type { E164Phone } from "@/lib/phone";
 
+import { authorize } from "../access/can";
 import { user } from "../db/schema";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
-import { authorize } from "./policy";
 import { readStoredPhone } from "./stored-phone";
 
 /** An account has an email, a phone, or both. */
@@ -24,7 +24,7 @@ export function signedInUser(ctx: UseCaseContext) {
 }
 
 export async function getAccount(ctx: UseCaseContext): Promise<Account> {
-  authorize(ctx.actor, "getAccount");
+  await authorize(ctx, "getAccount");
   const { userId } = signedInUser(ctx);
   const [account] = await ctx.db
     .select({

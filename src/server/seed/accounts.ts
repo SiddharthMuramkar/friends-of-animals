@@ -4,8 +4,9 @@
 // also has a phone, so it signs in by SMS code too (#58); the number is in
 // a block no real subscriber holds.
 //
-// The super admin role arrives with #59's seeder; until then this is a plain
-// account.
+// Their roles come from the access seeder (./access.ts): the super admin is
+// a global super admin, the first member holds several roles, the second is
+// a staff admin and the third holds none.
 
 export const SEED_ACCOUNTS = {
   superAdmin: {
