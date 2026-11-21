@@ -123,8 +123,19 @@ const PLATFORM_CONTEXTS: ReadonlySet<string> = new Set([
 /** A user id as `hashUserId` returns it, left alone on a second pass. */
 const HASHED_USER_ID = /^u_[0-9a-f]{16,64}$/;
 
+// Every pattern below runs in linear time: /monitoring passes 1 MiB from
+// anyone through here. Either its runs are bounded, or it can't fail once
+// it has started (a callback decides what to keep), so a global replace
+// never rescans the rest of the string from each position.
+
+/** Longest text kept from one string: Sentry's own limit for a message. */
+const MAX_TEXT_LENGTH = 8192;
+
+const WHITESPACE = /\s/;
+
+/** An email address, with every run bounded (RFC 5321 lengths). */
 const EMAIL =
-  /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
+  /[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,24}/g;
 
 /**
  * An Indian mobile number: 10 digits starting 6-9, with an optional +91,
@@ -134,11 +145,16 @@ const EMAIL =
 const INDIAN_MOBILE =
   /(^|[^\d+])((?:\+|00)?91[ -]?|0)?[6-9]\d{2}(?:[ -]?\d){7}(?!\d)/g;
 
-/** The query string and fragment of an absolute URL. */
-const ABSOLUTE_URL_QUERY = /\b(https?:\/\/[^\s?#"'<>]+)[?#][^\s"'<>]*/g;
+/** An absolute URL, with its query string and fragment if it has them. */
+const ABSOLUTE_URL = /\bhttps?:\/\/[^\s?#"'<>]*(?:[?#][^\s"'<>]*)?/g;
 
-/** The query string and fragment of a path that starts a word. */
-const PATH_QUERY = /(^|[\s"'(=])(\/[^\s?#"'<>]*)[?#][^\s"'<>]*/g;
+/**
+ * A path that starts a word (after the start, a space, a quote, `(` or
+ * `=`, which the match includes), with its query string and fragment.
+ */
+const PATH = /(?:^|[\s"'(=])\/[^\s?#"'<>]*(?:[?#][^\s"'<>]*)?/g;
+
+type Replacer = (match: string, ...groups: string[]) => string;
 
 /**
  * What database errors repeat of the data they were given, each with
@@ -149,11 +165,20 @@ const PATH_QUERY = /(^|[\s"'(=])(\/[^\s?#"'<>]*)[?#][^\s"'<>]*/g;
  * contains (<values>)`). Quoted names (`constraint "user_email_key"`)
  * follow no colon, so they stay.
  */
-const DATABASE_VALUES: readonly [RegExp, string][] = [
+const DATABASE_VALUES: readonly [RegExp, string | Replacer][] = [
   [/\nparams:[\s\S]*$/, "\nparams: [redacted]"],
   [/Failing row contains [^\n]*/g, "Failing row contains [redacted]"],
-  [/(Key \(.*?\)=)\([^\n]*\)/g, "$1[redacted]"],
-  [/: "(?:[^"\\\n]|\\.)*"/g, ': "[redacted]"'],
+  // The columns may hold parentheses (`lower(email)`), so up to the first
+  // ")=" within 256 characters; the value runs to the line's last ")".
+  [
+    /(Key \([^\n]{0,256}?\)=)\(([^\n]*)/g,
+    (_match: string, key: string, rest: string) =>
+      `${key}[redacted]${rest.slice(rest.lastIndexOf(")") + 1)}`,
+  ],
+  // Postgres echoes the value raw, quotes and newlines included: with no
+  // quote left on its line, it runs to the end; otherwise to the line's end.
+  [/: "[^"\n]*\n[\s\S]*$/, ': "[redacted]"'],
+  [/: "[^\n]*/g, ': "[redacted]"'],
 ];
 
 /**
@@ -163,14 +188,28 @@ const DATABASE_VALUES: readonly [RegExp, string][] = [
 export function redactText(text: string): string {
   const withoutValues = DATABASE_VALUES.reduce(
     (redacted, [pattern, replacement]) =>
-      redacted.replace(pattern, replacement),
-    text
+      // Two overloads, one call: TypeScript can't pick one for the union.
+      typeof replacement === "string"
+        ? redacted.replace(pattern, replacement)
+        : redacted.replace(pattern, replacement),
+    truncateText(text)
   );
   return withoutValues
-    .replace(ABSOLUTE_URL_QUERY, "$1")
-    .replace(PATH_QUERY, "$1$2")
+    .replace(ABSOLUTE_URL, stripQuery)
+    .replace(PATH, stripQuery)
     .replace(EMAIL, "[email]")
     .replace(INDIAN_MOBILE, (_match, before: string) => `${before}[phone]`);
+}
+
+/**
+ * The first MAX_TEXT_LENGTH characters, cut back to a space so no email
+ * or number is left half there, then TRUNCATED.
+ */
+function truncateText(text: string): string {
+  if (text.length <= MAX_TEXT_LENGTH) return text;
+  let end = MAX_TEXT_LENGTH;
+  while (end > 0 && !WHITESPACE.test(text.charAt(end - 1))) end--;
+  return `${text.slice(0, end)}${TRUNCATED}`;
 }
 
 /** A URL or path without its query string and fragment. */
