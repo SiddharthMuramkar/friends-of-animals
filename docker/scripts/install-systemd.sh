@@ -36,7 +36,8 @@ systemctl enable --now \
   foa-cert-renew.timer \
   foa-pgbackrest-full.timer \
   foa-pgbackrest-diff.timer \
-  foa-preview-sweep.timer
+  foa-preview-sweep.timer \
+  foa-restore-drill.timer
 
 systemctl --no-pager --lines=5 status foa-docker-user-fw.service || true
 "$SCRIPT_DIR/docker-user-fw.sh" show
