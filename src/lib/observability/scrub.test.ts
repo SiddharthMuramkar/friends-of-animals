@@ -124,6 +124,32 @@ describe("redactText on a duplicate key whose value has no closing bracket", () 
   });
 });
 
+describe("redactText on a URL with a user and password in it", () => {
+  it("hides them whatever the scheme", () => {
+    expect(
+      redactText("connect postgres://foa_worker:Zq8!fake@pg-prod:5432/foa")
+    ).toBe("connect postgres://[redacted]@pg-prod:5432/foa");
+    expect(
+      redactText("GET https://asha:tok_fake@api.example.test/v1?x=1 500")
+    ).toBe("GET https://[redacted]@api.example.test/v1 500");
+  });
+
+  it("hides a password that holds an unescaped @", () => {
+    expect(redactText("redis://default:p@ss@cache:6379")).toBe(
+      "redis://[redacted]@cache:6379"
+    );
+  });
+
+  it("leaves URLs without them alone, an @ in the path too", () => {
+    const text = "postgres://pg-prod:5432/foa and https://example.test/@asha";
+
+    expect(redactText(text)).toBe(text);
+    expect(redactText("postgres://[redacted]@pg-prod/foa")).toBe(
+      "postgres://[redacted]@pg-prod/foa"
+    );
+  });
+});
+
 describe("stripQuery", () => {
   it("keeps the path of absolute and relative URLs", () => {
     expect(stripQuery("https://shipped-it.dev/a/b?x=1#y")).toBe(
