@@ -1,8 +1,32 @@
-import type { DbWithClock } from "../db/app-db";
+// The first super admin (#59). Only a super admin grants roles, so the
+// first one comes from the operator's command line
+// (`pnpm admin:bootstrap-super-admin`), acting as the platform. It goes
+// through grantRole like any grant, so the audit log records it. Loads
+// under plain Node: relative imports only, no "server-only".
 
+import type { Actor } from "../actor";
+import type { DbWithClock } from "../db/app-db";
+import { ensureAccount } from "../seed/identity";
+import { grantRole } from "./manage-roles";
+
+const COMMAND_LINE: Actor = { kind: "system", process: "cli" };
+
+/**
+ * Makes the account with this address a global super admin, creating a
+ * verified account first if there is none. An existing account keeps its
+ * name. `changed` is false when it already was one.
+ */
 export async function bootstrapSuperAdmin(
-  _deps: DbWithClock,
-  _account: { email: string; name: string }
+  deps: DbWithClock,
+  account: { email: string; name: string }
 ): Promise<{ userId: string; changed: boolean }> {
-  return { userId: "", changed: false };
+  const { id: userId } = await ensureAccount(deps, account);
+  const result = await grantRole(
+    { ...deps, actor: COMMAND_LINE },
+    { userId, role: "super_admin", scope: { type: "global" } }
+  );
+  if (!result.ok) {
+    throw new Error(`Could not grant super admin: ${result.error}`);
+  }
+  return { userId, changed: result.changed };
 }
