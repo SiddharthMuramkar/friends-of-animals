@@ -248,4 +248,33 @@ describe("tunnelEnvelope", () => {
 
     expect(tunnelEnvelope(body, options).kind).toBe("forward");
   });
+
+  it("answers a 1 MiB envelope of worst-case strings in well under a second", () => {
+    // One string per pattern that made a regex rescan the rest of the
+    // string from every position: /monitoring takes 1 MiB from anyone.
+    const event = {
+      message: "a".repeat(200_000), // an email's local part, no @
+      extra: {
+        url: "http://".repeat(28_000),
+        path: "(/".repeat(100_000),
+        key: "Key (".repeat(40_000),
+        quoted: ': "a'.repeat(37_500),
+      },
+    };
+    const body = encoder.encode(
+      [
+        JSON.stringify(header),
+        JSON.stringify({ type: "event" }),
+        JSON.stringify(event),
+      ].join("\n")
+    );
+    expect(body.byteLength).toBeLessThanOrEqual(1024 * 1024);
+
+    const started = performance.now();
+    const decision = tunnelEnvelope(body, options);
+    const elapsed = performance.now() - started;
+
+    expect(decision.kind).toBe("forward");
+    expect(elapsed).toBeLessThan(1000);
+  });
 });

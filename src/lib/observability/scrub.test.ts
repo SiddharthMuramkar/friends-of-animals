@@ -69,6 +69,24 @@ describe("redactText: database errors", () => {
     ).toBe('duplicate key value violates unique constraint "user_email_key"');
   });
 
+  it("hides a quoted value to the end of its line, quotes inside it too", () => {
+    // Postgres echoes the value raw, without escaping its quotes.
+    expect(
+      redactText('invalid input syntax for type uuid: "abc"Ravi Kumar"')
+    ).toBe('invalid input syntax for type uuid: "[redacted]"');
+    expect(
+      redactText('invalid input value for enum role: "admin"\nnext line')
+    ).toBe('invalid input value for enum role: "[redacted]"\nnext line');
+  });
+
+  it("hides every line of a quoted value that runs past its line", () => {
+    expect(
+      redactText(
+        'invalid input syntax for type json: "first line\nRavi Kumar\n482913"'
+      )
+    ).toBe('invalid input syntax for type json: "[redacted]"');
+  });
+
   it("hides the values of a duplicate key and of a failing row", () => {
     expect(redactText("Key (email)=(Ravi Kumar) already exists.")).toBe(
       "Key (email)=[redacted] already exists."
