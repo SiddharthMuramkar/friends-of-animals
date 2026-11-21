@@ -44,7 +44,7 @@ test("a visitor signs up by email code, signs out and signs back in", async ({
   await expect(
     page.getByText(`You're signed in as Asha Rao (${email}).`)
   ).toBeVisible();
-  await expectAccessible(page, "/account/sessions");
+  await expectRendersAccessibly(page, "/account/sessions");
   await expectAccessibleInDark(page, "/account/sessions");
 
   await page.getByRole("button", { name: "Sign out" }).click();
