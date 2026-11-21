@@ -2,7 +2,9 @@
 // policy page, in the same typed blocks as the repo's legal documents
 // (src/content/legal/model.ts), so one renderer draws both and no HTML is
 // ever stored or sanitised. Bodies are stored as jsonb and parsed here on
-// the way in and on the way out.
+// the way in (publishing and the seed). Reads take the stored body as it
+// is: only those two paths write one, and the database refuses any later
+// change (drizzle/*_64_consent_document_immutable.sql).
 //
 // A body holds its words as agreed, so it has none of the repo text's
 // clauses (words that only hold once FOA confirms their facts): what

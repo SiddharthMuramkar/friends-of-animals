@@ -30,13 +30,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type SearchParams = Promise<{ done?: string | string[] }>;
+type SearchParams = PageProps<"/account/consents">["searchParams"];
 
 export default async function Page({
   searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+}: PageProps<"/account/consents">) {
   const t = await getTranslations("consent");
   return (
     <Section hue="blue" tone="tint" width="prose" className="pt-10 sm:pt-14">

@@ -35,13 +35,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type SearchParams = Promise<{ published?: string | string[] }>;
+type SearchParams = PageProps<"/admin/consent-documents">["searchParams"];
 
 export default async function Page({
   searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+}: PageProps<"/admin/consent-documents">) {
   const t = await getTranslations("consentAdmin");
   return (
     <Section hue="neutral" tone="tint" className="pt-10 sm:pt-14">

@@ -26,6 +26,10 @@ export type {
   SignUpConsentOutcome,
   WithdrawConsentResult,
 } from "./consents";
+// Not a use case: it has no can() of its own. Only identity's
+// createAccount calls it, inside the transaction that makes the account,
+// after verifyEmailCode has authorized the visitor. Any other caller
+// must authorize first.
 export { recordSignUpConsent } from "./consents";
 export type { ConsentState } from "./domain/consent-state";
 export type {
