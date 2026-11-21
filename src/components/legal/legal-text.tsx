@@ -3,8 +3,14 @@ import type { ReactNode } from "react";
 import { ContactFact } from "@/components/site/contact-fact";
 import { Placeholder } from "@/components/site/placeholder";
 import { SiteLink } from "@/components/site/site-link";
-import type { LegalBlock, LegalFact, LegalInline } from "@/content/legal";
-import { type OrgFact, SITE } from "@/lib/site";
+import {
+  type LegalBlock,
+  type LegalDoc,
+  type LegalFact,
+  resolveLegalDoc,
+  type ShownInline,
+} from "@/content/legal";
+import { isFactShown, type OrgFact, SITE } from "@/lib/site";
 
 // The typed blocks of a policy or consent document as HTML: the policy
 // pages draw the repo's text and the published versions with these, so
@@ -32,8 +38,17 @@ function Fact({ fact }: { fact: LegalFact }) {
   return <Placeholder fact={value} />;
 }
 
+/**
+ * A repo document as this deployment shows it: in production, clauses
+ * about unconfirmed facts give way to their production wording, and
+ * emptied sections go (resolveLegalDoc).
+ */
+export function shownLegalDoc(doc: LegalDoc): LegalDoc<ShownInline> {
+  return resolveLegalDoc(doc, (fact) => isFactShown(FACT_VALUE[fact]));
+}
+
 /** One run of text with its strong words, links and facts. */
-export function LegalInlines({ text }: { text: LegalInline[] }) {
+export function LegalInlines({ text }: { text: ShownInline[] }) {
   return text.map((i, k): ReactNode => {
     if (typeof i === "string") return i;
     if ("strong" in i) return <strong key={k}>{i.strong}</strong>;
@@ -47,7 +62,7 @@ export function LegalInlines({ text }: { text: LegalInline[] }) {
 }
 
 /** A paragraph or a list. */
-export function LegalBlockView({ block }: { block: LegalBlock }) {
+export function LegalBlockView({ block }: { block: LegalBlock<ShownInline> }) {
   if ("p" in block)
     return (
       <p>
@@ -65,7 +80,11 @@ export function LegalBlockView({ block }: { block: LegalBlock }) {
   );
 }
 
-type Sections = { id: string; title: string; blocks: LegalBlock[] }[];
+type Sections = {
+  id: string;
+  title: string;
+  blocks: LegalBlock<ShownInline>[];
+}[];
 
 /**
  * A document's sections inside another page (a consent form, settings,
@@ -102,7 +121,7 @@ export function LegalShortList({
   id,
   className,
 }: {
-  points: LegalInline[][];
+  points: ShownInline[][];
   id?: string;
   className?: string;
 }) {

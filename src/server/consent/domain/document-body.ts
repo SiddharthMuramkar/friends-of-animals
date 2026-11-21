@@ -8,9 +8,16 @@
 
 import { z } from "zod";
 
-import { LEGAL_FACTS, type LegalDoc } from "../../../content/legal/model";
+import {
+  LEGAL_FACTS,
+  type LegalDoc,
+  type ShownInline,
+} from "../../../content/legal/model";
 
-export type ConsentDocumentBody = Pick<LegalDoc, "short" | "sections">;
+export type ConsentDocumentBody = Pick<
+  LegalDoc<ShownInline>,
+  "short" | "sections"
+>;
 
 /** Kebab-case letters, as the policy pages' anchors already are. */
 export const SECTION_ID = /^[a-z]+(?:-[a-z]+)*$/;

@@ -3,7 +3,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { competitionParams } from "@/app/competitions/_lib/view";
 import { isStorySlug } from "@/content/stories";
 import { getSampleCompetitions } from "@/content/sample";
-import { isSignedInPath } from "@/lib/app-routes";
+import { isSignedInPage, isSignedInPath } from "@/lib/app-routes";
+import { createNonce, publicCsp, signedInCsp } from "@/lib/csp";
+import { cspContext } from "@/lib/csp-sources";
 import { ROUTES } from "@/lib/routes";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 
@@ -18,16 +20,55 @@ const COMPETITION_SLUGS = new Set(
 // No route matches this path, so Next serves app/not-found.tsx with a 404.
 const MISSING = "/__not-found";
 
+/**
+ * Lets a signed-in request through under a fresh nonce policy (#65). Next
+ * reads the nonce from the policy on the page's request headers and puts
+ * it on every script it renders; the browser gets the same policy. Public
+ * pages get theirs from next.config.ts headers().
+ */
+function withNonceCsp(request: NextRequest): NextResponse {
+  const nonce = createNonce();
+  const policy = signedInCsp(cspContext(), nonce);
+  const headers = new Headers(request.headers);
+  // Next reads an enforced policy before a report-only one: drop any the
+  // client sent, so only this request's nonce reaches the page.
+  headers.delete("content-security-policy");
+  headers.delete("content-security-policy-report-only");
+  headers.set(policy.key, policy.value);
+  headers.set("x-nonce", nonce);
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set(policy.key, policy.value);
+  return response;
+}
+
+/**
+ * The prerendered 404 for a path under the signed-in tree that has no page.
+ * Its scripts have no nonce, so it gets the public policy, which
+ * next.config.ts headers() leaves out of this tree. (A notFound() under the
+ * signed-in layout runs after the response has started, so it can only
+ * stream a 200.)
+ */
+function missingSignedInPage(request: NextRequest): NextResponse {
+  const policy = publicCsp(cspContext());
+  const response = NextResponse.rewrite(new URL(MISSING, request.url));
+  response.headers.set(policy.key, policy.value);
+  return response;
+}
+
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
   // Pages behind sign-in: a request without a session cookie goes straight
   // to sign in. With one, the page checks the session itself.
-  if (isSignedInPath(request.nextUrl.pathname)) {
-    return hasSessionCookie(request.headers)
-      ? NextResponse.next()
-      : NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
+  if (isSignedInPath(pathname)) {
+    if (!hasSessionCookie(request.headers)) {
+      return NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
+    }
+    return isSignedInPage(pathname)
+      ? withNonceCsp(request)
+      : missingSignedInPage(request);
   }
 
-  const [, section, raw = ""] = request.nextUrl.pathname.split("/");
+  const [, section, raw = ""] = pathname.split("/");
   let slug: string;
   try {
     slug = decodeURIComponent(raw);
