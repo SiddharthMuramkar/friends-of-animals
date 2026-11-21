@@ -69,11 +69,13 @@ migrations. In watch mode, restart Vitest after changing a migration.
 
 ## Events and the outbox
 
-A use case that must trigger work elsewhere (an email, a scan, a status
-change later) emits a domain event in the transaction that saves its change,
-`emit(tx, ctx.clock, event)` from `src/server/outbox`. Add the event and its
-handlers in `src/server/outbox/events.ts` and `handlers.ts`. A test then
-drains and asserts on what the handler did:
+A use case that must trigger work elsewhere (an email, a scan) emits a
+domain event in the transaction that saves its change,
+`emit(tx, ctx.clock, event)` from `src/server/outbox`, with `availableAt`
+when the work must wait. Add the event and its handlers in
+`src/server/outbox/events.ts` and `handlers.ts`. Reminders, status flips and
+other recurring sweeps are `SCHEDULES` (`src/server/outbox/schedules.ts`)
+instead. A test then drains and asserts on what the handler did:
 
 ```ts
 const result = await h.as(h.visitor()).verifyEmailCode({ intent: "sign-up", ... });
