@@ -27,7 +27,9 @@
       "refunds": "Refunds and cancellations",
       "styleguide": "Style guide",
       "signUp": "Create an account",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "signUpPhone": "Create an account with your phone",
+      "signInPhone": "Sign in with your phone"
     }
   }
 }
