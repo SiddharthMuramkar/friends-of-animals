@@ -25,11 +25,9 @@ async function registerPasskey(h: Harness, actor: Actor, label = "Laptop") {
 async function verifyWith(h: Harness, actor: Actor, passkey: FakePasskey) {
   const started = await h.as(actor).startPasskeyVerification();
   if (!started.ok) throw new Error(`Could not start: ${started.error}`);
-  return h
-    .as(actor)
-    .finishPasskeyVerification({
-      response: passkey.authenticate(started.options),
-    });
+  return h.as(actor).finishPasskeyVerification({
+    response: passkey.authenticate(started.options),
+  });
 }
 
 describe("passkeys", () => {

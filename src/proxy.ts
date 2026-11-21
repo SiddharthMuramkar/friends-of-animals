@@ -5,6 +5,7 @@ import { isStorySlug } from "@/content/stories";
 import { getSampleCompetitions } from "@/content/sample";
 import { isSignedInPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 
 // Unlisted slugs render at request time, and the header's <Suspense> starts
@@ -20,11 +21,18 @@ const MISSING = "/__not-found";
 
 export function proxy(request: NextRequest) {
   // Pages behind sign-in: a request without a session cookie goes straight
-  // to sign in. With one, the page checks the session itself.
+  // to sign in. With one, the page checks the session itself, knowing the
+  // path it is on, so the staff gate (#60) can send the user back to it.
   if (isSignedInPath(request.nextUrl.pathname)) {
-    return hasSessionCookie(request.headers)
-      ? NextResponse.next()
-      : NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
+    if (!hasSessionCookie(request.headers)) {
+      return NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
+    }
+    const forwarded = new Headers(request.headers);
+    forwarded.set(
+      PATH_HEADER,
+      request.nextUrl.pathname + request.nextUrl.search
+    );
+    return NextResponse.next({ request: { headers: forwarded } });
   }
 
   const [, section, raw = ""] = request.nextUrl.pathname.split("/");
@@ -47,5 +55,8 @@ export const config = {
     "/competitions/:slug",
     "/account",
     "/account/:path*",
+    "/admin",
+    "/admin/:path*",
+    "/auth/:path*",
   ],
 };
