@@ -4,10 +4,14 @@
 // Node: relative imports only, no "server-only".
 
 import type { Grant } from "../access/domain/roles";
-import type { User } from "../db/schema";
-import { ensureVerifiedAccount } from "../identity/verified-account";
+import { storedPhone } from "../identity/stored-phone";
+import {
+  ensureVerifiedAccount,
+  type VerifiedAccount,
+} from "../identity/verified-account";
 import { ensureGrant } from "./access";
 import { competitionBuilder } from "./competitions";
+import { seedPhone } from "./identity";
 import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
 
@@ -36,15 +40,22 @@ export function seedFunctions(seeders: readonly Seeder[]) {
   /** Builders for tests: each call makes a new record unless told otherwise. */
   function createSeedBuilders(deps: SeedDeps) {
     let members = 0;
-    /** A verified account. Pass `email` or `name` to choose them. */
-    function member(
-      details: { name?: string; email?: string } = {}
-    ): Promise<User> {
+    /**
+     * A verified account. Pass `email` or `name` to choose them, and
+     * `phone` (an Indian mobile, typed any usual way) to give it one.
+     */
+    async function member(
+      details: { name?: string; email?: string; phone?: string } = {}
+    ): Promise<VerifiedAccount> {
       members += 1;
       return ensureVerifiedAccount(deps, {
         name:
           details.name ?? MEMBER_NAMES[(members - 1) % MEMBER_NAMES.length]!,
         email: details.email ?? `test-member-${members}@example.test`,
+        phone:
+          details.phone === undefined
+            ? undefined
+            : storedPhone(deps, seedPhone(details.phone)),
       });
     }
     /** Gives `user` a grant (no audit entry: it is seed data). */

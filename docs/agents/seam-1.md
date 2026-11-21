@@ -31,9 +31,11 @@ describe("someUseCase", () => {
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `h.as(actor)`               | The app's use cases, acting as `actor`, over the harness deps (`createApp(deps)` from `src/server/app.ts`)                                                                                                     |
 | `h.visitor(meta?)`          | A signed-out actor with documentation IP `203.0.113.10`; pass `{ ip }` to vary it                                                                                                                              |
-| `h.seed`                    | `src/server/seed/` builders on this database and clock: `member()`, `superAdmin()`, `grant()`, `authenticator()`, `preview()`                                                                                  |
+| `h.seed`                    | `src/server/seed/` builders on this database and clock: `member()` (with `phone`), `superAdmin()`, `grant()`, `authenticator()`, `preview()`                                                                   |
 | `h.clock`                   | `FakeClock`: `now()`, `advance({ minutes: 10 })`, `set(instant)`. Starts at `DEFAULT_TEST_INSTANT`                                                                                                             |
 | `h.email`                   | `FakeEmail`: `sent`, `lastTo(address)`, `codeFor(address)`, `failNext(n, error)`                                                                                                                               |
+| `h.sms`                     | `FakeSms`: `sent` (with template and vars), `lastTo(phone)`, `codeFor(phone)`, `failNext(n, error)`; any spelling of the number                                                                                |
+| `h.settings`                | `FakeSettings`: every setting at its default (SMS off) until `set("sms.enabled", true)`                                                                                                                        |
 | `h.signIn(user)`            | Signs `user` in through the real email-code flow (fresh IP) and returns the signed-in actor. Staff then pass their second factor too; `signIn(user, meta, { secondFactor: false })` stops after the email code |
 | `h.passSecondFactor(actor)` | Passes the second factor for the actor's session with the seed authenticator (`SEED_TOTP_SECRET`), adding it if the user has no factor                                                                         |
 | `h.totpCode(at?)`           | The seed authenticator's code at `at` (default now)                                                                                                                                                            |
@@ -41,7 +43,7 @@ describe("someUseCase", () => {
 | `h.cookies`                 | The browser's cookie store; `header()` saves a browser to pass to `currentActor(meta, cookie)` later                                                                                                           |
 | `h.errors`                  | `FakeErrorReporter`: `reported`, each as Sentry would get it (scrubbed) plus the `error`                                                                                                                       |
 | `h.db`                      | This test's database, for asserting on rows (audit rows count as behaviour)                                                                                                                                    |
-| `h.deps`                    | `{ db, clock, email, cookies, errors, auth }`: what `productionDeps()` wires in `src/server/deps.ts`                                                                                                           |
+| `h.deps`                    | `{ db, clock, email, sms, settings, errors, auth, cipher, blindIndex }`: what `productionDeps()` wires in `src/server/deps.ts`; fresh field keys per harness                                                   |
 | `h.drain()`                 | Delivers due outbox events in process with the real relay, pass after pass; returns the `DrainReport`                                                                                                          |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
@@ -76,11 +78,13 @@ migrations. In watch mode, restart Vitest after changing a migration.
 
 ## Events and the outbox
 
-A use case that must trigger work elsewhere (an email, a scan, a status
-change later) emits a domain event in the transaction that saves its change,
-`emit(tx, ctx.clock, event)` from `src/server/outbox`. Add the event and its
-handlers in `src/server/outbox/events.ts` and `handlers.ts`. A test then
-drains and asserts on what the handler did:
+A use case that must trigger work elsewhere (an email, a scan) emits a
+domain event in the transaction that saves its change,
+`emit(tx, ctx.clock, event)` from `src/server/outbox`, with `availableAt`
+when the work must wait. Add the event and its handlers in
+`src/server/outbox/events.ts` and `handlers.ts`. Reminders, status flips and
+other recurring sweeps are `SCHEDULES` (`src/server/outbox/schedules.ts`)
+instead. A test then drains and asserts on what the handler did:
 
 ```ts
 const result = await h.as(h.visitor()).verifyEmailCode({ intent: "sign-up", ... });

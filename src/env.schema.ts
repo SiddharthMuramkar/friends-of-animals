@@ -5,6 +5,9 @@
 
 import { z } from "zod";
 
+import { parseBlindIndexKey } from "./server/crypto/blind-index";
+import { parseKeyRing } from "./server/crypto/field-cipher";
+import { isUmamiOrigin } from "./lib/analytics/umami";
 import { parseDsn } from "./lib/observability/config";
 import { previewDatabase } from "./server/db/database-url";
 
@@ -42,7 +45,7 @@ const buildVariables = {
   VERCEL: vercel,
   APP_ENV: appEnv,
   /**
-   * Canonical base URL, e.g. https://shipped-it.dev. Only the server reads
+   * Canonical base URL, e.g. https://friendsofanimals.dev. Only the server reads
    * it, so it needs no NEXT_PUBLIC_ prefix, but prerendered pages bake it
    * in at build time.
    */
@@ -56,6 +59,22 @@ const buildVariables = {
    */
   VERCEL_BRANCH_URL: z.string().optional(),
   VERCEL_URL: z.string().optional(),
+  /**
+   * Cookieless page views (src/lib/analytics/umami.ts): this deployment's
+   * Umami website (staging and production each have one) and the Umami
+   * server's origin, e.g. https://stats.shipped-it.dev. Pages send nothing
+   * outside staging and production, or while either is unset.
+   */
+  NEXT_PUBLIC_UMAMI_WEBSITE_ID: z
+    .uuid({ error: "must be an Umami website id (a UUID)" })
+    .optional(),
+  UMAMI_ORIGIN: z
+    .url({ protocol: /^https$/, error: "must be an https URL" })
+    .refine(isUmamiOrigin, {
+      error:
+        "must be an origin with no path, e.g. https://stats.shipped-it.dev",
+    })
+    .optional(),
 };
 
 /**
@@ -79,6 +98,28 @@ function secret() {
     .optional();
 }
 
+/**
+ * A field-encryption key variable, checked with its own parser. The parser's
+ * message names the problem, never the key.
+ */
+function fieldKey(parse: (value: string) => unknown) {
+  return z
+    .string()
+    .superRefine((value, ctx) => {
+      try {
+        parse(value);
+      } catch (error) {
+        ctx.issues.push({
+          code: "custom",
+          // Never the key itself: errors are logged.
+          input: undefined,
+          message: error instanceof Error ? error.message : "is malformed",
+        });
+      }
+    })
+    .optional();
+}
+
 /** Secrets the app server reads. */
 const secretVariables = {
   /**
@@ -93,6 +134,22 @@ const secretVariables = {
    * route answers 404.
    */
   CAPTURE_MAILBOX_TOKEN: secret(),
+  /**
+   * The field cipher's key ring, "<version>:<base64 32 bytes>,..." (the
+   * highest version encrypts), and the blind index key (base64 32 bytes).
+   * Required on staging and production; a local run or a preview without
+   * them uses public development keys (src/server/crypto/keys.ts).
+   */
+  FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
+  FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+  /**
+   * MSG91, production's SMS provider: the account's auth key and the id of
+   * the DLT-approved sign-in code template. Optional: without them
+   * production refuses to send SMS (sign-in by phone stays switched off
+   * until DLT approval), and other environments never call MSG91.
+   */
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
 };
 
 /**
@@ -182,7 +239,7 @@ function requireAppUrl(
       input: values.APP_URL,
       message:
         `APP_URL is not set. APP_ENV=${deployed} needs its canonical base ` +
-        "URL, e.g. https://shipped-it.dev, at build time and at runtime." +
+        "URL, e.g. https://friendsofanimals.dev, at build time and at runtime." +
         (deployed === "preview"
           ? " (Previews default to https://$VERCEL_BRANCH_URL, which is not set either.)"
           : ""),
@@ -265,6 +322,46 @@ function requireSentryInProduction(
 }
 
 /**
+ * Staging and production encrypt personal data under keys of their own;
+ * the development keys are public.
+ */
+function requireFieldKeys(
+  values: {
+    APP_ENV?: AppEnv | undefined;
+    FIELD_ENCRYPTION_KEYS?: string | undefined;
+    FIELD_HMAC_KEY?: string | undefined;
+  },
+  ctx: z.RefinementCtx<{
+    APP_ENV?: AppEnv | undefined;
+    FIELD_ENCRYPTION_KEYS?: string | undefined;
+    FIELD_HMAC_KEY?: string | undefined;
+  }>
+) {
+  if (values.APP_ENV !== "staging" && values.APP_ENV !== "production") return;
+  if (values.FIELD_ENCRYPTION_KEYS === undefined) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["FIELD_ENCRYPTION_KEYS"],
+      input: undefined,
+      message:
+        `FIELD_ENCRYPTION_KEYS is not set. APP_ENV=${values.APP_ENV} needs ` +
+        'its own key ring, e.g. "1:$(openssl rand -base64 32)". Keep an ' +
+        "offline copy: a lost key loses every value stored under it.",
+    });
+  }
+  if (values.FIELD_HMAC_KEY === undefined) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["FIELD_HMAC_KEY"],
+      input: undefined,
+      message:
+        `FIELD_HMAC_KEY is not set. APP_ENV=${values.APP_ENV} needs its own ` +
+        "blind index key (openssl rand -base64 32).",
+    });
+  }
+}
+
+/**
  * Run each check even when another variable is invalid, so the error lists
  * every problem at once.
  */
@@ -327,6 +424,7 @@ export const envSchema = z
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
   .superRefine(requireAuthSecret, always)
+  .superRefine(requireFieldKeys, always)
   .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 
@@ -355,6 +453,22 @@ export const migrationEnvSchema = z
   .superRefine(requirePreviewDatabase, always);
 
 export type MigrationEnv = z.output<typeof migrationEnvSchema>;
+
+/**
+ * The keys the seed script encrypts seeded personal data with, read as the
+ * app reads them, so the app finds and reads what the seed stored. The seed
+ * runs only on previews and local runs, so they may be left out.
+ */
+export const fieldKeyEnvSchema = z
+  .object({
+    APP_ENV: appEnv,
+    FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
+    FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+  })
+  .transform(({ APP_ENV, ...keys }) => ({
+    ...keys,
+    APP_ENV: APP_ENV ?? "local",
+  }));
 
 /**
  * Parses an env-like object, usually process.env, against `schema`. Empty

@@ -1,6 +1,7 @@
 import { asc } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { fieldCryptoFor } from "@/server/crypto/keys";
 import { user } from "@/server/db/schema";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
@@ -12,6 +13,7 @@ async function seedDeps() {
   return {
     db: await createTestDb(),
     clock: new FakeClock(),
+    ...fieldCryptoFor({ APP_ENV: "local" }),
     auth: { secret: "seed-test-secret-0123456789abcdef" },
   };
 }

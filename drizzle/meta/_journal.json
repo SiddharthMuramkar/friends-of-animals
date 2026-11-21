@@ -47,15 +47,29 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1795248004571,
-      "tag": "0006_60_staff_two_factor",
+      "when": 1795262127275,
+      "tag": "0006_58_phone",
       "breakpoints": true
     },
     {
       "idx": 7,
       "version": "7",
-      "when": 1795258487227,
-      "tag": "0007_70_competitions",
+      "when": 1795262528065,
+      "tag": "0007_61_worker_heartbeat",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795263381137,
+      "tag": "0008_60_staff_two_factor",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795268876554,
+      "tag": "0009_70_competitions",
       "breakpoints": true
     }
   ]

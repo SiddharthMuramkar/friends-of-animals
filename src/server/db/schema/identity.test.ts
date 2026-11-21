@@ -62,3 +62,89 @@ describe("user", () => {
     ).toBeNull();
   });
 });
+
+describe("user: phone", () => {
+  /** Inserts a user row with raw SQL, as any writer could. */
+  function insertUser(
+    db: Awaited<ReturnType<typeof createTestDb>>,
+    values: {
+      email: string | null;
+      phoneCiphertext: string | null;
+      phoneHash: string | null;
+    }
+  ) {
+    return db.$client.query(
+      `insert into "user" (id, name, email, phone_ciphertext, phone_hash, created_at, updated_at)
+       values ($1, 'Asha', $2, $3, $4, $5, $5)`,
+      [
+        uuidv7(now),
+        values.email,
+        values.phoneCiphertext,
+        values.phoneHash,
+        now.toISOString(),
+      ]
+    );
+  }
+
+  it("takes an account with a phone and no email", async () => {
+    const db = await createTestDb();
+
+    expect(
+      await refusal(
+        insertUser(db, {
+          email: null,
+          phoneCiphertext: "v1:ciphertext",
+          phoneHash: "hash-1",
+        })
+      )
+    ).toBeNull();
+  });
+
+  it("needs an email or a phone", async () => {
+    const db = await createTestDb();
+
+    expect(
+      await refusal(
+        insertUser(db, { email: null, phoneCiphertext: null, phoneHash: null })
+      )
+    ).toEqual(expect.stringMatching(/user_email_or_phone/));
+  });
+
+  it("keeps a phone's ciphertext and its blind index together", async () => {
+    const db = await createTestDb();
+
+    for (const [phoneCiphertext, phoneHash] of [
+      ["v1:ciphertext", null],
+      [null, "hash-1"],
+    ] as const) {
+      expect(
+        await refusal(
+          insertUser(db, {
+            email: "asha@example.test",
+            phoneCiphertext,
+            phoneHash,
+          })
+        )
+      ).toEqual(expect.stringMatching(/user_phone_complete/));
+    }
+  });
+
+  it("keeps one account per phone", async () => {
+    const db = await createTestDb();
+    await insertUser(db, {
+      email: null,
+      phoneCiphertext: "v1:first",
+      phoneHash: "hash-1",
+    });
+
+    expect(
+      await refusal(
+        insertUser(db, {
+          email: "ravi@example.test",
+          phoneCiphertext: "v1:second",
+          phoneHash: "hash-1",
+        })
+      )
+    ).toEqual(expect.stringMatching(/user_phone_hash_unique/));
+  });
+});
