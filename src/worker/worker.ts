@@ -9,11 +9,15 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import type { FieldCipher } from "../server/crypto/field-cipher";
+import { fieldCryptoFor } from "../server/crypto/keys";
 import type { AppDb } from "../server/db/app-db";
 import { withDatabase } from "../server/db/database-url";
 import { SCHEDULES, type OutboxDeps } from "../server/outbox";
 import type { Clock } from "../server/ports/clock";
 import { emailSenderFor } from "../server/ports/email-sender-for";
+import { settingsFor } from "../server/ports/settings-for";
+import { smsSenderFor } from "../server/ports/sms-sender-for";
 import type { WorkerConfig } from "./config";
 import type { WorkerLog } from "./log";
 import {
@@ -57,14 +61,36 @@ export type Worker = {
   stop(): Promise<void>;
 };
 
+/** A field cipher that `make` builds on first use. */
+function cipherOnFirstUse(make: () => FieldCipher): FieldCipher {
+  let cipher: FieldCipher | undefined;
+  return {
+    encrypt: (purpose, plaintext) =>
+      (cipher ??= make()).encrypt(purpose, plaintext),
+    decrypt: (purpose, stored) => (cipher ??= make()).decrypt(purpose, stored),
+  };
+}
+
 export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   let supervisor: Supervisor | undefined;
   const cleanups: (() => Promise<void>)[] = [];
 
+  // #69's dispatcher reads stored phone numbers with the field cipher. The
+  // worker has no field keys or MSG91 keys of its own yet: locally and in
+  // previews the cipher uses the public development keys, as the app does;
+  // on staging and production it refuses, and only when a delivery needs a
+  // phone, so messages to everyone else still go. SMS goes through the
+  // app's adapters, so production refuses it without MSG91's keys.
+  const cipher = cipherOnFirstUse(
+    () => fieldCryptoFor({ APP_ENV: config.appEnv }).cipher
+  );
   const depsFor = (db: AppDb): OutboxDeps => ({
     db,
     clock: io.clock,
     email: emailSenderFor(config.appEnv, { db, clock: io.clock }),
+    sms: smsSenderFor(config.appEnv, { db, clock: io.clock }, {}),
+    settings: settingsFor(config.appEnv),
+    cipher,
   });
 
   async function startSingle(

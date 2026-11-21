@@ -150,6 +150,25 @@ describe("a single-database worker", () => {
     expect(record.beats).toEqual([io.clock.now()]);
   });
 
+  it("sends to a member without a phone though it holds no field keys", async () => {
+    // #69's dispatcher reads phone numbers with the field cipher. A staging
+    // worker has no keys of its own yet, so its cipher refuses, but only
+    // when a delivery needs a phone; the welcome email still goes.
+    const h = await createHarness();
+    const member = await h.seed.member();
+    await emitUserSignedUp(h, member.id);
+    const { io } = fakeIo({ foa: h.db });
+
+    const worker = createWorker(singleConfig("staging"), io);
+    await worker.start();
+    await worker.tick();
+
+    const captured = await h.db.select().from(capturedMessage);
+    expect(captured.map((m) => [m.toAddress, m.subject])).toEqual([
+      [member.email, "Welcome to Friends of Animals"],
+    ]);
+  });
+
   it("registers the schedules with pg-boss on its database", async () => {
     const h = await createHarness();
     const { io, record } = fakeIo({ foa: h.db });

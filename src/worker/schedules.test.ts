@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { fieldCryptoFor } from "@/server/crypto/keys";
 import type { OutboxDeps, ScheduleDefinition } from "@/server/outbox";
 import { FakeClock } from "@/test/fakes/clock";
 import { FakeEmail } from "@/test/fakes/email";
+import { FakeSettings } from "@/test/fakes/settings";
+import { FakeSms } from "@/test/fakes/sms";
 
 import { registerSchedules, type ScheduleBoss } from "./schedules";
 
@@ -38,6 +41,9 @@ const deps = {
   db: {} as OutboxDeps["db"],
   clock,
   email: new FakeEmail(clock),
+  sms: new FakeSms(clock),
+  settings: new FakeSettings(),
+  cipher: fieldCryptoFor({ APP_ENV: "local" }).cipher,
 } satisfies OutboxDeps;
 
 function definition(
