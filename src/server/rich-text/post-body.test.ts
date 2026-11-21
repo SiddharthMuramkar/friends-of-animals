@@ -123,7 +123,10 @@ describe("sanitizePostBody", () => {
     });
 
     expect(body.blocks).toEqual([
-      { type: "paragraph", text: ["one", " ", "two", " ", "three", " ", "four"] },
+      {
+        type: "paragraph",
+        text: ["one", " ", "two", " ", "three", " ", "four"],
+      },
     ]);
   });
 
