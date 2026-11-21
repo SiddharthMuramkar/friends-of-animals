@@ -1,8 +1,8 @@
 // The refund state machine (#80). A refund returns some or all of what a
 // payment batch captured. A discretionary refund waits for finance; a
 // cancellation or duplicate refund is approved the moment it is made. Pure:
-// no database, no clock. The schema's `refund_status` and `refund_kind`
-// enums are built from these lists.
+// no database, no clock. The schema's `refund_status`, `refund_kind` and
+// `refund_method` enums are built from these lists.
 //
 // Loads under plain Node (drizzle-kit reads the schema that imports it): no
 // imports at all.
@@ -34,6 +34,16 @@ export const REFUND_STATUSES = [
 ] as const;
 
 export type RefundStatus = (typeof REFUND_STATUSES)[number];
+
+export const REFUND_METHODS = [
+  /** Back to the captured payment, through the gateway. */
+  "gateway",
+  /** The batch was paid offline: FOA pays it back by hand, and finance
+   * records how. */
+  "manual",
+] as const;
+
+export type RefundMethod = (typeof REFUND_METHODS)[number];
 
 export const REFUND_EVENTS = [
   /** Finance approved a requested refund. */
