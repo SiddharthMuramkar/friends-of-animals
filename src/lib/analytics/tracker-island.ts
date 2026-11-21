@@ -6,8 +6,11 @@
  * ./umami.ts.
  */
 
+import { SIGNED_IN_PREFIXES } from "../app-routes";
 import {
   BEFORE_SEND_GLOBAL,
+  createAnalyticsGuard,
+  trackerScript,
   type AnalyticsGuard,
   type MarkerStorage,
   type UmamiConfig,
@@ -29,14 +32,42 @@ export type AnalyticsWindow = {
 /** The tracker <script> to append: its src and data-* attributes. */
 export type TrackerTag = { src: string; dataset: Record<string, string> };
 
+/** window.localStorage, or null where reading it throws. */
+function storageOf(win: AnalyticsWindow): MarkerStorage | null {
+  try {
+    return win.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** The guard for `win`'s browser, reading the time from `now`. */
+function guardFor(win: AnalyticsWindow, now: () => number): AnalyticsGuard {
+  return createAnalyticsGuard({
+    signedInPrefixes: SIGNED_IN_PREFIXES,
+    storage: storageOf(win),
+    now,
+    doNotTrack: win.navigator.doNotTrack,
+    globalPrivacyControl: win.navigator.globalPrivacyControl,
+  });
+}
+
 /**
- * Runs the page checks for the page `win` shows now. Returns the tracker
- * tag to inject the first time a page may load it, else null.
+ * Runs the page checks for the page `win` shows now, at time `now` (ms).
+ * A signed-in page marks the browser, whether or not the tracker is
+ * loaded. Returns the tracker tag to inject the first time a page may load
+ * it, with the send guard installed, else null. Uses localStorage only,
+ * never cookies.
  */
 export function startAnalytics(
-  _win: AnalyticsWindow,
-  _config: UmamiConfig,
-  _now: number
+  win: AnalyticsWindow,
+  config: UmamiConfig,
+  now: number
 ): TrackerTag | null {
-  return null;
+  if (!guardFor(win, () => now).shouldLoad(win.location.pathname)) return null;
+  // Loaded already: the tracker follows client navigation by itself.
+  if (win[BEFORE_SEND_GLOBAL] !== undefined) return null;
+  // The guard checks each send when it happens, so it reads the clock then.
+  win[BEFORE_SEND_GLOBAL] = guardFor(win, Date.now).beforeSend;
+  return trackerScript(config);
 }

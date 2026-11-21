@@ -171,13 +171,13 @@ type Payload = { url?: unknown; referrer?: unknown; [field: string]: unknown };
 
 export type AnalyticsGuard = {
   /** Whether to load the tracker on a page first opened at `pathname`. */
-  shouldLoad(pathname: string): boolean;
+  shouldLoad: (pathname: string) => boolean;
   /**
    * The `data-before-send` handler: the payload to send, scrubbed, or
    * false to cancel. It runs for every page view, including client-side
    * navigation, so it repeats the page checks.
    */
-  beforeSend<T extends Payload>(type: string, payload: T): T | false;
+  beforeSend: <T extends Payload>(type: string, payload: T) => T | false;
 };
 
 /**
