@@ -5,7 +5,12 @@ import { uuidv7 } from "@/server/ids";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { emit } from "./emit";
-import { drainOutbox } from "./relay";
+import {
+  DEFAULT_DRAIN_LIMIT,
+  DrainNeverIdleError,
+  drainOutbox,
+  drainUntilIdle,
+} from "./relay";
 
 const NOTHING = { dispatched: 0, retried: 0, failed: 0, skipped: 0 };
 
@@ -151,5 +156,20 @@ describe("drainOutbox", () => {
 
     expect(await h.drain()).toEqual(NOTHING);
     expect(h.email.sent).toEqual([]);
+  });
+});
+
+describe("drainUntilIdle", () => {
+  it("gives up, saying why, when passes keep finding due deliveries", async () => {
+    const h = await createHarness();
+    for (let i = 0; i <= DEFAULT_DRAIN_LIMIT; i += 1) {
+      await signedUp(h, uuidv7(h.clock.now()));
+    }
+
+    await expect(drainUntilIdle(h.deps, { maxPasses: 1 })).rejects.toThrow(
+      DrainNeverIdleError
+    );
+    // The pass it ran still counted: only the rest wait for the next drain.
+    expect(await drainUntilIdle(h.deps)).toMatchObject({ dispatched: 1 });
   });
 });

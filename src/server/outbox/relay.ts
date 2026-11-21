@@ -65,6 +65,11 @@ export type DrainOptions = {
   policy?: RetryPolicy;
 };
 
+/**
+ * Small enough that one pass's handlers finish well inside one lease
+ * (DEFAULT_RETRY_POLICY.leaseMs, 5 minutes); a claim whose lease runs out
+ * first may be taken over and its handler run twice.
+ */
 export const DEFAULT_DRAIN_LIMIT = 25;
 
 const KNOWN_HANDLERS = Object.keys(HANDLERS);
