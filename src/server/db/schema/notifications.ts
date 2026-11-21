@@ -25,8 +25,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { MESSAGE_CHANNELS } from "../../notifications/domain/channels";
-import { SUPPRESSION_REASONS } from "../../notifications/domain/delivery-plan";
+import { MESSAGE_CHANNELS } from "../../modules/notifications/domain/channels";
+import { SUPPRESSION_REASONS } from "../../modules/notifications/domain/delivery-plan";
 import { user } from "./identity";
 
 const timestamptz = (name: string) =>
@@ -104,7 +104,7 @@ export const messageRoute = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     /** A DomainEvent type, such as `identity.user_signed_up`. */
     eventType: text("event_type").notNull(),
-    /** A key in src/server/notifications/audiences.ts. */
+    /** A key in src/server/modules/notifications/audiences.ts. */
     audience: text().notNull(),
     templateKey: text("template_key").notNull(),
     channels: messageChannelEnum().array().notNull(),

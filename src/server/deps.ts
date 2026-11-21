@@ -1,8 +1,8 @@
 // What use cases run against: the database, the clock and the provider
 // ports. `productionDeps()` wires the real ones for server actions and route
 // handlers; the Seam 1 harness (src/test/harness.ts) wires PGlite, a fake
-// clock and in-memory fakes. Later ports (SMS #58, storage #63) are
-// appended here and in the harness by the ticket that adds them. Background
+// clock and in-memory fakes. Later ports (storage #63) are appended here
+// and in the harness by the ticket that adds them. Background
 // work is not a port: use cases emit outbox events (src/server/outbox), and
 // the relay delivers them with these deps (`h.drain()` in the harness).
 
@@ -21,6 +21,9 @@ import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
+import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
+import type { ErrorReporter } from "./ports/errors";
+import { serverErrorReporter } from "./observability/server-reporter";
 import { unconfiguredSmsSender, type SmsSender } from "./ports/sms";
 import { captureSmsSender } from "./ports/sms-capture";
 import { msg91SmsSender } from "./ports/sms-msg91";
@@ -34,8 +37,6 @@ import {
   CONTACT_RATE_LIMITS,
   type ContactRateLimits,
 } from "./modules/contact/domain/submission";
-import type { ErrorReporter } from "./ports/errors";
-import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -44,6 +45,8 @@ export interface Deps extends DbWithClock {
   cookies: CookieJar;
   /** Better Auth's secret and the site's base URL. */
   auth: { secret: string; baseUrl: string };
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
   /** Encrypts personal-data columns (a user's phone). */
   cipher: FieldCipher;
   /** Keyed hashes to find rows by an encrypted value. */
@@ -54,17 +57,9 @@ export interface Deps extends DbWithClock {
   humanCheck: HumanCheck;
   /** The contact form's limits per IP and per address. */
   contactLimits: ContactRateLimits;
-  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
-  errors: ErrorReporter;
 }
 
-/**
- * A local run or a preview without BETTER_AUTH_SECRET signs with this. It is
- * public, so it protects nothing; staging and production must set their own
- * (src/env.schema.ts refuses to start without it).
- */
-export const DEVELOPMENT_AUTH_SECRET =
-  "foa-development-secret-not-for-staging-or-production";
+export { DEVELOPMENT_AUTH_SECRET };
 
 /**
  * Production sends real email (SES, once FOA's account exists; until then
@@ -150,8 +145,6 @@ export function productionDeps(): Deps {
         secret,
         baseUrl: config.APP_URL,
       },
-      ...fieldCryptoFor(config),
-      settings: settingsFor(config.APP_ENV),
       humanCheck: proofOfWorkHumanCheck({
         secret,
         difficulty: HUMAN_CHECK_DIFFICULTY,
@@ -159,6 +152,8 @@ export function productionDeps(): Deps {
       contactLimits: contactLimitsFor(config.APP_ENV),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
+      ...fieldCryptoFor(config),
+      settings: settingsFor(config.APP_ENV),
     };
   }
   return production;

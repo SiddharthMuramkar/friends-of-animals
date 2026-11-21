@@ -12,8 +12,8 @@ import {
   notificationPreference,
   user,
 } from "../db/schema";
-import { renderTemplate } from "../notifications/domain/template";
-import { DEFAULT_LOCALE } from "../notifications/locale";
+import { renderTemplate } from "../modules/notifications/domain/template";
+import { DEFAULT_LOCALE } from "../modules/notifications/locale";
 import { normaliseEmailAddress } from "../ports/email";
 import { SEED_ACCOUNTS } from "./accounts";
 import type { SeedDeps } from "./types";

@@ -14,11 +14,13 @@ import { as, currentActor } from "@/server/app";
 import {
   placeholderFor,
   renderTemplateWith,
-} from "@/server/notifications/preview";
+} from "@/server/modules/notifications/preview";
 
+import { Denied } from "../_components/denied";
 import { lookupName, nameOr, type NameTree } from "../_lib/labels";
-import { unlessForbidden } from "../_lib/refusal";
+import { unlessRefused } from "../_lib/refusal";
 import { TemplateForm } from "./_components/template-form";
+import { secondStepRedirect } from "./_lib/form-state";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("adminTemplates.editor.meta");
@@ -57,30 +59,35 @@ async function Editor({ params }: { params: Params }) {
     getTranslations("adminTemplates"),
     getTranslations("common.callout"),
     getFormatter(),
-    unlessForbidden(() => as(actor).getMessageTemplate({ key })),
+    unlessRefused(() => as(actor).getMessageTemplate({ key })),
   ]);
   const back = { href: APP_ROUTES.adminTemplates, label: t("editor.back") };
 
-  if (result === null || !result.ok) {
+  if (!result.ok) {
+    // Staff short of their second step enter it, then come back (#60).
+    const lift = secondStepRedirect(result.refusal, key);
+    if (lift) redirect(lift);
+  }
+  if (!result.ok || !result.value.ok) {
     return (
       <>
         <PageHeader eyebrow={t("eyebrow")} tile="teal" title={t("title")} />
-        <ExplainState
-          title={result === null ? t("denied.title") : t("editor.notFound")}
-          back={
-            result === null
-              ? { href: ROUTES.home.path, label: t("denied.back") }
-              : back
-          }
-          className="mt-8"
-        >
-          {result === null ? <p>{t("denied.body")}</p> : null}
-        </ExplainState>
+        {result.ok ? (
+          <ExplainState
+            title={t("editor.notFound")}
+            back={back}
+            className="mt-8"
+          >
+            {null}
+          </ExplainState>
+        ) : (
+          <Denied className="mt-8" />
+        )}
       </>
     );
   }
 
-  const { template } = result;
+  const { template } = result.value;
   // en-IN is the only locale; these are looked up by data, not by key.
   const sampleValues: NameTree = messages.adminTemplates.editor.samples;
   const samples = (name: string) =>

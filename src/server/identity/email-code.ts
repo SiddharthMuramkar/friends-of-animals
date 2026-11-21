@@ -13,8 +13,9 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../access/can";
-import type { SignUpConsentOutcome } from "../consent";
+import type { SignUpConsentOutcome } from "../modules/consent";
 import { user } from "../db/schema";
+import { invalidInput, type InvalidInput } from "../input";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { codeEmail } from "./code-email";
@@ -24,11 +25,9 @@ import { headersFor } from "./request";
 import { EMAIL_CODE } from "./settings";
 import {
   codeInput as code,
-  invalidInput,
   nameInput as name,
   storeCookies,
   visitorMeta,
-  type InvalidInput,
 } from "./sign-in-shared";
 
 const email = z.string().trim().toLowerCase().pipe(z.email().max(254));

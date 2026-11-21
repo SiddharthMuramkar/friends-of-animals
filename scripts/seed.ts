@@ -19,6 +19,7 @@ import {
 import { fieldCryptoFor, type FieldCrypto } from "../src/server/crypto/keys";
 import { directTls } from "../src/server/db/database-url";
 import * as schema from "../src/server/db/schema";
+import { DEVELOPMENT_AUTH_SECRET } from "../src/server/identity/settings";
 import { systemClock } from "../src/server/ports/clock";
 import { seedPreview } from "../src/server/seed";
 import { seedTarget } from "../src/server/seed/target";
@@ -64,6 +65,11 @@ try {
     db: drizzle({ client, schema }),
     clock: systemClock,
     ...fieldCrypto,
+    // The app's own secret, as productionDeps() picks it: seeded staff
+    // authenticators are sealed with it.
+    auth: {
+      secret: process.env.BETTER_AUTH_SECRET || DEVELOPMENT_AUTH_SECRET,
+    },
   });
   console.log("Seed complete.");
   await client.end();

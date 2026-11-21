@@ -3,13 +3,21 @@ import type { ReactNode } from "react";
 import { ContactFact } from "@/components/site/contact-fact";
 import { Placeholder } from "@/components/site/placeholder";
 import { SiteLink } from "@/components/site/site-link";
-import type { LegalBlock, LegalFact, ShownInline } from "@/content/legal";
+import {
+  type LegalBlock,
+  type LegalDoc,
+  type LegalFact,
+  resolveLegalDoc,
+  type ShownInline,
+} from "@/content/legal";
 import { isFactShown, type OrgFact, SITE } from "@/lib/site";
 
 // The typed blocks of a policy or consent document as HTML: the policy
 // pages draw the repo's text and the published versions with these, so
 // the two always look the same. Server Components (facts read their
-// "to be confirmed" words on the server).
+// "to be confirmed" words on the server). They draw text as shown, with
+// no clauses left: a published version has none, and the repo's text
+// goes through shownLegalDoc first.
 
 const LINK =
   "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
@@ -24,11 +32,12 @@ const FACT_VALUE: Record<LegalFact, unknown> = {
 };
 
 /**
- * Whether a fact renders: once confirmed, or as a tile outside production.
- * The `shown` argument of resolveLegalDoc for every document drawn here.
+ * A repo policy as this deployment shows it: in production, clauses about
+ * unconfirmed facts give way to their production wording, and emptied
+ * sections go (resolveLegalDoc).
  */
-export function isLegalFactShown(fact: LegalFact): boolean {
-  return isFactShown(FACT_VALUE[fact]);
+export function shownLegalDoc(doc: LegalDoc): LegalDoc<ShownInline> {
+  return resolveLegalDoc(doc, (fact) => isFactShown(FACT_VALUE[fact]));
 }
 
 /** A confirmed fact as text (or a mailto/tel link); else a visible placeholder. */

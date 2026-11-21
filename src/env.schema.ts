@@ -407,8 +407,8 @@ export const envSchema = z
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
   .superRefine(requireAuthSecret, always)
-  .superRefine(requireFieldKeys, always)
   .superRefine(requireSentryInProduction, always)
+  .superRefine(requireFieldKeys, always)
   .transform(withDefaults);
 
 export type Env = z.output<typeof envSchema>;

@@ -13,10 +13,10 @@ function mailboxToken(): string {
 type CapturedEmail = { subject: string; text: string; sentAt: string };
 
 /**
- * The newest messages to `email` (an email address, or a phone number for
- * a text) in the deployment's capture mailbox (GET /api/capture-mailbox),
- * newest first. The address goes in a header, so it stays out of request
- * logs.
+ * The newest messages to `email` (an email address, or a phone number
+ * for texts) in the deployment's capture mailbox (GET
+ * /api/capture-mailbox), newest first. The address goes in a header, so it
+ * stays out of request logs.
  */
 async function inbox(
   request: APIRequestContext,
@@ -92,6 +92,19 @@ export function freshLongEmail(project: string): string {
 }
 
 /**
+ * An Indian mobile number nobody has used, as "+91 9xxxx xxxxx": one per
+ * test, so runs and projects don't share codes or the 5-per-phone limit.
+ */
+export function freshPhone(): string {
+  const digits = `${Date.now() % 1e9}`.padStart(9, "0");
+  const random = Math.floor(Math.random() * 1e4)
+    .toString()
+    .padStart(4, "0");
+  const national = `9${(Number(digits) + Number(random)).toString().padStart(9, "0").slice(-9)}`;
+  return `+91 ${national.slice(0, 5)} ${national.slice(5)}`;
+}
+
+/**
  * Delivers the deployment's due outbox events now (POST /api/preview/drain)
  * with the deployment's own code, rather than waiting for the shared VPS
  * worker. Staging and production answer 404: their own worker delivers.
@@ -126,17 +139,4 @@ export async function readEmail(
     )
     .toBe(true);
   return found!;
-}
-
-/**
- * An Indian mobile number nobody has used, as "+91 9xxxx xxxxx": one per
- * test, so runs and projects don't share codes or the 5-per-phone limit.
- */
-export function freshPhone(): string {
-  const digits = `${Date.now() % 1e9}`.padStart(9, "0");
-  const random = Math.floor(Math.random() * 1e4)
-    .toString()
-    .padStart(4, "0");
-  const national = `9${(Number(digits) + Number(random)).toString().padStart(9, "0").slice(-9)}`;
-  return `+91 ${national.slice(0, 5)} ${national.slice(5)}`;
 }

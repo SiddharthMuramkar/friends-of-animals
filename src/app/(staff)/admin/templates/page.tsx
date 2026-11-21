@@ -6,16 +6,17 @@ import { Suspense } from "react";
 
 import { ButtonLink } from "@/components/site/button-link";
 import { Chip } from "@/components/site/chip";
-import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { messages } from "@/i18n/messages";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { secondFactorPath } from "@/lib/second-factor-routes";
 import { as, currentActor } from "@/server/app";
 
+import { Denied } from "./_components/denied";
 import { nameOr, type NameTree } from "./_lib/labels";
-import { unlessForbidden } from "./_lib/refusal";
+import { unlessRefused } from "./_lib/refusal";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("adminTemplates.meta");
@@ -51,21 +52,17 @@ const CARD =
 async function Templates() {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, templates] = await Promise.all([
+  const [t, loaded] = await Promise.all([
     getTranslations("adminTemplates"),
-    unlessForbidden(() => as(actor).listMessageTemplates()),
+    unlessRefused(() => as(actor).listMessageTemplates()),
   ]);
-  if (templates === null) {
-    return (
-      <ExplainState
-        title={t("denied.title")}
-        back={{ href: ROUTES.home.path, label: t("denied.back") }}
-        className="mt-8"
-      >
-        <p>{t("denied.body")}</p>
-      </ExplainState>
-    );
+  if (!loaded.ok) {
+    // Staff short of their second step enter it, then come back (#60).
+    const lift = secondFactorPath(loaded.refusal, APP_ROUTES.adminTemplates);
+    if (lift) redirect(lift);
+    return <Denied className="mt-8" />;
   }
+  const templates = loaded.value;
 
   const eventNames: NameTree = messages.adminTemplates.events;
   const keyNames: NameTree = messages.adminTemplates.keys;

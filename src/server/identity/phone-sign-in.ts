@@ -20,23 +20,22 @@ import { z } from "zod";
 
 import { parsePhoneNumber, type E164Phone } from "@/lib/phone";
 
+import { authorize } from "../access/can";
 import { user } from "../db/schema";
-import { uuidv7 } from "../ids";
+import { invalidInput, type InvalidInput } from "../input";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { codeSms } from "./code-sms";
+import { createAccount } from "./create-account";
 import { checkPhoneCode, issuePhoneCode } from "./phone-code";
-import { authorize } from "../access/can";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
 import { EMAIL_CODE } from "./settings";
 import {
   codeInput as code,
-  invalidInput,
   nameInput as name,
   storeCookies,
   visitorMeta,
-  type InvalidInput,
 } from "./sign-in-shared";
 import { phoneHashOf, storedPhone } from "./stored-phone";
 
@@ -159,33 +158,6 @@ async function accountWithPhone(ctx: UseCaseContext, phoneHash: string) {
   return found;
 }
 
-/** A new account holding only this verified phone, or the one that has it. */
-async function createPhoneAccount(
-  ctx: UseCaseContext,
-  to: E164Phone,
-  accountName: string
-): Promise<{ id: string; created: boolean }> {
-  const now = ctx.clock.now();
-  const [created] = await ctx.db
-    .insert(user)
-    .values({
-      id: uuidv7(now),
-      name: accountName,
-      email: null,
-      ...storedPhone(ctx, to),
-      phoneVerified: true,
-      createdAt: now,
-      updatedAt: now,
-    })
-    // Another sign-up with this phone got there first: sign in to it.
-    .onConflictDoNothing({ target: user.phoneHash })
-    .returning({ id: user.id });
-  if (created) return { id: created.id, created: true };
-  const existing = await accountWithPhone(ctx, phoneHashOf(ctx, to));
-  if (!existing) throw new Error("A phone account vanished as it was made");
-  return { id: existing.id, created: false };
-}
-
 export async function verifyPhoneCode(
   ctx: UseCaseContext,
   input: VerifyPhoneCodeInput
@@ -200,7 +172,11 @@ export async function verifyPhoneCode(
   const phoneHash = phoneHashOf(ctx, data.phone);
 
   let account = await accountWithPhone(ctx, phoneHash);
-  if (data.intent === "sign-in" && !account) {
+  let isNewAccount = false;
+  if (account) {
+    const check = await checkPhoneCode(ctx, phoneHash, data.code);
+    if (check !== "ok") return { ok: false, error: check };
+  } else if (data.intent === "sign-in") {
     // Never create an account from the sign-in page. The code is checked
     // first (a wrong guess counts), and a right one is kept for sign-up.
     const check = await checkPhoneCode(ctx, phoneHash, data.code, {
@@ -209,20 +185,28 @@ export async function verifyPhoneCode(
     return check === "ok"
       ? { ok: false, error: "no_account" }
       : { ok: false, error: check };
-  }
-
-  const check = await checkPhoneCode(ctx, phoneHash, data.code);
-  if (check !== "ok") return { ok: false, error: check };
-
-  let isNewAccount = false;
-  if (!account) {
-    const made = await createPhoneAccount(
-      ctx,
-      data.phone,
-      data.intent === "sign-up" ? data.name : ""
-    );
-    account = { id: made.id };
-    isNewAccount = made.created;
+  } else {
+    // Use the code and make the account with its welcome event in one
+    // transaction: if saving either fails, the code is still there.
+    const { name: accountName } = data;
+    const outcome = await ctx.db.transaction(async (tx) => {
+      const check = await checkPhoneCode(
+        { ...ctx, db: tx },
+        phoneHash,
+        data.code
+      );
+      if (check !== "ok") return { check, created: false };
+      const account = await createAccount(
+        { ...ctx, db: tx },
+        { name: accountName, phone: storedPhone(ctx, data.phone) }
+      );
+      return { check, created: account.created };
+    });
+    if (outcome.check !== "ok") return { ok: false, error: outcome.check };
+    isNewAccount = outcome.created;
+    // Made now, or by another sign-up with this phone meanwhile.
+    account = await accountWithPhone(ctx, phoneHash);
+    if (!account) throw new Error("A phone account vanished as it was made");
   }
 
   const { headers } = await authFor(ctx).api.startVerifiedSession({

@@ -7,11 +7,14 @@ import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
 import adminInbox from "../../messages/en-IN/adminInbox.json";
 import adminTemplates from "../../messages/en-IN/adminTemplates.json";
+import adminSettings from "../../messages/en-IN/adminSettings.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
+import consent from "../../messages/en-IN/consent.json";
+import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import contact from "../../messages/en-IN/contact.json";
 import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
@@ -29,6 +32,7 @@ import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import sample from "../../messages/en-IN/sample.json";
 import schools from "../../messages/en-IN/schools.json";
+import security from "../../messages/en-IN/security.json";
 import showcase from "../../messages/en-IN/showcase.json";
 import stories from "../../messages/en-IN/stories.json";
 import styleguide from "../../messages/en-IN/styleguide.json";
@@ -39,11 +43,14 @@ export const NAMESPACES = [
   "account",
   "adminInbox",
   "adminTemplates",
+  "adminSettings",
   "auth",
   "authPhone",
   "awareness",
   "common",
   "competitions",
+  "consent",
+  "consentAdmin",
   "contact",
   "contactForm",
   "credits",
@@ -61,6 +68,7 @@ export const NAMESPACES = [
   "refunds",
   "sample",
   "schools",
+  "security",
   "showcase",
   "stories",
   "styleguide",
@@ -75,11 +83,14 @@ export const messages = {
   ...account,
   ...adminInbox,
   ...adminTemplates,
+  ...adminSettings,
   ...auth,
   ...authPhone,
   ...awareness,
   ...common,
   ...competitions,
+  ...consent,
+  ...consentAdmin,
   ...contact,
   ...contactForm,
   ...credits,
@@ -97,6 +108,7 @@ export const messages = {
   ...refunds,
   ...sample,
   ...schools,
+  ...security,
   ...showcase,
   ...stories,
   ...styleguide,

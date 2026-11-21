@@ -22,8 +22,8 @@ import { contactMessage, messageRoute, messageTemplate } from "../../db/schema";
 import {
   renderEmailHtml,
   renderTemplate,
-} from "../../notifications/domain/template";
-import { DEFAULT_LOCALE } from "../../notifications/locale";
+} from "../notifications/domain/template";
+import { DEFAULT_LOCALE } from "../notifications/locale";
 import type { Delivery, OutboxDeps } from "../../outbox/handlers";
 import { contactMessageValues } from "./notify";
 

@@ -59,6 +59,7 @@
       "unchanged": "Nothing changed.",
       "stale": "Someone saved a newer version while you were editing. Reload the page to see it, then make your change again.",
       "invalid": "Check the message and try again.",
+      "forbidden": "Only content managers and super admins can edit templates.",
       "preview": "Preview",
       "previewHint": "With sample values, as last saved.",
       "changed": "Version {version}, saved {date} by {name}",

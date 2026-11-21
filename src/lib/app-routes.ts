@@ -11,6 +11,10 @@ export const APP_ROUTES = {
   accountConsents: "/account/consents",
   adminConsentDocuments: "/admin/consent-documents",
   adminTemplates: "/admin/templates",
+  accountSecurity: "/account/security",
+  secondFactor: "/auth/second-factor",
+  stepUp: "/auth/step-up",
+  adminSettings: "/admin/settings",
   adminInbox: "/admin/inbox",
 } as const;
 
@@ -18,7 +22,7 @@ export const APP_ROUTES = {
  * Path prefixes that need a signed-in user. src/proxy.ts sends visitors
  * without a session cookie to sign in; #65's CSP gives these a nonce.
  */
-export const SIGNED_IN_PREFIXES = ["/account", "/admin"] as const;
+export const SIGNED_IN_PREFIXES = ["/account", "/admin", "/auth"] as const;
 
 export function isSignedInPath(pathname: string): boolean {
   return SIGNED_IN_PREFIXES.some(
@@ -30,7 +34,10 @@ export function isSignedInPath(pathname: string): boolean {
  * Pages behind sign-in with a dynamic segment, written as their routes
  * are: `[name]` stands for any one non-empty path segment.
  */
-export const DYNAMIC_APP_ROUTES = ["/admin/inbox/[id]"] as const;
+export const DYNAMIC_APP_ROUTES = [
+  "/admin/templates/[key]",
+  "/admin/inbox/[id]",
+] as const;
 
 /** Whether `pathname` fills in `route`, segment by segment. */
 function fillsRoute(route: string, pathname: string): boolean {

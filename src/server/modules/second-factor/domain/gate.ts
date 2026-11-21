@@ -9,25 +9,18 @@
 //     publishing results, moving money, exporting data) now? Only with a
 //     second factor passed within the step-up window.
 //
-// Pure: no I/O, time comes in as `now`.
+// Pure: no I/O, time comes in as `now`. Loads under plain Node: relative
+// imports only.
 
-/** The FOA staff roles. Holding any of them, in any scope, makes a user staff. */
-export const STAFF_ROLES = [
-  "staff_admin",
-  "super_admin",
-  "competition_manager",
-  "content_manager",
-  "community_manager",
-  "finance",
-  "auction_manager",
-  "adoption_coordinator",
-] as const;
+import { isStaffRole, ROLES, type Role } from "../../../access/domain/roles";
 
-export type StaffRole = (typeof STAFF_ROLES)[number];
+/**
+ * The FOA staff roles (#59 keeps the list). Holding any of them, in any
+ * scope, makes a user staff.
+ */
+export const STAFF_ROLES: readonly Role[] = ROLES.filter(isStaffRole);
 
-export function isStaffRole(role: string): role is StaffRole {
-  return (STAFF_ROLES as readonly string[]).includes(role);
-}
+export { isStaffRole };
 
 /** How long a passed second factor counts for step-up (HR-19 default). */
 export const STEP_UP_WINDOW_MS = 10 * 60 * 1000;
@@ -56,8 +49,8 @@ export type SecondFactorDecision =
 
 export function checkSecondFactor(input: {
   requirement: SecondFactorRequirement;
-  /** Role names the user holds, in any scope. */
-  roles: readonly string[];
+  /** The roles the user holds, in any scope. */
+  roles: readonly Role[];
   status: SecondFactorStatus;
   now: Date;
   stepUpWindowMs?: number;

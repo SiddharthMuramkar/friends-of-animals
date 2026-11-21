@@ -6,43 +6,65 @@
 // only if the account does. Better Auth's email-OTP plugin runs with
 // `disableSignUp`, so it never creates one.
 
-import { recordSignUpConsent, type SignUpConsentOutcome } from "../consent";
+import type { Ciphertext } from "../crypto/field-cipher";
+import {
+  recordSignUpConsent,
+  type SignUpConsentOutcome,
+} from "../modules/consent";
 import { user } from "../db/schema";
 import { uuidv7 } from "../ids";
 import { emit } from "../outbox";
 import type { UseCaseContext } from "../use-cases";
+
+/** How the account is reached: an email address, or a stored phone (#58). */
+export type NewAccount =
+  | { name: string; email: string }
+  | {
+      name: string;
+      phone: { phoneCiphertext: Ciphertext; phoneHash: string };
+    };
 
 export type CreatedAccount =
   | { created: false }
   | { created: true; messagesConsent?: SignUpConsentOutcome };
 
 /**
- * Creates a verified account for `email` (already normalised) and emits
- * identity.user_signed_up with it. `messagesConsent` is the id of the
- * messages consent document the form showed, when its box was ticked.
- * Creates, emits and records nothing if the address got an account
- * meanwhile.
+ * Creates a verified account for `email` (already normalised), or for a
+ * phone (./stored-phone.ts), and emits identity.user_signed_up with it.
+ * `messagesConsent` is the id of the messages consent document the form
+ * showed, when its box was ticked. Creates, emits and records nothing if
+ * the address or phone got an account meanwhile.
  */
 export async function createAccount(
   ctx: Pick<UseCaseContext, "db" | "clock" | "actor">,
-  input: { email: string; name: string; messagesConsent?: string }
+  input: NewAccount & { messagesConsent?: string }
 ): Promise<CreatedAccount> {
   const { db, clock } = ctx;
   return db.transaction(async (tx) => {
     const now = clock.now();
-    const [created] = await tx
-      .insert(user)
-      .values({
-        id: uuidv7(now),
-        name: input.name,
-        email: input.email,
-        // Only someone holding the emailed code gets this far.
-        emailVerified: true,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoNothing({ target: user.email })
-      .returning({ id: user.id });
+    const values = {
+      id: uuidv7(now),
+      name: input.name,
+      createdAt: now,
+      updatedAt: now,
+    };
+    // Only someone holding the emailed or texted code gets this far.
+    const [created] = await (
+      "email" in input
+        ? tx
+            .insert(user)
+            .values({ ...values, email: input.email, emailVerified: true })
+            .onConflictDoNothing({ target: user.email })
+        : tx
+            .insert(user)
+            .values({
+              ...values,
+              email: null,
+              ...input.phone,
+              phoneVerified: true,
+            })
+            .onConflictDoNothing({ target: user.phoneHash })
+    ).returning({ id: user.id });
     if (!created) return { created: false } as const;
     await emit(tx, clock, {
       type: "identity.user_signed_up",

@@ -2,10 +2,13 @@
 // field at fault, and the submitted values so nothing typed is lost. Pure,
 // so the action stays small; messages arrive already translated.
 
+import { APP_ROUTES } from "@/lib/app-routes";
+import { secondFactorPath } from "@/lib/second-factor-routes";
+import type { DomainErrorCode } from "@/server/errors";
 import type {
   RevisionProblem,
   UpdateMessageTemplateResult,
-} from "@/server/notifications";
+} from "@/server/modules/notifications";
 
 export type TemplateField = "subject" | "body" | "dltTemplateId";
 
@@ -16,12 +19,14 @@ export type TemplateFormValues = {
 };
 
 export type TemplateFormState = {
-  status: "idle" | "saved" | "unchanged" | "stale" | "invalid";
+  status: "idle" | "saved" | "unchanged" | "stale" | "invalid" | "refused";
   /** The version the next save starts from. */
   version: number;
   fieldErrors: Partial<Record<TemplateField, string>>;
   /** What was submitted, shown again after a refusal. */
   values: TemplateFormValues | null;
+  /** Why a `refused` save was refused, already translated. */
+  message?: string;
 };
 
 export type FormTexts = {
@@ -68,4 +73,37 @@ export function templateFormState(
   }
   // stale, or the template is gone: reload to see what is there now.
   return { ...base, status: "stale", values: submitted };
+}
+
+/**
+ * A save the use case refused and no second step can lift (the actor
+ * isn't a content manager): says why and keeps what was typed.
+ */
+export function refusedFormState(
+  before: { version: number },
+  submitted: TemplateFormValues,
+  message: string
+): TemplateFormState {
+  return {
+    status: "refused",
+    version: before.version,
+    fieldErrors: {},
+    values: submitted,
+    message,
+  };
+}
+
+/**
+ * Where a save refused for want of a second step sends the user: to add,
+ * enter or renew it (#60), then back to this template's editor to save
+ * again. Null for a refusal no second step can lift, which the form says.
+ */
+export function secondStepRedirect(
+  refusal: DomainErrorCode,
+  key: string
+): string | null {
+  return secondFactorPath(
+    refusal,
+    `${APP_ROUTES.adminTemplates}/${encodeURIComponent(key)}`
+  );
 }

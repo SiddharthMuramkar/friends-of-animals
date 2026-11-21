@@ -4,7 +4,7 @@
 // "server-only".
 
 import { setting } from "../db/schema";
-import { SETTING_KEYS, SETTINGS } from "../settings/catalogue";
+import { SETTING_KEYS, SETTINGS } from "../modules/settings/catalogue";
 import type { SeedDeps } from "./types";
 
 /**

@@ -1,6 +1,6 @@
 {
-  "id": "43160012-438f-4551-a978-1712abc63fdd",
-  "prevId": "4b2d8047-6855-4535-9efa-b9524424b83d",
+  "id": "7919b582-60fe-4ccd-8b07-0adb4c704d40",
+  "prevId": "4cf280f8-9ad7-496d-9674-12b931a2af29",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1219,30 +1219,260 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.setting": {
-      "name": "setting",
+    "public.second_factor": {
+      "name": "second_factor",
       "schema": "",
       "columns": {
-        "key": {
-          "name": "key",
-          "type": "text",
+        "id": {
+          "name": "id",
+          "type": "uuid",
           "primaryKey": true,
           "notNull": true
         },
-        "value": {
-          "name": "value",
-          "type": "jsonb",
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "uuid",
+        "kind": {
+          "name": "kind",
+          "type": "second_factor_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "updated_at": {
-          "name": "updated_at",
+        "totp_secret_sealed": {
+          "name": "totp_secret_sealed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_last_used_step": {
+          "name": "totp_last_used_step",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credential_id": {
+          "name": "credential_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "public_key": {
+          "name": "public_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sign_count": {
+          "name": "sign_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transports": {
+          "name": "transports",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "second_factor_user_id_idx": {
+          "name": "second_factor_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "second_factor_user_id_user_id_fk": {
+          "name": "second_factor_user_id_user_id_fk",
+          "tableFrom": "second_factor",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "second_factor_credential_id_unique": {
+          "name": "second_factor_credential_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "credential_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "second_factor_totp_fields": {
+          "name": "second_factor_totp_fields",
+          "value": "\"second_factor\".\"kind\" <> 'totp' OR (\"second_factor\".\"totp_secret_sealed\" IS NOT NULL AND \"second_factor\".\"credential_id\" IS NULL AND \"second_factor\".\"public_key\" IS NULL)"
+        },
+        "second_factor_passkey_fields": {
+          "name": "second_factor_passkey_fields",
+          "value": "\"second_factor\".\"kind\" <> 'passkey' OR (\"second_factor\".\"credential_id\" IS NOT NULL AND \"second_factor\".\"public_key\" IS NOT NULL AND \"second_factor\".\"sign_count\" IS NOT NULL AND \"second_factor\".\"confirmed_at\" IS NOT NULL AND \"second_factor\".\"totp_secret_sealed\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.second_factor_lockout": {
+      "name": "second_factor_lockout",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "failures": {
+          "name": "failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "window_started_at": {
+          "name": "window_started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "second_factor_lockout_user_id_user_id_fk": {
+          "name": "second_factor_lockout_user_id_user_id_fk",
+          "tableFrom": "second_factor_lockout",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session_second_factor": {
+      "name": "session_second_factor",
+      "schema": "",
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "verified_at": {
+          "name": "verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "method": {
+          "name": "method",
+          "type": "second_factor_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_second_factor_session_id_session_id_fk": {
+          "name": "session_second_factor_session_id_session_id_fk",
+          "tableFrom": "session_second_factor",
+          "tableTo": "session",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.webauthn_challenge": {
+      "name": "webauthn_challenge",
+      "schema": "",
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "challenge": {
+          "name": "challenge",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
@@ -1250,21 +1480,29 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "setting_updated_by_user_id_user_id_fk": {
-          "name": "setting_updated_by_user_id_user_id_fk",
-          "tableFrom": "setting",
-          "tableTo": "user",
+        "webauthn_challenge_session_id_session_id_fk": {
+          "name": "webauthn_challenge_session_id_session_id_fk",
+          "tableFrom": "webauthn_challenge",
+          "tableTo": "session",
           "columnsFrom": [
-            "updated_by_user_id"
+            "session_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "webauthn_challenge_session_id_purpose_pk": {
+          "name": "webauthn_challenge_session_id_purpose_pk",
+          "columns": [
+            "session_id",
+            "purpose"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -1362,6 +1600,14 @@
       "schema": "public",
       "values": [
         "user"
+      ]
+    },
+    "public.second_factor_kind": {
+      "name": "second_factor_kind",
+      "schema": "public",
+      "values": [
+        "totp",
+        "passkey"
       ]
     }
   },
