@@ -16,8 +16,8 @@ The FOA logo is a **registered mark**. Use these files as they are. Don't recolo
 | `foa-logo-watermark.png` | 1024 × 590, transparent | Full-colour watermark for stamping onto artwork photos (`StampSettings.logoAssetId`). Use it on light or mid-tone areas, because the wordmark is black. |
 | `foa-logo-watermark-white.png` | 1024 × 590, transparent | All-white watermark for dark photos. |
 | `foa-logo-watermark-black.png` | 1024 × 590, transparent | All-black watermark. Suggested use: very light photos. |
-| `favicon.svg` | vector, square | Browser tab icon for modern browsers: the tiles alone on a white square. |
-| `favicon.ico` | 16, 32, 48 px | Browser tab icon fallback, the tiles alone. A copy sits at `/favicon.ico` because browsers and crawlers ask for that path. |
+| `favicon.svg` | vector, square | Browser tab icon for modern browsers: the tiles alone on a transparent square, so tabs of any colour show around them. |
+| `favicon.ico` | 16, 32, 48 px | Browser tab icon fallback: the tiles alone, transparent. A copy sits at `/favicon.ico` because browsers and crawlers ask for that path. |
 | `apple-touch-icon.png` | 180 × 180 | iOS / iPadOS home-screen icon: the tiles alone on white. |
 | `foa-social-1200x630.png` | 1200 × 630 | Open Graph / Twitter preview image (`og:image`), the full logo. |
 | `foa-logo-source.png` | 368 × 219 | The original screenshot that the master was traced from. Kept for reference. Don't use it on the site. |
