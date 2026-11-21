@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import { ROUTES } from "@/lib/routes";
 import { PATH_HEADER, secondFactorPath } from "@/lib/second-factor-routes";
 import { as, currentActor } from "@/server/app";
@@ -23,7 +24,7 @@ export async function StaffGate({ children }: { children: ReactNode }) {
     headers(),
   ]);
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const access = await as(actor).staffAccess();
+  const access = await orSecondFactor(() => as(actor).staffAccess());
   if (!access.ok) {
     const here = requestHeaders.get(PATH_HEADER) ?? undefined;
     redirect(secondFactorPath(access.code, here) ?? ROUTES.signIn.path);

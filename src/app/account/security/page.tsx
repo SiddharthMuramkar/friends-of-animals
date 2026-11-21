@@ -4,6 +4,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import { FormAlert, SubmitButton } from "@/components/form";
 import { ButtonLink } from "@/components/site/button-link";
 import { Callout } from "@/components/site/callout";
@@ -74,7 +75,7 @@ async function Security({ searchParams }: { searchParams: SearchParams }) {
     getTranslations("security.passkey"),
     getTranslations("common.callout"),
     getFormatter(),
-    as(actor).mySecondFactors(),
+    orSecondFactor(() => as(actor).mySecondFactors()),
     searchParams,
   ]);
   const next = safeNext(params.next) ?? "";

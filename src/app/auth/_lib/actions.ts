@@ -12,6 +12,8 @@ import { ROUTES } from "@/lib/routes";
 import { safeNext } from "@/lib/second-factor-routes";
 import { as, currentActor } from "@/server/app";
 
+import { orSecondFactor } from "./refusal";
+
 /** What the second-factor form shows after a try: translated text. */
 export type VerifyFormView = { alert?: string; codeError?: string };
 
@@ -56,9 +58,9 @@ export async function verifyCodeAction(
   formData: FormData
 ): Promise<VerifyFormView> {
   const actor = await signedIn();
-  const result = await as(actor).verifySecondFactor({
-    code: field(formData, "code"),
-  });
+  const result = await orSecondFactor(() =>
+    as(actor).verifySecondFactor({ code: field(formData, "code") })
+  );
   if (result.ok) redirect(destination(field(formData, "next")));
   if (result.error === "invalid_input") {
     const t = await getTranslations("security.form.code");
@@ -77,7 +79,9 @@ export type PasskeyChallenge =
 /** A challenge for the browser to answer with one of the user's passkeys. */
 export async function startPasskeyAction(): Promise<PasskeyChallenge> {
   const actor = await signedIn();
-  const started = await as(actor).startPasskeyVerification();
+  const started = await orSecondFactor(() =>
+    as(actor).startPasskeyVerification()
+  );
   if (started.ok) return started;
   return { ok: false, ...(await alertFor(started.error)) };
 }
@@ -89,7 +93,9 @@ export async function finishPasskeyAction(
 ): Promise<VerifyFormView> {
   const actor = await signedIn();
   if (!response) return alertFor("passkey_failed");
-  const result = await as(actor).finishPasskeyVerification({ response });
+  const result = await orSecondFactor(() =>
+    as(actor).finishPasskeyVerification({ response })
+  );
   if (result.ok) redirect(destination(next));
   if (result.error === "invalid_input") return alertFor("passkey_failed");
   return alertFor(
