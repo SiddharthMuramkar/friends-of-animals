@@ -14,7 +14,7 @@ function mailboxToken(): string {
  * The newest sign-in code sent to `email`, from the deployment's capture
  * mailbox (GET /api/capture-mailbox), or undefined if none was sent.
  */
-export async function latestCode(
+async function latestCode(
   request: APIRequestContext,
   email: string
 ): Promise<string | undefined> {
