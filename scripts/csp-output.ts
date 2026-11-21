@@ -79,6 +79,17 @@ const START_TAG =
 const ATTRIBUTE =
   /([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 
+/**
+ * `value` without spaces and control characters. Browsers drop leading
+ * ones, and tabs and newlines anywhere, before reading a URL's scheme.
+ */
+function withoutSpaceOrControls(value: string): string {
+  return value
+    .split("")
+    .filter((unit) => unit.charCodeAt(0) > 0x20)
+    .join("");
+}
+
 /** Script and style bodies hold code, not markup. */
 const RAW_TEXT = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
 
@@ -99,9 +110,7 @@ export function inlineHandlers(html: string): string[] {
         found.push(`an ${name} attribute on <${tag}>`);
       } else if (
         URL_ATTRIBUTES.has(name) &&
-        // Browsers drop leading spaces and control characters, and tabs or
-        // newlines anywhere, before reading the scheme.
-        /^javascript:/i.test(value.replace(/[\u0000- ]/g, ""))
+        /^javascript:/i.test(withoutSpaceOrControls(value))
       ) {
         found.push(`a javascript: URL in <${tag} ${name}>`);
       }
