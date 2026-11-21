@@ -9,6 +9,12 @@ describe("isSignedInPath", () => {
     expect(isSignedInPath("/account")).toBe(true);
   });
 
+  it("covers the admin pages", () => {
+    expect(isSignedInPath(APP_ROUTES.adminSettings)).toBe(true);
+    expect(isSignedInPath("/admin")).toBe(true);
+    expect(isSignedInPath("/administration")).toBe(false);
+  });
+
   it("covers the institution pages and the admin area", () => {
     expect(isSignedInPath(APP_ROUTES.institutionRegister)).toBe(true);
     expect(isSignedInPath(APP_ROUTES.myInstitution)).toBe(true);

@@ -6,10 +6,11 @@
 // the schema under plain Node, where that import throws.
 export * from "./identity";
 export * from "./mailbox";
-export * from "./outbox";
 export * from "./access";
 export * from "./audit";
 export * from "./outbox";
 export * from "./consent";
 export * from "./settings";
 export * from "./institutions";
+export * from "./notifications";
+export * from "./second-factor";

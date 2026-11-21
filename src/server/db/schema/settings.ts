@@ -1,5 +1,5 @@
 // Runtime settings (#62). One row per setting a super admin has set; a
-// setting without a row has its default (src/server/settings/catalogue.ts).
+// setting without a row has its default (src/server/modules/settings/catalogue.ts).
 // `value` is whatever the setting's schema allows, so it is jsonb, checked
 // by the settings module on every write and read. The audit log keeps the
 // history of changes.

@@ -23,6 +23,7 @@ import type { AppDb } from "../db/app-db";
 import { account, session, user, verification } from "../db/schema";
 import type { Deps } from "../deps";
 import { uuidv7 } from "../ids";
+import { cappedSessionExpiry } from "../modules/second-factor/session-lifetimes";
 import { EMAIL_CODE, SESSION_LIFETIME_DAYS } from "./settings";
 
 const DAY_SECONDS = 24 * 60 * 60;
@@ -80,6 +81,22 @@ function createAuth({ db, clock, auth: config }: Deps) {
     // An absolute lifetime (the HR-19 default): resolveActor reads sessions
     // with disableRefresh, so using the site never extends one.
     session: { expiresIn: SESSION_LIFETIME_DAYS * DAY_SECONDS },
+    // Staff sessions are shorter (#60): a new session's expiry is capped by
+    // its user's roles.
+    databaseHooks: {
+      session: {
+        create: {
+          async before(created) {
+            const expiresAt = await cappedSessionExpiry(db, {
+              userId: created.userId,
+              createdAt: created.createdAt ?? clock.now(),
+              expiresAt: created.expiresAt,
+            });
+            return { data: { ...created, expiresAt } };
+          },
+        },
+      },
+    },
     // FOA limits codes per email and per IP in Postgres; Better Auth's own
     // limiter keys on IP and path only, and its default store is memory,
     // which serverless instances don't share.

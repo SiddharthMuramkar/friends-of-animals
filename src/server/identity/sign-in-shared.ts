@@ -1,6 +1,6 @@
-// What the email and phone sign-in use cases share: input checks, their
-// "invalid input" result, the visitor's request details and storing the
-// session cookie Better Auth sets.
+// What the email and phone sign-in use cases share: input checks, the
+// visitor's request details and storing the session cookie Better Auth
+// sets.
 
 import { parseSetCookieHeader, toCookieOptions } from "better-auth/cookies";
 import { z } from "zod";
@@ -16,8 +16,6 @@ export const codeInput = z
   .regex(new RegExp(`^\\d{${EMAIL_CODE.length}}$`));
 
 export const nameInput = z.string().trim().min(1).max(100);
-
-export { invalidInput, type InvalidInput } from "../input";
 
 /** The visitor's request details; `authorize` has ruled out other actors. */
 export function visitorMeta(ctx: UseCaseContext): RequestMeta {

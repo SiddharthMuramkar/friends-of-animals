@@ -12,7 +12,7 @@ import {
   GIVABLE_PURPOSES,
   type ConsentSubjectType,
   type GivablePurpose,
-} from "../consent/domain/purposes";
+} from "../modules/consent/domain/purposes";
 
 export type DomainEvent =
   | {
@@ -54,12 +54,16 @@ export const EVENT_PAYLOADS = {
   }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
-/** The handlers each event is delivered to, one outbox row apiece. */
+/**
+ * The handlers each event is delivered to, one outbox row apiece. Every
+ * event goes to notifications.dispatch, which sends whatever its route
+ * rows (message_route) name, and nothing when it has none.
+ */
 export const SUBSCRIBERS = {
-  "identity.user_signed_up": ["notifications.send_welcome_email"],
+  "identity.user_signed_up": ["notifications.dispatch"],
   // The modules that act on a withdrawal (gallery, social, auctions,
-  // campaigns: #69, #119, #126, #131) add their handlers here.
-  "consent.withdrawn": ["consent.acknowledge_withdrawal"],
+  // campaigns: #119, #126, #131) add their handlers here.
+  "consent.withdrawn": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

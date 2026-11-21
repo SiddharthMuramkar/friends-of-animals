@@ -14,6 +14,7 @@ async function seedDeps() {
     db: await createTestDb(),
     clock: new FakeClock(),
     ...fieldCryptoFor({ APP_ENV: "local" }),
+    auth: { secret: "seed-test-secret-0123456789abcdef" },
   };
 }
 

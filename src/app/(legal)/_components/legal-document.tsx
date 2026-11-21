@@ -1,18 +1,29 @@
 import { getFormatter, getTranslations } from "next-intl/server";
+import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 
-import { LegalBlockView, LegalInlines } from "@/components/legal/legal-text";
+import {
+  LegalBlockView,
+  LegalInlines,
+  shownLegalDoc,
+} from "@/components/legal/legal-text";
 import { PageHeader } from "@/components/site/heading";
 import { InPageLink } from "@/components/site/in-page-link";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
-import { LEGAL_DOCS, type LegalDoc, type LegalDocId } from "@/content/legal";
+import {
+  LEGAL_DOCS,
+  type LegalDoc,
+  type LegalDocId,
+  type ShownInline,
+} from "@/content/legal";
 import type {
   ConsentPurpose,
   PublishedConsentDocument,
-} from "@/server/consent";
-import { cachedConsentDocument } from "@/server/consent/cached";
+} from "@/server/modules/consent";
+import { cachedConsentDocument } from "@/server/modules/consent/cached";
+import { errorSummaryForLogs } from "@/server/errors";
 
 const NS = {
   privacy: "legal.privacy",
@@ -21,12 +32,14 @@ const NS = {
   childProtection: "legal.childProtection",
 } as const;
 
-type LegalText = Pick<LegalDoc, "short" | "sections">;
+type LegalText = Pick<LegalDoc<ShownInline>, "short" | "sections">;
 
 /**
  * A policy page: header, a "last updated" line, the short version first,
  * then the full text with a table of contents. `top` renders above the
  * short version (e.g. helplines); `after` adds content after a section.
+ * In production, the repo text's clauses about unconfirmed facts give way
+ * to their production wording, and emptied sections go (shownLegalDoc).
  *
  * With `purpose`, the page shows the current published version of that
  * consent document and its number (#64). The header stays in the static
@@ -44,7 +57,7 @@ export async function LegalDocument({
   top?: ReactNode;
   after?: Partial<Record<string, ReactNode>>;
 }) {
-  const doc = LEGAL_DOCS[id];
+  const doc = shownLegalDoc(LEGAL_DOCS[id]);
   const [t, tp] = await Promise.all([
     getTranslations("legal.common"),
     getTranslations(NS[id]),
@@ -110,7 +123,9 @@ export async function LegalDocument({
 
 /**
  * Renders `children` with the purpose's current published version, read
- * at request time, or `fallback` while none is published.
+ * at request time, or `fallback` while none is published. If the database
+ * can't be read, the page keeps the repo's text rather than failing: a
+ * policy page must always be readable.
  */
 async function Published({
   purpose,
@@ -122,7 +137,16 @@ async function Published({
   children: (published: PublishedConsentDocument) => ReactNode;
 }) {
   await connection();
-  const published = await cachedConsentDocument(purpose);
+  let published: PublishedConsentDocument | null;
+  try {
+    published = await cachedConsentDocument(purpose);
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(
+      `Legal page: could not read the published ${purpose}: ${errorSummaryForLogs(error)}`
+    );
+    return fallback;
+  }
   return published ? children(published) : fallback;
 }
 

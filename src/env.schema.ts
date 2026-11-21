@@ -5,9 +5,9 @@
 
 import { z } from "zod";
 
+import { parseDsn } from "./lib/observability/config";
 import { parseBlindIndexKey } from "./server/crypto/blind-index";
 import { parseKeyRing } from "./server/crypto/field-cipher";
-import { parseDsn } from "./lib/observability/config";
 import { previewDatabase } from "./server/db/database-url";
 
 /** A postgres:// URL; `whenUnset` is the error shown when it is missing. */
@@ -407,8 +407,8 @@ export const envSchema = z
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
   .superRefine(requireAuthSecret, always)
-  .superRefine(requireFieldKeys, always)
   .superRefine(requireSentryInProduction, always)
+  .superRefine(requireFieldKeys, always)
   .transform(withDefaults);
 
 export type Env = z.output<typeof envSchema>;
