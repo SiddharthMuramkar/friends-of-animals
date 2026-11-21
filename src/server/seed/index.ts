@@ -11,6 +11,7 @@ import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
 import { seedCompetitions } from "./competitions";
 import { seedIdentity } from "./identity";
+import { seedJudging } from "./judging";
 import type { Seeder } from "./types";
 
 export type { SeedDeps, Seeder } from "./types";
@@ -24,6 +25,7 @@ const seeders: readonly Seeder[] = [
   seedIdentity,
   seedAccess,
   seedCompetitions,
+  seedJudging,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);
