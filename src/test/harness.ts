@@ -27,6 +27,7 @@ import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
+import { FakeStorage } from "./fakes/storage";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -67,6 +68,11 @@ export interface Harness {
    * finds nothing due. Retries wait for `clock.advance()`.
    */
   drain(): Promise<DrainReport>;
+  /**
+   * The private buckets. `put(url, bytes, headers)` and `get(url)` use a
+   * presigned URL as the browser does, checked against the fake clock.
+   */
+  storage: FakeStorage;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -79,6 +85,13 @@ export const TEST_AUTH = {
   secret: "seam-1-test-secret-0123456789abcdef",
   baseUrl: "http://localhost:3000",
 };
+
+/** A local run's files config: test uploads allowed, under `local/`. */
+export const TEST_FILES = {
+  bucket: "foa-files-test",
+  keyPrefix: "local/",
+  appEnv: "local",
+} as const;
 
 export async function createHarness(
   options: { now?: Date | string } = {}
@@ -95,7 +108,16 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const cookies = new FakeCookieJar(clock);
-  const deps: Deps = { db, clock, email, cookies, auth: TEST_AUTH };
+  const storage = new FakeStorage(clock);
+  const deps: Deps = {
+    db,
+    clock,
+    email,
+    cookies,
+    auth: TEST_AUTH,
+    storage,
+    files: TEST_FILES,
+  };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
     ...DEFAULT_META,
@@ -136,6 +158,7 @@ export async function createHarness(
     },
     seed: createSeedBuilders(deps),
     drain: () => drainUntilIdle(deps),
+    storage,
   };
   return harness;
 }
