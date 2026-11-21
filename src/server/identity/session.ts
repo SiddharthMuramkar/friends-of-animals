@@ -1,6 +1,7 @@
 import type { Actor } from "../actor";
 import type { Deps } from "../deps";
 import { errorSummaryForLogs } from "../errors";
+import { isLiveSession } from "../modules/second-factor/session-lifetimes";
 import { authFor } from "./auth";
 import { requestMeta } from "./request";
 
@@ -28,7 +29,19 @@ export async function resolveActor(
     // Postgres code, and no cause, since Next logs what a render throws.
     throw new Error(`Session lookup failed: ${errorSummaryForLogs(error)}`);
   }
-  return found
+  if (!found) return { kind: "visitor", meta };
+  // Staff sessions end 12 hours after sign-in (#60), even if a stored
+  // expiry says later.
+  const live = await isLiveSession(
+    deps.db,
+    {
+      userId: found.user.id,
+      createdAt: found.session.createdAt,
+      expiresAt: found.session.expiresAt,
+    },
+    deps.clock.now()
+  );
+  return live
     ? {
         kind: "user",
         userId: found.user.id,

@@ -8,6 +8,12 @@ describe("isSignedInPath", () => {
     expect(isSignedInPath("/account")).toBe(true);
   });
 
+  it("covers the admin pages", () => {
+    expect(isSignedInPath(APP_ROUTES.adminSettings)).toBe(true);
+    expect(isSignedInPath("/admin")).toBe(true);
+    expect(isSignedInPath("/administration")).toBe(false);
+  });
+
   it("leaves public pages alone, even ones that start alike", () => {
     expect(isSignedInPath("/sign-in")).toBe(false);
     expect(isSignedInPath("/accountability")).toBe(false);

@@ -1,0 +1,80 @@
+{
+  "adminSettings": {
+    "meta": {
+      "title": "Settings",
+      "description": "Change how the site works without waiting for a release."
+    },
+    "eyebrow": "Admin",
+    "title": "Settings",
+    "lead": "Change how the site works without waiting for a release. A change applies at once, needs a fresh code from your authenticator app, and goes in the audit log.",
+    "loading": "Loading settings…",
+    "listTitle": "All settings",
+    "denied": {
+      "title": "Only a super admin can open settings",
+      "body": "Your account doesn't have the super admin role. If a setting needs changing, ask a super admin.",
+      "back": "Go to your account"
+    },
+    "facts": {
+      "now": "Now",
+      "default": "Default",
+      "lastChange": "Last change",
+      "usingDefault": "None yet: the default applies",
+      "changedBy": "{name}, {date}",
+      "changedOn": "{date}"
+    },
+    "values": {
+      "on": "On",
+      "off": "Off",
+      "amount": "{unit, select, minutes {{count, plural, one {# minute} other {# minutes}}} hours {{count, plural, one {# hour} other {# hours}}} other {{count, plural, one {# day} other {# days}}}}"
+    },
+    "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
+    "form": {
+      "newValue": "New value",
+      "newAmount": "New value, in {unit, select, minutes {minutes} hours {hours} other {days}}",
+      "range": "A whole number from {min} to {max}.",
+      "save": "Save",
+      "saving": "Saving…"
+    },
+    "result": {
+      "done": "Done",
+      "problem": "Important",
+      "saved": "Saved. The new value applies now.",
+      "unchanged": "That is already the value, so nothing changed."
+    },
+    "errors": {
+      "wrong_type": "{kind, select, boolean {Choose On or Off.} other {Enter a whole number, with no decimals.}}",
+      "too_small": "Enter {min} or more.",
+      "too_big": "Enter {max} or less.",
+      "unknown_setting": "This setting no longer exists. Reload the page to see the current list.",
+      "forbidden": "Only a super admin can change settings.",
+      "step_up_required": "For safety, a change needs a recent code from your authenticator app. Enter a new code, then save again.",
+      "second_factor_required": "Enter a code from your authenticator app for this session first, then save again.",
+      "enrolment_required": "Set up an authenticator app or a passkey first, then save again.",
+      "failed": "Something went wrong and nothing was saved. Try again."
+    },
+    "settings": {
+      "auth": {
+        "staffSessionHours": {
+          "label": "Staff session length",
+          "description": "How long staff stay signed in before they must sign in again. Lowering it also signs out staff whose session is already older."
+        }
+      },
+      "sms": {
+        "enabled": {
+          "label": "Sign-in codes by text message",
+          "description": "Lets people get sign-in codes by SMS. Keep it off until FOA's messages are registered on the DLT platform."
+        }
+      },
+      "org": {
+        "has80G": {
+          "label": "80G registration held",
+          "description": "Turn on once FOA holds 80G registration, so donors in India get tax receipts."
+        },
+        "fcraEnabled": {
+          "label": "Foreign donations (FCRA)",
+          "description": "Turn on once FOA is registered under FCRA and may accept donations from abroad."
+        }
+      }
+    }
+  }
+}

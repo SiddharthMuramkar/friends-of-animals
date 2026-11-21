@@ -8,4 +8,6 @@ export * from "./identity";
 export * from "./mailbox";
 export * from "./access";
 export * from "./audit";
+export * from "./second-factor";
 export * from "./outbox";
+export * from "./settings";

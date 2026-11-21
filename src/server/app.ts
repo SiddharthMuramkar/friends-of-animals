@@ -17,12 +17,16 @@ import type { Actor } from "./actor";
 import { auditUseCases } from "./audit";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
+import { secondFactorUseCases } from "./modules/second-factor";
+import { settingsUseCases } from "./modules/settings";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
   identityUseCases,
   accessUseCases,
-  auditUseCases
+  auditUseCases,
+  secondFactorUseCases,
+  settingsUseCases
 );
 
 /** Every use case, by name, bound to one actor. */
