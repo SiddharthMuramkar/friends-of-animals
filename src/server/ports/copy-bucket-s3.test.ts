@@ -231,11 +231,11 @@ describe("s3CopyBucket listing", () => {
     ]);
     expect(requests.map(({ path, query }) => ({ path, query }))).toEqual([
       {
-        path: "/foa-files-prod",
+        path: "/foa-files-prod/",
         query: expect.objectContaining({ "list-type": "2", prefix: "avatar/" }),
       },
       {
-        path: "/foa-files-prod",
+        path: "/foa-files-prod/",
         query: expect.objectContaining({
           "list-type": "2",
           prefix: "avatar/",
