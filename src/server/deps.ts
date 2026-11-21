@@ -21,10 +21,8 @@ import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
 import type { ErrorReporter } from "./ports/errors";
-import {
-  unconfiguredScanner,
-  type MalwareScanner,
-} from "./ports/malware-scanner";
+import type { MalwareScanner } from "./ports/malware-scanner";
+import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 
 export interface Deps extends DbWithClock {
@@ -96,7 +94,9 @@ export function productionDeps(): Deps {
         keyPrefix: storagePrefixFor(config),
         appEnv: config.APP_ENV,
       },
-      scanner: unconfiguredScanner,
+      // Vercel never reaches clamd: the preview drain route's scans fail
+      // and wait for the VPS worker, which sets CLAMD_HOST.
+      scanner: malwareScannerFor(config),
     };
   }
   return production;
