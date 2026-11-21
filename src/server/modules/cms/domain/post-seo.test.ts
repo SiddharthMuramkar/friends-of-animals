@@ -6,6 +6,7 @@ import {
   blogPostingJsonLd,
   postBreadcrumbJsonLd,
   postMetadata,
+  postSitemapEntries,
 } from "./post-seo";
 import type { PostView } from "./post-view";
 
@@ -195,5 +196,27 @@ describe("postMetadata", () => {
       expect(meta.openGraph).toMatchObject({ images: [DEFAULT_SOCIAL_IMAGE] });
       expect(meta.twitter).toMatchObject({ images: [DEFAULT_SOCIAL_IMAGE] });
     }
+  });
+});
+
+describe("postSitemapEntries", () => {
+  it("lists each published post once, last modified when it was updated", () => {
+    const older = {
+      ...POST,
+      slug: "two-pilots-two-puppies",
+      updatedAt: new Date("2026-11-18T04:00:00.000Z"),
+    };
+    expect(postSitemapEntries([POST, older], BASE)).toEqual([
+      {
+        url: "https://foa.example/blog/kinder-skies-in-kite-season",
+        lastModified: new Date("2026-11-20T09:15:00.000Z"),
+        priority: 0.6,
+      },
+      {
+        url: "https://foa.example/blog/two-pilots-two-puppies",
+        lastModified: new Date("2026-11-18T04:00:00.000Z"),
+        priority: 0.6,
+      },
+    ]);
   });
 });

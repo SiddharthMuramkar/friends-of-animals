@@ -17,7 +17,7 @@ import {
 import { SITE } from "@/lib/site";
 
 import { postMetaTitle } from "./post-fields";
-import type { PostView } from "./post-view";
+import type { PostCard, PostView } from "./post-view";
 
 /** The post's canonical path, `/blog/<slug>`. */
 export function postPath(slug: string): string {
@@ -110,4 +110,11 @@ export function postBreadcrumbJsonLd(
     { name: names.index, path: ROUTES.stories.path },
     { name: post.title, path: postPath(post.slug) },
   ]);
+}
+
+export function postSitemapEntries(
+  _posts: readonly PostCard[],
+  _base: URL
+): { url: string; lastModified: Date; priority: number }[] {
+  return [];
 }
