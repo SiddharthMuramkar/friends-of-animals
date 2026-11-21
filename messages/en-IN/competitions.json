@@ -27,7 +27,8 @@
     "list": {
       "title": "Open and coming up",
       "lead": "Choose what you like to make and your age to see the competitions that fit.",
-      "sampleNote": "These are sample competitions, shown on test sites only."
+      "sampleNote": "These are sample competitions, shown on test sites only.",
+      "loading": "Finding the competitions"
     },
     "filters": {
       "label": "Filter the competitions",
@@ -110,7 +111,8 @@
         "group": "Age group",
         "ages": "Ages",
         "groupAges": "{min} to {max}",
-        "open": "Open"
+        "open": "Open",
+        "closed": "Not open"
       },
       "timeline": {
         "title": "Dates to remember",
@@ -139,7 +141,8 @@
           "line": "No school needed.",
           "body": "A parent or guardian signs you up. You make your entry at home and upload it before the closing date."
         },
-        "fee": "Fee"
+        "fee": "Fee",
+        "titleOne": "How to take part"
       },
       "recognition": {
         "title": "Every way we recognise good work",
@@ -183,17 +186,25 @@
           "animals": "Never chase, hold or disturb an animal for a photo or a film. Watch from a distance and let it be.",
           "consent": "If you are under 18, a parent or guardian gives consent before you enter.",
           "theme": "Your entry should answer the theme. Judges give it the most weight."
-        }
+        },
+        "materials": "What you may use",
+        "duration": "Time to make it",
+        "always": "In every competition"
       },
       "physical": {
         "title": "If we ask for your original",
         "body": "For drawing, painting, art and craft, finalists may be asked to post the original so judges can see it in person. Keep it flat, dry and safe until results are out.",
-        "who": "Through school, your teacher sends it. On your own, a parent or guardian posts it. The packing note will say who pays for postage. Friends of Animals never charges you to get your work back."
+        "who": "Through school, your teacher sends it. On your own, a parent or guardian posts it. The packing note will say who pays for postage. Friends of Animals never charges you to get your work back.",
+        "notRequired": "This competition does not ask for originals. The judges look at the entry you send online.",
+        "allShortlisted": "If your entry is shortlisted, we will ask for the original so judges can see it in person. Keep it flat, dry and safe until results are out.",
+        "topN": "If your entry is one of the top {count} in its category, we will ask for the original so judges can see it in person. Keep it flat, dry and safe until results are out."
       },
       "display": {
         "title": "Showing your work",
         "body": "With your consent, and a parent's or guardian's if you are under 18, selected entries may appear in our public gallery and awareness campaigns. We credit you by first name and initial only.",
-        "noAuction": "There is no auction in this competition. Your work will not be sold."
+        "noAuction": "There is no auction in this competition. Your work will not be sold.",
+        "notShown": "Entries in this competition are not shown in public. Only the judges see them.",
+        "auction": "Some selected work may be offered in an auction for this competition. We will ask you first, and a parent or guardian too if you are under 18."
       },
       "consent": {
         "title": "Consent and policies",
@@ -208,6 +219,12 @@
         "title": "Questions?",
         "body": "Ask us anything about this competition, before or after you register.",
         "link": "Contact us"
+      },
+      "entries": {
+        "title": "How entries reach the judges",
+        "all": "Everyone sends their entry online, and our judges see every one.",
+        "shortlist": "Your school judges its entries first. Only its shortlist is sent online to our judges.",
+        "schools": "Each school sends up to {count, plural, one {# entry} other {# entries}} in each category and picks its own {positions, plural, one {winner} other {top # places}}."
       }
     }
   }

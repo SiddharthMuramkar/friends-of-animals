@@ -10,6 +10,7 @@ import {
   fromPublic,
   fromSample,
   nextKeyDate,
+  paragraphs,
   primaryAction,
   timeline,
   type KeyDate,
@@ -248,5 +249,14 @@ describe("fromPublic", () => {
       nextKeyDate(view.keyDates, new Date("2026-12-10T00:00:00Z"))
     ).toEqual({ kind: "registrationCloses", at: "2027-01-15T18:29:00.000Z" });
     expect(ageRange(view.ageGroups)).toEqual({ min: 5, max: 12 });
+  });
+});
+
+describe("paragraphs", () => {
+  it("splits a manager's text into paragraphs at line breaks, dropping blank ones", () => {
+    expect(
+      paragraphs("Watch from a distance.\r\n\r\n  Tell a grown-up. \nBe kind.")
+    ).toEqual(["Watch from a distance.", "Tell a grown-up.", "Be kind."]);
+    expect(paragraphs("   ")).toEqual([]);
   });
 });
