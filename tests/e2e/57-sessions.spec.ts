@@ -13,7 +13,7 @@ import { freshEmail, readCode } from "./support/mailbox";
 // or all of them. Two browser contexts stand in for two devices.
 
 /** Another browser with this project's settings (base URL, bypass cookie). */
-async function secondDevice(browser: Browser, testInfo: TestInfo) {
+async function newDevice(browser: Browser, testInfo: TestInfo) {
   const { baseURL, storageState, viewport, userAgent } = testInfo.project.use;
   const context = await browser.newContext({
     baseURL,
@@ -51,7 +51,7 @@ test("a member signs out of another device, then everywhere", async ({
   const email = freshEmail(testInfo.project.name);
 
   // First device: sign up.
-  const laptop = await secondDevice(browser, testInfo);
+  const laptop = await newDevice(browser, testInfo);
   await laptop.goto("/sign-up");
   await laptop.getByRole("textbox", { name: "Your name" }).fill("Meera Iyer");
   const firstCode = await signInWithCode(laptop, request, email);
