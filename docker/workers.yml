@@ -47,7 +47,9 @@ x-worker: &worker
   healthcheck:
     # The worker touches /tmp/foa-worker-heartbeat after each healthy poll
     # (every 5 s): healthy while it is under 120 s old.
-    test: ["CMD-SHELL", "find /tmp/foa-worker-heartbeat -newermt '120 seconds ago' | grep -q ."]
+    test:
+      - CMD-SHELL
+      - find /tmp/foa-worker-heartbeat -newermt '120 seconds ago' | grep -q .
     interval: 30s
     timeout: 5s
     retries: 3

@@ -30,7 +30,11 @@ function singleConfig(
     databaseUrl: DB_URL,
     database: "foa",
     appEnv,
-    identity: { worker: `worker-${appEnv}`, environment: appEnv, version: "dev" },
+    identity: {
+      worker: `worker-${appEnv}`,
+      environment: appEnv,
+      version: "dev",
+    },
     connectionsPerDatabase: 1,
   };
 }
@@ -47,7 +51,6 @@ const PREVIEW_CONFIG: WorkerConfig = {
   },
   connectionsPerDatabase: 2,
 };
-
 
 /**
  * Fake I/O: `databases` maps a URL's database name to a test database;

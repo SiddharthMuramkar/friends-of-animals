@@ -166,9 +166,7 @@ export function createSupervisor({
     async tick() {
       await discover(clock.now().getTime());
       const results = await Promise.all(
-        [...tenants].map(([database, attached]) =>
-          tickOne(database, attached)
-        )
+        [...tenants].map(([database, attached]) => tickOne(database, attached))
       );
       const healthy =
         !listingFailed &&

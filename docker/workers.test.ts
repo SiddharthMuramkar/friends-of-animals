@@ -46,9 +46,9 @@ const service = (name: string) => block(name, "services");
 
 /** The health check's shell command, as Compose passes it to sh -c. */
 function healthCommand(): string {
-  const match = /test:\s*\["CMD-SHELL",\s*"(.+)"\]/.exec(shared());
+  const match = /test:\n\s+- CMD-SHELL\n\s+- (.+)\n/.exec(shared());
   expect(match, "a CMD-SHELL health check").not.toBeNull();
-  return match![1]!.replaceAll('\\"', '"').replaceAll("$$", "$");
+  return match![1]!;
 }
 
 describe("docker/workers.yml", () => {

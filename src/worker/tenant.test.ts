@@ -12,7 +12,6 @@ const PREVIEW_WORKER: WorkerIdentity = {
   version: "0123abc",
 };
 
-
 function tenantFor(h: Harness, identity = PREVIEW_WORKER) {
   return createTenant({
     database: "foa_pr_143_0a1b2c3d",
