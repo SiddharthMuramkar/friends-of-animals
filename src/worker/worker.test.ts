@@ -18,6 +18,7 @@ const COMMON = {
   pollMs: 5_000,
   discoveryMs: 60_000,
   heartbeatFile: "/tmp/foa-worker-heartbeat",
+  passwordFile: undefined,
 } as const;
 
 function singleConfig(
