@@ -49,7 +49,7 @@ export type TunnelOptions = ScrubOptions & {
 
 export type TunnelDecision =
   /** Post `body` to `url` with Content-Type application/x-sentry-envelope. */
-  | { kind: "forward"; url: string; body: Uint8Array }
+  | { kind: "forward"; url: string; body: Uint8Array<ArrayBuffer> }
   /** Nothing in the envelope may go on; answer 200 and send nothing. */
   | { kind: "drop" }
   /** Answer `status` and send nothing. */
