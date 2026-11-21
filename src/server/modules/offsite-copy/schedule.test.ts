@@ -29,11 +29,14 @@ const noBuckets = (): { source: CopyBucket; target: CopyBucket } => {
 
 describe("the offsite_copy schedule", () => {
   it("runs at 01:30 IST, before the database backup, retrying three times", () => {
+    // pg-boss's own option names, so the worker passes them on unchanged.
     expect(SCHEDULES).toContainEqual({
       name: "offsite_copy",
       cron: "30 1 * * *",
       tz: "Asia/Kolkata",
-      retry: { limit: 3, delaySeconds: 900, backoff: true },
+      retryLimit: 3,
+      retryDelay: 900,
+      retryBackoff: true,
       expireInSeconds: 3 * 60 * 60,
       run: expect.any(Function),
     });
