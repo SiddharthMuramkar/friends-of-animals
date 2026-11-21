@@ -68,6 +68,8 @@ describe("pnpm admin:bootstrap-super-admin", () => {
       {
         cwd,
         env: {
+          // Next's types require it; the script doesn't read it.
+          NODE_ENV: process.env.NODE_ENV,
           DIRECT_URL: `postgres://${USER}:${PASSWORD}@127.0.0.1:${address.port}/foa?application_name=${QUERY_VALUE}`,
         },
       }
