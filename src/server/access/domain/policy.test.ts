@@ -205,8 +205,8 @@ describe("composePolicies", () => {
   it("throws when two policies define the same action", () => {
     expect(() =>
       composePolicies(
-        { "dashboard.view": signedIn },
         // @ts-expect-error two policies define "dashboard.view"
+        { "dashboard.view": signedIn },
         { "dashboard.view": signedOut }
       )
     ).toThrow('Action "dashboard.view" is defined in more than one policy');
