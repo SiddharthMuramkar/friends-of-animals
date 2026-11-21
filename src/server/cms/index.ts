@@ -4,6 +4,7 @@
 
 import type { UseCaseContext } from "../use-cases";
 import type { CmsDocumentKey } from "./domain/documents";
+import { currentLegalVersion } from "./legal";
 import {
   listCmsDocuments,
   listRevisions,
@@ -16,6 +17,7 @@ import {
   startPreview,
 } from "./reading";
 
+export type { LegalVersion } from "./legal";
 export type {
   CmsDraftPreview,
   PublishedCmsDocument,
@@ -42,4 +44,6 @@ export const cmsUseCases = (ctx: UseCaseContext) => ({
   getDraftForPreview: (input: { key: CmsDocumentKey }) =>
     getDraftForPreview(ctx, input),
   startPreview: (input: { key: CmsDocumentKey }) => startPreview(ctx, input),
+  currentLegalVersion: (input: { key: CmsDocumentKey }) =>
+    currentLegalVersion(ctx, input),
 });
