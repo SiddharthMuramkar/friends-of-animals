@@ -18,7 +18,7 @@ const event = [
 ].join("\n");
 
 const post = () =>
-  new Request("https://shipped-it.dev/monitoring", {
+  new Request("https://friendsofanimals.dev/monitoring", {
     method: "POST",
     body: event,
   });
