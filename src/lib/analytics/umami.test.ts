@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { publicCsp, signedInCsp } from "../csp";
+import { CSP_SOURCES, cspContext } from "../csp-sources";
+
 import {
   ANALYTICS_EXCLUDED_PREFIXES,
   createAnalyticsGuard,
@@ -321,5 +324,42 @@ describe("createAnalyticsGuard: every send the tracker makes", () => {
     const guard = createAnalyticsGuard(ctx);
     expect(guard.beforeSend("event", { website: WEBSITE_ID })).toBe(false);
     expect(guard.beforeSend("event", pageview("http://[bad"))).toBe(false);
+  });
+});
+
+describe("analytics and the Content-Security-Policy", () => {
+  /** The sources of `directive` in a serialised policy. */
+  const sources = (policy: string, directive: string) =>
+    policy
+      .split("; ")
+      .find((part) => part.startsWith(`${directive} `))
+      ?.split(" ")
+      .slice(1);
+
+  // Quoted sources are keywords, nonces and hashes; anything else is a host.
+  it.each(["staging", "production"])(
+    "lets %s load scripts from the site's own origin only",
+    (appEnv) => {
+      const context = cspContext({ APP_ENV: appEnv, NODE_ENV: "production" });
+      for (const policy of [
+        publicCsp(context).value,
+        signedInCsp(context, "bm9uY2U=").value,
+      ]) {
+        expect(
+          sources(policy, "script-src")?.filter((s) => !s.startsWith("'"))
+        ).toEqual([]);
+      }
+    }
+  );
+
+  it("adds no CSP source: the tracker and its endpoint are same-origin", () => {
+    expect(
+      CSP_SOURCES.filter((s) => /analytics|umami/i.test(s.feature))
+    ).toEqual([]);
+    const tag = trackerScript({ websiteId: WEBSITE_ID, domains: ["x.dev"] });
+    expect(tag.src).toMatch(/^\/[^/]/);
+    for (const rewrite of umamiRewrites(STAGING.origin)) {
+      expect(rewrite.source).toMatch(/^\/stats\/[^/]/);
+    }
   });
 });
