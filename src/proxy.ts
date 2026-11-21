@@ -3,8 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { competitionParams } from "@/app/competitions/_lib/view";
 import { isStorySlug } from "@/content/stories";
 import { getSampleCompetitions } from "@/content/sample";
-import { isSignedInPath } from "@/lib/app-routes";
-import { createNonce, signedInCsp } from "@/lib/csp";
+import { isSignedInPage, isSignedInPath } from "@/lib/app-routes";
+import { createNonce, publicCsp, signedInCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
 import { ROUTES } from "@/lib/routes";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
@@ -41,16 +41,34 @@ function withNonceCsp(request: NextRequest): NextResponse {
   return response;
 }
 
+/**
+ * The prerendered 404 for a path under the signed-in tree that has no page.
+ * Its scripts have no nonce, so it gets the public policy, which
+ * next.config.ts headers() leaves out of this tree. (A notFound() under the
+ * signed-in layout runs after the response has started, so it can only
+ * stream a 200.)
+ */
+function missingSignedInPage(request: NextRequest): NextResponse {
+  const policy = publicCsp(cspContext());
+  const response = NextResponse.rewrite(new URL(MISSING, request.url));
+  response.headers.set(policy.key, policy.value);
+  return response;
+}
+
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
   // Pages behind sign-in: a request without a session cookie goes straight
   // to sign in. With one, the page checks the session itself.
-  if (isSignedInPath(request.nextUrl.pathname)) {
-    return hasSessionCookie(request.headers)
+  if (isSignedInPath(pathname)) {
+    if (!hasSessionCookie(request.headers)) {
+      return NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
+    }
+    return isSignedInPage(pathname)
       ? withNonceCsp(request)
-      : NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
+      : missingSignedInPage(request);
   }
 
-  const [, section, raw = ""] = request.nextUrl.pathname.split("/");
+  const [, section, raw = ""] = pathname.split("/");
   let slug: string;
   try {
     slug = decodeURIComponent(raw);
