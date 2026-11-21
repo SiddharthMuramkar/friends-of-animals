@@ -50,6 +50,13 @@
       "when": 1795246870910,
       "tag": "0006_58_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795247212179,
+      "tag": "0007_74_institution_coordinators",
+      "breakpoints": true
     }
   ]
 }
