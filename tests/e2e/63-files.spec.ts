@@ -9,14 +9,15 @@ import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
-import { freshEmail, readCode } from "./support/mailbox";
+import { drainOutbox, freshEmail, readCode } from "./support/mailbox";
 
 // #63: a member uploads a file on /account/files, waits for the virus
 // check, and fetches the file back through a signed URL. Nothing here
-// skips the check: on a preview it needs the non-production bucket with
-// CORS for the preview's origin (owner residue HR-06) and the preview
-// worker with ClamAV on the VPS (HR-08). The over-limit refusal and the
-// page checks need neither.
+// skips the check. In CI (`next start`, APP_ENV=local) the file goes to the
+// app's local disk store and the local scanner checks it
+// (src/server/deps.ts); the journey drains the outbox so the scan runs at
+// once, with this build's handlers. Where a worker scans (staging), the
+// drain is a 404 and the page waits for the worker.
 //
 // Each test signs up a fresh member rather than signing in a seeded one:
 // the desktop and mobile projects run at once, and two sign-ins to one
@@ -71,6 +72,7 @@ test("a member uploads a PNG and fetches it back once it passes the virus check"
   await expect(
     status.filter({ hasText: "Checking for viruses" })
   ).toBeVisible();
+  await drainOutbox(request);
   await expect(status.filter({ hasText: "Ready" })).toBeVisible({
     timeout: 65_000,
   });
