@@ -50,6 +50,20 @@
       "when": 1795246824723,
       "tag": "0006_70_competitions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795247219198,
+      "tag": "0007_88_rubrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795247224371,
+      "tag": "0008_88_rubric_immutability",
+      "breakpoints": true
     }
   ]
 }

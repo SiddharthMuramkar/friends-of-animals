@@ -4,9 +4,15 @@
 
 /**
  * Where a competition is in its life. A draft is never public; #71 adds the
- * statuses that follow publishing, #80 cancelled.
+ * statuses that follow publishing, #80 cancelled. School judging (#88)
+ * starts once submissions close and every discipline has a published
+ * rubric.
  */
-export const COMPETITION_STATUSES = ["draft", "published"] as const;
+export const COMPETITION_STATUSES = [
+  "draft",
+  "published",
+  "school_judging",
+] as const;
 export type CompetitionStatus = (typeof COMPETITION_STATUSES)[number];
 
 /** The seven disciplines FOA runs. */
