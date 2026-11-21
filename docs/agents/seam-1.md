@@ -42,7 +42,9 @@ describe("someUseCase", () => {
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
 `h.clock`, because Better Auth reads `new Date()` for code and session expiry.
-`src/test/setup.ts` puts real timers back after every test.
+`src/test/setup.ts` puts real timers back after every test, and the harness
+closes its database when the test ends, so no Postgres timer set by the fake
+clock outlives it. Call `createHarness()` inside a test (or `beforeEach`).
 
 Each `createHarness()` builds a fresh database (a copy of a template that
 `src/test/global-setup.ts` migrates once per `vitest run`, before any test, about

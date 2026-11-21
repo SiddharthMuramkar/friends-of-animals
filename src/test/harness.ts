@@ -12,7 +12,7 @@
 // fakes, so tests share nothing. Tickets that add a port append its fake
 // here and in src/server/deps.ts. See docs/agents/seam-1.md.
 
-import { vi } from "vitest";
+import { onTestFinished, vi } from "vitest";
 
 import { createApp, type UseCases } from "@/server/app";
 import type { Actor, RequestMeta } from "@/server/actor";
@@ -76,6 +76,11 @@ export async function createHarness(
   options: { now?: Date | string } = {}
 ): Promise<Harness> {
   const db = await createTestDb();
+  // Close the database when the test ends. Left open, Postgres's timers,
+  // set by the faked Date, sit weeks ahead once Date is real again, and
+  // Node prints TimeoutOverflowWarning for each. (So call createHarness()
+  // in a test or beforeEach, not beforeAll.)
+  onTestFinished(() => db.$client.close());
   vi.useFakeTimers({ toFake: ["Date"] });
   const clock = new FakeClock(options.now, {
     onChange: (now) => vi.setSystemTime(now),
