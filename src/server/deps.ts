@@ -8,23 +8,31 @@
 
 import "server-only";
 
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { env } from "@/env";
-import type { Env } from "@/env.schema";
+import type { Env, ScannerEnv } from "@/env.schema";
 import type { DatabaseEnv } from "@/server/db/database-url";
 
 import { db } from "./db";
 import type { DbWithClock } from "./db/app-db";
-import { storagePrefixFor } from "./modules/files/domain/storage-key";
+import {
+  storageBucketFor,
+  storagePrefixFor,
+} from "./modules/files/domain/storage-key";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
-import { r2Storage } from "./ports/storage-r2";
+import { diskStorage, type DiskStorage } from "./ports/storage-disk";
+import { r2Storage, type R2Config } from "./ports/storage-r2";
 import type { ErrorReporter } from "./ports/errors";
 import type { MalwareScanner } from "./ports/malware-scanner";
 import { malwareScannerFor } from "./ports/malware-scanner-clamav";
+import { localScanner } from "./ports/malware-scanner-local";
 import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
@@ -81,21 +89,59 @@ export type StorageEnv = {
   R2_BUCKET?: string | undefined;
 };
 
+/** What a local run's disk store needs as well: the run and the app. */
+export type LocalStorageEnv = {
+  APP_ENV: Env["APP_ENV"];
+  /** The app's base URL, where the disk store's signed URLs point. */
+  APP_URL: string;
+  BETTER_AUTH_SECRET?: string | undefined;
+};
+
+function r2ConfigOf({
+  R2_ACCOUNT_ID,
+  R2_ACCESS_KEY_ID,
+  R2_SECRET_ACCESS_KEY,
+}: StorageEnv): R2Config | null {
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+    return null;
+  }
+  return {
+    accountId: R2_ACCOUNT_ID,
+    accessKeyId: R2_ACCESS_KEY_ID,
+    secretAccessKey: R2_SECRET_ACCESS_KEY,
+  };
+}
+
 /**
- * R2 when the deployment has its variables (the schema allows all or
- * none); otherwise storage that refuses every call, so no upload is
+ * R2 when the variables are set (the schema allows all or none). Without
+ * them a local run keeps its files on this machine (`localDiskStorageFor`),
+ * and a deployment gets storage that refuses every call, so no upload is
  * accepted that couldn't be stored.
  */
-export function storageFor(env: StorageEnv): ObjectStorage {
-  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = env;
-  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-    return unconfiguredStorage;
-  }
-  return r2Storage(
+export function storageFor(env: StorageEnv & LocalStorageEnv): ObjectStorage {
+  const r2 = r2ConfigOf(env);
+  if (r2) return r2Storage(r2, systemClock);
+  return localDiskStorageFor(env) ?? unconfiguredStorage;
+}
+
+/** Where a local run's disk store keeps files: outside any worktree. */
+export const LOCAL_STORAGE_ROOT = join(tmpdir(), "foa-local-storage");
+
+/**
+ * A local run's storage while R2 isn't configured, as on a laptop and in
+ * CI's E2E job: files on this machine's disk, uploaded and fetched through
+ * signed URLs on the app's own route (src/app/api/local-storage). Null for
+ * every deployment, and for a local run with R2: that route answers 404.
+ */
+export function localDiskStorageFor(
+  env: StorageEnv & LocalStorageEnv
+): DiskStorage | null {
+  if (env.APP_ENV !== "local" || r2ConfigOf(env)) return null;
+  return diskStorage(
     {
-      accountId: R2_ACCOUNT_ID,
-      accessKeyId: R2_ACCESS_KEY_ID,
-      secretAccessKey: R2_SECRET_ACCESS_KEY,
+      root: LOCAL_STORAGE_ROOT,
+      baseUrl: new URL("/api/local-storage/", env.APP_URL).href,
+      secret: env.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
     },
     systemClock
   );
@@ -106,11 +152,23 @@ export function filesConfigFor(
   env: StorageEnv & DatabaseEnv & { APP_ENV: Env["APP_ENV"] }
 ): FilesConfig {
   return {
-    // Unconfigured storage refuses before a bucket is ever used.
-    bucket: env.R2_BUCKET ?? "unconfigured",
+    bucket: storageBucketFor(env),
     keyPrefix: storagePrefixFor(env),
     appEnv: env.APP_ENV,
   };
+}
+
+/**
+ * clamd once CLAMD_HOST is set. Without it a local run scans with the
+ * local scanner, which flags the EICAR test file, and a deployment gets one
+ * that passes nothing: Vercel never reaches clamd, so its uploads wait,
+ * unscanned, for the VPS worker, which sets CLAMD_HOST.
+ */
+export function scannerFor(
+  env: ScannerEnv & { APP_ENV: Env["APP_ENV"] }
+): MalwareScanner {
+  if (!env.CLAMD_HOST && env.APP_ENV === "local") return localScanner;
+  return malwareScannerFor(env);
 }
 
 let production: Deps | undefined;
@@ -132,9 +190,7 @@ export function productionDeps(): Deps {
       files: filesConfigFor(config),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
-      // Vercel never reaches clamd: the preview drain route's scans fail
-      // and wait for the VPS worker, which sets CLAMD_HOST.
-      scanner: malwareScannerFor(config),
+      scanner: scannerFor(config),
     };
   }
   return production;

@@ -47,6 +47,27 @@ export function storagePrefixFor(env: DatabaseEnv): string {
 }
 
 /**
+ * The bucket this environment's files go to: R2_BUCKET once R2 is
+ * configured. Without it a local run keeps its files in the disk store's
+ * own bucket (src/server/ports/storage-disk.ts), and a deployment's storage
+ * refuses every call, so its bucket is never used.
+ */
+export function storageBucketFor(env: {
+  APP_ENV?: string | undefined;
+  R2_BUCKET?: string | undefined;
+}): string {
+  if (env.R2_BUCKET) return env.R2_BUCKET;
+  switch (env.APP_ENV) {
+    case "production":
+    case "staging":
+    case "preview":
+      return "unconfigured";
+    default:
+      return "local";
+  }
+}
+
+/**
  * The storage prefix of the preview that owns database `name`, or null if
  * `name` isn't a preview database. Purging must never run on null.
  */

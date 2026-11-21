@@ -1,9 +1,18 @@
+import { createServer, type AddressInfo } from "node:net";
+
 import { describe, expect, it } from "vitest";
 
 import { createTestDb } from "@/test/db";
+import { EICAR_TEST_BYTES } from "@/test/eicar";
 import { FakeClock } from "@/test/fakes/clock";
 
-import { emailSenderFor, filesConfigFor, storageFor } from "./deps";
+import {
+  emailSenderFor,
+  filesConfigFor,
+  localDiskStorageFor,
+  scannerFor,
+  storageFor,
+} from "./deps";
 import { EmailNotConfiguredError } from "./ports/email";
 import { readCapturedEmail } from "./ports/email-capture";
 import { StorageNotConfiguredError } from "./ports/storage";
@@ -42,29 +51,115 @@ const R2 = {
   R2_BUCKET: "foa-files-nonprod",
 };
 
-describe("storageFor", () => {
-  it("refuses every call while R2 isn't configured", async () => {
-    // Every environment, production included, until its bucket exists.
-    const storage = storageFor({});
+const LOCAL = { APP_ENV: "local", APP_URL: "http://localhost:3000" } as const;
+const DEPLOYED = ["preview", "staging", "production"] as const;
+const UPLOAD = {
+  key: "local/test_upload/01938a00-1234-7abc-8def-0123456789ab",
+  contentType: "image/png",
+  contentLength: 3,
+  expiresInSeconds: 600,
+};
 
-    await expect(
-      storage.head({ bucket: "b", key: "local/a" })
-    ).rejects.toBeInstanceOf(StorageNotConfiguredError);
+describe("storageFor", () => {
+  it.each(DEPLOYED)(
+    "refuses every call on %s while R2 isn't configured",
+    async (appEnv) => {
+      // Production included, until its bucket exists.
+      const storage = storageFor({
+        APP_ENV: appEnv,
+        APP_URL: "https://friendsofanimals.example",
+      });
+
+      await expect(
+        storage.head({ bucket: "b", key: "local/a" })
+      ).rejects.toBeInstanceOf(StorageNotConfiguredError);
+    }
+  );
+
+  it("keeps a local run's files on this machine, through the app's own URLs", async () => {
+    const storage = storageFor(LOCAL);
+
+    const { url } = await storage.presignPut({ bucket: "local", ...UPLOAD });
+
+    expect(url.startsWith("http://localhost:3000/api/local-storage/")).toBe(
+      true
+    );
   });
 
-  it("stores on the configured R2 account", async () => {
-    const storage = storageFor(R2);
+  it.each(["local", "staging"] as const)(
+    "stores on the configured R2 account on %s",
+    async (appEnv) => {
+      const storage = storageFor({
+        APP_ENV: appEnv,
+        APP_URL: "http://localhost:3000",
+        ...R2,
+      });
 
-    const { url } = await storage.presignPut({
-      bucket: R2.R2_BUCKET,
-      key: "staging/test_upload/01938a00-1234-7abc-8def-0123456789ab",
-      contentType: "image/png",
-      contentLength: 3,
-      expiresInSeconds: 600,
+      const { url } = await storage.presignPut({
+        bucket: R2.R2_BUCKET,
+        ...UPLOAD,
+      });
+      expect(new URL(url).origin).toBe(
+        `https://${R2.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+      );
+    }
+  );
+});
+
+describe("localDiskStorageFor", () => {
+  it("is only for a local run without R2", () => {
+    expect(localDiskStorageFor(LOCAL)).not.toBeNull();
+    expect(localDiskStorageFor({ ...LOCAL, ...R2 })).toBeNull();
+    for (const appEnv of DEPLOYED) {
+      expect(localDiskStorageFor({ ...LOCAL, APP_ENV: appEnv })).toBeNull();
+    }
+  });
+});
+
+const streamOf = (bytes: Uint8Array) => new Blob([bytes.slice()]).stream();
+const HARMLESS = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+
+describe("scannerFor", () => {
+  it("scans on a local run without clamd, and flags the EICAR test file", async () => {
+    const scanner = scannerFor({ APP_ENV: "local", CLAMD_PORT: 3310 });
+
+    expect(await scanner.scan(streamOf(HARMLESS))).toEqual({
+      verdict: "clean",
     });
-    expect(new URL(url).origin).toBe(
-      `https://${R2.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+    expect(await scanner.scan(streamOf(EICAR_TEST_BYTES))).toMatchObject({
+      verdict: "infected",
+    });
+  });
+
+  it.each(DEPLOYED)("passes nothing on %s without clamd", async (appEnv) => {
+    const scanner = scannerFor({ APP_ENV: appEnv, CLAMD_PORT: 3310 });
+
+    expect(await scanner.scan(streamOf(HARMLESS))).toMatchObject({
+      verdict: "error",
+    });
+  });
+
+  it("asks clamd once CLAMD_HOST is set, on a local run too", async () => {
+    // A "clamd" that hangs up on every connection: only the ClamAV
+    // adapter would notice, and it gives no verdict.
+    const server = createServer((socket) => socket.destroy());
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve)
     );
+    const { port } = server.address() as AddressInfo;
+    try {
+      const scanner = scannerFor({
+        APP_ENV: "local",
+        CLAMD_HOST: "127.0.0.1",
+        CLAMD_PORT: port,
+      });
+
+      expect(await scanner.scan(streamOf(HARMLESS))).toMatchObject({
+        verdict: "error",
+      });
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 });
 
@@ -85,5 +180,13 @@ describe("filesConfigFor", () => {
 
   it("uses no prefix in production", () => {
     expect(filesConfigFor({ APP_ENV: "production", ...R2 }).keyPrefix).toBe("");
+  });
+
+  it("keeps a local run's files under local/ in the disk store's bucket without R2", () => {
+    expect(filesConfigFor({ APP_ENV: "local" })).toEqual({
+      bucket: "local",
+      keyPrefix: "local/",
+      appEnv: "local",
+    });
   });
 });

@@ -67,10 +67,20 @@ describe("seedFilesLocation", () => {
     ).toEqual({ bucket: "foa-files-nonprod", keyPrefix: "pr-12/" });
   });
 
-  it("is local/ for a local run, and names no bucket without R2", () => {
-    expect(seedFilesLocation({})).toEqual({
+  it("is local/ in the disk store's bucket for a local run without R2", () => {
+    // An unset APP_ENV is a local run, as everywhere else.
+    for (const env of [{}, { APP_ENV: "local" }]) {
+      expect(seedFilesLocation(env)).toEqual({
+        bucket: "local",
+        keyPrefix: "local/",
+      });
+    }
+  });
+
+  it("names no bucket for a deployment without R2, whose storage refuses every call", () => {
+    expect(seedFilesLocation({ APP_ENV: "staging" })).toEqual({
       bucket: "unconfigured",
-      keyPrefix: "local/",
+      keyPrefix: "staging/",
     });
   });
 });
