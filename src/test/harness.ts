@@ -27,10 +27,10 @@ import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
+import { FakeErrorReporter } from "./fakes/errors";
 import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakeMediaProcessor } from "./fakes/media";
 import { FakeStorage } from "./fakes/storage";
-import { FakeErrorReporter } from "./fakes/errors";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -123,21 +123,21 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const cookies = new FakeCookieJar(clock);
+  const errors = new FakeErrorReporter();
   const storage = new FakeStorage(clock);
   const scanner = new FakeMalwareScanner();
   const media = new FakeMediaProcessor();
-  const errors = new FakeErrorReporter();
   const deps: Deps = {
     db,
     clock,
     email,
     cookies,
     auth: TEST_AUTH,
+    errors,
     storage,
     files: TEST_FILES,
     scanner,
     media,
-    errors,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({

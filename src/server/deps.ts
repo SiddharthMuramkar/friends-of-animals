@@ -14,19 +14,17 @@ import type { Env } from "@/env.schema";
 import { db } from "./db";
 import type { DbWithClock } from "./db/app-db";
 import { storagePrefixFor } from "./modules/files/domain/storage-key";
+import { serverErrorReporter } from "./observability/server-reporter";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
-import {
-  unconfiguredScanner,
-  type MalwareScanner,
-} from "./ports/malware-scanner";
+import type { ErrorReporter } from "./ports/errors";
+import type { MalwareScanner } from "./ports/malware-scanner";
+import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
-import type { ErrorReporter } from "./ports/errors";
-import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -34,6 +32,8 @@ export interface Deps extends DbWithClock {
   cookies: CookieJar;
   /** Better Auth's secret and the site's base URL. */
   auth: { secret: string; baseUrl: string };
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
   /** The private buckets uploaded files go to (#63). */
   storage: ObjectStorage;
   files: FilesConfig;
@@ -44,8 +44,6 @@ export interface Deps extends DbWithClock {
    * queue, so the app's is unconfigured and never called.
    */
   media: MediaProcessor;
-  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
-  errors: ErrorReporter;
 }
 
 /** Where the Files module keeps objects, and for which environment. */
@@ -94,16 +92,18 @@ export function productionDeps(): Deps {
         secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
         baseUrl: config.APP_URL,
       },
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
       storage: unconfiguredStorage,
       files: {
         bucket: "unconfigured",
         keyPrefix: storagePrefixFor(config),
         appEnv: config.APP_ENV,
       },
-      scanner: unconfiguredScanner,
+      // Vercel never reaches clamd: the preview drain route's scans fail
+      // and wait for the VPS worker, which sets CLAMD_HOST.
+      scanner: malwareScannerFor(config),
       media: unconfiguredMedia,
-      // Started by src/instrumentation.ts; silent without a DSN.
-      errors: serverErrorReporter,
     };
   }
   return production;

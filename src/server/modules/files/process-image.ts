@@ -157,7 +157,7 @@ async function storeDerivatives(
 ): Promise<void> {
   const prefix = storagePrefixOf(file);
   const now = clock.now();
-  const rows = [];
+  const rows: (typeof fileDerivative.$inferInsert)[] = [];
   for (const derivative of result.derivatives) {
     const key = derivativeKeyFor({
       prefix,

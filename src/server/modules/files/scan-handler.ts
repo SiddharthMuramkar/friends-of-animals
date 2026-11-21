@@ -78,16 +78,10 @@ export async function scanUploadedFile(
   const outcome = scanOutcome({
     declaredType: file.contentType,
     sniffedType: read.sniffedType,
-    verdict: read.verdict,
+    verdict: trusted(read),
   });
   if (outcome.kind === "retry") {
     throw new ScanFailedError(fileId, outcome.message);
-  }
-  if (outcome.status === "clean" && read.sha256 === null) {
-    throw new ScanFailedError(
-      fileId,
-      "the scanner passed it without reading it to its end"
-    );
   }
   await settle(deps, file, outcome, read.sha256);
 }
@@ -122,44 +116,64 @@ type ScanRead = {
   sha256: string | null;
 };
 
-/** Streams the object to the scanner, hashing and sniffing on the way. */
+/**
+ * Streams the object to the scanner, hashing and sniffing each chunk as
+ * the scanner pulls it, so the hash covers exactly what the scanner read.
+ */
 async function readThroughScanner(
   { storage, scanner }: ScanDeps,
   file: FileAssetRow
 ): Promise<ScanRead> {
+  const object = (
+    await storage.read({ bucket: file.bucket, key: file.storageKey })
+  ).getReader();
   const hash = createHash("sha256");
   let head: Uint8Array = new Uint8Array(0);
   let readToEnd = false;
-  const observe = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      hash.update(chunk);
-      if (head.length < SNIFF_BYTES) {
-        head = concat(head, chunk.subarray(0, SNIFF_BYTES - head.length));
-      }
-      controller.enqueue(chunk);
+  const observed = new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
+        const { done, value } = await object.read();
+        if (done) {
+          readToEnd = true;
+          controller.close();
+          return;
+        }
+        hash.update(value);
+        if (head.length < SNIFF_BYTES) {
+          head = concat(head, value.subarray(0, SNIFF_BYTES - head.length));
+        }
+        controller.enqueue(value);
+      },
+      cancel: (reason) => object.cancel(reason),
     },
-    flush() {
-      readToEnd = true;
-    },
-  });
-  const object = await storage.read({
-    bucket: file.bucket,
-    key: file.storageKey,
-  });
-  // Stops reading the object if the scanner returns before its end.
-  const stop = new AbortController();
+    // Nothing is read ahead of the scanner.
+    { highWaterMark: 0 }
+  );
   try {
-    const verdict = await scanner.scan(
-      object.pipeThrough(observe, { signal: stop.signal })
-    );
+    const verdict = await scanner.scan(observed);
     return {
       verdict,
       sniffedType: sniffContentType(head),
       sha256: readToEnd ? hash.digest("hex") : null,
     };
   } finally {
-    stop.abort();
+    // The scanner may have stopped early: stop reading the object too.
+    if (!readToEnd) await object.cancel().catch(() => {});
   }
+}
+
+/**
+ * The scanner's verdict, unless it passed a file it didn't read to the
+ * end: then neither its pass nor the sniffed type can be trusted.
+ */
+function trusted({ verdict, sha256 }: ScanRead): ScanVerdict {
+  return verdict.verdict === "clean" && sha256 === null
+    ? {
+        verdict: "error",
+        message: "the scanner passed it without reading it to its end",
+      }
+    : verdict;
 }
 
 function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
