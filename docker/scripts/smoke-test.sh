@@ -19,8 +19,15 @@
 # nonprod_app's pooled server connection.
 #
 # libpq needs a CA bundle for sslmode=verify-full; the official image has none,
-# so the host's bundle is mounted read-only (PGSSLROOTCERT). Node/postgres.js
-# uses its built-in CA store instead.
+# so the host's bundle is mounted read-only as one file (PGSSLROOTCERT). The
+# path is resolved first: on Fedora /etc/ssl/certs/ca-certificates.crt is an
+# absolute symlink into /etc/pki/ca-trust, which would dangle inside the
+# container if the directory were mounted. Node/postgres.js uses its built-in
+# CA store instead.
+#
+# Needs: docker, the stack up with the real Let's Encrypt certificate
+# installed (cert-renew.sh), db.shipped-it.dev resolving to this host, and
+# Docker Hub reachable for the postgres:18.7-trixie pull on first run.
 #
 # Usage: sudo smoke-test.sh
 set -uo pipefail
@@ -36,6 +43,18 @@ passed=0 failed=0
 
 die() { echo "smoke-test: $*" >&2; exit 2; }
 [ -r "$URLS" ] || die "cannot read $URLS (run as root)"
+command -v docker >/dev/null || die "docker not found"
+
+# Host CA bundle, symlinks resolved: Debian/Ubuntu ship a real file at the
+# first path; Fedora/RHEL link it (and the others) to
+# /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem.
+CA_BUNDLE=""
+for f in /etc/ssl/certs/ca-certificates.crt /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+  /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/cert.pem; do
+  if [ -s "$f" ]; then CA_BUNDLE="$(readlink -f "$f")"; break; fi
+done
+[ -n "$CA_BUNDLE" ] && [ -s "$CA_BUNDLE" ] || die "no CA bundle found on the host"
+CA_IN_CONTAINER=/run/foa_ca_bundle.pem
 
 drop_scratch_dbs() {
   local db
@@ -58,7 +77,7 @@ drop_scratch_dbs
 pct_decode() { printf '%b' "${1//%/\\x}"; }
 {
   printf '%s\n' "PGHOST=$DBHOST" "PGPORT=$DBPORT" PGSSLMODE=verify-full \
-    PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt PGCONNECT_TIMEOUT=10 \
+    "PGSSLROOTCERT=$CA_IN_CONTAINER" PGCONNECT_TIMEOUT=10 \
     PGAPPNAME=foa-smoke-test
   url_re='^postgres(ql)?://([^:@/]+):([^@/]+)@([^:/?]+):([0-9]+)/([^?/]+)\?(.*)$'
   found=0
@@ -102,7 +121,7 @@ check() {
   snippet="$(cat)"
   out="$(docker run --rm --network host \
     --env-file "$ENV_FILE" \
-    -v /etc/ssl/certs:/etc/ssl/certs:ro \
+    -v "$CA_BUNDLE:$CA_IN_CONTAINER:ro" \
     -v "$SU_SECRET:/run/su_password:ro" \
     "$IMAGE" bash -c "$PRELUDE$snippet" 2>&1)" || rc=$?
   if [ "$want" = ok ] && [ "$rc" -eq 0 ] && grep -Eq -- "$pattern" <<<"$out"; then result=PASS; fi
