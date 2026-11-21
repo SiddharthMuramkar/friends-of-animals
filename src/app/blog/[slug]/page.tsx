@@ -1,31 +1,32 @@
 import { Clock } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { SiteLink } from "@/components/site/site-link";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
 import { TileCover } from "@/components/showcase/card-cover";
+import { PostPhoto } from "@/components/showcase/post-image";
 import { StoryCard } from "@/components/showcase/story-card";
 import { Chip } from "@/components/site/chip";
+import { EasyRead } from "@/components/site/easy-read";
 import { InPageLink } from "@/components/site/in-page-link";
 import { JsonLd } from "@/components/site/json-ld";
-import { Photo } from "@/components/site/photo";
-import { EasyRead } from "@/components/site/easy-read";
 import { Section } from "@/components/site/section";
+import { SiteLink } from "@/components/site/site-link";
 import { TileMarker } from "@/components/site/tile";
-import {
-  STORIES,
-  STORY_SLUGS,
-  type Story,
-  getStory,
-  isStorySlug,
-  loadArticle,
-} from "@/content/stories";
-import { metaDescription, tableOfContents } from "@/content/stories/text";
+import { tableOfContents } from "@/content/stories/text";
 import { siteUrl } from "@/env";
-import { ROUTES, slugHref } from "@/lib/routes";
-import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { siteImage } from "@/lib/images";
+import { ROUTES } from "@/lib/routes";
+import { relatedPosts } from "@/server/modules/cms/domain/post-listing";
+import {
+  blogPostingJsonLd,
+  postBreadcrumbJsonLd,
+  postMetadata,
+} from "@/server/modules/cms/domain/post-seo";
+import {
+  loadPublishedPost,
+  loadPublishedPosts,
+} from "@/server/modules/cms/posts/loaders";
 
 import { ArticleBodyView, SourceList } from "./_components/article-body";
 import styles from "./_components/article.module.css";
@@ -40,38 +41,30 @@ const AUDIENCE_TONE = {
 
 const BODY_ID = "article-body";
 
-export function generateStaticParams() {
-  return STORY_SLUGS.map((slug) => ({ slug }));
+// Every published post at build time. A build has no database, so these
+// are the repo stories (never none); posts published later render on their
+// first request, and the proxy 404s slugs that aren't public.
+export async function generateStaticParams() {
+  const posts = await loadPublishedPosts();
+  return posts.map(({ slug }) => ({ slug }));
 }
 
 export async function generateMetadata({
   params,
 }: PageProps<"/blog/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  if (!isStorySlug(slug)) return {};
-  const story = getStory(slug);
-  return pageMetadata({
-    title: story.seoTitle ?? story.title,
-    description: metaDescription(story.dek),
-    path: slugHref("story", slug),
-  });
-}
-
-/** Up to two other stories, same audience first. */
-function related(story: Story): Story[] {
-  const others = STORIES.filter((s) => s.slug !== story.slug);
-  return [
-    ...others.filter((s) => s.audience === story.audience),
-    ...others.filter((s) => s.audience !== story.audience),
-  ].slice(0, 2);
+  const post = await loadPublishedPost(slug);
+  return post ? postMetadata(post) : {};
 }
 
 export default async function Page({ params }: PageProps<"/blog/[slug]">) {
   const { slug } = await params;
-  if (!isStorySlug(slug)) notFound();
-  const story = getStory(slug);
-  const body = await loadArticle(slug);
-  const toc = tableOfContents(body.blocks);
+  const [post, posts] = await Promise.all([
+    loadPublishedPost(slug),
+    loadPublishedPosts(),
+  ]);
+  if (!post) notFound();
+  const toc = tableOfContents(post.body.blocks);
 
   const [t, tc, tr, format, locale] = await Promise.all([
     getTranslations("stories.article"),
@@ -80,32 +73,20 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
     getFormatter(),
     getLocale(),
   ]);
-  const published = format.dateTime(new Date(story.publishedOn), "long");
+  const published = format.dateTime(post.publishedAt, "long");
 
   const base = siteUrl();
-  const url = new URL(slugHref("story", slug), base).href;
   const jsonLd = [
-    {
-      "@context": "https://schema.org",
-      "@type": "Article",
-      headline: story.title,
-      description: story.dek,
-      datePublished: story.publishedOn,
-      inLanguage: "en-IN",
-      mainEntityOfPage: url,
-      author: { "@type": "Organization", name: SITE.name },
-      publisher: {
-        "@type": "Organization",
-        name: SITE.name,
-        logo: new URL(SITE.logo.src, base).href,
-      },
-      citation: body.footnotes.map((f) => f.url),
-    },
-    breadcrumbJsonLd(base, [
-      { name: t("home"), path: "/" },
-      { name: t("allStories"), path: ROUTES.stories.path },
-      { name: story.title, path: slugHref("story", slug) },
-    ]),
+    blogPostingJsonLd(post, base, {
+      siteImageSrc:
+        post.cover?.source === "site"
+          ? siteImage(post.cover.id).src.src
+          : undefined,
+    }),
+    postBreadcrumbJsonLd(post, base, {
+      home: t("home"),
+      index: t("allStories"),
+    }),
   ];
 
   return (
@@ -130,29 +111,41 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
               </li>
               <li aria-hidden="true">/</li>
               <li aria-current="page" className="line-clamp-1">
-                {story.title}
+                {post.title}
               </li>
             </ol>
           </nav>
           <div className="mt-8 grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
             <header>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <Chip tone={AUDIENCE_TONE[story.audience]}>
-                  {tc(`audience.${story.audience}`)}
+                <Chip tone={AUDIENCE_TONE[post.audience]}>
+                  {tc(`audience.${post.audience}`)}
                 </Chip>
                 <span className="inline-flex items-center gap-1.5 text-sm text-ink-muted">
                   <Clock aria-hidden="true" className="size-4" />
-                  {tc("minutes", { minutes: story.readingMinutes })}
+                  {tc("minutes", { minutes: post.readingMinutes })}
                 </span>
                 <span className="text-sm text-ink-muted">
                   {t("published", { date: published })}
                 </span>
+                {post.authorName ? (
+                  <span className="text-sm text-ink-muted">
+                    {t("byline", { name: post.authorName })}
+                  </span>
+                ) : null}
               </div>
-              <h1 className="mt-4 text-(--section-heading)">{story.title}</h1>
-              <p className="mt-5 max-w-prose text-lead text-ink">{story.dek}</p>
-              <EasyRead label={t("easyReadLabel")} className="mt-6 max-w-prose">
-                <p>{story.easyRead}</p>
-              </EasyRead>
+              <h1 className="mt-4 text-(--section-heading)">{post.title}</h1>
+              <p className="mt-5 max-w-prose text-lead text-ink">
+                {post.excerpt}
+              </p>
+              {post.easyRead ? (
+                <EasyRead
+                  label={t("easyReadLabel")}
+                  className="mt-6 max-w-prose"
+                >
+                  <p>{post.easyRead}</p>
+                </EasyRead>
+              ) : null}
               {/* min-h-11 holds the player's row, which mounts after
                   hydration, so the story below doesn't jump. */}
               <div className="mt-6 min-h-11">
@@ -170,9 +163,9 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
                 />
               </div>
             </header>
-            {story.coverImageId ? (
-              <Photo
-                id={story.coverImageId}
+            {post.cover ? (
+              <PostPhoto
+                image={post.cover}
                 preload
                 frame="blue"
                 frameCorner="bottom-right"
@@ -181,7 +174,7 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
               />
             ) : (
               <TileCover
-                seed={story.slug}
+                seed={post.slug}
                 className="rounded-3xl border-2 border-yellow-700/20 bg-surface"
               />
             )}
@@ -225,8 +218,8 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
               </div>
             </nav>
             <div className="min-w-0 lg:order-1">
-              <ArticleBodyView body={body} id={BODY_ID} />
-              <SourceList footnotes={body.footnotes} />
+              <ArticleBodyView body={post.body} id={BODY_ID} />
+              <SourceList footnotes={post.body.footnotes} />
               <FactChecks className="mt-12" />
             </div>
           </div>
@@ -238,7 +231,7 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
           {t("related")}
         </h2>
         <ul className="mt-8 grid gap-6 md:grid-cols-2">
-          {related(story).map((s) => (
+          {relatedPosts(posts, post).map((s) => (
             <li key={s.slug} className="flex">
               <StoryCard story={s} className="w-full" />
             </li>
