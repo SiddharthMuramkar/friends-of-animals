@@ -21,6 +21,7 @@ import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
+import { r2Storage } from "./ports/storage-r2";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -72,14 +73,36 @@ export type StorageEnv = {
   R2_BUCKET?: string | undefined;
 };
 
-export function storageFor(_env: StorageEnv): ObjectStorage {
-  return unconfiguredStorage;
+/**
+ * R2 when the deployment has its variables (the schema allows all or
+ * none); otherwise storage that refuses every call, so no upload is
+ * accepted that couldn't be stored.
+ */
+export function storageFor(env: StorageEnv): ObjectStorage {
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = env;
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+    return unconfiguredStorage;
+  }
+  return r2Storage(
+    {
+      accountId: R2_ACCOUNT_ID,
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+    },
+    systemClock
+  );
 }
 
+/** The bucket, this environment's key prefix, and the environment. */
 export function filesConfigFor(
-  _env: StorageEnv & DatabaseEnv & { APP_ENV: Env["APP_ENV"] }
+  env: StorageEnv & DatabaseEnv & { APP_ENV: Env["APP_ENV"] }
 ): FilesConfig {
-  throw new Error("filesConfigFor is not built yet");
+  return {
+    // Unconfigured storage refuses before a bucket is ever used.
+    bucket: env.R2_BUCKET ?? "unconfigured",
+    keyPrefix: storagePrefixFor(env),
+    appEnv: env.APP_ENV,
+  };
 }
 
 let production: Deps | undefined;
@@ -97,12 +120,8 @@ export function productionDeps(): Deps {
         secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
         baseUrl: config.APP_URL,
       },
-      storage: unconfiguredStorage,
-      files: {
-        bucket: "unconfigured",
-        keyPrefix: storagePrefixFor(config),
-        appEnv: config.APP_ENV,
-      },
+      storage: storageFor(config),
+      files: filesConfigFor(config),
     };
   }
   return production;
