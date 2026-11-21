@@ -1,8 +1,9 @@
 // Worker health (#66): whether the VPS worker serving this database is
 // alive, from its `worker_heartbeat` row (#61). Uptime checks poll
 // GET /api/health/worker, apart from /api/health, so a stalled worker
-// alerts as itself and not as "the app is down". docker/README.md,
-// "Monitoring and alerts", lists the checks.
+// alerts as itself and not as "the app is down"; the route turns
+// readWorkerHealth's answer into HTTP. docker/README.md, "Monitoring and
+// alerts", lists the checks.
 
 import { eq } from "drizzle-orm";
 
@@ -47,7 +48,7 @@ export function workerFreshness(
 
 /**
  * The health of `environment`'s worker in this database: the app passes
- * its own APP_ENV, so staging reports worker-staging and never a stray
+ * its own APP_ENV, so production reports worker-prod and never a stray
  * row another environment's worker left behind.
  */
 export async function readWorkerHealth(
@@ -64,31 +65,4 @@ export async function readWorkerHealth(
   return workerFreshness(beats, clock.now(), {
     maxAgeSeconds: WORKER_MAX_AGE_SECONDS,
   });
-}
-
-/** Monitors and CDNs must never see a cached answer. */
-const NO_STORE = { "Cache-Control": "no-store" };
-
-/**
- * GET /api/health/worker's answer: 200 while `environment`'s worker is ok,
- * 503 when it is stale or missing, and 503 `{ status: "error" }` when the
- * database can't be read. The error's details go to the server log only.
- */
-export async function workerHealthResponse(
-  deps: DbWithClock,
-  environment: string
-): Promise<Response> {
-  try {
-    const health = await readWorkerHealth(deps, environment);
-    return Response.json(health, {
-      status: health.status === "ok" ? 200 : 503,
-      headers: NO_STORE,
-    });
-  } catch (error) {
-    console.error("Worker health check: the database query failed.", error);
-    return Response.json(
-      { status: "error" },
-      { status: 503, headers: NO_STORE }
-    );
-  }
 }
