@@ -24,10 +24,11 @@ const browserEvent = envelope(
   }
 );
 
-const post = (body: BodyInit, headers?: HeadersInit) =>
+/** A post as the browser SDK's fetch transport sends it. */
+const post = (body: BodyInit) =>
   new Request("https://shipped-it.dev/monitoring", {
     method: "POST",
-    headers: { "Content-Type": "text/plain;charset=UTF-8", ...headers },
+    headers: { "Content-Type": "text/plain;charset=UTF-8" },
     body,
   });
 
