@@ -236,6 +236,66 @@ describe("envSchema", () => {
   });
 });
 
+describe("envSchema: error tracking", () => {
+  const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
+  const staging = {
+    DATABASE_URL,
+    APP_ENV: "staging",
+    APP_URL: SITE,
+    BETTER_AUTH_SECRET: SECRET,
+  };
+  const production = { ...staging, APP_ENV: "production" };
+
+  it("leaves NEXT_PUBLIC_SENTRY_DSN optional outside production", () => {
+    for (const appEnv of ["local", "preview", "staging"]) {
+      const config = parseEnv(envSchema, {
+        ...staging,
+        APP_ENV: appEnv,
+        VERCEL_GIT_COMMIT_REF: "map",
+      });
+      expect(config).not.toHaveProperty("NEXT_PUBLIC_SENTRY_DSN");
+    }
+    expect(
+      parseEnv(envSchema, { ...staging, NEXT_PUBLIC_SENTRY_DSN: DSN })
+    ).toHaveProperty("NEXT_PUBLIC_SENTRY_DSN", DSN);
+  });
+
+  it("fails the start on a malformed DSN without repeating it", () => {
+    const malformed = "https://secret-key-9f2c@o1.ingest.us.sentry.io/";
+    let message = "";
+    try {
+      parseEnv(envSchema, { ...staging, NEXT_PUBLIC_SENTRY_DSN: malformed });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toMatch(
+      /not a valid Sentry DSN[\s\S]*NEXT_PUBLIC_SENTRY_DSN/
+    );
+    expect(message).not.toContain("secret-key-9f2c");
+  });
+
+  it("requires NEXT_PUBLIC_SENTRY_DSN in production", () => {
+    expect(() => parseEnv(envSchema, production)).toThrow(
+      /NEXT_PUBLIC_SENTRY_DSN is not set/
+    );
+    expect(
+      parseEnv(envSchema, { ...production, NEXT_PUBLIC_SENTRY_DSN: DSN })
+    ).toHaveProperty("NEXT_PUBLIC_SENTRY_DSN", DSN);
+  });
+
+  it("is never needed by `next build`", () => {
+    expect(
+      parseEnv(buildEnvSchema, { APP_ENV: "production", APP_URL: SITE })
+    ).not.toHaveProperty("NEXT_PUBLIC_SENTRY_DSN");
+  });
+
+  it("keeps the commit the deployment was built from as the release", () => {
+    expect(
+      parseEnv(envSchema, { ...staging, VERCEL_GIT_COMMIT_SHA: "6f97d80" })
+    ).toHaveProperty("VERCEL_GIT_COMMIT_SHA", "6f97d80");
+  });
+});
+
 describe("migrationEnvSchema", () => {
   it("reads DIRECT_URL", () => {
     const url = "postgresql://migrator:p@db.example.org:6432/foa";
