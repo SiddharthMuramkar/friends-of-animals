@@ -2,10 +2,10 @@
 
 import { eq } from "drizzle-orm";
 
+import { authorize } from "../access/can";
 import { user } from "../db/schema";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
-import { authorize } from "./policy";
 
 export type Account = { name: string; email: string };
 
@@ -16,7 +16,7 @@ export function signedInUser(ctx: UseCaseContext) {
 }
 
 export async function getAccount(ctx: UseCaseContext): Promise<Account> {
-  authorize(ctx.actor, "getAccount");
+  await authorize(ctx, "getAccount");
   const { userId } = signedInUser(ctx);
   const [account] = await ctx.db
     .select({ name: user.name, email: user.email })
