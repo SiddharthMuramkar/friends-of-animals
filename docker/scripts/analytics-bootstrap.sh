@@ -32,6 +32,9 @@ COMPOSE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/analytics.yml"
 ADMIN_SCRIPT="$SCRIPT_DIR/umami-admin-password.mjs"
 ENV_FILE=/etc/foa/analytics.env
 ADMIN_FILE=/etc/foa/secrets/umami_admin_password
+# Caddy serves stats.friendsofanimals.dev only while this file exists
+# (caddy/Caddyfile; edge.yml mounts the directory read-only at /srv/gates).
+GATE_FILE=/var/lib/foa/caddy/gates/stats
 UMAMI_CONTAINER=foa-umami
 PG_CONTAINER=foa-pg-prod
 PG_HOST=10.112.12.10 # pg-prod on network db (compose.yml)
@@ -155,6 +158,16 @@ replace_seeded_login() {
     -e "$(<"$ADMIN_SCRIPT")" <"$file"
 }
 
+# open_gate FILE: let Caddy proxy stats.friendsofanimals.dev to Umami. Only
+# once replace_seeded_login has succeeded.
+open_gate() {
+  local file=$1 dir
+  dir="$(dirname "$file")"
+  [ -d "$dir" ] || install -d -m 0755 -o root -g root "$dir"
+  echo "analytics-bootstrap.sh replaced Umami's seeded admin login" >"$file"
+  echo "opened $file: Caddy serves stats.friendsofanimals.dev"
+}
+
 main() {
   case "${1:-}" in
     "") ;;
@@ -174,6 +187,7 @@ main() {
   start_umami
   write_admin_password "$ADMIN_FILE"
   replace_seeded_login "$ADMIN_FILE"
+  open_gate "$GATE_FILE"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi
