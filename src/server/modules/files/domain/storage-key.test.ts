@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
+import { previewDatabaseName } from "@/server/db/database-url";
+
 import {
   quarantineKeyFor,
   storageKeyFor,
@@ -49,15 +51,20 @@ describe("storagePrefixFor", () => {
 });
 
 describe("storagePrefixForDatabase", () => {
+  // Preview databases are named <base>_<fp>, where <fp> is the migrations
+  // fingerprint (src/server/db/database-url.ts). Every database a PR or
+  // branch has had maps to the same prefix: the sweeper drops them together.
   it("maps a PR database to the PR's prefix", () => {
-    expect(storagePrefixForDatabase("foa_pr_12")).toBe("pr-12/");
+    expect(storagePrefixForDatabase("foa_pr_12_9f8e7d6c")).toBe("pr-12/");
   });
 
   it("maps a branch database to its hash's prefix", () => {
-    expect(storagePrefixForDatabase("foa_br_ticket_63_storage_0a1b2c3d")).toBe(
+    expect(
+      storagePrefixForDatabase("foa_br_ticket_63_storage_0a1b2c3d_9f8e7d6c")
+    ).toBe("br-0a1b2c3d/");
+    expect(storagePrefixForDatabase("foa_br_0a1b2c3d_9f8e7d6c")).toBe(
       "br-0a1b2c3d/"
     );
-    expect(storagePrefixForDatabase("foa_br_0a1b2c3d")).toBe("br-0a1b2c3d/");
   });
 
   it("agrees with the prefix a preview writes under", () => {
@@ -65,22 +72,11 @@ describe("storagePrefixForDatabase", () => {
       { APP_ENV: "preview", VERCEL_GIT_PULL_REQUEST_ID: "7" },
       { APP_ENV: "preview", VERCEL_GIT_COMMIT_REF: "feat/a.b" },
       { APP_ENV: "preview", VERCEL_GIT_COMMIT_REF: "###" },
+      { APP_ENV: "preview", VERCEL_GIT_COMMIT_REF: `feat/${"x".repeat(80)}` },
     ]) {
-      const pr = env.VERCEL_GIT_PULL_REQUEST_ID;
-      const name = pr
-        ? `foa_pr_${pr}`
-        : (() => {
-            const ref = env.VERCEL_GIT_COMMIT_REF ?? "";
-            const slug = ref
-              .toLowerCase()
-              .replaceAll(/[^a-z0-9]+/g, "_")
-              .replace(/^_+/, "")
-              .replace(/_+$/, "");
-            return slug === ""
-              ? `foa_br_${hash8(ref)}`
-              : `foa_br_${slug}_${hash8(ref)}`;
-          })();
-      expect(storagePrefixForDatabase(name)).toBe(storagePrefixFor(env));
+      expect(storagePrefixForDatabase(previewDatabaseName(env))).toBe(
+        storagePrefixFor(env)
+      );
     }
   });
 
@@ -91,13 +87,18 @@ describe("storagePrefixForDatabase", () => {
       "postgres",
       "",
       "foa_pr_",
-      "foa_pr_0",
-      "foa_pr_12x",
+      "foa_pr_0_9f8e7d6c",
+      "foa_pr_12x_9f8e7d6c",
+      "foa_pr_12_9F8E7D6C",
+      "foa_pr_12_9f8e7d6",
       "foa_br_",
-      "foa_br_short",
-      "foa_br_ticket_ABCDEF12",
+      "foa_br_short_9f8e7d6c",
+      "foa_br_ticket_ABCDEF12_9f8e7d6c",
       "staging",
       "foa_pr_12/../x",
+      // Named before the fingerprint: made before any file was stored.
+      "foa_pr_12",
+      "foa_br_ticket_63_storage_0a1b2c3d",
     ]) {
       expect(storagePrefixForDatabase(name)).toBeNull();
     }
