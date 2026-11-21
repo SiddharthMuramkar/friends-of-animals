@@ -96,27 +96,6 @@ const secretVariables = {
 };
 
 /**
- * Error tracking (#66). Read by the server at runtime; the browser gets
- * NEXT_PUBLIC_SENTRY_DSN baked in at build time.
- */
-const errorTrackingVariables = {
-  /**
-   * The app's Sentry DSN, public by design. Unset turns error tracking
-   * off; production requires it. The message never repeats a bad value.
-   */
-  NEXT_PUBLIC_SENTRY_DSN: z
-    .string()
-    .refine((value) => parseDsn(value) !== undefined, {
-      error:
-        "is not a valid Sentry DSN. Copy it from the Sentry project's " +
-        "Client Keys page, or leave it empty to turn error tracking off.",
-    })
-    .optional(),
-  /** Set by Vercel: the commit the deployment was built from. */
-  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
-};
-
-/**
  * Private file storage (#63): Cloudflare R2 through its S3 API. All four,
  * or none: without them storage refuses every call (src/server/deps.ts),
  * which is where production stays until FOA's buckets exist. Staging and
@@ -170,6 +149,27 @@ function requireWholeStorageConfig(
       "every R2_ variable to run without storage.",
   });
 }
+
+/**
+ * Error tracking (#66). Read by the server at runtime; the browser gets
+ * NEXT_PUBLIC_SENTRY_DSN baked in at build time.
+ */
+const errorTrackingVariables = {
+  /**
+   * The app's Sentry DSN, public by design. Unset turns error tracking
+   * off; production requires it. The message never repeats a bad value.
+   */
+  NEXT_PUBLIC_SENTRY_DSN: z
+    .string()
+    .refine((value) => parseDsn(value) !== undefined, {
+      error:
+        "is not a valid Sentry DSN. Copy it from the Sentry project's " +
+        "Client Keys page, or leave it empty to turn error tracking off.",
+    })
+    .optional(),
+  /** Set by Vercel: the commit the deployment was built from. */
+  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
+};
 
 type AppEnv = (typeof APP_ENVS)[number];
 
@@ -376,15 +376,15 @@ export const envSchema = z
         "postgres://foa:foa@localhost:5432/foa (see .env.example)."
     ),
     ...secretVariables,
-    ...errorTrackingVariables,
     ...storageVariables,
+    ...errorTrackingVariables,
   })
   .superRefine(requireAppEnvOnVercel, always)
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
   .superRefine(requireAuthSecret, always)
-  .superRefine(requireSentryInProduction, always)
   .superRefine(requireWholeStorageConfig, always)
+  .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 
 export type Env = z.output<typeof envSchema>;

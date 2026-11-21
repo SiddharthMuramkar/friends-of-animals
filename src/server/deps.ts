@@ -20,10 +20,10 @@ import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
-import type { ErrorReporter } from "./ports/errors";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
-import { serverErrorReporter } from "./observability/server-reporter";
 import { r2Storage } from "./ports/storage-r2";
+import type { ErrorReporter } from "./ports/errors";
+import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;

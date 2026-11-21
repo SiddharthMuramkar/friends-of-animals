@@ -27,8 +27,8 @@ import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
-import { FakeErrorReporter } from "./fakes/errors";
 import { FakeStorage } from "./fakes/storage";
+import { FakeErrorReporter } from "./fakes/errors";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -111,8 +111,8 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const cookies = new FakeCookieJar(clock);
-  const storage = new FakeStorage(clock);
   const errors = new FakeErrorReporter();
+  const storage = new FakeStorage(clock);
   const deps: Deps = {
     db,
     clock,

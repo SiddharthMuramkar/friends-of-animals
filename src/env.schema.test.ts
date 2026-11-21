@@ -377,6 +377,7 @@ describe("migrationEnvSchema", () => {
 });
 
 describe("envSchema storage", () => {
+  const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
   const R2 = {
     R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
     R2_ACCESS_KEY_ID: "test-access-key-id",
@@ -395,6 +396,7 @@ describe("envSchema storage", () => {
       APP_ENV: "production",
       APP_URL: SITE,
       BETTER_AUTH_SECRET: SECRET,
+      NEXT_PUBLIC_SENTRY_DSN: DSN,
     });
     expect(production.R2_BUCKET).toBeUndefined();
   });
