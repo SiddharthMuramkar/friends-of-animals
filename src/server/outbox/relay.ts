@@ -40,7 +40,6 @@ import {
   claimUntil,
   settleDelivery,
   type DeliveryOutcome,
-  type RetryPolicy,
 } from "./retry-policy";
 
 export type { OutboxDeps } from "./handlers";
@@ -67,7 +66,6 @@ export type DrainReport = {
 export type DrainOptions = {
   /** The most deliveries one pass claims. */
   limit?: number;
-  policy?: RetryPolicy;
 };
 
 /**
@@ -78,6 +76,8 @@ export type DrainOptions = {
 export const DEFAULT_DRAIN_LIMIT = 25;
 
 const KNOWN_HANDLERS = Object.keys(HANDLERS);
+
+const POLICY = DEFAULT_RETRY_POLICY;
 
 /** Pending, due by `now`, and not held by a live claim. */
 function due(now: Date) {
@@ -95,11 +95,7 @@ function due(now: Date) {
  * returns or throws, so without this such a delivery would be claimed
  * again every lease, forever, and never show as failed.
  */
-async function failLostClaims(
-  db: AppDb,
-  now: Date,
-  policy: RetryPolicy
-): Promise<number> {
+async function failLostClaims(db: AppDb, now: Date): Promise<number> {
   const failed = await db
     .update(outbox)
     .set({
@@ -112,7 +108,7 @@ async function failLostClaims(
       and(
         eq(outbox.status, "pending"),
         lte(outbox.lockedUntil, now),
-        gte(outbox.attempts, policy.maxAttempts),
+        gte(outbox.attempts, POLICY.maxAttempts),
         inArray(outbox.handler, KNOWN_HANDLERS)
       )
     )
@@ -129,8 +125,7 @@ async function failLostClaims(
 async function claim(
   db: AppDb,
   now: Date,
-  limit: number,
-  policy: RetryPolicy
+  limit: number
 ): Promise<OutboxRow[]> {
   const ids = db
     .select({ id: outbox.id })
@@ -138,7 +133,7 @@ async function claim(
     .where(
       and(
         due(now),
-        lt(outbox.attempts, policy.maxAttempts),
+        lt(outbox.attempts, POLICY.maxAttempts),
         inArray(outbox.handler, KNOWN_HANDLERS)
       )
     )
@@ -149,7 +144,7 @@ async function claim(
     .update(outbox)
     .set({
       attempts: sql`${outbox.attempts} + 1`,
-      lockedUntil: claimUntil(now, policy),
+      lockedUntil: claimUntil(now, POLICY),
     })
     .where(inArray(outbox.id, ids))
     .returning();
@@ -229,14 +224,11 @@ async function run(deps: OutboxDeps, row: OutboxRow): Promise<DeliveryOutcome> {
  */
 export async function drainOutbox(
   deps: OutboxDeps,
-  {
-    limit = DEFAULT_DRAIN_LIMIT,
-    policy = DEFAULT_RETRY_POLICY,
-  }: DrainOptions = {}
+  { limit = DEFAULT_DRAIN_LIMIT }: DrainOptions = {}
 ): Promise<DrainReport> {
   const now = deps.clock.now();
-  const lost = await failLostClaims(deps.db, now, policy);
-  const claimed = await claim(deps.db, now, limit, policy);
+  const lost = await failLostClaims(deps.db, now);
+  const claimed = await claim(deps.db, now, limit);
   const report: DrainReport = {
     dispatched: 0,
     retried: 0,
@@ -248,7 +240,7 @@ export async function drainOutbox(
     // ran out: another relay may have it now, so don't start it here.
     if (row.lockedUntil && deps.clock.now() >= row.lockedUntil) continue;
     const outcome = await run(deps, row);
-    const settlement = settleDelivery(row, outcome, deps.clock.now(), policy);
+    const settlement = settleDelivery(row, outcome, deps.clock.now(), POLICY);
     // Still ours only if no other relay claimed it after our lease ran out.
     const settled = await deps.db
       .update(outbox)
