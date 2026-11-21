@@ -33,7 +33,7 @@ import { DomainError } from "../../errors";
 import { secondFactorRefusal } from "./requirement";
 import {
   isEnrolled,
-  lockUser,
+  lockFactorSession,
   secondFactorStatus,
   signedInUser,
   stampSession,
@@ -57,35 +57,25 @@ const confirmInput = z.object({ factorId: z.uuid(), code });
 const verifyInput = z.object({ code });
 
 /**
- * A first factor needs only a signed-in session. Once one exists, adding
- * another needs a fresh second factor: otherwise anyone who got into the
- * mailbox could sign in with an email code and add their own.
+ * Check the live session and any step-up requirement under the same lock
+ * as removal and reset. Both starting and finishing enrolment use it.
  */
-export async function requireStepUpOnceEnrolled(
-  ctx: SecondFactorContext,
-  actor: SignedInUser
-): Promise<void> {
-  if (!(await isEnrolled(ctx.db, actor.userId))) return;
-  const refusal = await secondFactorRefusal(ctx, actor, "step-up", []);
-  if (refusal) {
-    throw new DomainError(refusal, "Adding a factor needs a fresh one");
-  }
-}
-
-/**
- * The same rule again when adding a factor completes, in its transaction:
- * the user may have enrolled another factor since adding started, and a
- * factor someone started back then must not slip in now. The user's row
- * stays locked until the transaction ends, so of two factors completing
- * at once, the second needs step-up.
- */
-export async function requireStepUpToFinishAdding(
+export async function authorizeEnrolment(
   tx: AppDb,
   ctx: SecondFactorContext,
   actor: SignedInUser
 ): Promise<void> {
-  await lockUser(tx, actor.userId);
-  await requireStepUpOnceEnrolled({ ...ctx, db: tx }, actor);
+  await lockFactorSession(tx, actor, ctx.clock);
+  if (!(await isEnrolled(tx, actor.userId))) return;
+  const refusal = await secondFactorRefusal(
+    { db: tx, clock: ctx.clock },
+    actor,
+    "step-up",
+    []
+  );
+  if (refusal) {
+    throw new DomainError(refusal, "Adding a factor needs a fresh one");
+  }
 }
 
 /**
@@ -132,12 +122,12 @@ export async function startTotpEnrolment(
   const actor = signedInUser(ctx.actor);
   const parsed = startInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  await requireStepUpOnceEnrolled(ctx, actor);
 
-  const now = ctx.clock.now();
-  const factorId = uuidv7(now);
-  const secret = generateTotpSecret();
-  const account = await ctx.db.transaction(async (tx) => {
+  return ctx.db.transaction(async (tx) => {
+    await authorizeEnrolment(tx, ctx, actor);
+    const now = ctx.clock.now();
+    const factorId = uuidv7(now);
+    const secret = generateTotpSecret();
     await dropPendingAuthenticators(tx, actor.userId);
     await tx.insert(secondFactor).values({
       id: factorId,
@@ -147,24 +137,22 @@ export async function startTotpEnrolment(
       totpSecretSealed: sealTotpSecret(ctx.auth.secret, factorId, secret),
       createdAt: now,
     });
-    const [row] = await tx
+    const [account] = await tx
       .select({ email: user.email, phoneCiphertext: user.phoneCiphertext })
       .from(user)
       .where(eq(user.id, actor.userId));
-    return row;
+    if (!account) throw new Error("The signed-in user has no account row");
+    return {
+      ok: true,
+      factorId,
+      secret: base32Encode(secret),
+      uri: otpauthUri({
+        issuer: SECOND_FACTOR_SETTINGS.issuer,
+        account: accountName(ctx, account),
+        secret,
+      }),
+    } as const;
   });
-  if (!account) throw new Error("The signed-in user has no account row");
-
-  return {
-    ok: true,
-    factorId,
-    secret: base32Encode(secret),
-    uri: otpauthUri({
-      issuer: SECOND_FACTOR_SETTINGS.issuer,
-      account: accountName(ctx, account),
-      secret,
-    }),
-  };
 }
 
 export type ConfirmTotpEnrolmentResult =
@@ -185,13 +173,12 @@ export async function confirmTotpEnrolment(
   const actor = signedInUser(ctx.actor);
   const parsed = confirmInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const now = ctx.clock.now();
-  const startedSince = new Date(
-    now.getTime() - SECOND_FACTOR_SETTINGS.totpEnrolmentMs
-  );
-
   return ctx.db.transaction(async (tx) => {
-    await requireStepUpToFinishAdding(tx, ctx, actor);
+    await authorizeEnrolment(tx, ctx, actor);
+    const now = ctx.clock.now();
+    const startedSince = new Date(
+      now.getTime() - SECOND_FACTOR_SETTINGS.totpEnrolmentMs
+    );
     // A pending factor lapses 10 minutes after it was started, and then
     // reads as "not found", as if replaced.
     const [pending] = await tx
@@ -257,9 +244,9 @@ export async function verifySecondFactor(
   const actor = signedInUser(ctx.actor);
   const parsed = verifyInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const now = ctx.clock.now();
-
   return ctx.db.transaction(async (tx) => {
+    await lockFactorSession(tx, actor, ctx.clock);
+    const now = ctx.clock.now();
     const factors = await tx
       .select({
         id: secondFactor.id,
