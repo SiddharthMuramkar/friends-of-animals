@@ -19,6 +19,36 @@ describe("previewDatabasesToServe", () => {
     ).toEqual(["foa_br_ticket_61_outbox_1a2b3c4d", "foa_pr_12"]);
   });
 
+  it("serves a PR's databases named with a migrations fingerprint", () => {
+    // A PR whose migrations changed keeps its older database until it
+    // closes; the sweeper drops them together, so both are served.
+    expect(
+      previewDatabasesToServe([
+        { datname: "foa_pr_143_0a1b2c3d", comment: "foa-preview pr=143" },
+        { datname: "foa_pr_143_9f8e7d6c", comment: "foa-preview pr=143" },
+        {
+          datname: "foa_br_ticket_61_outbox_1a2b3c4d_0a1b2c3d",
+          comment: "foa-preview branch=ticket/61-outbox",
+        },
+      ])
+    ).toEqual([
+      "foa_br_ticket_61_outbox_1a2b3c4d_0a1b2c3d",
+      "foa_pr_143_0a1b2c3d",
+      "foa_pr_143_9f8e7d6c",
+    ]);
+  });
+
+  it("skips a fingerprinted name whose PR number isn't the label's", () => {
+    expect(
+      previewDatabasesToServe([
+        { datname: "foa_pr_1430_0a1b2c3d", comment: "foa-preview pr=143" },
+        { datname: "foa_pr_14_30a1b2c3d", comment: "foa-preview pr=14" },
+        { datname: "foa_pr_143_0a1b2c3", comment: "foa-preview pr=143" },
+        { datname: "foa_pr_143_0a1b2c3d_x", comment: "foa-preview pr=143" },
+      ])
+    ).toEqual([]);
+  });
+
   it("never serves the shared databases, templates or unlabelled ones", () => {
     expect(
       previewDatabasesToServe([
