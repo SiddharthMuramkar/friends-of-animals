@@ -201,4 +201,20 @@ describe("tunnelEnvelope", () => {
       transaction: "/sign-in",
     });
   });
+
+  it("refuses an event nested too deeply to re-serialise, instead of failing", () => {
+    const depth = 200_000;
+    const deep = `{"message":"x","zz":${"[".repeat(depth)}${"]".repeat(depth)}}`;
+    const body = encoder.encode(
+      [JSON.stringify(header), JSON.stringify({ type: "event" }), deep].join(
+        "\n"
+      )
+    );
+
+    expect(tunnelEnvelope(body, options)).toEqual({
+      kind: "reject",
+      status: 400,
+      reason: "malformed",
+    });
+  });
 });

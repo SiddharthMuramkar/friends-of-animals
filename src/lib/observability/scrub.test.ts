@@ -44,6 +44,46 @@ describe("redactText", () => {
   });
 });
 
+describe("redactText: database errors", () => {
+  // Shapes from Drizzle 0.45 (DrizzleQueryError) and Postgres messages.
+  it("hides a failed query's parameters", () => {
+    expect(
+      redactText(
+        'Failed query: insert into "user" ("id", "name", "email") values ($1, $2, $3)\n' +
+          "params: 0190a000-0000-7000-8000-000000000002,Ravi Kumar Sharma,ravi@example.test"
+      )
+    ).toBe(
+      'Failed query: insert into "user" ("id", "name", "email") values ($1, $2, $3)\n' +
+        "params: [redacted]"
+    );
+  });
+
+  it("hides the value Postgres quotes back, keeping quoted names", () => {
+    expect(
+      redactText('invalid input syntax for type uuid: "SESSIONTOKEN_s3cr3t"')
+    ).toBe('invalid input syntax for type uuid: "[redacted]"');
+    expect(
+      redactText(
+        'duplicate key value violates unique constraint "user_email_key"'
+      )
+    ).toBe('duplicate key value violates unique constraint "user_email_key"');
+  });
+
+  it("hides the values of a duplicate key and of a failing row", () => {
+    expect(redactText("Key (email)=(Ravi Kumar) already exists.")).toBe(
+      "Key (email)=[redacted] already exists."
+    );
+    expect(redactText("Key (lower(name))=(Ravi Kumar) already exists.")).toBe(
+      "Key (lower(name))=[redacted] already exists."
+    );
+    expect(
+      redactText(
+        "Failing row contains (0190a000-0000-7000-8000-000000000002, Ravi Kumar Sharma, f)."
+      )
+    ).toBe("Failing row contains [redacted]");
+  });
+});
+
 describe("stripQuery", () => {
   it("keeps the path of absolute and relative URLs", () => {
     expect(stripQuery("https://shipped-it.dev/a/b?x=1#y")).toBe(
@@ -223,6 +263,46 @@ describe("scrubEvent", () => {
   });
 });
 
+describe("scrubEvent: database errors", () => {
+  it("removes the values from every linked error, cause included", () => {
+    const event = scrubEvent({
+      exception: {
+        values: [
+          {
+            type: "error",
+            value: 'invalid input syntax for type uuid: "SESSIONTOKEN_s3cr3t"',
+            mechanism: { type: "chained", source: "cause" },
+          },
+          {
+            type: "DrizzleQueryError",
+            value:
+              'Failed query: select "id" from "session" where "session"."token" = $1\n' +
+              "params: SESSIONTOKEN_s3cr3t",
+          },
+        ],
+      },
+    });
+
+    expect(event.exception.values.map((value) => value.value)).toEqual([
+      'invalid input syntax for type uuid: "[redacted]"',
+      'Failed query: select "id" from "session" where "session"."token" = $1\n' +
+        "params: [redacted]",
+    ]);
+    expect(JSON.stringify(event)).not.toContain("SESSIONTOKEN");
+  });
+
+  it("redacts params and detail wherever they are attached", () => {
+    const event = scrubEvent({
+      extra: {
+        params: ["Ravi Kumar Sharma", "ravi@example.test"],
+        detail: "Failing row contains (Ravi Kumar Sharma).",
+      },
+    });
+
+    expect(event.extra).toEqual({ params: "[redacted]", detail: "[redacted]" });
+  });
+});
+
 describe("scrubBreadcrumb", () => {
   it("drops query strings from navigation and redacts console arguments", () => {
     expect(
@@ -244,6 +324,42 @@ describe("scrubBreadcrumb", () => {
       level: "error",
       message: "Failed for [email]",
       data: { arguments: ["Failed for", { email: "[redacted]" }] },
+    });
+  });
+
+  it("removes database values a console breadcrumb copied", () => {
+    const logged =
+      'DrizzleQueryError: Failed query: insert into "user" ("id", "name") values ($1, $2)\n' +
+      "params: 0190a000-0000-7000-8000-000000000002,Ravi Kumar Sharma";
+    const crumb = scrubBreadcrumb({
+      category: "console",
+      level: "error",
+      message: logged,
+      data: { arguments: [logged], logger: "console" },
+    });
+
+    expect(JSON.stringify(crumb)).not.toContain("Ravi");
+    expect(crumb.message).toContain("params: [redacted]");
+  });
+
+  it("drops the query and fragment an outgoing-request breadcrumb keeps apart", () => {
+    const crumb = scrubBreadcrumb({
+      category: "http",
+      data: {
+        method: "GET",
+        url: "https://api.example.test/v1/lookup",
+        "url.query": "otp=482913",
+        "url.fragment": "#otp=482913",
+        "http.query": "name=Ravi",
+        "http.fragment": "#code=482913",
+        status_code: 200,
+      },
+    });
+
+    expect(crumb.data).toEqual({
+      method: "GET",
+      url: "https://api.example.test/v1/lookup",
+      status_code: 200,
     });
   });
 });
