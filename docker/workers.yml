@@ -1,0 +1,125 @@
+# FOA background workers (#61): the outbox relay and the pg-boss schedules,
+# next to the database stack (docker/compose.yml) on the VPS.
+#
+#   docker compose -f /srv/foa/docker/workers.yml up -d --build --wait
+#
+# Runbook: docker/README.md, "Workers". Each worker connects to Postgres
+# directly on the `db` network, never through PgBouncer: pg-boss holds
+# sessions (LISTEN, advisory locks), which transaction pooling breaks. Each
+# logs in as its own role (docker/scripts/worker-roles.sh makes them and
+# their passwords in /etc/foa/secrets) and publishes no port.
+#
+#   worker-prod     production `foa` on pg-prod: relay + schedules
+#   worker-staging  `foa_staging` on pg-nonprod: relay + schedules
+#   worker-preview  every live preview database on pg-nonprod (comment
+#                   `foa-preview ...`), listed every minute through
+#                   `postgres`: relay only, one connection per preview
+#
+# WORKER_VERSION (the commit, for the heartbeat rows) is a build argument:
+#   WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) docker compose ...
+
+name: foa-workers
+
+x-worker: &worker
+  build:
+    context: ..
+    dockerfile: Dockerfile
+    target: worker
+    args:
+      WORKER_VERSION: ${WORKER_VERSION:-unknown}
+  restart: unless-stopped
+  # tini as PID 1: SIGTERM reaches the worker, which finishes its tick.
+  init: true
+  stop_grace_period: 30s
+  read_only: true
+  tmpfs:
+    # The heartbeat file and tsx's compile cache.
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+  healthcheck:
+    # The worker touches /tmp/foa-worker-heartbeat after each healthy poll
+    # (every 5 s): healthy while it is under 120 s old.
+    test:
+      - CMD-SHELL
+      - find /tmp/foa-worker-heartbeat -newermt '120 seconds ago' | grep -q .
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 60s
+    start_interval: 5s
+  networks:
+    - db
+
+services:
+  worker-prod:
+    <<: *worker
+    image: foa-workers/worker-prod
+    container_name: foa-worker-prod
+    environment:
+      WORKER_MODE: single
+      APP_ENV: production
+      WORKER_DATABASE_URL: postgres://foa_worker@10.112.12.10:5432/foa
+      WORKER_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - source: pg_prod_foa_worker_password
+        target: db_password
+    cpus: 1
+    mem_limit: 512m
+
+  worker-staging:
+    <<: *worker
+    image: foa-workers/worker-staging
+    container_name: foa-worker-staging
+    environment:
+      WORKER_MODE: single
+      APP_ENV: staging
+      WORKER_DATABASE_URL: postgres://staging_worker@10.112.12.11:5432/foa_staging
+      WORKER_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - source: pg_nonprod_staging_worker_password
+        target: db_password
+    cpus: 0.5
+    mem_limit: 384m
+
+  worker-preview:
+    <<: *worker
+    # With no Vercel previews (docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)
+    # it lists none and idles, healthy.
+    image: foa-workers/worker-preview
+    container_name: foa-worker-preview
+    environment:
+      WORKER_MODE: preview
+      APP_ENV: preview
+      WORKER_ADMIN_URL: postgres://nonprod_worker@10.112.12.11:5432/postgres
+      WORKER_PASSWORD_FILE: /run/secrets/db_password
+      # pg-nonprod is shared by every preview (max_connections 200).
+      WORKER_CONNECTIONS_PER_DATABASE: 1
+    secrets:
+      - source: pg_nonprod_nonprod_worker_password
+        target: db_password
+    cpus: 0.5
+    mem_limit: 512m
+
+networks:
+  # docker/compose.yml's network (project foa-vps); start that stack first.
+  db:
+    external: true
+    name: foa-vps_db
+
+secrets:
+  # Owned by uid 1000 (`node` in the image), mode 0400:
+  # docker/scripts/worker-roles.sh.
+  pg_prod_foa_worker_password:
+    file: /etc/foa/secrets/pg_prod_foa_worker_password
+  pg_nonprod_staging_worker_password:
+    file: /etc/foa/secrets/pg_nonprod_staging_worker_password
+  pg_nonprod_nonprod_worker_password:
+    file: /etc/foa/secrets/pg_nonprod_nonprod_worker_password
