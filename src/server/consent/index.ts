@@ -22,8 +22,10 @@ export type {
   GiveConsentInput,
   GiveConsentResult,
   MyConsent,
+  SignUpConsentOutcome,
   WithdrawConsentResult,
 } from "./consents";
+export { recordSignUpConsent } from "./consents";
 export type { ConsentState } from "./domain/consent-state";
 export type {
   ConsentDocumentVersion,

@@ -5,6 +5,8 @@
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  accountConsents: "/account/consents",
+  adminConsentDocuments: "/admin/consent-documents",
 } as const;
 
 /**

@@ -146,6 +146,40 @@ async function appendEvent(
   return id;
 }
 
+/** What became of the consent box ticked at sign-up. */
+export type SignUpConsentOutcome =
+  | "given"
+  | "document_outdated"
+  | "no_published_document";
+
+/**
+ * Records the messages consent a person ticked while signing up, in the
+ * transaction that creates their account (verifyEmailCode has authorized
+ * the visitor). It is given by web form to the version the form showed,
+ * if that is still the current one; else it records nothing and says why,
+ * and the person can consent in their settings.
+ */
+export async function recordSignUpConsent(
+  tx: AppDb,
+  ctx: ConsentContext,
+  input: { userId: string; purpose: GivablePurpose; documentId: string }
+): Promise<SignUpConsentOutcome> {
+  const { userId, purpose, documentId } = input;
+  const latest = await latestDocument(tx, purpose);
+  const decision = decideGive({ status: "never" }, latest, documentId);
+  if (decision.kind === "reject") return decision.code;
+  if (decision.kind === "unchanged") return "given";
+  await appendEvent(tx, ctx, {
+    subject: { type: "user", id: userId },
+    giverUserId: userId,
+    purpose,
+    action: "given",
+    documentId: decision.documentId,
+    method: "web_form",
+  });
+  return "given";
+}
+
 /** Gives the signed-in user's consent to the purpose's current document. */
 export async function giveConsent(
   ctx: ConsentContext,
