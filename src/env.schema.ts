@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { parseBlindIndexKey } from "./server/crypto/blind-index";
 import { parseKeyRing } from "./server/crypto/field-cipher";
+import { isUmamiOrigin } from "./lib/analytics/umami";
 import { parseDsn } from "./lib/observability/config";
 import { previewDatabase } from "./server/db/database-url";
 
@@ -69,6 +70,10 @@ const buildVariables = {
     .optional(),
   UMAMI_ORIGIN: z
     .url({ protocol: /^https$/, error: "must be an https URL" })
+    .refine(isUmamiOrigin, {
+      error:
+        "must be an origin with no path, e.g. https://stats.shipped-it.dev",
+    })
     .optional(),
 };
 

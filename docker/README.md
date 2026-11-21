@@ -882,42 +882,56 @@ database stack down or up never touches it.
   `NEXT_PUBLIC_UMAMI_WEBSITE_ID` and `UMAMI_ORIGIN` set render the tracker.
   The site loads it as `/stats/script.js` and posts to `/stats/api/send` on
   its own origin; Next rewrites just those two paths to `UMAMI_ORIGIN`. No
-  cookies and no query strings or fragments. Nothing is sent from signed-in
+  cookies, no query strings or fragments, and none of the site's own pages
+  as referrers. Nothing is sent from signed-in
   pages, sign-in and sign-up, or from a browser that showed a signed-in page
   in the last 30 days (`src/lib/analytics/umami.ts`).
 
 Secrets (never in git):
 
-| Path                     | Mode, owner | What                                                                   |
-| ------------------------ | ----------- | ---------------------------------------------------------------------- |
-| `/etc/foa/analytics.env` | 0600 root   | `DATABASE_URL` (role umami), `APP_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` |
+| Path                                    | Mode, owner | What                                                                   |
+| --------------------------------------- | ----------- | ---------------------------------------------------------------------- |
+| `/etc/foa/analytics.env`                | 0600 root   | `DATABASE_URL` (role umami), `APP_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` |
+| `/etc/foa/secrets/umami_admin_password` | 0400 root   | Umami's `admin` password, which replaced the seeded one                |
 
-Bring-up (owner, HR-52), with the database stack and the edge running:
+Bring-up (owner, HR-52), with the database stack and the edge running.
+Umami starts with the login `admin` / `umami`, which everyone knows, so the
+bootstrap replaces it as soon as Umami is up:
 
 ```sh
 cd /srv/foa && git pull
-# 1. Env file, role and database umami, pg_hba reload:
+# Env file, role and database umami, pg_hba reload; then Umami, and its
+# seeded admin login replaced by a random password in
+# /etc/foa/secrets/umami_admin_password:
 sudo docker/scripts/analytics-bootstrap.sh
-# 2. Start and wait for the health check:
-docker compose -f docker/analytics.yml up -d --wait
 ```
 
 The stats site is already in `caddy/Caddyfile`; its A record must point at
 the VPS before Caddy can get its certificate (Edge, below).
 
-Then at `https://stats.friendsofanimals.dev`: sign in as `admin` / `umami`,
-change the password (3.5 asks for it), turn on two-factor authentication,
-and add two websites, one for staging (`shipped-it.dev`) and one for
-production. In Vercel, set `NEXT_PUBLIC_UMAMI_WEBSITE_ID` (each environment
-its own website id) and `UMAMI_ORIGIN=https://stats.friendsofanimals.dev`
-for staging and Production only, then redeploy. Check that a page view
-arrives, and that `pgbackrest info` after the next backup and the next
-restore drill both show `umami`.
+Then at `https://stats.friendsofanimals.dev`: sign in as `admin` with the
+password in `/etc/foa/secrets/umami_admin_password` (read it on the VPS
+yourself; if you change it in the dashboard, put the new one in that file
+too), turn on two-factor authentication, and add two websites, one for
+staging (`shipped-it.dev`) and one for production. In Vercel, set
+`NEXT_PUBLIC_UMAMI_WEBSITE_ID` (each environment its own website id) and
+`UMAMI_ORIGIN=https://stats.friendsofanimals.dev` for staging and Production
+only, then redeploy. Check that a page view arrives, and that `pgbackrest
+info` after the next backup and the next restore drill both show `umami`.
+
+To keep the dashboard off the internet altogether, have the stats site in
+`caddy/Caddyfile` serve only `/script.js` and `/api/send` (a pull request,
+like any change there). Only the tracker and the collect endpoint stay
+public, and the site's rewrites need nothing else. Reach the dashboard over
+SSH instead: `ssh -L 3000:10.112.12.30:3000 <vps>`, then open
+`http://localhost:3000`.
 
 Umami counts unique visitors by IP address. Requests reach it through
 Vercel's rewrite and then Caddy, so check which header carries the
 visitor's address (not Vercel's) and set `CLIENT_IP_HEADER` in
-`analytics.env` to it. Until then page views are right but unique visitors
+`analytics.env` to it. Pick one that Vercel sets itself,
+replacing whatever the browser sent: a header visitors can set lets them
+forge the counts. Until then page views are right but unique visitors
 collapse onto Vercel's addresses.
 
 Upgrade: bump the image tag in `analytics.yml`, `git pull`, then

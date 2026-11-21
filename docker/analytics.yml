@@ -17,6 +17,7 @@
 #
 # Secrets, made by scripts/analytics-bootstrap.sh and never in git:
 #   /etc/foa/analytics.env                      0600 root
+#   /etc/foa/secrets/umami_admin_password       0400 root (Umami's admin login)
 
 name: foa-analytics
 
