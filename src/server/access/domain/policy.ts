@@ -81,7 +81,8 @@ export const signedIn: Rule = (subject) =>
   subject.kind === "user" ? { allowed: true, role: null } : REFUSED;
 
 /** Allows only a caller who isn't signed in: signing up, signing in. */
-export const signedOut: Rule = () => REFUSED;
+export const signedOut: Rule = (subject) =>
+  subject.kind === "visitor" ? { allowed: true, role: null } : REFUSED;
 
 /** Allows the platform itself, running as one of `processes`. */
 export function system(
