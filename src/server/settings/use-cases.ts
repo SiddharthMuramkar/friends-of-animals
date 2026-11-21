@@ -17,7 +17,7 @@ import { recordAudit } from "../audit/record";
 import type { AppDb } from "../db/app-db";
 import { setting, user } from "../db/schema";
 import type { UseCaseContext } from "../use-cases";
-import { SETTINGS, type SettingKey } from "./catalogue";
+import { isSettingKey, SETTINGS } from "./catalogue";
 import type { SettingInput } from "./definition";
 import {
   decideSettingChange,
@@ -74,6 +74,7 @@ export type ChangeSettingInput = { key: string; value: unknown };
 export type ChangeSettingResult =
   /** `changed` is false when the value already applied: nothing stored. */
   | { ok: true; changed: boolean }
+  | { ok: false; error: "unknown_setting" }
   | { ok: false; error: "invalid_value"; problem: SettingValueProblem };
 
 /**
@@ -102,7 +103,8 @@ export async function changeSetting(
   input: ChangeSettingInput
 ): Promise<ChangeSettingResult> {
   await authorize(ctx, "setting.change");
-  const key = input.key as SettingKey;
+  const { key } = input;
+  if (!isSettingKey(key)) return { ok: false, error: "unknown_setting" };
   return ctx.db.transaction(async (tx) => {
     const { role: actorRole } = await authorizeIn(tx, ctx);
     const now = ctx.clock.now();
