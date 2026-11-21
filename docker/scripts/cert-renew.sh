@@ -6,8 +6,10 @@
 # FOA_DB_DOMAIN_ALIASES (space-separated) go on the same certificate after
 # it: PgBouncer serves one certificate, so a host name being retired keeps
 # working until it is dropped from the list. Every name must resolve to this
-# host, or the whole order fails. foa-cert-renew.service reads these from
-# /etc/foa/db-host.env when that file exists.
+# host, or the whole order fails. foa-cert-renew.service reads these settings
+# from /etc/foa/db-host.env when that file exists (EnvironmentFile=, which
+# keeps a comment after a value in the value). A setting that doesn't look
+# right stops the run (exit 2) before lego is called.
 #
 # HTTP-01, not DNS-01: DNS-01 would need a Vercel token with account-wide DNS
 # rights on this box. While nothing else holds port 80 on the public address,
@@ -36,13 +38,16 @@
 # Usage: sudo cert-renew.sh [--staging] [--print-config]
 #   --staging       use the Let's Encrypt staging CA and a separate data dir
 #                   (/etc/foa/lego-staging); nothing is installed.
-#   --print-config  print the settings (names, CA, challenge mode) and exit;
-#                   changes nothing.
+#   --print-config  print the settings (names, CA, e-mail, challenge mode)
+#                   and exit; changes nothing.
 set -euo pipefail
 
-DOMAIN="${FOA_DB_DOMAIN:-db.friendsofanimals.dev}"
+# shellcheck source=SCRIPTDIR/db-host.sh
+. "$(dirname "$(readlink -f "$0")")/db-host.sh"
+DOMAIN=$DB_HOST
 LISTEN=189.72.156.29:80
 WEBROOT="${FOA_ACME_WEBROOT:-/var/lib/foa/acme-webroot}"
+EMAIL="${FOA_ACME_EMAIL:-}"
 LEGO_IMAGE=goacme/lego:v5.6.0
 SERVER=letsencrypt
 LEGO_DIR=/etc/foa/lego
@@ -59,7 +64,23 @@ done
 
 # The host first: lego names the files after it, as install-cert.sh expects.
 read -r -a aliases <<<"${FOA_DB_DOMAIN_ALIASES:-}"
+for name in "${aliases[@]}"; do
+  require_host_name FOA_DB_DOMAIN_ALIASES "$name"
+done
 domains=("$DOMAIN" "${aliases[@]}")
+
+# A path docker can mount: absolute, no space or ':'.
+webroot_re='^/[^[:space:]:]*$'
+if [[ ! $WEBROOT =~ $webroot_re ]]; then
+  printf 'cert-renew: FOA_ACME_WEBROOT: %q is not an absolute path\n' "$WEBROOT" >&2
+  exit 2
+fi
+email_re='^[^[:space:]@]+@[^[:space:]@]+$'
+email_domain=${EMAIL#*@}
+if [ -n "$EMAIL" ] && { [[ ! $EMAIL =~ $email_re ]] || ! is_host_name "${email_domain,,}"; }; then
+  printf 'cert-renew: FOA_ACME_EMAIL: %q is not an e-mail address\n' "$EMAIL" >&2
+  exit 2
+fi
 
 # Is port 80 on the public address taken, by a server on that address or on
 # every address? One on 127.0.0.1:80 doesn't count.
@@ -82,7 +103,7 @@ fi
 
 if [ "$PRINT_CONFIG" -eq 1 ]; then
   printf '%s\n' "domain=$DOMAIN" "domains=${domains[*]}" "server=$SERVER" \
-    "lego_dir=$LEGO_DIR" "challenge=$challenge"
+    "lego_dir=$LEGO_DIR" "email=$EMAIL" "challenge=$challenge"
   if [ "$challenge" = webroot ]; then
     echo "webroot=$WEBROOT"
   else
@@ -120,8 +141,8 @@ for name in "${domains[@]}"; do
 done
 
 email_args=()
-if [ -n "${FOA_ACME_EMAIL:-}" ]; then
-  email_args=(--email "$FOA_ACME_EMAIL")
+if [ -n "$EMAIL" ]; then
+  email_args=(--email "$EMAIL")
 fi
 
 echo "cert-renew: ${domains[*]} ($challenge)"

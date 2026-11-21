@@ -274,13 +274,12 @@ The schemas live in `src/env.schema.ts`. The server validates its environment as
 
 The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel.json`. Vercel builds nothing from Git, so there are no preview deployments and no staging environment ([ADR 0001](docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)). Production, at [friendsofanimals.dev](https://friendsofanimals.dev) (`www.` redirects to it) on the database `foa`, is deployed only by `.github/workflows/deploy-production.yml`, from a commit on `main` that it builds on the runner.
 
-Vercel detects Next.js and runs the `vercel-build` script, which applies the migrations, seeds a preview's database and then builds:
+There, `vercel build` runs the `vercel-build` script, which applies the migrations, runs the seed and then builds:
 
-- Migrations connect through `DIRECT_URL` only (the migrator role, which PgBouncer gives session mode), never `DATABASE_URL`. It must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails.
-- Staging and production migrate the database `DIRECT_URL` names (`foa_staging`, `foa`) in place. Each preview deployment gets its own database (`foa_pr_<n>_<fp>`, or `foa_br_<slug>_<hash>_<fp>` before its PR) on the non-production Postgres, created during the build ([Databases on Vercel](#databases-on-vercel)).
-- The databases (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups, and the `foa_seed` template) are set up in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), from `docker/` (runbook: [`docker/README.md`](docker/README.md)). `foa_seed` stays empty: after migrating, `pnpm db:seed` (`scripts/seed.ts`) fills a preview's own database with the seed accounts. It is idempotent, and on staging and production it exits without connecting.
+- Migrations connect through `DIRECT_URL` only (the migrator role, which PgBouncer gives session mode), never `DATABASE_URL`. It must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails. The workflow takes it from the `PROD_DIRECT_URL` secret of the GitHub environment `production`, so the build migrates `foa` in place.
+- The databases (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups, and the `foa_seed` template) are set up in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), from `docker/` (runbook: [`docker/README.md`](docker/README.md)). `pnpm db:seed` (`scripts/seed.ts`) fills a local or preview database with the seed accounts. It is idempotent, and on staging and production it exits without connecting.
 
-Set `APP_ENV`, `DATABASE_URL` and `DIRECT_URL` per environment in the Vercel project settings, and `APP_URL` for production (`https://friendsofanimals.dev`); without them the build fails. Vercel exposes them to the build as well as at runtime, which `APP_URL` needs.
+Set `APP_ENV` and `APP_URL` (`https://friendsofanimals.dev`) as plain Production variables in the Vercel project, so the workflow's `vercel pull` hands them to the build, which fails without them. `DATABASE_URL` is a sensitive one: Vercel gives it to the server at runtime.
 
 `GET /api/health` runs `select 1` and answers `{"status":"ok","db":{"ok":true,"ms":<n>}}`, or 503 with `{"status":"error","db":{"ok":false}}` (details go to the server log only). It is never cached.
 

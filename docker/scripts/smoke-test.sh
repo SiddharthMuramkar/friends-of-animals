@@ -38,14 +38,18 @@ SU_SECRET=/etc/foa/secrets/pg_prod_postgres_password
 IMAGE=postgres:18.7-trixie
 NONPROD=foa-pg-nonprod
 SCRATCH_DBS=(t_check t_check_staging t_check_timeout)
-DBHOST="${FOA_DB_DOMAIN:-db.friendsofanimals.dev}"
+# shellcheck source=SCRIPTDIR/db-host.sh
+. "$(dirname "$(readlink -f "$0")")/db-host.sh"
+DBHOST=$DB_HOST
 DBPORT=6432
 passed=0 failed=0
 
+usage() { echo "usage: $0 [--print-config]" >&2; exit 2; }
+[ "$#" -le 1 ] || usage
 case "${1:-}" in
   "") ;;
   --print-config) printf '%s\n' "domain=$DBHOST" "port=$DBPORT" "urls=$URLS"; exit 0 ;;
-  *) echo "usage: $0 [--print-config]" >&2; exit 2 ;;
+  *) usage ;;
 esac
 
 die() { echo "smoke-test: $*" >&2; exit 2; }

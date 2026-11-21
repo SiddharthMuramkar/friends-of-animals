@@ -354,18 +354,30 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
 
 - PgBouncer's host name is `FOA_DB_DOMAIN`, default `db.friendsofanimals.dev`
   (an A record to 189.72.156.29). `cert-renew.sh`, `install-cert.sh`,
-  `bootstrap-secrets.sh` and `smoke-test.sh` read it; given `--print-config`,
-  each prints its settings and changes nothing. `foa-cert-renew.service`
-  reads optional settings from `/etc/foa/db-host.env` (not secret), for
-  example:
+  `bootstrap-secrets.sh` and `smoke-test.sh` read it through
+  `scripts/db-host.sh`, which stops them (exit 2) on a value that isn't a
+  lower-case host name. Given `--print-config`, each prints its settings and
+  changes nothing. `foa-cert-renew.service` reads optional settings from
+  `/etc/foa/db-host.env` (not secret), for example:
 
   ```sh
-  FOA_DB_DOMAIN_ALIASES=db.old.example   # more names on the certificate
-  FOA_ACME_EMAIL=ops@example.org         # ACME account e-mail
+  # More names on the certificate, space-separated
+  FOA_DB_DOMAIN_ALIASES=db.old.example
+  # ACME account e-mail
+  FOA_ACME_EMAIL=ops@example.org
   ```
 
-  Manual runs see only exported variables: to match the timer, run
-  `set -a; . /etc/foa/db-host.env; set +a` first.
+  systemd reads that file (`EnvironmentFile=`) and keeps everything after
+  the `=` as the value, a `#` included, so a comment goes on a line of its
+  own. `cert-renew.sh` refuses (exit 2) a name, e-mail or webroot with a
+  comment left in it rather than pass it to lego. A shell's
+  `. /etc/foa/db-host.env` drops such a comment, so check the file the way
+  the timer reads it:
+
+  ```sh
+  systemd-run --wait --pipe -q -p EnvironmentFile=/etc/foa/db-host.env \
+    /srv/foa/docker/scripts/cert-renew.sh --print-config
+  ```
 
 - Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`).
   Not DNS-01: that would need an account-wide Vercel token on this box. No
@@ -377,7 +389,21 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
     writes the challenge into `FOA_ACME_WEBROOT` (default
     `/var/lib/foa/acme-webroot`), and that server must serve the directory's
     `/.well-known/acme-challenge/` on port 80 for every name on the
-    certificate.
+    certificate. foa-caddy (compose project `foa-edge`, whose files aren't in
+    this repo yet) mounts the directory read-only at `/srv/acme` and has a
+    site block for each name:
+
+    ```caddyfile
+    http://db.friendsofanimals.dev {
+    	handle /.well-known/acme-challenge/* {
+    		root * /srv/acme
+    		file_server
+    	}
+    	handle {
+    		respond 404
+    	}
+    }
+    ```
 - `FOA_DB_DOMAIN_ALIASES` (space-separated) puts more names on the same
   certificate, after the host: PgBouncer serves one certificate, so a host
   name being retired keeps working until it is dropped from the list. Every

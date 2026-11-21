@@ -22,7 +22,9 @@ umask 077
 
 ROOT=/etc/foa
 SECRETS="$ROOT/secrets"
-HOST="${FOA_DB_DOMAIN:-db.friendsofanimals.dev}"
+# shellcheck source=SCRIPTDIR/db-host.sh
+. "$(dirname "$(readlink -f "$0")")/db-host.sh"
+HOST=$DB_HOST
 PORT=6432
 PG_UID=999       # postgres in postgres:18.7-trixie
 PGB_UID=6432     # pgbouncer in docker/pgbouncer/Dockerfile
@@ -46,6 +48,8 @@ vercel_urls() {
   echo "PREVIEW_DIRECT_URL=$(url nonprod_migrator "$("$pw" pg_nonprod_nonprod_migrator_password)" foa_pr)"
 }
 
+usage() { echo "usage: $0 [--print-config]" >&2; exit 2; }
+[ "$#" -le 1 ] || usage
 case "${1:-}" in
   "") ;;
   --print-config)
@@ -55,7 +59,7 @@ case "${1:-}" in
     vercel_urls secret_name
     exit 0
     ;;
-  *) echo "usage: $0 [--print-config]" >&2; exit 2 ;;
+  *) usage ;;
 esac
 
 if [ "$(id -u)" -ne 0 ]; then

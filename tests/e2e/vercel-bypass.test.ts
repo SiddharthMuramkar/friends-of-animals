@@ -22,6 +22,7 @@ describe("bypassSecretFor", () => {
 
   it.each([
     ["a local server", "http://localhost:3000"],
+    ["production", "https://friendsofanimals.dev"],
     ["staging", "https://staging.example.invalid"],
     ["plain http", "http://friends-of-animals-4u0381uwy-bitacu1.vercel.app"],
     [

@@ -23,17 +23,21 @@
 set -euo pipefail
 umask 077
 
-DOMAIN="${FOA_DB_DOMAIN:-db.friendsofanimals.dev}"
+# shellcheck source=SCRIPTDIR/db-host.sh
+. "$(dirname "$(readlink -f "$0")")/db-host.sh"
+DOMAIN=$DB_HOST
 LEGO_DIR="${FOA_LEGO_DIR:-/etc/foa/lego}"
 TLS_DIR=/etc/foa/pgbouncer-tls
 PGB_UID=6432
 CONTAINER=foa-pgbouncer
 
+usage() { echo "usage: $0 [--print-config]" >&2; exit 2; }
+[ "$#" -le 1 ] || usage
 print_config=0
 case "${1:-}" in
   "") ;;
   --print-config) print_config=1 ;;
-  *) echo "usage: $0 [--print-config]" >&2; exit 2 ;;
+  *) usage ;;
 esac
 
 if [ -n "${FOA_CERT_CRT:-}" ] || [ -n "${FOA_CERT_KEY:-}" ]; then
