@@ -18,8 +18,8 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
 - **pg-prod** holds production only: database `foa`. `shared_buffers` 4 GB,
   WAL archived by pgBackRest (`archive_timeout` 60 s).
 - **pg-nonprod** holds `foa_staging`, the template `foa_seed` and one
-  database per preview (`foa_pr_<n>`, `foa_br_<slug>_<hash>`). No archiving,
-  no PITR.
+  database per preview (`foa_pr_<n>_<fp>`, `foa_br_<slug>_<hash>_<fp>`). No
+  archiving, no PITR.
 - **PgBouncer** is the only public endpoint: `db.shipped-it.dev:6432`, TLS
   required (Let's Encrypt), SCRAM, transaction pooling.
 
@@ -81,13 +81,17 @@ so every preview function can read the preview's `DIRECT_URL`, and a shared
 migrator role could drop staging. The preview roles cannot connect to
 `foa_staging` at all, and the staging roles reach nothing else.
 
-The app swaps the `/foa_pr` path for `foa_pr_<n>` or `foa_br_<slug>_<hash>`
-(`src/server/db/database-url.ts`; the hash, 8 hex characters of the branch's
-SHA-256, keeps branches with the same slug apart). The
+The app swaps the `/foa_pr` path for `foa_pr_<n>_<fp>` or
+`foa_br_<slug>_<hash>_<fp>` (`src/server/db/database-url.ts`; the hash, 8 hex
+characters of the branch's SHA-256, keeps branches with the same slug apart;
+`<fp>`, 8 hex characters of the SHA-256 of `drizzle/meta/_journal.json`'s tags
+and dates, gives a PR a fresh database whenever its migrations change). The
 preview build connects as `nonprod_migrator` to database `postgres` and runs
-`CREATE DATABASE foa_pr_<n> TEMPLATE foa_seed` (treat SQLSTATE 42P04 as
-success), then `COMMENT ON DATABASE foa_pr_<n> IS 'foa-preview pr=<n>'` (or
-`'foa-preview branch=<ref>'`) so the sweeper can find it.
+`CREATE DATABASE foa_pr_<n>_<fp> TEMPLATE foa_seed` (treat SQLSTATE 42P04 as
+success), then `COMMENT ON DATABASE foa_pr_<n>_<fp> IS 'foa-preview pr=<n>'`
+(or `'foa-preview branch=<ref>'`) so the sweeper can find it. A PR whose
+migrations changed keeps its older databases until it closes; the sweeper
+then drops them all, since they share the comment.
 
 Node/postgres.js verifies the certificate with its built-in CA store. libpq
 tools (psql, pg_dump) need `sslrootcert=system` (or `PGSSLROOTCERT`) for
@@ -305,7 +309,8 @@ Shared Vercel egress IPs could be banned if the app fails logins repeatedly
   full backups (`repo1-retention-full-type=time`). WAL: `archive_mode=on`,
   async `archive-push`, `archive_timeout=60`.
 - Timers: `foa-pgbackrest-full.timer` Sunday 02:30 IST, `foa-pgbackrest-diff.timer`
-  Mon–Sat 02:30 IST. Expiry runs after each backup.
+  Mon–Sat 02:30 IST. Expiry runs after each backup. `foa-restore-drill.timer`
+  runs the restore drill (below) on the 1st of each month at 04:00 IST.
 - This repo is **interim**: it survives operator error and corruption, not the
   loss of the VPS. `pgbackrest.conf` has a commented `repo2` (R2, s3) block;
   add it, its own passphrase and keys in a `conf.d` secret, then
@@ -317,19 +322,79 @@ docker exec -u postgres foa-pg-prod pgbackrest --stanza=foa check
 systemctl start foa-pgbackrest-full.service     # or -diff
 ```
 
-**Restore drill**: `scripts/restore-drill.sh` writes a marker row to a scratch
-table in `foa`, notes time T, commits a second row after T, forces a WAL
-switch and waits for it to be archived. In a `--network none` container from
-the same image (repo mounted read-only; the real data volume and pg-nonprod
-are never touched) it runs `pgbackrest verify`, which reads and checksums
-every backup file and WAL segment and fails the drill on any problem, then
-restores `--type=time --target=T --archive-mode=off` into a new volume,
-starts it, checks the before-T row exists and the after-T row does not, prints
-timings, tears everything down and drops the scratch schema. Logs:
-`/var/log/foa/restore-drill-*.log`. Run it quarterly at least.
+### Restore drill
 
-**Real restore of production** (outline): `docker stop foa-pgbouncer
-foa-pg-prod`; if there is room, copy the data volume first (it is the only
+```sh
+scripts/restore-drill.sh                                      # latest: end of the archived WAL
+scripts/restore-drill.sh --target '2026-11-18 11:34:52+05:30' # point in time (zone required)
+systemctl start foa-restore-drill.service                     # the timer's run, now
+```
+
+It proves the backups restore without touching either live server: it only
+reads the repository, never connects to pg-prod (it takes the image and the
+repo volume name from `docker inspect`, so pg-prod may even be stopped), never
+mounts a data volume and never goes near pg-nonprod. Steps:
+
+1. Start a throwaway container from pg-prod's image (`--network none`,
+   2 CPUs, 2 GB, repo volume read-only) with a new volume, both labelled
+   `foa.restore-drill=<stamp>`. One drill at a time (`flock`).
+2. `pgbackrest info`: the newest backup and archived WAL segment. It refuses
+   to start unless the disk keeps room for the restore, 1 GiB of WAL and 10 %
+   of the disk (pg-prod lives on the same disk).
+3. `pgbackrest verify`: reads and checksums every backup file and WAL
+   segment; any problem fails the drill.
+4. `pgbackrest restore --archive-mode=off`, either `--type=default` (replay
+   all archived WAL) or `--type=time --target=<time> --target-action=promote`.
+5. Start Postgres (no TCP, no archiving) and wait for the promotion.
+6. Sanity checks on the restored cluster:
+   - database `foa` exists and has every **table** in the drizzle snapshot of
+     the newest migration recorded in its `drizzle.__drizzle_migrations`, and
+     every **extension** those migrations create (today: `pg_trgm`). The list
+     follows the migrations, so it never needs editing; migrations missing
+     from the checkout get a warning (`git pull` first).
+   - `latest`: the newest backup was the one restored, and replay reached the
+     newest archived WAL segment. This is the "recent data" check: the
+     restore holds everything archived when the drill started. A newest
+     commit timestamp would not work as a check, because the database can sit
+     idle for days with no commits. The timestamp is still recorded as
+     `last_xact`.
+   - `--target`: nothing committed after the target was replayed. A target
+     before the first migration only needs `foa` to exist.
+7. Remove the container and the volume (on failure or Ctrl-C as well), then
+   record the run.
+
+Each run appends one line to `/var/log/foa/restore-drills.jsonl` (the
+recovery-time history) and writes its full log to
+`/var/log/foa/restore-drill-<stamp>.log`:
+
+```text
+{"at":"2026-11-19T08:04:29Z","target":"latest","outcome":"pass","duration_s":7.2,"recovery_s":4.1,"backup":"20261118-052136F_20261118-210107D","wal":"00000001000000000000001E","last_xact":null,"reason":null,"log":"/var/log/foa/restore-drill-20261119T080429Z.log"}
+```
+
+`at` is the start time (UTC). `target` is `latest` or the UTC target.
+`outcome` is `pass` or `fail`, and the exit status is 0 or 1 to match.
+`duration_s` is the whole drill. `recovery_s` covers restore, replay and
+promotion: the recovery time to compare with the 4-hour goal. `backup` is
+the set restored. `wal` is the last segment replayed. `last_xact` is the
+newest replayed commit, or null when none came after the backup. `reason`
+says why a run failed, and a run that leaves its container or volume
+behind fails too. A bad argument exits 2 and records nothing. Read the
+history with
+`jq -c '{at, target, outcome, recovery_s}' /var/log/foa/restore-drills.jsonl`.
+
+A `--target` must lie before the last commit in the archive. Otherwise
+Postgres stops with "recovery ended before configured recovery target was
+reached" and the drill fails with that reason. Use `latest` for "now".
+
+**Cadence:** `foa-restore-drill.timer` runs the latest drill on the 1st of
+every month at 04:00 IST, after that night's backup. Also run it by hand
+after any change to `pgbackrest.conf`, the cipher, the Postgres image or
+major version, or the backup timers. Once a quarter, run a `--target` drill
+at a time from the past week. Check the newest JSONL line after each one.
+
+### Real restore of production (outline)
+
+Run `docker stop foa-pgbouncer foa-pg-prod`. If there is room, copy the data volume first (it is the only
 way back); run `pgbackrest --stanza=foa --delta [--type=time --target=...
 --target-action=promote] restore` in a one-off container from the same image
 with the data volume, the repo volume and both pgBackRest config files
@@ -390,8 +455,10 @@ afterwards.
 4. **Offline copy** of `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` with
    the owner.
 5. **Alerting** (operations ticket): failed `foa-pgbackrest-*`,
-   `foa-cert-renew` or archiving (`pg_stat_archiver.failed_count`), and a
-   periodic `pgbackrest check`.
+   `foa-restore-drill`, `foa-cert-renew` or archiving
+   (`pg_stat_archiver.failed_count`), and a periodic `pgbackrest check`. The
+   restore drill cannot see archiving that has stalled, because it can only
+   replay the WAL that reached the repository.
 6. The future worker connects directly on the `db` network (pg_hba already
    allows the app roles from 10.112.12.0/24); give it its own role if it
    needs rights beyond `foa_app`.

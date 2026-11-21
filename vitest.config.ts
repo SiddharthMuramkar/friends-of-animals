@@ -21,8 +21,12 @@ export default defineConfig({
     include: [
       "src/**/*.test.{ts,tsx}",
       "scripts/**/*.test.ts",
+      "docker/**/*.test.ts",
       "tests/e2e/**/*.test.ts",
     ],
     environment: "node",
+    // Migrates the PGlite template once per run, before any test file.
+    globalSetup: ["src/test/global-setup.ts"],
+    setupFiles: ["./src/test/setup.ts"],
   },
 });
