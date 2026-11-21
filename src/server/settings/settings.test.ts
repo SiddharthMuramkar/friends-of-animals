@@ -231,4 +231,23 @@ describe("changeSetting", () => {
     }
     expect(await rowCounts(h)).toEqual({ settings: 0, auditEntries: 0 });
   });
+
+  it("needs a second factor passed in the last 10 minutes", async () => {
+    const h = await createHarness();
+    // Signing in passes the super admin's second factor (the harness).
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const change = (value: boolean) =>
+      h.as(admin).changeSetting({ key: "org.has80G", value });
+
+    h.clock.advance({ minutes: 10, seconds: 1 });
+    await expect(change(true)).rejects.toMatchObject({
+      name: "DomainError",
+      code: "step_up_required",
+    });
+    expect(await rowCounts(h)).toEqual({ settings: 0, auditEntries: 0 });
+
+    await h.passSecondFactor(admin);
+    h.clock.advance({ minutes: 9, seconds: 59 });
+    expect(await change(true)).toEqual({ ok: true, changed: true });
+  });
 });
