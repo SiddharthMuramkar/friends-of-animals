@@ -7,6 +7,13 @@
 
 import { z } from "zod";
 
+import {
+  CONSENT_SUBJECT_TYPES,
+  GIVABLE_PURPOSES,
+  type ConsentSubjectType,
+  type GivablePurpose,
+} from "../consent/domain/purposes";
+
 export type DomainEvent =
   | {
       type: "identity.user_signed_up";
@@ -19,9 +26,9 @@ export type DomainEvent =
       aggregate: { type: "consent_event"; id: string };
       payload: {
         consentEventId: string;
-        subjectType: "user";
+        subjectType: ConsentSubjectType;
         subjectId: string;
-        purpose: "messages";
+        purpose: GivablePurpose;
         documentId: string;
       };
     };
@@ -40,9 +47,9 @@ export const EVENT_PAYLOADS = {
   "identity.user_signed_up": z.object({ userId: z.uuid() }),
   "consent.withdrawn": z.object({
     consentEventId: z.uuid(),
-    subjectType: z.literal("user"),
+    subjectType: z.enum(CONSENT_SUBJECT_TYPES),
     subjectId: z.uuid(),
-    purpose: z.literal("messages"),
+    purpose: z.enum(GIVABLE_PURPOSES),
     documentId: z.uuid(),
   }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
