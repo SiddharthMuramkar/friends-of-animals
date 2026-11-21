@@ -9,14 +9,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SIGNED_IN_PREFIXES } from "@/lib/app-routes";
 import { publicCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
+import { createProxy } from "@/request-proxy";
 
-import { config, proxy } from "./proxy";
+import { config } from "./proxy";
 
-// Competition slugs are checked against the database (#70); none is
-// published here. src/proxy.competitions.test.ts covers that check.
-vi.mock("@/app/competitions/_lib/public-reader", () => ({
-  publishedSlugLookup: async () => false,
-}));
+// Competition slugs are checked against the database (#70); here none is
+// published. src/proxy.competitions.test.ts covers that check.
+const proxy = createProxy({ isPublishedCompetitionSlug: async () => false });
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -132,6 +131,35 @@ describe("proxy: the signed-in nonce policy", () => {
         publicCsp(cspContext()).value
       );
       expect(forwarded(response), path).toBeUndefined();
+    }
+  });
+
+  it("sends a competition's edit and preview pages the nonce policy, for any id", async () => {
+    vi.stubEnv("APP_ENV", "preview");
+    for (const path of [
+      "/admin/competitions/0193f5d2-7a1b-7c3d-8e4f-a1b2c3d4e5f6/edit",
+      "/admin/competitions/0193f5d2-7a1b-7c3d-8e4f-a1b2c3d4e5f6/preview",
+      "/admin/competitions/any-id/preview",
+    ]) {
+      const response = await proxy(request(path, SESSION));
+      expect(getRewrittenUrl(response), path).toBeNull();
+      const page = pageHeaders(response);
+      expect(page.get("x-nonce"), path).toEqual(expect.any(String));
+    }
+  });
+
+  it("still answers admin paths that aren't pages with the static 404", async () => {
+    for (const path of [
+      "/admin",
+      "/admin/competitions/an-id",
+      "/admin/competitions/an-id/delete",
+      "/admin/competitions/an-id/edit/more",
+      "/admin/competitions//edit",
+    ]) {
+      const response = await proxy(request(path, SESSION));
+      expect(getRewrittenUrl(response), path).toBe(
+        "https://foa.example.test/__not-found"
+      );
     }
   });
 
