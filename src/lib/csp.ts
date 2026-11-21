@@ -196,6 +196,16 @@ export function reportingEndpoints(): SecurityHeader {
   };
 }
 
+/** One next.config.ts `headers()` rule. */
+export type HeaderRule = { source: string; headers: SecurityHeader[] };
+
+export function cspHeaderRules(
+  _context: CspContext,
+  _signedInPrefixes: readonly `/${string}`[]
+): HeaderRule[] {
+  return [];
+}
+
 /** The policy for prerendered public pages: no nonce. */
 export function publicCsp(context: CspContext): SecurityHeader {
   return header("public", ["'self'", "'unsafe-inline'"], context);

@@ -1,9 +1,12 @@
 import { createHash } from "node:crypto";
 
+import { buildCustomRoute } from "next/dist/lib/build-custom-route";
+import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { describe, expect, it } from "vitest";
 
 import {
   createNonce,
+  cspHeaderRules,
   publicCsp,
   reportingEndpoints,
   signedInCsp,
@@ -244,5 +247,90 @@ describe("reportingEndpoints", () => {
       key: "Reporting-Endpoints",
       value: 'csp="/api/csp-report"',
     });
+  });
+});
+
+describe("cspHeaderRules", () => {
+  const context = { appEnv: "preview", nodeEnv: "production" };
+  const POLICY_KEYS = [
+    "Content-Security-Policy",
+    "Content-Security-Policy-Report-Only",
+  ];
+
+  /**
+   * The headers the rules send on `pathname`, matched as Next matches
+   * next.config.ts `headers()`: at run time under `next start`, and by the
+   * routes-manifest regex that Vercel reads. The two must agree.
+   */
+  function headersFor(
+    rules: ReturnType<typeof cspHeaderRules>,
+    pathname: string
+  ) {
+    return rules.flatMap((rule) => {
+      const atRuntime =
+        getPathMatch(rule.source, { strict: true, removeUnnamedParams: true })(
+          pathname
+        ) !== false;
+      const inManifest = new RegExp(
+        buildCustomRoute("header", rule).regex
+      ).test(pathname);
+      expect(inManifest, `manifest and run time agree on ${pathname}`).toBe(
+        atRuntime
+      );
+      return atRuntime ? rule.headers : [];
+    });
+  }
+
+  it("sends the public policy on every path outside the signed-in tree", () => {
+    const rules = cspHeaderRules(context, ["/account"]);
+    for (const pathname of [
+      "/",
+      "/about",
+      "/blog/kolam",
+      "/sign-in",
+      "/accounts",
+      "/api/csp-report",
+      "/_next/static/chunks/main.js",
+    ]) {
+      const policies = headersFor(rules, pathname).filter((h) =>
+        POLICY_KEYS.includes(h.key)
+      );
+      expect(policies, pathname).toEqual([publicCsp(context)]);
+    }
+  });
+
+  it("leaves the signed-in tree to the proxy's nonce policy", () => {
+    const rules = cspHeaderRules(context, ["/account", "/admin"]);
+    for (const pathname of [
+      "/account",
+      "/account/sessions",
+      "/account/sessions/other",
+      "/admin",
+      "/admin/settings",
+    ]) {
+      const keys = headersFor(rules, pathname).map((h) => h.key);
+      for (const key of POLICY_KEYS) expect(keys, pathname).not.toContain(key);
+    }
+    expect(headersFor(rules, "/administrator")).toContainEqual(
+      publicCsp(context)
+    );
+  });
+
+  it("names the report endpoint on every path, signed-in ones included", () => {
+    const rules = cspHeaderRules(context, ["/account"]);
+    for (const pathname of ["/", "/about", "/account/sessions"]) {
+      expect(headersFor(rules, pathname), pathname).toContainEqual(
+        reportingEndpoints()
+      );
+    }
+  });
+
+  it("refuses a prefix that isn't a plain lower-case path", () => {
+    for (const prefix of ["/", "/acc(ount", "/account/", "/Account", "/a.b"]) {
+      expect(
+        () => cspHeaderRules(context, [prefix as `/${string}`]),
+        prefix
+      ).toThrow(RangeError);
+    }
   });
 });
