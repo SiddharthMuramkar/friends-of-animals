@@ -65,9 +65,11 @@ export async function signOutSession(
       and(eq(session.id, parsed.data.sessionId), eq(session.userId, userId))
     )
     .returning({ id: session.id });
-  if (deleted.length === 0) return { ok: false, error: "not_found" };
+  const [row] = deleted;
+  if (!row) return { ok: false, error: "not_found" };
 
-  const signedOutHere = parsed.data.sessionId === currentId;
+  // The id as stored: Postgres matched the input whatever its case.
+  const signedOutHere = row.id === currentId;
   if (signedOutHere) await expireSessionCookie(ctx);
   return { ok: true, signedOutHere };
 }

@@ -114,6 +114,19 @@ describe("signOutSession", () => {
     expect((await h.currentActor(PHONE)).kind).toBe("visitor");
   });
 
+  it("signs this browser out when it names this session in upper case", async () => {
+    // Postgres matches a uuid whatever its case.
+    const h = await createHarness();
+    const { phone } = await memberOnTwoDevices(h);
+
+    const result = await h
+      .as(phone)
+      .signOutSession({ sessionId: sessionIdOf(phone).toUpperCase() });
+
+    expect(result).toEqual({ ok: true, signedOutHere: true });
+    expect(h.cookies.header()).toBe("");
+  });
+
   it("refuses another user's session, and leaves it signed in", async () => {
     const h = await createHarness();
     const { phone } = await memberOnTwoDevices(h);
