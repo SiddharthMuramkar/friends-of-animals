@@ -48,7 +48,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Only what main already has goes to production.
+      # Only what main already has goes to production. A branch can edit this
+      # step out of its own copy, so the GitHub environment `production`
+      # (which holds the secrets) also admits only runs from main.
       - name: The commit is on main
         run: |
           set -euo pipefail
