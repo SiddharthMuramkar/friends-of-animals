@@ -5,8 +5,12 @@
 // months are dropped here even if the caller passes their totals.
 //
 // Every income and expense account counts in exactly one category, so the
-// page's totals equal the ledger's (an account without a public label shows
-// as "other"; nothing is left out). Balance-sheet accounts never show, which
+// page's totals equal the ledger's. A category is a public label within a
+// public group; an account without a label shows under its group's name,
+// and one with neither shows as "other", so nothing is left out. Account
+// names never show: finance may name an account after a person, and the
+// public label is where it says what the public sees. Balance-sheet accounts
+// never show, which
 // keeps money held for refund, such as a refused foreign payment, out of
 // income. The output names categories, never accounts or postings.
 // Pure; no imports beyond the period helpers.
@@ -42,7 +46,10 @@ export type AccountTotal = {
   creditMinor: bigint;
 };
 
-/** A public category's net amount, in paise. `label: null` is "other". */
+/**
+ * A public category's net amount, in paise. With no label the page names
+ * the group instead; with neither, it is "other".
+ */
 export type CategoryTotal = {
   label: string | null;
   group: string | null;
@@ -72,12 +79,18 @@ export type Figures = {
 
 type Side = "income" | "spending";
 
-/** Net amounts per category, keyed by label within one side. */
+/** Labelled categories first, then groups alone, then "other". */
+function rank({ label, group }: CategoryTotal): number {
+  if (label !== null) return 0;
+  return group !== null ? 1 : 2;
+}
+
+/** Net amounts per category (label and group) within one side. */
 class Tally {
   readonly #categories = new Map<string, CategoryTotal>();
 
   add(label: string | null, group: string | null, amountMinor: bigint) {
-    const key = label ?? "";
+    const key = JSON.stringify([label, group]);
     const current = this.#categories.get(key);
     if (current) current.amountMinor += amountMinor;
     else this.#categories.set(key, { label, group, amountMinor });
@@ -89,18 +102,18 @@ class Tally {
     return sum;
   }
 
-  /** Non-zero categories, largest first; "other" last. */
+  /** Non-zero categories by rank, then largest first, then by name. */
   list(): CategoryTotal[] {
     return [...this.#categories.values()]
       .filter((c) => c.amountMinor !== 0n)
       .sort((a, b) => {
-        if ((a.label === null) !== (b.label === null)) {
-          return a.label === null ? 1 : -1;
-        }
+        if (rank(a) !== rank(b)) return rank(a) - rank(b);
         if (a.amountMinor !== b.amountMinor) {
           return a.amountMinor > b.amountMinor ? -1 : 1;
         }
-        return (a.label ?? "").localeCompare(b.label ?? "");
+        return (a.label ?? a.group ?? "").localeCompare(
+          b.label ?? b.group ?? ""
+        );
       });
   }
 }

@@ -142,6 +142,77 @@ describe("buildFigures", () => {
     ]);
   });
 
+  it("shows an account with a group but no label under its group", () => {
+    const figures = buildFigures({
+      fy: FY,
+      lockedMonths: ["2026-10"],
+      accounts: [
+        // As the chart is seeded: groups, but no labels until finance adds them.
+        {
+          code: "5100",
+          kind: "expense",
+          publicLabel: null,
+          publicGroup: "programs",
+        },
+        {
+          code: "5600",
+          kind: "expense",
+          publicLabel: null,
+          publicGroup: "programs",
+        },
+        {
+          code: "5400",
+          kind: "expense",
+          publicLabel: null,
+          publicGroup: "administration",
+        },
+        { code: "5900", kind: "expense", publicLabel: null, publicGroup: null },
+      ],
+      totals: [
+        total("2026-10", "5100", 90_000n, 0n),
+        total("2026-10", "5600", 10_000n, 0n),
+        total("2026-10", "5400", 25_000n, 0n),
+        total("2026-10", "5900", 5_000n, 0n),
+      ],
+      donationAccountCodes: DONATION_ACCOUNTS,
+    });
+    expect(figures.months[0]!.spending).toEqual([
+      { label: null, group: "programs", amountMinor: 100_000n },
+      { label: null, group: "administration", amountMinor: 25_000n },
+      { label: null, group: null, amountMinor: 5_000n },
+    ]);
+  });
+
+  it("keeps one label used in two groups as two categories", () => {
+    const figures = buildFigures({
+      fy: FY,
+      lockedMonths: ["2026-10"],
+      accounts: [
+        {
+          code: "5300",
+          kind: "expense",
+          publicLabel: "Travel",
+          publicGroup: "programs",
+        },
+        {
+          code: "5900",
+          kind: "expense",
+          publicLabel: "Travel",
+          publicGroup: "administration",
+        },
+      ],
+      totals: [
+        total("2026-10", "5300", 40_000n, 0n),
+        total("2026-10", "5900", 10_000n, 0n),
+      ],
+      donationAccountCodes: DONATION_ACCOUNTS,
+    });
+    expect(figures.months[0]!.spending).toEqual([
+      { label: "Travel", group: "programs", amountMinor: 40_000n },
+      { label: "Travel", group: "administration", amountMinor: 10_000n },
+    ]);
+  });
+
   it("counts donations net of refunds, from the donation accounts only", () => {
     const figures = october();
     expect(figures.months[0]!.donationsMinor).toBe(2_130_000n);
