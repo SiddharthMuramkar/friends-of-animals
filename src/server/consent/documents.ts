@@ -1,6 +1,7 @@
 // Consent documents (#64): publishing a new version, and reading the
 // current one and the history.
 //
+//   previewConsentDocument({ source })                 → staff admin, super admin
 //   publishConsentDocument({ purpose, title, source }) → staff admin, super admin
 //   currentConsentDocument({ purpose })                → anyone
 //   listConsentDocumentVersions({ purpose })           → staff admin, super admin
@@ -53,6 +54,12 @@ export type PublishConsentDocumentResult =
   | InvalidInput
   | { ok: false; error: "invalid_source"; errors: SourceError[] };
 
+export type PreviewConsentDocumentResult =
+  | { ok: true; body: ConsentDocumentBody }
+  | { ok: false; error: "invalid_source"; errors: SourceError[] };
+
+const previewInput = z.object({ source: z.string().max(100_000) });
+
 const purposeInput = z.object({ purpose: z.enum(CONSENT_PURPOSES) });
 
 const publishInput = z.object({
@@ -60,6 +67,21 @@ const publishInput = z.object({
   title: z.string().trim().min(1).max(200),
   source: z.string().max(100_000),
 });
+
+/**
+ * What `source` would publish, for staff to check before they do: the
+ * body, or its line-numbered errors. Saves nothing.
+ */
+export async function previewConsentDocument(
+  ctx: ConsentContext,
+  input: { source: string }
+): Promise<PreviewConsentDocumentResult> {
+  await authorize(ctx, "consent_document.publish");
+  const parsed = parseConsentDocumentSource(previewInput.parse(input).source);
+  return parsed.ok
+    ? { ok: true, body: parsed.body }
+    : { ok: false, error: "invalid_source", errors: parsed.errors };
+}
 
 /**
  * Publishes `source` as the next version of the purpose's document. The

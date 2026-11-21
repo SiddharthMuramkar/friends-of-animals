@@ -198,6 +198,49 @@ describe("publishConsentDocument: who may publish", () => {
   });
 });
 
+describe("previewConsentDocument", () => {
+  it("shows staff the body a source would publish, or its errors, and saves nothing", async () => {
+    const h = await createHarness();
+    const { actor } = await staffAdmin(h);
+
+    expect(
+      await h.as(actor).previewConsentDocument({ source: SOURCE_V1 })
+    ).toEqual({
+      ok: true,
+      body: {
+        short: [["We keep only what a competition needs."]],
+        sections: [
+          {
+            id: "who-we-are",
+            title: "Who we are",
+            blocks: [{ p: ["Friends of Animals runs art competitions."] }],
+          },
+        ],
+      },
+    });
+    expect(
+      await h.as(actor).previewConsentDocument({ source: "Just text." })
+    ).toEqual({
+      ok: false,
+      error: "invalid_source",
+      errors: [
+        { line: 1, code: "text_before_first_section" },
+        { line: null, code: "no_sections" },
+      ],
+    });
+    expect(await rowCounts(h)).toEqual({ documents: 0, auditEntries: 0 });
+  });
+
+  it("refuses anyone who may not publish", async () => {
+    const h = await createHarness();
+    const member = await h.signIn(await h.seed.member());
+
+    await expect(
+      h.as(member).previewConsentDocument({ source: SOURCE_V1 })
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+});
+
 describe("consent_document", () => {
   it("refuses to update or delete a published version, even in raw SQL", async () => {
     const h = await createHarness();
