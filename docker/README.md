@@ -838,23 +838,45 @@ links into `/etc/pki/ca-trust`, which would dangle inside the container.
 
 ## Monitoring and alerts
 
-[GitHub Actions Uptime](../.github/workflows/uptime.yml) runs every five
-minutes. The owner can also run it from the Actions tab. The workflow checks
-the public app and worker over HTTPS and makes one TCP connection to the
-database listener without authenticating. Each named step retries once for
-a transient failure. A failed run appears in Actions and triggers the
-owner's configured GitHub Actions notifications.
+[GitHub Actions Uptime](../.github/workflows/uptime.yml) is scheduled every
+five minutes on the default branch. It can also run on demand from Actions.
+Both HTTPS probes require HTTP 200 from the configured URL. Redirects fail
+the probe. The database probe tests TCP connectivity without authenticating.
+Each step allows one retry after 30 seconds for transient failures.
 
-| Check  | Target                            | Alerts when                                                          | Alert goes to                       | Silence and un-silence                                                  |
-| ------ | --------------------------------- | -------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------- |
-| App    | `/api/health`                     | The health check still fails after retry                             | Owner via Actions notifications     | Disable Uptime in Actions for planned maintenance, then enable it again |
-| Pooler | `db.friendsofanimals.dev:6432`    | TCP cannot connect on either attempt                                 | Owner via Actions notifications     | Same as App                                                             |
-| Worker | `/api/health/worker`              | The newest heartbeat is over 120 seconds old, missing, or unreadable | Owner via Actions notifications     | Same as App                                                             |
-| Errors | GlitchTip app and worker projects | An error matches the configured alert rule                           | Owner via error-tracking alert rule | Archive or unarchive the issue in the error tracker                     |
+| Check  | Target                            | Alerts when                                                | Alert goes to                       | Silence and un-silence                                    |
+| ------ | --------------------------------- | ---------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------- |
+| App    | `/api/health`                     | The HTTPS request fails or returns a status other than 200 | Scheduled recipient via Actions     | Disable Uptime in Actions and have the owner re-enable it |
+| Pooler | `db.friendsofanimals.dev:6432`    | TCP cannot connect on either attempt                       | Scheduled recipient via Actions     | Same as App                                               |
+| Worker | `/api/health/worker`              | The HTTPS request fails or returns a status other than 200 | Scheduled recipient via Actions     | Same as App                                               |
+| Errors | GlitchTip app and worker projects | An error matches the configured alert rule                 | Owner via error-tracking alert rule | Archive or unarchive the issue in the error tracker       |
 
 The worker writes its `worker_heartbeat` row after each poll. The health
 route returns HTTP 200 with `Cache-Control: no-store` while the heartbeat is
-fresh and HTTP 503 when it is stale, missing or the query fails.
+at most 120 seconds old. A stale or missing heartbeat or a failed query
+returns HTTP 503.
+
+GitHub initially sends scheduled notifications to the workflow creator. A
+cron edit shifts delivery to the editor, and re-enabling a disabled schedule
+shifts it to the account that re-enabled the workflow. A default-branch change
+can also change the scheduled run actor. Manual runs notify the person who
+started the run according to their settings.
+[Scheduled workflow actor](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#actor-for-scheduled-workflows) ·
+[Workflow notifications](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs)
+
+The intended recipient is the repository owner's account,
+`SiddharthMuramkar`. Use that account to enable or re-enable Uptime and to
+edit its cron. In GitHub's notification settings under System → Actions,
+enable Email or On GitHub and select **Only notify for failed workflows**.
+[GitHub Actions notification settings](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-github-actions-notifications)
+
+**HR-23 recipient receipt is pending.** Have the owner confirm the actor on
+a normal scheduled Uptime run. To verify delivery, use a separate test
+repository owned by the same account. Schedule a workflow named
+`HR-23 notification drill` with empty permissions and a single `exit 1`
+step. After the first scheduled failure, disable the drill. Record the run
+URL, actor, notification channel, and UTC time of the owner's receipt under
+HR-23.
 
 ## Logs
 

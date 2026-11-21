@@ -15,7 +15,14 @@ jobs:
     steps:
       - name: Check the public app
         if: ${{ !cancelled() }}
-        run: curl -fsS --max-time 20 --retry 1 --retry-delay 30 --output /dev/null https://friendsofanimals.dev/api/health
+        run: |
+          status="$(curl --disable -fsS --max-time 20 --retry 1 --retry-delay 30 \
+            --output /dev/null --write-out '%{response_code}' \
+            'https://friendsofanimals.dev/api/health')" || exit "$?"
+          if [[ "$status" != 200 ]]; then
+            printf 'Expected HTTP 200, received %s\n' "$status" >&2
+            exit 1
+          fi
       - name: Check the database listener
         if: ${{ !cancelled() }}
         run: |
@@ -25,4 +32,11 @@ jobs:
           fi
       - name: Check the production worker
         if: ${{ !cancelled() }}
-        run: curl -fsS --max-time 20 --retry 1 --retry-delay 30 --output /dev/null https://friendsofanimals.dev/api/health/worker
+        run: |
+          status="$(curl --disable -fsS --max-time 20 --retry 1 --retry-delay 30 \
+            --output /dev/null --write-out '%{response_code}' \
+            'https://friendsofanimals.dev/api/health/worker')" || exit "$?"
+          if [[ "$status" != 200 ]]; then
+            printf 'Expected HTTP 200, received %s\n' "$status" >&2
+            exit 1
+          fi
