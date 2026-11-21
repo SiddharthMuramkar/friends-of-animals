@@ -4,7 +4,9 @@ import {
   ATTACHABLE_PURPOSES,
   attachmentState,
   decideAttach,
+  documentVersionPath,
   isRequiredForRegistration,
+  parseDocumentVersionPath,
 } from "./consent-attachments";
 
 const v1 = { id: "doc-terms-v1", version: 1 };
@@ -71,5 +73,36 @@ describe("attachmentState", () => {
   it("keeps a pin current when nothing newer is published", () => {
     expect(attachmentState(v2, null)).toBe("current");
     expect(attachmentState(null, null)).toBe("not_attached");
+  });
+});
+
+describe("document version paths", () => {
+  it("link a purpose's version under /documents, in kebab case", () => {
+    expect(documentVersionPath("competition_terms", 2)).toBe(
+      "/documents/competition-terms/2"
+    );
+    expect(documentVersionPath("privacy_notice", 1)).toBe(
+      "/documents/privacy-notice/1"
+    );
+  });
+
+  it("read back to the purpose and version", () => {
+    expect(parseDocumentVersionPath("competition-terms", "2")).toEqual({
+      purpose: "competition_terms",
+      version: 2,
+    });
+  });
+
+  it.each([
+    ["messages", "1"],
+    ["competition_terms", "1"],
+    ["terms", "1"],
+    ["competition-terms", "0"],
+    ["competition-terms", "02"],
+    ["competition-terms", "1.5"],
+    ["competition-terms", "v1"],
+    ["competition-terms", "2147483648"],
+  ])("refuse %j version %j", (purpose, version) => {
+    expect(parseDocumentVersionPath(purpose, version)).toBeNull();
   });
 });
