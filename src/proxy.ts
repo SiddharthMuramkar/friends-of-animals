@@ -4,6 +4,8 @@ import { competitionParams } from "@/app/competitions/_lib/view";
 import { isStorySlug } from "@/content/stories";
 import { getSampleCompetitions } from "@/content/sample";
 import { isSignedInPath } from "@/lib/app-routes";
+import { createNonce, signedInCsp } from "@/lib/csp";
+import { cspContext } from "@/lib/csp-sources";
 import { ROUTES } from "@/lib/routes";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 
@@ -18,12 +20,33 @@ const COMPETITION_SLUGS = new Set(
 // No route matches this path, so Next serves app/not-found.tsx with a 404.
 const MISSING = "/__not-found";
 
+/**
+ * Lets a signed-in request through under a fresh nonce policy (#65). Next
+ * reads the nonce from the policy on the page's request headers and puts
+ * it on every script it renders; the browser gets the same policy. Public
+ * pages get theirs from next.config.ts headers().
+ */
+function withNonceCsp(request: NextRequest): NextResponse {
+  const nonce = createNonce();
+  const policy = signedInCsp(cspContext(), nonce);
+  const headers = new Headers(request.headers);
+  // Next reads an enforced policy before a report-only one: drop any the
+  // client sent, so only this request's nonce reaches the page.
+  headers.delete("content-security-policy");
+  headers.delete("content-security-policy-report-only");
+  headers.set(policy.key, policy.value);
+  headers.set("x-nonce", nonce);
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set(policy.key, policy.value);
+  return response;
+}
+
 export function proxy(request: NextRequest) {
   // Pages behind sign-in: a request without a session cookie goes straight
   // to sign in. With one, the page checks the session itself.
   if (isSignedInPath(request.nextUrl.pathname)) {
     return hasSessionCookie(request.headers)
-      ? NextResponse.next()
+      ? withNonceCsp(request)
       : NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
   }
 
