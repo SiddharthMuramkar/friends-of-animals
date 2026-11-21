@@ -14,7 +14,11 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
-import type { ListUserRolesResult, SearchUsersResult } from "@/server/access";
+import type {
+  FoundUser,
+  ListUserRolesResult,
+  SearchUsersResult,
+} from "@/server/access";
 import { ROLES, SCOPE_TYPES } from "@/server/access/domain/roles";
 
 import { AdminDenied } from "../_components/admin-denied";
@@ -167,15 +171,17 @@ async function Found({
   users,
   params,
 }: {
-  users: { id: string; name: string; email: string }[];
+  users: FoundUser[];
   params: RolesParams;
 }) {
-  const t = await getTranslations("adminRoles.search");
+  const t = await getTranslations("adminRoles");
   return (
     <section aria-labelledby="roles-found">
-      <SectionHeading id="roles-found" title={t("results")} />
+      <SectionHeading id="roles-found" title={t("search.results")} />
       {users.length === 0 ? (
-        <p className="mt-4 text-ink">{t("none", { query: params.q ?? "" })}</p>
+        <p className="mt-4 text-ink">
+          {t("search.none", { query: params.q ?? "" })}
+        </p>
       ) : (
         <ul className="mt-4 flex flex-col gap-2">
           {users.map((user) => {
@@ -190,11 +196,14 @@ async function Found({
                   <span className="font-semibold text-link underline decoration-2 underline-offset-4">
                     {user.name}
                   </span>
-                  {/* An address is one long word: let it break anywhere. */}
+                  {/* An address is one long word: let it break anywhere.
+                      An account made by phone (#58) has none. */}
                   <span className="text-ink-muted wrap-anywhere">
-                    {user.email}
+                    {user.email ?? t("user.noEmail")}
                   </span>
-                  {chosen ? <Chip tone="blue">{t("selected")}</Chip> : null}
+                  {chosen ? (
+                    <Chip tone="blue">{t("search.selected")}</Chip>
+                  ) : null}
                 </SiteLink>
               </li>
             );
@@ -231,7 +240,9 @@ async function Chosen({
           id="roles-user"
           title={t("user.title", { name: user.name })}
         />
-        <p className="mt-2 text-ink-muted wrap-anywhere">{user.email}</p>
+        <p className="mt-2 text-ink-muted wrap-anywhere">
+          {user.email ?? t("user.noEmail")}
+        </p>
         <p className="mt-2">
           <SiteLink href={auditHref({ person: user.id })} className={LINK}>
             {t("user.audit", { name: user.name })}

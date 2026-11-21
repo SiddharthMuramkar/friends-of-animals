@@ -19,6 +19,7 @@
     },
     "user": {
       "title": "Roles of {name}",
+      "noEmail": "No email address: signs in with a mobile number",
       "notFound": "We couldn't find that person. Their account may have been deleted. Search again.",
       "none": "{name} has no roles. Everyone who is signed in can use the member pages.",
       "grantedAt": "Given {date}",
