@@ -1,0 +1,126 @@
+{
+  "adminRubrics": {
+    "meta": {
+      "title": "Rubrics",
+      "description": "Write and publish the judging rubric for each discipline of a competition."
+    },
+    "eyebrow": "Judging",
+    "title": "Rubrics",
+    "lead": "One rubric for each discipline. Schools can't start judging until every discipline has a published rubric.",
+    "loading": "Loading…",
+    "disciplines": {
+      "drawing": "Drawing",
+      "painting": "Painting",
+      "art": "Art",
+      "craft": "Craft",
+      "essay": "Essay",
+      "photography": "Photography",
+      "videography": "Videography"
+    },
+    "denied": {
+      "title": "This page is for competition managers",
+      "body": "Your account doesn't manage this competition. If you need it for your work, ask a super admin for the competition manager role.",
+      "back": "Go to your dashboard"
+    },
+    "notFound": {
+      "title": "We couldn't find that competition",
+      "body": "The link may be out of date, or the competition was never created.",
+      "back": "Go to your dashboard"
+    },
+    "noDiscipline": {
+      "title": "This competition doesn't run that discipline",
+      "body": "Rubrics are written only for the disciplines the competition runs.",
+      "back": "Back to the rubrics"
+    },
+    "index": {
+      "competition": "Competition {code}: {name}",
+      "listTitle": "Disciplines",
+      "missing": "School judging can't start yet. These disciplines have no published rubric: {disciplines}.",
+      "ready": "Every discipline has a published rubric, so school judging can start on time.",
+      "locked": "School judging has started, so rubrics can no longer change.",
+      "published": "Published, version {version}",
+      "draft": "Draft, version {version}",
+      "none": "No rubric yet",
+      "open": "Open the {discipline} rubric"
+    },
+    "discipline": {
+      "title": "{discipline} rubric",
+      "back": "All rubrics for {code}",
+      "none": "This discipline has no rubric yet. Start one from FOA's judging guide, then change it to suit the competition.",
+      "start": "Start a rubric",
+      "starting": "Starting…",
+      "draftTitle": "Draft, version {version}",
+      "draftLead": "Save as often as you like. Publishing needs at least one criterion and weights that add up to 100. A published rubric can't be changed, only replaced by a new version.",
+      "reviseTitle": "Change the published rubric",
+      "reviseLead": "Start a new version from the published one. The published version stays in force until you publish the new one.",
+      "revise": "Start version {version}",
+      "revising": "Starting…",
+      "historyTitle": "Versions",
+      "lockedNote": "School judging has started, so this rubric can no longer change.",
+      "publishedOn": "Published {date}",
+      "noCriteria": "No criteria."
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "superseded": "Replaced"
+    },
+    "table": {
+      "caption": "Criteria of version {version}",
+      "label": "Criterion",
+      "description": "What judges look for",
+      "weight": "Weight",
+      "scores": "Score range",
+      "weightValue": "{weight}%",
+      "scoreRange": "{min} to {max}"
+    },
+    "editor": {
+      "rowTitle": "Criterion {number}",
+      "newRowTitle": "New criterion",
+      "label": "Name",
+      "description": "What judges look for",
+      "descriptionHint": "Optional. Up to 600 characters.",
+      "weight": "Weight, in percent",
+      "minScore": "Lowest score",
+      "maxScore": "Highest score",
+      "remove": "Remove this criterion when saving",
+      "newRowsHint": "Fill in a new criterion below to add it. Save to get more empty rows.",
+      "total": "Weights add up to {total} of 100.",
+      "save": "Save draft",
+      "saving": "Saving…",
+      "publish": "Save and publish",
+      "publishing": "Publishing…",
+      "problem": "Something needs fixing",
+      "fixFields": "Some criteria need fixing. Each one says what's wrong.",
+      "tooMany": "A rubric can have at most 10 criteria. Remove one before saving.",
+      "errors": {
+        "required": "Give this criterion a name.",
+        "too_long": "This is too long.",
+        "duplicate": "Another criterion has this name.",
+        "whole_number": "Enter a whole number.",
+        "out_of_range": "This number is out of range.",
+        "range_order": "The highest score must be above the lowest score."
+      }
+    },
+    "refusals": {
+      "forbidden": "Your account doesn't manage this competition.",
+      "not_found": "This rubric no longer exists. Reload the page.",
+      "invalid_input": "Something in the form couldn't be read. Check the criteria and try again.",
+      "rubric_not_editable": "This version has been published, so it can't change. Reload the page.",
+      "rubric_locked_by_judging": "School judging has started, so rubrics can no longer change.",
+      "rubric_exists": "This discipline already has a rubric.",
+      "draft_exists": "A new version is already being drafted.",
+      "not_published": "Only a published rubric can be revised.",
+      "discipline_not_enabled": "This competition doesn't run that discipline.",
+      "no_criteria": "Add at least one criterion before publishing.",
+      "weights_total": "The weights add up to {total}. They must add up to 100 before publishing."
+    },
+    "done": {
+      "label": "Done",
+      "created": "The draft is ready. It starts from FOA's judging guide.",
+      "saved": "The draft is saved.",
+      "published": "The rubric is published. It can no longer change.",
+      "revision": "A new version is ready to edit. The published version stays in force until you publish this one."
+    }
+  }
+}

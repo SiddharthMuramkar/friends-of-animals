@@ -3,8 +3,9 @@
 // mailbox, and keep fixed ids so links and journeys can name them. Seam 2
 // journeys will read these constants (57b adds tests/e2e/support/accounts.ts).
 //
-// The super admin role arrives with #59's seeder; until then this is a plain
-// account.
+// Their roles come from the access seeder (./access.ts): the super admin is
+// a global super admin, the first member holds several roles, the second is
+// a staff admin and the third holds none.
 
 export const SEED_ACCOUNTS = {
   superAdmin: {
