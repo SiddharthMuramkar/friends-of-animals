@@ -10,9 +10,10 @@ import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
 import { TableScroller } from "@/components/site/table-scroller";
 import { type TileHue, TileMarker } from "@/components/site/tile";
-import { getSampleImpact } from "@/content/sample";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { isSampleContentEnabled } from "@/lib/site";
+import { loadImpact } from "@/server/modules/cms/site-pages";
 
 import { EasyRead } from "@/components/site/easy-read";
 
@@ -46,7 +47,8 @@ const PUBLISH = [
 export default async function Page() {
   const t = await getTranslations("impact");
   const tc = await getTranslations("competitions");
-  const impact = getSampleImpact();
+  const impact = await loadImpact();
+  const sample = isSampleContentEnabled();
 
   return (
     <>
@@ -151,13 +153,15 @@ export default async function Page() {
       </Section>
 
       <Section hue={HUE} tone="tint">
-        {impact ? (
+        {impact?.counters.length ? (
           <>
-            <p className="mb-6 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-              <SampleTag />
-              {t("counters.sampleNote")}
-            </p>
-            <ImpactCounters impact={impact} />
+            {sample ? (
+              <p className="mb-6 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
+                <SampleTag />
+                {t("counters.sampleNote")}
+              </p>
+            ) : null}
+            <ImpactCounters impact={impact} sample={sample} />
           </>
         ) : (
           <ExplainState title={t("counters.empty.title")} className="max-w-2xl">
