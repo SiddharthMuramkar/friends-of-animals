@@ -8,6 +8,7 @@ import { FakeCopyBucket } from "@/test/fakes/copy-bucket";
 import { createHarness } from "@/test/harness";
 
 import type { OffsiteConfig } from "./config";
+import { OffsiteCopyIncompleteError } from "./errors";
 import { runOffsiteCopy, type OffsiteDeps } from "./run-copy";
 
 const FILES = "foa-files-prod";
@@ -75,9 +76,45 @@ async function world(config: Partial<OffsiteConfig> = {}) {
     return keys;
   }
 
+  /** Deletes an object from R2, as deleting a file would. */
+  async function remove(key: string, bucket = FILES) {
+    await r2.delete({ bucket, key });
+  }
+
+  /** The manifest rows, by key. */
+  async function manifest() {
+    const rows = await h.db.select().from(offsiteCopy);
+    return Object.fromEntries(rows.map((row) => [row.key, row]));
+  }
+
   const run = (input = { finalAttempt: false }) => runOffsiteCopy(deps, input);
 
-  return { h, r2, b2, deps, upload, copyOf, offsiteKeys, run };
+  /** The error an incomplete run throws. */
+  async function incompleteRun(input = { finalAttempt: false }) {
+    const error: unknown = await run(input).then(
+      (report) => report,
+      (thrown: unknown) => thrown
+    );
+    if (!(error instanceof OffsiteCopyIncompleteError)) {
+      const got = error instanceof Error ? error.stack : JSON.stringify(error);
+      throw new Error(`Expected an incomplete run, got ${got}`);
+    }
+    return error;
+  }
+
+  return {
+    h,
+    r2,
+    b2,
+    deps,
+    upload,
+    remove,
+    copyOf,
+    offsiteKeys,
+    manifest,
+    run,
+    incompleteRun,
+  };
 }
 
 describe("runOffsiteCopy: what gets copied", () => {
@@ -211,4 +248,108 @@ describe("runOffsiteCopy: what gets copied", () => {
       expect(await h.db.select().from(offsiteCopy)).toEqual([]);
     }
   );
+});
+
+describe("runOffsiteCopy: the retention window", () => {
+  const RETENTION_MS = 30 * 24 * HOUR_MS;
+
+  it("marks an object gone from R2 and keeps its copy", async () => {
+    const { h, upload, remove, copyOf, manifest, run } = await world();
+    const bytes = await upload("avatar/a", "keep me");
+    await run();
+    h.clock.advance({ hours: 20 });
+    await remove("avatar/a");
+
+    const report = await run();
+
+    expect(report).toMatchObject({
+      status: "complete",
+      markedDeleted: 1,
+      purged: 0,
+    });
+    expect((await copyOf("avatar/a"))?.bytes).toEqual(bytes);
+    expect((await manifest())["avatar/a"]?.deletedInSourceAt).toEqual(
+      h.clock.now()
+    );
+  });
+
+  it("deletes the copy once the window has passed, and not a millisecond before", async () => {
+    const { h, upload, remove, copyOf, manifest, run } = await world();
+    await upload("avatar/a", "keep me");
+    await upload("avatar/b", "still here");
+    await run();
+    await remove("avatar/a");
+    await run();
+
+    h.clock.advance(RETENTION_MS - 1);
+    expect(await run()).toMatchObject({ held: 1, purged: 0 });
+    expect(await copyOf("avatar/a")).not.toBeNull();
+
+    h.clock.advance(1);
+    expect(await run()).toMatchObject({
+      status: "complete",
+      held: 0,
+      purged: 1,
+    });
+    expect(await copyOf("avatar/a")).toBeNull();
+    expect(Object.keys(await manifest())).toEqual(["avatar/b"]);
+  });
+
+  it("unmarks an object back in R2 unchanged, without copying it again", async () => {
+    const { h, b2, upload, remove, copyOf, manifest, run } = await world();
+    await upload("avatar/a", "same bytes");
+    await run();
+    await remove("avatar/a");
+    await run();
+    h.clock.advance({ days: 10 });
+    await upload("avatar/a", "same bytes");
+    const writes = b2.writes.length;
+
+    expect(await run()).toMatchObject({ clearedDeleted: 1, copied: 0 });
+    expect(b2.writes).toHaveLength(writes);
+    expect((await manifest())["avatar/a"]?.deletedInSourceAt).toBeNull();
+
+    h.clock.advance(RETENTION_MS);
+    expect(await run()).toMatchObject({ purged: 0, unchanged: 1 });
+    expect(await copyOf("avatar/a")).not.toBeNull();
+  });
+
+  it("copies an object back in R2 changed, and unmarks it", async () => {
+    const { h, upload, remove, copyOf, manifest, run } = await world();
+    await upload("avatar/a", "old");
+    await run();
+    await remove("avatar/a");
+    await run();
+    h.clock.advance({ days: 10 });
+    const changed = await upload("avatar/a", "new bytes");
+
+    expect(await run()).toMatchObject({ copied: 1, clearedDeleted: 0 });
+    expect((await copyOf("avatar/a"))?.bytes).toEqual(changed);
+    expect((await manifest())["avatar/a"]?.deletedInSourceAt).toBeNull();
+  });
+
+  it("refuses a bucket whose listing is empty while B2 holds live copies", async () => {
+    const { h, upload, remove, copyOf, manifest, run, incompleteRun } =
+      await world();
+    await upload("avatar/a", "x");
+    await upload("avatar/b", "y");
+    await run();
+    await remove("avatar/a");
+    await remove("avatar/b");
+    h.clock.advance(RETENTION_MS);
+
+    const error = await incompleteRun();
+
+    expect(error.report).toMatchObject({
+      status: "incomplete",
+      failedBuckets: [FILES],
+      markedDeleted: 0,
+      purged: 0,
+    });
+    expect(await copyOf("avatar/a")).not.toBeNull();
+    expect(await copyOf("avatar/b")).not.toBeNull();
+    const rows = await manifest();
+    expect(rows["avatar/a"]?.deletedInSourceAt).toBeNull();
+    expect(rows["avatar/b"]?.deletedInSourceAt).toBeNull();
+  });
 });
