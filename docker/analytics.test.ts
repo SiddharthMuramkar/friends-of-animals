@@ -110,6 +110,18 @@ describe("docker/analytics.yml", () => {
     ).toEqual(["      db:"]);
   });
 
+  it("logs through the shared journald anchor, like edge.yml and errors.yml", () => {
+    // #66: every Compose file here logs to journald through one anchor.
+    expect(["x-logging: &logging", ...block(top, /^x-logging:/)]).toEqual([
+      "x-logging: &logging",
+      "  driver: journald",
+      "  options:",
+      '    tag: "{{.Name}}"',
+    ]);
+    expect(service("umami")).toMatch(/^ {4}logging: \*logging$/m);
+    expect(compose).not.toMatch(/json-file|max-size|max-file/);
+  });
+
   it("has no Cloudflare Tunnel: no cloudflared service, network or secret", () => {
     expect(top.join("\n")).not.toMatch(/cloudflare|tunnel/i);
     expect(top.some((line) => line.startsWith("secrets:"))).toBe(false);
