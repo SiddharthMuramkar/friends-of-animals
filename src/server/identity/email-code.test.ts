@@ -3,7 +3,7 @@ import { inspect } from "node:util";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createApp } from "@/server/app";
-import { user } from "@/server/db/schema";
+import { user, verification } from "@/server/db/schema";
 import type { EmailSender } from "@/server/ports/email";
 import { SEED_ACCOUNTS } from "@/server/seed";
 import { createHarness, type Harness } from "@/test/harness";
@@ -58,6 +58,16 @@ describe("requestEmailCode", () => {
       fields: ["email"],
     });
     expect(h.email.sent).toEqual([]);
+  });
+
+  it("stores the code under a hash of the address, not the address", async () => {
+    const h = await createHarness();
+
+    await h.as(h.visitor()).requestEmailCode({ email: ASHA });
+
+    const rows = await h.db.select().from(verification);
+    expect(rows).toHaveLength(1);
+    expect(JSON.stringify(rows)).not.toContain(ASHA);
   });
 
   it("asks a sign-up for a name before sending a code", async () => {
