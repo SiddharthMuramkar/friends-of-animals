@@ -5,7 +5,16 @@
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  institutionCoordinators: "/institution/coordinators",
 } as const;
+
+/**
+ * A coordinator invitation's page. Anyone holding the link can open it
+ * (it is the bearer of the invitation), so it is not behind sign-in.
+ */
+export function invitationPath(token: string): string {
+  return `/invitations/${encodeURIComponent(token)}`;
+}
 
 /**
  * Path prefixes that need a signed-in user. src/proxy.ts sends visitors

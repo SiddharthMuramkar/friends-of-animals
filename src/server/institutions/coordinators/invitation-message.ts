@@ -13,6 +13,8 @@ import { eq } from "drizzle-orm";
 import { createTranslator } from "next-intl";
 
 import coordinators from "../../../../messages/en-IN/coordinators.json";
+import { formats, LOCALE } from "../../../i18n/formats";
+import { invitationPath } from "../../../lib/app-routes";
 import type { FieldCipher } from "../../crypto/field-cipher";
 import type { AppDb } from "../../db/app-db";
 import { institution, institutionInvitation, user } from "../../db/schema";
@@ -32,18 +34,11 @@ export type InvitationMessageDeps = {
   auth: { baseUrl: string };
 };
 
-/** The page a link opens: /invitations/<token>. */
-export function invitationPath(token: string): string {
-  return `/invitations/${token}`;
-}
-
-/** "22 Jan 2027, 10:00 am": when the link stops working, in India's time. */
+/** When the link stops working, as the site writes deadlines (IST). */
 function formatExpiry(expiresAt: Date): string {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  }).format(expiresAt);
+  return new Intl.DateTimeFormat(LOCALE, formats.dateTime.longDateTime).format(
+    expiresAt
+  );
 }
 
 const t = createTranslator({
