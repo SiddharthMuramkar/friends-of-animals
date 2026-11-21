@@ -60,21 +60,14 @@ async function readTemplate(): Promise<Blob> {
  * pays for the migrations.
  *
  * Use-case tests should use `createHarness()` from "@/test/harness", which
- * builds on this. Older code that imports `db` from "@/server/db" swaps it
- * with `vi.mock`. The factory is hoisted, so keep the instance in a variable:
+ * builds on this. Lower-level code takes the database as an argument, so a
+ * test passes it one directly, never by mocking an app module such as
+ * "@/server/db" (docs/agents/seam-1.md; CI's integrity job rejects it):
  *
- *   import { createTestDb, type TestDb } from "@/test/db";
+ *   import { createTestDb } from "@/test/db";
  *
- *   let testDb: TestDb;
- *   vi.mock("@/server/db", () => ({
- *     get db() {
- *       return testDb;
- *     },
- *   }));
- *
- *   beforeEach(async () => {
- *     testDb = await createTestDb();
- *   });
+ *   const db = await createTestDb();
+ *   await captureEmailSender({ db, clock }).send(message);
  */
 export async function createTestDb() {
   template ??= readTemplate().catch((error: unknown) => {
