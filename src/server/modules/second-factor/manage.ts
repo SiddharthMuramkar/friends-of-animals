@@ -8,7 +8,7 @@
 // admin clears their factors, and they enrol again. Loads under plain
 // Node: relative imports only.
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -62,11 +62,23 @@ export async function removeSecondFactor(
     if (!removed) return { ok: false, error: "not_found" } as const;
     // With no factor left, no session counts as having passed one, so a
     // factor added later can't revive an old session's second factor.
-    if (!(await isEnrolled(tx, actor.userId))) {
+    // Otherwise the user's other sessions pass one again, since one may
+    // have passed with this factor (a lost phone). This session has just
+    // stepped up, so it keeps its own.
+    const enrolled = await isEnrolled(tx, actor.userId);
+    if (!enrolled || removed.confirmedAt) {
       await tx
         .delete(sessionSecondFactor)
         .where(
-          inArray(sessionSecondFactor.sessionId, sessionsOf(tx, actor.userId))
+          and(
+            inArray(
+              sessionSecondFactor.sessionId,
+              sessionsOf(tx, actor.userId)
+            ),
+            enrolled
+              ? ne(sessionSecondFactor.sessionId, actor.sessionId)
+              : undefined
+          )
         );
     }
     if (removed.confirmedAt) {
@@ -101,7 +113,10 @@ function sessionsOf(tx: AppDb, userId: string) {
 
 /**
  * Clears every factor a user holds, every second factor their sessions
- * passed and any lockout, so they can enrol again.
+ * passed and any lockout, so they can enrol again. Their sessions stay
+ * signed in, and with no factor left, any of them may add the first one
+ * with no step-up, as at first enrolment. HR-19 accepts that: a super
+ * admin resets only for someone who has proved who they are.
  */
 export async function resetSecondFactors(
   ctx: SecondFactorContext,

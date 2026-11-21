@@ -170,6 +170,35 @@ describe("removeSecondFactor", () => {
     expect(await h.db.select().from(sessionSecondFactor)).toEqual([]);
   });
 
+  it("makes the user's other sessions pass a second factor again, in case one passed with it", async () => {
+    const h = await createHarness();
+    const { member, actor } = await enrolledMember(h);
+    const started = await h.as(actor).startTotpEnrolment({ label: "Old" });
+    if (!started.ok) throw new Error("Could not start");
+    const oldPhone = base32Decode(started.secret);
+    await h.as(actor).confirmTotpEnrolment({
+      factorId: started.factorId,
+      code: totpCode(oldPhone, h.clock.now()),
+    });
+    const otherDevice = await h.signIn(member);
+    h.clock.advance({ seconds: 30 });
+    expect(
+      await h
+        .as(otherDevice)
+        .verifySecondFactor({ code: totpCode(oldPhone, h.clock.now()) })
+    ).toEqual({ ok: true });
+
+    // The old phone is lost, so the user removes it.
+    expect(
+      await h.as(actor).removeSecondFactor({ factorId: started.factorId })
+    ).toEqual({ ok: true });
+
+    expect(await h.as(otherDevice).mySecondFactors()).toMatchObject({
+      verifiedAt: null,
+    });
+    expect((await h.as(actor).mySecondFactors()).verifiedAt).not.toBeNull();
+  });
+
   it("needs step-up", async () => {
     const h = await createHarness();
     const { actor, factor } = await enrolledMember(h);
