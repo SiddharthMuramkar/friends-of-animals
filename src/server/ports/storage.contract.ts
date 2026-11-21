@@ -24,15 +24,15 @@ export type StorageContractSetup = () => Promise<{
   /** A folder of this run's own ("…/"), so runs on a real bucket never meet. */
   prefix: string;
   /** The browser's PUT to a presigned URL: true if the object was stored. */
-  upload(
+  upload: (
     url: string,
     headers: Record<string, string>,
     bytes: Uint8Array
-  ): Promise<boolean>;
+  ) => Promise<boolean>;
   /** The browser's GET of a presigned URL: null if it was refused. */
-  download(url: string): Promise<Download | null>;
+  download: (url: string) => Promise<Download | null>;
   /** Lets `seconds` pass: the fake moves its clock; a real bucket waits. */
-  wait(seconds: number): Promise<void>;
+  wait: (seconds: number) => Promise<void>;
 }>;
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4, 5]);
@@ -250,9 +250,9 @@ export function objectStorageContract(
       const beside = `${prefix}ab/3`;
       for (const key of [...inside, beside]) await store(key);
 
-      expect(await storage.deletePrefix({ bucket, prefix: `${prefix}a/` })).toEqual(
-        { deleted: 2 }
-      );
+      expect(
+        await storage.deletePrefix({ bucket, prefix: `${prefix}a/` })
+      ).toEqual({ deleted: 2 });
 
       for (const key of inside) {
         expect(await storage.head({ bucket, key })).toBeNull();

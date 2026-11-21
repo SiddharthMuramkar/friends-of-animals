@@ -83,7 +83,10 @@ describe("FakeStorage", () => {
       ok: false,
       error: "header_mismatch",
     });
-    expect(await storage.get(url)).toEqual({ ok: false, error: "wrong_method" });
+    expect(await storage.get(url)).toEqual({
+      ok: false,
+      error: "wrong_method",
+    });
     expect(
       await storage.put(url.replace("local/a", "local/b"), BYTES, headers)
     ).toEqual({ ok: false, error: "bad_signature" });
@@ -92,9 +95,9 @@ describe("FakeStorage", () => {
         "Content-Type": "text/html",
       })
     ).toEqual({ ok: false, error: "bad_signature" });
-    expect(await storage.put(url, BYTES, { "content-type": "image/png" })).toEqual(
-      { ok: true }
-    );
+    expect(
+      await storage.put(url, BYTES, { "content-type": "image/png" })
+    ).toEqual({ ok: true });
   });
 
   it("refuses a URL another FakeStorage signed", async () => {

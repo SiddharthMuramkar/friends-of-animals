@@ -24,7 +24,9 @@ export type FakeStorageRefusal =
   | "header_mismatch"
   | "not_found";
 
-export type FakePutResult = { ok: true } | { ok: false; error: FakeStorageRefusal };
+export type FakePutResult =
+  | { ok: true }
+  | { ok: false; error: FakeStorageRefusal };
 
 export type FakeGetResult =
   | {
@@ -91,7 +93,15 @@ export class FakeStorage implements ObjectStorage {
     return new Blob([object.bytes.slice()]).stream();
   }
 
-  async move({ bucket, from, to }: { bucket: string; from: string; to: string }) {
+  async move({
+    bucket,
+    from,
+    to,
+  }: {
+    bucket: string;
+    from: string;
+    to: string;
+  }) {
     const object = this.#objects.get(id({ bucket, key: from }));
     if (!object) throw new ObjectMissingError({ bucket, key: from });
     this.#objects.set(id({ bucket, key: to }), object);
@@ -178,7 +188,9 @@ export class FakeStorage implements ObjectStorage {
     expiresInSeconds: number,
     signed: Record<string, string>
   ): string {
-    const url = new URL(`${ORIGIN}/${encodeURIComponent(bucket)}/${encodeKey(key)}`);
+    const url = new URL(
+      `${ORIGIN}/${encodeURIComponent(bucket)}/${encodeKey(key)}`
+    );
     const expires = this.#clock.now().getTime() + expiresInSeconds * 1000;
     url.searchParams.set("method", method);
     url.searchParams.set("expires", String(expires));
@@ -225,7 +237,11 @@ export class FakeStorage implements ObjectStorage {
       .slice(1)
       .split("/")
       .map(decodeURIComponent);
-    return { ok: true, ref: { bucket, key: key.join("/") }, params: url.searchParams };
+    return {
+      ok: true,
+      ref: { bucket, key: key.join("/") },
+      params: url.searchParams,
+    };
   }
 }
 
@@ -238,7 +254,10 @@ function encodeKey(key: string): string {
 }
 
 /** A request header by name, whatever its case. */
-function header(headers: Record<string, string>, name: string): string | undefined {
+function header(
+  headers: Record<string, string>,
+  name: string
+): string | undefined {
   return Object.entries(headers).find(
     ([each]) => each.toLowerCase() === name
   )?.[1];

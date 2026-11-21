@@ -61,9 +61,9 @@ describe("requestUpload", () => {
         createdAt: h.clock.now(),
       }),
     ]);
-    expect(
-      await h.storage.put(result.uploadUrl, PNG, result.headers)
-    ).toEqual({ ok: true });
+    expect(await h.storage.put(result.uploadUrl, PNG, result.headers)).toEqual({
+      ok: true,
+    });
     expect(
       await h.storage.head({
         bucket: h.deps.files.bucket,
@@ -96,9 +96,17 @@ describe("requestUpload", () => {
   });
 
   it.each([
-    ["a size over the purpose's limit", { sizeBytes: 10 * MiB + 1 }, "too_large"],
+    [
+      "a size over the purpose's limit",
+      { sizeBytes: 10 * MiB + 1 },
+      "too_large",
+    ],
     ["an empty file", { sizeBytes: 0 }, "empty"],
-    ["a type the purpose doesn't take", { contentType: "text/html" }, "type_not_allowed"],
+    [
+      "a type the purpose doesn't take",
+      { contentType: "text/html" },
+      "type_not_allowed",
+    ],
     ["an SVG", { contentType: "image/svg+xml" }, "type_not_allowed"],
     ["an unknown purpose", { purpose: "avatar" }, "invalid_input"],
     ["a fractional size", { sizeBytes: 1.5 }, "invalid_input"],
@@ -145,9 +153,10 @@ describe("requestUpload", () => {
 
     h.clock.advance({ minutes: 10, milliseconds: 1 });
 
-    expect(await h.storage.put(result.uploadUrl, PNG, result.headers)).toEqual(
-      { ok: false, error: "expired" }
-    );
+    expect(await h.storage.put(result.uploadUrl, PNG, result.headers)).toEqual({
+      ok: false,
+      error: "expired",
+    });
   });
 });
 
@@ -226,7 +235,10 @@ describe("completeUpload", () => {
   });
 
   it.each([
-    ["a size", { bytes: new Uint8Array(PNG.length + 1), contentType: "image/png" }],
+    [
+      "a size",
+      { bytes: new Uint8Array(PNG.length + 1), contentType: "image/png" },
+    ],
     ["a type", { bytes: PNG, contentType: "text/html" }],
     ["no type", { bytes: PNG, contentType: null }],
   ])(
@@ -262,9 +274,10 @@ describe("completeUpload", () => {
       ).rejects.toMatchObject({ code: "forbidden" });
     }
     expect((await fileRows(h))[0]?.status).toBe("pending_upload");
-    const [events] = await h.db.select({ n: count() }).from(outbox).where(
-      eq(outbox.eventType, "files.file_uploaded")
-    );
+    const [events] = await h.db
+      .select({ n: count() })
+      .from(outbox)
+      .where(eq(outbox.eventType, "files.file_uploaded"));
     expect(events?.n).toBe(0);
   });
 
