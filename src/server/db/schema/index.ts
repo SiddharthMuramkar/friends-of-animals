@@ -7,3 +7,7 @@
 export * from "./identity";
 export * from "./mailbox";
 export * from "./outbox";
+export * from "./access";
+export * from "./audit";
+export * from "./competitions";
+export * from "./judging";
