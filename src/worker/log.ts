@@ -16,3 +16,8 @@ export type WorkerLogEntry = {
 };
 
 export type WorkerLog = (entry: WorkerLogEntry) => void;
+
+/** Stub. */
+export function summarizeError(_error: unknown): string {
+  return "";
+}
