@@ -8,6 +8,13 @@ import type { Clock } from "../../ports/clock";
 import type { CopyBucket } from "../../ports/copy-bucket";
 import type { ErrorReporter } from "../../ports/errors";
 import type { OffsiteConfig } from "./config";
+import { contentMd5ForEtag } from "./domain/etag";
+import { offsiteKeyFor } from "./domain/keys";
+import { planOffsiteCopy, type SourceObject } from "./domain/plan";
+import { manifestOf, recordCopy } from "./manifest";
+
+/** The B2 metadata key holding the etag the object had in R2. */
+export const SOURCE_ETAG_METADATA = "foa-source-etag";
 
 export type OffsiteDeps = {
   db: AppDb;
@@ -50,9 +57,101 @@ export type OffsiteRunReport =
       failedBuckets: string[];
     } & OffsiteTotals);
 
+function emptyTotals(): OffsiteTotals {
+  return {
+    copied: 0,
+    unchanged: 0,
+    deferred: 0,
+    failed: 0,
+    markedDeleted: 0,
+    clearedDeleted: 0,
+    purged: 0,
+    held: 0,
+    skippedNonProduction: 0,
+  };
+}
+
 export async function runOffsiteCopy(
-  _deps: OffsiteDeps,
+  deps: OffsiteDeps,
   _input: { finalAttempt: boolean }
 ): Promise<OffsiteRunReport> {
-  throw new Error("not implemented");
+  if (deps.config.appEnv !== "production") {
+    return { status: "skipped", reason: "not_production" };
+  }
+  const totals = emptyTotals();
+  for (const bucket of deps.config.sourceBuckets) {
+    await copyBucket(deps, bucket, totals);
+  }
+  return { status: "complete", failedBuckets: [], ...totals };
+}
+
+async function copyBucket(
+  deps: OffsiteDeps,
+  bucket: string,
+  totals: OffsiteTotals
+): Promise<void> {
+  const source: SourceObject[] = [];
+  for await (const object of deps.source.list({ bucket })) source.push(object);
+  const plan = planOffsiteCopy({
+    source,
+    manifest: await manifestOf(deps.db, bucket),
+    now: deps.clock.now(),
+    retention: deps.config.retention,
+  });
+  totals.unchanged += plan.unchanged;
+  totals.skippedNonProduction += plan.skippedNonProduction;
+  await eachAtMost(deps.config.concurrency, plan.copy, async ({ object }) => {
+    if (await copyObject(deps, bucket, object)) totals.copied += 1;
+  });
+}
+
+/**
+ * Streams one object from R2 to B2 and records it. False if it left R2
+ * since the listing: the next run sees it gone.
+ */
+async function copyObject(
+  deps: OffsiteDeps,
+  bucket: string,
+  object: SourceObject
+): Promise<boolean> {
+  const read = await deps.source.read({ bucket, key: object.key });
+  if (read === null) return false;
+  await deps.target.write({
+    bucket: deps.config.targetBucket,
+    key: offsiteKeyFor({ bucket, key: object.key }),
+    body: read.body,
+    sizeBytes: read.sizeBytes,
+    contentType: read.contentType,
+    contentMd5: contentMd5ForEtag(read.etag),
+    metadata: { ...read.metadata, [SOURCE_ETAG_METADATA]: read.etag },
+  });
+  // What was read is what B2 holds, even if R2 changed after the listing.
+  await recordCopy(deps.db, {
+    sourceBucket: bucket,
+    key: object.key,
+    etag: read.etag,
+    sizeBytes: read.sizeBytes,
+    sourceLastModified: object.lastModified,
+    copiedAt: deps.clock.now(),
+  });
+  return true;
+}
+
+/** Runs `work` over `items`, at most `limit` at a time. */
+async function eachAtMost<T>(
+  limit: number,
+  items: readonly T[],
+  work: (item: T) => Promise<void>
+): Promise<void> {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const item = items[next] as T;
+      next += 1;
+      await work(item);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker)
+  );
 }
