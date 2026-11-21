@@ -1,7 +1,7 @@
 // The second-factor module (#60): staff two-factor authentication and
 // step-up. Its use cases join `as(actor)` through `secondFactorUseCases`.
 
-import type { UseCaseContext } from "../use-cases";
+import type { UseCaseContext } from "../../use-cases";
 import { removeSecondFactor, resetSecondFactors } from "./manage";
 import {
   finishPasskeyRegistration,

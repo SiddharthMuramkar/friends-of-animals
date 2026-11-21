@@ -10,14 +10,14 @@
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../access/can";
-import { isStaffRole } from "../access/domain/roles";
-import { grantsOf } from "../access/grants";
-import { recordAudit } from "../audit/record";
-import { secondFactor, user, type SecondFactorKind } from "../db/schema";
-import { uuidv7 } from "../ids";
-import { invalidInput, type InvalidInput } from "../input";
-import type { UseCaseContext } from "../use-cases";
+import { authorize } from "../../access/can";
+import { isStaffRole } from "../../access/domain/roles";
+import { grantsOf } from "../../access/grants";
+import { recordAudit } from "../../audit/record";
+import { secondFactor, user, type SecondFactorKind } from "../../db/schema";
+import { uuidv7 } from "../../ids";
+import { invalidInput, type InvalidInput } from "../../input";
+import type { UseCaseContext } from "../../use-cases";
 import { guardedAttempt, type Locked } from "./attempts";
 import { base32Encode } from "./domain/base32";
 import {
@@ -27,7 +27,7 @@ import {
   verifyTotp,
 } from "./domain/totp";
 import { openTotpSecret, sealTotpSecret } from "./secret-box";
-import { DomainError } from "../errors";
+import { DomainError } from "../../errors";
 import { secondFactorRefusal } from "./requirement";
 import {
   isEnrolled,

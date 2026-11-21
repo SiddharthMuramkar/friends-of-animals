@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { SECOND_FACTOR_SETTINGS } from "@/server/second-factor/settings";
+import { SECOND_FACTOR_SETTINGS } from "@/server/modules/second-factor/settings";
 
 import { VerifyPanel } from "../_components/verify-panel";
 

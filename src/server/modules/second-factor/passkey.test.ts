@@ -5,7 +5,7 @@ import { auditLog, secondFactor } from "@/server/db/schema";
 import { createHarness, TEST_AUTH, type Harness } from "@/test/harness";
 import { FakePasskey } from "@/test/fakes/passkey";
 
-import type { Actor } from "../actor";
+import type { Actor } from "../../actor";
 
 const ORIGIN = new URL(TEST_AUTH.baseUrl).origin;
 

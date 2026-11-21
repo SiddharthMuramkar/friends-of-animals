@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Role } from "../../access/domain/roles";
+import type { Role } from "../../../access/domain/roles";
 import { checkSecondFactor, isStaffRole, STAFF_ROLES } from "./gate";
 
 const now = new Date("2027-01-15T04:30:00.000Z");

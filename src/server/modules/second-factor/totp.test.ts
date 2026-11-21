@@ -6,7 +6,7 @@ import { seedPreview, SEED_ACCOUNTS } from "@/server/seed";
 import { SEED_TOTP_SECRET } from "@/server/seed/second-factor";
 import { createHarness, type Harness } from "@/test/harness";
 
-import type { Actor } from "../actor";
+import type { Actor } from "../../actor";
 import { base32Decode } from "./domain/base32";
 import { totpCode } from "./domain/totp";
 

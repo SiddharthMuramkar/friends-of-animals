@@ -9,11 +9,11 @@
 
 import { eq, sql } from "drizzle-orm";
 
-import { isStaffRole, type Role } from "../access/domain/roles";
-import { grantsOf } from "../access/grants";
-import type { AppDb } from "../db/app-db";
-import { session } from "../db/schema";
-import { readSetting } from "../modules/settings/read";
+import { isStaffRole, type Role } from "../../access/domain/roles";
+import { grantsOf } from "../../access/grants";
+import type { AppDb } from "../../db/app-db";
+import { session } from "../../db/schema";
+import { readSetting } from "../settings/read";
 import {
   capSessionExpiry,
   isSessionLive,
