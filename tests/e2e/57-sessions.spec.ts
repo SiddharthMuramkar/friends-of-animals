@@ -89,6 +89,11 @@ test("a member signs out of another device, then everywhere", async ({
     "That device is signed out."
   );
   await expectAccessible(page, "/account/sessions after a sign-out");
+  // It says so once: the address drops ?signedOut, so a reload is quiet.
+  await expect(page).toHaveURL(/\/account\/sessions$/);
+  await page.reload();
+  await expect(sessions).toHaveCount(1);
+  await expect(page.getByText("That device is signed out.")).toHaveCount(0);
   await laptop.goto("/account/sessions");
   await expect(laptop).toHaveURL(/\/sign-in$/);
 
