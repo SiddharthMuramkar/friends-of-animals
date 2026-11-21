@@ -44,6 +44,7 @@ function byKeyBytes(a: string, b: string): number {
 export class FakeCopyBucket implements CopyBucket {
   readonly #clock: Clock;
   readonly #buckets = new Map<string, Map<string, Stored>>();
+  readonly #writes: { bucket: string; key: string }[] = [];
 
   constructor(options: { clock?: Clock } = {}) {
     this.#clock = options.clock ?? realClock;
@@ -119,6 +120,12 @@ export class FakeCopyBucket implements CopyBucket {
       metadata: { ...input.metadata },
       lastModified: this.#clock.now(),
     });
+    this.#writes.push({ bucket: input.bucket, key: input.key });
+  }
+
+  /** Every object stored so far, oldest first. */
+  get writes(): readonly { bucket: string; key: string }[] {
+    return this.#writes;
   }
 
   async delete({ bucket, key }: { bucket: string; key: string }) {

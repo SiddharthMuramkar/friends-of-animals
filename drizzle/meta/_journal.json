@@ -50,6 +50,13 @@
       "when": 1795245501656,
       "tag": "0006_63_file_asset",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795246548905,
+      "tag": "0007_68_offsite_copy",
+      "breakpoints": true
     }
   ]
 }
