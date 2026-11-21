@@ -63,9 +63,10 @@ export const consentDocument = pgTable(
     body: jsonb().$type<ConsentDocumentBody>().notNull(),
     publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
     /**
-     * Who published it; null for seed data. No foreign key: ON DELETE SET
-     * NULL would update this table, which the trigger refuses, and so
-     * block deleting the user.
+     * Who published it (the seeded super admin, for seed data). No foreign
+     * key: ON DELETE SET NULL would update this table, which the trigger
+     * refuses, and so block deleting the user. The id stays after that
+     * account is deleted.
      */
     publishedByUserId: uuid("published_by_user_id"),
   },

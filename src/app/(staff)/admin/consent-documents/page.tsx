@@ -51,8 +51,9 @@ export default async function Page({
         title={t("title")}
         lead={t("lead")}
       />
-      {/* Who is asking, and the documents, are read per request, so they
-          stream in behind this boundary while the heading is prerendered. */}
+      {/* The whole page renders per request (../layout.tsx); who is
+          asking, and the documents, stream in behind this boundary after
+          the heading. */}
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
@@ -129,7 +130,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
           date: date(version.publishedAt),
           name: version.publishedBy.name,
         })
-      : t("versionSeeded", { date: date(version.publishedAt) });
+      : t("versionPublisherGone", { date: date(version.publishedAt) });
 
   return (
     <div className="mt-8 flex flex-col gap-8">
@@ -154,7 +155,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
                       date: date(current.publishedAt),
                       name: current.publishedBy.name,
                     })
-                  : t("currentSeeded", {
+                  : t("currentPublisherGone", {
                       version: current.version,
                       date: date(current.publishedAt),
                     })

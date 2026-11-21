@@ -88,5 +88,7 @@ export const config = {
     "/competitions/:slug",
     "/account",
     "/account/:path*",
+    "/admin",
+    "/admin/:path*",
   ],
 };
