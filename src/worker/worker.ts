@@ -44,6 +44,8 @@ export type WorkerIo = {
   ) => Promise<ScheduleBoss & { stop: () => Promise<void> }>;
   /** Marks the worker healthy at `at` (the heartbeat file). */
   beat: (at: Date) => Promise<void>;
+  /** A tenant's tick failed: Sentry (#66, ./errors.ts). */
+  onTenantError: (error: unknown, where: { tenant: string }) => void;
 };
 
 export type Worker = {
@@ -93,6 +95,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
         }),
       beat: io.beat,
       log: io.log,
+      onError: () => {},
     });
   }
 
@@ -118,6 +121,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
       },
       beat: io.beat,
       log: io.log,
+      onError: () => {},
     });
   }
 
