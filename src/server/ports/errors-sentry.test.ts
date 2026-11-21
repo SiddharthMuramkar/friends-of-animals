@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { errorTracking, sentryOptions } from "@/lib/observability/config";
+import { exceptionOf } from "@/test/fakes/errors";
 
 import { hashUserId } from "./errors";
 import type { SentEvent } from "./errors.contract";
@@ -31,13 +32,7 @@ function recordingSdk() {
   const sdk: SentrySdk = {
     captureException(error, hint) {
       const event: SentryEvent = {
-        exception: {
-          values: [
-            error instanceof Error
-              ? { type: error.name, value: error.message }
-              : { type: "Error", value: String(error) },
-          ],
-        },
+        exception: { values: [exceptionOf(error)] },
         environment: options.environment,
         ...(hint?.tags ? { tags: hint.tags } : {}),
         ...(hint?.extra ? { extra: hint.extra } : {}),

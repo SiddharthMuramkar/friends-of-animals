@@ -182,7 +182,8 @@ function isPersonalKey(key: string): boolean {
   return PERSONAL_KEYS.has(key.toLowerCase().replace(/[^a-z0-9]/g, ""));
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+/** A plain object: not null, not an array. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 

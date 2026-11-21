@@ -17,7 +17,13 @@
 
 import type { Dsn } from "./config";
 import { parseDsn } from "./config";
-import { redactText, scrubEvent, stripQuery, type ScrubOptions } from "./scrub";
+import {
+  isRecord,
+  redactText,
+  scrubEvent,
+  stripQuery,
+  type ScrubOptions,
+} from "./scrub";
 
 /** Sentry's limit for one event; larger envelopes are refused unread. */
 export const DEFAULT_MAX_ENVELOPE_BYTES = 1024 * 1024;
@@ -62,10 +68,6 @@ export type TunnelDecision =
 type Item = { header: Record<string, unknown>; payload: Uint8Array };
 
 class MalformedEnvelope extends Error {}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const encoder = new TextEncoder();

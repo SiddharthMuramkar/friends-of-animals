@@ -4,17 +4,18 @@
 // in the SDK's `beforeSend` (`sentryOptions` in
 // src/lib/observability/config.ts), which the caller set at `init`.
 
-import { captureContext, type CaptureContext } from "./errors";
-import type { ErrorReporter } from "./errors";
+import {
+  DEFAULT_FLUSH_TIMEOUT_MS,
+  captureContext,
+  type CaptureContext,
+  type ErrorReporter,
+} from "./errors";
 
 /** The part of a Sentry SDK the adapter uses. */
 export type SentrySdk = {
   captureException(error: unknown, hint?: CaptureContext): string;
   flush(timeoutMs?: number): Promise<boolean>;
 };
-
-/** How long `flush` waits by default. */
-const FLUSH_TIMEOUT_MS = 2000;
 
 export function sentryErrorReporter(sdk: SentrySdk): ErrorReporter {
   return {
@@ -25,7 +26,7 @@ export function sentryErrorReporter(sdk: SentrySdk): ErrorReporter {
         // Reporting must never turn one failure into two.
       }
     },
-    async flush(timeoutMs = FLUSH_TIMEOUT_MS) {
+    async flush(timeoutMs = DEFAULT_FLUSH_TIMEOUT_MS) {
       try {
         return await sdk.flush(timeoutMs);
       } catch {

@@ -14,6 +14,7 @@ import {
 } from "@/lib/observability/config";
 import { stripQuery } from "@/lib/observability/scrub";
 import {
+  DEFAULT_FLUSH_TIMEOUT_MS,
   hashUserId,
   silentErrorReporter,
   type ErrorReporter,
@@ -22,13 +23,6 @@ import {
   sentryErrorReporter,
   type SentrySdk,
 } from "@/server/ports/errors-sentry";
-
-/**
- * How long a failed request waits for its event to be sent. Next.js awaits
- * `onRequestError`, and a Vercel Function may be frozen once it answers,
- * so the event goes before the error response does.
- */
-const FLUSH_TIMEOUT_MS = 2000;
 
 /** The part of `@sentry/nextjs` the server uses. */
 export type ServerSentrySdk = SentrySdk & {
@@ -99,6 +93,8 @@ export function requestErrorHandler(
       },
       extra: { path: stripQuery(request.path) },
     });
-    await tracker.flush(FLUSH_TIMEOUT_MS);
+    // Next.js awaits this, and a Vercel Function may be frozen once it
+    // answers, so the event goes before the error response does.
+    await tracker.flush(DEFAULT_FLUSH_TIMEOUT_MS);
   };
 }

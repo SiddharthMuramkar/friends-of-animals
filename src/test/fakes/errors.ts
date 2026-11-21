@@ -3,6 +3,16 @@ import type { ErrorContext, ErrorReporter } from "@/server/ports/errors";
 import type { SentEvent } from "@/server/ports/errors.contract";
 import { scrubEvent } from "@/lib/observability/scrub";
 
+/**
+ * The exception a Sentry SDK records for a thrown value: an Error's name
+ * and message, or "Error" and the value as text.
+ */
+export function exceptionOf(error: unknown): { type: string; value: string } {
+  return error instanceof Error
+    ? { type: error.name, value: error.message }
+    : { type: "Error", value: String(error) };
+}
+
 /** A reported error: the event as it would leave, plus the original. */
 export type ReportedError = SentEvent & {
   /** The value passed to `report`, for `toBe` checks. Never sent. */
@@ -20,13 +30,7 @@ export class FakeErrorReporter implements ErrorReporter {
   report(error: unknown, context?: ErrorContext): void {
     const event = scrubEvent(
       {
-        exception: {
-          values: [
-            error instanceof Error
-              ? { type: error.name, value: error.message }
-              : { type: "Error", value: String(error) },
-          ],
-        },
+        exception: { values: [exceptionOf(error)] },
         ...captureContext(context),
       },
       { hashUserId }

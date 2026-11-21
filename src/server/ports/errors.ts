@@ -30,6 +30,12 @@ export interface ErrorReporter {
   flush(timeoutMs?: number): Promise<boolean>;
 }
 
+/**
+ * How long a flush waits by default. A failed request waits this long for
+ * its event before Next.js answers (src/server/observability/request-error.ts).
+ */
+export const DEFAULT_FLUSH_TIMEOUT_MS = 2000;
+
 /** Used whenever error tracking is off: drops every report. */
 export const silentErrorReporter: ErrorReporter = {
   report: () => {},
