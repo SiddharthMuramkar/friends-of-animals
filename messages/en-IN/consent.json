@@ -27,7 +27,8 @@
     "notice": {
       "given": "Done. We'll email you news and updates.",
       "withdrawn": "Done. We won't email you news and updates any more.",
-      "outdated": "We changed the text while you were reading. Read the new version below, then choose again."
+      "outdated": "We changed the text while you were reading. Read the new version below, then choose again.",
+      "failed": "We couldn't save your choice, so nothing changed. Please try again."
     },
     "historyTitle": "Your history",
     "historyEmpty": "Nothing yet.",

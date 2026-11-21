@@ -6,6 +6,7 @@ import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
+import { nonceOf, onlyPolicy, recordCspViolations } from "./support/csp";
 import { freshEmail, readCode } from "./support/mailbox";
 
 // #64: consent documents and consent to messages. The preview seed
@@ -134,6 +135,7 @@ test("a staff admin publishes a new version, which the legal page shows", async 
     testInfo.project.name === "desktop"
       ? [SEED_ACCOUNTS.members[1], "Privacy policy", "/privacy"]
       : [SEED_ACCOUNTS.superAdmin, "Terms of use", "/terms"];
+  const violations = await recordCspViolations(page);
 
   await page.goto(path);
   const before = await shownVersion(page);
@@ -141,6 +143,14 @@ test("a staff admin publishes a new version, which the legal page shows", async 
   await page.goto("/sign-in");
   await finishWithCode(page, request, admin.email);
   await expect(page).toHaveURL(/\/account\/sessions$/);
+
+  // Staff pages render per request under the strict nonce policy (#65).
+  const policy = await onlyPolicy(
+    await page.goto("/admin/consent-documents"),
+    "/admin/consent-documents"
+  );
+  expect(nonceOf(policy), "the staff page's nonce").toBeTruthy();
+  expect(policy).toContain("'strict-dynamic'");
 
   await expectRendersAccessibly(page, "/admin/consent-documents");
   await expectAccessibleInDark(page, "/admin/consent-documents");
@@ -164,6 +174,8 @@ test("a staff admin publishes a new version, which the legal page shows", async 
 
   await page.goto(path);
   expect(await shownVersion(page)).toBeGreaterThanOrEqual(published);
+
+  expect(violations).toEqual([]);
 });
 
 test("a member is refused on the consent documents page", async ({

@@ -19,7 +19,7 @@
       "messages": "News and updates by email"
     },
     "current": "Version {version}, published {date} by {name}.",
-    "currentSeeded": "Version {version}, published {date} with the seed data.",
+    "currentPublisherGone": "Version {version}, published {date} by an account that no longer exists.",
     "none": "Nothing published yet. Until you publish version 1, the page shows the text in the code.",
     "published": "Published version {version}.",
     "form": {
@@ -61,6 +61,6 @@
     "history": "All versions",
     "versionSummary": "Version {version}: {title}",
     "versionPublished": "Published {date} by {name}.",
-    "versionSeeded": "Published {date} with the seed data."
+    "versionPublisherGone": "Published {date} by an account that no longer exists."
   }
 }

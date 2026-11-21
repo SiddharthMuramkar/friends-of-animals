@@ -19,6 +19,7 @@ import type { MyConsent } from "@/server/modules/consent";
 
 import { ChangeNotice } from "./_components/change-notice";
 import { giveConsentAction, withdrawConsentAction } from "./_lib/actions";
+import { CONSENT_NOTICES } from "./_lib/notice";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("consent.meta");
@@ -45,8 +46,8 @@ export default async function Page({
         title={t("title")}
         lead={t("lead")}
       />
-      {/* Consent is read per request, so it streams in behind this
-          boundary while the heading above is prerendered. */}
+      {/* The whole page renders per request (../layout.tsx); consent
+          streams in behind this boundary after the heading. */}
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
@@ -59,12 +60,10 @@ export default async function Page({
 const CARD =
   "rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
 
-const DONE = ["given", "withdrawn", "outdated"] as const;
-
 /** `given-<token>` and the like, from the action's redirect. */
 function doneOf(done: string | string[] | undefined) {
   if (typeof done !== "string") return null;
-  const kind = DONE.find((each) => done.startsWith(`${each}-`));
+  const kind = CONSENT_NOTICES.find((each) => done.startsWith(`${each}-`));
   return kind ? { kind, key: done } : null;
 }
 
@@ -82,6 +81,7 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
   if (!messages) return null;
   const { state, history, currentDocument } = messages;
   const notice = doneOf(done);
+  const refused = notice?.kind === "outdated" || notice?.kind === "failed";
   const onCurrent =
     state.status === "given" && state.documentId === currentDocument?.id;
   const date = (at: Date) => format.dateTime(at, "long");
@@ -91,10 +91,8 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
       {notice ? (
         <ChangeNotice
           key={notice.key}
-          tone={notice.kind === "outdated" ? "danger" : "success"}
-          label={
-            notice.kind === "outdated" ? callout("danger") : callout("success")
-          }
+          tone={refused ? "danger" : "success"}
+          label={refused ? callout("danger") : callout("success")}
           message={t(`notice.${notice.kind}`)}
         />
       ) : null}

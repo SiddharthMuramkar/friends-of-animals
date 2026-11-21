@@ -13,7 +13,7 @@ export const MESSAGES_CONSENT_DRAFT: Pick<LegalDoc, "short" | "sections"> & {
   title: "News and updates by email",
   short: [
     ["We email you news about competitions, results and animal care."],
-    ["About two emails a month. Never adverts from other companies."],
+    ["Never adverts from other companies."],
     ["You can stop them at any time, in your account settings."],
   ],
   sections: [

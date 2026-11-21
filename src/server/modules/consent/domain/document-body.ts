@@ -30,10 +30,12 @@ export const SECTION_ID = /^[a-z]+(?:-[a-z]+)*$/;
 
 /**
  * Where a link in a document may point: a page on this site, an anchor in
- * the document, or an https address. Never another scheme.
+ * the document, or an https address. Never another scheme. A page's path
+ * has no backslash: browsers read one as a slash, so `/\host` would be
+ * `//host`, another site.
  */
 export function isAllowedHref(href: string): boolean {
-  return /^(?:\/(?!\/)[^\s()]*|#[a-z0-9-]+|https:\/\/[^\s()]+)$/.test(href);
+  return /^(?:\/(?!\/)[^\s()\\]*|#[a-z0-9-]+|https:\/\/[^\s()]+)$/.test(href);
 }
 
 const inline = z.union([
