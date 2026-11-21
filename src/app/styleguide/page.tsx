@@ -27,7 +27,8 @@ import { COMPETITION_STATUSES } from "@/content/sample/model";
 import { STORIES } from "@/content/stories";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isSampleContentEnabled, SITE } from "@/lib/site";
+import { isSampleContentEnabled } from "@/lib/site";
+import { getOrgFacts } from "@/server/modules/cms/org-facts";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -216,6 +217,7 @@ export default async function Page() {
   // Test sites only.
   if (!isSampleContentEnabled()) notFound();
   const t = await getTranslations("styleguide");
+  const facts = await getOrgFacts();
   const competitions = getSampleCompetitions();
   const impact = getSampleImpact();
 
@@ -427,7 +429,7 @@ export default async function Page() {
           </Disclosure>
         </Sub>
         <Sub title={t("primitives.placeholder")}>
-          <Placeholder fact={SITE.org.email} />
+          <Placeholder fact={facts.email} />
         </Sub>
         <Sub title={t("primitives.headings")}>
           <SectionHeading

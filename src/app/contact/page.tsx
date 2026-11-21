@@ -14,7 +14,7 @@ import { TileMarker } from "@/components/site/tile";
 import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { getOrgFacts } from "@/server/modules/cms/org-facts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("contact.meta");
@@ -49,7 +49,7 @@ const call = (number: string) => (chunks: ReactNode) => (
 
 export default async function Page() {
   const t = await getTranslations("contact");
-  const { email, phone, address } = SITE.org;
+  const { email, phone, address } = await getOrgFacts();
   const details = [
     { key: "email", icon: Mail, fact: email },
     { key: "phone", icon: Phone, fact: phone },

@@ -8,7 +8,7 @@ import { ContactFact } from "@/components/site/contact-fact";
 import { Section } from "@/components/site/section";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { getOrgFacts } from "@/server/modules/cms/org-facts";
 
 import { PolicyBlock, PolicyTop, Tbc } from "../pricing/_components/policy";
 
@@ -33,6 +33,7 @@ const NEVER = ["withdraw", "confirmed", "switch"] as const;
 
 export default async function Page() {
   const t = await getTranslations("refunds");
+  const facts = await getOrgFacts();
   return (
     <>
       <PolicyTop
@@ -94,7 +95,7 @@ export default async function Page() {
             <p className="mt-3">{t("ask.body")}</p>
             <p className="mt-4 flex flex-wrap items-center gap-2">
               <span className="font-semibold">{t("ask.email")}</span>
-              <ContactFact kind="email" fact={SITE.org.email} />
+              <ContactFact kind="email" fact={facts.email} />
             </p>
             <ButtonLink href={ROUTES.contact.path} className="mt-6">
               {t("ask.link")}

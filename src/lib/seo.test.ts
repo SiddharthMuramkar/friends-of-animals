@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { SAMPLE_COMPETITIONS } from "@/content/sample";
+import {
+  EMPTY_TAX_FACTS,
+  mergeOrgFacts,
+} from "@/server/modules/cms/domain/org-facts";
 import { STORIES } from "@/content/stories";
 import { metaDescription } from "@/content/stories/text";
 import { messages } from "@/i18n/messages";
@@ -79,6 +83,26 @@ describe("organizationJsonLd()", () => {
     expect(data).not.toHaveProperty("email");
     expect(data).not.toHaveProperty("legalName");
     expect(JSON.stringify(data)).not.toContain("placeholder");
+  });
+
+  it("adds the confirmed facts it is given", () => {
+    const facts = mergeOrgFacts(
+      { ...EMPTY_TAX_FACTS, legalName: "Friends of Animals Foundation" },
+      {
+        email: "hello@friendsofanimals.example",
+        phone: "",
+        address: "",
+        socials: ["https://www.instagram.com/example"],
+        grievanceOfficer: { name: "", email: "" },
+      }
+    );
+    expect(
+      organizationJsonLd(new URL("https://shipped-it.dev"), "About.", facts)
+    ).toMatchObject({
+      legalName: "Friends of Animals Foundation",
+      email: "hello@friendsofanimals.example",
+      sameAs: ["https://www.instagram.com/example"],
+    });
   });
 });
 

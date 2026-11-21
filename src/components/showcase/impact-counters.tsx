@@ -22,15 +22,17 @@ const COLS = [
 
 /**
  * Impact counters, with small counts suppressed (counterDisplay): final
- * numbers in the HTML (never counted up from zero), in Baloo 2. Sample
- * data only for now.
+ * numbers in the HTML (never counted up from zero), in Baloo 2. Tagged
+ * "Sample" unless they are real (published counters in production).
  */
 export async function ImpactCounters({
   impact,
+  sample = true,
   headingLevel = 2,
   className,
 }: {
   impact: Impact;
+  sample?: boolean;
   headingLevel?: HeadingLevel;
   className?: string;
 }) {
@@ -52,7 +54,7 @@ export async function ImpactCounters({
         >
           {t("title")}
         </H>
-        <SampleTag />
+        {sample ? <SampleTag /> : null}
       </div>
       <dl
         className={cn(

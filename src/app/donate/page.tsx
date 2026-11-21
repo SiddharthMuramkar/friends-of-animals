@@ -16,6 +16,7 @@ import { siteUrl } from "@/env";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
+import { getOrgFacts } from "@/server/modules/cms/org-facts";
 
 import { EasyRead } from "@/components/site/easy-read";
 import { ButtonLink } from "@/components/site/button-link";
@@ -44,7 +45,8 @@ const CANT = ["tax", "foreign", "minors", "rescue"] as const;
 export default async function Page() {
   const t = await getTranslations("donate");
   const tc = await getTranslations("competitions");
-  const { registration } = SITE.org;
+  const facts = await getOrgFacts();
+  const { registration } = facts;
   const base = siteUrl();
 
   return (
@@ -172,7 +174,7 @@ export default async function Page() {
             <dl className="mt-6 grid items-center gap-x-5 gap-y-1 rounded-3xl sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-y-3 border-2 border-border bg-surface p-5 sm:p-6">
               <dt className="font-semibold">{t("legit.registeredName")}</dt>
               <dd className="mb-2 sm:mb-0">
-                <Placeholder fact={SITE.org.legalName} />
+                <Placeholder fact={facts.legalName} />
               </dd>
               <dt className="font-semibold">{t("legit.registration")}</dt>
               <dd className="mb-2 sm:mb-0">
@@ -210,7 +212,7 @@ export default async function Page() {
             <p className="mt-3 text-ink-muted">{t("csr.body")}</p>
             <p className="mt-4 flex flex-wrap items-center gap-2">
               <span className="font-semibold">{t("csr.email")}</span>
-              <ContactFact kind="email" fact={SITE.org.email} />
+              <ContactFact kind="email" fact={facts.email} />
             </p>
             <ButtonLink
               href={ROUTES.contact.path}

@@ -2,7 +2,7 @@ import { BadgeCheck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Placeholder } from "@/components/site/placeholder";
-import { SITE } from "@/lib/site";
+import { getOrgFacts } from "@/server/modules/cms/org-facts";
 import { cn } from "@/lib/utils";
 
 const POINTS = ["sources", "quotes", "numbers", "noLink"] as const;
@@ -10,6 +10,7 @@ const POINTS = ["sources", "quotes", "numbers", "noLink"] as const;
 /** "How we check facts": the promise behind every story. */
 export async function FactChecks({ className }: { className?: string }) {
   const t = await getTranslations("stories.checks");
+  const facts = await getOrgFacts();
   return (
     <aside
       aria-labelledby="fact-checks"
@@ -41,7 +42,7 @@ export async function FactChecks({ className }: { className?: string }) {
       </ul>
       <p className="mt-5 flex flex-wrap items-center gap-2 text-ink-muted">
         {t("mistake")}{" "}
-        <Placeholder fact={SITE.org.email}>
+        <Placeholder fact={facts.email}>
           {(email) => (
             <a
               href={`mailto:${email}`}

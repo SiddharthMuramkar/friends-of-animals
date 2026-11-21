@@ -23,16 +23,18 @@ import { Photo } from "@/components/site/photo";
 import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
-import { getSampleCompetitions, getSampleImpact } from "@/content/sample";
+import { getSampleCompetitions } from "@/content/sample";
 import { homeCompetitions } from "@/content/sample/selectors";
 import { latestStories } from "@/content/stories";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { isSampleContentEnabled } from "@/lib/site";
+import { loadHome, loadImpact } from "@/server/modules/cms/site-pages";
 
 import {
   activeAnnouncement,
-  HOME_LAYOUT,
+  type HomeLayout,
   type HomeSectionKey,
   openAnnouncement,
   visibleSections,
@@ -95,9 +97,10 @@ async function Announcement() {
   );
 }
 
-async function Hero() {
-  const t = await getTranslations("home");
-  const { hero } = HOME_LAYOUT;
+type BlockProps = { home: HomeLayout };
+
+function Hero({ home }: BlockProps) {
+  const { hero } = home;
   return (
     <section aria-labelledby="home-title" className="relative bg-surface-muted">
       {/* Tile field: a few loose logo-colour tiles, decorative. Only this
@@ -111,19 +114,19 @@ async function Hero() {
       </div>
       <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-12 px-4 py-8 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
         <div>
-          <Eyebrow tile="green">{t("hero.eyebrow")}</Eyebrow>
+          <Eyebrow tile="green">{hero.eyebrow}</Eyebrow>
           <h1
             id="home-title"
             className="mt-4 font-display text-[2.75rem] leading-[1.05] font-extrabold text-balance text-ink sm:text-display lg:text-[4.5rem]"
           >
-            {t(hero.heading)}
+            {hero.heading}
           </h1>
           <p className="mt-5 max-w-prose text-lg text-ink-muted sm:mt-6 sm:text-lead">
-            {t(hero.subheading)}
+            {hero.subheading}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <ButtonLink href={hero.primaryCta.href} size="lg">
-              {t(hero.primaryCta.label)}
+              {hero.primaryCta.label}
             </ButtonLink>
             {hero.secondaryCta ? (
               <ButtonLink
@@ -131,7 +134,7 @@ async function Hero() {
                 variant="secondary"
                 size="lg"
               >
-                {t(hero.secondaryCta.label)}
+                {hero.secondaryCta.label}
               </ButtonLink>
             ) : null}
           </div>
@@ -143,16 +146,18 @@ async function Hero() {
             preload
             frame="red"
             frameCorner="top-right"
-            caption={t("hero.caption")}
+            caption={hero.caption || undefined}
             className="aspect-4/3 shadow-warm ring-8 ring-surface"
             figureClassName="lg:rotate-1"
           />
-          <p
-            aria-hidden="true"
-            className="absolute -top-4 -left-2 hidden -rotate-6 rounded-2xl bg-yellow-300 px-4 py-1.5 font-hand text-lead text-neutral-900 shadow-warm sm:block lg:-left-6"
-          >
-            {t("hero.note")}
-          </p>
+          {hero.note ? (
+            <p
+              aria-hidden="true"
+              className="absolute -top-4 -left-2 hidden -rotate-6 rounded-2xl bg-yellow-300 px-4 py-1.5 font-hand text-lead text-neutral-900 shadow-warm sm:block lg:-left-6"
+            >
+              {hero.note}
+            </p>
+          ) : null}
         </div>
       </div>
     </section>
@@ -281,14 +286,14 @@ async function Gallery() {
   );
 }
 
-async function Impact() {
+async function Impact({ home }: BlockProps) {
   const t = await getTranslations("home.impact");
-  const impact = getSampleImpact();
-  const counters = impact
+  const impact = await loadImpact();
+  const counters = impact?.counters.length
     ? {
         ...impact,
         counters: impact.counters.filter((c) =>
-          HOME_LAYOUT.counterKeys.includes(c.key)
+          home.counterKeys.includes(c.key)
         ),
       }
     : null;
@@ -302,7 +307,12 @@ async function Impact() {
         lead={t("lead")}
       />
       {counters ? (
-        <ImpactCounters impact={counters} headingLevel={3} className="mt-10" />
+        <ImpactCounters
+          impact={counters}
+          sample={isSampleContentEnabled()}
+          headingLevel={3}
+          className="mt-10"
+        />
       ) : (
         <p className="mt-6 max-w-prose text-body text-ink">{t("emptyBody")}</p>
       )}
@@ -420,7 +430,10 @@ async function Joy() {
   );
 }
 
-const SECTIONS: Record<HomeSectionKey, () => Promise<ReactNode>> = {
+const SECTIONS: Record<
+  HomeSectionKey,
+  (props: BlockProps) => ReactNode | Promise<ReactNode>
+> = {
   competitions: Competitions,
   howItWorks: HowItWorks,
   whyChildren: WhyChildren,
@@ -432,17 +445,18 @@ const SECTIONS: Record<HomeSectionKey, () => Promise<ReactNode>> = {
   donate: Donate,
   joy: Joy,
   // Upcoming events: not built yet.
-  events: async () => null,
+  events: () => null,
 };
 
-export default function Page() {
+export default async function Page() {
+  const home = await loadHome();
   return (
     <>
       <Announcement />
-      <Hero />
-      {visibleSections(HOME_LAYOUT).map((key) => {
+      <Hero home={home} />
+      {visibleSections(home).map((key) => {
         const Block = SECTIONS[key];
-        return <Block key={key} />;
+        return <Block key={key} home={home} />;
       })}
     </>
   );
