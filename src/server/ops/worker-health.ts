@@ -65,3 +65,30 @@ export async function readWorkerHealth(
     maxAgeSeconds: WORKER_MAX_AGE_SECONDS,
   });
 }
+
+/** Monitors and CDNs must never see a cached answer. */
+const NO_STORE = { "Cache-Control": "no-store" };
+
+/**
+ * GET /api/health/worker's answer: 200 while `environment`'s worker is ok,
+ * 503 when it is stale or missing, and 503 `{ status: "error" }` when the
+ * database can't be read. The error's details go to the server log only.
+ */
+export async function workerHealthResponse(
+  deps: DbWithClock,
+  environment: string
+): Promise<Response> {
+  try {
+    const health = await readWorkerHealth(deps, environment);
+    return Response.json(health, {
+      status: health.status === "ok" ? 200 : 503,
+      headers: NO_STORE,
+    });
+  } catch (error) {
+    console.error("Worker health check: the database query failed.", error);
+    return Response.json(
+      { status: "error" },
+      { status: 503, headers: NO_STORE }
+    );
+  }
+}
