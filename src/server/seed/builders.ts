@@ -4,8 +4,13 @@
 // Node: relative imports only, no "server-only".
 
 import type { Grant } from "../access/domain/roles";
+import { storedPhone } from "../identity/stored-phone";
+import {
+  ensureVerifiedAccount,
+  type VerifiedAccount,
+} from "../identity/verified-account";
 import { ensureGrant } from "./access";
-import { ensureAccount, seedPhone, type SeededUser } from "./identity";
+import { seedPhone } from "./identity";
 import type { SeedDeps, Seeder } from "./types";
 
 const MEMBER_NAMES = [
@@ -39,14 +44,16 @@ export function seedFunctions(seeders: readonly Seeder[]) {
      */
     async function member(
       details: { name?: string; email?: string; phone?: string } = {}
-    ): Promise<SeededUser> {
+    ): Promise<VerifiedAccount> {
       members += 1;
-      return ensureAccount(deps, {
+      return ensureVerifiedAccount(deps, {
         name:
           details.name ?? MEMBER_NAMES[(members - 1) % MEMBER_NAMES.length]!,
         email: details.email ?? `test-member-${members}@example.test`,
         phone:
-          details.phone === undefined ? undefined : seedPhone(details.phone),
+          details.phone === undefined
+            ? undefined
+            : storedPhone(deps, seedPhone(details.phone)),
       });
     }
     /** Gives `user` a grant (no audit entry: it is seed data). */

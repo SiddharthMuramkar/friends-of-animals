@@ -1,8 +1,8 @@
 // What use cases run against: the database, the clock and the provider
 // ports. `productionDeps()` wires the real ones for server actions and route
 // handlers; the Seam 1 harness (src/test/harness.ts) wires PGlite, a fake
-// clock and in-memory fakes. Later ports (SMS #58, storage #63) are
-// appended here and in the harness by the ticket that adds them. Background
+// clock and in-memory fakes. Later ports (storage #63) are appended here
+// and in the harness by the ticket that adds them. Background
 // work is not a port: use cases emit outbox events (src/server/outbox), and
 // the relay delivers them with these deps (`h.drain()` in the harness).
 

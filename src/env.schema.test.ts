@@ -245,6 +245,9 @@ describe("envSchema: error tracking", () => {
     APP_ENV: "staging",
     APP_URL: SITE,
     BETTER_AUTH_SECRET: SECRET,
+    // Staging and production also need field keys (#58).
+    FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+    FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
   };
   const production = { ...staging, APP_ENV: "production" };
 
@@ -301,7 +304,13 @@ describe("envSchema: error tracking", () => {
 describe("envSchema: field encryption keys", () => {
   const KEYS = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
   const HMAC = "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=";
-  const deployed = { DATABASE_URL, APP_URL: SITE, BETTER_AUTH_SECRET: SECRET };
+  const deployed = {
+    DATABASE_URL,
+    APP_URL: SITE,
+    BETTER_AUTH_SECRET: SECRET,
+    // Production also needs error tracking (#66).
+    NEXT_PUBLIC_SENTRY_DSN: "https://abc123@o1.ingest.us.sentry.io/4507",
+  };
 
   it.each(["staging", "production"] as const)(
     "requires FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY on %s",

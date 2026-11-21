@@ -31,7 +31,7 @@ describe("someUseCase", () => {
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `h.as(actor)`      | The app's use cases, acting as `actor`, over the harness deps (`createApp(deps)` from `src/server/app.ts`)                                                            |
 | `h.visitor(meta?)` | A signed-out actor with documentation IP `203.0.113.10`; pass `{ ip }` to vary it                                                                                     |
-| `h.seed`           | `src/server/seed/` builders on this database and clock: `member()`, `superAdmin()`, `grant()`, `preview()`                                                            |
+| `h.seed`           | `src/server/seed/` builders on this database and clock: `member()` (with `phone`), `superAdmin()`, `grant()`, `preview()`                                             |
 | `h.clock`          | `FakeClock`: `now()`, `advance({ minutes: 10 })`, `set(instant)`. Starts at `DEFAULT_TEST_INSTANT`                                                                    |
 | `h.email`          | `FakeEmail`: `sent`, `lastTo(address)`, `codeFor(address)`, `failNext(n, error)`                                                                                      |
 | `h.sms`            | `FakeSms`: `sent` (with template and vars), `lastTo(phone)`, `codeFor(phone)`, `failNext(n, error)`; any spelling of the number                                       |

@@ -35,6 +35,11 @@ A short-lived number emailed or texted to a User to prove they hold that
 address or phone; it is how people sign up and sign in, with no password.
 _Avoid_: OTP (in copy), password, token
 
+**Sign-in method**:
+A way to receive sign-in codes: email, always on, or SMS, which stays off
+until FOA's SMS sender registration is approved.
+_Avoid_: Login type, provider
+
 **Role**:
 What a User is to the platform, such as a judge, an institution coordinator or
 a super admin, which decides what they may do. A User may hold several.
