@@ -1,5 +1,5 @@
 {
-  "id": "08e91e42-879f-4a71-bf72-2fe67847eb9e",
+  "id": "1f0892d2-f567-41eb-9941-0b3116faca39",
   "prevId": "28db698e-d250-462e-b334-1b1325b35eb2",
   "version": "7",
   "dialect": "postgresql",
@@ -1269,6 +1269,319 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.safeguarding_incident_log": {
+      "name": "safeguarding_incident_log",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "report_id": {
+          "name": "report_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "incident_log_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_status": {
+          "name": "to_status",
+          "type": "safeguarding_report_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "severity": {
+          "name": "severity",
+          "type": "safeguarding_severity",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_user_id": {
+          "name": "author_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "safeguarding_incident_log_report_id_idx": {
+          "name": "safeguarding_incident_log_report_id_idx",
+          "columns": [
+            {
+              "expression": "report_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "safeguarding_incident_log_report_id_safeguarding_report_id_fk": {
+          "name": "safeguarding_incident_log_report_id_safeguarding_report_id_fk",
+          "tableFrom": "safeguarding_incident_log",
+          "tableTo": "safeguarding_report",
+          "columnsFrom": [
+            "report_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "safeguarding_incident_log_note_has_body": {
+          "name": "safeguarding_incident_log_note_has_body",
+          "value": "\"safeguarding_incident_log\".\"kind\" <> 'note' OR \"safeguarding_incident_log\".\"body\" IS NOT NULL"
+        },
+        "safeguarding_incident_log_move_has_status": {
+          "name": "safeguarding_incident_log_move_has_status",
+          "value": "(\"safeguarding_incident_log\".\"kind\" = 'note') = (\"safeguarding_incident_log\".\"to_status\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.safeguarding_report": {
+      "name": "safeguarding_report",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_details": {
+          "name": "subject_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject_age": {
+          "name": "subject_age",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reporter_is_child": {
+          "name": "reporter_is_child",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anonymous": {
+          "name": "anonymous",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reporter_name": {
+          "name": "reporter_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reporter_contact": {
+          "name": "reporter_contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "safeguarding_report_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'new'"
+        },
+        "severity": {
+          "name": "severity",
+          "type": "safeguarding_severity",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_to_user_id": {
+          "name": "assigned_to_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "escalation_reference": {
+          "name": "escalation_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "safeguarding_report_status_created_at_idx": {
+          "name": "safeguarding_report_status_created_at_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "safeguarding_report_assigned_to_user_id_idx": {
+          "name": "safeguarding_report_assigned_to_user_id_idx",
+          "columns": [
+            {
+              "expression": "assigned_to_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "safeguarding_report_assigned_to_user_id_user_id_fk": {
+          "name": "safeguarding_report_assigned_to_user_id_user_id_fk",
+          "tableFrom": "safeguarding_report",
+          "tableTo": "user",
+          "columnsFrom": [
+            "assigned_to_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "safeguarding_report_reference_unique": {
+          "name": "safeguarding_report_reference_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reference"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "safeguarding_report_subject_age_range": {
+          "name": "safeguarding_report_subject_age_range",
+          "value": "\"safeguarding_report\".\"subject_age\" BETWEEN 0 AND 17"
+        },
+        "safeguarding_report_anonymous_has_no_reporter": {
+          "name": "safeguarding_report_anonymous_has_no_reporter",
+          "value": "NOT \"safeguarding_report\".\"anonymous\" OR (\"safeguarding_report\".\"reporter_name\" IS NULL AND \"safeguarding_report\".\"reporter_contact\" IS NULL)"
+        },
+        "safeguarding_report_severity_after_triage": {
+          "name": "safeguarding_report_severity_after_triage",
+          "value": "(\"safeguarding_report\".\"status\" = 'new') = (\"safeguarding_report\".\"severity\" IS NULL)"
+        },
+        "safeguarding_report_escalated_has_reference": {
+          "name": "safeguarding_report_escalated_has_reference",
+          "value": "\"safeguarding_report\".\"status\" <> 'escalated' OR \"safeguarding_report\".\"escalation_reference\" IS NOT NULL"
+        },
+        "safeguarding_report_resolved_has_outcome": {
+          "name": "safeguarding_report_resolved_has_outcome",
+          "value": "(\"safeguarding_report\".\"status\" = 'resolved') = (\"safeguarding_report\".\"outcome\" IS NOT NULL AND \"safeguarding_report\".\"resolved_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -1363,6 +1676,36 @@
       "schema": "public",
       "values": [
         "user"
+      ]
+    },
+    "public.incident_log_kind": {
+      "name": "incident_log_kind",
+      "schema": "public",
+      "values": [
+        "note",
+        "status_change",
+        "escalation"
+      ]
+    },
+    "public.safeguarding_report_status": {
+      "name": "safeguarding_report_status",
+      "schema": "public",
+      "values": [
+        "new",
+        "triaged",
+        "investigating",
+        "escalated",
+        "resolved"
+      ]
+    },
+    "public.safeguarding_severity": {
+      "name": "safeguarding_severity",
+      "schema": "public",
+      "values": [
+        "critical",
+        "high",
+        "medium",
+        "low"
       ]
     }
   },

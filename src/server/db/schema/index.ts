@@ -12,3 +12,4 @@ export * from "./audit";
 export * from "./outbox";
 export * from "./consent";
 export * from "./settings";
+export * from "./safeguarding";
