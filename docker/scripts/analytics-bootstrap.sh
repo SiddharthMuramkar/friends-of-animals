@@ -10,8 +10,9 @@
 #   2. postgres/bootstrap/umami.sql in foa-pg-prod: role and database umami,
 #      with that password, passed over stdin and never as an argument. Then
 #      pg_reload_conf(), so pg_hba.prod.conf's umami rule applies.
-#   3. The tunnel token: if /etc/foa/secrets/cloudflared_tunnel_token exists,
-#      make it 0400 for cloudflared's user (65532); else say how to create it.
+#
+# Umami publishes no port and needs no certificate: Caddy (edge.yml) serves
+# stats.friendsofanimals.dev and proxies it to Umami.
 #
 # Run after `git pull` in /srv/foa and with the database stack up, before
 # `docker compose -f docker/analytics.yml up -d --wait` (docker/README.md).
@@ -22,8 +23,6 @@
 set -euo pipefail
 
 ENV_FILE=/etc/foa/analytics.env
-TOKEN_FILE=/etc/foa/secrets/cloudflared_tunnel_token
-CLOUDFLARED_UID=65532 # nonroot in the distroless cloudflared image
 PG_CONTAINER=foa-pg-prod
 PG_HOST=10.112.12.10 # pg-prod on network db (compose.yml)
 SQL_FILE=/opt/foa/bootstrap/umami.sql # postgres/bootstrap, mounted in pg-prod
@@ -31,8 +30,8 @@ SQL_FILE=/opt/foa/bootstrap/umami.sql # postgres/bootstrap, mounted in pg-prod
 usage() {
   cat <<EOF
 Usage: $0
-Writes Umami's env file, creates its role and database on pg-prod and checks
-the Cloudflare Tunnel token. Idempotent; run as root.
+Writes Umami's env file and creates its role and database on pg-prod.
+Idempotent; run as root.
 EOF
 }
 
@@ -107,18 +106,6 @@ apply_sql() {
       psql -X -q -v ON_ERROR_STOP=1 -h /var/run/postgresql -U postgres -d postgres
 }
 
-check_token() {
-  if [ -s "$TOKEN_FILE" ]; then
-    chown "$CLOUDFLARED_UID:$CLOUDFLARED_UID" "$TOKEN_FILE"
-    chmod 0400 "$TOKEN_FILE"
-    echo "kept $TOKEN_FILE"
-  else
-    echo "missing $TOKEN_FILE: paste the tunnel token into" \
-      "sudo install -m 0400 -o $CLOUDFLARED_UID -g $CLOUDFLARED_UID /dev/stdin $TOKEN_FILE" \
-      "(end with Ctrl-D), then rerun"
-  fi
-}
-
 main() {
   case "${1:-}" in
     "") ;;
@@ -130,11 +117,10 @@ main() {
   command -v docker >/dev/null || die "docker not found"
   umask 077
 
-  install -d -m 0700 -o root -g root "$(dirname "$ENV_FILE")" "$(dirname "$TOKEN_FILE")"
+  install -d -m 0700 -o root -g root "$(dirname "$ENV_FILE")"
   write_env "$ENV_FILE"
   apply_sql "$(db_password "$(env_value "$ENV_FILE" DATABASE_URL)")"
   echo "applied umami.sql on $PG_CONTAINER and reloaded its configuration"
-  check_token
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi

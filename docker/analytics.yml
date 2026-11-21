@@ -1,5 +1,5 @@
-# Self-hosted Umami for cookieless page views (issue #118), reached through a
-# Cloudflare Tunnel. A Compose project of its own, next to the database stack:
+# Self-hosted Umami for cookieless page views (issue #118), served by the
+# Caddy edge. A Compose project of its own, next to the database stack:
 #
 #   docker compose -f /srv/foa/docker/analytics.yml up -d --wait
 #
@@ -8,17 +8,15 @@
 # - Data: Umami keeps everything in the database `umami` on pg-prod
 #   (postgres/bootstrap/umami.sql), so pgBackRest's stanza `foa`, which backs
 #   up the whole pg-prod cluster, backs it up too. No database or volume here.
-# - Ingress: nothing is published. cloudflared dials out to Cloudflare, which
-#   serves stats.<domain> over TLS and forwards it to http://umami:3000 (the
-#   tunnel's public hostname, set in the Cloudflare dashboard). So no
-#   FOA-INBOUND rule and no certificate on the VPS.
+# - Ingress: nothing is published. Caddy (edge.yml, project foa-edge) runs on
+#   the host network, serves stats.friendsofanimals.dev over TLS and proxies
+#   it to 10.112.12.30:3000 on the `db` bridge (caddy/Caddyfile).
 # - The site loads the tracker as /stats/script.js and posts to
 #   /stats/api/send on its own origin; Next rewrites both to stats.<domain>
 #   (next.config.ts, src/lib/analytics/umami.ts).
 #
 # Secrets, made by scripts/analytics-bootstrap.sh and never in git:
 #   /etc/foa/analytics.env                      0600 root
-#   /etc/foa/secrets/cloudflared_tunnel_token   0400 65532 (cloudflared's user)
 
 name: foa-analytics
 
@@ -40,7 +38,7 @@ services:
     # The database URL (role umami on pg-prod 10.112.12.10, database umami),
     # APP_SECRET, TWO_FACTOR_ENCRYPTION_KEY and DISABLE_TELEMETRY=1.
     # CLIENT_IP_HEADER is left at Umami's default until HR-52 checks which
-    # header carries the visitor's address through Vercel and Cloudflare.
+    # header carries the visitor's address through Vercel and Caddy.
     env_file: /etc/foa/analytics.env
     cap_drop:
       - ALL
@@ -60,70 +58,13 @@ services:
       start_interval: 5s
     networks:
       # pg-prod's network, from compose.yml. pg_hba.prod.conf lets in the
-      # role umami from this address only.
+      # role umami from this address only, and Caddy on the host reaches
+      # Umami here.
       db:
         ipv4_address: 10.112.12.30
-      tunnel: {}
-
-  cloudflared:
-    image: cloudflare/cloudflared:2026.11.1
-    container_name: foa-cloudflared
-    restart: unless-stopped
-    depends_on:
-      umami:
-        condition: service_healthy
-    # The token is read from a file: as an argument or in the environment
-    # it would show in `ps` and `docker inspect`. The metrics server stays on
-    # loopback and only serves the health check.
-    command:
-      [
-        "tunnel",
-        "--no-autoupdate",
-        "--metrics",
-        "127.0.0.1:60123",
-        "run",
-        "--token-file",
-        "/run/secrets/cloudflared_tunnel_token",
-      ]
-    secrets:
-      - cloudflared_tunnel_token
-    read_only: true
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    cpus: 0.5
-    mem_limit: 256m
-    logging: *logging
-    healthcheck:
-      # Healthy once at least one connection to Cloudflare's edge is up. The
-      # image has no shell, so the exec form.
-      test:
-        [
-          "CMD",
-          "cloudflared",
-          "tunnel",
-          "--metrics",
-          "127.0.0.1:60123",
-          "ready",
-        ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-      start_interval: 2s
-    networks:
-      - tunnel
 
 networks:
   # Created by compose.yml (project foa-vps); start that stack first.
   db:
     name: foa-vps_db
     external: true
-  # Umami and cloudflared only; cloudflared never joins `db`.
-  tunnel:
-    driver: bridge
-
-secrets:
-  cloudflared_tunnel_token:
-    file: /etc/foa/secrets/cloudflared_tunnel_token
