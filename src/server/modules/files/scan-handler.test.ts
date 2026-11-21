@@ -75,7 +75,9 @@ describe("the malware scan", () => {
     const { fileId } = await upload(h, "image/png", PNG);
     h.clock.advance({ minutes: 1 });
 
-    expect(await h.drain()).toMatchObject({ dispatched: 1, failed: 0 });
+    expect(await h.drain()).toMatchObject({ failed: 0 });
+    // A clean image also gets its media job (#85): count the scan only.
+    expect(await scanDeliveries(h)).toEqual([{ status: "dispatched" }]);
 
     const row = await fileRow(h, fileId);
     expect(row).toMatchObject({

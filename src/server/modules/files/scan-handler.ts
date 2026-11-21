@@ -33,6 +33,7 @@ import {
   type FileEvent,
   type FileStatus,
 } from "./domain/file-status";
+import { queueMediaWork } from "./process-image";
 import { scanOutcome, type ScanOutcome } from "./domain/scan-outcome";
 import {
   SNIFF_BYTES,
@@ -190,7 +191,13 @@ async function settle(
   const object = { bucket: file.bucket, key: file.storageKey };
 
   if (status === "clean") {
-    await recordVerdict(db, file, verdict);
+    // An image's derivatives are queued with the verdict (#85), never
+    // before it.
+    await db.transaction(async (tx) => {
+      if (await recordVerdict(tx, file, verdict)) {
+        await queueMediaWork(tx, clock, file);
+      }
+    });
     return;
   }
   // The object moves or goes inside the transaction: if that fails, the
