@@ -3,10 +3,14 @@ import {
   test,
   type APIRequestContext,
   type Page,
+  type TestInfo,
 } from "@playwright/test";
 
-import { SEED_COMPETITION_MANAGER } from "../../src/server/seed/competitions";
+import { base32Decode } from "../../src/server/second-factor/domain/base32";
+import { totpCode } from "../../src/server/second-factor/domain/totp";
+import { SEED_COMPETITION_MANAGERS } from "../../src/server/seed/competitions";
 import { SEED_SCOPES } from "../../src/server/seed/scopes";
+import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {
   expectAccessible,
   expectAccessibleInDark,
@@ -14,14 +18,17 @@ import {
 } from "./support/a11y";
 import { freshEmail, readCode } from "./support/mailbox";
 
-// #70: the seeded competition manager creates a draft, fills it in,
-// previews it and publishes it; the four admin pages pass axe in light
-// and dark. People without the role are refused, visitors sent to sign in.
-// 70b adds the public page's side of the journey.
+// #70: a seeded competition manager signs in, passes the staff second
+// factor (#60) with the seed authenticator and sees what the seeded draft
+// still needs; then creates a draft, fills it in, previews it and
+// publishes it. The four admin pages pass axe in light and dark. People
+// without the role are refused, visitors sent to sign in. 70b adds the
+// public page's side of the journey.
 //
-// Sign-in codes: each project asks for two (the seeded manager, a fresh
-// member). Seeded addresses allow 5 codes in 15 minutes, so one preview
-// database takes two runs in 15 minutes. #60 adds the staff second factor.
+// An authenticator code works once, so each project signs in its own
+// seeded manager, and only once. Sign-in codes: each project asks for two
+// (its manager, a fresh member). Seeded addresses allow 5 codes in 15
+// minutes, so one preview database takes two runs in 15 minutes.
 
 /** Signs in by email code, read from the capture mailbox. */
 async function signIn(page: Page, request: APIRequestContext, email: string) {
@@ -35,6 +42,30 @@ async function signIn(page: Page, request: APIRequestContext, email: string) {
     .fill(await readCode(request, email));
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/account\/sessions$/);
+}
+
+/**
+ * Signs this project's seeded competition manager in, then passes the
+ * second factor the admin pages ask for, with the seed authenticator.
+ */
+async function signInAsManager(
+  page: Page,
+  request: APIRequestContext,
+  testInfo: TestInfo
+) {
+  const [desktop, mobile] = SEED_COMPETITION_MANAGERS;
+  const manager = testInfo.project.name === "mobile" ? mobile : desktop;
+  await signIn(page, request, manager.email);
+
+  await page.goto("/admin/competitions");
+  await expect(page).toHaveURL(
+    /\/auth\/second-factor\?next=%2Fadmin%2Fcompetitions$/
+  );
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(base32Decode(SEED_TOTP_SECRET), new Date()));
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(/\/admin\/competitions$/);
 }
 
 /** A competition code nobody has used: 6 letters from the clock, then 27. */
@@ -53,11 +84,23 @@ async function checkBothThemes(page: Page, label: string) {
   await expectAccessibleInDark(page, label);
 }
 
-test("a competition manager creates, edits, previews and publishes a competition", async ({
+test("a competition manager sees what a draft needs, then creates, edits, previews and publishes one", async ({
   page,
   request,
-}) => {
-  await signIn(page, request, SEED_COMPETITION_MANAGER.email);
+}, testInfo) => {
+  await signInAsManager(page, request, testInfo);
+
+  // The seeded draft has gaps: its preview lists what publishing needs.
+  await expectRendersAccessibly(
+    page,
+    `/admin/competitions/${SEED_SCOPES.competition.id}/preview`
+  );
+  await expect(
+    page.getByRole("heading", { name: "Before you can publish" })
+  ).toBeVisible();
+  await expect(page.getByText("Rules: fill this in.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0);
+  await expectAccessibleInDark(page, "the seeded draft's preview");
 
   // The list.
   await expectRendersAccessibly(page, "/admin/competitions");
@@ -146,24 +189,6 @@ test("a competition manager creates, edits, previews and publishes a competition
   await expect(
     page.getByRole("listitem").filter({ hasText: name })
   ).toContainText("Published");
-});
-
-test("a draft with gaps lists what publishing still needs", async ({
-  page,
-  request,
-}) => {
-  await signIn(page, request, SEED_COMPETITION_MANAGER.email);
-
-  await expectRendersAccessibly(
-    page,
-    `/admin/competitions/${SEED_SCOPES.competition.id}/preview`
-  );
-  await expect(
-    page.getByRole("heading", { name: "Before you can publish" })
-  ).toBeVisible();
-  await expect(page.getByText("Rules: fill this in.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0);
-  await expectAccessibleInDark(page, "the seeded draft's preview");
 });
 
 test("a member without the role is refused, and a visitor is sent to sign in", async ({
