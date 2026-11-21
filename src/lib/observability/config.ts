@@ -78,7 +78,7 @@ export function errorTracking({
   if (value === "") return { enabled: false };
   if (parseDsn(value) === undefined) {
     throw new Error(
-      "SENTRY_DSN is set but is not a valid Sentry DSN. Copy it from the " +
+      "The Sentry DSN is set but is not a valid Sentry DSN. Copy it from the " +
         "Sentry project's Client Keys page, or leave it empty to turn " +
         "error tracking off."
     );
