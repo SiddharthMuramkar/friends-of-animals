@@ -35,8 +35,10 @@ function world({ everyTenantMustTick = false } = {}) {
     closed: [] as string[],
     beats: [] as Date[],
     log: [] as WorkerLogEntry[],
+    startFails: undefined as Error | undefined,
   };
   const startTenant = (database: string): Tenant => {
+    if (state.startFails) throw state.startFails;
     state.started.push(database);
     return {
       database,
@@ -252,6 +254,23 @@ describe("the supervisor", () => {
 
     expect(state.beats).toEqual([]);
     expect(supervisor.serving()).toEqual(["foa_staging"]);
+  });
+
+  it("doesn't beat in single mode until its database has a tenant", async () => {
+    const { state, supervisor } = world({ everyTenantMustTick: true });
+    state.listed = ["foa_staging"];
+    state.startFails = new Error("getaddrinfo EAI_AGAIN pg-nonprod");
+
+    await supervisor.tick();
+
+    expect(supervisor.serving()).toEqual([]);
+    expect(state.beats).toEqual([]);
+    expect(state.log).toContainEqual(
+      expect.objectContaining({
+        event: "tenant.attach_failed",
+        database: "foa_staging",
+      })
+    );
   });
 
   it("closes every tenant when it stops", async () => {
