@@ -17,12 +17,12 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../access/can";
-import { recordAudit } from "../audit/record";
-import { cmsRevision } from "../db/schema";
-import { uuidv7 } from "../ids";
-import { invalidInput, type InvalidInput } from "../input";
-import type { UseCaseContext } from "../use-cases";
+import { authorize } from "../../access/can";
+import { recordAudit } from "../../audit/record";
+import { cmsRevision } from "../../db/schema";
+import { uuidv7 } from "../../ids";
+import { invalidInput, type InvalidInput } from "../../input";
+import type { UseCaseContext } from "../../use-cases";
 import {
   CMS_DOCUMENT_KEYS,
   cmsDocumentKind,

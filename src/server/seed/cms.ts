@@ -10,9 +10,9 @@
 import { eq } from "drizzle-orm";
 
 import { cmsRevision } from "../db/schema";
-import { CMS_DOCUMENT_KEYS } from "../cms/domain/documents";
-import { kindOf } from "../cms/kinds";
-import { ensureDocument } from "../cms/repository";
+import { CMS_DOCUMENT_KEYS } from "../modules/cms/domain/documents";
+import { kindOf } from "../modules/cms/kinds";
+import { ensureDocument } from "../modules/cms/repository";
 import { uuidv7 } from "../ids";
 import type { SeedDeps } from "./types";
 

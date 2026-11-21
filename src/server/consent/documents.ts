@@ -14,8 +14,8 @@ import { z } from "zod";
 
 import { authorize } from "../access/can";
 import { recordAudit } from "../audit/record";
-import { legalKeyForConsentPurpose } from "../cms/domain/documents";
-import { publishedRevisionId } from "../cms/repository";
+import { legalKeyForConsentPurpose } from "../modules/cms/domain/documents";
+import { publishedRevisionId } from "../modules/cms/repository";
 import { invalidInput, type InvalidInput } from "../input";
 import type { UseCaseContext } from "../use-cases";
 import type { ConsentDocumentBody } from "./domain/document-body";

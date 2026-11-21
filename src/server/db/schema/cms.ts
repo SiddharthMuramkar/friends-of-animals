@@ -1,10 +1,10 @@
 // The CMS (#111): the site's editable documents and their revisions.
 //
 // A document is one fixed page or block of site copy, named by its key
-// (src/server/cms/domain/documents.ts). Its text lives in revisions: at
-// most one open draft, which content managers edit in place, and at most
-// one published revision; publishing numbers the draft and supersedes the
-// one before. Published and superseded revisions never change again: a
+// (src/server/modules/cms/domain/documents.ts). Its text lives in
+// revisions: at most one open draft, which content managers edit in place,
+// and at most one published revision; publishing numbers the draft and
+// supersedes the one before. Published and superseded revisions never change again: a
 // trigger refuses any other UPDATE or DELETE of them
 // (drizzle/*_111_cms_revision_guard.sql).
 //
@@ -25,7 +25,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { CMS_REVISION_STATUSES } from "../../cms/domain/revisions";
+import { CMS_REVISION_STATUSES } from "../../modules/cms/domain/revisions";
 
 export const cmsRevisionStatusEnum = pgEnum(
   "cms_revision_status",

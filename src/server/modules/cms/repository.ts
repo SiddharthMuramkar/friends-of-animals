@@ -5,9 +5,9 @@
 
 import { aliasedTable, and, desc, eq, max, sql } from "drizzle-orm";
 
-import type { AppDb } from "../db/app-db";
-import { cmsDocument, cmsRevision, user } from "../db/schema";
-import { uuidv7 } from "../ids";
+import type { AppDb } from "../../db/app-db";
+import { cmsDocument, cmsRevision, user } from "../../db/schema";
+import { uuidv7 } from "../../ids";
 import { cmsDocumentKind, type CmsDocumentKey } from "./domain/documents";
 import type { CmsRevisionStatus, RevisionRef } from "./domain/revisions";
 

@@ -2,7 +2,7 @@
 // published revisions. Its use cases join `as(actor)` through
 // `cmsUseCases`.
 
-import type { UseCaseContext } from "../use-cases";
+import type { UseCaseContext } from "../../use-cases";
 import type { CmsDocumentKey } from "./domain/documents";
 import { currentLegalVersion } from "./legal";
 import {

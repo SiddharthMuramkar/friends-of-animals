@@ -3,7 +3,7 @@
 // an action defined twice fails type-checking. Each rule names its roles;
 // super admin is not a wildcard.
 
-import { CMS_POLICY } from "../cms/policy";
+import { CMS_POLICY } from "../modules/cms/policy";
 import { CONSENT_POLICY } from "../consent/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
 import { SECOND_FACTOR_POLICY } from "../second-factor/policy";

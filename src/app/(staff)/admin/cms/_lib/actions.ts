@@ -11,7 +11,7 @@ import { as, currentActor } from "@/server/app";
 import {
   isCmsDocumentKey,
   type CmsDocumentKey,
-} from "@/server/cms/domain/documents";
+} from "@/server/modules/cms/domain/documents";
 import { parseConsentDocumentSource } from "@/server/consent/domain/document-source";
 import { DomainError, errorSummaryForLogs } from "@/server/errors";
 

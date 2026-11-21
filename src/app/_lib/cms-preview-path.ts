@@ -4,7 +4,7 @@
 import {
   CMS_DOCUMENT_KEYS,
   cmsPublicPath,
-} from "@/server/cms/domain/documents";
+} from "@/server/modules/cms/domain/documents";
 
 const PREVIEW_PATHS: ReadonlySet<string> = new Set(
   CMS_DOCUMENT_KEYS.map(cmsPublicPath)

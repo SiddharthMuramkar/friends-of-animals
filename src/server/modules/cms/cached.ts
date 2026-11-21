@@ -11,8 +11,8 @@ import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { Actor } from "../actor";
-import { as } from "../app";
+import type { Actor } from "../../actor";
+import { as } from "../../app";
 import { cmsTag, type CmsDocumentKey } from "./domain/documents";
 import type { PublishedCmsDocument } from "./reading";
 

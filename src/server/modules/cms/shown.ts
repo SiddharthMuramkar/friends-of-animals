@@ -13,8 +13,8 @@ import "server-only";
 import { draftMode } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 
-import { as, currentActor } from "../app";
-import { DomainError, errorSummaryForLogs } from "../errors";
+import { as, currentActor } from "../../app";
+import { DomainError, errorSummaryForLogs } from "../../errors";
 import { loadPublishedDocument } from "./cached";
 import type { CmsDocumentKey } from "./domain/documents";
 

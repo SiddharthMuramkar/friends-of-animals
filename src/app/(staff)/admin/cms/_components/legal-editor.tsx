@@ -4,7 +4,7 @@ import { useActionState } from "react";
 
 import { FormAlert, inputStyles, SubmitButton } from "@/components/form";
 import { cn } from "@/lib/utils";
-import type { CmsDocumentKey } from "@/server/cms/domain/documents";
+import type { CmsDocumentKey } from "@/server/modules/cms/domain/documents";
 
 import { saveLegalDraftAction } from "../_lib/actions";
 

@@ -1,4 +1,4 @@
-import { CMS_DOCUMENT_KEYS } from "../server/cms/domain/documents";
+import { CMS_DOCUMENT_KEYS } from "../server/modules/cms/domain/documents";
 
 /**
  * Pages behind sign-in. They are never in navigation for visitors, the

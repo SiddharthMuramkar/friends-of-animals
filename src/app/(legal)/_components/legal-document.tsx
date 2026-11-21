@@ -23,9 +23,9 @@ import {
   cmsPublicPath,
   legalDocumentKey,
   type CmsDocumentKey,
-} from "@/server/cms/domain/documents";
-import { legalKind } from "@/server/cms/kinds/legal";
-import { loadShownDocument, type ShownCmsDocument } from "@/server/cms/shown";
+} from "@/server/modules/cms/domain/documents";
+import { legalKind } from "@/server/modules/cms/kinds/legal";
+import { loadShownDocument, type ShownCmsDocument } from "@/server/modules/cms/shown";
 
 const NS = {
   privacy: "legal.privacy",

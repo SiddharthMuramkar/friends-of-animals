@@ -10,8 +10,8 @@
 //
 // Loads under plain Node (schema, seed): relative imports only.
 
-import type { LegalDocId } from "../../../content/legal";
-import { ROUTES } from "../../../lib/routes";
+import type { LegalDocId } from "../../../../content/legal";
+import { ROUTES } from "../../../../lib/routes";
 
 export const CMS_DOCUMENT_KINDS = [
   "home",

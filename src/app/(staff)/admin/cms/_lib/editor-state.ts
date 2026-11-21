@@ -2,7 +2,7 @@
 // after a save, publish or refusal redirected back to it. Pure, so the
 // mapping is tested without a page.
 
-import type { SaveDraftResult } from "@/server/cms";
+import type { SaveDraftResult } from "@/server/modules/cms";
 import type { SourceError } from "@/server/consent";
 
 export type EditorState = {

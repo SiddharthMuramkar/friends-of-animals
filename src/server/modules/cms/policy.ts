@@ -7,7 +7,7 @@
 //
 // Loads under plain Node: relative imports only.
 
-import { role, type Policy, type Rule } from "../access/domain/policy";
+import { role, type Policy, type Rule } from "../../access/domain/policy";
 
 /** Allows everyone, signed in or not. */
 const anyone: Rule = () => ({ allowed: true, role: null });

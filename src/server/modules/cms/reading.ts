@@ -12,8 +12,8 @@
 
 import { z } from "zod";
 
-import { authorize } from "../access/can";
-import { invalidInput, type InvalidInput } from "../input";
+import { authorize } from "../../access/can";
+import { invalidInput, type InvalidInput } from "../../input";
 import {
   CMS_DOCUMENT_KEYS,
   cmsPublicPath,
