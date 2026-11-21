@@ -9,6 +9,7 @@ import {
   cmsRevision,
   consentDocument,
 } from "@/server/db/schema";
+import { toConsentDocumentBody } from "@/server/modules/consent/domain/document-body";
 import { createHarness, type Harness } from "@/test/harness";
 
 import type { CmsDocumentKey } from "./domain/documents";
@@ -215,7 +216,7 @@ describe("publishing the messages consent", () => {
 });
 
 describe("the preview seed", () => {
-  it("publishes the repo's text as version 1 of each legal page, once", async () => {
+  it("publishes the repo's text as version 1 of each legal page, once, as #64 publishes it", async () => {
     const h = await createHarness();
 
     await h.seed.preview();
@@ -255,7 +256,9 @@ describe("the preview seed", () => {
         {
           status: "published",
           version: 1,
-          body: { short: doc.short, sections: doc.sections },
+          // Every clause keeps its words and facts, as in #64's seeded
+          // privacy notice and terms: a revision holds no clauses.
+          body: toConsentDocumentBody(doc),
         },
       ]);
     }
