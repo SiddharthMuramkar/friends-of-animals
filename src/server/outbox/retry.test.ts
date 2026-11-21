@@ -24,6 +24,25 @@ async function delivery(h: Harness) {
   return row;
 }
 
+/**
+ * Starts a relay whose email send never returns, as if its worker died
+ * mid-handler, and resolves once that send has started.
+ */
+async function startRelayThatHangs(h: Harness): Promise<void> {
+  let handlerStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    handlerStarted = resolve;
+  });
+  const hangs: EmailSender = {
+    send: () => {
+      handlerStarted();
+      return new Promise<void>(() => {});
+    },
+  };
+  void drainOutbox({ ...h.deps, email: hangs });
+  await started;
+}
+
 describe("a delivery whose handler fails", () => {
   it("is tried again after a growing wait, and sent once on the third try", async () => {
     const h = await createHarness();
@@ -165,5 +184,47 @@ describe("a delivery whose relay died mid-handler", () => {
     release();
     expect(await deadRelay).toEqual(NOTHING);
     expect(await delivery(h)).toEqual(settled);
+  });
+
+  it("ends failed, and is listed, once every try it is allowed ran out of lease", async () => {
+    const h = await createHarness();
+    const member = await newMember(h);
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      // A relay claims it, starts the send and is never heard from again.
+      await startRelayThatHangs(h);
+      h.clock.advance(leaseMs);
+    }
+    expect(await delivery(h)).toMatchObject({
+      status: "pending",
+      attempts: maxAttempts,
+    });
+
+    expect(await h.drain()).toEqual({ ...NOTHING, failed: 1 });
+    const row = await delivery(h);
+    expect(row).toMatchObject({
+      status: "failed",
+      attempts: maxAttempts,
+      failedAt: h.clock.now(),
+      lockedUntil: null,
+      lastError: `No result after ${maxAttempts} attempts: the lease ran out`,
+    });
+    expect(await listFailedDeliveries(h.db)).toEqual([
+      expect.objectContaining({ id: row.id, aggregateId: member.id }),
+    ]);
+    expect(h.email.sent).toEqual([]);
+  });
+
+  it("isn't failed while its last try's lease still holds", async () => {
+    const h = await createHarness();
+    await newMember(h);
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (attempt > 1) h.clock.advance(leaseMs);
+      await startRelayThatHangs(h);
+    }
+
+    h.clock.advance(leaseMs - 1);
+    expect(await h.drain()).toEqual(NOTHING);
+    expect(await delivery(h)).toMatchObject({ status: "pending" });
   });
 });
