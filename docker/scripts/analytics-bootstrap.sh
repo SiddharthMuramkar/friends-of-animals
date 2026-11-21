@@ -158,6 +158,14 @@ replace_seeded_login() {
     -e "$(<"$ADMIN_SCRIPT")" <"$file"
 }
 
+# close_gate FILE: Caddy answers stats.friendsofanimals.dev with 503 from
+# now on. Before Umami starts: a rerun may meet a fresh database, seeded
+# login and all.
+close_gate() {
+  rm -f "$1"
+  echo "closed $1: Caddy answers stats.friendsofanimals.dev with 503"
+}
+
 # open_gate FILE: let Caddy proxy stats.friendsofanimals.dev to Umami. Only
 # once replace_seeded_login has succeeded.
 open_gate() {
@@ -184,6 +192,7 @@ main() {
   write_env "$ENV_FILE"
   apply_sql "$(db_password "$(env_value "$ENV_FILE" DATABASE_URL)")"
   echo "applied umami.sql on $PG_CONTAINER and reloaded its configuration"
+  close_gate "$GATE_FILE"
   start_umami
   write_admin_password "$ADMIN_FILE"
   replace_seeded_login "$ADMIN_FILE"
