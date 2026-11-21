@@ -1,10 +1,14 @@
 // Postgres-backed limits on sign-in codes, per identifier (an email
-// address or a phone number) and per IP (#55: "Postgres-backed rate limits
-// apply per identifier and per IP"), and per identifier per day. The IP
-// counter is shared: email and phone codes from one IP count together. Fixed windows: each request adds one to each
-// counter for its current window with an atomic upsert; a request that
-// would pass any limit is rolled back, so refused requests don't count. Keys are
-// HMACs, so the table holds no address, number or IP. An IP counts by its network
+// address or a phone number) and per IP (#55: "Postgres-backed rate
+// limits apply per identifier and per IP"), and per identifier per day.
+// The IP counter is shared: email and phone codes from one IP count
+// together. Texts also count against a ceiling for everyone together, per
+// hour and per day, which caps FOA's SMS bill.
+//
+// Fixed windows: each request adds one to each counter for its current
+// window with an atomic upsert; a request that would pass any limit is
+// rolled back, so refused requests don't count. Keys are HMACs, so the
+// table holds no address, number or IP. An IP counts by its network
 // (ipNetwork): one IPv6 connection holds a whole /64, and would otherwise
 // get a fresh allowance per address.
 
@@ -19,7 +23,8 @@ import { otpRateLimit, type OtpRateLimitScope } from "../db/schema";
 import { CODE_REQUEST_LIMITS } from "./settings";
 
 const MINUTE_MS = 60 * 1000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
 type Allowance = { ok: true } | { ok: false; retryAfterSeconds: number };
 
@@ -44,29 +49,32 @@ function windowAt(now: Date, windowMs: number) {
   };
 }
 
-/** Who a code goes to: an email address, or a phone number in E.164. */
+/** The most texts per hour and per day, to everyone together. */
+export type SmsCeiling = { perHour: number; perDay: number };
+
+/**
+ * Who a code goes to: an email address, or a phone number in E.164 with
+ * the ceiling its text counts against.
+ */
 export type CodeRecipient =
   | { channel: "email"; key: string }
-  | { channel: "phone"; key: string };
+  | { channel: "phone"; key: string; smsCeiling: SmsCeiling };
 
 const DAY_SCOPE = { email: "email_day", phone: "phone_day" } as const;
 
-/**
- * Takes one code from the recipient's and the IP's allowance for this
- * window, and from the recipient's allowance for the day, or reports when
- * the last of the full windows ends.
- */
-export async function takeCodeAllowance(
-  db: AppDb,
-  {
-    to,
-    ip,
-    now,
-    secret,
-  }: { to: CodeRecipient; ip: string; now: Date; secret: string }
-): Promise<Allowance> {
+/** The key of the counters that count every text. */
+const EVERYONE = "everyone";
+
+type Counter = {
+  scope: OtpRateLimitScope;
+  key: string;
+  limit: number;
+  windowMs: number;
+};
+
+function countersFor(to: CodeRecipient, ip: string): Counter[] {
   const windowMs = CODE_REQUEST_LIMITS.windowMinutes * MINUTE_MS;
-  const counters = [
+  const counters: Counter[] = [
     {
       scope: to.channel,
       key: to.key,
@@ -85,7 +93,42 @@ export async function takeCodeAllowance(
       limit: CODE_REQUEST_LIMITS.perRecipientPerDay,
       windowMs: DAY_MS,
     },
-  ] as const;
+  ];
+  if (to.channel === "phone") {
+    counters.push(
+      {
+        scope: "sms_hour",
+        key: EVERYONE,
+        limit: to.smsCeiling.perHour,
+        windowMs: HOUR_MS,
+      },
+      {
+        scope: "sms_day",
+        key: EVERYONE,
+        limit: to.smsCeiling.perDay,
+        windowMs: DAY_MS,
+      }
+    );
+  }
+  return counters;
+}
+
+/**
+ * Takes one code from the recipient's and the IP's allowance for this
+ * window, from the recipient's allowance for the day, and for a text from
+ * the ceiling for everyone this hour and today; or reports when the last
+ * of the full windows ends.
+ */
+export async function takeCodeAllowance(
+  db: AppDb,
+  {
+    to,
+    ip,
+    now,
+    secret,
+  }: { to: CodeRecipient; ip: string; now: Date; secret: string }
+): Promise<Allowance> {
+  const counters = countersFor(to, ip);
 
   try {
     await db.transaction(async (tx) => {

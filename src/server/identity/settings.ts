@@ -27,6 +27,15 @@ export const CODE_REQUEST_LIMITS = {
    * texts to one phone at 20 a day. FOA's own default beside HR-19.
    */
   perRecipientPerDay: 20,
+  /**
+   * Sign-in texts per hour, and per day (midnight to midnight UTC), to
+   * everyone together: a ceiling on FOA's SMS bill, which the limits
+   * above don't set (a pool of IP networks could text thousands of
+   * numbers). FOA's own defaults, for the owner to confirm (HR-14). Staff
+   * can change them as the settings `sms.maxPerHour` and `sms.maxPerDay`.
+   */
+  smsPerHour: 200,
+  smsPerDay: 1000,
 } as const;
 
 /**
