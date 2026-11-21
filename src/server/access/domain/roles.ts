@@ -88,7 +88,8 @@ export function isStaffRole(role: Role): boolean {
   return STAFF_ROLES.has(role);
 }
 
-const scopeSchema = z.discriminatedUnion("type", [
+/** Parses a scope from untrusted input; scoped ones need a UUID. */
+export const scopeSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("global") }),
   z.strictObject({
     type: z.enum(["institution", "competition", "organisation"]),
