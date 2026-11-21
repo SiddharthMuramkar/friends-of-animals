@@ -5,6 +5,7 @@
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  adminSettings: "/admin/settings",
 } as const;
 
 /**
