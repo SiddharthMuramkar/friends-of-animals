@@ -4,7 +4,10 @@
  * framework imports.
  */
 
-/** A fact FOA has not confirmed yet. Rendered visibly by <Placeholder>. */
+/**
+ * A fact FOA has not confirmed yet. Rendered visibly by <Placeholder>
+ * outside production; production leaves it out.
+ */
 export type Placeholder = {
   readonly kind: "placeholder";
   /** Message key under common.placeholders, naming what is missing. */
@@ -60,7 +63,8 @@ export const SITE = {
   socialImage: "/brand/foa-social-1200x630.png",
   /**
    * Organisation facts. Never invent these: each stays a placeholder until FOA
-   * confirms it, and a production build fails while any remain.
+   * confirms it. Production leaves out any that remain (isFactShown), and
+   * its build log names them (unconfirmedFactsWarning).
    */
   org: {
     legalName: placeholder("legalName") as OrgFact,
@@ -104,6 +108,26 @@ export function isSampleContentEnabled(env: EnvLike = process.env): boolean {
   return appEnv(env) !== "production";
 }
 
+/**
+ * Whether unconfirmed facts show as "To be confirmed" tiles: on local,
+ * preview and staging, where staff review them, never in production.
+ * Decide it on the server: the browser has no APP_ENV.
+ */
+export function showsPlaceholders(env: EnvLike = process.env): boolean {
+  return appEnv(env) !== "production";
+}
+
+/**
+ * Whether a fact renders at all: once confirmed, or as a tile outside
+ * production. Where it doesn't, leave out its label and item as well.
+ */
+export function isFactShown(
+  fact: unknown,
+  env: EnvLike = process.env
+): boolean {
+  return !isPlaceholder(fact) || showsPlaceholders(env);
+}
+
 /** Dotted paths of every placeholder inside `value`. */
 export function findPlaceholders(value: unknown, path = ""): string[] {
   if (isPlaceholder(value)) return [path];
@@ -113,16 +137,18 @@ export function findPlaceholders(value: unknown, path = ""): string[] {
   );
 }
 
-/** Called by next.config.ts: production must not ship "To be confirmed". */
-export function assertNoPlaceholdersInProduction(
+/**
+ * The one build-log line naming the facts a production build leaves out,
+ * or undefined outside production and once every fact is confirmed.
+ * next.config.ts prints it: the owner chose (2026-11-21) to ship
+ * production without the facts FOA hasn't confirmed, rather than block it.
+ */
+export function unconfirmedFactsWarning(
   env: EnvLike = process.env,
   org: unknown = SITE.org
-): void {
-  if (appEnv(env) !== "production") return;
+): string | undefined {
+  if (appEnv(env) !== "production") return undefined;
   const missing = findPlaceholders(org);
-  if (missing.length > 0) {
-    throw new Error(
-      `APP_ENV=production, but SITE.org in src/lib/site.ts still has placeholders: ${missing.join(", ")}. Fill in the facts FOA has confirmed.`
-    );
-  }
+  if (missing.length === 0) return undefined;
+  return `Warning: production leaves out the organisation facts FOA hasn't confirmed yet (SITE.org in src/lib/site.ts): ${missing.join(", ")}`;
 }

@@ -6,10 +6,13 @@ import { cspHeaderRules } from "./src/lib/csp";
 import { cspContext } from "./src/lib/csp-sources";
 import { robotsHeaders } from "./src/lib/indexing";
 import { securityHeaders } from "./src/lib/security-headers";
-import { assertNoPlaceholdersInProduction } from "./src/lib/site";
+import { unconfirmedFactsWarning } from "./src/lib/site";
 
-// A production build must not ship "To be confirmed" organisation facts.
-assertNoPlaceholdersInProduction();
+// Production ships without the organisation facts FOA hasn't confirmed
+// (owner's decision, 2026-11-21): pages leave them out, and the build log
+// names them.
+const factsWarning = unconfirmedFactsWarning();
+if (factsWarning) console.warn(factsWarning);
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
