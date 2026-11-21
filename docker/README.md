@@ -660,8 +660,9 @@ sessions, which transaction pooling breaks. None publishes a port.
   while it can't list the previews (one broken preview doesn't count). Each
   poll also upserts the worker's row in `worker_heartbeat` in every database
   it drains (worker, environment, last seen, version), which
-  `/api/health/worker` reads ("Monitoring and alerts"). `restart: unless-stopped` restarts a worker that exits;
-  Docker doesn't restart an unhealthy one, so watch `docker ps`.
+  `/api/health/worker` reads ("Monitoring and alerts").
+  `restart: unless-stopped` restarts a worker that exits; Docker doesn't
+  restart an unhealthy one, so watch `docker ps`.
 - **Logs:** one JSON object per line (`event`, `database`, counts), with
   error classes and codes but never messages or addresses; in the host's
   journal for a year ("Logs").

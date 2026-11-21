@@ -146,19 +146,50 @@ describe("README.md", () => {
     return readme.slice(start, end < 0 ? undefined : end);
   };
 
-  it("lists one row per uptime check", () => {
-    const rows = section("Monitoring and alerts")
+  /** What the uptime checks call: the app, the pooler and the worker. */
+  const CHECK_TARGETS = [
+    "`/api/health`",
+    "`db.shipped-it.dev:6432`",
+    "`/api/health/worker`",
+  ];
+
+  /** The lines of the "Monitoring and alerts" table, its header first. */
+  const checkTable = () =>
+    section("Monitoring and alerts")
       .split("\n")
       .filter((line) => line.startsWith("|"));
-    for (const target of [
-      "`/api/health`",
-      "`db.shipped-it.dev:6432`",
-      "`/api/health/worker`",
-    ]) {
+
+  /** A table line's cells, trimmed. */
+  const cells = (line: string) =>
+    line
+      .split("|")
+      .slice(1, -1)
+      .map((cell) => cell.trim());
+
+  it("lists one row per uptime check", () => {
+    const rows = checkTable();
+    for (const target of CHECK_TARGETS) {
       expect(
         rows.filter((row) => row.includes(target)),
         target
       ).toHaveLength(1);
+    }
+  });
+
+  it("says where each check alerts and how to silence it", () => {
+    const [header = "", ...rows] = checkTable();
+    const columns = cells(header);
+    const alertTo = columns.findIndex((column) =>
+      /alert goes to/i.test(column)
+    );
+    const silence = columns.findIndex((column) => /silence/i.test(column));
+    expect(alertTo, "an 'Alert goes to' column").toBeGreaterThanOrEqual(0);
+    expect(silence, "a column on silencing").toBeGreaterThanOrEqual(0);
+
+    for (const target of CHECK_TARGETS) {
+      const row = cells(rows.find((line) => line.includes(target)) ?? "");
+      expect(row[alertTo] ?? "", `${target}: alert goes to`).toMatch(/\w/);
+      expect(row[silence] ?? "", `${target}: how to silence`).toMatch(/\w/);
     }
   });
 
