@@ -112,9 +112,14 @@ export function postBreadcrumbJsonLd(
   ]);
 }
 
+/** One sitemap entry per published post, dated by its last edit. */
 export function postSitemapEntries(
-  _posts: readonly PostCard[],
-  _base: URL
+  posts: readonly PostCard[],
+  base: URL
 ): { url: string; lastModified: Date; priority: number }[] {
-  return [];
+  return posts.map((post) => ({
+    url: new URL(postPath(post.slug), base).href,
+    lastModified: post.updatedAt,
+    priority: 0.6,
+  }));
 }
