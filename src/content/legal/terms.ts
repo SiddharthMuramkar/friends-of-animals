@@ -26,9 +26,9 @@ export const terms: LegalDoc = {
       blocks: [
         {
           p: [
-            "These terms are an agreement between you and Friends of Animals (registered name: ",
-            { fact: "legalName" },
-            ") for using this website and taking part in our programmes. Please read them with our ",
+            "These terms are an agreement between you and Friends of Animals",
+            { clause: [" (registered name: ", { fact: "legalName" }, ")"] },
+            " for using this website and taking part in our programmes. Please read them with our ",
             { link: "privacy policy", href: "/privacy" },
             " and ",
             { link: "safeguarding page", href: "/safeguarding" },
@@ -177,9 +177,14 @@ export const terms: LegalDoc = {
       blocks: [
         {
           p: [
-            "These terms are governed by the laws of India. If something goes wrong, please write to us first at ",
-            { fact: "email" },
-            " so we can try to put it right.",
+            "These terms are governed by the laws of India.",
+            {
+              clause: [
+                " If something goes wrong, please write to us first at ",
+                { fact: "email" },
+                " so we can try to put it right.",
+              ],
+            },
           ],
         },
       ],

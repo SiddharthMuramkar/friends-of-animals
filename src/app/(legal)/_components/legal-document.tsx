@@ -2,12 +2,22 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 
-import { LegalBlockView, LegalInlines } from "@/components/legal/legal-text";
+import {
+  isLegalFactShown,
+  LegalBlockView,
+  LegalInlines,
+} from "@/components/legal/legal-text";
 import { PageHeader } from "@/components/site/heading";
 import { InPageLink } from "@/components/site/in-page-link";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
-import { LEGAL_DOCS, type LegalDoc, type LegalDocId } from "@/content/legal";
+import {
+  LEGAL_DOCS,
+  type LegalDoc,
+  type LegalDocId,
+  resolveLegalDoc,
+  type ShownInline,
+} from "@/content/legal";
 import type {
   ConsentPurpose,
   PublishedConsentDocument,
@@ -21,7 +31,7 @@ const NS = {
   childProtection: "legal.childProtection",
 } as const;
 
-type LegalText = Pick<LegalDoc, "short" | "sections">;
+type LegalText = Pick<LegalDoc<ShownInline>, "short" | "sections">;
 
 /**
  * A policy page: header, a "last updated" line, the short version first,
@@ -32,6 +42,8 @@ type LegalText = Pick<LegalDoc, "short" | "sections">;
  * consent document and its number (#64). The header stays in the static
  * shell; the date line and the text are dynamic holes that fall back to
  * the repo's text, which is also what shows before version 1 exists.
+ * In production, clauses about unconfirmed facts give way to their
+ * production wording, and emptied sections go (resolveLegalDoc).
  */
 export async function LegalDocument({
   id,
@@ -44,7 +56,7 @@ export async function LegalDocument({
   top?: ReactNode;
   after?: Partial<Record<string, ReactNode>>;
 }) {
-  const doc = LEGAL_DOCS[id];
+  const doc = resolveLegalDoc(LEGAL_DOCS[id], isLegalFactShown);
   const [t, tp] = await Promise.all([
     getTranslations("legal.common"),
     getTranslations(NS[id]),
@@ -92,7 +104,10 @@ export async function LegalDocument({
           <Published purpose={purpose} fallback={repoText}>
             {(published) => (
               <LegalBody
-                text={published.body}
+                text={resolveLegalDoc(
+                  { updated: doc.updated, ...published.body },
+                  isLegalFactShown
+                )}
                 shortTitle={shortTitle}
                 tocTitle={t("toc")}
                 top={top}

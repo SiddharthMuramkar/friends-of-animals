@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { ContactFact } from "@/components/site/contact-fact";
 import { Placeholder } from "@/components/site/placeholder";
 import { SiteLink } from "@/components/site/site-link";
-import type { LegalBlock, LegalFact, LegalInline } from "@/content/legal";
-import { type OrgFact, SITE } from "@/lib/site";
+import type { LegalBlock, LegalFact, ShownInline } from "@/content/legal";
+import { isFactShown, type OrgFact, SITE } from "@/lib/site";
 
 // The typed blocks of a policy or consent document as HTML: the policy
 // pages draw the repo's text and the published versions with these, so
@@ -23,6 +23,14 @@ const FACT_VALUE: Record<LegalFact, unknown> = {
   grievanceOfficerEmail: SITE.org.grievanceOfficer.email,
 };
 
+/**
+ * Whether a fact renders: once confirmed, or as a tile outside production.
+ * The `shown` argument of resolveLegalDoc for every document drawn here.
+ */
+export function isLegalFactShown(fact: LegalFact): boolean {
+  return isFactShown(FACT_VALUE[fact]);
+}
+
 /** A confirmed fact as text (or a mailto/tel link); else a visible placeholder. */
 function Fact({ fact }: { fact: LegalFact }) {
   const value = FACT_VALUE[fact] as OrgFact;
@@ -33,7 +41,7 @@ function Fact({ fact }: { fact: LegalFact }) {
 }
 
 /** One run of text with its strong words, links and facts. */
-export function LegalInlines({ text }: { text: LegalInline[] }) {
+export function LegalInlines({ text }: { text: ShownInline[] }) {
   return text.map((i, k): ReactNode => {
     if (typeof i === "string") return i;
     if ("strong" in i) return <strong key={k}>{i.strong}</strong>;
@@ -47,7 +55,7 @@ export function LegalInlines({ text }: { text: LegalInline[] }) {
 }
 
 /** A paragraph or a list. */
-export function LegalBlockView({ block }: { block: LegalBlock }) {
+export function LegalBlockView({ block }: { block: LegalBlock<ShownInline> }) {
   if ("p" in block)
     return (
       <p>
@@ -65,7 +73,11 @@ export function LegalBlockView({ block }: { block: LegalBlock }) {
   );
 }
 
-type Sections = { id: string; title: string; blocks: LegalBlock[] }[];
+type Sections = {
+  id: string;
+  title: string;
+  blocks: LegalBlock<ShownInline>[];
+}[];
 
 /**
  * A document's sections inside another page (a consent form, settings,
@@ -102,7 +114,7 @@ export function LegalShortList({
   id,
   className,
 }: {
-  points: LegalInline[][];
+  points: ShownInline[][];
   id?: string;
   className?: string;
 }) {

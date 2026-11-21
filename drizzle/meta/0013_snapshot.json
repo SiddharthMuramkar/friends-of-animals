@@ -1,6 +1,6 @@
 {
-  "id": "b60aa351-4f4f-4e13-9611-ced0dafdc273",
-  "prevId": "ab25e7f3-b1e4-4fc8-ad23-5c6a61d92818",
+  "id": "2da08051-43df-4c83-940a-1bc6ece82469",
+  "prevId": "28d8dadb-ef42-47ac-bb13-cbba4e3fb890",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -532,167 +532,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.outbox": {
-      "name": "outbox",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "event_type": {
-          "name": "event_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "aggregate_type": {
-          "name": "aggregate_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "aggregate_id": {
-          "name": "aggregate_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "handler": {
-          "name": "handler",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "available_at": {
-          "name": "available_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "locked_until": {
-          "name": "locked_until",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "outbox_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "dispatched_at": {
-          "name": "dispatched_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "failed_at": {
-          "name": "failed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "outbox_pending_available_at_idx": {
-          "name": "outbox_pending_available_at_idx",
-          "columns": [
-            {
-              "expression": "available_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"outbox\".\"status\" = 'pending'",
-          "concurrently": false
-        },
-        "outbox_failed_failed_at_idx": {
-          "name": "outbox_failed_failed_at_idx",
-          "columns": [
-            {
-              "expression": "failed_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"outbox\".\"status\" = 'failed'",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "outbox_event_id_handler_key": {
-          "name": "outbox_event_id_handler_key",
-          "columns": [
-            "event_id",
-            "handler"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "outbox_attempts_not_negative": {
-          "name": "outbox_attempts_not_negative",
-          "value": "\"outbox\".\"attempts\" >= 0"
-        },
-        "outbox_dispatched_at_when_dispatched": {
-          "name": "outbox_dispatched_at_when_dispatched",
-          "value": "(\"outbox\".\"status\" = 'dispatched') = (\"outbox\".\"dispatched_at\" IS NOT NULL)"
-        },
-        "outbox_failed_at_when_failed": {
-          "name": "outbox_failed_at_when_failed",
-          "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.user_role": {
       "name": "user_role",
       "schema": "",
@@ -996,8 +835,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.contact_message": {
-      "name": "contact_message",
+    "public.outbox": {
+      "name": "outbox",
       "schema": "",
       "columns": {
         "id": {
@@ -1006,119 +845,116 @@
           "primaryKey": true,
           "notNull": true
         },
-        "reference": {
-          "name": "reference",
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "topic": {
-          "name": "topic",
-          "type": "contact_topic",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "team": {
-          "name": "team",
+        "aggregate_type": {
+          "name": "aggregate_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
+        "aggregate_id": {
+          "name": "aggregate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "handler": {
+          "name": "handler",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "email": {
-          "name": "email",
-          "type": "text",
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
-        "organisation": {
-          "name": "organisation",
-          "type": "text",
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "available_at": {
+          "name": "available_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "subject": {
-          "name": "subject",
-          "type": "text",
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": 0
         },
-        "message": {
-          "name": "message",
+        "last_error": {
+          "name": "last_error",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "status": {
           "name": "status",
-          "type": "contact_message_status",
+          "type": "outbox_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'new'"
+          "default": "'pending'"
         },
-        "close_reason": {
-          "name": "close_reason",
-          "type": "contact_close_reason",
-          "typeSchema": "public",
+        "dispatched_at": {
+          "name": "dispatched_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "assigned_to_user_id": {
-          "name": "assigned_to_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ip_hash": {
-          "name": "ip_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "closed_at": {
-          "name": "closed_at",
+        "failed_at": {
+          "name": "failed_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {
-        "contact_message_team_status_created_at_idx": {
-          "name": "contact_message_team_status_created_at_idx",
+        "outbox_pending_available_at_idx": {
+          "name": "outbox_pending_available_at_idx",
           "columns": [
             {
-              "expression": "team",
+              "expression": "available_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
-            },
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"outbox\".\"status\" = 'pending'",
+          "concurrently": false
+        },
+        "outbox_failed_failed_at_idx": {
+          "name": "outbox_failed_failed_at_idx",
+          "columns": [
             {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
+              "expression": "failed_at",
               "isExpression": false,
               "asc": false,
               "nulls": "last"
@@ -1127,292 +963,37 @@
           "isUnique": false,
           "with": {},
           "method": "btree",
-          "concurrently": false
-        },
-        "contact_message_assigned_to_user_id_idx": {
-          "name": "contact_message_assigned_to_user_id_idx",
-          "columns": [
-            {
-              "expression": "assigned_to_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
+          "where": "\"outbox\".\"status\" = 'failed'",
           "concurrently": false
         }
       },
-      "foreignKeys": {
-        "contact_message_assigned_to_user_id_user_id_fk": {
-          "name": "contact_message_assigned_to_user_id_user_id_fk",
-          "tableFrom": "contact_message",
-          "columnsFrom": [
-            "assigned_to_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "contact_message_reference_unique": {
-          "name": "contact_message_reference_unique",
+        "outbox_event_id_handler_key": {
+          "name": "outbox_event_id_handler_key",
           "columns": [
-            "reference"
+            "event_id",
+            "handler"
           ],
           "nullsNotDistinct": false
         }
       },
       "policies": {},
       "checkConstraints": {
-        "contact_message_team_known": {
-          "name": "contact_message_team_known",
-          "value": "\"contact_message\".\"team\" IN ('staff_admin', 'competition_manager', 'community_manager', 'adoption_coordinator', 'finance', 'content_manager')"
+        "outbox_attempts_not_negative": {
+          "name": "outbox_attempts_not_negative",
+          "value": "\"outbox\".\"attempts\" >= 0"
         },
-        "contact_message_closed_with_reason": {
-          "name": "contact_message_closed_with_reason",
-          "value": "(\"contact_message\".\"status\" = 'closed') = (\"contact_message\".\"close_reason\" IS NOT NULL AND \"contact_message\".\"closed_at\" IS NOT NULL)"
+        "outbox_dispatched_at_when_dispatched": {
+          "name": "outbox_dispatched_at_when_dispatched",
+          "value": "(\"outbox\".\"status\" = 'dispatched') = (\"outbox\".\"dispatched_at\" IS NOT NULL)"
         },
-        "contact_message_name_length": {
-          "name": "contact_message_name_length",
-          "value": "char_length(\"contact_message\".\"name\") BETWEEN 1 AND 100"
-        },
-        "contact_message_email_length": {
-          "name": "contact_message_email_length",
-          "value": "char_length(\"contact_message\".\"email\") BETWEEN 1 AND 254"
-        },
-        "contact_message_organisation_length": {
-          "name": "contact_message_organisation_length",
-          "value": "\"contact_message\".\"organisation\" IS NULL OR char_length(\"contact_message\".\"organisation\") BETWEEN 1 AND 150"
-        },
-        "contact_message_subject_length": {
-          "name": "contact_message_subject_length",
-          "value": "char_length(\"contact_message\".\"subject\") BETWEEN 1 AND 150"
-        },
-        "contact_message_message_length": {
-          "name": "contact_message_message_length",
-          "value": "char_length(\"contact_message\".\"message\") BETWEEN 1 AND 5000"
+        "outbox_failed_at_when_failed": {
+          "name": "outbox_failed_at_when_failed",
+          "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.contact_note": {
-      "name": "contact_note",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "message_id": {
-          "name": "message_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "author_user_id": {
-          "name": "author_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "body": {
-          "name": "body",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "contact_note_message_id_created_at_idx": {
-          "name": "contact_note_message_id_created_at_idx",
-          "columns": [
-            {
-              "expression": "message_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "contact_note_message_id_contact_message_id_fk": {
-          "name": "contact_note_message_id_contact_message_id_fk",
-          "tableFrom": "contact_note",
-          "columnsFrom": [
-            "message_id"
-          ],
-          "tableTo": "contact_message",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        },
-        "contact_note_author_user_id_user_id_fk": {
-          "name": "contact_note_author_user_id_user_id_fk",
-          "tableFrom": "contact_note",
-          "columnsFrom": [
-            "author_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "contact_note_body_length": {
-          "name": "contact_note_body_length",
-          "value": "char_length(\"contact_note\".\"body\") BETWEEN 1 AND 5000"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.form_rate_limit": {
-      "name": "form_rate_limit",
-      "schema": "",
-      "columns": {
-        "form": {
-          "name": "form",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key_hash": {
-          "name": "key_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "window_start": {
-          "name": "window_start",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "count": {
-          "name": "count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "form_rate_limit_window_start_idx": {
-          "name": "form_rate_limit_window_start_idx",
-          "columns": [
-            {
-              "expression": "window_start",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "form_rate_limit_form_scope_key_hash_window_start_pk": {
-          "name": "form_rate_limit_form_scope_key_hash_window_start_pk",
-          "columns": [
-            "form",
-            "scope",
-            "key_hash",
-            "window_start"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "form_rate_limit_count_positive": {
-          "name": "form_rate_limit_count_positive",
-          "value": "\"form_rate_limit\".\"count\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.human_check_redemption": {
-      "name": "human_check_redemption",
-      "schema": "",
-      "columns": {
-        "salt": {
-          "name": "salt",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "redeemed_at": {
-          "name": "redeemed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "human_check_redemption_redeemed_at_idx": {
-          "name": "human_check_redemption_redeemed_at_idx",
-          "columns": [
-            {
-              "expression": "redeemed_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.consent_document": {
@@ -2214,6 +1795,431 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.contact_message": {
+      "name": "contact_message",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "topic": {
+          "name": "topic",
+          "type": "contact_topic",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team": {
+          "name": "team",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organisation": {
+          "name": "organisation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "contact_message_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'new'"
+        },
+        "close_reason": {
+          "name": "close_reason",
+          "type": "contact_close_reason",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_to_user_id": {
+          "name": "assigned_to_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip_hash": {
+          "name": "ip_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acknowledged_at": {
+          "name": "acknowledged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "contact_message_team_status_created_at_idx": {
+          "name": "contact_message_team_status_created_at_idx",
+          "columns": [
+            {
+              "expression": "team",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "contact_message_assigned_to_user_id_idx": {
+          "name": "contact_message_assigned_to_user_id_idx",
+          "columns": [
+            {
+              "expression": "assigned_to_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "contact_message_assigned_to_user_id_user_id_fk": {
+          "name": "contact_message_assigned_to_user_id_user_id_fk",
+          "tableFrom": "contact_message",
+          "columnsFrom": [
+            "assigned_to_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "contact_message_reference_unique": {
+          "name": "contact_message_reference_unique",
+          "columns": [
+            "reference"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "contact_message_team_known": {
+          "name": "contact_message_team_known",
+          "value": "\"contact_message\".\"team\" IN ('staff_admin', 'competition_manager', 'community_manager', 'adoption_coordinator', 'finance', 'content_manager')"
+        },
+        "contact_message_closed_with_reason": {
+          "name": "contact_message_closed_with_reason",
+          "value": "(\"contact_message\".\"status\" = 'closed') = (\"contact_message\".\"close_reason\" IS NOT NULL AND \"contact_message\".\"closed_at\" IS NOT NULL)"
+        },
+        "contact_message_name_length": {
+          "name": "contact_message_name_length",
+          "value": "char_length(\"contact_message\".\"name\") BETWEEN 1 AND 100"
+        },
+        "contact_message_email_length": {
+          "name": "contact_message_email_length",
+          "value": "char_length(\"contact_message\".\"email\") BETWEEN 1 AND 254"
+        },
+        "contact_message_organisation_length": {
+          "name": "contact_message_organisation_length",
+          "value": "\"contact_message\".\"organisation\" IS NULL OR char_length(\"contact_message\".\"organisation\") BETWEEN 1 AND 150"
+        },
+        "contact_message_subject_length": {
+          "name": "contact_message_subject_length",
+          "value": "char_length(\"contact_message\".\"subject\") BETWEEN 1 AND 150"
+        },
+        "contact_message_message_length": {
+          "name": "contact_message_message_length",
+          "value": "char_length(\"contact_message\".\"message\") BETWEEN 1 AND 5000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.contact_note": {
+      "name": "contact_note",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_user_id": {
+          "name": "author_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "contact_note_message_id_created_at_idx": {
+          "name": "contact_note_message_id_created_at_idx",
+          "columns": [
+            {
+              "expression": "message_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "contact_note_message_id_contact_message_id_fk": {
+          "name": "contact_note_message_id_contact_message_id_fk",
+          "tableFrom": "contact_note",
+          "columnsFrom": [
+            "message_id"
+          ],
+          "tableTo": "contact_message",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "contact_note_author_user_id_user_id_fk": {
+          "name": "contact_note_author_user_id_user_id_fk",
+          "tableFrom": "contact_note",
+          "columnsFrom": [
+            "author_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "contact_note_body_length": {
+          "name": "contact_note_body_length",
+          "value": "char_length(\"contact_note\".\"body\") BETWEEN 1 AND 5000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.form_rate_limit": {
+      "name": "form_rate_limit",
+      "schema": "",
+      "columns": {
+        "form": {
+          "name": "form",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_hash": {
+          "name": "key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "window_start": {
+          "name": "window_start",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "form_rate_limit_window_start_idx": {
+          "name": "form_rate_limit_window_start_idx",
+          "columns": [
+            {
+              "expression": "window_start",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "form_rate_limit_form_scope_key_hash_window_start_pk": {
+          "name": "form_rate_limit_form_scope_key_hash_window_start_pk",
+          "columns": [
+            "form",
+            "scope",
+            "key_hash",
+            "window_start"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "form_rate_limit_count_positive": {
+          "name": "form_rate_limit_count_positive",
+          "value": "\"form_rate_limit\".\"count\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.human_check_redemption": {
+      "name": "human_check_redemption",
+      "schema": "",
+      "columns": {
+        "salt": {
+          "name": "salt",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "redeemed_at": {
+          "name": "redeemed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "human_check_redemption_redeemed_at_idx": {
+          "name": "human_check_redemption_redeemed_at_idx",
+          "columns": [
+            {
+              "expression": "redeemed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -2223,15 +2229,6 @@
       "values": [
         "email",
         "sms"
-      ]
-    },
-    "public.outbox_status": {
-      "name": "outbox_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "dispatched",
-        "failed"
       ]
     },
     "public.role": {
@@ -2275,36 +2272,13 @@
         "system"
       ]
     },
-    "public.contact_close_reason": {
-      "name": "contact_close_reason",
+    "public.outbox_status": {
+      "name": "outbox_status",
       "schema": "public",
       "values": [
-        "resolved",
-        "no_action_needed",
-        "spam",
-        "duplicate"
-      ]
-    },
-    "public.contact_message_status": {
-      "name": "contact_message_status",
-      "schema": "public",
-      "values": [
-        "new",
-        "in_progress",
-        "closed"
-      ]
-    },
-    "public.contact_topic": {
-      "name": "contact_topic",
-      "schema": "public",
-      "values": [
-        "GENERAL",
-        "SCHOOLS",
-        "NGOS",
-        "ADOPTION",
-        "VOLUNTEERING",
-        "DONATIONS",
-        "MEDIA"
+        "pending",
+        "dispatched",
+        "failed"
       ]
     },
     "public.consent_event_action": {
@@ -2369,6 +2343,38 @@
         "sms_disabled",
         "sms_unregistered",
         "no_contact"
+      ]
+    },
+    "public.contact_close_reason": {
+      "name": "contact_close_reason",
+      "schema": "public",
+      "values": [
+        "resolved",
+        "no_action_needed",
+        "spam",
+        "duplicate"
+      ]
+    },
+    "public.contact_message_status": {
+      "name": "contact_message_status",
+      "schema": "public",
+      "values": [
+        "new",
+        "in_progress",
+        "closed"
+      ]
+    },
+    "public.contact_topic": {
+      "name": "contact_topic",
+      "schema": "public",
+      "values": [
+        "GENERAL",
+        "SCHOOLS",
+        "NGOS",
+        "ADOPTION",
+        "VOLUNTEERING",
+        "DONATIONS",
+        "MEDIA"
       ]
     }
   },

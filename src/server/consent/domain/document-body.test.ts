@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_DOCS } from "@/content/legal";
+import { LEGAL_DOCS, resolveLegalDoc } from "@/content/legal";
 
 import {
   parseConsentDocumentBody,
@@ -49,7 +49,9 @@ describe("parseConsentDocumentBody", () => {
   it.each(Object.entries(LEGAL_DOCS))(
     "accepts the %s policy as it is written in the repo",
     (_name, doc) => {
-      const body = { short: doc.short, sections: doc.sections };
+      // Every clause kept, as outside production.
+      const { short, sections } = resolveLegalDoc(doc, () => true);
+      const body = { short, sections };
       expect(parseConsentDocumentBody(body)).toEqual({ ok: true, body });
     }
   );

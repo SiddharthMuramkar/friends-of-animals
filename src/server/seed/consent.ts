@@ -6,7 +6,11 @@
 // once counsel approves the words. Loads under plain Node (the seed
 // script): relative imports only, no "server-only".
 
-import { LEGAL_DOCS } from "../../content/legal";
+import {
+  LEGAL_DOCS,
+  type LegalDoc,
+  resolveLegalDoc,
+} from "../../content/legal";
 import { MESSAGES_CONSENT_DRAFT } from "../../content/legal/messages-consent";
 import { parseConsentDocumentBody } from "../consent/domain/document-body";
 import type { ConsentPurpose } from "../consent/domain/purposes";
@@ -16,6 +20,16 @@ import { SEED_ACCOUNTS } from "./accounts";
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import type { SeedDeps } from "./types";
 
+/**
+ * A policy's repo text as a consent body. Outside production every fact
+ * shows (as a tile until confirmed), and the seed never runs there, so
+ * every clause keeps its own words.
+ */
+function repoBody(doc: LegalDoc) {
+  const { short, sections } = resolveLegalDoc(doc, () => true);
+  return { short, sections };
+}
+
 const SEED_DOCUMENTS: ReadonlyArray<{
   purpose: ConsentPurpose;
   title: string;
@@ -24,18 +38,12 @@ const SEED_DOCUMENTS: ReadonlyArray<{
   {
     purpose: "privacy_notice",
     title: "Privacy policy",
-    body: {
-      short: LEGAL_DOCS.privacy.short,
-      sections: LEGAL_DOCS.privacy.sections,
-    },
+    body: repoBody(LEGAL_DOCS.privacy),
   },
   {
     purpose: "terms",
     title: "Terms of use",
-    body: {
-      short: LEGAL_DOCS.terms.short,
-      sections: LEGAL_DOCS.terms.sections,
-    },
+    body: repoBody(LEGAL_DOCS.terms),
   },
   {
     purpose: "messages",

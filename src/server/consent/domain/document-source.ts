@@ -18,7 +18,7 @@
 import {
   LEGAL_FACTS,
   type LegalFact,
-  type LegalInline,
+  type ShownInline,
 } from "../../../content/legal/model";
 import {
   isAllowedHref,
@@ -87,10 +87,10 @@ function readUntil(
   return terminator === null ? { value, end: i } : null;
 }
 
-type InlineResult = LegalInline[] | SourceErrorCode;
+type InlineResult = ShownInline[] | SourceErrorCode;
 
 function parseInlines(raw: string): InlineResult {
-  const out: LegalInline[] = [];
+  const out: ShownInline[] = [];
   let text = "";
   const flush = () => {
     if (text) out.push(text);
@@ -137,9 +137,9 @@ function parseInlines(raw: string): InlineResult {
 }
 
 /** Joins a paragraph's lines with spaces, merging neighbouring text. */
-function joinLines(lines: LegalInline[][]): LegalInline[] {
-  const out: LegalInline[] = [];
-  const push = (inline: LegalInline) => {
+function joinLines(lines: ShownInline[][]): ShownInline[] {
+  const out: ShownInline[] = [];
+  const push = (inline: ShownInline) => {
     const last = out.at(-1);
     if (typeof inline === "string" && typeof last === "string") {
       out[out.length - 1] = last + inline;
@@ -160,11 +160,11 @@ const EXPLICIT_ID = /^(.*?)\s*(?<!\\)\{#([^\s{}\\]*)\}$/;
 /** Parses staff-written source into a body, or every error with its line. */
 export function parseConsentDocumentSource(source: string): ParsedSource {
   const errors: SourceError[] = [];
-  const short: LegalInline[][] = [];
+  const short: ShownInline[][] = [];
   const sections: (Section & { line: number })[] = [];
   const ids = new Set<string>();
-  let paragraph: LegalInline[][] | null = null;
-  let list: LegalInline[][] | null = null;
+  let paragraph: ShownInline[][] | null = null;
+  let list: ShownInline[][] | null = null;
 
   const fail = (line: number | null, code: SourceErrorCode) => {
     errors.push({ line, code });
@@ -181,7 +181,7 @@ export function parseConsentDocumentSource(source: string): ParsedSource {
     const last = sections.at(-1);
     if (last && last.blocks.length === 0) fail(last.line, "empty_section");
   };
-  const inlinesAt = (line: number, raw: string): LegalInline[] => {
+  const inlinesAt = (line: number, raw: string): ShownInline[] => {
     const result = parseInlines(raw);
     if (typeof result === "string") {
       fail(line, result);
@@ -246,7 +246,7 @@ function escapeText(text: string): string {
   return text.replace(/[\\*[\]{}]/g, (mark) => `\\${mark}`);
 }
 
-function formatInlines(text: LegalInline[]): string {
+function formatInlines(text: ShownInline[]): string {
   return text
     .map((inline) => {
       if (typeof inline === "string") return escapeText(inline);

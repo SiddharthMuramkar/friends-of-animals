@@ -1,7 +1,7 @@
 import { count, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_DOCS } from "@/content/legal";
+import { LEGAL_DOCS, type LegalDoc, resolveLegalDoc } from "@/content/legal";
 import { MESSAGES_CONSENT_DRAFT } from "@/content/legal/messages-consent";
 import { auditLog, consentDocument } from "@/server/db/schema";
 import { SEED_ACCOUNTS } from "@/server/seed";
@@ -344,10 +344,7 @@ describe("the preview seed", () => {
       {
         version: 1,
         title: "Privacy policy",
-        body: {
-          short: LEGAL_DOCS.privacy.short,
-          sections: LEGAL_DOCS.privacy.sections,
-        },
+        body: repoBody(LEGAL_DOCS.privacy),
         publishedBy: seededAdmin,
       },
     ]);
@@ -355,10 +352,7 @@ describe("the preview seed", () => {
       {
         version: 1,
         title: "Terms of use",
-        body: {
-          short: LEGAL_DOCS.terms.short,
-          sections: LEGAL_DOCS.terms.sections,
-        },
+        body: repoBody(LEGAL_DOCS.terms),
         publishedBy: seededAdmin,
       },
     ]);
@@ -375,3 +369,9 @@ describe("the preview seed", () => {
     ]);
   });
 });
+
+/** A policy's repo text with every clause kept, as the seed stores it. */
+function repoBody(doc: LegalDoc) {
+  const { short, sections } = resolveLegalDoc(doc, () => true);
+  return { short, sections };
+}

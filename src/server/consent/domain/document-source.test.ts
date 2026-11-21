@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_DOCS } from "@/content/legal";
+import { LEGAL_DOCS, resolveLegalDoc } from "@/content/legal";
 
 import type { ConsentDocumentBody } from "./document-body";
 import {
@@ -259,7 +259,9 @@ describe("formatConsentDocumentSource", () => {
   it.each(Object.entries(LEGAL_DOCS))(
     "round-trips the %s policy unchanged",
     (_name, doc) => {
-      const body = { short: doc.short, sections: doc.sections };
+      // Every clause kept, as outside production.
+      const { short, sections } = resolveLegalDoc(doc, () => true);
+      const body = { short, sections };
 
       expect(
         parseConsentDocumentSource(formatConsentDocumentSource(body))

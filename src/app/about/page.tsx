@@ -16,7 +16,7 @@ import { TileDivider, TileMarker } from "@/components/site/tile";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { isFactShown, SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 import { EasyRead } from "@/components/site/easy-read";
@@ -65,6 +65,7 @@ const PEOPLE_TILES = [
 
 export default async function Page() {
   const t = await getTranslations("about");
+  const { registration } = SITE.org;
   const objectives = t.raw("objectives.items") as {
     title: string;
     body: string;
@@ -325,11 +326,14 @@ export default async function Page() {
             title={t("transparency.title")}
             lead={t("transparency.body")}
           />
-          <p className="mt-6 flex flex-wrap items-center gap-2 text-body text-ink">
-            {t("transparency.registration")}
-            <Placeholder fact={SITE.org.registration.type} />
-            <Placeholder fact={SITE.org.registration.number} />
-          </p>
+          {isFactShown(registration.type) ||
+          isFactShown(registration.number) ? (
+            <p className="mt-6 flex flex-wrap items-center gap-2 text-body text-ink">
+              {t("transparency.registration")}
+              <Placeholder fact={registration.type} />
+              <Placeholder fact={registration.number} />
+            </p>
+          ) : null}
           <ButtonLink
             href={ROUTES.donate.path}
             variant="secondary"
