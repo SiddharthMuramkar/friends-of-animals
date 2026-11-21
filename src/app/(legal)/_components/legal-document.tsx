@@ -24,7 +24,10 @@ import {
   type CmsDocumentKey,
 } from "@/server/modules/cms/domain/documents";
 import { legalKind } from "@/server/modules/cms/kinds/legal";
-import { loadShownDocument, type ShownCmsDocument } from "@/server/modules/cms/shown";
+import {
+  loadShownDocument,
+  type ShownCmsDocument,
+} from "@/server/modules/cms/shown";
 
 const NS = {
   privacy: "legal.privacy",
