@@ -163,7 +163,7 @@ describe("startErrorTracking", () => {
       dsn: DSN,
       environment: "staging",
       release: "6f97d80",
-      tracesSampleRate: 0,
+      tracesSampler: expect.any(Function),
       dataCollection: expect.objectContaining({
         userInfo: false,
         cookies: false,

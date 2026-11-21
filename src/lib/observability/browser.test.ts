@@ -79,7 +79,7 @@ describe("startBrowserErrorTracking", () => {
     expect(options).toMatchObject({
       dsn: DSN,
       tunnel: "/monitoring",
-      tracesSampleRate: 0,
+      tracesSampler: expect.any(Function),
       dataCollection: expect.objectContaining({
         userInfo: false,
         cookies: false,

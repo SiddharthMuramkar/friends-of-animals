@@ -115,4 +115,33 @@ describe("events the real Sentry SDK sends", () => {
     expect(sent).not.toContain(token);
     await db.$client.close();
   });
+
+  it("include no spans, even for a request whose caller asks to sample its trace", async () => {
+    const before = envelopes.length;
+    const query = `email=${unique()}@example.test`;
+
+    // What a request with `sentry-trace: <trace>-<span>-1` sets up.
+    Sentry.continueTrace(
+      {
+        sentryTrace: "0123456789abcdef0123456789abcdef-0123456789abcdef-1",
+        baggage: "sentry-sampled=true,sentry-sample_rate=1",
+      },
+      () => {
+        Sentry.startSpan(
+          {
+            name: `GET /sign-in?${query}`,
+            attributes: { "http.target": `/sign-in?${query}` },
+          },
+          () => {
+            Sentry.startSpan({ name: "db.query" }, () => {});
+          }
+        );
+      }
+    );
+    await Sentry.flush(5000);
+
+    const sent = envelopes.slice(before).join("\n");
+    expect(sent).not.toMatch(/"type":"(span|transaction)"/);
+    expect(sent).not.toContain(query);
+  });
 });

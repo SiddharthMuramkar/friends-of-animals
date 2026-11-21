@@ -86,9 +86,6 @@ describe("sentryOptions", () => {
     expect(options).toMatchObject({
       dsn: DSN,
       environment: "staging",
-      // 0, not unset: unset lets SENTRY_TRACES_SAMPLE_RATE turn tracing on,
-      // and streamed spans never pass through beforeSend.
-      tracesSampleRate: 0,
       // Sentry 11 collects all of this by default; sendDefaultPii is gone.
       dataCollection: {
         userInfo: false,
@@ -104,9 +101,38 @@ describe("sentryOptions", () => {
         mcp: { inputs: false, outputs: false },
       },
     });
+    // A sampler, not tracesSampleRate: 0. Sentry asks the sampler before it
+    // follows a caller's `sentry-trace ...-1`, and before
+    // SENTRY_TRACES_SAMPLE_RATE, so no span is ever sampled.
+    expect(options).not.toHaveProperty("tracesSampleRate");
+    expect(options.tracesSampler({ parentSampled: true })).toBe(0);
     expect(options).not.toHaveProperty("sendDefaultPii");
     expect(options).not.toHaveProperty("beforeSendTransaction");
     expect(options).not.toHaveProperty("release");
+  });
+
+  it("scrubs any span that is sent anyway: its name, URL and query parts", () => {
+    const span = sentryOptions(tracking).beforeSendSpan({
+      name: "GET /sign-in?email=asha@example.test",
+      attributes: {
+        "http.method": "GET",
+        "http.target": "/sign-in?email=asha@example.test",
+        "url.full": "https://shipped-it.dev/sign-in?code=482913",
+        "url.query": "email=asha@example.test",
+        "http.query": "code=482913",
+        "user.email": "asha@example.test",
+      },
+    });
+
+    expect(span).toEqual({
+      name: "GET /sign-in",
+      attributes: {
+        "http.method": "GET",
+        "http.target": "/sign-in",
+        "url.full": "https://shipped-it.dev/sign-in",
+        "user.email": "[email]",
+      },
+    });
   });
 
   it("scrubs every event and breadcrumb before it is sent", () => {
