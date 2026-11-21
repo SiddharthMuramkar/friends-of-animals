@@ -5,6 +5,8 @@
 import type { FileStatus } from "@/server/modules/files/domain/file-status";
 import type { StorableContentType } from "@/server/modules/files/domain/purposes";
 
+import type { UploadError } from "./actions";
+
 /** How often the page asks whether the scan is done. */
 export const POLL_INTERVAL_MS = 2_000;
 /** How long it keeps asking before telling the user to come back later. */
@@ -83,4 +85,34 @@ export function typeNameKeys(
   types: readonly StorableContentType[]
 ): TypeNameKey[] {
   return types.map((type) => TYPE_NAME_KEY[type]);
+}
+
+/** The `files.errors` keys the island shows. */
+export type MessageKey =
+  | "noFile"
+  | "signedOut"
+  | "tooLarge"
+  | "empty"
+  | "typeNotAllowed"
+  | "switchedOff"
+  | "uploadFailed"
+  | "uploadRejected"
+  | "blocked"
+  | "unknown";
+
+const MESSAGE_KEY = {
+  signed_out: "signedOut",
+  too_large: "tooLarge",
+  empty: "empty",
+  type_not_allowed: "typeNotAllowed",
+  purpose_unavailable: "switchedOff",
+  // Storage has nothing: the PUT never arrived.
+  upload_missing: "uploadFailed",
+  upload_rejected: "uploadRejected",
+  unknown: "unknown",
+} as const satisfies Record<UploadError, MessageKey>;
+
+/** How the page words a failed upload step. */
+export function messageKeyFor(error: UploadError): MessageKey {
+  return MESSAGE_KEY[error];
 }

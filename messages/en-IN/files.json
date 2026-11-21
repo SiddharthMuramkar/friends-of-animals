@@ -28,7 +28,6 @@
       "readyLead": "Your file passed the virus check.",
       "slow": "The virus check is taking longer than usual. Your file is stored; try again later."
     },
-    "download": "Download",
     "downloadFile": "Download your file",
     "errors": {
       "noFile": "Choose a file first.",
