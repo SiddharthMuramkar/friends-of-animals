@@ -1,9 +1,11 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
-import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
-import { SEED_ACCOUNTS } from "../../src/server/seed/accounts";
-import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
+import {
+  generateTotpSecret,
+  TOTP,
+  totpCode,
+} from "../../src/server/modules/second-factor/domain/totp";
 import {
   expectAccessible,
   expectAccessibleInDark,
@@ -11,19 +13,32 @@ import {
 } from "./support/a11y";
 import { recordCspViolations } from "./support/csp";
 import { freshEmail, readCode } from "./support/mailbox";
+import { test } from "./support/seed-account";
 
 // #60: the second factor. A new member adds an authenticator app from the
-// setup key on the page; seeded staff pass the second factor and step up
-// with the preview-only SEED_TOTP_SECRET. This journey uses the seeded
-// staff admin so it cannot reuse the super admin's codes in the #59 journey.
+// setup key on the page; a staff admin passes the second factor and steps
+// up using an authenticator seeded for this test.
 //
 // These pages are signed-in pages under #65's nonce policy, which local runs
 // enforce: a page left with a static shell would have its scripts blocked,
 // so each journey also records CSP violations and expects none.
 
 /** The code an authenticator app with `secret` shows `stepsAhead` steps on. */
-function codeFor(secret: Uint8Array, stepsAhead = 0): string {
-  return totpCode(secret, new Date(Date.now() + stepsAhead * 30_000));
+function codeFor(secret: Uint8Array, stepsAhead = 0, now = Date.now()): string {
+  return totpCode(
+    secret,
+    new Date(now + stepsAhead * TOTP.periodSeconds * 1000)
+  );
+}
+
+function wrongCodeFor(secret: Uint8Array): string {
+  const now = Date.now();
+  // Avoid the accepted window and one extra step in case the form crosses
+  // a time boundary before the server verifies it.
+  const validCodes = [-1, 0, 1, 2].map((step) => codeFor(secret, step, now));
+  return ["000000", "111111", "222222", "333333", "444444"].find(
+    (code) => !validCodes.includes(code)
+  )!;
 }
 
 async function signIn(
@@ -92,18 +107,25 @@ test("a member adds an authenticator app, then steps up to remove it", async ({
 test("staff pass their second factor, then step up for a sensitive change", async ({
   page,
   request,
+  seedAccount,
 }) => {
-  const [, staff] = SEED_ACCOUNTS.members;
-  const secret = base32Decode(SEED_TOTP_SECRET);
+  const secret = generateTotpSecret();
+  const staffEmail = await seedAccount({
+    name: "Seed Staff Admin",
+    grants: [{ role: "staff_admin", scope: { type: "global" } }],
+    totpSecret: secret,
+  });
   const violations = await recordCspViolations(page);
-  await signIn(page, request, staff.email);
+  await signIn(page, request, staffEmail);
 
   await expectRendersAccessibly(
     page,
     "/auth/second-factor?next=%2Faccount%2Fsecurity"
   );
   await expectAccessibleInDark(page, "/auth/second-factor");
-  await page.getByRole("textbox", { name: "6-digit code" }).fill("000000");
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(wrongCodeFor(secret));
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "didn't match"

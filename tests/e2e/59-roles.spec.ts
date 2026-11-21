@@ -1,19 +1,19 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
-import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
 import {
+  generateTotpSecret,
   TOTP,
   totpCode,
 } from "../../src/server/modules/second-factor/domain/totp";
 import { SEED_ACCOUNTS } from "../../src/server/seed/accounts";
 import { SEED_SCOPES } from "../../src/server/seed/scopes";
-import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {
   expectAccessible,
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
 import { freshEmail, freshPhone } from "./support/mailbox";
+import { test } from "./support/seed-account";
 import {
   expectNoSidewaysScrollAt320,
   newDevice,
@@ -26,21 +26,17 @@ import {
 // found and given a role too, a member with several roles switches areas,
 // and people without the role are refused or sent to sign in.
 //
-// Both grant scenarios use one staff session because a TOTP step can
-// only be used once per authenticator. CI gives each project and shard
-// its own database. The #60 journey uses a different seeded staff account.
+// Both grant scenarios use the same super-admin session within each test.
 
 const SCHOOL = SEED_SCOPES.institution.id;
 const COORDINATOR = `Institution coordinator for institution ${SCHOOL}`;
 const DENIED = "This page is for staff who manage access";
 const NO_EMAIL = "No email address: signs in with a mobile number";
-const SEED_AUTHENTICATOR = base32Decode(SEED_TOTP_SECRET);
-
-async function verifyStaffCode(page: Page, stepsAhead = 0) {
+async function verifyStaffCode(page: Page, secret: Uint8Array, stepsAhead = 0) {
   const at = new Date(Date.now() + stepsAhead * TOTP.periodSeconds * 1000);
   await page
     .getByRole("textbox", { name: "6-digit code" })
-    .fill(totpCode(SEED_AUTHENTICATOR, at));
+    .fill(totpCode(secret, at));
   await page.getByRole("button", { name: "Continue" }).click();
 }
 
@@ -48,7 +44,15 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   browser,
   page,
   request,
+  seedAccount,
 }, testInfo) => {
+  const secret = generateTotpSecret();
+  const superAdminEmail = await seedAccount({
+    name: SEED_ACCOUNTS.superAdmin.name,
+    grants: [{ role: "super_admin", scope: { type: "global" } }],
+    totpSecret: secret,
+  });
+
   // The member: a fresh account, on a second device.
   const memberEmail = freshEmail(testInfo.project.name);
   const memberName = "Kavya Menon";
@@ -66,10 +70,10 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   }
 
   // The super admin finds the member.
-  await signInByCode(page, request, SEED_ACCOUNTS.superAdmin.email);
+  await signInByCode(page, request, superAdminEmail);
   await page.goto("/admin/roles");
   await expect(page).toHaveURL(/\/auth\/second-factor\?next=%2Fadmin%2Froles$/);
-  await verifyStaffCode(page);
+  await verifyStaffCode(page, secret);
   await expect(page).toHaveURL(/\/admin\/roles$/);
   await expectRendersAccessibly(page, "/admin/roles");
   await expectAccessibleInDark(page, "/admin/roles");
@@ -96,7 +100,7 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
     "Confirm it's you"
   );
   // The first factor used the current step, so submit the next code.
-  await verifyStaffCode(page, 1);
+  await verifyStaffCode(page, secret, 1);
   await expect(page).toHaveURL(chosenRolesUrl);
 
   // A role at a scope it can't have is refused with a message, no code.
@@ -260,8 +264,23 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
 test("a member with several roles switches between their areas", async ({
   page,
   request,
+  seedAccount,
 }) => {
-  await signInByCode(page, request, SEED_ACCOUNTS.members[0].email);
+  const memberEmail = await seedAccount({
+    name: SEED_ACCOUNTS.members[0].name,
+    grants: [
+      { role: "content_manager", scope: { type: "global" } },
+      {
+        role: "institution_coordinator",
+        scope: { type: "institution", id: SCHOOL },
+      },
+      {
+        role: "judge",
+        scope: { type: "competition", id: SEED_SCOPES.competition.id },
+      },
+    ],
+  });
+  await signInByCode(page, request, memberEmail);
   await expectRendersAccessibly(page, "/dashboard");
   await expectAccessibleInDark(page, "/dashboard");
   await expectNoSidewaysScrollAt320(page, "/dashboard");
