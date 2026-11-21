@@ -8,9 +8,9 @@
 
 import { eq, sql } from "drizzle-orm";
 
-import { grantsOf } from "../access/grants";
-import type { AppDb } from "../db/app-db";
-import { session } from "../db/schema";
+import { grantsOf } from "../../access/grants";
+import type { AppDb } from "../../db/app-db";
+import { session } from "../../db/schema";
 import { capSessionExpiry, isSessionLive } from "./domain/session-lifetime";
 import { SECOND_FACTOR_SETTINGS } from "./settings";
 

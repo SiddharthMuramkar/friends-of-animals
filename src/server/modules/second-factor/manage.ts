@@ -11,17 +11,17 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../access/can";
-import { recordAudit } from "../audit/record";
-import type { AppDb } from "../db/app-db";
+import { authorize } from "../../access/can";
+import { recordAudit } from "../../audit/record";
+import type { AppDb } from "../../db/app-db";
 import {
   secondFactor,
   secondFactorLockout,
   session,
   sessionSecondFactor,
   user,
-} from "../db/schema";
-import { invalidInput, type InvalidInput } from "../input";
+} from "../../db/schema";
+import { invalidInput, type InvalidInput } from "../../input";
 import { isEnrolled, signedInUser } from "./session-factor";
 import type { SecondFactorContext } from "./totp";
 

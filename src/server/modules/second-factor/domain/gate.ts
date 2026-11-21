@@ -12,7 +12,7 @@
 // Pure: no I/O, time comes in as `now`. Loads under plain Node: relative
 // imports only.
 
-import { isStaffRole, ROLES, type Role } from "../../access/domain/roles";
+import { isStaffRole, ROLES, type Role } from "../../../access/domain/roles";
 
 /**
  * The FOA staff roles (#59 keeps the list). Holding any of them, in any

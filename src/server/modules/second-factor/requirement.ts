@@ -3,9 +3,9 @@
 // action, and what staffAccess() asks for staff screens. Read fresh on
 // every call. Loads under plain Node: relative imports only.
 
-import type { Role } from "../access/domain/roles";
-import type { AppDb } from "../db/app-db";
-import type { Clock } from "../ports/clock";
+import type { Role } from "../../access/domain/roles";
+import type { AppDb } from "../../db/app-db";
+import type { Clock } from "../../ports/clock";
 import {
   checkSecondFactor,
   type SecondFactorRefusal,

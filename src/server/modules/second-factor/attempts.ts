@@ -3,10 +3,10 @@
 // start a lock), and a success stamps the session and clears the count.
 // Loads under plain Node: relative imports only.
 
-import { recordAudit } from "../audit/record";
-import type { AppDb } from "../db/app-db";
-import type { SecondFactorKind } from "../db/schema";
-import type { Clock } from "../ports/clock";
+import { recordAudit } from "../../audit/record";
+import type { AppDb } from "../../db/app-db";
+import type { SecondFactorKind } from "../../db/schema";
+import type { Clock } from "../../ports/clock";
 import { lockedUntil, NO_FAILURES, recordFailure } from "./domain/lockout";
 import {
   lockLockout,
