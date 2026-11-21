@@ -1,0 +1,79 @@
+{
+  "adminCompetitionTerms": {
+    "meta": {
+      "title": "Fees, prizes and terms",
+      "description": "Set a competition's fees, its award schemes and the documents people agree to when they register."
+    },
+    "eyebrow": "Competitions",
+    "title": "Fees, prizes and terms",
+    "lead": "Saved changes show on the public page straight away.",
+    "forCompetition": "For {name} ({code}).",
+    "loading": "Loading the competition…",
+    "denied": {
+      "title": "Only competition managers can open this page",
+      "body": "Ask a super admin for the competition manager role, for all competitions or for this one.",
+      "back": "Back to your account"
+    },
+    "saved": "Saved.",
+    "unchanged": "Nothing changed: that is what was already set.",
+    "failed": "That didn't save. Reload the page and try again.",
+    "fees": {
+      "heading": "Fees",
+      "lead": "Amounts in rupees, as FOA sets them. A fee of 0 means free.",
+      "locked": "Registration has opened, so the fees are locked.",
+      "noParticipation": "Choose who takes part on the competition's main form first.",
+      "currency": "Fees are in rupees only.",
+      "stepUp": "Fees are money: pass your second factor again, then save.",
+      "choice": "Fee",
+      "free": "Free for everyone",
+      "paid": "A fee for each way of entering",
+      "route": {
+        "individual": "Entering on their own, in rupees",
+        "institution": "Through a school or institution, in rupees"
+      },
+      "save": "Save fees",
+      "saving": "Saving fees…",
+      "errors": {
+        "missing_fee": "Enter a fee, or 0.",
+        "invalid_amount": "Enter rupees like 1500 or 1,500.50.",
+        "too_large": "That amount is too large.",
+        "route_not_offered": "This competition doesn't take entries this way."
+      }
+    },
+    "awards": {
+      "heading": "Prizes and recognition",
+      "lead": "Choose how each round recognises its best entries, and any prize for each place.",
+      "scheme": "Award scheme",
+      "prize": "Prize for {band} (optional)",
+      "save": "Save {round}",
+      "saving": "Saving…",
+      "errors": {
+        "unknown_round": "That round doesn't exist.",
+        "unknown_scheme": "Choose one of the schemes.",
+        "round_not_offered": "This competition doesn't run that round.",
+        "band_not_in_scheme": "That place isn't in this scheme.",
+        "prize_too_long": "Keep each prize to 200 characters."
+      }
+    },
+    "documents": {
+      "heading": "Documents people agree to",
+      "lead": "Attaching pins the latest published version. Publishing a newer version changes nothing here until you attach again.",
+      "required": "Required to register",
+      "state": {
+        "not_attached": "Not attached.",
+        "current": "Version {version} attached. It is the latest.",
+        "newer_available": "Version {version} attached. Version {latest} is newer."
+      },
+      "noVersion": "Nothing published yet. Staff admins publish it on the consent documents page.",
+      "attach": "Attach version {version}",
+      "move": "Move to version {version}",
+      "detach": "Detach",
+      "working": "Saving…",
+      "view": "Read version {version}",
+      "purpose": {
+        "competition_terms": "Competition terms",
+        "privacy_notice": "Privacy policy"
+      }
+    }
+  }
+}
