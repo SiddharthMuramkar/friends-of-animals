@@ -37,9 +37,11 @@ describe("someUseCase", () => {
 | `h.signIn(user)`   | Signs `user` in through the real email-code flow (fresh IP) and returns the signed-in actor                |
 | `h.currentActor()` | Who the server sees on the browser's next request, from `h.cookies`, resolved as in production             |
 | `h.cookies`        | The browser's cookie store; `header()` saves a browser to pass to `currentActor(meta, cookie)` later       |
+| `h.errors`         | `FakeErrorReporter`: `reported`, each as Sentry would get it (scrubbed) plus the `error`                   |
 | `h.db`             | This test's database, for asserting on rows (audit rows count as behaviour)                                |
-| `h.deps`           | `{ db, clock, email }`: what `productionDeps()` wires for real in `src/server/deps.ts`                     |
+| `h.deps`           | `{ db, clock, email, cookies, errors, auth }`: what `productionDeps()` wires in `src/server/deps.ts`       |
 | `h.drain()`        | Delivers due outbox events in process with the real relay, pass after pass; returns the `DrainReport`      |
+| `h.storage`        | `FakeStorage`: `put(url, bytes, headers)` and `get(url)` use presigned URLs as a browser does; `plant()`   |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
 `h.clock`, because Better Auth reads `new Date()` for code and session expiry.
@@ -84,3 +86,13 @@ expect(h.email.lastTo(ASHA)?.subject).toBe("Welcome to Friends of Animals");
 `h.drain()` runs the same relay as the VPS worker, so retries follow the fake
 clock: `h.email.failNext(1)`, drain (retried), `h.clock.advance({ seconds: 30 })`,
 drain again (sent). Failed deliveries are listed by `listFailedDeliveries(h.db)`.
+
+## Files and storage
+
+A use case that takes an upload goes through the Files module
+(`src/server/modules/files`): `requestUpload` presigns, the test PUTs with
+`h.storage.put(uploadUrl, bytes, headers)`, then `completeUpload` checks the
+stored object. `h.storage.get(url)` opens a download URL. Both check the
+signature, method, signed headers and expiry against `h.clock`, so
+`h.clock.advance({ seconds: 301 })` makes a download URL fail with `expired`.
+To stand in for the scan, set the row's `status` to `clean` directly.
