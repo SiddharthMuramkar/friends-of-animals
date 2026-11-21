@@ -1,7 +1,8 @@
 // Competitions seed data (#70): three published competitions at the sample
 // content's links, one per way of taking part, and one draft, the seeded
 // competition scope (SEED_SCOPES.competition) that a judge is granted on.
-// Also a global competition manager, so previews can run the admin pages.
+// Also two global competition managers with the seed authenticator (#60's
+// SEED_TOTP_SECRET), so previews can run the admin pages.
 // Loads under plain Node (the seed script): relative imports only, no
 // "server-only".
 
@@ -23,14 +24,30 @@ import {
 } from "../modules/competitions/store";
 import { ensureGrant } from "./access";
 import { SEED_SCOPES } from "./scopes";
+import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps } from "./types";
 
-/** A preview's competition manager, global, signing in by email code. */
-export const SEED_COMPETITION_MANAGER = {
-  id: "01938a00-0000-7000-8000-000000000201",
-  name: "Seed Competition Manager",
-  email: "competition-manager@example.test",
-} as const;
+/**
+ * A preview's competition managers, global, each signing in by email code
+ * and passing the second factor with the seed authenticator. Two, so the
+ * desktop and mobile journeys never type the same authenticator's code: a
+ * code works once.
+ */
+export const SEED_COMPETITION_MANAGERS = [
+  {
+    id: "01938a00-0000-7000-8000-000000000201",
+    name: "Seed Competition Manager",
+    email: "competition-manager@example.test",
+  },
+  {
+    id: "01938a00-0000-7000-8000-000000000202",
+    name: "Seed Competition Manager Two",
+    email: "competition-manager-2@example.test",
+  },
+] as const;
+
+/** The first seeded competition manager. */
+export const SEED_COMPETITION_MANAGER = SEED_COMPETITION_MANAGERS[0];
 
 const AGE_GROUPS = [
   { label: "Group A", minAge: 5, maxAge: 8 },
@@ -184,13 +201,16 @@ async function insertCompetition(
   return true;
 }
 
-/** The competitions above and their manager. Running again changes nothing. */
+/** The competitions above and their managers. Running again changes nothing. */
 export async function seedCompetitions(deps: SeedDeps): Promise<void> {
-  const manager = await ensureVerifiedAccount(deps, SEED_COMPETITION_MANAGER);
-  await ensureGrant(deps, manager.id, {
-    role: "competition_manager",
-    scope: { type: "global" },
-  });
+  for (const account of SEED_COMPETITION_MANAGERS) {
+    const manager = await ensureVerifiedAccount(deps, account);
+    await ensureGrant(deps, manager.id, {
+      role: "competition_manager",
+      scope: { type: "global" },
+    });
+    await ensureSeedAuthenticator(deps, manager.id);
+  }
   for (const seed of SEED_COMPETITIONS) await insertCompetition(deps, seed);
 }
 

@@ -9,6 +9,7 @@ import {
 } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
+import { SEED_COMPETITION_MANAGERS } from "./competitions";
 import { SEED_COMPETITION_MANAGER, SEED_SCOPES } from "./index";
 
 async function counts(h: Harness) {
@@ -99,6 +100,26 @@ describe("the competitions seed", () => {
         .as(manager)
         .previewCompetition({ competitionId: SEED_SCOPES.competition.id })
     ).toMatchObject({ ok: true, status: "draft", competition: null });
+  });
+
+  it("gives two global managers the seed authenticator, so each journey project passes the second factor as its own manager", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+
+    expect(SEED_COMPETITION_MANAGERS.map((account) => account.email)).toEqual([
+      "competition-manager@example.test",
+      "competition-manager-2@example.test",
+    ]);
+    for (const account of SEED_COMPETITION_MANAGERS) {
+      const manager = await h.signIn(account, undefined, {
+        secondFactor: false,
+      });
+      expect(
+        await h.as(manager).verifySecondFactor({ code: h.totpCode() }),
+        account.email
+      ).toEqual({ ok: true });
+      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(4);
+    }
   });
 
   it("changes nothing when it runs again", async () => {
