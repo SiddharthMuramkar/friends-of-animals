@@ -1,6 +1,6 @@
 {
-  "id": "4cf280f8-9ad7-496d-9674-12b931a2af29",
-  "prevId": "8c0d5a45-ec42-4709-905b-69d85060ad73",
+  "id": "a126a5cb-4fc2-4d48-ba97-6de3fd956e7d",
+  "prevId": "94e474b5-fe74-496b-a88c-4d0ac55d7589",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -992,6 +992,48 @@
         "outbox_failed_at_when_failed": {
           "name": "outbox_failed_at_when_failed",
           "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.worker_heartbeat": {
+      "name": "worker_heartbeat",
+      "schema": "",
+      "columns": {
+        "worker": {
+          "name": "worker",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "worker_heartbeat_environment_known": {
+          "name": "worker_heartbeat_environment_known",
+          "value": "\"worker_heartbeat\".\"environment\" IN ('local', 'preview', 'staging', 'production')"
         }
       },
       "isRLSEnabled": false

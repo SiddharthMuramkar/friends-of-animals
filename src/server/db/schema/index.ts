@@ -14,5 +14,3 @@ export * from "./consent";
 export * from "./settings";
 export * from "./notifications";
 export * from "./second-factor";
-export * from "./outbox";
-export * from "./settings";
