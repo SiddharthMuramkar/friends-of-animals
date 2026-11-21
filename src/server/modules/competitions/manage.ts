@@ -1,7 +1,8 @@
 // Creating and opening competitions in the admin area (#70).
 //
-//   createCompetition({ code, name, ... })      → a global competition manager
-//   getCompetitionForEdit({ competitionId })    → a manager covering it
+//   createCompetition({ code, name, ... })            → a global competition manager
+//   getCompetitionForEdit({ competitionId })          → a manager covering it
+//   updateCompetition({ competitionId, ...changes })  → a manager covering it
 //
 // Expected refusals come back as results; an actor the policy refuses gets
 // DomainError("forbidden"). Loads under plain Node: relative imports only.
@@ -11,11 +12,13 @@ import { z } from "zod";
 
 import { authorize } from "../../access/can";
 import type { Resource } from "../../access/domain/policy";
+import type { AppDb } from "../../db/app-db";
 import { recordAudit } from "../../audit/record";
 import { competition } from "../../db/schema";
 import { sqlState } from "../../errors";
 import { uuidv7 } from "../../ids";
 import type { UseCaseContext } from "../../use-cases";
+import { orderedKeyDates } from "./domain/key-dates";
 import { competitionSlugCandidates } from "./domain/slug";
 import type { CompetitionStatus } from "./domain/vocabulary";
 import {
@@ -26,8 +29,14 @@ import {
   type CompetitionInput,
   type CompetitionValues,
   type FieldsRefusal,
+  type FieldsToSave,
 } from "./fields";
-import { columnsOf, loadCompetition, replaceGroups } from "./store";
+import {
+  columnsOf,
+  loadCompetition,
+  replaceAgeGroups,
+  replaceKeyDates,
+} from "./store";
 
 /** What the competition use cases use: the database, the clock and the actor. */
 export type CompetitionsContext = Pick<
@@ -78,20 +87,43 @@ function isCodeTaken(error: unknown): boolean {
 
 /** Whether another competition already has this code. */
 async function codeTaken(
-  ctx: CompetitionsContext,
+  db: AppDb,
   code: string,
   exceptId?: string
 ): Promise<boolean> {
-  const rows = await ctx.db
+  const rows = await db
     .select({ id: competition.id })
     .from(competition)
     .where(eq(competition.code, code));
   return rows.some((row) => row.id !== exceptId);
 }
 
-/** The audit log's view of a competition: its values, dates as instants. */
-function auditView(values: CompetitionValues) {
-  return { ...values };
+/**
+ * The audit log's view of a competition: its values, key dates as ISO
+ * instants in timeline order, so two views compare field by field.
+ */
+function auditView(values: CompetitionValues): Record<string, unknown> {
+  const keyDates = Object.fromEntries(
+    orderedKeyDates(values.keyDates).map(({ kind, at }) => [
+      kind,
+      at.toISOString(),
+    ])
+  );
+  return { ...values, keyDates };
+}
+
+/** The fields whose values differ, with their values before and after. */
+function changes(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>
+): { before: Record<string, unknown>; after: Record<string, unknown> } {
+  const changed = Object.keys(after).filter(
+    (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key])
+  );
+  return {
+    before: Object.fromEntries(changed.map((key) => [key, before[key]])),
+    after: Object.fromEntries(changed.map((key) => [key, after[key]])),
+  };
 }
 
 /** Slugs to try after the name's own: the name with the code, then numbered. */
@@ -119,7 +151,7 @@ export async function createCompetition(
   });
   if (!parsed.ok) return parsed;
   const { values } = parsed;
-  if (await codeTaken(ctx, values.code)) {
+  if (await codeTaken(ctx.db, values.code)) {
     return { ok: false, error: "code_taken" };
   }
   const now = ctx.clock.now();
@@ -149,7 +181,8 @@ export async function createCompetition(
         }
       }
       if (slug === undefined) throw new Error("No free slug for the name");
-      await replaceGroups(tx, id, values, now);
+      await replaceAgeGroups(tx, id, values, now);
+      await replaceKeyDates(tx, id, values.keyDates);
       await recordAudit(tx, ctx, {
         action: "competition.created",
         entity: { type: "competition", id },
@@ -208,6 +241,83 @@ export async function getCompetitionForEdit(
       fields: fieldsOf(values),
     },
   };
+}
+
+export type UpdateCompetitionInput = {
+  competitionId: string;
+} & Partial<CompetitionFields>;
+
+export type UpdateCompetitionResult =
+  | { ok: true; changed: boolean }
+  | FieldsRefusal
+  | { ok: false; error: "code_taken" | "not_found" };
+
+/**
+ * Saves changes to a competition: the fields given, the others as they
+ * were. Age groups, categories and key dates are replaced whole when
+ * given. New disciplines or age groups without categories make every
+ * pairing a category. Changing nothing records nothing (`changed: false`).
+ */
+export async function updateCompetition(
+  ctx: CompetitionsContext,
+  input: UpdateCompetitionInput
+): Promise<UpdateCompetitionResult> {
+  const { competitionId, ...given } = input;
+  const { role: actorRole } = await authorize(
+    ctx,
+    "competition.edit",
+    competitionResource(competitionId)
+  );
+  if (!isCompetitionId(competitionId)) {
+    return { ok: false, error: "not_found" };
+  }
+  const now = ctx.clock.now();
+
+  try {
+    return await ctx.db.transaction(async (tx) => {
+      const stored = await loadCompetition(tx, competitionId, { lock: true });
+      if (!stored) return { ok: false, error: "not_found" } as const;
+      const given_ = withoutUndefined(given);
+      const merged: FieldsToSave = { ...fieldsOf(stored.values), ...given_ };
+      const regroup =
+        given_.categories === undefined &&
+        (given_.disciplines !== undefined || given_.ageGroups !== undefined);
+      if (regroup) delete merged.categories;
+      const parsed = parseFields(merged);
+      if (!parsed.ok) return parsed;
+      const { values } = parsed;
+      if (await codeTaken(tx, values.code, competitionId)) {
+        return { ok: false, error: "code_taken" } as const;
+      }
+
+      const diff = changes(auditView(stored.values), auditView(values));
+      const changed = Object.keys(diff.after);
+      if (changed.length === 0) return { ok: true, changed: false } as const;
+
+      await tx
+        .update(competition)
+        .set({ ...columnsOf(values), updatedAt: now })
+        .where(eq(competition.id, competitionId));
+      // Only a change to them replaces the rows, so the categories keep
+      // their ids through other edits.
+      if (changed.includes("ageGroups") || changed.includes("categories")) {
+        await replaceAgeGroups(tx, competitionId, values, now);
+      }
+      if (changed.includes("keyDates")) {
+        await replaceKeyDates(tx, competitionId, values.keyDates);
+      }
+      await recordAudit(tx, ctx, {
+        action: "competition.updated",
+        entity: { type: "competition", id: competitionId },
+        ...diff,
+        actorRole,
+      });
+      return { ok: true, changed: true } as const;
+    });
+  } catch (error) {
+    if (isCodeTaken(error)) return { ok: false, error: "code_taken" };
+    throw error;
+  }
 }
 
 /** `input` without the keys whose value is undefined. */

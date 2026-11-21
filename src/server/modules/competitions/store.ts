@@ -14,8 +14,7 @@ import {
   type Competition,
 } from "../../db/schema";
 import { uuidv7 } from "../../ids";
-import type { KeyDates } from "./domain/key-dates";
-import { orderedKeyDates } from "./domain/key-dates";
+import { orderedKeyDates, type KeyDates } from "./domain/key-dates";
 import { DISCIPLINES, type PhysicalArtwork } from "./domain/vocabulary";
 import type { CompetitionValues } from "./fields";
 
@@ -138,23 +137,19 @@ export function columnsOf(values: CompetitionValues) {
 }
 
 /**
- * Replaces the competition's age groups, categories and key dates with
- * these values' (the form saves them whole). New rows get new ids.
+ * Replaces the competition's age groups and categories with these values'
+ * (the form saves them whole). New rows get new ids.
  */
-export async function replaceGroups(
+export async function replaceAgeGroups(
   tx: AppDb,
   competitionId: string,
-  values: CompetitionValues,
+  values: Pick<CompetitionValues, "ageGroups" | "categories">,
   now: Date
 ): Promise<void> {
   // Deleting the age groups deletes their categories too.
   await tx
     .delete(competitionAgeGroup)
     .where(eq(competitionAgeGroup.competitionId, competitionId));
-  await tx
-    .delete(competitionKeyDate)
-    .where(eq(competitionKeyDate.competitionId, competitionId));
-
   const groupIds = new Map<string, string>();
   if (values.ageGroups.length > 0) {
     await tx.insert(competitionAgeGroup).values(
@@ -175,7 +170,18 @@ export async function replaceGroups(
       }))
     );
   }
-  const keyDates = orderedKeyDates(values.keyDates);
+}
+
+/** Replaces the competition's key dates with these. */
+export async function replaceKeyDates(
+  tx: AppDb,
+  competitionId: string,
+  dates: KeyDates
+): Promise<void> {
+  await tx
+    .delete(competitionKeyDate)
+    .where(eq(competitionKeyDate.competitionId, competitionId));
+  const keyDates = orderedKeyDates(dates);
   if (keyDates.length > 0) {
     await tx
       .insert(competitionKeyDate)
