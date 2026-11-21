@@ -18,3 +18,31 @@ CREATE TRIGGER "audit_log_no_update_or_delete"
 CREATE TRIGGER "audit_log_no_truncate"
   BEFORE TRUNCATE ON "audit_log"
   FOR EACH STATEMENT EXECUTE FUNCTION "audit_log_reject_mutation"();
+--> statement-breakpoint
+-- Belt and braces: take UPDATE, DELETE and TRUNCATE away from every role
+-- but the owner, including rights the app role got by default privileges
+-- when the table was created. Roles are read from the table's ACL, so no
+-- role is named here.
+DO $$
+DECLARE
+  holder oid;
+BEGIN
+  FOR holder IN
+    SELECT DISTINCT acl.grantee
+    FROM pg_class AS c
+    CROSS JOIN LATERAL aclexplode(c.relacl) AS acl
+    WHERE c.oid = 'public.audit_log'::regclass
+      AND acl.grantee <> c.relowner
+      AND acl.privilege_type IN ('UPDATE', 'DELETE', 'TRUNCATE')
+  LOOP
+    IF holder = 0 THEN
+      REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "audit_log" FROM PUBLIC;
+    ELSE
+      EXECUTE format(
+        'REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "audit_log" FROM %I',
+        (SELECT rolname FROM pg_roles WHERE oid = holder)
+      );
+    END IF;
+  END LOOP;
+END;
+$$;

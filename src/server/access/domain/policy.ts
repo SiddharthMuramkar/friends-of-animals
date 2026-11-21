@@ -105,6 +105,49 @@ export function anyOf(...rules: Rule[]): Rule {
   };
 }
 
+type Merged<Policies extends readonly unknown[]> = Policies extends readonly [
+  infer Head,
+  ...infer Tail,
+]
+  ? Head & Merged<Tail>
+  : unknown;
+
+type DuplicateActions<
+  Policies extends readonly unknown[],
+  Seen = never,
+> = Policies extends readonly [infer Head, ...infer Tail]
+  ? (keyof Head & Seen) | DuplicateActions<Tail, Seen | keyof Head>
+  : never;
+
+/** `Policies` itself, or an impossible type naming the duplicates. */
+type WithoutDuplicates<Policies extends readonly unknown[]> = [
+  DuplicateActions<Policies>,
+] extends [never]
+  ? unknown
+  : { actionDefinedInMoreThanOnePolicy: DuplicateActions<Policies> };
+
+/**
+ * Merges each module's policy into the platform's. Two policies naming the
+ * same action fail type-checking, and throw if a cast hides it, so no rule
+ * silently replaces another.
+ */
+export function composePolicies<
+  const Policies extends readonly Policy<string>[],
+>(...policies: Policies & WithoutDuplicates<Policies>): Merged<Policies> {
+  const merged: Record<string, Rule> = {};
+  for (const policy of policies as readonly Policy<string>[]) {
+    for (const [action, rule] of Object.entries(policy)) {
+      if (Object.hasOwn(merged, action)) {
+        throw new Error(
+          `Action "${action}" is defined in more than one policy`
+        );
+      }
+      merged[action] = rule;
+    }
+  }
+  return merged as Merged<Policies>;
+}
+
 /** Decides one action. An action the policy doesn't define is refused. */
 export function decide<Action extends string>(
   policy: Policy<Action>,
