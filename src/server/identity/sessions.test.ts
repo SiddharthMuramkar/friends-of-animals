@@ -50,6 +50,19 @@ describe("listSessions", () => {
     ]);
   });
 
+  it("gives an IPv6 session's address as Better Auth stores it, its /64", async () => {
+    const h = await createHarness();
+    const member = await h.seed.member();
+    const phone = await h.signIn(member, {
+      ip: "2409:4060:2e0f:8a2b:6d4c:1f3e:9a7b:5c21",
+      userAgent: "Phone browser",
+    });
+
+    const [session] = await h.as(phone).listSessions();
+
+    expect(session?.ipAddress).toBe("2409:4060:2e0f:8a2b:0000:0000:0000:0000");
+  });
+
   it("leaves out sessions that have expired", async () => {
     const h = await createHarness();
     const member = await h.seed.member();

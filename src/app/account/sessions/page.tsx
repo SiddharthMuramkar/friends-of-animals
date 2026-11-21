@@ -13,6 +13,7 @@ import { as, currentActor } from "@/server/app";
 import type { SessionSummary } from "@/server/identity";
 
 import { signOutEverywhereAction, signOutSessionAction } from "./_lib/actions";
+import { sessionAddress } from "./_lib/address";
 import { describeDevice } from "./_lib/device";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -76,6 +77,7 @@ async function Sessions() {
           {sessions.map((session) => {
             const device = deviceName(session);
             const date = format.dateTime(session.startedAt, "longDateTime");
+            const address = sessionAddress(session.ipAddress);
             return (
               <li key={session.id} className={CARD}>
                 <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
@@ -89,9 +91,9 @@ async function Sessions() {
                   ) : null}
                 </p>
                 <p className="mt-2 text-ink-muted">{t("started", { date })}</p>
-                {session.ipAddress ? (
-                  <p className="text-ink-muted">
-                    {t("ip", { ip: session.ipAddress })}
+                {address ? (
+                  <p className="text-ink-muted wrap-anywhere">
+                    {t(address.kind, { address: address.text })}
                   </p>
                 ) : null}
                 <form action={signOutSessionAction} className="mt-4">
