@@ -11,6 +11,12 @@ import type { SeedDeps } from "./types";
  * Stores each setting's default unless a value is stored already, so a
  * value someone changed on the preview survives every later seed. Seed
  * data, not an admin's change: it names no user and writes no audit entry.
+ *
+ * The trade-off, accepted for the brief's seeded settings (AC 8): a seeded
+ * database shows every setting as stored, changed on the seed's date, not
+ * as using the default. A default changed later in the catalogue doesn't
+ * reach a database seeded before: its stored row keeps the old one until a
+ * super admin changes it on the settings screen.
  */
 export async function seedSettings({ db, clock }: SeedDeps): Promise<void> {
   const now = clock.now();

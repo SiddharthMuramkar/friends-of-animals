@@ -113,6 +113,15 @@ One round of carrying out every delivery that is due: the worker does it all
 the time, a preview does it on request, and a Seam 1 test does it in process.
 _Avoid_: Flush, process the queue
 
+## Running the platform
+
+**Runtime setting**:
+A value that changes how the platform works, such as how long Staff stay signed
+in or whether sign-in codes go by text message, which a super admin changes on
+the settings screen without a release. Each has a default that applies until a
+value is stored, and every change needs Step-up and goes in the Audit log.
+_Avoid_: Config, feature flag, environment variable
+
 ## Engineering
 
 **Seed builder**:
