@@ -20,6 +20,15 @@
 
 name: foa-workers
 
+# Container logs go to the host's journal, kept a year by
+# systemd/journald-foa.conf (#66; README "Logs"), and `docker compose logs`
+# still reads them. Word for word the anchor in compose.yml:
+# docker/logging.test.ts keeps the two identical.
+x-logging: &logging
+  driver: journald
+  options:
+    tag: "{{.Name}}"
+
 x-worker: &worker
   build:
     context: ..
@@ -39,11 +48,12 @@ x-worker: &worker
     - ALL
   security_opt:
     - no-new-privileges:true
-  logging:
-    driver: json-file
-    options:
-      max-size: "20m"
-      max-file: "5"
+  logging: *logging
+  # SENTRY_DSN=<the workers' Sentry project> (#66, HR-22). Optional: with no
+  # file, or an empty value, the workers report errors nowhere.
+  env_file:
+    - path: /etc/foa/secrets/worker_sentry.env
+      required: false
   healthcheck:
     # The worker touches /tmp/foa-worker-heartbeat after each healthy poll
     # (every 5 s): healthy while it is under 120 s old.
