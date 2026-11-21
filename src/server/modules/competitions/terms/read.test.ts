@@ -27,7 +27,10 @@ describe("the public read model's terms", () => {
     });
     await h
       .as(manager)
-      .attachConsentDocument({ competitionId: id, purpose: "competition_terms" });
+      .attachConsentDocument({
+        competitionId: id,
+        purpose: "competition_terms",
+      });
     await publishDocument(h, "competition_terms", "v2");
 
     const published = await h.as(h.visitor()).getPublishedCompetition({ slug });

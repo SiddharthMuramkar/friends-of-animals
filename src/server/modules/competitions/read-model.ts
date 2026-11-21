@@ -10,6 +10,15 @@ import { COMPETITION_SLUG_PATTERN } from "./domain/slug";
 import type { CompetitionsContext } from "./manage";
 import { toPublicCompetition, type PublicCompetition } from "./public-view";
 import { withValues, type StoredCompetition } from "./store";
+import {
+  publicCompetitionTerms,
+  type PublicCompetitionTerms,
+} from "./terms/read";
+
+/** One published competition with its fees, prizes and documents (#72). */
+export type PublishedCompetition = PublicCompetition & {
+  terms: PublicCompetitionTerms;
+};
 
 const isPublished = ne(competition.status, "draft");
 
@@ -51,7 +60,7 @@ export async function listPublishedCompetitions(
 export async function getPublishedCompetition(
   ctx: CompetitionsContext,
   input: { slug: string }
-): Promise<PublicCompetition | null> {
+): Promise<PublishedCompetition | null> {
   await authorize(ctx, "competition.read_published");
   if (!COMPETITION_SLUG_PATTERN.test(input.slug)) return null;
   const rows = await ctx.db
@@ -59,7 +68,8 @@ export async function getPublishedCompetition(
     .from(competition)
     .where(and(eq(competition.slug, input.slug), isPublished));
   const [view] = publicViews(await withValues(ctx.db, rows));
-  return view ?? null;
+  if (!view) return null;
+  return { ...view, terms: await publicCompetitionTerms(ctx.db, view) };
 }
 
 /** The slugs of every published competition, in order. */

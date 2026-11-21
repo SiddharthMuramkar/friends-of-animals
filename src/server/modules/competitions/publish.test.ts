@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { auditLog } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
+import { awardPlan } from "./domain/award-schemes";
 import type { CompetitionInput } from "./fields";
 import { completeFields, signInManager, signInWith } from "./testing";
 
@@ -304,7 +305,18 @@ describe("the public read model", () => {
 
     const view = publicView(competitionId, h.clock.now());
     expect(await h.as(visitor).listPublishedCompetitions()).toEqual([view]);
-    expect(await h.as(visitor).getPublishedCompetition({ slug })).toEqual(view);
+    expect(await h.as(visitor).getPublishedCompetition({ slug })).toEqual({
+      ...view,
+      // Nothing set yet (#72): fees to come, the default scheme, no documents.
+      terms: {
+        fees: [
+          { route: "individual", kind: "not_set" },
+          { route: "institution", kind: "not_set" },
+        ],
+        awards: awardPlan("both", []),
+        documents: [],
+      },
+    });
     expect(await h.as(visitor).publishedCompetitionSlugs()).toEqual([slug]);
   });
 

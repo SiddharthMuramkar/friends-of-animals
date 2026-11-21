@@ -43,6 +43,7 @@ export type {
   PublishCompetitionResult,
 } from "./publish";
 export type { PublicCompetition } from "./public-view";
+export type { PublishedCompetition } from "./read-model";
 
 export const competitionsUseCases = (ctx: UseCaseContext) => ({
   createCompetition: (input: CompetitionInput) => createCompetition(ctx, input),
