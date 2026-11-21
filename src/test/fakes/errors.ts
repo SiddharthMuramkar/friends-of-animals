@@ -1,5 +1,7 @@
+import { hashUserId, captureContext } from "@/server/ports/errors";
 import type { ErrorContext, ErrorReporter } from "@/server/ports/errors";
 import type { SentEvent } from "@/server/ports/errors.contract";
+import { scrubEvent } from "@/lib/observability/scrub";
 
 /** A reported error: the event as it would leave, plus the original. */
 export type ReportedError = SentEvent & {
@@ -15,10 +17,33 @@ export type ReportedError = SentEvent & {
 export class FakeErrorReporter implements ErrorReporter {
   readonly #reported: ReportedError[] = [];
 
-  report(_error: unknown, _context?: ErrorContext): void {}
+  report(error: unknown, context?: ErrorContext): void {
+    const event = scrubEvent(
+      {
+        exception: {
+          values: [
+            error instanceof Error
+              ? { type: error.name, value: error.message }
+              : { type: "Error", value: String(error) },
+          ],
+        },
+        ...captureContext(context),
+      },
+      { hashUserId }
+    );
+    const [exception] = event.exception.values;
+    this.#reported.push({
+      error,
+      type: exception?.type ?? "Error",
+      message: exception?.value ?? "",
+      tags: event.tags ?? {},
+      extra: event.extra ?? {},
+      ...(event.user ? { user: event.user } : {}),
+    });
+  }
 
   async flush(): Promise<boolean> {
-    return false;
+    return true;
   }
 
   /** Every error reported so far, oldest first. */

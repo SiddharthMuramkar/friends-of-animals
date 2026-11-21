@@ -9,6 +9,8 @@
 //
 // Plain Node: no `server-only`, no "@/env", so the worker can import it.
 
+import { createHash } from "node:crypto";
+
 /** What an error report may carry besides the error itself. */
 export type ErrorContext = {
   /** Where it was caught, e.g. "onRequestError"; sent as the `where` tag. */
@@ -31,10 +33,40 @@ export interface ErrorReporter {
 /** Used whenever error tracking is off: drops every report. */
 export const silentErrorReporter: ErrorReporter = {
   report: () => {},
-  flush: async () => false,
+  flush: async () => true,
 };
 
-/** A user id as error events carry it. */
-export function hashUserId(_id: string): string {
-  return "";
+/**
+ * A user id as error events carry it: "u_" and the first 32 hex digits of
+ * its SHA-256. Ids are UUIDv7s with 74 random bits, so the hash can't be
+ * reversed by trying ids, yet an operator can hash a known user's id to
+ * find their events in Sentry.
+ */
+export function hashUserId(id: string): string {
+  return `u_${createHash("sha256").update(id).digest("hex").slice(0, 32)}`;
+}
+
+/** What an SDK's `captureException` is given for an error's context. */
+export type CaptureContext = {
+  tags?: Record<string, string>;
+  extra?: Record<string, unknown>;
+  user?: { id: string };
+};
+
+/**
+ * The capture context for a report: `where` joins the tags, and the user
+ * is already hashed, so the raw id never reaches an SDK.
+ */
+export function captureContext({
+  where,
+  tags,
+  extra,
+  userId,
+}: ErrorContext = {}): CaptureContext {
+  const allTags = { ...tags, ...(where === undefined ? {} : { where }) };
+  return {
+    ...(Object.keys(allTags).length > 0 ? { tags: allTags } : {}),
+    ...(extra === undefined ? {} : { extra }),
+    ...(userId === undefined ? {} : { user: { id: hashUserId(userId) } }),
+  };
 }
