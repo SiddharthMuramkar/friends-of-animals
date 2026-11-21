@@ -611,6 +611,132 @@ the promoted server keeps archiving on its new timeline; `docker start
 foa-pg-prod`, verify, `docker start foa-pgbouncer`, replay `ErasureLedger`,
 then take a full backup.
 
+## Off-site copy of files (Backblaze B2)
+
+R2 keeps no old versions, so production's uploaded files are copied every
+night to one Backblaze B2 bucket (#68). The copy runs inside `worker-prod` as
+the pg-boss schedule `offsite_copy`
+(`src/server/modules/offsite-copy/schedule.ts`), so it starts once #61's
+worker (`docker/workers.yml`) is deployed. Staging, previews and local runs
+never copy.
+
+- **When:** 01:30 IST, an hour before pgBackRest. A run starts no new copy
+  after two hours; what is left waits for the next night (the first full copy
+  can take several nights) and doesn't count as a failure.
+- **What:** every object in `OFFSITE_SOURCE_BUCKETS` that is new or changed
+  (etag or size) since its last copy, to `<B2_BUCKET>/<source bucket>/<key>`,
+  with its type, its metadata and its R2 etag as `foa-source-etag`. Keys under
+  `staging/`, `local/`, `pr-<n>/` or `br-<hash>/` are never copied. A
+  single-part object goes with its Content-MD5, so B2 refuses damaged bytes,
+  and every write asks for SSE-B2. The table `offsite_copy` records each copy.
+- **Deletions:** an object gone from R2 is marked, and its copy stays for
+  `OFFSITE_RETENTION_DAYS` (30) counted from the first night that found it
+  gone; then the copy and its row are deleted. An object back in R2 before
+  then is unmarked (and copied again only if it changed). A listing that comes
+  back empty while B2 holds live copies refuses that bucket, as a wrong bucket
+  or token would look. Marking more than a tenth of a bucket's copies (ten or
+  more) in one night sends a Sentry warning: the retention window is the time
+  to look.
+- **Failures:** a run with a failed copy, purge or listing throws, and pg-boss
+  retries it three times, 15 minutes apart with backoff (each attempt expires
+  after three hours). A retry copies only what is still missing. Sentry gets
+  one event on the final attempt (tag `job:offsite_copy`) with counts and at
+  most ten keys. Production without its settings fails the same way and names
+  each missing variable.
+- **Losing `offsite_copy`** is safe: the next run copies everything again and
+  never deletes a copy it has no row for.
+
+Owner setup (HR-25, HR-13): a private B2 bucket with default encryption
+(SSE-B2) on and a lifecycle rule that keeps prior versions for 1-7 days (an
+S3 delete only hides a B2 file, so this is a second, short safety net), and
+an application key restricted to that bucket with `listFiles`, `readFiles`,
+`writeFiles` and `deleteFiles`. In R2, an API token with Object Read only on
+the production buckets. The restore needs a separate token that may write;
+the operator keeps it, not the VPS.
+
+### Settings (worker-prod only)
+
+Each variable can be given as `<NAME>_FILE`, the path of a file holding the
+value. Keys and secrets arrive that way, as Compose secrets, never as
+environment values.
+
+| Variable                       | What                                                    | Secret |
+| ------------------------------ | ------------------------------------------------------- | ------ |
+| `APP_ENV`                      | `production`; anything else copies nothing              | no     |
+| `OFFSITE_SOURCE_BUCKETS`       | The production R2 buckets, separated by commas          | no     |
+| `OFFSITE_RETENTION_DAYS`       | Days a copy outlives its object (1-3650, default 30)    | no     |
+| `R2_ACCOUNT_ID`                | The Cloudflare account id (32 hex characters)           | no     |
+| `OFFSITE_R2_ACCESS_KEY_ID`     | The read-only R2 token's key id                         | yes    |
+| `OFFSITE_R2_SECRET_ACCESS_KEY` | The read-only R2 token's secret                         | yes    |
+| `B2_S3_ENDPOINT`               | B2's S3 endpoint, `https://s3.<region>.backblazeb2.com` | no     |
+| `B2_REGION`                    | The B2 region, e.g. `eu-central-003`                    | no     |
+| `B2_BUCKET`                    | The B2 bucket; not one of the source buckets            | no     |
+| `B2_KEY_ID`                    | The B2 application key's id                             | yes    |
+| `B2_APPLICATION_KEY`           | The B2 application key                                  | yes    |
+
+For `docker/workers.yml` (#61), `worker-prod` takes them like this, with each
+secret file under `/etc/foa/secrets/` (0400, owned by the worker's user):
+
+```yaml
+services:
+  worker-prod:
+    environment:
+      OFFSITE_SOURCE_BUCKETS: foa-files-prod
+      R2_ACCOUNT_ID: <account id>
+      OFFSITE_R2_ACCESS_KEY_ID_FILE: /run/secrets/offsite_r2_access_key_id
+      OFFSITE_R2_SECRET_ACCESS_KEY_FILE: /run/secrets/offsite_r2_secret_access_key
+      B2_S3_ENDPOINT: https://s3.<region>.backblazeb2.com
+      B2_REGION: <region>
+      B2_BUCKET: <bucket>
+      B2_KEY_ID_FILE: /run/secrets/b2_key_id
+      B2_APPLICATION_KEY_FILE: /run/secrets/b2_application_key
+    secrets:
+      - offsite_r2_access_key_id
+      - offsite_r2_secret_access_key
+      - b2_key_id
+      - b2_application_key
+secrets:
+  offsite_r2_access_key_id:
+    file: /etc/foa/secrets/offsite_r2_access_key_id
+  offsite_r2_secret_access_key:
+    file: /etc/foa/secrets/offsite_r2_secret_access_key
+  b2_key_id:
+    file: /etc/foa/secrets/b2_key_id
+  b2_application_key:
+    file: /etc/foa/secrets/b2_application_key
+```
+
+### Restore one file
+
+You need the file's R2 bucket and key (`file_asset.bucket` and
+`storage_key`, or the keys in the Sentry event) and the R2 token that may
+write to the bucket you restore into. Type the token in; `-e NAME` without a
+value hands the container your shell's value, so it never reaches the shell
+history or the VPS's disk:
+
+```sh
+cd /srv/foa/docker
+read -r OFFSITE_RESTORE_R2_ACCESS_KEY_ID
+read -rs OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
+export OFFSITE_RESTORE_R2_ACCESS_KEY_ID OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
+docker compose -f workers.yml exec \
+  -e OFFSITE_RESTORE_R2_ACCESS_KEY_ID -e OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY \
+  worker-prod pnpm offsite:restore --bucket <bucket> --key <key>
+unset OFFSITE_RESTORE_R2_ACCESS_KEY_ID OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
+```
+
+- It writes the B2 copy back to `<bucket>/<key>` with its type and metadata,
+  sending the Content-MD5 of the etag R2 had, so R2 refuses a damaged copy.
+- An object already at that key is left alone: add `--overwrite` to replace
+  it, or `--to <bucket>` to restore into another bucket first and compare.
+- `B2 holds no copy`: check the bucket and key; a file deleted from R2 more
+  than the retention window (plus a night) ago is gone, apart from B2's
+  hidden versions for a few more days (restore one in B2's web console).
+- Exit codes: 0 restored, 1 refused or failed (the message says why), 2 bad
+  arguments.
+- It restores bytes only. A `file_asset` row deleted along with the file
+  must be put back separately.
+
 ## Preview databases and the sweeper
 
 `scripts/sweep-preview-dbs.sh` (hourly via `foa-preview-sweep.timer`) lists
@@ -628,6 +754,18 @@ and only names matching `foa_(pr|br)_[a-z0-9_]+` are dropped. `--dry-run`
 prints what it would drop. Unauthenticated GitHub API calls are limited to 60
 an hour; with many open previews, or if the repo goes private, put a read-only
 `GITHUB_TOKEN=...` in `/etc/foa/sweeper.env` (0600).
+
+After each drop the sweeper runs `scripts/run-preview-dropped-hooks.sh
+<database>`, which runs every executable `scripts/preview-dropped.d/*.sh`
+with the dropped name; a failing hook is logged and the sweep goes on (a dry
+run runs none). `50-purge-files.sh` deletes that preview's files
+(`pr-<n>/` or `br-<hash>/` in the non-production bucket) by running
+`pnpm files:purge-preview --database <name>` in the worker image
+(`FOA_WORKER_IMAGE`, default `foa-worker:latest`, never pulled). It reads the
+**non-production** bucket's `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` and `R2_BUCKET` from `/etc/foa/preview-files.env`
+(root, 0600; never production's, and no `APP_ENV`: the hook sets
+`APP_ENV=preview`). Without that file it fails and the files stay.
 
 ## Checks
 
@@ -658,23 +796,26 @@ links into `/etc/pki/ca-trust`, which would dangle inside the container.
    migrations run in the build: turning on "Use Static IPs for builds" needs a
    static-IP region for builds as well, and its IPs on the allowlist, or the
    allowlist blocks every migration.
-2. **Off-site backups on FOA's Cloudflare (#18)**: pgBackRest `repo2` on R2
+2. **Off-site copy of files (#68, HR-25, HR-13)**: B2 bucket and key, a
+   read-only R2 token, the settings in `worker-prod`, the retention value
+   (30 days proposed) and one restore tried against real buckets (above).
+3. **Off-site backups on FOA's Cloudflare (#18)**: pgBackRest `repo2` on R2
    (own passphrase), plus a daily `age`-encrypted `pg_dump` to a separate,
    bucket-locked R2 bucket kept 35 days. Until then backups live on the same
    disk as the database.
-3. **Hostinger managed firewall**: if it is ever enabled it must allow TCP 22,
+4. **Hostinger managed firewall**: if it is ever enabled it must allow TCP 22,
    80 (ACME renewals) and 6432, with the SSH rule added first.
-4. **Offline copy** of `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` with
+5. **Offline copy** of `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` with
    the owner.
-5. **Alerting** (operations ticket): failed `foa-pgbackrest-*`,
+6. **Alerting** (operations ticket): failed `foa-pgbackrest-*`,
    `foa-restore-drill`, `foa-cert-renew` or archiving
    (`pg_stat_archiver.failed_count`), and a periodic `pgbackrest check`. The
    restore drill cannot see archiving that has stalled, because it can only
    replay the WAL that reached the repository.
-6. The future worker connects directly on the `db` network (pg_hba already
+7. The future worker connects directly on the `db` network (pg_hba already
    allows the app roles from 10.112.12.0/24); give it its own role if it
    needs rights beyond `foa_app`.
-7. **One build per branch** (owner): Vercel → Project Settings → Build and
+8. **One build per branch** (owner): Vercel → Project Settings → Build and
    Deployment → On-Demand Concurrent Builds → "Run up to one build per
    branch". The API refused the change for lack of permission. Meanwhile the
    migration's advisory lock keeps concurrent builds of one branch from

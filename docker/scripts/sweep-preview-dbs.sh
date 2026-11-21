@@ -13,12 +13,17 @@
 # Optional /etc/foa/sweeper.env: GITHUB_TOKEN=... (read-only token; raises the
 # API rate limit and is needed if the repository becomes private).
 #
+# After each drop it runs the hooks in preview-dropped.d with the dropped
+# name (run-preview-dropped-hooks.sh): 50-purge-files.sh deletes that
+# preview's files. A failing hook is logged and the sweep goes on.
+#
 # Usage: sudo sweep-preview-dbs.sh [--dry-run]
 set -euo pipefail
 
 REPO=SiddharthMuramkar/friends-of-animals
 CONTAINER=foa-pg-nonprod
 DRY_RUN=0
+HOOKS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/run-preview-dropped-hooks.sh"
 
 case "${1:-}" in
   "") ;;
@@ -90,6 +95,9 @@ drop_db() {
   # Name already validated against ^foa_(pr|br)_[a-z0-9_]+$; quoted anyway.
   printf 'DROP DATABASE IF EXISTS "%s" WITH (FORCE);\n' "$1" | psql_nonprod
   say "dropped $1 ($2)"
+  if ! "$HOOKS" "$1"; then
+    say "hooks failed for $1 (kept going; see above)"
+  fi
 }
 
 rows="$(psql_nonprod -F $'\t' -c "
