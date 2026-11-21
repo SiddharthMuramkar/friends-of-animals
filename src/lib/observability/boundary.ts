@@ -9,6 +9,12 @@
  * their real message, so they are only logged.
  */
 export function reportBoundaryError(
-  _error: unknown,
-  _report: (error: unknown) => void = globalThis.reportError
-): void {}
+  error: unknown,
+  report: (error: unknown) => void = globalThis.reportError
+): void {
+  const fromServer =
+    typeof error === "object" && error !== null && "digest" in error;
+  if (fromServer) console.error(error);
+  // reportError logs it too, as an uncaught error.
+  else report(error);
+}
