@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { MIGRATIONS_FINGERPRINT } from "../db/database-url";
 import { seedTarget } from "./target";
 
 const DIRECT_URL = "postgres://foa:foa@localhost:5432/foa";
@@ -23,7 +24,7 @@ describe("seedTarget", () => {
       })
     ).toEqual({
       seed: true,
-      url: "postgres://m:p@db.example.test:6432/foa_pr_140",
+      url: `postgres://m:p@db.example.test:6432/foa_pr_140_${MIGRATIONS_FINGERPRINT}`,
     });
   });
 
