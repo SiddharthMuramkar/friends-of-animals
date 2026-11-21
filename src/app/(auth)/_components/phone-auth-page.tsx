@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/site/heading";
+import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import { ROUTES } from "@/lib/routes";
@@ -9,10 +10,7 @@ import { as, currentActor } from "@/server/app";
 
 import { phoneCodeAction } from "../_lib/phone-actions";
 import { PhoneCodeForm } from "./phone-code-form";
-import { SmsOffNotice } from "./sms-off-notice";
-
-const LINK =
-  "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
+import { SmsOffCallout } from "./sms-off-callout";
 
 type Intent = "sign-up" | "sign-in";
 
@@ -44,7 +42,7 @@ export async function PhoneAuthPage({ intent }: { intent: Intent }) {
       </Suspense>
       <p className="mt-6 text-ink">
         {page("other")}{" "}
-        <SiteLink href={other.path} className={LINK}>
+        <SiteLink href={other.path} className={inlineLink}>
           {page("otherLink")}
         </SiteLink>
       </p>
@@ -62,18 +60,7 @@ async function PhoneMethod({ intent }: { intent: Intent }) {
   const email = intent === "sign-up" ? ROUTES.signUp : ROUTES.signIn;
 
   if (!methods.phone) {
-    return (
-      <div className="mt-8 max-w-xl">
-        <SmsOffNotice
-          label={tc("info")}
-          message={t("off.message")}
-          link={{
-            href: email.path,
-            text: intent === "sign-up" ? t("off.signUp") : t("off.signIn"),
-          }}
-        />
-      </div>
-    );
+    return <SmsOffCallout intent={intent} className="mt-8 max-w-xl" />;
   }
 
   return (
@@ -102,7 +89,7 @@ async function PhoneMethod({ intent }: { intent: Intent }) {
         />
       </div>
       <p className="mt-6">
-        <SiteLink href={email.path} className={LINK}>
+        <SiteLink href={email.path} className={inlineLink}>
           {t("useEmail")}
         </SiteLink>
       </p>
