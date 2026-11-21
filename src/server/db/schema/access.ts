@@ -57,6 +57,8 @@ export const userRole = pgTable(
       .on(table.userId, table.role, table.scopeType, table.scopeId)
       .nullsNotDistinct(),
     index("user_role_role_idx").on(table.role),
+    // Deleting a user sets this to null; the index keeps that from scanning.
+    index("user_role_granted_by_user_id_idx").on(table.grantedByUserId),
   ]
 );
 

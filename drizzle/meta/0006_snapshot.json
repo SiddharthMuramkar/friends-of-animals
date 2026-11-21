@@ -1,6 +1,6 @@
 {
-  "id": "f9c4c938-77c7-4874-9daa-0a35411e6fa4",
-  "prevId": "27fa1624-3af6-4daa-bb4a-f91241b91cbe",
+  "id": "cfc2d5ba-0f93-4af9-8de5-5e941cfd8a8d",
+  "prevId": "79fbf683-200a-40a9-ba94-9b190cd4000b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -562,6 +562,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "user_role_granted_by_user_id_idx": {
+          "name": "user_role_granted_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "granted_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -901,23 +916,18 @@
           "method": "btree",
           "with": {}
         },
-        "outbox_aggregate_idx": {
-          "name": "outbox_aggregate_idx",
+        "outbox_failed_failed_at_idx": {
+          "name": "outbox_failed_failed_at_idx",
           "columns": [
             {
-              "expression": "aggregate_type",
+              "expression": "failed_at",
               "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "aggregate_id",
-              "isExpression": false,
-              "asc": true,
+              "asc": false,
               "nulls": "last"
             }
           ],
           "isUnique": false,
+          "where": "\"outbox\".\"status\" = 'failed'",
           "concurrently": false,
           "method": "btree",
           "with": {}

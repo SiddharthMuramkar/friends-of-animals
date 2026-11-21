@@ -13,6 +13,7 @@ import { parseSetCookieHeader, toCookieOptions } from "better-auth/cookies";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { authorize } from "../access/can";
 import type { RequestMeta } from "../actor";
 import type { SignUpConsentOutcome } from "../consent";
 import { user } from "../db/schema";
@@ -22,7 +23,6 @@ import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { codeEmail } from "./code-email";
 import { createAccount } from "./create-account";
-import { authorize } from "./policy";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
 import { EMAIL_CODE } from "./settings";
@@ -93,7 +93,7 @@ export async function requestEmailCode(
   ctx: UseCaseContext,
   input: RequestEmailCodeInput
 ): Promise<RequestEmailCodeResult> {
-  authorize(ctx.actor, "requestEmailCode");
+  await authorize(ctx, "requestEmailCode");
   const meta = visitorMeta(ctx);
   const parsed = requestEmailCodeInput.safeParse({
     intent: "sign-in",
@@ -157,7 +157,7 @@ export async function verifyEmailCode(
   ctx: UseCaseContext,
   input: VerifyEmailCodeInput
 ): Promise<VerifyEmailCodeResult> {
-  authorize(ctx.actor, "verifyEmailCode");
+  await authorize(ctx, "verifyEmailCode");
   const meta = visitorMeta(ctx);
   const parsed = verifyEmailCodeInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);

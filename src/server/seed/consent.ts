@@ -13,7 +13,7 @@ import type { ConsentPurpose } from "../consent/domain/purposes";
 import { consentDocument } from "../db/schema";
 import { uuidv7 } from "../ids";
 import { SEED_ACCOUNTS } from "./accounts";
-import { ensureAccount } from "./identity";
+import { ensureVerifiedAccount } from "../identity/verified-account";
 import type { SeedDeps } from "./types";
 
 const SEED_DOCUMENTS: ReadonlyArray<{
@@ -53,7 +53,7 @@ const SEED_DOCUMENTS: ReadonlyArray<{
  */
 export async function seedConsent(deps: SeedDeps): Promise<void> {
   const { db, clock } = deps;
-  const publisher = await ensureAccount(deps, SEED_ACCOUNTS.superAdmin);
+  const publisher = await ensureVerifiedAccount(deps, SEED_ACCOUNTS.superAdmin);
   const now = clock.now();
   for (const { purpose, title, body } of SEED_DOCUMENTS) {
     const parsed = parseConsentDocumentBody(body);

@@ -1,21 +1,9 @@
-// Who may run the identity use cases. Every one of them calls `authorize`
-// first. The rules are part of the platform policy (src/server/access/
-// policies.ts), which denies by default: an action without a rule is
-// refused.
-//
-// None of these rules needs a role, so the check here is synchronous and
-// reads no grants. A rule that needs a role belongs with the use cases of
-// another module, behind the async `authorize` in src/server/access/can.ts.
+// Who may run the identity use cases: their rules in the platform policy
+// (src/server/access/policies.ts). Every identity use case awaits
+// `authorize` from src/server/access/can.ts first, like every other use
+// case, and an action without a rule is refused.
 
-import {
-  decide,
-  signedIn,
-  signedOut,
-  type Policy,
-  type Subject,
-} from "../access/domain/policy";
-import type { Actor } from "../actor";
-import { DomainError } from "../errors";
+import { signedIn, signedOut, type Policy } from "../access/domain/policy";
 
 export const IDENTITY_POLICY = {
   // Signing up and signing in are for people who aren't signed in.
@@ -32,25 +20,3 @@ export const IDENTITY_POLICY = {
 } satisfies Policy<string>;
 
 export type IdentityAction = keyof typeof IDENTITY_POLICY;
-
-/** The actor as the policy sees it; these rules never look at grants. */
-function subjectOf(actor: Actor): Subject {
-  switch (actor.kind) {
-    case "visitor":
-      return { kind: "visitor" };
-    case "system":
-      return { kind: "system", process: actor.process };
-    case "user":
-      return { kind: "user", userId: actor.userId, grants: [] };
-  }
-}
-
-export function can(actor: Actor, action: IdentityAction): boolean {
-  return decide(IDENTITY_POLICY, subjectOf(actor), action).allowed;
-}
-
-export function authorize(actor: Actor, action: IdentityAction): void {
-  if (!can(actor, action)) {
-    throw new DomainError("forbidden", `${actor.kind} may not ${action}`);
-  }
-}
