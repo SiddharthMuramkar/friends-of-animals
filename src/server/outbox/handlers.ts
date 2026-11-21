@@ -12,6 +12,7 @@
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
 import type { AppDb } from "../db/app-db";
+import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendWelcomeEmail } from "../notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
@@ -46,6 +47,7 @@ type Handlers = {
 export const HANDLERS: Handlers = {
   "notifications.send_welcome_email": (deps, { payload }) =>
     sendWelcomeEmail(deps, payload),
+  "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */
