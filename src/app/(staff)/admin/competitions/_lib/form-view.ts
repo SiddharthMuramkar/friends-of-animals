@@ -88,6 +88,7 @@ export function problemMessage(problem: PublishProblem): {
           message: { key: "problems.keyDateNotApplicable", labels: { kind } },
         };
       }
+      if (problem.code !== "must_follow") throw new Error("unreachable");
       // Only submissions may close at the moment registration does.
       const key =
         problem.kind === "submissions_close"

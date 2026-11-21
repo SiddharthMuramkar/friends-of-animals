@@ -173,7 +173,17 @@
       "save": "Save",
       "saving": "Saving…",
       "create": "Save draft",
-      "creating": "Saving…"
+      "creating": "Saving…",
+      "digitalScopeOptions": {
+        "all_participants": "Every participant",
+        "shortlist_only": "Only the shortlist"
+      },
+      "physicalArtworkOptions": {
+        "not_required": "Nobody",
+        "all_shortlisted": "Every shortlisted entry",
+        "top_n": "The top few of each category's shortlist"
+      },
+      "none": "Not set"
     },
     "alerts": {
       "invalid_input": "Some answers need fixing. Each one is marked below.",
