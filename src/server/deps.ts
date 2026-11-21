@@ -13,13 +13,17 @@ import type { Env } from "@/env.schema";
 
 import { db } from "./db";
 import type { DbWithClock } from "./db/app-db";
+import { storagePrefixFor } from "./modules/files/domain/storage-key";
+import { serverErrorReporter } from "./observability/server-reporter";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
 import { captureEmailSender } from "./ports/email-capture";
 import type { ErrorReporter } from "./ports/errors";
-import { serverErrorReporter } from "./observability/server-reporter";
+import type { MalwareScanner } from "./ports/malware-scanner";
+import { malwareScannerFor } from "./ports/malware-scanner-clamav";
+import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -29,7 +33,21 @@ export interface Deps extends DbWithClock {
   auth: { secret: string; baseUrl: string };
   /** Errors a use case catches but can't handle (Sentry, scrubbed). */
   errors: ErrorReporter;
+  /** The private buckets uploaded files go to (#63). */
+  storage: ObjectStorage;
+  files: FilesConfig;
+  /** Scans each upload before anyone but its uploader may open it (#63). */
+  scanner: MalwareScanner;
 }
+
+/** Where the Files module keeps objects, and for which environment. */
+export type FilesConfig = {
+  bucket: string;
+  /** `storagePrefixFor(env)`: "" in production, else `staging/`, `pr-<n>/`… */
+  keyPrefix: string;
+  /** Some purposes (test uploads) are refused in production. */
+  appEnv: Env["APP_ENV"];
+};
 
 /**
  * A local run or a preview without BETTER_AUTH_SECRET signs with this. It is
@@ -70,6 +88,15 @@ export function productionDeps(): Deps {
       },
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
+      storage: unconfiguredStorage,
+      files: {
+        bucket: "unconfigured",
+        keyPrefix: storagePrefixFor(config),
+        appEnv: config.APP_ENV,
+      },
+      // Vercel never reaches clamd: the preview drain route's scans fail
+      // and wait for the VPS worker, which sets CLAMD_HOST.
+      scanner: malwareScannerFor(config),
     };
   }
   return production;
