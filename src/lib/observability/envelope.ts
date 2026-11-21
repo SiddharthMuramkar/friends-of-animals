@@ -191,11 +191,11 @@ export function tunnelEnvelope(
     lines = envelope.items.flatMap((item) => forwardItem(item, options) ?? []);
     if (lines.length === 0) return { kind: "drop" };
     lines.unshift(JSON.stringify(header));
-  } catch (error) {
-    if (error instanceof MalformedEnvelope) {
-      return { kind: "reject", status: 400, reason: "malformed" };
-    }
-    throw error;
+  } catch {
+    // MalformedEnvelope, or anything the browser's JSON makes the parser,
+    // scrubber or serialiser throw (e.g. a RangeError on an event nested
+    // 200,000 deep). Either way the input is at fault: a 400, not a 500.
+    return { kind: "reject", status: 400, reason: "malformed" };
   }
 
   return {

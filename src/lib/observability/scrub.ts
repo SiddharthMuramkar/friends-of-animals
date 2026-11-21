@@ -92,6 +92,9 @@ export const PERSONAL_KEYS: ReadonlySet<string> = new Set([
   "session",
   "sessionid",
   "sessiontoken",
+  // Database errors: a query's bound values, Postgres's DETAIL line
+  "params",
+  "detail",
 ]);
 
 /** Request headers kept on an event; every other header is dropped. */
@@ -138,11 +141,32 @@ const ABSOLUTE_URL_QUERY = /\b(https?:\/\/[^\s?#"'<>]+)[?#][^\s"'<>]*/g;
 const PATH_QUERY = /(^|[\s"'(=])(\/[^\s?#"'<>]*)[?#][^\s"'<>]*/g;
 
 /**
- * Hides emails, Indian mobile numbers, and the query strings and fragments
- * of URLs and paths in a piece of text.
+ * What database errors repeat of the data they were given, each with
+ * what it becomes. Drizzle's DrizzleQueryError ends its message with every
+ * bound value (`\nparams: a,b,c`); Postgres quotes bad input back
+ * (`invalid input syntax for type uuid: "<value>"`) and puts a row's
+ * values in its DETAIL line (`Key (email)=(<value>)`, `Failing row
+ * contains (<values>)`). Quoted names (`constraint "user_email_key"`)
+ * follow no colon, so they stay.
+ */
+const DATABASE_VALUES: readonly [RegExp, string][] = [
+  [/\nparams:[\s\S]*$/, "\nparams: [redacted]"],
+  [/Failing row contains [^\n]*/g, "Failing row contains [redacted]"],
+  [/(Key \(.*?\)=)\([^\n]*\)/g, "$1[redacted]"],
+  [/: "(?:[^"\\\n]|\\.)*"/g, ': "[redacted]"'],
+];
+
+/**
+ * Hides the values database errors repeat, emails, Indian mobile numbers,
+ * and the query strings and fragments of URLs and paths in a piece of text.
  */
 export function redactText(text: string): string {
-  return text
+  const withoutValues = DATABASE_VALUES.reduce(
+    (redacted, [pattern, replacement]) =>
+      redacted.replace(pattern, replacement),
+    text
+  );
+  return withoutValues
     .replace(ABSOLUTE_URL_QUERY, "$1")
     .replace(PATH_QUERY, "$1$2")
     .replace(EMAIL, "[email]")
@@ -349,6 +373,17 @@ export function scrubEvent<E extends object>(
 }
 
 /**
+ * Where outgoing-request breadcrumbs keep a URL's query and fragment apart
+ * from `url` (Sentry 11 writes `url.*`, older SDKs `http.*`).
+ */
+const URL_PART_KEYS = [
+  "url.query",
+  "url.fragment",
+  "http.query",
+  "http.fragment",
+] as const;
+
+/**
  * A copy of a breadcrumb with its message redacted, its data scrubbed and
  * the query strings of navigation and request URLs dropped.
  */
@@ -363,6 +398,7 @@ export function scrubBreadcrumb<B extends object>(crumb: B): B {
         scrubbedData[key] = stripQuery(scrubbedData[key]);
       }
     }
+    for (const key of URL_PART_KEYS) delete scrubbedData[key];
     scrubbed.data = scrubbedData;
   } else if (data !== undefined) {
     scrubbed.data = scrubValue(data);
