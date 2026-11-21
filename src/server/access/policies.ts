@@ -6,6 +6,7 @@
 import { CONSENT_POLICY } from "../consent/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
 import { COMPETITIONS_POLICY } from "../modules/competitions/policy";
+import { COMPETITION_TERMS_POLICY } from "../modules/competitions/terms/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
@@ -13,7 +14,8 @@ export const POLICY = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
   CONSENT_POLICY,
-  COMPETITIONS_POLICY
+  COMPETITIONS_POLICY,
+  COMPETITION_TERMS_POLICY
 );
 
 export type Action = keyof typeof POLICY;
