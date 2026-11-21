@@ -1,38 +1,52 @@
-// can(actor, action): the one place that decides who may run a use case.
-// Every identity use case calls `authorize` first. It denies by default:
-// an action without a rule here is refused. #59 replaces the inside with
-// scoped roles; the call sites stay.
+// Who may run the identity use cases. Every one of them calls `authorize`
+// first. The rules are part of the platform policy (src/server/access/
+// policies.ts), which denies by default: an action without a rule is
+// refused.
+//
+// None of these rules needs a role, so the check here is synchronous and
+// reads no grants. A rule that needs a role belongs with the use cases of
+// another module, behind the async `authorize` in src/server/access/can.ts.
 
+import {
+  decide,
+  signedIn,
+  signedOut,
+  type Policy,
+  type Subject,
+} from "../access/domain/policy";
 import type { Actor } from "../actor";
 import { DomainError } from "../errors";
 
-export type IdentityAction =
-  | "requestEmailCode"
-  | "verifyEmailCode"
-  | "getAccount"
-  | "listSessions"
-  | "signOutSession"
-  | "signOutEverywhere";
+export const IDENTITY_POLICY = {
+  // Signing up and signing in are for people who aren't signed in.
+  requestEmailCode: signedOut,
+  verifyEmailCode: signedOut,
+  // A signed-in user, for their own account and sessions only. Most of
+  // these take no id; signOutSession takes a session id, and its query
+  // matches only the actor's own sessions (session.user_id), so another
+  // user's session is "not found".
+  getAccount: signedIn,
+  listSessions: signedIn,
+  signOutSession: signedIn,
+  signOutEverywhere: signedIn,
+} satisfies Policy<string>;
+
+export type IdentityAction = keyof typeof IDENTITY_POLICY;
+
+/** The actor as the policy sees it; these rules never look at grants. */
+function subjectOf(actor: Actor): Subject {
+  switch (actor.kind) {
+    case "visitor":
+      return { kind: "visitor" };
+    case "system":
+      return { kind: "system", process: actor.process };
+    case "user":
+      return { kind: "user", userId: actor.userId, grants: [] };
+  }
+}
 
 export function can(actor: Actor, action: IdentityAction): boolean {
-  switch (action) {
-    case "requestEmailCode":
-    case "verifyEmailCode":
-      // Signing up and signing in are for people who aren't signed in.
-      return actor.kind === "visitor";
-    case "getAccount":
-    case "listSessions":
-    case "signOutSession":
-    case "signOutEverywhere":
-      // A signed-in user, for their own account and sessions only. Most of
-      // these take no id; signOutSession takes a session id, and its query
-      // matches only the actor's own sessions (session.user_id), so
-      // another user's session is "not found".
-      return actor.kind === "user";
-    default:
-      // Deny by default: an action without a rule is no one's.
-      return false;
-  }
+  return decide(IDENTITY_POLICY, subjectOf(actor), action).allowed;
 }
 
 export function authorize(actor: Actor, action: IdentityAction): void {
