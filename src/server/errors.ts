@@ -1,12 +1,20 @@
 /**
+ * Why a use case refused outright:
+ * - forbidden: the actor may not do this.
+ * - conduct_not_certified: a step that needs the institution's conduct
+ *   certification ran without it (finalising the school round, #89).
+ */
+export type DomainErrorCode = "forbidden" | "conduct_not_certified";
+
+/**
  * Thrown by a use case for something the caller must never do, such as an
  * actor acting without permission. Expected outcomes (a wrong code, a rate
  * limit) are returned as results instead. Edges map `code` to a message.
  */
 export class DomainError extends Error {
-  readonly code: "forbidden";
+  readonly code: DomainErrorCode;
 
-  constructor(code: "forbidden", message: string) {
+  constructor(code: DomainErrorCode, message: string) {
     super(message);
     this.name = "DomainError";
     this.code = code;
