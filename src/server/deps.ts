@@ -26,6 +26,9 @@ import { captureSmsSender } from "./ports/sms-capture";
 import { msg91SmsSender } from "./ports/sms-msg91";
 import { fixedSettings, type Settings } from "./ports/settings";
 
+import type { ErrorReporter } from "./ports/errors";
+import { serverErrorReporter } from "./observability/server-reporter";
+
 export interface Deps extends DbWithClock {
   email: EmailSender;
   sms: SmsSender;
@@ -39,6 +42,9 @@ export interface Deps extends DbWithClock {
   blindIndex: BlindIndex;
   /** Runtime settings, such as whether codes go by SMS. */
   settings: Settings;
+
+  /** Errors a use case catches but can't handle (Sentry, scrubbed). */
+  errors: ErrorReporter;
 }
 
 /**
@@ -132,6 +138,9 @@ export function productionDeps(): Deps {
       },
       ...fieldCryptoFor(config),
       settings: settingsFor(config.APP_ENV),
+
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
     };
   }
   return production;
