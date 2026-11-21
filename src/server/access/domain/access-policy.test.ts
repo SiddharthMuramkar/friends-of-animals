@@ -50,16 +50,29 @@ describe("who may manage and read access", () => {
     ).toBe(false);
   });
 
-  it("lets the operator's command line grant and revoke, and no other process", () => {
-    for (const action of ["role.grant", "role.revoke"] as const) {
+  it("lets the operator's command line grant (to bootstrap), and no other process", () => {
+    expect(
+      decide(
+        ACCESS_POLICY,
+        { kind: "system", process: "cli" },
+        "role.grant",
+        {}
+      )
+    ).toEqual({ allowed: true, role: null });
+    for (const process of ["seed", "worker"] as const) {
       expect(
-        decide(ACCESS_POLICY, { kind: "system", process: "cli" }, action, {})
-      ).toEqual({ allowed: true, role: null });
-      for (const process of ["seed", "worker"] as const) {
-        expect(
-          decide(ACCESS_POLICY, { kind: "system", process }, action, {}).allowed
-        ).toBe(false);
-      }
+        decide(ACCESS_POLICY, { kind: "system", process }, "role.grant", {})
+          .allowed
+      ).toBe(false);
+    }
+  });
+
+  it("lets no process revoke: only a super admin takes a role away", () => {
+    for (const process of ["cli", "seed", "worker"] as const) {
+      expect(
+        decide(ACCESS_POLICY, { kind: "system", process }, "role.revoke", {})
+          .allowed
+      ).toBe(false);
     }
   });
 
