@@ -1,8 +1,12 @@
+import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
+import { createFieldCipher } from "@/server/crypto/field-cipher";
+import { storedSettings } from "@/server/modules/settings";
 import type { OutboxDeps, ScheduleDefinition } from "@/server/outbox";
 import { FakeClock } from "@/test/fakes/clock";
 import { FakeEmail } from "@/test/fakes/email";
+import { FakeSms } from "@/test/fakes/sms";
 
 import { registerSchedules, type ScheduleBoss } from "./schedules";
 
@@ -34,10 +38,17 @@ function recordingBoss(existing: string[] = []) {
 }
 
 const clock = new FakeClock();
+const db = {} as OutboxDeps["db"];
 const deps = {
-  db: {} as OutboxDeps["db"],
+  db,
   clock,
   email: new FakeEmail(clock),
+  sms: new FakeSms(clock),
+  settings: storedSettings(db),
+  cipher: createFieldCipher({
+    primary: 1,
+    keys: new Map([[1, randomBytes(32)]]),
+  }),
 } satisfies OutboxDeps;
 
 function definition(

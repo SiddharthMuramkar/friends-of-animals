@@ -5,9 +5,9 @@ import { FakeClock } from "@/test/fakes/clock";
 
 import type { E164Phone } from "@/lib/phone";
 
-import { smsSenderFor } from "./deps";
-import { SmsNotConfiguredError } from "./ports/sms";
-import { readCapturedSms } from "./ports/sms-capture";
+import { SmsNotConfiguredError } from "./sms";
+import { readCapturedSms } from "./sms-capture";
+import { smsSenderFor } from "./sms-sender-for";
 
 const sms = {
   to: "+919876543210" as E164Phone,
