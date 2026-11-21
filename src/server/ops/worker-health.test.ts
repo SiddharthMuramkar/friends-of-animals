@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createHarness } from "@/test/harness";
+import { createHarness, type Harness } from "@/test/harness";
 import { recordHeartbeat } from "@/worker/heartbeat";
 
-import { readWorkerHealth, workerFreshness } from "./worker-health";
+import {
+  readWorkerHealth,
+  workerFreshness,
+  workerHealthResponse,
+} from "./worker-health";
 
 const NOW = new Date("2026-11-21T10:00:00.000Z");
 const ago = (seconds: number) => new Date(NOW.getTime() - seconds * 1000);
@@ -123,5 +127,79 @@ describe("readWorkerHealth", () => {
     await expect(readWorkerHealth(h.deps, "staging")).resolves.toEqual({
       status: "missing",
     });
+  });
+});
+
+describe("workerHealthResponse (GET /api/health/worker)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const beat = (h: Harness) =>
+    recordHeartbeat(
+      h.db,
+      { worker: "worker-staging", environment: "staging", version: "4f2a9c1" },
+      h.clock.now()
+    );
+
+  it("answers 200 while the worker beat within 120 s", async () => {
+    const h = await createHarness();
+    await beat(h);
+    h.clock.advance({ seconds: 120 });
+
+    const response = await workerHealthResponse(h.deps, "staging");
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      status: "ok",
+      worker: { name: "worker-staging", ageSeconds: 120 },
+    });
+  });
+
+  it("answers 503 stale 121 s after the last beat", async () => {
+    const h = await createHarness();
+    await beat(h);
+    h.clock.advance({ seconds: 121 });
+
+    const response = await workerHealthResponse(h.deps, "staging");
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      status: "stale",
+      worker: { name: "worker-staging", ageSeconds: 121 },
+    });
+  });
+
+  it("answers 503 missing before the worker ever beat", async () => {
+    const h = await createHarness();
+
+    const response = await workerHealthResponse(h.deps, "staging");
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ status: "missing" });
+  });
+
+  it("answers 503 without the error's details when the query fails", async () => {
+    const h = await createHarness();
+    const secret = "password authentication failed for user staging_app";
+    vi.spyOn(h.db, "select").mockImplementation(() => {
+      throw new Error(secret);
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await workerHealthResponse(h.deps, "staging");
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const text = await response.text();
+    expect(JSON.parse(text)).toEqual({ status: "error" });
+    expect(text).not.toContain("password");
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("Worker health check"),
+      expect.objectContaining({ message: secret })
+    );
   });
 });
