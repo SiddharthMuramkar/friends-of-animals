@@ -47,7 +47,12 @@ export function seedFilesAt({ bucket, keyPrefix }: SeedFilesLocation): Seeder {
     const now = deps.clock.now();
     for (const { account, id } of SEED_FILES) {
       // By address, as the access seed does: the account keeps its own id.
-      const owner = await ensureVerifiedAccount(deps, account);
+      // The identity seed, which runs first, has already given it its phone.
+      const owner = await ensureVerifiedAccount(deps, {
+        id: account.id,
+        name: account.name,
+        email: account.email,
+      });
       await deps.db
         .insert(fileAsset)
         .values({
