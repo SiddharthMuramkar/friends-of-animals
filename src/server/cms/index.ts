@@ -1,0 +1,30 @@
+// The CMS module (#111): the site's editable documents, their drafts and
+// published revisions. Its use cases join `as(actor)` through
+// `cmsUseCases`.
+
+import type { UseCaseContext } from "../use-cases";
+import type { CmsDocumentKey } from "./domain/documents";
+import {
+  listCmsDocuments,
+  listRevisions,
+  publishRevision,
+  saveDraft,
+} from "./publishing";
+
+export type {
+  CmsDocumentSummary,
+  CmsRevisionSummary,
+  ListRevisionsResult,
+  PublishRevisionResult,
+  SaveDraftResult,
+} from "./publishing";
+export type { CmsDocumentKey, CmsDocumentKind } from "./domain/documents";
+
+export const cmsUseCases = (ctx: UseCaseContext) => ({
+  listCmsDocuments: () => listCmsDocuments(ctx),
+  listRevisions: (input: { key: CmsDocumentKey }) => listRevisions(ctx, input),
+  saveDraft: (input: { key: CmsDocumentKey; body: unknown }) =>
+    saveDraft(ctx, input),
+  publishRevision: (input: { revisionId: string }) =>
+    publishRevision(ctx, input),
+});

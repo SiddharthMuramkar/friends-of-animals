@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_DOCS, type LegalDocId } from "../../../../content/legal";
+import { LEGAL_DOCS, type LegalDocId } from "../../../content/legal";
 import {
   CMS_DOCUMENT_KEYS,
   ORG_FACTS_TAG,

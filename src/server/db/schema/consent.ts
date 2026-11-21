@@ -33,6 +33,7 @@ import {
   CONSENT_PURPOSES,
   CONSENT_SUBJECT_TYPES,
 } from "../../consent/domain/purposes";
+import { cmsRevision } from "./cms";
 import { user } from "./identity";
 
 /** #82 adds the guardian purposes, each in its own migration. */
@@ -68,6 +69,13 @@ export const consentDocument = pgTable(
      * block deleting the user.
      */
     publishedByUserId: uuid("published_by_user_id"),
+    /**
+     * The published revision of the policy page this version rests on
+     * (#111): the privacy page for the privacy notice and messages, the
+     * terms page for the terms. Null for versions published before the
+     * CMS, and for seed data.
+     */
+    legalRevisionId: uuid("legal_revision_id").references(() => cmsRevision.id),
   },
   (table) => [
     // Also the index for "the latest version of a purpose".

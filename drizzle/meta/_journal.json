@@ -64,6 +64,20 @@
       "when": 1795246701381,
       "tag": "0008_60_staff_two_factor",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795247180705,
+      "tag": "0009_111_cms",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795247181785,
+      "tag": "0010_111_cms_revision_guard",
+      "breakpoints": true
     }
   ]
 }

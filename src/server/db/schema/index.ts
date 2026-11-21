@@ -11,3 +11,4 @@ export * from "./audit";
 export * from "./outbox";
 export * from "./consent";
 export * from "./second-factor";
+export * from "./cms";

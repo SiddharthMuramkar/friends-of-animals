@@ -10,7 +10,7 @@
 //
 // Loads under plain Node (schema, seed): relative imports only.
 
-import type { LegalDocId } from "../../../../content/legal";
+import type { LegalDocId } from "../../../content/legal";
 
 export const CMS_DOCUMENT_KINDS = [
   "home",
@@ -47,6 +47,13 @@ export function isCmsDocumentKey(value: string): value is CmsDocumentKey {
 
 export function cmsDocumentKind(key: CmsDocumentKey): CmsDocumentKind {
   return DOCUMENTS[key].kind;
+}
+
+/** The policy page a legal document is. */
+export function legalDocOf(key: CmsDocumentKey): LegalDocId {
+  const spec: DocumentSpec = DOCUMENTS[key];
+  if (spec.kind !== "legal") throw new Error(`${key} is not a legal document`);
+  return spec.legalDoc;
 }
 
 /** The CMS document behind a policy page. */
