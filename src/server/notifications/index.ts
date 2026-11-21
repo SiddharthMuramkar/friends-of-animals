@@ -6,6 +6,12 @@
 
 import type { UseCaseContext } from "../use-cases";
 import {
+  countUnread,
+  listInbox,
+  markAllInboxRead,
+  markInboxItemRead,
+} from "./inbox";
+import {
   getMessageTemplate,
   listMessageTemplates,
   updateMessageTemplate,
@@ -21,6 +27,7 @@ export type {
   UpdateMessageTemplateInput,
   UpdateMessageTemplateResult,
 } from "./templates";
+export type { InboxItemView, MarkInboxItemReadResult } from "./inbox";
 export type { MessageChannel } from "./domain/channels";
 export type { RevisionProblem } from "./domain/revision";
 
@@ -30,4 +37,8 @@ export const notificationsUseCases = (ctx: UseCaseContext) => ({
     getMessageTemplate(ctx, input),
   updateMessageTemplate: (input: UpdateMessageTemplateInput) =>
     updateMessageTemplate(ctx, input),
+  listInbox: (input?: { limit?: number }) => listInbox(ctx, input),
+  countUnread: () => countUnread(ctx),
+  markInboxItemRead: (input: { id: string }) => markInboxItemRead(ctx, input),
+  markAllInboxRead: () => markAllInboxRead(ctx),
 });
