@@ -127,6 +127,39 @@ test("a member gives and withdraws consent in their settings", async ({
   await expect(history.last()).toContainText("Agreed to version");
 });
 
+test("the consent screens link the messages consent to the privacy policy's current version", async ({
+  page,
+  request,
+}, testInfo) => {
+  // The messages consent rests on the privacy policy, a CMS page (#111):
+  // both screens that ask for it link to the page, at the version it
+  // shows now.
+  await page.goto("/privacy");
+  const version = await shownVersion(page);
+  const line = `See also our privacy policy, version ${version}.`;
+
+  await page.goto("/sign-up");
+  await expect(
+    page
+      .getByText(line, { exact: true })
+      .getByRole("link", { name: "privacy policy" })
+  ).toHaveAttribute("href", "/privacy");
+
+  await page.getByRole("textbox", { name: "Your name" }).fill("Meera Iyer");
+  await finishWithCode(page, request, freshEmail(testInfo.project.name));
+  await expect(page).toHaveURL(/\/account\/sessions$/);
+
+  await page.goto("/account/consents");
+  const policy = page
+    .getByRole("region", { name: "What you agree to" })
+    .getByText(line, { exact: true })
+    .getByRole("link", { name: "privacy policy" });
+  await expect(policy).toHaveAttribute("href", "/privacy");
+  await policy.click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  expect(await shownVersion(page)).toBe(version);
+});
+
 test("a staff admin publishes a new version of the messages consent", async ({
   page,
   request,
