@@ -6,8 +6,8 @@ import {
   type TestInfo,
 } from "@playwright/test";
 
-import { base32Decode } from "../../src/server/second-factor/domain/base32";
-import { totpCode } from "../../src/server/second-factor/domain/totp";
+import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
+import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
 import { SEED_COMPETITION_MANAGERS } from "../../src/server/seed/competitions";
 import { SEED_SCOPES } from "../../src/server/seed/scopes";
 import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
@@ -16,6 +16,7 @@ import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
+import { recordCspViolations } from "./support/csp";
 import { freshEmail, readCode } from "./support/mailbox";
 
 // #70: a seeded competition manager signs in, passes the staff second
@@ -29,6 +30,10 @@ import { freshEmail, readCode } from "./support/mailbox";
 // seeded manager, and only once. Sign-in codes: each project asks for two
 // (its manager, a fresh member). Seeded addresses allow 5 codes in 15
 // minutes, so one preview database takes two runs in 15 minutes.
+//
+// The admin pages are signed-in pages under #65's nonce policy, which local
+// runs enforce, so each journey also records CSP violations and expects
+// none: a blocked script would leave the form without its enhancements.
 
 /** Signs in by email code, read from the capture mailbox. */
 async function signIn(page: Page, request: APIRequestContext, email: string) {
@@ -88,6 +93,7 @@ test("a competition manager sees what a draft needs, then creates, edits, previe
   page,
   request,
 }, testInfo) => {
+  const violations = await recordCspViolations(page);
   await signInAsManager(page, request, testInfo);
 
   // The seeded draft has gaps: its preview lists what publishing needs.
@@ -189,12 +195,14 @@ test("a competition manager sees what a draft needs, then creates, edits, previe
   await expect(
     page.getByRole("listitem").filter({ hasText: name })
   ).toContainText("Published");
+  expect(violations).toEqual([]);
 });
 
 test("a member without the role is refused, and a visitor is sent to sign in", async ({
   page,
   request,
 }, testInfo) => {
+  const violations = await recordCspViolations(page);
   await page.goto("/admin/competitions");
   await expect(page).toHaveURL(/\/sign-in$/);
 
@@ -220,4 +228,5 @@ test("a member without the role is refused, and a visitor is sent to sign in", a
   await expect(page.getByRole("link", { name: "New competition" })).toHaveCount(
     0
   );
+  expect(violations).toEqual([]);
 });
