@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
@@ -6,6 +7,7 @@ import { SiteLink } from "@/components/site/site-link";
 import { ROUTES } from "@/lib/routes";
 
 import { EmailCodeForm } from "./email-code-form";
+import { PhoneOption } from "./phone-option";
 
 const LINK =
   "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
@@ -46,6 +48,10 @@ export async function AuthPage({ intent }: { intent: "sign-up" | "sign-in" }) {
           }}
         />
       </div>
+      {/* Whether SMS is on is read per request; the rest is prerendered. */}
+      <Suspense fallback={null}>
+        <PhoneOption intent={intent} />
+      </Suspense>
       <p className="mt-6 text-ink">
         {page("other")}{" "}
         <SiteLink href={other.path} className={LINK}>

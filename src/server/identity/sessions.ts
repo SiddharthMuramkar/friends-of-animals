@@ -4,10 +4,10 @@
 import { and, desc, eq, gt } from "drizzle-orm";
 import { z } from "zod";
 
+import { authorize } from "../access/can";
 import { session } from "../db/schema";
 import type { UseCaseContext } from "../use-cases";
 import { expireSessionCookie, signedInUser } from "./account";
-import { authorize } from "./policy";
 
 export type SessionSummary = {
   id: string;
@@ -21,7 +21,7 @@ export type SessionSummary = {
 export async function listSessions(
   ctx: UseCaseContext
 ): Promise<SessionSummary[]> {
-  authorize(ctx.actor, "listSessions");
+  await authorize(ctx, "listSessions");
   const { userId, sessionId } = signedInUser(ctx);
   const rows = await ctx.db
     .select({
@@ -54,7 +54,7 @@ export async function signOutSession(
   ctx: UseCaseContext,
   input: SignOutSessionInput
 ): Promise<SignOutSessionResult> {
-  authorize(ctx.actor, "signOutSession");
+  await authorize(ctx, "signOutSession");
   const { userId, sessionId: currentId } = signedInUser(ctx);
   const parsed = signOutSessionInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: "not_found" };
@@ -76,7 +76,7 @@ export async function signOutSession(
 
 /** Signs every one of the user's sessions out, this one included. */
 export async function signOutEverywhere(ctx: UseCaseContext): Promise<void> {
-  authorize(ctx.actor, "signOutEverywhere");
+  await authorize(ctx, "signOutEverywhere");
   const { userId } = signedInUser(ctx);
   await ctx.db.delete(session).where(eq(session.userId, userId));
   await expireSessionCookie(ctx);

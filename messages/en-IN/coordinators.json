@@ -1,0 +1,9 @@
+{
+  "coordinators": {
+    "invitationMessage": {
+      "subject": "Join {institution} as a coordinator on Friends of Animals",
+      "email": "Hello,\n\n{inviter} has invited you to be a teacher coordinator for {institution} on Friends of Animals. Coordinators help their school take part in FOA's competitions.\n\nTo accept, open this link, then sign in or create an account with this email address:\n{link}\n\nThe link works until {expiresAt}. If you weren't expecting this, you can ignore this email.\n\nFriends of Animals",
+      "sms": "{institution} invites you to coordinate on Friends of Animals. Sign in with this number to accept by {expiresAt}: {link} -FOA"
+    }
+  }
+}

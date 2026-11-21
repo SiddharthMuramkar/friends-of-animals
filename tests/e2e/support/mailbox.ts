@@ -126,3 +126,16 @@ export async function readEmail(
     .toBe(true);
   return found!;
 }
+
+/**
+ * An Indian mobile number nobody has used, as "+91 9xxxx xxxxx": one per
+ * test, so runs and projects don't share codes or the 5-per-phone limit.
+ */
+export function freshPhone(): string {
+  const digits = `${Date.now() % 1e9}`.padStart(9, "0");
+  const random = Math.floor(Math.random() * 1e4)
+    .toString()
+    .padStart(4, "0");
+  const national = `9${(Number(digits) + Number(random)).toString().padStart(9, "0").slice(-9)}`;
+  return `+91 ${national.slice(0, 5)} ${national.slice(5)}`;
+}

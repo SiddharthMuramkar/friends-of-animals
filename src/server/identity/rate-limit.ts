@@ -1,9 +1,10 @@
-// Postgres-backed limits on sign-in codes, per email address and per IP
-// (#55: "Postgres-backed rate limits apply per identifier and per IP"), and
-// per email address per day. Fixed windows: each request adds one to each
+// Postgres-backed limits on sign-in codes, per identifier (an email
+// address or a phone number) and per IP (#55: "Postgres-backed rate limits
+// apply per identifier and per IP"), and per identifier per day. The IP
+// counter is shared: email and phone codes from one IP count together. Fixed windows: each request adds one to each
 // counter for its current window with an atomic upsert; a request that
 // would pass any limit is rolled back, so refused requests don't count. Keys are
-// HMACs, so the table holds no address or IP. An IP counts by its network
+// HMACs, so the table holds no address, number or IP. An IP counts by its network
 // (ipNetwork): one IPv6 connection holds a whole /64, and would otherwise
 // get a fresh allowance per address.
 
@@ -43,26 +44,33 @@ function windowAt(now: Date, windowMs: number) {
   };
 }
 
+/** Who a code goes to: an email address, or a phone number in E.164. */
+export type CodeRecipient =
+  | { channel: "email"; key: string }
+  | { channel: "phone"; key: string };
+
+const DAY_SCOPE = { email: "email_day", phone: "phone_day" } as const;
+
 /**
- * Takes one code from the email's and the IP's allowance for this window,
- * and from the email's allowance for the day, or reports when the last of
- * the full windows ends.
+ * Takes one code from the recipient's and the IP's allowance for this
+ * window, and from the recipient's allowance for the day, or reports when
+ * the last of the full windows ends.
  */
 export async function takeCodeAllowance(
   db: AppDb,
   {
-    email,
+    to,
     ip,
     now,
     secret,
-  }: { email: string; ip: string; now: Date; secret: string }
+  }: { to: CodeRecipient; ip: string; now: Date; secret: string }
 ): Promise<Allowance> {
   const windowMs = CODE_REQUEST_LIMITS.windowMinutes * MINUTE_MS;
   const counters = [
     {
-      scope: "email",
-      key: email,
-      limit: CODE_REQUEST_LIMITS.perEmail,
+      scope: to.channel,
+      key: to.key,
+      limit: CODE_REQUEST_LIMITS.perRecipient,
       windowMs,
     },
     {
@@ -72,9 +80,9 @@ export async function takeCodeAllowance(
       windowMs,
     },
     {
-      scope: "email_day",
-      key: email,
-      limit: CODE_REQUEST_LIMITS.perEmailPerDay,
+      scope: DAY_SCOPE[to.channel],
+      key: to.key,
+      limit: CODE_REQUEST_LIMITS.perRecipientPerDay,
       windowMs: DAY_MS,
     },
   ] as const;

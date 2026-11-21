@@ -44,6 +44,7 @@ export async function sendWelcomeEmail(
     .select({ name: user.name, email: user.email })
     .from(user)
     .where(eq(user.id, payload.userId));
-  if (!account) return;
-  await deps.email.send(welcomeEmail(account));
+  // A phone-only account (#58) has no address to welcome.
+  if (!account?.email) return;
+  await deps.email.send(welcomeEmail({ ...account, email: account.email }));
 }
