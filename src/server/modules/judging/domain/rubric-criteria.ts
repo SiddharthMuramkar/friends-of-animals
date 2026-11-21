@@ -18,15 +18,28 @@ export const TOTAL_WEIGHT = 100;
 /** The score range a new criterion starts with. */
 export const DEFAULT_SCORE_RANGE = { minScore: 0, maxScore: 10 } as const;
 
-const MAX_CRITERIA = 10;
+/** The bounds a rubric's criteria keep; the admin form checks the same. */
+export const CRITERION_LIMITS = {
+  maxCriteria: 10,
+  labelLength: 120,
+  descriptionLength: 600,
+  weight: { min: 1, max: 100 },
+  score: { min: 0, max: 100 },
+} as const;
 
-const score = z.int().min(0).max(100);
+const { weight, score: scoreRange } = CRITERION_LIMITS;
+
+const score = z.int().min(scoreRange.min).max(scoreRange.max);
 
 const rubricCriterionSchema = z
   .strictObject({
-    label: z.string().trim().min(1).max(120),
-    description: z.string().trim().max(600).default(""),
-    weight: z.int().min(1).max(100),
+    label: z.string().trim().min(1).max(CRITERION_LIMITS.labelLength),
+    description: z
+      .string()
+      .trim()
+      .max(CRITERION_LIMITS.descriptionLength)
+      .default(""),
+    weight: z.int().min(weight.min).max(weight.max),
     minScore: score,
     maxScore: score,
   })
@@ -40,7 +53,7 @@ export type RubricCriterion = z.infer<typeof rubricCriterionSchema>;
 /** A draft's criteria, in display order. */
 export const rubricCriteriaSchema = z
   .array(rubricCriterionSchema)
-  .max(MAX_CRITERIA)
+  .max(CRITERION_LIMITS.maxCriteria)
   .superRefine((criteria, ctx) => {
     const seen = new Set<string>();
     criteria.forEach((criterion, index) => {

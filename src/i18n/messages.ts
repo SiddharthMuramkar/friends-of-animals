@@ -8,6 +8,7 @@ import account from "../../messages/en-IN/account.json";
 import admin from "../../messages/en-IN/admin.json";
 import adminAudit from "../../messages/en-IN/adminAudit.json";
 import adminRoles from "../../messages/en-IN/adminRoles.json";
+import adminRubrics from "../../messages/en-IN/adminRubrics.json";
 import auth from "../../messages/en-IN/auth.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
@@ -40,6 +41,7 @@ export const NAMESPACES = [
   "admin",
   "adminAudit",
   "adminRoles",
+  "adminRubrics",
   "auth",
   "awareness",
   "common",
@@ -76,6 +78,7 @@ export const messages = {
   ...admin,
   ...adminAudit,
   ...adminRoles,
+  ...adminRubrics,
   ...auth,
   ...awareness,
   ...common,
