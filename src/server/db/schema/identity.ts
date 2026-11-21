@@ -1,8 +1,9 @@
-// Identity and access (#57). `user`, `session` and `verification` have the
-// shapes Better Auth's core models expect (its Drizzle adapter maps them by
-// these property names). `otp_rate_limit` is FOA's own: Better Auth limits
-// only per IP and path, and FOA limits sign-in codes per email and per IP.
-// Ids are UUIDv7 made in the app (src/server/ids.ts).
+// Identity and access (#57, #58). `user`, `session` and `verification` have
+// the shapes Better Auth's core models expect (its Drizzle adapter maps them
+// by these property names); FOA adds the user's phone, encrypted.
+// `otp_rate_limit` is FOA's own: Better Auth limits only per IP and path,
+// and FOA limits sign-in codes per email or phone and per IP. Ids are
+// UUIDv7 made in the app (src/server/ids.ts).
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
@@ -19,6 +20,8 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+
+import { encryptedText } from "../types/encrypted-text";
 
 /**
  * A Postgres regex class for what never belongs in a stored address:
@@ -42,10 +45,23 @@ export const user = pgTable(
      * per address. A check constraint holds every writer to that, Better
      * Auth included, so "Asha@x" can't sit next to "asha@x": lower case,
      * and no whitespace or control character anywhere (JavaScript's trim()
-     * strips Unicode spaces that Postgres's btrim() keeps).
+     * strips Unicode spaces that Postgres's btrim() keeps). Null for an
+     * account made by phone, which has no address.
      */
-    email: text().notNull().unique(),
+    email: text().unique(),
     emailVerified: boolean("email_verified").notNull().default(false),
+    /**
+     * The phone number (E.164, e.g. "+919876543210"), encrypted with the
+     * field cipher for purpose "user.phone". Never readable in the table.
+     */
+    phoneCiphertext: encryptedText("phone_ciphertext"),
+    /**
+     * The phone's blind index, `blindIndex.of("user.phone", e164)`: how
+     * sign-in finds the account by phone. One account per phone.
+     */
+    phoneHash: text("phone_hash").unique(),
+    /** The phone received a sign-in code that was entered. */
+    phoneVerified: boolean("phone_verified").notNull().default(false),
     image: text(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
@@ -54,6 +70,16 @@ export const user = pgTable(
     check(
       "user_email_normalised",
       sql`${table.email} = lower(${table.email}) AND ${table.email} !~ ${sql.raw(`'${NOT_IN_AN_EMAIL}'`)}`
+    ),
+    // Every account can be signed in to: it has an address or a phone.
+    check(
+      "user_email_or_phone",
+      sql`${table.email} IS NOT NULL OR ${table.phoneHash} IS NOT NULL`
+    ),
+    // A phone is stored as both its ciphertext and its blind index.
+    check(
+      "user_phone_complete",
+      sql`(${table.phoneCiphertext} IS NULL) = (${table.phoneHash} IS NULL)`
     ),
   ]
 );
@@ -122,15 +148,24 @@ export const verification = pgTable(
 
 /**
  * What a sign-in code limit counts by. Text checked against this list, not
- * a Postgres enum, so a new scope (a phone number, #58) needs no migration.
+ * a Postgres enum, so a new scope needs no migration.
  */
-export const OTP_RATE_LIMIT_SCOPES = ["email", "ip", "email_day"] as const;
+export const OTP_RATE_LIMIT_SCOPES = [
+  "email",
+  "ip",
+  "email_day",
+  "phone",
+  "phone_day",
+  // Texts to everyone together, under one fixed key.
+  "sms_hour",
+  "sms_day",
+] as const;
 
 export type OtpRateLimitScope = (typeof OTP_RATE_LIMIT_SCOPES)[number];
 
 /**
- * Sign-in codes requested per email address and per IP in a fixed window.
- * Keys are HMACs, never the address or IP itself.
+ * Sign-in codes requested per email address, phone and IP in a fixed
+ * window. Keys are HMACs, never the address, number or IP itself.
  */
 export const otpRateLimit = pgTable(
   "otp_rate_limit",

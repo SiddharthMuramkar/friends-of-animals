@@ -11,7 +11,12 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import { migrationEnvSchema, parseEnv } from "../src/env.schema";
+import {
+  fieldKeyEnvSchema,
+  migrationEnvSchema,
+  parseEnv,
+} from "../src/env.schema";
+import { fieldCryptoFor, type FieldCrypto } from "../src/server/crypto/keys";
 import { directTls } from "../src/server/db/database-url";
 import * as schema from "../src/server/db/schema";
 import { systemClock } from "../src/server/ports/clock";
@@ -34,6 +39,16 @@ if (!target.seed) {
   process.exit(0);
 }
 
+let fieldCrypto: FieldCrypto;
+try {
+  // The same keys as the app on this deployment, so it can find and read
+  // the seeded phone: the public development keys when none are set.
+  fieldCrypto = fieldCryptoFor(parseEnv(fieldKeyEnvSchema, process.env));
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}
+
 const { url } = target;
 const client = postgres(url, {
   ...directTls(url),
@@ -45,7 +60,11 @@ const client = postgres(url, {
 
 try {
   console.log(`Seeding ${new URL(url).pathname.slice(1)}...`);
-  await seedPreview({ db: drizzle({ client, schema }), clock: systemClock });
+  await seedPreview({
+    db: drizzle({ client, schema }),
+    clock: systemClock,
+    ...fieldCrypto,
+  });
   console.log("Seed complete.");
   await client.end();
 } catch (error) {
