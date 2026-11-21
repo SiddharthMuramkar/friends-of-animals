@@ -78,7 +78,7 @@ export async function requestEmailCode(
   if (!parsed.success) return invalidInput(parsed.error);
 
   const allowance = await takeCodeAllowance(ctx.db, {
-    email: parsed.data.email,
+    to: { channel: "email", key: parsed.data.email },
     ip: meta.ip,
     now: ctx.clock.now(),
     secret: ctx.auth.secret,

@@ -11,6 +11,7 @@ export type IdentityAction =
   | "verifyEmailCode"
   | "requestPhoneCode"
   | "verifyPhoneCode"
+  | "signInMethods"
   | "getAccount"
   | "listSessions"
   | "signOutSession"
@@ -24,6 +25,10 @@ export function can(actor: Actor, action: IdentityAction): boolean {
     case "verifyPhoneCode":
       // Signing up and signing in are for people who aren't signed in.
       return actor.kind === "visitor";
+    case "signInMethods":
+      // Which ways in are on is no secret: the sign-in pages ask for
+      // whoever is looking at them.
+      return actor.kind === "visitor" || actor.kind === "user";
     case "getAccount":
     case "listSessions":
     case "signOutSession":

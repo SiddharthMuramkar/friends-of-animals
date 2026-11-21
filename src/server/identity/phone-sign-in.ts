@@ -1,7 +1,13 @@
 // Sign-up and sign-in by SMS one-time code, beside email.
 //
+//   signInMethods()                                  → is SMS on?
 //   requestPhoneCode({ intent?, phone, name? })      → a code by SMS
 //   verifyPhoneCode({ intent, phone, code, name? })  → signed in
+//
+// Both refuse while SMS is switched off (the `sms.enabled` setting, off
+// until FOA's DLT registration is approved). Codes per phone and per IP
+// are limited as for email, and an IP's email and phone codes count
+// together (./rate-limit.ts).
 //
 // The number is read into E.164 (src/lib/phone.ts), so every usual way of
 // typing it reaches one account. It is stored encrypted, and found through
@@ -21,6 +27,7 @@ import { authFor } from "./auth";
 import { codeSms } from "./code-sms";
 import { checkPhoneCode, issuePhoneCode } from "./phone-code";
 import { authorize } from "./policy";
+import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
 import { EMAIL_CODE } from "./settings";
 import {
@@ -61,14 +68,20 @@ export type RequestPhoneCodeInput =
   | { intent: "sign-up"; name: string; phone: string };
 export type VerifyPhoneCodeInput = z.input<typeof verifyPhoneCodeInput>;
 
+/** SMS is switched off (`sms.enabled`): codes come by email only. */
+type SmsDisabled = { ok: false; error: "sms_disabled" };
+
 export type RequestPhoneCodeResult =
   | { ok: true }
   | InvalidInput
-  | { ok: false; error: "unsupported_country" };
+  | SmsDisabled
+  | { ok: false; error: "unsupported_country" }
+  | { ok: false; error: "rate_limited"; retryAfterSeconds: number };
 
 export type VerifyPhoneCodeResult =
   | { ok: true; userId: string; isNewAccount: boolean }
   | InvalidInput
+  | SmsDisabled
   | {
       ok: false;
       error:
@@ -85,11 +98,26 @@ function fromAnotherCountry(error: z.ZodError): boolean {
   );
 }
 
+/** The ways in that work right now: email always, phone while SMS is on. */
+export type SignInMethods = { email: true; phone: boolean };
+
+export async function signInMethods(
+  ctx: UseCaseContext
+): Promise<SignInMethods> {
+  authorize(ctx.actor, "signInMethods");
+  return { email: true, phone: await ctx.settings.get("sms.enabled") };
+}
+
+const SMS_DISABLED: SmsDisabled = { ok: false, error: "sms_disabled" };
+
 export async function requestPhoneCode(
   ctx: UseCaseContext,
   input: RequestPhoneCodeInput
 ): Promise<RequestPhoneCodeResult> {
   authorize(ctx.actor, "requestPhoneCode");
+  const meta = visitorMeta(ctx);
+  // Off means off: no text, no stored code, nothing counted.
+  if (!(await ctx.settings.get("sms.enabled"))) return SMS_DISABLED;
   const parsed = requestPhoneCodeInput.safeParse({
     intent: "sign-in",
     ...input,
@@ -100,6 +128,20 @@ export async function requestPhoneCode(
       : invalidInput(parsed.error);
   }
   const { phone: to } = parsed.data;
+
+  const allowance = await takeCodeAllowance(ctx.db, {
+    to: { channel: "phone", key: to },
+    ip: meta.ip,
+    now: ctx.clock.now(),
+    secret: ctx.auth.secret,
+  });
+  if (!allowance.ok) {
+    return {
+      ok: false,
+      error: "rate_limited",
+      retryAfterSeconds: allowance.retryAfterSeconds,
+    };
+  }
 
   // Straight through the SMS port, not the outbox (#55 ruling). A failed
   // send rejects, so the visitor is told; the stored code was never seen,
@@ -150,6 +192,8 @@ export async function verifyPhoneCode(
 ): Promise<VerifyPhoneCodeResult> {
   authorize(ctx.actor, "verifyPhoneCode");
   const meta = visitorMeta(ctx);
+  // Switching SMS off also stops codes already texted from working.
+  if (!(await ctx.settings.get("sms.enabled"))) return SMS_DISABLED;
   const parsed = verifyPhoneCodeInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { data } = parsed;

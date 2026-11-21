@@ -17,6 +17,7 @@ import {
 } from "./email-code";
 import {
   requestPhoneCode,
+  signInMethods,
   verifyPhoneCode,
   type RequestPhoneCodeInput,
   type VerifyPhoneCodeInput,
@@ -30,6 +31,7 @@ export type {
 } from "./email-code";
 export type {
   RequestPhoneCodeResult,
+  SignInMethods,
   VerifyPhoneCodeResult,
 } from "./phone-sign-in";
 export { resolveActor } from "./session";
@@ -42,10 +44,7 @@ export const identityUseCases = (ctx: UseCaseContext) => ({
   requestPhoneCode: (input: RequestPhoneCodeInput) =>
     requestPhoneCode(ctx, input),
   verifyPhoneCode: (input: VerifyPhoneCodeInput) => verifyPhoneCode(ctx, input),
-  // Not built yet: ./phone-limits.test.ts describes it.
-  signInMethods: async (): Promise<never> => {
-    throw new Error("not built yet");
-  },
+  signInMethods: () => signInMethods(ctx),
   getAccount: () => getAccount(ctx),
   listSessions: () => listSessions(ctx),
   signOutSession: (input: SignOutSessionInput) => signOutSession(ctx, input),
