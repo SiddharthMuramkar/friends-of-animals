@@ -1,0 +1,69 @@
+# Self-hosted Umami for cookieless page views (issue #118), served by the
+# Caddy edge. A Compose project of its own, next to the database stack:
+#
+#   docker compose -f /srv/foa/docker/analytics.yml up -d --wait
+#
+# Runbook: docker/README.md, "Analytics (Umami)".
+#
+# - Data: Umami keeps everything in the database `umami` on pg-prod
+#   (postgres/bootstrap/umami.sql), so pgBackRest's stanza `foa`, which backs
+#   up the whole pg-prod cluster, backs it up too. No database or volume here.
+# - Ingress: nothing is published. Caddy (edge.yml, project foa-edge) runs on
+#   the host network, serves stats.friendsofanimals.dev over TLS and proxies
+#   it to 10.112.12.30:3000 on the `db` bridge (caddy/Caddyfile).
+# - The site loads the tracker as /stats/script.js and posts to
+#   /stats/api/send on its own origin; Next rewrites both to stats.<domain>
+#   (next.config.ts, src/lib/analytics/umami.ts).
+#
+# Secrets, made by scripts/analytics-bootstrap.sh and never in git:
+#   /etc/foa/analytics.env                      0600 root
+
+name: foa-analytics
+
+x-logging: &logging
+  driver: journald
+  options:
+    tag: "{{.Name}}"
+
+services:
+  umami:
+    # Upgrade by bumping the tag on purpose; Umami migrates its own database
+    # on start. Never `latest`.
+    image: ghcr.io/umami-software/umami:3.5.0
+    container_name: foa-umami
+    hostname: umami
+    restart: unless-stopped
+    init: true
+    # The database URL (role umami on pg-prod 10.112.12.10, database umami),
+    # APP_SECRET, TWO_FACTOR_ENCRYPTION_KEY and DISABLE_TELEMETRY=1.
+    # CLIENT_IP_HEADER is left at Umami's default until HR-52 checks which
+    # header carries the visitor's address through Vercel and Caddy.
+    env_file: /etc/foa/analytics.env
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    cpus: 1
+    mem_limit: 1g
+    logging: *logging
+    healthcheck:
+      # {"ok":true} once the server is up and the database is reachable.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/api/heartbeat"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The first start runs Umami's migrations.
+      start_period: 120s
+      start_interval: 5s
+    networks:
+      # pg-prod's network, from compose.yml. pg_hba.prod.conf lets in the
+      # role umami from this address only, and Caddy on the host reaches
+      # Umami here.
+      db:
+        ipv4_address: 10.112.12.30
+
+networks:
+  # Created by compose.yml (project foa-vps); start that stack first.
+  db:
+    name: foa-vps_db
+    external: true

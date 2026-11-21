@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ViewTransition } from "react";
 
+import { UmamiAnalytics } from "@/components/analytics/umami-analytics";
 import { HistoryScrollGuard } from "@/components/site/history-scroll-guard";
 import { JsonLd } from "@/components/site/json-ld";
 import { SiteFooter } from "@/components/site-footer";
@@ -84,6 +85,7 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
         </div>
         <HistoryScrollGuard />
         <JsonLd data={organizationJsonLd(siteUrl(), t("tagline"))} />
+        <UmamiAnalytics />
       </body>
     </html>
   );

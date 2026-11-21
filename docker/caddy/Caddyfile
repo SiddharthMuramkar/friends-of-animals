@@ -1,0 +1,49 @@
+# Caddy on the VPS (edge.yml, #118). Host network: firewalld governs 80 and
+# 443. Runbook: docker/README.md, "Edge (Caddy)".
+{
+	# Let's Encrypt's production CA, pinned. On a new host, point this at the
+	# staging CA (https://acme-staging-v02.api.letsencrypt.org/directory)
+	# until issuance works, then back (README.md).
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
+	admin 127.0.0.1:2019
+	servers {
+		protocols h1 h2
+	}
+}
+
+# db.* only need port 80, for lego's webroot HTTP-01 renewals of PgBouncer's
+# certificate (one certificate for both names). Explicit http:// so Caddy
+# never manages a certificate for these names.
+http://db.friendsofanimals.dev, http://db.shipped-it.dev {
+	handle /.well-known/acme-challenge/* {
+		root * /srv/acme
+		file_server
+	}
+	handle {
+		respond 404
+	}
+}
+
+# GlitchTip (errors.yml), on its own bridge.
+errors.friendsofanimals.dev {
+	encode zstd gzip
+	request_body {
+		max_size 20MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy 10.112.13.10:8000
+}
+
+# Umami (analytics.yml), on pg-prod's bridge: its dashboard, and the tracker
+# and collection endpoint the site reaches through Next's /stats rewrites.
+stats.friendsofanimals.dev {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy 10.112.12.30:3000
+}
