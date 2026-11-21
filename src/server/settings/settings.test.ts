@@ -182,4 +182,53 @@ describe("changeSetting", () => {
     ).toEqual({ ok: true, changed: false });
     expect(await rowCounts(h)).toEqual({ settings: 1, auditEntries: 1 });
   });
+
+  it.each([
+    { value: 0, problem: { reason: "too_small", min: 1 } },
+    { value: 25, problem: { reason: "too_big", max: 24 } },
+    { value: 1.5, problem: { reason: "wrong_type" } },
+    { value: "12", problem: { reason: "wrong_type" } },
+    { value: null, problem: { reason: "wrong_type" } },
+  ])(
+    "refuses $value staff session hours, saying why, and changes nothing",
+    async ({ value, problem }) => {
+      const h = await createHarness();
+      const admin = await h.signIn(await h.seed.superAdmin());
+
+      expect(
+        await h
+          .as(admin)
+          .changeSetting({ key: "auth.staffSessionHours", value })
+      ).toEqual({ ok: false, error: "invalid_value", problem });
+
+      expect(await rowCounts(h)).toEqual({ settings: 0, auditEntries: 0 });
+      expect(await readSetting(h.db, "auth.staffSessionHours")).toBe(12);
+    }
+  );
+
+  it.each(["org.unknown", "constructor", "__proto__", ""])(
+    "refuses the unknown setting %j and changes nothing",
+    async (key) => {
+      const h = await createHarness();
+      const admin = await h.signIn(await h.seed.superAdmin());
+
+      expect(await h.as(admin).changeSetting({ key, value: true })).toEqual({
+        ok: false,
+        error: "unknown_setting",
+      });
+      expect(await rowCounts(h)).toEqual({ settings: 0, auditEntries: 0 });
+    }
+  );
+
+  it("refuses anyone who isn't a super admin, and changes nothing", async () => {
+    const h = await createHarness();
+
+    for (const [who, actor] of await notSuperAdmins(h)) {
+      await expect(
+        h.as(actor).changeSetting({ key: "org.has80G", value: true }),
+        who
+      ).rejects.toMatchObject({ name: "DomainError", code: "forbidden" });
+    }
+    expect(await rowCounts(h)).toEqual({ settings: 0, auditEntries: 0 });
+  });
 });
