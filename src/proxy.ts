@@ -37,7 +37,8 @@ function withNonceCsp(request: NextRequest): NextResponse {
   headers.delete("content-security-policy-report-only");
   headers.set(policy.key, policy.value);
   headers.set("x-nonce", nonce);
-  // Overwrites any path header the browser sent itself.
+  // The page's path, so the staff gate (#60) can send the user back to it;
+  // set here, so one the browser sent never reaches the page.
   headers.set(PATH_HEADER, request.nextUrl.pathname + request.nextUrl.search);
   const response = NextResponse.next({ request: { headers } });
   response.headers.set(policy.key, policy.value);
@@ -61,8 +62,7 @@ function missingSignedInPage(request: NextRequest): NextResponse {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // Pages behind sign-in: a request without a session cookie goes straight
-  // to sign in. With one, the page checks the session itself, knowing the
-  // path it is on, so the staff gate (#60) can send the user back to it.
+  // to sign in. With one, the page checks the session itself.
   if (isSignedInPath(pathname)) {
     if (!hasSessionCookie(request.headers)) {
       return NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
@@ -94,6 +94,7 @@ export const config = {
     "/account/:path*",
     "/admin",
     "/admin/:path*",
+    "/auth",
     "/auth/:path*",
   ],
 };

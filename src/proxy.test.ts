@@ -6,10 +6,10 @@ import {
 import { NextRequest, type NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SIGNED_IN_PREFIXES } from "@/lib/app-routes";
+import { APP_ROUTES, SIGNED_IN_PREFIXES } from "@/lib/app-routes";
 import { publicCsp } from "@/lib/csp";
-import { cspContext } from "@/lib/csp-sources";
 import { PATH_HEADER } from "@/lib/second-factor-routes";
+import { cspContext } from "@/lib/csp-sources";
 
 import { config, proxy } from "./proxy";
 
@@ -161,35 +161,39 @@ describe("proxy: the signed-in nonce policy", () => {
   });
 });
 
-describe("proxy: the path the staff gate comes back to", () => {
-  it.each(["/admin/roles", "/auth/step-up", "/account/security"])(
-    "sends a visitor without a session cookie from %s to sign in",
-    (path) => {
-      const response = proxy(request(path));
-      expect(response.status).toBe(307);
-      expect(new URL(response.headers.get("location")!).pathname).toBe(
-        "/sign-in"
-      );
-    }
-  );
-
-  it("passes the page's path and query on, for the staff gate to come back to", () => {
-    const response = proxy(request("/account/security?tab=passkeys", SESSION));
-
-    expect(response.headers.get("location")).toBeNull();
-    expect(pageHeaders(response).get(PATH_HEADER)).toBe(
-      "/account/security?tab=passkeys"
+describe("proxy: the page's path, for the staff gate (#60)", () => {
+  it.each([
+    APP_ROUTES.accountSecurity,
+    APP_ROUTES.secondFactor,
+    APP_ROUTES.stepUp,
+  ])("sends a visitor without a session cookie from %s to sign in", (path) => {
+    const response = proxy(request(path));
+    expect(response.status).toBe(307);
+    expect(new URL(response.headers.get("location")!).pathname).toBe(
+      "/sign-in"
     );
   });
 
-  it("overwrites a path header the browser sent itself", () => {
-    const sneaky = request("/account/security", {
-      ...SESSION,
-      [PATH_HEADER]: "https://example.com",
-    });
+  it("renders a signed-in page knowing its path and query, to come back to", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const path = `${APP_ROUTES.stepUp}?next=%2Fadmin%2Froles`;
 
-    expect(pageHeaders(proxy(sneaky)).get(PATH_HEADER)).toBe(
-      "/account/security"
+    expect(pageHeaders(proxy(request(path, SESSION))).get(PATH_HEADER)).toBe(
+      path
+    );
+  });
+
+  it("never passes on a path header the browser sent itself", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const response = proxy(
+      request(APP_ROUTES.accountSecurity, {
+        ...SESSION,
+        [PATH_HEADER]: "https://example.com",
+      })
+    );
+
+    expect(pageHeaders(response).get(PATH_HEADER)).toBe(
+      APP_ROUTES.accountSecurity
     );
   });
 });
