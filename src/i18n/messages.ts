@@ -5,25 +5,32 @@
 import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
+import adminTemplates from "../../messages/en-IN/adminTemplates.json";
+import adminSettings from "../../messages/en-IN/adminSettings.json";
 import auth from "../../messages/en-IN/auth.json";
+import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
+import consent from "../../messages/en-IN/consent.json";
+import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
 import donate from "../../messages/en-IN/donate.json";
-import emails from "../../messages/en-IN/emails.json";
 import error from "../../messages/en-IN/error.json";
 import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
+import inbox from "../../messages/en-IN/inbox.json";
 import impact from "../../messages/en-IN/impact.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
+import notificationSettings from "../../messages/en-IN/notificationSettings.json";
 import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import sample from "../../messages/en-IN/sample.json";
 import schools from "../../messages/en-IN/schools.json";
+import security from "../../messages/en-IN/security.json";
 import showcase from "../../messages/en-IN/showcase.json";
 import stories from "../../messages/en-IN/stories.json";
 import styleguide from "../../messages/en-IN/styleguide.json";
@@ -32,25 +39,32 @@ export const NAMESPACES = [
   "a11y",
   "about",
   "account",
+  "adminTemplates",
+  "adminSettings",
   "auth",
+  "authPhone",
   "awareness",
   "common",
   "competitions",
+  "consent",
+  "consentAdmin",
   "contact",
   "credits",
   "donate",
-  "emails",
   "error",
   "footer",
   "home",
+  "inbox",
   "impact",
   "legal",
   "nav",
   "notFound",
+  "notificationSettings",
   "pricing",
   "refunds",
   "sample",
   "schools",
+  "security",
   "showcase",
   "stories",
   "styleguide",
@@ -63,25 +77,32 @@ export const messages = {
   ...a11y,
   ...about,
   ...account,
+  ...adminTemplates,
+  ...adminSettings,
   ...auth,
+  ...authPhone,
   ...awareness,
   ...common,
   ...competitions,
+  ...consent,
+  ...consentAdmin,
   ...contact,
   ...credits,
   ...donate,
-  ...emails,
   ...error,
   ...footer,
   ...home,
+  ...inbox,
   ...impact,
   ...legal,
   ...nav,
   ...notFound,
+  ...notificationSettings,
   ...pricing,
   ...refunds,
   ...sample,
   ...schools,
+  ...security,
   ...showcase,
   ...stories,
   ...styleguide,

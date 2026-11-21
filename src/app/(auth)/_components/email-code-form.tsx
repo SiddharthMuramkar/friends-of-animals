@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, type ReactNode } from "react";
 
 import { FormAlert, SubmitButton, TextField } from "@/components/form";
 import { SiteLink } from "@/components/site/site-link";
@@ -31,14 +31,18 @@ const LINK =
 /**
  * Sign up or sign in by email code, in two steps on one form: the email
  * (and, to sign up, a name), then the code we email. Every message comes
- * translated from the action; static words come in `labels`.
+ * translated from the action; static words come in `labels`. To sign up,
+ * `consentField` (the optional messages consent box, from the server)
+ * shows on the email step, and the code step sends on what was ticked.
  */
 export function EmailCodeForm({
   intent,
   labels,
+  consentField,
 }: {
   intent: "sign-up" | "sign-in";
   labels: EmailCodeFormLabels;
+  consentField?: ReactNode;
 }) {
   const [view, formAction] = useActionState(emailCodeAction, START_VIEW);
   const { text } = view;
@@ -93,6 +97,7 @@ export function EmailCodeForm({
             hint={labels.email.hint}
             error={text.errors.email}
           />
+          {intent === "sign-up" ? consentField : null}
           <div>
             <SubmitButton
               name="step"
@@ -107,6 +112,13 @@ export function EmailCodeForm({
         <>
           <input type="hidden" name="email" value={view.email} />
           <input type="hidden" name="name" value={view.name} />
+          {view.messagesConsent ? (
+            <input
+              type="hidden"
+              name="messagesConsent"
+              value={view.messagesConsent}
+            />
+          ) : null}
           <TextField
             id="code"
             name="code"

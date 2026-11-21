@@ -1,0 +1,78 @@
+{
+  "authPhone": {
+    "signUp": {
+      "meta": {
+        "title": "Create an account with your phone",
+        "description": "Create a Friends of Animals account with your mobile number. We text you a code: there is no password to remember."
+      },
+      "eyebrow": "Your account",
+      "title": "Create an account with your phone",
+      "lead": "Tell us your name and your mobile number. We'll text you a code to finish. There's no password to remember.",
+      "other": "Already have an account?",
+      "otherLink": "Sign in with your phone"
+    },
+    "signIn": {
+      "meta": {
+        "title": "Sign in with your phone",
+        "description": "Sign in to Friends of Animals with your mobile number and a code we text you. There is no password."
+      },
+      "eyebrow": "Your account",
+      "title": "Sign in with your phone",
+      "lead": "Enter your mobile number and we'll text you a code. There's no password.",
+      "other": "New to Friends of Animals?",
+      "otherLink": "Create an account with your phone"
+    },
+    "option": {
+      "signIn": "Prefer your phone? Sign in with a code by text message",
+      "signUp": "Prefer your phone? Create an account with a code by text message"
+    },
+    "loading": "Loading…",
+    "off": {
+      "message": "We can't text sign-in codes yet, so codes come by email for now.",
+      "signIn": "Sign in with your email",
+      "signUp": "Create an account with your email"
+    },
+    "useEmail": "Use your email instead",
+    "form": {
+      "name": {
+        "label": "Your name",
+        "hint": "The name your account shows.",
+        "error": "Enter your name."
+      },
+      "phone": {
+        "label": "Mobile number",
+        "hint": "An Indian mobile number. We'll text a 6-digit code to it.",
+        "error": "Enter a 10-digit Indian mobile number, like 98765 43210."
+      },
+      "code": {
+        "label": "6-digit code",
+        "hint": "We sent it to {phone}. It works for {minutes} minutes.",
+        "error": "That code isn't right. Check the text message and try again."
+      },
+      "sendCode": "Text me a code",
+      "sending": "Sending…",
+      "signUp": "Create account",
+      "signIn": "Sign in",
+      "checking": "Checking…",
+      "resend": "Send a new code",
+      "changePhone": "Use a different number",
+      "sent": "We've sent a code to {phone}.",
+      "signUpInstead": "Create an account instead",
+      "alerts": {
+        "rate_limited": "You've asked for a lot of codes. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+        "rate_limited_hours": "You've asked for a lot of codes today. Try again in {hours, plural, one {# hour} other {# hours}}.",
+        "code_expired": "That code has run out. Send yourself a new one.",
+        "too_many_attempts": "That code had too many wrong tries. Send yourself a new one.",
+        "no_account": "There's no account with this phone number yet.",
+        "unsupported_country": "We can only text Indian mobile numbers for now. Use your email address instead.",
+        "sms_disabled": "We can't text codes right now. Use your email address instead.",
+        "failed": "Something went wrong on our side. Please try again."
+      }
+    },
+    "sms": {
+      "code": {
+        "text": "Your Friends of Animals sign-in code is {code}. It works for {minutes} minutes. Nobody from FOA will ask you for it."
+      }
+    }
+  }
+}

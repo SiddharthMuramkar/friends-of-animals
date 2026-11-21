@@ -6,8 +6,9 @@ import {
 import { NextRequest, type NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SIGNED_IN_PREFIXES } from "@/lib/app-routes";
+import { APP_ROUTES, SIGNED_IN_PREFIXES } from "@/lib/app-routes";
 import { publicCsp } from "@/lib/csp";
+import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { cspContext } from "@/lib/csp-sources";
 
 import { config, proxy } from "./proxy";
@@ -127,6 +128,21 @@ describe("proxy: the signed-in nonce policy", () => {
     }
   });
 
+  it("serves a template's editor, a page with a dynamic segment, but no deeper path (#69)", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const editor = proxy(request("/admin/templates/identity.welcome", SESSION));
+
+    expect(pageHeaders(editor).get("x-nonce")).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+    for (const path of [
+      "/admin/templates/identity.welcome/x",
+      "/admin/templates/",
+    ]) {
+      expect(getRewrittenUrl(proxy(request(path, SESSION))), path).toBe(
+        "https://foa.example.test/__not-found"
+      );
+    }
+  });
+
   it("still sends a visitor with no session cookie to sign in", () => {
     const response = proxy(request("/account/sessions"));
 
@@ -157,5 +173,42 @@ describe("proxy: the signed-in nonce policy", () => {
         expect(unstable_doesMiddlewareMatch({ config, url }), path).toBe(true);
       }
     }
+  });
+});
+
+describe("proxy: the page's path, for the staff gate (#60)", () => {
+  it.each([
+    APP_ROUTES.accountSecurity,
+    APP_ROUTES.secondFactor,
+    APP_ROUTES.stepUp,
+  ])("sends a visitor without a session cookie from %s to sign in", (path) => {
+    const response = proxy(request(path));
+    expect(response.status).toBe(307);
+    expect(new URL(response.headers.get("location")!).pathname).toBe(
+      "/sign-in"
+    );
+  });
+
+  it("renders a signed-in page knowing its path and query, to come back to", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const path = `${APP_ROUTES.stepUp}?next=%2Fadmin%2Froles`;
+
+    expect(pageHeaders(proxy(request(path, SESSION))).get(PATH_HEADER)).toBe(
+      path
+    );
+  });
+
+  it("never passes on a path header the browser sent itself", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const response = proxy(
+      request(APP_ROUTES.accountSecurity, {
+        ...SESSION,
+        [PATH_HEADER]: "https://example.com",
+      })
+    );
+
+    expect(pageHeaders(response).get(PATH_HEADER)).toBe(
+      APP_ROUTES.accountSecurity
+    );
   });
 });
