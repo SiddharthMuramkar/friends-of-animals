@@ -12,6 +12,12 @@ import { cspContext } from "@/lib/csp-sources";
 
 import { config, proxy } from "./proxy";
 
+// Competition slugs are checked against the database (#70); none is
+// published here. src/proxy.competitions.test.ts covers that check.
+vi.mock("@/app/competitions/_lib/public-reader", () => ({
+  publishedSlugLookup: async () => false,
+}));
+
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -50,9 +56,9 @@ const POLICY_KEYS = [
 ];
 
 describe("proxy: the signed-in nonce policy", () => {
-  it("sends a signed-in page the nonce policy, and renders it with the same nonce", () => {
+  it("sends a signed-in page the nonce policy, and renders it with the same nonce", async () => {
     vi.stubEnv("APP_ENV", "preview");
-    const response = proxy(request("/account/sessions", SESSION));
+    const response = await proxy(request("/account/sessions", SESSION));
 
     const policy = response.headers.get("content-security-policy");
     expect(policy, "the response's policy").toEqual(expect.any(String));
@@ -67,20 +73,22 @@ describe("proxy: the signed-in nonce policy", () => {
     expect(page.get("cookie")).toBe(SESSION.cookie);
   });
 
-  it("makes a fresh nonce for every request", () => {
+  it("makes a fresh nonce for every request", async () => {
     const nonces = new Set(
-      Array.from({ length: 5 }, () => {
-        const response = proxy(request("/account/sessions", SESSION));
-        return pageHeaders(response).get("x-nonce");
-      })
+      await Promise.all(
+        Array.from({ length: 5 }, async () => {
+          const response = await proxy(request("/account/sessions", SESSION));
+          return pageHeaders(response).get("x-nonce");
+        })
+      )
     );
     expect(nonces.size).toBe(5);
   });
 
-  it("only reports on staging and production, and Next still reads the nonce", () => {
+  it("only reports on staging and production, and Next still reads the nonce", async () => {
     for (const appEnv of ["staging", "production"]) {
       vi.stubEnv("APP_ENV", appEnv);
-      const response = proxy(request("/account/sessions", SESSION));
+      const response = await proxy(request("/account/sessions", SESSION));
 
       expect(response.headers.get("content-security-policy")).toBeNull();
       const policy = response.headers.get(
@@ -92,9 +100,9 @@ describe("proxy: the signed-in nonce policy", () => {
     }
   });
 
-  it("replaces any policy or nonce the client sent", () => {
+  it("replaces any policy or nonce the client sent", async () => {
     vi.stubEnv("APP_ENV", "staging");
-    const response = proxy(
+    const response = await proxy(
       request("/account/sessions", {
         ...SESSION,
         "content-security-policy": "script-src 'nonce-chosenbyclient'",
@@ -110,12 +118,12 @@ describe("proxy: the signed-in nonce policy", () => {
     expect(page.get("x-nonce")).not.toBe("chosenbyclient");
   });
 
-  it("answers any other signed-in path with the static 404 under the public policy", () => {
+  it("answers any other signed-in path with the static 404 under the public policy", async () => {
     vi.stubEnv("APP_ENV", "preview");
     // A request-time notFound() under the signed-in layout could only stream
     // a 200; the prerendered 404 has no nonce on its scripts.
     for (const path of ["/account", "/account/nope", "/account/sessions/x"]) {
-      const response = proxy(request(path, SESSION));
+      const response = await proxy(request(path, SESSION));
 
       expect(getRewrittenUrl(response), path).toBe(
         "https://foa.example.test/__not-found"
@@ -127,8 +135,8 @@ describe("proxy: the signed-in nonce policy", () => {
     }
   });
 
-  it("still sends a visitor with no session cookie to sign in", () => {
-    const response = proxy(request("/account/sessions"));
+  it("still sends a visitor with no session cookie to sign in", async () => {
+    const response = await proxy(request("/account/sessions"));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
@@ -136,13 +144,13 @@ describe("proxy: the signed-in nonce policy", () => {
     );
   });
 
-  it("leaves public pages to next.config.ts headers()", () => {
+  it("leaves public pages to next.config.ts headers()", async () => {
     for (const path of [
       "/blog/kinder-skies-in-kite-season",
       "/blog/no-such-story",
       "/competitions/no-such-competition",
     ]) {
-      const response = proxy(request(path, SESSION));
+      const response = await proxy(request(path, SESSION));
       for (const key of POLICY_KEYS) {
         expect(response.headers.get(key), path).toBeNull();
         expect(forwarded(response)?.get(key) ?? null, path).toBeNull();
@@ -150,7 +158,7 @@ describe("proxy: the signed-in nonce policy", () => {
     }
   });
 
-  it("runs on every path under SIGNED_IN_PREFIXES", () => {
+  it("runs on every path under SIGNED_IN_PREFIXES", async () => {
     for (const prefix of SIGNED_IN_PREFIXES) {
       for (const path of [prefix, `${prefix}/sessions`, `${prefix}/a/b`]) {
         const url = `https://foa.example.test${path}`;

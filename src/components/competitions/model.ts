@@ -293,3 +293,14 @@ export function fromPublic(c: PublishedCompetition): CompetitionView {
     auctionPermitted: c.auctionPermitted,
   };
 }
+
+/**
+ * A manager's plain text (welfare message, rules, materials) as
+ * paragraphs, one per line. It renders as text, never as markup.
+ */
+export function paragraphs(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+}

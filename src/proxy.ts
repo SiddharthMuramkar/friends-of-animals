@@ -1,24 +1,25 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { competitionParams } from "@/app/competitions/_lib/view";
+import { publishedSlugLookup } from "@/app/competitions/_lib/public-reader";
+import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import { isStorySlug } from "@/content/stories";
-import { getSampleCompetitions } from "@/content/sample";
 import { isSignedInPage, isSignedInPath } from "@/lib/app-routes";
 import { createNonce, publicCsp, signedInCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
 import { ROUTES } from "@/lib/routes";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 
-// Unlisted slugs render at request time, and the header's <Suspense> starts
-// streaming before the page's notFound() runs, so they kept a 200 status
-// (cacheComponents rules out dynamicParams = false). Rejecting them here,
-// before rendering starts, gives a real 404.
-const COMPETITION_SLUGS = new Set(
-  competitionParams(getSampleCompetitions()).map((p) => p.slug)
-);
-
 // No route matches this path, so Next serves app/not-found.tsx with a 404.
 const MISSING = "/__not-found";
+
+/** The decoded path segment; a malformed escape can't be a real slug. */
+function decodedSlug(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return "";
+  }
+}
 
 /**
  * Lets a signed-in request through under a fresh nonce policy (#65). Next
@@ -55,7 +56,28 @@ function missingSignedInPage(request: NextRequest): NextResponse {
   return response;
 }
 
-export function proxy(request: NextRequest) {
+/**
+ * Whether /competitions/<raw> is published, from the database. If the
+ * database can't answer, the request goes through: the page then reports
+ * the failure itself, rather than every competition looking deleted.
+ */
+async function isPublishedCompetition(raw: string): Promise<boolean> {
+  try {
+    return await isListedCompetitionSlug(raw, publishedSlugLookup);
+  } catch (error) {
+    console.error(
+      "Proxy: could not check a competition slug against the database.",
+      error instanceof Error ? error.message : error
+    );
+    return true;
+  }
+}
+
+// Unlisted slugs render at request time, and the header's <Suspense> starts
+// streaming before the page's notFound() runs, so they would keep a 200
+// status (cacheComponents rules out dynamicParams = false). Rejecting them
+// here, before rendering starts, gives a real 404.
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
   // Pages behind sign-in: a request without a session cookie goes straight
   // to sign in. With one, the page checks the session itself.
@@ -69,15 +91,10 @@ export function proxy(request: NextRequest) {
   }
 
   const [, section, raw = ""] = pathname.split("/");
-  let slug: string;
-  try {
-    slug = decodeURIComponent(raw);
-  } catch {
-    // A malformed escape can't be a real slug.
-    slug = "";
-  }
   const known =
-    section === "blog" ? isStorySlug(slug) : COMPETITION_SLUGS.has(slug);
+    section === "blog"
+      ? isStorySlug(decodedSlug(raw))
+      : await isPublishedCompetition(raw);
   if (known) return NextResponse.next();
   return NextResponse.rewrite(new URL(MISSING, request.url));
 }
