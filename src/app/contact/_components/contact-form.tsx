@@ -22,11 +22,8 @@ import { solveProofOfWork } from "@/lib/proof-of-work";
 import { ROUTES } from "@/lib/routes";
 
 import { issueChallengeAction, submitContactAction } from "../_lib/actions";
-import {
-  keepsProof,
-  START_VIEW,
-  type ContactFormView,
-} from "../_lib/form-state";
+import { START_VIEW, type ContactFormView } from "../_lib/form-state";
+import { proofKeeper } from "../_lib/proof-keeper";
 
 /** Picking it shows where to go instead; the form never sends it. */
 const SAFEGUARDING = "SAFEGUARDING";
@@ -52,8 +49,6 @@ export type ContactFormLabels = {
 
 const LINK =
   "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
-
-type Proof = { token: string; nonce: number; expiresAt: number };
 
 /**
  * The contact form island on the prerendered /contact page. When the form
@@ -86,46 +81,26 @@ function ContactFormRound({
   topics: readonly { value: string; label: string }[];
   onSendAnother: () => void;
 }) {
-  const proof = useRef<Promise<Proof> | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
-
-  /** The proof for the next send, started once and reused until spent. */
-  function humanCheck(): Promise<Proof> {
-    const current = proof.current;
-    if (current) return current;
-    const next = (async () => {
-      const challenge = await issueChallengeAction();
-      const nonce = await solveProofOfWork(challenge);
-      return {
-        token: challenge.token,
-        nonce,
-        expiresAt: Date.parse(challenge.expiresAt),
-      };
-    })();
-    proof.current = next;
-    // A failed fetch is tried again on the next focus or send.
-    next.catch(() => {
-      if (proof.current === next) proof.current = null;
-    });
-    return next;
-  }
+  const [keeper] = useState(() =>
+    proofKeeper({
+      fetchChallenge: issueChallengeAction,
+      solve: solveProofOfWork,
+      now: () => Date.now(),
+    })
+  );
 
   async function send(previous: ContactFormView, formData: FormData) {
     try {
-      let ready = await humanCheck();
-      if (ready.expiresAt <= Date.now()) {
-        proof.current = null;
-        ready = await humanCheck();
-      }
-      formData.set("humanCheckToken", ready.token);
-      formData.set("humanCheckNonce", String(ready.nonce));
+      const proof = await keeper.forSend();
+      formData.set("humanCheckToken", proof.token);
+      formData.set("humanCheckNonce", String(proof.nonce));
     } catch {
       // Sent without a proof, the server answers "human check failed",
       // which asks the visitor to press Send again.
     }
     const next = await submitContactAction(previous, formData);
-    // A proof works once: once spent, the next send solves a new one.
-    if (!keepsProof(next)) proof.current = null;
+    keeper.afterSend(next);
     return next;
   }
 
@@ -147,7 +122,7 @@ function ContactFormRound({
   useEffect(() => {
     const form = formRef.current;
     if (!form) return;
-    const start = () => void humanCheck().catch(() => undefined);
+    const start = () => void keeper.warm();
     form.addEventListener("focusin", start, { once: true });
     return () => form.removeEventListener("focusin", start);
   });
