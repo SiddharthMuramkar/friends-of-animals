@@ -4,7 +4,8 @@ import { env } from "@/env";
 import { db } from "@/server/db";
 import { readMailbox } from "@/server/mailbox/read-mailbox";
 
-// The capture mailbox for the Seam 2 journeys: GET ?to=<address> with the
+// The capture mailbox for the Seam 2 journeys: GET with the address in the
+// x-capture-mailbox-to header (not the URL, which request logs keep) and the
 // x-capture-mailbox-token header. Rules in src/server/mailbox/read-mailbox.ts.
 
 const headers = {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     appEnv: config.APP_ENV,
     configuredToken: config.CAPTURE_MAILBOX_TOKEN,
     providedToken: request.headers.get("x-capture-mailbox-token"),
-    to: request.nextUrl.searchParams.get("to"),
+    to: request.headers.get("x-capture-mailbox-to"),
   });
   return result.status === 200
     ? Response.json(result.body, { headers })
