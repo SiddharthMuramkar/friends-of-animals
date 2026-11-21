@@ -896,8 +896,8 @@ Secrets (never in git):
 
 Bring-up (owner, HR-52), with the database stack and the edge running.
 The stats site serves 503 until the bootstrap replaces Umami's seeded admin
-login. The bootstrap closes the site before starting Umami on each run and
-reopens it only after the login replacement succeeds.
+login. On each run, the bootstrap closes the site before provisioning the
+database and reopens it only after the login replacement succeeds.
 
 ```sh
 cd /srv/foa && git pull
@@ -936,9 +936,11 @@ forge the counts. Until then page views are right but unique visitors
 collapse onto Vercel's addresses.
 
 Upgrade: bump the image tag in `analytics.yml`, `git pull`, then rerun the
-bootstrap. The bootstrap uses `/var/lib/foa/caddy/gates/stats` to control
-when Caddy can reach Umami. If the login step fails, correct the problem and
-rerun the bootstrap to reopen the site.
+bootstrap. Caddy serves 503 whenever `/var/lib/foa/caddy/gates/stats` is
+absent. Before restoring or replacing Umami's database, remove that marker
+and confirm the stats site returns 503. After maintenance, rerun the
+bootstrap to verify the admin login and reopen the site. If the login step
+fails, correct the problem and rerun the bootstrap.
 
 To rotate the database password, delete the `DATABASE_URL` line from
 `analytics.env` and rerun the bootstrap. Compose recreates Umami with the
