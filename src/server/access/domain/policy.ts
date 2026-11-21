@@ -80,6 +80,9 @@ export const owner: Rule = (subject, resource) =>
 export const signedIn: Rule = (subject) =>
   subject.kind === "user" ? { allowed: true, role: null } : REFUSED;
 
+/** Allows only a caller who isn't signed in: signing up, signing in. */
+export const signedOut: Rule = () => REFUSED;
+
 /** Allows the platform itself, running as one of `processes`. */
 export function system(
   ...processes: Extract<Subject, { kind: "system" }>["process"][]

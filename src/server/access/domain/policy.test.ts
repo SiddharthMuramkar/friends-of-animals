@@ -6,6 +6,7 @@ import {
   owner,
   role,
   signedIn,
+  signedOut,
   system,
   type Policy,
   type Subject,
@@ -155,6 +156,20 @@ describe("decide", () => {
       decide(policy, { kind: "system", process: "seed" }, "dashboard.view", {})
         .allowed
     ).toBe(false);
+  });
+
+  it("lets only a signed-out caller pass signedOut", () => {
+    const signUp = { "session.start": signedOut } satisfies Policy<string>;
+    expect(decide(signUp, visitor, "session.start")).toEqual({
+      allowed: true,
+      role: null,
+    });
+    expect(decide(signUp, user(globalStaffAdmin), "session.start")).toEqual({
+      allowed: false,
+    });
+    expect(
+      decide(signUp, { kind: "system", process: "seed" }, "session.start")
+    ).toEqual({ allowed: false });
   });
 
   it("refuses an action the policy doesn't define", () => {
