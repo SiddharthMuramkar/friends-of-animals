@@ -5,6 +5,8 @@
 //
 // Plain Node: no "server-only", no "@/env", so the worker can import it.
 
+import { readFileSync } from "node:fs";
+
 import { z } from "zod";
 
 import type { S3BucketConfig } from "../../ports/copy-bucket-s3";
@@ -107,16 +109,29 @@ class EnvReader {
 
   constructor(private readonly env: Env) {}
 
-  /** The variable's value, trimmed; an empty one counts as unset. */
+  /**
+   * The variable's value, trimmed, or else the contents of the file
+   * `<name>_FILE` names (a Compose secret). Empty counts as unset.
+   */
   raw(name: string): string | undefined {
-    const value = this.env[name]?.trim();
-    return value === "" ? undefined : value;
+    const value = this.env[name]?.trim() || undefined;
+    const file = this.env[`${name}_FILE`]?.trim() || undefined;
+    if (value !== undefined || file === undefined) return value;
+    try {
+      return readFileSync(file, "utf8").trim() || undefined;
+    } catch {
+      this.problems.push(`${name}_FILE names a file that can't be read`);
+      return undefined;
+    }
   }
 
   required<T>(name: string, schema: z.ZodType<T, string>): T | undefined {
+    const problems = this.problems.length;
     const value = this.raw(name);
     if (value === undefined) {
-      this.problems.push(`${name} is not set`);
+      if (this.problems.length === problems) {
+        this.problems.push(`${name} is not set`);
+      }
       return undefined;
     }
     return this.#parse(name, schema, value);
