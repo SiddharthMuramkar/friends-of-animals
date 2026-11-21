@@ -8,6 +8,9 @@
 //     variables set. Moving to another S3-compatible store (S3 Mumbai) is a
 //     change of endpoint and credentials.
 //   - the in-memory fake (src/test/fakes/storage.ts): Seam 1 tests.
+//   - disk (./storage-disk.ts): a local run without the R2_* variables, as
+//     on a laptop and in CI's E2E job. Files on this machine, signed URLs
+//     on the app's own /api/local-storage route.
 //   - `unconfiguredStorage`: a deployment without storage config. It refuses
 //     every call, so nothing pretends to store a file.
 // Every adapter passes ./storage.contract.ts.
@@ -93,6 +96,24 @@ const PURGEABLE_PREFIX = /^(?:[a-z0-9_-]+\/)+$/;
  */
 export function isPurgeablePrefix(prefix: string): boolean {
   return PURGEABLE_PREFIX.test(prefix);
+}
+
+/** Download names the platform generates: `test_upload-01938a00.png`. */
+const DOWNLOAD_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+
+/**
+ * The Content-Disposition a presigned GET asks for. The name is never
+ * quoted or escaped, so anything that would need it is refused: it would
+ * mean the name came from somewhere it shouldn't.
+ */
+export function contentDispositionFor(
+  disposition: "inline" | "attachment",
+  filename: string
+): string {
+  if (!DOWNLOAD_NAME.test(filename)) {
+    throw new Error(`Not a download name: ${JSON.stringify(filename)}`);
+  }
+  return `${disposition}; filename="${filename}"`;
 }
 
 /** Thrown by `deletePrefix` for a prefix `isPurgeablePrefix` rejects. */

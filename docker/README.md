@@ -629,6 +629,18 @@ prints what it would drop. Unauthenticated GitHub API calls are limited to 60
 an hour; with many open previews, or if the repo goes private, put a read-only
 `GITHUB_TOKEN=...` in `/etc/foa/sweeper.env` (0600).
 
+After each drop the sweeper runs `scripts/run-preview-dropped-hooks.sh
+<database>`, which runs every executable `scripts/preview-dropped.d/*.sh`
+with the dropped name; a failing hook is logged and the sweep goes on (a dry
+run runs none). `50-purge-files.sh` deletes that preview's files
+(`pr-<n>/` or `br-<hash>/` in the non-production bucket) by running
+`pnpm files:purge-preview --database <name>` in the worker image
+(`FOA_WORKER_IMAGE`, default `foa-worker:latest`, never pulled). It reads the
+**non-production** bucket's `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` and `R2_BUCKET` from `/etc/foa/preview-files.env`
+(root, 0600; never production's, and no `APP_ENV`: the hook sets
+`APP_ENV=preview`). Without that file it fails and the files stay.
+
 ## Checks
 
 `scripts/smoke-test.sh` runs 31 client-side checks through

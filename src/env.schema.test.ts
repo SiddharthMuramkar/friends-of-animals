@@ -466,3 +466,50 @@ describe("migrationEnvSchema", () => {
     ).toBe("staging");
   });
 });
+
+describe("envSchema storage", () => {
+  const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
+  const R2 = {
+    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+    R2_ACCESS_KEY_ID: "test-access-key-id",
+    R2_SECRET_ACCESS_KEY: "test-secret-access-key",
+    R2_BUCKET: "foa-files-nonprod",
+  };
+
+  it("reads the R2 variables", () => {
+    expect(parseEnv(envSchema, { DATABASE_URL, ...R2 })).toMatchObject(R2);
+  });
+
+  it("lets every environment leave all of them out, production included", () => {
+    // Production storage waits for FOA's R2 buckets; until then it refuses.
+    const production = parseEnv(envSchema, {
+      DATABASE_URL,
+      APP_ENV: "production",
+      APP_URL: SITE,
+      BETTER_AUTH_SECRET: SECRET,
+      NEXT_PUBLIC_SENTRY_DSN: DSN,
+    });
+    expect(production.R2_BUCKET).toBeUndefined();
+  });
+
+  it("refuses part of the R2 config, naming what is missing", () => {
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, R2_BUCKET: R2.R2_BUCKET })
+    ).toThrow(
+      /R2 is half configured[\s\S]*R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY/
+    );
+  });
+
+  it("refuses an account id or bucket name R2 wouldn't have", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        ...R2,
+        R2_ACCOUNT_ID: "evil.example.com/x",
+      })
+    ).toThrow(/at R2_ACCOUNT_ID/);
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, ...R2, R2_BUCKET: "Foa_Files" })
+    ).toThrow(/at R2_BUCKET/);
+  });
+});

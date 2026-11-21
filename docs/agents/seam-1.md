@@ -44,6 +44,7 @@ describe("someUseCase", () => {
 | `h.db`             | This test's database, for asserting on rows (audit rows count as behaviour)                                                                                  |
 | `h.deps`           | `{ db, clock, email, sms, settings, errors, auth, cipher, blindIndex }`: what `productionDeps()` wires in `src/server/deps.ts`; fresh field keys per harness |
 | `h.drain()`        | Delivers due outbox events in process with the real relay, every queue, pass after pass; returns the `DrainReport`                                                        |
+| `h.storage`        | `FakeStorage`: `put(url, bytes, headers)` and `get(url)` use presigned URLs as a browser does; `plant()`   |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
 `h.clock`, because Better Auth reads `new Date()` for code and session expiry.
@@ -88,3 +89,13 @@ expect(h.email.lastTo(ASHA)?.subject).toBe("Welcome to Friends of Animals");
 `h.drain()` runs the same relay as the VPS worker, so retries follow the fake
 clock: `h.email.failNext(1)`, drain (retried), `h.clock.advance({ seconds: 30 })`,
 drain again (sent). Failed deliveries are listed by `listFailedDeliveries(h.db)`.
+
+## Files and storage
+
+A use case that takes an upload goes through the Files module
+(`src/server/modules/files`): `requestUpload` presigns, the test PUTs with
+`h.storage.put(uploadUrl, bytes, headers)`, then `completeUpload` checks the
+stored object. `h.storage.get(url)` opens a download URL. Both check the
+signature, method, signed headers and expiry against `h.clock`, so
+`h.clock.advance({ seconds: 301 })` makes a download URL fail with `expired`.
+To stand in for the scan, set the row's `status` to `clean` directly.
