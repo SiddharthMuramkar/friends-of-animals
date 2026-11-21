@@ -3,12 +3,22 @@ import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 
 import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
-import { LegalBlockView, LegalInlines } from "@/components/legal/legal-text";
+import {
+  isLegalFactShown,
+  LegalBlockView,
+  LegalInlines,
+} from "@/components/legal/legal-text";
 import { PageHeader } from "@/components/site/heading";
 import { InPageLink } from "@/components/site/in-page-link";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
-import { LEGAL_DOCS, type LegalDoc, type LegalDocId } from "@/content/legal";
+import {
+  LEGAL_DOCS,
+  type LegalDoc,
+  type LegalDocId,
+  resolveLegalDoc,
+  type ShownInline,
+} from "@/content/legal";
 import {
   cmsPublicPath,
   legalDocumentKey,
@@ -24,7 +34,7 @@ const NS = {
   childProtection: "legal.childProtection",
 } as const;
 
-type LegalText = Pick<LegalDoc, "short" | "sections">;
+type LegalText = Pick<LegalDoc<ShownInline>, "short" | "sections">;
 
 /**
  * A policy page: header, a "Version n" line, the short version first,
@@ -37,6 +47,8 @@ type LegalText = Pick<LegalDoc, "short" | "sections">;
  * the version line and the text are dynamic holes that fall back to the
  * repo's text, which is also what shows before version 1 exists. In Draft
  * Mode a content manager sees the draft, under a "Draft preview" status.
+ * Whichever text shows, in production clauses about unconfirmed facts give
+ * way to their production wording, and emptied sections go (resolveLegalDoc).
  */
 export async function LegalDocument({
   id,
@@ -56,9 +68,9 @@ export async function LegalDocument({
   const shortTitle =
     id === "childProtection" ? tp("shortVersion") : t("shortVersion");
   const repoDate = <UpdatedLine updated={new Date(doc.updated)} />;
-  const body = (text: LegalText) => (
+  const body = (text: Pick<LegalDoc, "short" | "sections">) => (
     <LegalBody
-      text={text}
+      text={resolveLegalDoc({ ...doc, ...text }, isLegalFactShown)}
       shortTitle={shortTitle}
       tocTitle={t("toc")}
       top={top}

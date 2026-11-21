@@ -4,7 +4,7 @@ import { ContactFact } from "@/components/site/contact-fact";
 import { Placeholder } from "@/components/site/placeholder";
 import { SiteLink } from "@/components/site/site-link";
 import type { LegalBlock, LegalFact, LegalInline } from "@/content/legal";
-import { type OrgFact, SITE } from "@/lib/site";
+import { isFactShown, type OrgFact, SITE } from "@/lib/site";
 
 // The typed blocks of a policy or consent document as HTML: the policy
 // pages draw the repo's text and the published versions with these, so
@@ -22,6 +22,14 @@ const FACT_VALUE: Record<LegalFact, unknown> = {
   grievanceOfficerName: SITE.org.grievanceOfficer.name,
   grievanceOfficerEmail: SITE.org.grievanceOfficer.email,
 };
+
+/**
+ * Whether `fact` renders on this deployment: once confirmed, or as a tile
+ * outside production (isFactShown). resolveLegalDoc takes it.
+ */
+export function isLegalFactShown(fact: LegalFact): boolean {
+  return isFactShown(FACT_VALUE[fact]);
+}
 
 /** A confirmed fact as text (or a mailto/tel link); else a visible placeholder. */
 function Fact({ fact }: { fact: LegalFact }) {

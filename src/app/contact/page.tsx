@@ -14,7 +14,7 @@ import { TileMarker } from "@/components/site/tile";
 import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { isFactShown, SITE } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("contact.meta");
@@ -50,11 +50,15 @@ const call = (number: string) => (chunks: ReactNode) => (
 export default async function Page() {
   const t = await getTranslations("contact");
   const { email, phone, address } = SITE.org;
-  const details = [
-    { key: "email", icon: Mail, fact: email },
-    { key: "phone", icon: Phone, fact: phone },
-    { key: "address", icon: MapPin, fact: address },
-  ] as const;
+  // Production leaves out unconfirmed details with their labels, and the
+  // whole "How to reach us" column once none is left.
+  const details = (
+    [
+      { key: "email", icon: Mail, fact: email },
+      { key: "phone", icon: Phone, fact: phone },
+      { key: "address", icon: MapPin, fact: address },
+    ] as const
+  ).filter(({ fact }) => isFactShown(fact));
 
   return (
     <>
@@ -114,45 +118,54 @@ export default async function Page() {
         </div>
       </Section>
 
-      <Section labelledBy="details-title">
+      <Section
+        labelledBy={details.length > 0 ? "details-title" : "topics-title"}
+      >
         <div className="grid gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <div>
-            <SectionHeading id="details-title" title={t("details.title")} />
-            <dl className="mt-8 grid gap-4">
-              {details.map(({ key, icon: Icon, fact }) => (
-                <div
-                  key={key}
-                  className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 rounded-3xl border-2 border-border bg-surface p-4"
-                >
-                  <dt className="contents">
-                    <span
-                      aria-hidden="true"
-                      className="row-span-2 grid size-11 place-items-center rounded-[22%] bg-section-blue text-section-blue-heading"
-                    >
-                      <Icon className="size-5" />
-                    </span>
-                    <span className="text-sm font-semibold text-ink-muted">
-                      {t(`details.${key}`)}
-                    </span>
-                  </dt>
-                  <dd className="col-start-2 mt-0.5">
-                    {key === "address" ? (
-                      <Placeholder fact={fact} />
-                    ) : (
-                      <ContactFact kind={key} fact={fact} />
-                    )}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-6 font-display text-lead font-semibold">
-              {t("details.reply")}
-            </p>
-            <p className="mt-2 text-ink-muted">{t("details.form")}</p>
-          </div>
+          {details.length > 0 ? (
+            <div>
+              <SectionHeading id="details-title" title={t("details.title")} />
+              <dl className="mt-8 grid gap-4">
+                {details.map(({ key, icon: Icon, fact }) => (
+                  <div
+                    key={key}
+                    className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 rounded-3xl border-2 border-border bg-surface p-4"
+                  >
+                    <dt className="contents">
+                      <span
+                        aria-hidden="true"
+                        className="row-span-2 grid size-11 place-items-center rounded-[22%] bg-section-blue text-section-blue-heading"
+                      >
+                        <Icon className="size-5" />
+                      </span>
+                      <span className="text-sm font-semibold text-ink-muted">
+                        {t(`details.${key}`)}
+                      </span>
+                    </dt>
+                    <dd className="col-start-2 mt-0.5">
+                      {key === "address" ? (
+                        <Placeholder fact={fact} />
+                      ) : (
+                        <ContactFact kind={key} fact={fact} />
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-6 font-display text-lead font-semibold">
+                {t("details.reply")}
+              </p>
+              {/* "Until then, please use email": only true beside an email. */}
+              {isFactShown(email) ? (
+                <p className="mt-2 text-ink-muted">{t("details.form")}</p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div>
-            <h2 className="text-h3">{t("topics.title")}</h2>
+            <h2 id="topics-title" className="text-h3">
+              {t("topics.title")}
+            </h2>
             <p className="mt-3 text-ink-muted">{t("topics.lead")}</p>
             <ul className="mt-6 grid gap-3">
               {TOPICS.map((k) => (

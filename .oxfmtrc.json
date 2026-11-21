@@ -8,6 +8,7 @@
   "semi": true,
   "arrowParens": "always",
   "ignorePatterns": [
+    "docs/handoff/**",
     "docs/specs/**",
     "public/**",
     "drizzle/meta/**",
