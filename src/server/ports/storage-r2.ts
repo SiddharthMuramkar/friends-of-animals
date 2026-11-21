@@ -23,6 +23,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+import { r2Origin } from "../../lib/r2-origin";
 import type { Clock } from "./clock";
 import {
   contentDispositionFor,
@@ -54,9 +55,11 @@ export function r2Storage(
   clock: Clock,
   requestHandler?: S3ClientConfig["requestHandler"]
 ): ObjectStorage {
+  const endpoint = r2Origin(config.accountId);
+  if (!endpoint) throw new Error("R2_ACCOUNT_ID is not an R2 account id");
   const client = new S3Client({
     region: "auto",
-    endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
+    endpoint,
     forcePathStyle: true,
     credentials: {
       accessKeyId: config.accessKeyId,
