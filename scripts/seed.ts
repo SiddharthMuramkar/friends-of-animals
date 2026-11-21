@@ -14,6 +14,7 @@ import postgres from "postgres";
 import { migrationEnvSchema, parseEnv } from "../src/env.schema";
 import { directTls } from "../src/server/db/database-url";
 import * as schema from "../src/server/db/schema";
+import { DEVELOPMENT_AUTH_SECRET } from "../src/server/identity/settings";
 import { systemClock } from "../src/server/ports/clock";
 import { seedPreview } from "../src/server/seed";
 import { seedTarget } from "../src/server/seed/target";
@@ -45,7 +46,15 @@ const client = postgres(url, {
 
 try {
   console.log(`Seeding ${new URL(url).pathname.slice(1)}...`);
-  await seedPreview({ db: drizzle({ client, schema }), clock: systemClock });
+  await seedPreview({
+    db: drizzle({ client, schema }),
+    clock: systemClock,
+    // The app's own secret, as productionDeps() picks it: seeded staff
+    // authenticators are sealed with it.
+    auth: {
+      secret: process.env.BETTER_AUTH_SECRET || DEVELOPMENT_AUTH_SECRET,
+    },
+  });
   console.log("Seed complete.");
   await client.end();
 } catch (error) {
