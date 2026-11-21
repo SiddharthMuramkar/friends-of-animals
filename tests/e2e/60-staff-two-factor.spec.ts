@@ -9,12 +9,17 @@ import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
+import { recordCspViolations } from "./support/csp";
 import { freshEmail, readCode } from "./support/mailbox";
 
 // #60: the second factor. A new member adds an authenticator app from the
 // setup key on the page; seeded staff pass the second factor and step up
 // with the preview-only SEED_TOTP_SECRET. Each project signs in its own
 // seeded staff account: a code works once per authenticator.
+//
+// These pages are signed-in pages under #65's nonce policy, which local runs
+// enforce: a page left with a static shell would have its scripts blocked,
+// so each journey also records CSP violations and expects none.
 
 /** The code an authenticator app with `secret` shows `stepsAhead` steps on. */
 function codeFor(secret: Uint8Array, stepsAhead = 0): string {
@@ -46,6 +51,7 @@ test("a member adds an authenticator app, then steps up to remove it", async ({
   page,
   request,
 }, testInfo) => {
+  const violations = await recordCspViolations(page);
   await signIn(page, request, freshEmail(testInfo.project.name), "sign-up");
 
   await expectRendersAccessibly(page, "/account/security");
@@ -80,6 +86,7 @@ test("a member adds an authenticator app, then steps up to remove it", async ({
   // counts, so it goes straight through.
   await page.getByRole("button", { name: /^Remove Phone/ }).click();
   await expect(page.getByRole("status")).toContainText("Removed.");
+  expect(violations).toEqual([]);
 });
 
 test("staff pass their second factor, then step up for a sensitive change", async ({
@@ -90,6 +97,7 @@ test("staff pass their second factor, then step up for a sensitive change", asyn
   const staff =
     testInfo.project.name === "mobile" ? ravi : SEED_ACCOUNTS.superAdmin;
   const secret = base32Decode(SEED_TOTP_SECRET);
+  const violations = await recordCspViolations(page);
   await signIn(page, request, staff.email);
 
   await expectRendersAccessibly(
@@ -124,4 +132,5 @@ test("staff pass their second factor, then step up for a sensitive change", asyn
     .fill(codeFor(secret, 1));
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page).toHaveURL(/\/account\/security$/);
+  expect(violations).toEqual([]);
 });
