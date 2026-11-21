@@ -6,6 +6,7 @@
 import { CONSENT_POLICY } from "../consent/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
 import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
+import { NOTIFICATIONS_POLICY } from "../notifications/policy";
 import { SETTINGS_POLICY } from "../settings/policy";
 import { CONTACT_POLICY } from "../modules/contact/access-policy";
 import { PUBLIC_FORMS_POLICY } from "../modules/public-forms/access-policy";
@@ -19,6 +20,7 @@ export const POLICY = composePolicies(
   SETTINGS_POLICY,
   PUBLIC_FORMS_POLICY,
   CONTACT_POLICY,
+  NOTIFICATIONS_POLICY,
   SAFEGUARDING_POLICY
 );
 

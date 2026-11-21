@@ -18,6 +18,7 @@ import { auditUseCases } from "./audit";
 import { consentUseCases } from "./consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
+import { notificationsUseCases } from "./notifications";
 import { settingsUseCases } from "./settings";
 import { safeguardingUseCases } from "./modules/safeguarding";
 import { contactUseCases } from "./modules/contact";
@@ -32,6 +33,7 @@ const useCases = composeUseCases(
   settingsUseCases,
   publicFormUseCases,
   contactUseCases,
+  notificationsUseCases,
   safeguardingUseCases
 );
 
