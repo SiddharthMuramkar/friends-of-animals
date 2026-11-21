@@ -29,4 +29,5 @@ CREATE TABLE "consent_event" (
 ALTER TABLE "consent_event" ADD CONSTRAINT "consent_event_giver_user_id_user_id_fk" FOREIGN KEY ("giver_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "consent_event" ADD CONSTRAINT "consent_event_document_id_consent_document_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."consent_document"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "consent_event_subject_idx" ON "consent_event" USING btree ("subject_type","subject_id","purpose","occurred_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
-CREATE INDEX "consent_event_document_id_idx" ON "consent_event" USING btree ("document_id");
+CREATE INDEX "consent_event_document_id_idx" ON "consent_event" USING btree ("document_id");--> statement-breakpoint
+CREATE INDEX "consent_event_giver_user_id_idx" ON "consent_event" USING btree ("giver_user_id");

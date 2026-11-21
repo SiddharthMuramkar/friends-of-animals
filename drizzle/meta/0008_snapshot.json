@@ -1,5 +1,5 @@
 {
-  "id": "7a924e2c-c8dd-48d4-9896-164818f649a1",
+  "id": "1f75e43a-3658-48eb-88b0-637939e68002",
   "prevId": "94e474b5-fe74-496b-a88c-4d0ac55d7589",
   "version": "7",
   "dialect": "postgresql",
@@ -1174,6 +1174,21 @@
           "columns": [
             {
               "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "consent_event_giver_user_id_idx": {
+          "name": "consent_event_giver_user_id_idx",
+          "columns": [
+            {
+              "expression": "giver_user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

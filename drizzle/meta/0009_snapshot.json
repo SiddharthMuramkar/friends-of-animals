@@ -1,6 +1,6 @@
 {
-  "id": "80a97f2a-851e-4990-96db-ee264da7e80e",
-  "prevId": "7a924e2c-c8dd-48d4-9896-164818f649a1",
+  "id": "c1ed18a0-f6b3-4470-8da1-1c9fc8f80271",
+  "prevId": "1f75e43a-3658-48eb-88b0-637939e68002",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1174,6 +1174,21 @@
           "columns": [
             {
               "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "consent_event_giver_user_id_idx": {
+          "name": "consent_event_giver_user_id_idx",
+          "columns": [
+            {
+              "expression": "giver_user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
