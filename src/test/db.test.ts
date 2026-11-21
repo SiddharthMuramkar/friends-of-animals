@@ -29,6 +29,27 @@ describe("createTestDb", () => {
     expect(result.rows[0]?.score).toBeGreaterThan(0);
   });
 
+  it("measures distances on earth with cube and earthdistance", async () => {
+    const db = await createTestDb();
+
+    const extensions = await db.execute<{ extname: string }>(
+      sql`select extname from pg_extension
+          where extname in ('cube', 'earthdistance') order by extname`
+    );
+    expect(extensions.rows).toEqual([
+      { extname: "cube" },
+      { extname: "earthdistance" },
+    ]);
+
+    // Central Pune to Deccan: 2111.1017 m on earthdistance's sphere, worked
+    // out by hand in src/server/modules/directory/domain/geo.test.ts.
+    const result = await db.execute<{ metres: number }>(
+      sql`select earth_distance(ll_to_earth(18.52, 73.86),
+                                ll_to_earth(18.52, 73.84)) as metres`
+    );
+    expect(result.rows[0]?.metres).toBeCloseTo(2111.1017, 3);
+  });
+
   it("records every migration in the journal as applied", async () => {
     const db = await createTestDb();
 
