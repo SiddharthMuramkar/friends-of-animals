@@ -39,8 +39,9 @@ describe("someUseCase", () => {
 | `h.signIn(user)`   | Signs `user` in through the real email-code flow (fresh IP) and returns the signed-in actor                                                                  |
 | `h.currentActor()` | Who the server sees on the browser's next request, from `h.cookies`, resolved as in production                                                               |
 | `h.cookies`        | The browser's cookie store; `header()` saves a browser to pass to `currentActor(meta, cookie)` later                                                         |
+| `h.errors`         | `FakeErrorReporter`: `reported`, each as Sentry would get it (scrubbed) plus the `error`                                                                     |
 | `h.db`             | This test's database, for asserting on rows (audit rows count as behaviour)                                                                                  |
-| `h.deps`           | `{ db, clock, email, sms, settings, cipher, blindIndex, ... }`: what `productionDeps()` wires for real in `src/server/deps.ts`; fresh field keys per harness |
+| `h.deps`           | `{ db, clock, email, sms, settings, errors, auth, cipher, blindIndex }`: what `productionDeps()` wires in `src/server/deps.ts`; fresh field keys per harness |
 | `h.drain()`        | Delivers due outbox events in process with the real relay, pass after pass; returns the `DrainReport`                                                        |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on

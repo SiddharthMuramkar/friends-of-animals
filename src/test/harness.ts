@@ -35,6 +35,7 @@ import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
 import { FakeSettings } from "./fakes/settings";
 import { FakeSms } from "./fakes/sms";
+import { FakeErrorReporter } from "./fakes/errors";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -55,6 +56,8 @@ export interface Harness {
   settings: FakeSettings;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
+  /** Every error use cases reported, scrubbed as Sentry would get it. */
+  errors: FakeErrorReporter;
   /** What use cases run against: the fakes above plus test auth config. */
   deps: Deps;
   /** The use cases, acting as `actor`: the same ones server actions call. */
@@ -112,6 +115,7 @@ export async function createHarness(
   const sms = new FakeSms(clock);
   const settings = new FakeSettings();
   const cookies = new FakeCookieJar(clock);
+  const errors = new FakeErrorReporter();
   const deps: Deps = {
     db,
     clock,
@@ -126,6 +130,7 @@ export async function createHarness(
     }),
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
     settings,
+    errors,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
@@ -141,6 +146,7 @@ export async function createHarness(
     sms,
     settings,
     cookies,
+    errors,
     deps,
     as: (actor) => app.as(actor),
     visitor: (overrides) => ({ kind: "visitor", meta: meta(overrides) }),
