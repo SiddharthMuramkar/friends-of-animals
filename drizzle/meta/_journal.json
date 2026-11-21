@@ -54,15 +54,22 @@
     {
       "idx": 7,
       "version": "7",
-      "when": 1795263033981,
-      "tag": "0007_64_consent",
+      "when": 1795262528065,
+      "tag": "0007_61_worker_heartbeat",
       "breakpoints": true
     },
     {
       "idx": 8,
       "version": "7",
-      "when": 1795263034569,
-      "tag": "0008_64_consent_document_immutable",
+      "when": 1795263090048,
+      "tag": "0008_64_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795263090720,
+      "tag": "0009_64_consent_document_immutable",
       "breakpoints": true
     }
   ]

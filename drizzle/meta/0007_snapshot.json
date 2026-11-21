@@ -1,5 +1,5 @@
 {
-  "id": "d16920e4-5ca6-48bb-85b7-af3699608789",
+  "id": "94e474b5-fe74-496b-a88c-4d0ac55d7589",
   "prevId": "d2395a81-9e2f-4a5c-966e-453801958553",
   "version": "7",
   "dialect": "postgresql",
@@ -996,227 +996,46 @@
       },
       "isRLSEnabled": false
     },
-    "public.consent_document": {
-      "name": "consent_document",
+    "public.worker_heartbeat": {
+      "name": "worker_heartbeat",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
+        "worker": {
+          "name": "worker",
+          "type": "text",
           "primaryKey": true,
           "notNull": true
         },
-        "purpose": {
-          "name": "purpose",
-          "type": "consent_purpose",
-          "typeSchema": "public",
+        "environment": {
+          "name": "environment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
         "version": {
           "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "body": {
-          "name": "body",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "published_by_user_id": {
-          "name": "published_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "consent_document_purpose_version_unique": {
-          "name": "consent_document_purpose_version_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "purpose",
-            "version"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "consent_document_version_positive": {
-          "name": "consent_document_version_positive",
-          "value": "\"consent_document\".\"version\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.consent_event": {
-      "name": "consent_event",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "subject_type": {
-          "name": "subject_type",
-          "type": "consent_subject_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_id": {
-          "name": "subject_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "giver_user_id": {
-          "name": "giver_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "purpose": {
-          "name": "purpose",
-          "type": "consent_purpose",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_id": {
-          "name": "document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "action": {
-          "name": "action",
-          "type": "consent_event_action",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "consent_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "consent_event_subject_idx": {
-          "name": "consent_event_subject_idx",
-          "columns": [
-            {
-              "expression": "subject_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "subject_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "purpose",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "consent_event_document_id_idx": {
-          "name": "consent_event_document_id_idx",
-          "columns": [
-            {
-              "expression": "document_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "consent_event_giver_user_id_user_id_fk": {
-          "name": "consent_event_giver_user_id_user_id_fk",
-          "tableFrom": "consent_event",
-          "tableTo": "user",
-          "columnsFrom": [
-            "giver_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "consent_event_document_id_consent_document_id_fk": {
-          "name": "consent_event_document_id_consent_document_id_fk",
-          "tableFrom": "consent_event",
-          "tableTo": "consent_document",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "worker_heartbeat_environment_known": {
+          "name": "worker_heartbeat_environment_known",
+          "value": "\"worker_heartbeat\".\"environment\" IN ('local', 'preview', 'staging', 'production')"
+        }
+      },
       "isRLSEnabled": false
     }
   },
@@ -1277,40 +1096,6 @@
         "pending",
         "dispatched",
         "failed"
-      ]
-    },
-    "public.consent_event_action": {
-      "name": "consent_event_action",
-      "schema": "public",
-      "values": [
-        "given",
-        "withdrawn"
-      ]
-    },
-    "public.consent_method": {
-      "name": "consent_method",
-      "schema": "public",
-      "values": [
-        "web_form",
-        "otp_link",
-        "paper_form",
-        "staff_recorded"
-      ]
-    },
-    "public.consent_purpose": {
-      "name": "consent_purpose",
-      "schema": "public",
-      "values": [
-        "privacy_notice",
-        "terms",
-        "messages"
-      ]
-    },
-    "public.consent_subject_type": {
-      "name": "consent_subject_type",
-      "schema": "public",
-      "values": [
-        "user"
       ]
     }
   },
