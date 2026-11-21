@@ -5,6 +5,7 @@
 import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
+import adminCompetitions from "../../messages/en-IN/adminCompetitions.json";
 import auth from "../../messages/en-IN/auth.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
@@ -24,6 +25,7 @@ import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import sample from "../../messages/en-IN/sample.json";
 import schools from "../../messages/en-IN/schools.json";
+import security from "../../messages/en-IN/security.json";
 import showcase from "../../messages/en-IN/showcase.json";
 import stories from "../../messages/en-IN/stories.json";
 import styleguide from "../../messages/en-IN/styleguide.json";
@@ -32,6 +34,7 @@ export const NAMESPACES = [
   "a11y",
   "about",
   "account",
+  "adminCompetitions",
   "auth",
   "awareness",
   "common",
@@ -51,6 +54,7 @@ export const NAMESPACES = [
   "refunds",
   "sample",
   "schools",
+  "security",
   "showcase",
   "stories",
   "styleguide",
@@ -63,6 +67,7 @@ export const messages = {
   ...a11y,
   ...about,
   ...account,
+  ...adminCompetitions,
   ...auth,
   ...awareness,
   ...common,
@@ -82,6 +87,7 @@ export const messages = {
   ...refunds,
   ...sample,
   ...schools,
+  ...security,
   ...showcase,
   ...stories,
   ...styleguide,

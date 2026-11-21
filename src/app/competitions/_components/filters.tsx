@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
-import { DISCIPLINES } from "@/content/sample/model";
+import { DISCIPLINES } from "@/components/competitions/model";
 import { cn } from "@/lib/utils";
 
 import { AGE_BANDS } from "../_lib/view";

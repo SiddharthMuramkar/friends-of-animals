@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
+import { fromSample } from "@/components/competitions/model";
 import { CompetitionCard } from "@/components/showcase/competition-card";
 import { ImpactCounters } from "@/components/showcase/impact-counters";
 import { JudgingPath } from "@/components/showcase/judging-path";
@@ -467,7 +468,7 @@ export default async function Page() {
             {competitions.map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
-                  competition={c}
+                  competition={fromSample(c)}
                   headingLevel={4}
                   className="w-full"
                 />
@@ -552,7 +553,7 @@ export default async function Page() {
             {competitions.slice(0, 2).map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
-                  competition={c}
+                  competition={fromSample(c)}
                   headingLevel={3}
                   className="w-full"
                 />
