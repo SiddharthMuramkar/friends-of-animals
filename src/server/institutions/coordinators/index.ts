@@ -6,6 +6,11 @@
 import type { UseCaseContext } from "../../use-cases";
 import { acceptInvitation, viewInvitation } from "./accept-invitation";
 import {
+  listCoordinators,
+  removeCoordinator,
+  revokeInvitation,
+} from "./manage-coordinators";
+import {
   inviteCoordinator,
   type InviteCoordinatorInput,
 } from "./invite-coordinator";
@@ -16,6 +21,13 @@ export type {
   ViewInvitationResult,
 } from "./accept-invitation";
 export type {
+  Coordinator,
+  ListCoordinatorsResult,
+  RemoveCoordinatorResult,
+  RevokeInvitationResult,
+  WaitingInvitation,
+} from "./manage-coordinators";
+export type {
   InviteCoordinatorInput,
   InviteCoordinatorResult,
 } from "./invite-coordinator";
@@ -25,4 +37,10 @@ export const coordinatorsUseCases = (ctx: UseCaseContext) => ({
     inviteCoordinator(ctx, input),
   viewInvitation: (input: { token: string }) => viewInvitation(ctx, input),
   acceptInvitation: (input: { token: string }) => acceptInvitation(ctx, input),
+  listCoordinators: (input: { institutionId: string }) =>
+    listCoordinators(ctx, input),
+  removeCoordinator: (input: { institutionId: string; userId: string }) =>
+    removeCoordinator(ctx, input),
+  revokeInvitation: (input: { institutionId: string; invitationId: string }) =>
+    revokeInvitation(ctx, input),
 });

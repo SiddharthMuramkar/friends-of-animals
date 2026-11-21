@@ -58,12 +58,10 @@ describe("listCoordinators", () => {
     const anuActor = await h.signIn(anu);
     await h.as(anuActor).acceptInvitation({ token: accepted.token });
     const withdrawn = await invite(h, actor, x.id, "gone@school.test");
-    await h
-      .as(actor)
-      .revokeInvitation({
-        institutionId: x.id,
-        invitationId: withdrawn.invitationId,
-      });
+    await h.as(actor).revokeInvitation({
+      institutionId: x.id,
+      invitationId: withdrawn.invitationId,
+    });
 
     const result = await h.as(actor).listCoordinators({ institutionId: x.id });
 
@@ -217,12 +215,10 @@ describe("revokeInvitation", () => {
       .as(await h.signIn(await h.seed.member({ email: "anu@school.test" })))
       .acceptInvitation({ token: accepted.token });
     const withdrawn = await invite(h, actor, x.id, "gone@school.test");
-    await h
-      .as(actor)
-      .revokeInvitation({
-        institutionId: x.id,
-        invitationId: withdrawn.invitationId,
-      });
+    await h.as(actor).revokeInvitation({
+      institutionId: x.id,
+      invitationId: withdrawn.invitationId,
+    });
     const theirs = await invite(
       h,
       await h.signIn(otherAdmin),
@@ -231,29 +227,23 @@ describe("revokeInvitation", () => {
     );
 
     expect(
-      await h
-        .as(actor)
-        .revokeInvitation({
-          institutionId: x.id,
-          invitationId: accepted.invitationId,
-        })
+      await h.as(actor).revokeInvitation({
+        institutionId: x.id,
+        invitationId: accepted.invitationId,
+      })
     ).toEqual({ ok: false, error: "already_accepted" });
     expect(
-      await h
-        .as(actor)
-        .revokeInvitation({
-          institutionId: x.id,
-          invitationId: withdrawn.invitationId,
-        })
+      await h.as(actor).revokeInvitation({
+        institutionId: x.id,
+        invitationId: withdrawn.invitationId,
+      })
     ).toEqual({ ok: false, error: "revoked" });
     // Another institution's invitation, named under this one: not found.
     expect(
-      await h
-        .as(actor)
-        .revokeInvitation({
-          institutionId: x.id,
-          invitationId: theirs.invitationId,
-        })
+      await h.as(actor).revokeInvitation({
+        institutionId: x.id,
+        invitationId: theirs.invitationId,
+      })
     ).toEqual({ ok: false, error: "not_found" });
   });
 });
