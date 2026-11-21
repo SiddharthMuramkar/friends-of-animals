@@ -14,8 +14,8 @@ export type SessionAddress = { kind: "ip" | "network"; text: string };
 export function sessionAddress(
   stored: string | null
 ): SessionAddress | undefined {
-  if (!stored) return undefined;
-  const text = ipNetwork(stored);
-  if (text.endsWith("/64")) return { kind: "network", text };
-  return isIP(text) === 4 ? { kind: "ip", text } : undefined;
+  const ip = stored?.trim() ?? "";
+  if (isIP(ip) === 0) return undefined;
+  const text = ipNetwork(ip);
+  return isIP(text) === 4 ? { kind: "ip", text } : { kind: "network", text };
 }

@@ -33,5 +33,7 @@ describe("sessionAddress", () => {
     expect(sessionAddress(null)).toBeUndefined();
     expect(sessionAddress("")).toBeUndefined();
     expect(sessionAddress("unknown")).toBeUndefined();
+    expect(sessionAddress("not-an-ip/64")).toBeUndefined();
+    expect(sessionAddress("2001:db8::/64")).toBeUndefined();
   });
 });
