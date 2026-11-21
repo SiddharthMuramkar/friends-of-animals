@@ -1,9 +1,15 @@
 // The media job (#85): once the scan passes, worker-media makes each image's
 // derivatives. Driven through `h.drain()` after a real upload, with the
 // scanner, storage and media fakes.
+//
+// The job's outcome events (files.file_processed, files.file_processing_
+// failed) have no subscriber until #85's Entries unit adds one, and emit()
+// stores nothing for an event nobody listens to. So these tests check the
+// outcome the events announce, the file_processing row, and the Entries
+// unit's tests check the events once it listens.
 
 import { and, eq } from "drizzle-orm";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   fileAsset,
@@ -12,33 +18,16 @@ import {
   outbox,
 } from "@/server/db/schema";
 import { DEFAULT_RETRY_POLICY, drainUntilIdle } from "@/server/outbox";
-import type { DomainEvent } from "@/server/outbox";
 import { emit } from "@/server/outbox/emit";
 import { EICAR_TEST_BYTES } from "@/test/eicar";
 import { createHarness, TEST_FILES, type Harness } from "@/test/harness";
 import { readMediaFixture } from "@/test/media-fixtures";
 import { webpSize } from "@/test/webp";
 
-// files.file_processed and files.file_processing_failed have no subscriber
-// until #85's Entries unit adds one, and emit() stores no outbox row for an
-// event nobody listens to. So this file records what is emitted, and still
-// runs the real emit.
-const emitted = vi.hoisted(() => [] as DomainEvent[]);
-vi.mock("@/server/outbox/emit", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/server/outbox/emit")>();
-  return {
-    emit: (...args: Parameters<typeof real.emit>) => {
-      emitted.push(args[2]);
-      return real.emit(...args);
-    },
-  };
-});
-
 const JPEG = readMediaFixture("gpsJpeg");
 const PDF = new TextEncoder().encode("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n");
 
 async function world() {
-  emitted.length = 0;
   return createHarness();
 }
 
@@ -86,13 +75,6 @@ async function mediaDeliveries(h: Harness) {
     .from(outbox)
     .where(eq(outbox.handler, "files.process_image"));
 }
-
-const outcomes = () =>
-  emitted.filter(
-    (event) =>
-      event.type === "files.file_processed" ||
-      event.type === "files.file_processing_failed"
-  );
 
 /** Emits files.processing_requested for `fileId` again, as a redelivery would. */
 async function requestAgain(h: Harness, fileId: string) {
@@ -152,13 +134,6 @@ describe("the media job", () => {
     expect(h.media.processed).toEqual([
       { bytes: JPEG, kinds: ["thumb_320", "display_1600"] },
     ]);
-    expect(outcomes()).toEqual([
-      {
-        type: "files.file_processed",
-        aggregate: { type: "file_asset", id: fileId },
-        payload: { fileId },
-      },
-    ]);
   });
 
   it("stores the bytes the media processor made", async () => {
@@ -192,13 +167,6 @@ describe("the media job", () => {
     expect(
       h.storage.keys(TEST_FILES.bucket).filter((key) => key.includes("derived"))
     ).toEqual([]);
-    expect(outcomes()).toEqual([
-      {
-        type: "files.file_processing_failed",
-        aggregate: { type: "file_asset", id: fileId },
-        payload: { fileId, code: "media_decode_failed" },
-      },
-    ]);
   });
 
   it("queues nothing for a clean file that gets no derivatives", async () => {
@@ -214,7 +182,6 @@ describe("the media job", () => {
     expect(await processing(h, fileId)).toBeNull();
     expect(await mediaDeliveries(h)).toEqual([]);
     expect(h.media.processed).toEqual([]);
-    expect(outcomes()).toEqual([]);
   });
 
   describe("before the scan passes", () => {
@@ -267,18 +234,21 @@ describe("the media job", () => {
     const h = await world();
     const { fileId } = await upload(h, "image/jpeg", JPEG);
     await h.drain();
+    const finished = await processing(h, fileId);
+    const made = await derivatives(h, fileId);
 
+    h.clock.advance({ minutes: 5 });
     await requestAgain(h, fileId);
     await h.drain();
     await h.drain();
 
-    expect(await derivatives(h, fileId)).toHaveLength(2);
     expect(h.media.processed).toHaveLength(1);
-    expect(outcomes()).toHaveLength(1);
-    expect(await processing(h, fileId)).toMatchObject({
-      status: "done",
-      attempts: 1,
-    });
+    // Finished once: a redelivery neither touches the job nor remakes a
+    // derivative, so it can't announce the outcome a second time.
+    expect(await processing(h, fileId)).toEqual(finished);
+    expect(finished).toMatchObject({ status: "done", attempts: 1 });
+    expect(await derivatives(h, fileId)).toEqual(made);
+    expect(made).toHaveLength(2);
   });
 
   it("retries a processor that fails without a verdict, then records the failure", async () => {
@@ -310,12 +280,6 @@ describe("the media job", () => {
     });
     expect(await mediaDeliveries(h)).toEqual([
       { status: "failed", attempts: DEFAULT_RETRY_POLICY.maxAttempts },
-    ]);
-    expect(outcomes()).toEqual([
-      expect.objectContaining({
-        type: "files.file_processing_failed",
-        payload: { fileId, code: "processing_error" },
-      }),
     ]);
   });
 
