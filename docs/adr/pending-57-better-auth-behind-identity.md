@@ -12,7 +12,9 @@ limits, which Better Auth doesn't have (its limiter keys on IP and path, in
 memory by default). FOA owns those limits in Postgres, the decision of who may
 act (`can()`), and the rule that the sign-in page never creates an account.
 Better Auth owns code generation, hashed storage, expiry, attempt counting and
-session cookies.
+session cookies. FOA sends each code itself, through the email port, so a
+failed send reaches the use case: Better Auth's own send path catches the
+error and logs it whole, address and code included.
 
 ## Consequences
 

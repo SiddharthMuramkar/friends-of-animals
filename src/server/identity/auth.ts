@@ -2,7 +2,9 @@
 // files in src/server/identity/ import it. It owns sign-in codes (made,
 // hashed, expired and counted by its email-OTP plugin) and database
 // sessions. FOA adds what it lacks: per-email and per-IP limits on codes
-// (./rate-limit.ts), the use cases and can() (./policy.ts).
+// (./rate-limit.ts), the use cases and can() (./policy.ts). FOA also sends
+// the codes itself (./email-code.ts), so a failed send reaches the use case
+// instead of being caught and logged by Better Auth.
 //
 // No /api/auth/* route handler is mounted: every call goes through a use
 // case, so Better Auth's own endpoints (which would skip FOA's limits) are
@@ -16,12 +18,24 @@ import type { AppDb } from "../db/app-db";
 import { account, session, user, verification } from "../db/schema";
 import type { Deps } from "../deps";
 import { uuidv7 } from "../ids";
-import { codeEmail } from "./code-email";
 import { EMAIL_CODE, SESSION_LIFETIME_DAYS } from "./settings";
 
 const DAY_SECONDS = 24 * 60 * 60;
 
-function createAuth({ db, clock, email, auth: config }: Deps) {
+/**
+ * Better Auth logs a failed background task with the error object, and a
+ * database error's message lists the query's parameters (an address, a
+ * code). Keep its warnings and errors, but only their message.
+ */
+const logger = {
+  level: "warn" as const,
+  log(level: "debug" | "info" | "warn" | "error", message: string) {
+    const write = level === "error" ? console.error : console.warn;
+    write(`[Better Auth] ${message}`);
+  },
+};
+
+function createAuth({ db, clock, auth: config }: Deps) {
   return betterAuth({
     appName: "Friends of Animals",
     baseURL: config.baseUrl,
@@ -40,6 +54,7 @@ function createAuth({ db, clock, email, auth: config }: Deps) {
     // which serverless instances don't share.
     rateLimit: { enabled: false },
     telemetry: { enabled: false },
+    logger,
     advanced: {
       cookiePrefix: "foa",
       database: { generateId: () => uuidv7(clock.now()) },
@@ -52,9 +67,11 @@ function createAuth({ db, clock, email, auth: config }: Deps) {
         expiresIn: EMAIL_CODE.lifetimeMinutes * 60,
         allowedAttempts: EMAIL_CODE.attempts,
         storeOTP: "hashed",
-        // Straight through the email port, not the outbox (#55 ruling).
-        async sendVerificationOTP({ email: to, otp }) {
-          await email.send(codeEmail(to, otp, EMAIL_CODE.lifetimeMinutes));
+        // requestEmailCode makes the code with createVerificationOTP and
+        // sends it through the email port itself. Nothing FOA calls makes
+        // Better Auth send one.
+        sendVerificationOTP() {
+          throw new Error("FOA sends sign-in codes from requestEmailCode");
         },
       }),
     ],

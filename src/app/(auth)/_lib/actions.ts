@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { APP_ROUTES } from "@/lib/app-routes";
 import { as, currentActor } from "@/server/app";
+import { errorSummaryForLogs } from "@/server/errors";
 import { EMAIL_CODE } from "@/server/identity/settings";
 
 import {
@@ -92,8 +93,11 @@ export async function emailCodeAction(
       );
     }
   } catch (error) {
-    // The details stay in the server logs (no personal data in them).
-    console.error("Email code form: the use case failed.", error);
+    // Only the error's class and Postgres code: its message can hold the
+    // address or the code.
+    console.error(
+      `Email code form: the use case failed: ${errorSummaryForLogs(error)}`
+    );
     return withText({
       step: step === "code" ? "code" : "email",
       ...entered,

@@ -1,7 +1,10 @@
 import { count, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { inspect } from "node:util";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { createApp } from "@/server/app";
 import { user } from "@/server/db/schema";
+import type { EmailSender } from "@/server/ports/email";
 import { SEED_ACCOUNTS } from "@/server/seed";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -12,6 +15,18 @@ function codeFor(h: Harness, address: string): string {
   const code = h.email.codeFor(address);
   if (!code) throw new Error(`No code was emailed to ${address}`);
   return code;
+}
+
+/** Everything written to the console from now until the test ends. */
+function captureConsole(): () => string {
+  const lines: string[] = [];
+  for (const method of ["debug", "info", "log", "warn", "error"] as const) {
+    const spy = vi.spyOn(console, method).mockImplementation((...args) => {
+      lines.push(args.map((arg) => inspect(arg, { depth: 5 })).join(" "));
+    });
+    onTestFinished(() => spy.mockRestore());
+  }
+  return () => lines.join("\n");
 }
 
 async function accountCount(h: Harness) {
@@ -105,6 +120,37 @@ describe("requestEmailCode", () => {
 
     expect(refused).toMatchObject({ ok: false, error: "rate_limited" });
     expect(otherIp).toEqual({ ok: true });
+  });
+
+  it("fails, and says so, when the code can't be sent", async () => {
+    const h = await createHarness();
+    h.email.failNext(1);
+
+    await expect(
+      h.as(h.visitor()).requestEmailCode({ email: ASHA })
+    ).rejects.toThrow("FakeEmail: send failed");
+    expect(h.email.sent).toEqual([]);
+  });
+
+  it("logs neither the address nor the code when a send fails", async () => {
+    const h = await createHarness();
+    // Like a failed insert into the capture mailbox, whose error message
+    // lists the query's parameters: the address and the email's text.
+    const leakyFailure: EmailSender = {
+      async send(message) {
+        throw new Error(`insert failed, params: ${message.to},${message.text}`);
+      },
+    };
+    const app = createApp({ ...h.deps, email: leakyFailure });
+    const logged = captureConsole();
+
+    await app
+      .as(h.visitor())
+      .requestEmailCode({ email: ASHA })
+      .catch(() => {});
+
+    expect(logged()).not.toContain(ASHA);
+    expect(logged()).not.toMatch(/\d{6}/);
   });
 
   it("is not for someone already signed in", async () => {

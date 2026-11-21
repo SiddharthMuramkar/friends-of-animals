@@ -17,6 +17,7 @@ import { user } from "../db/schema";
 import type { CookieJar } from "../ports/cookies";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
+import { codeEmail } from "./code-email";
 import { authorize } from "./policy";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
@@ -96,10 +97,15 @@ export async function requestEmailCode(
     };
   }
 
-  await authFor(ctx).api.sendVerificationOTP({
+  // Straight through the email port, not the outbox (#55 ruling). A failed
+  // send rejects, so the visitor is told; the stored code was never seen,
+  // and expires.
+  const otp = await authFor(ctx).api.createVerificationOTP({
     body: { email: parsed.data.email, type: "sign-in" },
-    headers: headersFor(meta),
   });
+  await ctx.email.send(
+    codeEmail(parsed.data.email, otp, EMAIL_CODE.lifetimeMinutes)
+  );
   return { ok: true };
 }
 
