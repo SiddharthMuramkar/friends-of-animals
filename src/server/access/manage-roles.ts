@@ -1,7 +1,7 @@
 // Granting, revoking and listing scoped roles (#59).
 //
 //   grantRole({ userId, role, scope })   → super admin (or the operator's CLI)
-//   revokeRole({ userId, role, scope })  → super admin (or the operator's CLI)
+//   revokeRole({ userId, role, scope })  → super admin
 //   listUserRoles({ userId })            → the user, a super or staff admin
 //
 // A change locks the grantee's user row, so concurrent changes to one user
