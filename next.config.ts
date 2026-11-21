@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { SIGNED_IN_PREFIXES } from "./src/lib/app-routes";
+import { cspHeaderRules } from "./src/lib/csp";
+import { cspContext } from "./src/lib/csp-sources";
 import { robotsHeaders } from "./src/lib/indexing";
 import { securityHeaders } from "./src/lib/security-headers";
 import { assertNoPlaceholdersInProduction } from "./src/lib/site";
@@ -26,13 +29,15 @@ const nextConfig: NextConfig = {
     // lucide-react is optimised by default; radix-ui is not.
     optimizePackageImports: ["radix-ui"],
   },
-  // §13.1 headers on every route, HTML and static assets alike, plus
-  // X-Robots-Tag: noindex on every response outside production (#29). Both
-  // are evaluated at build time, so APP_ENV must be set for `next build`
-  // (Vercel sets it).
+  // §13.1 headers on every route, HTML and static assets alike; the public
+  // CSP outside the signed-in tree, whose nonce CSP comes from src/proxy.ts
+  // (#65); and X-Robots-Tag: noindex on every response outside production
+  // (#29). All are evaluated at build time, so APP_ENV must be set for
+  // `next build` (Vercel sets it).
   headers() {
     return [
       { source: "/:path*", headers: securityHeaders(process.env.APP_ENV) },
+      ...cspHeaderRules(cspContext(), SIGNED_IN_PREFIXES),
       ...robotsHeaders(),
     ];
   },
