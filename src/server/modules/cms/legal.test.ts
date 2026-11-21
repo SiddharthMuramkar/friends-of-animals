@@ -176,6 +176,51 @@ describe("publishing a legal page", () => {
   });
 });
 
+describe("the privacy notice and the terms consent documents", () => {
+  it("are published only by publishing their page: staff and super admins are refused, and nothing is written", async () => {
+    const h = await createHarness();
+    const { actor: manager } = await contentManager(h);
+    const privacy = await publish(h, manager, "legal_privacy", legalBody("P."));
+    const admin = await h.seed.member({ name: "Sunita Staff" });
+    await h.seed.grant(admin, { role: "staff_admin", scope: global });
+    const staff = await h.signIn(admin);
+    const superAdmin = await h.signIn(await h.seed.superAdmin());
+    const auditBefore = await h.db.select().from(auditLog);
+    const otherText = "## Something else\n\nText that is not the privacy page.";
+
+    for (const actor of [staff, superAdmin]) {
+      for (const purpose of ["privacy_notice", "terms"] as const) {
+        expect(
+          await h.as(actor).publishConsentDocument({
+            purpose,
+            title: "Privacy policy",
+            source: otherText,
+          }),
+          purpose
+        ).toEqual({ ok: false, error: "published_by_cms" });
+        expect(
+          await h.as(actor).previewConsentDocument({
+            purpose,
+            source: otherText,
+          }),
+          purpose
+        ).toEqual({ ok: false, error: "published_by_cms" });
+      }
+    }
+
+    // The privacy notice is still the page's text, linked to its revision.
+    expect(await consentVersions(h, "privacy_notice")).toEqual([
+      expect.objectContaining({
+        version: 1,
+        body: legalBody("P."),
+        legalRevisionId: privacy.revisionId,
+      }),
+    ]);
+    expect(await consentVersions(h, "terms")).toEqual([]);
+    expect(await h.db.select().from(auditLog)).toEqual(auditBefore);
+  });
+});
+
 describe("publishing the messages consent", () => {
   it("records the privacy page revision it rests on", async () => {
     const h = await createHarness();
