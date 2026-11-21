@@ -78,6 +78,14 @@ describe("docker/workers.yml", () => {
     expect(TEXT).not.toMatch(/^\s+expose:/m);
   });
 
+  it("reads the workers' Sentry DSN from /etc/foa/secrets, if there is one", () => {
+    expect(shared()).toMatch(
+      /^ {2}env_file:\n {4}- path: \/etc\/foa\/secrets\/worker_sentry\.env\n {6}required: false$/m
+    );
+    // The DSN itself never sits in git.
+    expect(TEXT).not.toMatch(/SENTRY_DSN:/);
+  });
+
   it("runs the worker image target read-only on the db network", () => {
     expect(shared()).toMatch(/target: worker/);
     expect(shared()).toMatch(/^ {2}read_only: true$/m);
