@@ -1,19 +1,24 @@
-// Ledger periods are calendar months in India, written `YYYY-MM`. A posting
-// belongs to the month its instant falls in at IST (UTC+05:30; India keeps
-// no daylight saving, so the offset is fixed). Pure: time comes in as a Date.
+// Ledger periods are calendar months in India, written `YYYY-MM`. Which
+// month an instant falls in is the ledger's own rule (../../domain/period.ts,
+// #105, re-exported here); this file adds the month arithmetic the period
+// lock needs. Pure: time comes in as a Date.
 //
-// Loads under plain Node (the schema may import it): no imports at all.
+// Loads under plain Node (the schema imports it through period-status.ts):
+// relative imports only.
 
-/** A calendar month in India, `YYYY-MM`. */
-export type PeriodMonth = string;
+import {
+  isPeriodMonth as isLedgerPeriodMonth,
+  parseIstDate,
+  periodMonthOf,
+  type PeriodMonth,
+} from "../../domain/period";
+
+export { periodMonthOf, type PeriodMonth };
 
 const PERIOD_MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
-/** IST is UTC+05:30 all year. */
-const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
-
 export function isPeriodMonth(value: string): value is PeriodMonth {
-  return PERIOD_MONTH.test(value);
+  return isLedgerPeriodMonth(value);
 }
 
 function parts(month: string): { year: number; month: number } {
@@ -26,16 +31,12 @@ function format(year: number, month: number): PeriodMonth {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
 }
 
-/** The month it is in India at `instant`. */
-export function periodMonthOf(instant: Date): PeriodMonth {
-  const inIndia = new Date(instant.getTime() + IST_OFFSET_MS);
-  return format(inIndia.getUTCFullYear(), inIndia.getUTCMonth() + 1);
-}
-
 /** Midnight IST on the 1st of `month`, as an instant. */
 export function periodStart(month: PeriodMonth): Date {
-  const { year, month: m } = parts(month);
-  return new Date(Date.UTC(year, m - 1, 1) - IST_OFFSET_MS);
+  parts(month);
+  const first = parseIstDate(`${month}-01`);
+  if (!first.ok) throw new RangeError(`Not a period month (YYYY-MM): ${month}`);
+  return first.start;
 }
 
 export function nextPeriodMonth(month: PeriodMonth): PeriodMonth {
