@@ -16,6 +16,8 @@
 //   WORKER_HEARTBEAT_FILE            /tmp/foa-worker-heartbeat: touched while
 //                                    healthy; the Compose health check reads it
 //   WORKER_VERSION                   dev: the commit the image was built from
+//   WORKER_PASSWORD_FILE             a file holding the role's password (a
+//                                    Compose secret), for a URL without one
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
@@ -34,6 +36,8 @@ type Common = {
   /** The pool size of each database's client. */
   connectionsPerDatabase: number;
   heartbeatFile: string;
+  /** Read at start and put into the URL with `withPassword`. */
+  passwordFile: string | undefined;
 };
 
 export type WorkerConfig =
@@ -77,6 +81,7 @@ const schema = z
       .default(1),
     WORKER_HEARTBEAT_FILE: z.string().default("/tmp/foa-worker-heartbeat"),
     WORKER_VERSION: z.string().default("dev"),
+    WORKER_PASSWORD_FILE: z.string().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.WORKER_MODE === "preview") {
@@ -132,6 +137,7 @@ export function workerConfig(
     discoveryMs: env.WORKER_DISCOVERY_SECONDS * 1000,
     connectionsPerDatabase: env.WORKER_CONNECTIONS_PER_DATABASE,
     heartbeatFile: env.WORKER_HEARTBEAT_FILE,
+    passwordFile: env.WORKER_PASSWORD_FILE,
   };
   if (env.WORKER_MODE === "preview") {
     // The refinement above guarantees it.
@@ -146,7 +152,25 @@ export function workerConfig(
   };
 }
 
-/** Stub. */
-export function withPassword(config: WorkerConfig, _password: string): WorkerConfig {
-  return config;
+/** `url` logging in with `password`. */
+function urlWithPassword(url: string, password: string): string {
+  const parsed = new URL(url);
+  parsed.password = encodeURIComponent(password);
+  return parsed.href;
+}
+
+/**
+ * `config` with `password` (a secret file's content, trailing newline
+ * dropped) in its connection URL. Compose hands secrets over as files,
+ * never as environment values, so the URLs in docker/workers.yml carry
+ * none.
+ */
+export function withPassword(
+  config: WorkerConfig,
+  password: string
+): WorkerConfig {
+  const secret = password.replace(/\r?\n$/, "");
+  return config.mode === "single"
+    ? { ...config, databaseUrl: urlWithPassword(config.databaseUrl, secret) }
+    : { ...config, adminUrl: urlWithPassword(config.adminUrl, secret) };
 }

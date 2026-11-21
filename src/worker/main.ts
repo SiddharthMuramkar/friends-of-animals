@@ -7,7 +7,7 @@
 // Runs under plain Node through tsx: it never imports "server-only",
 // "@/env" or src/server/db/index.ts (the app's pooled client).
 
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import { PgBoss } from "pg-boss";
@@ -17,7 +17,7 @@ import { loadEnvFiles } from "../../scripts/load-env";
 import { directTls } from "../server/db/database-url";
 import * as schema from "../server/db/schema";
 import { systemClock } from "../server/ports/clock";
-import { workerConfig, type WorkerConfig } from "./config";
+import { withPassword, workerConfig, type WorkerConfig } from "./config";
 import { summarizeError, type WorkerLog } from "./log";
 import type { ListedDatabase } from "./preview-databases";
 import { createWorker, type WorkerIo } from "./worker";
@@ -104,7 +104,11 @@ function realIo(config: WorkerConfig): WorkerIo {
 
 async function main() {
   loadEnvFiles();
-  const config = workerConfig(process.env);
+  const parsed = workerConfig(process.env);
+  const config =
+    parsed.passwordFile === undefined
+      ? parsed
+      : withPassword(parsed, await readFile(parsed.passwordFile, "utf8"));
   const worker = createWorker(config, realIo(config));
 
   let stopping = false;
