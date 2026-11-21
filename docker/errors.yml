@@ -1,16 +1,25 @@
-# foa-errors: GlitchTip 7.0.0, the error tracker for friendsofanimals.dev (LAUNCH §15.7, DECISIONS R-11, R-I01).
-# - Own small Postgres (foa-glitchtip-pg), NOT pg-prod: pg-prod's pg_hba/prod.conf are repo files and GlitchTip
-#   needs max_locks_per_transaction=512 (R-I01).
-# - No Valkey: VALKEY_URL="" makes Postgres the task queue, cache and session store.
-# - No published ports. foa-caddy (host network) proxies https://errors.friendsofanimals.dev -> 10.112.13.10:8000.
-# - Secrets: /etc/foa/secrets/glitchtip.env (SECRET_KEY, DATABASE_URL; 0600) and glitchtip_pg_password (0400 uid 70).
-# Up:   docker compose -f /root/foa-work/launch/infra/errors/compose.yml up -d --wait
-# Later unit x-edge adopts this as docker/errors.yml with the same project, container names and data paths.
+# GlitchTip 7.0.0, the error tracker for friendsofanimals.dev (#66, #118),
+# taking the Sentry SDK's events. A Compose project of its own:
+#
+#   docker compose -f /srv/foa/docker/errors.yml up -d --wait
+#
+# Runbook: docker/README.md, "Errors (GlitchTip)".
+#
+# - Its own small Postgres (foa-glitchtip-pg), not pg-prod: GlitchTip needs
+#   max_locks_per_transaction=512, and pg-prod's prod.conf and pg_hba are
+#   tuned for foa.
+# - No Valkey: VALKEY_URL="" makes Postgres the task queue, cache and session
+#   store.
+# - No published ports. foa-caddy (edge.yml, host network) proxies
+#   https://errors.friendsofanimals.dev to 10.112.13.10:8000.
+# - Secrets, never in git: /etc/foa/secrets/glitchtip.env (SECRET_KEY,
+#   DATABASE_URL; 0600 root) and glitchtip_pg_password (0400 uid 70).
 name: foa-errors
 
 x-logging: &logging
-  driver: json-file
-  options: { max-size: "10m", max-file: "5" }
+  driver: journald
+  options:
+    tag: "{{.Name}}"
 
 services:
   glitchtip-pg:
