@@ -13,7 +13,10 @@ import type { SeedDeps, Seeder } from "./types";
 export type { SeedDeps, Seeder } from "./types";
 export { SEED_ACCOUNTS } from "./accounts";
 
-const seeders: readonly Seeder[] = [seedIdentity];
+const seeders: readonly Seeder[] = [
+  // One line per module (.gitattributes merges this file with union).
+  seedIdentity,
+];
 
 /**
  * Fills a preview or local database with the seed data. Idempotent: preview
