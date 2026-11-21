@@ -14,6 +14,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import type { Actor } from "../../actor";
 import { as } from "../../app";
 import { cmsTag, type CmsDocumentKey } from "./domain/documents";
+import type { LegalVersion } from "./legal";
 import type { PublishedCmsDocument } from "./reading";
 
 /**
@@ -39,4 +40,18 @@ export async function loadPublishedDocument(
   cacheTag(cmsTag(key));
   cacheLife("hours");
   return as(PUBLIC_READER).getPublishedDocument({ key });
+}
+
+/**
+ * The version and date a policy page shows now, or null before version 1:
+ * the consent screens link to the page with it. Cached under the page's
+ * tag, so a publish refreshes it with the page.
+ */
+export async function loadLegalVersion(
+  key: CmsDocumentKey
+): Promise<LegalVersion | null> {
+  "use cache";
+  cacheTag(cmsTag(key));
+  cacheLife("hours");
+  return as(PUBLIC_READER).currentLegalVersion({ key });
 }

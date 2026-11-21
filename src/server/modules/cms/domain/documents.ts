@@ -80,9 +80,13 @@ const CONSENT_PURPOSE_PAGE = {
 
 export type LinkedConsentPurpose = keyof typeof CONSENT_PURPOSE_PAGE;
 
+/** A policy page some consent purpose rests on. */
+export type ConsentPolicyKey =
+  (typeof CONSENT_PURPOSE_PAGE)[LinkedConsentPurpose];
+
 export function legalKeyForConsentPurpose(
   purpose: LinkedConsentPurpose
-): CmsDocumentKey {
+): ConsentPolicyKey {
   return CONSENT_PURPOSE_PAGE[purpose];
 }
 

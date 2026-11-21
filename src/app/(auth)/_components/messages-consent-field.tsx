@@ -1,23 +1,29 @@
 import { getTranslations } from "next-intl/server";
 import { connection } from "next/server";
 
+import { ConsentPolicyLink } from "@/components/legal/consent-policy-link";
 import {
   LegalSectionsText,
   LegalShortList,
 } from "@/components/legal/legal-text";
 import { Disclosure } from "@/components/site/disclosure";
+import { loadLegalVersion } from "@/server/modules/cms/cached";
+import { legalKeyForConsentPurpose } from "@/server/modules/cms/domain/documents";
 import { cachedConsentDocument } from "@/server/modules/consent/cached";
 
 /**
  * The sign-up form's optional box for news and updates by email (#64).
  * Never ticked to begin with. Its value is the id of the messages consent
- * version shown here, so the consent recorded is to this exact text.
- * Renders nothing while no version is published. Reads the database, so
- * it sits inside <Suspense>.
+ * version shown here, so the consent recorded is to this exact text; it
+ * links to the privacy policy it rests on (#111). Renders nothing while no
+ * version is published. Reads the database, so it sits inside <Suspense>.
  */
 export async function MessagesConsentField() {
   await connection();
-  const document = await cachedConsentDocument("messages");
+  const [document, policy] = await Promise.all([
+    cachedConsentDocument("messages"),
+    loadLegalVersion(legalKeyForConsentPurpose("messages")),
+  ]);
   if (!document) return null;
   const t = await getTranslations("auth.form.messagesConsent");
 
@@ -44,6 +50,11 @@ export async function MessagesConsentField() {
       >
         <LegalSectionsText sections={document.body.sections} level="h2" />
       </Disclosure>
+      <ConsentPolicyLink
+        purpose="messages"
+        current={policy}
+        className="text-sm text-ink"
+      />
     </div>
   );
 }
