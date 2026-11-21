@@ -13,6 +13,7 @@
 
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
+import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
 import { dispatchEvent } from "../notifications/dispatch";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
@@ -61,7 +62,8 @@ type Handlers = {
 export const HANDLERS: Handlers = {
   // Sends the messages the event's route rows name (#69).
   "notifications.dispatch": dispatchEvent,
-  "contact.send_acknowledgement": async () => {},
+  // Emails a contact message's sender their reference (#113).
+  "contact.send_acknowledgement": sendContactAcknowledgement,
 };
 
 /** Whether this code has a handler by that name. */

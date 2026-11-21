@@ -81,6 +81,8 @@ export const contactMessage = pgTable(
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
     closedAt: timestamptz("closed_at"),
+    /** When the sender's acknowledgement went out; null until then. */
+    acknowledgedAt: timestamptz("acknowledged_at"),
   },
   (table) => [
     unique("contact_message_reference_unique").on(table.reference),

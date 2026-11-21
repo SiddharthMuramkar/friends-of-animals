@@ -14,6 +14,11 @@
 // Loads under plain Node (the worker): relative imports only.
 
 import type { AppDb } from "../db/app-db";
+import {
+  CONTACT_MESSAGE_VARIABLES,
+  contactMessageValues,
+  contactTeamMembers,
+} from "../modules/contact/notify";
 import type { Delivery, EventType } from "../outbox";
 
 /** The variables every message has about the person receiving it. */
@@ -43,6 +48,11 @@ export const AUDIENCES = {
     const userId = subjectUserOf(delivery);
     return userId ? [userId] : [];
   },
+  /** The staff team a contact message was routed to (#113). */
+  contact_team: async (db, delivery) =>
+    delivery.eventType === "contact_message.received"
+      ? contactTeamMembers(db, delivery.payload.messageId)
+      : [],
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -61,7 +71,11 @@ type EventVariables<T extends EventType> = {
 export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "identity.user_signed_up": { names: [], load: async () => ({}) },
   "consent.withdrawn": { names: [], load: async () => ({}) },
-  "contact_message.received": { names: [], load: async () => ({}) },
+  "contact_message.received": {
+    names: CONTACT_MESSAGE_VARIABLES,
+    load: async (db, delivery) =>
+      (await contactMessageValues(db, delivery.payload.messageId)) ?? {},
+  },
 };
 
 /** The variables a template on a route for `eventType` may use. */
