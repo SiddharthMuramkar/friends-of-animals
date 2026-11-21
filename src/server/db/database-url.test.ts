@@ -14,7 +14,7 @@ import {
 } from "./database-url";
 
 const PREVIEW_URL =
-  "postgres://nonprod_app:0a1b2c@db.shipped-it.dev:6432/foa_pr?sslmode=verify-full";
+  "postgres://nonprod_app:0a1b2c@db.friendsofanimals.dev:6432/foa_pr?sslmode=verify-full";
 
 const hash8 = (ref: string) =>
   createHash("sha256").update(ref).digest("hex").slice(0, 8);
@@ -232,13 +232,13 @@ describe("resolveDatabaseUrl", () => {
 
   it("swaps a preview's placeholder database for its own", () => {
     expect(resolveDatabaseUrl(PREVIEW_URL, pr)).toBe(
-      `postgres://nonprod_app:0a1b2c@db.shipped-it.dev:6432/foa_pr_7_${FP}?sslmode=verify-full`
+      `postgres://nonprod_app:0a1b2c@db.friendsofanimals.dev:6432/foa_pr_7_${FP}?sslmode=verify-full`
     );
   });
 
   it("keeps the credentials and every query parameter", () => {
     const url =
-      "postgresql://nonprod_migrator:f00d@db.shipped-it.dev:6432/foa_pr?sslmode=verify-full&application_name=foa";
+      "postgresql://nonprod_migrator:f00d@db.friendsofanimals.dev:6432/foa_pr?sslmode=verify-full&application_name=foa";
     const resolved = new URL(resolveDatabaseUrl(url, pr));
     expect(resolved.username).toBe("nonprod_migrator");
     expect(resolved.password).toBe("f00d");
@@ -258,7 +258,7 @@ describe("resolveDatabaseUrl", () => {
 
   it("leaves every other environment's URL alone", () => {
     const production =
-      "postgres://foa_app:beef@db.shipped-it.dev:6432/foa?sslmode=verify-full";
+      "postgres://foa_app:beef@db.friendsofanimals.dev:6432/foa?sslmode=verify-full";
     for (const APP_ENV of [undefined, "local", "staging", "production"]) {
       expect(
         resolveDatabaseUrl(production, {
@@ -285,7 +285,7 @@ describe("migrationTarget", () => {
 
   it("migrates foa_staging in place and creates no database", () => {
     const DIRECT_URL =
-      "postgres://staging_migrator:f00d@db.shipped-it.dev:6432/foa_staging?sslmode=verify-full";
+      "postgres://staging_migrator:f00d@db.friendsofanimals.dev:6432/foa_staging?sslmode=verify-full";
     expect(
       migrationTarget({ DIRECT_URL, APP_ENV: "staging", ...fromMain })
     ).toStrictEqual({ url: DIRECT_URL });
@@ -293,7 +293,7 @@ describe("migrationTarget", () => {
 
   it("migrates production and local runs in place too", () => {
     const DIRECT_URL =
-      "postgres://foa_migrator:beef@db.shipped-it.dev:6432/foa?sslmode=verify-full";
+      "postgres://foa_migrator:beef@db.friendsofanimals.dev:6432/foa?sslmode=verify-full";
     for (const APP_ENV of ["production", "local", undefined]) {
       expect(
         migrationTarget({ DIRECT_URL, APP_ENV, ...fromMain })
@@ -305,13 +305,13 @@ describe("migrationTarget", () => {
     expect(
       migrationTarget({
         DIRECT_URL:
-          "postgres://nonprod_migrator:f00d@db.shipped-it.dev:6432/foa_pr?sslmode=verify-full",
+          "postgres://nonprod_migrator:f00d@db.friendsofanimals.dev:6432/foa_pr?sslmode=verify-full",
         APP_ENV: "preview",
         VERCEL_GIT_PULL_REQUEST_ID: "7",
         VERCEL_GIT_COMMIT_REF: "map",
       })
     ).toStrictEqual({
-      url: `postgres://nonprod_migrator:f00d@db.shipped-it.dev:6432/foa_pr_7_${FP}?sslmode=verify-full`,
+      url: `postgres://nonprod_migrator:f00d@db.friendsofanimals.dev:6432/foa_pr_7_${FP}?sslmode=verify-full`,
       preview: { name: `foa_pr_7_${FP}`, comment: "foa-preview pr=7" },
     });
   });
@@ -324,7 +324,7 @@ describe("migrationTarget", () => {
       const env = { APP_ENV: "preview", ...git };
       const migrated = migrationTarget({
         DIRECT_URL:
-          "postgres://nonprod_migrator:f00d@db.shipped-it.dev:6432/foa_pr?sslmode=verify-full",
+          "postgres://nonprod_migrator:f00d@db.friendsofanimals.dev:6432/foa_pr?sslmode=verify-full",
         ...env,
       });
       const runtime = new URL(resolveDatabaseUrl(PREVIEW_URL, env));
