@@ -102,6 +102,28 @@ describe("redactText: database errors", () => {
   });
 });
 
+describe("redactText on a duplicate key whose value has no closing bracket", () => {
+  it("hides every line of a value that runs past its line", () => {
+    expect(redactText("Key (email)=(Ravi\nKumar) already exists.")).toBe(
+      "Key (email)=[redacted]"
+    );
+  });
+
+  it("hides a value the text ends inside", () => {
+    expect(redactText("Key (email)=(Ravi Kumar")).toBe(
+      "Key (email)=[redacted]"
+    );
+  });
+
+  it("hides a value cut off by truncation, brackets inside it included", () => {
+    for (const value of ["Ravi Kumar ", "Ravi (Kumar) "]) {
+      const text = `Key (email)=(${value.repeat(1000)}) already exists.`;
+
+      expect(redactText(text)).toBe("Key (email)=[redacted][truncated]");
+    }
+  });
+});
+
 describe("stripQuery", () => {
   it("keeps the path of absolute and relative URLs", () => {
     expect(stripQuery("https://shipped-it.dev/a/b?x=1#y")).toBe(
