@@ -16,10 +16,9 @@ import postgres from "postgres";
 import { loadEnvFiles } from "../../scripts/load-env";
 import { directTls } from "../server/db/database-url";
 import * as schema from "../server/db/schema";
-import { errorSummaryForLogs } from "../server/errors";
 import { systemClock } from "../server/ports/clock";
 import { workerConfig, type WorkerConfig } from "./config";
-import type { WorkerLog } from "./log";
+import { summarizeError, type WorkerLog } from "./log";
 import type { ListedDatabase } from "./preview-databases";
 import { createWorker, type WorkerIo } from "./worker";
 
@@ -82,7 +81,7 @@ function realIo(config: WorkerConfig): WorkerIo {
         log({
           level: "error",
           event: "boss.error",
-          error: errorSummaryForLogs(error),
+          error: summarizeError(error),
         })
       );
       await boss.start();
@@ -138,7 +137,7 @@ main().catch((error: unknown) => {
   const message =
     error instanceof Error && error.message.startsWith("Invalid environment")
       ? error.message
-      : errorSummaryForLogs(error);
+      : summarizeError(error);
   log({ level: "error", event: "worker.failed", error: message });
   process.exit(1);
 });

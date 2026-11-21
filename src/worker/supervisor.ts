@@ -17,9 +17,8 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { errorSummaryForLogs } from "../server/errors";
 import type { Clock } from "../server/ports/clock";
-import type { WorkerLog } from "./log";
+import { summarizeError, type WorkerLog } from "./log";
 import { isDatabaseGone, planPreviewChanges } from "./preview-databases";
 import type { Tenant } from "./tenant";
 
@@ -85,7 +84,7 @@ export function createSupervisor({
         level: "error",
         event: "tenant.close_failed",
         database,
-        error: errorSummaryForLogs(error),
+        error: summarizeError(error),
       });
     }
     log({ level: "info", event: "tenant.detached", database, reason });
@@ -104,7 +103,7 @@ export function createSupervisor({
         level: "error",
         event: "tenant.attach_failed",
         database,
-        error: errorSummaryForLogs(error),
+        error: summarizeError(error),
       });
     }
   }
@@ -119,7 +118,7 @@ export function createSupervisor({
         log({
           level: "error",
           event: "discovery.failed",
-          error: errorSummaryForLogs(error),
+          error: summarizeError(error),
         });
       }
       listingFailed = true;
@@ -149,7 +148,7 @@ export function createSupervisor({
         await detach(database, "gone");
         return false;
       }
-      const summary = errorSummaryForLogs(error);
+      const summary = summarizeError(error);
       if (attached.failure !== summary) {
         log({
           level: "error",

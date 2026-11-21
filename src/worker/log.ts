@@ -4,6 +4,8 @@
 //
 // Loads under plain Node: no "server-only", no Next imports.
 
+import { errorSummaryForLogs } from "../server/errors";
+
 export type WorkerLogEntry = {
   level: "info" | "error";
   /** What happened, e.g. tenant.attached or discovery.failed. */
@@ -17,7 +19,26 @@ export type WorkerLogEntry = {
 
 export type WorkerLog = (entry: WorkerLogEntry) => void;
 
-/** Stub. */
-export function summarizeError(_error: unknown): string {
-  return "";
+/** A Node system error code, such as ECONNREFUSED or ENOTFOUND. */
+const SYSTEM_CODE = /^E[A-Z0-9_]+$/;
+
+function systemCode(error: unknown): string | undefined {
+  if (error instanceof AggregateError) {
+    return error.errors.map(systemCode).find((code) => code !== undefined);
+  }
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? error.code
+      : undefined;
+  return typeof code === "string" && SYSTEM_CODE.test(code) ? code : undefined;
+}
+
+/**
+ * What to log about a failure: its class and a Postgres or system error
+ * code, never its message, which may hold query parameters (addresses).
+ */
+export function summarizeError(error: unknown): string {
+  const code = systemCode(error);
+  const summary = errorSummaryForLogs(error);
+  return code === undefined ? summary : `${summary} (${code})`;
 }
