@@ -1,17 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestDb } from "@/test/db";
-import { FakeClock } from "@/test/fakes/clock";
-import { FakeEmail } from "@/test/fakes/email";
+import { createHarness } from "@/test/harness";
 
 import type { Actor } from "./actor";
-import type { Deps } from "./deps";
 import { composeUseCases, type UseCaseContext } from "./use-cases";
-
-async function testDeps(): Promise<Deps> {
-  const clock = new FakeClock();
-  return { db: await createTestDb(), clock, email: new FakeEmail(clock) };
-}
 
 const visitor: Actor = {
   kind: "visitor",
@@ -30,7 +22,7 @@ const mail = (ctx: UseCaseContext) => ({
 
 describe("composeUseCases", () => {
   it("gives every use case the acting user and the deps", async () => {
-    const deps = await testDeps();
+    const { deps } = await createHarness();
     const useCases = composeUseCases(greetings)({ ...deps, actor: visitor });
 
     expect(await useCases.whoAmI()).toBe(visitor);
@@ -38,8 +30,7 @@ describe("composeUseCases", () => {
   });
 
   it("merges every module's use cases into one flat set", async () => {
-    const deps = await testDeps();
-    const email = deps.email as FakeEmail;
+    const { deps, email } = await createHarness();
     const useCases = composeUseCases(
       greetings,
       mail
@@ -56,7 +47,7 @@ describe("composeUseCases", () => {
   });
 
   it("refuses two modules that name the same use case", async () => {
-    const deps = await testDeps();
+    const { deps } = await createHarness();
     const rival = (_ctx: UseCaseContext) => ({ whoAmI: async () => null });
 
     // @ts-expect-error: a duplicate use-case name fails type-checking too.

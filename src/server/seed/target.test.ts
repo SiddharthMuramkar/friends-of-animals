@@ -54,6 +54,39 @@ describe("seedTarget", () => {
     }
   });
 
+  it("refuses a local URL whose query names another host", () => {
+    // postgres-js connects to ?host= over the URL's own host.
+    for (const param of ["host", "hostaddr"]) {
+      const target = seedTarget({
+        DIRECT_URL: `postgres://foa:foa@localhost:5432/foa?${param}=db.shipped-it.dev`,
+      });
+      expect(target).toEqual({
+        seed: false,
+        reason: expect.stringMatching(new RegExp(param)),
+      });
+    }
+  });
+
+  it("refuses a local URL that tunnels into a deployed database", () => {
+    // An SSH tunnel (docker/README.md) or PgBouncer on the database server
+    // reaches pg-prod or pg-nonprod through a loopback address, so a local
+    // seed also refuses their roles and databases.
+    for (const url of [
+      "postgres://postgres:x@localhost:5433/foa",
+      "postgres://foa_migrator:x@127.0.0.1:5433/foa",
+      "postgres://foa_app:x@localhost:6432/foa",
+      "postgres://staging_migrator:x@localhost:5434/foa_staging",
+      "postgres://nonprod_migrator:x@localhost:5434/foa_pr_140_abc",
+      "postgres://foa:foa@localhost:5434/foa_staging",
+      "postgres://foa:foa@localhost:5434/foa_seed",
+    ]) {
+      expect(seedTarget({ DIRECT_URL: url }), url).toEqual({
+        seed: false,
+        reason: expect.stringMatching(/deployed/),
+      });
+    }
+  });
+
   it.each(["staging", "production"] as const)("never seeds %s", (APP_ENV) => {
     const target = seedTarget({ DIRECT_URL, APP_ENV });
     expect(target.seed).toBe(false);
