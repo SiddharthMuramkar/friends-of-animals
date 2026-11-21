@@ -25,11 +25,12 @@ async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {
 }
 
 describe("seedPreview", () => {
-  it("creates a super admin and three members", async () => {
+  it("creates a super admin, three members and a safeguarding lead", async () => {
     const deps = await seedDeps();
     await seedPreview(deps);
 
     expect((await accounts(deps)).map((account) => account.email)).toEqual([
+      "dsl@example.test",
       "member1@example.test",
       "member2@example.test",
       "member3@example.test",

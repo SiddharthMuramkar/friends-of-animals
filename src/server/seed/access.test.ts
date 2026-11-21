@@ -70,7 +70,8 @@ describe("the access seed", () => {
     await h.seed.preview();
 
     expect(await rows()).toEqual(first);
-    expect(first).toHaveLength(5);
+    // Five from SEED_GRANTS, and the safeguarding lead's (#116).
+    expect(first).toHaveLength(6);
   });
 
   it("keeps fixed scope ids that links and journeys can name", () => {
