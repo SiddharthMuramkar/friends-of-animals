@@ -14,6 +14,7 @@ import type { Seeder } from "./types";
 export type { SeedDeps, Seeder } from "./types";
 export type { SeedBuilders } from "./builders";
 export { SEED_ACCOUNTS } from "./accounts";
+export { SEED_SCOPES } from "./scopes";
 
 const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
