@@ -1,6 +1,9 @@
-# foa-edge Caddyfile (LAUNCH §15.6/§15.7, DECISIONS R-11/R-12). Host network: firewalld governs 80/443.
-# Let's Encrypt production CA (staging CA verified first, 2026-11-21).
+# Caddy on the VPS (edge.yml, #118). Host network: firewalld governs 80 and
+# 443. Runbook: docker/README.md, "Edge (Caddy)".
 {
+	# Let's Encrypt's production CA, pinned. On a new host, point this at the
+	# staging CA (https://acme-staging-v02.api.letsencrypt.org/directory)
+	# until issuance works, then back (README.md).
 	acme_ca https://acme-v02.api.letsencrypt.org/directory
 	admin 127.0.0.1:2019
 	servers {
@@ -8,8 +11,9 @@
 	}
 }
 
-# db.* only need port 80 for lego's webroot HTTP-01 renewals of the PgBouncer SAN cert (R-12).
-# Explicit http:// so Caddy never manages a certificate for these names.
+# db.* only need port 80, for lego's webroot HTTP-01 renewals of PgBouncer's
+# certificate (one certificate for both names). Explicit http:// so Caddy
+# never manages a certificate for these names.
 http://db.friendsofanimals.dev, http://db.shipped-it.dev {
 	handle /.well-known/acme-challenge/* {
 		root * /srv/acme
@@ -20,6 +24,7 @@ http://db.friendsofanimals.dev, http://db.shipped-it.dev {
 	}
 }
 
+# GlitchTip (errors.yml), on its own bridge.
 errors.friendsofanimals.dev {
 	encode zstd gzip
 	request_body {
@@ -32,4 +37,13 @@ errors.friendsofanimals.dev {
 	reverse_proxy 10.112.13.10:8000
 }
 
-# stats.friendsofanimals.dev -> Umami (10.112.12.30:3000) is added at B5, after units 118 and x-edge land.
+# Umami (analytics.yml), on pg-prod's bridge: its dashboard, and the tracker
+# and collection endpoint the site reaches through Next's /stats rewrites.
+stats.friendsofanimals.dev {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy 10.112.12.30:3000
+}
