@@ -10,9 +10,17 @@ import type { ErrorReporter } from "../../ports/errors";
 import type { OffsiteConfig } from "./config";
 import { contentMd5ForEtag } from "./domain/etag";
 import { offsiteKeyFor } from "./domain/keys";
-import { decideRunOutcome } from "./domain/outcome";
+import {
+  decideRunOutcome,
+  errorSummary,
+  failureDigest,
+  type CopyFailure,
+} from "./domain/outcome";
 import { planOffsiteCopy, type SourceObject } from "./domain/plan";
-import { OffsiteCopyIncompleteError } from "./errors";
+import {
+  OffsiteCopyIncompleteError,
+  OffsiteMassDeletionWarning,
+} from "./errors";
 import {
   clearDeletedInSource,
   forgetCopy,
@@ -23,6 +31,9 @@ import {
 
 /** The B2 metadata key holding the etag the object had in R2. */
 export const SOURCE_ETAG_METADATA = "foa-source-etag";
+
+/** The schedule's name, and the `job` tag on what it reports. */
+export const OFFSITE_COPY_JOB = "offsite_copy";
 
 export type OffsiteDeps = {
   db: AppDb;
@@ -79,6 +90,21 @@ function emptyTotals(): OffsiteTotals {
   };
 }
 
+/** Why a bucket was given up for this run. */
+type BucketFailure = {
+  bucket: string;
+  reason: "listing_failed" | "empty_listing";
+  error?: string;
+};
+
+/** What a run has done so far, across buckets. */
+type RunState = {
+  totals: OffsiteTotals;
+  failures: CopyFailure[];
+  bucketFailures: BucketFailure[];
+  massDeletions: { bucket: string; marked: number; live: number }[];
+};
+
 export async function runOffsiteCopy(
   deps: OffsiteDeps,
   input: { finalAttempt: boolean }
@@ -86,47 +112,101 @@ export async function runOffsiteCopy(
   if (deps.config.appEnv !== "production") {
     return { status: "skipped", reason: "not_production" };
   }
-  const totals = emptyTotals();
-  const failedBuckets: string[] = [];
+  const run: RunState = {
+    totals: emptyTotals(),
+    failures: [],
+    bucketFailures: [],
+    massDeletions: [],
+  };
   for (const bucket of deps.config.sourceBuckets) {
-    const refused = await copyBucket(deps, bucket, totals);
-    if (refused) failedBuckets.push(bucket);
+    await copyBucket(deps, bucket, run);
   }
+  const { totals, failures, bucketFailures, massDeletions } = run;
+  totals.failed = failures.length;
   const outcome = decideRunOutcome(
     {
-      failedObjects: totals.failed,
-      failedBuckets: failedBuckets.length,
-      massDeletionBuckets: 0,
+      failedObjects: failures.length,
+      failedBuckets: bucketFailures.length,
+      massDeletionBuckets: massDeletions.length,
     },
     input
   );
-  const report = { status: outcome.status, failedBuckets, ...totals };
+  const report = {
+    status: outcome.status,
+    failedBuckets: bucketFailures.map(({ bucket }) => bucket),
+    ...totals,
+  };
+
+  if (outcome.reportWarning) {
+    deps.errors.report(
+      new OffsiteMassDeletionWarning(massDeletions.map(({ bucket }) => bucket)),
+      {
+        where: OFFSITE_COPY_JOB,
+        tags: { job: OFFSITE_COPY_JOB, level: "warning" },
+        extra: { buckets: massDeletions },
+      }
+    );
+  }
   if (report.status === "incomplete") {
-    throw new OffsiteCopyIncompleteError(report);
+    const error = new OffsiteCopyIncompleteError(report);
+    if (outcome.reportError) {
+      deps.errors.report(error, {
+        where: OFFSITE_COPY_JOB,
+        tags: { job: OFFSITE_COPY_JOB },
+        extra: {
+          copied: totals.copied,
+          deferred: totals.deferred,
+          failed: totals.failed,
+          failedBuckets: bucketFailures,
+          failures: failureDigest(failures),
+        },
+      });
+    }
+    throw error;
   }
   return report;
 }
 
-/** Copies one bucket; true if its listing was refused. */
 async function copyBucket(
   deps: OffsiteDeps,
   bucket: string,
-  totals: OffsiteTotals
-): Promise<boolean> {
+  run: RunState
+): Promise<void> {
+  const { totals } = run;
   const source: SourceObject[] = [];
-  for await (const object of deps.source.list({ bucket })) source.push(object);
+  try {
+    for await (const object of deps.source.list({ bucket })) {
+      source.push(object);
+    }
+  } catch (error) {
+    // A partial listing would mark every unlisted copy as deleted.
+    run.bucketFailures.push({
+      bucket,
+      reason: "listing_failed",
+      error: errorSummary(error),
+    });
+    return;
+  }
+  const manifest = await manifestOf(deps.db, bucket);
   const plan = planOffsiteCopy({
     source,
-    manifest: await manifestOf(deps.db, bucket),
+    manifest,
     now: deps.clock.now(),
     retention: deps.config.retention,
   });
   totals.unchanged += plan.unchanged;
   totals.skippedNonProduction += plan.skippedNonProduction;
-  if (plan.refused !== null) return true;
+  if (plan.refused !== null) {
+    run.bucketFailures.push({ bucket, reason: plan.refused });
+    return;
+  }
 
   await eachAtMost(deps.config.concurrency, plan.copy, async ({ object }) => {
-    if (await copyObject(deps, bucket, object)) totals.copied += 1;
+    try {
+      if (await copyObject(deps, bucket, object)) totals.copied += 1;
+    } catch (error) {
+      run.failures.push({ bucket, key: object.key, error });
+    }
   });
 
   await clearDeletedInSource(deps.db, bucket, plan.clearDeleted);
@@ -138,16 +218,27 @@ async function copyBucket(
     deps.clock.now()
   );
   totals.markedDeleted += plan.markDeleted.length;
-  totals.held += plan.held;
-  for (const key of plan.purge) {
-    await deps.target.delete({
-      bucket: deps.config.targetBucket,
-      key: offsiteKeyFor({ bucket, key }),
+  if (plan.massDeletion) {
+    run.massDeletions.push({
+      bucket,
+      marked: plan.markDeleted.length,
+      live: manifest.filter((row) => row.deletedInSourceAt === null).length,
     });
-    await forgetCopy(deps.db, { sourceBucket: bucket, key });
-    totals.purged += 1;
   }
-  return false;
+  totals.held += plan.held;
+
+  for (const key of plan.purge) {
+    try {
+      await deps.target.delete({
+        bucket: deps.config.targetBucket,
+        key: offsiteKeyFor({ bucket, key }),
+      });
+      await forgetCopy(deps.db, { sourceBucket: bucket, key });
+      totals.purged += 1;
+    } catch (error) {
+      run.failures.push({ bucket, key, error });
+    }
+  }
 }
 
 /**
@@ -161,15 +252,21 @@ async function copyObject(
 ): Promise<boolean> {
   const read = await deps.source.read({ bucket, key: object.key });
   if (read === null) return false;
-  await deps.target.write({
-    bucket: deps.config.targetBucket,
-    key: offsiteKeyFor({ bucket, key: object.key }),
-    body: read.body,
-    sizeBytes: read.sizeBytes,
-    contentType: read.contentType,
-    contentMd5: contentMd5ForEtag(read.etag),
-    metadata: { ...read.metadata, [SOURCE_ETAG_METADATA]: read.etag },
-  });
+  try {
+    await deps.target.write({
+      bucket: deps.config.targetBucket,
+      key: offsiteKeyFor({ bucket, key: object.key }),
+      body: read.body,
+      sizeBytes: read.sizeBytes,
+      contentType: read.contentType,
+      contentMd5: contentMd5ForEtag(read.etag),
+      metadata: { ...read.metadata, [SOURCE_ETAG_METADATA]: read.etag },
+    });
+  } catch (error) {
+    // Let R2 close a response nobody will read.
+    if (!read.body.locked) await read.body.cancel().catch(() => {});
+    throw error;
+  }
   // What was read is what B2 holds, even if R2 changed after the listing.
   await recordCopy(deps.db, {
     sourceBucket: bucket,

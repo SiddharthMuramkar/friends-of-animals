@@ -58,12 +58,14 @@ export function failureDigest(failures: readonly CopyFailure[]): {
     examples: failures.slice(0, MAX_EXAMPLES).map(({ bucket, key, error }) => ({
       bucket,
       key,
-      error: describeError(error).slice(0, MAX_ERROR_LENGTH),
+      error: errorSummary(error),
     })),
   };
 }
 
-function describeError(error: unknown): string {
-  if (error instanceof Error) return `${error.name}: ${error.message}`;
-  return String(error);
+/** An error's name and message, cut short for a report. */
+export function errorSummary(error: unknown): string {
+  const text =
+    error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  return text.slice(0, MAX_ERROR_LENGTH);
 }
