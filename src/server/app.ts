@@ -18,12 +18,14 @@ import { auditUseCases } from "./audit";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
 import { competitionsUseCases } from "./modules/competitions";
+import { secondFactorUseCases } from "./second-factor";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
   identityUseCases,
   accessUseCases,
   auditUseCases,
+  secondFactorUseCases,
   competitionsUseCases
 );
 
