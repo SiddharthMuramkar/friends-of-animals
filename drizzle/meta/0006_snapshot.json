@@ -1,6 +1,6 @@
 {
-  "id": "845af0e2-358f-4452-8359-145973e533bd",
-  "prevId": "9386a4f1-d630-4ed4-b1cf-ec480ce1cbef",
+  "id": "d2395a81-9e2f-4a5c-966e-453801958553",
+  "prevId": "c7b0fa6a-5515-4f1a-9fb5-087c00dc9b5f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -306,10 +306,29 @@
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "email_verified": {
           "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "phone_ciphertext": {
+          "name": "phone_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_hash": {
+          "name": "phone_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_verified": {
+          "name": "phone_verified",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
@@ -344,6 +363,13 @@
           "columns": [
             "email"
           ]
+        },
+        "user_phone_hash_unique": {
+          "name": "user_phone_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "phone_hash"
+          ]
         }
       },
       "policies": {},
@@ -351,6 +377,14 @@
         "user_email_normalised": {
           "name": "user_email_normalised",
           "value": "\"user\".\"email\" = lower(\"user\".\"email\") AND \"user\".\"email\" !~ '[[:space:][:cntrl:]\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]'"
+        },
+        "user_email_or_phone": {
+          "name": "user_email_or_phone",
+          "value": "\"user\".\"email\" IS NOT NULL OR \"user\".\"phone_hash\" IS NOT NULL"
+        },
+        "user_phone_complete": {
+          "name": "user_phone_complete",
+          "value": "(\"user\".\"phone_ciphertext\" IS NULL) = (\"user\".\"phone_hash\" IS NULL)"
         }
       },
       "isRLSEnabled": false
@@ -553,6 +587,21 @@
           "columns": [
             {
               "expression": "role",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_role_granted_by_user_id_idx": {
+          "name": "user_role_granted_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "granted_by_user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -901,23 +950,18 @@
           "method": "btree",
           "with": {}
         },
-        "outbox_aggregate_idx": {
-          "name": "outbox_aggregate_idx",
+        "outbox_failed_failed_at_idx": {
+          "name": "outbox_failed_failed_at_idx",
           "columns": [
             {
-              "expression": "aggregate_type",
+              "expression": "failed_at",
               "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "aggregate_id",
-              "isExpression": false,
-              "asc": true,
+              "asc": false,
               "nulls": "last"
             }
           ],
           "isUnique": false,
+          "where": "\"outbox\".\"status\" = 'failed'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -948,155 +992,6 @@
         "outbox_failed_at_when_failed": {
           "name": "outbox_failed_at_when_failed",
           "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.file_asset": {
-      "name": "file_asset",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "owner_user_id": {
-          "name": "owner_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "purpose": {
-          "name": "purpose",
-          "type": "file_asset_purpose",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content_type": {
-          "name": "content_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bucket": {
-          "name": "bucket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "storage_key": {
-          "name": "storage_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "file_asset_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending_upload'"
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "scan_result": {
-          "name": "scan_result",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "scanned_at": {
-          "name": "scanned_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "uploaded_at": {
-          "name": "uploaded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "file_asset_owner_created_idx": {
-          "name": "file_asset_owner_created_idx",
-          "columns": [
-            {
-              "expression": "owner_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "file_asset_owner_user_id_user_id_fk": {
-          "name": "file_asset_owner_user_id_user_id_fk",
-          "tableFrom": "file_asset",
-          "tableTo": "user",
-          "columnsFrom": [
-            "owner_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "file_asset_storage_key_unique": {
-          "name": "file_asset_storage_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "storage_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "file_asset_size_bytes_positive": {
-          "name": "file_asset_size_bytes_positive",
-          "value": "\"file_asset\".\"size_bytes\" > 0"
         }
       },
       "isRLSEnabled": false
@@ -1159,26 +1054,6 @@
         "pending",
         "dispatched",
         "failed"
-      ]
-    },
-    "public.file_asset_purpose": {
-      "name": "file_asset_purpose",
-      "schema": "public",
-      "values": [
-        "test_upload"
-      ]
-    },
-    "public.file_asset_status": {
-      "name": "file_asset_status",
-      "schema": "public",
-      "values": [
-        "pending_upload",
-        "uploaded",
-        "scanning",
-        "clean",
-        "quarantined",
-        "rejected",
-        "deleted"
       ]
     }
   },

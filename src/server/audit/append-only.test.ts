@@ -1,5 +1,10 @@
+import { PGlite } from "@electric-sql/pglite";
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { count, sql } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it, onTestFinished } from "vitest";
 
 import { auditLog } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
@@ -128,5 +133,48 @@ describe("the audit log", () => {
       refusedWith("TRUNCATE")
     );
     expect(await auditRows(h)).toBe(1);
+  });
+});
+
+describe("an app role on a deployed database", () => {
+  it("can add and read audit entries but holds no right to update, delete or truncate them", async () => {
+    const client = await PGlite.create({ extensions: { pg_trgm } });
+    onTestFinished(() => client.close());
+    // How a deployed database hands its app role rights on every new
+    // table: default privileges, set up before the migrations run.
+    await client.exec(`
+      create role foa_app_test;
+      grant usage on schema public to foa_app_test;
+      alter default privileges in schema public
+        grant select, insert, update, delete, truncate on tables to foa_app_test;
+    `);
+    await migrate(drizzle({ client }), {
+      migrationsFolder: fileURLToPath(
+        new URL("../../../drizzle", import.meta.url)
+      ),
+    });
+
+    await client.exec("set role foa_app_test");
+    await client.query(`
+      insert into audit_log
+        (id, occurred_at, actor_kind, actor_process, action, entity_type, entity_id)
+      values
+        ('01938a00-0000-7000-8000-00000000e001', now(), 'system', 'cli',
+         'role.granted', 'user', '01938a00-0000-7000-8000-000000000101')
+    `);
+    const { rows } = await client.query<{ n: number }>(
+      "select count(*)::int as n from audit_log"
+    );
+    expect(rows).toEqual([{ n: 1 }]);
+
+    for (const statement of [
+      "update audit_log set action = 'role.revoked'",
+      "delete from audit_log",
+      "truncate audit_log",
+    ]) {
+      await expect(client.query(statement)).rejects.toThrow(
+        "permission denied for table audit_log"
+      );
+    }
   });
 });
