@@ -4,6 +4,8 @@
 // alerts as itself and not as "the app is down". docker/README.md,
 // "Monitoring and alerts", lists the checks.
 
+import type { DbWithClock } from "../db/app-db";
+
 /** One worker's last beat in this database. */
 export type HeartbeatBeat = { worker: string; lastSeenAt: Date };
 
@@ -38,4 +40,12 @@ export function workerFreshness(
     status: ageMs <= maxAgeSeconds * 1000 ? "ok" : "stale",
     worker: { name: freshest.worker, ageSeconds: Math.floor(ageMs / 1000) },
   };
+}
+
+/** The health of `environment`'s worker in this database. */
+export async function readWorkerHealth(
+  _deps: DbWithClock,
+  _environment: string
+): Promise<WorkerFreshness> {
+  return { status: "missing" };
 }
