@@ -9,7 +9,11 @@
 
 import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
+import { seedConsent } from "./consent";
 import { seedIdentity } from "./identity";
+import { seedNotifications } from "./notifications";
+import { seedSettings } from "./settings";
+import { seedSecondFactor } from "./second-factor";
 import type { Seeder } from "./types";
 
 export type { SeedDeps, Seeder } from "./types";
@@ -21,6 +25,10 @@ const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
   seedIdentity,
   seedAccess,
+  seedConsent,
+  seedSettings,
+  seedNotifications,
+  seedSecondFactor,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);

@@ -37,6 +37,11 @@ export type Entered = {
   intent: "sign-up" | "sign-in";
   contact: string;
   name: string;
+  /**
+   * Sign-up only: the messages consent document whose box was ticked
+   * (#64). Absent when the box wasn't ticked or isn't on the form.
+   */
+  messagesConsent?: string;
 };
 
 export type CodeFormChannel = {
@@ -110,12 +115,20 @@ export async function runCodeForm(
   channel: CodeFormChannel,
   formData: FormData
 ): Promise<CodeFormView> {
+  const intent =
+    field(formData, "intent") === "sign-up" ? "sign-up" : "sign-in";
+  // Sign-up's optional messages consent box: the document id it showed,
+  // only when ticked.
+  const messagesConsent =
+    intent === "sign-up" ? field(formData, "messagesConsent") : "";
+  const consent = messagesConsent ? { messagesConsent } : {};
   const entered: Entered = {
-    intent: field(formData, "intent") === "sign-up" ? "sign-up" : "sign-in",
+    intent,
     contact: field(formData, channel.channel),
     name: field(formData, "name"),
+    ...consent,
   };
-  const typed = { contact: entered.contact, name: entered.name };
+  const typed = { contact: entered.contact, name: entered.name, ...consent };
   const step = field(formData, "step");
   // The step the form was showing; "Send a new code" asks for a code from
   // the code step.
@@ -127,6 +140,7 @@ export async function runCodeForm(
     return withText(channel, { ...START, name: entered.name });
   }
 
+  let consentNotRecorded = false;
   try {
     if (step === "code") {
       const code = field(formData, "code");
@@ -137,6 +151,11 @@ export async function runCodeForm(
           afterVerify(channel.channel, result, { step: "code", ...typed })
         );
       }
+      // The box was ticked, but staff published a new version meanwhile:
+      // the account exists, and the settings page shows the new text.
+      const outcome =
+        "messagesConsent" in result ? result.messagesConsent : undefined;
+      if (outcome && outcome !== "given") consentNotRecorded = true;
     } else {
       const result = await channel.request(actor, entered);
       return withText(
@@ -157,5 +176,7 @@ export async function runCodeForm(
   }
   // Signed in: the session cookie is set. Outside the try, because
   // redirect() works by throwing.
-  redirect(APP_ROUTES.accountSessions);
+  redirect(
+    consentNotRecorded ? APP_ROUTES.accountConsents : APP_ROUTES.accountSessions
+  );
 }

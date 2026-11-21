@@ -57,6 +57,48 @@
       "when": 1795262528065,
       "tag": "0007_61_worker_heartbeat",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795263422651,
+      "tag": "0008_64_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795263423781,
+      "tag": "0009_64_consent_document_immutable",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795263424978,
+      "tag": "0010_60_staff_two_factor",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795263426098,
+      "tag": "0011_62_runtime_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795263427543,
+      "tag": "0012_69_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795263428565,
+      "tag": "0013_69_notification_defaults",
+      "breakpoints": true
     }
   ]
 }

@@ -59,6 +59,17 @@ The Users holding one of FOA's own Roles: the admins, managers and finance.
 Judges, coordinators and volunteers are not Staff.
 _Avoid_: Admins, employees, team
 
+**Second factor**:
+A second proof that a User is who they say, after the Sign-in code: a code from
+an authenticator app or a passkey on their device. Staff must add one and pass
+it once in each Session before any staff page or staff action.
+_Avoid_: 2FA (in copy), MFA, OTP
+
+**Step-up**:
+Passing the Second factor again, within the last 10 minutes, before a sensitive
+action such as granting a Role, publishing results or moving money.
+_Avoid_: Re-authentication, sudo mode
+
 **Policy**:
 The rules that decide whether an Actor may take an action, from the Actor's
 Grants and the Scopes and owner of what they act on.
@@ -74,6 +85,10 @@ The record of every change to who may do what, and later to other records:
 who made it, with which Role, to what, before and after, from where and when.
 Nobody can edit or delete an entry.
 _Avoid_: Activity log, history, event log
+**Sign-in method**:
+A way to receive sign-in codes: email, always on, or SMS, which stays off
+until FOA's SMS sender registration is approved.
+_Avoid_: Login type, provider
 
 ## Personal data
 
@@ -93,6 +108,45 @@ _Avoid_: Phone hash, lookup hash
 A switch or value staff can change on a running site without a deploy, such
 as whether sign-in codes may go by SMS.
 _Avoid_: Feature flag, config, environment variable
+
+## Consent
+
+**Consent document**:
+A text FOA publishes for one Purpose, such as the privacy notice or the
+agreement to News and updates. Each change is a new Version; a published
+Version never changes.
+_Avoid_: Policy (a Policy decides what an Actor may do), legal page, agreement
+
+**Version**:
+One published text of a Consent document, numbered 1, 2, 3 within its Purpose.
+_Avoid_: Revision, draft, edition
+
+**Purpose**:
+What a Consent document is for: the privacy notice, the terms, or News and
+updates; the purposes a guardian decides for a child come later.
+_Avoid_: Category, type, scope (a Scope is where a Role applies)
+
+**Notice**:
+A Consent document people read but don't give or withdraw: the privacy notice
+and the terms.
+_Avoid_: Policy page
+
+**Consent**:
+A person's yes to one Purpose, given on one Version, by someone (themselves
+or, later, a guardian), at a time and by a method, until a Withdrawal. Every
+give and Withdrawal stays in its history.
+_Avoid_: Opt-in, subscription, permission
+
+**Withdrawal**:
+A person taking back their Consent to a Purpose. It counts at once, and the
+parts of the platform that relied on it stop.
+_Avoid_: Opt-out, unsubscribe, revoke (a super admin revokes a Grant)
+
+**News and updates**:
+The optional emails a User receives only with Consent: competitions, results,
+stories and tips. Sign-in codes, receipts and notices the law requires are not
+News and updates and never depend on it.
+_Avoid_: Marketing, newsletter, messages (alone)
 
 ## Messages
 

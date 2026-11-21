@@ -19,6 +19,7 @@ import type { DbWithClock } from "./db/app-db";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
+import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
 import { unconfiguredSmsSender, type SmsSender } from "./ports/sms";
 import { captureSmsSender } from "./ports/sms-capture";
 import { msg91SmsSender } from "./ports/sms-msg91";
@@ -45,13 +46,7 @@ export interface Deps extends DbWithClock {
   errors: ErrorReporter;
 }
 
-/**
- * A local run or a preview without BETTER_AUTH_SECRET signs with this. It is
- * public, so it protects nothing; staging and production must set their own
- * (src/env.schema.ts refuses to start without it).
- */
-export const DEVELOPMENT_AUTH_SECRET =
-  "foa-development-secret-not-for-staging-or-production";
+export { DEVELOPMENT_AUTH_SECRET };
 
 /**
  * Production sends real SMS through MSG91 once its keys are set (after

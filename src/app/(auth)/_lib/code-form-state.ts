@@ -31,6 +31,11 @@ export type CodeFormState = {
   /** The email address or phone number, as typed. */
   contact: string;
   name: string;
+  /**
+   * Sign-up only: the messages consent document whose box was ticked, so
+   * the code step can send it on. Absent when the box wasn't ticked.
+   */
+  messagesConsent?: string;
   /** A code was just sent to `contact`. */
   sent?: boolean;
   /** A problem for the whole form. */
@@ -54,7 +59,7 @@ export type CodeFormView = CodeFormState & {
 
 export const START_VIEW: CodeFormView = { ...START, text: { errors: {} } };
 
-type Entered = { contact: string; name: string };
+type Entered = { contact: string; name: string; messagesConsent?: string };
 type Step = CodeFormState["step"];
 
 function fieldErrors(
@@ -116,7 +121,12 @@ export function afterVerify(
   result: Exclude<VerifyEmailCodeResult | VerifyPhoneCodeResult, { ok: true }>,
   previous: CodeFormState
 ): CodeFormState {
-  const entered = { contact: previous.contact, name: previous.name };
+  const { contact, name, messagesConsent } = previous;
+  const entered = {
+    contact,
+    name,
+    ...(messagesConsent ? { messagesConsent } : {}),
+  };
   switch (result.error) {
     case "invalid_input":
       return {

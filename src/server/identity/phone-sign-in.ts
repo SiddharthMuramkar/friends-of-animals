@@ -202,11 +202,11 @@ export async function verifyPhoneCode(
         data.code
       );
       if (check !== "ok") return { check, created: false };
-      const created = await createAccount(
-        { db: tx, clock: ctx.clock },
+      const account = await createAccount(
+        { ...ctx, db: tx },
         { name: accountName, phone: storedPhone(ctx, data.phone) }
       );
-      return { check, created };
+      return { check, created: account.created };
     });
     if (outcome.check !== "ok") return { ok: false, error: outcome.check };
     isNewAccount = outcome.created;
