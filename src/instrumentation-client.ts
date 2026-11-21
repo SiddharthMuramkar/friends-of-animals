@@ -10,7 +10,7 @@ try {
   startBrowserErrorTracking({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     target: window,
-    loadSdk: () => import("@sentry/nextjs"),
+    loadSdk: () => import("./lib/observability/sentry-browser"),
   });
 } catch {
   // Monitoring must never stop the page from starting.
