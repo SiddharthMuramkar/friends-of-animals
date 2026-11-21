@@ -19,6 +19,11 @@ export type EmailCodeFormState = {
   step: "email" | "code";
   email: string;
   name: string;
+  /**
+   * Sign-up only: the messages consent document whose box was ticked, so
+   * the code step can send it on. Absent when the box wasn't ticked.
+   */
+  messagesConsent?: string;
   /** A code was just sent to `email`. */
   sent?: boolean;
   /** A problem for the whole form. */
@@ -42,7 +47,7 @@ export type EmailCodeFormView = EmailCodeFormState & {
 
 export const START_VIEW: EmailCodeFormView = { ...START, text: { errors: {} } };
 
-type Entered = { email: string; name: string };
+type Entered = { email: string; name: string; messagesConsent?: string };
 
 function fieldErrors(fields: string[]): EmailCodeFormState["fieldErrors"] {
   const known: FormField[] = ["email", "name", "code"];
@@ -92,7 +97,12 @@ export function afterVerify(
   result: Exclude<VerifyEmailCodeResult, { ok: true }>,
   previous: EmailCodeFormState
 ): EmailCodeFormState {
-  const entered = { email: previous.email, name: previous.name };
+  const { email, name, messagesConsent } = previous;
+  const entered = {
+    email,
+    name,
+    ...(messagesConsent ? { messagesConsent } : {}),
+  };
   switch (result.error) {
     case "invalid_input":
       return {

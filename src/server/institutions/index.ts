@@ -1,0 +1,58 @@
+// The institutions module (#73): registration by an institution's
+// authorised person, and FOA staff's verification, which gives the
+// Institution ID. Its use cases join `as(actor)` through
+// `institutionUseCases`.
+
+import type { UseCaseContext } from "../use-cases";
+import { decideInstitution, type DecideInstitutionInput } from "./decide";
+import type { RegisterInstitutionInput } from "./domain/registration";
+import {
+  getInstitutionForReview,
+  getMyInstitution,
+  listInstitutions,
+  type ListInstitutionsInput,
+} from "./queries";
+import { registerInstitution } from "./register";
+
+export type {
+  GetInstitutionForReviewResult,
+  GetMyInstitutionResult,
+  InstitutionDetails,
+  InstitutionForReview,
+  InstitutionSummary,
+  ListInstitutionsInput,
+  ListInstitutionsResult,
+} from "./queries";
+export type { RegisterInstitutionResult } from "./register";
+export type { DecideInstitutionInput, DecideInstitutionResult } from "./decide";
+export type {
+  InstitutionType,
+  RegisterInstitutionInput,
+} from "./domain/registration";
+export {
+  INSTITUTION_TYPES,
+  MAX_EXPECTED_PARTICIPANTS,
+} from "./domain/registration";
+export type {
+  InstitutionDecision,
+  InstitutionOutcome,
+  InstitutionStatus,
+} from "./domain/status";
+export {
+  allowedDecisions,
+  DECISION_REASON_MAX_LENGTH,
+  INSTITUTION_DECISIONS,
+  INSTITUTION_STATUSES,
+} from "./domain/status";
+
+export const institutionUseCases = (ctx: UseCaseContext) => ({
+  registerInstitution: (input: RegisterInstitutionInput) =>
+    registerInstitution(ctx, input),
+  getMyInstitution: () => getMyInstitution(ctx),
+  listInstitutions: (input: ListInstitutionsInput = {}) =>
+    listInstitutions(ctx, input),
+  getInstitutionForReview: (input: { institutionId: string }) =>
+    getInstitutionForReview(ctx, input),
+  decideInstitution: (input: DecideInstitutionInput) =>
+    decideInstitution(ctx, input),
+});

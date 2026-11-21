@@ -29,6 +29,55 @@
       "when": 1795244914302,
       "tag": "0003_61_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795246111359,
+      "tag": "0004_59_roles_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795246112169,
+      "tag": "0005_59_audit_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795246247702,
+      "tag": "0006_64_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795246248505,
+      "tag": "0007_64_consent_document_immutable",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795246730543,
+      "tag": "0008_58_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795246843925,
+      "tag": "0009_62_runtime_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795247103119,
+      "tag": "0010_73_institutions",
+      "breakpoints": true
     }
   ]
 }
