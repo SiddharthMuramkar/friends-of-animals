@@ -1,3 +1,7 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { readOffsiteSettings, readRestoreSettings } from "./config";
@@ -109,6 +113,34 @@ describe("readOffsiteSettings", () => {
       ],
     });
     expect(JSON.stringify(settings)).not.toContain("s3cr3t");
+  });
+
+  it("reads a variable from the file <NAME>_FILE names, as Compose secrets arrive", () => {
+    const dir = mkdtempSync(join(tmpdir(), "offsite-secrets-"));
+    const file = join(dir, "b2_application_key");
+    writeFileSync(file, "b2-key-from-file\n");
+    const { B2_APPLICATION_KEY: _, ...rest } = PRODUCTION;
+
+    expect(
+      readOffsiteSettings({ ...rest, B2_APPLICATION_KEY_FILE: file })
+    ).toMatchObject({
+      kind: "ready",
+      b2: { secretAccessKey: "b2-key-from-file" },
+    });
+  });
+
+  it("names a <NAME>_FILE it can't read", () => {
+    const { B2_APPLICATION_KEY: _, ...rest } = PRODUCTION;
+
+    expect(
+      readOffsiteSettings({
+        ...rest,
+        B2_APPLICATION_KEY_FILE: "/run/secrets/no-such-file",
+      })
+    ).toEqual({
+      kind: "invalid",
+      problems: ["B2_APPLICATION_KEY_FILE names a file that can't be read"],
+    });
   });
 
   it("refuses a B2 bucket that is also a source", () => {
