@@ -90,3 +90,16 @@ _Avoid_: Unit tests, integration tests
 A few end-to-end journeys per milestone, run in a browser against a pull
 request's preview deployment.
 _Avoid_: E2E suite, UI tests
+
+## Taking part
+
+**Individual route**:
+How an adult takes part in a competition on their own: they register and pay
+for themselves, instead of being entered by their school.
+_Avoid_: Route B, self-registration, direct entry
+
+**Participant ID**:
+The code that names one person who takes part in competitions, such as
+FOA-P-277K3M9Q. It identifies them to FOA and is never a way to sign in.
+_Avoid_: Participant number, registration number (that names one
+registration)
