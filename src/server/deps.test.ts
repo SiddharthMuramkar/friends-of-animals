@@ -13,23 +13,23 @@ describe("emailSenderFor", () => {
   it.each(["local", "preview", "staging"] as const)(
     "captures email on %s instead of sending it",
     async (appEnv) => {
-      const db = await createTestDb();
-      const sender = emailSenderFor(appEnv, { db, clock: new FakeClock() });
+      const deps = { db: await createTestDb(), clock: new FakeClock() };
+      const sender = emailSenderFor(appEnv, deps);
 
       await sender.send(message);
 
-      const inbox = await readCapturedEmail(db, { to: message.to });
+      const inbox = await readCapturedEmail(deps, { to: message.to });
       expect(inbox.map((received) => received.text)).toEqual(["123456"]);
     }
   );
 
   it("never captures in production, and refuses while SES is not wired", async () => {
-    const db = await createTestDb();
-    const sender = emailSenderFor("production", { db, clock: new FakeClock() });
+    const deps = { db: await createTestDb(), clock: new FakeClock() };
+    const sender = emailSenderFor("production", deps);
 
     await expect(sender.send(message)).rejects.toBeInstanceOf(
       EmailNotConfiguredError
     );
-    expect(await readCapturedEmail(db, { to: message.to })).toEqual([]);
+    expect(await readCapturedEmail(deps, { to: message.to })).toEqual([]);
   });
 });

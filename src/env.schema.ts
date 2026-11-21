@@ -69,6 +69,32 @@ const previewDatabaseVariables = {
   VERCEL_GIT_COMMIT_REF: z.string().optional(),
 };
 
+/** A random secret: 32 characters or more. */
+function secret() {
+  return z
+    .string()
+    .min(32, {
+      error: "must be at least 32 characters (use openssl rand -hex 32)",
+    })
+    .optional();
+}
+
+/** Secrets the app server reads. */
+const secretVariables = {
+  /**
+   * Signs session cookies and keys the sign-in rate limits (Better Auth).
+   * Required on staging and production; a local run or a preview without
+   * it uses a fixed development secret (src/server/deps.ts).
+   */
+  BETTER_AUTH_SECRET: secret(),
+  /**
+   * Lets the Seam 2 journeys read the capture mailbox outside production
+   * (sent as the x-capture-mailbox-token header). Without it the mailbox
+   * route answers 404.
+   */
+  CAPTURE_MAILBOX_TOKEN: secret(),
+};
+
 /**
  * Error tracking (#66). Read by the server at runtime; the browser gets
  * NEXT_PUBLIC_SENTRY_DSN baked in at build time.
@@ -191,6 +217,32 @@ function requirePreviewDatabase(
   }
 }
 
+/** Staging and production sign sessions with their own secret. */
+function requireAuthSecret(
+  values: {
+    APP_ENV?: AppEnv | undefined;
+    BETTER_AUTH_SECRET?: string | undefined;
+  },
+  ctx: z.RefinementCtx<{
+    APP_ENV?: AppEnv | undefined;
+    BETTER_AUTH_SECRET?: string | undefined;
+  }>
+) {
+  if (
+    (values.APP_ENV === "staging" || values.APP_ENV === "production") &&
+    values.BETTER_AUTH_SECRET === undefined
+  ) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["BETTER_AUTH_SECRET"],
+      input: values.BETTER_AUTH_SECRET,
+      message:
+        `BETTER_AUTH_SECRET is not set. APP_ENV=${values.APP_ENV} needs its ` +
+        "own random secret of 32 characters or more (openssl rand -hex 32).",
+    });
+  }
+}
+
 /** Production reports its errors, so it can't start without a DSN. */
 function requireSentryInProduction(
   values: { APP_ENV?: AppEnv | undefined; NEXT_PUBLIC_SENTRY_DSN?: string },
@@ -268,11 +320,13 @@ export const envSchema = z
       "DATABASE_URL is not set. Point it at a Postgres database, e.g. " +
         "postgres://foa:foa@localhost:5432/foa (see .env.example)."
     ),
+    ...secretVariables,
     ...errorTrackingVariables,
   })
   .superRefine(requireAppEnvOnVercel, always)
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
+  .superRefine(requireAuthSecret, always)
   .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 
