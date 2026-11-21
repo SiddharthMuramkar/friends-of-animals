@@ -11,7 +11,7 @@ export const BOOTSTRAP_USAGE =
 const DEFAULT_NAME = "FOA super admin";
 
 export type BootstrapArgs =
-  | { ok: true; email: string; name: string }
+  | { ok: true; email: string; name: string; target?: string }
   | { ok: false; error: string };
 
 export function parseBootstrapArgs(argv: readonly string[]): BootstrapArgs {
@@ -41,4 +41,16 @@ export function parseBootstrapArgs(argv: readonly string[]): BootstrapArgs {
     email: email.data,
     name: values.name?.trim() || DEFAULT_NAME,
   };
+}
+
+export type BootstrapTarget =
+  | { ok: true; host: string; database: string }
+  | { ok: false; error: string };
+
+/** Not built yet. */
+export function bootstrapTarget(
+  _url: string,
+  _confirmed: string | undefined
+): BootstrapTarget {
+  return { ok: true, host: "", database: "" };
 }
