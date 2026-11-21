@@ -113,6 +113,12 @@ describe("passkeys", () => {
     expect(await h.as(actor).mySecondFactors()).toMatchObject({
       verifiedAt: null,
     });
+    expect(
+      await h.db
+        .select({ after: auditLog.after })
+        .from(auditLog)
+        .where(eq(auditLog.action, "second_factor.failed"))
+    ).toEqual([{ after: { method: "passkey", reason: "not_verified" } }]);
   });
 
   it("refuses to register a passkey that doesn't verify its user", async () => {

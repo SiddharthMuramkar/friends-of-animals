@@ -48,8 +48,9 @@ export default async function Page({
         title={t("title")}
         lead={t("lead")}
       />
-      {/* The session is read per request, so it streams in behind this
-          boundary while the heading above is prerendered. */}
+      {/* The whole page renders per request (app/account/layout.tsx, for
+          the CSP nonce); the session read streams in behind this
+          boundary, after the heading above. */}
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
