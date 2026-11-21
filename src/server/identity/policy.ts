@@ -1,42 +1,22 @@
-// can(actor, action): the one place that decides who may run a use case.
-// Every identity use case calls `authorize` first. It denies by default:
-// an action without a rule here is refused. #59 replaces the inside with
-// scoped roles; the call sites stay.
+// Who may run the identity use cases: their rules in the platform policy
+// (src/server/access/policies.ts). Every identity use case awaits
+// `authorize` from src/server/access/can.ts first, like every other use
+// case, and an action without a rule is refused.
 
-import type { Actor } from "../actor";
-import { DomainError } from "../errors";
+import { signedIn, signedOut, type Policy } from "../access/domain/policy";
 
-export type IdentityAction =
-  | "requestEmailCode"
-  | "verifyEmailCode"
-  | "getAccount"
-  | "listSessions"
-  | "signOutSession"
-  | "signOutEverywhere";
+export const IDENTITY_POLICY = {
+  // Signing up and signing in are for people who aren't signed in.
+  requestEmailCode: signedOut,
+  verifyEmailCode: signedOut,
+  // A signed-in user, for their own account and sessions only. Most of
+  // these take no id; signOutSession takes a session id, and its query
+  // matches only the actor's own sessions (session.user_id), so another
+  // user's session is "not found".
+  getAccount: signedIn,
+  listSessions: signedIn,
+  signOutSession: signedIn,
+  signOutEverywhere: signedIn,
+} satisfies Policy<string>;
 
-export function can(actor: Actor, action: IdentityAction): boolean {
-  switch (action) {
-    case "requestEmailCode":
-    case "verifyEmailCode":
-      // Signing up and signing in are for people who aren't signed in.
-      return actor.kind === "visitor";
-    case "getAccount":
-    case "listSessions":
-    case "signOutSession":
-    case "signOutEverywhere":
-      // A signed-in user, for their own account and sessions only. Most of
-      // these take no id; signOutSession takes a session id, and its query
-      // matches only the actor's own sessions (session.user_id), so
-      // another user's session is "not found".
-      return actor.kind === "user";
-    default:
-      // Deny by default: an action without a rule is no one's.
-      return false;
-  }
-}
-
-export function authorize(actor: Actor, action: IdentityAction): void {
-  if (!can(actor, action)) {
-    throw new DomainError("forbidden", `${actor.kind} may not ${action}`);
-  }
-}
+export type IdentityAction = keyof typeof IDENTITY_POLICY;
