@@ -10,3 +10,12 @@ export {
   type OffsiteRunReport,
   type OffsiteTotals,
 } from "./run-copy";
+export {
+  restoreOffsiteFile,
+  type RestoreDeps,
+  type RestoreResult,
+} from "./restore";
+export {
+  OffsiteCopyIncompleteError,
+  OffsiteMassDeletionWarning,
+} from "./errors";
