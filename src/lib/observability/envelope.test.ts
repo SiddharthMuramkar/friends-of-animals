@@ -250,7 +250,7 @@ describe("tunnelEnvelope", () => {
   });
 
   it("answers a 1 MiB envelope of worst-case strings in well under a second", () => {
-    // 120 strings, each of which made an unbounded regex rescan the rest
+    // 126 strings, each of which made an unbounded regex rescan the rest
     // of it from every position, and each under the scrubber's
     // 8192-character cut, so the patterns run over all of it. Duplicate
     // keys weigh most: the cut already holds their old regex to a few
@@ -261,6 +261,8 @@ describe("tunnelEnvelope", () => {
       ...Array<string>(6).fill("9".repeat(8000)),
       ...Array<string>(6).fill("(/".repeat(4000)),
       ...Array<string>(6).fill("http://".repeat(1150)),
+      ...Array<string>(3).fill(': "a'.repeat(2000)), // quoted values
+      ...Array<string>(3).fill("a.".repeat(4000)), // URL schemes, no ://
     ];
     const extra = Object.fromEntries(
       worstCase.map((text, i) => [`s${i}`, text])

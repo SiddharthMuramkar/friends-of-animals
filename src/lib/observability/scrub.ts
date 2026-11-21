@@ -149,6 +149,13 @@ const INDIAN_MOBILE =
 const ABSOLUTE_URL = /\bhttps?:\/\/[^\s?#"'<>]*(?:[?#][^\s"'<>]*)?/g;
 
 /**
+ * The user and password in a URL of any scheme (`postgres://user:pass@`),
+ * the scheme kept as the first group. They run to the last `@` before the
+ * host ends, since a password may hold an unescaped one.
+ */
+const URL_CREDENTIALS = /\b([a-z][a-z0-9+.-]{0,31}:\/\/)[^\s/?#"'<>]{1,256}@/gi;
+
+/**
  * A path that starts a word (after the start, a space, a quote, `(` or
  * `=`, which the match includes), with its query string and fragment.
  */
@@ -190,8 +197,9 @@ const DATABASE_VALUES: readonly [RegExp, string | Replacer][] = [
 ];
 
 /**
- * Hides the values database errors repeat, emails, Indian mobile numbers,
- * and the query strings and fragments of URLs and paths in a piece of text.
+ * Hides the values database errors repeat, the users and passwords in
+ * URLs, emails, Indian mobile numbers, and the query strings and fragments
+ * of URLs and paths in a piece of text.
  */
 export function redactText(text: string): string {
   const withoutValues = DATABASE_VALUES.reduce(
@@ -202,7 +210,9 @@ export function redactText(text: string): string {
         : redacted.replace(pattern, replacement),
     truncateText(text)
   );
+  // Credentials first: EMAIL would take `pass@host.tld` and leave the user.
   return withoutValues
+    .replace(URL_CREDENTIALS, "$1[redacted]@")
     .replace(ABSOLUTE_URL, stripQuery)
     .replace(PATH, stripQuery)
     .replace(EMAIL, "[email]")
