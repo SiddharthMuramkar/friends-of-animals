@@ -68,7 +68,12 @@ if [ "$1" = exec ]; then
 fi
 exit "\${FAKE_DOCKER_EXIT:-0}"`
   );
-  writeScript(join(bin, "curl"), `echo '{"state":"closed"}'`);
+  // It reads its config (the token header) from stdin, as curl does; left
+  // unread, the sweeper's pipe could fail and the PR read as unknown.
+  writeScript(
+    join(bin, "curl"),
+    `cat >/dev/null\necho '{"state":"closed"}'`
+  );
   const read = (name: string) =>
     existsSync(join(dir, name)) ? readFileSync(join(dir, name), "utf8") : "";
   return {
