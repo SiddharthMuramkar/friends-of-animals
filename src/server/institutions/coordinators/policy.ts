@@ -16,6 +16,14 @@ export const COORDINATORS_POLICY = {
   // invitation: the institution's authorised person, at that institution.
   // Its coordinators can't; nor can the authorised person of another.
   "institution.coordinators.manage": role("institution_admin"),
+  // Acting for the institution as one of its people: what the
+  // institution's own use cases (competition registration, enrolment,
+  // #75) check, at the institution's scope. A coordinator of one
+  // institution holds it there and nowhere else.
+  "institution.coordinate": role(
+    "institution_coordinator",
+    "institution_admin"
+  ),
   // The link is the credential for reading what it invites to: anyone
   // holding it sees the institution's name and a masked address.
   "institution.invitation.view": anyOf(signedOut, signedIn),

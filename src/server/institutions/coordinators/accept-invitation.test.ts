@@ -29,12 +29,10 @@ function tokenSentTo(h: Harness, to: string): string {
 async function invited(h: Harness, to: string = TEACHER) {
   const seeded = await seedInstitution(h, { name: "Green Valley School" });
   const admin = await h.signIn(seeded.admin);
-  const result = await h
-    .as(admin)
-    .inviteCoordinator({
-      institutionId: seeded.institution.id,
-      identifier: to,
-    });
+  const result = await h.as(admin).inviteCoordinator({
+    institutionId: seeded.institution.id,
+    identifier: to,
+  });
   if (!result.ok) throw new Error(`Could not invite: ${result.error}`);
   await h.drain();
   return {
@@ -100,13 +98,11 @@ describe("acceptInvitation", () => {
     const h = await createHarness();
     const { institution: x, token } = await invited(h);
     const visitor = h.visitor();
-    await h
-      .as(visitor)
-      .requestEmailCode({
-        intent: "sign-up",
-        name: "Meena Iyer",
-        email: TEACHER,
-      });
+    await h.as(visitor).requestEmailCode({
+      intent: "sign-up",
+      name: "Meena Iyer",
+      email: TEACHER,
+    });
     await h.as(visitor).verifyEmailCode({
       intent: "sign-up",
       name: "Meena Iyer",

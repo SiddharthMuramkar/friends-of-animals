@@ -4,11 +4,17 @@
 // `as(actor)` through `coordinatorsUseCases`.
 
 import type { UseCaseContext } from "../../use-cases";
+import { acceptInvitation, viewInvitation } from "./accept-invitation";
 import {
   inviteCoordinator,
   type InviteCoordinatorInput,
 } from "./invite-coordinator";
 
+export type {
+  AcceptInvitationResult,
+  InvitationView,
+  ViewInvitationResult,
+} from "./accept-invitation";
 export type {
   InviteCoordinatorInput,
   InviteCoordinatorResult,
@@ -17,4 +23,6 @@ export type {
 export const coordinatorsUseCases = (ctx: UseCaseContext) => ({
   inviteCoordinator: (input: InviteCoordinatorInput) =>
     inviteCoordinator(ctx, input),
+  viewInvitation: (input: { token: string }) => viewInvitation(ctx, input),
+  acceptInvitation: (input: { token: string }) => acceptInvitation(ctx, input),
 });
