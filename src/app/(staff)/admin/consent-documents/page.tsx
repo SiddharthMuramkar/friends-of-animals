@@ -3,6 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import {
   LegalSectionsText,
   LegalShortList,
@@ -49,7 +50,7 @@ export default async function Page({
         title={t("title")}
         lead={t("lead")}
       />
-      {/* The whole page renders per request (../layout.tsx); who is
+      {/* The staff layout renders this page per request. Who is
           asking, and the documents, stream in behind this boundary after
           the heading. */}
       <Suspense
@@ -101,7 +102,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
     getTranslations("consentAdmin.form"),
     getTranslations("common.callout"),
     getFormatter(),
-    versionsFor(actor),
+    orSecondFactor(() => versionsFor(actor), APP_ROUTES.adminConsentDocuments),
     searchParams,
   ]);
 

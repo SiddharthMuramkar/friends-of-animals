@@ -33,3 +33,18 @@ export const SEED_ACCOUNTS = {
     },
   ],
 } as const;
+
+// Dedicated publishers keep the consent journeys from sharing a one-use
+// staff code with the roles and second-factor journeys.
+export const SEED_CONSENT_PUBLISHERS = {
+  desktop: {
+    name: "Consent Staff Admin",
+    email: "consent-publisher-desktop@example.test",
+    role: "staff_admin",
+  },
+  mobile: {
+    name: "Consent Super Admin",
+    email: "consent-publisher-mobile@example.test",
+    role: "super_admin",
+  },
+} as const;

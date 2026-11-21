@@ -1,0 +1,117 @@
+{
+  "security": {
+    "account": {
+      "meta": {
+        "title": "Sign-in security",
+        "description": "Add a second step to signing in to Friends of Animals."
+      },
+      "eyebrow": "Your account",
+      "title": "Sign-in security",
+      "lead": "Add a second step to signing in: a code from an authenticator app, or a passkey on your device.",
+      "loading": "Loading your sign-in security…",
+      "staffNeedsFactor": "Your staff role needs a second step. Add an authenticator app or a passkey to open staff pages.",
+      "staffNeedsVerify": "Enter your second step to open staff pages.",
+      "verifyNow": "Enter it now",
+      "listTitle": "Your second steps",
+      "none": "You haven't added a second step yet.",
+      "kind": {
+        "totp": "Authenticator app",
+        "passkey": "Passkey"
+      },
+      "addedOn": "Added {date}",
+      "remove": "Remove",
+      "removeLabel": "Remove {label}, added {date}",
+      "removing": "Removing…",
+      "removed": "Removed. It no longer works for signing in.",
+      "added": "Added. You'll use it to confirm it's you.",
+      "notFound": "That one was already removed.",
+      "continue": "Continue to the page you were on"
+    },
+    "totp": {
+      "title": "Add an authenticator app",
+      "lead": "Use an app such as Google Authenticator, Microsoft Authenticator or 1Password on your phone.",
+      "label": {
+        "label": "Name it",
+        "hint": "So you can tell your devices apart, like “Work phone”.",
+        "error": "Give it a name of up to 60 characters."
+      },
+      "start": "Set up an app",
+      "starting": "Setting up…",
+      "scan": "Scan this code with your app.",
+      "qrLabel": "QR code for adding Friends of Animals to an authenticator app",
+      "manual": "Can't scan it? Type this setup key into the app instead:",
+      "keyLabel": "Setup key",
+      "code": {
+        "label": "6-digit code",
+        "hint": "Enter the code your app shows now.",
+        "error": "Enter the 6 digits your app shows."
+      },
+      "confirm": "Confirm",
+      "confirming": "Checking…",
+      "cancel": "Start again",
+      "wrongCode": "That code didn't match. Check the app shows Friends of Animals, then try the code it shows now.",
+      "expired": "That setup has ended. Start again."
+    },
+    "passkey": {
+      "title": "Add a passkey",
+      "lead": "Use your fingerprint, face or screen lock on this device. Passkeys here must check it's you, not just that someone is there.",
+      "label": {
+        "label": "Name it",
+        "hint": "Like “Work laptop”.",
+        "error": "Give it a name of up to 60 characters."
+      },
+      "start": "Add a passkey",
+      "starting": "Waiting for your device…",
+      "unsupported": "This browser can't make passkeys. Use an authenticator app instead.",
+      "failed": "Your device didn't make a passkey. Try again, or use an authenticator app.",
+      "notVerified": "Your device didn't check it's you with a PIN, fingerprint or face. Passkeys here need that.",
+      "alreadyRegistered": "That passkey is already added."
+    },
+    "verify": {
+      "meta": {
+        "title": "Enter your second step",
+        "description": "Confirm it's you with your authenticator app or passkey."
+      },
+      "eyebrow": "Signing in",
+      "title": "Enter your second step",
+      "lead": "Staff pages need a code from your authenticator app, or your passkey, once each time you sign in.",
+      "loading": "Loading…"
+    },
+    "stepUp": {
+      "meta": {
+        "title": "Confirm it's you",
+        "description": "Confirm it's you before a sensitive change."
+      },
+      "eyebrow": "Before you go on",
+      "title": "Confirm it's you",
+      "lead": "This change needs a fresh second step. It then counts for {minutes} minutes.",
+      "loading": "Loading…"
+    },
+    "form": {
+      "code": {
+        "label": "6-digit code",
+        "hint": "From your authenticator app.",
+        "error": "Enter the 6 digits your app shows."
+      },
+      "verify": "Continue",
+      "verifying": "Checking…",
+      "usePasskey": "Use your passkey",
+      "usingPasskey": "Waiting for your device…",
+      "or": "Or",
+      "noFactor": "You haven't added a second step yet.",
+      "addOne": "Add one now",
+      "alerts": {
+        "wrong_code": "That code didn't match. Try the code your app shows now.",
+        "code_used": "That code was just used. Wait for your app to show the next one.",
+        "locked": "Too many wrong tries. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+        "not_enrolled": "You haven't added an authenticator app. Use your passkey instead.",
+        "not_verified": "Your passkey didn't confirm it's you. Try again.",
+        "challenge_expired": "That took too long. Try again.",
+        "passkey_failed": "Your device didn't use the passkey. Try again, or enter a code."
+      }
+    },
+    "gate": {
+      "checking": "Checking your access…"
+    }
+  }
+}

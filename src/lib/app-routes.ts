@@ -6,6 +6,9 @@
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  accountSecurity: "/account/security",
+  secondFactor: "/auth/second-factor",
+  stepUp: "/auth/step-up",
   accountConsents: "/account/consents",
   adminConsentDocuments: "/admin/consent-documents",
 } as const;
@@ -17,7 +20,7 @@ export const APP_ROUTES = {
  * waits for the request (src/app/account/layout.tsx), so it has no static
  * shell.
  */
-export const SIGNED_IN_PREFIXES = ["/account", "/admin"] as const;
+export const SIGNED_IN_PREFIXES = ["/account", "/admin", "/auth"] as const;
 
 export function isSignedInPath(pathname: string): boolean {
   return isUnderPrefix(pathname, SIGNED_IN_PREFIXES);

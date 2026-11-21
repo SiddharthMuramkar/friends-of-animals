@@ -113,6 +113,38 @@ describe("publishConsentDocument and listConsentDocumentVersions: who may", () =
     source: SOURCE_V1,
   } as const;
 
+  it("requires staff to verify this session before editing or listing consent documents", async () => {
+    const h = await createHarness();
+    const admin = await h.seed.member();
+    await h.seed.grant(admin, {
+      role: "staff_admin",
+      scope: { type: "global" },
+    });
+    const actor = await h.signIn(admin, undefined, { secondFactor: false });
+    const consent = h.as(actor);
+
+    await expect(consent.publishConsentDocument(draft)).rejects.toMatchObject({
+      code: "enrolment_required",
+    });
+    await h.seed.authenticator(admin);
+    await expect(consent.publishConsentDocument(draft)).rejects.toMatchObject({
+      code: "second_factor_required",
+    });
+    await expect(
+      consent.previewConsentDocument({ source: draft.source })
+    ).rejects.toMatchObject({ code: "second_factor_required" });
+    await expect(
+      consent.listConsentDocumentVersions({ purpose: draft.purpose })
+    ).rejects.toMatchObject({ code: "second_factor_required" });
+    expect(await rowCounts(h)).toEqual({ documents: 0, auditEntries: 0 });
+
+    await h.passSecondFactor(actor);
+    expect(await consent.publishConsentDocument(draft)).toMatchObject({
+      ok: true,
+      version: 1,
+    });
+  });
+
   it("refuses to publish or list versions for a member, a visitor and a holder of a scoped role, and writes nothing", async () => {
     const h = await createHarness();
     const member = await h.signIn(await h.seed.member());

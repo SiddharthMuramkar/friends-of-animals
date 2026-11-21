@@ -6,7 +6,7 @@
 import { and, desc, eq, lt, or, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../access/can";
+import { authorize, type PolicyContext } from "../access/can";
 import type { Role } from "../access/domain/roles";
 import type { Actor } from "../actor";
 import type { AppDb } from "../db/app-db";
@@ -97,7 +97,7 @@ async function findEntries(db: AppDb, filters: Filters) {
 }
 
 export async function searchAuditLog(
-  ctx: { db: AppDb; actor: Actor },
+  ctx: PolicyContext,
   input: SearchAuditLogInput
 ): Promise<SearchAuditLogResult> {
   await authorize(ctx, "audit.search");
