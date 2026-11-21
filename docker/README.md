@@ -53,6 +53,9 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_nonprod_staging_migrator_password` | 999, 0400       | `staging_migrator`                    |
 | `/etc/foa/secrets/pg_nonprod_staging_app_password`      | 999, 0400       | `staging_app`                         |
 | `/etc/foa/secrets/pgbouncer_auth_password`              | 999, 0400       | `pgbouncer_auth` on both servers      |
+| `/etc/foa/secrets/pg_prod_foa_worker_password`          | 1000, 0400      | `foa_worker` (worker-prod)            |
+| `/etc/foa/secrets/pg_nonprod_staging_worker_password`   | 1000, 0400      | `staging_worker` (worker-staging)     |
+| `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
 | `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
@@ -60,7 +63,9 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/lego/`                                        | root, 0700      | ACME account key, certificate, key    |
 | `/etc/foa/pgbouncer-tls/`                               | root:6432, 0750 | Installed cert (0444) and key (0400)  |
 
-999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours.
+999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours;
+1000 is `node` in the worker image. The worker secrets come from
+`scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`.
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
@@ -190,6 +195,9 @@ Roles and databases (`postgres/bootstrap/`):
 | pg-nonprod | `staging_app`      | LOGIN; CONNECT on `foa_staging`; same DML-only defaults (`FOR ROLE staging_migrator`). pg_hba: `foa_staging` only                                                                                                                 |
 | pg-nonprod | `nonprod_migrator` | Previews. LOGIN CREATEDB; owns `foa_seed` and the previews it creates; CONNECT on `postgres`. No CONNECT on `foa_staging`, and pg_hba rejects it there                                                                            |
 | pg-nonprod | `nonprod_app`      | Previews. LOGIN; same DML-only defaults (`FOR ROLE nonprod_migrator`); kept out of `foa_staging` the same way                                                                                                                     |
+| pg-prod    | `foa_worker`       | worker-prod. LOGIN; member of `foa_app` (DML); owns schema `pgboss` in `foa`. `workers-prod.sql`                                                                                                                                  |
+| pg-nonprod | `staging_worker`   | worker-staging. LOGIN; member of `staging_app`; owns schema `pgboss` in `foa_staging`. pg_hba: `foa_staging` only. `workers-nonprod.sql`                                                                                          |
+| pg-nonprod | `nonprod_worker`   | worker-preview. LOGIN; member of `nonprod_app`; CONNECT on `postgres` (lists previews) and, through PUBLIC, on each preview. Never `foa_staging`. `workers-nonprod.sql`                                                           |
 | both       | `pgbouncer_auth`   | LOGIN NOINHERIT; CONNECT on `postgres`; EXECUTE `pgbouncer.get_auth`                                                                                                                                                              |
 | both       | `postgres`         | superuser: container socket, or TCP from 10.112.12.1 (SSH tunnel) only                                                                                                                                                            |
 
@@ -421,6 +429,112 @@ prints what it would drop. Unauthenticated GitHub API calls are limited to 60
 an hour; with many open previews, or if the repo goes private, put a read-only
 `GITHUB_TOKEN=...` in `/etc/foa/sweeper.env` (0600).
 
+## Workers
+
+`workers.yml` (Compose project `foa-workers`, issue #61) runs the background
+workers next to the database stack, on its `db` network (`foa-vps_db`, so
+start `compose.yml` first). Each runs `src/worker/main.ts` from the
+Dockerfile's `worker` target, drains its database's outbox every 5 s and
+connects to Postgres directly, never through PgBouncer: pg-boss holds
+sessions, which transaction pooling breaks. None publishes a port.
+
+| Service          | Database                       | Role             | Does                                 | Limits          |
+| ---------------- | ------------------------------ | ---------------- | ------------------------------------ | --------------- |
+| `worker-prod`    | pg-prod `foa`                  | `foa_worker`     | outbox relay, `SCHEDULES` on pg-boss | 1 CPU, 512 MB   |
+| `worker-staging` | pg-nonprod `foa_staging`       | `staging_worker` | outbox relay, `SCHEDULES` on pg-boss | 0.5 CPU, 384 MB |
+| `worker-preview` | pg-nonprod, every live preview | `nonprod_worker` | outbox relay only, 1 connection each | 0.5 CPU, 512 MB |
+
+- **Health:** after each healthy poll the worker touches
+  `/tmp/foa-worker-heartbeat` (a tmpfs; the root file system is read-only),
+  and the health check passes while it is under 120 s old. Single-database
+  workers stop touching it while their database fails; `worker-preview`
+  while it can't list the previews (one broken preview doesn't count). Each
+  poll also upserts the worker's row in `worker_heartbeat` in every database
+  it drains (worker, environment, last seen, version), which `/api/health`
+  can read (#66). `restart: unless-stopped` restarts a worker that exits;
+  Docker doesn't restart an unhealthy one, so watch `docker ps`.
+- **Logs:** one JSON object per line (`event`, `database`, counts), with
+  error classes and codes but never messages or addresses; json-file, 5 ×
+  20 MB per worker.
+- **Email:** staging and previews capture every message in their database's
+  mailbox; production refuses until SES exists (HR-12), so its deliveries
+  retry and end `failed`, visible to staff.
+- **Schedules:** `SCHEDULES` (`src/server/outbox/schedules.ts`) is registered
+  with pg-boss in schema `pgboss` (owned by the worker role) at every start;
+  a schedule removed from the code is unscheduled. Previews run none.
+
+### Preview databases: attach and detach
+
+`worker-preview` lists pg-nonprod's databases every 60 s from `postgres`
+and serves exactly those the sweeper would recognise: `foa_pr_<n>[_<fp>]`
+labelled `foa-preview pr=<n>`, or `foa_br_…` labelled `foa-preview
+branch=<ref>`. A new preview is attached at the next listing, with no
+manual step (its first deploy's migration creates and labels the database).
+When the sweeper drops a preview (`WITH (FORCE)` ends the worker's
+session), the next drain sees SQLSTATE 3D000 and the worker lets go at
+once; a database that just stops being listed is let go at the next
+listing. Each attach and detach is logged (`tenant.attached`,
+`tenant.detached`). The worker runs one code version for every preview:
+deliveries for handlers it doesn't have are left pending (`skipped`), and
+the preview drain route (`POST /api/preview/drain`) covers Seam 2 journeys
+meanwhile.
+
+### First start (owner, HR-07)
+
+```sh
+cd /srv/foa/docker
+docker exec foa-pg-prod psql -U postgres -c 'SELECT pg_reload_conf()'     # after git pull: pg_hba
+docker exec foa-pg-nonprod psql -U postgres -c 'SELECT pg_reload_conf()'
+scripts/worker-roles.sh               # roles + /etc/foa/secrets/*_worker_password
+WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
+  docker compose -f workers.yml up -d --build --wait
+docker compose -f workers.yml ps      # all three "healthy"
+```
+
+Then open a PR, sign up on its preview and check the welcome email in the
+preview's capture mailbox; after the PR closes and the hourly sweep runs,
+`docker compose -f workers.yml logs worker-preview` shows
+`tenant.detached` for its database.
+
+### Run, restart and read the logs
+
+Run from `/srv/foa/docker`. `WORKER_VERSION` is only recorded in the
+heartbeat rows; leave it out and they say `unknown`.
+
+| Worker           | Run (build and start)                                                                         | Restart                                                | Logs                                                              |
+| ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| `worker-prod`    | `docker compose -f workers.yml up -d --build --wait worker-prod`                              | `docker compose -f workers.yml restart worker-prod`    | `docker compose -f workers.yml logs -f --tail=200 worker-prod`    |
+| `worker-staging` | `docker compose -f workers.yml up -d --build --wait worker-staging`                           | `docker compose -f workers.yml restart worker-staging` | `docker compose -f workers.yml logs -f --tail=200 worker-staging` |
+| `worker-preview` | `docker compose -f <checkout>/docker/workers.yml up -d --build --wait worker-preview` (below) | `docker compose -f workers.yml restart worker-preview` | `docker compose -f workers.yml logs -f --tail=200 worker-preview` |
+
+- Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
+  its poll, stops pg-boss and closes its connections within 30 s).
+- Updating prod and staging: `git -C /srv/foa pull`, then the "Run" line;
+  only a changed image is recreated.
+- Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
+- Rotating a worker password: replace its file in `/etc/foa/secrets`, rerun
+  `scripts/worker-roles.sh`, restart that worker.
+- A local run needs none of this: `pnpm worker:dev` drains the local
+  database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
+  email, and restarts on code changes.
+
+### Redeploying `worker-preview` per milestone (HR-10)
+
+Previews run milestone branches (`M1`, `M2`, …) that add handlers before
+`main` has them, so from M1 on, rebuild **only** `worker-preview` from the
+milestone tip, in a separate checkout (never check out `M<k>` in
+`/srv/foa`, which prod and staging build from):
+
+```sh
+git clone --branch M<k> --depth 1 https://github.com/SiddharthMuramkar/friends-of-animals.git /srv/foa-m<k>
+WORKER_VERSION=$(git -C /srv/foa-m<k> rev-parse --short HEAD) \
+  docker compose -f /srv/foa-m<k>/docker/workers.yml up -d --build --wait worker-preview
+```
+
+It keeps the project name `foa-workers` and its own image
+(`foa-workers/worker-preview`), so prod and staging are untouched. Never
+`down` from that checkout: it would stop all three.
+
 ## Checks
 
 `scripts/smoke-test.sh` runs 31 client-side checks through
@@ -534,9 +648,9 @@ sends the same entries there. The store keeps 365 days.
    (`pg_stat_archiver.failed_count`), and a periodic `pgbackrest check`. The
    restore drill cannot see archiving that has stalled, because it can only
    replay the WAL that reached the repository.
-6. The future worker connects directly on the `db` network (pg_hba already
-   allows the app roles from 10.112.12.0/24); give it its own role if it
-   needs rights beyond `foa_app`.
+6. **Workers (HR-07):** apply the roles and start `workers.yml` (Workers,
+   "First start"), and settle the CPU and memory caps there for the shared
+   VPS.
 7. **One build per branch** (owner): Vercel → Project Settings → Build and
    Deployment → On-Demand Concurrent Builds → "Run up to one build per
    branch". The API refused the change for lack of permission. Meanwhile the

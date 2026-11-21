@@ -1,8 +1,9 @@
 // Which preview databases on pg-nonprod the shared preview worker serves.
-// Preview builds create `foa_pr_<n>` or `foa_br_<slug>_<hash>` and label it
-// with a database comment (scripts/preview-database.ts); the hourly sweeper
-// (docker/scripts/sweep-preview-dbs.sh) drops it once its PR closes or its
-// branch is gone. The worker serves exactly what the sweeper would recognise,
+// Preview builds create `foa_pr_<n>_<fp>` or `foa_br_<slug>_<hash>_<fp>`
+// (src/server/db/database-url.ts; `<fp>` is the migrations fingerprint) and
+// label it with a database comment (scripts/preview-database.ts); the hourly
+// sweeper (docker/scripts/sweep-preview-dbs.sh) drops it once its PR closes
+// or its branch is gone. The worker serves exactly what the sweeper would recognise,
 // with the same name and label rules, and stops when a database disappears.
 //
 // Pure, and loads under plain Node: no "server-only", no Next imports.
@@ -14,19 +15,32 @@ export type ListedDatabase = { datname: string; comment: string | null };
 const PREVIEW_NAME = /^foa_(pr|br)_[a-z0-9_]{1,56}$/;
 const PR_LABEL = /^foa-preview pr=([0-9]{1,9})$/;
 const BRANCH_LABEL = /^foa-preview branch=[A-Za-z0-9][A-Za-z0-9._/+@-]{0,200}$/;
+/** `_<fp>`: 8 hex characters of the migrations fingerprint. */
+const FINGERPRINT_SUFFIX = /^_[0-9a-f]{8}$/;
+
+/** `foa_pr_<n>`, or `foa_pr_<n>_<fp>` since names carry the fingerprint. */
+function isPrDatabase(datname: string, pr: string): boolean {
+  const base = `foa_pr_${pr}`;
+  return (
+    datname === base ||
+    (datname.startsWith(base) &&
+      FINGERPRINT_SUFFIX.test(datname.slice(base.length)))
+  );
+}
 
 function isServedPreview({ datname, comment }: ListedDatabase): boolean {
   if (comment === null || !PREVIEW_NAME.test(datname)) return false;
   const pr = PR_LABEL.exec(comment);
-  if (pr) return datname === `foa_pr_${pr[1]}`;
+  if (pr?.[1] !== undefined) return isPrDatabase(datname, pr[1]);
   return BRANCH_LABEL.test(comment) && datname.startsWith("foa_br_");
 }
 
 /**
- * The preview databases to serve, in name order: a `foa_pr_<n>` labelled
- * `foa-preview pr=<n>` (same n), or a `foa_br_…` labelled
- * `foa-preview branch=<ref>`. Anything else, including `foa_seed`,
- * `foa_staging`, `postgres` and the templates, is never served.
+ * The preview databases to serve, in name order: a `foa_pr_<n>` or
+ * `foa_pr_<n>_<fp>` labelled `foa-preview pr=<n>` (same n; a PR whose
+ * migrations changed has one per fingerprint until it closes), or a
+ * `foa_br_…` labelled `foa-preview branch=<ref>`. Anything else, including
+ * `foa_seed`, `foa_staging`, `postgres` and the templates, is never served.
  */
 export function previewDatabasesToServe(
   listed: readonly ListedDatabase[]

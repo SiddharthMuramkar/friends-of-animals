@@ -9,17 +9,18 @@
 import "server-only";
 
 import { env } from "@/env";
-import type { Env } from "@/env.schema";
 
 import { db } from "./db";
 import type { DbWithClock } from "./db/app-db";
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
-import { unconfiguredEmailSender, type EmailSender } from "./ports/email";
-import { captureEmailSender } from "./ports/email-capture";
+import type { EmailSender } from "./ports/email";
+import { emailSenderFor } from "./ports/email-sender-for";
 import type { ErrorReporter } from "./ports/errors";
 import { serverErrorReporter } from "./observability/server-reporter";
+
+export { emailSenderFor } from "./ports/email-sender-for";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -38,20 +39,6 @@ export interface Deps extends DbWithClock {
  */
 export const DEVELOPMENT_AUTH_SECRET =
   "foa-development-secret-not-for-staging-or-production";
-
-/**
- * Production sends real email (SES, once FOA's account exists; until then
- * it refuses). Every other environment captures, so no real email leaves
- * staging, previews or a local run, and codes stay readable.
- */
-export function emailSenderFor(
-  appEnv: Env["APP_ENV"],
-  deps: DbWithClock
-): EmailSender {
-  return appEnv === "production"
-    ? unconfiguredEmailSender
-    : captureEmailSender(deps);
-}
 
 let production: Deps | undefined;
 
