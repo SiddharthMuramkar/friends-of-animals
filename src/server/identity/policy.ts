@@ -5,7 +5,11 @@
 import type { Actor } from "../actor";
 import { DomainError } from "../errors";
 
-export type IdentityAction = "requestEmailCode" | "verifyEmailCode";
+export type IdentityAction =
+  | "requestEmailCode"
+  | "verifyEmailCode"
+  | "getAccount"
+  | "signOut";
 
 export function can(actor: Actor, action: IdentityAction): boolean {
   switch (action) {
@@ -13,6 +17,10 @@ export function can(actor: Actor, action: IdentityAction): boolean {
     case "verifyEmailCode":
       // Signing up and signing in are for people who aren't signed in.
       return actor.kind === "visitor";
+    case "getAccount":
+    case "signOut":
+      // Their own account and session only: there is no id to name another.
+      return actor.kind === "user";
   }
 }
 

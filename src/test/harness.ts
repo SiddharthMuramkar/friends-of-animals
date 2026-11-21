@@ -46,9 +46,11 @@ export interface Harness {
   visitor(meta?: Partial<RequestMeta>): Actor;
   /**
    * Who the server sees on the browser's next request: resolved from its
-   * cookies the way `currentActor()` does it in production.
+   * cookies the way `currentActor()` does it in production. Pass `cookie`
+   * (a Cookie header saved earlier with `cookies.header()`) to ask about
+   * another browser.
    */
-  currentActor(meta?: Partial<RequestMeta>): Promise<Actor>;
+  currentActor(meta?: Partial<RequestMeta>, cookie?: string): Promise<Actor>;
   /**
    * Signs `user` in through the real email-code flow (from a fresh IP, so
    * it doesn't eat into a test's own limits) and returns the signed-in
@@ -96,8 +98,8 @@ export async function createHarness(
     deps,
     as: (actor) => app.as(actor),
     visitor: (overrides) => ({ kind: "visitor", meta: meta(overrides) }),
-    currentActor: (overrides) =>
-      resolveActor(deps, headersFor(meta(overrides), cookies.header())),
+    currentActor: (overrides, cookie = cookies.header()) =>
+      resolveActor(deps, headersFor(meta(overrides), cookie)),
     async signIn(user, overrides) {
       signIns += 1;
       const visitor = harness.visitor({
