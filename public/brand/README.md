@@ -16,8 +16,7 @@ The FOA logo is a **registered mark**. Use these files as they are. Don't recolo
 | `foa-logo-watermark.png` | 1024 × 590, transparent | Full-colour watermark for stamping onto artwork photos (`StampSettings.logoAssetId`). Use it on light or mid-tone areas, because the wordmark is black. |
 | `foa-logo-watermark-white.png` | 1024 × 590, transparent | All-white watermark for dark photos. |
 | `foa-logo-watermark-black.png` | 1024 × 590, transparent | All-black watermark. Suggested use: very light photos. |
-| `favicon.svg` | vector, square | Browser tab icon for modern browsers: the tiles alone on a transparent square, so tabs of any colour show around them. |
-| `favicon.ico` | 16, 32, 48 px | Browser tab icon fallback: the tiles alone, transparent. A copy sits at `/favicon.ico` because browsers and crawlers ask for that path. |
+| `favicon.ico` | 16, 24, 32, 48 px | Browser tab icon: the tiles alone, transparent around them, hinted to whole pixels at each size (see [Favicon hinting](#favicon-hinting)). A copy sits at `/favicon.ico`, which is the one the site links. |
 | `apple-touch-icon.png` | 180 × 180 | iOS / iPadOS home-screen icon: the tiles alone on white. |
 | `foa-social-1200x630.png` | 1200 × 630 | Open Graph / Twitter preview image (`og:image`), the full logo. |
 | `foa-logo-source.png` | 368 × 219 | The original screenshot that the master was traced from. Kept for reference. Don't use it on the site. |
@@ -65,6 +64,14 @@ The derivations live in `scripts/brand-logo.ts`, and `scripts/brand-logo.test.ts
 - `fullLogo`: the master, scaled only.
 - `tilesOnly`: the master without the wordmark, cropped to the tiles.
 - `singleColour`: tiles and wordmark in one colour, with the letters and paw cut out by an SVG mask.
+
+## Favicon hinting
+
+At 16–48 px the tile edges and gaps fall between pixels and blur, so `hintedTiles` in `scripts/brand-logo.ts` fits each size to whole pixels (`FAVICON_GRIDS`):
+
+- Each tile, with its letter, is moved and scaled onto a whole-pixel box: a few per cent, the way fonts are hinted at small sizes.
+- At 16 and 24 px the traced letters are 3–5 px tall and blur away, so F, O and A are placed pixel by pixel instead.
+- There's no SVG favicon: a vector can't be sharp at every size, and browsers would prefer it over the ICO.
 
 ## Uses FOA approved
 

@@ -13,7 +13,9 @@ import {
   type Artwork,
   type Canvas,
   canvasSvg,
+  FAVICON_GRIDS,
   fullLogo,
+  hintedTiles,
   parseMaster,
   singleColour,
   standaloneSvg,
@@ -112,11 +114,15 @@ for (const [name, fill] of Object.entries(SINGLE_COLOURS)) {
   );
 }
 
-// Favicon: the tiles alone (#17) on a transparent square; the wordmark is
-// unreadable at 16–48 px.
-write("/brand/favicon.svg", canvasSvg(tiles, square(512), SITE.name) + "\n");
+// Favicon: the tiles alone (#17) on a transparent square, hinted to whole
+// pixels at each size so the edges stay sharp; the wordmark is unreadable at
+// 16–48 px. It is a bitmap ICO, not an SVG, because a vector can't be sharp at
+// every size: browsers pick the frame for the screen's pixel density.
 const favicon = ico(
-  [16, 32, 48].map((size) => ({ size, png: renderPng(tiles, square(size)) }))
+  FAVICON_GRIDS.map((grid) => ({
+    size: grid.size,
+    png: renderPng(hintedTiles(master, grid), square(grid.size)),
+  }))
 );
 write("/brand/favicon.ico", favicon);
 write("/favicon.ico", favicon); // browsers and crawlers request /favicon.ico
