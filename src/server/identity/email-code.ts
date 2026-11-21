@@ -12,6 +12,7 @@ import { parseSetCookieHeader, toCookieOptions } from "better-auth/cookies";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { authorize } from "../access/can";
 import type { RequestMeta } from "../actor";
 import { user } from "../db/schema";
 import { invalidInput, type InvalidInput } from "../input";
@@ -19,7 +20,7 @@ import type { CookieJar } from "../ports/cookies";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { codeEmail } from "./code-email";
-import { authorize } from "./policy";
+import { createAccount } from "./create-account";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
 import { EMAIL_CODE } from "./settings";
@@ -77,7 +78,7 @@ export async function requestEmailCode(
   ctx: UseCaseContext,
   input: RequestEmailCodeInput
 ): Promise<RequestEmailCodeResult> {
-  authorize(ctx.actor, "requestEmailCode");
+  await authorize(ctx, "requestEmailCode");
   const meta = visitorMeta(ctx);
   const parsed = requestEmailCodeInput.safeParse({
     intent: "sign-in",
@@ -141,7 +142,7 @@ export async function verifyEmailCode(
   ctx: UseCaseContext,
   input: VerifyEmailCodeInput
 ): Promise<VerifyEmailCodeResult> {
-  authorize(ctx.actor, "verifyEmailCode");
+  await authorize(ctx, "verifyEmailCode");
   const meta = visitorMeta(ctx);
   const parsed = verifyEmailCodeInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
@@ -153,35 +154,38 @@ export async function verifyEmailCode(
     .from(user)
     .where(eq(user.email, data.email));
 
-  if (data.intent === "sign-in" && !existing) {
-    // Never create an account from the sign-in page. Better Auth checks the
-    // code first (a wrong guess counts) and only then reports that no user
-    // has the address, leaving a right code unused.
+  let isNewAccount = false;
+  if (!existing) {
+    // Better Auth checks the code first (a wrong guess counts) and only
+    // then reports that no user has the address, leaving a right code
+    // unused, so it still signs in below.
     try {
       await auth.api.checkVerificationOTP({
         body: { email: data.email, type: "sign-in", otp: data.code },
       });
+      // The account appeared meanwhile: sign in to it.
     } catch (error) {
-      if (isAPIError(error) && error.body?.code === "USER_NOT_FOUND") {
-        return { ok: false, error: "no_account" };
+      if (!isAPIError(error) || error.body?.code !== "USER_NOT_FOUND") {
+        return codeError(error);
       }
-      return codeError(error);
+      // Never create an account from the sign-in page.
+      if (data.intent === "sign-in") return { ok: false, error: "no_account" };
+      // The account and its welcome event, in one transaction.
+      isNewAccount = await createAccount(ctx, {
+        email: data.email,
+        name: data.name,
+      });
     }
-    // The account appeared meanwhile: sign in to it.
   }
 
   try {
     const { headers, response } = await auth.api.signInEmailOTP({
-      body: {
-        email: data.email,
-        otp: data.code,
-        ...(data.intent === "sign-up" ? { name: data.name } : {}),
-      },
+      body: { email: data.email, otp: data.code },
       headers: headersFor(meta),
       returnHeaders: true,
     });
     await storeCookies(ctx.cookies, headers);
-    return { ok: true, userId: response.user.id, isNewAccount: !existing };
+    return { ok: true, userId: response.user.id, isNewAccount };
   } catch (error) {
     return codeError(error);
   }

@@ -5,8 +5,8 @@
 
 import type { Grant } from "../access/domain/roles";
 import type { User } from "../db/schema";
+import { ensureVerifiedAccount } from "../identity/verified-account";
 import { ensureGrant } from "./access";
-import { ensureAccount } from "./identity";
 import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
 
@@ -40,7 +40,7 @@ export function seedFunctions(seeders: readonly Seeder[]) {
       details: { name?: string; email?: string } = {}
     ): Promise<User> {
       members += 1;
-      return ensureAccount(deps, {
+      return ensureVerifiedAccount(deps, {
         name:
           details.name ?? MEMBER_NAMES[(members - 1) % MEMBER_NAMES.length]!,
         email: details.email ?? `test-member-${members}@example.test`,

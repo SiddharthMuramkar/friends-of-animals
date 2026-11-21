@@ -1,15 +1,17 @@
 // The platform's policy: one rule per action, from every module. A module
-// with use cases keeps its rules next to them and adds one entry here.
-// Each rule names its roles; super admin is not a wildcard.
+// with use cases keeps its rules next to them and adds one argument here;
+// an action defined twice fails type-checking. Each rule names its roles;
+// super admin is not a wildcard.
 
 import { IDENTITY_POLICY } from "../identity/policy";
 import { SECOND_FACTOR_POLICY } from "../second-factor/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
+import { composePolicies } from "./domain/policy";
 
-export const POLICY = {
-  ...IDENTITY_POLICY,
-  ...ACCESS_POLICY,
-  ...SECOND_FACTOR_POLICY,
-};
+export const POLICY = composePolicies(
+  IDENTITY_POLICY,
+  ACCESS_POLICY,
+  SECOND_FACTOR_POLICY
+);
 
 export type Action = keyof typeof POLICY;

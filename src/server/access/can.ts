@@ -1,5 +1,6 @@
 // can(ctx, action, resource): the one place that decides who may run a use
-// case. Every use case awaits `authorize` first; it throws forbidden when
+// case, by the platform policy (./policies.ts) that every module's rules
+// join. Every use case awaits `authorize` first; it throws forbidden when
 // `can` refuses. A signed-in user's grants are read from the database on
 // every call, so a grant or revoke counts at once, even for a session that
 // was already open. Loads under plain Node (the bootstrap command):

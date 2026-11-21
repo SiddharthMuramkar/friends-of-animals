@@ -4,9 +4,9 @@
 
 import type { Grant } from "../access/domain/roles";
 import { userRole } from "../db/schema";
+import { ensureVerifiedAccount } from "../identity/verified-account";
 import { uuidv7 } from "../ids";
 import { SEED_ACCOUNTS } from "./accounts";
-import { ensureAccount } from "./identity";
 import { SEED_SCOPES } from "./scopes";
 import type { SeedDeps } from "./types";
 
@@ -70,7 +70,7 @@ export async function seedAccess(deps: SeedDeps): Promise<void> {
   for (const { account, grants } of SEED_GRANTS) {
     // By address, not by the fixed id: someone may have signed up with a
     // seeded address before the seed ran, and keeps their own id.
-    const { id } = await ensureAccount(deps, account);
+    const { id } = await ensureVerifiedAccount(deps, account);
     for (const grant of grants) await ensureGrant(deps, id, grant);
   }
 }

@@ -9,3 +9,4 @@ export * from "./mailbox";
 export * from "./access";
 export * from "./audit";
 export * from "./second-factor";
+export * from "./outbox";
