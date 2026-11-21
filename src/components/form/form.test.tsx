@@ -37,6 +37,35 @@ describe("<TextField>", () => {
     expect(html).toMatch(/id="email-error"[^>]*>.*Enter an email address/);
   });
 
+  it("keeps its hint and error when the caller adds a description", () => {
+    const html = renderToStaticMarkup(
+      <TextField
+        id="email"
+        name="email"
+        label="Email"
+        hint="We send a code"
+        error="Enter an email address"
+        aria-describedby="email-policy"
+      />
+    );
+    expect(html).toMatch(
+      /<input[^>]* aria-describedby="email-policy email-hint email-error"/
+    );
+  });
+
+  it("stays invalid while it shows an error, whatever the caller passes", () => {
+    const html = renderToStaticMarkup(
+      <TextField
+        id="email"
+        name="email"
+        label="Email"
+        error="Enter an email address"
+        aria-invalid={false}
+      />
+    );
+    expect(html).toMatch(/<input[^>]* aria-invalid="true"/);
+  });
+
   it("passes input attributes through", () => {
     const html = renderToStaticMarkup(
       <TextField
