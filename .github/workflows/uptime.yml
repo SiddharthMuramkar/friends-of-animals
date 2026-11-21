@@ -1,0 +1,28 @@
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+concurrency: uptime
+
+jobs:
+  uptime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check the public app
+        if: ${{ !cancelled() }}
+        run: curl -fsS --max-time 20 --retry 1 --retry-delay 30 --output /dev/null https://friendsofanimals.dev/api/health
+      - name: Check the database listener
+        if: ${{ !cancelled() }}
+        run: |
+          if ! nc -z -w5 db.friendsofanimals.dev 6432; then
+            sleep 30
+            nc -z -w5 db.friendsofanimals.dev 6432
+          fi
+      - name: Check the production worker
+        if: ${{ !cancelled() }}
+        run: curl -fsS --max-time 20 --retry 1 --retry-delay 30 --output /dev/null https://friendsofanimals.dev/api/health/worker

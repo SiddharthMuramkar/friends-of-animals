@@ -838,48 +838,23 @@ links into `/etc/pki/ca-trust`, which would dangle inside the container.
 
 ## Monitoring and alerts
 
-Uptime checks run at an outside provider (HR-23: provider, account and
-alert target are the owner's choice), so they see what users see, and they
-only call public URLs: nothing on the VPS needs to be reachable for them.
-Each check alerts on its own, so a stalled worker never pages as "the app
-is down". The app and worker checks call production,
-`https://friendsofanimals.dev`: Vercel has no staging environment
-([ADR 0001](../docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)).
+[GitHub Actions Uptime](../.github/workflows/uptime.yml) runs every five
+minutes. The owner can also run it from the Actions tab. The workflow checks
+the public app and worker over HTTPS and makes one TCP connection to the
+database listener without authenticating. Each named step retries once for
+a transient failure. A failed run appears in Actions and triggers the
+owner's configured GitHub Actions notifications.
 
-| Check  | Target                                      | Runs from                     | Alerts when                                                                                         | Alert goes to             | Silence and un-silence                                                                                                        |
-| ------ | ------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| App    | `GET` `/api/health`                         | Uptime provider, every minute | Not 200 on 2 checks in a row. 503 means the app can't query its database                            | Owner (HR-23)             | Pause the monitor (or open a maintenance window) in the provider; resume it after. A paused monitor never re-alerts by itself |
-| Pooler | TCP `db.friendsofanimals.dev:6432`          | Uptime provider, every minute | Connect fails on 2 checks in a row. TCP connect only, no login: probes must not fill CrowdSec's log | Owner (HR-23)             | Same as App. If CrowdSec ever bans the provider's addresses, add them to `crowdsec/foa-whitelist.yaml`                        |
-| Worker | `GET` `/api/health/worker`                  | Uptime provider, every minute | Not 200 on 2 checks in a row: 503 `stale` (newest heartbeat over 120 s old) or `missing` (none)     | Owner (HR-23)             | Same as App. Pause it while the workers are stopped on purpose, and until HR-07 first starts them                             |
-| Errors | Sentry projects for the app and the workers | Sentry (`SENTRY_DSN`, HR-22)  | A new issue, or a resolved one that comes back                                                      | Owner (Sentry alert rule) | In Sentry, Archive the issue (until it escalates, or for a time); Unarchive to hear about it again                            |
+| Check  | Target                            | Alerts when                                                          | Alert goes to                       | Silence and un-silence                                                  |
+| ------ | --------------------------------- | -------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------- |
+| App    | `/api/health`                     | The health check still fails after retry                             | Owner via Actions notifications     | Disable Uptime in Actions for planned maintenance, then enable it again |
+| Pooler | `db.friendsofanimals.dev:6432`    | TCP cannot connect on either attempt                                 | Owner via Actions notifications     | Same as App                                                             |
+| Worker | `/api/health/worker`              | The newest heartbeat is over 120 seconds old, missing, or unreadable | Owner via Actions notifications     | Same as App                                                             |
+| Errors | GlitchTip app and worker projects | An error matches the configured alert rule                           | Owner via error-tracking alert rule | Archive or unarchive the issue in the error tracker                     |
 
-`/api/health/worker` answers from the app's own database: each worker
-writes its `worker_heartbeat` row there after every poll (5 s), so the
-staging URL reports `worker-staging` and production's reports
-`worker-prod`. 200 is `{ "status": "ok", "worker": { "name", "ageSeconds" } }`;
-503 is `stale` (with the same `worker`) or `missing`. Previews are not
-monitored.
-
-**Forced failure** (HR-23, and per milestone on staging, HR-27), without
-touching production:
-
-1. Worker: `docker compose -f /srv/foa/docker/workers.yml stop worker-staging`.
-   After 120 s staging's `/api/health/worker` turns 503 `stale`, and two
-   failed checks later (about 4 minutes in all) the alert arrives;
-   `start worker-staging` clears it.
-2. App and pooler: add a throwaway monitor for `/api/health/does-not-exist`
-   and one for TCP `db.friendsofanimals.dev:6433` (closed). Both alert;
-   delete them after.
-3. Errors, with the workers' DSN set: start a throwaway staging worker
-   pointed at a port nothing listens on. It fails to start, reports that
-   to Sentry (`where` `worker.main`, `environment` `staging`) and exits 1;
-   the alert rule fires.
-
-   ```sh
-   docker compose -f /srv/foa/docker/workers.yml run --rm \
-     -e WORKER_DATABASE_URL=postgres://staging_worker@10.112.12.11:5999/foa_staging \
-     worker-staging
-   ```
+The worker writes its `worker_heartbeat` row after each poll. The health
+route returns HTTP 200 with `Cache-Control: no-store` while the heartbeat is
+fresh and HTTP 503 when it is stale, missing or the query fails.
 
 ## Logs
 
