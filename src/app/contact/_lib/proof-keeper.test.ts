@@ -96,6 +96,21 @@ describe("the island's proof, with the contact form's use case", () => {
     expect(await h.db.$count(contactMessage)).toBe(1);
   });
 
+  it("stores a message sent again at once after a send failed outright", async () => {
+    const h = await createHarness();
+    const island = islandOn(h, h.visitor());
+    // The first send never got an answer, so its proof may have been
+    // spent: the island starts the next one and the visitor presses Send
+    // again as soon as the alert shows.
+    await island.keeper.forSend();
+    island.keeper.afterSend(afterFailure(EMPTY));
+
+    const again = await island.send();
+
+    expect(again.ok).toBe(true);
+    expect(await h.db.$count(contactMessage)).toBe(1);
+  });
+
   it("stores a message from a form left open longer than its proof lasts", async () => {
     const h = await createHarness();
     const island = islandOn(h, h.visitor());
