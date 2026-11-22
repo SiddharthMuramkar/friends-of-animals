@@ -52,7 +52,11 @@ test("a coordinator sees the seeded registration's students and their status", a
   await expect(
     page.getByRole("heading", { level: 1, name: "Students" })
   ).toBeVisible();
-  await expect(page.getByText("NEIGH27-I-5EED1")).toBeVisible();
+  // Exact: Next keeps the competitions page, which shows the reference
+  // too, mounted and hidden after the click.
+  await expect(
+    page.getByText("Registration reference NEIGH27-I-5EED1", { exact: true })
+  ).toBeVisible();
   await expect(
     page.getByText("6 students enrolled, 1 withdrawn")
   ).toBeVisible();

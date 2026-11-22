@@ -65,7 +65,10 @@ test("a coordinator sees the seeded registration's reference and a closed compet
   await expect(open.getByText(SEEDED_REFERENCE)).toBeVisible();
   await expect(open.getByRole("button")).toHaveCount(0);
   const closed = card(page, CLOSED);
-  await expect(closed.getByText("Registration closed")).toBeVisible();
+  // Exact: the closing date's sentence starts with the same words.
+  await expect(
+    closed.getByText("Registration closed", { exact: true })
+  ).toBeVisible();
   await expect(closed.getByRole("button")).toHaveCount(0);
   await checkBothThemes(page, "/institution/competitions registered");
 });
