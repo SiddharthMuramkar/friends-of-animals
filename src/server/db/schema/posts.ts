@@ -28,6 +28,7 @@ import {
 } from "../../modules/cms/domain/post-kinds";
 import { POST_STATUSES } from "../../modules/cms/domain/post-status";
 import type { PostBody } from "../../rich-text/post-body";
+import { fileAsset } from "./files";
 import { user } from "./identity";
 
 const timestamptz = (name: string) =>
@@ -117,9 +118,17 @@ export const cmsPostImage = pgTable("cms_post_image", {
   postId: uuid("post_id")
     .notNull()
     .references((): AnyPgColumn => cmsPost.id, { onDelete: "cascade" }),
-  /** The private original (#63). One post image per upload. */
-  fileAssetId: uuid("file_asset_id").notNull().unique(),
-  alt: text().notNull(),
+  /**
+   * The private original (#63), never shown publicly. One post image per
+   * upload. Restricted, as its derivatives are: whatever deletes the file
+   * deletes this row and its public copies first.
+   */
+  fileAssetId: uuid("file_asset_id")
+    .notNull()
+    .unique()
+    .references(() => fileAsset.id, { onDelete: "restrict" }),
+  /** Blank until an editor describes it; a cover needs it to go live. */
+  alt: text().notNull().default(""),
   /** When its public copies were written; until then it can't go live. */
   publicAt: timestamptz("public_at"),
   createdAt: timestamptz("created_at").notNull(),

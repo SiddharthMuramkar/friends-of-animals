@@ -1,5 +1,5 @@
 {
-  "id": "8de9c4a6-289c-4bed-844e-bc7ba7183e65",
+  "id": "eecd8534-705f-469b-87bd-26ea8f4fb6c4",
   "prevId": "e9127b6b-fb22-4109-b6b1-8456b7304368",
   "version": "7",
   "dialect": "postgresql",
@@ -3857,7 +3857,8 @@
           "name": "alt",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "''"
         },
         "public_at": {
           "name": "public_at",
@@ -3885,6 +3886,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cms_post_image_file_asset_id_file_asset_id_fk": {
+          "name": "cms_post_image_file_asset_id_file_asset_id_fk",
+          "tableFrom": "cms_post_image",
+          "tableTo": "file_asset",
+          "columnsFrom": [
+            "file_asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
           "onUpdate": "no action"
         }
       },

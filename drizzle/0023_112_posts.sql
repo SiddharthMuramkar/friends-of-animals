@@ -36,7 +36,7 @@ CREATE TABLE "cms_post_image" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"post_id" uuid NOT NULL,
 	"file_asset_id" uuid NOT NULL,
-	"alt" text NOT NULL,
+	"alt" text DEFAULT '' NOT NULL,
 	"public_at" timestamp with time zone,
 	"created_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "cms_post_image_file_asset_id_unique" UNIQUE("file_asset_id")
@@ -46,4 +46,5 @@ ALTER TABLE "cms_post" ADD CONSTRAINT "cms_post_cover_image_id_cms_post_image_id
 ALTER TABLE "cms_post" ADD CONSTRAINT "cms_post_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cms_post" ADD CONSTRAINT "cms_post_updated_by_user_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cms_post_image" ADD CONSTRAINT "cms_post_image_post_id_cms_post_id_fk" FOREIGN KEY ("post_id") REFERENCES "public"."cms_post"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cms_post_image" ADD CONSTRAINT "cms_post_image_file_asset_id_file_asset_id_fk" FOREIGN KEY ("file_asset_id") REFERENCES "public"."file_asset"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "cms_post_status_published_at_idx" ON "cms_post" USING btree ("status","published_at" DESC NULLS LAST);

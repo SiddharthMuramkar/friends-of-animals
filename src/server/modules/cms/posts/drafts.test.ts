@@ -150,7 +150,10 @@ describe("createPost", () => {
 
     expect(
       await h.as(actor).createPost({ ...DRAFT, slug: "Not A Slug" })
-    ).toMatchObject({ error: "invalid_input", errors: { slug: "invalid_format" } });
+    ).toMatchObject({
+      error: "invalid_input",
+      errors: { slug: "invalid_format" },
+    });
     expect(
       await h.as(actor).createPost({ ...DRAFT, slug: "ab" })
     ).toMatchObject({ error: "invalid_input", errors: { slug: "too_short" } });
@@ -176,7 +179,11 @@ describe("createPost", () => {
       ok: false,
       error: "invalid_input",
       fields: ["title", "excerpt", "authorName"],
-      errors: { title: "required", excerpt: "too_long", authorName: "too_long" },
+      errors: {
+        title: "required",
+        excerpt: "too_long",
+        authorName: "too_long",
+      },
     });
     expect(await postCount(h)).toBe(0);
   });
@@ -276,9 +283,10 @@ describe("getPostForEdit", () => {
     expect(
       await h.as(actor).getPostForEdit({ postId: uuidv7(h.clock.now()) })
     ).toEqual({ ok: false, error: "not_found" });
-    expect(
-      await h.as(actor).getPostForEdit({ postId: "not-a-uuid" })
-    ).toEqual({ ok: false, error: "not_found" });
+    expect(await h.as(actor).getPostForEdit({ postId: "not-a-uuid" })).toEqual({
+      ok: false,
+      error: "not_found",
+    });
   });
 });
 

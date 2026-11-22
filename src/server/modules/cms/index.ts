@@ -6,6 +6,13 @@ import type { UseCaseContext } from "../../use-cases";
 import type { CmsDocumentKey } from "./domain/documents";
 import { currentLegalVersion } from "./legal";
 import {
+  createPost,
+  getPostForEdit,
+  listPosts,
+  updatePost,
+} from "./posts/drafts";
+import type { PostInput } from "./posts/input";
+import {
   listCmsDocuments,
   listRevisions,
   publishRevision,
@@ -31,6 +38,19 @@ export type {
   SaveDraftResult,
 } from "./publishing";
 export type { CmsDocumentKey, CmsDocumentKind } from "./domain/documents";
+export type {
+  CreatePostResult,
+  GetPostForEditResult,
+  PostForEdit,
+  PostImageSummary,
+  PostSummary,
+  UpdatePostResult,
+} from "./posts/drafts";
+export type {
+  PostInput,
+  PostInputField,
+  PostInputRefusal,
+} from "./posts/input";
 
 export const cmsUseCases = (ctx: UseCaseContext) => ({
   listCmsDocuments: () => listCmsDocuments(ctx),
@@ -46,4 +66,9 @@ export const cmsUseCases = (ctx: UseCaseContext) => ({
   startPreview: (input: { key: CmsDocumentKey }) => startPreview(ctx, input),
   currentLegalVersion: (input: { key: CmsDocumentKey }) =>
     currentLegalVersion(ctx, input),
+  // Blog posts and stories (#112).
+  createPost: (input: PostInput) => createPost(ctx, input),
+  updatePost: (input: PostInput & { postId: string }) => updatePost(ctx, input),
+  getPostForEdit: (input: { postId: string }) => getPostForEdit(ctx, input),
+  listPosts: () => listPosts(ctx),
 });
