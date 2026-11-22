@@ -98,6 +98,42 @@ describe("only a safeguarding lead reads and handles reports", () => {
       expect(await reportRow(h, reportId)).toEqual(before);
     }
   );
+
+  it("refuses a lead who hasn't passed their second factor, writing nothing", async () => {
+    const h = await createHarness();
+    const reportId = await fileReport(h);
+    const lead = await h.seed.member();
+    await h.seed.grant(lead, {
+      role: "safeguarding_lead",
+      scope: { type: "global" },
+    });
+    const before = await reportRow(h, reportId);
+
+    // Never set one up, then set up but not passed in this session.
+    const unenrolled = h.as(
+      await h.signIn(lead, undefined, { secondFactor: false })
+    );
+    await expect(unenrolled.listSafeguardingReports()).rejects.toMatchObject({
+      code: "enrolment_required",
+    });
+    await expect(
+      unenrolled.viewSafeguardingReport({ reportId })
+    ).rejects.toMatchObject({ code: "enrolment_required" });
+    await h.seed.authenticator({ id: lead.id });
+    const unpassed = h.as(
+      await h.signIn(lead, undefined, { secondFactor: false })
+    );
+    await expect(
+      unpassed.viewSafeguardingReport({ reportId })
+    ).rejects.toMatchObject({ code: "second_factor_required" });
+    await expect(
+      unpassed.addIncidentLogEntry({ reportId, body: NOTE })
+    ).rejects.toMatchObject({ code: "second_factor_required" });
+
+    expect(await safeguardingAuditRows(h)).toEqual([]);
+    expect(await logOf(h, reportId)).toEqual([]);
+    expect(await reportRow(h, reportId)).toEqual(before);
+  });
 });
 
 describe("the lead's queue", () => {

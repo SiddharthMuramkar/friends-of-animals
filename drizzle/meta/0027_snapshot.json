@@ -1,6 +1,6 @@
 {
-  "id": "5b861858-b6a1-420a-a04b-af7ef5663a8a",
-  "prevId": "d1540c1a-b453-47b5-a4fc-784cd66f3995",
+  "id": "d96d5e74-6ad1-418a-ac75-7afc7889f581",
+  "prevId": "27f88990-d4e0-4f56-b081-ca1e5d93db75",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2827,8 +2827,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "body": {
-          "name": "body",
+        "body_ciphertext": {
+          "name": "body_ciphertext",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2890,7 +2890,7 @@
       "checkConstraints": {
         "safeguarding_incident_log_note_has_body": {
           "name": "safeguarding_incident_log_note_has_body",
-          "value": "\"safeguarding_incident_log\".\"kind\" <> 'note' OR \"safeguarding_incident_log\".\"body\" IS NOT NULL"
+          "value": "\"safeguarding_incident_log\".\"kind\" <> 'note' OR \"safeguarding_incident_log\".\"body_ciphertext\" IS NOT NULL"
         },
         "safeguarding_incident_log_move_has_status": {
           "name": "safeguarding_incident_log_move_has_status",
@@ -2921,14 +2921,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "description": {
-          "name": "description",
+        "description_ciphertext": {
+          "name": "description_ciphertext",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "subject_details": {
-          "name": "subject_details",
+        "subject_details_ciphertext": {
+          "name": "subject_details_ciphertext",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2951,14 +2951,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "reporter_name": {
-          "name": "reporter_name",
+        "reporter_name_ciphertext": {
+          "name": "reporter_name_ciphertext",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "reporter_contact": {
-          "name": "reporter_contact",
+        "reporter_contact_ciphertext": {
+          "name": "reporter_contact_ciphertext",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2984,14 +2984,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "escalation_reference": {
-          "name": "escalation_reference",
+        "escalation_reference_ciphertext": {
+          "name": "escalation_reference_ciphertext",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "outcome": {
-          "name": "outcome",
+        "outcome_ciphertext": {
+          "name": "outcome_ciphertext",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -3086,7 +3086,7 @@
         },
         "safeguarding_report_anonymous_has_no_reporter": {
           "name": "safeguarding_report_anonymous_has_no_reporter",
-          "value": "NOT \"safeguarding_report\".\"anonymous\" OR (\"safeguarding_report\".\"reporter_name\" IS NULL AND \"safeguarding_report\".\"reporter_contact\" IS NULL)"
+          "value": "NOT \"safeguarding_report\".\"anonymous\" OR (\"safeguarding_report\".\"reporter_name_ciphertext\" IS NULL AND \"safeguarding_report\".\"reporter_contact_ciphertext\" IS NULL)"
         },
         "safeguarding_report_severity_after_triage": {
           "name": "safeguarding_report_severity_after_triage",
@@ -3094,11 +3094,11 @@
         },
         "safeguarding_report_escalated_has_reference": {
           "name": "safeguarding_report_escalated_has_reference",
-          "value": "\"safeguarding_report\".\"status\" <> 'escalated' OR \"safeguarding_report\".\"escalation_reference\" IS NOT NULL"
+          "value": "\"safeguarding_report\".\"status\" <> 'escalated' OR \"safeguarding_report\".\"escalation_reference_ciphertext\" IS NOT NULL"
         },
         "safeguarding_report_resolved_has_outcome": {
           "name": "safeguarding_report_resolved_has_outcome",
-          "value": "(\"safeguarding_report\".\"status\" = 'resolved') = (\"safeguarding_report\".\"outcome\" IS NOT NULL AND \"safeguarding_report\".\"resolved_at\" IS NOT NULL)"
+          "value": "(\"safeguarding_report\".\"status\" = 'resolved') = (\"safeguarding_report\".\"outcome_ciphertext\" IS NOT NULL AND \"safeguarding_report\".\"resolved_at\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false

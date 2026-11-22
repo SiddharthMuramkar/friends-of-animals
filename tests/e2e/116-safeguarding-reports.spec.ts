@@ -26,6 +26,8 @@ import { signInByCode } from "./support/sign-in";
 // other. Who else is refused (super admins included) is proved at Seam 1.
 
 const DESCRIPTION = "Kingfisher badge description for the journey";
+/** SG-26-SEED03, the seeded resolved report (SEED_SAFEGUARDING_REPORTS). */
+const SEEDED_RESOLVED_REPORT = "01938a00-0000-7000-8000-00000000f163";
 
 test("a visitor reports a concern without an account and sees nothing of it afterwards", async ({
   page,
@@ -99,6 +101,16 @@ test("only a safeguarding lead reads reports, and adds to a report's log", async
   ).toBeVisible();
   await expect(page.getByRole("table")).toHaveCount(0);
   await expectAccessible(page, "/admin/safeguarding, refused");
+  // So is a report's own page, which then has the refusal as its heading.
+  await page.goto(`/admin/safeguarding/${SEEDED_RESOLVED_REPORT}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Only a safeguarding lead can open this",
+    })
+  ).toBeVisible();
+  await expect(page.getByText("SG-26-SEED03")).toHaveCount(0);
+  await expectAccessible(page, "/admin/safeguarding/[id], refused");
 
   // Granted the role, they add an authenticator at the staff gate first.
   await grantGlobalRole(email, "safeguarding_lead");

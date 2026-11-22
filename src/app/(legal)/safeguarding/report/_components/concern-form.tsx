@@ -49,13 +49,16 @@ export type ConcernFormLabels = {
 
 type Option = { value: string; label: string };
 
-/** Mirrors the use case's limits, so the browser stops overlong text. */
-const MAX = {
-  description: 5000,
-  subjectDetails: 1000,
-  reporterName: 120,
-  reporterContact: 200,
-} as const;
+/**
+ * The use case's length limits (domain/concern.ts), passed in by the page
+ * so the browser stops overlong text without bundling the domain module.
+ */
+export type ConcernFormLimits = {
+  description: number;
+  subjectDetails: number;
+  reporterName: number;
+  reporterContact: number;
+};
 
 const LINK =
   "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
@@ -98,11 +101,13 @@ export function ConcernForm({
   labels,
   categories,
   ages,
+  limits,
   help,
 }: {
   labels: ConcernFormLabels;
   categories: readonly Option[];
   ages: readonly Option[];
+  limits: ConcernFormLimits;
   help: ReactNode;
 }) {
   const proof = useRef<Promise<Proof> | null>(null);
@@ -242,7 +247,7 @@ export function ConcernForm({
         id="concern-description"
         name="description"
         required
-        maxLength={MAX.description}
+        maxLength={limits.description}
         rows={7}
         defaultValue={entered.description}
         label={labels.description.label}
@@ -252,7 +257,7 @@ export function ConcernForm({
       <TextField
         id="concern-subject"
         name="subjectDetails"
-        maxLength={MAX.subjectDetails}
+        maxLength={limits.subjectDetails}
         autoComplete="off"
         defaultValue={entered.subjectDetails}
         label={labels.subjectDetails.label}
@@ -302,7 +307,7 @@ export function ConcernForm({
             id="concern-name"
             name="reporterName"
             autoComplete="name"
-            maxLength={MAX.reporterName}
+            maxLength={limits.reporterName}
             defaultValue={entered.reporterName}
             label={labels.reporterName.label}
             error={text.errors.reporterName}
@@ -312,7 +317,7 @@ export function ConcernForm({
             name="reporterContact"
             autoComplete="email"
             spellCheck={false}
-            maxLength={MAX.reporterContact}
+            maxLength={limits.reporterContact}
             defaultValue={entered.reporterContact}
             label={labels.reporterContact.label}
             hint={labels.reporterContact.hint}

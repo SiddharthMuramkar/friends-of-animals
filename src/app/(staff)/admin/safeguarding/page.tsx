@@ -72,7 +72,10 @@ async function Queue({
     () => as(actor).listSafeguardingReports({ view }),
     here
   );
-  if (!call.ok || !call.value.ok) return <LeadDenied />;
+  if (!call.ok) return <LeadDenied />;
+  // The view was normalised above, so the use case can't find it invalid.
+  if (!call.value.ok)
+    throw new Error("The safeguarding queue refused its view");
   const { reports, more } = call.value;
   const t = await getTranslations("adminSafeguarding");
 

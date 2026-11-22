@@ -9,7 +9,14 @@ import { Section } from "@/components/site/section";
 import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { CONCERN_CATEGORIES } from "@/server/modules/safeguarding/domain/concern";
+import {
+  CONCERN_CATEGORIES,
+  DESCRIPTION_MAX,
+  REPORTER_CONTACT_MAX,
+  REPORTER_NAME_MAX,
+  SUBJECT_AGE_MAX,
+  SUBJECT_DETAILS_MAX,
+} from "@/server/modules/safeguarding/domain/concern";
 
 import { ConcernForm } from "./_components/concern-form";
 import { HelpContacts } from "./_components/help-contacts";
@@ -33,7 +40,7 @@ const call = (number: string) => (chunks: ReactNode) => (
 const BOX = "rounded-3xl border-2 p-5 sm:p-6";
 
 /** Ages a reporter can pick for the child; blank means "I don't know". */
-const AGES = Array.from({ length: 18 }, (_, age) => age);
+const AGES = Array.from({ length: SUBJECT_AGE_MAX + 1 }, (_, age) => age);
 
 /**
  * The public "report a concern" form (#116): prerendered, with the form as
@@ -145,6 +152,12 @@ export default async function Page() {
               value: String(age),
               label: t("form.subjectAge.age", { age }),
             }))}
+            limits={{
+              description: DESCRIPTION_MAX,
+              subjectDetails: SUBJECT_DETAILS_MAX,
+              reporterName: REPORTER_NAME_MAX,
+              reporterContact: REPORTER_CONTACT_MAX,
+            }}
             help={<HelpContacts />}
           />
         </div>

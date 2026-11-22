@@ -4,9 +4,14 @@
 // Anyone may file a concern, signed in or not. Everything else is for the
 // safeguarding lead alone: reading the queue or a report, moving it on,
 // assigning it and writing in its incident log. No other role is named, not
-// even super admin (the policy has no wildcard), so a report about a staff
-// member never reaches that staff member. The role is granted globally
-// only, and it is a staff role, so #60's second factor guards it too.
+// even super admin (the policy has no wildcard), so holding another role
+// never opens a report. The role is granted globally only, and it is a
+// staff role, so #60's second factor guards it too.
+//
+// Who holds the role is a separate matter: a super admin can grant it,
+// themselves included (role.grant, with a fresh second factor), and that
+// grant is audited. FOA's safeguarding sign-off decides whether that is
+// enough (residue HR-48).
 //
 // Loads under plain Node (the bootstrap command reads the platform
 // policy): relative imports only, no "server-only".

@@ -7,8 +7,8 @@
 // below, which parse it with strict schemas before it is written.
 //
 // The submission's own audit row is written without the request's IP and
-// user agent and without a user id, so an anonymous report stays anonymous
-// (see the brief); that is the use case's job, not this file's.
+// user agent and without a user id, so an anonymous report stays anonymous;
+// that is the use case's job (../submit.ts), not this file's.
 //
 // Pure, and loads under plain Node.
 

@@ -19,7 +19,11 @@
 //
 // The report keeps no IP, user id or user agent, and its audit row is
 // written as a visitor's without the request's IP and user agent, even
-// when a signed-in user sends it: a concern stays anonymous even from FOA.
+// when a signed-in user sends it, so FOA can't tell who sent a concern.
+// One trace is left for a while: the hourly allowance row holds a keyed
+// hash of the sender's network until its window passes, so someone with
+// both the database and the hashing key could match a suspected network
+// to the hour a report came in.
 //
 // The bot screen (a filled hidden `website` field, or a form sent within
 // 3 seconds of its challenge) answers exactly as a success does, so a bot

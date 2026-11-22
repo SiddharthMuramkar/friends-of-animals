@@ -1,6 +1,7 @@
 import { eq, getTableColumns } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { verifyProofOfWork } from "@/lib/proof-of-work";
 import type { Actor } from "@/server/actor";
 import {
   formRateLimit,
@@ -128,6 +129,19 @@ describe("submitSafeguardingReport", () => {
     expect(everything).not.toContain(member.id);
   });
 
+  it("is not for the platform's own processes, and stores nothing", async () => {
+    const h = await createHarness();
+    const system: Actor = { kind: "system", process: "worker" };
+
+    await expect(
+      h.as(system).submitSafeguardingReport({
+        ...FORM,
+        humanCheck: { token: "t", nonce: 0 },
+      })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(await counts(h)).toEqual(NOTHING);
+  });
+
   it("drops a name and contact typed before ticking anonymous", async () => {
     const h = await createHarness();
 
@@ -136,7 +150,8 @@ describe("submitSafeguardingReport", () => {
     const dump = await dumpTable(h, "safeguarding_report");
     const [row] = await h.db.select().from(safeguardingReport);
     expect(row).toMatchObject({ reporterName: null, reporterContact: null });
-    expect(dump).not.toContain('reporter_name":"v');
+    expect(dump).toContain('"reporter_name_ciphertext":null');
+    expect(dump).toContain('"reporter_contact_ciphertext":null');
   });
 
   it("names the fields to fix, and spends no proof on a form sent back", async () => {
@@ -171,11 +186,16 @@ describe("the form's abuse controls", () => {
     expect(
       await h.as(visitor).submitSafeguardingReport({ ...FORM })
     ).toStrictEqual(refused);
-    const proof = await solvedHumanCheck(h, visitor);
+    // A nonce that doesn't solve the challenge. Not just the answer plus
+    // one: test challenges are easy, so that solves it one time in 16.
+    const challenge = await h.as(visitor).issueHumanCheckChallenge();
+    let wrong = 0;
+    while (await verifyProofOfWork({ ...challenge, nonce: wrong })) wrong += 1;
+    h.clock.advance({ seconds: 5 });
     expect(
       await h.as(visitor).submitSafeguardingReport({
         ...FORM,
-        humanCheck: { token: proof.token, nonce: proof.nonce + 1 },
+        humanCheck: { token: challenge.token, nonce: wrong },
       })
     ).toStrictEqual(refused);
     const stale = await solvedHumanCheck(h, visitor);

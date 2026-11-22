@@ -4,13 +4,15 @@
 // reads it. Everything a person typed is stored encrypted by the field
 // cipher (#58): the description, who it is about, the reporter's name and
 // contact, the lead's outcome and authority reference, and every log
-// entry's text. Category, status, severity, the child's rough age and the
-// two flags stay plain, because the queue filters and sorts on them and
-// retention reads the age.
+// entry's text. Those columns end in `_ciphertext`, and each personal-data
+// column is in the data inventory (src/server/modules/privacy/inventory.ts).
+// Category, status, severity, the child's rough age and the two flags stay
+// plain, because the queue filters and sorts on them and retention reads
+// the age.
 //
-// The report holds no IP address, user id or user agent: a concern stays
-// anonymous even from FOA, and the windowed rate limiter keeps only keyed
-// hashes. The incident log is append-only (a trigger refuses UPDATE and any
+// The report holds no IP address, user id or user agent, so FOA can't
+// tell who sent a concern; the windowed rate limiter keeps only keyed
+// hashes, for its window (see submit.ts). The incident log is append-only (a trigger refuses UPDATE and any
 // DELETE but the one that deleting its report cascades to; see
 // drizzle/*_116_incident_log_append_only.sql).
 //
@@ -62,14 +64,14 @@ export const safeguardingReport = pgTable(
     /** `SG-YY-XXXXXX`: for leads to name a case without its details. */
     reference: text().notNull(),
     category: text({ enum: CONCERN_CATEGORIES }).notNull(),
-    description: encryptedText().notNull(),
-    subjectDetails: encryptedText("subject_details"),
+    description: encryptedText("description_ciphertext").notNull(),
+    subjectDetails: encryptedText("subject_details_ciphertext"),
     /** The child's age in whole years, if the reporter knew it (0-17). */
     subjectAge: smallint("subject_age"),
     reporterIsChild: boolean("reporter_is_child").notNull(),
     anonymous: boolean().notNull(),
-    reporterName: encryptedText("reporter_name"),
-    reporterContact: encryptedText("reporter_contact"),
+    reporterName: encryptedText("reporter_name_ciphertext"),
+    reporterContact: encryptedText("reporter_contact_ciphertext"),
     status: safeguardingReportStatusEnum().notNull().default("new"),
     /** Set at triage; null while the report is new. */
     severity: safeguardingSeverityEnum(),
@@ -78,9 +80,9 @@ export const safeguardingReport = pgTable(
       onDelete: "set null",
     }),
     /** The outside authority's reference, once escalated. */
-    escalationReference: encryptedText("escalation_reference"),
+    escalationReference: encryptedText("escalation_reference_ciphertext"),
     /** What was done, once resolved. */
-    outcome: encryptedText(),
+    outcome: encryptedText("outcome_ciphertext"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
@@ -134,7 +136,7 @@ export const safeguardingIncidentLog = pgTable(
     /** For triage: the severity set. */
     severity: safeguardingSeverityEnum(),
     /** A note, an authority reference or an outcome; null for plain moves. */
-    body: encryptedText(),
+    body: encryptedText("body_ciphertext"),
     /**
      * The lead who wrote it. No foreign key: ON DELETE SET NULL would
      * update this table, which the trigger refuses.

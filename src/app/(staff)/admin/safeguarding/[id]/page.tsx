@@ -94,7 +94,7 @@ async function Report({
     () => as(actor).viewSafeguardingReport({ reportId: id }),
     reportHref(id)
   );
-  if (!call.ok) return <LeadDenied />;
+  if (!call.ok) return <LeadDenied headingLevel="h1" />;
   const t = await getTranslations("adminSafeguarding");
   if (!call.value.ok) {
     return (

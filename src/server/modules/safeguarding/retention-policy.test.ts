@@ -7,11 +7,12 @@ import {
 } from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 
+import { DATA_INVENTORY } from "@/server/modules/privacy/inventory";
+import { SUBJECT_AGE_FLOOR, YEARS_AFTER_RESOLUTION } from "./domain/retention";
 import {
-  SAFEGUARDING_INVENTORY,
   SAFEGUARDING_RETENTION_POLICY,
   safeguardingRetentionCandidates,
-} from "./inventory";
+} from "./retention-policy";
 import { CONCERN, fileReport } from "./testing";
 
 /** Every column built with #58's encryptedText(), by its SQL name. */
@@ -23,40 +24,36 @@ function encryptedColumns(
     .map((column) => `${getTableName(table)}.${column.name}`);
 }
 
-const listed = SAFEGUARDING_INVENTORY.map(
-  (entry) => `${entry.table}.${entry.column}`
+const entries = DATA_INVENTORY.filter((entry) =>
+  entry.table.startsWith("safeguarding_")
 );
+const listed = entries.map((entry) => `${entry.table}.${entry.column}`);
 
-describe("the safeguarding data inventory", () => {
-  it("lists every encrypted column and the child's age", () => {
+describe("safeguarding's entries in the data inventory", () => {
+  it("list every encrypted column, the child's age and who handled the case", () => {
     expect([...listed].sort()).toEqual(
       [
         ...encryptedColumns(safeguardingReport),
         ...encryptedColumns(safeguardingIncidentLog),
         "safeguarding_report.subject_age",
+        "safeguarding_report.assigned_to_user_id",
+        "safeguarding_incident_log.author_user_id",
       ].sort()
     );
-    expect(listed).toEqual(
-      expect.arrayContaining([
-        "safeguarding_report.reporter_name",
-        "safeguarding_report.reporter_contact",
-        "safeguarding_report.description",
-        "safeguarding_report.subject_details",
-        "safeguarding_report.outcome",
-        "safeguarding_report.escalation_reference",
-        "safeguarding_incident_log.body",
-      ])
-    );
+    expect(encryptedColumns(safeguardingReport)).toHaveLength(6);
+    expect(encryptedColumns(safeguardingIncidentLog)).toHaveLength(1);
   });
 
-  it("gives each a purpose and the safeguarding retention, still to confirm", () => {
-    for (const entry of SAFEGUARDING_INVENTORY) {
+  it("give each a purpose and the safeguarding retention, still to confirm", () => {
+    for (const entry of entries) {
       expect(entry.purpose.length, entry.column).toBeGreaterThan(10);
-      expect(entry.retention).toMatchObject({
-        policy: "safeguardingReports",
-        toConfirm: true,
-      });
-      expect(entry.retention.period).toMatch(/7 years/);
+      expect(entry.retention.toConfirm).toBe(true);
+      expect(entry.retention.period, entry.column).toContain(
+        `${YEARS_AFTER_RESOLUTION} years after it is resolved`
+      );
+      expect(entry.retention.period, entry.column).toContain(
+        `turns ${SUBJECT_AGE_FLOOR}`
+      );
     }
     expect(SAFEGUARDING_RETENTION_POLICY.key).toBe("safeguardingReports");
   });
