@@ -30,6 +30,7 @@ import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { isSampleContentEnabled } from "@/lib/site";
+import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
 import { Live } from "@/components/site/live";
 import {
   type HomePage,
@@ -460,6 +461,11 @@ const SECTIONS: Record<
 function HomeContent(page: HomePage) {
   return (
     <>
+      {page.preview ? (
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <CmsDraftPreview {...page.preview} />
+        </div>
+      ) : null}
       <Hero home={page.home} />
       {visibleSections(page.home).map((key) => {
         const Block = SECTIONS[key];

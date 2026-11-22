@@ -1,22 +1,40 @@
 // The public pages' CMS content (#111): the home page, about and impact
-// read their published document through here, typed by its kind. Call the
-// loaders at request time, inside <Suspense> (the Live component), with
-// the matching seed as the static shell's fallback: the build has no
-// database.
+// show their document through here, typed by its kind: the published
+// revision, or in Draft Mode the open draft for a content manager (111a's
+// loadShownDocument). Call the loaders at request time, inside <Suspense>
+// (the Live component), with the matching seed as the static shell's
+// fallback: the build has no database.
 
 import "server-only";
 
 import { isSampleContentEnabled } from "@/lib/site";
 
-import { loadPublishedDocument } from "./cached";
+import { cmsPublicPath, type CmsDocumentKey } from "./domain/documents";
 import { type OrgFacts, unconfirmedOrgFacts } from "./domain/org-facts";
+import type { CmsKind } from "./kinds";
 import { homeKind, type HomeBody } from "./kinds/home";
 import { impactKind, type ImpactBody } from "./kinds/impact";
 import { pageKind, type AboutPageBody } from "./kinds/page";
 import { getOrgFacts } from "./org-facts";
+import { loadShownDocument, type ShownCmsDocument } from "./shown";
 
-export type HomePage = { home: HomeBody; impact: ImpactBody | null };
-export type AboutPage = { about: AboutPageBody; facts: OrgFacts };
+/** Draft Mode's status line: which page, and whether a draft shows. */
+export type CmsPreview = { path: `/${string}`; showingDraft: boolean };
+
+export type HomePage = {
+  home: HomeBody;
+  impact: ImpactBody | null;
+  preview: CmsPreview | null;
+};
+export type AboutPage = {
+  about: AboutPageBody;
+  facts: OrgFacts;
+  preview: CmsPreview | null;
+};
+export type ImpactPage = {
+  impact: ImpactBody | null;
+  preview: CmsPreview | null;
+};
 
 /**
  * The seed counters are sample numbers: off production only, like every
@@ -26,42 +44,75 @@ function unpublishedImpact(): ImpactBody | null {
   return isSampleContentEnabled() ? impactKind.seedBody() : null;
 }
 
+/** The body shown, or `fallback` while there is none (the repo's copy). */
+function bodyOf<Body>(
+  shown: ShownCmsDocument | null,
+  kind: CmsKind<Body>,
+  fallback: () => Body
+): Body {
+  return shown && shown.body !== null ? kind.sanitize(shown.body) : fallback();
+}
+
+function previewOf(
+  key: CmsDocumentKey,
+  shown: ShownCmsDocument | null
+): CmsPreview | null {
+  if (!shown?.previewing) return null;
+  return {
+    path: cmsPublicPath(key),
+    showingDraft: shown.published === null && shown.body !== null,
+  };
+}
+
 export function seedHomePage(): HomePage {
-  return { home: homeKind.seedBody(), impact: unpublishedImpact() };
+  return {
+    home: homeKind.seedBody(),
+    impact: unpublishedImpact(),
+    preview: null,
+  };
 }
 
 export async function loadHomePage(): Promise<HomePage> {
   const [home, impact] = await Promise.all([
-    loadPublishedDocument("home"),
-    loadImpact(),
+    loadShownDocument("home"),
+    loadShownDocument("impact"),
   ]);
   return {
-    home: home ? homeKind.sanitize(home.body) : homeKind.seedBody(),
-    impact,
+    home: bodyOf(home, homeKind, homeKind.seedBody),
+    impact: bodyOf(impact, impactKind, unpublishedImpact),
+    preview: previewOf("home", home),
   };
 }
 
 export function seedAboutPage(): AboutPage {
-  return { about: pageKind.seedBody(), facts: unconfirmedOrgFacts() };
+  return {
+    about: pageKind.seedBody(),
+    facts: unconfirmedOrgFacts(),
+    preview: null,
+  };
 }
 
 export async function loadAboutPage(): Promise<AboutPage> {
   const [about, facts] = await Promise.all([
-    loadPublishedDocument("about"),
+    loadShownDocument("about"),
     getOrgFacts(),
   ]);
   return {
-    about: about ? pageKind.sanitize(about.body) : pageKind.seedBody(),
+    about: bodyOf(about, pageKind, pageKind.seedBody),
     facts,
+    preview: previewOf("about", about),
   };
 }
 
-export function seedImpact(): ImpactBody | null {
-  return unpublishedImpact();
+export function seedImpactPage(): ImpactPage {
+  return { impact: unpublishedImpact(), preview: null };
 }
 
-/** The published counters, or the seed's (off production) before any are. */
-export async function loadImpact(): Promise<ImpactBody | null> {
-  const impact = await loadPublishedDocument("impact");
-  return impact ? impactKind.sanitize(impact.body) : unpublishedImpact();
+/** The counters shown, or the seed's (off production) before any are. */
+export async function loadImpactPage(): Promise<ImpactPage> {
+  const impact = await loadShownDocument("impact");
+  return {
+    impact: bodyOf(impact, impactKind, unpublishedImpact),
+    preview: previewOf("impact", impact),
+  };
 }

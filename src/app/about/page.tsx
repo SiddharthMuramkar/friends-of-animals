@@ -12,6 +12,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
 import { LegalBlockView } from "@/components/legal/legal-text";
 import { Placeholder } from "@/components/site/placeholder";
+import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
 import { Live } from "@/components/site/live";
 import { Section } from "@/components/site/section";
 import { TileDivider, TileMarker } from "@/components/site/tile";
@@ -70,7 +71,7 @@ export default function Page() {
   );
 }
 
-async function AboutContent({ about, facts }: AboutPage) {
+async function AboutContent({ about, facts, preview }: AboutPage) {
   const t = await getTranslations("about");
 
   return (
@@ -89,6 +90,7 @@ async function AboutContent({ about, facts }: AboutPage) {
               title={about.hero.title}
               lead={about.hero.lead}
             />
+            {preview ? <CmsDraftPreview {...preview} /> : null}
             <EasyRead label={t("easyLabel")} className="mt-6">
               <p>{about.hero.easy}</p>
             </EasyRead>
