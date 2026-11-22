@@ -16,12 +16,13 @@ import { z } from "zod";
 
 import { can } from "../../../access/can";
 import { recordAudit } from "../../../audit/record";
-import { fileAsset, fileDerivative } from "../../../db/schema";
+import { fileDerivative } from "../../../db/schema";
 import { DomainError } from "../../../errors";
 import { invalidInput, type InvalidInput } from "../../../input";
 import { deliveryDecision, type DeliveryRefusal } from "../domain/delivery";
 import { DERIVATIVE_KINDS, type DerivativeKind } from "../domain/derivatives";
 import { DOWNLOAD_URL_TTL_SECONDS } from "./delivery";
+import { findReadableFile } from "./readable-file";
 import type { FilesContext } from "./upload";
 
 export type GetFileDerivativeUrlInput = {
@@ -62,8 +63,10 @@ const getFileDerivativeUrlInput = z.object({
 /**
  * A signed URL for one derivative of the file, if its policy and status
  * allow reading the file and the derivative exists. Throws forbidden for a
- * caller the policy refuses. A read by staff who don't own the file is
- * recorded in the audit log.
+ * caller the policy refuses, before the file is looked up
+ * (./readable-file.ts): only staff who may read every file are told there
+ * is none. A read by staff who don't own the file is recorded in the audit
+ * log.
  */
 export async function getFileDerivativeUrl(
   ctx: FilesContext,
@@ -72,14 +75,12 @@ export async function getFileDerivativeUrl(
   const parsed = getFileDerivativeUrlInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { fileId, kind } = parsed.data;
-  const [file] = await ctx.db
-    .select()
-    .from(fileAsset)
-    .where(eq(fileAsset.id, fileId));
+  const file = await findReadableFile(ctx, fileId);
   if (!file) return { ok: false, error: "not_found" };
 
-  // Asked once the owner is known; a caller it refuses learns nothing of
-  // the file's status or its derivatives.
+  // Asked again with the owner, for the role that allows it (the audit) and
+  // the status gate, so a caller it refuses learns nothing of the file's
+  // status or its derivatives.
   const policy = await can(ctx, "file.read", { ownerId: file.ownerUserId });
   const decision = deliveryDecision({
     status: file.status,

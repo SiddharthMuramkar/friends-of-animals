@@ -4,6 +4,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import type { Actor } from "@/server/actor";
 import { auditLog, fileAsset } from "@/server/db/schema";
 import { EICAR_TEST_BYTES } from "@/test/eicar";
 import { createHarness, type Harness } from "@/test/harness";
@@ -13,6 +14,7 @@ import { webpSize } from "@/test/webp";
 import type { FileStatus } from "./domain/file-status";
 
 const JPEG = readMediaFixture("gpsJpeg");
+const MISSING = "01938a00-0000-7000-8000-000000000000";
 
 /** `owner` uploads `bytes` as `contentType` and completes it. */
 async function upload(
@@ -221,12 +223,12 @@ describe("getFileDerivativeUrl", () => {
     });
   });
 
-  it("says when there is no such file, or the input isn't one", async () => {
+  it("tells staff, who may read any file, when there is no such file, and says when the input isn't one", async () => {
     const { h, actors } = await world();
 
     expect(
-      await h.as(actors.owner).getFileDerivativeUrl({
-        fileId: "01938a00-0000-7000-8000-000000000000",
+      await h.as(actors.staffAdmin).getFileDerivativeUrl({
+        fileId: MISSING,
         kind: "thumb_320",
       })
     ).toEqual({ ok: false, error: "not_found" });
@@ -240,5 +242,24 @@ describe("getFileDerivativeUrl", () => {
       error: "invalid_input",
       fields: ["fileId", "kind"],
     });
+  });
+
+  it("asks the policy before looking: a caller can't tell a missing file from one they may not read", async () => {
+    const { h, fileId, actors } = await world();
+    await h.drain();
+
+    for (const caller of [actors.otherMember, actors.visitor] as Actor[]) {
+      for (const id of [fileId, MISSING]) {
+        await expect(
+          h.as(caller).getFileDerivativeUrl({ fileId: id, kind: "thumb_320" })
+        ).rejects.toMatchObject({ code: "forbidden" });
+      }
+    }
+    // The owner, too, may only find files of their own.
+    await expect(
+      h
+        .as(actors.owner)
+        .getFileDerivativeUrl({ fileId: MISSING, kind: "thumb_320" })
+    ).rejects.toMatchObject({ code: "forbidden" });
   });
 });
