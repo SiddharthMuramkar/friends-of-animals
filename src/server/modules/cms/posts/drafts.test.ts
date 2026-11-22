@@ -8,11 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { cmsPost } from "@/server/db/schema";
 import { uuidv7 } from "@/server/ids";
-import {
-  LOOKS_LIKE_MARKUP,
-  stringsIn,
-  XSS_CORPUS,
-} from "@/server/rich-text/xss-corpus";
+import { LOOKS_LIKE_MARKUP, stringsIn, XSS_CORPUS } from "@/test/xss-corpus";
 import { createHarness, type Harness } from "@/test/harness";
 
 const global = { type: "global" } as const;

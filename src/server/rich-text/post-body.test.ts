@@ -6,8 +6,9 @@ import { article as rukmini } from "@/content/stories/articles/rukmini-devi-and-
 import { article as stork } from "@/content/stories/articles/the-stork-that-gets-a-baby-shower";
 import { article as pilots } from "@/content/stories/articles/two-pilots-two-puppies";
 
+import { LOOKS_LIKE_MARKUP, stringsIn, XSS_CORPUS } from "@/test/xss-corpus";
+
 import { postImageIdsIn, sanitizePostBody } from "./post-body";
-import { LOOKS_LIKE_MARKUP, stringsIn, XSS_CORPUS } from "./xss-corpus";
 
 const IMAGE_A = "0190f0e0-0000-7000-8000-00000000000a";
 const IMAGE_B = "0190f0e0-0000-7000-8000-00000000000b";

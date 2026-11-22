@@ -3,12 +3,16 @@ import { describe, expect, it } from "vitest";
 import { LEGAL_DOCS } from "../../content/legal";
 import { toConsentDocumentBody } from "../modules/consent/domain/document-body";
 import {
+  LOOKS_LIKE_MARKUP,
+  stringsIn,
+  XSS_CORPUS,
+} from "../../test/xss-corpus";
+import {
   sanitizeBlocks,
   sanitizeDocumentBody,
   sanitizeInlines,
   sanitizePlainText,
 } from "./blocks";
-import { LOOKS_LIKE_MARKUP, stringsIn, XSS_CORPUS } from "./xss-corpus";
 
 describe("sanitizeInlines", () => {
   it("keeps text, strong, safe links and known facts", () => {
