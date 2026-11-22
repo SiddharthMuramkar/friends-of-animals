@@ -66,6 +66,13 @@ const SAFEGUARDING_RECORD = {
   toConfirm: true,
 } as const;
 
+const WHILE_POST_EXISTS = {
+  period: "While the post exists; deleted with it",
+  basis:
+    "A published post names its author, and FOA answers for who wrote and changed what it publishes",
+  toConfirm: true,
+} as const;
+
 const WHILE_REGISTRATION_KEPT = {
   period:
     "While the institution takes part, then 3 years after the competition ends (HR-31)",
@@ -256,6 +263,25 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     column: "author_user_id",
     purpose: "Records which safeguarding lead wrote each log entry",
     retention: SAFEGUARDING_RECORD,
+  },
+  // Blog posts and stories (#112)
+  {
+    table: "cms_post",
+    column: "author_name",
+    purpose: "The byline a post shows, as its editor typed it (optional)",
+    retention: WHILE_POST_EXISTS,
+  },
+  {
+    table: "cms_post",
+    column: "created_by",
+    purpose: "Records which content manager started the post",
+    retention: WHILE_POST_EXISTS,
+  },
+  {
+    table: "cms_post",
+    column: "updated_by",
+    purpose: "Records which content manager last changed the post",
+    retention: WHILE_POST_EXISTS,
   },
   // Institution registrations for a competition (#75)
   {

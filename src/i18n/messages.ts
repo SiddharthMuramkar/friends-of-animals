@@ -13,13 +13,17 @@ import adminTemplates from "../../messages/en-IN/adminTemplates.json";
 import adminRoles from "../../messages/en-IN/adminRoles.json";
 import adminCompetitions from "../../messages/en-IN/adminCompetitions.json";
 import adminCms from "../../messages/en-IN/adminCms.json";
+import adminBlog from "../../messages/en-IN/adminBlog.json";
 import adminInstitutions from "../../messages/en-IN/adminInstitutions.json";
 import adminSafeguarding from "../../messages/en-IN/adminSafeguarding.json";
+import adminRubrics from "../../messages/en-IN/adminRubrics.json";
+import adminCompetitionTerms from "../../messages/en-IN/adminCompetitionTerms.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
+import competitionTerms from "../../messages/en-IN/competitionTerms.json";
 import consent from "../../messages/en-IN/consent.json";
 import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import competitionStatus from "../../messages/en-IN/competitionStatus.json";
@@ -36,6 +40,7 @@ import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
 import inbox from "../../messages/en-IN/inbox.json";
 import institutions from "../../messages/en-IN/institutions.json";
+import judgingGuide from "../../messages/en-IN/judgingGuide.json";
 import institutionRegistration from "../../messages/en-IN/institutionRegistration.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
@@ -66,11 +71,15 @@ export const NAMESPACES = [
   "adminCms",
   "adminInstitutions",
   "adminSafeguarding",
+  "adminBlog",
+  "adminRubrics",
+  "adminCompetitionTerms",
   "auth",
   "authPhone",
   "awareness",
   "common",
   "competitions",
+  "competitionTerms",
   "consent",
   "consentAdmin",
   "competitionStatus",
@@ -87,6 +96,7 @@ export const NAMESPACES = [
   "impact",
   "inbox",
   "institutions",
+  "judgingGuide",
   "institutionRegistration",
   "legal",
   "nav",
@@ -121,11 +131,15 @@ export const messages = {
   ...adminCms,
   ...adminInstitutions,
   ...adminSafeguarding,
+  ...adminBlog,
+  ...adminRubrics,
+  ...adminCompetitionTerms,
   ...auth,
   ...authPhone,
   ...awareness,
   ...common,
   ...competitions,
+  ...competitionTerms,
   ...consent,
   ...consentAdmin,
   ...competitionStatus,
@@ -142,6 +156,7 @@ export const messages = {
   ...impact,
   ...inbox,
   ...institutions,
+  ...judgingGuide,
   ...institutionRegistration,
   ...legal,
   ...nav,

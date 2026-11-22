@@ -32,12 +32,24 @@ export const APP_ROUTES = {
   institutionCoordinators: "/institution/coordinators",
   adminInbox: "/admin/inbox",
   adminSafeguarding: "/admin/safeguarding",
+  adminBlog: "/admin/blog",
+  adminNewBlogPost: "/admin/blog/new",
   institutionCompetitions: "/institution/competitions",
 } as const;
+
+/** A competition's judging guide, for the institutions taking part (#88). */
+export function judgingGuidePath(competitionCode: string): string {
+  return `/institution/competitions/${encodeURIComponent(competitionCode)}/judging-guide`;
+}
 
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
+}
+
+/** One post's editor in the admin area (#112). */
+export function adminBlogPostPath(postId: string): string {
+  return `${APP_ROUTES.adminBlog}/${encodeURIComponent(postId)}`;
 }
 
 /**
@@ -77,10 +89,15 @@ export function newStudentPath(
 export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
+  "/admin/competitions/[id]/terms",
   "/admin/templates/[key]",
   "/admin/institutions/[id]",
   "/admin/inbox/[id]",
   "/admin/safeguarding/[id]",
+  "/admin/blog/[id]",
+  "/admin/competitions/[id]/rubrics",
+  "/admin/competitions/[id]/rubrics/[discipline]",
+  "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/students/new",
 ] as const;
@@ -149,14 +166,21 @@ export function isSignedInPage(pathname: string): boolean {
   return (
     (Object.values(APP_ROUTES) as string[]).includes(pathname) ||
     APP_ROUTE_TEMPLATES.some((template) => fitsTemplate(pathname, template)) ||
-    CMS_EDITOR_PATHS.has(pathname)
+    isCmsEditorPath(pathname)
   );
 }
 
-/** One editor page per CMS document (#111), and no other path below it. */
-const CMS_EDITOR_PATHS: ReadonlySet<string> = new Set(
-  CMS_DOCUMENT_KEYS.map((key) => adminCmsDocumentPath(key))
-);
+/**
+ * One editor page per CMS document (#111), and no other path below it.
+ * Worked out on each call, not held in a module-level Set: the client
+ * bundles this module for isSignedInPath, and a Set built at load would
+ * ship to every page (the JS budget, SPEC §13.2).
+ */
+function isCmsEditorPath(pathname: string): boolean {
+  return CMS_DOCUMENT_KEYS.some(
+    (key) => adminCmsDocumentPath(key) === pathname
+  );
+}
 
 /** The editor page of one CMS document (#111). */
 export function adminCmsDocumentPath(key: string): `/admin/cms/${string}` {

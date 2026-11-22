@@ -27,6 +27,7 @@ import * as schema from "@/server/db/schema";
 import { session } from "@/server/db/schema";
 import type { Deps } from "@/server/deps";
 import { CONTACT_RATE_LIMITS } from "@/server/modules/contact/domain/submission";
+import { CODE_REQUEST_LIMITS } from "@/server/identity/settings";
 import { proofOfWorkHumanCheck } from "@/server/modules/public-forms/proof-of-work-check";
 import { stampSession } from "@/server/modules/second-factor/session-factor";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
@@ -94,6 +95,7 @@ export function createPgWorld() {
       difficulty: TEST_HUMAN_CHECK_DIFFICULTY,
     }),
     contactLimits: CONTACT_RATE_LIMITS,
+    codeRequestLimits: CODE_REQUEST_LIMITS,
   };
   const app = createApp(deps);
   const seed: SeedBuilders = createSeedBuilders(deps);

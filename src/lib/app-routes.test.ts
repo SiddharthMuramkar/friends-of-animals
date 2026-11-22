@@ -10,6 +10,7 @@ import {
   newStudentPath,
   isSignedInPage,
   isSignedInPath,
+  judgingGuidePath,
 } from "./app-routes";
 
 const COMPETITION_ID = "01938a00-0000-7000-8000-000000002001";
@@ -30,6 +31,31 @@ describe("isSignedInPage", () => {
     ).toBe(true);
   });
 
+  it("knows a competition's rubric pages, whatever its id (#88)", () => {
+    expect(
+      isSignedInPage(`/admin/competitions/${COMPETITION_ID}/rubrics`)
+    ).toBe(true);
+    expect(
+      isSignedInPage(`/admin/competitions/${COMPETITION_ID}/rubrics/essay`)
+    ).toBe(true);
+  });
+
+  it("knows a competition's judging guide for institutions, whatever its code (#88)", () => {
+    expect(isSignedInPage(judgingGuidePath("NEIGH27"))).toBe(true);
+    expect(judgingGuidePath("NEIGH27")).toBe(
+      "/institution/competitions/NEIGH27/judging-guide"
+    );
+  });
+
+  it("knows a competition's fees, prizes and terms page, whatever its id", () => {
+    expect(isSignedInPage(`/admin/competitions/${COMPETITION_ID}/terms`)).toBe(
+      true
+    );
+    expect(
+      isSignedInPage(`/admin/competitions/${COMPETITION_ID}/terms/more`)
+    ).toBe(false);
+  });
+
   it("knows an institution's review page, whatever its id", () => {
     expect(
       isSignedInPage(
@@ -47,6 +73,9 @@ describe("isSignedInPage", () => {
       `/admin/competitions/${COMPETITION_ID}/edit/more`,
       "/admin/competitions//edit",
       "/admin/institutions/x/edit",
+      `/admin/competitions/${COMPETITION_ID}/rubrics/essay/edit`,
+      "/institution/competitions/NEIGH27",
+      "/institution/competitions",
     ]) {
       expect(isSignedInPage(path), path).toBe(false);
     }

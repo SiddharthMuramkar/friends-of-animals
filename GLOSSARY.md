@@ -164,6 +164,35 @@ stories and tips. Sign-in codes, receipts and notices the law requires are not
 News and updates and never depend on it.
 _Avoid_: Marketing, newsletter, messages (alone)
 
+## Competition terms
+
+**Route**:
+A way into a competition: entering on your own, or through a school or
+institution. A competition offers one or both.
+_Avoid_: Track, channel, participation type
+
+**Fee**:
+What one Route costs, in paise and INR, set by a competition manager. Zero
+means free; a Route with no Fee set yet can't take registrations. Fees lock
+once registration opens.
+_Avoid_: Price, charge, amount (alone)
+
+**Round**:
+A stage a competition's entries are judged in: the school round (when
+institutions take part) and the FOA final.
+_Avoid_: Stage, phase, level
+
+**Award scheme**:
+How a Round recognises its best entries: ranked 1st, 2nd and 3rd (the
+default), gold, silver and bronze, or A and B grades. Each place in it is a
+Band, with an optional prize.
+_Avoid_: Prize structure, ranking, grading
+
+**Pin**:
+The one Version of a Consent document a competition asks registrants to agree
+to. Publishing a newer Version leaves the Pin alone until a manager moves it.
+_Avoid_: Link, attachment (alone), current version
+
 ## Site content
 
 **Content document**:
@@ -189,6 +218,18 @@ A content manager seeing a public page with its Draft in place of the
 published Revision, under a "Draft preview" status, until they leave it.
 Everyone else sees the published Revision.
 _Avoid_: Staging, preview deployment (a preview deployment is a whole site)
+
+**Post**:
+A blog post or a story: an article a content manager writes, with its own
+web address, cover and images. It is a Draft until it is published, now or
+at a scheduled instant, and leaves the public site only by being archived.
+_Avoid_: Article (alone), entry, page
+
+**Public copy**:
+A resized Derivative of a Post's image, copied to the public bucket so the
+public site can show it without signing. The original upload is never
+copied there.
+_Avoid_: Public URL, CDN image, original
 
 ## Messages
 
@@ -271,11 +312,37 @@ _Avoid_: Cron job, recurring task
 
 **Status job**:
 An event held back until one of a published competition's key dates, which
-then moves the competition's status on (registration open, then closed) and
-records the move as done by the system. Editing the date saves a new one; the
-old one finds its date has moved and does nothing. Unlike a Scheduled job, it
-is tied to one competition and one instant.
+then moves the competition's status on (registration open, then closed, then
+school judging) and records the move as done by the system. Editing the date
+saves a new one; the old one finds its date has moved and does nothing. Unlike
+a Scheduled job, it is tied to one competition and one instant.
 _Avoid_: Status cron, status tick
+
+**Guard**:
+A condition on one move of a competition's status, such as "every enabled
+discipline has a published Rubric" before school judging. A Status job makes
+the move only while its guards pass.
+_Avoid_: Precondition, check, gate
+
+**Refused move**:
+A scheduled move a Guard held back: the competition stays where it is, its
+competition managers are told once, and the move is tried again after the
+events the Guard names. It is resolved when a later attempt makes the move.
+_Avoid_: Blocked flip, failed transition
+
+## Judging
+
+**Rubric**:
+The criteria judges score one discipline of a competition by, each with its
+weight and score range. It is a draft until a competition manager publishes
+it; a published one never changes, and a revision is a new version that
+replaces it when published.
+_Avoid_: Scorecard, marking scheme
+
+**Judging guide**:
+What a coordinator of a registered institution reads before their school
+round: FOA's judging framework and the published Rubric of each discipline.
+_Avoid_: Judging kit, rules
 
 ## Registration
 

@@ -1,4 +1,4 @@
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, Eye, IndianRupee } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
@@ -23,6 +23,7 @@ import { CompetitionForm } from "../../_components/competition-form";
 import { updateCompetitionAction } from "../../_lib/actions";
 import { competitionHref } from "../../_lib/href";
 import { rawCopy } from "../../_lib/translate";
+import { competitionTermsPath } from "../terms/_lib/paths";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("adminCompetitions.edit.meta");
@@ -51,11 +52,12 @@ export default async function Page({ params, searchParams }: Props) {
 async function EditCompetition({ params, searchParams }: Props) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [{ id }, { done }, t, callout] = await Promise.all([
+  const [{ id }, { done }, t, callout, terms] = await Promise.all([
     params,
     searchParams,
     getTranslations("adminCompetitions"),
     getTranslations("common.callout"),
+    getTranslations("adminCompetitionTerms"),
   ]);
   let result;
   try {
@@ -90,6 +92,13 @@ async function EditCompetition({ params, searchParams }: Props) {
         >
           <Eye aria-hidden="true" />
           {t("edit.preview")}
+        </ButtonLink>
+        <ButtonLink
+          href={competitionTermsPath(competition.id)}
+          variant="secondary"
+        >
+          <IndianRupee aria-hidden="true" />
+          {terms("open")}
         </ButtonLink>
         <ButtonLink href={APP_ROUTES.adminCompetitions} variant="quiet">
           <ArrowLeft aria-hidden="true" />

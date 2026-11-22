@@ -9,6 +9,7 @@
 
 import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
+import { seedCompetitionTerms } from "./competition-terms";
 import { seedCoordinators } from "./coordinators";
 import { seedCompetitions } from "./competitions";
 import { seedCms } from "./cms";
@@ -16,10 +17,12 @@ import { seedConsent } from "./consent";
 import { seedContact } from "./contact";
 import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
+import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
 import { seedInstitutions } from "./institutions";
 import { seedNotifications } from "./notifications";
 import { seedRegistrations } from "./registration";
+import { seedPosts } from "./posts";
 import { seedSecondFactor } from "./second-factor";
 import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
@@ -35,7 +38,9 @@ const seeders: readonly Seeder[] = [
   seedIdentity,
   seedAccess,
   seedCompetitions,
+  seedJudging,
   seedConsent,
+  seedCompetitionTerms,
   seedFiles,
   seedSecondFactor,
   seedSettings,
@@ -48,6 +53,7 @@ const seeders: readonly Seeder[] = [
   seedNotifications,
   seedContact,
   seedCms,
+  seedPosts,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);

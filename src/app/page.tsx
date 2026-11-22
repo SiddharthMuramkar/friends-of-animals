@@ -36,6 +36,7 @@ import { Live } from "@/components/site/live";
 import {
   type HomePage,
   loadHomePage,
+  loadPublishedHomePage,
   seedHomePage,
 } from "@/server/modules/cms/site-pages";
 
@@ -476,13 +477,20 @@ function HomeContent(page: HomePage) {
   );
 }
 
-// The hero and sections come from the published home document, read at
-// request time; the static shell holds the seed copy (see Live).
+// The hero and sections come from the published home document. The static
+// shell renders it once the server has regenerated the page, so the hero
+// and its buttons are painted once; until then (the build's shell, which
+// has no database) and in Draft Mode, the shell holds the seed copy and
+// the document streams in at request time (see Live).
 export default function Page() {
   return (
     <>
       <Announcement />
-      <Live fallback={seedHomePage()} load={loadHomePage}>
+      <Live
+        fallback={seedHomePage()}
+        load={loadHomePage}
+        published={loadPublishedHomePage}
+      >
         {(page) => <HomeContent {...page} />}
       </Live>
     </>
