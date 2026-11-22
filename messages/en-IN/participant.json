@@ -38,7 +38,7 @@
       "fields": {
         "fullName": "Full name",
         "dateOfBirth": "Date of birth",
-        "dateOfBirthHint": "You must be 18 or over to register on your own.",
+        "dateOfBirthHint": "Under 18? You'll be asked who your parent or guardian is, so they can confirm.",
         "phone": "Mobile number",
         "phoneHint": "You need an Indian mobile number to register, so we can reach you about your entry.",
         "pinCode": "PIN code",
@@ -62,19 +62,28 @@
         "country": "Choose your country.",
         "schoolName": "Shorten the school or college name.",
         "consents": "Agree to each document to register.",
-        "competitionSlug": "We couldn't find that competition."
+        "competitionSlug": "We couldn't find that competition.",
+        "guardianName": "Enter your parent or guardian's full name.",
+        "guardianRelationship": "Choose how they are related to you.",
+        "guardianEmail": "Enter your parent or guardian's email address."
       },
       "refusal": {
         "registration_closed": "Registration for this competition isn't open.",
         "institutions_only": "This competition takes entries through schools and other institutions only.",
         "fee_not_set": "Registration opens once FOA has set the fee. Please come back soon.",
         "dob_invalid": "Enter a real date of birth, in the past.",
+        "dob_mismatch": "That isn't the date of birth you gave when you first registered. Enter that one: a date of birth can't be changed here. If it was wrong, write to us.",
         "outside_age_groups": "This competition has no age group for your age.",
         "already_registered": "You are already registered for this competition.",
         "consent_missing": "Agree to each document to register.",
-        "not_found": "We couldn't find that competition."
+        "not_found": "We couldn't find that competition.",
+        "under_13_needs_guardian": "Children under 13 are registered by a parent or guardian. Ask yours to register you from their account.",
+        "adult_registers_self": "They are 18 or over now, so they register on their own.",
+        "guardian_details_required": "You're under 18. Tell us who your parent or guardian is, and we'll ask them to confirm.",
+        "guardian_contact_is_self": "That's your own email address. Enter your parent or guardian's.",
+        "requester_has_role": "This account looks after children, or works with Friends of Animals, a school or the judges, so it can't register someone under 18 on their own. A teen registers with their own account.",
+        "rate_limited": "We've emailed that address several times already. Please try again in a few minutes."
       },
-      "minor": "You need to be 18 or over to register on your own. Please come back when entry with a parent or guardian opens, or enter through your school.",
       "dashboardLink": "See your registrations",
       "registered": "You're registered. Taking you to the next step…",
       "continueLink": "Go to the next step",
@@ -82,7 +91,31 @@
       "submitting": "Registering…",
       "unexpected": "Something went wrong. Please try again.",
       "countryPlaceholder": "Choose a country",
-      "loading": "Loading the form…"
+      "loading": "Loading the form…",
+      "titleChild": "Register {name} for {competition}",
+      "leadChild": "You're registering {name}. You pay the fee online once they are registered.",
+      "leadLinked": "Your parent or guardian pays the fee once you are registered.",
+      "kept": "{name}, born {date}",
+      "keptNote": "The name and date of birth your parent or guardian gave. Ask them if either is wrong.",
+      "keptNoteChild": "The name and date of birth you gave when you added them.",
+      "chooser": {
+        "title": "Registering a child?",
+        "body": "Register one of the children you look after instead:",
+        "child": "Register {name}"
+      },
+      "guardian": {
+        "legend": "Your parent or guardian",
+        "lead": "You're under 18, so a parent or guardian confirms your registration. We'll email them a link.",
+        "fullName": "Their full name",
+        "relationship": "They are your",
+        "relationshipPlaceholder": "Choose one",
+        "relationships": {
+          "parent": "Parent",
+          "legal_guardian": "Legal guardian"
+        },
+        "email": "Their email address",
+        "emailHint": "Not your own: the link must reach them."
+      }
     },
     "dashboard": {
       "meta": {
@@ -90,7 +123,7 @@
       },
       "eyebrow": "Participant",
       "title": "My competitions",
-      "lead": "The competitions you registered for yourself, and where each one stands.",
+      "lead": "The competitions you registered for, and your children's, and where each one stands.",
       "participantId": "FOA Participant ID: {code}",
       "empty": "You haven't registered for a competition yet.",
       "findCompetition": "Find a competition",
@@ -99,7 +132,11 @@
       "pay": "Pay {amount} for {competition}",
       "confirmFree": "Confirm your free place in {competition}",
       "comingSoon": "Entries, results and certificates will show here too.",
-      "loading": "Loading your registrations…"
+      "loading": "Loading your registrations…",
+      "forChild": "For {name}",
+      "childParticipantId": "{name}'s FOA Participant ID: {code}",
+      "held": "Waiting for your parent or guardian to confirm. We emailed them a link. Once they confirm, they can pay the fee.",
+      "guardianPays": "Your parent or guardian pays the fee for this place."
     },
     "payment": {
       "checkoutDescription": "Registration fee for {competition} ({participantCode})",
@@ -121,11 +158,13 @@
         "fee_not_set": "FOA hasn't set the fee yet. Please come back soon.",
         "gateway_unavailable": "Online payment isn't available right now. Please try again later.",
         "superseded": "Someone changed this payment while you were paying. Please try again.",
-        "invalid_input": "Something went wrong. Please try again."
+        "invalid_input": "Something went wrong. Please try again.",
+        "awaiting_guardian": "This registration waits for a parent or guardian to confirm it. It can be paid for after that."
       },
       "paying": "Opening payment…",
       "confirming": "Confirming…",
-      "loading": "Loading your registration…"
+      "loading": "Loading your registration…",
+      "guardianPays": "Your parent or guardian pays the fee for this place."
     }
   }
 }

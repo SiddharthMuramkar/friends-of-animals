@@ -40,6 +40,7 @@ describe("afterDeclare", () => {
   it("says why no code could go, above the form", () => {
     for (const error of [
       "linked_child",
+      "registered_as_minor",
       "no_verified_email",
       "rate_limited",
     ] as const) {

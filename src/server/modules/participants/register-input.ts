@@ -8,6 +8,7 @@
 import { z } from "zod";
 
 import { parsePhoneNumber } from "../../../lib/phone";
+import type { GuardianDetailsInput } from "../guardians/guardian-request";
 
 /** The same pattern the competition pages and the proxy accept. */
 export const COMPETITION_SLUG_PATTERN = /^[a-z0-9-]{3,80}$/;
@@ -126,13 +127,33 @@ const registerInput = fields
     };
   });
 
-/** What the form sends: every field as typed. */
-export type RegisterAsIndividualInput = z.input<typeof registerInput>;
+/** What the form sends for the person's own details: every field as typed. */
+export type RegisterFormInput = z.input<typeof registerInput>;
+
+/**
+ * What the register form sends (#78, #81). A guardian registering their
+ * child names the child's profile and sends no name or date of birth: the
+ * profile's are used, as for a teen whose login is linked. A teen with no
+ * guardian on the platform names one.
+ */
+export type RegisterAsIndividualInput = ContactDetailsInput & {
+  /** Left out for a profile a guardian keeps, which has its own. */
+  fullName?: RegisterFormInput["fullName"];
+  /** Left out for a profile a guardian keeps, which has its own. */
+  dateOfBirth?: RegisterFormInput["dateOfBirth"];
+  /** A child the signed-in guardian looks after. */
+  forChildId?: string;
+  /** The parent or guardian a teen asks, as typed. */
+  guardian?: GuardianDetailsInput;
+};
+
+/** The form's other details: contact, address, school and consents. */
+type ContactDetailsInput = Omit<RegisterFormInput, "fullName" | "dateOfBirth">;
 
 /** The form's details, trimmed and checked. */
 export type RegisterInput = z.output<typeof registerInput>;
 
-type Field = keyof RegisterAsIndividualInput;
+type Field = keyof RegisterFormInput;
 
 /** The form's fields in the order a person fills them in. */
 const FIELD_ORDER = Object.keys(fields.shape) as Field[];

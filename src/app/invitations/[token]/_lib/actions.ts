@@ -39,3 +39,27 @@ export async function acceptTeenInvitationAction(token: string): Promise<void> {
   }
   redirect(`${page}?error=${result.error}`, RedirectType.replace);
 }
+
+/**
+ * Accepts a teen's guardian request (#81) behind `token`, as their parent
+ * or guardian, and comes back to its page, which then shows the outcome.
+ */
+export async function acceptGuardianRequestAction(
+  token: string,
+  formData: FormData
+): Promise<void> {
+  const actor = await currentActor();
+  if (actor.kind !== "user") redirect(ROUTES.signIn.path);
+  const relationship = formData.get("relationship");
+  const result = await as(actor).acceptGuardianRequest({
+    token,
+    relationship: typeof relationship === "string" ? relationship : "",
+  });
+  const page = invitationPath(token);
+  if (result.ok) {
+    // Re-renders the header: the guardian now has a child's registration.
+    refresh();
+    redirect(page, RedirectType.replace);
+  }
+  redirect(`${page}?error=${result.error}`, RedirectType.replace);
+}

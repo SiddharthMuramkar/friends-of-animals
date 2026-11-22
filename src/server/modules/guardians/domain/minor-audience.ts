@@ -3,11 +3,12 @@
 // own login gets an in-app copy, never an email or SMS of their own. An
 // adult hears about themselves.
 //
-// Pure: the notifications module's `guardian_of_participant` audience loads
-// the profile and its guardian links and passes them in.
+// Pure: the notifications module's `guardian_of_participant` audience
+// (../participant-audience.ts) loads the profile and its guardian links and
+// passes them in.
 
 export type AudienceSubject = {
-  /** Under 18 at the time of the message. */
+  /** A minor: a child whose profile a guardian keeps. */
   minor: boolean;
   /** The participant's own login: an adult's, or a linked teen's. */
   loginUserId: string | null;

@@ -8,6 +8,10 @@
       "subject": "Your own login on Friends of Animals",
       "email": "Hello {child},\n\n{guardian} has invited you to your own login on Friends of Animals, linked to them as your parent or guardian. With it you can take part in FOA's competitions yourself.\n\nTo accept, open this link, then sign in or create an account with this email address:\n{link}\n\nThe link works until {expiresAt}. If you weren't expecting this, you can ignore this email.\n\nFriends of Animals"
     },
+    "requestMessage": {
+      "subject": "Please confirm you are a parent or guardian on Friends of Animals",
+      "email": "Hello {guardian},\n\n{teen} has registered for a Friends of Animals competition and named you as their parent or guardian. Children under 18 take part with a parent or guardian, so their registration waits until you confirm.\n\nTo confirm, open this link, then sign in or create an account with this email address:\n{link}\n\nYou'll be asked to confirm that you are their parent or lawful guardian with a code we email you. The link works until {expiresAt}. If you don't know {teen}, you can ignore this email: nothing happens without you.\n\nFriends of Animals"
+    },
     "home": {
       "meta": {
         "title": "Your children"
@@ -61,6 +65,7 @@
       "submitting": "Sending…",
       "errors": {
         "linked_child": "This account is a child's own login, so it can't register as a guardian.",
+        "registered_as_minor": "You registered for a competition with a date of birth under 18, so this account can't register as a guardian.",
         "no_verified_email": "We email the code, and your account has no email address yet. Sign in with an email address to register as a guardian.",
         "rate_limited": "You've asked for several codes. Please wait a few minutes and try again.",
         "unexpected": "Something went wrong. Please try again."
@@ -155,7 +160,8 @@
         "adult": "{name} is 18 or older and registers themselves.",
         "child_has_login": "{name} already has their own login.",
         "invitee_is_guardian": "That address belongs to a parent or guardian. Use the child's own address.",
-        "unexpected": "Something went wrong. Please try again."
+        "unexpected": "Something went wrong. Please try again.",
+        "rate_limited": "We've emailed that address several times already. Please try again in a few minutes."
       },
       "outcome": {
         "invited": "Invitation sent.",
@@ -163,7 +169,13 @@
         "no_pending_invitation": "There was no invitation waiting.",
         "added": "Child added."
       },
-      "back": "Back to your children"
+      "back": "Back to your children",
+      "register": {
+        "title": "Competitions",
+        "body": "To register {name}, open a competition, choose to take part as an individual, then choose {name}. Their registrations show in My competitions.",
+        "find": "Find a competition",
+        "mine": "My competitions"
+      }
     },
     "invitation": {
       "eyebrow": "Invitation",
@@ -206,7 +218,9 @@
         "guardian_cannot_accept": "You sent this invitation. The child accepts it with their own account.",
         "contact_mismatch": "This invitation is for a different email address than the one you're signed in with.",
         "accepter_is_guardian": "This account is a parent's or guardian's, so it can't become a child's own login. Ask your parent or guardian to invite an email address that is yours alone.",
+        "accepter_has_role": "This account has a role on Friends of Animals (staff, a school's or a judge's), so it can't become a child's own login. Ask your parent or guardian to invite an email address that is yours alone.",
         "accepter_is_adult": "This account has registered as an adult, so it can't become a child's own login. Ask your parent or guardian to invite an email address that is yours alone.",
+        "accepter_has_own_profile": "Your account already has registrations of its own, waiting for a parent or guardian to confirm them. Ask your parent or guardian to open the request we emailed them instead: that links you to them.",
         "already_linked": "Your account is already linked to a child's profile.",
         "child_has_login": "This profile already has its own login.",
         "under_13": "Children under 13 can't have their own login.",
@@ -214,6 +228,73 @@
       },
       "home": "Go to the home page",
       "dashboard": "Go to your dashboard"
+    },
+    "request": {
+      "eyebrow": "Parent or guardian",
+      "title": "Confirm you are their parent or guardian",
+      "asked": "A teen on Friends of Animals has named you as their parent or guardian.",
+      "askedBy": "{teen} has named you as their {relationship}.",
+      "relationshipWords": {
+        "parent": "parent",
+        "legal_guardian": "legal guardian"
+      },
+      "waiting": "Their registration for {competitions} waits until you confirm.",
+      "sentTo": "This request was sent to {address}.",
+      "expires": "The link works until {date}.",
+      "signInLead": "Sign in, or create an account, with {address}. Then open the link in the email again.",
+      "signIn": "Sign in",
+      "signUp": "Create an account",
+      "verifyFirst": {
+        "title": "First, register as a parent or guardian",
+        "body": "Confirm you are a parent or guardian with a code we email you. Then open the link in the email again.",
+        "action": "Register as a parent or guardian"
+      },
+      "relationship": "You are their",
+      "relationshipPlaceholder": "Choose one",
+      "relationships": {
+        "parent": "Parent",
+        "legal_guardian": "Legal guardian"
+      },
+      "accept": "Confirm I'm their parent or guardian",
+      "accepting": "Confirming…",
+      "mismatch": {
+        "title": "This request is for someone else",
+        "body": "You're signed in with a different email address. Sign out, then sign in with {address} and open the link again.",
+        "action": "Go to your sessions to sign out"
+      },
+      "accepted": {
+        "title": "You're their parent or guardian now",
+        "body": "Their registrations wait for you to pay the fee.",
+        "action": "See their registrations"
+      },
+      "used": {
+        "title": "This request was already answered",
+        "body": "Each request link works once."
+      },
+      "expired": {
+        "title": "This request has expired",
+        "body": "Request links work for 7 days. The teen can ask again when they register for a competition."
+      },
+      "revoked": {
+        "title": "This request was replaced",
+        "body": "The teen asked again, or asked someone else. Use the newest email you have."
+      },
+      "errors": {
+        "not_found": "This link doesn't work any more.",
+        "already_used": "This request was already answered.",
+        "withdrawn": "This request was replaced by a newer one.",
+        "expired": "This request has expired.",
+        "requester_cannot_accept": "You sent this request. Your parent or guardian confirms it with their own account.",
+        "contact_mismatch": "This request is for a different email address than the one you're signed in with.",
+        "accepter_is_minor": "This account registered for a competition with a date of birth under 18, so it can't become a teen's parent or guardian. They need to ask a parent or guardian who is 18 or older.",
+        "guardian_not_verified": "First register as a parent or guardian, with a code we email you.",
+        "child_already_added": "You've already added this child yourself, so this request can't add them a second time. Please contact us, and we'll bring their registrations together.",
+        "already_linked": "This teen's login is already linked to a parent or guardian.",
+        "requester_is_adult": "They are 18 or over now, so they don't need a parent or guardian to take part.",
+        "requester_has_role": "The account that sent this request looks after children, or works with Friends of Animals, a school or the judges, so it can't be a teen's login. Please contact us.",
+        "invalid_input": "Choose how you are related to them."
+      },
+      "home": "Go to the home page"
     }
   }
 }

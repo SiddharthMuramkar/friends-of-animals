@@ -26,6 +26,7 @@ import {
 } from "../modules/competitions/advance-status";
 import { notifyPrincipal } from "../modules/registration/principal-message";
 import { sendRegistrationConfirmation } from "../modules/registration/confirmation-message";
+import { sendGuardianRequest } from "../modules/guardians/guardian-request-message";
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
 import { sendApprovedRefund } from "../modules/payments/refunds/sync-refund";
 import type { Clock } from "../ports/clock";
@@ -118,6 +119,9 @@ export const HANDLERS: Handlers = {
   // Sends an approved refund to the gateway, or adopts the one it holds
   // (#80). Safe to repeat: the gateway's refund is found by its notes.
   "refunds.send": (deps, { payload }) => sendApprovedRefund(deps, payload),
+  // Emails a teen's request to the guardian they named (#81).
+  "guardians.send_guardian_request": (deps, { payload }) =>
+    sendGuardianRequest(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

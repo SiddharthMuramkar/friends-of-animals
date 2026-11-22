@@ -35,7 +35,8 @@
       "confirmed": "Confirmed",
       "withdrawn": "Withdrawn",
       "pending_payment": "Waiting for payment",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "pending_guardian": "Waiting for a guardian"
     },
     "payer": {
       "unknown": "Account closed",

@@ -13,14 +13,16 @@ import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
 
+import { GuardianRequest } from "./_components/guardian-request";
 import { TeenInvitation } from "./_components/teen-invitation";
 import { acceptInvitationAction } from "./_lib/actions";
 import { isAcceptError } from "./_lib/accept-error";
 
 // The token in the address is the invitation's only key: the page is never
 // indexed, and the token is never logged or echoed beyond its own link. A
-// token is a coordinator's invitation (#74) or a teen's own login (#81);
-// each kind has its own heading, so the heading streams in with it.
+// token is a coordinator's invitation (#74), a teen's own login (#81) or a
+// teen's request to the guardian they named (#81); each kind has its own
+// heading, so the heading streams in with it.
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("coordinators.invitation.meta");
@@ -86,6 +88,16 @@ async function Invitation({
         <TeenInvitation
           token={token}
           invitation={teen.invitation}
+          error={query.error}
+        />
+      );
+    }
+    const asked = await as(actor).viewGuardianRequest({ token });
+    if (asked.ok) {
+      return (
+        <GuardianRequest
+          token={token}
+          request={asked.request}
           error={query.error}
         />
       );

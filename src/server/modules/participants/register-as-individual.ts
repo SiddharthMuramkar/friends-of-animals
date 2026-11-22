@@ -1,17 +1,34 @@
-// registerAsIndividual(form) (#78): a signed-in adult registers themselves
-// for a competition that takes individuals, while its registration is
-// open. The first time, they get a profile of their own with an FOA
-// Participant ID (FOA-P-{YY}{6}, YY the year in India); a later
-// registration finds that profile again and keeps the latest details they
-// give. The registration waits for its fee (`pending_payment`) until
-// payForMyRegistration takes it.
+// registerAsIndividual(form) (#78, #81): a signed-in member registers for a
+// competition that takes individuals, while its registration is open:
+//
+// - an adult registers themselves. The first time, they get a profile of
+//   their own with an FOA Participant ID (FOA-P-{YY}{6}, YY the year in
+//   India); a later registration finds that profile again and keeps the
+//   latest details they give, except the date of birth: the profile's
+//   stays, and a different one typed is refused, so a teen held for a
+//   guardian can't type their way to an adult's age, nor an adult to a
+//   teen's;
+// - a verified guardian registers a child they look after (`forChildId`),
+//   and a teen whose login is linked to a guardian registers themselves:
+//   both on the child's profile, with its name and date of birth (the
+//   guardian's to change, not this form's), and its Participant ID given
+//   the first time;
+// - a teen of 13 to 17 with no guardian on the platform registers on a
+//   profile of their own and names a parent or guardian, whom FOA asks to
+//   verify and accept (../guardians/guardian-request.ts).
+//
+// A registration waits for its fee (`pending_payment`) until
+// payForMyRegistration takes it; a minor's is held (`pending_guardian`)
+// until a verified guardian has accepted them. A child under 13 never
+// registers alone.
 //
 // Whether they may register is the pure decision's to say
 // (./domain/individual-eligibility.ts): the competition's window and route,
-// the fee, their date of birth and age in India, the age group, a
-// duplicate and the documents to agree to, with one reason. This shell
-// loads the facts and saves the profile, the registration, the consents
-// and the audit entry in one transaction, or nothing.
+// the fee, the date of birth and age in India, who registers, the age
+// group, a duplicate and the documents to agree to, with one reason. This
+// shell loads the facts and saves the profile, the registration, the
+// consents, any guardian request and the audit entry in one transaction,
+// or nothing.
 
 import { and, eq, ne } from "drizzle-orm";
 
@@ -30,13 +47,22 @@ import { uuidv7 } from "../../ids";
 import type { InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import { withUniqueCode } from "../codes/codes";
+import { childResource } from "../guardians/child-access";
+import {
+  askGuardianFor,
+  readGuardianDetails,
+} from "../guardians/guardian-request";
+import type { GuardianRequestRefusal } from "../guardians/domain/guardian-request";
 import { offeredRoutes } from "../competitions/domain/fees";
 import { getRegistrationTerms } from "../competitions/terms/read";
 import { recordRegistrationConsents } from "../consent";
-import { formatIsoDate } from "../registration/domain/calendar-date";
+import {
+  formatIsoDate,
+  type CalendarDate,
+} from "../registration/domain/calendar-date";
 import { identityKeyInput } from "../registration/domain/identity-key";
 import { IDENTITY_HASH_PURPOSE } from "../registration/domain/prepare-student";
-import { initialRegistrationStatus } from "../registration/domain/registration-status";
+import { canStartIn } from "../registration/domain/registration-status";
 import { registrationWindow } from "../registration/domain/registration-window";
 import { ageGroupsOf } from "../registration/enrolment-facts";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
@@ -45,6 +71,14 @@ import {
   type IndividualRegistrationRefusal,
 } from "./domain/individual-eligibility";
 import { participantCodeFormat } from "./domain/participant-code";
+import {
+  keptDetailsOf,
+  linkedProfileOf,
+  lockedKeptProfile,
+  registrantOf,
+  saveKeptProfile,
+  subjectOf,
+} from "./registrant";
 import {
   parseRegisterInput,
   type RegisterAsIndividualInput,
@@ -58,10 +92,23 @@ export type RegisterAsIndividualResult =
       ok: true;
       registrationId: string;
       participantCode: string;
-      status: "pending_payment";
+      status: "pending_payment" | "pending_guardian";
+      /**
+       * The member who registered pays the fee next: theirs, or their
+       * child's. A held registration waits, and a linked teen's guardian
+       * pays for them.
+       */
+      payNow: boolean;
     }
   | InvalidInput
-  | { ok: false; error: "not_found" | IndividualRegistrationRefusal };
+  | {
+      ok: false;
+      error:
+        | "not_found"
+        | IndividualRegistrationRefusal
+        | GuardianRequestRefusal
+        | "rate_limited";
+    };
 
 /**
  * The competition named by `slug`, share-locked so a status job waits for
@@ -105,12 +152,22 @@ async function competitionFacts(tx: AppDb, slug: string, now: Date) {
   };
 }
 
-/** The adult's own profile, if they have one. */
-async function ownProfile(tx: AppDb, userId: string) {
+/**
+ * The member's own profile, if they have one, with the date of birth it
+ * holds (`YYYY-MM-DD`). Read under the member's user row lock, which a
+ * guardian accepting their request also takes (it makes the profile the
+ * guardian's), so the profile can't change hands meanwhile.
+ */
+async function ownProfile(
+  ctx: Pick<UseCaseContext, "cipher">,
+  tx: AppDb,
+  userId: string
+) {
   const [found] = await tx
     .select({
       id: participantProfile.id,
       participantCode: participantProfile.participantCode,
+      dobCiphertext: participantProfile.dobCiphertext,
     })
     .from(participantProfile)
     .where(
@@ -119,7 +176,12 @@ async function ownProfile(tx: AppDb, userId: string) {
         eq(participantProfile.ownerKind, "self")
       )
     );
-  return found ?? null;
+  if (!found) return null;
+  return {
+    id: found.id,
+    participantCode: found.participantCode,
+    dateOfBirth: ctx.cipher.decrypt(PROFILE_PURPOSE.dob, found.dobCiphertext),
+  };
 }
 
 async function hasLiveRegistration(
@@ -141,11 +203,31 @@ async function hasLiveRegistration(
   return found !== undefined;
 }
 
+/**
+ * The teen's login was linked to the profile a guardian keeps after who
+ * they register was read (a guardian accepted their request meanwhile).
+ */
+const SUBJECT_CHANGED = Symbol("subject changed");
+
 export async function registerAsIndividual(
   ctx: UseCaseContext,
   input: RegisterAsIndividualInput
 ): Promise<RegisterAsIndividualResult> {
-  const { role: actorRole } = await authorize(
+  const first = await registerOnce(ctx, input);
+  if (first !== SUBJECT_CHANGED) return first;
+  // Once more, as the linked teen they are now: on the guardian's profile.
+  const again = await registerOnce(ctx, input);
+  if (again === SUBJECT_CHANGED) {
+    throw new Error("Who registers changed twice while registering");
+  }
+  return again;
+}
+
+async function registerOnce(
+  ctx: UseCaseContext,
+  input: RegisterAsIndividualInput
+): Promise<RegisterAsIndividualResult | typeof SUBJECT_CHANGED> {
+  const { role: memberRole } = await authorize(
     ctx,
     "registration.individual.create"
   );
@@ -154,97 +236,166 @@ export async function registerAsIndividual(
     throw new Error("registerAsIndividual needs a signed-in user");
   }
   const userId = ctx.actor.userId;
-  const parsed = parseRegisterInput(input);
+  const { forChildId, guardian: guardianInput, ...typed } = input;
+  const subject = await subjectOf(ctx, userId, forChildId);
+  const kept = await keptDetailsOf(ctx, subject);
+  // A child's name and date of birth are the profile's.
+  const parsed = parseRegisterInput(kept ? { ...typed, ...kept } : typed);
   if (!parsed.ok) {
     return { ok: false, error: "invalid_input", fields: parsed.fields };
   }
   const form = parsed.value;
+  const actorRole = subject.kind === "child" ? subject.actorRole : memberRole;
   const now = ctx.clock.now();
 
-  return ctx.db.transaction(async (tx): Promise<RegisterAsIndividualResult> => {
-    const target = await competitionFacts(tx, form.competitionSlug, now);
-    if (!target) return { ok: false, error: "not_found" };
-    const terms = await getRegistrationTerms(tx, target.id);
-    if (!terms) return { ok: false, error: "not_found" };
-    // One person's registrations take turns, so the duplicate check and
-    // the first profile see every earlier one.
-    await tx
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.id, userId))
-      .for("no key update");
-    const profile = await ownProfile(tx, userId);
+  return ctx.db.transaction(
+    async (
+      tx
+    ): Promise<RegisterAsIndividualResult | typeof SUBJECT_CHANGED> => {
+      const target = await competitionFacts(tx, form.competitionSlug, now);
+      if (!target) return { ok: false, error: "not_found" };
+      const terms = await getRegistrationTerms(tx, target.id);
+      if (!terms) return { ok: false, error: "not_found" };
+      // One person's registrations take turns, so the duplicate check and
+      // the first profile see every earlier one.
+      await tx
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.id, userId))
+        .for("no key update");
+      if (subject.kind === "own" && (await linkedProfileOf(tx, userId))) {
+        return SUBJECT_CHANGED;
+      }
+      const stored =
+        subject.kind === "own"
+          ? ({
+              kind: "own",
+              profile: await ownProfile(ctx, tx, userId),
+            } as const)
+          : ({
+              kind: "kept",
+              profile: await lockedKeptProfile(tx, subject.profileId),
+            } as const);
+      const { profile } = stored;
+      if (subject.kind === "child") {
+        // Again under the child's lock: a link revoked since counts.
+        await authorize(
+          { db: tx, clock: ctx.clock, actor: ctx.actor },
+          "guardian.child.manage",
+          await childResource(tx, ctx.actor, subject.profileId)
+        );
+      }
 
-    const decision = decideIndividualRegistration({
-      competition: {
-        registrationOpen: target.open,
-        acceptsIndividuals: target.acceptsIndividuals,
-        feeSet: terms.fees.individual !== null,
-        ageCutoffDate: target.ageCutoffDate,
-        ageGroups: await ageGroupsOf(tx, target.id),
-      },
-      dateOfBirth: form.dateOfBirth,
-      alreadyRegistered:
-        profile !== null &&
-        (await hasLiveRegistration(tx, profile.id, target.id)),
-      consents: {
-        required: terms.documents
-          .filter((document) => document.required)
-          .map((document) => document.documentId),
-        given: form.consents,
-      },
-      at: now,
-    });
-    if (!decision.ok) return { ok: false, error: decision.reason };
+      const decision = decideIndividualRegistration({
+        competition: {
+          registrationOpen: target.open,
+          acceptsIndividuals: target.acceptsIndividuals,
+          feeSet: terms.fees.individual !== null,
+          ageCutoffDate: target.ageCutoffDate,
+          ageGroups: await ageGroupsOf(tx, target.id),
+        },
+        dateOfBirth: form.dateOfBirth,
+        storedDateOfBirth:
+          stored.kind === "own"
+            ? (stored.profile?.dateOfBirth ?? null)
+            : (kept?.dateOfBirth ?? null),
+        registrant: await registrantOf(tx, userId, subject),
+        alreadyRegistered:
+          profile !== null &&
+          (await hasLiveRegistration(tx, profile.id, target.id)),
+        consents: {
+          required: terms.documents
+            .filter((document) => document.required)
+            .map((document) => document.documentId),
+          given: form.consents,
+        },
+        at: now,
+      });
+      if (!decision.ok) return { ok: false, error: decision.reason };
 
-    const details = profileColumns(ctx, form, decision.dateOfBirth);
-    const saved = profile
-      ? await updateProfile(tx, profile, details, now)
-      : await createProfile(tx, userId, details, now);
+      let askGuardian: ((profileId: string) => Promise<void>) | null = null;
+      if (decision.askGuardian) {
+        const named = readGuardianDetails(guardianInput);
+        if (!named.ok) {
+          return { ok: false, error: "invalid_input", fields: named.fields };
+        }
+        const ask = await askGuardianFor(tx, ctx, {
+          profileId: profile?.id ?? null,
+          requesterUserId: userId,
+          details: named.details,
+        });
+        if (!ask.ok) return { ok: false, error: ask.error };
+        askGuardian = ask.write;
+      }
 
-    const registrationId = uuidv7(now);
-    const { status } = initialRegistrationStatus("individual");
-    if (status !== "pending_payment") {
-      throw new Error(`An individual registration can't start ${status}`);
-    }
-    await tx.insert(registration).values({
-      id: registrationId,
-      participantProfileId: saved.id,
-      competitionId: target.id,
-      route: "individual",
-      ageGroupId: decision.ageGroup.id,
-      status,
-      createdAt: now,
-      updatedAt: now,
-    });
-    const given = new Set(form.consents);
-    await recordRegistrationConsents(tx, ctx, {
-      userId,
-      documents: terms.documents
-        .filter((document) => given.has(document.documentId))
-        .map(({ purpose, documentId }) => ({ purpose, documentId })),
-    });
-    await recordAudit(tx, ctx, {
-      action: "registration.individual_registered",
-      entity: { type: "registration", id: registrationId },
-      before: null,
-      after: {
+      const saved =
+        stored.kind === "own"
+          ? await saveOwnProfile(ctx, tx, userId, profile, form, decision, now)
+          : await saveKeptProfile(ctx, tx, stored.profile, form, now);
+
+      const registrationId = uuidv7(now);
+      const { status } = decision;
+      if (!canStartIn("individual", status)) {
+        throw new Error(`An individual registration can't start ${status}`);
+      }
+      await tx.insert(registration).values({
+        id: registrationId,
         participantProfileId: saved.id,
         competitionId: target.id,
-        ageGroupId: decision.ageGroup.id,
         route: "individual",
+        ageGroupId: decision.ageGroup.id,
         status,
-        profileCreated: profile === null,
-      },
-      actorRole,
-    });
-    return {
-      ok: true,
-      registrationId,
-      participantCode: saved.participantCode,
-      status,
-    };
-  });
+        createdAt: now,
+        updatedAt: now,
+      });
+      const given = new Set(form.consents);
+      await recordRegistrationConsents(tx, ctx, {
+        userId,
+        documents: terms.documents
+          .filter((document) => given.has(document.documentId))
+          .map(({ purpose, documentId }) => ({ purpose, documentId })),
+      });
+      if (askGuardian) await askGuardian(saved.id);
+      await recordAudit(tx, ctx, {
+        action: "registration.individual_registered",
+        entity: { type: "registration", id: registrationId },
+        before: null,
+        after: {
+          participantProfileId: saved.id,
+          competitionId: target.id,
+          ageGroupId: decision.ageGroup.id,
+          route: "individual",
+          status,
+          registeredBy: subject.kind === "child" ? "guardian" : "self",
+          profileCreated: profile === null,
+        },
+        actorRole,
+      });
+      return {
+        ok: true,
+        registrationId,
+        participantCode: saved.participantCode,
+        status,
+        payNow: status === "pending_payment" && subject.kind !== "linked",
+      };
+    }
+  );
+}
+
+/** The member's own profile, created the first time, with the form's details. */
+async function saveOwnProfile(
+  ctx: UseCaseContext,
+  tx: AppDb,
+  userId: string,
+  profile: { id: string; participantCode: string | null } | null,
+  form: RegisterInput,
+  decision: { dateOfBirth: CalendarDate },
+  now: Date
+): Promise<{ id: string; participantCode: string }> {
+  const details = profileColumns(ctx, form, decision.dateOfBirth);
+  return profile
+    ? updateProfile(tx, profile, details, now)
+    : createProfile(tx, userId, details, now);
 }
 
 type ProfileColumns = ReturnType<typeof profileColumns>;
@@ -303,7 +454,10 @@ async function createProfile(
   return { id, participantCode };
 }
 
-/** The latest details replace the old ones; the Participant ID stays. */
+/**
+ * The latest details replace the old ones; the Participant ID and the date
+ * of birth stay (the decision refused a different one).
+ */
 async function updateProfile(
   tx: AppDb,
   profile: { id: string; participantCode: string | null },
@@ -313,9 +467,10 @@ async function updateProfile(
   if (profile.participantCode === null) {
     throw new Error(`Profile ${profile.id} of its owner has no Participant ID`);
   }
+  const { dobCiphertext: _stays, ...latest } = details;
   await tx
     .update(participantProfile)
-    .set({ ...details, updatedAt: now })
+    .set({ ...latest, updatedAt: now })
     .where(eq(participantProfile.id, profile.id));
   return { id: profile.id, participantCode: profile.participantCode };
 }

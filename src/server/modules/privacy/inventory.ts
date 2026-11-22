@@ -107,6 +107,15 @@ const AFTER_TEEN_INVITATION_CLOSES = {
   toConfirm: true,
 } as const;
 
+/** A teen's guardian request (#81): who they named, and its answer. */
+const AFTER_GUARDIAN_REQUEST_CLOSES = {
+  period:
+    "30 days after the request is accepted, withdrawn or expires (HR-31); an accepted request's guardian is then on the guardian record",
+  basis:
+    "Lets FOA ask the person a teen named to confirm them, and answer a query about who was asked and when (HR-30)",
+  toConfirm: true,
+} as const;
+
 const WHILE_STUDENT_TAKES_PART = {
   period:
     "Until 3 years after the last competition the participant (a school's student, or an adult on their own) was registered for (HR-31)",
@@ -591,7 +600,7 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     table: "guardian_invitation",
     column: "contact_ciphertext",
     purpose:
-      "The email a guardian invited their teen to an own login at, to send the link (encrypted)",
+      "The email a guardian invited their teen to an own login at, or a teen gave for the guardian they asked (#81), to send the link (encrypted)",
     retention: AFTER_TEEN_INVITATION_CLOSES,
   },
   {
@@ -611,8 +620,30 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
   {
     table: "guardian_invitation",
     column: "accepted_by_user_id",
-    purpose: "Records which account accepted the invitation as the teen's own",
+    purpose:
+      "Records which account accepted the invitation as the teen's own, or a teen's guardian request as their guardian (#81)",
     retention: AFTER_TEEN_INVITATION_CLOSES,
+  },
+  {
+    table: "guardian_invitation",
+    column: "invitee_name_ciphertext",
+    purpose:
+      "The name a teen gave for the parent or guardian they asked FOA to contact, to greet them in the request (encrypted)",
+    retention: AFTER_GUARDIAN_REQUEST_CLOSES,
+  },
+  {
+    table: "guardian_invitation",
+    column: "relationship",
+    purpose:
+      "How a teen says the person they named is related to them, shown to that person to confirm",
+    retention: AFTER_GUARDIAN_REQUEST_CLOSES,
+  },
+  {
+    table: "guardian_invitation",
+    column: "requested_by_user_id",
+    purpose:
+      "Links a guardian request to the teen who asked, so their held registrations are released to the guardian who accepts",
+    retention: AFTER_GUARDIAN_REQUEST_CLOSES,
   },
   {
     table: "participant_profile",

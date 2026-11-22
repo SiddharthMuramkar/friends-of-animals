@@ -2,9 +2,9 @@
 // registration for a competition can have, and who may move it between
 // them. #75 brought the school route's enrolled and withdrawn; #77 adds
 // confirmed, once its fee is paid (or it is free); #78 adds an adult's own
-// registration waiting for its fee. Later tickets append theirs (refunded
-// with #80, waiting for a guardian with #81) and their rows here, each new
-// enum value in its own migration.
+// registration waiting for its fee; #81 a minor's, waiting for their
+// guardian. Later tickets append theirs (refunded with #80) and their rows
+// here, each new enum value in its own migration.
 //
 // Plain TypeScript with no imports, so the schema file and the seed
 // script can load it under plain Node.
@@ -19,26 +19,46 @@ export const REGISTRATION_STATUSES = [
   "pending_payment",
   /** Its fee went back to the payer (#80): no longer registered. */
   "refunded",
+  /**
+   * A minor's registration, held until a guardian has verified and
+   * accepted them (#81): it can't be paid for or confirmed until then.
+   */
+  "pending_guardian",
 ] as const;
 
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 
 /**
  * Who makes a move: the institution's coordinator or authorised person,
- * the adult registering themselves, or the payments module once the fee
- * is captured or found to be zero.
+ * the adult registering themselves, the payments module once the fee is
+ * captured or found to be zero, or a verified guardian accepting the
+ * minor (#81).
  */
-export type RegistrationCause = "coordinator" | "participant" | "payment";
+export type RegistrationCause =
+  | "coordinator"
+  | "participant"
+  | "payment"
+  | "guardian";
 
-/** How a registration enters the machine on each route. */
+/**
+ * How a registration enters the machine on each route: the status it
+ * usually starts in, any other it may start in, and who creates it. A
+ * minor's individual registration starts held for their guardian when
+ * none has verified yet (#81).
+ */
 const ENTRY: {
   readonly [Route in "institution" | "individual"]: {
     status: RegistrationStatus;
+    alsoStartsIn: readonly RegistrationStatus[];
     cause: RegistrationCause;
   };
 } = {
-  institution: { status: "enrolled", cause: "coordinator" },
-  individual: { status: "pending_payment", cause: "participant" },
+  institution: { status: "enrolled", alsoStartsIn: [], cause: "coordinator" },
+  individual: {
+    status: "pending_payment",
+    alsoStartsIn: ["pending_guardian"],
+    cause: "participant",
+  },
 };
 
 /**
@@ -58,14 +78,27 @@ const TRANSITIONS: {
   // ticket; only the payment moves it.
   pending_payment: { confirmed: "payment" },
   refunded: {},
+  // Only a verified guardian's acceptance releases it; nothing confirms it
+  // directly, and nothing moves a registration back here.
+  pending_guardian: { pending_payment: "guardian" },
 };
 
-/** The status a new registration starts in, and who creates it. */
+/** The status a new registration usually starts in, and who creates it. */
 export function initialRegistrationStatus(route: keyof typeof ENTRY): {
   status: RegistrationStatus;
   cause: RegistrationCause;
 } {
-  return ENTRY[route];
+  const { status, cause } = ENTRY[route];
+  return { status, cause };
+}
+
+/** Whether a new registration on `route` may start in `status`. */
+export function canStartIn(
+  route: keyof typeof ENTRY,
+  status: RegistrationStatus
+): boolean {
+  const entry = ENTRY[route];
+  return entry.status === status || entry.alsoStartsIn.includes(status);
 }
 
 /** Who may move a registration from `from` to `to`, or null if nobody may. */

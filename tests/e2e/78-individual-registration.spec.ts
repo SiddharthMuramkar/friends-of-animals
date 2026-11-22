@@ -11,14 +11,14 @@ import { signInByCode } from "./support/sign-in";
 
 // #78: an adult takes part on their own. The chooser recommends entering
 // through a school and says why; a signed-in adult registers for the
-// seeded open competition from its page, is refused while the form says
-// they are a minor, then registers, lands on the pay page, opens the
-// checkout, sees the registration waiting on their dashboard with their FOA
-// Participant ID, then pays from there and gets their registration number.
-// Each new page is checked with axe, light and dark. CI runs with no
-// Razorpay keys, so the fallback gateway's test checkout stands in for
-// Razorpay's (Razorpay test mode needs HR-09). Ages and the money rules
-// need a clock and raw rows, so Seam 1 covers them
+// seeded open competition from its page, is asked for a parent or guardian
+// while the form says they are a minor (#81), then registers, lands on the
+// pay page, opens the checkout, sees the registration waiting on their
+// dashboard with their FOA Participant ID, then pays from there and gets
+// their registration number. Each new page is checked with axe, light and
+// dark. CI runs with no Razorpay keys, so the fallback gateway's test
+// checkout stands in for Razorpay's (Razorpay test mode needs HR-09). Ages
+// and the money rules need a clock and raw rows, so Seam 1 covers them
 // (src/server/modules/participants/*.test.ts).
 
 /** The seeded open competition (src/server/seed/competitions.ts). */
@@ -106,15 +106,14 @@ test("an adult registers for a competition on their own and sees it on their das
   const register = page.getByRole("button", { name: "Register", exact: true });
   await register.click();
 
-  // Under 18: the come-back pointer, on the date of birth.
+  // Under 18 on their own: asked who their parent or guardian is (#81).
   await expect(
-    shown(page, /Please come back when entry with a parent or guardian opens/)
+    shown(page, /You're under 18\. Tell us who your parent or guardian is/)
   ).toBeVisible();
-  await expect(page.getByLabel("Date of birth")).toHaveAttribute(
-    "aria-invalid",
-    "true"
-  );
-  await checkBothThemes(page, "/participant/register/[slug] minor");
+  await expect(
+    page.getByRole("group", { name: "Your parent or guardian" })
+  ).toBeVisible();
+  await checkBothThemes(page, "/participant/register/[slug] under 18");
 
   await page.getByLabel("Date of birth").fill("1993-09-17");
   for (const box of await page.getByRole("checkbox").all()) await box.check();

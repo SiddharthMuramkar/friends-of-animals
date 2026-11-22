@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { SubmitButton } from "@/components/form";
 import { OutcomeNotice } from "@/components/form/outcome-notice";
 import { Chip } from "@/components/site/chip";
+import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
@@ -22,8 +23,9 @@ import { isChildOutcome, type InviteProblem } from "../../_lib/form-state";
 import { InviteTeenForm } from "./_components/invite-teen-form";
 
 // One child's page (#81), for a guardian linked to them: their details,
-// and from 13 to 17 their own login: invite them, see the invitation
-// waiting, or that the login is linked. Anyone else gets the not-found
+// from 13 to 17 their own login (invite them, see the invitation waiting,
+// or that the login is linked), and where to register them for a
+// competition (#81). Anyone else gets the not-found
 // page, streamed inside <Suspense>, so with status 200.
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -68,6 +70,7 @@ const INVITE_PROBLEMS: readonly InviteProblem[] = [
   "adult",
   "child_has_login",
   "invitee_is_guardian",
+  "rate_limited",
   "unexpected",
 ];
 
@@ -177,6 +180,21 @@ async function Child({
                 />
               </>
             )}
+          </section>
+        )}
+
+        {child.kind === "adult" ? null : (
+          <section aria-labelledby="child-register" className={CARD}>
+            <SectionHeading id="child-register" title={t("register.title")} />
+            <p className="text-ink">{t("register.body", { name })}</p>
+            <div className="flex flex-wrap gap-3">
+              <ButtonLink href={ROUTES.competitions.path}>
+                {t("register.find")}
+              </ButtonLink>
+              <ButtonLink href={APP_ROUTES.participant} variant="secondary">
+                {t("register.mine")}
+              </ButtonLink>
+            </div>
           </section>
         )}
 

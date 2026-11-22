@@ -15,8 +15,11 @@ import type { MyRegistration } from "@/server/modules/participants";
 import { formatPaise } from "@/server/modules/payments/domain/money-format";
 import type { RegistrationStatus } from "@/server/modules/registration";
 
-// The participant dashboard (#78): an adult's own registrations and where
-// each stands. Entries, results and certificates join it later.
+// The participant dashboard (#78, #81): the member's own registrations
+// and, for a guardian, their children's, and where each stands: waiting
+// for a guardian to confirm, waiting for payment (with the button for
+// whoever pays), or confirmed. Entries, results and certificates join it
+// later.
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("participant.dashboard.meta");
@@ -31,6 +34,7 @@ const STATUS_TONE = {
   withdrawn: "neutral",
   pending_payment: "marigold",
   refunded: "neutral",
+  pending_guardian: "marigold",
 } as const satisfies Record<RegistrationStatus, string>;
 
 const CARD =
@@ -74,12 +78,19 @@ async function Registrations() {
       </div>
     );
   }
+  const own = mine.find((registration) => registration.whose === "mine");
   return (
     <>
-      <p className="mt-8 text-lead font-semibold text-ink">
-        {t("participantId", { code: mine[0]!.participantCode })}
-      </p>
-      <ul className="mt-6 flex flex-col gap-4">
+      {own ? (
+        <p className="mt-8 text-lead font-semibold text-ink">
+          {t("participantId", { code: own.participantCode })}
+        </p>
+      ) : null}
+      <ul
+        className={
+          own ? "mt-6 flex flex-col gap-4" : "mt-8 flex flex-col gap-4"
+        }
+      >
         {mine.map((registration) => (
           <li key={registration.registrationId}>
             <RegistrationCard registration={registration} />
@@ -118,6 +129,23 @@ async function RegistrationCard({
           {status(registration.status)}
         </Chip>
       </div>
+      {registration.whose === "child" ? (
+        <p className="mt-3 font-semibold text-ink">
+          {t("forChild", { name: registration.participantName })}
+          <span className="block text-sm font-normal text-ink-muted">
+            {t("childParticipantId", {
+              name: registration.participantName,
+              code: registration.participantCode,
+            })}
+          </span>
+        </p>
+      ) : null}
+      {registration.status === "pending_guardian" ? (
+        <p className="mt-3 text-ink">{t("held")}</p>
+      ) : null}
+      {registration.status === "pending_payment" && !amountDue ? (
+        <p className="mt-3 text-ink">{t("guardianPays")}</p>
+      ) : null}
       {registration.registrationNumber ? (
         <p className="mt-3 font-semibold text-ink">
           {t("registrationNumber", { number: registration.registrationNumber })}

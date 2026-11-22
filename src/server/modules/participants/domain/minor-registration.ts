@@ -7,10 +7,10 @@
 // years on India's calendar at the registration instant), loads who is
 // registering and their guardian's state, and passes them in.
 
-// The guardians module (81a) and the age rules (#78) hold the same two
-// limits; once both are on the trunk this file imports them instead.
-const OWN_LOGIN_MIN_AGE = 13;
-const ADULT_AGE = 18;
+import {
+  ADULT_AGE,
+  MINOR_LOGIN_MIN_AGE,
+} from "../../guardians/domain/children";
 
 /** Who is registering the minor. */
 export type MinorRegistrant =
@@ -56,7 +56,7 @@ export function decideMinorRegistration(input: {
       ? { ok: true, status: "pending_payment", askGuardian: false }
       : { ok: true, status: "pending_guardian", askGuardian: false };
   }
-  if (ageYears < OWN_LOGIN_MIN_AGE) {
+  if (ageYears < MINOR_LOGIN_MIN_AGE) {
     return { ok: false, reason: "under_13_needs_guardian" };
   }
   switch (registrant.guardian) {

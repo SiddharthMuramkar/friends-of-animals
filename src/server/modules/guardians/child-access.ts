@@ -5,7 +5,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Resource } from "../../access/domain/policy";
@@ -22,6 +22,15 @@ export function activeLinkOf(userId: string, childId: string) {
     eq(guardianLink.participantProfileId, childId),
     isNull(guardianLink.revokedAt)
   );
+}
+
+/**
+ * A live link whose guardian has verified, on guardian_link joined to
+ * guardian: the one that lets them see, register and pay for the child,
+ * and that a linked teen counts as having a guardian.
+ */
+export function verifiedLink() {
+  return and(isNull(guardianLink.revokedAt), isNotNull(guardian.verifiedAt));
 }
 
 /**
