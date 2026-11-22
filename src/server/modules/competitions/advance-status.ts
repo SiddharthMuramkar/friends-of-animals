@@ -1,6 +1,7 @@
 // Moving a competition's status when its status job arrives (#71).
 //
 //   advanceCompetitionStatus({ competitionId, kind, dueAt })  → the worker only
+//   retryBlockedMoves(deps, { competitionId })                → the worker only
 //
 // The job names the key date it was saved for and the instant that date
 // held then. The use case locks the competition and asks planStatusJob
@@ -18,7 +19,7 @@ import type { AppDb } from "../../db/app-db";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { Clock } from "../../ports/clock";
 import { KEY_DATE_KINDS, type KeyDateKind } from "./domain/key-dates";
-import { planStatusJob } from "./domain/status-schedule";
+import { dueTransitions, planStatusJob } from "./domain/status-schedule";
 import type { CompetitionStatus } from "./domain/vocabulary";
 import {
   competitionResource,
@@ -27,7 +28,7 @@ import {
 } from "./manage";
 import { saveStatusJobs } from "./status-jobs";
 import { loadCompetition } from "./store";
-import { makeScheduledMoves } from "./transition-guards";
+import { hasRefusedMove, makeScheduledMoves } from "./transition-guards";
 
 const inputSchema = z.object({
   competitionId: z.string(),
@@ -125,4 +126,37 @@ export async function runStatusJob(
       `The status job for competition ${payload.competitionId} is not valid: ${result.fields.join(", ")}`
     );
   }
+}
+
+/**
+ * The outbox handler for each guard's `retryOn` events (#88): tries the
+ * competition's refused moves again, as the worker, making every move due
+ * by now that the guards allow. It does nothing unless a move is refused,
+ * so a rubric published before its date moves nothing early, and nothing
+ * when the date has since moved ahead: that date's own job runs then.
+ */
+export async function retryBlockedMoves(
+  deps: { db: AppDb; clock: Clock },
+  payload: { competitionId: string }
+): Promise<void> {
+  const ctx = { db: deps.db, clock: deps.clock, actor: WORKER };
+  const { competitionId } = payload;
+  await authorize(
+    ctx,
+    "competition.advance_status",
+    competitionResource(competitionId)
+  );
+  if (!isCompetitionId(competitionId)) return;
+  const now = ctx.clock.now();
+  await ctx.db.transaction(async (tx) => {
+    const stored = await loadCompetition(tx, competitionId, { lock: true });
+    if (!stored || !(await hasRefusedMove(tx, competitionId))) return;
+    const { status } = stored.row;
+    await makeScheduledMoves(
+      tx,
+      ctx,
+      { id: competitionId, status, disciplines: stored.values.disciplines },
+      dueTransitions(status, stored.values.keyDates, now)
+    );
+  });
 }

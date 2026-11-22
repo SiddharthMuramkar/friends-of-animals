@@ -6,7 +6,7 @@
 //
 //   createRubricDraft({ competitionId, discipline })  → version 1, default criteria
 //   updateRubricDraft({ rubricId, criteria })         → replaces a draft's criteria
-//   publishRubric({ rubricId })                       → supersedes the old version
+//   publishRubric({ rubricId })                       → supersedes the old version; rubric.published
 //   startRubricRevision({ rubricId })                 → a published rubric's next draft
 //   listRubrics({ competitionId })                    → each discipline's state, any refused move
 //   getDisciplineRubrics({ competitionId, discipline }) → every version, newest first
@@ -30,6 +30,7 @@ import {
 } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
+import { emit } from "../../outbox/emit";
 import type { UseCaseContext } from "../../use-cases";
 import { TRANSITION_BLOCK } from "../competitions/domain/transition-block";
 import {
@@ -450,6 +451,17 @@ export async function publishRubric(
         before: { status: "draft", version: row.version },
         after: { status: "published", version: row.version },
         actorRole: role,
+      });
+      // A move into school judging the guard refused is tried again.
+      await emit(tx, ctx.clock, {
+        type: "rubric.published",
+        aggregate: { type: "rubric", id: rubricId },
+        payload: {
+          rubricId,
+          competitionId: row.competitionId,
+          discipline: row.discipline,
+          version: row.version,
+        },
       });
       return { ok: true, rubric: await viewById(tx, rubricId) } as const;
     })

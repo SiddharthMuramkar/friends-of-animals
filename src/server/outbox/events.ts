@@ -12,6 +12,10 @@ import {
   type KeyDateKind,
 } from "../modules/competitions/domain/key-dates";
 import {
+  DISCIPLINES,
+  type Discipline,
+} from "../modules/competitions/domain/vocabulary";
+import {
   CONSENT_SUBJECT_TYPES,
   GIVABLE_PURPOSES,
   type ConsentSubjectType,
@@ -101,6 +105,20 @@ export type DomainEvent =
       type: "competition.transition_blocked";
       aggregate: { type: "competition"; id: string };
       payload: { competitionId: string; blockId: string };
+    }
+  | {
+      /**
+       * A competition manager published a rubric (#88). A move of its
+       * competition the guards refused is tried again.
+       */
+      type: "rubric.published";
+      aggregate: { type: "rubric"; id: string };
+      payload: {
+        rubricId: string;
+        competitionId: string;
+        discipline: Discipline;
+        version: number;
+      };
     };
 
 export type EventType = DomainEvent["type"];
@@ -147,6 +165,12 @@ export const EVENT_PAYLOADS = {
     competitionId: z.uuid(),
     blockId: z.uuid(),
   }),
+  "rubric.published": z.object({
+    rubricId: z.uuid(),
+    competitionId: z.uuid(),
+    discipline: z.enum(DISCIPLINES),
+    version: z.int().min(1),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -172,6 +196,8 @@ export const SUBSCRIBERS = {
   "institution.reinstated": ["notifications.dispatch"],
   "competitions.key_date_scheduled": ["competitions.advance_status"],
   "competition.transition_blocked": ["notifications.dispatch"],
+  // Each guard's retryOn events (modules/competitions/transition-guards.ts).
+  "rubric.published": ["competitions.retry_blocked_moves"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

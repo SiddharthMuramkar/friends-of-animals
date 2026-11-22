@@ -8,7 +8,7 @@
 // All of that happens once; a later refusal of the same move only brings
 // the row's details up to date. The next attempt that passes makes the
 // move and resolves the row. Attempts come from the status jobs and from
-// `retryOn` events (retryBlockedMoves).
+// each guard's `retryOn` events (retryBlockedMoves in ./advance-status.ts).
 //
 // Loads under plain Node (the worker): relative imports only.
 
@@ -77,6 +77,24 @@ async function openBlock(
       )
     );
   return row ?? null;
+}
+
+/** Whether a move of the competition is refused right now. */
+export async function hasRefusedMove(
+  db: AppDb,
+  competitionId: string
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: competitionTransitionBlock.id })
+    .from(competitionTransitionBlock)
+    .where(
+      and(
+        eq(competitionTransitionBlock.competitionId, competitionId),
+        isNull(competitionTransitionBlock.resolvedAt)
+      )
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 /** Records a refused move once; later refusals refresh its details. */

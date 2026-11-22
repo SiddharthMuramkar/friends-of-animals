@@ -16,7 +16,7 @@ import { rubricCoverage } from "./domain/rubric-coverage";
 export const schoolJudgingNeedsPublishedRubrics: CompetitionTransitionGuard = {
   from: "registration_closed",
   to: "school_judging",
-  retryOn: [],
+  retryOn: ["rubric.published"],
   async check(db, competition) {
     const published = await db
       .select({ discipline: rubric.discipline, status: rubric.status })

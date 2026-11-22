@@ -65,6 +65,9 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "competition.transition_blocked":
       // For the competition's managers (`competition_managers`).
       return null;
+    case "rubric.published":
+      // Re-runs a refused move (#88); no route row names it.
+      return null;
   }
 }
 
@@ -231,6 +234,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => institutionValues(db, payload.institutionId),
   },
   "competitions.key_date_scheduled": { names: [], load: async () => ({}) },
+  "rubric.published": { names: [], load: async () => ({}) },
   "competition.transition_blocked": {
     names: [
       "competition.name",
