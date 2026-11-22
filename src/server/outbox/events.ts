@@ -7,6 +7,12 @@
 
 import { z } from "zod";
 
+import {
+  CONSENT_SUBJECT_TYPES,
+  GIVABLE_PURPOSES,
+  type ConsentSubjectType,
+  type GivablePurpose,
+} from "../modules/consent/domain/purposes";
 import { FILE_PROCESSING_ERROR_CODES } from "../ports/media";
 
 export type DomainEvent =
@@ -20,6 +26,18 @@ export type DomainEvent =
       type: "files.file_uploaded";
       aggregate: { type: "file_asset"; id: string };
       payload: { fileId: string };
+    }
+  | {
+      /** Someone withdrew consent (#64); later modules stop what it allowed. */
+      type: "consent.withdrawn";
+      aggregate: { type: "consent_event"; id: string };
+      payload: {
+        consentEventId: string;
+        subjectType: ConsentSubjectType;
+        subjectId: string;
+        purpose: GivablePurpose;
+        documentId: string;
+      };
     }
   | {
       /** A clean file has derivatives to make: worker-media's job (#85). */
@@ -56,6 +74,13 @@ export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
 export const EVENT_PAYLOADS = {
   "identity.user_signed_up": z.object({ userId: z.uuid() }),
   "files.file_uploaded": z.object({ fileId: z.uuid() }),
+  "consent.withdrawn": z.object({
+    consentEventId: z.uuid(),
+    subjectType: z.enum(CONSENT_SUBJECT_TYPES),
+    subjectId: z.uuid(),
+    purpose: z.enum(GIVABLE_PURPOSES),
+    documentId: z.uuid(),
+  }),
   "files.processing_requested": z.object({ fileId: z.uuid() }),
   "files.file_processed": z.object({ fileId: z.uuid() }),
   "files.file_processing_failed": z.object({
@@ -68,6 +93,9 @@ export const EVENT_PAYLOADS = {
 export const SUBSCRIBERS = {
   "identity.user_signed_up": ["notifications.send_welcome_email"],
   "files.file_uploaded": ["files.scan_file"],
+  // The modules that act on a withdrawal (gallery, social, auctions,
+  // campaigns: #69, #119, #126, #131) add their handlers here.
+  "consent.withdrawn": ["consent.acknowledge_withdrawal"],
   // Runs in worker-media only: the media queue (./queues.ts).
   "files.processing_requested": ["files.process_image"],
   // #85's Entries unit subscribes to these two.

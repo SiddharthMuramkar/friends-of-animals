@@ -36,10 +36,10 @@ import { FakeEmail } from "./fakes/email";
 import { FakeErrorReporter } from "./fakes/errors";
 import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakeMediaProcessor } from "./fakes/media";
-import { FakeSettings } from "./fakes/settings";
 import { FakeSms } from "./fakes/sms";
 import { FakeStorage } from "./fakes/storage";
 import { TEST_AUTH, TEST_FILES } from "./harness";
+import { TestSettings } from "./settings";
 
 /** The test database's URL; refuses one that isn't on this machine. */
 export function pgTestUrl(): string {
@@ -81,7 +81,7 @@ export function createPgWorld() {
       keys: new Map([[1, randomBytes(32)]]),
     }),
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
-    settings: new FakeSettings(),
+    settings: new TestSettings({ db, clock }),
     storage: new FakeStorage(clock),
     files: TEST_FILES,
     errors: new FakeErrorReporter(),

@@ -60,6 +60,11 @@ export const HANDLERS: Handlers = {
   "notifications.send_welcome_email": (deps, { payload }) =>
     sendWelcomeEmail(deps, payload),
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
+  // Nothing to do yet: consent state is read live, so a withdrawal counts
+  // at once. emit() saves no row for an event without handlers, so this
+  // one keeps each withdrawal on the outbox until the first module that
+  // reacts to it adds its own handler; then remove this one.
+  "consent.acknowledge_withdrawal": async () => {},
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
 };
 

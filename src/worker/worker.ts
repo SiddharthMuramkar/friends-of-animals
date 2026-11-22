@@ -18,6 +18,7 @@ import {
 } from "../server/outbox";
 import type { Clock } from "../server/ports/clock";
 import { emailSenderFor } from "../server/ports/email-sender-for";
+import type { ErrorReporter } from "../server/ports/errors";
 import type { MalwareScanner } from "../server/ports/malware-scanner";
 import { unconfiguredMedia, type MediaProcessor } from "../server/ports/media";
 import type { ObjectStorage } from "../server/ports/storage";
@@ -64,6 +65,8 @@ export type WorkerIo = {
   beat: (at: Date) => Promise<void>;
   /** A tenant's tick failed: Sentry (#66, ./errors.ts). */
   onTenantError: (error: unknown, where: { tenant: string }) => void;
+  /** Where a scheduled run reports its failures: Sentry (./errors.ts). */
+  errors: ErrorReporter;
 };
 
 export type Worker = {
@@ -106,7 +109,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     if (!isMedia) {
       const boss = await io.startBoss(single.databaseUrl);
       cleanups.unshift(() => boss.stop());
-      await registerSchedules(boss, SCHEDULES, deps);
+      await registerSchedules(boss, SCHEDULES, { ...deps, errors: io.errors });
     }
     return createSupervisor({
       clock: io.clock,

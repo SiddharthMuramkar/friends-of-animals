@@ -30,7 +30,8 @@ import { nextCookieJar } from "./ports/cookies-next";
 import { unconfiguredSmsSender, type SmsSender } from "./ports/sms";
 import { captureSmsSender } from "./ports/sms-capture";
 import { msg91SmsSender } from "./ports/sms-msg91";
-import { fixedSettings, type Settings } from "./ports/settings";
+import type { Settings } from "./ports/settings";
+import { databaseSettings } from "./modules/settings/read";
 import type { EmailSender } from "./ports/email";
 import { emailSenderFor } from "./ports/email-sender-for";
 import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
@@ -59,7 +60,10 @@ export interface Deps extends DbWithClock {
   cipher: FieldCipher;
   /** Keyed hashes to find rows by an encrypted value. */
   blindIndex: BlindIndex;
-  /** Runtime settings, such as whether codes go by SMS. */
+  /**
+   * Runtime settings a super admin changes without a deploy, such as
+   * whether codes go by SMS (#62).
+   */
   settings: Settings;
   /** The private buckets uploaded files go to (#63). */
   storage: ObjectStorage;
@@ -103,18 +107,6 @@ export function smsSenderFor(
     },
     fetchImpl
   );
-}
-
-/**
- * The runtime settings each deployment reads until #62's settings table
- * holds them. Local runs and previews send SMS to the capture mailbox, so
- * sign-in by phone is on there (the Seam 2 journey uses it); staging and
- * production keep the default, off, until DLT approval (HR-14).
- */
-export function settingsFor(appEnv: Env["APP_ENV"]): Settings {
-  return appEnv === "local" || appEnv === "preview"
-    ? fixedSettings({ "sms.enabled": true })
-    : fixedSettings();
 }
 
 /** The R2 variables (src/env.schema.ts): all of them, or none. */
@@ -236,9 +228,10 @@ export function productionDeps(): Deps {
         baseUrl: config.APP_URL,
       },
       ...fieldCryptoFor(config),
-      settings: settingsFor(config.APP_ENV),
       storage: storageFor(config),
       files: filesConfigFor(config),
+      // The settings table, read on every call (#62).
+      settings: databaseSettings(db),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
       scanner: scannerFor(config),

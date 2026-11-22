@@ -105,6 +105,45 @@ A switch or value staff can change on a running site without a deploy, such
 as whether sign-in codes may go by SMS.
 _Avoid_: Feature flag, config, environment variable
 
+## Consent
+
+**Consent document**:
+A text FOA publishes for one Purpose, such as the privacy notice or the
+agreement to News and updates. Each change is a new Version; a published
+Version never changes.
+_Avoid_: Policy (a Policy decides what an Actor may do), legal page, agreement
+
+**Version**:
+One published text of a Consent document, numbered 1, 2, 3 within its Purpose.
+_Avoid_: Revision, draft, edition
+
+**Purpose**:
+What a Consent document is for: the privacy notice, the terms, or News and
+updates; the purposes a guardian decides for a child come later.
+_Avoid_: Category, type, scope (a Scope is where a Role applies)
+
+**Notice**:
+A Consent document people read but don't give or withdraw: the privacy notice
+and the terms.
+_Avoid_: Policy page
+
+**Consent**:
+A person's yes to one Purpose, given on one Version, by someone (themselves
+or, later, a guardian), at a time and by a method, until a Withdrawal. Every
+give and Withdrawal stays in its history.
+_Avoid_: Opt-in, subscription, permission
+
+**Withdrawal**:
+A person taking back their Consent to a Purpose. It counts at once, and the
+parts of the platform that relied on it stop.
+_Avoid_: Opt-out, unsubscribe, revoke (a super admin revokes a Grant)
+
+**News and updates**:
+The optional emails a User receives only with Consent: competitions, results,
+stories and tips. Sign-in codes, receipts and notices the law requires are not
+News and updates and never depend on it.
+_Avoid_: Marketing, newsletter, messages (alone)
+
 ## Messages
 
 **Capture mailbox**:
@@ -196,6 +235,27 @@ The folder an environment keeps its Files under in the shared non-production
 storage, such as `staging/` or `pr-12/`; production has its own storage and
 none. A preview's prefix is emptied when its database is dropped.
 _Avoid_: Bucket, namespace, path
+
+## Running the platform
+
+**Runtime setting**:
+A value that changes how the platform works, such as how long Staff stay signed
+in or whether sign-in codes go by text message, which a super admin changes on
+the settings screen without a release. Each has a default that applies until a
+value is stored, and every change needs Step-up and goes in the Audit log.
+_Avoid_: Config, feature flag, environment variable
+
+**Off-site copy**:
+The nightly copy of production's Files from Cloudflare R2 to a Backblaze B2
+bucket, because R2 keeps no old versions. A copy outlives its File by the
+retention window, so a File deleted by mistake can still be restored one at a
+time.
+_Avoid_: Backup (that is the database's pgBackRest backup), sync, mirror
+
+**Retention window**:
+How long the off-site copy keeps a File after it has gone from R2 (30 days
+unless set), counted from the first night the copy found it gone.
+_Avoid_: Grace period, TTL
 
 ## Engineering
 

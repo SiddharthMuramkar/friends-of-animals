@@ -59,6 +59,7 @@ function client(url: string, max: number) {
 function realIo(config: WorkerConfig, errors: WorkerErrors): WorkerIo {
   return {
     onTenantError: errors.tenantFailed,
+    errors: errors.reporter,
     clock: systemClock,
     log,
     // Never the app's local scanner or disk store: without R2 or clamd
@@ -119,7 +120,7 @@ function realIo(config: WorkerConfig, errors: WorkerErrors): WorkerIo {
         createQueue: (name) => boss.createQueue(name),
         schedule: (name, cron, data, options) =>
           boss.schedule(name, cron, data, options),
-        work: (name, handler) => boss.work(name, handler),
+        work: (name, options, handler) => boss.work(name, options, handler),
         stop: () =>
           boss.stop({ graceful: true, timeout: BOSS_STOP_TIMEOUT_MS }),
       };

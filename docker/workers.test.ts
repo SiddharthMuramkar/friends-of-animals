@@ -4,6 +4,7 @@
 
 import { spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -11,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 const TEXT = readFileSync(new URL("./workers.yml", import.meta.url), "utf8");
@@ -396,4 +397,93 @@ describe("docker/workers.yml", () => {
       expect(healthCommand()).toContain("/tmp/foa-worker-heartbeat");
     });
   });
+});
+
+// The runbooks run pnpm scripts inside the worker image (docker/README.md's
+// restore, the preview-dropped hook's purge). The worker target copies
+// scripts/ file by file, so each script, and every file it imports, must be
+// among them, or the documented command fails with module-not-found.
+describe("the worker image's documented pnpm scripts", () => {
+  const REPO = join(import.meta.dirname, "..");
+  const read = (path: string) => readFileSync(join(REPO, path), "utf8");
+
+  /** The source paths the Dockerfile's worker target copies from the context. */
+  function workerSources(): string[] {
+    const stage = read("Dockerfile")
+      .split(/^FROM .* AS worker$/m)[1]
+      ?.split(/^FROM /m)[0];
+    expect(stage, "a worker target").toBeDefined();
+    return stage!
+      .split("\n")
+      .filter((line) => line.startsWith("COPY ") && !line.includes("--from="))
+      .flatMap((line) => line.trim().split(/\s+/).slice(1, -1));
+  }
+
+  /** The pnpm scripts the docs run in a worker container or the worker image. */
+  function documentedScripts(): string[] {
+    const readme = read("docker/README.md");
+    const hook = read("docker/scripts/preview-dropped.d/50-purge-files.sh");
+    const names = [
+      ...[...readme.matchAll(/worker-[a-z]+ pnpm ([a-z:-]+)/g)].map(
+        (m) => m[1]!
+      ),
+      ...[...hook.matchAll(/"\$IMAGE" pnpm ([a-z:-]+)/g)].map((m) => m[1]!),
+    ];
+    return [...new Set(names)].sort();
+  }
+
+  function resolveImport(from: string, specifier: string): string | undefined {
+    let base: string;
+    if (specifier.startsWith("@/")) base = join("src", specifier.slice(2));
+    else if (specifier.startsWith(".")) base = join(dirname(from), specifier);
+    else return undefined;
+    return [base, `${base}.ts`, `${base}.tsx`, join(base, "index.ts")].find(
+      (path) => /\.tsx?$/.test(path) && existsSync(join(REPO, path))
+    );
+  }
+
+  /** The file and every repo file it imports, transitively. */
+  function closure(entry: string): string[] {
+    const seen = new Set<string>();
+    const queue = [entry];
+    while (queue.length > 0) {
+      const file = queue.pop()!;
+      if (seen.has(file)) continue;
+      seen.add(file);
+      for (const m of read(file).matchAll(
+        /(?:from|import)\s*\(?\s*"([^"]+)"/g
+      )) {
+        const next = resolveImport(file, m[1]!);
+        if (next !== undefined) queue.push(next);
+      }
+    }
+    return [...seen].sort();
+  }
+
+  it("finds the restore and the preview purge among them", () => {
+    expect(documentedScripts()).toEqual(
+      expect.arrayContaining(["files:purge-preview", "offsite:restore"])
+    );
+  });
+
+  it.each(documentedScripts())(
+    "copies %s and everything it imports into the worker target",
+    (name) => {
+      const scripts = JSON.parse(read("package.json")).scripts as Record<
+        string,
+        string
+      >;
+      const match = /^tsx (\S+\.ts)\b/.exec(scripts[name] ?? "");
+      expect(match, `package.json runs ${name} with tsx`).not.toBeNull();
+      const sources = workerSources();
+      const missing = closure(match![1]!).filter(
+        (file) =>
+          !sources.some(
+            (source) =>
+              file === source || !relative(source, file).startsWith("..")
+          )
+      );
+      expect(missing).toEqual([]);
+    }
+  );
 });
