@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LEGAL_DOCS } from "../../content/legal";
+import { toConsentDocumentBody } from "../modules/consent/domain/document-body";
 import {
   sanitizeBlocks,
   sanitizeDocumentBody,
@@ -89,6 +90,7 @@ describe("sanitizeInlines", () => {
           { strong: "" },
           { link: "", href: "/" },
           { fact: "bankAccount" },
+          { clause: ["Only with ", { fact: "email" }] },
           { html: "<b>x</b>" },
           { em: "soft" },
           42,
@@ -137,9 +139,9 @@ describe("sanitizeBlocks", () => {
 });
 
 describe("sanitizeDocumentBody", () => {
-  it("passes all four policy documents through unchanged", () => {
+  it("passes all four policy documents, as they are published, through unchanged", () => {
     for (const [id, doc] of Object.entries(LEGAL_DOCS)) {
-      const body = { short: doc.short, sections: doc.sections };
+      const body = toConsentDocumentBody(doc);
       expect(sanitizeDocumentBody(body, "cms"), id).toEqual(body);
     }
   });

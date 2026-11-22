@@ -11,6 +11,7 @@
       "competitions": "Competitions",
       "competition": "Competition",
       "schools": "Schools",
+      "myInstitution": "My institution",
       "awareness": "Awareness",
       "stories": "Stories",
       "story": "Story",
@@ -27,7 +28,9 @@
       "refunds": "Refunds and cancellations",
       "styleguide": "Style guide",
       "signUp": "Create an account",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "signUpPhone": "Create an account with your phone",
+      "signInPhone": "Sign in with your phone"
     }
   }
 }

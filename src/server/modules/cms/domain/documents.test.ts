@@ -6,6 +6,7 @@ import {
   ORG_FACTS_TAG,
   cmsTag,
   isCmsDocumentKey,
+  isMirroredConsentPurpose,
   legalDocumentKey,
   legalKeyForConsentPurpose,
   tagsToRefresh,
@@ -42,6 +43,13 @@ describe("the CMS document registry", () => {
     expect(legalKeyForConsentPurpose("privacy_notice")).toBe("legal_privacy");
     expect(legalKeyForConsentPurpose("terms")).toBe("legal_terms");
     expect(legalKeyForConsentPurpose("messages")).toBe("legal_privacy");
+  });
+
+  it("says which consent documents' text a policy page is, so only the CMS publishes them", () => {
+    expect(isMirroredConsentPurpose("privacy_notice")).toBe(true);
+    expect(isMirroredConsentPurpose("terms")).toBe(true);
+    expect(isMirroredConsentPurpose("messages")).toBe(false);
+    expect(isMirroredConsentPurpose("legal_privacy")).toBe(false);
   });
 });
 
