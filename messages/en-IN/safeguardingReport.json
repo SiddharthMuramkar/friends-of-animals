@@ -1,0 +1,94 @@
+{
+  "safeguardingReport": {
+    "meta": {
+      "title": "Report a concern about a child",
+      "description": "Tell Friends of Animals about a worry for a child’s safety. You don’t need an account, and you can stay anonymous."
+    },
+    "eyebrow": "Safeguarding",
+    "title": "Report a concern about a child",
+    "lead": "You don’t need an account, and you can stay anonymous. Only our safeguarding lead reads what you send.",
+    "danger": {
+      "title": "Is a child in danger right now?",
+      "body": "Call <emergency>112</emergency> first. You can call Childline on <childline>1098</childline> at any time, for free."
+    },
+    "images": {
+      "title": "Pictures and videos",
+      "body": "Please don’t send pictures or videos of a child being hurt. Report them at <cyberSite>cybercrime.gov.in</cyberSite> or call <cyberLine>1930</cyberLine>."
+    },
+    "formTitle": "Tell us what happened",
+    "form": {
+      "category": {
+        "legend": "What is it about?",
+        "error": "Choose what it’s about.",
+        "options": {
+          "child_safety": "A child’s safety",
+          "suspected_abuse": "Someone may be hurting a child",
+          "inappropriate_contact": "An adult contacting a child in a way that isn’t right",
+          "privacy_exposure": "A child’s details or photo shown where they shouldn’t be",
+          "bullying": "Bullying",
+          "adult_conduct": "How an adult behaved",
+          "other": "Something else"
+        }
+      },
+      "description": {
+        "label": "What happened, or what worries you?",
+        "hint": "Say what you saw or heard, when and where, in your own words.",
+        "error": "Tell us what happened, in up to 5,000 characters."
+      },
+      "subjectDetails": {
+        "label": "Who is the child? (optional)",
+        "hint": "A first name, school, class or username helps us find them.",
+        "error": "Keep this to 1,000 characters."
+      },
+      "subjectAge": {
+        "label": "How old is the child? (optional)",
+        "unknown": "I don’t know",
+        "age": "{age, plural, =0 {Under 1} one {# year old} other {# years old}}",
+        "error": "Choose an age under 18, or “I don’t know”."
+      },
+      "reporterIsChild": "I am under 18",
+      "anonymous": {
+        "label": "Keep me anonymous",
+        "hint": "We won’t know who you are, so we can’t reply to you."
+      },
+      "reporterName": {
+        "label": "Your name (optional)",
+        "error": "Keep your name to 120 characters."
+      },
+      "reporterContact": {
+        "label": "Your email or phone (optional)",
+        "hint": "Only our safeguarding lead sees it, to ask you more if they need to.",
+        "error": "Keep this to 200 characters."
+      },
+      "honeypot": "Leave this empty",
+      "privacy": "What you send is kept private and stored securely.",
+      "privacyLink": "Read our privacy policy",
+      "send": "Send report",
+      "sending": "Sending…"
+    },
+    "alerts": {
+      "human_check_failed": "We couldn’t check that a person sent this, so your report wasn’t sent. Please press Send report again.",
+      "rate_limited": "Too many reports came from this connection in the last hour, so this one wasn’t sent. Please try again in {minutes, plural, one {# minute} other {# minutes}}, or get help now.",
+      "failed": "Something went wrong, so your report wasn’t sent. Please press Send report again, or get help now."
+    },
+    "help": {
+      "title": "Get help now",
+      "childline": "Childline: call <childline>1098</childline>, free, at any time.",
+      "emergency": "Emergency: call <emergency>112</emergency>.",
+      "email": "Email our safeguarding team:"
+    },
+    "sent": {
+      "meta": {
+        "title": "Report sent",
+        "description": "Your safeguarding report reached Friends of Animals."
+      },
+      "eyebrow": "Safeguarding",
+      "title": "Thank you for telling us",
+      "lead": "Your report reached our safeguarding lead. You did the right thing.",
+      "nextTitle": "What happens next",
+      "next": "Our safeguarding lead reads every report and decides what to do. If you left a way to reach you, they may get in touch.",
+      "danger": "If a child is in danger now, call <emergency>112</emergency>.",
+      "back": "Back to safeguarding"
+    }
+  }
+}

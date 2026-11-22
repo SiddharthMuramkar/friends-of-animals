@@ -1,0 +1,164 @@
+{
+  "adminSafeguarding": {
+    "meta": {
+      "title": "Safeguarding reports",
+      "description": "The safeguarding lead’s queue of reported concerns."
+    },
+    "eyebrow": "Safeguarding",
+    "title": "Safeguarding reports",
+    "lead": "Only safeguarding leads can see these reports. Each time you open the queue or a report, the audit log records it, without its words.",
+    "loading": "Loading reports…",
+    "denied": {
+      "title": "Only a safeguarding lead can open this",
+      "body": "Safeguarding reports are for Friends of Animals’ designated safeguarding lead and deputy. No other role can read them, super admins included.",
+      "back": "Go to your dashboard"
+    },
+    "views": {
+      "label": "Which reports",
+      "open": "Open",
+      "resolved": "Resolved"
+    },
+    "empty": {
+      "open": "No open reports.",
+      "resolved": "No resolved reports yet."
+    },
+    "more": "Showing the {count} most recent. Resolve some to see older ones.",
+    "table": {
+      "caption": "{view, select, resolved {Resolved reports} other {Open reports}}, newest first",
+      "reference": "Reference",
+      "category": "About",
+      "severity": "Severity",
+      "status": "Status",
+      "assignee": "Assigned to",
+      "received": "Received"
+    },
+    "categories": {
+      "child_safety": "A child’s safety",
+      "suspected_abuse": "Suspected abuse",
+      "inappropriate_contact": "Inappropriate contact",
+      "privacy_exposure": "Privacy exposure",
+      "bullying": "Bullying",
+      "adult_conduct": "Adult conduct",
+      "other": "Other"
+    },
+    "statuses": {
+      "new": "New",
+      "triaged": "Triaged",
+      "investigating": "Investigating",
+      "escalated": "Escalated",
+      "resolved": "Resolved"
+    },
+    "severities": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "none": "Not set"
+    },
+    "nobody": "Nobody",
+    "childReporter": "Sent by a child",
+    "anonymous": "Anonymous",
+    "report": {
+      "meta": {
+        "title": "Safeguarding report",
+        "description": "One safeguarding report and its incident log."
+      },
+      "title": "Report {reference}",
+      "back": "All reports",
+      "notFound": {
+        "title": "No such report",
+        "body": "There is no safeguarding report at this address.",
+        "back": "All reports"
+      },
+      "facts": {
+        "label": "About this report",
+        "status": "Status",
+        "severity": "Severity",
+        "assignee": "Assigned to",
+        "category": "About",
+        "received": "Received",
+        "resolved": "Resolved",
+        "subjectAge": "Child’s age",
+        "reporterIsChild": "Sent by a child",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "age": "{age, plural, =0 {Under 1} one {# year old} other {# years old}}",
+      "unknownAge": "Not known",
+      "description": "What happened",
+      "subjectDetails": "Who the child is",
+      "notGiven": "Not given",
+      "reporter": "Who sent it",
+      "anonymousReporter": "Anonymous: no name or contact was kept.",
+      "reporterName": "Name",
+      "reporterContact": "Email or phone",
+      "escalationReference": "Authority’s reference",
+      "outcome": "Outcome"
+    },
+    "actions": {
+      "title": "Next step",
+      "none": "This report is resolved, so it can’t move on. You can still add notes to its log.",
+      "pending": "Saving…",
+      "triage": {
+        "title": "Triage it",
+        "severity": "Severity",
+        "placeholder": "Choose a severity",
+        "submit": "Triage"
+      },
+      "start_investigation": {
+        "title": "Investigate it",
+        "body": "Open an investigation once you’ve triaged the report.",
+        "submit": "Start investigation"
+      },
+      "escalate": {
+        "title": "Hand it to an authority",
+        "reference": "Their reference",
+        "hint": "The police, child welfare committee or helpline’s reference for this case.",
+        "submit": "Escalate"
+      },
+      "resolve": {
+        "title": "Resolve it",
+        "outcome": "Outcome",
+        "hint": "What was done, or why no action was needed.",
+        "submit": "Resolve"
+      }
+    },
+    "assign": {
+      "title": "Who handles it",
+      "label": "Assigned lead",
+      "placeholder": "Nobody",
+      "submit": "Save"
+    },
+    "log": {
+      "title": "Incident log",
+      "empty": "Nothing logged yet.",
+      "kinds": {
+        "note": "Note",
+        "status_change": "Moved",
+        "escalation": "Escalated"
+      },
+      "moved": "Now {status}",
+      "severity": "Severity: {severity}",
+      "formerLead": "A former lead",
+      "note": {
+        "label": "Add a note",
+        "hint": "Notes can’t be changed or deleted afterwards.",
+        "submit": "Add note"
+      }
+    },
+    "results": {
+      "moved": "Saved. The report is now {status}.",
+      "assigned": "Saved who handles it.",
+      "unchanged": "Nothing changed.",
+      "noted": "Your note is in the log."
+    },
+    "errors": {
+      "invalid_input": "Fill in the step’s field, then try again.",
+      "transition_not_allowed": "That step isn’t open for this report now. The page shows the steps that are.",
+      "report_resolved": "This report is resolved, so it can’t change.",
+      "assignee_not_lead": "Only a safeguarding lead can handle a report.",
+      "not_found": "That report no longer exists.",
+      "failed": "Something went wrong, so nothing was saved. Try again."
+    }
+  }
+}

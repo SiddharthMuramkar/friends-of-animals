@@ -106,6 +106,15 @@ export type DomainEvent =
     }
   | {
       /**
+       * Someone reported a safeguarding concern (#116). The leads' alert
+       * says only that one came in: nothing of the report travels here.
+       */
+      type: "safeguarding.report_submitted";
+      aggregate: { type: "safeguarding_report"; id: string };
+      payload: { reportId: string };
+    }
+  | {
+      /**
        * A post was scheduled for `publishAt` (#112). Saved with
        * `availableAt: publishAt`, so its publish job runs at the instant.
        */
@@ -162,6 +171,7 @@ export const EVENT_PAYLOADS = {
   }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
   "contact_message.received": z.object({ messageId: z.uuid() }),
+  "safeguarding.report_submitted": z.object({ reportId: z.uuid() }),
   "cms.post_scheduled": z.object({
     postId: z.uuid(),
     publishAt: z.iso.datetime(),
@@ -203,6 +213,8 @@ export const SUBSCRIBERS = {
     "notifications.dispatch",
     "contact.send_acknowledgement",
   ],
+  // The safeguarding leads' alert (#116).
+  "safeguarding.report_submitted": ["notifications.dispatch"],
   "cms.post_scheduled": ["cms.publish_scheduled_post"],
   // No route sends anything for it yet; a "new story" message can follow it.
   "cms.post_published": ["notifications.dispatch"],

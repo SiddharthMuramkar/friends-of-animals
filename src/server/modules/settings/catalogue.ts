@@ -57,6 +57,14 @@ export const SETTINGS = {
   "org.registrationType": textSetting({ default: "", maxLength: 100 }),
   "org.registrationNumber": textSetting({ default: "", maxLength: 50 }),
   "org.pan": textSetting({ default: "", maxLength: 10 }),
+  // Safeguarding (#116): concern reports one IP may send in an hour before
+  // the form refuses and shows the helplines instead (HR-48).
+  "safeguarding.reportsPerIpPerHour": integerSetting({
+    default: 10,
+    min: 1,
+    max: 100,
+    unit: "reports",
+  }),
 } satisfies Record<string, SettingDefinition<unknown>>;
 
 export type SettingKey = keyof typeof SETTINGS;

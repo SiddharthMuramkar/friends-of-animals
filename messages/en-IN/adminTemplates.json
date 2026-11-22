@@ -22,6 +22,9 @@
       "consent": { "withdrawn": "someone withdraws their consent to messages" },
       "contact_message": {
         "received": "someone sends a message through the contact form"
+      },
+      "safeguarding": {
+        "report_submitted": "someone reports a safeguarding concern"
       }
     },
     "keys": {
@@ -30,7 +33,8 @@
       "contact": {
         "acknowledgement": "Contact form acknowledgement",
         "new_message": "New contact message"
-      }
+      },
+      "safeguarding": { "report_alert": "Safeguarding report alert" }
     },
     "channels": { "email": "Email", "sms": "SMS", "in_app": "Inbox" },
     "version": "Version {version}",
