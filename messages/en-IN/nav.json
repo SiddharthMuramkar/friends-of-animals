@@ -34,7 +34,8 @@
       "signUp": "Create an account",
       "signIn": "Sign in",
       "signUpPhone": "Create an account with your phone",
-      "signInPhone": "Sign in with your phone"
+      "signInPhone": "Sign in with your phone",
+      "myChildren": "My children"
     }
   }
 }

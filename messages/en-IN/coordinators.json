@@ -74,8 +74,8 @@
     },
     "invitation": {
       "meta": {
-        "title": "Coordinator invitation",
-        "description": "Accept an invitation to be a teacher coordinator for an institution on Friends of Animals."
+        "title": "Invitation",
+        "description": "Open an invitation to Friends of Animals: to coordinate for an institution, or to your own login."
       },
       "eyebrow": "Invitation",
       "title": "Become a coordinator",
