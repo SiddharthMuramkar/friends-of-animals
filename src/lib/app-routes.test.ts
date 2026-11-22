@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   adminCmsDocumentPath,
+  adminInstitutionPath,
   APP_ROUTES,
   isNonProductionPath,
   isSignedInPage,
@@ -23,6 +24,14 @@ describe("isSignedInPage", () => {
     );
     expect(
       isSignedInPage(`/admin/competitions/${COMPETITION_ID}/preview`)
+    ).toBe(true);
+  });
+
+  it("knows an institution's review page, whatever its id", () => {
+    expect(
+      isSignedInPage(
+        adminInstitutionPath("01938a00-0000-7000-8000-000000001001")
+      )
     ).toBe(true);
   });
 
@@ -78,6 +87,21 @@ describe("isSignedInPath", () => {
     expect(isSignedInPath(APP_ROUTES.adminCompetitions)).toBe(true);
     expect(isSignedInPath(APP_ROUTES.adminNewCompetition)).toBe(true);
     expect(isSignedInPath("/administrators")).toBe(false);
+  });
+
+  it("covers the institution pages and the admin area", () => {
+    expect(isSignedInPath(APP_ROUTES.institutionRegister)).toBe(true);
+    expect(isSignedInPath(APP_ROUTES.myInstitution)).toBe(true);
+    expect(
+      isSignedInPath(
+        adminInstitutionPath("01938a00-0000-7000-8000-000000001001")
+      )
+    ).toBe(true);
+  });
+
+  it("leaves a public list of institutions open, should one come", () => {
+    expect(isSignedInPath("/institutions")).toBe(false);
+    expect(isSignedInPath("/institutional-partners")).toBe(false);
   });
 
   it("leaves public pages alone, even ones that start alike", () => {

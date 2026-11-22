@@ -130,6 +130,7 @@ describe("resolveAllSettings", () => {
       resolved.map(({ key, value, source }) => [key, value, source])
     ).toEqual([
       ["auth.staffSessionHours", 12, "default"],
+      ["auth.emailSignIn", true, "default"],
       ["sms.enabled", false, "default"],
       ["sms.maxPerHour", 200, "default"],
       ["sms.maxPerDay", 1000, "default"],

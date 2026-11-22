@@ -4,8 +4,9 @@
 //   publishCompetition({ competitionId })  → a manager covering it
 //
 // Publishing refuses until publishProblems finds nothing, so every
-// published competition has what the public page needs. Loads under plain
-// Node: relative imports only.
+// published competition has what the public page needs. It also saves a
+// status job for each key date (#71), so the schedule moves the status on
+// from there. Loads under plain Node: relative imports only.
 
 import { eq } from "drizzle-orm";
 
@@ -13,6 +14,7 @@ import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
 import { competition } from "../../db/schema";
 import { publishProblems, type PublishProblem } from "./domain/publish-rules";
+import { statusJobs } from "./domain/status-schedule";
 import type { CompetitionStatus } from "./domain/vocabulary";
 import {
   competitionResource,
@@ -20,6 +22,7 @@ import {
   type CompetitionsContext,
 } from "./manage";
 import { toPublicCompetition, type PublicCompetition } from "./public-view";
+import { saveStatusJobs } from "./status-jobs";
 import { loadCompetition } from "./store";
 
 export type PreviewCompetitionResult =
@@ -124,6 +127,12 @@ export async function publishCompetition(
       after: { status: "published", publishedAt: now.toISOString() },
       actorRole,
     });
+    await saveStatusJobs(
+      tx,
+      ctx.clock,
+      competitionId,
+      statusJobs("published", values.keyDates)
+    );
     return {
       ok: true,
       competition: {

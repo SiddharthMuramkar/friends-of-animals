@@ -40,6 +40,7 @@ import {
 import type { Ciphertext } from "../../crypto/field-cipher";
 import { readStoredPhone } from "../../identity/stored-phone";
 import { uuidv7 } from "../../ids";
+import { oneLineSubject } from "../../ports/email";
 import type { Delivery, OutboxDeps } from "../../outbox";
 import { AUDIENCES, EVENT_VARIABLES, isAudienceKey } from "./audiences";
 import type { MessageChannel } from "./domain/channels";
@@ -262,10 +263,12 @@ function rendered(message: Message, channel: MessageChannel) {
   const template = message.templates[channel]!;
   return {
     version: template.version,
+    // A subject is one header line: a line break from a stored template
+    // or a value (a name) would start another header.
     subject:
       template.subject === null
         ? null
-        : renderTemplate(template.subject, message.values),
+        : oneLineSubject(renderTemplate(template.subject, message.values)),
     body: renderTemplate(template.body, message.values),
     dltTemplateId: template.dltTemplateId,
   };

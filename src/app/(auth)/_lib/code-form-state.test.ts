@@ -74,6 +74,21 @@ describe("afterRequest", () => {
   );
 });
 
+describe("afterRequest, while email sign-in is off", () => {
+  it("goes back to the email step and says so, from either step", () => {
+    for (const from of ["contact", "code"] as const) {
+      expect(
+        afterRequest(
+          "email",
+          { ok: false, error: "email_disabled" },
+          asha,
+          from
+        )
+      ).toEqual({ step: "contact", ...asha, alert: "email_disabled" });
+    }
+  });
+});
+
 describe("afterRequest, for a new code asked for on the code step", () => {
   it("stays on the code step when it is refused: the last code still works", () => {
     expect(
@@ -175,6 +190,12 @@ describe("afterVerify", () => {
     expect(
       afterVerify("phone", { ok: false, error: "sms_disabled" }, onPhoneCode)
     ).toEqual({ step: "contact", ...ashaByPhone, alert: "sms_disabled" });
+  });
+
+  it("goes back to the email step when email sign-in was switched off meanwhile", () => {
+    expect(
+      afterVerify("email", { ok: false, error: "email_disabled" }, onCode)
+    ).toEqual({ step: "contact", ...asha, alert: "email_disabled" });
   });
 });
 

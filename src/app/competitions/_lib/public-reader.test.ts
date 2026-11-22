@@ -6,7 +6,8 @@ import { createHarness } from "@/test/harness";
 import { PUBLIC_READER } from "./public-reader";
 
 // What the public pages read, through the real read model on the preview
-// seed: three published competitions and one draft.
+// seed: three public competitions (published, registration open, and
+// registration closed) and one draft.
 describe("the public pages' reader", () => {
   it("lists the published competitions as cards, never the draft or a sample", async () => {
     const h = await createHarness();
@@ -16,8 +17,8 @@ describe("the public pages' reader", () => {
     const list = (await reader.listPublishedCompetitions()).map(fromPublic);
 
     expect(list.map((c) => [c.slug, c.status, c.sample])).toEqual([
-      ["kinder-skies", "PUBLISHED", false],
-      ["neighbours-on-my-street", "PUBLISHED", false],
+      ["kinder-skies", "REGISTRATION_CLOSED", false],
+      ["neighbours-on-my-street", "REGISTRATION_OPEN", false],
       ["a-bowl-of-water", "PUBLISHED", false],
     ]);
     expect(await reader.publishedCompetitionSlugs()).not.toContain(
@@ -29,7 +30,9 @@ describe("the public pages' reader", () => {
   });
 
   it("gives a competition page its key dates as exact instants, entered in IST", async () => {
-    const h = await createHarness();
+    // The seed dates its competitions from its clock: 21 November 2026,
+    // midday IST.
+    const h = await createHarness({ now: "2026-11-21T06:30:00.000Z" });
     await h.seed.preview();
 
     const found = await h
@@ -37,7 +40,7 @@ describe("the public pages' reader", () => {
       .getPublishedCompetition({ slug: "neighbours-on-my-street" });
     const page = fromPublic(found!);
 
-    // Entered as 1 November 2026, 09:00 IST.
+    // Entered as 1 November 2026 (20 days before), 09:00 IST.
     expect(page.keyDates[0]).toEqual({
       kind: "registrationOpens",
       at: "2026-11-01T03:30:00.000Z",

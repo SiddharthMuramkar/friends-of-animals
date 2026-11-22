@@ -12,6 +12,7 @@ import adminTemplates from "../../messages/en-IN/adminTemplates.json";
 import adminRoles from "../../messages/en-IN/adminRoles.json";
 import adminCompetitions from "../../messages/en-IN/adminCompetitions.json";
 import adminCms from "../../messages/en-IN/adminCms.json";
+import adminInstitutions from "../../messages/en-IN/adminInstitutions.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -19,6 +20,7 @@ import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
 import consent from "../../messages/en-IN/consent.json";
 import consentAdmin from "../../messages/en-IN/consentAdmin.json";
+import competitionStatus from "../../messages/en-IN/competitionStatus.json";
 import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
@@ -29,6 +31,7 @@ import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
 import inbox from "../../messages/en-IN/inbox.json";
+import institutions from "../../messages/en-IN/institutions.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
@@ -53,6 +56,7 @@ export const NAMESPACES = [
   "adminRoles",
   "adminCompetitions",
   "adminCms",
+  "adminInstitutions",
   "auth",
   "authPhone",
   "awareness",
@@ -60,6 +64,7 @@ export const NAMESPACES = [
   "competitions",
   "consent",
   "consentAdmin",
+  "competitionStatus",
   "contact",
   "credits",
   "dashboard",
@@ -70,6 +75,7 @@ export const NAMESPACES = [
   "home",
   "impact",
   "inbox",
+  "institutions",
   "legal",
   "nav",
   "notFound",
@@ -98,6 +104,7 @@ export const messages = {
   ...adminRoles,
   ...adminCompetitions,
   ...adminCms,
+  ...adminInstitutions,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -105,6 +112,7 @@ export const messages = {
   ...competitions,
   ...consent,
   ...consentAdmin,
+  ...competitionStatus,
   ...contact,
   ...credits,
   ...dashboard,
@@ -115,6 +123,7 @@ export const messages = {
   ...home,
   ...impact,
   ...inbox,
+  ...institutions,
   ...legal,
   ...nav,
   ...notFound,
