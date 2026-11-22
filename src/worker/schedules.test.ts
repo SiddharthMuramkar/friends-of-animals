@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { OutboxDeps, ScheduleDefinition } from "@/server/outbox";
 import { FakeClock } from "@/test/fakes/clock";
 import { FakeEmail } from "@/test/fakes/email";
+import { FakeMalwareScanner } from "@/test/fakes/malware-scanner";
+import { FakeStorage } from "@/test/fakes/storage";
 
 import { registerSchedules, type ScheduleBoss } from "./schedules";
 
@@ -38,6 +40,8 @@ const deps = {
   db: {} as OutboxDeps["db"],
   clock,
   email: new FakeEmail(clock),
+  storage: new FakeStorage(clock),
+  scanner: new FakeMalwareScanner(),
 } satisfies OutboxDeps;
 
 function definition(

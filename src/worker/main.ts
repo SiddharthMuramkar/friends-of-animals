@@ -18,6 +18,9 @@ import { loadEnvFiles } from "../../scripts/load-env";
 import { directTls } from "../server/db/database-url";
 import * as schema from "../server/db/schema";
 import { systemClock } from "../server/ports/clock";
+import { malwareScannerFor } from "../server/ports/malware-scanner-clamav";
+import { unconfiguredStorage } from "../server/ports/storage";
+import { r2Storage } from "../server/ports/storage-r2";
 import { withPassword, workerConfig, type WorkerConfig } from "./config";
 import { exitOnUncaught, startWorkerErrors, type WorkerErrors } from "./errors";
 import { summarizeError, type WorkerLog } from "./log";
@@ -53,6 +56,12 @@ function realIo(config: WorkerConfig, errors: WorkerErrors): WorkerIo {
     onTenantError: errors.tenantFailed,
     clock: systemClock,
     log,
+    // Never the app's local scanner or disk store: without R2 or clamd
+    // every scan fails, and files wait unscanned for a worker that has them.
+    storage: config.r2
+      ? r2Storage(config.r2, systemClock)
+      : unconfiguredStorage,
+    scanner: malwareScannerFor(config.clamd),
     openDatabase(url, connections) {
       const sql = client(url, connections);
       return { db: drizzle(sql, { schema }), end: () => sql.end() };
