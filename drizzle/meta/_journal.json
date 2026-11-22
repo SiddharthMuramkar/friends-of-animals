@@ -169,6 +169,13 @@
       "when": 1795344975453,
       "tag": "0023_74_institution_coordinators",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795345708300,
+      "tag": "0024_75_institution_registration",
+      "breakpoints": true
     }
   ]
 }

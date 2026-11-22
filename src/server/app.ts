@@ -26,6 +26,7 @@ import { filesUseCases } from "./modules/files";
 import { settingsUseCases } from "./modules/settings";
 import { institutionUseCases } from "./modules/institutions";
 import { coordinatorsUseCases } from "./modules/institutions/coordinators";
+import { registrationUseCases } from "./modules/registration";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -40,7 +41,8 @@ const useCases = composeUseCases(
   cmsUseCases,
   notificationsUseCases,
   institutionUseCases,
-  coordinatorsUseCases
+  coordinatorsUseCases,
+  registrationUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

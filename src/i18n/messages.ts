@@ -33,6 +33,7 @@ import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
 import inbox from "../../messages/en-IN/inbox.json";
 import institutions from "../../messages/en-IN/institutions.json";
+import institutionRegistration from "../../messages/en-IN/institutionRegistration.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
@@ -78,6 +79,7 @@ export const NAMESPACES = [
   "impact",
   "inbox",
   "institutions",
+  "institutionRegistration",
   "legal",
   "nav",
   "notFound",
@@ -127,6 +129,7 @@ export const messages = {
   ...impact,
   ...inbox,
   ...institutions,
+  ...institutionRegistration,
   ...legal,
   ...nav,
   ...notFound,

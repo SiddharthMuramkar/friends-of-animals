@@ -1,0 +1,9 @@
+{
+  "institutionRegistration": {
+    "principalMessage": {
+      "subject": "{institution} is registered for {competition}",
+      "email": "Dear {principal},\n\n{coordinator} has registered {institution} for {competition} on Friends of Animals.\n\nThe registration reference is {reference}. Please quote it when you contact FOA about this competition.\n\nThe institution's coordinators now add the students who take part. You don't need to do anything. If you didn't expect this registration, please contact FOA.\n\nFriends of Animals",
+      "someone": "A coordinator"
+    }
+  }
+}
