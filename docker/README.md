@@ -997,12 +997,16 @@ SSH instead: `ssh -L 3000:10.112.12.30:3000 <vps>`, then open
 `http://localhost:3000`.
 
 Umami counts unique visitors by IP address. Requests reach it through
-Vercel's rewrite and then Caddy, so check which header carries the
-visitor's address (not Vercel's) and set `CLIENT_IP_HEADER` in
-`analytics.env` to it. Pick one that Vercel sets itself,
-replacing whatever the browser sent: a header visitors can set lets them
-forge the counts. Until then page views are right but unique visitors
-collapse onto Vercel's addresses.
+Vercel's rewrite and then Caddy, so the connecting address is Vercel's.
+Vercel's rewrite sets `X-Real-IP` to the visitor's address, replacing
+whatever the browser sent, and `analytics.yml` sets
+`CLIENT_IP_HEADER=x-real-ip`. Caddy passes `X-Real-IP` through and drops the
+other headers Umami would fall back to (`CF-Connecting-IP`,
+`True-Client-IP`, `X-Client-IP` and the other CDN ones), so a visitor can't
+forge the counts through the site. A request sent straight to
+`stats.friendsofanimals.dev` can still carry its own `X-Real-IP`: keeping
+only the tracker paths public (above) narrows that, but only the counts are
+at stake.
 
 Upgrade: bump the image tag in `analytics.yml`, `git pull`, then rerun the
 bootstrap. Caddy serves 503 whenever `/var/lib/foa/caddy/gates/stats` is

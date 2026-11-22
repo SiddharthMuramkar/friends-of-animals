@@ -100,6 +100,17 @@ describe("docker/analytics.yml", () => {
     expect(compose).not.toMatch(/json-file|max-size|max-file/);
   });
 
+  it("sets CLIENT_IP_HEADER explicitly to the header Vercel's rewrite sets", () => {
+    // HR-52: Vercel replaces X-Real-IP with the visitor's address; Caddy
+    // passes it through (caddy/Caddyfile, edge.test.ts). Set here, not in
+    // the env file, so it is reviewed with the Caddyfile.
+    expect(
+      block(lines(service("umami")), /^ {4}environment:$/).map((line) =>
+        line.trim()
+      )
+    ).toContain("CLIENT_IP_HEADER: x-real-ip");
+  });
+
   it("has no Cloudflare Tunnel: no cloudflared service, network or secret", () => {
     expect(top.join("\n")).not.toMatch(/cloudflare|tunnel/i);
     expect(top.some((line) => line.startsWith("secrets:"))).toBe(false);

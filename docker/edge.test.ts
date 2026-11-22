@@ -164,7 +164,7 @@ describe("docker/caddy/Caddyfile", () => {
   });
 
   it("proxies stats to Umami's fixed address on the db bridge", () => {
-    expect(site(STATS)).toContain("reverse_proxy 10.112.12.30:3000");
+    expect(site(STATS)).toContain("reverse_proxy 10.112.12.30:3000 {");
     expect(read("./analytics.yml")).toMatch(
       /^ +ipv4_address: 10\.112\.12\.30$/m
     );
@@ -218,12 +218,47 @@ describe("the stats site's gate", () => {
       "}",
       "respond @closed 503",
     ]);
-    expect(stats).toContain("reverse_proxy 10.112.12.30:3000");
+    expect(stats).toContain("reverse_proxy 10.112.12.30:3000 {");
   });
 
   it("is the file analytics-bootstrap.sh creates once the login is replaced", () => {
     expect(read("./scripts/analytics-bootstrap.sh")).toMatch(
       new RegExp(`^GATE_FILE=${GATE_DIR}/stats$`, "m")
     );
+  });
+});
+
+describe("the visitor address Umami sees", () => {
+  // Umami takes the visitor's address from CLIENT_IP_HEADER, and when that
+  // header is missing, from the first of a list of CDN headers it finds.
+  // Vercel's rewrite sets X-Real-IP to the visitor's address, replacing
+  // whatever the browser sent; any other client-supplied header in Umami's
+  // list would let a visitor forge the counts.
+  const proxy = () => {
+    const stats = site(STATS);
+    const at = stats.indexOf("reverse_proxy 10.112.12.30:3000 {");
+    const end = stats.indexOf("}", at);
+    return stats.slice(at + 1, end);
+  };
+
+  it.each([
+    "CF-Connecting-IP",
+    "True-Client-IP",
+    "X-Client-IP",
+    "Fastly-Client-IP",
+    "X-Nf-Client-Connection-Ip",
+    "Do-Connecting-Ip",
+  ])("strips a client-supplied %s before proxying to Umami", (header) => {
+    expect(proxy()).toContain(`header_up -${header}`);
+  });
+
+  it("passes X-Real-IP through untouched, the header Umami reads", () => {
+    expect(proxy().filter((line) => /x-real-ip/i.test(line))).toEqual([]);
+    expect(
+      read("./analytics.yml")
+        .split("\n")
+        .filter((line) => /CLIENT_IP_HEADER:/.test(line))
+        .map((line) => line.trim())
+    ).toEqual(["CLIENT_IP_HEADER: x-real-ip"]);
   });
 });

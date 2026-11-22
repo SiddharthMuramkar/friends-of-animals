@@ -54,5 +54,16 @@ stats.friendsofanimals.dev {
 		try_files /stats
 	}
 	respond @closed 503
-	reverse_proxy 10.112.12.30:3000
+	# Umami reads the visitor's address from X-Real-IP (CLIENT_IP_HEADER in
+	# analytics.yml), which Vercel's rewrite sets, replacing the browser's.
+	# Without it Umami falls back to the first CDN header it finds: drop
+	# the ones a visitor could send to forge the counts.
+	reverse_proxy 10.112.12.30:3000 {
+		header_up -CF-Connecting-IP
+		header_up -True-Client-IP
+		header_up -X-Client-IP
+		header_up -Fastly-Client-IP
+		header_up -X-Nf-Client-Connection-Ip
+		header_up -Do-Connecting-Ip
+	}
 }
