@@ -10,11 +10,10 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { asc, desc, eq, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
-import type { AppDb } from "../../db/app-db";
 import {
   safeguardingIncidentLog,
   safeguardingReport,

@@ -40,11 +40,7 @@ import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakeMediaProcessor } from "./fakes/media";
 import { FakeSms } from "./fakes/sms";
 import { FakeStorage } from "./fakes/storage";
-import {
-  TEST_AUTH,
-  TEST_FILES,
-  TEST_HUMAN_CHECK_DIFFICULTY,
-} from "./harness";
+import { TEST_AUTH, TEST_FILES, TEST_HUMAN_CHECK_DIFFICULTY } from "./harness";
 import { TestSettings } from "./settings";
 
 /** The test database's URL; refuses one that isn't on this machine. */

@@ -3,6 +3,12 @@
 // `safeguardingUseCases`.
 
 export { safeguardingUseCases } from "./use-cases";
+export {
+  AUTHORITY_REFERENCE_MAX,
+  OUTCOME_MAX,
+  SAFEGUARDING_SEVERITIES,
+} from "./domain/report-status";
+export { NOTE_MAX } from "./handling";
 export type {
   AddIncidentLogEntryResult,
   AssignSafeguardingReportResult,
