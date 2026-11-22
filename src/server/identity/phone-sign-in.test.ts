@@ -423,6 +423,7 @@ describe("a seeded account with an email and a phone", () => {
     const h = await smsOn();
     await h.seed.preview();
     const member1 = SEED_ACCOUNTS.members[0];
+    const seededAccounts = await accountCount(h);
 
     await h.as(h.visitor()).requestPhoneCode({ phone: "+91 90000 00101" });
     const byPhone = await h.as(h.visitor()).verifyPhoneCode({
@@ -444,6 +445,6 @@ describe("a seeded account with an email and a phone", () => {
     h.cookies.clear();
     const byEmail = await h.signIn(member1);
     expect(byEmail).toMatchObject({ kind: "user", userId: member1.id });
-    expect(await accountCount(h)).toBe(4);
+    expect(await accountCount(h)).toBe(seededAccounts);
   });
 });
