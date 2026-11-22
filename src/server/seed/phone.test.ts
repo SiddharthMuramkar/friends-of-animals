@@ -27,6 +27,7 @@ async function seedDeps() {
     clock: new FakeClock(),
     cipher: createFieldCipher({ primary: 1, keys: new Map([[1, key1]]) }),
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
+    auth: { secret: "seed-test-secret-0123456789abcdef" },
     key1,
   };
 }
