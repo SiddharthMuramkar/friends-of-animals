@@ -105,22 +105,14 @@ test("the homepage competition action fits on a compact phone", async ({
   });
   expect(clientWidth).toBe(320);
   expect(scrollWidth).toBe(clientWidth);
-});
 
-test("the homepage hero keeps its action while the streamed parts reveal", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 320, height: 568 });
-  // React reveals the streamed parts of the page on a timer after the first
-  // paint. A paused clock holds them back, so the action first painted can be
-  // held before any of them replace what the static shell showed.
+  // And it is painted once. React reveals the streamed parts of the page on
+  // a timer after the first paint; a paused clock holds them back, so the
+  // action first painted can be held before any of them replace what the
+  // static shell showed.
   await page.clock.install();
   await page.clock.pauseAt(Date.now() + 60_000);
   const streamed = page.locator('div[hidden][id^="S:"]');
-  const action = page
-    .getByRole("main")
-    .getByRole("link", { name: "See the competitions", exact: true });
-
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     const painted = await action.elementHandle();
