@@ -10,28 +10,19 @@
 // child already enrolled, and saves the profile, the registration and the
 // audit entry in one transaction.
 
-import { and, eq, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
-import { recordAudit } from "../../audit/record";
-import type { AppDb } from "../../db/app-db";
-import { participantProfile, registration } from "../../db/schema";
-import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import { institutionResource } from "../institutions/coordinators/policy";
 import { indianDateAt } from "./domain/calendar-date";
 import type { EnrolmentState } from "./domain/enrolment-state";
-import {
-  prepareStudent,
-  type PreparedStudent,
-  type StudentProblem,
-} from "./domain/prepare-student";
-import { initialRegistrationStatus } from "./domain/registration-status";
+import { prepareStudent, type StudentProblem } from "./domain/prepare-student";
 import type { StudentField, StudentInput } from "./domain/student-details";
+import { findEnrolledKeys, insertEnrolment } from "./enrolment";
 import { ageGroupsOf, loadEnrolmentFacts } from "./enrolment-facts";
-import { normaliseStudentPhone, studentColumns } from "./student-profile";
+import { normaliseStudentPhone } from "./student-profile";
 
 export type EnrolStudentInput = {
   institutionId: string;
@@ -81,39 +72,6 @@ const enrolInput = z.object({
   }),
 });
 
-/**
- * Whether the child is already enrolled under this institution
- * registration: the same name and date of birth, or the same roll number.
- */
-async function alreadyEnrolled(
-  tx: AppDb,
-  institutionRegistrationId: string,
-  student: PreparedStudent
-): Promise<boolean> {
-  const sameChild = or(
-    eq(participantProfile.identityHash, student.identityHash),
-    student.studentRefKey === null
-      ? undefined
-      : sql`upper(${participantProfile.studentRef}) = ${student.studentRefKey}`
-  );
-  const [found] = await tx
-    .select({ id: registration.id })
-    .from(registration)
-    .innerJoin(
-      participantProfile,
-      eq(participantProfile.id, registration.participantProfileId)
-    )
-    .where(
-      and(
-        eq(registration.institutionRegistrationId, institutionRegistrationId),
-        ne(registration.status, "withdrawn"),
-        sameChild
-      )
-    )
-    .limit(1);
-  return found !== undefined;
-}
-
 export async function enrolStudent(
   ctx: UseCaseContext,
   input: EnrolStudentInput
@@ -124,7 +82,6 @@ export async function enrolStudent(
   const resource = institutionResource(institutionId);
   await authorize(ctx, "institution.coordinate", resource);
   const now = ctx.clock.now();
-  const createdBy = ctx.actor.kind === "user" ? ctx.actor.userId : null;
 
   return ctx.db.transaction(async (tx) => {
     const facts = await loadEnrolmentFacts(
@@ -165,67 +122,24 @@ export async function enrolStudent(
       } as const;
     }
     const enrolling = prepared.student;
-    if (await alreadyEnrolled(tx, institutionRegistrationId, enrolling)) {
+    // The same name and date of birth, or the same roll number.
+    const enrolled = await findEnrolledKeys(tx, institutionRegistrationId, [
+      enrolling,
+    ]);
+    if (enrolled.size > 0) {
       return { ok: false, error: "already_enrolled" } as const;
     }
 
-    // One profile per child at the institution: enrolling them in another
-    // competition finds it and keeps the latest details given.
-    const columns = studentColumns(ctx, enrolling.details);
-    const [profile] = await tx
-      .insert(participantProfile)
-      .values({
-        id: uuidv7(now),
-        ownerKind: "institution",
-        managingInstitutionId: institutionId,
-        ...columns,
-        identityHash: enrolling.identityHash,
-        createdBy,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [
-          participantProfile.managingInstitutionId,
-          participantProfile.identityHash,
-        ],
-        targetWhere: sql`${participantProfile.managingInstitutionId} IS NOT NULL`,
-        set: { ...columns, updatedAt: now },
-      })
-      .returning({ id: participantProfile.id });
-    if (!profile) throw new Error("The participant profile was not saved");
-
-    const registrationId = uuidv7(now);
-    const { status } = initialRegistrationStatus("institution");
-    const ageGroupId = enrolling.ageGroup.id;
-    await tx.insert(registration).values({
-      id: registrationId,
-      participantProfileId: profile.id,
-      competitionId,
-      route: "institution",
-      institutionRegistrationId,
-      ageGroupId,
-      status,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await recordAudit(tx, ctx, {
-      action: "registration.student_enrolled",
-      entity: { type: "registration", id: registrationId },
-      before: null,
-      after: {
-        participantProfileId: profile.id,
-        institutionRegistrationId,
-        competitionId,
-        ageGroupId,
-        status,
-      },
-      actorRole,
-    });
+    const { registrationId } = await insertEnrolment(
+      tx,
+      ctx,
+      { institutionId, institutionRegistrationId, competitionId, actorRole },
+      enrolling
+    );
     return {
       ok: true,
       registrationId,
-      ageGroup: { id: ageGroupId, label: enrolling.ageGroup.label },
+      ageGroup: { id: enrolling.ageGroup.id, label: enrolling.ageGroup.label },
       ignored: prepared.student.ignored,
     } as const;
   });

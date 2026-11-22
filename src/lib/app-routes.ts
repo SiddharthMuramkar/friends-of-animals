@@ -83,6 +83,31 @@ export function newStudentPath(
 }
 
 /**
+ * Importing students from a CSV file into one institution registration
+ * (#76), for the institution the user acts for.
+ */
+export function studentImportPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/import?${query.toString()}`;
+}
+
+/**
+ * The import's blank template, or (outside production) its sample file
+ * (#76): private downloads, for whoever may import.
+ */
+export function studentImportFilePath(
+  reference: string,
+  institutionId: string,
+  file: "template.csv" | "sample.csv"
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/import/${file}?${query.toString()}`;
+}
+
+/**
  * Pages behind sign-in whose path has a dynamic segment, written as in the
  * app directory: each `[name]` stands for one path segment.
  */
@@ -100,6 +125,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/students/new",
+  "/institution/registrations/[ref]/import",
+  "/institution/registrations/[ref]/import/template.csv",
+  "/institution/registrations/[ref]/import/sample.csv",
 ] as const;
 
 /**

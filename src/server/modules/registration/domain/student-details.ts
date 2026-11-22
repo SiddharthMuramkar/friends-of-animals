@@ -64,7 +64,9 @@ export type StudentFieldError =
   | "invalid_format"
   | "invalid_choice"
   | "invalid_phone"
-  | "invalid_email";
+  | "invalid_email"
+  /** A hidden control character, such as a NUL. */
+  | "invalid_characters";
 
 export type StudentContact =
   | {
@@ -125,6 +127,15 @@ function characterCount(text: string): number {
   return Array.from(graphemes.segment(text)).length;
 }
 
+/** A C0 control character or DEL, such as a NUL. */
+function hasControlCharacter(text: string): boolean {
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+  return false;
+}
+
 export function parseStudentDetails(
   input: StudentInput,
   { today, normalisePhone }: StudentDetailsContext
@@ -136,9 +147,18 @@ export function parseStudentDetails(
   };
   const value = (field: StudentField): string =>
     (input[field] ?? "").replace(/\s+/g, " ").trim();
+  // Spacing (tabs, line breaks) is folded into single spaces above. Any
+  // other control character is never meant, can't be shown and, for a
+  // NUL, can't even be stored, so it is that field's mistake: never a
+  // database error that loses a whole import.
+  const read = (field: StudentField): string | null => {
+    const text = value(field);
+    return hasControlCharacter(text) ? fail(field, "invalid_characters") : text;
+  };
 
   const name = (field: StudentField, required: boolean): string | null => {
-    const text = value(field);
+    const text = read(field);
+    if (text === null) return null;
     if (!text) return required ? fail(field, "required") : null;
     const length = characterCount(text);
     if (length < 2) return fail(field, "too_short");
@@ -147,19 +167,20 @@ export function parseStudentDetails(
   };
 
   const optional = (field: StudentField, max: number): string | null => {
-    const text = value(field);
+    const text = read(field);
     if (!text) return null;
     return characterCount(text) > max ? fail(field, "too_long") : text;
   };
 
   const phone = (field: StudentField, required: boolean): string | null => {
-    const text = value(field);
+    const text = read(field);
+    if (text === null) return null;
     if (!text) return required ? fail(field, "required") : null;
     return normalisePhone(text) ?? fail(field, "invalid_phone");
   };
 
   const email = (field: StudentField): string | null => {
-    const text = value(field).toLowerCase();
+    const text = read(field)?.toLowerCase();
     if (!text) return null;
     return text.length <= 254 && EMAIL.test(text)
       ? text
@@ -167,9 +188,9 @@ export function parseStudentDetails(
   };
 
   const relationship = (required: boolean): GuardianRelationship | null => {
-    const text = value("guardianRelationship")
-      .toLowerCase()
-      .replace(/[\s-]+/g, "_");
+    const raw = read("guardianRelationship");
+    if (raw === null) return null;
+    const text = raw.toLowerCase().replace(/[\s-]+/g, "_");
     if (!text)
       return required ? fail("guardianRelationship", "required") : null;
     const known = GUARDIAN_RELATIONSHIPS.find((choice) => choice === text);
@@ -177,7 +198,8 @@ export function parseStudentDetails(
   };
 
   const dateOfBirth = (): CalendarDate | null => {
-    const text = value("dateOfBirth");
+    const text = read("dateOfBirth");
+    if (text === null) return null;
     if (!text) return fail("dateOfBirth", "required");
     const date = parseIsoDate(text) ?? parseDayFirst(text);
     if (!date) return fail("dateOfBirth", "invalid_date");
@@ -189,7 +211,7 @@ export function parseStudentDetails(
   };
 
   const pinCode = (): string | null => {
-    const text = value("pinCode").replace(/\s/g, "");
+    const text = read("pinCode")?.replace(/\s/g, "");
     if (!text) return null;
     return PIN_CODE.test(text) ? text : fail("pinCode", "invalid_format");
   };
