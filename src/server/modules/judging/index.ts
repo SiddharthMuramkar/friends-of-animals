@@ -5,6 +5,7 @@
 import type { UseCaseContext } from "../../use-cases";
 import type { Discipline } from "../competitions/domain/vocabulary";
 import type { RubricCriterion } from "./domain/rubric-criteria";
+import { getJudgingGuide, listJudgingGuides } from "./judging-guide";
 import {
   createRubricDraft,
   getDisciplineRubrics,
@@ -26,6 +27,11 @@ export type {
   StartRubricRevisionResult,
   UpdateRubricDraftResult,
 } from "./rubrics";
+export type {
+  GetJudgingGuideResult,
+  GuideCompetition,
+  JudgingGuideDiscipline,
+} from "./judging-guide";
 export type { RubricCriterion, RubricProblem } from "./domain/rubric-criteria";
 export type { RubricStatus } from "./domain/rubric-status";
 export { JUDGING_POLICY, type JudgingAction } from "./policy";
@@ -47,4 +53,6 @@ export const judgingUseCases = (ctx: UseCaseContext) => ({
     competitionId: string;
     discipline: Discipline;
   }) => getDisciplineRubrics(ctx, input),
+  getJudgingGuide: (input: { code: string }) => getJudgingGuide(ctx, input),
+  listJudgingGuides: () => listJudgingGuides(ctx),
 });

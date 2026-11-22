@@ -206,7 +206,8 @@ async function lockRubric(tx: AppDb, rubricId: string) {
   return row ?? null;
 }
 
-async function criteriaOf(
+/** Each rubric's criteria, in order; an empty list for one with none. */
+export async function criteriaOf(
   db: AppDb,
   rubricIds: readonly string[]
 ): Promise<Map<string, RubricCriterion[]>> {
