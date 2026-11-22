@@ -2,12 +2,20 @@
 
 import { eq } from "drizzle-orm";
 
+import type { E164Phone } from "@/lib/phone";
+
+import { authorize } from "../access/can";
 import { user } from "../db/schema";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
-import { authorize } from "./policy";
+import { readStoredPhone } from "./stored-phone";
 
-export type Account = { name: string; email: string };
+/** An account has an email, a phone, or both. */
+export type Account = {
+  name: string;
+  email: string | null;
+  phone: E164Phone | null;
+};
 
 /** The signed-in user; `authorize` has ruled out other actors. */
 export function signedInUser(ctx: UseCaseContext) {
@@ -16,14 +24,24 @@ export function signedInUser(ctx: UseCaseContext) {
 }
 
 export async function getAccount(ctx: UseCaseContext): Promise<Account> {
-  authorize(ctx.actor, "getAccount");
+  await authorize(ctx, "getAccount");
   const { userId } = signedInUser(ctx);
   const [account] = await ctx.db
-    .select({ name: user.name, email: user.email })
+    .select({
+      name: user.name,
+      email: user.email,
+      phoneCiphertext: user.phoneCiphertext,
+    })
     .from(user)
     .where(eq(user.id, userId));
   if (!account) throw new Error("The signed-in user has no account row");
-  return account;
+  return {
+    name: account.name,
+    email: account.email,
+    phone: account.phoneCiphertext
+      ? readStoredPhone(ctx, account.phoneCiphertext)
+      : null,
+  };
 }
 
 /** Removes the browser's session cookie. */

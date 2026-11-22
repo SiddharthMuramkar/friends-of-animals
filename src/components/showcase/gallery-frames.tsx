@@ -61,7 +61,7 @@ export async function GalleryFrames({ className }: { className?: string }) {
                 height, so the frame grows to fit a long or spaced label. */}
             <div
               className={cn(
-                "relative grid place-items-center rounded-md border-2 border-dashed border-border-strong bg-background p-3 text-center",
+                "relative grid grid-cols-1 place-items-center rounded-md border-2 border-dashed border-border-strong bg-background p-[min(0.75rem,10%)] text-center",
                 shape
               )}
             >
@@ -72,9 +72,9 @@ export async function GalleryFrames({ className }: { className?: string }) {
                   corner
                 )}
               />
-              <span className="flex flex-col items-center gap-2">
+              <span className="flex w-full min-w-0 flex-col items-center gap-2">
                 <Icon aria-hidden="true" className="size-7 text-ink-muted" />
-                <span className="font-hand text-lead leading-snug text-ink">
+                <span className="max-w-full font-hand text-lead leading-snug text-ink">
                   {t(`frames.${key}`)}
                 </span>
               </span>

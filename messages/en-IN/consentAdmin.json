@@ -1,0 +1,69 @@
+{
+  "consentAdmin": {
+    "meta": {
+      "title": "Consent documents",
+      "description": "Publish new versions of the messages consent, and see every version of the privacy policy and the terms."
+    },
+    "eyebrow": "Admin",
+    "title": "Consent documents",
+    "lead": "Each change is a new version. Published versions never change, so everyone's consent points at the exact text they saw.",
+    "loading": "Loading documents…",
+    "denied": {
+      "title": "Only staff admins can open this page",
+      "body": "Publishing consent documents is for staff admins and super admins. Ask a super admin if you need it.",
+      "back": "Back to your account"
+    },
+    "purposes": {
+      "privacy_notice": "Privacy policy",
+      "terms": "Terms of use",
+      "messages": "News and updates by email",
+      "competition_terms": "Competition terms"
+    },
+    "current": "Version {version}, published {date} by {name}.",
+    "currentPublisherGone": "Version {version}, published {date} by an account that no longer exists.",
+    "none": "Nothing published yet. Until you publish version 1, the page shows the text in the code.",
+    "fromCms": "Its text is its policy page's. When a content manager publishes the page from Site content, this document gets the same text as its next version.",
+    "published": "Published version {version}.",
+    "form": {
+      "title": {
+        "label": "Title",
+        "error": "Enter a title of up to 200 characters."
+      },
+      "source": {
+        "label": "Text",
+        "hint": "Short-version points go first, each on a line starting with a dash. Start each section with two hash signs and its title. Write **bold** for strong words and [words](/page) for a link."
+      },
+      "preview": "Preview",
+      "previewing": "Checking…",
+      "publish": "Publish version {version}",
+      "publishing": "Publishing…",
+      "previewTitle": "Preview of version {version}",
+      "problem": "Problem",
+      "done": "Done",
+      "failed": "Something went wrong on our side. Nothing was published. Please try again.",
+      "publishedByCms": "The privacy policy and the terms of use are their pages' text. Publish the page from Site content instead. Nothing was published here.",
+      "fixErrors": "Fix these before you publish:",
+      "lineError": "Line {line}: {message}",
+      "errors": {
+        "no_sections": "Add at least one section, starting with two hash signs and its title.",
+        "text_before_first_section": "Only short-version points, on lines starting with a dash, can come before the first section.",
+        "empty_section": "This section has no text.",
+        "invalid_section_id": "Section ids use lowercase letters and hyphens only.",
+        "duplicate_section_id": "Two sections have the same id. Give one of them another title or id.",
+        "unclosed_strong": "Bold text needs two stars at both ends.",
+        "empty_strong": "Bold text can't be empty.",
+        "unclosed_link": "Finish the link: [words](address).",
+        "invalid_link": "Links go to a page on this site (/page), a section (#id) or an https address.",
+        "unknown_fact": "We don't know that fact. Use legalName, email, phone, address, grievanceOfficerName or grievanceOfficerEmail.",
+        "unclosed_fact": "Close the fact with two closing braces.",
+        "dangling_escape": "A backslash at the end of a line has nothing to escape.",
+        "invalid_document": "The text breaks a rule we can't point to a line for. Check the links and section ids."
+      },
+      "fact": "[{fact}]"
+    },
+    "history": "All versions",
+    "versionSummary": "Version {version}: {title}",
+    "versionPublished": "Published {date} by {name}.",
+    "versionPublisherGone": "Published {date} by an account that no longer exists."
+  }
+}
