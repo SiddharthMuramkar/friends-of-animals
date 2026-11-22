@@ -48,9 +48,7 @@ import {
   type InvitationStatus,
 } from "../institutions/domain/invitation";
 import { maskIdentifier } from "../institutions/domain/mask-identifier";
-import { ageAt, isAdultAt } from "../participants/domain/age";
-import { parseIsoDate } from "../registration/domain/calendar-date";
-import { PROFILE_PURPOSE } from "../registration/student-profile";
+import { ageAt } from "../participants/domain/age";
 import type { GuardianRelationship } from "../registration/domain/student-details";
 import { verifiedEmailOf } from "./account-contact";
 import { holdsOtherRole, isAGuardian } from "./account-roles";
@@ -63,6 +61,7 @@ import {
   type TeenInviteRefusal,
 } from "./domain/children";
 import { guardianName } from "./guardian-record";
+import { ownProfileOf } from "./own-profile";
 import {
   parseTeenEmail,
   readTeenContact,
@@ -138,35 +137,6 @@ async function guardianUsersOf(tx: AppDb, childId: string): Promise<string[]> {
       )
     );
   return rows.map((row) => row.userId);
-}
-
-/**
- * The user's own profile (#78): none, an adult's, or a teen's held for a
- * guardian they asked (81b), by its date of birth at `now`. Read under the
- * user's row lock, which registering as an individual also takes, so
- * neither slips past the other.
- */
-async function ownProfileOf(
-  tx: AppDb,
-  ctx: Pick<UseCaseContext, "cipher">,
-  userId: string,
-  now: Date
-): Promise<"none" | "adult" | "minor"> {
-  const [own] = await tx
-    .select({ dobCiphertext: participantProfile.dobCiphertext })
-    .from(participantProfile)
-    .where(
-      and(
-        eq(participantProfile.ownerUserId, userId),
-        eq(participantProfile.ownerKind, "self")
-      )
-    );
-  if (!own) return "none";
-  const dateOfBirth = parseIsoDate(
-    ctx.cipher.decrypt(PROFILE_PURPOSE.dob, own.dobCiphertext)
-  );
-  if (!dateOfBirth) throw new Error("A stored date of birth is not a date");
-  return isAdultAt(dateOfBirth, now) ? "adult" : "minor";
 }
 
 /** Another child's profile the user is already the login of, if any. */

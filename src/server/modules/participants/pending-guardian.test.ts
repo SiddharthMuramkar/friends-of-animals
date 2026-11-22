@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   auditLog,
+  guardian,
   guardianInvitation,
   guardianLink,
   participantProfile,
   registration,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { addGuardianFamily } from "@/server/seed/guardians";
 import { paymentRows } from "@/server/modules/payments/testing";
 import {
   bornYearsAgo,
@@ -103,6 +105,53 @@ describe("a registration held for a guardian", () => {
         .payForMyRegistration({ registrationId: meera.registrationId })
     ).toEqual({ ok: false, error: "awaiting_guardian" });
     expect(await meera.status()).toBe("pending_guardian");
+  });
+});
+
+describe("registerAsGuardian, after registering alone", () => {
+  it("refuses a teen held for a guardian, storing nothing: they can't verify or add a child", async () => {
+    const h = await createHarness();
+    const meera = await heldTeen(h);
+
+    expect(
+      await h
+        .as(meera.actor)
+        .registerAsGuardian({ fullName: "Meera Iyer", adultDeclared: true })
+    ).toEqual({ ok: false, error: "registered_as_minor" });
+    expect(await h.db.select().from(guardian)).toEqual([]);
+    expect(await h.as(meera.actor).startGuardianVerification()).toEqual({
+      ok: false,
+      error: "not_registered",
+    });
+    await expect(
+      h.as(meera.actor).addChild({
+        fullName: "Meera Iyer",
+        dateOfBirth: bornYearsAgo(h, 15, 30),
+        relationship: "parent",
+      })
+    ).rejects.toThrow(DomainError);
+    expect(await meera.status()).toBe("pending_guardian");
+  });
+
+  it("lets an adult who registered themselves declare as a guardian", async () => {
+    const h = await createHarness();
+    const competition = await openToIndividuals(h);
+    const actor = await h.signIn(
+      await h.seed.member({ name: "Lakshmi Iyer", email: MOTHER_EMAIL })
+    );
+    expect(
+      await h
+        .as(actor)
+        .registerAsIndividual(
+          adultForm(competition, { fullName: "Lakshmi Iyer" })
+        )
+    ).toMatchObject({ ok: true, status: "pending_payment" });
+
+    expect(
+      await h
+        .as(actor)
+        .registerAsGuardian({ fullName: "Lakshmi Iyer", adultDeclared: true })
+    ).toEqual({ ok: true });
   });
 });
 
@@ -301,13 +350,15 @@ describe("acceptGuardianRequest", () => {
       expect(await unchanged(h)).toEqual(before);
     });
 
-    it("a teen who has declared as a guardian since asking", async () => {
+    it("a teen granted the guardian role since asking", async () => {
       const h = await createHarness();
       const meera = await heldTeen(h);
-      const declared = await h
-        .as(meera.actor)
-        .registerAsGuardian({ fullName: "Meera Iyer", adultDeclared: true });
-      expect(declared).toMatchObject({ ok: true });
+      // Declaring is refused to her (registered_as_minor); staff could
+      // still grant the role.
+      await h.seed.grant(meera.account, {
+        role: "guardian",
+        scope: { type: "global" },
+      });
       const lakshmi = await verifiedGuardian(h, {
         name: "Lakshmi Iyer",
         email: MOTHER_EMAIL,
@@ -365,6 +416,48 @@ describe("acceptGuardianRequest", () => {
           .acceptGuardianRequest({ token: meera.token, relationship: "parent" })
       ).toEqual({ ok: false, error: "requester_is_adult" });
       expect(await unchanged(h)).toEqual(before);
+    });
+
+    it("a verified guardian whose own profile says they are under 18", async () => {
+      const h = await createHarness();
+      // Ravi, 14, registered alone and is held for his own guardian. He
+      // can't declare as one now (registered_as_minor); this account was
+      // made a verified guardian anyway, as no use case lets it be.
+      const competition = await openToIndividuals(h, { name: "Wings 2027" });
+      const raviAccount = await h.seed.member({
+        name: "Ravi Kumar",
+        email: MOTHER_EMAIL,
+      });
+      const ravi = await h.signIn(raviAccount);
+      expect(
+        await h.as(ravi).registerAsIndividual({
+          ...adultForm(competition, {
+            fullName: "Ravi Kumar",
+            dateOfBirth: bornYearsAgo(h, 14, 30),
+          }),
+          guardian: {
+            fullName: "Suresh Kumar",
+            relationship: "parent",
+            email: "suresh@example.test",
+          },
+        })
+      ).toMatchObject({ ok: true, status: "pending_guardian" });
+      await addGuardianFamily(h.deps, {
+        userId: raviAccount.id,
+        fullName: "Ravi Kumar",
+        children: [],
+      });
+      // Meera, 15, names Ravi's address as her parent's.
+      const meera = await heldTeen(h);
+      const before = await unchanged(h);
+
+      expect(
+        await h
+          .as(ravi)
+          .acceptGuardianRequest({ token: meera.token, relationship: "parent" })
+      ).toEqual({ ok: false, error: "accepter_is_minor" });
+      expect(await unchanged(h)).toEqual(before);
+      expect(await meera.status()).toBe("pending_guardian");
     });
 
     it("the teen who asked", async () => {

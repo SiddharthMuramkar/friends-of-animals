@@ -16,6 +16,7 @@ const REQUEST_ACCEPT_ERRORS: readonly RequestAcceptError[] = [
   "expired",
   "requester_cannot_accept",
   "contact_mismatch",
+  "accepter_is_minor",
   "guardian_not_verified",
   "child_already_added",
   "already_linked",

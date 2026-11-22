@@ -148,6 +148,7 @@ describe("decideGuardianRequestAcceptance", () => {
     isTheRequester: false,
     isTheRequestedContact: true,
     guardianVerified: true,
+    ownProfile: "none" as "none" | "adult" | "minor",
   };
   const teen = {
     ...member,
@@ -204,6 +205,11 @@ describe("decideGuardianRequestAcceptance", () => {
       "contact_mismatch",
     ],
     [
+      "the account asked registered itself as under 18",
+      { accepter: { ...mother, ownProfile: "minor" as const } },
+      "accepter_is_minor",
+    ],
+    [
       "the guardian has not verified yet",
       { accepter: { ...mother, guardianVerified: false } },
       "guardian_not_verified",
@@ -237,6 +243,22 @@ describe("decideGuardianRequestAcceptance", () => {
     expect(accept(change)).toEqual({ ok: false, reason });
   });
 
+  it("lets a guardian who registered themselves as an adult accept", () => {
+    expect(
+      accept({ accepter: { ...mother, ownProfile: "adult" as const } })
+    ).toEqual({ ok: true });
+  });
+
+  it("tells a minor they can't accept, not to verify, once they're the one asked", () => {
+    const minor = { ...mother, ownProfile: "minor" as const };
+    expect(accept({ accepter: { ...minor, guardianVerified: false } })).toEqual(
+      { ok: false, reason: "accepter_is_minor" }
+    );
+    expect(
+      accept({ accepter: { ...minor, isTheRequestedContact: false } })
+    ).toEqual({ ok: false, reason: "contact_mismatch" });
+  });
+
   it("says nothing about who is accepting once the link no longer works", () => {
     expect(
       accept({
@@ -245,6 +267,7 @@ describe("decideGuardianRequestAcceptance", () => {
           isTheRequester: true,
           isTheRequestedContact: false,
           guardianVerified: false,
+          ownProfile: "minor",
         },
       })
     ).toEqual({ ok: false, reason: "expired" });

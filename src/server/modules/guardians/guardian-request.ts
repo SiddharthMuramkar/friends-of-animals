@@ -20,7 +20,9 @@
 // A child's login holds no guardian, staff, school or judge role, so it
 // never adds or manages other children (./policy.ts): asking refuses an
 // account that holds one, and accepting checks the teen's account again,
-// under its row lock, along with their age.
+// under its row lock, along with their age. Nor does a minor become a
+// guardian: accepting refuses an account whose own profile is a minor's
+// (./own-profile.ts), under the accepter's row lock.
 //
 // The request is a `guardian_invitation` of kind guardian_request: its
 // address and the guardian's name are encrypted, the token kept as a hash
@@ -73,6 +75,7 @@ import {
   type GuardianRequestRefusal,
 } from "./domain/guardian-request";
 import { guardianOfUser } from "./guardian-record";
+import { ownProfileOf } from "./own-profile";
 import {
   parseTeenEmail,
   readTeenContact,
@@ -530,6 +533,8 @@ export async function acceptGuardianRequest(
             (await verifiedContactHash(tx, ctx, userId)) ===
             request.contactHash,
           guardianVerified: record?.verifiedAt != null,
+          // Under the accepter's row lock, which registering alone takes.
+          ownProfile: await ownProfileOf(tx, ctx, userId, now),
         },
         childAlreadyAdded: sameChild !== undefined,
         requester: {

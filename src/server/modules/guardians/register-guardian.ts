@@ -8,8 +8,10 @@
 //
 // myGuardianProfile() reads the declaration back for the guardian pages.
 //
-// A teen whose login is linked to a child's profile can't declare
-// themselves a guardian: the account is known to be a minor's.
+// An account known to be a minor's can't declare itself a guardian: a
+// teen whose login is linked to a child's profile, or one who registered
+// alone with a date of birth under 18 (./own-profile.ts), whose profile
+// is held for the guardian they asked (81b).
 
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -30,6 +32,7 @@ import {
   guardianPhone,
   storedGuardianDetails,
 } from "./guardian-record";
+import { ownProfileOf } from "./own-profile";
 
 export type RegisterAsGuardianInput = {
   fullName: string;
@@ -44,7 +47,11 @@ export type RegisterAsGuardianResult =
   | InvalidInput
   | {
       ok: false;
-      error: "adult_declaration_required" | "already_verified" | "linked_child";
+      error:
+        | "adult_declaration_required"
+        | "already_verified"
+        | "linked_child"
+        | "registered_as_minor";
     };
 
 export type MyGuardianProfile =
@@ -115,7 +122,8 @@ export async function registerAsGuardian(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx): Promise<RegisterAsGuardianResult> => {
-    // One declaration at a time per user.
+    // One declaration at a time per user; registering alone takes the
+    // same lock, so the own profile read below holds still.
     await tx
       .select({ id: user.id })
       .from(user)
@@ -126,6 +134,9 @@ export async function registerAsGuardian(
       .from(participantProfile)
       .where(eq(participantProfile.loginUserId, userId));
     if (linked) return { ok: false, error: "linked_child" };
+    if ((await ownProfileOf(tx, ctx, userId, now)) === "minor") {
+      return { ok: false, error: "registered_as_minor" };
+    }
 
     const stored = storedGuardianDetails(ctx, details);
     const existing = await guardianOfUser(tx, userId);

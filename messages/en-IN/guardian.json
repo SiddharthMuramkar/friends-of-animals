@@ -65,6 +65,7 @@
       "submitting": "Sending…",
       "errors": {
         "linked_child": "This account is a child's own login, so it can't register as a guardian.",
+        "registered_as_minor": "You registered for a competition with a date of birth under 18, so this account can't register as a guardian.",
         "no_verified_email": "We email the code, and your account has no email address yet. Sign in with an email address to register as a guardian.",
         "rate_limited": "You've asked for several codes. Please wait a few minutes and try again.",
         "unexpected": "Something went wrong. Please try again."
@@ -285,6 +286,7 @@
         "expired": "This request has expired.",
         "requester_cannot_accept": "You sent this request. Your parent or guardian confirms it with their own account.",
         "contact_mismatch": "This request is for a different email address than the one you're signed in with.",
+        "accepter_is_minor": "This account registered for a competition with a date of birth under 18, so it can't become a teen's parent or guardian. They need to ask a parent or guardian who is 18 or older.",
         "guardian_not_verified": "First register as a parent or guardian, with a code we email you.",
         "child_already_added": "You've already added this child yourself, so this request can't add them a second time. Please contact us, and we'll bring their registrations together.",
         "already_linked": "This teen's login is already linked to a parent or guardian.",

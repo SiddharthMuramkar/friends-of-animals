@@ -90,6 +90,8 @@ export type GuardianRequestAcceptanceRefusal =
   | "expired"
   | "requester_cannot_accept"
   | "contact_mismatch"
+  /** The account asked registered itself with a date of birth under 18. */
+  | "accepter_is_minor"
   | "guardian_not_verified"
   | "child_already_added"
   | "already_linked"
@@ -100,8 +102,10 @@ export type GuardianRequestAcceptanceRefusal =
  * May the signed-in user accept this guardian request? The request is
  * checked first (an unknown token says nothing more), then who is
  * accepting: never the teen who asked, only the person asked, signed in
- * with that address, who has verified as a guardian (81a) and hasn't
- * already added the same child (by name and date of birth) themselves.
+ * with that address, whose own profile (if any) isn't a minor's, who has
+ * verified as a guardian (81a) and hasn't already added the same child
+ * (by name and date of birth) themselves. A minor asked is told so before
+ * being told to verify, which they can't.
  * Last, the teen: their login must not have been linked to another
  * child's profile since they asked, they must still be under 18, and their
  * account must hold no role a child's login can't (guardian, staff, school
@@ -120,6 +124,11 @@ export function decideGuardianRequestAcceptance(input: {
     isTheRequestedContact: boolean;
     /** Has declared as a guardian and confirmed it by code. */
     guardianVerified: boolean;
+    /**
+     * Their own participant profile, by its date of birth now: none, an
+     * adult's, or a minor's (a teen who registered alone, 81b).
+     */
+    ownProfile: "none" | "adult" | "minor";
   };
   /** The accepter already keeps a child profile with the teen's identity. */
   childAlreadyAdded: boolean;
@@ -143,6 +152,7 @@ export function decideGuardianRequestAcceptance(input: {
   }
   if (accepter.isTheRequester) return refuse("requester_cannot_accept");
   if (!accepter.isTheRequestedContact) return refuse("contact_mismatch");
+  if (accepter.ownProfile === "minor") return refuse("accepter_is_minor");
   if (!accepter.guardianVerified) return refuse("guardian_not_verified");
   if (input.childAlreadyAdded) return refuse("child_already_added");
   if (requester.linkedElsewhere) return refuse("already_linked");
