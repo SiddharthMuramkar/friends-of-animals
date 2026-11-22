@@ -7,6 +7,7 @@ import {
   fallbackWebhook,
   isFallbackGateway,
 } from "./payment-gateway-fallback";
+import { unconfiguredPaymentGateway } from "./payment-gateway";
 import { paymentGatewayContract } from "./payment-gateway.contract";
 
 paymentGatewayContract("fallbackPaymentGateway on PGlite", async () => {
@@ -113,8 +114,10 @@ describe("fallbackPaymentGateway", () => {
     const { gateway } = await world();
 
     expect(isFallbackGateway(gateway)).toBe(true);
+    expect(isFallbackGateway(unconfiguredPaymentGateway)).toBe(false);
+    // The name alone proves nothing: only the fallback can pay an order.
     expect(
-      isFallbackGateway({ ...gateway, name: "razorpay-test" } as never)
+      isFallbackGateway({ ...unconfiguredPaymentGateway, name: "fallback" })
     ).toBe(false);
   });
 });

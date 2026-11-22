@@ -4,10 +4,6 @@
       "enrolled": "Enrolled",
       "confirmed": "Confirmed",
       "withdrawn": "Withdrawn"
-    },
-    "payment": {
-      "checkoutDescription": "{count, plural, one {Fee for # student} other {Fees for # students}} in {competition} ({reference})",
-      "studentCount": "{count, plural, one {# student} other {# students}}"
     }
   }
 }

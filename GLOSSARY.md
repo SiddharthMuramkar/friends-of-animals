@@ -207,6 +207,12 @@ Checkout return or a webhook only says a capture may have happened; the
 gateway's own record of the order decides.
 _Avoid_: Payment success, settlement
 
+**Test checkout**:
+Where a payer pays outside production while no Razorpay test keys are set:
+the fallback gateway's stand-in for Razorpay's Checkout, on the pay page. It
+moves no money and never runs in production.
+_Avoid_: Mock payment, dummy gateway
+
 **Registration number**:
 What a confirmed registration is known by: the competition's code, "R" and
 six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the

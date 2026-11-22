@@ -1,0 +1,122 @@
+{
+  "payments": {
+    "order": {
+      "checkoutDescription": "{count, plural, one {Fee for # student} other {Fees for # students}} in {competition} ({reference})",
+      "studentCount": "{count, plural, one {# student} other {# students}}"
+    },
+    "pay": {
+      "meta": {
+        "title": "Pay your students' fees",
+        "description": "Pay every waiting student's competition fee in one payment."
+      },
+      "eyebrow": "Your institution",
+      "title": "Pay fees",
+      "lead": "Pay for every student who is waiting in one payment. Each one is confirmed, with a registration number, as soon as the payment comes through.",
+      "loading": "Loading the fees…",
+      "for": "{institution} in {competition}",
+      "reference": "Registration reference {reference}",
+      "summaryTitle": "What you pay",
+      "students": "Students waiting for their fee",
+      "fee": "Fee per student",
+      "total": "Total",
+      "free": "Free",
+      "pay": "Pay {total}",
+      "paying": "Opening the payment…",
+      "confirming": "Checking your payment…",
+      "freeBody": "This competition is free, so there is nothing to pay. Confirm your students to give each one a registration number.",
+      "confirmFree": "Confirm {count, plural, one {# student} other {# students}}",
+      "confirmingFree": "Confirming…",
+      "confirmedFree": "{count, plural, one {# student is} other {# students are}} confirmed.",
+      "lastPaid": "See your last payment",
+      "back": "Back to your students",
+      "noInstitution": {
+        "title": "There is nothing to pay here",
+        "body": "This page is for the coordinators and the authorised person of an institution. Ask your institution's authorised person to invite you as a coordinator.",
+        "back": "Go to your dashboard"
+      },
+      "notFound": {
+        "title": "We couldn't find that registration",
+        "body": "Your institution has no registration with that reference. Open it from the competitions page instead.",
+        "back": "Go to competitions"
+      },
+      "nothingToPay": {
+        "title": "No fees are waiting",
+        "body": "Every student in this registration is paid for. Add a student, and their fee shows up here."
+      },
+      "feeNotSet": {
+        "title": "The fee isn't set yet",
+        "body": "Friends of Animals hasn't set this competition's fee for institutions yet. Come back once it is announced."
+      },
+      "error": {
+        "institution_not_verified": "Your institution isn't verified at the moment, so fees can't be paid.",
+        "nothing_to_pay": "No student is waiting for their fee any more.",
+        "fee_not_set": "This competition's fee isn't set yet, so nothing can be paid.",
+        "gateway_unavailable": "The payment service isn't answering. Nothing was charged. Try again in a few minutes.",
+        "superseded": "Someone else at your institution is paying at the same time. Wait a minute, then reload this page.",
+        "not_found": "We couldn't find that payment. Reload this page and try again.",
+        "invalid_signature": "We couldn't confirm that payment. If money left your account, it is confirmed as soon as the payment service tells us.",
+        "confirm_failed": "We couldn't check your payment just now. If money left your account, it is confirmed as soon as the payment service tells us.",
+        "checkout_unavailable": "The payment window couldn't open. Check your connection and try again.",
+        "payment_failed": "The payment didn't go through, so nothing was charged. You can try again.",
+        "forbidden": "You can't pay for this institution any more.",
+        "failed": "Something went wrong. Nothing was charged. Try again."
+      },
+      "checkoutName": "Friends of Animals",
+      "testCheckout": {
+        "title": "Test checkout",
+        "body": "This is a test payment: no money moves. Razorpay's checkout takes this place once its keys are set.",
+        "amount": "Amount",
+        "pay": "Pay (test)",
+        "paying": "Paying…",
+        "decline": "Decline (test)",
+        "declining": "Declining…",
+        "unavailable": "The test checkout is off here."
+      }
+    },
+    "batch": {
+      "meta": {
+        "title": "Your payment",
+        "description": "A fee payment and the students it confirms."
+      },
+      "eyebrow": "Your institution",
+      "title": "Payment",
+      "loading": "Loading the payment…",
+      "for": "Fees for {competition}",
+      "reference": "Registration reference {reference}",
+      "status": {
+        "created": "Starting",
+        "order_created": "Waiting for payment",
+        "captured": "Paid",
+        "failed": "Not started",
+        "cancelled": "Replaced"
+      },
+      "statusBody": {
+        "created": "This payment is still being set up.",
+        "order_created": "We haven't received this payment yet. If you have paid, your students are confirmed as soon as the payment service tells us.",
+        "captured": "Paid on {date}. Each student below is confirmed.",
+        "failed": "The payment service couldn't start this payment, so nothing was charged.",
+        "cancelled": "A newer payment replaced this one before anything was paid."
+      },
+      "summaryTitle": "Payment details",
+      "amount": "Amount",
+      "students": "Students",
+      "studentsTitle": "Students in this payment",
+      "number": "Registration number",
+      "noNumber": "Not yet",
+      "payNow": "Pay now",
+      "back": "Back to your students",
+      "noInstitution": {
+        "title": "There is no payment to show here",
+        "body": "This page is for the coordinators and the authorised person of an institution.",
+        "back": "Go to your dashboard"
+      },
+      "notFound": {
+        "title": "We couldn't find that payment",
+        "body": "Your institution has no payment with that link. Open it from your registration instead.",
+        "back": "Go to competitions"
+      },
+      "student": "Student",
+      "studentStatus": "Status"
+    }
+  }
+}

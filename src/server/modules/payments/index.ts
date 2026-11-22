@@ -2,11 +2,13 @@
 // one gateway order, and every signal from the gateway (the Checkout
 // return, a webhook) is checked against the gateway's own record of the
 // order before anything is confirmed. Its use cases join `as(actor)`
-// through `paymentsUseCases`. The Razorpay adapter, the webhook route and
-// the pages arrive with 77b.
+// through `paymentsUseCases`. The adapters live in src/server/ports, the
+// webhook route in src/app/api/webhooks and the pay pages under
+// src/app/institution/registrations/[ref].
 
 import type { UseCaseContext } from "../../use-cases";
 import { confirmCheckout, type ConfirmCheckoutInput } from "./confirm-checkout";
+import { getFeesToPay, type GetFeesToPayInput } from "./get-fees-to-pay";
 import {
   getPaymentBatch,
   type GetPaymentBatchInput,
@@ -30,6 +32,11 @@ export type {
   ConfirmCheckoutResult,
 } from "./confirm-checkout";
 export type {
+  FeesToPay,
+  GetFeesToPayInput,
+  GetFeesToPayResult,
+} from "./get-fees-to-pay";
+export type {
   GetPaymentBatchInput,
   GetPaymentBatchResult,
   PaymentBatchItemView,
@@ -48,4 +55,5 @@ export const paymentsUseCases = (ctx: UseCaseContext) => ({
     receiveGatewayWebhook(ctx, input),
   confirmCheckout: (input: ConfirmCheckoutInput) => confirmCheckout(ctx, input),
   getPaymentBatch: (input: GetPaymentBatchInput) => getPaymentBatch(ctx, input),
+  getFeesToPay: (input: GetFeesToPayInput) => getFeesToPay(ctx, input),
 });

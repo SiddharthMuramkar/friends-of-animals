@@ -11,7 +11,7 @@
 import { and, count, eq, isNull } from "drizzle-orm";
 import { createTranslator } from "next-intl";
 
-import registrationMessages from "../../../../messages/en-IN/registration.json";
+import paymentMessages from "../../../../messages/en-IN/payments.json";
 import type { AppDb } from "../../db/app-db";
 import {
   competition,
@@ -34,8 +34,8 @@ export const RECEIPT_VARIABLES = [
 
 const t = createTranslator({
   locale: "en-IN",
-  messages: registrationMessages,
-  namespace: "registration.payment",
+  messages: paymentMessages,
+  namespace: "payments.order",
 });
 
 export async function receiptValues(
