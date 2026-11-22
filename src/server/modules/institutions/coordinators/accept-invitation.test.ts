@@ -133,6 +133,58 @@ describe("acceptInvitation", () => {
     expect(result).toEqual({ ok: true, institutionId: x.id });
   });
 
+  it("withdraws the person's other invitations waiting at that institution", async () => {
+    const h = await createHarness();
+    await h.settings.set("sms.enabled", true);
+    const { institution: x, adminActor, token } = await invited(h);
+    const byPhone = await h.as(adminActor).inviteCoordinator({
+      institutionId: x.id,
+      identifier: TEACHER_PHONE,
+    });
+    if (!byPhone.ok) throw new Error(`Could not invite: ${byPhone.error}`);
+    const someoneElse = await h.as(adminActor).inviteCoordinator({
+      institutionId: x.id,
+      identifier: "ravi@school.test",
+    });
+    if (!someoneElse.ok) throw new Error("Could not invite");
+    const teacher = await h.seed.member({
+      email: TEACHER,
+      phone: TEACHER_PHONE,
+    });
+
+    await h.as(await h.signIn(teacher)).acceptInvitation({ token });
+
+    // Only the other person's invitation still waits.
+    const list = await h
+      .as(adminActor)
+      .listCoordinators({ institutionId: x.id });
+    expect(list.ok && list.invitations.map((each) => each.id)).toEqual([
+      someoneElse.invitationId,
+    ]);
+    const [row] = await h.db
+      .select()
+      .from(institutionInvitation)
+      .where(eq(institutionInvitation.id, byPhone.invitationId));
+    expect(row).toMatchObject({
+      status: "revoked",
+      revokedByUserId: teacher.id,
+      tokenCiphertext: null,
+    });
+    const entries = await h.db
+      .select({ after: auditLog.after })
+      .from(auditLog)
+      .where(eq(auditLog.action, "institution.invitation_revoked"));
+    expect(entries).toEqual([
+      {
+        after: {
+          invitationId: byPhone.invitationId,
+          status: "revoked",
+          reason: "accepted_another",
+        },
+      },
+    ]);
+  });
+
   it("works until the last millisecond of the seventh day", async () => {
     const h = await createHarness();
     const { token } = await invited(h);

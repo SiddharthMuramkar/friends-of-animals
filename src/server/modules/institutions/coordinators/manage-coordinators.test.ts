@@ -23,7 +23,8 @@ async function invite(
     .inviteCoordinator({ institutionId, identifier: to });
   if (!result.ok) throw new Error(`Could not invite: ${result.error}`);
   await h.drain();
-  const token = LINK.exec(h.email.lastTo(to)?.text ?? "")?.[1];
+  const message = to.includes("@") ? h.email.lastTo(to) : h.sms.lastTo(to);
+  const token = LINK.exec(message?.text ?? "")?.[1];
   if (!token) throw new Error(`No link reached ${to}`);
   return { invitationId: result.invitationId, token };
 }
@@ -150,6 +151,80 @@ describe("removeCoordinator", () => {
         )
       );
     expect(revoked).toHaveLength(1);
+  });
+
+  // Review r1 (skeptic): invited by email and by phone, accepted one,
+  // removed, then accepted the other link still waiting.
+  it("stays removed: another invitation to the same person no longer works", async () => {
+    const h = await createHarness();
+    await h.settings.set("sms.enabled", true);
+    const { institution: x, admin } = await seedInstitution(h);
+    const actor = await h.signIn(admin);
+    const byEmail = await invite(h, actor, x.id, "t@school.test");
+    const byPhone = await invite(h, actor, x.id, "+919876543210");
+    const teacher = await h.seed.member({
+      email: "t@school.test",
+      phone: "+919876543210",
+    });
+    const teacherActor = await h.signIn(teacher);
+    expect(
+      await h.as(teacherActor).acceptInvitation({ token: byEmail.token })
+    ).toMatchObject({ ok: true });
+    expect(
+      await h
+        .as(actor)
+        .removeCoordinator({ institutionId: x.id, userId: teacher.id })
+    ).toEqual({ ok: true });
+
+    expect(
+      await h.as(teacherActor).acceptInvitation({ token: byPhone.token })
+    ).toEqual({ ok: false, error: "revoked" });
+    expect(await coordinates(h, teacherActor, x.id)).toEqual({
+      allowed: false,
+    });
+  });
+
+  it("withdraws the invitations still waiting for the removed person", async () => {
+    const h = await createHarness();
+    await h.settings.set("sms.enabled", true);
+    const { institution: x, admin } = await seedInstitution(h);
+    const actor = await h.signIn(admin);
+    // Invited by phone before they became a coordinator another way.
+    const byPhone = await invite(h, actor, x.id, "+919876543210");
+    const other = await invite(h, actor, x.id, "ravi@school.test");
+    const teacher = await h.seed.member({
+      email: "t@school.test",
+      phone: "+919876543210",
+    });
+    await makeCoordinator(h, teacher, x.id);
+
+    await h
+      .as(actor)
+      .removeCoordinator({ institutionId: x.id, userId: teacher.id });
+
+    expect(
+      await h
+        .as(await h.signIn(teacher))
+        .acceptInvitation({ token: byPhone.token })
+    ).toEqual({ ok: false, error: "revoked" });
+    const list = await h.as(actor).listCoordinators({ institutionId: x.id });
+    expect(list.ok && list.invitations.map((each) => each.id)).toEqual([
+      other.invitationId,
+    ]);
+    const entries = await h.db
+      .select({ after: auditLog.after, actorUserId: auditLog.actorUserId })
+      .from(auditLog)
+      .where(eq(auditLog.action, "institution.invitation_revoked"));
+    expect(entries).toEqual([
+      {
+        after: {
+          invitationId: byPhone.invitationId,
+          status: "revoked",
+          reason: "coordinator_removed",
+        },
+        actorUserId: admin.id,
+      },
+    ]);
   });
 
   it("finds no coordinator to remove for someone who isn't one there", async () => {
