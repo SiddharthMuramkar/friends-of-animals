@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SESSION_LIFETIME_DAYS } from "../../server/identity/settings";
+import { invitationPath, SIGNED_IN_PREFIXES } from "../app-routes";
 import { publicCsp, signedInCsp } from "../csp";
 import { CSP_SOURCES, cspContext } from "../csp-sources";
 
@@ -25,6 +26,8 @@ const STAGING = {
   origin: "https://stats.shipped-it.dev",
 };
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** A link token's shape (src/server/crypto/link-token.ts): 43 characters. */
+const TOKEN = "A".repeat(43);
 
 describe("umamiConfig", () => {
   it("turns analytics on for staging, on its own host only", () => {
@@ -136,6 +139,8 @@ describe("isExcludedPath", () => {
       "/consent/tok",
       "/receipts/tok",
       "/donate/checkout/ord_1",
+      // A coordinator invitation's link is its bearer credential (#74).
+      invitationPath(TOKEN),
     ]) {
       expect(isExcludedPath(path, ANALYTICS_EXCLUDED_PREFIXES)).toBe(true);
     }
@@ -218,6 +223,7 @@ describe("createAnalyticsGuard: whether the tracker loads at all", () => {
     const guard = createAnalyticsGuard(ctx);
     expect(guard.shouldLoad("/sign-in")).toBe(false);
     expect(guard.shouldLoad("/consent/tok")).toBe(false);
+    expect(guard.shouldLoad(invitationPath(TOKEN))).toBe(false);
     expect(items.size).toBe(0);
     expect(guard.shouldLoad("/about")).toBe(true);
   });
@@ -325,6 +331,12 @@ describe("createAnalyticsGuard: every send the tracker makes", () => {
     expect(
       guard.beforeSend("event", pageview("https://shipped-it.dev/receipts/t"))
     ).toBe(false);
+    expect(
+      guard.beforeSend(
+        "event",
+        pageview(`https://shipped-it.dev${invitationPath(TOKEN)}`)
+      )
+    ).toBe(false);
     expect(guard.beforeSend("event", pageview("/about"))).not.toBe(false);
   });
 
@@ -367,7 +379,7 @@ describe("createAnalyticsGuard: every send the tracker makes", () => {
     const guard = createAnalyticsGuard(context().ctx);
     // A token page nobody has listed yet, and a plain public page.
     for (const referrer of [
-      "/invitations/SECRET-TOKEN",
+      "/unlisted-links/SECRET-TOKEN",
       "https://shipped-it.dev/blog/x",
     ]) {
       expect(
@@ -381,20 +393,39 @@ describe("createAnalyticsGuard: every send the tracker makes", () => {
     expect(
       guard.beforeSend(
         "event",
-        pageview("/about", "https://shipped-it.dev/invitations/SECRET-TOKEN")
+        pageview(
+          "/about",
+          "https://shipped-it.dev/unlisted-links/SECRET-TOKEN"
+        )
       )
     ).toMatchObject({ referrer: "" });
   });
 
   it("drops an outside referrer whose path never sends here", () => {
-    expect(
-      createAnalyticsGuard(context().ctx).beforeSend(
-        "event",
-        pageview(
-          "https://shipped-it.dev/",
-          "https://www.shipped-it.dev/receipts/SECRET-TOKEN"
+    for (const referrer of [
+      "https://www.shipped-it.dev/receipts/SECRET-TOKEN",
+      `https://www.shipped-it.dev${invitationPath(TOKEN)}`,
+    ]) {
+      expect(
+        createAnalyticsGuard(context().ctx).beforeSend(
+          "event",
+          pageview("https://shipped-it.dev/", referrer)
         )
-      )
+      ).toMatchObject({ referrer: "" });
+    }
+  });
+
+  // What the tracker island passes (./tracker-island.ts): the real
+  // signed-in prefixes, which don't cover the invitation page.
+  it("keeps a coordinator invitation's link out with the site's own prefixes", () => {
+    const guard = createAnalyticsGuard(
+      context({ signedInPrefixes: SIGNED_IN_PREFIXES }).ctx
+    );
+    const link = `https://friendsofanimals.dev${invitationPath(TOKEN)}`;
+    expect(guard.shouldLoad(invitationPath(TOKEN))).toBe(false);
+    expect(guard.beforeSend("event", pageview(link))).toBe(false);
+    expect(
+      guard.beforeSend("event", pageview("https://friendsofanimals.dev/", link))
     ).toMatchObject({ referrer: "" });
   });
 
