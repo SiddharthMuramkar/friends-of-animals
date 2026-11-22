@@ -1,9 +1,11 @@
 // Who a route's message goes to, and what each event lets a template say.
 //
 // A route row names an audience by key. Each audience turns an event into
-// the users who receive it. Later tickets add an audience here (#81
-// `guardian_of_participant`, #75 `institution_coordinators`) and route rows
-// that use it, in a migration; #88 added `competition_managers`.
+// the users who receive it: by default on every channel the route names; a
+// member may be limited to the inbox, or recorded as told nothing (#81: a
+// minor with no verified guardian). Later tickets add an audience here
+// (#75 `institution_coordinators`) and route rows that use it, in a
+// migration; #88 added `competition_managers`, #81 `guardian_of_participant`.
 //
 // Every message knows its recipient (RECIPIENT_VARIABLES). An event may
 // give more variables (EVENT_VARIABLES): the names it provides and how to
@@ -32,6 +34,7 @@ import {
   contactMessageValues,
   contactTeamMembers,
 } from "../contact/notify";
+import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
 import { ownerOfRegistration } from "../participants/owner";
 import { payerOn, RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
@@ -127,7 +130,17 @@ function competitionOf(delivery: Delivery): string | null {
   }
 }
 
-type Audience = (db: AppDb, delivery: Delivery) => Promise<string[]>;
+/**
+ * Who receives a message: a user id (every channel the route names), a
+ * user limited to the inbox, or a user who must be told nothing, with why
+ * (the dispatcher records each wanted channel as suppressed).
+ */
+export type AudienceMember =
+  | string
+  | { userId: string; channels: "in_app_only" }
+  | { userId: string; suppressed: "no_guardian" };
+
+type Audience = (db: AppDb, delivery: Delivery) => Promise<AudienceMember[]>;
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
@@ -152,6 +165,16 @@ export const AUDIENCES = {
   registration_owner: async (db, delivery) =>
     delivery.eventType === "registration.confirmed"
       ? ownerOfRegistration(db, delivery.payload.registrationId)
+      : [],
+  /**
+   * The guardians of the child a registration is for (#81): messages about
+   * a minor go to them, and a teen with an own login gets an inbox copy. A
+   * minor with no verified guardian is told nothing. An adult's own
+   * registration has none here: `registration_owner` tells them.
+   */
+  guardian_of_participant: async (db, delivery) =>
+    delivery.eventType === "registration.confirmed"
+      ? guardianOfParticipant(db, delivery.payload.registrationId)
       : [],
   /**
    * Whoever wrote through the contact form (#113). They have no account, so

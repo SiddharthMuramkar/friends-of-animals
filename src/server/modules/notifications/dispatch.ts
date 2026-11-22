@@ -5,7 +5,10 @@
 // For each route and each recipient its audience resolves to, it reads the
 // recipient's contacts, channel choices and messages consent and the SMS
 // switch, lets planDelivery (./domain/delivery-plan.ts) choose the
-// channels, renders the template and sends:
+// channels, renders the template and sends. A recipient the audience
+// limits to the inbox (a minor's own copy, #81) gets the route's in-app
+// channel only; one it says must be told nothing gets a suppressed row for
+// each of the route's channels, with the audience's reason.
 //
 // - in-app: the inbox item and its delivery row in one transaction;
 // - email and SMS: a delivery row first, then the port, then the row is
@@ -42,7 +45,12 @@ import { readStoredPhone } from "../../identity/stored-phone";
 import { uuidv7 } from "../../ids";
 import { oneLineSubject } from "../../ports/email";
 import type { Delivery, OutboxDeps } from "../../outbox";
-import { AUDIENCES, EVENT_VARIABLES, isAudienceKey } from "./audiences";
+import {
+  AUDIENCES,
+  EVENT_VARIABLES,
+  isAudienceKey,
+  type AudienceMember,
+} from "./audiences";
 import type { MessageChannel } from "./domain/channels";
 import { planDelivery, type SuppressionReason } from "./domain/delivery-plan";
 import { renderEmailHtml, renderTemplate } from "./domain/template";
@@ -105,18 +113,36 @@ export async function dispatchEvent(
     if (!templates.email || !templates.in_app) {
       throw new Error(`Template ${route.templateKey} lacks email or in-app`);
     }
-    const userIds = await AUDIENCES[route.audience](deps.db, delivery);
-    for (const userId of userIds) {
+    const members: AudienceMember[] = await AUDIENCES[route.audience](
+      deps.db,
+      delivery
+    );
+    for (const member of members) {
+      const userId = typeof member === "string" ? member : member.userId;
       const recipient = await recipientOf(deps, userId);
       // An account erased since the event gets nothing.
       if (!recipient) continue;
       const message: Message = {
         delivery,
-        route,
+        route:
+          typeof member === "object" && "channels" in member
+            ? {
+                ...route,
+                channels: route.channels.filter(
+                  (channel) => channel === "in_app"
+                ),
+              }
+            : route,
         templates,
         recipient,
         values: { ...eventValues, "recipient.name": recipient.name },
       };
+      if (typeof member === "object" && "suppressed" in member) {
+        for (const channel of route.channels) {
+          await recordSuppressed(deps, message, channel, member.suppressed);
+        }
+        continue;
+      }
       failures.push(...(await sendMessage(deps, message, smsEnabled)));
     }
   }
