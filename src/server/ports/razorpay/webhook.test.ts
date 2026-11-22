@@ -43,24 +43,53 @@ function delivered(
 }
 
 describe("readRazorpayWebhook()", () => {
-  it("reads a signed event: its id from the header, its type and the payment's order", () => {
+  it("reads a signed event: its type, the payment's order and an id from the signed body", () => {
     expect(
       readRazorpayWebhook(...delivered(DOCUMENTED_CAPTURE), SECRET)
     ).toEqual({
-      eventId: "evt_JRP3YhM2yd8L2E",
+      eventId: expect.stringMatching(/^[0-9a-f]{64}$/),
       type: "payment.captured",
       orderId: "order_JROxH1kSf9IR6d",
     });
   });
 
+  it("gives a replayed body the same id, whatever x-razorpay-event-id says", () => {
+    // The header isn't signed, so a replay could carry any value there.
+    const first = readRazorpayWebhook(...delivered(DOCUMENTED_CAPTURE), SECRET);
+    const replay = readRazorpayWebhook(
+      ...delivered(DOCUMENTED_CAPTURE, {
+        "x-razorpay-event-id": "evt_ReplayedWithANewId",
+      }),
+      SECRET
+    );
+
+    expect(replay?.eventId).toBe(first?.eventId);
+  });
+
+  it("gives another event another id", () => {
+    const first = razorpayWebhook(
+      { type: "payment.captured", orderId: "order_SameOrder00001" },
+      { secret: SECRET }
+    );
+    const second = razorpayWebhook(
+      { type: "payment.captured", orderId: "order_SameOrder00001" },
+      { secret: SECRET }
+    );
+
+    expect(
+      readRazorpayWebhook(second.rawBody, second.headers, SECRET)?.eventId
+    ).not.toBe(
+      readRazorpayWebhook(first.rawBody, first.headers, SECRET)?.eventId
+    );
+  });
+
   it("reads the order of an order.paid event", () => {
     const { rawBody, headers } = razorpayWebhook(
       { type: "order.paid", orderId: "order_PaidOrder0001" },
-      { secret: SECRET, eventId: "evt_OrderPaid0001" }
+      { secret: SECRET }
     );
 
-    expect(readRazorpayWebhook(rawBody, headers, SECRET)).toEqual({
-      eventId: "evt_OrderPaid0001",
+    expect(readRazorpayWebhook(rawBody, headers, SECRET)).toMatchObject({
       type: "order.paid",
       orderId: "order_PaidOrder0001",
     });
@@ -85,8 +114,7 @@ describe("readRazorpayWebhook()", () => {
       payload: { settlement: { entity: { id: "setl_DGlQ1Rj8os78Ne" } } },
     });
 
-    expect(readRazorpayWebhook(...delivered(body), SECRET)).toEqual({
-      eventId: "evt_JRP3YhM2yd8L2E",
+    expect(readRazorpayWebhook(...delivered(body), SECRET)).toMatchObject({
       type: "settlement.processed",
       orderId: null,
     });
@@ -131,19 +159,20 @@ describe("readRazorpayWebhook()", () => {
     ],
     [
       "the signature is not hex",
-      () =>
-        delivered(DOCUMENTED_CAPTURE, { "x-razorpay-signature": "forged" }),
+      () => delivered(DOCUMENTED_CAPTURE, { "x-razorpay-signature": "forged" }),
     ],
   ])("returns null when %s", (_, make) => {
     const [body, headers] = make();
     expect(readRazorpayWebhook(body, headers, SECRET)).toBeNull();
   });
 
-  it("returns null for a signed event without an event id, which can't be deduplicated", () => {
+  it("reads a signed event that has no x-razorpay-event-id header", () => {
     const [body, headers] = delivered(DOCUMENTED_CAPTURE);
     headers.delete("x-razorpay-event-id");
 
-    expect(readRazorpayWebhook(body, headers, SECRET)).toBeNull();
+    expect(readRazorpayWebhook(body, headers, SECRET)?.orderId).toBe(
+      "order_JROxH1kSf9IR6d"
+    );
   });
 
   it.each([
