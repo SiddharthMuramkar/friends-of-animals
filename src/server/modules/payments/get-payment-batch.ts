@@ -19,7 +19,11 @@ import {
   registration,
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
-import type { CheckoutParams, Money } from "../../ports/payment-gateway";
+import type {
+  CheckoutParams,
+  GatewayName,
+  Money,
+} from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
 import { institutionResource } from "../institutions/coordinators/policy";
 import type { RegistrationStatus } from "../registration/domain/registration-status";
@@ -42,6 +46,9 @@ export type PaymentBatchView = {
   competition: { code: string; name: string };
   createdAt: Date;
   capturedAt: Date | null;
+  /** Which adapter made its order (the fallback's test checkout on a
+   * preview, Razorpay's test mode, ...), so testers can tell. */
+  gateway: GatewayName;
   /** By student name. */
   items: PaymentBatchItemView[];
   /** What the browser opens to pay, while the batch waits for payment. */
@@ -138,6 +145,7 @@ export async function getPaymentBatch(
       competition: { code: batch.competitionCode, name: batch.competitionName },
       createdAt: batch.createdAt,
       capturedAt: batch.capturedAt,
+      gateway: batch.gateway,
       items,
       checkout: payable
         ? ctx.payments.checkout({

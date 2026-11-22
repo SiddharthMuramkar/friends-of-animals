@@ -28,6 +28,11 @@ export const PAYMENT_REVIEW_REASONS = [
   /** The payer started a newer batch over these registrations, which now
    * holds them, so this batch's order should no longer have been paid. */
   "batch_superseded",
+  /** A full payment arrived while the batch's earlier one was in review,
+   * and nothing rules it out (#80, from #79's review): staff may accept it
+   * once the other case is resolved. Never from `reviewReasonFor`: the
+   * capture funnel picks it when that finds nothing wrong. */
+  "paid_while_in_review",
 ] as const;
 
 export type PaymentReviewReason = (typeof PAYMENT_REVIEW_REASONS)[number];
@@ -119,6 +124,7 @@ const CONFIRMABLE: ReadonlySet<PaymentReviewReason> = new Set([
   "amount_mismatch",
   "registration_closed",
   "batch_superseded",
+  "paid_while_in_review",
 ]);
 
 /**

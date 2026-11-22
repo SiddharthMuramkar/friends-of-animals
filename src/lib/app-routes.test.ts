@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   ADMIN_PAYMENTS_REVIEW,
+  ADMIN_REFUNDS,
+  adminBatchRefundPath,
+  adminRefundPath,
   adminCmsDocumentPath,
   adminPaymentBatchPath,
   adminPaymentReviewCasePath,
@@ -39,6 +42,15 @@ describe("isSignedInPage", () => {
     expect(isSignedInPage(adminPaymentBatchPath(COMPETITION_ID))).toBe(true);
     expect(isSignedInPage("/admin/payments")).toBe(false);
     expect(isSignedInPage("/admin/payments/batches")).toBe(false);
+  });
+
+  it("knows the refunds pages (#80)", () => {
+    expect(isSignedInPage(ADMIN_REFUNDS)).toBe(true);
+    expect(isSignedInPage(adminRefundPath(COMPETITION_ID))).toBe(true);
+    expect(isSignedInPage(adminBatchRefundPath(COMPETITION_ID))).toBe(true);
+    expect(adminBatchRefundPath(COMPETITION_ID)).toBe(
+      `/admin/payments/batches/${COMPETITION_ID}/refund`
+    );
   });
 
   it("knows a competition's edit and preview pages, whatever its id", () => {

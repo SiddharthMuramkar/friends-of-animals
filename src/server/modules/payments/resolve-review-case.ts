@@ -7,8 +7,10 @@
 //   confirmed with their numbers. Every student must still be waiting for
 //   their fee; a newer batch still waiting for its payment that took them
 //   over is cancelled and lets them go.
-// - refund: the payer is owed it back. The case is marked `refund_due` for
-//   the refunds ticket (#80); no gateway is called here.
+// - refund: the payer gets that payment back in full. A duplicate refund
+//   (#80, ./refunds/start-system-refund.ts) is approved at once, with no
+//   finance approval, and goes to the gateway from the outbox; the case
+//   is marked `refund_due`. A captured batch stays captured.
 // - keep: no money moves through the platform; the reason says why.
 //
 // What happens to the batch is decided by `planResolution`
@@ -35,6 +37,7 @@ import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import { endUnpaidBatch, lockBatch } from "./batches";
 import { captureBatch, registrationsAtCapture } from "./capture";
+import { startSystemRefund } from "./refunds/start-system-refund";
 import {
   nextPaymentBatchStatus,
   type PaymentBatchStatus,
@@ -146,7 +149,8 @@ export async function resolvePaymentReviewCase(
             role
           );
           batchStatus = "captured";
-        } else if (plan.batchEvent) {
+        } else if (plan.batchEvent && batch.status !== "captured") {
+          // A captured batch paid again never left captured (#80).
           const move = nextPaymentBatchStatus(batch.status, plan.batchEvent);
           if (!move.ok) throw new Error(`Batch ${batch.id} can't leave review`);
           batchStatus = move.to;
@@ -168,6 +172,21 @@ export async function resolvePaymentReviewCase(
           }
         }
 
+        let refundId: string | null = null;
+        if (plan.refundDue && reviewCase.currency === "INR") {
+          const started = await startSystemRefund(tx, ctx, {
+            kind: "duplicate",
+            batchId: batch.id,
+            reviewCaseId: caseId,
+            gatewayPaymentId: reviewCase.gatewayPaymentId,
+            amountMinor: reviewCase.amountMinor,
+            reason: plan.resolutionReason,
+            idempotencyKey: `review:${caseId}`,
+            actorRole: role,
+          });
+          refundId = "refundId" in started ? started.refundId : null;
+        }
+
         await tx
           .update(paymentReviewCase)
           .set({
@@ -185,6 +204,7 @@ export async function resolvePaymentReviewCase(
           after: {
             outcome: plan.outcome,
             refundDue: plan.refundDue,
+            refundId,
             batchId: batch.id,
             batchStatus,
           },

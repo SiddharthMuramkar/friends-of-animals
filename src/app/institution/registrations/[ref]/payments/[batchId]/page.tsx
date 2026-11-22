@@ -90,6 +90,7 @@ const STUDENT_TONE = {
   withdrawn: "neutral",
   // The individual route's (#78); never in a school's batch.
   pending_payment: "marigold",
+  refunded: "neutral",
 } as const satisfies Record<RegistrationStatus, string>;
 
 const param = (value: string | string[] | undefined) =>
@@ -184,6 +185,12 @@ async function Batch({
           <dd className="text-end font-display font-semibold">{amount}</dd>
           <dt>{t("students")}</dt>
           <dd className="text-end font-semibold">{batch.items.length}</dd>
+          {/* Which adapter made the order, so a tester can tell a test
+              payment from a real one; journeys read data-gateway (#77). */}
+          <dt>{t("gateway")}</dt>
+          <dd className="text-end" data-gateway={batch.gateway}>
+            {t(`gatewayName.${batch.gateway}`)}
+          </dd>
         </dl>
         {batch.checkout ? (
           // A full load: the pay page's CSP comes with its document.

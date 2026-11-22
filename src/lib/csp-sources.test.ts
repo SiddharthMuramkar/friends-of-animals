@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { payMyRegistrationPath } from "./app-routes";
 import { publicCsp, signedInCsp } from "./csp";
 import { cspContext } from "./csp-sources";
 
@@ -138,6 +139,28 @@ describe("cspContext: Razorpay Checkout", () => {
       publicCsp(context),
     ]) {
       expect(header.value).not.toContain("razorpay");
+    }
+  });
+
+  it("lets an adult's own pay page (#78) load, frame and call Checkout too, and not their other pages", () => {
+    const context = cspContext({
+      APP_ENV: "staging",
+      NODE_ENV: "production",
+      ...KEYS,
+    });
+
+    const pay = signedInCsp(
+      context,
+      "bm9uY2U=",
+      payMyRegistrationPath("0193a8f0-0000-7000-8000-000000000001")
+    ).value;
+    expect(directive(pay, "frame-src")).toEqual(["https://api.razorpay.com"]);
+    expect(directive(pay, "connect-src")).toContain("https://api.razorpay.com");
+
+    for (const path of ["/participant", "/participant/register/neighbours"]) {
+      expect(signedInCsp(context, "bm9uY2U=", path).value, path).not.toContain(
+        "razorpay"
+      );
     }
   });
 

@@ -726,6 +726,17 @@ export const scanJobEnvSchema = z
 export type ScanJobEnv = z.output<typeof scanJobEnvSchema>;
 
 /**
+ * What the worker's refund job reads (#80, src/worker/config.ts): Razorpay's
+ * keys, all three or none, chosen per environment as the app does
+ * (src/server/ports/payment-gateway-select.ts). Without them production's
+ * worker refuses every refund and retries it, and other environments
+ * refund through the fallback.
+ */
+export const refundJobEnvSchema = z
+  .object(razorpayVariables)
+  .superRefine(requireWholeRazorpayConfig);
+
+/**
  * Parses an env-like object, usually process.env, against `schema`. Empty
  * strings count as unset, so `FOO=` in a .env file behaves like a missing
  * variable. Throws one readable error that lists every problem.

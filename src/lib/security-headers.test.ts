@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 
-import { payFeesPath } from "./app-routes";
+import { payFeesPath, payMyRegistrationPath } from "./app-routes";
 import {
   checkoutPageHeaders,
   securityHeaders,
@@ -83,12 +83,29 @@ describe("checkoutPageHeaders", () => {
     expect(matching(pathname)).toHaveLength(1);
   });
 
+  it("does the same on an adult's own pay page (#78)", () => {
+    const { pathname } = new URL(
+      payMyRegistrationPath("0193a8f0-0000-7000-8000-000000000001"),
+      "http://localhost:3000"
+    );
+    const [rule, ...others] = matching(pathname);
+
+    expect(others).toEqual([]);
+    expect(
+      Object.fromEntries(rule!.headers.map((h) => [h.key, h.value]))
+    ).toMatchObject({
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    });
+  });
+
   it("leaves every other page's headers as they are", () => {
     for (const path of [
       "/",
       "/institution/registrations/NEIGH27-I-5EED1",
       "/institution/registrations/NEIGH27-I-5EED1/payments/0193a8f0-0000-7000-8000-000000000001",
       "/account/sessions",
+      "/participant",
+      "/participant/register/neighbours-on-my-street",
     ]) {
       expect(matching(path), path).toEqual([]);
     }

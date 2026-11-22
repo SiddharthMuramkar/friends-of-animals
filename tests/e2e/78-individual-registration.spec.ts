@@ -12,12 +12,14 @@ import { signInByCode } from "./support/sign-in";
 // #78: an adult takes part on their own. The chooser recommends entering
 // through a school and says why; a signed-in adult registers for the
 // seeded open competition from its page, is refused while the form says
-// they are a minor, then registers, lands on the pay page and sees the
-// registration on their dashboard with their FOA Participant ID. Each new
-// page is checked with axe, light and dark. Payment itself needs the
-// gateway fake and a clock, and ages and the money rules need raw rows, so
-// Seam 1 covers them (src/server/modules/participants/*.test.ts). In CI no
-// gateway is configured until 77b, so paying says it isn't available yet.
+// they are a minor, then registers, lands on the pay page, opens the
+// checkout, sees the registration waiting on their dashboard with their FOA
+// Participant ID, then pays from there and gets their registration number.
+// Each new page is checked with axe, light and dark. CI runs with no
+// Razorpay keys, so the fallback gateway's test checkout stands in for
+// Razorpay's (Razorpay test mode needs HR-09). Ages and the money rules
+// need a clock and raw rows, so Seam 1 covers them
+// (src/server/modules/participants/*.test.ts).
 
 /** The seeded open competition (src/server/seed/competitions.ts). */
 const OPEN = {
@@ -116,7 +118,24 @@ test("an adult registers for a competition on their own and sees it on their das
 
   await page.getByLabel("Date of birth").fill("1993-09-17");
   for (const box of await page.getByRole("checkbox").all()) await box.check();
-  await register.click();
+  // Registered, the adult lands on the pay page with a full load: the pay
+  // page's own document, so its policy (Razorpay's origins wherever keys
+  // are set) and headers come with it, not the register page's.
+  const [payDocument] = await Promise.all([
+    page.waitForResponse(
+      (answer) =>
+        answer.request().isNavigationRequest() &&
+        /^\/participant\/registrations\/[^/]+\/pay$/.test(
+          new URL(answer.url()).pathname
+        )
+    ),
+    register.click(),
+  ]);
+  expect(payDocument.status()).toBe(200);
+  expect(
+    await payDocument.headerValue("cross-origin-opener-policy"),
+    "the pay page's COOP, which lets Checkout watch its bank popups"
+  ).toBe("same-origin-allow-popups");
 
   await expect(
     page.getByRole("heading", { level: 1, name: `Pay for ${OPEN.name}` })
@@ -124,13 +143,21 @@ test("an adult registers for a competition on their own and sees it on their das
   await expect(shown(page, "Fee: ₹100.00")).toBeVisible();
   await checkBothThemes(page, "/participant/registrations/[id]/pay");
 
-  // A local run pays through 77b's test checkout fallback, so the order
-  // is made; the Checkout island on this page arrives with 77c.
+  // The Checkout island makes the order and opens the test checkout, which
+  // takes focus as Razorpay's window would. Not paid yet.
   await page.getByRole("button", { name: "Pay ₹100.00" }).click();
-  await expect(page.getByRole("main").getByRole("status")).toContainText(
-    "Your order is ready. Online payment opens here soon; we will let you know."
+  const checkout = page.getByRole("region", { name: "Test checkout" });
+  await expect(
+    checkout.getByRole("heading", { name: "Test checkout" })
+  ).toBeFocused();
+  await expect(checkout).toContainText(
+    `Registration fee for ${OPEN.name} (FOA-P-`
   );
-  await checkBothThemes(page, "/participant/registrations/[id]/pay ordered");
+  await expect(checkout).toContainText("₹100.00");
+  await checkBothThemes(
+    page,
+    "/participant/registrations/[id]/pay with the test checkout"
+  );
 
   await page.getByRole("link", { name: "Back to my competitions" }).click();
   await expect(
@@ -139,10 +166,27 @@ test("an adult registers for a competition on their own and sees it on their das
   await expect(shown(page, PARTICIPANT_ID)).toBeVisible();
   const card = page.getByRole("article", { name: OPEN.name });
   await expect(card.getByText("Waiting for payment")).toBeVisible();
-  await expect(
-    card.getByRole("link", { name: `Pay ₹100.00 for ${OPEN.name}` })
-  ).toBeVisible();
+  const payLink = card.getByRole("link", {
+    name: `Pay ₹100.00 for ${OPEN.name}`,
+  });
+  await expect(payLink).toBeVisible();
   await checkBothThemes(page, "/participant");
+
+  // Paying from the dashboard reuses the order; the test checkout pays it
+  // and the pay page gives the registration number.
+  await payLink.click();
+  await page.getByRole("button", { name: "Pay ₹100.00" }).click();
+  await page
+    .getByRole("region", { name: "Test checkout" })
+    .getByRole("button", { name: "Pay (test)" })
+    .click();
+  await expect(
+    shown(
+      page,
+      /^You're registered\. Your registration number is NEIGH27-R-[0-9A-HJKMNP-TV-Z]{6}\.$/
+    )
+  ).toBeVisible();
+  await checkBothThemes(page, "/participant/registrations/[id]/pay paid");
 
   // The header now leads back to the dashboard, on every page they open.
   await page.reload();

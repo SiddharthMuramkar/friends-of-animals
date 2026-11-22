@@ -8,7 +8,9 @@
 // carries the payer's email and phone), so a replay is answered as a
 // duplicate and changes nothing. One about an order of ours syncs its
 // batch against the gateway's record (./sync-batch.ts), whatever event it
-// is: the webhook is only a hint. The stored row keeps what it led to.
+// is: the webhook is only a hint. A refund event (#80) syncs our refunds
+// of that payment instead (./refunds/sync-refund.ts). The stored row keeps
+// what it led to.
 
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -19,6 +21,7 @@ import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import type { WebhookOutcome } from "./domain/outcomes";
+import { syncRefundsOfPayment } from "./refunds/sync-refund";
 import { syncBatch } from "./sync-batch";
 
 export type ReceiveGatewayWebhookInput = { rawBody: string; headers: Headers };
@@ -77,6 +80,23 @@ export async function receiveGatewayWebhook(
     }
     // An earlier delivery stopped before it finished: handle it again.
     rowId = earlier.id;
+  }
+
+  if (event.refund) {
+    const synced = await syncRefundsOfPayment(ctx, event.refund);
+    await ctx.db
+      .update(gatewayWebhookEvent)
+      .set({
+        outcome: synced ? "refund_updated" : "ignored",
+        processedAt: ctx.clock.now(),
+      })
+      .where(
+        and(
+          eq(gatewayWebhookEvent.id, rowId),
+          isNull(gatewayWebhookEvent.outcome)
+        )
+      );
+    return { ok: true, outcome: synced ? "refund_updated" : "ignored" };
   }
 
   const [batch] = event.orderId

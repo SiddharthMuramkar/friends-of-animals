@@ -71,6 +71,22 @@ export function adminPaymentReviewCasePath(caseId: string): string {
   return `${ADMIN_PAYMENTS_REVIEW}/${encodeURIComponent(caseId)}`;
 }
 
+/**
+ * Refunds (#80): the finance queue and each refund's page. Listed with
+ * APP_ROUTE_TEMPLATES rather than in APP_ROUTES, like the payments pages.
+ */
+export const ADMIN_REFUNDS = "/admin/refunds";
+
+/** One refund's page: finance approves, rejects, retries or records it. */
+export function adminRefundPath(refundId: string): string {
+  return `${ADMIN_REFUNDS}/${encodeURIComponent(refundId)}`;
+}
+
+/** Where a competition manager or staff admin asks for a batch's refund. */
+export function adminBatchRefundPath(batchId: string): string {
+  return `${adminPaymentBatchPath(batchId)}/refund`;
+}
+
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
@@ -134,6 +150,9 @@ export function individualRegisterSlug(pathname: string): string | null {
   return slug === "" || slug.includes("/") ? null : slug;
 }
 
+/** An adult's own pay page (#78), as a route template. */
+export const PAY_MY_REGISTRATION_ROUTE = "/participant/registrations/[id]/pay";
+
 /** Where an adult pays for their own registration (#78). */
 export function payMyRegistrationPath(registrationId: string): string {
   return `${APP_ROUTES.participant}/registrations/${encodeURIComponent(registrationId)}/pay`;
@@ -141,6 +160,16 @@ export function payMyRegistrationPath(registrationId: string): string {
 
 /** Where a coordinator pays their students' fees (#77). */
 export const PAY_FEES_ROUTE = "/institution/registrations/[ref]/pay";
+
+/**
+ * The pages with the Checkout island (#77): a school's pay page and an
+ * adult's own (#78). Razorpay's origins and its headers come with these
+ * documents only (./csp-sources.ts, ./security-headers.ts).
+ */
+export const CHECKOUT_ROUTES = [
+  PAY_FEES_ROUTE,
+  PAY_MY_REGISTRATION_ROUTE,
+] as const;
 
 /** A payment batch's status and receipt (#77). */
 export const PAYMENT_BATCH_ROUTE =
@@ -205,6 +234,9 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_PAYMENTS_REVIEW,
   "/admin/payments/batches/[id]",
   "/admin/payments/review/[id]",
+  ADMIN_REFUNDS,
+  "/admin/refunds/[id]",
+  "/admin/payments/batches/[id]/refund",
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/students/new",
@@ -212,8 +244,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/import/template.csv",
   "/institution/registrations/[ref]/import/sample.csv",
   "/participant/register/[slug]",
-  "/participant/registrations/[id]/pay",
   "/guardian/children/[id]",
+  PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,
 ] as const;
