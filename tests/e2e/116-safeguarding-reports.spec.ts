@@ -74,6 +74,8 @@ test("a visitor reports a concern without an account and sees nothing of it afte
   await expect(
     page.getByRole("heading", { level: 1, name: "Thank you for telling us" })
   ).toBeVisible();
+  // A client-side navigation: the page has loaded once its title has.
+  await expect(page).toHaveTitle(/Report sent/);
   await expect(page.getByRole("link", { name: "Quick exit" })).toBeVisible();
   await expect(page.locator("body")).not.toContainText("Kingfisher");
   await expect(page.locator("body")).not.toContainText(/SG-\d{2}-/);
@@ -119,6 +121,7 @@ test("only a safeguarding lead reads reports, and adds to a report's log", async
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Safeguarding reports"
   );
+  await expect(page).toHaveTitle(/^Safeguarding reports ·/);
   await expectAccessible(page, "/admin/safeguarding");
   await expectAccessibleInDark(page, "/admin/safeguarding");
   await page.getByRole("link", { name: "Resolved" }).click();
@@ -128,6 +131,7 @@ test("only a safeguarding lead reads reports, and adds to a report's log", async
   await expect(
     page.getByRole("heading", { level: 1, name: "Report SG-26-SEED03" })
   ).toBeVisible();
+  await expect(page).toHaveTitle(/^Safeguarding report ·/);
   await expect(
     page.getByText("This report is resolved, so it can’t move on.", {
       exact: false,

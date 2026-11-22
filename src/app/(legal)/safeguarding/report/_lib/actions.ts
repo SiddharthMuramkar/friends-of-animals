@@ -17,20 +17,29 @@ import {
   type ConcernFormView,
 } from "./form-state";
 
-/** A human-check challenge as the island receives it. */
+/**
+ * A human-check challenge as the island receives it. Its lifetime is a
+ * length from when it arrives, so the island never compares its clock with
+ * the server's.
+ */
 export type ChallengeView = {
   token: string;
   salt: string;
   difficulty: number;
-  /** ISO 8601. */
-  expiresAt: string;
+  /** After this long, the server refuses the proof. */
+  expiresInMs: number;
 };
 
 /** A challenge for the form island to solve while the reporter types. */
 export async function issueConcernChallengeAction(): Promise<ChallengeView> {
   const actor = await currentActor();
   const challenge = await as(actor).issueHumanCheckChallenge();
-  return { ...challenge, expiresAt: challenge.expiresAt.toISOString() };
+  return {
+    token: challenge.token,
+    salt: challenge.salt,
+    difficulty: challenge.difficulty,
+    expiresInMs: challenge.expiresAt.getTime() - challenge.issuedAt.getTime(),
+  };
 }
 
 async function withText(state: ConcernFormState): Promise<ConcernFormView> {

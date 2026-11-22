@@ -2,10 +2,12 @@
 
 import { OctagonAlert } from "lucide-react";
 import {
+  startTransition,
   useActionState,
   useEffect,
   useRef,
   useState,
+  type FormEvent,
   type ReactNode,
 } from "react";
 
@@ -64,10 +66,14 @@ const CHOICE =
 type Proof = {
   token: string;
   nonce: number;
-  expiresAt: number;
   /** When the challenge reached this page, on performance.now(). */
   receivedAt: number;
+  /** From then (page time), the proof is replaced instead of sent. */
+  staleAt: number;
 };
+
+/** A proof this close to expiring is replaced, not sent. */
+const EXPIRY_MARGIN_MS = 60_000;
 
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -81,7 +87,8 @@ const wait = (ms: number) =>
  * within 3 seconds of its challenge as if it had worked. So Send waits out
  * whatever is left of that clock, timed from when the challenge arrived
  * (src/lib/form-fill-time.ts), and after a refused check a new challenge
- * starts at once, not when Send is pressed again.
+ * starts at once, not when Send is pressed again. Every time is the page's
+ * own (performance.now()), so a wrong device clock doesn't matter.
  *
  * Every message comes translated from the action; static words come in
  * `labels`; `help` (helplines and the safeguarding email) shows with any
@@ -112,8 +119,8 @@ export function ConcernForm({
       return {
         token: challenge.token,
         nonce,
-        expiresAt: Date.parse(challenge.expiresAt),
         receivedAt,
+        staleAt: receivedAt + challenge.expiresInMs - EXPIRY_MARGIN_MS,
       };
     })();
     proof.current = next;
@@ -127,7 +134,7 @@ export function ConcernForm({
   async function send(previous: ConcernFormView, formData: FormData) {
     try {
       let ready = await humanCheck();
-      if (ready.expiresAt <= Date.now()) {
+      if (performance.now() >= ready.staleAt) {
         proof.current = null;
         ready = await humanCheck();
       }
@@ -138,19 +145,34 @@ export function ConcernForm({
       // Sent without a proof, the server answers "human check failed",
       // and the form asks for Send again with a new challenge under way.
     }
-    // Each proof works once: the next send solves a new one.
-    proof.current = null;
-    return submitConcernAction(previous, formData);
+    const next = await submitConcernAction(previous, formData);
+    // The server checks the fields before it spends the proof, so a form
+    // sent back for its fields keeps it. Any other answer spent or refused
+    // it: the next send needs a new one.
+    if (next.fieldErrors === undefined) proof.current = null;
+    return next;
   }
 
-  const [view, formAction] = useActionState(send, START_VIEW);
+  const [view, formAction, sending] = useActionState(send, START_VIEW);
 
-  // Start solving when the reporter first reaches the form.
+  // Sent from the submit event, not a form `action`: React prerenders a
+  // client action as a javascript: URL, which the CSP blocks
+  // (scripts/csp-output.ts). The form status only follows `action`, so the
+  // button gets the action's own pending state.
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (sending) return;
+    const formData = new FormData(event.currentTarget);
+    startTransition(() => formAction(formData));
+  }
+
+  // Start solving when the reporter reaches the form; a later focus finds
+  // the proof ready, or tries again after a failed fetch.
   useEffect(() => {
     const form = formRef.current;
     if (!form) return;
     const start = () => void humanCheck().catch(() => undefined);
-    form.addEventListener("focusin", start, { once: true });
+    form.addEventListener("focusin", start);
     return () => form.removeEventListener("focusin", start);
   });
 
@@ -164,8 +186,11 @@ export function ConcernForm({
   const [anonymous, setAnonymous] = useState(entered.anonymous);
 
   return (
+    // Pressed before the island hydrates, it posts to this page and sends
+    // nothing; a POST keeps what was typed out of the address and logs.
     <form
-      action={formAction}
+      method="post"
+      onSubmit={onSubmit}
       noValidate
       ref={formRef}
       className="flex flex-col gap-6"
@@ -317,7 +342,9 @@ export function ConcernForm({
         </SiteLink>
       </p>
       <div>
-        <SubmitButton pendingLabel={labels.sending}>{labels.send}</SubmitButton>
+        <SubmitButton pending={sending} pendingLabel={labels.sending}>
+          {labels.send}
+        </SubmitButton>
       </div>
     </form>
   );
