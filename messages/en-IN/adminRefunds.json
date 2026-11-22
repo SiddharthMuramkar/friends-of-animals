@@ -199,6 +199,7 @@
         "offline": "Offline, so it is paid back by hand"
       },
       "form": {
+        "title": "What to refund",
         "students": "Students to refund",
         "studentsHint": "Leave all unticked to refund every student who is left.",
         "student": "{number}, {amount}",

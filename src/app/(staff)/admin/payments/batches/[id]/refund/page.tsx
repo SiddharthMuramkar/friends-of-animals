@@ -165,7 +165,7 @@ async function Ask({ batch }: { batch: RefundableBatch }) {
   const limit = { max: REFUND_TEXT_MAX_LENGTH };
   return (
     <section aria-labelledby="request-ask" className={CARD}>
-      <SectionHeading id="request-ask" title={t("request.title")} />
+      <SectionHeading id="request-ask" title={t("request.form.title")} />
       {batch.status !== "captured" ? (
         <p className="mt-3 text-ink">{t("request.notCaptured")}</p>
       ) : free.length === 0 ? (
