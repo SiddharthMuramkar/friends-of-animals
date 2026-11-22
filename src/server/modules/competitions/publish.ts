@@ -21,9 +21,11 @@ import {
   isCompetitionId,
   type CompetitionsContext,
 } from "./manage";
-import { toPublicCompetition, type PublicCompetition } from "./public-view";
+import { toPublicCompetition } from "./public-view";
+import type { PublishedCompetition } from "./read-model";
 import { saveStatusJobs } from "./status-jobs";
 import { loadCompetition } from "./store";
+import { publicCompetitionTerms } from "./terms/read";
 
 export type PreviewCompetitionResult =
   | {
@@ -32,10 +34,10 @@ export type PreviewCompetitionResult =
       /** What stops it being published; empty when nothing does. */
       problems: PublishProblem[];
       /**
-       * The public page's view as it would be if published now, or null
-       * while there are problems.
+       * The public page's view as it would be if published now, its terms
+       * (#72) included, or null while there are problems.
        */
-      competition: PublicCompetition | null;
+      competition: PublishedCompetition | null;
     }
   | { ok: false; error: "not_found" };
 
@@ -56,19 +58,27 @@ export async function previewCompetition(
   if (!stored) return { ok: false, error: "not_found" };
   const { row, values } = stored;
   const problems = publishProblems(values);
-  const competition =
-    problems.length === 0
-      ? toPublicCompetition(
-          {
-            id: row.id,
-            slug: row.slug,
-            status: row.status === "draft" ? "published" : row.status,
-            publishedAt: row.publishedAt ?? ctx.clock.now(),
-          },
-          values
-        )
-      : null;
-  return { ok: true, status: row.status, problems, competition };
+  if (problems.length > 0) {
+    return { ok: true, status: row.status, problems, competition: null };
+  }
+  const view = toPublicCompetition(
+    {
+      id: row.id,
+      slug: row.slug,
+      status: row.status === "draft" ? "published" : row.status,
+      publishedAt: row.publishedAt ?? ctx.clock.now(),
+    },
+    values
+  );
+  return {
+    ok: true,
+    status: row.status,
+    problems,
+    competition: view && {
+      ...view,
+      terms: await publicCompetitionTerms(ctx.db, view),
+    },
+  };
 }
 
 export type PublishCompetitionResult =
