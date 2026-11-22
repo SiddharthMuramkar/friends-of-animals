@@ -46,6 +46,7 @@ import {
   TRANSITION_BLOCK,
   type TransitionBlock,
 } from "../competitions/domain/transition-block";
+import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
 export const RECIPIENT_VARIABLES = ["recipient.name"] as const;
@@ -130,15 +131,7 @@ function competitionOf(delivery: Delivery): string | null {
   }
 }
 
-/**
- * Who receives a message: a user id (every channel the route names), a
- * user limited to the inbox, or a user who must be told nothing, with why
- * (the dispatcher records each wanted channel as suppressed).
- */
-export type AudienceMember =
-  | string
-  | { userId: string; channels: "in_app_only" }
-  | { userId: string; suppressed: "no_guardian" };
+export type { AudienceMember };
 
 type Audience = (db: AppDb, delivery: Delivery) => Promise<AudienceMember[]>;
 

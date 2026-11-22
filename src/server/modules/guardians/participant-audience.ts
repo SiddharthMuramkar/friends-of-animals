@@ -21,17 +21,13 @@ import {
   participantProfile,
   registration,
 } from "../../db/schema";
+import type { AudienceMember } from "../notifications/domain/audience-member";
 import { minorAudience } from "./domain/minor-audience";
-
-type Member =
-  | string
-  | { userId: string; channels: "in_app_only" }
-  | { userId: string; suppressed: "no_guardian" };
 
 export async function guardianOfParticipant(
   db: AppDb,
   registrationId: string
-): Promise<Member[]> {
+): Promise<AudienceMember[]> {
   const [subject] = await db
     .select({
       profileId: participantProfile.id,

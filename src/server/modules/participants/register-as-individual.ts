@@ -47,10 +47,8 @@ import { withUniqueCode } from "../codes/codes";
 import { childResource } from "../guardians/child-access";
 import {
   askGuardianFor,
-  hasVerifiedGuardian,
   readGuardianDetails,
 } from "../guardians/guardian-request";
-import { guardianOfUser } from "../guardians/guardian-record";
 import type { GuardianRequestRefusal } from "../guardians/domain/guardian-request";
 import { offeredRoutes } from "../competitions/domain/fees";
 import { getRegistrationTerms } from "../competitions/terms/read";
@@ -68,13 +66,14 @@ import {
   decideIndividualRegistration,
   type IndividualRegistrationRefusal,
 } from "./domain/individual-eligibility";
-import type { MinorRegistrant } from "./domain/minor-registration";
 import { participantCodeFormat } from "./domain/participant-code";
 import {
   keptProfile,
   linkedProfileOf,
+  lockedKeptProfile,
+  registrantOf,
+  saveKeptProfile,
   subjectOf,
-  type Subject,
 } from "./registrant";
 import {
   parseRegisterInput,
@@ -364,46 +363,6 @@ async function registerOnce(
   );
 }
 
-/** A guardian-kept profile, locked so registrations of it take turns. */
-async function lockedKeptProfile(tx: AppDb, profileId: string) {
-  const [found] = await tx
-    .select({
-      id: participantProfile.id,
-      participantCode: participantProfile.participantCode,
-    })
-    .from(participantProfile)
-    .where(eq(participantProfile.id, profileId))
-    .for("update");
-  if (!found) throw new Error(`Profile ${profileId} is gone`);
-  return found;
-}
-
-/** Who is registering, as the minor rules need it. */
-async function registrantOf(
-  tx: AppDb,
-  userId: string,
-  subject: Subject
-): Promise<MinorRegistrant> {
-  switch (subject.kind) {
-    case "child": {
-      const record = await guardianOfUser(tx, userId);
-      return { kind: "guardian", verified: record?.verifiedAt != null };
-    }
-    case "linked":
-      // A linked teen whose guardians are all gone waits for one, without
-      // asking anyone new from here.
-      return {
-        kind: "self",
-        guardian: (await hasVerifiedGuardian(tx, subject.profileId))
-          ? "verified"
-          : "unverified",
-      };
-    case "own":
-      // A profile of one's own has no guardian: a teen on it names one.
-      return { kind: "self", guardian: "none" };
-  }
-}
-
 /** The member's own profile, created the first time, with the form's details. */
 async function saveOwnProfile(
   ctx: UseCaseContext,
@@ -418,48 +377,6 @@ async function saveOwnProfile(
   return profile
     ? updateProfile(tx, profile, details, now)
     : createProfile(tx, userId, details, now);
-}
-
-/**
- * A guardian-kept profile takes the form's contact and address; its name
- * and date of birth stay the guardian's. It gets its Participant ID on its
- * first registration.
- */
-async function saveKeptProfile(
-  ctx: UseCaseContext,
-  tx: AppDb,
-  profile: { id: string; participantCode: string | null },
-  form: RegisterInput,
-  now: Date
-): Promise<{ id: string; participantCode: string }> {
-  const contact = {
-    phoneCiphertext: ctx.cipher.encrypt(PROFILE_PURPOSE.phone, form.phone),
-    pinCode: form.pinCode,
-    city: form.city,
-    state: form.state,
-    country: form.country,
-    schoolName: form.schoolName,
-    updatedAt: now,
-  };
-  if (profile.participantCode !== null) {
-    await tx
-      .update(participantProfile)
-      .set(contact)
-      .where(eq(participantProfile.id, profile.id));
-    return { id: profile.id, participantCode: profile.participantCode };
-  }
-  const participantCode = await withUniqueCode(
-    { format: participantCodeFormat(now), constraint: PARTICIPANT_CODE_UNIQUE },
-    (code) =>
-      tx.transaction(async (savepoint) => {
-        await savepoint
-          .update(participantProfile)
-          .set({ ...contact, participantCode: code })
-          .where(eq(participantProfile.id, profile.id));
-        return code;
-      })
-  );
-  return { id: profile.id, participantCode };
 }
 
 type ProfileColumns = ReturnType<typeof profileColumns>;

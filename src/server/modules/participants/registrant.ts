@@ -2,17 +2,30 @@
 // profile of their own; a teen's whose login is linked, on the profile
 // their guardian keeps; or a child the member looks after as their
 // guardian. Shared by the register form and registering itself, so both
-// read the same profile.
+// read the same profile; registering also locks and saves a
+// guardian-kept profile here, and weighs who registers for the minor
+// rules.
 
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { authorize } from "../../access/can";
 import type { Role } from "../../access/domain/roles";
 import type { AppDb } from "../../db/app-db";
-import { guardian, guardianLink, participantProfile } from "../../db/schema";
+import {
+  guardian,
+  guardianLink,
+  participantProfile,
+  PARTICIPANT_CODE_UNIQUE,
+} from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
+import { withUniqueCode } from "../codes/codes";
 import { childResource } from "../guardians/child-access";
+import { hasVerifiedGuardian } from "../guardians/guardian-request";
+import { guardianOfUser } from "../guardians/guardian-record";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
+import type { MinorRegistrant } from "./domain/minor-registration";
+import { participantCodeFormat } from "./domain/participant-code";
+import type { RegisterInput } from "./register-input";
 
 export type Subject =
   | { kind: "own" }
@@ -103,4 +116,86 @@ export async function childrenOf(
       )
     )
     .orderBy(asc(participantProfile.createdAt), asc(participantProfile.id));
+}
+
+/** A guardian-kept profile, locked so registrations of it take turns. */
+export async function lockedKeptProfile(tx: AppDb, profileId: string) {
+  const [found] = await tx
+    .select({
+      id: participantProfile.id,
+      participantCode: participantProfile.participantCode,
+    })
+    .from(participantProfile)
+    .where(eq(participantProfile.id, profileId))
+    .for("update");
+  if (!found) throw new Error(`Profile ${profileId} is gone`);
+  return found;
+}
+
+/** Who is registering, as the minor rules need it. */
+export async function registrantOf(
+  tx: AppDb,
+  userId: string,
+  subject: Subject
+): Promise<MinorRegistrant> {
+  switch (subject.kind) {
+    case "child": {
+      const record = await guardianOfUser(tx, userId);
+      return { kind: "guardian", verified: record?.verifiedAt != null };
+    }
+    case "linked":
+      // A linked teen whose guardians are all gone waits for one, without
+      // asking anyone new from here.
+      return {
+        kind: "self",
+        guardian: (await hasVerifiedGuardian(tx, subject.profileId))
+          ? "verified"
+          : "unverified",
+      };
+    case "own":
+      // A profile of one's own has no guardian: a teen on it names one.
+      return { kind: "self", guardian: "none" };
+  }
+}
+
+/**
+ * A guardian-kept profile takes the form's contact and address; its name
+ * and date of birth stay the guardian's. It gets its Participant ID on its
+ * first registration.
+ */
+export async function saveKeptProfile(
+  ctx: UseCaseContext,
+  tx: AppDb,
+  profile: { id: string; participantCode: string | null },
+  form: RegisterInput,
+  now: Date
+): Promise<{ id: string; participantCode: string }> {
+  const contact = {
+    phoneCiphertext: ctx.cipher.encrypt(PROFILE_PURPOSE.phone, form.phone),
+    pinCode: form.pinCode,
+    city: form.city,
+    state: form.state,
+    country: form.country,
+    schoolName: form.schoolName,
+    updatedAt: now,
+  };
+  if (profile.participantCode !== null) {
+    await tx
+      .update(participantProfile)
+      .set(contact)
+      .where(eq(participantProfile.id, profile.id));
+    return { id: profile.id, participantCode: profile.participantCode };
+  }
+  const participantCode = await withUniqueCode(
+    { format: participantCodeFormat(now), constraint: PARTICIPANT_CODE_UNIQUE },
+    (code) =>
+      tx.transaction(async (savepoint) => {
+        await savepoint
+          .update(participantProfile)
+          .set({ ...contact, participantCode: code })
+          .where(eq(participantProfile.id, profile.id));
+        return code;
+      })
+  );
+  return { id: profile.id, participantCode };
 }

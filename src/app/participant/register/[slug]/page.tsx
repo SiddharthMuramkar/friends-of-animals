@@ -90,8 +90,15 @@ async function formFor(
       ...(forChildId === undefined ? {} : { forChildId }),
     });
   } catch (error) {
-    // Somebody else's child, or no child at all: not found.
-    if (forChildId !== undefined && error instanceof DomainError) return null;
+    // Somebody else's child, or no child at all: not found. Any other
+    // refusal (a second factor to pass) goes to the edge as it is.
+    if (
+      forChildId !== undefined &&
+      error instanceof DomainError &&
+      error.code === "forbidden"
+    ) {
+      return null;
+    }
     throw error;
   }
 }
