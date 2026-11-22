@@ -44,6 +44,27 @@ function block(name: string, parent?: string): string {
 const shared = () => block("x-worker");
 const service = (name: string) => block(name, "services");
 
+/** Whether IPv4 `address` lies inside `cidr` (e.g. 10.112.14.0/28). */
+function inCidr(address: string, cidr: string): boolean {
+  const toInt = (ip: string) =>
+    ip.split(".").reduce((n, octet) => n * 256 + Number(octet), 0);
+  const [base, bits] = cidr.split("/");
+  const size = 2 ** (32 - Number(bits));
+  const start = Math.floor(toInt(base!) / size) * size;
+  const at = toInt(address);
+  return at >= start && at < start + size;
+}
+
+const SENTRY_FILE = "/etc/foa/secrets/worker_sentry.env";
+
+/** A service's `env_file:` entries, in order. */
+function envFiles(own: string): { path: string; required: boolean }[] {
+  const list = /^ {4}env_file:\n((?: {6}.*\n?)+)/m.exec(own)?.[1] ?? "";
+  return [
+    ...list.matchAll(/^ {6}- path: (\S+)\n {8}required: (true|false)$/gm),
+  ].map((m) => ({ path: m[1]!, required: m[2] === "true" }));
+}
+
 /** The health check's shell command, as Compose passes it to sh -c. */
 function healthCommand(): string {
   const match = /test:\n\s+- CMD-SHELL\n\s+- (.+)\n/.exec(shared());
@@ -52,11 +73,16 @@ function healthCommand(): string {
 }
 
 describe("docker/workers.yml", () => {
-  it("defines the production, staging and shared preview workers", () => {
+  it("defines the production, staging and shared preview workers and their sidecars", () => {
     const names = [...block("services").matchAll(/^ {2}([a-z-]+):$/gm)].map(
       (m) => m[1]
     );
-    expect(names).toEqual(SERVICES);
+    expect(names).toEqual([
+      ...SERVICES,
+      "foa-clamav",
+      "foa-gotenberg",
+      "worker-media",
+    ]);
   });
 
   it.each(SERVICES)(
@@ -79,12 +105,44 @@ describe("docker/workers.yml", () => {
     expect(TEXT).not.toMatch(/^\s+expose:/m);
   });
 
-  it("reads the workers' Sentry DSN from /etc/foa/secrets, if there is one", () => {
-    expect(shared()).toMatch(
-      /^ {2}env_file:\n {4}- path: \/etc\/foa\/secrets\/worker_sentry\.env\n {6}required: false$/m
-    );
+  it("reads every worker's Sentry DSN from /etc/foa/secrets, if there is one", () => {
+    for (const name of [...SERVICES, "worker-media"]) {
+      expect(envFiles(service(name)), name).toContainEqual({
+        path: SENTRY_FILE,
+        required: false,
+      });
+    }
     // The DSN itself never sits in git.
     expect(TEXT).not.toMatch(/SENTRY_DSN:/);
+  });
+
+  it.each([
+    ["worker-prod", "/etc/foa/secrets/worker_prod_r2.env"],
+    ["worker-staging", "/etc/foa/preview-files.env"],
+    ["worker-preview", "/etc/foa/preview-files.env"],
+  ])(
+    "gives %s its own environment's R2 credentials for the upload scan",
+    (name, file) => {
+      // Without all four R2_ variables the worker's scan fails every file
+      // (src/worker/main.ts), so each database worker needs its bucket's.
+      expect(envFiles(service(name))).toEqual([
+        { path: SENTRY_FILE, required: false },
+        { path: file, required: false },
+      ]);
+    }
+  );
+
+  it("shares no env file through the worker anchor, so production's R2 key stays with worker-prod", () => {
+    // Every worker merges x-worker, preview and staging included: a file
+    // listed there would hand production's bucket to all of them.
+    expect(shared()).not.toMatch(/env_file:/);
+    const prodR2 = "/etc/foa/secrets/worker_prod_r2.env";
+    for (const name of ["worker-staging", "worker-preview", "worker-media"]) {
+      expect(service(name), name).not.toContain(prodR2);
+    }
+    expect(TEXT.split(prodR2)).toHaveLength(2);
+    // The keys themselves never sit in git.
+    expect(TEXT).not.toMatch(/R2_[A-Z_]+:/);
   });
 
   it("runs the worker image target read-only on the db network", () => {
@@ -156,6 +214,132 @@ describe("docker/workers.yml", () => {
     expect(service("worker-preview")).toContain(
       "WORKER_CONNECTIONS_PER_DATABASE: 1"
     );
+  });
+
+  it("keeps ClamAV scanning on the private bridge while FreshClam updates", () => {
+    const clamav = service("foa-clamav");
+    expect(clamav).toMatch(/^ {4}image: clamav\/clamav:\d+\.\d+\.\d+$/m);
+    expect(clamav).toContain("entrypoint: /init-unprivileged");
+    expect(clamav).toContain("user: clamav");
+    expect(clamav).toContain('CLAMAV_NO_FRESHCLAMD: "false"');
+    expect(clamav).toContain("foa-clamav-db:/var/lib/clamav");
+    expect(block("volumes")).toContain("foa-clamav-db:");
+    expect(clamav).toContain("clamdcheck.sh");
+    expect(clamav).toContain("start_period: 6m");
+    expect(block("networks")).toContain("scan:\n    internal: true");
+    expect(clamav).toMatch(/^ {6}scan:$/m);
+    expect(clamav).toMatch(/^ {8}ipv4_address: 10\.112\.14\.2$/m);
+    expect(clamav).toMatch(/^ {6}clamav-updates: \{\}$/m);
+    expect(clamav).toContain("./clamav/clamd.conf:/etc/clamav/clamd.conf:ro");
+    const clamd = readFileSync(
+      new URL("./clamav/clamd.conf", import.meta.url),
+      "utf8"
+    );
+    expect(clamd.match(/^TCPAddr .+$/gm)).toEqual([
+      "TCPAddr 127.0.0.1",
+      "TCPAddr 10.112.14.2",
+    ]);
+    expect(clamd).toContain("TCPSocket 3310");
+    // /init-unprivileged waits for this socket before it counts clamd as up.
+    expect(clamd).toMatch(/^LocalSocket \/tmp\/clamd\.sock$/m);
+    expect(clamd).toContain("ConcurrentDatabaseReload no");
+    // A file over clamd's scan limits is only partly scanned; without this
+    // it would still come back `stream: OK` and count as clean.
+    expect(clamd).toMatch(/^AlertExceedsMax yes$/m);
+    expect(clamav).toContain(
+      "./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro"
+    );
+    const freshclam = readFileSync(
+      new URL("./clamav/freshclam.conf", import.meta.url),
+      "utf8"
+    );
+    expect(freshclam).toContain("NotifyClamd /etc/clamav/clamd.conf");
+    expect(freshclam).toContain("TestDatabases no");
+  });
+
+  it("keeps clamd's fixed scan address out of the range Docker hands out", () => {
+    // The workers join `scan` with dynamic addresses and start alongside
+    // foa-clamav. If Docker could hand out clamd's address, a worker that
+    // attaches first takes it and foa-clamav fails with "Address already in
+    // use". So dynamic addresses come from an ip_range that excludes it.
+    const scan = /^ {2}scan:\n((?: {4}.*\n)+)/m.exec(`${block("networks")}\n`);
+    expect(scan, "networks.scan").not.toBeNull();
+    const subnet = /^ {8}- subnet: (\S+)$/m.exec(scan![1]!)?.[1];
+    const range = /^ {10}ip_range: (\S+)$/m.exec(scan![1]!)?.[1];
+    expect(subnet, "scan subnet").toBeDefined();
+    expect(range, "scan ip_range").toBeDefined();
+    const fixed = /^ {8}ipv4_address: (\S+)$/m.exec(service("foa-clamav"))?.[1];
+    expect(fixed, "foa-clamav's scan address").toBeDefined();
+    expect(inCidr(fixed!, subnet!), `${fixed} in ${subnet}`).toBe(true);
+    expect(
+      inCidr(range!.split("/")[0]!, subnet!),
+      `${range} in ${subnet}`
+    ).toBe(true);
+    expect(inCidr(fixed!, range!), `${fixed} outside ${range}`).toBe(false);
+  });
+
+  it("configures every database worker to scan through foa-clamav:3310", () => {
+    expect(shared()).toMatch(/^ {4}- scan$/m);
+    for (const name of SERVICES) {
+      expect(service(name)).toContain("<<: *clamd");
+    }
+    const scanner = block("x-clamd");
+    expect(scanner).toContain("CLAMD_HOST: foa-clamav");
+    expect(scanner).toContain('CLAMD_PORT: "3310"');
+  });
+
+  it("renders PDFs from local files through a private Gotenberg 9 API", () => {
+    const gotenberg = service("foa-gotenberg");
+    const image = /^ {4}image: gotenberg\/gotenberg:9\.(\d+)\.\d+$/m.exec(
+      gotenberg
+    );
+    expect(image).not.toBeNull();
+    expect(Number(image?.[1])).toBeGreaterThanOrEqual(8);
+    expect(gotenberg).toContain("http://127.0.0.1:3000/health");
+    expect(gotenberg).toMatch(/^ {4}networks:\n {6}- pdf$/m);
+    expect(block("networks")).toContain("pdf:\n    internal: true");
+    expect(gotenberg).toContain("--api-timeout=30s");
+    expect(gotenberg).toContain("--chromium-allow-list=^file:///tmp/");
+    expect(gotenberg).toContain("--libreoffice-allow-list=^file:///tmp/");
+    expect(gotenberg).toContain("--libreoffice-enable-macros=false");
+    expect(gotenberg).toContain("--api-disable-download-from=true");
+    expect(gotenberg).toContain("--webhook-disable=true");
+    expect(gotenberg).toContain("--pdf-deny-list=.");
+  });
+
+  it("keeps the media worker opt-in on the PDF bridge and uses the media entry point", () => {
+    const media = service("worker-media");
+    expect(media).toMatch(/^ {4}profiles:\n {6}- media$/m);
+    expect(media).toContain("<<: *worker");
+    expect(media).toContain("image: foa-workers/worker-media\n");
+    expect(media).toContain(
+      'command: ["node", "--import", "tsx", "src/worker-media/main.ts"]'
+    );
+    expect(media).toContain("GOTENBERG_URL: http://foa-gotenberg:3000");
+    expect(media).toMatch(/^ {4}networks:\n {6}- pdf$/m);
+    expect(media).toContain("cpus: 1");
+    expect(media).toContain("pids_limit: 128");
+    expect(media).not.toMatch(/^ {4}secrets:|WORKER_DATABASE_URL/m);
+    expect(shared()).toContain("read_only: true");
+    expect(shared()).toMatch(/^ {4}- \/tmp$/m);
+    expect(healthCommand()).toContain("/tmp/foa-worker-heartbeat");
+  });
+
+  it.each([
+    ["foa-clamav", "2g"],
+    ["foa-gotenberg", "1g"],
+    ["worker-media", "2g"],
+  ])("limits %s to %s and drops container privileges", (name, memory) => {
+    const own = service(name);
+    expect(own).toMatch(new RegExp(`^ {4}mem_limit: ${memory}$`, "m"));
+    expect(own).toMatch(/^ {4}oom_score_adj: 500$/m);
+    expect(own).not.toMatch(/^ {4}network_mode:|^ {6}(?:- db$|db:)/m);
+    const settings = name === "worker-media" ? shared() : own;
+    expect(settings).toMatch(/^ +healthcheck:$/m);
+    expect(settings).toMatch(/^ +restart: unless-stopped$/m);
+    expect(settings).toMatch(/^ +logging: \*logging$/m);
+    expect(settings).toMatch(/cap_drop:\n +- ALL\n/);
+    expect(settings).toMatch(/security_opt:\n +- no-new-privileges:true\n/);
   });
 
   describe("its health check", () => {
