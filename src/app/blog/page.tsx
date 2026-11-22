@@ -4,16 +4,18 @@ import { getTranslations } from "next-intl/server";
 
 import { PendingDot } from "@/components/nav-link";
 import { SiteLink } from "@/components/site/site-link";
-import { CardCover, TileCover } from "@/components/showcase/card-cover";
+import { PostCover } from "@/components/showcase/post-image";
 import { StoryCard } from "@/components/showcase/story-card";
 import { Chip } from "@/components/site/chip";
 import { PageHeader } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
 import { EasyRead } from "@/components/site/easy-read";
 import { Section } from "@/components/site/section";
-import { STORIES, type Story, latestStories } from "@/content/stories";
 import { ROUTES, slugHref } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { splitFeatured } from "@/server/modules/cms/domain/post-listing";
+import type { PostCard } from "@/server/modules/cms/domain/post-view";
+import { loadPublishedPosts } from "@/server/modules/cms/posts/loaders";
 
 import { FactChecks } from "./_components/fact-checks";
 
@@ -33,22 +35,19 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** The featured story, wide: cover on one side, words on the other. */
-async function FeaturedStory({ story }: { story: Story }) {
+async function FeaturedStory({ story }: { story: PostCard }) {
   const [t, tc] = await Promise.all([
     getTranslations("stories.index"),
     getTranslations("showcase.story"),
   ]);
   return (
     <article className="group relative grid grid-cols-1 overflow-hidden rounded-3xl border-2 border-border bg-surface shadow-warm transition-[translate,border-color] duration-200 ease-out hover:border-border-strong has-[a:focus-visible]:border-border-strong motion-safe:hover:-translate-y-0.5 md:grid-cols-2">
-      {story.coverImageId ? (
-        <CardCover
-          id={story.coverImageId}
-          sizes="(min-width: 768px) 560px, 92vw"
-          className="md:aspect-auto md:min-h-80"
-        />
-      ) : (
-        <TileCover seed={story.slug} className="md:aspect-auto md:min-h-80" />
-      )}
+      <PostCover
+        image={story.cover}
+        seed={story.slug}
+        sizes="(min-width: 768px) 560px, 92vw"
+        className="md:aspect-auto md:min-h-80"
+      />
       <div className="flex flex-col gap-4 p-6 sm:p-8">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Chip tone="marigold">{t("featured")}</Chip>
@@ -70,7 +69,7 @@ async function FeaturedStory({ story }: { story: Story }) {
             <PendingDot className="ms-2 inline-block align-middle" />
           </SiteLink>
         </h3>
-        <p className="text-lead text-ink-muted">{story.dek}</p>
+        <p className="text-lead text-ink-muted">{story.excerpt}</p>
         <p
           aria-hidden="true"
           className="mt-auto inline-flex items-center gap-2 font-semibold text-link"
@@ -84,9 +83,11 @@ async function FeaturedStory({ story }: { story: Story }) {
 }
 
 export default async function Page() {
-  const t = await getTranslations("stories.index");
-  const [featured] = latestStories(1);
-  const rest = STORIES.filter((s) => s.slug !== featured!.slug);
+  const [t, posts] = await Promise.all([
+    getTranslations("stories.index"),
+    loadPublishedPosts(),
+  ]);
+  const { lead, rest } = splitFeatured(posts);
 
   return (
     <>
@@ -121,18 +122,26 @@ export default async function Page() {
         <h2 id="featured" className="sr-only">
           {t("featuredHeading")}
         </h2>
-        <FeaturedStory story={featured!} />
+        {lead ? (
+          <FeaturedStory story={lead} />
+        ) : (
+          <p className="max-w-prose text-lead text-ink-muted">{t("empty")}</p>
+        )}
 
-        <h2 id="more" className="mt-16 text-h2 text-(--section-heading)">
-          {t("more")}
-        </h2>
-        <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-          {rest.map((s) => (
-            <li key={s.slug} className="flex">
-              <StoryCard story={s} className="w-full" />
-            </li>
-          ))}
-        </ul>
+        {rest.length > 0 ? (
+          <>
+            <h2 id="more" className="mt-16 text-h2 text-(--section-heading)">
+              {t("more")}
+            </h2>
+            <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+              {rest.map((s) => (
+                <li key={s.slug} className="flex">
+                  <StoryCard story={s} className="w-full" />
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
 
         <FactChecks className="mt-16 max-w-3xl" />
       </Section>

@@ -353,6 +353,7 @@ describe("filesConfigFor", () => {
       bucket: "foa-files-nonprod",
       keyPrefix: "pr-12/",
       appEnv: "preview",
+      publicBaseUrl: null,
     });
   });
 
@@ -365,7 +366,23 @@ describe("filesConfigFor", () => {
       bucket: "local",
       keyPrefix: "local/",
       appEnv: "local",
+      publicBaseUrl: null,
     });
+  });
+
+  it("serves the public bucket from PUBLIC_ASSET_BASE_URL, as a folder", () => {
+    for (const base of [
+      "https://assets.friendsofanimals.dev",
+      "https://assets.friendsofanimals.dev/",
+    ]) {
+      expect(
+        filesConfigFor({
+          APP_ENV: "production",
+          ...R2,
+          PUBLIC_ASSET_BASE_URL: base,
+        }).publicBaseUrl
+      ).toBe("https://assets.friendsofanimals.dev/");
+    }
   });
 });
 

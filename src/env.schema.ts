@@ -179,6 +179,14 @@ const storageVariables = {
       error: "must be an R2 bucket name: 3-63 of a-z, 0-9 and -",
     })
     .optional(),
+  /**
+   * Where browsers load the public bucket's objects (`<R2_BUCKET>-public`,
+   * #112): its custom domain, e.g. https://assets.friendsofanimals.dev/.
+   * Unset, the public site shows no uploaded post image (HR-13).
+   */
+  PUBLIC_ASSET_BASE_URL: z
+    .url({ protocol: /^https$/, error: "must be an https:// URL" })
+    .optional(),
 };
 
 const STORAGE_VARIABLES = [

@@ -59,3 +59,46 @@ describe("cspContext: file storage", () => {
     }
   });
 });
+
+describe("cspContext: public post images", () => {
+  it("lets pages show images from the public bucket's domain, and nothing else from it", () => {
+    const context = cspContext({
+      APP_ENV: "production",
+      NODE_ENV: "production",
+      PUBLIC_ASSET_BASE_URL: "https://assets.friendsofanimals.dev/media/",
+    });
+
+    for (const header of [
+      publicCsp(context),
+      signedInCsp(context, "bm9uY2U="),
+    ]) {
+      expect(directive(header.value, "img-src")).toContain(
+        "https://assets.friendsofanimals.dev"
+      );
+      expect(directive(header.value, "connect-src")).not.toContain(
+        "https://assets.friendsofanimals.dev"
+      );
+    }
+  });
+
+  it("adds nothing for a value that isn't an https URL", () => {
+    for (const PUBLIC_ASSET_BASE_URL of [
+      "",
+      "assets.example",
+      "http://assets.example",
+      "javascript:alert(1)",
+    ]) {
+      const header = publicCsp(
+        cspContext({
+          APP_ENV: "production",
+          NODE_ENV: "production",
+          PUBLIC_ASSET_BASE_URL,
+        })
+      );
+      expect(header.value, PUBLIC_ASSET_BASE_URL).not.toContain(
+        "assets.example"
+      );
+      expect(header.value).not.toContain("javascript");
+    }
+  });
+});

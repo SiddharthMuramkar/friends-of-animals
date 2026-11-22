@@ -1,10 +1,16 @@
-import type { ArticleBody, Block, Inline } from "./model";
+import type { Block, Inline } from "./model";
 
 /**
  * Plain-text helpers for articles: anchor ids and the table of contents,
  * word counts and reading time, and a Flesch-Kincaid estimate used by tests
  * to keep kids' articles at grade 6 or below.
  */
+
+/**
+ * A body block, whatever its images point at: repo articles name a site
+ * photo, CMS posts a resolved public image. Text helpers ignore images.
+ */
+export type TextBlock = Exclude<Block, { type: "image" }> | { type: "image" };
 
 /** Callout title that marks the adult-detail box in a kids' article. */
 export const GROWN_UPS_TITLE = "For grown-ups";
@@ -27,7 +33,7 @@ export function inlineText(text: Inline[]): string {
     .join("");
 }
 
-function blockText(block: Block): string[] {
+function blockText(block: TextBlock): string[] {
   switch (block.type) {
     case "paragraph":
       return [inlineText(block.text)];
@@ -57,7 +63,9 @@ export function slugify(text: string): string {
 }
 
 /** An anchor id for every heading block (undefined for other blocks). */
-export function headingAnchors(blocks: Block[]): (string | undefined)[] {
+export function headingAnchors(
+  blocks: readonly TextBlock[]
+): (string | undefined)[] {
   const seen = new Map<string, number>();
   return blocks.map((b) => {
     if (b.type !== "heading") return undefined;
@@ -69,7 +77,7 @@ export function headingAnchors(blocks: Block[]): (string | undefined)[] {
 }
 
 export function tableOfContents(
-  blocks: Block[]
+  blocks: readonly TextBlock[]
 ): { id: string; text: string }[] {
   const ids = headingAnchors(blocks);
   return blocks.flatMap((b, i) =>
@@ -94,7 +102,7 @@ function words(text: string): string[] {
 }
 
 /** Words a reader reads in the body (images and bank quotes excluded). */
-export function articleWords(body: ArticleBody): number {
+export function articleWords(body: { blocks: readonly TextBlock[] }): number {
   return words(body.blocks.flatMap(blockText).join("\n")).length;
 }
 
@@ -103,7 +111,7 @@ export function readingMinutes(wordCount: number): number {
 }
 
 /** The text a child reads: everything except the grown-ups' box and quotes. */
-export function kidText(body: ArticleBody): string {
+export function kidText(body: { blocks: readonly TextBlock[] }): string {
   return body.blocks
     .filter(
       (b) =>

@@ -13,13 +13,15 @@
       "featured": "Featured story",
       "featuredHeading": "Start here",
       "more": "More stories",
-      "readStory": "Read the story"
+      "readStory": "Read the story",
+      "empty": "No stories yet. Come back soon for the first one."
     },
     "article": {
       "breadcrumb": "Breadcrumb",
       "home": "Home",
       "allStories": "All stories",
       "published": "Published {date}",
+      "byline": "By {name}",
       "easyReadLabel": "Easy read",
       "toc": "In this story",
       "sources": "Sources",

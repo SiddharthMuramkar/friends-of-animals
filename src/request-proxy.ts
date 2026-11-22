@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
-import { isStorySlug } from "@/content/stories";
 import {
   isNonProductionPath,
   isSignedInPage,
@@ -14,10 +13,11 @@ import { ROUTES } from "@/lib/routes";
 import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
+import { checkPostSlug } from "@/server/modules/cms/domain/post-slug";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
-// one outside dependency, the published-competition check, so tests can
-// give it a stand-in for the database.
+// outside dependencies, the published-competition and public-post checks,
+// so tests can give it stand-ins for the database.
 
 // No route matches this path, so Next serves app/not-found.tsx with a 404.
 const MISSING = "/__not-found";
@@ -75,12 +75,18 @@ export type RequestProxyDeps = {
    * a memo (src/app/competitions/_lib/public-reader.ts).
    */
   isPublishedCompetitionSlug: SlugLookup;
+  /**
+   * Whether a public post (#112) has this slug: the CMS, through a memo
+   * (src/app/blog/_lib/public-slugs.ts).
+   */
+  isPublicPostSlug: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
 
 export function createProxy({
   isPublishedCompetitionSlug,
+  isPublicPostSlug,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -93,6 +99,25 @@ export function createProxy({
     } catch (error) {
       console.error(
         "Proxy: could not check a competition slug against the database.",
+        error instanceof Error ? error.message : error
+      );
+      return true;
+    }
+  }
+
+  /**
+   * Whether /blog/<raw> is a public post: not a draft, archived or unknown.
+   * A slug no post could have is never asked about. If the database can't
+   * answer, the request goes through and the page answers for itself.
+   */
+  async function isPublicPost(raw: string): Promise<boolean> {
+    const slug = decodedSlug(raw);
+    if (!checkPostSlug(slug).ok) return false;
+    try {
+      return await isPublicPostSlug(slug);
+    } catch (error) {
+      console.error(
+        "Proxy: could not check a post slug against the database.",
         error instanceof Error ? error.message : error
       );
       return true;
@@ -124,7 +149,7 @@ export function createProxy({
     const [, section, raw = ""] = pathname.split("/");
     const known =
       section === "blog"
-        ? isStorySlug(decodedSlug(raw))
+        ? await isPublicPost(raw)
         : await isPublishedCompetition(raw);
     if (known) return NextResponse.next();
     return NextResponse.rewrite(new URL(MISSING, request.url));

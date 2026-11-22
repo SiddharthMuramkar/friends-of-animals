@@ -638,4 +638,21 @@ describe("envSchema storage", () => {
       parseEnv(envSchema, { DATABASE_URL, ...R2, R2_BUCKET: "Foa_Files" })
     ).toThrow(/at R2_BUCKET/);
   });
+
+  it("reads where the public bucket is served, on https only", () => {
+    expect(
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        PUBLIC_ASSET_BASE_URL: "https://assets.friendsofanimals.dev/",
+      }).PUBLIC_ASSET_BASE_URL
+    ).toBe("https://assets.friendsofanimals.dev/");
+    for (const bad of [
+      "assets.friendsofanimals.dev",
+      "http://assets.example",
+    ]) {
+      expect(() =>
+        parseEnv(envSchema, { DATABASE_URL, PUBLIC_ASSET_BASE_URL: bad })
+      ).toThrow(/at PUBLIC_ASSET_BASE_URL/);
+    }
+  });
 });
