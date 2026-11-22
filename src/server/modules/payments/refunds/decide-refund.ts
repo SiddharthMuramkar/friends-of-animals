@@ -149,14 +149,10 @@ export async function rejectRefund(
   return ctx.db.transaction(async (tx): Promise<RejectRefundResult> => {
     const row = await lockRefund(tx, parsed.data.refundId);
     if (!row) return { ok: false, error: "not_found" };
-    if (row.status === "requested") {
-      const check = checkRefundDecision(row, decidedBy);
-      if (!check.ok)
-        return {
-          ok: false,
-          error:
-            check.reason === "same_person" ? "same_person" : "not_rejectable",
-        };
+    // Nobody decides their own request: not rejecting it, and not closing
+    // it once the gateway failed it either.
+    if (row.requestedBy === decidedBy) {
+      return { ok: false, error: "same_person" };
     }
     const move = nextRefundStatus(row.status, "rejected");
     if (!move.ok) return { ok: false, error: "not_rejectable" };

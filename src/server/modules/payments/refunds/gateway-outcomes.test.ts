@@ -231,6 +231,33 @@ describe("a refund the gateway fails", () => {
     ).toEqual({ ok: true, status: "rejected" });
   });
 
+  it("never lets the requester close their own failed refund", async () => {
+    const h = await createHarness();
+    const paid = await capturedBatch(h);
+    const both = await h.seed.member();
+    await h.seed.grant(both, {
+      role: "staff_admin",
+      scope: { type: "global" },
+    });
+    await h.seed.grant(both, { role: "finance", scope: { type: "global" } });
+    const actor = await h.signIn(both);
+    const asked = await h
+      .as(actor)
+      .requestRefund({ batchId: paid.batchId, reason: REASON });
+    if (!asked.ok) throw new Error("not asked");
+    const finance = await signInStaff(h, "finance");
+    await h.as(finance.actor).approveRefund({ refundId: asked.refundId });
+    h.gateway.answerNextRefund("failed");
+    await h.drain();
+
+    expect(
+      await h
+        .as(actor)
+        .rejectRefund({ refundId: asked.refundId, note: "Closing my own." })
+    ).toEqual({ ok: false, error: "same_person" });
+    expect((await refundRow(h, asked.refundId)).status).toBe("failed");
+  });
+
   it("lets only finance retry", async () => {
     const h = await createHarness();
     const { refundId } = await approved(h);
