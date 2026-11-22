@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
+import { showsPlaceholders } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 /**
@@ -32,14 +33,14 @@ export function PolicyTop({
       <Section hue="neutral" className="pt-10 pb-0 sm:pt-12 sm:pb-0">
         <section
           aria-labelledby="short-version"
-          className="max-w-3xl rounded-3xl border-2 border-blue-700 bg-section-blue p-6 sm:p-8 dark:border-blue-400"
+          className="max-w-3xl rounded-3xl border-2 border-blue-700 bg-section-blue px-4 py-6 sm:p-8 dark:border-blue-400"
         >
           <h2
             id="short-version"
             className="flex items-center gap-2.5 font-display text-h4 leading-tight text-(--section-blue-heading)"
           >
             <TileMarker hue="blue" />
-            {shortTitle}
+            <span className="min-w-0">{shortTitle}</span>
           </h2>
           <ul className="mt-4 space-y-3 text-lead text-ink">
             {items.map((item) => (
@@ -48,7 +49,7 @@ export function PolicyTop({
                   aria-hidden="true"
                   className="mt-2.5 size-2.5 shrink-0 rounded-[22%] bg-blue-700 dark:bg-blue-400"
                 />
-                <span>{item}</span>
+                <span className="min-w-0">{item}</span>
               </li>
             ))}
           </ul>
@@ -80,8 +81,12 @@ export function PolicyBlock({
   );
 }
 
-/** A dashed "To be confirmed" tile for a policy fact not set yet. */
+/**
+ * A dashed "To be confirmed" tile for a policy fact not set yet. Production
+ * renders nothing: leave out its line there too (showsPlaceholders()).
+ */
 export async function Tbc({ label }: { label: string }) {
+  if (!showsPlaceholders()) return null;
   const t = await getTranslations("common");
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2 rounded-xl border-2 border-dashed border-border-strong bg-surface-muted px-2.5 py-0.5 text-sm">

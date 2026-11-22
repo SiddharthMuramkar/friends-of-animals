@@ -7,33 +7,34 @@
 // Codes are only ever emailed, whatever the address, so a request never
 // reveals whether an account exists; verifying needs the code, so saying
 // "no account" there reveals nothing to someone without the mailbox.
+//
+// Both refuse while email sign-in is off (the `auth.emailSignIn` setting;
+// production also keeps it off until SES can send to anyone, DECISIONS
+// R-27), and the pages say sign-in opens soon.
 
 import { isAPIError } from "better-auth/api";
-import { parseSetCookieHeader, toCookieOptions } from "better-auth/cookies";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../access/can";
-import type { RequestMeta } from "../actor";
-import type { SignUpConsentOutcome } from "../consent";
 import { user } from "../db/schema";
 import { invalidInput, type InvalidInput } from "../input";
-import type { CookieJar } from "../ports/cookies";
+import type { SignUpConsentOutcome } from "../modules/consent";
 import type { UseCaseContext } from "../use-cases";
 import { authFor } from "./auth";
 import { codeEmail } from "./code-email";
 import { createAccount } from "./create-account";
 import { takeCodeAllowance } from "./rate-limit";
 import { headersFor } from "./request";
-import { EMAIL_CODE } from "./settings";
+import { SIGN_IN_CODE } from "./settings";
+import {
+  codeInput as code,
+  nameInput as name,
+  storeCookies,
+  visitorMeta,
+} from "./sign-in-shared";
 
 const email = z.string().trim().toLowerCase().pipe(z.email().max(254));
-const code = z
-  .string()
-  .trim()
-  .regex(new RegExp(`^\\d{${EMAIL_CODE.length}}$`));
-
-const name = z.string().trim().min(1).max(100);
 
 // A sign-up sends its name with the email, so a missing one is caught
 // before a code goes out.
@@ -60,9 +61,15 @@ export type RequestEmailCodeInput =
   | { intent: "sign-up"; name: string; email: string };
 export type VerifyEmailCodeInput = z.input<typeof verifyEmailCodeInput>;
 
+/** Email sign-in is off (`auth.emailSignIn`): sign-in opens soon. */
+type EmailDisabled = { ok: false; error: "email_disabled" };
+
+const EMAIL_DISABLED: EmailDisabled = { ok: false, error: "email_disabled" };
+
 export type RequestEmailCodeResult =
   | { ok: true }
   | InvalidInput
+  | EmailDisabled
   | { ok: false; error: "rate_limited"; retryAfterSeconds: number };
 
 export type VerifyEmailCodeResult =
@@ -74,6 +81,7 @@ export type VerifyEmailCodeResult =
       messagesConsent?: SignUpConsentOutcome;
     }
   | InvalidInput
+  | EmailDisabled
   | {
       ok: false;
       error:
@@ -83,18 +91,14 @@ export type VerifyEmailCodeResult =
         | "no_account";
     };
 
-/** The visitor's request details; `authorize` has ruled out other actors. */
-function visitorMeta(ctx: UseCaseContext): RequestMeta {
-  if (ctx.actor.kind !== "visitor") throw new Error("unreachable");
-  return ctx.actor.meta;
-}
-
 export async function requestEmailCode(
   ctx: UseCaseContext,
   input: RequestEmailCodeInput
 ): Promise<RequestEmailCodeResult> {
   await authorize(ctx, "requestEmailCode");
   const meta = visitorMeta(ctx);
+  // Off means off: no email, no stored code, nothing counted.
+  if (!(await ctx.settings.get("auth.emailSignIn"))) return EMAIL_DISABLED;
   const parsed = requestEmailCodeInput.safeParse({
     intent: "sign-in",
     ...input,
@@ -102,7 +106,7 @@ export async function requestEmailCode(
   if (!parsed.success) return invalidInput(parsed.error);
 
   const allowance = await takeCodeAllowance(ctx.db, {
-    email: parsed.data.email,
+    to: { channel: "email", key: parsed.data.email },
     ip: meta.ip,
     now: ctx.clock.now(),
     secret: ctx.auth.secret,
@@ -122,7 +126,7 @@ export async function requestEmailCode(
     body: { email: parsed.data.email, type: "sign-in" },
   });
   await ctx.email.send(
-    codeEmail(parsed.data.email, otp, EMAIL_CODE.lifetimeMinutes)
+    codeEmail(parsed.data.email, otp, SIGN_IN_CODE.lifetimeMinutes)
   );
   return { ok: true };
 }
@@ -145,20 +149,14 @@ function codeError(error: unknown) {
   throw error;
 }
 
-async function storeCookies(jar: CookieJar, headers: Headers) {
-  const setCookie = headers.get("set-cookie");
-  if (!setCookie) return;
-  for (const [name, attributes] of parseSetCookieHeader(setCookie)) {
-    await jar.set(name, attributes.value, toCookieOptions(attributes));
-  }
-}
-
 export async function verifyEmailCode(
   ctx: UseCaseContext,
   input: VerifyEmailCodeInput
 ): Promise<VerifyEmailCodeResult> {
   await authorize(ctx, "verifyEmailCode");
   const meta = visitorMeta(ctx);
+  // Switching email sign-in off also stops codes already emailed working.
+  if (!(await ctx.settings.get("auth.emailSignIn"))) return EMAIL_DISABLED;
   const parsed = verifyEmailCodeInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { data } = parsed;

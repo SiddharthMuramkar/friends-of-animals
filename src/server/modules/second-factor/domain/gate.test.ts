@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { Role } from "../../../access/domain/roles";
 import { checkSecondFactor, isStaffRole, STAFF_ROLES } from "./gate";
 
 const now = new Date("2027-01-15T04:30:00.000Z");
@@ -24,7 +25,7 @@ describe("staff roles", () => {
     ]);
   });
 
-  it.each([
+  it.each<Role>([
     "member",
     "participant",
     "guardian",
@@ -131,7 +132,7 @@ describe("checkSecondFactor for step-up", () => {
   });
 
   it("sends anyone without a factor to enrolment first, staff or not", () => {
-    for (const roles of [["super_admin"], ["member"]]) {
+    for (const roles of [["super_admin"], ["member"]] satisfies Role[][]) {
       expect(
         checkSecondFactor({
           requirement: "step-up",

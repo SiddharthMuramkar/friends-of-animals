@@ -13,7 +13,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import type { Actor } from "../../../actor";
 import { as } from "../../../app";
-import { consentDocumentTag } from "../../../consent/cached";
+import { consentDocumentTag } from "../../consent/tags";
 import type { AttachablePurpose } from "../domain/consent-attachments";
 import type { CompetitionDocumentVersion } from "./document-version";
 

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { afterSetFees, afterSetRoundAwards } from "./form-state";
+import type { SetCompetitionFeesResult } from "@/server/modules/competitions/terms";
+
+import {
+  afterSetFees,
+  afterSetRoundAwards,
+  type FeesFormState,
+} from "./form-state";
 
 const entered = {
   mode: "paid",
@@ -40,7 +46,7 @@ describe("afterSetFees", () => {
     });
   });
 
-  it.each([
+  it.each<[SetCompetitionFeesResult, FeesFormState["alert"]]>([
     [{ ok: false, error: "fees_locked" }, "locked"],
     [{ ok: false, error: "participation_not_set" }, "noParticipation"],
     [{ ok: false, error: "not_found" }, "failed"],
@@ -53,7 +59,7 @@ describe("afterSetFees", () => {
       },
       "currency",
     ],
-  ] as const)("gives the whole form a problem for %j", (result, alert) => {
+  ])("gives the whole form a problem for %j", (result, alert) => {
     expect(afterSetFees(result, entered)).toEqual({
       entered,
       alert,

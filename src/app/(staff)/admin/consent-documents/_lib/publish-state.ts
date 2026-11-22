@@ -6,7 +6,7 @@ import type {
   PreviewConsentDocumentResult,
   PublishConsentDocumentResult,
   SourceError,
-} from "@/server/consent";
+} from "@/server/modules/consent";
 
 export type PublishFormState = {
   /** What was typed, put back after the form resets. */
@@ -18,7 +18,7 @@ export type PublishFormState = {
   sourceErrors?: SourceError[];
   titleError?: true;
   /** A problem for the whole form. */
-  alert?: "failed";
+  alert?: "failed" | "publishedByCms";
 };
 
 type Entered = { title: string; source: string };
@@ -27,9 +27,11 @@ export function afterPreview(
   result: PreviewConsentDocumentResult,
   entered: Entered
 ): PublishFormState {
-  return result.ok
-    ? { ...entered, preview: result.body }
-    : { ...entered, sourceErrors: result.errors };
+  if (result.ok) return { ...entered, preview: result.body };
+  if (result.error === "published_by_cms") {
+    return { ...entered, alert: "publishedByCms" };
+  }
+  return { ...entered, sourceErrors: result.errors };
 }
 
 export function afterPublishRefused(
@@ -38,6 +40,10 @@ export function afterPublishRefused(
 ): PublishFormState {
   if (result.error === "invalid_source") {
     return { ...entered, sourceErrors: result.errors };
+  }
+  // The privacy policy and the terms: their page's CMS publish does it.
+  if (result.error === "published_by_cms") {
+    return { ...entered, alert: "publishedByCms" };
   }
   if (result.fields.includes("title")) return { ...entered, titleError: true };
   // A purpose or a source too long: nothing the form can point at.

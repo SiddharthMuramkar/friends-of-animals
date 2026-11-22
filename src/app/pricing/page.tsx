@@ -7,7 +7,7 @@ import { Section } from "@/components/site/section";
 import { TableScroller } from "@/components/site/table-scroller";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { isFactShown, SITE } from "@/lib/site";
 
 import { PolicyBlock, PolicyTop } from "./_components/policy";
 
@@ -34,6 +34,8 @@ const LINK =
 export default async function Page() {
   const t = await getTranslations("pricing");
   const { fees } = SITE.org;
+  // Production leaves out the fee column while no fee is confirmed.
+  const showFees = isFactShown(fees.school) || isFactShown(fees.individual);
   return (
     <>
       <PolicyTop
@@ -59,9 +61,11 @@ export default async function Page() {
                   <th scope="col" className="px-5 py-3">
                     {t("fees.who")}
                   </th>
-                  <th scope="col" className="px-5 py-3">
-                    {t("fees.amount")}
-                  </th>
+                  {showFees ? (
+                    <th scope="col" className="px-5 py-3">
+                      {t("fees.amount")}
+                    </th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
@@ -72,9 +76,11 @@ export default async function Page() {
                   <td className="px-5 py-4 text-ink-muted">
                     {t("fees.schoolWho")}
                   </td>
-                  <td className="px-5 py-4">
-                    <Placeholder fact={fees.school} />
-                  </td>
+                  {showFees ? (
+                    <td className="px-5 py-4">
+                      <Placeholder fact={fees.school} />
+                    </td>
+                  ) : null}
                 </tr>
                 <tr className="border-t border-border align-top">
                   <th scope="row" className="px-5 py-4">
@@ -83,16 +89,18 @@ export default async function Page() {
                   <td className="px-5 py-4 text-ink-muted">
                     {t("fees.selfWho")}
                   </td>
-                  <td className="px-5 py-4">
-                    <Placeholder fact={fees.individual} />
-                  </td>
+                  {showFees ? (
+                    <td className="px-5 py-4">
+                      <Placeholder fact={fees.individual} />
+                    </td>
+                  ) : null}
                 </tr>
               </tbody>
             </table>
           </TableScroller>
         </PolicyBlock>
         <h2 className="mt-14 text-h2">{t("detail.title")}</h2>
-        <div className="mt-8 grid gap-10">
+        <div className="mt-8 grid grid-cols-1 gap-10">
           {DETAIL.map((k) => (
             <PolicyBlock key={k} id={k} title={t(`detail.${k}.title`)}>
               <p>{t(`detail.${k}.body`)}</p>

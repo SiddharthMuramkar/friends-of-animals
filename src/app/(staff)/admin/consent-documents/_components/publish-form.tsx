@@ -10,7 +10,7 @@ import {
 } from "@/components/form";
 import type { LegalFact } from "@/content/legal";
 import { cn } from "@/lib/utils";
-import type { ConsentPurpose } from "@/server/consent";
+import type { ConsentPurpose } from "@/server/modules/consent";
 
 import { publishFormAction } from "../_lib/actions";
 import { BodyPreview } from "./body-preview";

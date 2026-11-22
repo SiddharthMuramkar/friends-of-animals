@@ -10,9 +10,15 @@
 import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
 import { seedCompetitionTerms } from "./competition-terms";
-import { seedConsent } from "./consent";
 import { seedCompetitions } from "./competitions";
+import { seedCms } from "./cms";
+import { seedConsent } from "./consent";
+import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
+import { seedInstitutions } from "./institutions";
+import { seedNotifications } from "./notifications";
+import { seedSecondFactor } from "./second-factor";
+import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
 
 export type { SeedDeps, Seeder } from "./types";
@@ -25,9 +31,15 @@ const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
   seedIdentity,
   seedAccess,
-  seedConsent,
   seedCompetitions,
+  seedConsent,
   seedCompetitionTerms,
+  seedFiles,
+  seedSecondFactor,
+  seedSettings,
+  seedInstitutions,
+  seedNotifications,
+  seedCms,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);

@@ -11,7 +11,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../access/can";
-import type { ConsentDocumentBody } from "../../../consent";
+import type { ConsentDocumentBody } from "../../consent";
 import { consentDocument } from "../../../db/schema";
 import {
   ATTACHABLE_PURPOSES,

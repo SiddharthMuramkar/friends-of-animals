@@ -9,7 +9,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { COMPETITION_TERMS_DRAFT } from "../../content/legal/competition-terms-draft";
-import { parseConsentDocumentBody } from "../consent/domain/document-body";
+import { parseConsentDocumentBody } from "../modules/consent/domain/document-body";
 import {
   competitionAwardScheme,
   competitionConsentDocument,

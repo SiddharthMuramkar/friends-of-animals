@@ -1,0 +1,83 @@
+{
+  "adminInstitutions": {
+    "meta": {
+      "title": "Institutions",
+      "description": "Check and decide on institution registrations."
+    },
+    "eyebrow": "Admin",
+    "title": "Institutions",
+    "lead": "Check each registration, then verify, reject or suspend it. Every decision needs a reason, which the institution's authorised person sees.",
+    "loading": "Loading institutions…",
+    "forbidden": {
+      "title": "Only FOA admins can see this",
+      "body": "Ask a super admin for the staff admin role if you need it.",
+      "back": "Go to the home page"
+    },
+    "filter": {
+      "label": "Show",
+      "all": "All"
+    },
+    "table": {
+      "caption": "Institutions, oldest registration first",
+      "name": "Name",
+      "type": "Type",
+      "place": "Place",
+      "status": "Status",
+      "institutionId": "Institution ID",
+      "registered": "Registered",
+      "place_value": "{city}, {state}",
+      "noId": "None yet"
+    },
+    "empty": "No institutions here.",
+    "review": {
+      "meta": {
+        "title": "Check an institution",
+        "description": "Every detail of one institution's registration, and its decision."
+      },
+      "back": "All institutions",
+      "notFound": {
+        "title": "No institution with that link",
+        "body": "It may have been typed wrongly. Go back to the list to find it."
+      },
+      "authorisedPerson": "Registered by",
+      "registeredOn": "Registered on {date}",
+      "detailsTitle": "Details",
+      "decisionTitle": "Decision",
+      "noDecision": "There is nothing more to decide: a registration that wasn't accepted stays that way. The person can register again.",
+      "reason": {
+        "label": "Reason",
+        "hint": "The authorised person sees this. Up to {max} characters.",
+        "required": "Write a reason for this decision.",
+        "tooLong": "Keep the reason to {max} characters."
+      },
+      "decide": {
+        "verify": "Verify",
+        "reject": "Reject",
+        "suspend": "Suspend"
+      },
+      "deciding": "Saving…",
+      "decided": {
+        "verified": "Verified. The institution's ID is {code}, and its authorised person is now its admin.",
+        "rejected": "Rejected. The authorised person will be told why.",
+        "suspended": "Suspended. The authorised person will be told why.",
+        "reinstated": "Verified again. The institution keeps its ID."
+      },
+      "alerts": {
+        "transition_not_allowed": "That decision isn't possible any more: someone else may have decided first. The page now shows the current status.",
+        "unexpected": "Something went wrong on our side. Please try again in a few minutes."
+      },
+      "details": {
+        "type": "Type",
+        "address": "Address",
+        "contactEmail": "Office email",
+        "contactPhone": "Office mobile",
+        "principalName": "Principal",
+        "principalEmail": "Principal's email",
+        "principalPhone": "Principal's mobile",
+        "expectedParticipants": "Students who may take part",
+        "institutionId": "Institution ID",
+        "reason": "Latest reason"
+      }
+    }
+  }
+}
