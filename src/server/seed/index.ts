@@ -13,6 +13,7 @@ import { seedCoordinators } from "./coordinators";
 import { seedCompetitions } from "./competitions";
 import { seedCms } from "./cms";
 import { seedConsent } from "./consent";
+import { seedContact } from "./contact";
 import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
 import { seedInstitutions } from "./institutions";
@@ -43,6 +44,7 @@ const seeders: readonly Seeder[] = [
   // After the institutions and competitions seeds: it needs both.
   seedRegistrations,
   seedNotifications,
+  seedContact,
   seedCms,
 ];
 

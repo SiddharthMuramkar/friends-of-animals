@@ -1,0 +1,50 @@
+{
+  "contactForm": {
+    "title": "Send us a message",
+    "lead": "Your message goes straight to the team for its topic. We reply by email.",
+    "topic": {
+      "legend": "What is it about?",
+      "error": "Choose what your message is about."
+    },
+    "safeguarding": {
+      "label": "Safeguarding concern",
+      "body": "Please don't use this form for a child at risk. The safeguarding page explains who to call first.",
+      "link": "Go to the safeguarding page"
+    },
+    "name": {
+      "label": "Your name",
+      "error": "Enter your name, in up to 100 characters."
+    },
+    "email": {
+      "label": "Your email address",
+      "hint": "We reply to this address.",
+      "error": "Enter an email address, like name@example.com."
+    },
+    "organisation": {
+      "label": "School or organisation (optional)",
+      "error": "Use up to 150 characters."
+    },
+    "subject": {
+      "label": "Subject",
+      "error": "Enter a subject, in up to 150 characters."
+    },
+    "message": {
+      "label": "Your message",
+      "hint": "Up to 5,000 characters. Please don't include bank or card details.",
+      "error": "Enter your message, in up to 5,000 characters."
+    },
+    "honeypot": "Leave this field empty",
+    "privacy": "We use what you send only to answer you, and delete it 2 years after we close your message.",
+    "privacyLink": "How we handle your data",
+    "send": "Send message",
+    "sending": "Sending…",
+    "sent": "Thank you. Your message is with our team. Your reference is {reference}, and we have emailed it to you.",
+    "sendAnother": "Send another message",
+    "alerts": {
+      "human_check_failed": "We couldn't confirm that a person sent this. Please press Send again.",
+      "rate_limited": "You've sent several messages in a short time. Please try again in {minutes, plural, one {# minute} other {# minutes}}, or email us.",
+      "rate_limited_hours": "You've sent several messages today. Please try again in {hours, plural, one {# hour} other {# hours}}, or email us.",
+      "failed": "Something went wrong and your message wasn't sent. Please try again, or email us."
+    }
+  }
+}

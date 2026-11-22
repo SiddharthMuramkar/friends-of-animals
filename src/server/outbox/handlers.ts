@@ -18,6 +18,7 @@ import { dispatchEvent } from "../modules/notifications/dispatch";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { runStatusJob } from "../modules/competitions/advance-status";
+import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
 import { notifyPrincipal } from "../modules/registration/principal-message";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
@@ -87,6 +88,8 @@ export const HANDLERS: Handlers = {
     runStatusJob(deps, payload),
   "institutions.send_coordinator_invitation": (deps, { payload }) =>
     sendCoordinatorInvitation(deps, payload),
+  // Emails a contact message's sender their reference (#113).
+  "contact.send_acknowledgement": sendContactAcknowledgement,
   "registration.notify_principal": (deps, { payload }) =>
     notifyPrincipal(deps, payload),
 };

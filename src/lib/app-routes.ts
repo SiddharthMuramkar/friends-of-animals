@@ -30,6 +30,7 @@ export const APP_ROUTES = {
   myInstitution: "/institution",
   adminInstitutions: "/admin/institutions",
   institutionCoordinators: "/institution/coordinators",
+  adminInbox: "/admin/inbox",
   institutionCompetitions: "/institution/competitions",
 } as const;
 
@@ -56,6 +57,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/preview",
   "/admin/templates/[key]",
   "/admin/institutions/[id]",
+  "/admin/inbox/[id]",
 ] as const;
 
 /**

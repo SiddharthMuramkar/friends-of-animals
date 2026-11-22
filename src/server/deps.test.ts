@@ -12,6 +12,7 @@ import { FakeClock } from "@/test/fakes/clock";
 import type { E164Phone } from "@/lib/phone";
 
 import {
+  contactLimitsFor,
   DEVELOPMENT_AUTH_SECRET,
   emailSignInReady,
   filesConfigFor,
@@ -21,6 +22,7 @@ import {
   smsSenderFor,
   storageFor,
 } from "./deps";
+import { CONTACT_RATE_LIMITS } from "./modules/contact/domain/submission";
 import { SmsNotConfiguredError } from "./ports/sms";
 import { readCapturedSms } from "./ports/sms-capture";
 import { systemClock } from "./ports/clock";
@@ -149,6 +151,25 @@ describe("storageFor", () => {
       expect(new URL(url).origin).toBe(
         `https://${R2.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
       );
+    }
+  );
+});
+
+describe("contactLimitsFor", () => {
+  it.each(["staging", "production"] as const)(
+    "keeps FOA's contact form limits on %s",
+    (appEnv) => {
+      expect(contactLimitsFor(appEnv)).toEqual(CONTACT_RATE_LIMITS);
+    }
+  );
+
+  it.each(["local", "preview"] as const)(
+    "lets one IP send many more on %s, where every E2E run shares the CI's address",
+    (appEnv) => {
+      expect(contactLimitsFor(appEnv)).toEqual({
+        perIpPerHour: 100,
+        perEmailPerDay: CONTACT_RATE_LIMITS.perEmailPerDay,
+      });
     }
   );
 });
