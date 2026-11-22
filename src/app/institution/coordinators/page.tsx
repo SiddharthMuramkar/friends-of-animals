@@ -2,6 +2,7 @@ import { Mail, MessageSquare, UserRound } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { SubmitButton } from "@/components/form";
@@ -21,6 +22,10 @@ import {
 } from "./_lib/actions";
 import { isManageOutcome } from "./_lib/invite-state";
 
+// Render the document on each request so its scripts carry the CSP nonce
+// (#65): `instant = false` lets it build with an empty static shell.
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("coordinators.manage.meta");
   return {
@@ -32,14 +37,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type SearchParams = PageProps<"/institution/coordinators">["searchParams"];
 
-export default function Page({
+export default async function Page({
   searchParams,
 }: PageProps<"/institution/coordinators">) {
+  await connection();
   return (
     <Section hue="teal" tone="tint" width="prose" className="pt-10 sm:pt-14">
       <Header />
-      {/* The session is read per request, so the list streams in behind
-          this boundary while the heading is prerendered. */}
+      {/* The list streams in behind this boundary. */}
       <Suspense fallback={<Loading />}>
         <Coordinators searchParams={searchParams} />
       </Suspense>
