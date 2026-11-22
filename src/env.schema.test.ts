@@ -510,6 +510,84 @@ describe("envSchema: SES email", () => {
   });
 });
 
+describe("envSchema: Razorpay", () => {
+  const RAZORPAY = {
+    RAZORPAY_KEY_ID: "rzp_test_1DP5mmOlF5G5ag",
+    RAZORPAY_KEY_SECRET: "test-razorpay-key-secret",
+    RAZORPAY_WEBHOOK_SECRET: "test-razorpay-webhook-secret",
+  };
+
+  it("leaves the keys unset by default, in every environment", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config.RAZORPAY_KEY_ID).toBeUndefined();
+    expect(config.RAZORPAY_KEY_SECRET).toBeUndefined();
+    expect(config.RAZORPAY_WEBHOOK_SECRET).toBeUndefined();
+    // Production starts without them and refuses payments
+    // (src/server/ports/payment-gateway-select.ts).
+    expect(
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        APP_ENV: "production",
+        APP_URL: SITE,
+        BETTER_AUTH_SECRET: SECRET,
+        FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+        FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
+        NEXT_PUBLIC_SENTRY_DSN: "https://abc123@o1.ingest.us.sentry.io/4507",
+      }).RAZORPAY_KEY_ID
+    ).toBeUndefined();
+  });
+
+  it("reads a test or live key pair and the webhook secret", () => {
+    expect(parseEnv(envSchema, { DATABASE_URL, ...RAZORPAY })).toMatchObject(
+      RAZORPAY
+    );
+    expect(
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        ...RAZORPAY,
+        RAZORPAY_KEY_ID: "rzp_live_1DP5mmOlF5G5ag",
+      }).RAZORPAY_KEY_ID
+    ).toBe("rzp_live_1DP5mmOlF5G5ag");
+  });
+
+  it("refuses part of the set, naming what is missing", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        RAZORPAY_KEY_ID: RAZORPAY.RAZORPAY_KEY_ID,
+      })
+    ).toThrow(
+      /RAZORPAY_KEY_SECRET is not set[\s\S]*all three or none[\s\S]*RAZORPAY_WEBHOOK_SECRET is not set/
+    );
+  });
+
+  it("refuses a key id that is not a Razorpay key", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        ...RAZORPAY,
+        RAZORPAY_KEY_ID: "1DP5mmOlF5G5ag",
+      })
+    ).toThrow(/rzp_test_ or rzp_live_[\s\S]*at RAZORPAY_KEY_ID/);
+  });
+
+  it("never echoes a secret in its error", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        RAZORPAY_KEY_SECRET: RAZORPAY.RAZORPAY_KEY_SECRET,
+        RAZORPAY_WEBHOOK_SECRET: RAZORPAY.RAZORPAY_WEBHOOK_SECRET,
+      })
+    ).toThrow(
+      expect.objectContaining({
+        message: expect.not.stringMatching(
+          /test-razorpay-key-secret|test-razorpay-webhook-secret/
+        ),
+      })
+    );
+  });
+});
+
 describe("migrationEnvSchema", () => {
   it("reads DIRECT_URL", () => {
     const url = "postgresql://migrator:p@db.example.org:6432/foa";

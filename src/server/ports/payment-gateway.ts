@@ -2,11 +2,13 @@
 // never pick a provider. Adapters:
 //   - the in-memory fake with a webhook simulator
 //     (src/test/fakes/payment-gateway.ts): Seam 1 tests.
-//   - Razorpay over fetch, and a non-production fallback with a hosted test
-//     checkout: 77b.
-//   - `unconfiguredPaymentGateway`: production until 77b wires Razorpay. It
-//     refuses everything, so no payment is ever taken by accident.
-// Every adapter passes ./payment-gateway.contract.ts.
+//   - Razorpay over fetch (./razorpay/gateway.ts), and a non-production
+//     fallback with a test checkout (./payment-gateway-fallback.ts).
+//   - `unconfiguredPaymentGateway`: production while Razorpay's live keys
+//     are missing. It refuses everything, so no payment is ever taken by
+//     accident.
+// ./payment-gateway-select.ts picks one per environment. Every adapter
+// passes ./payment-gateway.contract.ts.
 //
 // The gateway's record is the truth: a Checkout return or a webhook only
 // names an order, and the use case then reads the order's payments back
@@ -97,17 +99,20 @@ export interface PaymentGateway {
 
 /** Thrown in production while no payment gateway is configured. */
 export class PaymentGatewayNotConfiguredError extends Error {
-  constructor() {
+  constructor(
+    reason = "Production takes payments through Razorpay's live keys " +
+      "(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET), " +
+      "which are not set."
+  ) {
     super(
-      "No payment gateway is configured. The Razorpay adapter arrives with " +
-        "77b; until then nothing can be paid."
+      `No payment gateway is configured, so nothing can be paid. ${reason}`
     );
     this.name = "PaymentGatewayNotConfiguredError";
   }
 }
 
 /**
- * Production's gateway until 77b wires Razorpay: it makes no order, opens no
+ * The gateway while none is configured: it makes no order, opens no
  * checkout, and trusts no signature.
  */
 export const unconfiguredPaymentGateway: PaymentGateway = {
