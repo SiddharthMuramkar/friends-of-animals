@@ -13,21 +13,24 @@
 /** The longest description kept, in characters. */
 export const MAX_FAILURE_LENGTH = 500;
 
-const EMAIL = /[^\s@<>()[\]"',;:]+@[^\s@<>()[\]"',;:]+\.[^\s@<>()[\]"',;:.]+/g;
+// Every pattern below bounds its repeats, so redacting stays linear in the
+// text's length: unbounded runs backtrack quadratically over a long word.
+const EMAIL =
+  /[^\s@<>()[\]"',;:]{1,64}@[^\s@<>()[\]"',;:]{1,253}\.[^\s@<>()[\]"',;:.]{1,63}/g;
 
 // Ten or more digits, optionally with a leading + and spaces or dashes inside,
 // standing alone: not part of an id such as a UUID's last group, which follows
 // a dash, nor of a longer word.
-const PHONE = /(?<![\w-])\+?\d[\d -]{8,}\d(?![\w-])/g;
+const PHONE = /(?<![\w-])\+?\d[\d -]{8,30}\d(?![\w-])/g;
 
 function digitsIn(text: string): number {
   return text.replaceAll(/\D/g, "").length;
 }
 
 // A URL's query string or fragment, where tokens and addresses travel.
-const URL_QUERY = /(\bhttps?:\/\/[^\s?#]*)[?#]\S*/gi;
+const URL_QUERY = /(\bhttps?:\/\/[^\s?#]{0,2048})[?#]\S*/gi;
 
-const CREDENTIAL = /\b(Bearer|Basic)\s+[\w.~+/=-]+/gi;
+const CREDENTIAL = /\b(Bearer|Basic)\s{1,8}[\w.~+/=-]+/gi;
 
 // Four or more digits standing alone, as a one-time code or a PIN does; a
 // Postgres error code ("Postgres 23505", "SQLSTATE 40001") is kept.
@@ -56,14 +59,71 @@ function raw(error: unknown): string {
   return `Thrown value of type ${typeof error}`;
 }
 
+/** The most characters EMAIL matches: local part, "@", domain, ".", TLD. */
+const LONGEST_ADDRESS = 64 + 1 + 253 + 1 + 63;
+
+/**
+ * How much of a message is redacted at all: a wide margin over
+ * MAX_FAILURE_LENGTH, since a replacement can be shorter than what it hides.
+ */
+const REDACTED_LENGTH = 4 * MAX_FAILURE_LENGTH;
+
+// What EMAIL and PHONE match is one unbroken run of these characters ("%40"
+// included), so a cut where such a run stops splits neither.
+const ADDRESS_CHARACTER = /[^\s<>()[\]"',;:]/;
+const PHONE_CHARACTER = /[+\d -]/;
+
+/**
+ * Where to cut `text` instead of at `end`: at the start of the run of
+ * `character`s that `end` splits, if the run has a `sign` ("@" or "%40" for
+ * an address, a digit for a phone number) within LONGEST_ADDRESS characters
+ * of `end`. Otherwise at `end`, as nothing redacted can straddle it.
+ */
+function cutOutside(
+  text: string,
+  end: number,
+  character: RegExp,
+  sign: RegExp
+): number {
+  const inRun = (index: number) => character.test(text.charAt(index));
+  if (!inRun(end - 1) || !inRun(end)) return end;
+  let start = end - 1;
+  while (inRun(start - 1)) start--;
+  let stop = end + 1;
+  while (stop < end + LONGEST_ADDRESS && inRun(stop)) stop++;
+  const near = text.slice(Math.max(start, end - LONGEST_ADDRESS), stop);
+  return sign.test(near) ? start : end;
+}
+
+/**
+ * The first REDACTED_LENGTH characters of `text`, or fewer: the cut moves
+ * back until no address or phone number straddles it, since the part before
+ * it would no longer be recognised and would be kept. A long word with
+ * neither near the cut is cut where it is.
+ */
+function head(text: string): string {
+  let end = Math.min(text.length, REDACTED_LENGTH);
+  let previous: number;
+  do {
+    // Moving out of one kind of run can land inside the other.
+    previous = end;
+    end = cutOutside(text, end, ADDRESS_CHARACTER, /@|%40/);
+    end = cutOutside(text, end, PHONE_CHARACTER, /\d/);
+  } while (end !== previous);
+  return text.slice(0, end);
+}
+
 /**
  * A one-line description of `error` with no email address or phone number in
  * it, at most MAX_FAILURE_LENGTH characters (cut with "…").
  */
 export function describeFailure(error: unknown): string {
-  // Redact before cutting, so a cut never leaves part of an address behind.
-  const described = redact(raw(error));
-  return described.length > MAX_FAILURE_LENGTH
+  // Redact before the final cut, so it never leaves part of an address
+  // behind; only a bounded head is redacted, so this takes linear time.
+  const text = raw(error);
+  const kept = head(text);
+  const described = redact(kept);
+  return kept.length < text.length || described.length > MAX_FAILURE_LENGTH
     ? `${described.slice(0, MAX_FAILURE_LENGTH - 1)}…`
     : described;
 }

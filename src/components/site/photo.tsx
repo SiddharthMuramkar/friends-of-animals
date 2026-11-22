@@ -86,11 +86,11 @@ export function Photo({
   const hasCaption = caption !== undefined || creditVisible;
   const placeAndCredit = (
     <>
-      {credit.place ? <span>{credit.place}</span> : null}
+      {credit.place ? <span className="min-w-0">{credit.place}</span> : null}
       {creditVisible ? (
         <a
           href={credit.sourceUrl}
-          className="inline-flex min-h-6 items-center underline decoration-1 underline-offset-2 hover:text-foreground"
+          className="inline-flex min-h-6 max-w-full items-center wrap-anywhere underline decoration-1 underline-offset-2 hover:text-foreground"
         >
           {shortCredit(credit)}
         </a>
@@ -138,10 +138,12 @@ export function Photo({
               {caption}
             </span>
           ) : caption ? (
-            <span className="text-foreground">{caption}</span>
+            <span className="min-w-0 text-foreground">{caption}</span>
           ) : null}
           {captionNote ? (
-            <span className="flex flex-wrap gap-x-2">{placeAndCredit}</span>
+            <span className="flex min-w-0 max-w-full flex-wrap gap-x-2">
+              {placeAndCredit}
+            </span>
           ) : (
             placeAndCredit
           )}

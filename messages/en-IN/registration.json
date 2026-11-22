@@ -1,0 +1,10 @@
+{
+  "registration": {
+    "status": {
+      "enrolled": "Enrolled",
+      "confirmed": "Confirmed",
+      "withdrawn": "Withdrawn",
+      "pending_payment": "Waiting for payment"
+    }
+  }
+}

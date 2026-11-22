@@ -82,7 +82,7 @@ export async function NotAShelter({
           />
         ))}
       </svg>
-      <div className="relative grid gap-4 md:grid-cols-3 md:grid-rows-3 md:gap-x-16 md:gap-y-10">
+      <div className="relative grid grid-cols-1 gap-4 md:grid-cols-3 md:grid-rows-3 md:gap-x-16 md:gap-y-10">
         <div className="rounded-3xl border-2 border-ink bg-surface p-5 text-center shadow-warm md:col-start-2 md:row-start-2 md:self-center">
           <div aria-hidden="true" className="flex justify-center gap-1.5">
             <span className="size-4 rounded-[22%] bg-red-600" />
@@ -110,8 +110,8 @@ export async function NotAShelter({
                 aria-hidden="true"
                 className={cn("mt-1 size-5 shrink-0 rounded-[22%]", tile)}
               />
-              <span className="flex flex-col items-start gap-1.5">
-                <span className="font-semibold text-ink">
+              <span className="flex min-w-0 flex-col items-start gap-1.5">
+                <span className="max-w-full font-semibold text-ink">
                   {t(`nodes.${key}`)}
                 </span>
                 <Chip tone="neutral">{t("later")}</Chip>

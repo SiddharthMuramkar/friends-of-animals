@@ -1,0 +1,127 @@
+{
+  "coordinators": {
+    "invitationMessage": {
+      "subject": "Join {institution} as a coordinator on Friends of Animals",
+      "email": "Hello,\n\n{inviter} has invited you to be a teacher coordinator for {institution} on Friends of Animals. Coordinators help their school take part in FOA's competitions.\n\nTo accept, open this link, then sign in or create an account with this email address:\n{link}\n\nThe link works until {expiresAt}. If you weren't expecting this, you can ignore this email.\n\nFriends of Animals",
+      "sms": "{institution} invites you to coordinate on Friends of Animals. Sign in with this number to accept by {expiresAt}: {link} -FOA"
+    },
+    "manage": {
+      "meta": {
+        "title": "Coordinators",
+        "description": "Invite teachers to coordinate for your institution on Friends of Animals, and remove coordinators."
+      },
+      "eyebrow": "Your institution",
+      "title": "Coordinators",
+      "lead": "Teacher coordinators help your institution take part in competitions. Invite them by email or mobile number.",
+      "loading": "Loading your coordinators…",
+      "noInstitution": {
+        "title": "No institution to manage here",
+        "body": "Only the authorised person of a verified institution can invite coordinators. If you registered an institution, it shows here once FOA has verified it.",
+        "back": "Go to your institution"
+      },
+      "notVerified": {
+        "title": "Your institution isn't verified at the moment",
+        "body": "While FOA has your institution suspended, you can't invite, list or remove coordinators, and they can't act for it. Your institution page shows why.",
+        "back": "Go to your institution"
+      },
+      "entry": "Manage coordinators",
+      "for": "For {institution}",
+      "listTitle": "Coordinators",
+      "empty": "No coordinators yet. Invite a teacher below.",
+      "since": "Coordinator since {date}",
+      "remove": "Remove",
+      "removing": "Removing…",
+      "removeName": "Remove {name} as a coordinator",
+      "invitationsTitle": "Invitations waiting",
+      "invitationsEmpty": "No invitations are waiting for an answer.",
+      "channel": {
+        "email": "By email",
+        "phone": "By SMS"
+      },
+      "status": {
+        "pending": "Waiting",
+        "expired": "Expired"
+      },
+      "pending": "Sent {sent}. The link works until {expires}.",
+      "expired": "The link stopped working on {expires}. Send a new invitation if they still need one.",
+      "withdraw": "Withdraw",
+      "withdrawing": "Withdrawing…",
+      "withdrawFor": "Withdraw the invitation to {address}",
+      "inviteTitle": "Invite a coordinator",
+      "inviteLead": "We send them a link that works for 7 days. They accept it signed in with the same email or mobile number.",
+      "identifier": {
+        "label": "Email or mobile number",
+        "hint": "For example teacher@school.edu.in or 98765 43210."
+      },
+      "invite": "Send invitation",
+      "inviting": "Sending…",
+      "sent": "Invitation sent to {address}.",
+      "errors": {
+        "invalid_input": "Enter an email address or a 10-digit Indian mobile number.",
+        "sms_disabled": "We can't send invitations by SMS yet. Invite them by email instead.",
+        "already_coordinator": "They are already a coordinator here.",
+        "cannot_invite_self": "That is your own email or number. You already manage this institution.",
+        "institution_not_verified": "Your institution isn't verified at the moment, so it can't invite coordinators.",
+        "failed": "Something went wrong. Please try again."
+      },
+      "outcome": {
+        "removed": "Coordinator removed. They can no longer act for your institution.",
+        "withdrawn": "Invitation withdrawn. Its link no longer works.",
+        "not_found": "That coordinator or invitation is already gone.",
+        "already_accepted": "That invitation was already accepted, so it can't be withdrawn.",
+        "revoked": "That invitation was already withdrawn."
+      }
+    },
+    "invitation": {
+      "meta": {
+        "title": "Invitation",
+        "description": "Open an invitation to Friends of Animals: to coordinate for an institution, or to your own login."
+      },
+      "eyebrow": "Invitation",
+      "title": "Become a coordinator",
+      "loading": "Checking your invitation…",
+      "invitedTo": "You're invited to be a teacher coordinator for {institution}.",
+      "sentTo": "This invitation was sent to {address}.",
+      "expires": "The link works until {date}.",
+      "signInLead": "Sign in, or create an account, with {address}. Then open the link in your invitation again.",
+      "signIn": "Sign in",
+      "signUp": "Create an account",
+      "accept": "Accept invitation",
+      "accepting": "Accepting…",
+      "mismatch": {
+        "title": "This invitation is for someone else",
+        "body": "You're signed in with a different email or mobile number. Sign out, then sign in with {address} and open the link again.",
+        "action": "Go to your sessions to sign out"
+      },
+      "accepted": {
+        "title": "You're a coordinator",
+        "body": "You now coordinate for {institution}."
+      },
+      "used": {
+        "title": "This invitation was already accepted",
+        "body": "Each invitation link works once."
+      },
+      "expired": {
+        "title": "This invitation has expired",
+        "body": "Invitation links work for 7 days. Ask {institution} to send you a new one."
+      },
+      "revoked": {
+        "title": "This invitation was withdrawn",
+        "body": "Ask {institution} for a new invitation if you still need one."
+      },
+      "notFound": {
+        "title": "This link doesn't work",
+        "body": "Check that you opened the whole link from your invitation, or ask your institution to send a new one."
+      },
+      "errors": {
+        "not_found": "This link doesn't work any more.",
+        "expired": "This invitation has expired. Ask your institution to send a new one.",
+        "already_accepted": "This invitation was already accepted.",
+        "revoked": "This invitation was withdrawn.",
+        "identifier_mismatch": "This invitation is for a different email or mobile number than the one you're signed in with.",
+        "institution_not_verified": "This institution can't add coordinators at the moment. Please try again later."
+      },
+      "home": "Go to the home page"
+    }
+  }
+}

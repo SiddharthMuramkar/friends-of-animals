@@ -1,12 +1,16 @@
 /**
- * The SPEC §13.1 response headers other than the CSP, sent on every route
+ * The security response headers other than the CSP, sent on every route
  * (HTML and static assets) by `headers()` in next.config.ts. That applies on
- * Vercel and in the standalone server alike. The CSP is tracked in #15; until
- * it adds `frame-ancestors 'none'`, X-Frame-Options blocks framing.
+ * Vercel and in the standalone server alike. The CSP is built in ./csp.ts.
+ * X-Frame-Options stays: browsers ignore the CSP's `frame-ancestors 'none'`
+ * while the policy is report-only on staging and production (HR-19).
  *
  * Keep this file free of Next.js and server-only imports: next.config.ts
  * loads it under plain Node.
  */
+
+import { PAY_FEES_ROUTE } from "./app-routes";
+import type { HeaderRule } from "./csp";
 
 export type SecurityHeader = { key: string; value: string };
 
@@ -22,6 +26,35 @@ export function strictTransportSecurity(appEnv: string | undefined): string {
     : "max-age=31536000";
 }
 
+const PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=()";
+
+/**
+ * The pay page's overrides of two headers above (#77), listed after them
+ * in next.config.ts so they win there. Razorpay Checkout's frame may use
+ * the Payment Request API (wallets), and Checkout opens bank and wallet
+ * pages in popups that it watches, which COOP same-origin would cut off.
+ * Every other page keeps the stricter values.
+ */
+export function checkoutPageHeaders(): HeaderRule[] {
+  return [
+    {
+      // The route the CSP scopes Razorpay's origins to (./csp-sources.ts),
+      // as a headers() source: each [name] segment becomes :name.
+      source: PAY_FEES_ROUTE.replaceAll(/\[(\w+)\]/g, ":$1"),
+      headers: [
+        {
+          key: "Permissions-Policy",
+          value: `${PERMISSIONS_POLICY}, payment=(self "https://checkout.razorpay.com" "https://api.razorpay.com")`,
+        },
+        {
+          key: "Cross-Origin-Opener-Policy",
+          value: "same-origin-allow-popups",
+        },
+      ],
+    },
+  ];
+}
+
 /** The headers for one deployment, from its APP_ENV. */
 export function securityHeaders(appEnv: string | undefined): SecurityHeader[] {
   return [
@@ -31,11 +64,8 @@ export function securityHeaders(appEnv: string | undefined): SecurityHeader[] {
     },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-    // Razorpay will add payment=(self "https://checkout.razorpay.com").
-    {
-      key: "Permissions-Policy",
-      value: "camera=(), microphone=(), geolocation=()",
-    },
+    // The pay page also allows payment (checkoutPageHeaders).
+    { key: "Permissions-Policy", value: PERMISSIONS_POLICY },
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
     { key: "X-Frame-Options", value: "DENY" },
   ];

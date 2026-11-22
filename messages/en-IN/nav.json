@@ -10,7 +10,10 @@
       "home": "Home",
       "competitions": "Competitions",
       "competition": "Competition",
+      "participate": "Take part",
       "schools": "Schools",
+      "myInstitution": "My institution",
+      "myCompetitions": "My competitions",
       "awareness": "Awareness",
       "stories": "Stories",
       "story": "Story",
@@ -22,12 +25,17 @@
       "privacy": "Privacy policy",
       "terms": "Terms of use",
       "safeguarding": "Safeguarding",
+      "safeguardingReport": "Report a concern",
+      "safeguardingReportSent": "Report sent",
       "childProtection": "Child protection policy",
       "pricing": "Pricing",
       "refunds": "Refunds and cancellations",
       "styleguide": "Style guide",
       "signUp": "Create an account",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "signUpPhone": "Create an account with your phone",
+      "signInPhone": "Sign in with your phone",
+      "myChildren": "My children"
     }
   }
 }
