@@ -1,7 +1,9 @@
 // Where a link in rich text may point. An allowlist, not a blocklist: a
 // page on this site, an anchor on the page, an https address, an email
 // address or a phone number. Everything else (javascript:, data:, http:,
-// protocol-relative "//host", "/\host", entity-encoded schemes) is refused.
+// protocol-relative "//host", "/\host", entity-encoded schemes, and
+// look-alike hosts with a user part, "https://friendsofanimals.org@evil.test")
+// is refused.
 //
 // Loads under plain Node (schema, seed): relative imports only.
 
@@ -25,8 +27,8 @@ const ALLOWED = [
   /^\/(?!\/)/,
   // An anchor on this page, kebab-case like the policy pages' ids.
   /^#[a-z0-9]+(?:-[a-z0-9]+)*$/,
-  // Another site, over https, with a host.
-  /^https:\/\/[^/?#]+(?:[/?#]|$)/,
+  // Another site, over https, with a host and no user part.
+  /^https:\/\/[^/?#@]+(?:[/?#]|$)/,
   /^mailto:[^@/?#]+@[^@/?#]+\.[^@/?#]+$/,
   /^tel:\+?[0-9][0-9-]*$/,
 ];

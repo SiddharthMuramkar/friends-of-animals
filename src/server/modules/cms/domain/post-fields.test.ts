@@ -93,6 +93,45 @@ describe("checkPostFields", () => {
       checkPostFields({ ...VALID, cover: { alt: "A kite over a rooftop" } })
     ).toEqual({ ok: true });
   });
+
+  it("lets a draft leave what only going live needs for later", () => {
+    const draft = {
+      title: "t".repeat(40),
+      excerpt: " ",
+      cover: { alt: "" },
+    };
+    expect(checkPostFields(draft, { draft: true })).toEqual({ ok: true });
+    expect(checkPostFields(draft)).toEqual({
+      ok: false,
+      errors: {
+        excerpt: "required",
+        coverAlt: "required",
+        seoTitle: "required",
+      },
+    });
+  });
+
+  it("still needs a draft's title, and caps every field of a draft", () => {
+    expect(
+      checkPostFields(
+        {
+          title: "",
+          excerpt: "e".repeat(301),
+          seoTitle: "s".repeat(40),
+          cover: { alt: "c".repeat(201) },
+        },
+        { draft: true }
+      )
+    ).toEqual({
+      ok: false,
+      errors: {
+        title: "required",
+        excerpt: "too_long",
+        coverAlt: "too_long",
+        seoTitle: "too_long",
+      },
+    });
+  });
 });
 
 describe("postMetaTitle", () => {

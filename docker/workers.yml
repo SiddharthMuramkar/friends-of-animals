@@ -1,0 +1,302 @@
+# FOA background workers (#61) and their scan, PDF and media sidecars,
+# next to the database stack (docker/compose.yml) on the VPS.
+#
+#   docker compose -f /srv/foa/docker/workers.yml up -d --build --wait \
+#     worker-prod foa-clamav foa-gotenberg
+#
+# Runbook: docker/README.md, "Workers". The database workers connect to Postgres
+# directly on the `db` network, never through PgBouncer: pg-boss holds
+# sessions (LISTEN, advisory locks), which transaction pooling breaks. Each
+# logs in as its own role (docker/scripts/worker-roles.sh makes them and
+# their passwords in /etc/foa/secrets) and publishes no port.
+#
+#   worker-prod     production `foa` on pg-prod: relay + schedules
+#   worker-staging  `foa_staging` on pg-nonprod: relay + schedules
+#   worker-preview  every live preview database on pg-nonprod (comment
+#                   `foa-preview ...`), listed every minute through
+#                   `postgres`: relay only, one connection per preview
+#
+# WORKER_VERSION (the commit, for the heartbeat rows) is a build argument:
+#   WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) docker compose ...
+
+name: foa-workers
+
+# Container logs go to the host's journal, kept a year by
+# systemd/journald-foa.conf (#66; README "Logs"), and `docker compose logs`
+# still reads them. Word for word the anchor in compose.yml:
+# docker/logging.test.ts keeps the two identical.
+x-logging: &logging
+  driver: journald
+  options:
+    tag: "{{.Name}}"
+
+x-worker: &worker
+  build: &worker-build
+    context: ..
+    dockerfile: Dockerfile
+    target: worker
+    args:
+      WORKER_VERSION: ${WORKER_VERSION:-unknown}
+  restart: unless-stopped
+  # tini as PID 1: SIGTERM reaches the worker, which finishes its tick.
+  init: true
+  stop_grace_period: 30s
+  read_only: true
+  tmpfs:
+    # The heartbeat file and tsx's compile cache.
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  logging: *logging
+  # No env_file here: every worker merges this anchor, so a file listed here
+  # would reach all of them. Each service lists its own (below):
+  #   /etc/foa/secrets/worker_sentry.env  SENTRY_DSN=<the workers' Sentry
+  #     project> (#66, HR-22), for every worker. Optional: with no file, or
+  #     an empty value, the workers report errors nowhere.
+  #   the R2_* variables of its environment's bucket (#63), which the upload
+  #     scan reads files from. Optional: without them every scan fails and
+  #     uploads wait unscanned (src/worker/main.ts).
+  #   worker-prod only: the production app's field keys (#58, #74), from
+  #     its own file.
+  healthcheck:
+    # The worker touches /tmp/foa-worker-heartbeat after each healthy poll
+    # (every 5 s): healthy while it is under 120 s old.
+    test:
+      - CMD-SHELL
+      - find /tmp/foa-worker-heartbeat -newermt '120 seconds ago' | grep -q .
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 60s
+    start_interval: 5s
+  networks:
+    - db
+    - scan
+
+x-clamd: &clamd
+  CLAMD_HOST: foa-clamav
+  CLAMD_PORT: "3310"
+
+services:
+  worker-prod:
+    <<: *worker
+    image: foa-workers/worker-prod
+    container_name: foa-worker-prod
+    env_file:
+      - path: /etc/foa/secrets/worker_sentry.env
+        required: false
+      # The production bucket's R2_* (root, 0600). Only this worker reads it.
+      - path: /etc/foa/secrets/worker_prod_r2.env
+        required: false
+      # FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY (root, 0600): the same
+      # values as the production app's (/etc/foa/secrets/app/), to read an
+      # invitee's address and an invitation's link (#74) and a stored phone.
+      # Optional: without them each such delivery fails and retries.
+      - path: /etc/foa/secrets/worker_prod_field_keys.env
+        required: false
+    environment:
+      <<: *clamd
+      WORKER_MODE: single
+      APP_ENV: production
+      # The site's canonical URL, for the links in messages (#74).
+      APP_URL: https://friendsofanimals.dev
+      WORKER_DATABASE_URL: postgres://foa_worker@10.112.12.10:5432/foa
+      WORKER_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - source: pg_prod_foa_worker_password
+        target: db_password
+    cpus: 1
+    mem_limit: 512m
+
+  worker-staging:
+    <<: *worker
+    image: foa-workers/worker-staging
+    container_name: foa-worker-staging
+    env_file:
+      - path: /etc/foa/secrets/worker_sentry.env
+        required: false
+      # The non-production bucket's R2_*, which staging shares with the
+      # previews (each under its own prefix) and the preview purge hook.
+      - path: /etc/foa/preview-files.env
+        required: false
+    environment:
+      <<: *clamd
+      WORKER_MODE: single
+      APP_ENV: staging
+      WORKER_DATABASE_URL: postgres://staging_worker@10.112.12.11:5432/foa_staging
+      WORKER_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - source: pg_nonprod_staging_worker_password
+        target: db_password
+    cpus: 0.5
+    mem_limit: 384m
+
+  worker-preview:
+    <<: *worker
+    # With no Vercel previews (docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)
+    # it lists none and idles, healthy.
+    image: foa-workers/worker-preview
+    container_name: foa-worker-preview
+    env_file:
+      - path: /etc/foa/secrets/worker_sentry.env
+        required: false
+      # The non-production bucket's R2_*, as for worker-staging.
+      - path: /etc/foa/preview-files.env
+        required: false
+    environment:
+      <<: *clamd
+      WORKER_MODE: preview
+      APP_ENV: preview
+      WORKER_ADMIN_URL: postgres://nonprod_worker@10.112.12.11:5432/postgres
+      WORKER_PASSWORD_FILE: /run/secrets/db_password
+      # pg-nonprod is shared by every preview (max_connections 200).
+      WORKER_CONNECTIONS_PER_DATABASE: 1
+    secrets:
+      - source: pg_nonprod_nonprod_worker_password
+        target: db_password
+    cpus: 0.5
+    mem_limit: 512m
+
+  foa-clamav:
+    image: clamav/clamav:1.5.5
+    container_name: foa-clamav
+    user: clamav
+    entrypoint: /init-unprivileged
+    init: true
+    environment:
+      CLAMAV_NO_FRESHCLAMD: "false"
+    volumes:
+      - foa-clamav-db:/var/lib/clamav
+      - ./clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+      - ./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro
+    healthcheck:
+      # PING clamd on loopback IPv4, one of its TCPAddr lines. The image's
+      # clamdcheck.sh pings `localhost`, which resolves to ::1 here, so it
+      # never reaches clamd (#63). The first start downloads and loads every
+      # signature (over 6 minutes on the VPS): start_period covers it.
+      test:
+        - CMD-SHELL
+        - printf 'zPING\0' | nc -w 3 127.0.0.1 3310 | grep -q PONG
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10m
+    networks:
+      scan:
+        # Keep this listener address in sync with clamav/clamd.conf. It sits
+        # outside the scan network's ip_range, which the workers draw from.
+        ipv4_address: 10.112.14.2
+      clamav-updates: {}
+    mem_limit: 2g
+    oom_score_adj: 500
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  foa-gotenberg:
+    image: gotenberg/gotenberg:9.9.1
+    container_name: foa-gotenberg
+    command:
+      - gotenberg
+      - --api-timeout=30s
+      - --chromium-allow-list=^file:///tmp/
+      - --libreoffice-allow-list=^file:///tmp/
+      - --libreoffice-enable-macros=false
+      - --api-disable-download-from=true
+      - --webhook-disable=true
+      - --pdf-deny-list=.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - pdf
+    mem_limit: 1g
+    oom_score_adj: 500
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  worker-media:
+    <<: *worker
+    # Drains only the image derivative (media) queue that worker-prod fills
+    # after each clean scan. Start it explicitly after the Files migrations
+    # and its R2 file: `db` reaches Postgres (pg-boss, directly) and R2,
+    # `pdf` reaches Gotenberg. It needs no scanner, so no `scan`.
+    profiles:
+      - media
+    build:
+      <<: *worker-build
+      target: worker-media
+    image: foa-workers/worker-media
+    container_name: foa-worker-media
+    env_file:
+      - path: /etc/foa/secrets/worker_sentry.env
+        required: false
+      # The production bucket's R2_* for the derivatives (root, 0600): its
+      # own file, so worker-prod's key stays with worker-prod.
+      - path: /etc/foa/secrets/worker_media_r2.env
+        required: false
+    command: ["node", "--import", "tsx", "src/worker-media/main.ts"]
+    stop_grace_period: 75s
+    environment:
+      APP_ENV: production
+      WORKER_MODE: single
+      WORKER_QUEUE: media
+      WORKER_DATABASE_URL: postgres://foa_worker@10.112.12.10:5432/foa
+      WORKER_PASSWORD_FILE: /run/secrets/db_password
+      MEDIA_TIMEOUT_SECONDS: "60"
+      GOTENBERG_URL: http://foa-gotenberg:3000
+    secrets:
+      - source: pg_prod_foa_worker_password
+        target: db_password
+    networks:
+      - db
+      - pdf
+    cpus: 1
+    pids_limit: 128
+    mem_limit: 2g
+    oom_score_adj: 500
+
+networks:
+  # docker/compose.yml's network (project foa-vps); start that stack first.
+  db:
+    external: true
+    name: foa-vps_db
+  scan:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.112.14.0/28
+          # The workers get their addresses from .8-.15, so none can take
+          # foa-clamav's fixed .2 when they start alongside it.
+          ip_range: 10.112.14.8/29
+  # Only FreshClam needs a route to the signature mirror. clamd binds to
+  # the scan bridge and loopback.
+  clamav-updates: {}
+  pdf:
+    internal: true
+
+volumes:
+  foa-clamav-db:
+    name: foa-clamav-db
+
+secrets:
+  # Owned by uid 1000 (`node` in the image), mode 0400:
+  # docker/scripts/worker-roles.sh.
+  pg_prod_foa_worker_password:
+    file: /etc/foa/secrets/pg_prod_foa_worker_password
+  pg_nonprod_staging_worker_password:
+    file: /etc/foa/secrets/pg_nonprod_staging_worker_password
+  pg_nonprod_nonprod_worker_password:
+    file: /etc/foa/secrets/pg_nonprod_nonprod_worker_password

@@ -6,6 +6,8 @@ import {
   ORG_FACTS_TAG,
   cmsTag,
   isCmsDocumentKey,
+  isLinkedConsentPurpose,
+  isMirroredConsentPurpose,
   legalDocumentKey,
   legalKeyForConsentPurpose,
   tagsToRefresh,
@@ -42,6 +44,21 @@ describe("the CMS document registry", () => {
     expect(legalKeyForConsentPurpose("privacy_notice")).toBe("legal_privacy");
     expect(legalKeyForConsentPurpose("terms")).toBe("legal_terms");
     expect(legalKeyForConsentPurpose("messages")).toBe("legal_privacy");
+  });
+
+  it("says a competition's terms rest on no policy page", () => {
+    for (const purpose of ["privacy_notice", "terms", "messages"]) {
+      expect(isLinkedConsentPurpose(purpose), purpose).toBe(true);
+    }
+    expect(isLinkedConsentPurpose("competition_terms")).toBe(false);
+    expect(isLinkedConsentPurpose("toString")).toBe(false);
+  });
+
+  it("says which consent documents' text a policy page is, so only the CMS publishes them", () => {
+    expect(isMirroredConsentPurpose("privacy_notice")).toBe(true);
+    expect(isMirroredConsentPurpose("terms")).toBe(true);
+    expect(isMirroredConsentPurpose("messages")).toBe(false);
+    expect(isMirroredConsentPurpose("legal_privacy")).toBe(false);
   });
 });
 

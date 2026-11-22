@@ -5,8 +5,11 @@
 //
 // Lengths are counted on the trimmed text, in UTF-16 code units, as zod's
 // `.max()` counts them.
+//
+// Loads under plain Node (the worker reaches it through ../posts/gates.ts):
+// relative imports only.
 
-import { renderedTitle, TITLE_MAX } from "@/lib/seo";
+import { renderedTitle, TITLE_MAX } from "../../../../lib/seo";
 
 export const POST_FIELD_MAX = {
   title: 80,
@@ -45,8 +48,17 @@ function fitsTab(title: string): boolean {
   return renderedTitle(title.trim()).length <= TITLE_MAX;
 }
 
-/** Every field's refusal at once, so a form can mark each one. */
-export function checkPostFields(fields: PostFields): PostFieldsCheck {
+/**
+ * Every field's refusal at once, so a form can mark each one. A draft
+ * (`{ draft: true }`) may leave what only going live needs, the excerpt,
+ * the cover's alt text and a search title, for later; every length still
+ * counts.
+ */
+export function checkPostFields(
+  fields: PostFields,
+  { draft = false }: { draft?: boolean } = {}
+): PostFieldsCheck {
+  const live = !draft;
   const errors: Partial<Record<PostField, PostFieldRefusal>> = {};
   const limit = (
     field: keyof typeof POST_FIELD_MAX,
@@ -61,14 +73,14 @@ export function checkPostFields(fields: PostFields): PostFieldsCheck {
   };
 
   limit("title", fields.title, true);
-  limit("excerpt", fields.excerpt, true);
+  limit("excerpt", fields.excerpt, live);
   limit("easyRead", fields.easyRead, false);
   limit("authorName", fields.authorName, false);
-  if (fields.cover) limit("coverAlt", fields.cover.alt, true);
+  if (fields.cover) limit("coverAlt", fields.cover.alt, live);
 
   if (!blank(fields.seoTitle)) {
     if (!fitsTab(fields.seoTitle!)) errors.seoTitle = "too_long";
-  } else if (!blank(fields.title) && !fitsTab(fields.title)) {
+  } else if (live && !blank(fields.title) && !fitsTab(fields.title)) {
     errors.seoTitle = "required";
   }
 

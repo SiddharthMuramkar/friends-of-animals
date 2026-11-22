@@ -41,7 +41,7 @@ async function FeaturedStory({ story }: { story: PostCard }) {
     getTranslations("showcase.story"),
   ]);
   return (
-    <article className="group relative grid overflow-hidden rounded-3xl border-2 border-border bg-surface shadow-warm transition-[translate,border-color] duration-200 ease-out hover:border-border-strong has-[a:focus-visible]:border-border-strong motion-safe:hover:-translate-y-0.5 md:grid-cols-2">
+    <article className="group relative grid grid-cols-1 overflow-hidden rounded-3xl border-2 border-border bg-surface shadow-warm transition-[translate,border-color] duration-200 ease-out hover:border-border-strong has-[a:focus-visible]:border-border-strong motion-safe:hover:-translate-y-0.5 md:grid-cols-2">
       <PostCover
         image={story.cover}
         seed={story.slug}
@@ -133,7 +133,7 @@ export default async function Page() {
             <h2 id="more" className="mt-16 text-h2 text-(--section-heading)">
               {t("more")}
             </h2>
-            <ul className="mt-8 grid gap-6 md:grid-cols-2">
+            <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
               {rest.map((s) => (
                 <li key={s.slug} className="flex">
                   <StoryCard story={s} className="w-full" />
