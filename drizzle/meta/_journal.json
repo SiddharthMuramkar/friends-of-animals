@@ -71,6 +71,13 @@
       "when": 1795327013133,
       "tag": "0009_63_prefixes_seam2",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795329682761,
+      "tag": "0010_62_runtime_settings_screen",
+      "breakpoints": true
     }
   ]
 }

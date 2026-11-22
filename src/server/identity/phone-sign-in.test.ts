@@ -17,7 +17,7 @@ const NATIONAL = "9876543210";
 
 async function smsOn() {
   const h = await createHarness();
-  h.settings.set("sms.enabled", true);
+  await h.settings.set("sms.enabled", true);
   return h;
 }
 

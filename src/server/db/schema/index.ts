@@ -12,3 +12,4 @@ export * from "./second-factor";
 export * from "./outbox";
 export * from "./files";
 export * from "./worker";
+export * from "./settings";

@@ -11,6 +11,7 @@ export const APP_ROUTES = {
   stepUp: "/auth/step-up",
   /** The file upload demo (#63): every environment but production. */
   accountFiles: "/account/files",
+  adminSettings: "/admin/settings",
 } as const;
 
 /**
