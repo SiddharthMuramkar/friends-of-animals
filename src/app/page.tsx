@@ -198,14 +198,14 @@ async function Competitions() {
                     <TileMarker hue="pink" size="lg" />
                     <TileMarker hue="yellow" size="lg" />
                   </span>
-                  <span className="font-display text-h4 leading-tight font-bold text-ink">
+                  <span className="max-w-full font-display text-h4 leading-tight font-bold text-ink">
                     {t("moreTitle")}
                   </span>
-                  <span className="inline-flex min-h-11 items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4">
-                    {t("all")}
+                  <span className="inline-flex min-h-11 max-w-full items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4">
+                    <span className="min-w-0">{t("all")}</span>
                     <ArrowRight
                       aria-hidden="true"
-                      className="size-5 transition-transform motion-safe:group-hover:translate-x-1"
+                      className="size-5 shrink-0 transition-transform motion-safe:group-hover:translate-x-1"
                     />
                   </span>
                 </SiteLink>

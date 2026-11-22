@@ -21,7 +21,7 @@ function Choice({
   checked?: boolean;
 }) {
   return (
-    <label className="relative inline-flex min-h-11 cursor-pointer items-center rounded-full border-2 border-border-strong bg-surface px-4 text-sm font-semibold text-ink transition-colors duration-150 hover:border-ink has-checked:border-pink-700 has-checked:bg-pink-700 has-checked:text-white dark:has-checked:border-pink-300 dark:has-checked:bg-pink-300 dark:has-checked:text-neutral-950">
+    <label className="relative inline-flex min-h-11 max-w-full cursor-pointer items-center rounded-full border-2 border-border-strong bg-surface px-4 text-sm font-semibold wrap-anywhere text-ink transition-colors duration-150 hover:border-ink has-checked:border-pink-700 has-checked:bg-pink-700 has-checked:text-white dark:has-checked:border-pink-300 dark:has-checked:bg-pink-300 dark:has-checked:text-neutral-950">
       <input
         type="radio"
         name={name}

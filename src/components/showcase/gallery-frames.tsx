@@ -72,7 +72,7 @@ export async function GalleryFrames({ className }: { className?: string }) {
                   corner
                 )}
               />
-              <span className="flex min-w-0 flex-col items-center gap-2">
+              <span className="flex w-full min-w-0 flex-col items-center gap-2">
                 <Icon aria-hidden="true" className="size-7 text-ink-muted" />
                 <span className="max-w-full font-hand text-lead leading-snug text-ink">
                   {t(`frames.${key}`)}
