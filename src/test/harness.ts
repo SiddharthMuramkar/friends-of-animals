@@ -26,6 +26,10 @@ import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
+import {
+  CODE_REQUEST_LIMITS,
+  type CodeRequestLimits,
+} from "@/server/identity/settings";
 import { isStaffRole } from "@/server/access/domain/roles";
 import { grantsOf } from "@/server/access/grants";
 import { base32Decode } from "@/server/modules/second-factor/domain/base32";
@@ -152,7 +156,11 @@ export const TEST_FILES = {
 export const TEST_HUMAN_CHECK_DIFFICULTY = 4;
 
 export async function createHarness(
-  options: { now?: Date | string } = {}
+  options: {
+    now?: Date | string;
+    /** Limits on sign-in codes; FOA's own (CODE_REQUEST_LIMITS) by default. */
+    codeLimits?: CodeRequestLimits;
+  } = {}
 ): Promise<Harness> {
   const db = await createTestDb();
   // Close the database when the test ends. Left open, Postgres's timers,
@@ -197,6 +205,7 @@ export async function createHarness(
       difficulty: TEST_HUMAN_CHECK_DIFFICULTY,
     }),
     contactLimits: CONTACT_RATE_LIMITS,
+    codeLimits: options.codeLimits ?? CODE_REQUEST_LIMITS,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({

@@ -39,6 +39,14 @@ export const CODE_REQUEST_LIMITS = {
 } as const;
 
 /**
+ * Limits shaped like CODE_REQUEST_LIMITS. The deps hold the ones in force
+ * (codeRequestLimitsFor in src/server/deps.ts).
+ */
+export type CodeRequestLimits = {
+  readonly [K in keyof typeof CODE_REQUEST_LIMITS]: number;
+};
+
+/**
  * How long a session lasts from sign-in. It is absolute: using the site
  * doesn't extend it.
  */

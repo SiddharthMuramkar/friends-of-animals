@@ -20,7 +20,7 @@ import { ipNetwork } from "@/lib/ip-network";
 
 import type { AppDb } from "../db/app-db";
 import { otpRateLimit, type OtpRateLimitScope } from "../db/schema";
-import { CODE_REQUEST_LIMITS } from "./settings";
+import type { CodeRequestLimits } from "./settings";
 
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -72,25 +72,29 @@ type Counter = {
   windowMs: number;
 };
 
-function countersFor(to: CodeRecipient, ip: string): Counter[] {
-  const windowMs = CODE_REQUEST_LIMITS.windowMinutes * MINUTE_MS;
+function countersFor(
+  to: CodeRecipient,
+  ip: string,
+  limits: CodeRequestLimits
+): Counter[] {
+  const windowMs = limits.windowMinutes * MINUTE_MS;
   const counters: Counter[] = [
     {
       scope: to.channel,
       key: to.key,
-      limit: CODE_REQUEST_LIMITS.perRecipient,
+      limit: limits.perRecipient,
       windowMs,
     },
     {
       scope: "ip",
       key: ipNetwork(ip),
-      limit: CODE_REQUEST_LIMITS.perIp,
+      limit: limits.perIp,
       windowMs,
     },
     {
       scope: DAY_SCOPE[to.channel],
       key: to.key,
-      limit: CODE_REQUEST_LIMITS.perRecipientPerDay,
+      limit: limits.perRecipientPerDay,
       windowMs: DAY_MS,
     },
   ];
@@ -126,9 +130,17 @@ export async function takeCodeAllowance(
     ip,
     now,
     secret,
-  }: { to: CodeRecipient; ip: string; now: Date; secret: string }
+    limits,
+  }: {
+    to: CodeRecipient;
+    ip: string;
+    now: Date;
+    secret: string;
+    /** The limits in force: the deps' `codeLimits`. */
+    limits: CodeRequestLimits;
+  }
 ): Promise<Allowance> {
-  const counters = countersFor(to, ip);
+  const counters = countersFor(to, ip, limits);
 
   try {
     await db.transaction(async (tx) => {

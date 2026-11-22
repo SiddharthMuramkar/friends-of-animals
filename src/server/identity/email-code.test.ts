@@ -3,6 +3,7 @@ import { inspect } from "node:util";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createApp } from "@/server/app";
+import { codeRequestLimitsFor } from "@/server/deps";
 import { user, verification } from "@/server/db/schema";
 import type { EmailSender } from "@/server/ports/email";
 import { SEED_ACCOUNTS } from "@/server/seed";
@@ -205,6 +206,18 @@ describe("requestEmailCode", () => {
 
     expect(refused).toMatchObject({ ok: false, error: "rate_limited" });
     expect(otherIp).toEqual({ ok: true });
+  });
+
+  it("sends a 21st code from one IP on a local run, where every E2E journey shares an address", async () => {
+    const h = await createHarness({
+      codeLimits: codeRequestLimitsFor("local"),
+    });
+    const sameIp = h.visitor({ ip: "198.51.100.20" });
+    for (let i = 1; i <= 21; i++) {
+      expect(
+        await h.as(sameIp).requestEmailCode({ email: `p${i}@example.test` })
+      ).toEqual({ ok: true });
+    }
   });
 
   it("counts every address in one IPv6 /64 network as one IP", async () => {

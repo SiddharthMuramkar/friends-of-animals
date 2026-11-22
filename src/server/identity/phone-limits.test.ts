@@ -2,6 +2,10 @@ import { count } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { otpRateLimit, verification } from "@/server/db/schema";
+import {
+  CODE_REQUEST_LIMITS,
+  type CodeRequestLimits,
+} from "@/server/identity/settings";
 import { createHarness, type Harness } from "@/test/harness";
 
 // Sign-in by phone while SMS is switched off, and the limits on how many
@@ -9,8 +13,14 @@ import { createHarness, type Harness } from "@/test/harness";
 
 const PHONE = "+91 98765 43210";
 
-async function harness({ sms }: { sms: "on" | "off" }) {
-  const h = await createHarness();
+async function harness({
+  sms,
+  codeLimits,
+}: {
+  sms: "on" | "off";
+  codeLimits?: CodeRequestLimits;
+}) {
+  const h = await createHarness({ codeLimits });
   await h.settings.set("sms.enabled", sms === "on");
   return h;
 }
@@ -191,6 +201,30 @@ describe("limits on phone codes", () => {
     expect(
       await h.as(visitor).requestPhoneCode({ phone: nthPhone(20) })
     ).toEqual({ ok: true });
+  });
+
+  it("counts one IP against the per-IP limit in its deps, across phones and email", async () => {
+    const h = await harness({
+      sms: "on",
+      codeLimits: { ...CODE_REQUEST_LIMITS, perIp: 3 },
+    });
+    const visitor = h.visitor({ ip: "198.51.100.7" });
+    expect(
+      await h.as(visitor).requestEmailCode({ email: "person0@example.test" })
+    ).toEqual({ ok: true });
+    expect(
+      await h.as(visitor).requestPhoneCode({ phone: nthPhone(0) })
+    ).toEqual({ ok: true });
+    expect(
+      await h.as(visitor).requestEmailCode({ email: "person1@example.test" })
+    ).toEqual({ ok: true });
+
+    expect(
+      await h.as(visitor).requestPhoneCode({ phone: nthPhone(1) })
+    ).toMatchObject({ ok: false, error: "rate_limited" });
+    expect(
+      await h.as(visitor).requestEmailCode({ email: "person2@example.test" })
+    ).toMatchObject({ ok: false, error: "rate_limited" });
   });
 
   it("keeps the number out of the limit counters", async () => {

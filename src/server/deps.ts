@@ -60,6 +60,10 @@ import {
   CONTACT_RATE_LIMITS,
   type ContactRateLimits,
 } from "./modules/contact/domain/submission";
+import {
+  CODE_REQUEST_LIMITS,
+  type CodeRequestLimits,
+} from "./identity/settings";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -90,6 +94,8 @@ export interface Deps extends DbWithClock {
   humanCheck: HumanCheck;
   /** The contact form's limits per IP and per address. */
   contactLimits: ContactRateLimits;
+  /** Limits on sign-in codes per address or phone, and per IP. */
+  codeLimits: CodeRequestLimits;
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
@@ -247,6 +253,21 @@ export function contactLimitsFor(appEnv: Env["APP_ENV"]): ContactRateLimits {
     : CONTACT_RATE_LIMITS;
 }
 
+/**
+ * The limits on sign-in codes. Local runs and previews let one IP ask for
+ * many more, as contactLimitsFor does: an E2E job signs every journey's
+ * people in from one address, and its share of the suite passed 20 codes
+ * in 15 minutes. A local run of the whole suite, both projects at once,
+ * asks for about 100.
+ */
+export function codeRequestLimitsFor(
+  appEnv: Env["APP_ENV"]
+): CodeRequestLimits {
+  return appEnv === "local" || appEnv === "preview"
+    ? { ...CODE_REQUEST_LIMITS, perIp: 200 }
+    : CODE_REQUEST_LIMITS;
+}
+
 let production: Deps | undefined;
 
 /** The app's deps, built on first use from `env()`. */
@@ -286,6 +307,7 @@ export function productionDeps(): Deps {
         difficulty: HUMAN_CHECK_DIFFICULTY,
       }),
       contactLimits: contactLimitsFor(config.APP_ENV),
+      codeLimits: codeRequestLimitsFor(config.APP_ENV),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
       scanner: scannerFor(config),
