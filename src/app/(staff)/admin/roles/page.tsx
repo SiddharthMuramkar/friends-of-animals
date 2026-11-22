@@ -1,34 +1,24 @@
-import { Search } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { orSecondFactor } from "@/app/auth/_lib/refusal";
-import { TextField } from "@/components/form";
-import { buttonStyles } from "@/components/site/button-link";
-import { Chip } from "@/components/site/chip";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
-import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
-import type {
-  FoundUser,
-  ListUserRolesResult,
-  SearchUsersResult,
-} from "@/server/access";
+import type { ListUserRolesResult } from "@/server/access";
 import { ROLES, SCOPE_TYPES } from "@/server/access/domain/roles";
 
 import { AdminDenied } from "../_components/admin-denied";
+import { adminCall } from "../_lib/boundary";
 import { grantLabel } from "../_lib/grant-label";
-import { isRefusal } from "../_lib/refusal";
 import { auditHref } from "../audit/_lib/filters";
 import { ChangeNotice } from "./_components/change-notice";
 import { GrantForm } from "./_components/grant-form";
 import { RevokeForm } from "./_components/revoke-form";
+import { UserSearch } from "./_components/user-search";
 import { readRolesParams, rolesHref, type RolesParams } from "./_lib/href";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -74,40 +64,38 @@ const CARD =
 const LINK =
   "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
 
-type Loaded = { found: SearchUsersResult; chosen?: ListUserRolesResult };
-
 /**
  * Runs the page's use cases; undefined when the policy refuses. The search
- * always runs, with an empty query before anyone has typed: it checks the
- * policy before the input, so a member is refused on arrival, and an
- * empty query then comes back as invalid input, which means "no search".
+ * itself is a Server Action (UserSearch), so its text never reaches the
+ * URL. Here an empty search checks the policy before the input, so a
+ * member is refused on arrival without a query running, and its expected
+ * "invalid input" is ignored.
  */
-async function load(params: RolesParams): Promise<Loaded | undefined> {
+async function load(
+  params: RolesParams
+): Promise<{ chosen?: ListUserRolesResult } | undefined> {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const app = as(actor);
-  try {
-    const userId = params.user;
-    const [found, chosen] = await orSecondFactor(
-      () =>
-        Promise.all([
-          app.searchUsers({ query: params.q ?? "" }),
-          userId ? app.listUserRoles({ userId }) : undefined,
-        ]),
-      rolesHref({ user: userId })
-    );
-    return { found, chosen };
-  } catch (error) {
-    if (isRefusal(error)) return undefined;
-    throw error;
-  }
+  const userId = params.user;
+  const called = await adminCall(
+    () =>
+      Promise.all([
+        app.searchUsers({ query: "" }),
+        userId ? app.listUserRoles({ userId }) : undefined,
+      ]),
+    rolesHref({ user: userId })
+  );
+  if (!called.ok) return undefined;
+  const [, chosen] = called.value;
+  return { chosen };
 }
 
 async function Roles({ searchParams }: { searchParams: SearchParams }) {
   const params = readRolesParams(await searchParams);
   const loaded = await load(params);
   if (!loaded) return <AdminDenied />;
-  const { found, chosen } = loaded;
+  const { chosen } = loaded;
   const [t, common] = await Promise.all([
     getTranslations("adminRoles"),
     getTranslations("common.callout"),
@@ -123,110 +111,31 @@ async function Roles({ searchParams }: { searchParams: SearchParams }) {
         />
       ) : null}
 
-      {/* Block: before Safari 17 <search> is an unknown, inline element. */}
-      <search aria-labelledby="roles-search" className={cn("block", CARD)}>
-        <h2 id="roles-search" className="text-lead font-bold text-ink">
-          {t("search.title")}
-        </h2>
-        {/* A plain GET form: the search lands in the URL, no script needed. */}
-        <form
-          action={APP_ROUTES.adminRoles}
-          className="mt-4 flex flex-col gap-4"
-        >
-          <TextField
-            id="roles-q"
-            name="q"
-            type="search"
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={100}
-            defaultValue={params.q}
-            label={t("search.label")}
-            hint={t("search.hint")}
-            error={
-              params.q !== undefined && !found.ok
-                ? t("search.tooShort")
-                : undefined
-            }
-          />
-          <div>
-            <button type="submit" className={buttonStyles()}>
-              <Search aria-hidden="true" />
-              {t("search.submit")}
-            </button>
-          </div>
-        </form>
-      </search>
-
-      {found.ok ? <Found users={found.users} params={params} /> : null}
+      <UserSearch
+        chosenId={params.user}
+        className={CARD}
+        labels={{
+          title: t("search.title"),
+          label: t("search.label"),
+          hint: t("search.hint"),
+          submit: t("search.submit"),
+          pending: t("search.pending"),
+          results: t("search.results"),
+          selected: t("search.selected"),
+          noEmail: t("user.noEmail"),
+        }}
+      />
 
       {chosen ? (
         // A new key after each change, so its forms start afresh: a
         // refusal shown before a grant that worked mustn't linger.
-        <Chosen
-          key={`${params.user}:${params.at ?? ""}`}
-          result={chosen}
-          params={params}
-        />
+        <Chosen key={`${params.user}:${params.at ?? ""}`} result={chosen} />
       ) : null}
     </div>
   );
 }
 
-async function Found({
-  users,
-  params,
-}: {
-  users: FoundUser[];
-  params: RolesParams;
-}) {
-  const t = await getTranslations("adminRoles");
-  return (
-    <section aria-labelledby="roles-found">
-      <SectionHeading id="roles-found" title={t("search.results")} />
-      {users.length === 0 ? (
-        <p className="mt-4 text-ink">
-          {t("search.none", { query: params.q ?? "" })}
-        </p>
-      ) : (
-        <ul className="mt-4 flex flex-col gap-2">
-          {users.map((user) => {
-            const chosen = user.id === params.user;
-            return (
-              <li key={user.id}>
-                <SiteLink
-                  href={rolesHref({ q: params.q, user: user.id })}
-                  aria-current={chosen ? "true" : undefined}
-                  className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border-2 border-border bg-surface px-4 py-2 hover:border-border-strong aria-[current=true]:border-ink"
-                >
-                  <span className="font-semibold text-link underline decoration-2 underline-offset-4">
-                    {user.name}
-                  </span>
-                  {/* An address is one long word: let it break anywhere.
-                      An account made by phone (#58) has none. */}
-                  <span className="text-ink-muted wrap-anywhere">
-                    {user.email ?? t("user.noEmail")}
-                  </span>
-                  {chosen ? (
-                    <Chip tone="blue">{t("search.selected")}</Chip>
-                  ) : null}
-                </SiteLink>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-async function Chosen({
-  result,
-  params,
-}: {
-  result: ListUserRolesResult;
-  params: RolesParams;
-}) {
+async function Chosen({ result }: { result: ListUserRolesResult }) {
   const [t, admin, common, format] = await Promise.all([
     getTranslations("adminRoles"),
     getTranslations("admin"),
@@ -237,7 +146,6 @@ async function Chosen({
     return <p className="text-ink">{t("user.notFound")}</p>;
   }
   const { user, grants } = result;
-  const query = params.q ?? "";
 
   return (
     <section aria-labelledby="roles-user" className="flex flex-col gap-6">
@@ -274,7 +182,6 @@ async function Chosen({
                 <div className="mt-4">
                   <RevokeForm
                     userId={user.id}
-                    query={query}
                     grant={{
                       role: grant.role,
                       scopeType: grant.scope.type,
@@ -302,7 +209,6 @@ async function Chosen({
         <div className="mt-4">
           <GrantForm
             userId={user.id}
-            query={query}
             roles={ROLES.map((role) => ({
               value: role,
               label: admin(`roles.${role}`),

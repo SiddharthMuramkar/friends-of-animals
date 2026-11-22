@@ -12,10 +12,12 @@
       "label": "Name or email address",
       "hint": "Part of their name, or the start of their email address: at least 2 letters.",
       "submit": "Search",
+      "pending": "Searching…",
       "tooShort": "Type at least 2 letters.",
       "results": "People found",
       "none": "Nobody's name or email address matches “{query}”.",
-      "selected": "Chosen"
+      "selected": "Chosen",
+      "forbidden": "Only staff who manage access can search for people."
     },
     "user": {
       "title": "Roles of {name}",

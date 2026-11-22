@@ -14,8 +14,8 @@ export const instant = false;
 
 /**
  * The admin area's shell: its navigation over each page. It reads no
- * session; each page checks the actor itself, inside <Suspense>. #60 adds
- * the staff second-factor gate here.
+ * session; the parent (staff) layout holds #60's second-factor gate, and
+ * each page checks the actor's permission itself, inside <Suspense>.
  */
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   await connection();

@@ -22,7 +22,7 @@ import { ensureGrant } from "../../../src/server/seed/access";
 import { SEED_FACTOR_LABEL } from "../../../src/server/seed/second-factor";
 import { seedTarget } from "../../../src/server/seed/target";
 
-type SeedAccount = (details: {
+export type SeedAccount = (details: {
   name: string;
   grants: Grant[];
   totpSecret?: Uint8Array;

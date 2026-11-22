@@ -29,14 +29,11 @@ export type GrantFormLabels = {
  */
 export function GrantForm({
   userId,
-  query,
   roles,
   scopes,
   labels,
 }: {
   userId: string;
-  /** The search, kept in the URL after the grant. */
-  query: string;
   roles: Option[];
   scopes: Option[];
   labels: GrantFormLabels;
@@ -45,7 +42,6 @@ export function GrantForm({
   return (
     <form action={formAction} noValidate className="flex flex-col gap-5">
       <input type="hidden" name="userId" value={userId} />
-      <input type="hidden" name="q" value={query} />
       {view.alert ? (
         <FormAlert tone="danger" label={labels.problem}>
           <p>{view.alert}</p>
