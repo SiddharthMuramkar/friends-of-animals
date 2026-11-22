@@ -21,6 +21,28 @@ async function entries(h: Harness, action: string) {
   return h.db.select().from(auditLog).where(eq(auditLog.action, action));
 }
 
+const DEFAULT_BANDS = [
+  { band: "first", prize: null },
+  { band: "second", prize: null },
+  { band: "third", prize: null },
+];
+
+/**
+ * The terms (#72) before a manager sets any: fees to come, the default
+ * scheme for both rounds, no documents.
+ */
+const NO_TERMS_YET = {
+  fees: [
+    { route: "individual", kind: "not_set" },
+    { route: "institution", kind: "not_set" },
+  ],
+  awards: [
+    { roundKey: "school", scheme: "ranked_123", bands: DEFAULT_BANDS },
+    { roundKey: "foa_final", scheme: "ranked_123", bands: DEFAULT_BANDS },
+  ],
+  documents: [],
+};
+
 /** What a visitor sees for the complete fields once published at `at`. */
 function publicView(id: string, publishedAt: Date) {
   return {
@@ -304,7 +326,10 @@ describe("the public read model", () => {
 
     const view = publicView(competitionId, h.clock.now());
     expect(await h.as(visitor).listPublishedCompetitions()).toEqual([view]);
-    expect(await h.as(visitor).getPublishedCompetition({ slug })).toEqual(view);
+    expect(await h.as(visitor).getPublishedCompetition({ slug })).toEqual({
+      ...view,
+      terms: NO_TERMS_YET,
+    });
     expect(await h.as(visitor).publishedCompetitionSlugs()).toEqual([slug]);
   });
 
@@ -372,7 +397,10 @@ describe("previewCompetition", () => {
       ok: true,
       status: "draft",
       problems: [],
-      competition: publicView(competitionId, h.clock.now()),
+      competition: {
+        ...publicView(competitionId, h.clock.now()),
+        terms: NO_TERMS_YET,
+      },
     });
   });
 
