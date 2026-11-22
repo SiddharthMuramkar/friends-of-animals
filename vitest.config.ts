@@ -26,7 +26,11 @@ export default defineConfig({
     ],
     // Real-Postgres races run apart, in `pnpm test:pg` (vitest.pg.config.ts).
     // Contracts against real providers: `pnpm test:live` (vitest.live.config.ts).
-    exclude: [...configDefaults.exclude, "**/*.pg.test.ts", "**/*.live.test.ts"],
+    exclude: [
+      ...configDefaults.exclude,
+      "**/*.pg.test.ts",
+      "**/*.live.test.ts",
+    ],
     environment: "node",
     // Migrates the PGlite template once per run, before any test file.
     globalSetup: ["src/test/global-setup.ts"],

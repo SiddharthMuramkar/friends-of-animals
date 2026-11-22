@@ -34,9 +34,12 @@ import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
 import { FakeErrorReporter } from "./fakes/errors";
+import { FakeMalwareScanner } from "./fakes/malware-scanner";
+import { FakeMediaProcessor } from "./fakes/media";
 import { FakeSettings } from "./fakes/settings";
 import { FakeSms } from "./fakes/sms";
-import { TEST_AUTH } from "./harness";
+import { FakeStorage } from "./fakes/storage";
+import { TEST_AUTH, TEST_FILES } from "./harness";
 
 /** The test database's URL; refuses one that isn't on this machine. */
 export function pgTestUrl(): string {
@@ -79,7 +82,11 @@ export function createPgWorld() {
     }),
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
     settings: new FakeSettings(),
+    storage: new FakeStorage(clock),
+    files: TEST_FILES,
     errors: new FakeErrorReporter(),
+    scanner: new FakeMalwareScanner(),
+    media: new FakeMediaProcessor(),
   };
   const app = createApp(deps);
   const seed: SeedBuilders = createSeedBuilders(deps);

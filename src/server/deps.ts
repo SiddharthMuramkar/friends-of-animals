@@ -82,7 +82,6 @@ export type FilesConfig = {
   appEnv: Env["APP_ENV"];
 };
 
-
 /**
  * Production sends real SMS through MSG91 once its keys are set (after
  * FOA's DLT registration); until then it refuses. Every other environment
