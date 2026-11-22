@@ -149,5 +149,31 @@ describe("GET /api/health", () => {
 
       expect(body).not.toHaveProperty("facts");
     });
+
+    it("says production's facts are unknown when they can't be read, and logs why", async () => {
+      vi.stubEnv("APP_ENV", "production");
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      const secret = "relation cms_revision does not exist";
+
+      const response = await healthResponse({
+        db: await openDatabase(),
+        orgFacts: async () => {
+          throw new Error(secret);
+        },
+      });
+
+      expect(response.status).toBe(200);
+      const text = await response.text();
+      expect(JSON.parse(text)).toMatchObject({
+        status: "ok",
+        db: { ok: true },
+        facts: "unknown",
+      });
+      expect(text).not.toContain(secret);
+      expect(logged).toHaveBeenCalledWith(
+        expect.stringContaining("Health check"),
+        expect.objectContaining({ message: secret })
+      );
+    });
   });
 });
