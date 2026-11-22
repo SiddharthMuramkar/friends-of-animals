@@ -71,8 +71,14 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
         {/* The @exit slot (Quick exit on /safeguarding) comes first in tab
             order, before the skip link and header (GOV.UK "Exit this page").
             CSS order puts it back under the header; body is its sticky
-            containing block, so it stays on screen over the footer too. */}
-        {exit}
+            containing block, so it stays on screen over the footer too.
+            Its own wrapper keeps that (display: contents, so the bar is
+            still body's flex item) and fences the slot in: a navigation
+            before the slot has hydrated makes React 19.3 hide its old
+            <Activity> by walking the DOM siblings after it, and that walk
+            doesn't stop at an Activity's end marker. Unwrapped, a quick
+            first click hid the header, main and footer for good. */}
+        <div className="contents">{exit}</div>
         {/* The skip link is the header's first child (site-header.tsx). */}
         <SiteHeader />
         <div className="order-2 flex flex-1 flex-col">
