@@ -37,7 +37,16 @@ export const APP_ROUTES = {
   institutionCompetitions: "/institution/competitions",
   /** The participant dashboard (#78): an adult's own registrations. */
   participant: "/participant",
+  /** A guardian's children (#81), and where they declare and verify. */
+  guardian: "/guardian",
+  guardianRegister: "/guardian/register",
+  guardianNewChild: "/guardian/children/new",
 } as const;
+
+/** One child's page, for the guardian who looks after them (#81). */
+export function guardianChildPath(childId: string): string {
+  return `/guardian/children/${encodeURIComponent(childId)}`;
+}
 
 /** A competition's judging guide, for the institutions taking part (#88). */
 export function judgingGuidePath(competitionCode: string): string {
@@ -160,18 +169,20 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/import/sample.csv",
   "/participant/register/[slug]",
   "/participant/registrations/[id]/pay",
+  "/guardian/children/[id]",
 ] as const;
 
 /**
- * Where coordinator invitations' pages live (#74). Each path carries its
- * link token, the bearer credential, so analytics leaves the whole prefix
- * out (src/lib/analytics/umami.ts).
+ * Where coordinator (#74) and teen-login (#81) invitations' pages live.
+ * Each path carries its link token, the bearer credential, so analytics
+ * leaves the whole prefix out (src/lib/analytics/umami.ts).
  */
 export const INVITATIONS_PREFIX = "/invitations";
 
 /**
- * A coordinator invitation's page. Anyone holding the link can open it
- * (it is the bearer of the invitation), so it is not behind sign-in.
+ * An invitation's page, a coordinator's or a teen's. Anyone holding the
+ * link can open it (it is the bearer of the invitation), so it is not
+ * behind sign-in.
  */
 export function invitationPath(token: string): string {
   return `${INVITATIONS_PREFIX}/${encodeURIComponent(token)}`;
@@ -192,6 +203,7 @@ export const SIGNED_IN_PREFIXES = [
   "/institution",
   "/institutions/register",
   "/participant",
+  "/guardian",
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

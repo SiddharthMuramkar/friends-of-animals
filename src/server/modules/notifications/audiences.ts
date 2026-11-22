@@ -106,6 +106,10 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "payment.batch_captured":
       // Whoever started the payment gets the receipt (#77).
       return delivery.payload.payerUserId;
+    case "guardian.teen_invited":
+      // The teen may have no account yet: the invitation goes to the
+      // invited address by its own handler (#81), not by a route row.
+      return null;
   }
 }
 
@@ -351,6 +355,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: RECEIPT_VARIABLES,
     load: (db, { payload }) => receiptValues(db, payload.batchId),
   },
+  "guardian.teen_invited": { names: [], load: async () => ({}) },
 };
 
 /** The variables a template on a route for `eventType` may use. */

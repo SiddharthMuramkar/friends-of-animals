@@ -89,6 +89,24 @@ const WHILE_REGISTRATION_KEPT = {
   toConfirm: true,
 } as const;
 
+/** A guardian's own record and links: as long as a child of theirs is kept. */
+const WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD = {
+  period:
+    "While a linked child's profile exists, then 1 year (HR-31); a guardian with no child is deleted with their account",
+  basis:
+    "Shows who looks after each child and when they confirmed it, the record behind a minor's participation (verifiable parental consent, HR-30)",
+  toConfirm: true,
+} as const;
+
+/** A teen-login invitation's address and link. */
+const AFTER_TEEN_INVITATION_CLOSES = {
+  period:
+    "30 days after the invitation is accepted, withdrawn or expires (HR-31)",
+  basis:
+    "Lets the guardian and FOA see where the invitation went, and answer a query about it",
+  toConfirm: true,
+} as const;
+
 const WHILE_STUDENT_TAKES_PART = {
   period:
     "Until 3 years after the last competition the participant (a school's student, or an adult on their own) was registered for (HR-31)",
@@ -304,14 +322,14 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     table: "participant_profile",
     column: "full_name",
     purpose:
-      "Names the participant (a school's student, or an adult on their own) on lists, entries and certificates",
+      "Names the participant (a school's student, an adult on their own, or a guardian's child) on lists, entries and certificates",
     retention: WHILE_STUDENT_TAKES_PART,
   },
   {
     table: "participant_profile",
     column: "dob_ciphertext",
     purpose:
-      "Places the participant in an age group on the competition's cut-off date, and keeps an adult registering on their own from being a minor (encrypted)",
+      "Places the participant in an age group on the competition's cut-off date, keeps an adult registering on their own from being a minor, and tells a guardian's child under 13 (no login) from a teen (own login) (encrypted)",
     retention: WHILE_STUDENT_TAKES_PART,
   },
   {
@@ -409,7 +427,7 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     table: "participant_profile",
     column: "owner_user_id",
     purpose:
-      "Links an adult's own profile to their account, so only they see and pay for their registrations",
+      "Links an adult's own profile to their account, or a child's profile to the guardian who keeps it (#81), so only they see and act on it",
     retention: WHILE_STUDENT_TAKES_PART,
   },
   {
@@ -441,5 +459,90 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     purpose:
       "Records who paid an institution's fees, or an adult their own (#78), so the receipt reaches them and FOA can answer a query about the payment",
     retention: PAYMENT_RECORD,
+  },
+  // Guardians and their children (#81). A child's profile is a
+  // participant_profile row (owner_kind guardian), listed above.
+  {
+    table: "guardian",
+    column: "user_id",
+    purpose:
+      "Links the guardian's declaration to their account, so only they manage their children",
+    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
+  },
+  {
+    table: "guardian",
+    column: "full_name_ciphertext",
+    purpose:
+      "Names the parent or guardian who looks after a child, to the child and to FOA (encrypted)",
+    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
+  },
+  {
+    table: "guardian",
+    column: "phone_ciphertext",
+    purpose:
+      "Reaches a child's parent or guardian about the child, if they gave a phone (encrypted)",
+    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
+  },
+  {
+    table: "guardian",
+    column: "phone_hash",
+    purpose:
+      "A keyed hash of the guardian's phone, to find it without reading it",
+    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
+  },
+  {
+    table: "guardian",
+    column: "adult_declared_at",
+    purpose:
+      "When the guardian declared they are 18 or older and the child's parent or lawful guardian",
+    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
+  },
+  {
+    table: "guardian",
+    column: "verified_at",
+    purpose:
+      "When the guardian confirmed the declaration with a one-time code sent to them",
+    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
+  },
+  {
+    table: "guardian_link",
+    column: "relationship",
+    purpose:
+      "Says whether the guardian is the child's parent or legal guardian",
+    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
+  },
+  {
+    table: "guardian_invitation",
+    column: "contact_ciphertext",
+    purpose:
+      "The email a guardian invited their teen to an own login at, to send the link (encrypted)",
+    retention: AFTER_TEEN_INVITATION_CLOSES,
+  },
+  {
+    table: "guardian_invitation",
+    column: "contact_hash",
+    purpose:
+      "A keyed hash of the invited email, to check the teen accepting signed in with it",
+    retention: AFTER_TEEN_INVITATION_CLOSES,
+  },
+  {
+    table: "guardian_invitation",
+    column: "token_ciphertext",
+    purpose:
+      "The invitation link's token, to build the link when the message is sent (encrypted)",
+    retention: WHILE_INVITATION_PENDING,
+  },
+  {
+    table: "guardian_invitation",
+    column: "accepted_by_user_id",
+    purpose: "Records which account accepted the invitation as the teen's own",
+    retention: AFTER_TEEN_INVITATION_CLOSES,
+  },
+  {
+    table: "participant_profile",
+    column: "login_user_id",
+    purpose:
+      "Links a guardian's 13- to 17-year-old child to their own login, so they take part themselves",
+    retention: WHILE_STUDENT_TAKES_PART,
   },
 ];

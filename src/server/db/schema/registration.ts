@@ -7,7 +7,9 @@
 // them in. Paying confirms it with a registration number (#77). On the
 // individual route (#78) an adult registers themselves: their own profile
 // (`owner_kind` self, one per user) carries their FOA Participant ID, and
-// each registration waits for its fee as `pending_payment`.
+// each registration waits for its fee as `pending_payment`. A guardian
+// (#81) owns their children's profiles (`owner_kind` guardian); a 13- to
+// 17-year-old's profile carries the teen's own login.
 //
 // Personal data: `registered_by`, a student's details and an adult's own on
 // `participant_profile`. The date of birth, phones, emails, the guardian's
@@ -147,6 +149,14 @@ export const participantProfile = pgTable(
       onDelete: "set null",
     }),
     /**
+     * A 13- to 17-year-old's own account, linked to the guardian who owns
+     * the profile (#81); null for everyone else, and for a child under 13,
+     * who has no login.
+     */
+    loginUserId: uuid("login_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    /**
      * The FOA Participant ID of an adult's own profile, e.g. FOA-P-277K3M9Q
      * (#78): never a sign-in credential.
      */
@@ -223,6 +233,17 @@ export const participantProfile = pgTable(
       sql`${table.participantCode} ~ '^FOA-P-[0-9]{2}[0-9A-HJKMNP-TV-Z]{6}$'`
     ),
     unique(PARTICIPANT_CODE_UNIQUE).on(table.participantCode),
+    // Only a guardian's child has a login of its own, and one account is
+    // the login of one profile at most (#81).
+    check(
+      "participant_profile_login_user",
+      sql`${table.loginUserId} IS NULL OR ${table.ownerKind} = 'guardian'`
+    ),
+    uniqueIndex("participant_profile_login_user_unique").on(table.loginUserId),
+    // A guardian adds each child once (#81).
+    uniqueIndex("participant_profile_guardian_identity_unique")
+      .on(table.ownerUserId, table.identityHash)
+      .where(sql`${table.ownerKind} = 'guardian'`),
     // One profile of their own per adult.
     uniqueIndex("participant_profile_self_owner_unique")
       .on(table.ownerUserId)
