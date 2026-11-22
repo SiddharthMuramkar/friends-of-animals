@@ -1,0 +1,12 @@
+You keep the map for spec #55 of siddhartxts/friends-of-animals (git remote "foa"). Another agent (terminal foa-57) is building #57 in /root/foa-wt/57. Your coordinator is terminal t11.
+
+YOU ARE READ-ONLY on the repository and on GitHub: no file edits in the repo, no commits, pushes, branch changes, issue or PR comments, labels or closes. Don't run `git checkout` or `git switch` in /root/friends-of-animals; read M0 with `git fetch foa` and `git show foa/M0:<path>` / `git ls-tree foa/M0`. Write ONLY inside /root/foa-work. Don't start subagents, Workflows or hc agents.
+
+SOURCES: `gh issue view 55 --comments`; `gh issue view <n> --comments` for #57-#68; `gh pr list` and `gh pr view 136`; native blockers via `gh api repos/siddhartxts/friends-of-animals/issues/<n>/dependencies/blocked_by --jq '[.[].number]'`; docs/specs/issue-factory-spec.md (sections 0.4, 1.10, 2.2, 6.1) and docs/specs/issue-factory/{dag.md,residue.md,issues-M0.md}. Where a spec file and live GitHub or code disagree, the live state wins; note the difference.
+
+PRODUCE:
+1. /root/foa-work/STATUS.md: every M0 ticket (#57-#68, with the 57a/57b/57c, 59a/b, 61a/b, 63a/b/c and 66a/b units) with its live state (open PR or branch, from gh), its blockers, and what can start the moment 57a merges and the moment 57b merges. Keep it to one table plus a short "next up" list.
+2. /root/foa-work/YOUR-TODO.md: the owner's own steps for M0, in plain language, in order, each with the exact clicks or commands and what it unblocks. Cover: merging PR #139 and PR #138 into main and then main into M0; HR-01 (BETTER_AUTH_SECRET and CAPTURE_MAILBOX_TOKEN in Vercel project friends-of-animals, team bitacu1, plus the GitHub secret); getting the Postgres/PgBouncer stack running again so Vercel builds pass `pnpm db:migrate` (Docker isn't installed on this machine; say what's needed, don't do it); HR-19 defaults to accept or change; HR-20 legal copy; and anything else residue.md assigns to M0. Never write a secret value.
+3. /root/foa-work/briefs/58.md, 59.md, 61.md, 65.md, 66.md: for each, the scope, the files it will touch, file conflicts with #57's slices (spec section 1.10 hotspots), each acceptance criterion rewritten as a testable check, and its human residue. Keep each brief under about 80 lines.
+
+When all files exist, run `hc send t11 "foa-55 done: /root/foa-work/STATUS.md, YOUR-TODO.md, briefs/{58,59,61,65,66}.md"`. If stuck, `hc send t11 "<blocker>"`.

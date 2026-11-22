@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import type { E164Phone } from "@/lib/phone";
 import { captureEmailSender } from "@/server/ports/email-capture";
+import { captureSmsSender } from "@/server/ports/sms-capture";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
 
@@ -75,5 +77,30 @@ describe("readMailbox", () => {
     expect(await readMailbox(mailbox, { ...request, to: null })).toEqual({
       status: 400,
     });
+  });
+
+  it("reads a phone's text messages, by any spelling of the number", async () => {
+    const mailbox = await mailboxWithOneCode();
+    await captureSmsSender(mailbox).send({
+      to: "+919876543210" as E164Phone,
+      template: "sign-in-code",
+      vars: { code: "731905", minutes: "10" },
+      text: "Your sign-in code is 731905.",
+    });
+
+    for (const to of ["+919876543210", "098765 43210"]) {
+      expect(await readMailbox(mailbox, { ...request, to })).toEqual({
+        status: 200,
+        body: {
+          messages: [
+            {
+              subject: "",
+              text: "Your sign-in code is 731905.",
+              sentAt: mailbox.clock.now().toISOString(),
+            },
+          ],
+        },
+      });
+    }
   });
 });

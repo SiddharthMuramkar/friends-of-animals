@@ -16,7 +16,7 @@ async function currentYear() {
 }
 
 const LINK =
-  "inline-flex min-h-6 items-center py-1 text-ink-muted underline-offset-4 hover:text-ink hover:underline";
+  "inline-flex min-h-6 max-w-full items-center py-1 wrap-break-word text-ink-muted underline-offset-4 hover:text-ink hover:underline";
 
 export async function SiteFooter() {
   const t = await getTranslations("footer");
@@ -39,7 +39,7 @@ export async function SiteFooter() {
 
             <section
               aria-labelledby="footer-helplines"
-              className="mt-8 rounded-3xl border-2 border-border-strong bg-surface p-5"
+              className="mt-8 rounded-3xl border-2 border-border-strong bg-surface p-5 wrap-break-word"
             >
               <h2 id="footer-helplines" className="text-h4">
                 {t("helplines.title")}
@@ -47,7 +47,7 @@ export async function SiteFooter() {
               <p className="mt-1 text-sm text-ink-muted">
                 {t("helplines.intro")}
               </p>
-              <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              <ul className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
                 <li>
                   <a
                     href="tel:112"
@@ -85,8 +85,7 @@ export async function SiteFooter() {
                     {t("helplines.cyber")} {t("helplines.cyberOr")}{" "}
                     <a
                       href="https://cybercrime.gov.in"
-                      // Breaks inside the address only with large text.
-                      className="text-link underline underline-offset-2 max-[20rem]:wrap-break-word"
+                      className="wrap-anywhere text-link underline underline-offset-2"
                     >
                       {t("helplines.cyberSite")}
                     </a>
@@ -102,11 +101,9 @@ export async function SiteFooter() {
             </section>
           </div>
 
-          {/* One column under a rem breakpoint, which phones only reach
-              with large text. */}
           <nav
             aria-label={t("navLabel")}
-            className="grid grid-cols-2 gap-8 max-[20rem]:grid-cols-1 sm:grid-cols-3"
+            className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-8"
           >
             {FOOTER_GROUPS.map((group) => (
               <div key={group}>

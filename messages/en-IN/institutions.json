@@ -1,0 +1,140 @@
+{
+  "institutions": {
+    "status": {
+      "pending_verification": "Waiting for FOA to check",
+      "verified": "Verified",
+      "rejected": "Not accepted",
+      "suspended": "Suspended"
+    },
+    "type": {
+      "school": "School",
+      "college": "College",
+      "university": "University",
+      "other": "Other"
+    },
+    "register": {
+      "meta": {
+        "title": "Register your institution",
+        "description": "Register your school, college or university to take part in Friends of Animals competitions."
+      },
+      "eyebrow": "Schools and colleges",
+      "title": "Register your institution",
+      "lead": "Tell us about your school, college or university. FOA checks every registration, usually with the principal, before your institution can enter competitions.",
+      "loading": "Loading the form…",
+      "sections": {
+        "institution": "About the institution",
+        "address": "Where it is",
+        "contact": "How to reach the office",
+        "principal": "The principal"
+      },
+      "fields": {
+        "name": {
+          "label": "Name of the institution",
+          "error": "Enter the institution's name."
+        },
+        "type": {
+          "label": "Type of institution",
+          "error": "Choose the type of institution."
+        },
+        "address": {
+          "label": "Address",
+          "hint": "Building, street and area.",
+          "error": "Enter the address."
+        },
+        "pinCode": {
+          "label": "PIN code",
+          "hint": "Six digits, for example 411001.",
+          "error": "Enter a six-digit PIN code that doesn't start with 0."
+        },
+        "city": {
+          "label": "City or town",
+          "error": "Enter the city or town."
+        },
+        "state": {
+          "label": "State",
+          "error": "Enter the state."
+        },
+        "country": {
+          "label": "Country",
+          "error": "Enter the country."
+        },
+        "contactEmail": {
+          "label": "Office email",
+          "error": "Enter an email address like office@school.in."
+        },
+        "contactPhone": {
+          "label": "Office mobile number",
+          "hint": "An Indian mobile number, 10 digits.",
+          "error": "Enter a 10-digit Indian mobile number."
+        },
+        "principalName": {
+          "label": "Principal's name",
+          "error": "Enter the principal's name."
+        },
+        "principalEmail": {
+          "label": "Principal's email",
+          "hint": "FOA may write to the principal to confirm the registration.",
+          "error": "Enter an email address like principal@school.in."
+        },
+        "principalPhone": {
+          "label": "Principal's mobile number",
+          "hint": "An Indian mobile number, 10 digits. Stored encrypted.",
+          "error": "Enter a 10-digit Indian mobile number."
+        },
+        "expectedParticipants": {
+          "label": "How many students may take part",
+          "hint": "Your best guess. You can change your plans later.",
+          "error": "Enter a whole number from 1 to 1,00,000."
+        }
+      },
+      "submit": "Send for checking",
+      "submitting": "Sending…",
+      "alerts": {
+        "invalid_input": "Some answers need fixing. Each one says what to change.",
+        "already_registered": "You have already registered an institution. You can see it on your institution page.",
+        "unexpected": "Something went wrong on our side. Please try again in a few minutes."
+      },
+      "myInstitution": "Go to your institution page"
+    },
+    "mine": {
+      "meta": {
+        "title": "Your institution",
+        "description": "Your institution's registration with Friends of Animals."
+      },
+      "eyebrow": "Schools and colleges",
+      "title": "Your institution",
+      "lead": "See whether FOA has checked your registration, and your Institution ID once it has.",
+      "loading": "Loading your institution…",
+      "registered": "Thank you. FOA has your registration and will check it soon. We'll send you a message when it's done.",
+      "none": {
+        "title": "You haven't registered an institution",
+        "body": "Register your school, college or university to take part in FOA competitions.",
+        "action": "Register an institution"
+      },
+      "statusLabel": "Status",
+      "institutionId": "Institution ID",
+      "institutionIdHint": "Use this ID when you talk to FOA about your institution.",
+      "reason": "FOA's note",
+      "explain": {
+        "pending_verification": "FOA is checking your registration. This usually takes a few working days.",
+        "verified": "Your institution is verified. You are its admin.",
+        "rejected": "FOA couldn't accept this registration. You can register again with corrected details.",
+        "suspended": "Your institution is suspended for now. Contact FOA to find out what happens next."
+      },
+      "registerAgain": "Register again",
+      "detailsTitle": "What you sent",
+      "registeredOn": "Registered on {date}",
+      "verifiedOn": "Verified on {date}",
+      "details": {
+        "type": "Type",
+        "address": "Address",
+        "contactEmail": "Office email",
+        "contactPhone": "Office mobile",
+        "principalName": "Principal",
+        "principalEmail": "Principal's email",
+        "principalPhone": "Principal's mobile",
+        "expectedParticipants": "Students who may take part"
+      }
+    }
+  }
+}
