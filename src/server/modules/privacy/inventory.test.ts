@@ -94,6 +94,14 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
+  it("lists every personal-data column of a blog post or story", () => {
+    expect(
+      ["author_name", "created_by", "updated_by"].filter(
+        (column) => !listed.has(`cms_post.${column}`)
+      )
+    ).toEqual([]);
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>
