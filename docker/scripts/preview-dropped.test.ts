@@ -1,8 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
-  accessSync,
   chmodSync,
-  constants,
   chownSync,
   copyFileSync,
   existsSync,
@@ -39,25 +37,11 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true });
 });
 
-function tempDir(base = tmpdir()) {
-  const dir = mkdtempSync(join(base, "foa-preview-dropped-"));
+function tempDir() {
+  const dir = mkdtempSync(join(tmpdir(), "foa-preview-dropped-"));
   if (RUN_AS_NOBODY) chownSync(dir, 65534, 65534);
   dirs.push(dir);
   return dir;
-}
-
-/**
- * A folder for the sweeper's purge records, which it fsyncs. On a disk
- * (CI's /tmp) the first fsync waits for everything the runner has left
- * unwritten, seconds after an install; on tmpfs it returns at once.
- */
-function syncedStateDir() {
-  try {
-    accessSync("/dev/shm", constants.W_OK);
-    return tempDir("/dev/shm");
-  } catch {
-    return tempDir();
-  }
 }
 
 function fixturePath(dir: string) {
@@ -77,7 +61,6 @@ function fixturePath(dir: string) {
     "mv",
     "rm",
     "sha256sum",
-    "sync",
     "timeout",
   ]) {
     const path = ["/usr/bin", "/bin", "/usr/local/bin", "/opt/homebrew/bin"]
@@ -127,7 +110,9 @@ if [ "$1" = exec ]; then
     fi
     if [ "$arg" = -c ]; then query=yes; fi
   done
-  cat >>"${dir}/sql.log"
+  sql="$(cat)"
+  printf '%s\n' "$sql" >>"${dir}/sql.log"
+  printf 'sql %s\n' "$sql" >>"${dir}/order.log"
   exit 0
 fi
 exit "\${FAKE_DOCKER_EXIT:-0}"`
@@ -139,6 +124,12 @@ exit "\${FAKE_DOCKER_EXIT:-0}"`
     `cat >/dev/null\nprintf '{"state":"%s"}\\n' "\${FAKE_PR_STATE:-closed}"`
   );
   writeScript(join(bin, "git"), 'exit "${FAKE_GIT_EXIT:-2}"');
+  // Logged in order with the SQL. Some systems' sync flushes every file
+  // system even when given one file, which takes seconds on a busy disk.
+  writeScript(
+    join(bin, "sync"),
+    `printf 'sync %s\\n' "$*" >>"${dir}/order.log"`
+  );
   const read = (name: string) =>
     existsSync(join(dir, name)) ? readFileSync(join(dir, name), "utf8") : "";
   return {
@@ -151,6 +142,8 @@ exit "\${FAKE_DOCKER_EXIT:-0}"`
         .filter(Boolean)
         .map((call) => call.split("\n").filter(Boolean)),
     sql: () => read("sql.log"),
+    /** Each sync and SQL statement, in the order they ran. */
+    order: () => read("order.log").trim().split("\n").filter(Boolean),
   };
 }
 
@@ -448,7 +441,7 @@ describe("sweep-preview-dbs.sh", () => {
         PATH: bin.path,
         GITHUB_TOKEN: "fixture",
         FOA_SWEEPER_ENV: join(dir, "sweeper.env"),
-        FOA_PREVIEW_PURGE_STATE: join(syncedStateDir(), "purge-state"),
+        FOA_PREVIEW_PURGE_STATE: join(dir, "purge-state"),
       },
     };
   }
@@ -468,6 +461,19 @@ describe("sweep-preview-dbs.sh", () => {
     expect(bin.sql()).toContain(`DROP DATABASE IF EXISTS "${DB}"`);
     expect(bin.sql()).toContain('DROP DATABASE IF EXISTS "foa_pr_12_89abcdef"');
     expect(hooked()).toEqual([DB, "foa_pr_12_89abcdef"]);
+  });
+
+  it("makes each purge record durable before it drops the database", () => {
+    const { bin, sweeper, env } = world(`${DB}\tfoa-preview pr=12`);
+
+    expect(run(sweeper, [], env).status).toBe(0);
+
+    const state = env.FOA_PREVIEW_PURGE_STATE;
+    expect(bin.order()).toEqual([
+      expect.stringMatching(new RegExp(`^sync ${state}/\\.pending\\.\\w+$`)),
+      `sync ${state}`,
+      `sql DROP DATABASE IF EXISTS "${DB}" WITH (FORCE);`,
+    ]);
   });
 
   it("keeps sweeping when a hook fails, and says so", () => {
