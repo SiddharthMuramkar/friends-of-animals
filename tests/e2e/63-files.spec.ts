@@ -87,6 +87,7 @@ test("a member uploads a PNG and fetches it back once it passes the virus check"
   const download = await page.request.get(href!);
   expect(download.status()).toBe(200);
   expect(download.headers()["content-type"]).toBe("image/png");
+  expect(download.headers()["cache-control"]).toBe("private, no-store");
   expect(Buffer.from(await download.body()).equals(PNG)).toBe(true);
 });
 

@@ -56,6 +56,7 @@ objectStorageContract("r2Storage (live)", async () => {
         bytes: new Uint8Array(await response.arrayBuffer()),
         contentType: response.headers.get("content-type"),
         contentDisposition: response.headers.get("content-disposition"),
+        cacheControl: response.headers.get("cache-control"),
       };
     },
     wait: (seconds) =>

@@ -31,6 +31,7 @@ import { join } from "node:path";
 import type { Clock } from "./clock";
 import {
   contentDispositionFor,
+  FILE_CACHE_CONTROL,
   isPurgeablePrefix,
   ObjectMissingError,
   UnsafePrefixError,
@@ -65,6 +66,7 @@ export type DiskDelivery =
       sizeBytes: number;
       contentType: string | null;
       contentDisposition: string | null;
+      cacheControl: string | null;
     }
   | { ok: false; error: DiskRefusal };
 
@@ -304,6 +306,7 @@ export function diskStorage(
           input.disposition,
           input.filename
         ),
+        "response-cache-control": FILE_CACHE_CONTROL,
       });
       return { url };
     },
@@ -414,6 +417,7 @@ export function diskStorage(
         sizeBytes: stored.sizeBytes,
         contentType: params.get("response-content-type") ?? stored.contentType,
         contentDisposition: params.get("response-content-disposition"),
+        cacheControl: params.get("response-cache-control"),
       };
     },
   };

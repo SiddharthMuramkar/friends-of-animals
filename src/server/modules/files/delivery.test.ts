@@ -65,6 +65,7 @@ describe("getFileDownloadUrl", () => {
       bytes: PNG,
       contentType: "image/png",
       contentDisposition: `inline; filename="test_upload-${fileId.slice(0, 8)}.png"`,
+      cacheControl: "private, no-store",
     });
     // The owner reading their own file is not audited.
     expect(await fileReads(h)).toEqual([]);
