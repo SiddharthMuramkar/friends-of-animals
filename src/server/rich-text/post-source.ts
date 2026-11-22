@@ -83,9 +83,10 @@ export type ParsedPostSource =
   | { ok: false; errors: PostSourceError[] };
 
 /**
- * The longest source and line it reads, in UTF-16 code units: twenty and
- * ten times the longest of the published stories. A Server Action reads
- * whatever it is sent, so a longer one is refused before it is read.
+ * The longest source and line it reads, in UTF-16 code units: about 17
+ * times the longest published story (5,801) and 10 times its longest line
+ * (518). A Server Action reads whatever it is sent, so a longer source or
+ * line is refused before it is read.
  */
 export const POST_SOURCE_LIMITS = { chars: 100_000, lineChars: 5_000 };
 
