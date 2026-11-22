@@ -30,6 +30,7 @@ stored plain, but still listed.
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `user`        | `name`, `email`, `phone_ciphertext`                                                                                                         |
 | `institution` | `contact_email`, `contact_phone`, `principal_name`, `principal_email_ciphertext`, `principal_phone_ciphertext`, `created_by`, `verified_by` |
+| `cms_post`    | `author_name`, `created_by`, `updated_by`                                                                                                   |
 
 Sessions, the audit log's IP addresses and the other early tables are listed
 by the data inventory and retention ticket (#114), which also enforces
