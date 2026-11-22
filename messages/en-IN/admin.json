@@ -27,7 +27,8 @@
       "community_manager": "Community manager",
       "finance": "Finance",
       "auction_manager": "Auction manager",
-      "adoption_coordinator": "Adoption coordinator"
+      "adoption_coordinator": "Adoption coordinator",
+      "safeguarding_lead": "Safeguarding lead"
     },
     "scopes": {
       "global": "Everywhere",
