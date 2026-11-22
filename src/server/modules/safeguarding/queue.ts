@@ -19,7 +19,6 @@ import {
   safeguardingIncidentLog,
   safeguardingReport,
   user,
-  userRole,
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import { open, openOrNull } from "./content";
@@ -35,13 +34,13 @@ import {
   type SafeguardingReportStatus,
   type SafeguardingSeverity,
 } from "./domain/report-status";
+import { safeguardingLeads, type PersonRef } from "./leads";
 import { withLead, type LeadContext } from "./with-lead";
 
 /** The most reports one page of the queue lists. */
 export const QUEUE_LIMIT = 200;
 
-/** Someone a lead sees by name: an assignee, a log entry's author. */
-export type PersonRef = { id: string; name: string };
+export type { PersonRef };
 
 export type QueueItem = {
   id: string;
@@ -293,21 +292,6 @@ export async function viewSafeguardingReport(
       };
     }
   );
-}
-
-/** Every user holding the global safeguarding lead role, by name. */
-export async function safeguardingLeads(db: AppDb): Promise<PersonRef[]> {
-  return db
-    .selectDistinct({ id: user.id, name: user.name })
-    .from(userRole)
-    .innerJoin(user, eq(user.id, userRole.userId))
-    .where(
-      and(
-        eq(userRole.role, "safeguarding_lead"),
-        eq(userRole.scopeType, "global")
-      )
-    )
-    .orderBy(asc(user.name), asc(user.id));
 }
 
 function personOf(id: string | null, name: string | null): PersonRef | null {

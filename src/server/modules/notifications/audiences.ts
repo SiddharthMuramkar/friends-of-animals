@@ -15,7 +15,7 @@
 
 import type { AppDb } from "../../db/app-db";
 import type { Delivery, EventType } from "../../outbox";
-import { safeguardingLeads } from "../safeguarding/alert";
+import { safeguardingLeads } from "../safeguarding/leads";
 
 /** The variables every message has about the person receiving it. */
 export const RECIPIENT_VARIABLES = ["recipient.name"] as const;
@@ -53,7 +53,8 @@ export const AUDIENCES = {
     return userId ? [userId] : [];
   },
   /** Every safeguarding lead (#116), whatever the event. */
-  safeguarding_leads: async (db) => safeguardingLeads(db),
+  safeguarding_leads: async (db) =>
+    (await safeguardingLeads(db)).map((lead) => lead.id),
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
