@@ -27,4 +27,5 @@ ALTER TABLE "consent_document" ADD COLUMN "legal_revision_id" uuid;--> statement
 ALTER TABLE "cms_revision" ADD CONSTRAINT "cms_revision_document_id_cms_document_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."cms_document"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "cms_revision_one_draft" ON "cms_revision" USING btree ("document_id") WHERE "cms_revision"."status" = 'draft';--> statement-breakpoint
 CREATE UNIQUE INDEX "cms_revision_one_published" ON "cms_revision" USING btree ("document_id") WHERE "cms_revision"."status" = 'published';--> statement-breakpoint
-ALTER TABLE "consent_document" ADD CONSTRAINT "consent_document_legal_revision_id_cms_revision_id_fk" FOREIGN KEY ("legal_revision_id") REFERENCES "public"."cms_revision"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "consent_document" ADD CONSTRAINT "consent_document_legal_revision_id_cms_revision_id_fk" FOREIGN KEY ("legal_revision_id") REFERENCES "public"."cms_revision"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "consent_document_legal_revision_id_idx" ON "consent_document" USING btree ("legal_revision_id");

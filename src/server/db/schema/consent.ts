@@ -85,6 +85,8 @@ export const consentDocument = pgTable(
       table.version
     ),
     check("consent_document_version_positive", sql`${table.version} > 0`),
+    // A CMS revision's consent documents, without scanning the table.
+    index("consent_document_legal_revision_id_idx").on(table.legalRevisionId),
   ]
 );
 

@@ -1,5 +1,5 @@
 {
-  "id": "17bf4206-9a29-4ccf-bc7a-0d6f5a5b0f74",
+  "id": "07ecf315-5294-4292-a2ed-f7b14b74a73f",
   "prevId": "32021ad8-4805-4b43-a850-52fb23a58656",
   "version": "7",
   "dialect": "postgresql",
@@ -1050,7 +1050,23 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "consent_document_legal_revision_id_idx": {
+          "name": "consent_document_legal_revision_id_idx",
+          "columns": [
+            {
+              "expression": "legal_revision_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "consent_document_legal_revision_id_cms_revision_id_fk": {
           "name": "consent_document_legal_revision_id_cms_revision_id_fk",
