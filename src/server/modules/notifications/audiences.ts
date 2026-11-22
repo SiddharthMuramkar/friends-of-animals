@@ -45,6 +45,10 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "institution.reinstated":
       // The authorised person, who registered the institution (#73).
       return delivery.payload.userId;
+    case "competitions.key_date_scheduled":
+      // A status job (#71): it's about a competition, not a user, and no
+      // route row names it.
+      return null;
   }
 }
 
@@ -114,6 +118,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: ["institution.name", "institution.code"],
     load: (db, { payload }) => institutionValues(db, payload.institutionId),
   },
+  "competitions.key_date_scheduled": { names: [], load: async () => ({}) },
 };
 
 /** The variables a template on a route for `eventType` may use. */

@@ -155,6 +155,13 @@
       "when": 1795338272700,
       "tag": "0021_73_institution_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795338294476,
+      "tag": "0022_71_the_schedule_changes_competition_status",
+      "breakpoints": true
     }
   ]
 }

@@ -210,6 +210,8 @@ const KEY_DATE_KIND: Record<StoredKeyDateKind, KeyDateKind> = {
 
 const STATUS: Record<PublicCompetition["status"], CompetitionStatus> = {
   published: "PUBLISHED",
+  registration_open: "REGISTRATION_OPEN",
+  registration_closed: "REGISTRATION_CLOSED",
 };
 
 const toDiscipline = (d: StoredDiscipline) => d.toUpperCase() as Discipline;

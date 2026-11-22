@@ -8,6 +8,10 @@
 import { z } from "zod";
 
 import {
+  KEY_DATE_KINDS,
+  type KeyDateKind,
+} from "../modules/competitions/domain/key-dates";
+import {
   CONSENT_SUBJECT_TYPES,
   GIVABLE_PURPOSES,
   type ConsentSubjectType,
@@ -77,7 +81,17 @@ export type DomainEvent =
   /** Suspended for now; it keeps its Institution ID and its admin. */
   | InstitutionDecided<"institution.suspended">
   /** Verified again after a suspension, with the Institution ID it had. */
-  | InstitutionDecided<"institution.reinstated">;
+  | InstitutionDecided<"institution.reinstated">
+  | {
+      /**
+       * A published competition's key date was set for `dueAt` (#71), on
+       * publishing or by an edit. Saved with `availableAt: dueAt`, so its
+       * status job runs once the date arrives.
+       */
+      type: "competitions.key_date_scheduled";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string; kind: KeyDateKind; dueAt: string };
+    };
 
 export type EventType = DomainEvent["type"];
 
@@ -114,6 +128,11 @@ export const EVENT_PAYLOADS = {
   "institution.rejected": INSTITUTION_DECIDED,
   "institution.suspended": INSTITUTION_DECIDED,
   "institution.reinstated": INSTITUTION_DECIDED,
+  "competitions.key_date_scheduled": z.object({
+    competitionId: z.uuid(),
+    kind: z.enum(KEY_DATE_KINDS),
+    dueAt: z.iso.datetime(),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -137,6 +156,7 @@ export const SUBSCRIBERS = {
   "institution.rejected": ["notifications.dispatch"],
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
+  "competitions.key_date_scheduled": ["competitions.advance_status"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];
