@@ -222,6 +222,36 @@ describe("acceptGuardianRequest", () => {
       expect(await unchanged(h)).toEqual(before);
     });
 
+    it("a guardian who already added the same child, rather than failing", async () => {
+      const h = await createHarness();
+      const meera = await heldTeen(h);
+      const lakshmi = await verifiedGuardian(h, {
+        name: "Lakshmi Iyer",
+        email: MOTHER_EMAIL,
+      });
+      const [teen] = await h.db
+        .select({ dobCiphertext: participantProfile.dobCiphertext })
+        .from(participantProfile)
+        .where(eq(participantProfile.id, meera.profileId));
+      const added = await h.as(lakshmi.actor).addChild({
+        fullName: "Meera Iyer",
+        dateOfBirth: h.deps.cipher.decrypt(
+          "participant_profile.dob",
+          teen!.dobCiphertext
+        ),
+        relationship: "parent",
+      });
+      expect(added).toMatchObject({ ok: true });
+      const before = await unchanged(h);
+
+      expect(
+        await h
+          .as(lakshmi.actor)
+          .acceptGuardianRequest({ token: meera.token, relationship: "parent" })
+      ).toEqual({ ok: false, error: "child_already_added" });
+      expect(await unchanged(h)).toEqual(before);
+    });
+
     it("the teen who asked", async () => {
       const h = await createHarness();
       const meera = await heldTeen(h);

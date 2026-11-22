@@ -286,6 +286,7 @@
         "requester_cannot_accept": "You sent this request. Your parent or guardian confirms it with their own account.",
         "contact_mismatch": "This request is for a different email address than the one you're signed in with.",
         "guardian_not_verified": "First register as a parent or guardian, with a code we email you.",
+        "child_already_added": "You've already added this child yourself, so this request can't add them a second time. Please contact us, and we'll bring their registrations together.",
         "already_linked": "This teen's login is already linked to a parent or guardian.",
         "invalid_input": "Choose how you are related to them."
       },

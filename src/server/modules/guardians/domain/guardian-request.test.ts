@@ -122,6 +122,7 @@ describe("decideGuardianRequestAcceptance", () => {
       request: live,
       now,
       accepter: mother,
+      childAlreadyAdded: false,
       teenLinkedElsewhere: false,
       ...change,
     });
@@ -167,6 +168,11 @@ describe("decideGuardianRequestAcceptance", () => {
       "the guardian has not verified yet",
       { accepter: { ...mother, guardianVerified: false } },
       "guardian_not_verified",
+    ],
+    [
+      "the guardian already added the same child",
+      { childAlreadyAdded: true },
+      "child_already_added",
     ],
     [
       "the teen's login is already linked to another profile",

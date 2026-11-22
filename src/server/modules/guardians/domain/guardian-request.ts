@@ -70,15 +70,17 @@ export type GuardianRequestAcceptanceRefusal =
   | "requester_cannot_accept"
   | "contact_mismatch"
   | "guardian_not_verified"
+  | "child_already_added"
   | "already_linked";
 
 /**
  * May the signed-in user accept this guardian request? The request is
  * checked first (an unknown token says nothing more), then who is
  * accepting: never the teen who asked, only the person asked, signed in
- * with that address, who has verified as a guardian (81a). Last, the
- * teen's login must not have been linked to another child's profile since
- * they asked.
+ * with that address, who has verified as a guardian (81a) and hasn't
+ * already added the same child (by name and date of birth) themselves.
+ * Last, the teen's login must not have been linked to another child's
+ * profile since they asked.
  */
 export function decideGuardianRequestAcceptance(input: {
   /** Null when no guardian request has this token. */
@@ -94,6 +96,8 @@ export function decideGuardianRequestAcceptance(input: {
     /** Has declared as a guardian and confirmed it by code. */
     guardianVerified: boolean;
   };
+  /** The accepter already keeps a child profile with the teen's identity. */
+  childAlreadyAdded: boolean;
   teenLinkedElsewhere: boolean;
 }): { ok: true } | { ok: false; reason: GuardianRequestAcceptanceRefusal } {
   const refuse = (reason: GuardianRequestAcceptanceRefusal) =>
@@ -109,6 +113,7 @@ export function decideGuardianRequestAcceptance(input: {
   if (accepter.isTheRequester) return refuse("requester_cannot_accept");
   if (!accepter.isTheRequestedContact) return refuse("contact_mismatch");
   if (!accepter.guardianVerified) return refuse("guardian_not_verified");
+  if (input.childAlreadyAdded) return refuse("child_already_added");
   if (input.teenLinkedElsewhere) return refuse("already_linked");
   return { ok: true };
 }

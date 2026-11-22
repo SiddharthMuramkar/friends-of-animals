@@ -458,6 +458,7 @@ export async function acceptGuardianRequest(
               id: participantProfile.id,
               ownerKind: participantProfile.ownerKind,
               ownerUserId: participantProfile.ownerUserId,
+              identityHash: participantProfile.identityHash,
             })
             .from(participantProfile)
             .where(eq(participantProfile.id, request.profileId))
@@ -477,6 +478,18 @@ export async function acceptGuardianRequest(
             ne(participantProfile.id, profile.id)
           )
         );
+      // The same child added by this guardian already (81a): one guardian
+      // keeps each child once.
+      const [sameChild] = await tx
+        .select({ id: participantProfile.id })
+        .from(participantProfile)
+        .where(
+          and(
+            eq(participantProfile.ownerUserId, userId),
+            eq(participantProfile.ownerKind, "guardian"),
+            eq(participantProfile.identityHash, profile.identityHash)
+          )
+        );
       const decision = decideGuardianRequestAcceptance({
         request,
         now,
@@ -487,6 +500,7 @@ export async function acceptGuardianRequest(
             request.contactHash,
           guardianVerified: record?.verifiedAt != null,
         },
+        childAlreadyAdded: sameChild !== undefined,
         teenLinkedElsewhere: linkedElsewhere !== undefined,
       });
       if (!decision.ok) return { ok: false, error: decision.reason };

@@ -17,6 +17,7 @@ const REQUEST_ACCEPT_ERRORS: readonly RequestAcceptError[] = [
   "requester_cannot_accept",
   "contact_mismatch",
   "guardian_not_verified",
+  "child_already_added",
   "already_linked",
   "invalid_input",
 ];
