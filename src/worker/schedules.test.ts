@@ -6,6 +6,7 @@ import {
   type ScheduleDeps,
   type ScheduleJob,
 } from "@/server/outbox";
+import { unconfiguredMedia } from "@/server/ports/media";
 import { FakeClock } from "@/test/fakes/clock";
 import { FakeEmail } from "@/test/fakes/email";
 import { FakeErrorReporter } from "@/test/fakes/errors";
@@ -55,6 +56,7 @@ const deps = {
   email: new FakeEmail(clock),
   storage: new FakeStorage(clock),
   scanner: new FakeMalwareScanner(),
+  media: unconfiguredMedia,
   errors: new FakeErrorReporter(),
 } satisfies ScheduleDeps;
 

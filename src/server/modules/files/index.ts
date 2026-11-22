@@ -5,6 +5,10 @@
 
 import type { UseCaseContext } from "../../use-cases";
 import {
+  getFileDerivativeUrl,
+  type GetFileDerivativeUrlInput,
+} from "./use-cases/derivative-url";
+import {
   getFileDownloadUrl,
   type GetFileDownloadUrlInput,
 } from "./use-cases/delivery";
@@ -16,6 +20,11 @@ import {
   type RequestUploadInput,
 } from "./use-cases/upload";
 
+export type {
+  GetFileDerivativeUrlInput,
+  GetFileDerivativeUrlResult,
+} from "./use-cases/derivative-url";
+export type { DerivativeKind } from "./domain/derivatives";
 export type {
   GetFileDownloadUrlInput,
   GetFileDownloadUrlResult,
@@ -47,4 +56,6 @@ export const filesUseCases = (ctx: UseCaseContext) => ({
   getFileDownloadUrl: (input: GetFileDownloadUrlInput) =>
     getFileDownloadUrl(ctx, input),
   getFileStatus: (input: GetFileStatusInput) => getFileStatus(ctx, input),
+  getFileDerivativeUrl: (input: GetFileDerivativeUrlInput) =>
+    getFileDerivativeUrl(ctx, input),
 });
