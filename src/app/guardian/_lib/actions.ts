@@ -179,6 +179,7 @@ export async function inviteTeenAction(
     const result = await as(actor).inviteTeenLogin({ childId, email });
     if (!result.ok) return afterInvite(email, result);
   } catch (error) {
+    unstable_rethrow(error);
     console.error(`inviteTeenLogin failed: ${errorSummaryForLogs(error)}`);
     return afterInvite(email, "unexpected");
   }

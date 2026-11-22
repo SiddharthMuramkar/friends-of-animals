@@ -23,7 +23,8 @@ import { InviteTeenForm } from "./_components/invite-teen-form";
 
 // One child's page (#81), for a guardian linked to them: their details,
 // and from 13 to 17 their own login: invite them, see the invitation
-// waiting, or that the login is linked. Anyone else gets the 404.
+// waiting, or that the login is linked. Anyone else gets the not-found
+// page, streamed inside <Suspense>, so with status 200.
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("guardian.child.meta");

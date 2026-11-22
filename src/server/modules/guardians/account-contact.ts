@@ -7,7 +7,11 @@ import { eq } from "drizzle-orm";
 import type { AppDb } from "../../db/app-db";
 import { user } from "../../db/schema";
 
-/** The user's email if they have verified it, else null. */
+/**
+ * The user's email if they have verified it, else null. Stored normalised
+ * (check `user_email_normalised`), so it matches a normalised invited
+ * address as it is.
+ */
 export async function verifiedEmailOf(
   db: AppDb,
   userId: string

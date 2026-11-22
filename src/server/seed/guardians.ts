@@ -58,10 +58,15 @@ export const SEED_GUARDIANS = {
 } as const;
 
 /**
- * The day, `daysPast` days after their birthday, of someone `years` old
- * at `now` on India's calendar.
+ * The date of birth of someone `years` old at `now` on India's calendar,
+ * `daysPast` days after their birthday (negative: before it). Also for
+ * the guardians tests and journeys.
  */
-function bornYearsAgo(now: Date, years: number, daysPast: number) {
+export function bornYearsAgo(
+  now: Date,
+  years: number,
+  daysPast = 0
+): CalendarDate {
   const today = indianDateAt(now);
   const date = new Date(
     Date.UTC(today.year - years, today.month - 1, today.day - daysPast)
@@ -85,7 +90,8 @@ type SeedChild = {
 /**
  * A verified guardian record for `userId` (with the guardian role) and
  * their children, each a profile they own with an active link. Rows that
- * exist already are left alone. Returns the guardian record's id.
+ * exist already are left alone; an unverified record already there is
+ * refused. Returns the guardian record's id.
  */
 async function ensureGuardianFamily(
   deps: SeedDeps,
@@ -114,10 +120,15 @@ async function ensureGuardianFamily(
     })
     .onConflictDoNothing();
   const [record] = await deps.db
-    .select({ id: guardian.id })
+    .select({ id: guardian.id, verifiedAt: guardian.verifiedAt })
     .from(guardian)
     .where(eq(guardian.userId, family.userId));
   if (!record) throw new Error("Could not create or find the guardian");
+  // Someone who declared and never verified keeps their record as it is;
+  // seed data doesn't vouch for them with the role or children.
+  if (!record.verifiedAt) {
+    throw new Error("This account's guardian record is not verified");
+  }
   await ensureGrant(deps, family.userId, {
     role: "guardian",
     scope: { type: "global" },

@@ -22,6 +22,7 @@ import { authorize } from "../../access/can";
 import { grantGlobalRole } from "../../access/flow-grant";
 import { recordAudit } from "../../audit/record";
 import { guardian, user } from "../../db/schema";
+import { signedInUser } from "../../identity/account";
 import { takeCodeAllowance } from "../../identity/rate-limit";
 import { SIGN_IN_CODE } from "../../identity/settings";
 import type { EmailMessage } from "../../ports/email";
@@ -66,14 +67,6 @@ function codeEmail(to: string, code: string): EmailMessage {
     subject: t("subject"),
     text: t("text", { code, minutes: SIGN_IN_CODE.lifetimeMinutes }),
   };
-}
-
-function signedInUser(ctx: UseCaseContext) {
-  if (ctx.actor.kind !== "user") {
-    // authorize() has already refused anyone else.
-    throw new Error("Guardian verification needs a signed-in user");
-  }
-  return ctx.actor;
 }
 
 export async function startGuardianVerification(

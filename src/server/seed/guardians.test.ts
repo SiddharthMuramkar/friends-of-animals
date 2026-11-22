@@ -1,4 +1,4 @@
-import { asc } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -97,5 +97,34 @@ describe("the guardian builder", () => {
         relationship: "legal_guardian",
       }),
     ]);
+  });
+
+  it("refuses a member who declared as a guardian but never verified, granting nothing", async () => {
+    const h = await createHarness();
+    const member = await h.seed.member({
+      name: "Lata Menon",
+      email: "lata@example.test",
+    });
+    const declared = await h
+      .as(await h.signIn(member))
+      .registerAsGuardian({ fullName: "Lata Menon", adultDeclared: true });
+    expect(declared).toMatchObject({ ok: true });
+
+    await expect(
+      h.seed.guardian({
+        name: "Lata Menon",
+        email: member.email,
+        children: [{ fullName: "Riya Menon", age: 7 }],
+      })
+    ).rejects.toThrow(/not verified/);
+    expect(
+      await h.db
+        .select()
+        .from(userRole)
+        .where(
+          and(eq(userRole.userId, member.id), eq(userRole.role, "guardian"))
+        )
+    ).toEqual([]);
+    expect(await h.db.select().from(participantProfile)).toEqual([]);
   });
 });

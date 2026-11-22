@@ -1,5 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
+import { formatIsoDate } from "../../src/server/modules/registration/domain/calendar-date";
+import { bornYearsAgo as birthDateYearsAgo } from "../../src/server/seed/guardians";
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import {
   drainOutbox,
@@ -46,15 +48,7 @@ async function visit(page: Page, path: string) {
  * old today in India, 30 days past their birthday.
  */
 function bornYearsAgo(years: number): string {
-  const india = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-  const born = new Date(
-    Date.UTC(
-      india.getUTCFullYear() - years,
-      india.getUTCMonth(),
-      india.getUTCDate() - 30
-    )
-  );
-  return born.toISOString().slice(0, 10);
+  return formatIsoDate(birthDateYearsAgo(new Date(), years, 30));
 }
 
 /** Fills in the add-child form in front of the test and sends it. */

@@ -5,10 +5,8 @@
 
 import type { Actor } from "@/server/actor";
 import type { VerifiedAccount } from "@/server/identity/verified-account";
-import {
-  formatIsoDate,
-  indianDateAt,
-} from "@/server/modules/registration/domain/calendar-date";
+import { formatIsoDate } from "@/server/modules/registration/domain/calendar-date";
+import { bornYearsAgo as birthDateYearsAgo } from "@/server/seed/guardians";
 import type { Harness } from "@/test/harness";
 
 /**
@@ -40,13 +38,5 @@ export async function verifiedGuardian(
  * before it).
  */
 export function bornYearsAgo(h: Harness, years: number, days = 0): string {
-  const today = indianDateAt(h.clock.now());
-  const birthday = new Date(
-    Date.UTC(today.year - years, today.month - 1, today.day - days)
-  );
-  return formatIsoDate({
-    year: birthday.getUTCFullYear(),
-    month: birthday.getUTCMonth() + 1,
-    day: birthday.getUTCDate(),
-  });
+  return formatIsoDate(birthDateYearsAgo(h.clock.now(), years, days));
 }

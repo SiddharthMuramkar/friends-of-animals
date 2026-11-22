@@ -18,6 +18,7 @@ import { parsePhoneNumber, type E164Phone } from "../../../lib/phone";
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
 import { guardian, participantProfile, user } from "../../db/schema";
+import { signedInUser } from "../../identity/account";
 import { uuidv7 } from "../../ids";
 import type { InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
@@ -64,14 +65,6 @@ const registerInput = z.object({
   adultDeclared: z.boolean(),
 });
 
-function actingUserId(ctx: UseCaseContext): string {
-  if (ctx.actor.kind !== "user") {
-    // authorize() has already refused anyone else.
-    throw new Error("The guardian use cases need a signed-in user");
-  }
-  return ctx.actor.userId;
-}
-
 /** The fields at fault, or the name and phone (E.164) to store. */
 function readDetails(
   input: RegisterAsGuardianInput
@@ -113,7 +106,7 @@ export async function registerAsGuardian(
   input: RegisterAsGuardianInput
 ): Promise<RegisterAsGuardianResult> {
   const { role: actorRole } = await authorize(ctx, "guardian.register");
-  const userId = actingUserId(ctx);
+  const { userId } = signedInUser(ctx);
   const details = readDetails(input);
   if (!details.ok) return details;
   if (!details.declared) {
@@ -172,7 +165,7 @@ export async function myGuardianProfile(
   ctx: UseCaseContext
 ): Promise<MyGuardianProfile> {
   await authorize(ctx, "guardian.register");
-  const userId = actingUserId(ctx);
+  const { userId } = signedInUser(ctx);
   const row = await guardianOfUser(ctx.db, userId);
   if (!row) return { registered: false };
   const email = await verifiedEmailOf(ctx.db, userId);
