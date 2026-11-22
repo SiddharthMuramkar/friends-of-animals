@@ -166,3 +166,34 @@ describe("docker/errors.yml", () => {
     expect(composeText).not.toMatch(/json-file|max-size|max-file/);
   });
 });
+
+describe("README.md, Errors (GlitchTip)", () => {
+  const readme = readDocker("./README.md");
+  const start = readme.indexOf("\n## Errors (GlitchTip)\n");
+  const section = readme.slice(start, readme.indexOf("\n## ", start + 1));
+  /** Lines of the section's shell blocks, trimmed, comments dropped. */
+  const commands = [...section.matchAll(/```sh\n([\s\S]*?)```/g)]
+    .flatMap(([, body]) => lines(body ?? ""))
+    .map((line) => line.trim());
+  const at = (command: string) => commands.indexOf(command);
+
+  it("creates the superuser on a new host before GlitchTip serves anything", () => {
+    // The first account to sign up becomes superuser, and Caddy already
+    // routes errors.friendsofanimals.dev: the web server must not run
+    // until the owner's account exists.
+    expect(start).toBeGreaterThan(-1);
+    const steps = [
+      "docker compose -f docker/errors.yml up -d --wait glitchtip-pg",
+      "docker compose -f docker/errors.yml run --rm glitchtip ./manage.py migrate",
+      "docker compose -f docker/errors.yml run --rm glitchtip ./manage.py createsuperuser",
+      "docker compose -f docker/errors.yml up -d --wait",
+    ].map(at);
+    expect(steps.every((index) => index > -1)).toBe(true);
+    expect([...steps].sort((a, b) => a - b)).toEqual(steps);
+  });
+
+  it("covers losing GlitchTip's database, which no backup restores", () => {
+    expect(section).toMatch(/\/var\/lib\/foa\/glitchtip\/pg/);
+    expect(section).not.toMatch(/straight after the first start/);
+  });
+});

@@ -1139,7 +1139,22 @@ Secrets (never in git, never printed; each value is `openssl rand -hex
 | `/etc/foa/secrets/glitchtip.env`         | 0600 root   | `SECRET_KEY`, and `DATABASE_URL` for role glitchtip at 10.112.13.11:5432         |
 | `/etc/foa/secrets/glitchtip_pg_password` | 0400 70     | The same password, for foa-glitchtip-pg's first start (`POSTGRES_PASSWORD_FILE`) |
 
-Start and recreate, with the edge running:
+**First start on a new host**, or after losing `/var/lib/foa/glitchtip/pg`
+(no backup restores it): GlitchTip lets the first account that signs up
+become superuser, even with sign-up turned off, and Caddy already routes
+`errors.friendsofanimals.dev` with a public certificate. So create the
+owner's account before the web server runs: start only the database, run the
+migrations and `createsuperuser` in one-off containers, then start GlitchTip.
+
+```sh
+cd /srv/foa && git pull
+docker compose -f docker/errors.yml up -d --wait glitchtip-pg
+docker compose -f docker/errors.yml run --rm glitchtip ./manage.py migrate
+docker compose -f docker/errors.yml run --rm glitchtip ./manage.py createsuperuser
+docker compose -f docker/errors.yml up -d --wait
+```
+
+Start and recreate, with the edge running and the superuser in place:
 
 ```sh
 cd /srv/foa && git pull
@@ -1151,9 +1166,7 @@ docker compose -f docker/errors.yml ps
 The organisation `foa` and its two projects, one for the site and one for
 the workers, live in GlitchTip's database. Their DSNs are Vercel
 Production's `NEXT_PUBLIC_SENTRY_DSN` and `/etc/foa/secrets/worker_sentry.env`.
-On a new host, create the first user straight after the first start, or
-with `docker exec -it foa-glitchtip ./manage.py createsuperuser`. Upgrade:
-bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
+Upgrade: bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
 
 ## TODO and owner actions
 
