@@ -166,7 +166,7 @@ function Box({
               >
                 {k + 1}
               </span>
-              <span className="pt-0.5">
+              <span className="min-w-0 pt-0.5">
                 <Inlines text={text} ctx={ctx} path={`${path}-${k}`} />
               </span>
             </li>

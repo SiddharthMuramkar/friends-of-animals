@@ -54,7 +54,7 @@ export async function JudgingPath({
 
       <ol
         aria-label={t("pathLabel")}
-        className="relative mt-8 grid gap-5 sm:grid-cols-5 sm:gap-3"
+        className="relative mt-8 grid grid-cols-1 gap-5 sm:grid-cols-5 sm:gap-3"
       >
         {/* The road: vertical on phones, horizontal from sm. */}
         <span
@@ -79,13 +79,13 @@ export async function JudgingPath({
               >
                 <Icon />
               </span>
-              <span className="flex flex-col gap-1 sm:items-center">
+              <span className="flex min-w-0 flex-col gap-1 sm:items-center">
                 <span className="font-display text-h5 leading-tight font-bold text-ink">
                   {t(`levels.${key}`)}
                 </span>
                 <span
                   className={cn(
-                    "w-fit rounded-full px-2.5 py-0.5 text-sm font-semibold",
+                    "w-fit max-w-full rounded-full px-2.5 py-0.5 text-sm font-semibold",
                     active
                       ? "border border-success-border bg-success-bg text-ink"
                       : "border border-border-strong text-ink-muted"
@@ -116,8 +116,8 @@ export async function JudgingPath({
             {RUBRIC.map(({ key, weight }, i) => (
               <li key={key}>
                 <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-ink">{t(`rubric.${key}`)}</span>
-                  <span className="font-display text-h5 font-bold text-ink">
+                  <span className="min-w-0 text-ink">{t(`rubric.${key}`)}</span>
+                  <span className="shrink-0 font-display text-h5 font-bold text-ink">
                     {t("percent", { value: weight })}
                   </span>
                 </div>

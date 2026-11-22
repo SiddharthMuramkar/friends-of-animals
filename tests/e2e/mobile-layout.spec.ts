@@ -1,4 +1,73 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+async function expectPageToFit(page: Page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+  const { clientWidth, scrollWidth } = await page.evaluate(() => {
+    const { clientWidth, scrollWidth } = document.documentElement;
+    return { clientWidth, scrollWidth };
+  });
+  expect(scrollWidth, new URL(page.url()).pathname).toBe(clientWidth);
+}
+
+async function enlargeText(page: Page) {
+  const root = page.locator("html");
+  await expect(root).toHaveAttribute("style", /--header-height:/);
+  await root.evaluate((element) => {
+    element.style.fontSize = "200%";
+  });
+  await expect(root).toHaveCSS("font-size", "32px");
+}
+
+for (const width of [390, 768, 1440]) {
+  test(`public pages fit a ${width}px viewport`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ["/", "/competitions", "/awareness", "/sign-in/phone"]) {
+      const response = await page.goto(path);
+      expect(response?.ok(), path).toBe(true);
+      await expectPageToFit(page);
+    }
+  });
+}
+
+test("credits and footer links fit a compact phone with enlarged text", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/credits");
+  await enlargeText(page);
+  await expectPageToFit(page);
+
+  const credit = page.getByRole("main").getByRole("article").first();
+  const title = credit.getByRole("heading", { level: 3 });
+  const thumbnail = credit.getByRole("img");
+  await expect(title).toBeVisible();
+  await expect(thumbnail).toBeVisible();
+  const [titleBox, thumbnailBox] = await Promise.all([
+    title.boundingBox(),
+    thumbnail.boundingBox(),
+  ]);
+  expect(titleBox!.y).toBeGreaterThanOrEqual(
+    thumbnailBox!.y + thumbnailBox!.height
+  );
+
+  const address = page.getByRole("link", { name: "cybercrime.gov.in" });
+  await address.scrollIntoViewIfNeeded();
+  await expect(address).toBeInViewport({ ratio: 1 });
+});
+
+test("public content reflows on a compact phone with enlarged text", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  for (const path of ["/", "/awareness", "/schools", "/privacy"]) {
+    const response = await page.goto(path);
+    expect(response?.ok(), path).toBe(true);
+    await enlargeText(page);
+    await expectPageToFit(page);
+  }
+});
 
 test("the homepage competition action fits on a compact phone", async ({
   page,
@@ -99,4 +168,63 @@ test("the landscape menu stays open through hydration, scrolls, and closes", asy
   await about.click();
   await expect(page).toHaveURL(/\/about$/);
   await expect(menu).toBeHidden();
+});
+
+test("resizing an open menu hands focus to the desktop navigation", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1023, height: 800 });
+  await page.goto("/about");
+  await expect(page.locator("html")).toHaveAttribute(
+    "style",
+    /--header-height:/
+  );
+
+  const header = page.getByRole("banner");
+  const trigger = header.getByRole("button", { name: "Menu", exact: true });
+  const menu = page.getByRole("dialog", { name: "Pages" });
+  await trigger.click();
+  await expect(menu).toBeVisible();
+
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await expect(menu).toBeHidden();
+  const desktopNav = header.getByRole("navigation", { name: "Main" });
+  await expect(desktopNav.getByRole("link", { name: "About" })).toBeFocused();
+  await expectPageToFit(page);
+  await desktopNav.getByRole("link", { name: "Schools" }).click();
+  await expect(page).toHaveURL(/\/schools$/);
+
+  await page.setViewportSize({ width: 844, height: 320 });
+  await trigger.click();
+  await expect(menu).toBeVisible();
+});
+
+test("the menu remains usable when short and text is enlarged", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 320 });
+  await page.goto("/");
+  await enlargeText(page);
+
+  const trigger = page.getByRole("button", { name: "Menu", exact: true });
+  expect((await trigger.boundingBox())?.width).toBeGreaterThanOrEqual(44);
+  await trigger.click();
+  const menu = page.getByRole("dialog", { name: "Pages" });
+  await expect(menu).toBeVisible();
+  expect(await menu.evaluate((el) => el.scrollWidth)).toBe(
+    await menu.evaluate((el) => el.clientWidth)
+  );
+
+  for (const control of [
+    menu.getByRole("link", { name: "About" }),
+    menu.getByRole("link", { name: "Donate" }),
+    menu.getByRole("button", { name: "Close menu" }),
+  ]) {
+    await control.scrollIntoViewIfNeeded();
+    await expect(control).toBeInViewport({ ratio: 1 });
+    expect((await control.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  }
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(trigger).toBeFocused();
 });

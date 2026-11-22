@@ -73,10 +73,44 @@ test("a member adds an authenticator app, then steps up to remove it", async ({
 
   await page.getByRole("textbox", { name: "Name it" }).first().fill("Phone");
   await page.getByRole("button", { name: "Set up an app" }).click();
-  await expect(
-    page.getByRole("img", { name: /QR code for adding Friends of Animals/ })
-  ).toBeVisible();
+  const qr = page.getByRole("img", {
+    name: /QR code for adding Friends of Animals/,
+  });
+  await expect(qr).toBeVisible();
   await expectAccessible(page, "/account/security, setting up an app");
+
+  const viewport = page.viewportSize();
+  await page.setViewportSize({ width: 320, height: 640 });
+  const instructions = page.getByText("Scan this code with your app.");
+  for (const [fontSize, expectedSize] of [
+    ["100%", "16px"],
+    ["200%", "32px"],
+  ]) {
+    await page.evaluate((size) => {
+      document.documentElement.style.fontSize = size;
+    }, fontSize);
+    await page.waitForFunction(
+      (size) => getComputedStyle(document.documentElement).fontSize === size,
+      expectedSize
+    );
+    const { width, height, availableWidth, bottom } = await qr.evaluate(
+      (code) => {
+        const bounds = code.getBoundingClientRect();
+        return {
+          width: bounds.width,
+          height: bounds.height,
+          bottom: bounds.bottom,
+          availableWidth: code.closest("form")!.clientWidth,
+        };
+      }
+    );
+    expect(width, `QR width at ${fontSize} text size`).toBeLessThanOrEqual(
+      availableWidth
+    );
+    expect(width).toBeCloseTo(height);
+    expect((await instructions.boundingBox())?.y).toBeGreaterThan(bottom);
+  }
+
   const key = await page
     .getByText(/^([A-Z2-7]{4} ){7}[A-Z2-7]{4}$/)
     .textContent();
@@ -87,6 +121,10 @@ test("a member adds an authenticator app, then steps up to remove it", async ({
     .fill(codeFor(secret));
   await page.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByRole("status")).toContainText("Added.");
+  if (viewport) await page.setViewportSize(viewport);
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("font-size");
+  });
   await expect(
     page.getByText("Authenticator app", { exact: true })
   ).toBeVisible();

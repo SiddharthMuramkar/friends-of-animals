@@ -178,7 +178,7 @@ async function Competitions() {
       />
       {list.length > 0 ? (
         <>
-          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
@@ -251,7 +251,7 @@ async function WhyChildren() {
   const t = await getTranslations("home.why");
   return (
     <Section labelledBy="home-why" width="wide" hue="red">
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-center lg:gap-16">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-center lg:gap-16">
         <div>
           <SectionHeading
             id="home-why"
@@ -327,7 +327,7 @@ async function Stories() {
         title={t("title")}
         lead={t("lead")}
       />
-      <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {latestStories(3).map((story) => (
           <li key={story.slug} className="flex">
             <StoryCard story={story} headingLevel={3} className="w-full" />

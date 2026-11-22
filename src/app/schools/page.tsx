@@ -103,7 +103,7 @@ export default async function Page() {
           tile="green"
           title={t("steps.title")}
         />
-        <ol className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-5">
+        <ol className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-5">
           {steps.map((s, i) => (
             <li
               key={s.title}
@@ -127,7 +127,7 @@ export default async function Page() {
 
       {/* Coordinator and what FOA provides. */}
       <Section labelledBy="schools-coord" width="wide" tone="tint" hue="green">
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
           <div>
             <SectionHeading
               id="schools-coord"
@@ -152,7 +152,7 @@ export default async function Page() {
             <h2 id="schools-provides" className="text-h3">
               {t("provides.title")}
             </h2>
-            <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+            <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {provides.map((p, i) => (
                 <li
                   key={p.title}
@@ -160,7 +160,7 @@ export default async function Page() {
                 >
                   <h3 className="flex items-center gap-2.5 font-sans text-h5 font-bold">
                     <TileMarker hue={PROVIDE_TILES[i % PROVIDE_TILES.length]} />
-                    {p.title}
+                    <span className="min-w-0">{p.title}</span>
                   </h3>
                   <p className="mt-2 text-sm text-ink-muted">{p.body}</p>
                 </li>
@@ -180,7 +180,7 @@ export default async function Page() {
             title={t("curriculum.title")}
             lead={t("curriculum.lead")}
           />
-          <div className="mt-10 grid gap-10 lg:grid-cols-2">
+          <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
             <div>
               <p className="text-sm font-bold text-ink">
                 {t("curriculum.ncf")}

@@ -61,21 +61,21 @@ async function CreditCard({ credit }: { credit: Credit }) {
   const t = await getTranslations("credits");
   const { src, focal } = siteImage(credit.id as SiteImageId);
   return (
-    <li>
-      <article className="grid h-full grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-3 rounded-3xl border-2 border-border bg-surface p-4 sm:grid-cols-[8rem_minmax(0,1fr)] sm:grid-rows-[auto_1fr] sm:gap-x-5 sm:p-5">
+    <li className="@container/credit">
+      <article className="grid h-full grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-3 rounded-3xl border-2 border-border bg-surface p-4 @min-[18rem]/credit:grid-cols-[5rem_minmax(0,1fr)] @min-[32rem]/credit:grid-cols-[8rem_minmax(0,1fr)] @min-[32rem]/credit:grid-rows-[auto_1fr] @min-[32rem]/credit:gap-x-5 @min-[32rem]/credit:p-5">
         <Image
           src={src}
           alt={credit.alt}
-          sizes="(min-width: 640px) 128px, 96px"
+          sizes="auto, 8rem"
           placeholder={BLUR}
           style={{ objectPosition: `${focal[0] * 100}% ${focal[1] * 100}%` }}
-          className="aspect-square h-auto w-full rounded-2xl object-cover sm:row-span-2"
+          className="aspect-square h-auto w-20 max-w-full rounded-2xl object-cover @min-[32rem]/credit:row-span-2 @min-[32rem]/credit:w-full"
         />
-        <h3 className="self-center font-sans text-body leading-snug font-bold break-words text-ink sm:self-start">
+        <h3 className="self-center font-sans text-body leading-snug font-bold wrap-break-word text-ink @min-[32rem]/credit:self-start">
           {credit.title}
         </h3>
-        <div className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2">
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm [overflow-wrap:anywhere]">
+        <div className="min-w-0 @min-[18rem]/credit:col-span-2 @min-[32rem]/credit:col-span-1 @min-[32rem]/credit:col-start-2">
+          <dl className="grid grid-cols-[fit-content(35%)_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm wrap-anywhere">
             <dt className="text-ink-muted">{t("fields.by")}</dt>
             <dd className="text-ink">
               {credit.authorUrl ? (
@@ -143,10 +143,12 @@ export default async function Page() {
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <h2
                 id={`credits-${key}`}
-                className="flex items-center gap-3 text-h3 text-ink"
+                className="flex min-w-0 items-center gap-3 text-h3 text-ink"
               >
                 <TileMarker hue={hue} size="lg" />
-                {t(`groups.${key}`)}
+                <span className="min-w-0 wrap-break-word">
+                  {t(`groups.${key}`)}
+                </span>
               </h2>
               <p className="text-ink-muted">
                 {t("count", { count: list.length })}
@@ -172,11 +174,11 @@ export default async function Page() {
           title={t("fonts.title")}
           lead={t("fonts.lead")}
         />
-        <ul className="mt-8 grid gap-4 md:grid-cols-3">
+        <ul className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
           {FONTS.map(({ key, face, url }) => (
             <li
               key={key}
-              className="rounded-3xl border-2 border-border bg-surface p-5 sm:p-6"
+              className="rounded-3xl border-2 border-border bg-surface p-5 wrap-break-word sm:p-6"
             >
               <p className={`text-h3 leading-tight text-ink ${face}`}>
                 {t(`fonts.items.${key}.name`)}
@@ -190,13 +192,13 @@ export default async function Page() {
               <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                 <a
                   href={OFL}
-                  className={`inline-flex min-h-6 items-center ${LINK}`}
+                  className={`inline-flex min-h-6 min-w-0 items-center ${LINK}`}
                 >
                   {t("fonts.licence")}
                 </a>
                 <a
                   href={url}
-                  className={`inline-flex min-h-6 items-center ${LINK}`}
+                  className={`inline-flex min-h-6 min-w-0 items-center ${LINK}`}
                 >
                   {t("fonts.specimen")}
                 </a>

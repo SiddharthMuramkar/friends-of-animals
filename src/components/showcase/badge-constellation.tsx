@@ -123,7 +123,7 @@ export async function BadgeConstellation({
                   </span>
                   <H
                     level={sub(headingLevel)}
-                    className="font-display text-h5 leading-tight font-bold text-ink"
+                    className="max-w-full font-display text-h5 leading-tight font-bold text-ink"
                   >
                     {t(`items.${badge}.name`)}
                   </H>

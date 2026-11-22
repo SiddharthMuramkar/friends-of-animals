@@ -72,7 +72,7 @@ export async function CompetitionFilters({
     <div className={cn(styles.root, className)}>
       <form
         aria-label={t("label")}
-        className="grid gap-6 rounded-3xl border-2 border-border bg-surface p-5 sm:p-6 lg:grid-cols-2"
+        className="grid grid-cols-1 gap-6 rounded-3xl border-2 border-border bg-surface p-5 sm:p-6 lg:grid-cols-2"
       >
         <Group legend={t("status")}>
           <Choice name="status" value="all" label={t("all")} checked />
