@@ -20,6 +20,14 @@
 //                                    Compose secret), for a URL without one
 //   SENTRY_DSN                       the workers' Sentry project (#66); unset
 //                                    turns error tracking off (./errors.ts)
+//   WORKER_QUEUE                     default | media: which outbox queue it
+//                                    drains (src/server/outbox/queues.ts).
+//                                    media is worker-media (#85): image
+//                                    derivatives only, one delivery at a time
+//   MEDIA_TIMEOUT_SECONDS            60 (at most 240): media only, the time one
+//                                    image's processing may take before the
+//                                    job fails as media_timeout
+//
 //   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, the bucket the malware scan reads uploads
 //   R2_SECRET_ACCESS_KEY, R2_BUCKET  from (#63): all four or none; without
 //                                    them every scan fails and files wait
@@ -53,7 +61,20 @@ type Common = {
   r2: R2Config | undefined;
   /** clamd, which the malware scan asks; without a host every scan fails. */
   clamd: ScannerEnv;
+  queue: WorkerQueue;
 };
+
+/**
+ * The outbox queue a worker drains. The default workers run every handler
+ * but the dedicated queues'; worker-media runs the media queue alone.
+ */
+export type WorkerQueue =
+  | { name: "default" }
+  | {
+      name: "media";
+      /** The most one image's processing may take (media_timeout). */
+      timeoutSeconds: number;
+    };
 
 export type WorkerConfig =
   | (Common & {
@@ -70,6 +91,21 @@ const WORKER_NAMES = {
   preview: "worker-preview",
   local: "worker-local",
 } as const satisfies Record<WorkerIdentity["environment"], string>;
+
+/** worker-media in production, as in docker/workers.yml. */
+const MEDIA_WORKER_NAMES = {
+  production: "worker-media",
+  staging: "worker-media-staging",
+  preview: "worker-media-preview",
+  local: "worker-media-local",
+} as const satisfies Record<WorkerIdentity["environment"], string>;
+
+/**
+ * The longest a media job may take: the relay's lease is 5 minutes
+ * (DEFAULT_RETRY_POLICY.leaseMs), and the job reads the original and
+ * writes its derivatives inside it too.
+ */
+const MAX_MEDIA_TIMEOUT_SECONDS = 240;
 
 const postgresUrl = z.url({
   protocol: /^postgres(ql)?$/,
@@ -97,6 +133,8 @@ const schema = z
     WORKER_HEARTBEAT_FILE: z.string().default("/tmp/foa-worker-heartbeat"),
     WORKER_VERSION: z.string().default("dev"),
     WORKER_PASSWORD_FILE: z.string().optional(),
+    WORKER_QUEUE: z.enum(["default", "media"]).default("default"),
+    MEDIA_TIMEOUT_SECONDS: seconds(60, MAX_MEDIA_TIMEOUT_SECONDS),
     SENTRY_DSN: z
       .string()
       .refine((value) => parseDsn(value) !== undefined, {
@@ -149,10 +187,11 @@ export function workerConfig(
   source: Record<string, string | undefined>
 ): WorkerConfig {
   const env = parseEnv(z.intersection(schema, scanJobEnvSchema), source);
+  const media = env.WORKER_QUEUE === "media";
   const common: Common = {
     appEnv: env.APP_ENV,
     identity: {
-      worker: WORKER_NAMES[env.APP_ENV],
+      worker: (media ? MEDIA_WORKER_NAMES : WORKER_NAMES)[env.APP_ENV],
       environment: env.APP_ENV,
       version: env.WORKER_VERSION,
     },
@@ -162,6 +201,9 @@ export function workerConfig(
     heartbeatFile: env.WORKER_HEARTBEAT_FILE,
     passwordFile: env.WORKER_PASSWORD_FILE,
     sentryDsn: env.SENTRY_DSN,
+    queue: media
+      ? { name: "media", timeoutSeconds: env.MEDIA_TIMEOUT_SECONDS }
+      : { name: "default" },
     // The schema takes all four R2 variables or none.
     r2:
       env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY

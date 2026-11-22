@@ -149,6 +149,18 @@ export function r2Storage(
       }
     },
 
+    async write({ bucket, key, body, contentType }) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          ContentLength: body.length,
+        })
+      );
+    },
+
     async move({ bucket, from, to }) {
       try {
         await client.send(

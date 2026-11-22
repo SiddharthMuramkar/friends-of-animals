@@ -13,6 +13,7 @@ import {
   type ConsentSubjectType,
   type GivablePurpose,
 } from "../modules/consent/domain/purposes";
+import { FILE_PROCESSING_ERROR_CODES } from "../ports/media";
 
 export type DomainEvent =
   | {
@@ -37,6 +38,27 @@ export type DomainEvent =
         purpose: GivablePurpose;
         documentId: string;
       };
+    }
+  | {
+      /** A clean file has derivatives to make: worker-media's job (#85). */
+      type: "files.processing_requested";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
+      /** Every derivative of the file is stored. */
+      type: "files.file_processed";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
+      /** The file's derivatives can't be made, for good. */
+      type: "files.file_processing_failed";
+      aggregate: { type: "file_asset"; id: string };
+      payload: {
+        fileId: string;
+        code: (typeof FILE_PROCESSING_ERROR_CODES)[number];
+      };
     };
 
 export type EventType = DomainEvent["type"];
@@ -59,6 +81,12 @@ export const EVENT_PAYLOADS = {
     purpose: z.enum(GIVABLE_PURPOSES),
     documentId: z.uuid(),
   }),
+  "files.processing_requested": z.object({ fileId: z.uuid() }),
+  "files.file_processed": z.object({ fileId: z.uuid() }),
+  "files.file_processing_failed": z.object({
+    fileId: z.uuid(),
+    code: z.enum(FILE_PROCESSING_ERROR_CODES),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -73,6 +101,11 @@ export const SUBSCRIBERS = {
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
   "consent.withdrawn": ["notifications.dispatch"],
+  // Runs in worker-media only: the media queue (./queues.ts).
+  "files.processing_requested": ["files.process_image"],
+  // #85's Entries unit subscribes to these two.
+  "files.file_processed": [],
+  "files.file_processing_failed": [],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

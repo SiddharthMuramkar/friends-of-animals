@@ -45,6 +45,7 @@ import type { ErrorReporter } from "./ports/errors";
 import type { MalwareScanner } from "./ports/malware-scanner";
 import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { localScanner } from "./ports/malware-scanner-local";
+import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
 import { serverErrorReporter } from "./observability/server-reporter";
 
 export interface Deps extends DbWithClock {
@@ -70,6 +71,8 @@ export interface Deps extends DbWithClock {
   errors: ErrorReporter;
   /** Scans each upload before anyone but its uploader may open it (#63). */
   scanner: MalwareScanner;
+  /** Processes derivatives on the media queue in worker-media. */
+  media: MediaProcessor;
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
@@ -212,6 +215,7 @@ export function productionDeps(): Deps {
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
       scanner: scannerFor(config),
+      media: unconfiguredMedia,
     };
   }
   return production;
