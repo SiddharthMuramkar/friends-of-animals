@@ -1,7 +1,7 @@
 "use client";
 
 import { OctagonAlert } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 import {
   FormAlert,
@@ -42,8 +42,13 @@ export type RegisterFormLabels = {
   submit: string;
   submitting: string;
   dashboardLink: string;
-  /** common.callout.danger: meaning never by colour alone. */
+  /** Registered, while the next page loads. */
+  registered: string;
+  /** The next page's link, for a browser that doesn't load it by itself. */
+  continueLink: string;
+  /** common.callout words: meaning never by colour alone. */
   problem: string;
+  success: string;
 };
 
 const FIELDSET =
@@ -52,7 +57,8 @@ const LEGEND = "px-2 text-lead font-bold text-ink";
 
 /**
  * The individual register form (#78). Every word comes in `labels`; the
- * action returns what to fix, or a refusal, and keeps what was typed.
+ * action returns what to fix, or a refusal, and keeps what was typed. Once
+ * registered, it hands back the next page, which the browser loads.
  */
 export function RegisterForm({
   competitionSlug,
@@ -65,7 +71,13 @@ export function RegisterForm({
     registerAsIndividualAction.bind(null, competitionSlug),
     START
   );
-  const { values } = state;
+  const { values, destination } = state;
+  // Registered: the next page (the pay page), loaded in full so its CSP
+  // and headers come with its own document. A client-side navigation would
+  // keep this page's.
+  useEffect(() => {
+    if (destination) window.location.assign(destination);
+  }, [destination]);
   const errorOf = (field: FormField): string | undefined => {
     if (!state.errors.includes(field)) return undefined;
     // A refusal tied to the field says why in its own words.
@@ -98,6 +110,20 @@ export function RegisterForm({
         : state.errors.length > 0
           ? labels.problems
           : null;
+
+  if (destination) {
+    return (
+      <FormAlert tone="success" label={labels.success}>
+        <p>{labels.registered}</p>
+        <p>
+          {/* A plain link: a full load, like the one above. */}
+          <a href={destination} className={inlineLink}>
+            {labels.continueLink}
+          </a>
+        </p>
+      </FormAlert>
+    );
+  }
 
   return (
     <form

@@ -6,16 +6,12 @@ import { FormAlert, SubmitButton } from "@/components/form";
 import { buttonStyles } from "@/components/site/button-link";
 
 import {
-  confirmPaymentAction,
-  payTestCheckoutAction,
-  startPaymentAction,
-} from "../_lib/actions";
-import {
   IDLE,
   type CheckoutReturn,
   type CheckoutView,
   type PayView,
-} from "../_lib/pay-view";
+  type TestCheckoutResult,
+} from "./pay-view";
 
 export type CheckoutLabels = {
   /** The button, e.g. "Pay ₹3,000" or "Confirm 3 students". */
@@ -85,21 +81,31 @@ function loadCheckout(nonce: string | null): Promise<void> {
 }
 
 /**
- * The pay page's button (#77). It asks the server for the batch's order,
- * then opens the gateway's checkout: Razorpay's Checkout, or the fallback's
- * test checkout below the button. What Checkout hands back goes to the
- * server, which checks it against the gateway and moves on to the
- * batch's page. Every message comes translated, from the server or in
- * `labels`.
+ * A pay page's Checkout island (#77): a school's pay page and an adult's
+ * (#78). Its button asks the server for the batch's order (`start`), then
+ * opens the gateway's checkout: Razorpay's Checkout, or the fallback's test
+ * checkout below the button (`answerTestCheckout`). What Checkout hands
+ * back goes to the server (`confirm`), which checks it against the gateway
+ * and moves on to the page that shows the payment. The three are the
+ * page's server actions, bound to what it pays for. Every message comes
+ * translated, from the server or in `labels`.
  */
-export function CheckoutButton({
-  institutionId,
-  reference,
+export function Checkout({
+  start,
+  confirm: confirmAction,
+  answerTestCheckout,
   nonce,
   labels,
 }: {
-  institutionId: string;
-  reference: string;
+  /** Opens (or reuses) the order, or confirms a free place at once. */
+  start: () => Promise<PayView>;
+  /** Checks what Checkout handed back; comes back only with a problem. */
+  confirm: (batchId: string, paid: CheckoutReturn) => Promise<PayView>;
+  /** The fallback's test checkout: pays or declines the batch's order. */
+  answerTestCheckout: (
+    batchId: string,
+    outcome: "pay" | "decline"
+  ) => Promise<TestCheckoutResult>;
   /** This request's CSP nonce, for checkout.js. */
   nonce: string | null;
   labels: CheckoutLabels;
@@ -110,14 +116,7 @@ export function CheckoutButton({
   function confirm(batchId: string, paid: CheckoutReturn) {
     startConfirming(async () => {
       // Comes back only with a problem: success redirects.
-      setView(
-        await confirmPaymentAction({
-          institutionId,
-          reference,
-          batchId,
-          ...paid,
-        })
-      );
+      setView(await confirmAction(batchId, paid));
     });
   }
 
@@ -149,8 +148,8 @@ export function CheckoutButton({
     rzp.open();
   }
 
-  async function pay(formData: FormData) {
-    const next = await startPaymentAction(formData);
+  async function pay() {
+    const next = await start();
     if (next.kind !== "checkout") {
       setView(next);
       return;
@@ -191,8 +190,6 @@ export function CheckoutButton({
 
       {view.kind === "confirmed_free" ? null : (
         <form action={pay}>
-          <input type="hidden" name="institutionId" value={institutionId} />
-          <input type="hidden" name="reference" value={reference} />
           <SubmitButton
             size="lg"
             pendingLabel={labels.submitting}
@@ -206,8 +203,7 @@ export function CheckoutButton({
       {testing ? (
         <TestCheckout
           key={testing.checkout.orderId}
-          institutionId={institutionId}
-          batchId={testing.batchId}
+          answer={(outcome) => answerTestCheckout(testing.batchId, outcome)}
           checkout={testing.checkout}
           labels={labels.testCheckout}
           disabled={confirming}
@@ -225,16 +221,14 @@ export function CheckoutButton({
  * would, so the rest of the flow is the same.
  */
 function TestCheckout({
-  institutionId,
-  batchId,
+  answer: answerAction,
   checkout,
   labels,
   disabled,
   onPaid,
   onRefused,
 }: {
-  institutionId: string;
-  batchId: string;
+  answer: (outcome: "pay" | "decline") => Promise<TestCheckoutResult>;
   checkout: CheckoutView;
   labels: CheckoutLabels["testCheckout"];
   disabled: boolean;
@@ -249,11 +243,7 @@ function TestCheckout({
 
   async function answer(outcome: "pay" | "decline") {
     setBusy(outcome);
-    const result = await payTestCheckoutAction({
-      institutionId,
-      batchId,
-      outcome,
-    });
+    const result = await answerAction(outcome);
     setBusy(null);
     if (result.ok) {
       onPaid({ paymentId: result.paymentId, signature: result.signature });

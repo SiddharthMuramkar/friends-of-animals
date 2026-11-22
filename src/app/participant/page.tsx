@@ -3,7 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { ButtonLink } from "@/components/site/button-link";
+import { ButtonLink, buttonStyles } from "@/components/site/button-link";
 import { Chip } from "@/components/site/chip";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
@@ -133,14 +133,19 @@ async function RegistrationCard({
       </p>
       {amountDue ? (
         <div className="mt-4">
-          <ButtonLink href={payMyRegistrationPath(registration.registrationId)}>
+          {/* A full load: the pay page's CSP and headers come with its
+              document. */}
+          <a
+            href={payMyRegistrationPath(registration.registrationId)}
+            className={buttonStyles({ variant: "primary" })}
+          >
             {amountDue.amountMinor === 0n
               ? t("confirmFree", { competition: competition.name })
               : t("pay", {
                   amount: formatPaise(amountDue.amountMinor),
                   competition: competition.name,
                 })}
-          </ButtonLink>
+          </a>
         </div>
       ) : null}
     </article>

@@ -103,6 +103,14 @@
       "summaryTitle": "Payment details",
       "amount": "Amount",
       "students": "Students",
+      "gateway": "Payment service",
+      "gatewayName": {
+        "razorpay": "Razorpay",
+        "razorpay-test": "Razorpay in test mode: no money moved",
+        "fallback": "Test checkout: no money moved",
+        "fake": "Test payment service: no money moved",
+        "unconfigured": "Not set up"
+      },
       "studentsTitle": "Students in this payment",
       "number": "Registration number",
       "noNumber": "Not yet",
@@ -120,6 +128,12 @@
       },
       "student": "Student",
       "studentStatus": "Status"
+    },
+    "summary": {
+      "title": "Fees",
+      "waiting": "Waiting for their fee",
+      "confirmed": "Confirmed",
+      "paid": "Every enrolled student's fee is paid."
     }
   }
 }

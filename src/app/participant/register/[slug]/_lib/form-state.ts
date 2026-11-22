@@ -36,6 +36,13 @@ export type RegisterFormState = {
   errors: FormField[];
   refusal: Refusal | null;
   unexpected: boolean;
+  /**
+   * Registered: the page to go on to (the pay page), which the browser
+   * loads in full. The pay page's CSP (Razorpay's origins) and headers come
+   * only with its own document, which a server action's redirect, a
+   * client-side navigation, would not fetch.
+   */
+  destination: string | null;
 };
 
 export const START: RegisterFormState = {
@@ -54,6 +61,7 @@ export const START: RegisterFormState = {
   errors: [],
   refusal: null,
   unexpected: false,
+  destination: null,
 };
 
 /** What the form sent, every field as a string. */
@@ -89,13 +97,7 @@ export function afterResult(
   values: RegisterFormValues,
   result: Exclude<RegisterAsIndividualResult, { ok: true }> | "unexpected"
 ): RegisterFormState {
-  const base = {
-    attempt: previous.attempt + 1,
-    values,
-    errors: [] as FormField[],
-    refusal: null,
-    unexpected: false,
-  };
+  const base = next(previous, values);
   if (result === "unexpected") return { ...base, unexpected: true };
   if (result.error === "invalid_input") {
     const fields = new Set(result.fields);
@@ -106,4 +108,28 @@ export function afterResult(
   }
   const { field } = refusalView(result.error);
   return { ...base, refusal: result.error, errors: field ? [field] : [] };
+}
+
+/** The form once registered: on to `destination`, such as the pay page. */
+export function registered(
+  previous: RegisterFormState,
+  values: RegisterFormValues,
+  destination: string
+): RegisterFormState {
+  return { ...next(previous, values), destination };
+}
+
+/** A submission's state before what came of it. */
+function next(
+  previous: RegisterFormState,
+  values: RegisterFormValues
+): RegisterFormState {
+  return {
+    attempt: previous.attempt + 1,
+    values,
+    errors: [],
+    refusal: null,
+    unexpected: false,
+    destination: null,
+  };
 }
