@@ -107,6 +107,55 @@ describe("docker/errors.yml", () => {
     );
   });
 
+  it("gains no new privileges in either container", () => {
+    for (const config of [glitchtip, postgres]) {
+      expect(block(config.split("\n"), /^ {4}security_opt:$/)).toEqual([
+        "      - no-new-privileges:true",
+      ]);
+    }
+  });
+
+  it("runs GlitchTip with no capabilities: the image's user is app, not root", () => {
+    expect(block(glitchtip.split("\n"), /^ {4}cap_drop:$/)).toEqual([
+      "      - ALL",
+    ]);
+    expect(glitchtip).not.toMatch(/^ {4}cap_add:/m);
+  });
+
+  it("gives Postgres only the capabilities its entrypoint needs", () => {
+    // The entrypoint starts as root: it chowns and chmods the data
+    // directory, reads the 0400 password file, then drops to postgres.
+    expect(block(postgres.split("\n"), /^ {4}cap_drop:$/)).toEqual([
+      "      - ALL",
+    ]);
+    expect(
+      block(postgres.split("\n"), /^ {4}cap_add:$/)
+        .map((line) => line.trim())
+        .sort()
+    ).toEqual(
+      ["- CHOWN", "- DAC_OVERRIDE", "- FOWNER", "- SETGID", "- SETUID"].sort()
+    );
+  });
+
+  it("keeps both on the R-I01 network: foa-errors, 10.112.13.0/24", () => {
+    expect(block(compose, /^networks:$/)).toEqual([
+      "  errors:",
+      "    name: foa-errors",
+      "    driver: bridge",
+      "    driver_opts:",
+      "      com.docker.network.bridge.name: br-foa-errors",
+      "    ipam:",
+      "      config:",
+      "        - subnet: 10.112.13.0/24",
+    ]);
+    expect(glitchtip).toMatch(
+      /^ {6}errors: \{ ipv4_address: 10\.112\.13\.10 \}$/m
+    );
+    expect(postgres).toMatch(
+      /^ {6}errors: \{ ipv4_address: 10\.112\.13\.11 \}$/m
+    );
+  });
+
   it("logs through the shared journald anchor", () => {
     expect(["x-logging: &logging", ...block(compose, /^x-logging:/)]).toEqual(
       LOGGING_ANCHOR

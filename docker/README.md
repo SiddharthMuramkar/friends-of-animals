@@ -1092,6 +1092,11 @@ GlitchTip collects the site's and the workers' errors through the Sentry SDK
 | `foa-glitchtip`    | `glitchtip/glitchtip:7.0.0` | 10.112.13.10:8000 | no        | 1 GB, `oom_score_adj` 500   |
 | `foa-glitchtip-pg` | `postgres:18.7-alpine`      | 10.112.13.11:5432 | no        | 512 MB, `oom_score_adj` 500 |
 
+- **Hardened**: neither container gains new privileges. GlitchTip runs as
+  its image's user (`app`, 5000) with no capabilities; its Postgres keeps
+  only `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID` and `SETUID`, which its
+  entrypoint needs to own the data directory, read the password file and
+  drop to `postgres`.
 - **One container** runs GlitchTip's web server and its workers.
   `VALKEY_URL` is empty, so Postgres is the task queue, cache and session
   store: no Valkey or Redis.
