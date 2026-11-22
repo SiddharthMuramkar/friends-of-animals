@@ -17,21 +17,14 @@ const SENIORS: AgeGroup = {
 };
 
 const CONTEXT: EnrolmentContext = {
-  institutionRegistration: {
-    id: "ir-1",
-    institutionId: "inst-1",
-    competitionId: "comp-1",
-    reference: "PAWS27-I-Q2W9R",
-  },
-  competition: {
-    id: "comp-1",
-    code: "PAWS27",
-    name: "Paws for Thought 2027",
-    ageCutoffDate: "2027-06-01",
-  },
+  ageCutoffDate: "2027-06-01",
   ageGroups: [SENIORS, JUNIORS],
   today: { year: 2027, month: 1, day: 15 },
-  institutionDefaults: { pinCode: "411001", city: "Pune", state: "Maharashtra" },
+  institutionDefaults: {
+    pinCode: "411001",
+    city: "Pune",
+    state: "Maharashtra",
+  },
 };
 
 const TOOLS: PrepareStudentTools = {
@@ -87,7 +80,7 @@ describe("prepareStudent", () => {
         ignored: [],
         ageGroup: SENIORS,
         identityHash: AANYA_HASH,
-        matchKeys: [`id:${AANYA_HASH}`],
+        studentRefKey: null,
       },
     });
   });
@@ -98,17 +91,67 @@ describe("prepareStudent", () => {
       fullName: " aanyá rao",
       dateOfBirth: "01/06/2017",
     });
-    expect(again.ok && again.student.matchKeys).toEqual([`id:${AANYA_HASH}`]);
+    expect(again.ok && again.student.identityHash).toBe(AANYA_HASH);
   });
 
   it("recognises a child by roll number too, whatever its case or spaces", () => {
-    const withRef = prepare({ ...CHILD, studentRef: " 4b-07 " });
-    const sameRef = prepare({ ...CHILD, fullName: "A. Rao", studentRef: "4B-07" });
-    expect(withRef.ok && withRef.student.matchKeys).toEqual([
-      `id:${AANYA_HASH}`,
-      "ref:4B-07",
-    ]);
-    expect(sameRef.ok && sameRef.student.matchKeys).toContain("ref:4B-07");
-    expect(withRef.ok && withRef.student.details.studentRef).toBe("4b-07");
+    const withRef = prepare({ ...CHILD, studentRef: " 4b  07 " });
+    const sameRef = prepare({
+      ...CHILD,
+      fullName: "A. Rao",
+      studentRef: "4B 07",
+    });
+    expect(withRef.ok && withRef.student.studentRefKey).toBe("4B 07");
+    expect(sameRef.ok && sameRef.student.studentRefKey).toBe("4B 07");
+    expect(withRef.ok && withRef.student.details.studentRef).toBe("4b 07");
+  });
+
+  it("keeps a student's own location over the institution's", () => {
+    const result = prepare({ ...CHILD, city: "Nashik", state: "Maharashtra" });
+    expect(result.ok && result.student.details).toMatchObject({
+      pinCode: null,
+      city: "Nashik",
+      state: "Maharashtra",
+    });
+  });
+
+  it("refuses a student outside every age group, saying the ages and the cut-off", () => {
+    expect(prepare({ ...CHILD, dateOfBirth: "2013-06-01" })).toEqual({
+      ok: false,
+      problems: [
+        {
+          field: "dateOfBirth",
+          code: "outside_age_groups",
+          age: 14,
+          groups: [JUNIORS, SENIORS],
+          ageCutoffDate: "2027-06-01",
+        },
+      ],
+    });
+  });
+
+  it("names a competition whose age groups overlap as a set-up problem", () => {
+    const overlapping = {
+      ...JUNIORS,
+      id: "g-9",
+      label: "9–12",
+      minAge: 9,
+      maxAge: 12,
+    };
+    expect(
+      prepare(CHILD, { ...CONTEXT, ageGroups: [SENIORS, overlapping] })
+    ).toEqual({ ok: false, problems: [{ code: "overlapping_age_groups" }] });
+  });
+
+  it("reports every field problem, and no age group until the details are right", () => {
+    expect(
+      prepare({ ...CHILD, fullName: "A", guardianPhone: "12345" })
+    ).toEqual({
+      ok: false,
+      problems: [
+        { field: "fullName", code: "too_short" },
+        { field: "guardianPhone", code: "invalid_phone" },
+      ],
+    });
   });
 });

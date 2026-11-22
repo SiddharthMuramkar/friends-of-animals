@@ -1,10 +1,11 @@
 // The registration module (#75): an institution registers for a
-// competition, and its coordinators see which competitions they can
-// register for. Enrolling students (#75b), fees (#77) and the individual
-// route (#78) join it. Its use cases join `as(actor)` through
-// `registrationUseCases`.
+// competition, its coordinators see which competitions they can register
+// for, and they enrol students against the registration. Fees (#77) and
+// the individual route (#78) join it. Its use cases join `as(actor)`
+// through `registrationUseCases`.
 
 import type { UseCaseContext } from "../../use-cases";
+import { enrolStudent, type EnrolStudentInput } from "./enrol-student";
 import { listCompetitionsForInstitution } from "./list-competitions-for-institution";
 import {
   registerInstitutionForCompetition,
@@ -17,6 +18,13 @@ export type {
   ListCompetitionsForInstitutionResult,
 } from "./list-competitions-for-institution";
 export type {
+  EnrolmentRefusal,
+  EnrolStudentInput,
+  EnrolStudentResult,
+} from "./enrol-student";
+export type { StudentProblem } from "./domain/prepare-student";
+export type { StudentField, StudentInput } from "./domain/student-details";
+export type {
   RegisterInstitutionForCompetitionInput,
   RegisterInstitutionForCompetitionResult,
 } from "./register-institution";
@@ -27,4 +35,5 @@ export const registrationUseCases = (ctx: UseCaseContext) => ({
   ) => registerInstitutionForCompetition(ctx, input),
   listCompetitionsForInstitution: (input: { institutionId: string }) =>
     listCompetitionsForInstitution(ctx, input),
+  enrolStudent: (input: EnrolStudentInput) => enrolStudent(ctx, input),
 });

@@ -3,14 +3,14 @@
 // (#76), so both are held to the same rules: the details are checked,
 // the student is placed in one of the competition's age groups, a missing
 // location is taken from the institution, and the student gets the keys
-// that recognise the same child entered twice.
+// that recognise the same child entered twice (./identity-key.ts).
 //
 // Pure: the caller loads the context, and passes #58's phone normaliser
 // and blind index. Loads under plain Node.
 
 import { ageGroupFor, type AgeGroup } from "./age-group";
 import { type CalendarDate, parseIsoDate } from "./calendar-date";
-import { identityKeyInput, studentMatchKeys } from "./identity-key";
+import { identityKeyInput, studentRefKey } from "./identity-key";
 import {
   parseStudentDetails,
   type StudentDetails,
@@ -19,21 +19,10 @@ import {
   type StudentInput,
 } from "./student-details";
 
-/** What enrolling a student needs to know, loaded for one reference. */
+/** What enrolling a student needs to know, loaded for one registration. */
 export type EnrolmentContext = {
-  institutionRegistration: {
-    id: string;
-    institutionId: string;
-    competitionId: string;
-    reference: string;
-  };
-  competition: {
-    id: string;
-    code: string;
-    name: string;
-    /** `YYYY-MM-DD`: ages are completed years on this date. */
-    ageCutoffDate: string;
-  };
+  /** `YYYY-MM-DD`: ages are completed years on this date. */
+  ageCutoffDate: string;
   ageGroups: readonly AgeGroup[];
   /** Today's date in India. */
   today: CalendarDate;
@@ -65,6 +54,8 @@ export type StudentProblem =
       age: number;
       /** Youngest first. */
       groups: AgeGroup[];
+      /** `YYYY-MM-DD`: the day the age is counted on. */
+      ageCutoffDate: string;
     }
   /** The competition's age groups need fixing by FOA staff. */
   | { code: "overlapping_age_groups" | "no_age_groups" };
@@ -76,8 +67,8 @@ export type PreparedStudent = {
   ageGroup: AgeGroup;
   /** Stored with the profile: the blind index of the identity key. */
   identityHash: string;
-  /** Every key that recognises this student. */
-  matchKeys: string[];
+  /** The roll number as matching compares it, if there is one. */
+  studentRefKey: string | null;
 };
 
 export type PrepareStudentResult =
@@ -102,7 +93,7 @@ export function prepareStudent(
       })),
     };
   }
-  const cutoff = parseIsoDate(context.competition.ageCutoffDate);
+  const cutoff = parseIsoDate(context.ageCutoffDate);
   if (!cutoff) {
     throw new Error("EnrolmentContext: the age cut-off is not a date");
   }
@@ -121,6 +112,7 @@ export function prepareStudent(
               code: placed.reason,
               age: placed.age,
               groups: placed.groups,
+              ageCutoffDate: context.ageCutoffDate,
             }
           : { code: placed.reason },
       ],
@@ -138,10 +130,7 @@ export function prepareStudent(
       ignored: parsed.ignored,
       ageGroup: placed.group,
       identityHash,
-      matchKeys: studentMatchKeys({
-        identityHash,
-        studentRef: details.studentRef,
-      }),
+      studentRefKey: studentRefKey(details.studentRef),
     },
   };
 }

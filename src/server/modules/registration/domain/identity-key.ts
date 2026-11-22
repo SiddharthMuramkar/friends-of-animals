@@ -1,9 +1,10 @@
 // How a student is recognised when the same child is entered twice (#75,
-// reused by the CSV import #76). The date of birth is encrypted, so the
+// reused by the CSV import #76): by name and date of birth, or by the
+// institution's roll number. The date of birth is encrypted, so the
 // database can't compare it; instead each profile stores a keyed hash of
-// this key (the blind-index helper from #58 does the hashing). The key
-// carries a purpose and version, so it never collides with another blind
-// index made with the same secret.
+// the identity key (the blind-index helper from #58 does the hashing). The
+// key carries a purpose and version, so it never collides with another
+// blind index made with the same secret.
 //
 // Pure. Loads under plain Node.
 
@@ -31,4 +32,14 @@ export function identityKeyInput(
   dateOfBirth: CalendarDate
 ): string {
   return `${PURPOSE}${normaliseNameForMatching(fullName)}|${formatIsoDate(dateOfBirth)}`;
+}
+
+/**
+ * A roll number as matching sees it: upper case, single spaces, so "4b 07"
+ * and " 4B  07" are one student. Null when there is none.
+ */
+export function studentRefKey(studentRef: string | null): string | null {
+  if (studentRef === null) return null;
+  const key = studentRef.replace(/\s+/g, " ").trim().toUpperCase();
+  return key === "" ? null : key;
 }
