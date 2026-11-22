@@ -54,7 +54,168 @@
         "closed": "Registration for that competition has closed.",
         "failed": "Something went wrong, and your institution isn't registered. Please try again."
       },
-      "entry": "Register for competitions"
+      "entry": "Register for competitions",
+      "students": "Students",
+      "studentsFor": "Students of {institution} in {competition}"
+    },
+    "students": {
+      "meta": {
+        "title": "Your students in a competition",
+        "description": "The students your institution has enrolled in a Friends of Animals competition."
+      },
+      "eyebrow": "Your institution",
+      "title": "Students",
+      "lead": "Everyone your institution has enrolled in this competition, with their age group and status.",
+      "loading": "Loading students…",
+      "for": "{institution} in {competition}",
+      "reference": "Registration reference {reference}",
+      "back": "Back to competitions",
+      "noInstitution": {
+        "title": "No students to show here",
+        "body": "This page is for the coordinators and the authorised person of an institution. Ask your institution's authorised person to invite you as a coordinator.",
+        "back": "Go to your dashboard"
+      },
+      "notFound": {
+        "title": "We couldn't find that registration",
+        "body": "Your institution has no registration with that reference. Open it from the competitions page instead.",
+        "back": "Go to competitions"
+      },
+      "counts": "{enrolled, plural, =0 {No students enrolled} one {# student enrolled} other {# students enrolled}}{withdrawn, plural, =0 {} other {, # withdrawn}}",
+      "add": "Add a student",
+      "enrolment": {
+        "not_open_yet": "Registration for this competition hasn't opened yet, so students can't be added.",
+        "closed": "Registration for this competition has closed, so students can't be added or withdrawn.",
+        "institution_not_verified": "Your institution isn't verified at the moment, so students can't be added or withdrawn."
+      },
+      "listTitle": "Enrolled students",
+      "empty": "No students yet. Add each student who takes part.",
+      "grade": "Class: {grade}",
+      "ageGroup": "Age group: {label}",
+      "withdraw": "Withdraw",
+      "withdrawName": "Withdraw {name}",
+      "withdrawing": "Withdrawing…",
+      "outcome": {
+        "enrolled": "{name} is enrolled in the {group} age group.",
+        "enrolledIgnored": "{name} is enrolled in the {group} age group. Contact details this student doesn't need weren't kept.",
+        "enrolledElsewhere": "The student is enrolled.",
+        "withdrawn": "The student is withdrawn. Add them again if that was a mistake.",
+        "not_found": "We couldn't find that student in this registration.",
+        "not_enrolled": "That student is already withdrawn.",
+        "closed": "Registration has closed, so the student can't be withdrawn.",
+        "not_open_yet": "Registration hasn't opened yet.",
+        "institution_not_verified": "Your institution isn't verified at the moment, so the student can't be withdrawn.",
+        "forbidden": "You no longer act for this institution, so nothing changed. Ask its authorised person if that's a mistake.",
+        "failed": "Something went wrong, and nothing changed. Please try again."
+      }
+    },
+    "newStudent": {
+      "meta": {
+        "title": "Add a student",
+        "description": "Enrol a student from your institution in a Friends of Animals competition."
+      },
+      "eyebrow": "Your institution",
+      "title": "Add a student",
+      "lead": "For {competition}. Each student gets the age group their date of birth puts them in.",
+      "ages": "This competition is for ages {minAge}–{maxAge} on {cutoff}.",
+      "back": "Back to students",
+      "loading": "Loading…",
+      "cannotAdd": "Students can't be added now.",
+      "student": "The student",
+      "fullName": {
+        "label": "Full name",
+        "hint": "As it should appear on certificates."
+      },
+      "dateOfBirth": {
+        "label": "Date of birth"
+      },
+      "grade": {
+        "label": "Class or year (optional)",
+        "hint": "For example: Class 5"
+      },
+      "studentRef": {
+        "label": "Roll number (optional)",
+        "hint": "Your institution's own number for the student."
+      },
+      "guardian": {
+        "title": "Parent or guardian",
+        "hint": "Needed for a student under 18. We contact them about the student's entry."
+      },
+      "guardianName": {
+        "label": "Parent or guardian's name"
+      },
+      "guardianRelationship": {
+        "legend": "They are the student's",
+        "parent": "Parent",
+        "legal_guardian": "Legal guardian"
+      },
+      "guardianPhone": {
+        "label": "Parent or guardian's mobile number",
+        "hint": "An Indian mobile number, like 98765 43210."
+      },
+      "guardianEmail": {
+        "label": "Parent or guardian's email (optional)"
+      },
+      "self": {
+        "title": "Adult student's own contact",
+        "hint": "Needed for a student 18 or over, instead of a parent or guardian."
+      },
+      "phone": {
+        "label": "Student's mobile number",
+        "hint": "An Indian mobile number, like 98765 43210."
+      },
+      "email": {
+        "label": "Student's email (optional)"
+      },
+      "location": {
+        "title": "Address",
+        "hint": "Leave these empty to use your institution's town and PIN code."
+      },
+      "address": {
+        "label": "Address (optional)"
+      },
+      "pinCode": {
+        "label": "PIN code (optional)"
+      },
+      "city": {
+        "label": "Town or city (optional)"
+      },
+      "state": {
+        "label": "State (optional)"
+      },
+      "submit": "Add student",
+      "submitting": "Adding…",
+      "alert": {
+        "check_details": "Some details need another look. Each one is marked below.",
+        "already_enrolled": "This student is already enrolled: the same name and date of birth, or the same roll number.",
+        "closed": "Registration for this competition has closed, so students can't be added.",
+        "not_open_yet": "Registration for this competition hasn't opened yet.",
+        "institution_not_verified": "Your institution isn't verified at the moment, so students can't be added.",
+        "not_found": "We couldn't find this registration. Go back to the competitions page and try again.",
+        "age_groups_need_fixing": "This competition's age groups need fixing by FOA before students can be added. Please contact FOA.",
+        "forbidden": "You no longer act for this institution, so the student isn't added. Ask its authorised person if that's a mistake.",
+        "failed": "Something went wrong, and the student isn't added. Please try again."
+      },
+      "errors": {
+        "required": {
+          "fullName": "Enter the student's full name.",
+          "dateOfBirth": "Enter the student's date of birth.",
+          "guardianName": "A student under 18 needs a parent or guardian: enter their name.",
+          "guardianRelationship": "Choose whether they are a parent or a legal guardian.",
+          "guardianPhone": "Enter the parent or guardian's mobile number.",
+          "phone": "A student 18 or over needs their own mobile number."
+        },
+        "missing": "This is needed.",
+        "too_short": "Use at least 2 letters.",
+        "too_long": "That's too long. Please shorten it.",
+        "invalid_date": "Enter a real date, like 2017-06-01 or 01/06/2017.",
+        "in_future": "A date of birth can't be in the future.",
+        "too_early": "Check the year: that date is before 1900.",
+        "invalid_format": "A PIN code is 6 digits and doesn't start with 0.",
+        "invalid_choice": "Choose parent or legal guardian.",
+        "invalid_phone": "Enter an Indian mobile number, like 98765 43210.",
+        "invalid_email": "Enter an email address, like name@example.com.",
+        "outside_age_groups": "This competition is for ages {minAge}–{maxAge} on {cutoff}; this student is {age}."
+      }
     }
   }
 }
