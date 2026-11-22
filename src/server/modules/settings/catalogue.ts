@@ -24,6 +24,10 @@ export const SETTINGS = {
     max: 24,
     unit: "hours",
   }),
+  // Sign-in by emailed code (#57). On by default, but production also
+  // needs SES configured and out of its sandbox (src/server/deps.ts,
+  // DECISIONS R-27); until then sign-in says it opens soon.
+  "auth.emailSignIn": booleanSetting({ default: true }),
   // Messages (#58): off until DLT registration through MSG91 (HR-14).
   // Seeded on for local runs and previews, which capture every text.
   "sms.enabled": booleanSetting({ default: false }),
