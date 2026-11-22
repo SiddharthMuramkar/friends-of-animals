@@ -60,6 +60,8 @@ function inCidr(address: string, cidr: string): boolean {
 }
 
 const SENTRY_FILE = "/etc/foa/secrets/worker_sentry.env";
+/** The production app's field keys, for worker-prod alone (#74). */
+const FIELD_KEYS_FILE = "/etc/foa/secrets/worker_prod_field_keys.env";
 
 /** A service's `env_file:` entries, in order. */
 function envFiles(own: string): { path: string; required: boolean }[] {
@@ -149,17 +151,19 @@ describe("docker/workers.yml", () => {
   });
 
   it.each([
-    ["worker-prod", "/etc/foa/secrets/worker_prod_r2.env"],
-    ["worker-staging", "/etc/foa/preview-files.env"],
-    ["worker-preview", "/etc/foa/preview-files.env"],
+    ["worker-prod", "/etc/foa/secrets/worker_prod_r2.env", [FIELD_KEYS_FILE]],
+    ["worker-staging", "/etc/foa/preview-files.env", []],
+    ["worker-preview", "/etc/foa/preview-files.env", []],
   ])(
     "gives %s its own environment's R2 credentials for the upload scan",
-    (name, file) => {
+    (name, file, more) => {
       // Without all four R2_ variables the worker's scan fails every file
       // (src/worker/main.ts), so each database worker needs its bucket's.
+      // worker-prod also reads the app's field keys (below).
       expect(envFiles(service(name))).toEqual([
         { path: SENTRY_FILE, required: false },
         { path: file, required: false },
+        ...more.map((path) => ({ path, required: false })),
       ]);
     }
   );
@@ -168,7 +172,6 @@ describe("docker/workers.yml", () => {
     // The production app's canonical URL (LAUNCH B8) and keys (B7): the
     // worker builds an invitation's link from the one and reads the
     // invitee's address and the link's token with the other.
-    const FIELD_KEYS_FILE = "/etc/foa/secrets/worker_prod_field_keys.env";
     const prod = () => service("worker-prod");
 
     it("gives worker-prod the site's URL, for the links in its messages", () => {

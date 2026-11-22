@@ -35,7 +35,10 @@
 //                                    sends to (an invitee's address, a stored
 //                                    phone); without them staging and
 //                                    production can't, and such a delivery
-//                                    fails until they are set
+//                                    fails until they are set. worker-prod
+//                                    reads the production app's from its own
+//                                    env file (docker/README.md, "Links and
+//                                    field keys")
 //
 //   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, the bucket the malware scan reads uploads
 //   R2_SECRET_ACCESS_KEY, R2_BUCKET  from (#63): all four or none; without
