@@ -225,6 +225,34 @@
       "when": 1795348464745,
       "tag": "0031_112_posts",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795351687416,
+      "tag": "0032_88_competition_status_school_judging",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795351688307,
+      "tag": "0033_88_rubrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1795351689128,
+      "tag": "0034_88_rubric_immutability",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795351689903,
+      "tag": "0035_88_transition_blocked_message",
+      "breakpoints": true
     }
   ]
 }

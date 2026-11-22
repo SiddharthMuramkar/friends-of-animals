@@ -8,9 +8,10 @@ import { Chip } from "@/components/site/chip";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { APP_ROUTES, judgingGuidePath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { DomainError } from "@/server/errors";
 
 import { dashboardLinks, type DashboardLink } from "./_lib/dashboard-links";
 
@@ -98,6 +99,7 @@ async function Areas() {
             <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
           </div>
           <AreaBody area={link.area} lead={lead} />
+          {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
       ))}
     </div>
@@ -145,6 +147,43 @@ async function AreaBody({
               : []),
           ])
         : null}
+    </div>
+  );
+}
+
+/**
+ * The judging guides an institution's coordinator can read (#88). Nothing
+ * while FOA hasn't verified the institution: the guide isn't theirs yet.
+ */
+async function JudgingGuides() {
+  const actor = await currentActor();
+  if (actor.kind !== "user") return null;
+  const t = await getTranslations("judgingGuide.dashboard");
+  let guides;
+  try {
+    guides = await as(actor).listJudgingGuides();
+  } catch (error) {
+    if (error instanceof DomainError && error.code === "forbidden") {
+      return null;
+    }
+    throw error;
+  }
+  return (
+    <div className="mt-5">
+      <h3 className="text-lead font-bold text-ink">{t("title")}</h3>
+      {guides.length === 0 ? (
+        <p className="mt-2 text-ink-muted">{t("none")}</p>
+      ) : (
+        <ul className="mt-2 flex flex-col">
+          {guides.map((guide) => (
+            <li key={guide.code}>
+              <SiteLink href={judgingGuidePath(guide.code)} className={LINK}>
+                {t("item", { name: guide.name, code: guide.code })}
+              </SiteLink>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

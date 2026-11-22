@@ -46,7 +46,7 @@ describe("the competitions seed", () => {
         code: "SKIES26",
         slug: "kinder-skies",
         participation: "institutions",
-        status: "registration_closed",
+        status: "school_judging",
       },
       {
         code: "NEIGH27",
@@ -92,8 +92,8 @@ describe("the competitions seed", () => {
     expect(listed.map((c) => c.status).sort()).toEqual([
       "draft",
       "published",
-      "registration_closed",
       "registration_open",
+      "school_judging",
     ]);
     expect(
       await h
@@ -116,22 +116,26 @@ describe("the competitions seed", () => {
           status,
           openingPassed: keyDates[0]!.at <= now,
           closingPassed: keyDates[1]!.at <= now,
+          submissionsClosed: keyDates[2]!.at <= now,
         }))
       ).toEqual([
         {
-          status: "registration_closed",
+          status: "school_judging",
           openingPassed: true,
           closingPassed: true,
+          submissionsClosed: true,
         },
         {
           status: "registration_open",
           openingPassed: true,
           closingPassed: false,
+          submissionsClosed: false,
         },
         {
           status: "published",
           openingPassed: false,
           closingPassed: false,
+          submissionsClosed: false,
         },
       ]);
 
@@ -169,7 +173,17 @@ describe("the competitions seed", () => {
     h.clock.set(waterOpens);
     await h.drain();
     expect(await statusOf("a-bowl-of-water")).toBe("registration_open");
-    expect(await statusOf("kinder-skies")).toBe("registration_closed");
+    expect(await statusOf("kinder-skies")).toBe("school_judging");
+
+    // Every one of its rubrics is published (the judging seed, #88).
+    const neighbourSubmissions = await opensOf(
+      "neighbours-on-my-street",
+      "submissions_close"
+    );
+    if (!neighbourSubmissions) throw new Error("dates missing");
+    h.clock.set(neighbourSubmissions);
+    await h.drain();
+    expect(await statusOf("neighbours-on-my-street")).toBe("school_judging");
   });
 
   it("gives two global managers the seed authenticator, so each journey project passes the second factor as its own manager", async () => {
