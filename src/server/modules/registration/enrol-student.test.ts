@@ -160,6 +160,36 @@ describe("enrolStudent", () => {
     expect(await counts(h)).toEqual(NOTHING);
   });
 
+  it("reports a hidden control character, such as a NUL, as that field's problem, never a database error", async () => {
+    const h = await createHarness();
+    const school = await registeredSchool(h);
+
+    const result = await h.as(school.coordinator.actor).enrolStudent({
+      institutionId: school.institutionId,
+      reference: school.reference,
+      student: {
+        ...AANYA,
+        fullName: "Aanya\u0000Rao",
+        guardianEmail: "kavita\u0000@example.test",
+        city: "Pune\u0007",
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "invalid_student",
+      problems: expect.arrayContaining([
+        { field: "fullName", code: "invalid_characters" },
+        { field: "guardianEmail", code: "invalid_characters" },
+        { field: "city", code: "invalid_characters" },
+      ]),
+    });
+    expect(
+      result.ok === false && "problems" in result && result.problems
+    ).toHaveLength(3);
+    expect(await counts(h)).toEqual(NOTHING);
+  });
+
   it("asks an adult student for their own phone, and drops a guardian's details given for them", async () => {
     const h = await createHarness();
     const school = await registeredSchool(h, {

@@ -221,6 +221,58 @@ describe("parseStudentDetails fields", () => {
     });
   });
 
+  it.each([
+    ["fullName", "Aanya\u0000Rao"],
+    ["dateOfBirth", "2016-03-09\u0000"],
+    ["grade", "Class\u00005"],
+    ["studentRef", "R\u0001-17"],
+    ["address", "12 Lake\u0008 Road"],
+    ["pinCode", "560001\u0000"],
+    ["city", "Bengaluru\u001F"],
+    ["state", "Karnataka\u007F"],
+    ["guardianName", "Kavita\u001BRao"],
+    ["guardianRelationship", "parent\u0000"],
+    ["guardianPhone", "98765\u000043210"],
+    ["guardianEmail", "kavita\u0000@example.test"],
+  ] as const)(
+    "refuses %s holding a hidden control character",
+    (field, value) => {
+      expect(parse({ ...CHILD, [field]: value })).toEqual({
+        ok: false,
+        errors: { [field]: "invalid_characters" },
+      });
+    }
+  );
+
+  it.each([
+    ["phone", "91234\u000056789"],
+    ["email", "vikram\u0000@example.test"],
+  ] as const)(
+    "refuses an adult's %s holding a hidden control character",
+    (field, value) => {
+      expect(parse({ ...ADULT, [field]: value })).toEqual({
+        ok: false,
+        errors: { [field]: "invalid_characters" },
+      });
+    }
+  );
+
+  it("reads tabs, line breaks and the like as spaces, not as hidden characters", () => {
+    expect(
+      parse({
+        ...CHILD,
+        fullName: "Aanya\tRao",
+        address: "12 Lake Road\r\nIndiranagar\u000B\u000CBlock 2",
+      })
+    ).toMatchObject({
+      ok: true,
+      value: {
+        fullName: "Aanya Rao",
+        address: "12 Lake Road Indiranagar Block 2",
+      },
+    });
+  });
+
   it("reports every bad field at once", () => {
     expect(parse({ fullName: "", dateOfBirth: "", pinCode: "1" })).toEqual({
       ok: false,

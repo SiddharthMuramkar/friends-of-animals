@@ -9,6 +9,8 @@ import {
   isNonProductionPath,
   newStudentPath,
   isSignedInPage,
+  studentImportFilePath,
+  studentImportPath,
   isSignedInPath,
   judgingGuidePath,
 } from "./app-routes";
@@ -99,6 +101,39 @@ describe("isSignedInPage", () => {
     }
     expect(
       isSignedInPage("/institution/registrations/NEIGH27-I-5EED1/students")
+    ).toBe(false);
+  });
+
+  it("knows a registration's student import page and its two CSV files (#76)", () => {
+    const institutionId = "01938a00-0000-7000-8000-000000001001";
+    const page = studentImportPath("NEIGH27-I-5EED1", institutionId);
+    const template = studentImportFilePath(
+      "NEIGH27-I-5EED1",
+      institutionId,
+      "template.csv"
+    );
+    const sample = studentImportFilePath(
+      "NEIGH27-I-5EED1",
+      institutionId,
+      "sample.csv"
+    );
+
+    expect(page).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1/import?institution=${institutionId}`
+    );
+    expect(template).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1/import/template.csv?institution=${institutionId}`
+    );
+    expect(sample).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1/import/sample.csv?institution=${institutionId}`
+    );
+    for (const path of [page, template, sample]) {
+      expect(isSignedInPage(path.split("?")[0]!), path).toBe(true);
+    }
+    expect(
+      isSignedInPage(
+        "/institution/registrations/NEIGH27-I-5EED1/import/other.csv"
+      )
     ).toBe(false);
   });
 
