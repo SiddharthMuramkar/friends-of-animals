@@ -1,0 +1,12 @@
+{
+  "guardian": {
+    "codeEmail": {
+      "subject": "Your code to confirm you're a parent or guardian",
+      "text": "Your code is {code}.\n\nEnter it on Friends of Animals to confirm you're a parent or lawful guardian. It works for {minutes} minutes. If you didn't ask for it, you can ignore this email: nothing changes without the code.\n\nFriends of Animals"
+    },
+    "teenInvitationMessage": {
+      "subject": "Your own login on Friends of Animals",
+      "email": "Hello {child},\n\n{guardian} has invited you to your own login on Friends of Animals, linked to them as your parent or guardian. With it you can take part in FOA's competitions yourself.\n\nTo accept, open this link, then sign in or create an account with this email address:\n{link}\n\nThe link works until {expiresAt}. If you weren't expecting this, you can ignore this email.\n\nFriends of Animals"
+    }
+  }
+}
