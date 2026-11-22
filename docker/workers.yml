@@ -147,7 +147,8 @@ services:
       start_period: 6m
     networks:
       scan:
-        # Keep this listener address in sync with clamav/clamd.conf.
+        # Keep this listener address in sync with clamav/clamd.conf. It sits
+        # outside the scan network's ip_range, which the workers draw from.
         ipv4_address: 10.112.14.2
       clamav-updates: {}
     mem_limit: 2g
@@ -190,10 +191,12 @@ services:
 
   worker-media:
     <<: *worker
-    # Enable when #85a ships the media entry point and queue connection.
+    # Enable when #85a ships src/worker-media/main.ts. On `pdf` alone it has
+    # no route to R2, Postgres or pg-boss: #85a adds the networks (db, and
+    # egress for R2) and the queue connection along with the entry point.
     profiles:
       - media
-    image: foa-workers/worker-media:${WORKER_VERSION:-unknown}
+    image: foa-workers/worker-media
     container_name: foa-worker-media
     command: ["node", "--import", "tsx", "src/worker-media/main.ts"]
     environment:
@@ -216,6 +219,9 @@ networks:
     ipam:
       config:
         - subnet: 10.112.14.0/28
+          # The workers get their addresses from .8-.15, so none can take
+          # foa-clamav's fixed .2 when they start alongside it.
+          ip_range: 10.112.14.8/29
   # Only FreshClam needs a route to the signature mirror. clamd binds to
   # the scan bridge and loopback.
   clamav-updates: {}

@@ -839,9 +839,9 @@ heartbeat rows; leave it out and they say `unknown`.
 - Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
   its poll, stops pg-boss and closes its connections within 30 s).
 - Updating: `git -C /srv/foa pull`, then the "Run" line; only a changed
-  image is recreated. The database workers build from `/srv/foa` (main), and each has
-  its own image (`foa-workers/worker-<name>`), so rebuilding one never swaps
-  another's.
+  image is recreated. The workers build from `/srv/foa` (main), and each
+  has its own untagged image (`foa-workers/worker-<name>`), so rebuilding
+  one never swaps another's and a deploy leaves no old tag behind.
 - Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
 - Rotating a worker password: replace its file in `/etc/foa/secrets`, rerun
   `scripts/worker-roles.sh`, restart that worker.

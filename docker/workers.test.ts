@@ -44,6 +44,17 @@ function block(name: string, parent?: string): string {
 const shared = () => block("x-worker");
 const service = (name: string) => block(name, "services");
 
+/** Whether IPv4 `address` lies inside `cidr` (e.g. 10.112.14.0/28). */
+function inCidr(address: string, cidr: string): boolean {
+  const toInt = (ip: string) =>
+    ip.split(".").reduce((n, octet) => n * 256 + Number(octet), 0);
+  const [base, bits] = cidr.split("/");
+  const size = 2 ** (32 - Number(bits));
+  const start = Math.floor(toInt(base!) / size) * size;
+  const at = toInt(address);
+  return at >= start && at < start + size;
+}
+
 /** The health check's shell command, as Compose passes it to sh -c. */
 function healthCommand(): string {
   const match = /test:\n\s+- CMD-SHELL\n\s+- (.+)\n/.exec(shared());
@@ -187,7 +198,12 @@ describe("docker/workers.yml", () => {
       "TCPAddr 10.112.14.2",
     ]);
     expect(clamd).toContain("TCPSocket 3310");
+    // /init-unprivileged waits for this socket before it counts clamd as up.
+    expect(clamd).toMatch(/^LocalSocket \/tmp\/clamd\.sock$/m);
     expect(clamd).toContain("ConcurrentDatabaseReload no");
+    // A file over clamd's scan limits is only partly scanned; without this
+    // it would still come back `stream: OK` and count as clean.
+    expect(clamd).toMatch(/^AlertExceedsMax yes$/m);
     expect(clamav).toContain(
       "./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro"
     );
@@ -197,6 +213,27 @@ describe("docker/workers.yml", () => {
     );
     expect(freshclam).toContain("NotifyClamd /etc/clamav/clamd.conf");
     expect(freshclam).toContain("TestDatabases no");
+  });
+
+  it("keeps clamd's fixed scan address out of the range Docker hands out", () => {
+    // The workers join `scan` with dynamic addresses and start alongside
+    // foa-clamav. If Docker could hand out clamd's address, a worker that
+    // attaches first takes it and foa-clamav fails with "Address already in
+    // use". So dynamic addresses come from an ip_range that excludes it.
+    const scan = /^ {2}scan:\n((?: {4}.*\n)+)/m.exec(`${block("networks")}\n`);
+    expect(scan, "networks.scan").not.toBeNull();
+    const subnet = /^ {8}- subnet: (\S+)$/m.exec(scan![1]!)?.[1];
+    const range = /^ {10}ip_range: (\S+)$/m.exec(scan![1]!)?.[1];
+    expect(subnet, "scan subnet").toBeDefined();
+    expect(range, "scan ip_range").toBeDefined();
+    const fixed = /^ {8}ipv4_address: (\S+)$/m.exec(service("foa-clamav"))?.[1];
+    expect(fixed, "foa-clamav's scan address").toBeDefined();
+    expect(inCidr(fixed!, subnet!), `${fixed} in ${subnet}`).toBe(true);
+    expect(
+      inCidr(range!.split("/")[0]!, subnet!),
+      `${range} in ${subnet}`
+    ).toBe(true);
+    expect(inCidr(fixed!, range!), `${fixed} outside ${range}`).toBe(false);
   });
 
   it("configures every database worker to scan through foa-clamav:3310", () => {
@@ -232,9 +269,7 @@ describe("docker/workers.yml", () => {
     const media = service("worker-media");
     expect(media).toMatch(/^ {4}profiles:\n {6}- media$/m);
     expect(media).toContain("<<: *worker");
-    expect(media).toContain(
-      "image: foa-workers/worker-media:${WORKER_VERSION:-unknown}"
-    );
+    expect(media).toContain("image: foa-workers/worker-media\n");
     expect(media).toContain(
       'command: ["node", "--import", "tsx", "src/worker-media/main.ts"]'
     );

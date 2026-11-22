@@ -230,9 +230,8 @@ const errorTrackingVariables = {
 
 /**
  * The malware scanner (#63): clamd in the `foa-clamav` sidecar, which only
- * the VPS workers can reach (docker/workers.yml, owned by the x-compose
- * launch unit). Without CLAMD_HOST every scan
- * is an error and uploads wait unscanned, as they do on Vercel, which
+ * the VPS workers can reach (docker/workers.yml). Without CLAMD_HOST every
+ * scan is an error and uploads wait unscanned, as they do on Vercel, which
  * never reaches clamd; the workers set it (HR-08).
  */
 const scannerVariables = {
