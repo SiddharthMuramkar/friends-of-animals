@@ -28,7 +28,9 @@ function istDay(at: number): string {
  * The seed dates its competitions from the day it runs (#71): this one's
  * registration opened at 09:00 IST, 20 days before. The seed ran within
  * the hour before this test, so the day is one of two only when that hour
- * spans IST midnight.
+ * spans IST midnight. Each space matches any space character, since a
+ * regex skips toHaveText's whitespace normalising and ICU may write a
+ * narrow no-break space.
  */
 function opensText(): RegExp {
   const now = Date.now();
@@ -36,7 +38,8 @@ function opensText(): RegExp {
     istDay(now - 20 * DAY_MS),
     istDay(now - 20 * DAY_MS - HOUR_MS),
   ]);
-  return new RegExp(`^(${[...days].join("|")}) at 9:00 am IST$`);
+  const text = `(${[...days].join("|")}) at 9:00 am IST`;
+  return new RegExp(`^${text.replace(/\s+/g, "\\s")}$`);
 }
 
 const PUBLISHED = {
