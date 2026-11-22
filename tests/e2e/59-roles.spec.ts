@@ -77,18 +77,36 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   await expect(page).toHaveURL(/\/admin\/roles$/);
   await expectRendersAccessibly(page, "/admin/roles");
   await expectAccessibleInDark(page, "/admin/roles");
+  const rolesRequests: { method: string; hasSearchText: boolean }[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/admin/roles") {
+      rolesRequests.push({
+        method: request.method(),
+        hasSearchText: url.searchParams.has("q"),
+      });
+    }
+  });
   await page
     .getByRole("searchbox", { name: "Name or email address" })
     .fill(memberEmail);
   await page.getByRole("button", { name: "Search" }).click();
-  await page
+  const match = page
     .getByRole("region", { name: "People found" })
-    .getByRole("link", { name: memberEmail })
-    .click();
+    .getByRole("link", { name: memberEmail });
+  await expect(match).toBeVisible();
+  expect(rolesRequests.some(({ hasSearchText }) => hasSearchText)).toBe(false);
+  expect(rolesRequests.some(({ method }) => method === "POST")).toBe(true);
+  await expect(page).toHaveURL(/\/admin\/roles$/);
+  await expect(match).toHaveAttribute(
+    "href",
+    /^\/admin\/roles\?user=[0-9a-f-]{36}$/
+  );
+  await match.click();
   const roles = page.getByRole("region", { name: `Roles of ${memberName}` });
   await expect(roles.getByText(`${memberName} has no roles.`)).toBeVisible();
   const memberId = new URL(page.url()).searchParams.get("user");
-  expect(memberId, "the chosen user's id in the URL").toBeTruthy();
+  await expect(page).toHaveURL(`/admin/roles?user=${memberId}`);
 
   // Confirm a fresh factor and return to the chosen person's roles.
   const chosenRolesUrl = page.url();
@@ -137,6 +155,9 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   await expect(
     page.getByRole("status").filter({ hasText: "Role given." })
   ).toBeVisible();
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/roles\\?user=${memberId}&done=granted&at=[0-9a-z]+$`)
+  );
   const coordinator = roles
     .getByRole("listitem")
     .filter({ hasText: COORDINATOR });
@@ -187,6 +208,9 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   await expect(
     page.getByRole("status").filter({ hasText: "Role removed." })
   ).toBeVisible();
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/roles\\?user=${memberId}&done=revoked&at=[0-9a-z]+$`)
+  );
   await expect(coordinator).toHaveCount(0);
   await expect(page.locator(":focus")).toContainText("Role removed.");
 
@@ -229,6 +253,7 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
       .getByRole("region", { name: "People found" })
       .getByRole("link", { name: memberName });
     await expect(found).toContainText(NO_EMAIL);
+    await expect(page).toHaveURL(/\/admin\/roles$/);
     await found.click();
     const roles = page.getByRole("region", { name: `Roles of ${memberName}` });
     await expect(roles.getByText(NO_EMAIL)).toBeVisible();
@@ -258,6 +283,9 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
     await expect(
       roles.getByRole("listitem").filter({ hasText: COORDINATOR })
     ).toContainText("by Seed Super Admin");
+    expect(rolesRequests.some(({ hasSearchText }) => hasSearchText)).toBe(
+      false
+    );
   });
 });
 
