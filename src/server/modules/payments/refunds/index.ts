@@ -14,6 +14,14 @@ import {
   type RejectRefundInput,
 } from "./decide-refund";
 import {
+  getRefund,
+  getRefundableBatch,
+  listRefunds,
+  type GetRefundableBatchInput,
+  type GetRefundInput,
+  type ListRefundsInput,
+} from "./list-refunds";
+import {
   requestRefund,
   type RequestRefundInput,
 } from "./request-refund";
@@ -30,6 +38,18 @@ export type {
   RejectRefundInput,
   RejectRefundResult,
 } from "./decide-refund";
+export type {
+  GetRefundableBatchInput,
+  GetRefundableBatchResult,
+  GetRefundInput,
+  GetRefundResult,
+  ListRefundsInput,
+  ListRefundsResult,
+  RefundableBatch,
+  RefundListItem,
+  RefundListState,
+  RefundView,
+} from "./list-refunds";
 export type {
   RecordManualRefundInput,
   RecordManualRefundResult,
@@ -48,4 +68,8 @@ export const refundsUseCases = (ctx: UseCaseContext) => ({
   retryRefund: (input: RetryRefundInput) => retryRefund(ctx, input),
   recordManualRefund: (input: RecordManualRefundInput) =>
     recordManualRefund(ctx, input),
+  listRefunds: (input: ListRefundsInput) => listRefunds(ctx, input),
+  getRefund: (input: GetRefundInput) => getRefund(ctx, input),
+  getRefundableBatch: (input: GetRefundableBatchInput) =>
+    getRefundableBatch(ctx, input),
 });
