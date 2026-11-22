@@ -31,6 +31,7 @@ export const STUDENT_FIELDS = [
 /** What the alert above the form says, as `newStudent.alert.<key>`. */
 export type EnrolAlert =
   | "check_details"
+  | "forbidden"
   | "already_enrolled"
   | "closed"
   | "not_open_yet"
@@ -115,11 +116,19 @@ export function ageRange(
   };
 }
 
-/** The result as the form shows it; `undefined` when the use case threw. */
+/**
+ * What a use case gave the action: its result, "forbidden" when it refused
+ * the actor (someone no longer acting for the institution), or `undefined`
+ * when it failed otherwise.
+ */
+export type Attempt<Result> = Result | "forbidden" | undefined;
+
+/** The result as the form shows it. */
 export function enrolFormState(
   values: StudentInput,
-  result: EnrolStudentResult | undefined
+  result: Attempt<EnrolStudentResult>
 ): EnrolFormState {
+  if (result === "forbidden") return { values, alert: "forbidden", fields: {} };
   if (result?.ok) {
     return {
       enrolled: {
@@ -171,6 +180,7 @@ export const STUDENTS_OUTCOMES = [
   "closed",
   "not_open_yet",
   "institution_not_verified",
+  "forbidden",
   "failed",
 ] as const;
 
@@ -180,10 +190,11 @@ export function isStudentsOutcome(value: unknown): value is StudentsOutcome {
   return STUDENTS_OUTCOMES.includes(value as StudentsOutcome);
 }
 
-/** A withdrawal's result as the list says it; `undefined` when it threw. */
+/** A withdrawal's result as the list says it. */
 export function withdrawOutcome(
-  result: WithdrawStudentResult | undefined
+  result: Attempt<WithdrawStudentResult>
 ): StudentsOutcome {
+  if (result === "forbidden") return "forbidden";
   if (!result) return "failed";
   if (result.ok) return "withdrawn";
   return result.error === "invalid_input" ? "not_found" : result.error;

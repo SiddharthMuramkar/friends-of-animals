@@ -86,7 +86,8 @@ describe("enrolFormState", () => {
     });
   });
 
-  const REFUSALS: [EnrolStudentResult | undefined, string][] = [
+  const REFUSALS: [EnrolStudentResult | "forbidden" | undefined, string][] = [
+    ["forbidden", "forbidden"],
     [{ ok: false, error: "already_enrolled" }, "already_enrolled"],
     [{ ok: false, error: "closed" }, "closed"],
     [{ ok: false, error: "not_found" }, "not_found"],
@@ -135,7 +136,8 @@ describe("ageRange", () => {
 });
 
 describe("withdrawOutcome", () => {
-  const RESULTS: [WithdrawStudentResult | undefined, string][] = [
+  const RESULTS: [WithdrawStudentResult | "forbidden" | undefined, string][] = [
+    ["forbidden", "forbidden"],
     [{ ok: true }, "withdrawn"],
     [{ ok: false, error: "not_enrolled" }, "not_enrolled"],
     [{ ok: false, error: "closed" }, "closed"],

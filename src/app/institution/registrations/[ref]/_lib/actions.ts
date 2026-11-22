@@ -6,7 +6,7 @@ import { redirect, RedirectType } from "next/navigation";
 import { institutionRegistrationPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import { errorSummaryForLogs } from "@/server/errors";
+import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import type {
   EnrolStudentResult,
   StudentInput,
@@ -14,6 +14,7 @@ import type {
 } from "@/server/modules/registration";
 
 import {
+  type Attempt,
   calendarDateInstant,
   enrolFormState,
   STUDENT_FIELDS,
@@ -21,6 +22,19 @@ import {
   type StudentFormView,
   type StudentsOutcome,
 } from "./student-form-state";
+
+/**
+ * A use case's error as the page says it: "forbidden" when it refused the
+ * actor, such as a coordinator removed since the page loaded; anything
+ * else is logged (class and Postgres code only) and says "failed".
+ */
+function thrown(useCase: string, error: unknown): "forbidden" | undefined {
+  if (error instanceof DomainError && error.code === "forbidden") {
+    return "forbidden";
+  }
+  console.error(`${useCase} failed: ${errorSummaryForLogs(error)}`);
+  return undefined;
+}
 
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -63,7 +77,7 @@ export async function enrolStudentAction(
   const values: StudentInput = Object.fromEntries(
     STUDENT_FIELDS.map((name) => [name, field(formData, name)])
   );
-  let result: EnrolStudentResult | undefined;
+  let result: Attempt<EnrolStudentResult>;
   try {
     result = await as(actor).enrolStudent({
       institutionId,
@@ -71,7 +85,7 @@ export async function enrolStudentAction(
       student: values,
     });
   } catch (error) {
-    console.error(`enrolStudent failed: ${errorSummaryForLogs(error)}`);
+    result = thrown("enrolStudent", error);
   }
   const state = enrolFormState(values, result);
   if ("enrolled" in state) {
@@ -116,7 +130,7 @@ export async function withdrawStudentAction(formData: FormData): Promise<void> {
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const institutionId = field(formData, "institutionId");
   const reference = field(formData, "reference");
-  let result: WithdrawStudentResult | undefined;
+  let result: Attempt<WithdrawStudentResult>;
   try {
     result = await as(actor).withdrawStudent({
       institutionId,
@@ -124,7 +138,7 @@ export async function withdrawStudentAction(formData: FormData): Promise<void> {
       registrationId: field(formData, "registrationId"),
     });
   } catch (error) {
-    console.error(`withdrawStudent failed: ${errorSummaryForLogs(error)}`);
+    result = thrown("withdrawStudent", error);
   }
   backToStudents(reference, institutionId, withdrawOutcome(result));
 }

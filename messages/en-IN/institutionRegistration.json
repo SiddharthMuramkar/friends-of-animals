@@ -104,6 +104,7 @@
         "closed": "Registration has closed, so the student can't be withdrawn.",
         "not_open_yet": "Registration hasn't opened yet.",
         "institution_not_verified": "Your institution isn't verified at the moment, so the student can't be withdrawn.",
+        "forbidden": "You no longer act for this institution, so nothing changed. Ask its authorised person if that's a mistake.",
         "failed": "Something went wrong, and nothing changed. Please try again."
       }
     },
@@ -191,6 +192,7 @@
         "institution_not_verified": "Your institution isn't verified at the moment, so students can't be added.",
         "not_found": "We couldn't find this registration. Go back to the competitions page and try again.",
         "age_groups_need_fixing": "This competition's age groups need fixing by FOA before students can be added. Please contact FOA.",
+        "forbidden": "You no longer act for this institution, so the student isn't added. Ask its authorised person if that's a mistake.",
         "failed": "Something went wrong, and the student isn't added. Please try again."
       },
       "errors": {
