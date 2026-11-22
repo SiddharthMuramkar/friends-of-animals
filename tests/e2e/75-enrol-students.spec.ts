@@ -1,27 +1,26 @@
 import { expect, type Page } from "@playwright/test";
 
+import { SEED_INSTITUTIONS } from "../../src/server/seed/institutions";
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import { freshEmail } from "./support/mailbox";
 import { signInByCode } from "./support/sign-in";
 import { test } from "./support/seed-registration";
 
-// #75: a coordinator enrols students. The seeded coordinator sees the
-// seeded registration's students; the authorised person of a fresh
-// verified institution registers it, adds a student after fixing the
-// form's mistakes and a student too old for the competition, then
-// withdraws them. Every state of both new pages is checked with axe,
-// light and dark. Age boundaries, duplicates, encryption, the window's
-// edges and who may enrol need a fake clock and raw rows, so Seam 1
-// covers them (src/server/modules/registration/enrol-student.test.ts and
+// #75: a coordinator enrols students. A coordinator of the seeded
+// institution sees the seeded registration's students; the authorised
+// person of a fresh verified institution registers it, adds a student
+// after fixing the form's mistakes and a student too old for the
+// competition, then withdraws them. Every state of both new pages is
+// checked with axe, light and dark. Age boundaries, duplicates,
+// encryption, the window's edges and who may enrol need a fake clock and
+// raw rows, so Seam 1 covers them (src/server/modules/registration/enrol-student.test.ts and
 // enrolled-students.test.ts).
 
-/** The seeded coordinator, member 1 (src/server/seed/coordinators.ts). */
-const COORDINATOR = "member1@example.test";
 /** The seeded open competition (src/server/seed/competitions.ts). */
 const OPEN = "Neighbours on My Street";
 
-// One by one, in one worker: the seeded coordinator signs in, and the
-// fresh institution's journey writes the same competition's rows.
+// One by one, in one worker: both journeys read the same competition's
+// rows, and the fresh institution's journey writes them.
 test.describe.configure({ mode: "default" });
 
 async function visit(page: Page, path: string) {
@@ -41,8 +40,22 @@ function student(page: Page, name: string) {
 test("a coordinator sees the seeded registration's students and their status", async ({
   page,
   request,
+  seedAccount,
 }) => {
-  await signInByCode(page, request, COORDINATOR);
+  // An account of its own, not the seeded member 1:
+  // 75-institution-registration.spec.ts signs member 1 in from another
+  // worker at the same time, and each code request replaces the other's
+  // code, so one of the two sign-ins failed.
+  const coordinator = await seedAccount({
+    name: "E2E Coordinator",
+    grants: [
+      {
+        role: "institution_coordinator",
+        scope: { type: "institution", id: SEED_INSTITUTIONS.verified.id },
+      },
+    ],
+  });
+  await signInByCode(page, request, coordinator);
   await visit(page, "/institution/competitions");
   await page
     .getByRole("article", { name: OPEN })
