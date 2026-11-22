@@ -114,7 +114,7 @@ export type StudentCsvResult =
   | { ok: false; problem: StudentCsvProblem };
 
 /** "Date of Birth", " date-of-birth " and "DATE_OF_BIRTH" all match. */
-function normaliseHeader(header: string): string {
+export function normaliseHeader(header: string): string {
   return header
     .trim()
     .toLowerCase()

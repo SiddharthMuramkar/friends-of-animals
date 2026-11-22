@@ -1,0 +1,119 @@
+{
+  "studentImport": {
+    "meta": {
+      "title": "Import students",
+      "description": "Enrol your institution's students in a competition from a spreadsheet."
+    },
+    "dashboardLink": "Import students from a spreadsheet",
+    "eyebrow": "Your institution",
+    "title": "Import students",
+    "lead": "Add many students at once: fill in the template, save it as a CSV file and upload it. Every row is checked just like a student added by hand.",
+    "loading": "Loading…",
+    "back": "Back to students",
+    "for": "{institution} in {competition}",
+    "ages": "This competition is for ages {minAge}–{maxAge} on {cutoff}.",
+    "cannotImport": "Students can't be imported now",
+    "template": {
+      "title": "1. Fill in the template",
+      "body": "One row for each student, in the template's columns. Keep the header row as it is. Columns you add are left out.",
+      "download": "Download the template",
+      "sample": "Or try the sample file, which has a few mistakes on purpose"
+    },
+    "columns": {
+      "caption": "What goes in each column",
+      "column": "Column",
+      "what": "What to enter",
+      "needed": "Needed",
+      "need": {
+        "always": "Always",
+        "minor": "Under 18",
+        "adult": "18 or over",
+        "optional": "No"
+      },
+      "describe": {
+        "student_ref": "Your institution's roll number for the student",
+        "full_name": "The student's full name",
+        "date_of_birth": "Like 2017-06-01 or 01/06/2017 (day first)",
+        "grade": "Class or year, like Class 5",
+        "guardian_name": "The parent or guardian's full name",
+        "guardian_relationship": "parent or legal_guardian",
+        "guardian_phone": "The parent or guardian's Indian mobile number, like 98765 43210",
+        "guardian_email": "The parent or guardian's email address",
+        "student_phone": "The student's own Indian mobile number",
+        "student_email": "The student's own email address",
+        "address": "Street address",
+        "pin_code": "6 digits. Leave the address, PIN code, city and state empty to use your institution's.",
+        "city": "City or town",
+        "state": "State or union territory"
+      }
+    },
+    "limits": "Up to {maxRows, number} students and {maxKb, number} KB in one file. In Excel, choose Save As, then “CSV UTF-8 (Comma delimited)”.",
+    "upload": {
+      "title": "2. Upload the file",
+      "label": "CSV file",
+      "hint": "Students already enrolled are never added twice, so you can upload a corrected file again.",
+      "submit": "Import students",
+      "submitting": "Importing…"
+    },
+    "result": {
+      "title": "Rows not enrolled",
+      "row": "Row",
+      "student": "Student",
+      "problems": "What to fix",
+      "download": "Download the rows to fix",
+      "downloadHint": "The file has these rows as you uploaded them, each with what to fix. Correct them and upload it again."
+    },
+    "noName": "(no name)",
+    "summary": {
+      "all": "{enrolled, plural, one {# student is} other {All # students are}} enrolled.",
+      "some": "{enrolled, plural, one {# student is} other {# students are}} enrolled. {notEnrolled, plural, one {# row needs} other {# rows need}} another look.",
+      "none": "No students were enrolled. {notEnrolled, plural, one {# row needs} other {# rows need}} another look."
+    },
+    "ignored": "These columns aren't in the template, so they were left out: {columns}.",
+    "alert": {
+      "no_file": "Choose a CSV file to import.",
+      "forbidden": "You no longer act for this institution, so nothing changed. Ask its authorised person if that's a mistake.",
+      "not_found": "We couldn't find that registration. Open it from the competitions page instead.",
+      "closed": "Registration for this competition has closed, so no students were imported.",
+      "not_open_yet": "Registration for this competition hasn't opened yet, so no students were imported.",
+      "institution_not_verified": "Your institution isn't verified at the moment, so no students were imported.",
+      "failed": "Something went wrong, and no students were imported. Please try again."
+    },
+    "file": {
+      "empty": "That file is empty.",
+      "too_large": "That file is over {maxKb, number} KB. Split it into smaller files.",
+      "not_utf8": "That file isn't saved as UTF-8, so names could come out wrong. In Excel, choose Save As, then “CSV UTF-8 (Comma delimited)”.",
+      "wrong_separator": "That file puts a {separator, select, semicolon {semicolon} other {tab}} between cells. Save it as CSV with commas.",
+      "malformed": "We can't read that file: a quotation mark on line {line} isn't closed properly.",
+      "missing_columns": "That file has no {columns} column. Start from the template.",
+      "duplicate_columns": "That file has the {columns} column more than once.",
+      "no_rows": "That file has no students in it, only the header row.",
+      "too_many_rows": "That file has {rows, number} students, and one file can have {maxRows, number} at most. Split it into smaller files."
+    },
+    "problems": {
+      "required": {
+        "fullName": "full_name is empty: enter the student's full name.",
+        "dateOfBirth": "date_of_birth is empty: enter the student's date of birth.",
+        "guardianName": "guardian_name is empty: a student under 18 needs a parent or guardian.",
+        "guardianRelationship": "guardian_relationship is empty: enter parent or legal_guardian.",
+        "guardianPhone": "guardian_phone is empty: enter the parent or guardian's mobile number.",
+        "phone": "student_phone is empty: a student 18 or over needs their own mobile number."
+      },
+      "missing": "{column} is empty.",
+      "too_short": "{column}: use at least 2 letters.",
+      "too_long": "{column}: that's too long. Please shorten it.",
+      "invalid_date": "{column}: enter a real date, like 2017-06-01 or 01/06/2017.",
+      "in_future": "{column}: a date of birth can't be in the future.",
+      "too_early": "{column}: check the year, that date is before 1900.",
+      "invalid_format": "{column}: a PIN code is 6 digits and doesn't start with 0.",
+      "invalid_choice": "{column}: enter parent or legal_guardian.",
+      "invalid_phone": "{column}: enter an Indian mobile number, like 98765 43210.",
+      "invalid_email": "{column}: enter an email address, like name@example.com.",
+      "outside_age_groups": "date_of_birth: this competition is for ages {minAge}–{maxAge} on {cutoff}; this student is {age}.",
+      "age_groups_need_fixing": "This competition's age groups need fixing by Friends of Animals, so students can't be enrolled yet.",
+      "extra_cells": "This row has more cells than the header row. Check for a stray comma.",
+      "duplicate_in_file": "The same student as row {row}, so it was left out.",
+      "already_enrolled": "This student is already enrolled."
+    }
+  }
+}
