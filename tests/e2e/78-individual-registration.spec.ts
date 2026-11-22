@@ -140,7 +140,8 @@ test("an adult registers for a competition on their own and sees it on their das
   ).toBeVisible();
   await checkBothThemes(page, "/participant");
 
-  // The header now leads back to the dashboard.
+  // The header now leads back to the dashboard, on every page they open.
+  await page.reload();
   await expect(
     page.getByRole("banner").getByRole("link", { name: "My competitions" })
   ).toBeVisible();

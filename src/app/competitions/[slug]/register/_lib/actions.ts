@@ -1,5 +1,6 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { payMyRegistrationPath } from "@/lib/app-routes";
@@ -32,6 +33,10 @@ export async function registerAsIndividualAction(
     console.error(`registerAsIndividual failed: ${errorSummaryForLogs(error)}`);
     return afterResult(previous, values, "unexpected");
   }
-  if (result.ok) redirect(payMyRegistrationPath(result.registrationId));
+  if (result.ok) {
+    // Re-renders the header too, which now leads to "My competitions".
+    refresh();
+    redirect(payMyRegistrationPath(result.registrationId));
+  }
   return afterResult(previous, values, result);
 }
