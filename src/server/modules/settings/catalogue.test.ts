@@ -7,14 +7,16 @@ import { readSetting } from "./read";
 describe("the settings catalogue", () => {
   it("holds the first settings with their documented defaults", () => {
     // #62 and HR-19: SMS off, 80G off, FCRA off, staff sessions 12 hours,
-    // #58's ceiling on sign-in texts: 200 an hour, 1,000 a day, and #116's
-    // 10 safeguarding reports an hour from one IP.
+    // and #58's ceiling on sign-in texts: 200 an hour, 1,000 a day. #57:
+    // email sign-in on (production also waits for SES, R-27). #116: 10
+    // safeguarding reports an hour from one IP.
     expect(
       Object.fromEntries(
         SETTING_KEYS.map((key) => [key, SETTINGS[key].default])
       )
     ).toEqual({
       "auth.staffSessionHours": 12,
+      "auth.emailSignIn": true,
       "sms.enabled": false,
       "sms.maxPerHour": 200,
       "sms.maxPerDay": 1000,

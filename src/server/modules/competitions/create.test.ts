@@ -42,6 +42,7 @@ describe("createCompetition", () => {
         status: "draft",
         publishedAt: null,
         fields,
+        nextChange: null,
       },
     });
   });

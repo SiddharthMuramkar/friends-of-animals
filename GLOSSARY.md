@@ -269,6 +269,14 @@ such as a reminder sweep, a status flip at a deadline or a retention purge.
 Previews never run them.
 _Avoid_: Cron job, recurring task
 
+**Status job**:
+An event held back until one of a published competition's key dates, which
+then moves the competition's status on (registration open, then closed) and
+records the move as done by the system. Editing the date saves a new one; the
+old one finds its date has moved and does nothing. Unlike a Scheduled job, it
+is tied to one competition and one instant.
+_Avoid_: Status cron, status tick
+
 ## Files
 
 **File**:

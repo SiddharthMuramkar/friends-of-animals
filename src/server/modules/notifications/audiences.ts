@@ -13,7 +13,10 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
+import { eq } from "drizzle-orm";
+
 import type { AppDb } from "../../db/app-db";
+import { institution } from "../../db/schema";
 import type { Delivery, EventType } from "../../outbox";
 import {
   CONTACT_MESSAGE_VARIABLES,
@@ -44,6 +47,16 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "files.file_processing_failed":
       // A file's own pipeline (#63, #85), not a message route: no route
       // row names these events.
+      return null;
+    case "institution.verified":
+    case "institution.rejected":
+    case "institution.suspended":
+    case "institution.reinstated":
+      // The authorised person, who registered the institution (#73).
+      return delivery.payload.userId;
+    case "competitions.key_date_scheduled":
+      // A status job (#71): it's about a competition, not a user, and no
+      // route row names it.
       return null;
     case "safeguarding.report_submitted":
       // About a child, never about a user: only the leads hear of it.
@@ -88,7 +101,26 @@ type EventVariables<T extends EventType> = {
   load(db: AppDb, delivery: Delivery<T>): Promise<Record<string, string>>;
 };
 
-/** What each event lets a template say. None gives any extra yet. */
+/**
+ * An institution's name and, once verified, its Institution ID (#73). Both
+ * are read when the message goes: neither changes after the decision.
+ */
+async function institutionValues(
+  db: AppDb,
+  institutionId: string
+): Promise<Record<string, string>> {
+  const [row] = await db
+    .select({ name: institution.name, code: institution.institutionCode })
+    .from(institution)
+    .where(eq(institution.id, institutionId));
+  if (!row) return {};
+  return {
+    "institution.name": row.name,
+    ...(row.code === null ? {} : { "institution.code": row.code }),
+  };
+}
+
+/** What each event lets a template say. */
 export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "identity.user_signed_up": { names: [], load: async () => ({}) },
   "consent.withdrawn": { names: [], load: async () => ({}) },
@@ -96,6 +128,23 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "files.processing_requested": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },
   "files.file_processing_failed": { names: [], load: async () => ({}) },
+  "institution.verified": {
+    names: ["institution.name", "institution.code"],
+    load: (db, { payload }) => institutionValues(db, payload.institutionId),
+  },
+  "institution.rejected": {
+    names: ["institution.name"],
+    load: (db, { payload }) => institutionValues(db, payload.institutionId),
+  },
+  "institution.suspended": {
+    names: ["institution.name"],
+    load: (db, { payload }) => institutionValues(db, payload.institutionId),
+  },
+  "institution.reinstated": {
+    names: ["institution.name", "institution.code"],
+    load: (db, { payload }) => institutionValues(db, payload.institutionId),
+  },
+  "competitions.key_date_scheduled": { names: [], load: async () => ({}) },
   "contact_message.received": {
     names: CONTACT_MESSAGE_VARIABLES,
     load: async (db, delivery) =>

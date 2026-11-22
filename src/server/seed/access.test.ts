@@ -72,9 +72,9 @@ describe("the access seed", () => {
     expect(await rows()).toEqual(first);
     // Five from this seeder, two from the competitions seeder's managers,
     // two from the consent seeder's publishers, two from the
-    // notifications seeder's template editors and the safeguarding
-    // seeder's lead (#116).
-    expect(first).toHaveLength(12);
+    // notifications seeder's template editors, the seeded institution's
+    // admin (#73) and the safeguarding seeder's lead (#116).
+    expect(first).toHaveLength(13);
   });
 
   it("keeps fixed scope ids that links and journeys can name", () => {

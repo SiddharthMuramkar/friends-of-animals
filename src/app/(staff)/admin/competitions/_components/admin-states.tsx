@@ -1,11 +1,11 @@
-import { CheckCircle2, PencilLine } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { FormAlert } from "@/components/form";
-import { Chip } from "@/components/site/chip";
 import { ExplainState } from "@/components/site/explain-state";
 import { APP_ROUTES } from "@/lib/app-routes";
-import type { CompetitionStatus } from "@/server/modules/competitions";
+
+/** The status as icon plus word, the same chip the public pages use (#71). */
+export { CompetitionStatusChip as StatusChip } from "@/components/competitions/status-chip";
 
 /**
  * What a signed-in person without the competition manager role sees: the
@@ -36,18 +36,6 @@ export async function CompetitionNotFound() {
     >
       <p>{t("body")}</p>
     </ExplainState>
-  );
-}
-
-/** Draft or published, with an icon as well as a colour. */
-export async function StatusChip({ status }: { status: CompetitionStatus }) {
-  const t = await getTranslations("adminCompetitions.status");
-  return status === "draft" ? (
-    <Chip icon={<PencilLine aria-hidden="true" />}>{t("draft")}</Chip>
-  ) : (
-    <Chip tone="green" icon={<CheckCircle2 aria-hidden="true" />}>
-      {t(status)}
-    </Chip>
   );
 }
 

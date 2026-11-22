@@ -16,6 +16,7 @@ import { seedContact } from "./contact";
 import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
 import { seedSafeguarding } from "./safeguarding";
+import { seedInstitutions } from "./institutions";
 import { seedNotifications } from "./notifications";
 import { seedSecondFactor } from "./second-factor";
 import { seedSettings } from "./settings";
@@ -37,6 +38,7 @@ const seeders: readonly Seeder[] = [
   seedSecondFactor,
   seedSettings,
   seedSafeguarding,
+  seedInstitutions,
   seedNotifications,
   seedContact,
   seedCms,

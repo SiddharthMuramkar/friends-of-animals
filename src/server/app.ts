@@ -24,6 +24,7 @@ import { notificationsUseCases } from "./modules/notifications";
 import { secondFactorUseCases } from "./modules/second-factor";
 import { filesUseCases } from "./modules/files";
 import { settingsUseCases } from "./modules/settings";
+import { institutionUseCases } from "./modules/institutions";
 import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
 import { safeguardingUseCases } from "./modules/safeguarding";
@@ -40,6 +41,7 @@ const useCases = composeUseCases(
   competitionsUseCases,
   cmsUseCases,
   notificationsUseCases,
+  institutionUseCases,
   publicFormUseCases,
   contactUseCases,
   safeguardingUseCases

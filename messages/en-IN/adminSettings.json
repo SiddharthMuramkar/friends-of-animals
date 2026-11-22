@@ -57,6 +57,10 @@
         "staffSessionHours": {
           "label": "Staff session length",
           "description": "How long staff stay signed in before they must sign in again. Lowering it also signs out staff whose session is already older."
+        },
+        "emailSignIn": {
+          "label": "Sign-in codes by email",
+          "description": "Lets people sign up and sign in with a code by email. Turning it off makes the sign-in pages say sign-in opens soon. On the live site it also needs Amazon SES set up and approved to send to anyone."
         }
       },
       "sms": {

@@ -1,6 +1,9 @@
 // Competitions seed data (#70): three published competitions at the sample
 // content's links, one per way of taking part, and one draft, the seeded
 // competition scope (SEED_SCOPES.competition) that a judge is granted on.
+// The published ones are one per status the schedule moves through (#71):
+// their key dates are set from the seed clock, so each date agrees with
+// its status whenever a preview is seeded.
 // Also two global competition managers with the seed authenticator (#60's
 // SEED_TOTP_SECRET), so previews can run the admin pages.
 // Loads under plain Node (the seed script): relative imports only, no
@@ -10,13 +13,16 @@ import type { DbWithClock } from "../db/app-db";
 import { competition } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import { uuidv7 } from "../ids";
+import { instantToIstLocal } from "../modules/competitions/domain/ist";
 import { competitionSlugCandidates } from "../modules/competitions/domain/slug";
+import { statusJobs } from "../modules/competitions/domain/status-schedule";
 import type { CompetitionStatus } from "../modules/competitions/domain/vocabulary";
 import {
   DEFAULT_FIELDS,
   parseFields,
   type CompetitionFields,
 } from "../modules/competitions/fields";
+import { saveStatusJobs } from "../modules/competitions/status-jobs";
 import {
   columnsOf,
   replaceAgeGroups,
@@ -75,104 +81,118 @@ type SeedCompetition = {
     Partial<Pick<CompetitionFields, "categories">>;
 };
 
-const SEED_COMPETITIONS: readonly SeedCompetition[] = [
-  {
-    id: "01938a00-0000-7000-8000-000000002101",
-    status: "published",
-    slug: "neighbours-on-my-street",
-    publishedAt: new Date("2026-10-15T04:30:00.000Z"),
-    fields: {
-      ...DEFAULT_FIELDS,
-      ...COMMON,
-      code: "NEIGH27",
-      name: "Neighbours on My Street",
-      theme:
-        "Draw, paint or photograph an animal that shares your street, and show one kind thing you do for it.",
-      participation: "both",
-      disciplines: ["drawing", "painting", "photography"],
-      ageCutoffDate: "2027-01-01",
-      publicDisplay: true,
-      keyDates: {
-        registration_opens: "2026-11-01T09:00",
-        registration_closes: "2027-01-15T23:59",
-        submissions_close: "2027-02-10T23:59",
-        school_round_closes: "2027-02-20T23:59",
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The seeded competitions as of `now`. Every key date is whole days from
+ * the seed day, at an IST time of day, so a date is never within a day of
+ * `now` and the status each one is seeded with is the one its dates say.
+ */
+function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
+  /** `days` days from now, as an IST datetime-local value at `time`. */
+  const ist = (days: number, time: string) =>
+    `${instantToIstLocal(new Date(now.getTime() + days * DAY_MS)).slice(0, 10)}T${time}`;
+  const daysAgo = (days: number) => new Date(now.getTime() - days * DAY_MS);
+  return [
+    {
+      id: "01938a00-0000-7000-8000-000000002101",
+      status: "registration_open",
+      slug: "neighbours-on-my-street",
+      publishedAt: daysAgo(35),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: "NEIGH27",
+        name: "Neighbours on My Street",
+        theme:
+          "Draw, paint or photograph an animal that shares your street, and show one kind thing you do for it.",
+        participation: "both",
+        disciplines: ["drawing", "painting", "photography"],
+        ageCutoffDate: "2027-01-01",
+        publicDisplay: true,
+        keyDates: {
+          registration_opens: ist(-20, "09:00"),
+          registration_closes: ist(55, "23:59"),
+          submissions_close: ist(80, "23:59"),
+          school_round_closes: ist(90, "23:59"),
+        },
       },
     },
-  },
-  {
-    id: "01938a00-0000-7000-8000-000000002102",
-    status: "published",
-    slug: "a-bowl-of-water",
-    publishedAt: new Date("2026-11-10T04:30:00.000Z"),
-    fields: {
-      ...DEFAULT_FIELDS,
-      ...COMMON,
-      code: "WATER27",
-      name: "A Bowl of Water",
-      theme:
-        "Summer is coming. Show how a bowl of clean water in the shade helps the birds and animals near you.",
-      participation: "individuals",
-      disciplines: ["drawing", "essay"],
-      ageCutoffDate: "2027-04-01",
-      physicalArtwork: { kind: "not_required" },
-      keyDates: {
-        registration_opens: "2027-02-01T09:00",
-        registration_closes: "2027-03-31T23:59",
-        submissions_close: "2027-04-25T23:59",
+    {
+      id: "01938a00-0000-7000-8000-000000002102",
+      status: "published",
+      slug: "a-bowl-of-water",
+      publishedAt: daysAgo(10),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: "WATER27",
+        name: "A Bowl of Water",
+        theme:
+          "Summer is coming. Show how a bowl of clean water in the shade helps the birds and animals near you.",
+        participation: "individuals",
+        disciplines: ["drawing", "essay"],
+        ageCutoffDate: "2027-04-01",
+        physicalArtwork: { kind: "not_required" },
+        keyDates: {
+          registration_opens: ist(70, "09:00"),
+          registration_closes: ist(128, "23:59"),
+          submissions_close: ist(153, "23:59"),
+        },
       },
     },
-  },
-  {
-    id: "01938a00-0000-7000-8000-000000002103",
-    status: "published",
-    slug: "kinder-skies",
-    publishedAt: new Date("2026-05-15T04:30:00.000Z"),
-    fields: {
-      ...DEFAULT_FIELDS,
-      ...COMMON,
-      code: "SKIES26",
-      name: "Kinder Skies",
-      theme:
-        "Kites and birds share the sky. Make a picture or a craft that shows how both can fly safely.",
-      participation: "institutions",
-      disciplines: ["drawing", "painting", "craft"],
-      ageCutoffDate: "2026-08-01",
-      digitalScope: "shortlist_only",
-      physicalArtwork: { kind: "top_n", count: 3 },
-      publicDisplay: true,
-      auctionPermitted: true,
-      keyDates: {
-        registration_opens: "2026-06-01T09:00",
-        registration_closes: "2026-08-15T23:59",
-        submissions_close: "2026-09-30T23:59",
-        school_round_closes: "2026-10-15T23:59",
+    {
+      id: "01938a00-0000-7000-8000-000000002103",
+      status: "registration_closed",
+      slug: "kinder-skies",
+      publishedAt: daysAgo(200),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: "SKIES26",
+        name: "Kinder Skies",
+        theme:
+          "Kites and birds share the sky. Make a picture or a craft that shows how both can fly safely.",
+        participation: "institutions",
+        disciplines: ["drawing", "painting", "craft"],
+        ageCutoffDate: "2026-08-01",
+        digitalScope: "shortlist_only",
+        physicalArtwork: { kind: "top_n", count: 3 },
+        publicDisplay: true,
+        auctionPermitted: true,
+        keyDates: {
+          registration_opens: ist(-170, "09:00"),
+          registration_closes: ist(-95, "23:59"),
+          submissions_close: ist(-50, "23:59"),
+          school_round_closes: ist(-35, "23:59"),
+        },
       },
     },
-  },
-  {
-    // Half written, so the admin preview has gaps to list.
-    id: SEED_SCOPES.competition.id,
-    status: "draft",
-    slug: "seed-drawing-competition",
-    publishedAt: null,
-    fields: {
-      ...DEFAULT_FIELDS,
-      code: "DRAW27",
-      name: SEED_SCOPES.competition.name,
-      theme: "The animal you would most like to thank, and why.",
-      participation: "both",
-      disciplines: ["drawing"],
-      ageGroups: AGE_GROUPS,
-      keyDates: { registration_opens: "2027-06-01T09:00" },
+    {
+      // Half written, so the admin preview has gaps to list.
+      id: SEED_SCOPES.competition.id,
+      status: "draft",
+      slug: "seed-drawing-competition",
+      publishedAt: null,
+      fields: {
+        ...DEFAULT_FIELDS,
+        code: "DRAW27",
+        name: SEED_SCOPES.competition.name,
+        theme: "The animal you would most like to thank, and why.",
+        participation: "both",
+        disciplines: ["drawing"],
+        ageGroups: AGE_GROUPS,
+        keyDates: { registration_opens: ist(190, "09:00") },
+      },
     },
-  },
-];
+  ];
+}
 
 /**
  * Inserts a competition with its age groups, categories and key dates,
- * unless one with its id, code or slug is there already. Seed data: no
- * audit entry, no creating user.
+ * unless one with its id, code or slug is there already, and the status
+ * jobs for its dates still ahead. Seed data: no audit entry, no creating
+ * user.
  */
 async function insertCompetition(
   { db, clock }: DbWithClock,
@@ -198,6 +218,16 @@ async function insertCompetition(
   if (!inserted) return false;
   await replaceAgeGroups(db, seed.id, parsed.values, now);
   await replaceKeyDates(db, seed.id, parsed.values.keyDates);
+  // The jobs that move its status on from here (#71), as publishing saves
+  // them; a date already passed needs none, as the status agrees with it.
+  await saveStatusJobs(
+    db,
+    clock,
+    seed.id,
+    statusJobs(seed.status, parsed.values.keyDates).filter(
+      (job) => job.dueAt.getTime() > now.getTime()
+    )
+  );
   return true;
 }
 
@@ -211,7 +241,9 @@ export async function seedCompetitions(deps: SeedDeps): Promise<void> {
     });
     await ensureSeedAuthenticator(deps, manager.id);
   }
-  for (const seed of SEED_COMPETITIONS) await insertCompetition(deps, seed);
+  for (const seed of seedCompetitionsAt(deps.clock.now())) {
+    await insertCompetition(deps, seed);
+  }
 }
 
 export type SeedCompetitionOptions = {
@@ -242,7 +274,7 @@ export function competitionBuilder(deps: SeedDeps) {
       slug: competitionSlugCandidates(name, code)[0]!,
       publishedAt: status === "draft" ? null : now,
       fields: {
-        ...SEED_COMPETITIONS[0]!.fields,
+        ...seedCompetitionsAt(now)[0]!.fields,
         ...fields,
         name,
         code,

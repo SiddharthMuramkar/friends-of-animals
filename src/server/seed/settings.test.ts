@@ -17,6 +17,7 @@ describe("the settings seed", () => {
 
     expect(await rows()).toEqual(first);
     expect(first.map(({ key, value }) => ({ key, value }))).toEqual([
+      { key: "auth.emailSignIn", value: true },
       { key: "auth.staffSessionHours", value: 12 },
       { key: "org.fcraEnabled", value: false },
       { key: "org.has80G", value: false },

@@ -186,6 +186,18 @@ describe("proxy: the signed-in nonce policy", () => {
     }
   });
 
+  it("serves an institution review page with the signed-in nonce", async () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const path = "/admin/institutions/01938a00-0000-7000-8000-000000001001";
+
+    expect(
+      pageHeaders(await proxy(request(path, SESSION))).get("x-nonce")
+    ).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+    expect(
+      getRewrittenUrl(await proxy(request(`${path}/extra`, SESSION)))
+    ).toBe("https://foa.example.test/__not-found");
+  });
+
   it("still sends a visitor with no session cookie to sign in", async () => {
     const response = await proxy(request("/account/sessions"));
 
