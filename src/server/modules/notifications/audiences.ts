@@ -33,6 +33,11 @@ import {
   contactTeamMembers,
 } from "../contact/notify";
 import { safeguardingLeads } from "../safeguarding/leads";
+import { RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
+import {
+  CONFIRMATION_VARIABLES,
+  confirmationValues,
+} from "../registration/confirmation-message";
 import {
   TRANSITION_BLOCK,
   type TransitionBlock,
@@ -128,6 +133,13 @@ export const AUDIENCES = {
    * this route's template while the route is enabled.
    */
   contact_sender: async () => [],
+  /**
+   * A confirmed registration's family contact (#77): a minor's guardian or
+   * the adult student, kept on the participant profile, not a user. No user
+   * receives it here: the registration module emails them with this
+   * route's template while the route is enabled.
+   */
+  family_contact: async () => [],
   /** The staff team a contact message was routed to (#113). */
   contact_team: async (db, delivery) =>
     delivery.eventType === "contact_message.received"
@@ -313,8 +325,14 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: [],
     load: async () => ({}),
   },
-  "registration.confirmed": { names: [], load: async () => ({}) },
-  "payment.batch_captured": { names: [], load: async () => ({}) },
+  "registration.confirmed": {
+    names: CONFIRMATION_VARIABLES,
+    load: (db, { payload }) => confirmationValues(db, payload.registrationId),
+  },
+  "payment.batch_captured": {
+    names: RECEIPT_VARIABLES,
+    load: (db, { payload }) => receiptValues(db, payload.batchId),
+  },
 };
 
 /** The variables a template on a route for `eventType` may use. */

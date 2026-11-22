@@ -24,7 +24,11 @@ const PAIRS = REGISTRATION_STATUSES.flatMap((from) =>
 
 describe("the registration status machine", () => {
   it("knows the statuses this ticket introduces", () => {
-    expect(REGISTRATION_STATUSES).toEqual(["enrolled", "confirmed", "withdrawn"]);
+    expect(REGISTRATION_STATUSES).toEqual([
+      "enrolled",
+      "confirmed",
+      "withdrawn",
+    ]);
   });
 
   it("starts a student enrolled by a coordinator as enrolled", () => {

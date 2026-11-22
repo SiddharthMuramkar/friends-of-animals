@@ -308,8 +308,11 @@ export const SUBSCRIBERS = {
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],
-  "registration.confirmed": [],
-  "payment.batch_captured": [],
+  // The family contact isn't a user, so no route row can name them: the
+  // confirmation goes by its own handler (#77).
+  "registration.confirmed": ["registration.send_confirmation"],
+  // The payer's receipt goes by route row (#77).
+  "payment.batch_captured": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

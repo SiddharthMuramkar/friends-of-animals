@@ -37,6 +37,7 @@ stored plain, but still listed.
 | `cms_post`                  | `author_name`, `created_by`, `updated_by`                                                                                                                                                                                                                                                      |
 | `institution_registration`  | `registered_by`                                                                                                                                                                                                                                                                                |
 | `participant_profile`       | `full_name`, `dob_ciphertext`, `grade`, `student_ref`, `phone_ciphertext`, `email_ciphertext`, `guardian_name_ciphertext`, `guardian_relationship`, `guardian_phone_ciphertext`, `guardian_email_ciphertext`, `address_ciphertext`, `pin_code`, `city`, `state`, `identity_hash`, `created_by` |
+| `payment_batch`             | `payer_user_id`                                                                                                                                                                                                                                                                                |
 
 A safeguarding report and its incident log are kept while the report is open,
 then 7 years after it is resolved or until the child concerned turns 25,

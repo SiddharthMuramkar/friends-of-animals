@@ -123,7 +123,8 @@ export async function payInstitutionFees(
     }
     const registered = facts.institutionRegistration;
     const payable = await payableRegistrations(tx, registered.id);
-    if (payable.length === 0) return done({ ok: false, error: "nothing_to_pay" });
+    if (payable.length === 0)
+      return done({ ok: false, error: "nothing_to_pay" });
     const fee = (await getRegistrationTerms(tx, registered.competitionId))?.fees
       .institution;
     if (!fee) return done({ ok: false, error: "fee_not_set" });

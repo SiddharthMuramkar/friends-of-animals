@@ -2,7 +2,9 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { auditLog, paymentBatch, paymentBatchItem } from "@/server/db/schema";
+import { createApp } from "@/server/app";
 import { DomainError } from "@/server/errors";
+import { unconfiguredPaymentGateway } from "@/server/ports/payment-gateway";
 import { createHarness } from "@/test/harness";
 
 import {
@@ -172,13 +174,31 @@ describe("payInstitutionFees", () => {
     const [failed] = await h.db.select().from(paymentBatch);
     expect(failed).toMatchObject({ status: "failed", gatewayOrderId: null });
     expect(
-      (await h.db.select().from(paymentBatchItem)).map((item) => item.releasedAt)
+      (await h.db.select().from(paymentBatchItem)).map(
+        (item) => item.releasedAt
+      )
     ).toEqual([h.clock.now(), h.clock.now()]);
 
     // Trying again opens a new batch over the same students.
     const again = await school.pay();
     expect(again).toMatchObject({ ok: true, kind: "checkout" });
     expect(h.gateway.orders).toHaveLength(1);
+  });
+
+  it("takes no payment while no gateway is configured, as in production until 77b", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 1 });
+    const app = createApp({ ...h.deps, payments: unconfiguredPaymentGateway });
+
+    const result = await app
+      .as(school.coordinator.actor)
+      .payInstitutionFees(school.ids);
+
+    expect(result).toEqual({ ok: false, error: "gateway_unavailable" });
+    expect(await h.db.select().from(paymentBatch)).toMatchObject([
+      { status: "failed", gateway: "unconfigured", gatewayOrderId: null },
+    ]);
+    expect(h.errors.reported).toHaveLength(1);
   });
 
   it("checks its input", async () => {

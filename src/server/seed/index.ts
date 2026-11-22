@@ -22,6 +22,7 @@ import { seedSafeguarding } from "./safeguarding";
 import { seedInstitutions } from "./institutions";
 import { seedNotifications } from "./notifications";
 import { seedRegistrations } from "./registration";
+import { seedPayments } from "./payments";
 import { seedPosts } from "./posts";
 import { seedSecondFactor } from "./second-factor";
 import { seedSettings } from "./settings";
@@ -50,6 +51,8 @@ const seeders: readonly Seeder[] = [
   seedCoordinators,
   // After the institutions and competitions seeds: it needs both.
   seedRegistrations,
+  // After the registration seed: its batches hold those students.
+  seedPayments,
   seedNotifications,
   seedContact,
   seedCms,

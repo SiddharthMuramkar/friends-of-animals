@@ -1,0 +1,175 @@
+import { eq } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+
+import {
+  auditLog,
+  PAYMENT_BATCH_ITEM_HOLDING_UNIQUE,
+  paymentBatch,
+  paymentBatchItem,
+} from "@/server/db/schema";
+import { uuidv7 } from "@/server/ids";
+import { isUniqueViolation } from "@/server/modules/codes/codes";
+import { createHarness, type Harness } from "@/test/harness";
+
+import {
+  batchRow,
+  enrol,
+  FEE_PAISE,
+  schoolWithStudents,
+  setInstitutionFee,
+  type School,
+} from "./testing";
+
+async function openOrder(h: Harness, school: School) {
+  const result = await school.pay();
+  if (!result.ok || result.kind !== "checkout") {
+    throw new Error(`No order: ${JSON.stringify(result)}`);
+  }
+  return { batchId: result.batchId, orderId: result.checkout.orderId };
+}
+
+async function itemsOf(h: Harness, batchId: string) {
+  return h.db
+    .select({
+      registrationId: paymentBatchItem.registrationId,
+      releasedAt: paymentBatchItem.releasedAt,
+    })
+    .from(paymentBatchItem)
+    .where(eq(paymentBatchItem.batchId, batchId))
+    .orderBy(paymentBatchItem.registrationId);
+}
+
+describe("paying again", () => {
+  it("reuses the open order while the same students wait to be paid", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 2 });
+    const first = await openOrder(h, school);
+
+    const again = await openOrder(h, school);
+
+    expect(again).toEqual(first);
+    expect(h.gateway.orders).toHaveLength(1);
+    expect(await h.db.select().from(paymentBatch)).toHaveLength(1);
+  });
+
+  it("replaces the open batch when a student was added, letting its students go", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 1 });
+    const first = await openOrder(h, school);
+    school.registrationIds.push(await enrol(h, school, 2));
+    h.clock.advance({ minutes: 3 });
+
+    const second = await openOrder(h, school);
+
+    expect(second.batchId).not.toBe(first.batchId);
+    expect(await batchRow(h, first.batchId)).toMatchObject({
+      status: "cancelled",
+    });
+    expect(await itemsOf(h, first.batchId)).toEqual([
+      { registrationId: school.registrationIds[0], releasedAt: h.clock.now() },
+    ]);
+    expect(await itemsOf(h, second.batchId)).toEqual(
+      school.registrationIds
+        .toSorted()
+        .map((registrationId) => ({ registrationId, releasedAt: null }))
+    );
+    expect(h.gateway.orders.map((order) => order.amount.amountMinor)).toEqual([
+      FEE_PAISE,
+      2n * FEE_PAISE,
+    ]);
+    expect(
+      await h.db
+        .select({ before: auditLog.before, after: auditLog.after })
+        .from(auditLog)
+        .where(eq(auditLog.action, "payment.batch_cancelled"))
+    ).toEqual([
+      { before: { status: "order_created" }, after: { status: "cancelled" } },
+    ]);
+  });
+
+  it("replaces the open batch when a student was withdrawn", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 2 });
+    const first = await openOrder(h, school);
+    const [kept, withdrawn] = school.registrationIds as [string, string];
+    await h.as(school.coordinator.actor).withdrawStudent({
+      ...school.ids,
+      registrationId: withdrawn,
+    });
+
+    const second = await openOrder(h, school);
+
+    expect((await batchRow(h, first.batchId)).status).toBe("cancelled");
+    expect(await itemsOf(h, second.batchId)).toEqual([
+      { registrationId: kept, releasedAt: null },
+    ]);
+    expect(h.gateway.orders.at(-1)?.amount.amountMinor).toBe(FEE_PAISE);
+  });
+
+  it("replaces the open batch when the fee changed", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 2 });
+    const first = await openOrder(h, school);
+    await setInstitutionFee(h, school, 60_000n);
+
+    const second = await openOrder(h, school);
+
+    expect(second.batchId).not.toBe(first.batchId);
+    expect((await batchRow(h, second.batchId)).amountMinor).toBe(120_000n);
+  });
+
+  it("has nothing left to pay once the batch is captured", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 1 });
+    const { batchId, orderId } = await openOrder(h, school);
+    await h.as(school.coordinator.actor).confirmCheckout({
+      institutionId: school.institutionId,
+      batchId,
+      ...h.gateway.capture(orderId),
+    });
+
+    expect(await school.pay()).toEqual({ ok: false, error: "nothing_to_pay" });
+    expect(h.gateway.orders).toHaveLength(1);
+  });
+
+  it("lets only one batch at a time hold a registration", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 1 });
+    const { batchId } = await openOrder(h, school);
+    const held = await batchRow(h, batchId);
+    const now = h.clock.now();
+    const other = uuidv7(now);
+    await h.db.insert(paymentBatch).values({
+      ...held,
+      id: other,
+      status: "created",
+      gatewayOrderId: null,
+    });
+
+    const error = await h.db
+      .insert(paymentBatchItem)
+      .values({
+        batchId: other,
+        registrationId: school.registrationIds[0]!,
+        amountMinor: FEE_PAISE,
+      })
+      .then(
+        () => null,
+        (caught: unknown) => caught
+      );
+
+    expect(isUniqueViolation(error, PAYMENT_BATCH_ITEM_HOLDING_UNIQUE)).toBe(
+      true
+    );
+    // Once the first batch lets it go, another may hold it.
+    await h.db
+      .update(paymentBatchItem)
+      .set({ releasedAt: now })
+      .where(eq(paymentBatchItem.batchId, batchId));
+    await h.db.insert(paymentBatchItem).values({
+      batchId: other,
+      registrationId: school.registrationIds[0]!,
+      amountMinor: FEE_PAISE,
+    });
+  });
+});
