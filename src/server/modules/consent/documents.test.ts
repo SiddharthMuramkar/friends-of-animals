@@ -58,33 +58,33 @@ describe("publishConsentDocument", () => {
 
     expect(
       await h.as(actor).publishConsentDocument({
-        purpose: "privacy_notice",
-        title: "Privacy policy",
+        purpose: "messages",
+        title: "News and updates",
         source: SOURCE_V1,
       })
     ).toEqual({ ok: true, id: expect.any(String), version: 1 });
     const [v1Before] = await h
       .as(actor)
-      .listConsentDocumentVersions({ purpose: "privacy_notice" });
+      .listConsentDocumentVersions({ purpose: "messages" });
 
     h.clock.advance({ days: 3 });
     const published = await h.as(actor).publishConsentDocument({
-      purpose: "privacy_notice",
-      title: "Privacy policy (schools)",
+      purpose: "messages",
+      title: "News and updates (schools)",
       source: SOURCE_V2,
     });
 
     expect(published).toEqual({ ok: true, id: expect.any(String), version: 2 });
     const versions = await h
       .as(actor)
-      .listConsentDocumentVersions({ purpose: "privacy_notice" });
+      .listConsentDocumentVersions({ purpose: "messages" });
     expect(versions.map((v) => v.version)).toEqual([2, 1]);
     expect(versions[1]).toEqual(v1Before);
     expect(versions[1]).toEqual({
       id: v1Before?.id,
-      purpose: "privacy_notice",
+      purpose: "messages",
       version: 1,
-      title: "Privacy policy",
+      title: "News and updates",
       body: {
         short: [["We keep only what a competition needs."]],
         sections: [
@@ -100,16 +100,18 @@ describe("publishConsentDocument", () => {
     });
     expect(versions[0]).toMatchObject({
       version: 2,
-      title: "Privacy policy (schools)",
+      title: "News and updates (schools)",
       publishedAt: h.clock.now(),
     });
   });
 });
 
 describe("publishConsentDocument and listConsentDocumentVersions: who may", () => {
+  // The messages consent: only the CMS publishes the privacy notice and
+  // the terms (#111, cms/legal.test.ts).
   const draft = {
-    purpose: "privacy_notice",
-    title: "Privacy policy",
+    purpose: "messages",
+    title: "News and updates",
     source: SOURCE_V1,
   } as const;
 
@@ -131,7 +133,10 @@ describe("publishConsentDocument and listConsentDocumentVersions: who may", () =
       code: "second_factor_required",
     });
     await expect(
-      consent.previewConsentDocument({ source: draft.source })
+      consent.previewConsentDocument({
+        purpose: draft.purpose,
+        source: draft.source,
+      })
     ).rejects.toMatchObject({ code: "second_factor_required" });
     await expect(
       consent.listConsentDocumentVersions({ purpose: draft.purpose })
@@ -163,7 +168,7 @@ describe("publishConsentDocument and listConsentDocumentVersions: who may", () =
         h.as(actor).publishConsentDocument(draft)
       ).rejects.toMatchObject({ name: "DomainError", code: "forbidden" });
       await expect(
-        h.as(actor).listConsentDocumentVersions({ purpose: "privacy_notice" })
+        h.as(actor).listConsentDocumentVersions({ purpose: "messages" })
       ).rejects.toMatchObject({ code: "forbidden" });
     }
     expect(await rowCounts(h)).toEqual({ documents: 0, auditEntries: 0 });
@@ -192,7 +197,7 @@ describe("publishConsentDocument and listConsentDocumentVersions: who may", () =
         before: null,
         after: {
           documentId: first.ok ? first.id : "",
-          purpose: "privacy_notice",
+          purpose: "messages",
           version: 1,
         },
         ip: "198.51.100.20",
@@ -204,7 +209,7 @@ describe("publishConsentDocument and listConsentDocumentVersions: who may", () =
         before: { documentId: first.ok ? first.id : "", version: 1 },
         after: {
           documentId: second.ok ? second.id : "",
-          purpose: "privacy_notice",
+          purpose: "messages",
           version: 2,
         },
       }),
@@ -238,7 +243,9 @@ describe("previewConsentDocument", () => {
     const { actor } = await staffAdmin(h);
 
     expect(
-      await h.as(actor).previewConsentDocument({ source: SOURCE_V1 })
+      await h
+        .as(actor)
+        .previewConsentDocument({ purpose: "messages", source: SOURCE_V1 })
     ).toEqual({
       ok: true,
       body: {
@@ -253,7 +260,9 @@ describe("previewConsentDocument", () => {
       },
     });
     expect(
-      await h.as(actor).previewConsentDocument({ source: "Just text." })
+      await h
+        .as(actor)
+        .previewConsentDocument({ purpose: "messages", source: "Just text." })
     ).toEqual({
       ok: false,
       error: "invalid_source",
@@ -270,7 +279,9 @@ describe("previewConsentDocument", () => {
     const member = await h.signIn(await h.seed.member());
 
     await expect(
-      h.as(member).previewConsentDocument({ source: SOURCE_V1 })
+      h
+        .as(member)
+        .previewConsentDocument({ purpose: "messages", source: SOURCE_V1 })
     ).rejects.toMatchObject({ code: "forbidden" });
   });
 });
@@ -280,8 +291,8 @@ describe("consent_document", () => {
     const h = await createHarness();
     const { actor } = await staffAdmin(h);
     await h.as(actor).publishConsentDocument({
-      purpose: "terms",
-      title: "Terms of use",
+      purpose: "messages",
+      title: "News and updates",
       source: SOURCE_V1,
     });
     const before = await h.db.select().from(consentDocument);

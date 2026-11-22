@@ -14,6 +14,7 @@ import {
   listConsentDocumentVersions,
   previewConsentDocument,
   publishConsentDocument,
+  type PreviewConsentDocumentInput,
   type PublishConsentDocumentInput,
 } from "./documents";
 import type { ConsentPurpose, GivablePurpose } from "./domain/purposes";
@@ -34,6 +35,7 @@ export { recordSignUpConsent } from "./consents";
 export type { ConsentState } from "./domain/consent-state";
 export type {
   ConsentDocumentVersion,
+  PreviewConsentDocumentInput,
   PreviewConsentDocumentResult,
   PublishConsentDocumentInput,
   PublishConsentDocumentResult,
@@ -44,7 +46,7 @@ export type { SourceError, SourceErrorCode } from "./domain/document-source";
 export type { ConsentPurpose, GivablePurpose } from "./domain/purposes";
 
 export const consentUseCases = (ctx: UseCaseContext) => ({
-  previewConsentDocument: (input: { source: string }) =>
+  previewConsentDocument: (input: PreviewConsentDocumentInput) =>
     previewConsentDocument(ctx, input),
   publishConsentDocument: (input: PublishConsentDocumentInput) =>
     publishConsentDocument(ctx, input),

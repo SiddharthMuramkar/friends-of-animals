@@ -130,20 +130,51 @@ test("a member gives and withdraws consent in their settings", async ({
   await expect(history.last()).toContainText("Agreed to version");
 });
 
-test("a staff admin publishes a new version, which the legal page shows", async ({
+test("the consent screens link the messages consent to the privacy policy's current version", async ({
   page,
   request,
 }, testInfo) => {
-  // Each project publishes a different document as a different admin, so
-  // the two never race for the same version number or code limit.
-  const [admin, documentName, path] =
-    testInfo.project.name === "desktop"
-      ? [SEED_CONSENT_PUBLISHERS.desktop, "Privacy policy", "/privacy"]
-      : [SEED_CONSENT_PUBLISHERS.mobile, "Terms of use", "/terms"];
-  const violations = await recordCspViolations(page);
+  // The messages consent rests on the privacy policy, a CMS page (#111):
+  // both screens that ask for it link to the page, at the version it
+  // shows now.
+  await page.goto("/privacy");
+  const version = await shownVersion(page);
+  const line = `See also our privacy policy, version ${version}.`;
 
-  await page.goto(path);
-  const before = await shownVersion(page);
+  await page.goto("/sign-up");
+  await expect(
+    page
+      .getByText(line, { exact: true })
+      .getByRole("link", { name: "privacy policy" })
+  ).toHaveAttribute("href", "/privacy");
+
+  await page.getByRole("textbox", { name: "Your name" }).fill("Meera Iyer");
+  await finishWithCode(page, request, freshEmail(testInfo.project.name));
+  await expect(page).toHaveURL(/\/account\/sessions$/);
+
+  await page.goto("/account/consents");
+  const policy = page
+    .getByRole("region", { name: "What you agree to" })
+    .getByText(line, { exact: true })
+    .getByRole("link", { name: "privacy policy" });
+  await expect(policy).toHaveAttribute("href", "/privacy");
+  await policy.click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  expect(await shownVersion(page)).toBe(version);
+});
+
+test("a staff admin publishes a new version of the messages consent", async ({
+  page,
+  request,
+}, testInfo) => {
+  // Each project signs in a different admin, so the two never share a code
+  // limit. Both publish the messages consent, so each only expects a later
+  // version than the one it saw.
+  const admin =
+    testInfo.project.name === "desktop"
+      ? SEED_CONSENT_PUBLISHERS.desktop
+      : SEED_CONSENT_PUBLISHERS.mobile;
+  const violations = await recordCspViolations(page);
 
   await page.goto("/sign-in");
   await finishWithCode(page, request, admin.email);
@@ -169,7 +200,21 @@ test("a staff admin publishes a new version, which the legal page shows", async 
 
   await expectRendersAccessibly(page, "/admin/consent-documents");
   await expectAccessibleInDark(page, "/admin/consent-documents");
-  const card = page.getByRole("region", { name: documentName });
+  // The privacy policy and the terms are their policy pages' text: only
+  // publishing the page in the CMS publishes them (#111).
+  for (const name of ["Privacy policy", "Terms of use"]) {
+    await expect(
+      page
+        .getByRole("region", { name })
+        .getByRole("button", { name: /^Publish/ })
+    ).toHaveCount(0);
+  }
+
+  const card = page.getByRole("region", { name: "News and updates by email" });
+  const current = card.getByText(/^Version \d+, published /);
+  const before = Number(
+    /^Version (\d+)/.exec((await current.textContent()) ?? "")?.[1]
+  );
   // The form starts from the current version's text: preview it unchanged.
   await card.getByRole("button", { name: "Preview" }).click();
   await expect(
@@ -179,16 +224,13 @@ test("a staff admin publishes a new version, which the legal page shows", async 
 
   await card.getByRole("button", { name: /^Publish version \d+$/ }).click();
   const notice = page
-    .getByRole("region", { name: documentName })
+    .getByRole("region", { name: "News and updates by email" })
     .getByRole("status");
   await expect(notice).toHaveText(/Published version \d+\./);
   const published = Number(
     /Published version (\d+)/.exec((await notice.textContent()) ?? "")?.[1]
   );
   expect(published).toBeGreaterThan(before);
-
-  await page.goto(path);
-  expect(await shownVersion(page)).toBeGreaterThanOrEqual(published);
 
   expect(violations).toEqual([]);
 });

@@ -1,0 +1,137 @@
+import { Eye, PencilLine, Plus } from "lucide-react";
+import type { Metadata } from "next";
+import { getFormatter, getTranslations } from "next-intl/server";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+
+import { ButtonLink } from "@/components/site/button-link";
+import { PageHeader, SectionHeading } from "@/components/site/heading";
+import { Section } from "@/components/site/section";
+import { APP_ROUTES } from "@/lib/app-routes";
+import { ROUTES } from "@/lib/routes";
+import { as, currentActor } from "@/server/app";
+import { DomainError } from "@/server/errors";
+
+import { CompetitionsDenied, StatusChip } from "./_components/admin-states";
+import { competitionHref } from "./_lib/href";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminCompetitions.list.meta");
+  return {
+    title: t("title"),
+    description: t("description"),
+    robots: { index: false, follow: false },
+  };
+}
+
+export default async function Page() {
+  const t = await getTranslations("adminCompetitions");
+  return (
+    <Section hue="blue" tone="tint" className="pt-10 sm:pt-14">
+      <PageHeader
+        eyebrow={t("eyebrow")}
+        tile="blue"
+        title={t("list.title")}
+        lead={t("list.lead")}
+      />
+      {/* Who is asking is read per request, so the list streams in behind
+          this boundary while the heading above is prerendered. */}
+      <Suspense
+        fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
+      >
+        <CompetitionList />
+      </Suspense>
+    </Section>
+  );
+}
+
+const CARD =
+  "rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
+
+async function CompetitionList() {
+  const actor = await currentActor();
+  if (actor.kind !== "user") redirect(ROUTES.signIn.path);
+  let competitions;
+  try {
+    competitions = await as(actor).listCompetitionsForAdmin();
+  } catch (error) {
+    if (error instanceof DomainError && error.code === "forbidden") {
+      return <CompetitionsDenied />;
+    }
+    throw error;
+  }
+  const [t, format] = await Promise.all([
+    getTranslations("adminCompetitions.list"),
+    getFormatter(),
+  ]);
+
+  return (
+    <div className="mt-8 flex flex-col gap-8">
+      <div>
+        <ButtonLink href={APP_ROUTES.adminNewCompetition}>
+          <Plus aria-hidden="true" />
+          {t("new")}
+        </ButtonLink>
+      </div>
+      <section aria-labelledby="competitions-list">
+        <SectionHeading id="competitions-list" title={t("listTitle")} />
+        {competitions.length === 0 ? (
+          <p className="mt-5 text-ink-muted">{t("empty")}</p>
+        ) : (
+          <ul className="mt-5 flex flex-col gap-4">
+            {competitions.map((competition) => (
+              <li key={competition.id} className={CARD}>
+                <h3 className="text-lead font-bold text-ink wrap-anywhere">
+                  {competition.name}
+                </h3>
+                <p className="mt-2 flex flex-wrap items-center gap-3 text-ink-muted">
+                  <StatusChip status={competition.status} />
+                  <span>{t("code", { code: competition.code })}</span>
+                </p>
+                <p className="mt-2 text-ink-muted">
+                  {competition.publishedAt
+                    ? t("publishedOn", {
+                        date: format.dateTime(
+                          competition.publishedAt,
+                          "longDateTime"
+                        ),
+                      })
+                    : t("updated", {
+                        date: format.dateTime(
+                          competition.updatedAt,
+                          "longDateTime"
+                        ),
+                      })}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <ButtonLink
+                    href={competitionHref(competition.id, "edit")}
+                    variant="secondary"
+                  >
+                    <PencilLine aria-hidden="true" />
+                    {/* One phrase for screen readers that starts with the
+                        visible word (WCAG 2.5.3). */}
+                    <span aria-hidden="true">{t("edit")}</span>
+                    <span className="sr-only">
+                      {t("editLabel", { name: competition.name })}
+                    </span>
+                  </ButtonLink>
+                  <ButtonLink
+                    href={competitionHref(competition.id, "preview")}
+                    variant="secondary"
+                  >
+                    <Eye aria-hidden="true" />
+                    <span aria-hidden="true">{t("preview")}</span>
+                    <span className="sr-only">
+                      {t("previewLabel", { name: competition.name })}
+                    </span>
+                  </ButtonLink>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
