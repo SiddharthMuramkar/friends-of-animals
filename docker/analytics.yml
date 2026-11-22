@@ -37,15 +37,20 @@ services:
     init: true
     # The database URL (role umami on pg-prod 10.112.12.10, database umami),
     # APP_SECRET, TWO_FACTOR_ENCRYPTION_KEY and DISABLE_TELEMETRY=1.
-    # CLIENT_IP_HEADER is left at Umami's default until HR-52 checks which
-    # header carries the visitor's address through Vercel and Caddy.
     env_file: /etc/foa/analytics.env
+    environment:
+      # The visitor's address (HR-52): Vercel's rewrite sets X-Real-IP,
+      # replacing the browser's, and Caddy passes it through while dropping
+      # the other client-supplied headers Umami would try (caddy/Caddyfile).
+      CLIENT_IP_HEADER: x-real-ip
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
     cpus: 1
     mem_limit: 1g
+    memswap_limit: 1g
+    oom_score_adj: 500
     logging: *logging
     healthcheck:
       # {"ok":true} once the server is up and the database is reachable.
