@@ -39,6 +39,14 @@ export const CODE_REQUEST_LIMITS = {
 } as const;
 
 /**
+ * The limits a code request counts against: CODE_REQUEST_LIMITS, or for a
+ * local run or a preview the looser ones from codeRequestLimitsFor (deps).
+ */
+export type CodeRequestLimits = {
+  readonly [K in keyof typeof CODE_REQUEST_LIMITS]: number;
+};
+
+/**
  * How long a session lasts from sign-in. It is absolute: using the site
  * doesn't extend it.
  */
