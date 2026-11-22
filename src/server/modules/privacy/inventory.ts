@@ -51,6 +51,21 @@ const WHILE_INVITATION_PENDING = {
   toConfirm: true,
 } as const;
 
+/**
+ * src/server/modules/safeguarding/domain/retention.ts computes this date;
+ * src/server/modules/safeguarding/retention-policy.ts picks the reports
+ * past it for #114's sweep, which deletes each with its incident log.
+ */
+const SAFEGUARDING_RECORD = {
+  period:
+    "While the report is open, then 7 years after it is resolved or until " +
+    "the child concerned turns 25, whichever is later",
+  basis:
+    "Child protection: the record of what was reported and done, kept for " +
+    "the child, FOA and the authorities (legal basis to confirm)",
+  toConfirm: true,
+} as const;
+
 export const DATA_INVENTORY: readonly InventoryEntry[] = [
   // Accounts (#57, #58)
   {
@@ -156,5 +171,74 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     column: "revoked_by_user_id",
     purpose: "Records which authorised person withdrew the invitation",
     retention: AFTER_INVITATION_CLOSES,
+  },
+  // Safeguarding reports (#116): only a safeguarding lead reads them
+  {
+    table: "safeguarding_report",
+    column: "description_ciphertext",
+    purpose:
+      "What the reporter saw or was told, so the safeguarding lead can act (encrypted)",
+    retention: SAFEGUARDING_RECORD,
+  },
+  {
+    table: "safeguarding_report",
+    column: "subject_details_ciphertext",
+    purpose:
+      "Who the concern is about (a name, a school, a username), to find the child (encrypted)",
+    retention: SAFEGUARDING_RECORD,
+  },
+  {
+    table: "safeguarding_report",
+    column: "subject_age",
+    purpose:
+      "The child's rough age, to judge urgency and how long to keep the report",
+    retention: SAFEGUARDING_RECORD,
+  },
+  {
+    table: "safeguarding_report",
+    column: "reporter_name_ciphertext",
+    purpose:
+      "Who reported, when they chose not to stay anonymous, to follow up (encrypted)",
+    retention: SAFEGUARDING_RECORD,
+  },
+  {
+    table: "safeguarding_report",
+    column: "reporter_contact_ciphertext",
+    purpose:
+      "How to reach the reporter (email or phone), when they chose to be reached (encrypted)",
+    retention: SAFEGUARDING_RECORD,
+  },
+  {
+    table: "safeguarding_report",
+    column: "escalation_reference_ciphertext",
+    purpose:
+      "The outside authority's reference, to follow the case with them (encrypted)",
+    retention: SAFEGUARDING_RECORD,
+  },
+  {
+    table: "safeguarding_report",
+    column: "outcome_ciphertext",
+    purpose:
+      "What the safeguarding lead decided and did, as the record of the case (encrypted)",
+    retention: SAFEGUARDING_RECORD,
+  },
+  {
+    table: "safeguarding_report",
+    column: "assigned_to_user_id",
+    purpose: "Records which safeguarding lead is handling the report",
+    retention: SAFEGUARDING_RECORD,
+  },
+  {
+    table: "safeguarding_incident_log",
+    column: "body_ciphertext",
+    purpose:
+      "The lead's notes and decisions over the case's life, as its record (encrypted)",
+    retention: SAFEGUARDING_RECORD,
+  },
+  {
+    table: "safeguarding_incident_log",
+    column: "author_user_id",
+    purpose: "Records which safeguarding lead wrote each log entry",
+    retention: SAFEGUARDING_RECORD,
   },
 ];

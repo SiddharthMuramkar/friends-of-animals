@@ -98,6 +98,26 @@ A keyed fingerprint kept beside an Encrypted field, so the platform can find a
 record by that value (a User by phone at sign-in) without storing it readably.
 _Avoid_: Phone hash, lookup hash
 
+## Safeguarding
+
+**Safeguarding report**:
+A concern about a child's safety that anyone sends through the public report
+form, with or without an account and with or without their name. What it says
+is held in Encrypted fields, and only a Safeguarding lead can read it.
+_Avoid_: Ticket, complaint, case
+
+**Safeguarding lead**:
+The Role held by FOA's designated safeguarding lead and their deputy: the only
+people who can read and handle Safeguarding reports. No other Role can, super
+admins included.
+_Avoid_: DSL (in code), safeguarding admin
+
+**Incident log**:
+Everything done on one Safeguarding report, in order: each move through its
+statuses and each note a Safeguarding lead adds. Nobody can edit or delete an
+entry.
+_Avoid_: Case notes, report history
+
 ## Operations
 
 **Setting**:

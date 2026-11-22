@@ -1,5 +1,5 @@
 {
-  "id": "22953235-7d4d-40b8-a4ec-3ea234aa1b73",
+  "id": "1192fe63-fa58-42b2-a2a1-92933ab25365",
   "prevId": "b949db00-f0b0-4830-b2bf-a1d4ea0a06ff",
   "version": "7",
   "dialect": "postgresql",
@@ -2990,437 +2990,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.competition_transition_block": {
-      "name": "competition_transition_block",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "from_status": {
-          "name": "from_status",
-          "type": "competition_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "to_status": {
-          "name": "to_status",
-          "type": "competition_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "details": {
-          "name": "details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "blocked_at": {
-          "name": "blocked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "resolved_at": {
-          "name": "resolved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "competition_transition_block_open": {
-          "name": "competition_transition_block_open",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "to_status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"competition_transition_block\".\"resolved_at\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "competition_transition_block_competition_idx": {
-          "name": "competition_transition_block_competition_idx",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "competition_transition_block_competition_id_competition_id_fk": {
-          "name": "competition_transition_block_competition_id_competition_id_fk",
-          "tableFrom": "competition_transition_block",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.rubric": {
-      "name": "rubric",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "discipline": {
-          "name": "discipline",
-          "type": "competition_discipline",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "rubric_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "published_by_user_id": {
-          "name": "published_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "rubric_one_draft_per_discipline": {
-          "name": "rubric_one_draft_per_discipline",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "discipline",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"rubric\".\"status\" = 'draft'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "rubric_one_published_per_discipline": {
-          "name": "rubric_one_published_per_discipline",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "discipline",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"rubric\".\"status\" = 'published'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "rubric_created_by_user_id_idx": {
-          "name": "rubric_created_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "created_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "rubric_published_by_user_id_idx": {
-          "name": "rubric_published_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "published_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "rubric_competition_id_competition_id_fk": {
-          "name": "rubric_competition_id_competition_id_fk",
-          "tableFrom": "rubric",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "rubric_created_by_user_id_user_id_fk": {
-          "name": "rubric_created_by_user_id_user_id_fk",
-          "tableFrom": "rubric",
-          "tableTo": "user",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "rubric_published_by_user_id_user_id_fk": {
-          "name": "rubric_published_by_user_id_user_id_fk",
-          "tableFrom": "rubric",
-          "tableTo": "user",
-          "columnsFrom": [
-            "published_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "rubric_version_unique": {
-          "name": "rubric_version_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "competition_id",
-            "discipline",
-            "version"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "rubric_version_positive": {
-          "name": "rubric_version_positive",
-          "value": "\"rubric\".\"version\" >= 1"
-        },
-        "rubric_published_at_matches_status": {
-          "name": "rubric_published_at_matches_status",
-          "value": "(\"rubric\".\"status\" = 'draft') = (\"rubric\".\"published_at\" IS NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.rubric_criterion": {
-      "name": "rubric_criterion",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "rubric_id": {
-          "name": "rubric_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "weight": {
-          "name": "weight",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "min_score": {
-          "name": "min_score",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "max_score": {
-          "name": "max_score",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "rubric_criterion_rubric_id_rubric_id_fk": {
-          "name": "rubric_criterion_rubric_id_rubric_id_fk",
-          "tableFrom": "rubric_criterion",
-          "tableTo": "rubric",
-          "columnsFrom": [
-            "rubric_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "rubric_criterion_position_unique": {
-          "name": "rubric_criterion_position_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "rubric_id",
-            "position"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "rubric_criterion_position": {
-          "name": "rubric_criterion_position",
-          "value": "\"rubric_criterion\".\"position\" >= 0"
-        },
-        "rubric_criterion_label": {
-          "name": "rubric_criterion_label",
-          "value": "char_length(\"rubric_criterion\".\"label\") BETWEEN 1 AND 120"
-        },
-        "rubric_criterion_description": {
-          "name": "rubric_criterion_description",
-          "value": "char_length(\"rubric_criterion\".\"description\") <= 600"
-        },
-        "rubric_criterion_weight": {
-          "name": "rubric_criterion_weight",
-          "value": "\"rubric_criterion\".\"weight\" BETWEEN 1 AND 100"
-        },
-        "rubric_criterion_scores": {
-          "name": "rubric_criterion_scores",
-          "value": "\"rubric_criterion\".\"min_score\" >= 0 AND \"rubric_criterion\".\"max_score\" <= 100 AND \"rubric_criterion\".\"min_score\" < \"rubric_criterion\".\"max_score\""
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.setting": {
       "name": "setting",
       "schema": "",
@@ -4285,6 +3854,431 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.contact_message": {
+      "name": "contact_message",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "topic": {
+          "name": "topic",
+          "type": "contact_topic",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team": {
+          "name": "team",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organisation": {
+          "name": "organisation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "contact_message_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'new'"
+        },
+        "close_reason": {
+          "name": "close_reason",
+          "type": "contact_close_reason",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_to_user_id": {
+          "name": "assigned_to_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip_hash": {
+          "name": "ip_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acknowledged_at": {
+          "name": "acknowledged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "contact_message_team_status_created_at_idx": {
+          "name": "contact_message_team_status_created_at_idx",
+          "columns": [
+            {
+              "expression": "team",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "contact_message_assigned_to_user_id_idx": {
+          "name": "contact_message_assigned_to_user_id_idx",
+          "columns": [
+            {
+              "expression": "assigned_to_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "contact_message_assigned_to_user_id_user_id_fk": {
+          "name": "contact_message_assigned_to_user_id_user_id_fk",
+          "tableFrom": "contact_message",
+          "tableTo": "user",
+          "columnsFrom": [
+            "assigned_to_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "contact_message_reference_unique": {
+          "name": "contact_message_reference_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reference"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "contact_message_team_known": {
+          "name": "contact_message_team_known",
+          "value": "\"contact_message\".\"team\" IN ('staff_admin', 'competition_manager', 'community_manager', 'adoption_coordinator', 'finance', 'content_manager')"
+        },
+        "contact_message_closed_with_reason": {
+          "name": "contact_message_closed_with_reason",
+          "value": "(\"contact_message\".\"status\" = 'closed') = (\"contact_message\".\"close_reason\" IS NOT NULL AND \"contact_message\".\"closed_at\" IS NOT NULL)"
+        },
+        "contact_message_name_length": {
+          "name": "contact_message_name_length",
+          "value": "char_length(\"contact_message\".\"name\") BETWEEN 1 AND 100"
+        },
+        "contact_message_email_length": {
+          "name": "contact_message_email_length",
+          "value": "char_length(\"contact_message\".\"email\") BETWEEN 1 AND 254"
+        },
+        "contact_message_organisation_length": {
+          "name": "contact_message_organisation_length",
+          "value": "\"contact_message\".\"organisation\" IS NULL OR char_length(\"contact_message\".\"organisation\") BETWEEN 1 AND 150"
+        },
+        "contact_message_subject_length": {
+          "name": "contact_message_subject_length",
+          "value": "char_length(\"contact_message\".\"subject\") BETWEEN 1 AND 150"
+        },
+        "contact_message_message_length": {
+          "name": "contact_message_message_length",
+          "value": "char_length(\"contact_message\".\"message\") BETWEEN 1 AND 5000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.contact_note": {
+      "name": "contact_note",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_user_id": {
+          "name": "author_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "contact_note_message_id_created_at_idx": {
+          "name": "contact_note_message_id_created_at_idx",
+          "columns": [
+            {
+              "expression": "message_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "contact_note_message_id_contact_message_id_fk": {
+          "name": "contact_note_message_id_contact_message_id_fk",
+          "tableFrom": "contact_note",
+          "tableTo": "contact_message",
+          "columnsFrom": [
+            "message_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "contact_note_author_user_id_user_id_fk": {
+          "name": "contact_note_author_user_id_user_id_fk",
+          "tableFrom": "contact_note",
+          "tableTo": "user",
+          "columnsFrom": [
+            "author_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "contact_note_body_length": {
+          "name": "contact_note_body_length",
+          "value": "char_length(\"contact_note\".\"body\") BETWEEN 1 AND 5000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.form_rate_limit": {
+      "name": "form_rate_limit",
+      "schema": "",
+      "columns": {
+        "form": {
+          "name": "form",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_hash": {
+          "name": "key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "window_start": {
+          "name": "window_start",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "form_rate_limit_window_start_idx": {
+          "name": "form_rate_limit_window_start_idx",
+          "columns": [
+            {
+              "expression": "window_start",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "form_rate_limit_form_scope_key_hash_window_start_pk": {
+          "name": "form_rate_limit_form_scope_key_hash_window_start_pk",
+          "columns": [
+            "form",
+            "scope",
+            "key_hash",
+            "window_start"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "form_rate_limit_count_positive": {
+          "name": "form_rate_limit_count_positive",
+          "value": "\"form_rate_limit\".\"count\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.human_check_redemption": {
+      "name": "human_check_redemption",
+      "schema": "",
+      "columns": {
+        "salt": {
+          "name": "salt",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "redeemed_at": {
+          "name": "redeemed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "human_check_redemption_redeemed_at_idx": {
+          "name": "human_check_redemption_redeemed_at_idx",
+          "columns": [
+            {
+              "expression": "redeemed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -4499,17 +4493,7 @@
         "draft",
         "published",
         "registration_open",
-        "registration_closed",
-        "school_judging"
-      ]
-    },
-    "public.rubric_status": {
-      "name": "rubric_status",
-      "schema": "public",
-      "values": [
-        "draft",
-        "published",
-        "superseded"
+        "registration_closed"
       ]
     },
     "public.institution_status": {
@@ -4560,6 +4544,38 @@
         "sms_disabled",
         "sms_unregistered",
         "no_contact"
+      ]
+    },
+    "public.contact_close_reason": {
+      "name": "contact_close_reason",
+      "schema": "public",
+      "values": [
+        "resolved",
+        "no_action_needed",
+        "spam",
+        "duplicate"
+      ]
+    },
+    "public.contact_message_status": {
+      "name": "contact_message_status",
+      "schema": "public",
+      "values": [
+        "new",
+        "in_progress",
+        "closed"
+      ]
+    },
+    "public.contact_topic": {
+      "name": "contact_topic",
+      "schema": "public",
+      "values": [
+        "GENERAL",
+        "SCHOOLS",
+        "NGOS",
+        "ADOPTION",
+        "VOLUNTEERING",
+        "DONATIONS",
+        "MEDIA"
       ]
     }
   },

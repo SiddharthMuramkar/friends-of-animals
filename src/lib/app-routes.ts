@@ -30,6 +30,8 @@ export const APP_ROUTES = {
   myInstitution: "/institution",
   adminInstitutions: "/admin/institutions",
   institutionCoordinators: "/institution/coordinators",
+  adminInbox: "/admin/inbox",
+  adminSafeguarding: "/admin/safeguarding",
 } as const;
 
 /** A competition's judging guide, for the institutions taking part (#88). */
@@ -51,6 +53,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/preview",
   "/admin/templates/[key]",
   "/admin/institutions/[id]",
+  "/admin/inbox/[id]",
+  "/admin/safeguarding/[id]",
   "/admin/competitions/[id]/rubrics",
   "/admin/competitions/[id]/rubrics/[discipline]",
   "/institution/competitions/[code]/judging-guide",

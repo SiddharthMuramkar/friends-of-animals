@@ -173,22 +173,78 @@
     {
       "idx": 24,
       "version": "7",
-      "when": 1795345781182,
-      "tag": "0024_88_rubrics",
+      "when": 1795346525427,
+      "tag": "0024_113_contact_inbox",
       "breakpoints": true
     },
     {
       "idx": 25,
       "version": "7",
-      "when": 1795345781915,
-      "tag": "0025_88_rubric_immutability",
+      "when": 1795346526210,
+      "tag": "0025_113_contact_note_append_only",
       "breakpoints": true
     },
     {
       "idx": 26,
       "version": "7",
-      "when": 1795345782633,
-      "tag": "0026_88_transition_blocked_message",
+      "when": 1795346527065,
+      "tag": "0026_113_contact_notification_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1795346746921,
+      "tag": "0027_116_role_safeguarding_lead",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1795346883687,
+      "tag": "0028_116_safeguarding_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795346884604,
+      "tag": "0029_116_incident_log_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795346885515,
+      "tag": "0030_116_safeguarding_alert_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795350646704,
+      "tag": "0031_88_competition_status_school_judging",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795350785112,
+      "tag": "0032_88_rubrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795350792152,
+      "tag": "0033_88_rubric_immutability",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1795350792952,
+      "tag": "0034_88_transition_blocked_message",
       "breakpoints": true
     }
   ]

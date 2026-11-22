@@ -13,9 +13,11 @@ import { seedCoordinators } from "./coordinators";
 import { seedCompetitions } from "./competitions";
 import { seedCms } from "./cms";
 import { seedConsent } from "./consent";
+import { seedContact } from "./contact";
 import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
+import { seedSafeguarding } from "./safeguarding";
 import { seedInstitutions } from "./institutions";
 import { seedNotifications } from "./notifications";
 import { seedSecondFactor } from "./second-factor";
@@ -38,10 +40,12 @@ const seeders: readonly Seeder[] = [
   seedFiles,
   seedSecondFactor,
   seedSettings,
+  seedSafeguarding,
   seedInstitutions,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,
   seedNotifications,
+  seedContact,
   seedCms,
 ];
 

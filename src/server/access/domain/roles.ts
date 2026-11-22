@@ -24,6 +24,8 @@ export const ROLES = [
   "finance",
   "auction_manager",
   "adoption_coordinator",
+  /** FOA's designated safeguarding lead and deputy (#116); global only. */
+  "safeguarding_lead",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -70,6 +72,7 @@ export const ROLE_SCOPE_TYPES: Readonly<Record<Role, readonly ScopeType[]>> = {
   finance: ["global"],
   auction_manager: ["global"],
   adoption_coordinator: ["global", "organisation"],
+  safeguarding_lead: ["global"],
 };
 
 /** FOA's own people. Staff roles need a second factor (#60). */
@@ -82,6 +85,7 @@ const STAFF_ROLES: ReadonlySet<Role> = new Set<Role>([
   "finance",
   "auction_manager",
   "adoption_coordinator",
+  "safeguarding_lead",
 ]);
 
 export function isStaffRole(role: Role): boolean {

@@ -1,5 +1,4 @@
 CREATE TYPE "public"."rubric_status" AS ENUM('draft', 'published', 'superseded');--> statement-breakpoint
-ALTER TYPE "public"."competition_status" ADD VALUE 'school_judging';--> statement-breakpoint
 CREATE TABLE "competition_transition_block" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"competition_id" uuid NOT NULL,

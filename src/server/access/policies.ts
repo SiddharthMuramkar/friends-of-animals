@@ -13,6 +13,9 @@ import { SECOND_FACTOR_POLICY } from "../modules/second-factor/policy";
 import { SETTINGS_POLICY } from "../modules/settings/policy";
 import { INSTITUTIONS_POLICY } from "../modules/institutions/policy";
 import { COORDINATORS_POLICY } from "../modules/institutions/coordinators/policy";
+import { CONTACT_POLICY } from "../modules/contact/access-policy";
+import { PUBLIC_FORMS_POLICY } from "../modules/public-forms/access-policy";
+import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
 import { JUDGING_POLICY } from "../modules/judging/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
@@ -29,6 +32,9 @@ export const POLICY = composePolicies(
   NOTIFICATIONS_POLICY,
   INSTITUTIONS_POLICY,
   COORDINATORS_POLICY,
+  PUBLIC_FORMS_POLICY,
+  CONTACT_POLICY,
+  SAFEGUARDING_POLICY,
   JUDGING_POLICY
 );
 

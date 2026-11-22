@@ -153,6 +153,7 @@ describe("resolveAllSettings", () => {
       ["org.registrationType", "", "default"],
       ["org.registrationNumber", "", "default"],
       ["org.pan", "", "default"],
+      ["safeguarding.reportsPerIpPerHour", 10, "default"],
     ]);
   });
 });

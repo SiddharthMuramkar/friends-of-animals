@@ -103,6 +103,21 @@ export type DomainEvent =
       payload: { invitationId: string };
     }
   | {
+      /** A message arrived through the contact form (#113). */
+      type: "contact_message.received";
+      aggregate: { type: "contact_message"; id: string };
+      payload: { messageId: string };
+    }
+  | {
+      /**
+       * Someone reported a safeguarding concern (#116). The leads' alert
+       * says only that one came in: nothing of the report travels here.
+       */
+      type: "safeguarding.report_submitted";
+      aggregate: { type: "safeguarding_report"; id: string };
+      payload: { reportId: string };
+    }
+  | {
       /**
        * A guard refused a scheduled move of the competition (#88): the
        * open competition_transition_block row `blockId` says why. Emitted
@@ -179,6 +194,8 @@ export const EVENT_PAYLOADS = {
     dueAt: z.iso.datetime(),
   }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
+  "contact_message.received": z.object({ messageId: z.uuid() }),
+  "safeguarding.report_submitted": z.object({ reportId: z.uuid() }),
   "competition.transition_blocked": z.object({
     competitionId: z.uuid(),
     blockId: z.uuid(),
@@ -219,6 +236,14 @@ export const SUBSCRIBERS = {
   "institution.coordinator_invited": [
     "institutions.send_coordinator_invitation",
   ],
+  // The team's in-app note goes by route row; the sender, who has no
+  // account, gets the acknowledgement from the contact module.
+  "contact_message.received": [
+    "notifications.dispatch",
+    "contact.send_acknowledgement",
+  ],
+  // The safeguarding leads' alert (#116).
+  "safeguarding.report_submitted": ["notifications.dispatch"],
   "competition.transition_blocked": ["notifications.dispatch"],
   // Each guard's retryOn events (modules/competitions/transition-guards.ts).
   "rubric.published": ["competitions.retry_blocked_moves"],

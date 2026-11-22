@@ -26,6 +26,9 @@ import { filesUseCases } from "./modules/files";
 import { settingsUseCases } from "./modules/settings";
 import { institutionUseCases } from "./modules/institutions";
 import { coordinatorsUseCases } from "./modules/institutions/coordinators";
+import { contactUseCases } from "./modules/contact";
+import { publicFormUseCases } from "./modules/public-forms";
+import { safeguardingUseCases } from "./modules/safeguarding";
 import { judgingUseCases } from "./modules/judging";
 import { composeUseCases } from "./use-cases";
 
@@ -42,6 +45,9 @@ const useCases = composeUseCases(
   notificationsUseCases,
   institutionUseCases,
   coordinatorsUseCases,
+  publicFormUseCases,
+  contactUseCases,
+  safeguardingUseCases,
   judgingUseCases
 );
 

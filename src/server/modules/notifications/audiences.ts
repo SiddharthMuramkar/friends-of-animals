@@ -28,6 +28,12 @@ import {
 } from "../../db/schema";
 import type { Delivery, EventType } from "../../outbox";
 import {
+  CONTACT_MESSAGE_VARIABLES,
+  contactMessageValues,
+  contactTeamMembers,
+} from "../contact/notify";
+import { safeguardingLeads } from "../safeguarding/leads";
+import {
   TRANSITION_BLOCK,
   type TransitionBlock,
 } from "../competitions/domain/transition-block";
@@ -45,6 +51,9 @@ function subjectUserOf(delivery: Delivery): string | null {
       return delivery.payload.subjectType === "user"
         ? delivery.payload.subjectId
         : null;
+    case "contact_message.received":
+      // A visitor's message (#113): its sender has no account.
+      return null;
     case "files.file_uploaded":
     case "files.processing_requested":
     case "files.file_processed":
@@ -65,6 +74,9 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "institution.coordinator_invited":
       // The invitee may have no account yet: the invitation goes to the
       // invited address by its own handler (#74), not by a route row.
+      return null;
+    case "safeguarding.report_submitted":
+      // About a child, never about a user: only the leads hear of it.
       return null;
     case "competition.transition_blocked":
       // For the competition's managers (`competition_managers`).
@@ -95,6 +107,20 @@ export const AUDIENCES = {
     const userId = subjectUserOf(delivery);
     return userId ? [userId] : [];
   },
+  /**
+   * Whoever wrote through the contact form (#113). They have no account, so
+   * no user receives it here: the contact module emails their address with
+   * this route's template while the route is enabled.
+   */
+  contact_sender: async () => [],
+  /** The staff team a contact message was routed to (#113). */
+  contact_team: async (db, delivery) =>
+    delivery.eventType === "contact_message.received"
+      ? contactTeamMembers(db, delivery.payload.messageId)
+      : [],
+  /** Every safeguarding lead (#116), whatever the event. */
+  safeguarding_leads: async (db) =>
+    (await safeguardingLeads(db)).map((lead) => lead.id),
   /**
    * Everyone who manages the event's competition: a competition manager
    * scoped to it, or one with a global grant (#88).
@@ -248,6 +274,13 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   "competitions.key_date_scheduled": { names: [], load: async () => ({}) },
   "institution.coordinator_invited": { names: [], load: async () => ({}) },
+  "contact_message.received": {
+    names: CONTACT_MESSAGE_VARIABLES,
+    load: async (db, delivery) =>
+      (await contactMessageValues(db, delivery.payload.messageId)) ?? {},
+  },
+  // Nothing of the report: the alert says only that one came in (#116).
+  "safeguarding.report_submitted": { names: [], load: async () => ({}) },
   "rubric.published": { names: [], load: async () => ({}) },
   "competition.disciplines_changed": { names: [], load: async () => ({}) },
   "competition.transition_blocked": {

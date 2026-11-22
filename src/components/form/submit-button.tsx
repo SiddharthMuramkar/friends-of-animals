@@ -13,12 +13,17 @@ import { cn } from "@/lib/utils";
  * can't send it twice, and the one that was pressed shows `pendingLabel`.
  * `name` and `value` tell the action which button that was. 44 px tall at
  * least (buttonStyles).
+ *
+ * A form that sends from `onSubmit` instead (an island that does work in
+ * the browser first, so its action is no Server Function) passes the
+ * action's own state as `pending`: the form status only follows `action`.
  */
 export function SubmitButton({
   children,
   pendingLabel,
   name,
   value,
+  pending: given,
   variant,
   size,
   className,
@@ -27,11 +32,13 @@ export function SubmitButton({
   pendingLabel: ReactNode;
   name?: string;
   value?: string;
+  pending?: boolean;
   className?: string;
 } & VariantProps<typeof buttonStyles>) {
-  const { pending, data } = useFormStatus();
+  const status = useFormStatus();
+  const pending = given ?? status.pending;
   const pressed =
-    pending && (name === undefined || data?.get(name) === (value ?? ""));
+    pending && (name === undefined || status.data?.get(name) === (value ?? ""));
   return (
     <button
       type="submit"

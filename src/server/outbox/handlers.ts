@@ -17,6 +17,7 @@ import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
+import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
 import {
   retryBlockedMoves,
   runStatusJob,
@@ -89,6 +90,8 @@ export const HANDLERS: Handlers = {
     runStatusJob(deps, payload),
   "institutions.send_coordinator_invitation": (deps, { payload }) =>
     sendCoordinatorInvitation(deps, payload),
+  // Emails a contact message's sender their reference (#113).
+  "contact.send_acknowledgement": sendContactAcknowledgement,
   // Tries a refused move again after an event its guard names (#88).
   "competitions.retry_blocked_moves": (deps, { payload }) =>
     retryBlockedMoves(deps, payload),

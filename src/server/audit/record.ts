@@ -27,14 +27,22 @@ export type AuditEntry = {
  */
 const nextAuditId = monotonicUuidv7();
 
-/** Appends one entry, stamped by the clock, for the acting `actor`. */
+/**
+ * Appends one entry, stamped by the clock, for the acting `actor`. With
+ * `withoutRequestMeta`, the entry keeps no IP or user agent: for a report
+ * that must stay anonymous even from FOA (#116).
+ */
 export async function recordAudit(
   db: AppDb,
   { clock, actor }: { clock: Clock; actor: Actor },
-  entry: AuditEntry
+  entry: AuditEntry,
+  options: { withoutRequestMeta?: boolean } = {}
 ): Promise<void> {
   const now = clock.now();
-  const meta = actor.kind === "system" ? undefined : actor.meta;
+  const meta =
+    actor.kind === "system" || options.withoutRequestMeta
+      ? undefined
+      : actor.meta;
   await db.insert(auditLog).values({
     id: nextAuditId(now),
     occurredAt: now,
