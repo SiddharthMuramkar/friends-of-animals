@@ -9,6 +9,9 @@ import { expect, test, type Page } from "@playwright/test";
 // part of the page streaming in, a form's reply and a refresh each started
 // one, at any moment after the page looked ready. Only a link to another
 // page may cross-fade.
+//
+// A link clicked before the page has fully hydrated still opens the next
+// page in full: the header, the page and the footer all show.
 
 type Counter = { viewTransitionsStarted: number };
 
@@ -31,6 +34,68 @@ async function countViewTransitions(
   return () =>
     page.evaluate(() => (window as unknown as Counter).viewTransitionsStarted);
 }
+
+/**
+ * From now on, each load of `from` clicks the link `selector` from inside
+ * the page as soon as React has hydrated the header, while the rest of the
+ * page still hydrates at low priority: a visitor tapping a link on a slow
+ * phone right after the page appears.
+ */
+async function clickWhileHydrating(page: Page, from: string, selector: string) {
+  await page.addInitScript(
+    ([from, selector]) => {
+      if (location.pathname !== from) return;
+      // React marks each element it has hydrated with a __reactProps$ key.
+      const hydrated = (element: Element | null) =>
+        element !== null &&
+        Object.keys(element).some((key) => key.startsWith("__reactProps"));
+      const tryClick = () => {
+        const link = document.querySelector<HTMLElement>(selector);
+        if (link && hydrated(document.querySelector("body > header"))) {
+          link.click();
+        } else {
+          setTimeout(tryClick, 0);
+        }
+      };
+      tryClick();
+    },
+    [from, selector]
+  );
+}
+
+test("a link clicked while the page is still hydrating opens the next page in full", async ({
+  page,
+}) => {
+  // Next keeps the page a visitor leaves in a hidden <Activity>. Leaving
+  // before React had hydrated all of it once hid everything after the
+  // @exit slot in <body> as well: the header, <main> and the footer stayed
+  // blank for good (CI runs 45021193606 and 45028936810; layout.tsx).
+  const slug = "neighbours-on-my-street";
+  // Every load is a first visit: scripts arrive from the network, so the
+  // page is still hydrating when the click comes. (Both projects run
+  // Chromium.)
+  const devtools = await page.context().newCDPSession(page);
+  await devtools.send("Network.enable");
+  await devtools.send("Network.setCacheDisabled", { cacheDisabled: true });
+  await clickWhileHydrating(
+    page,
+    "/competitions",
+    `main a[href="/competitions/${slug}"]`
+  );
+  for (let load = 1; load <= 3; load++) {
+    await page.goto("/competitions");
+    await expect(page).toHaveURL(new RegExp(`/competitions/${slug}$`));
+    await expect(
+      page.locator("body > header"),
+      `header, load ${load}`
+    ).toBeVisible();
+    await expect(page.locator("main"), `main, load ${load}`).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Neighbours on My Street" })
+    ).toBeVisible();
+    await expect(page.locator("footer"), `footer, load ${load}`).toBeVisible();
+  }
+});
 
 test("a page starts no view transition as its parts stream in or a form replies, and a link still cross-fades", async ({
   page,
