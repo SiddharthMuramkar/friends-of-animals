@@ -2,47 +2,21 @@
 // https://errors.friendsofanimals.dev, in its own Compose project with its
 // own small Postgres. Docker can't run here, so these tests read errors.yml.
 
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  LOGGING_ANCHOR,
+  block,
+  lines,
+  serviceBlock,
+  serviceNames as listServices,
+  readDocker,
+} from "./compose-test-helpers";
 
-const composeText = readFileSync(
-  new URL("./errors.yml", import.meta.url),
-  "utf8"
-);
-
-/** Lines without comments and blank lines. */
-const lines = (text: string) =>
-  text
-    .split("\n")
-    .map((line) => line.replace(/\s+#.*$/, ""))
-    .filter((line) => line.trim() !== "" && !line.trim().startsWith("#"));
-
-const indent = (line: string) => line.length - line.trimStart().length;
-
-/** The lines nested under the first line matching `key` (by indentation). */
-function block(text: string[], key: RegExp): string[] {
-  const start = text.findIndex((line) => key.test(line));
-  if (start === -1) return [];
-  const depth = indent(text[start] ?? "");
-  const end = text.findIndex((line, i) => i > start && indent(line) <= depth);
-  return text.slice(start + 1, end === -1 ? undefined : end);
-}
-
-/** The anchor every Compose file here defines, word for word (#66). */
-const LOGGING_ANCHOR = [
-  "x-logging: &logging",
-  "  driver: journald",
-  "  options:",
-  '    tag: "{{.Name}}"',
-];
+const composeText = readDocker("./errors.yml");
 
 const compose = lines(composeText);
-const services = block(compose, /^services:$/);
-const serviceNames = services
-  .filter((line) => indent(line) === 2)
-  .map((line) => line.trim().replace(/:$/, ""));
-const service = (name: string) =>
-  block(services, new RegExp(`^ {2}${name}:$`)).join("\n");
+const serviceNames = listServices(compose);
+const service = (name: string) => serviceBlock(compose, name);
 const glitchtip = service("glitchtip");
 const postgres = service("glitchtip-pg");
 
@@ -133,6 +107,55 @@ describe("docker/errors.yml", () => {
     );
   });
 
+  it("gains no new privileges in either container", () => {
+    for (const config of [glitchtip, postgres]) {
+      expect(block(config.split("\n"), /^ {4}security_opt:$/)).toEqual([
+        "      - no-new-privileges:true",
+      ]);
+    }
+  });
+
+  it("runs GlitchTip with no capabilities: the image's user is app, not root", () => {
+    expect(block(glitchtip.split("\n"), /^ {4}cap_drop:$/)).toEqual([
+      "      - ALL",
+    ]);
+    expect(glitchtip).not.toMatch(/^ {4}cap_add:/m);
+  });
+
+  it("gives Postgres only the capabilities its entrypoint needs", () => {
+    // The entrypoint starts as root: it chowns and chmods the data
+    // directory, reads the 0400 password file, then drops to postgres.
+    expect(block(postgres.split("\n"), /^ {4}cap_drop:$/)).toEqual([
+      "      - ALL",
+    ]);
+    expect(
+      block(postgres.split("\n"), /^ {4}cap_add:$/)
+        .map((line) => line.trim())
+        .sort()
+    ).toEqual(
+      ["- CHOWN", "- DAC_OVERRIDE", "- FOWNER", "- SETGID", "- SETUID"].sort()
+    );
+  });
+
+  it("keeps both on their own network: foa-errors, 10.112.13.0/24", () => {
+    expect(block(compose, /^networks:$/)).toEqual([
+      "  errors:",
+      "    name: foa-errors",
+      "    driver: bridge",
+      "    driver_opts:",
+      "      com.docker.network.bridge.name: br-foa-errors",
+      "    ipam:",
+      "      config:",
+      "        - subnet: 10.112.13.0/24",
+    ]);
+    expect(glitchtip).toMatch(
+      /^ {6}errors: \{ ipv4_address: 10\.112\.13\.10 \}$/m
+    );
+    expect(postgres).toMatch(
+      /^ {6}errors: \{ ipv4_address: 10\.112\.13\.11 \}$/m
+    );
+  });
+
   it("logs through the shared journald anchor", () => {
     expect(["x-logging: &logging", ...block(compose, /^x-logging:/)]).toEqual(
       LOGGING_ANCHOR
@@ -141,5 +164,39 @@ describe("docker/errors.yml", () => {
       expect(config).toMatch(/^ {4}logging: \*logging$/m);
     }
     expect(composeText).not.toMatch(/json-file|max-size|max-file/);
+  });
+});
+
+describe("README.md, Errors (GlitchTip)", () => {
+  const readme = readDocker("./README.md");
+  const start = readme.indexOf("\n## Errors (GlitchTip)\n");
+  const section = readme.slice(start, readme.indexOf("\n## ", start + 1));
+  /** Lines of the section's shell blocks, trimmed, comments dropped. */
+  const commands = [...section.matchAll(/```sh\n([\s\S]*?)```/g)]
+    .flatMap(([, body]) => lines(body ?? ""))
+    .map((line) => line.trim());
+  const at = (command: string) => commands.indexOf(command);
+
+  it("creates the superuser on a new host before GlitchTip serves anything", () => {
+    // The first account to sign up becomes superuser, and Caddy already
+    // routes errors.friendsofanimals.dev: the web server must not run
+    // until the owner's account exists.
+    expect(start).toBeGreaterThan(-1);
+    // A one-off container takes foa-glitchtip's fixed address, so the
+    // service is stopped first (it may run after a database loss).
+    const steps = [
+      "docker compose -f docker/errors.yml stop glitchtip",
+      "docker compose -f docker/errors.yml up -d --wait glitchtip-pg",
+      "docker compose -f docker/errors.yml run --rm glitchtip ./manage.py migrate",
+      "docker compose -f docker/errors.yml run --rm glitchtip ./manage.py createsuperuser",
+      "docker compose -f docker/errors.yml up -d --wait",
+    ].map(at);
+    expect(steps.every((index) => index > -1)).toBe(true);
+    expect([...steps].sort((a, b) => a - b)).toEqual(steps);
+  });
+
+  it("covers losing GlitchTip's database, which no backup restores", () => {
+    expect(section).toMatch(/\/var\/lib\/foa\/glitchtip\/pg/);
+    expect(section).not.toMatch(/straight after the first start/);
   });
 });
