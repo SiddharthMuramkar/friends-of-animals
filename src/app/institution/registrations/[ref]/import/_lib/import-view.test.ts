@@ -214,6 +214,10 @@ describe("importView", () => {
       { code: "duplicate_columns", columns: ["grade"] },
       'file.duplicate_columns {"columns":"grade"}',
     ],
+    [
+      { code: "too_many_columns", maxColumns: 40, columns: 150_002 },
+      'file.too_many_columns {"columns":150002,"maxColumns":40}',
+    ],
     [{ code: "no_rows" }, "file.no_rows"],
     [
       { code: "too_many_rows", maxRows: 1000, rows: 1200 },

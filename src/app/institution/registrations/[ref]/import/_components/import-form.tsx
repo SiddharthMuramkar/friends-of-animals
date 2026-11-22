@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { FormAlert, inputStyles, SubmitButton } from "@/components/form";
 import { buttonStyles } from "@/components/site/button-link";
@@ -12,6 +12,8 @@ import type { ImportView } from "../_lib/import-view";
 
 export type ImportFormLabels = {
   file: { label: string; hint: string };
+  /** Said for a file over the size limit, which isn't sent. */
+  tooLarge: string;
   submit: string;
   submitting: string;
   /** common.callout words: meaning never by colour alone. */
@@ -58,23 +60,45 @@ function saveReport(report: string) {
 export function ImportForm({
   institutionId,
   reference,
+  maxBytes,
   labels,
 }: {
   institutionId: string;
   reference: string;
+  /** The largest file the import reads. */
+  maxBytes: number;
   labels: ImportFormLabels;
 }) {
-  const [view, formAction] = useActionState(importStudentsAction, START);
+  const [actionView, formAction] = useActionState(importStudentsAction, START);
+  // How many times in a row a file over the limit was refused here, before
+  // sending it: Next refuses a Server Action body over 1 MB before the
+  // action runs, so the action couldn't say why.
+  const [tooLarge, setTooLarge] = useState(0);
+  const view: ImportView =
+    tooLarge > 0 ? { step: "refused", alert: labels.tooLarge } : actionView;
   const result = useRef<HTMLDivElement>(null);
 
   // The outcome takes focus, so it is read out and the keyboard is there.
   useEffect(() => {
-    if (view.step !== "idle") result.current?.focus();
-  }, [view]);
+    if (tooLarge > 0 || actionView.step !== "idle") result.current?.focus();
+  }, [actionView, tooLarge]);
 
   return (
     <div className="flex flex-col gap-8">
-      <form action={formAction} className="flex flex-col gap-6">
+      <form
+        action={formAction}
+        onSubmit={(event) => {
+          const file = new FormData(event.currentTarget).get("file");
+          if (file instanceof File && file.size > maxBytes) {
+            // Stops the action as well as the browser's own submit.
+            event.preventDefault();
+            setTooLarge((count) => count + 1);
+          } else {
+            setTooLarge(0);
+          }
+        }}
+        className="flex flex-col gap-6"
+      >
         <input type="hidden" name="institutionId" value={institutionId} />
         <input type="hidden" name="reference" value={reference} />
         <div className="flex flex-col gap-2">

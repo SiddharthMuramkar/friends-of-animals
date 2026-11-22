@@ -576,6 +576,65 @@ describe("importStudents", () => {
       });
       expect(await importAudits(h)).toEqual([]);
     });
+
+    // A small file can still name a huge number of columns or rows; each is
+    // refused before a row is read, or one upload runs the server out of
+    // memory.
+    it("refuses 150,000 columns in a file under the size limit, writing nothing", async () => {
+      const h = await createHarness();
+      const school = await registeredSchool(h);
+      const header = "full_name,date_of_birth" + ",x".repeat(150_000);
+      const rows = Array.from({ length: 30_000 }, (_, n) => `N${n},1`);
+
+      const result = await importAs(h, school, [header, ...rows].join("\r\n"));
+
+      expect(result).toEqual({
+        ok: false,
+        error: "unreadable_file",
+        problem: { code: "too_many_columns", maxColumns: 40, columns: 150_002 },
+      });
+      expect(await counts(h)).toEqual(NOTHING);
+      expect(await importAudits(h)).toEqual([]);
+    });
+
+    it("refuses 30,000 rows under a header padded with 150,000 blank cells, writing nothing", async () => {
+      const h = await createHarness();
+      const school = await registeredSchool(h);
+      const header = "full_name,date_of_birth" + ",".repeat(150_000);
+      const rows = Array.from({ length: 30_000 }, () => "x,1");
+
+      const result = await importAs(h, school, [header, ...rows].join("\r\n"));
+
+      expect(result).toEqual({
+        ok: false,
+        error: "unreadable_file",
+        problem: { code: "too_many_rows", maxRows: 1000, rows: 30_000 },
+      });
+      expect(await counts(h)).toEqual(NOTHING);
+      expect(await importAudits(h)).toEqual([]);
+    });
+
+    it("reads a header padded with 300,000 blank cells as its named columns alone", async () => {
+      const h = await createHarness();
+      const school = await registeredSchool(h);
+      const header = "full_name,date_of_birth" + ",".repeat(300_000);
+      const rows = Array.from({ length: 1000 }, (_, n) => `N${n},1`);
+      const text = [header, ...rows].join("\r\n");
+      expect(csv(text).length).toBeLessThanOrEqual(750 * 1024);
+
+      const result = await importAs(h, school, text);
+
+      expect(result).toMatchObject({
+        ok: true,
+        counts: { total: 1000, enrolled: 0, invalid: 1000 },
+        header: ["full_name", "date_of_birth"],
+        ignoredColumns: [],
+      });
+      expect(
+        result.ok && result.notEnrolled.every((row) => row.cells.length === 2)
+      ).toBe(true);
+      expect(await counts(h)).toEqual(NOTHING);
+    });
   });
 
   describe("the registration it is for", () => {

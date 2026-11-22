@@ -17,6 +17,7 @@ import {
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { isSampleContentEnabled } from "@/lib/site";
+import { cn } from "@/lib/utils";
 import type { Messages } from "@/i18n/messages";
 import { as, currentActor } from "@/server/app";
 
@@ -118,6 +119,9 @@ async function StudentImport({
   const range = ageRange(competition.ageGroups);
   const labels: ImportFormLabels = {
     file: { label: t("upload.label"), hint: t("upload.hint") },
+    tooLarge: t("file.too_large", {
+      maxKb: Math.floor(limits.maxBytes / 1024),
+    }),
     submit: t("upload.submit"),
     submitting: t("upload.submitting"),
     problem: callout("danger"),
@@ -243,7 +247,7 @@ async function StudentImport({
                       key={column.header}
                       className="border-t border-border align-top"
                     >
-                      <th scope="row" className={`${CELL} font-mono text-sm`}>
+                      <th scope="row" className={cn(CELL, "font-mono text-sm")}>
                         {column.header}
                       </th>
                       <td className={CELL}>
@@ -269,6 +273,7 @@ async function StudentImport({
             <ImportForm
               institutionId={institutionId}
               reference={reference}
+              maxBytes={limits.maxBytes}
               labels={labels}
             />
           </section>

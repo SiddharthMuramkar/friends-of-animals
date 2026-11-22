@@ -111,6 +111,11 @@ function fileProblemText(
       return t(`file.${problem.code}`, {
         columns: problem.columns.join(", "),
       });
+    case "too_many_columns":
+      return t("file.too_many_columns", {
+        columns: problem.columns,
+        maxColumns: problem.maxColumns,
+      });
     case "too_many_rows":
       return t("file.too_many_rows", {
         rows: problem.rows,

@@ -108,6 +108,17 @@ test("an authorised person imports students from a spreadsheet, fixes the rows t
     "/institution/registrations/[ref]/import refused file"
   );
 
+  // Over Next's 1 MB Server Action body limit: refused in the browser, as
+  // the server would refuse it before the action could say why.
+  await upload(
+    page,
+    "too-big.csv",
+    "full_name,date_of_birth\r\n" + "Tara Menon,2016-04-12\r\n".repeat(50_000)
+  );
+  await expect(outcome(page)).toContainText(
+    "That file is over 750 KB. Split it into smaller files."
+  );
+
   // The sample's five good rows, and Aarav Kulkarni: this institution
   // hasn't enrolled him yet.
   await upload(page, "sample.csv", SAMPLE_STUDENT_IMPORT_CSV);
@@ -150,7 +161,8 @@ test("an authorised person imports students from a spreadsheet, fixes the rows t
     .replace("parent,,salma.khan", "parent,90000 07606,salma.khan")
     .replace("31/02/2016", "28/02/2016");
   await upload(page, "students-to-fix.csv", fixed);
-  // Zoya is still too young; Vihaan is enrolled now.
+  // Zoya is still too young, and Vihaan, row 3's student, was enrolled by
+  // the first upload.
   await expect(outcome(page)).toContainText(
     "2 students are enrolled. 2 rows need another look."
   );

@@ -50,7 +50,7 @@ describe("describeStudentImport", () => {
         { header: "city", need: "optional" },
         { header: "state", need: "optional" },
       ],
-      limits: { maxRows: 1000, maxBytes: 768_000 },
+      limits: { maxRows: 1000, maxBytes: 768_000, maxColumns: 40 },
     });
   });
 

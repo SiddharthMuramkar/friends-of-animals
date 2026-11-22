@@ -11,26 +11,43 @@ export type CsvParseResult =
   | { ok: true; records: string[][] }
   | {
       ok: false;
-      reason: "unterminated_quote" | "text_after_quote";
+      reason: CsvSyntaxError["reason"];
       /** The physical line, counting from 1, where the problem is. */
       line: number;
     };
 
-const BOM = "﻿";
+/** Text that isn't CSV: where, and why. */
+export class CsvSyntaxError extends Error {
+  constructor(
+    readonly reason: "unterminated_quote" | "text_after_quote",
+    /** The physical line, counting from 1, where the problem is. */
+    readonly line: number
+  ) {
+    super(`CSV ${reason} on line ${line}`);
+    this.name = "CsvSyntaxError";
+  }
+}
 
-export function parseCsv(input: string): CsvParseResult {
+const BOM = "\uFEFF";
+
+/**
+ * The records of a CSV text, one at a time, so a reader can skip or count
+ * them without holding them all, and stop early. Throws CsvSyntaxError at
+ * the first broken record.
+ */
+export function* csvRecords(input: string): Generator<string[], void> {
   const text = input.startsWith(BOM) ? input.slice(1) : input;
-  const records: string[][] = [];
   let record: string[] = [];
   let field = "";
   let line = 1;
   let i = 0;
 
-  const endRecord = () => {
+  const endRecord = (): string[] => {
     record.push(field);
-    records.push(record);
+    const ended = record;
     record = [];
     field = "";
+    return ended;
   };
   /** Steps over a line ending at `i`, if there is one. */
   const lineEnding = (): boolean => {
@@ -51,7 +68,7 @@ export function parseCsv(input: string): CsvParseResult {
       i += 1;
       for (;;) {
         if (i >= text.length) {
-          return { ok: false, reason: "unterminated_quote", line: openedOn };
+          throw new CsvSyntaxError("unterminated_quote", openedOn);
         }
         const char = text[i]!;
         if (char === '"') {
@@ -70,16 +87,16 @@ export function parseCsv(input: string): CsvParseResult {
         i += 1;
       }
       if (i >= text.length) {
-        endRecord();
+        yield endRecord();
       } else if (text[i] === ",") {
         record.push(field);
         field = "";
         i += 1;
-        if (i === text.length) endRecord();
+        if (i === text.length) yield endRecord();
       } else if (lineEnding()) {
-        endRecord();
+        yield endRecord();
       } else {
-        return { ok: false, reason: "text_after_quote", line };
+        throw new CsvSyntaxError("text_after_quote", line);
       }
       continue;
     }
@@ -88,19 +105,27 @@ export function parseCsv(input: string): CsvParseResult {
       record.push(field);
       field = "";
       i += 1;
-      if (i === text.length) endRecord();
+      if (i === text.length) yield endRecord();
       continue;
     }
     if (lineEnding()) {
-      endRecord();
+      yield endRecord();
       continue;
     }
     field += text[i];
     i += 1;
-    if (i === text.length) endRecord();
+    if (i === text.length) yield endRecord();
   }
+}
 
-  return { ok: true, records };
+/** Every record of a CSV text, or where it is broken. */
+export function parseCsv(input: string): CsvParseResult {
+  try {
+    return { ok: true, records: [...csvRecords(input)] };
+  } catch (error) {
+    if (!(error instanceof CsvSyntaxError)) throw error;
+    return { ok: false, reason: error.reason, line: error.line };
+  }
 }
 
 const NEEDS_QUOTES = /[",\r\n]/;
@@ -122,10 +147,12 @@ export function formatCsv(records: readonly (readonly string[])[]): string {
 }
 
 // A spreadsheet runs a cell that starts with one of these as a formula
-// (OWASP "CSV Injection"). Quotes already in front count too, so that
-// restoreFormula can always undo exactly what neutraliseFormula did.
-const FORMULA_START = /^'*[=+\-@\t\r]/;
-const NEUTRALISED = /^'+[=+\-@\t\r]/;
+// (OWASP "CSV Injection"): = + - @, a tab, a carriage return or a line
+// feed, and, since some spreadsheets trim a cell first, = + - @ after
+// spaces. Quotes already in front count too, so that restoreFormula can
+// always undo exactly what neutraliseFormula did.
+const FORMULA_START = /^'*(?:[\t\r\n]|\s*[=+\-@])/;
+const NEUTRALISED = /^'+(?:[\t\r\n]|\s*[=+\-@])/;
 
 /**
  * Makes a cell safe to open in a spreadsheet by putting a quote in front
