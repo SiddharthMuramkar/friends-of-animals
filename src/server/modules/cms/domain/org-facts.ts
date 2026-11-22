@@ -39,6 +39,14 @@ export type TaxFacts = {
   pan: string;
 };
 
+/** The facts a super admin keeps in settings; the rest are site facts. */
+export const TAX_FACT_KEYS: readonly PlaceholderKey[] = [
+  "legalName",
+  "registrationType",
+  "registrationNumber",
+  "pan",
+];
+
 /** The runtime settings (#62) that hold the tax facts. */
 export const ORG_FACT_SETTINGS: ReadonlySet<string> = new Set([
   "org.legalName",

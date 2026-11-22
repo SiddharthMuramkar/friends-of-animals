@@ -1,6 +1,7 @@
 // Reading FOA's organisation facts (#111).
 //
-//   getOrgFacts()  → anyone
+//   getOrgFacts()         → anyone
+//   orgFactsReadiness()   → staff admin, super admin, content manager
 //
 // One read merges the two owners of the facts: the tax and registration
 // facts a super admin keeps in runtime settings (#62), and the published
@@ -11,7 +12,13 @@
 
 import { authorize } from "../../access/can";
 import { readSetting } from "../settings/read";
-import { type OrgFacts, orgFactsFrom, type TaxFacts } from "./domain/org-facts";
+import type { PlaceholderKey } from "../../../lib/site";
+import {
+  missingOrgFacts,
+  type OrgFacts,
+  orgFactsFrom,
+  type TaxFacts,
+} from "./domain/org-facts";
 import type { CmsContext } from "./publishing";
 import { getPublishedDocument } from "./reading";
 
@@ -35,4 +42,17 @@ export async function getOrgFacts(ctx: CmsContext): Promise<OrgFacts> {
     getPublishedDocument(ctx, { key: "site_facts" }),
   ]);
   return orgFactsFrom(tax, siteFacts);
+}
+
+export type OrgFactsReadiness = { missing: PlaceholderKey[] };
+
+/**
+ * The facts FOA still has to confirm, in page order: what the admin shell
+ * shows staff, so someone enters them before launch (HR-21).
+ */
+export async function orgFactsReadiness(
+  ctx: CmsContext
+): Promise<OrgFactsReadiness> {
+  await authorize(ctx, "cms.read_facts_readiness");
+  return { missing: missingOrgFacts(await getOrgFacts(ctx)) };
 }

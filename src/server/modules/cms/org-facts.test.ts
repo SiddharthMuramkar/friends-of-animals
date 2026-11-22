@@ -159,3 +159,36 @@ describe("organisation facts from the site facts document", () => {
     expect(facts.email).toEqual(placeholder("email"));
   });
 });
+
+describe("orgFactsReadiness", () => {
+  it("tells staff which facts are still missing, by placeholder key", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const saved = await h
+      .as(actor)
+      .saveDraft({ key: "site_facts", body: SITE_FACTS });
+    if (!saved.ok) throw new Error(JSON.stringify(saved));
+    await h.as(actor).publishRevision({ revisionId: saved.revisionId });
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const staffAccount = await h.seed.member();
+    await h.seed.grant(staffAccount, { role: "staff_admin", scope: global });
+    const staffAdmin = await h.signIn(staffAccount);
+
+    for (const who of [actor, admin, staffAdmin]) {
+      expect(await h.as(who).orgFactsReadiness()).toEqual({
+        missing: ["legalName", "registrationType", "registrationNumber", "pan"],
+      });
+    }
+  });
+
+  it("refuses members and visitors: the public health check names none", async () => {
+    const h = await createHarness();
+    const member = await h.signIn(await h.seed.member());
+
+    for (const who of [member, h.visitor()]) {
+      await expect(h.as(who).orgFactsReadiness()).rejects.toMatchObject({
+        code: "forbidden",
+      });
+    }
+  });
+});
