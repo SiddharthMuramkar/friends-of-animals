@@ -582,9 +582,13 @@ journalctl's default format each line starts with
 Nearly every request reaching the edge comes from Vercel's shared egress
 addresses: the site's `/stats` rewrites and the Sentry envelopes. A ban on
 one of them would cut it off from PgBouncer too, so Caddy doesn't log
-exactly those requests (`GET /script.js` and `POST /api/send` on stats,
-`POST /api/<project>/envelope/` on errors; Edge, below), and CrowdSec never
-sees them. Anything else, from anyone, still counts. systemd drop-ins start
+exactly those paths (`/script.js` and `/api/send` on stats,
+`/api/<project>/envelope/` on errors; Edge, below), for every method and
+query string: the rewrites match the path only and forward both, so a
+visitor could otherwise send `PUT /stats/script.js` or a probe query and
+get Vercel's address logged. CrowdSec never sees those paths, so it misses
+a direct scanner on them too (TODO, "Edge rate limit"). Anything else, from
+anyone, still counts. systemd drop-ins start
 crowdsec (its docker acquisition makes it exit if the Docker API is not up
 yet) and the bouncer after Docker. Brute force (5 failures, leaking 1 per
 10 s) bans the source.
@@ -1097,15 +1101,19 @@ name (#118). Compose project `foa-edge` (`edge.yml`), sites in
 - **Access log**: the stats and errors sites write a JSON access log to
   stdout (the `access_log` snippet in `caddy/Caddyfile`), which goes to
   journald with the container's other lines (Logs, above) and from there to
-  CrowdSec. It never holds a visitor of the site: Caddy skips the requests
-  the site proxies for them (`log_skip`: the tracker script and page views
-  on stats, Sentry envelopes on errors). For every other request it deletes
+  CrowdSec. It never holds a visitor of the site: Caddy skips the paths
+  the site proxies for them, whatever the method or query (`log_skip`: the
+  tracker script and page views on stats, Sentry envelopes on errors). For
+  every other request it deletes
   the headers that carry someone's address, location or page (`X-Real-Ip`,
   `X-Forwarded-For`, `Forwarded`, Vercel's `X-Vercel-Forwarded-For` and
   `X-Vercel-Ip-*`, `Referer`) and redacts cookies and `Authorization`. What
   remains is the connecting address (a scanner's, or the owner's on the
-  dashboard), host, method, path, status and user agent: what CrowdSec's
-  caddy parser reads.
+  dashboard), host, method, path with its query string, status and user
+  agent: what CrowdSec's caddy parser reads. Caddy's own log (stderr) goes
+  through the same filter (`log default`): when Umami or GlitchTip is down,
+  each request it couldn't proxy, a skipped one included, lands there with
+  its headers.
 - **Abuse control**: CrowdSec's `crowdsecurity/caddy` collection (the
   generic HTTP scenarios: probing, crawling, sensitive files, bad user
   agents, known CVEs) bans abusive sources at the host (CrowdSec, above).
@@ -1184,9 +1192,13 @@ become superuser, even with sign-up turned off, and Caddy already routes
 `errors.friendsofanimals.dev` with a public certificate. So create the
 owner's account before the web server runs: start only the database, run the
 migrations and `createsuperuser` in one-off containers, then start GlitchTip.
+foa-glitchtip must be stopped meanwhile (after a database loss:
+`docker compose -f docker/errors.yml stop glitchtip`): the one-off
+containers take its fixed address, 10.112.13.10.
 
 ```sh
 cd /srv/foa && git pull
+docker compose -f docker/errors.yml stop glitchtip    # if it runs
 docker compose -f docker/errors.yml up -d --wait glitchtip-pg
 docker compose -f docker/errors.yml run --rm glitchtip ./manage.py migrate
 docker compose -f docker/errors.yml run --rm glitchtip ./manage.py createsuperuser

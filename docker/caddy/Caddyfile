@@ -1,5 +1,32 @@
 # Caddy on the VPS (edge.yml, #118). Host network: firewalld governs 80 and
 # 443. Runbook: docker/README.md, "Edge (Caddy)".
+
+# Every log line Caddy writes about a request, the access log and the error
+# log alike, as JSON without the headers that carry the visitor's address,
+# location or page: no PII in logs (#118). Caddy already redacts Cookie,
+# Set-Cookie and Authorization. What stays is what CrowdSec's caddy parser
+# uses (client_ip, host, method, uri, status, User-Agent).
+(no_visitor) {
+	format filter {
+		wrap json
+		fields {
+			request>headers>X-Real-Ip delete
+			request>headers>X-Forwarded-For delete
+			request>headers>Forwarded delete
+			request>headers>X-Vercel-Forwarded-For delete
+			request>headers>X-Vercel-Ip-Continent delete
+			request>headers>X-Vercel-Ip-Country delete
+			request>headers>X-Vercel-Ip-Country-Region delete
+			request>headers>X-Vercel-Ip-City delete
+			request>headers>X-Vercel-Ip-Postal-Code delete
+			request>headers>X-Vercel-Ip-Latitude delete
+			request>headers>X-Vercel-Ip-Longitude delete
+			request>headers>X-Vercel-Ip-Timezone delete
+			request>headers>Referer delete
+		}
+	}
+}
+
 {
 	# Let's Encrypt's production CA, pinned. On a new host, point this at the
 	# staging CA (https://acme-staging-v02.api.letsencrypt.org/directory)
@@ -9,39 +36,26 @@
 	# port would be open to every local process. Healthcheck and reload use
 	# it (edge.yml).
 	admin unix//config/admin.sock|0600
+	# Caddy's own log on stderr (journald, PRIORITY 3; CrowdSec doesn't
+	# read it). A request whose upstream fails lands here with its headers,
+	# a log_skip one included.
+	log default {
+		output stderr
+		import no_visitor
+	}
 	servers {
 		protocols h1 h2
 	}
 }
 
-# The stats and errors sites' access log: JSON on stdout, which the logging
+# The stats and errors sites' access log: on stdout, which the logging
 # driver sends to journald (edge.yml) and CrowdSec reads from there
-# (crowdsec/acquis-foa-caddy.yaml). It keeps what CrowdSec's caddy parser
-# uses (client_ip, host, method, uri, status, User-Agent) and never the
-# visitor's address or page: no PII in logs (#118). Caddy already redacts
-# Cookie, Set-Cookie and Authorization. Each site also skips the requests
+# (crowdsec/acquis-foa-caddy.yaml). Each site also skips the requests
 # Vercel proxies for visitors (log_skip), so a page view logs nothing.
 (access_log) {
 	log {
 		output stdout
-		format filter {
-			wrap json
-			fields {
-				request>headers>X-Real-Ip delete
-				request>headers>X-Forwarded-For delete
-				request>headers>Forwarded delete
-				request>headers>X-Vercel-Forwarded-For delete
-				request>headers>X-Vercel-Ip-Continent delete
-				request>headers>X-Vercel-Ip-Country delete
-				request>headers>X-Vercel-Ip-Country-Region delete
-				request>headers>X-Vercel-Ip-City delete
-				request>headers>X-Vercel-Ip-Postal-Code delete
-				request>headers>X-Vercel-Ip-Latitude delete
-				request>headers>X-Vercel-Ip-Longitude delete
-				request>headers>X-Vercel-Ip-Timezone delete
-				request>headers>Referer delete
-			}
-		}
+		import no_visitor
 	}
 }
 
@@ -64,8 +78,10 @@ errors.friendsofanimals.dev {
 	# Sentry envelopes from the site's /monitoring tunnel and its server
 	# SDK, all from Vercel's shared egress: never logged, so never counted
 	# towards a CrowdSec ban (a ban would cut Vercel off from PgBouncer too).
+	# Every method and query string: what Vercel sends is never the
+	# visitor's to choose. The cost: CrowdSec doesn't see anyone, a direct
+	# scanner included, on this path (README.md, TODO "Edge rate limit").
 	@envelope {
-		method POST
 		path_regexp ^/api/[0-9]+/envelope/$
 	}
 	log_skip @envelope
@@ -87,16 +103,15 @@ stats.friendsofanimals.dev {
 	# The tracker script and page views the site's /stats rewrites proxy
 	# (src/lib/analytics/umami.ts): every visitor's, from Vercel's shared
 	# egress. Never logged, so neither kept nor counted towards a ban.
-	@tracker_script {
-		method GET HEAD
-		path /script.js
+	# Every method and query string: the rewrites match the path only and
+	# forward both, so a visitor picking `PUT /stats/script.js` or a probe
+	# query must not get Vercel's address logged. The cost: CrowdSec doesn't
+	# see anyone, a direct scanner included, on these two paths (README.md,
+	# TODO "Edge rate limit").
+	@tracker {
+		path /script.js /api/send
 	}
-	@tracker_send {
-		method POST
-		path /api/send
-	}
-	log_skip @tracker_script
-	log_skip @tracker_send
+	log_skip @tracker
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"

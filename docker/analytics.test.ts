@@ -48,7 +48,7 @@ describe("docker/analytics.yml", () => {
   });
 
   it("caps Umami's swap too, and the kernel kills it before the databases", () => {
-    // LAUNCH 15.5: sidecars get oom_score_adj 500, like foa-caddy and
+    // Sidecars get oom_score_adj 500, like foa-caddy and
     // foa-glitchtip, so pg-prod and PgBouncer survive memory pressure.
     const umami = service("umami");
     expect(umami).toMatch(/^ {4}mem_limit: 1g$/m);

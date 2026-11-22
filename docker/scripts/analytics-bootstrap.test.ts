@@ -439,7 +439,7 @@ describe("analytics-bootstrap.sh bring-up", () => {
   });
 });
 
-describe("analytics-bootstrap.sh defaults (B5 order)", () => {
+describe("analytics-bootstrap.sh paths and step order", () => {
   // The bring-up tests point every path at a temporary directory; these are
   // the paths the real run uses. Sourcing only defines them.
   const defaults = () =>

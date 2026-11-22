@@ -137,7 +137,7 @@ describe("docker/errors.yml", () => {
     );
   });
 
-  it("keeps both on the R-I01 network: foa-errors, 10.112.13.0/24", () => {
+  it("keeps both on their own network: foa-errors, 10.112.13.0/24", () => {
     expect(block(compose, /^networks:$/)).toEqual([
       "  errors:",
       "    name: foa-errors",
@@ -182,7 +182,10 @@ describe("README.md, Errors (GlitchTip)", () => {
     // routes errors.friendsofanimals.dev: the web server must not run
     // until the owner's account exists.
     expect(start).toBeGreaterThan(-1);
+    // A one-off container takes foa-glitchtip's fixed address, so the
+    // service is stopped first (it may run after a database loss).
     const steps = [
+      "docker compose -f docker/errors.yml stop glitchtip",
       "docker compose -f docker/errors.yml up -d --wait glitchtip-pg",
       "docker compose -f docker/errors.yml run --rm glitchtip ./manage.py migrate",
       "docker compose -f docker/errors.yml run --rm glitchtip ./manage.py createsuperuser",

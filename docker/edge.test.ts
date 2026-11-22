@@ -63,6 +63,32 @@ function matcher(address: string, name: string): string[] {
   return lines.slice(at + 1, lines.indexOf("}", at));
 }
 
+/**
+ * Whether a site's log_skip matchers drop a request from its access log.
+ * Reads the `method`, `path` and `path_regexp` lines Caddy ANDs together
+ * in a named matcher; any other line fails, so the test can't pass on a
+ * matcher it doesn't understand.
+ */
+function skipped(address: string, method: string, uri: string): boolean {
+  const path = uri.split("?")[0] ?? "";
+  const names = site(address)
+    .filter((line) => line.startsWith("log_skip "))
+    .map((line) => line.replace(/^log_skip /, ""));
+  return names.some((name) => {
+    const conditions = matcher(address, name);
+    if (conditions.length === 0) throw new Error(`no matcher ${name}`);
+    return conditions.every((condition) => {
+      const [kind, ...args] = condition.split(/\s+/);
+      if (kind === "method") return args.includes(method);
+      if (kind === "path") return args.includes(path);
+      if (kind === "path_regexp" && args.length === 1) {
+        return new RegExp(args[0] ?? "").test(path);
+      }
+      throw new Error(`${name}: can't read "${condition}"`);
+    });
+  });
+}
+
 const STATS = "stats.friendsofanimals.dev";
 const ERRORS = "errors.friendsofanimals.dev";
 const DB = "http://db.friendsofanimals.dev, http://db.shipped-it.dev";
@@ -283,6 +309,7 @@ describe("the visitor address Umami sees", () => {
 
 describe("Caddy's access logs", () => {
   const snippet = caddyfile.get("(access_log)") ?? [];
+  const filter = caddyfile.get("(no_visitor)") ?? [];
 
   // Headers that carry the visitor's address, location or page. Vercel's
   // rewrite adds the first twelve on every page view; Referer is the page.
@@ -303,8 +330,11 @@ describe("Caddy's access logs", () => {
     "Referer",
   ];
 
-  it("is one snippet, the only one", () => {
-    expect([...caddyfile.keys()].filter(isSnippet)).toEqual(["(access_log)"]);
+  it("is one snippet, sharing the visitor filter with Caddy's own log", () => {
+    expect([...caddyfile.keys()].filter(isSnippet)).toEqual([
+      "(no_visitor)",
+      "(access_log)",
+    ]);
   });
 
   it.each([STATS, ERRORS])("%s writes it", (name) => {
@@ -315,19 +345,37 @@ describe("Caddy's access logs", () => {
   it("is JSON on stdout", () => {
     // stdout goes to journald through the container's logging driver
     // (edge.yml); Caddy's own log stays on stderr.
-    expect(snippet.slice(0, 5)).toEqual([
+    expect(snippet).toEqual([
       "log {",
       "output stdout",
+      "import no_visitor",
+      "}",
+    ]);
+    expect(filter.slice(0, 3)).toEqual([
       "format filter {",
       "wrap json",
       "fields {",
     ]);
   });
 
+  it("filters Caddy's error log too, which logs a skipped request when its upstream fails", () => {
+    // A 502 from a stopped Umami or GlitchTip goes to the default logger
+    // (stderr) with the request's headers, X-Real-Ip and Referer included.
+    const global = caddyfile.get("") ?? [];
+    const at = global.indexOf("log default {");
+    expect(at).toBeGreaterThan(-1);
+    expect(global.slice(at, at + 4)).toEqual([
+      "log default {",
+      "output stderr",
+      "import no_visitor",
+      "}",
+    ]);
+  });
+
   it("never holds the visitor's address, location or page (no PII in logs)", () => {
-    const fields = snippet.slice(
-      snippet.indexOf("fields {") + 1,
-      snippet.indexOf("}", snippet.indexOf("fields {"))
+    const fields = filter.slice(
+      filter.indexOf("fields {") + 1,
+      filter.indexOf("}", filter.indexOf("fields {"))
     );
     expect(fields).toEqual(
       VISITOR_HEADERS.map((header) => `request>headers>${header} delete`)
@@ -336,44 +384,61 @@ describe("Caddy's access logs", () => {
     expect(caddyfileText).not.toMatch(/log_credentials/);
   });
 
-  it("skips the tracker requests the site's /stats rewrites proxy", () => {
+  // Methods a request through Vercel can carry: its rewrites match the
+  // path only, so they forward every method and the query string.
+  const METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
+  const PROBE = "?x=%24%7Bjndi:ldap://a/b%7D";
+
+  it("skips every request the site's /stats rewrites proxy, whatever the method", () => {
     // Every visitor's page view, from Vercel's shared egress: never kept,
     // and never counted towards a CrowdSec ban (which would cut Vercel off
-    // from PgBouncer too).
+    // from PgBouncer too). A method or query a visitor picks mustn't make
+    // Caddy log one of them with Vercel's address.
     const proxied = umamiRewrites(`https://${STATS}`).map(
       (rewrite) => new URL(rewrite.destination).pathname
     );
     expect(proxied).toEqual(["/script.js", "/api/send"]);
-    expect(matcher(STATS, "@tracker_script")).toEqual([
-      "method GET HEAD",
-      "path /script.js",
-    ]);
-    expect(matcher(STATS, "@tracker_send")).toEqual([
-      "method POST",
-      "path /api/send",
-    ]);
-    expect(site(STATS).filter((line) => line.startsWith("log_skip"))).toEqual([
-      "log_skip @tracker_script",
-      "log_skip @tracker_send",
-    ]);
+    for (const path of proxied) {
+      for (const method of METHODS) {
+        expect(skipped(STATS, method, path), `${method} ${path}`).toBe(true);
+        expect(skipped(STATS, method, path + PROBE), `${method} ${path}?`).toBe(
+          true
+        );
+      }
+    }
   });
 
-  it("skips the Sentry envelopes, and only those, on errors", () => {
+  it("logs everything else on stats", () => {
+    for (const uri of ["/", "/api/websites", "/script.js/", "/api/send/x"]) {
+      for (const method of METHODS) {
+        expect(skipped(STATS, method, uri), `${method} ${uri}`).toBe(false);
+      }
+    }
+  });
+
+  it("skips every request to the Sentry envelope path on errors, whatever the method", () => {
     const dsn = parseDsn(`https://key@${ERRORS}/1`);
     expect(dsn).toBeDefined();
     const path = new URL(envelopeUrl(dsn!)).pathname;
-    const envelope = matcher(ERRORS, "@envelope");
-    expect(envelope).toEqual([
-      "method POST",
-      "path_regexp ^/api/[0-9]+/envelope/$",
-    ]);
-    const pattern = new RegExp((envelope[1] ?? "").replace("path_regexp ", ""));
-    expect(path).toMatch(pattern);
-    expect("/api/1/store/").not.toMatch(pattern);
-    expect("/api/0/projects/").not.toMatch(pattern);
-    expect(site(ERRORS).filter((line) => line.startsWith("log_skip"))).toEqual([
-      "log_skip @envelope",
-    ]);
+    for (const method of METHODS) {
+      expect(skipped(ERRORS, method, path), `${method} ${path}`).toBe(true);
+      expect(skipped(ERRORS, method, path + PROBE), `${method} ${path}?`).toBe(
+        true
+      );
+    }
+  });
+
+  it("logs everything else on errors", () => {
+    for (const uri of [
+      "/",
+      "/api/1/store/",
+      "/api/0/projects/",
+      "/api/x/envelope/",
+    ]) {
+      for (const method of METHODS) {
+        expect(skipped(ERRORS, method, uri), `${method} ${uri}`).toBe(false);
+      }
+    }
   });
 });
 
