@@ -87,6 +87,8 @@ const STUDENT_TONE = {
   enrolled: "green",
   confirmed: "blue",
   withdrawn: "neutral",
+  // The individual route's (#78); never in a school's batch.
+  pending_payment: "marigold",
 } as const satisfies Record<RegistrationStatus, string>;
 
 const param = (value: string | string[] | undefined) =>
