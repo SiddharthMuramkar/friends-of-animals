@@ -76,6 +76,8 @@
       },
       "minor": "You need to be 18 or over to register on your own. Please come back when entry with a parent or guardian opens, or enter through your school.",
       "dashboardLink": "See your registrations",
+      "registered": "You're registered. Taking you to the next step…",
+      "continueLink": "Go to the next step",
       "backToCompetition": "Back to {competition}",
       "submitting": "Registering…",
       "unexpected": "Something went wrong. Please try again.",

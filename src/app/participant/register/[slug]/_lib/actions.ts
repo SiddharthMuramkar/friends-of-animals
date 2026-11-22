@@ -1,6 +1,5 @@
 "use server";
 
-import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { payMyRegistrationPath } from "@/lib/app-routes";
@@ -9,11 +8,19 @@ import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
 import type { RegisterAsIndividualResult } from "@/server/modules/participants";
 
-import { afterResult, valuesFrom, type RegisterFormState } from "./form-state";
+import {
+  afterResult,
+  registered,
+  valuesFrom,
+  type RegisterFormState,
+} from "./form-state";
 
 /**
- * Registers the signed-in adult for the competition, then takes them to
- * pay for it. A refusal comes back to the form with what was typed.
+ * Registers the signed-in adult for the competition, then hands the form
+ * their pay page, which the browser loads in full. Not a redirect: in a
+ * server action that is a client-side navigation, and the pay page's CSP
+ * and headers come only with its own document. A refusal comes back to
+ * the form with what was typed.
  */
 export async function registerAsIndividualAction(
   competitionSlug: string,
@@ -34,9 +41,11 @@ export async function registerAsIndividualAction(
     return afterResult(previous, values, "unexpected");
   }
   if (result.ok) {
-    // Re-renders the header too, which now leads to "My competitions".
-    refresh();
-    redirect(payMyRegistrationPath(result.registrationId));
+    return registered(
+      previous,
+      values,
+      payMyRegistrationPath(result.registrationId)
+    );
   }
   return afterResult(previous, values, result);
 }

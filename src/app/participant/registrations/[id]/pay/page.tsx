@@ -25,10 +25,11 @@ import {
 import { isPayOutcome } from "./_lib/pay-outcome";
 
 // Paying for an adult's own registration (#78): the fee, and the Checkout
-// island (77c) that opens a payment batch of one and the gateway's
+// island (#77) that opens a payment batch of one and the gateway's
 // checkout, or the button that confirms a free place at once. Its CSP
 // (Razorpay's origins) and Permissions-Policy come with the document, so
-// links to it are plain <a> elements: a full load.
+// every way in is a full load: links to it are plain <a> elements, and the
+// register form loads it with window.location once registered.
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("participant.payment.meta");

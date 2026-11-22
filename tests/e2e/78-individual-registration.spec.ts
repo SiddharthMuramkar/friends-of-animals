@@ -118,7 +118,24 @@ test("an adult registers for a competition on their own and sees it on their das
 
   await page.getByLabel("Date of birth").fill("1993-09-17");
   for (const box of await page.getByRole("checkbox").all()) await box.check();
-  await register.click();
+  // Registered, the adult lands on the pay page with a full load: the pay
+  // page's own document, so its policy (Razorpay's origins wherever keys
+  // are set) and headers come with it, not the register page's.
+  const [payDocument] = await Promise.all([
+    page.waitForResponse(
+      (answer) =>
+        answer.request().isNavigationRequest() &&
+        /^\/participant\/registrations\/[^/]+\/pay$/.test(
+          new URL(answer.url()).pathname
+        )
+    ),
+    register.click(),
+  ]);
+  expect(payDocument.status()).toBe(200);
+  expect(
+    await payDocument.headerValue("cross-origin-opener-policy"),
+    "the pay page's COOP, which lets Checkout watch its bank popups"
+  ).toBe("same-origin-allow-popups");
 
   await expect(
     page.getByRole("heading", { level: 1, name: `Pay for ${OPEN.name}` })
