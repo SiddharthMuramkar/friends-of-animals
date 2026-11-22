@@ -13,7 +13,7 @@
 /** An object as a listing reports it. */
 export type ListedObject = {
   key: string;
-  /** Normalised (`normaliseEtag`): no quotes, lower case. */
+  /** Normalised (`normaliseEtag`, ./etag.ts): no quotes, lower case. */
   etag: string;
   sizeBytes: number;
   lastModified: Date;

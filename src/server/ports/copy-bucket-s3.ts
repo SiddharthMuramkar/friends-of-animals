@@ -20,12 +20,12 @@ import {
   type S3ClientConfig,
 } from "@aws-sdk/client-s3";
 
-import { normaliseEtag } from "../modules/offsite-copy/domain/etag";
 import {
   ContentDigestMismatchError,
   type CopyBucket,
   type ListedObject,
 } from "./copy-bucket";
+import { normaliseEtag } from "./etag";
 
 export type S3BucketConfig = {
   /** e.g. https://<account>.r2.cloudflarestorage.com or B2's S3 endpoint. */

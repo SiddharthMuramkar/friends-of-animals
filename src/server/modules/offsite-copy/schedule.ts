@@ -72,7 +72,10 @@ export async function runScheduledOffsiteCopy(
     // An incomplete run has reported itself. Anything else (a database
     // error, a listing naming a key twice) would otherwise leave the
     // copy going stale without anyone told.
-    if (attempt.finalAttempt && !(error instanceof OffsiteCopyIncompleteError)) {
+    if (
+      attempt.finalAttempt &&
+      !(error instanceof OffsiteCopyIncompleteError)
+    ) {
       deps.errors.report(error, {
         where: OFFSITE_COPY_JOB,
         tags: { job: OFFSITE_COPY_JOB },

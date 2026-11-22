@@ -2,18 +2,9 @@
 // hex MD5 of its bytes; a multipart upload's is `<hex>-<parts>` and isn't.
 // The manifest stores normalised etags, so a change is a plain inequality.
 
-const SINGLE_PART = /^[0-9a-f]{32}$/;
+import { normaliseEtag } from "../../../ports/etag";
 
-/** Without quotes or a weak marker, lower-cased. */
-export function normaliseEtag(raw: string): string {
-  const etag = raw
-    .trim()
-    .replace(/^W\//i, "")
-    .replace(/^"(.*)"$/, "$1")
-    .toLowerCase();
-  if (etag === "") throw new Error("An object's etag is empty");
-  return etag;
-}
+const SINGLE_PART = /^[0-9a-f]{32}$/;
 
 /**
  * The base64 `Content-MD5` header for an object with this etag, so B2

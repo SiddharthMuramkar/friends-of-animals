@@ -10,7 +10,7 @@
 const NON_PRODUCTION_PREFIX = /^(?:staging|local|pr-[0-9]+|br-[0-9a-f]{8})\//;
 
 /** R2's bucket names: 3-63 lower-case letters, digits and inner hyphens. */
-const BUCKET = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
+export const BUCKET_NAME = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 
 /** B2 caps a file name at 1024 bytes of UTF-8. */
 const MAX_OFFSITE_KEY_BYTES = 1024;
@@ -18,7 +18,7 @@ const MAX_OFFSITE_KEY_BYTES = 1024;
 const utf8 = new TextEncoder();
 
 function assertBucket(bucket: string): void {
-  if (!BUCKET.test(bucket)) {
+  if (!BUCKET_NAME.test(bucket)) {
     throw new Error(`Not a bucket name: ${JSON.stringify(bucket)}`);
   }
 }
@@ -52,7 +52,8 @@ export function sourceOfOffsiteKey(
   if (slash === -1) return null;
   const bucket = offsiteKey.slice(0, slash);
   const key = offsiteKey.slice(slash + 1);
-  if (!BUCKET.test(bucket) || key === "" || key.startsWith("/")) return null;
+  if (!BUCKET_NAME.test(bucket) || key === "" || key.startsWith("/"))
+    return null;
   return { bucket, key };
 }
 

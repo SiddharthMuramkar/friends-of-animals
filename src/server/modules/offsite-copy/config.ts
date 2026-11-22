@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { z } from "zod";
 
 import type { S3BucketConfig } from "../../ports/copy-bucket-s3";
+import { BUCKET_NAME } from "./domain/keys";
 import type { RetentionWindow } from "./domain/plan";
 
 export const APP_ENVS = ["local", "preview", "staging", "production"] as const;
@@ -58,8 +59,6 @@ const DEFAULT_RETENTION_DAYS = 30;
 /** The nightly window: 01:30 to 03:30 IST, clear of the 02:30 backup's load. */
 const RUN_BUDGET_MS = 2 * 60 * 60 * 1000;
 const COPY_CONCURRENCY = 4;
-
-const BUCKET_NAME = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 
 const BUCKET_LIST_ERROR =
   "must list bucket names (3-63 of a-z, 0-9 and -), separated by commas";

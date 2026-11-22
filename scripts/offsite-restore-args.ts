@@ -3,6 +3,8 @@
 
 import { parseArgs } from "node:util";
 
+import { BUCKET_NAME } from "../src/server/modules/offsite-copy/domain/keys";
+
 export const OFFSITE_RESTORE_USAGE =
   "Usage: pnpm offsite:restore --bucket <r2 bucket> --key <key> " +
   "[--to <r2 bucket>] [--overwrite]";
@@ -10,9 +12,6 @@ export const OFFSITE_RESTORE_USAGE =
 export type OffsiteRestoreArgs =
   | { ok: true; bucket: string; key: string; to: string; overwrite: boolean }
   | { ok: false; error: string };
-
-/** R2's bucket names: 3-63 lower-case letters, digits and inner hyphens. */
-const BUCKET = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 
 const refuse = (reason: string): OffsiteRestoreArgs => ({
   ok: false,
@@ -46,13 +45,13 @@ export function parseOffsiteRestoreArgs(
     return refuse(error instanceof Error ? error.message : String(error));
   }
   const { bucket, key, to = bucket, overwrite = false } = values;
-  if (bucket === undefined || !BUCKET.test(bucket)) {
+  if (bucket === undefined || !BUCKET_NAME.test(bucket)) {
     return refuse("Give the R2 bucket the file was in with --bucket.");
   }
   if (key === undefined || key === "") {
     return refuse("Give the file's key in that bucket with --key.");
   }
-  if (to === undefined || !BUCKET.test(to)) {
+  if (to === undefined || !BUCKET_NAME.test(to)) {
     return refuse("--to must be an R2 bucket name.");
   }
   return { ok: true, bucket, key, to, overwrite };
