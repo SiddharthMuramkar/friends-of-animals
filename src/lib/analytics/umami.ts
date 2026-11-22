@@ -19,7 +19,7 @@
  * and a client island runs it.
  */
 
-import { isUnderPrefix } from "../app-routes";
+import { INVITATIONS_PREFIX, isUnderPrefix } from "../app-routes";
 import { ROUTES } from "../routes";
 
 /** Where the site serves Umami's tracker script (proxied, see below). */
@@ -45,6 +45,7 @@ export const ANALYTICS_EXCLUDED_PREFIXES = [
   "/consent",
   "/receipts",
   "/donate/checkout",
+  INVITATIONS_PREFIX,
 ] as const;
 
 /** The deployment settings analytics depends on, read at build time. */

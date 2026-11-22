@@ -162,6 +162,13 @@
       "when": 1795338294476,
       "tag": "0022_71_the_schedule_changes_competition_status",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795344975453,
+      "tag": "0023_74_institution_coordinators",
+      "breakpoints": true
     }
   ]
 }

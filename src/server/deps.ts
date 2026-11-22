@@ -239,6 +239,8 @@ export function productionDeps(): Deps {
         {
           authKey: config.MSG91_AUTH_KEY,
           otpTemplateId: config.MSG91_OTP_TEMPLATE_ID,
+          coordinatorInvitationTemplateId:
+            config.MSG91_COORDINATOR_INVITATION_TEMPLATE_ID,
         }
       ),
       cookies: nextCookieJar,

@@ -26,10 +26,11 @@ stored plain, but still listed.
 
 ## What is listed so far
 
-| Table         | Columns                                                                                                                                     |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `user`        | `name`, `email`, `phone_ciphertext`                                                                                                         |
-| `institution` | `contact_email`, `contact_phone`, `principal_name`, `principal_email_ciphertext`, `principal_phone_ciphertext`, `created_by`, `verified_by` |
+| Table                    | Columns                                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `user`                   | `name`, `email`, `phone_ciphertext`                                                                                                         |
+| `institution`            | `contact_email`, `contact_phone`, `principal_name`, `principal_email_ciphertext`, `principal_phone_ciphertext`, `created_by`, `verified_by` |
+| `institution_invitation` | `identifier_ciphertext`, `identifier_hash`, `token_ciphertext`, `invited_by_user_id`, `accepted_by_user_id`, `revoked_by_user_id`           |
 
 Sessions, the audit log's IP addresses and the other early tables are listed
 by the data inventory and retention ticket (#114), which also enforces
