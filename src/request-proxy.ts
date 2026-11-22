@@ -39,7 +39,7 @@ function decodedSlug(raw: string): string {
  */
 function withNonceCsp(request: NextRequest): NextResponse {
   const nonce = createNonce();
-  const policy = signedInCsp(cspContext(), nonce);
+  const policy = signedInCsp(cspContext(), nonce, request.nextUrl.pathname);
   const headers = new Headers(request.headers);
   // Next reads an enforced policy before a report-only one: drop any the
   // client sent, so only this request's nonce reaches the page.

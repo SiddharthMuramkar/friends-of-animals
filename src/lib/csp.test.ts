@@ -221,6 +221,38 @@ describe("feature sources", () => {
     expect(directives(signedIn.value)["frame-src"]).toEqual(["'none'"]);
   });
 
+  it("keeps a route-scoped feature to the signed-in pages it names", () => {
+    const checkout: CspSources = {
+      feature: "checkout",
+      areas: ["signedIn"],
+      routes: ["/institution/registrations/[ref]/pay"],
+      directives: { "frame-src": ["https://api.razorpay.com"] },
+    };
+    const context = {
+      appEnv: "preview",
+      nodeEnv: "production",
+      sources: [checkout],
+    };
+    const frames = (path?: string) =>
+      directives(signedInCsp(context, "bm9uY2U=", path).value)["frame-src"];
+
+    expect(frames("/institution/registrations/PAWS27-I-Q2W9R/pay")).toEqual([
+      "https://api.razorpay.com",
+    ]);
+    for (const path of [
+      undefined,
+      "/institution/registrations/PAWS27-I-Q2W9R",
+      "/institution/registrations/PAWS27-I-Q2W9R/pay/more",
+      "/institution/registrations//pay",
+      "/account/sessions",
+    ]) {
+      expect(frames(path), String(path)).toEqual(["'none'"]);
+    }
+    expect(directives(publicCsp(context).value)["frame-src"]).toEqual([
+      "'none'",
+    ]);
+  });
+
   it("refuses keywords and wildcards, which would weaken the policy", () => {
     for (const source of [
       "'unsafe-inline'",

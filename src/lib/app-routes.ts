@@ -82,6 +82,29 @@ export function newStudentPath(
   return `/institution/registrations/${encodeURIComponent(reference)}/students/new?${query.toString()}`;
 }
 
+/** Where a coordinator pays their students' fees (#77). */
+export const PAY_FEES_ROUTE = "/institution/registrations/[ref]/pay";
+
+/** A payment batch's status and receipt (#77). */
+export const PAYMENT_BATCH_ROUTE =
+  "/institution/registrations/[ref]/payments/[batchId]";
+
+/** The pay page of one institution registration (#77). */
+export function payFeesPath(reference: string, institutionId: string): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/pay?${query.toString()}`;
+}
+
+/** One payment batch's status and receipt (#77). */
+export function paymentBatchPath(
+  reference: string,
+  batchId: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/payments/${encodeURIComponent(batchId)}?${query.toString()}`;
+}
+
 /**
  * Pages behind sign-in whose path has a dynamic segment, written as in the
  * app directory: each `[name]` stands for one path segment.
@@ -100,6 +123,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/students/new",
+  PAY_FEES_ROUTE,
+  PAYMENT_BATCH_ROUTE,
 ] as const;
 
 /**

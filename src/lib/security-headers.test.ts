@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { securityHeaders, strictTransportSecurity } from "./security-headers";
+import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
+
+import {
+  checkoutPageHeaders,
+  securityHeaders,
+  strictTransportSecurity,
+} from "./security-headers";
 
 const asRecord = (appEnv: string | undefined) =>
   Object.fromEntries(securityHeaders(appEnv).map((h) => [h.key, h.value]));
@@ -42,6 +48,46 @@ describe("strictTransportSecurity", () => {
   it("never asks to be preloaded", () => {
     for (const appEnv of [undefined, "staging", "production"]) {
       expect(strictTransportSecurity(appEnv)).not.toContain("preload");
+    }
+  });
+});
+
+describe("checkoutPageHeaders", () => {
+  const rules = checkoutPageHeaders();
+  const matching = (path: string) =>
+    rules.filter((rule) => getPathMatch(rule.source)(path) !== false);
+
+  it("lets Razorpay Checkout use the Payment Request API and keep its popups, on the pay page only", () => {
+    const [rule, ...others] = matching(
+      "/institution/registrations/NEIGH27-I-5EED1/pay"
+    );
+
+    expect(others).toEqual([]);
+    expect(
+      Object.fromEntries(rule!.headers.map((h) => [h.key, h.value]))
+    ).toEqual({
+      "Permissions-Policy":
+        'camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.razorpay.com" "https://api.razorpay.com")',
+      // Checkout opens bank and wallet pages in popups and watches them.
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    });
+  });
+
+  it("leaves every other page's headers as they are", () => {
+    for (const path of [
+      "/",
+      "/institution/registrations/NEIGH27-I-5EED1",
+      "/institution/registrations/NEIGH27-I-5EED1/payments/0193a8f0-0000-7000-8000-000000000001",
+      "/account/sessions",
+    ]) {
+      expect(matching(path), path).toEqual([]);
+    }
+  });
+
+  it("only overrides keys every page already sends", () => {
+    const everyPage = new Set(securityHeaders("production").map((h) => h.key));
+    for (const rule of rules) {
+      for (const { key } of rule.headers) expect(everyPage).toContain(key);
     }
   });
 });
