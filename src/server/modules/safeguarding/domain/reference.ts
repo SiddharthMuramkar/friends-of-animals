@@ -24,29 +24,6 @@ export function reportReferenceFormat(filedAt: Date): ReportReferenceFormat {
   return { prefix: `SG-${yy}-`, length: SYMBOLS };
 }
 
-/** Crockford base32: no I, L, O or U, so a reference reads back aloud. */
-const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-
-type RandomBytes = (length: number) => Uint8Array;
-
-const cryptoRandom: RandomBytes = (length) =>
-  crypto.getRandomValues(new Uint8Array(length));
-
-/**
- * A fresh reference for a report filed at `filedAt`. Not checked unique:
- * the caller retries on the reference's unique constraint, as #73's
- * shared generator will once it lands.
- */
-export function newReportReference(
-  filedAt: Date,
-  random: RandomBytes = cryptoRandom
-): string {
-  const { prefix, length } = reportReferenceFormat(filedAt);
-  // 256 is a multiple of 32, so the low 5 bits of a byte are uniform.
-  const symbols = Array.from(random(length), (byte) => CROCKFORD[byte & 31]);
-  return prefix + symbols.join("");
-}
-
 const REFERENCE = /^SG-\d{2}-[0-9A-HJKMNP-TV-Z]{6}$/;
 
 /** Whether `text` (trimmed, any case) is a report reference. */

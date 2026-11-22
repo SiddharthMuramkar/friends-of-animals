@@ -35,7 +35,6 @@ import {
   safeguardingReport,
   type SafeguardingReportRow,
 } from "../../db/schema";
-import { sqlState } from "../../errors";
 import { uuidv7 } from "../../ids";
 import { emit } from "../../outbox/emit";
 import type { UseCaseContext } from "../../use-cases";
@@ -45,6 +44,7 @@ import {
   takeFormAllowance,
   type HumanCheckProof,
 } from "../public-forms";
+import { withUniqueCode } from "../codes/codes";
 import { readSetting } from "../settings/read";
 import { seal, sealOrNull } from "./content";
 import { safeguardingReportAuditSnapshot } from "./domain/audit";
@@ -54,7 +54,7 @@ import {
   type Concern,
   type ConcernField,
 } from "./domain/concern";
-import { newReportReference } from "./domain/reference";
+import { reportReferenceFormat } from "./domain/reference";
 
 export type SubmitSafeguardingReportInput = {
   /** One of CONCERN_CATEGORIES; anything else is refused. */
@@ -171,24 +171,26 @@ export async function submitSafeguardingReport(
   }
 }
 
-/** References a fresh one collides with are rare; past this, give up. */
-const REFERENCE_ATTEMPTS = 5;
-
+/** Stores the report under a fresh reference (#73's shared generator). */
 async function storeReport(
   tx: AppDb,
   cipher: FieldCipher,
   concern: Concern,
   now: Date
 ): Promise<SafeguardingReportRow> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      // A savepoint, so a taken reference leaves the transaction usable.
-      return await tx.transaction(async (savepoint) => {
+  return withUniqueCode(
+    {
+      format: reportReferenceFormat(now),
+      constraint: "safeguarding_report_reference_unique",
+    },
+    // A savepoint, so a taken reference leaves the transaction usable.
+    (reference) =>
+      tx.transaction(async (savepoint) => {
         const [row] = await savepoint
           .insert(safeguardingReport)
           .values({
             id: uuidv7(now),
-            reference: newReportReference(now),
+            reference,
             category: concern.category,
             description: seal(cipher, "description", concern.description),
             subjectDetails: sealOrNull(
@@ -214,12 +216,6 @@ async function storeReport(
           })
           .returning();
         return row!;
-      });
-    } catch (error) {
-      // The id is a fresh UUIDv7, so a unique violation is the reference.
-      if (sqlState(error) !== "23505" || attempt >= REFERENCE_ATTEMPTS) {
-        throw error;
-      }
-    }
-  }
+      })
+  );
 }
