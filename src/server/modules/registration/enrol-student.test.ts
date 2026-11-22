@@ -69,6 +69,8 @@ describe("enrolStudent", () => {
         institutionRegistrationId: school.registrationId,
         ageGroupId: seniors.id,
         status: "enrolled",
+        // Given once the fee is paid (#77).
+        registrationNumber: null,
         createdAt: h.clock.now(),
         updatedAt: h.clock.now(),
       },

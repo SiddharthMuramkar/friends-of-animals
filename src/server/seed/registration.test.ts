@@ -9,6 +9,7 @@ import { createHarness } from "@/test/harness";
 import { seedInstitution } from "@/test/institutions";
 
 import { SEED_COORDINATORS } from "./coordinators";
+import { SEED_PAYMENTS } from "./payments";
 import { SEED_REGISTRATIONS, SEED_STUDENTS } from "./registration";
 import { SEED_SCOPES } from "./scopes";
 
@@ -18,12 +19,25 @@ describe("the registration seed", () => {
     await h.seed.preview();
     await h.seed.preview();
 
-    expect(await h.db.select().from(institutionRegistration)).toEqual([
+    expect(
+      await h.db
+        .select()
+        .from(institutionRegistration)
+        .orderBy(institutionRegistration.id)
+    ).toEqual([
       expect.objectContaining({
         id: SEED_REGISTRATIONS.institution.id,
         institutionId: SEED_SCOPES.institution.id,
         competitionId: "01938a00-0000-7000-8000-000000002101",
         reference: "NEIGH27-I-5EED1",
+        status: "active",
+      }),
+      // The payments seed's paid registration for the closed Kinder Skies.
+      expect.objectContaining({
+        id: SEED_PAYMENTS.paid.institutionRegistrationId,
+        institutionId: SEED_SCOPES.institution.id,
+        competitionId: "01938a00-0000-7000-8000-000000002103",
+        reference: "SKIES26-I-5EED2",
         status: "active",
       }),
     ]);
@@ -83,6 +97,7 @@ describe("the registration seed", () => {
 
     expect(dashboard.ok && dashboard.counts).toEqual({
       enrolled: 6,
+      confirmed: 0,
       withdrawn: 1,
     });
     const students = dashboard.ok ? dashboard.students : [];

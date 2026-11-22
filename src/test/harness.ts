@@ -46,6 +46,7 @@ import { FakeSms } from "./fakes/sms";
 import { FakeErrorReporter } from "./fakes/errors";
 import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakeMediaProcessor } from "./fakes/media";
+import { FakePaymentGateway } from "./fakes/payment-gateway";
 import { FakeStorage } from "./fakes/storage";
 import { TestSettings } from "./settings";
 
@@ -129,6 +130,12 @@ export interface Harness {
    * its inputs and fails the next ones with `failNext(n, code)`.
    */
   media: FakeMediaProcessor;
+  /**
+   * The payment gateway with its webhook simulator: lists the orders it
+   * made, plays the payer (`capture`, `fail`) and posts signed, badly
+   * signed or replayed webhooks.
+   */
+  gateway: FakePaymentGateway;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -178,6 +185,7 @@ export async function createHarness(
   const storage = new FakeStorage(clock);
   const scanner = new FakeMalwareScanner();
   const media = new FakeMediaProcessor();
+  const gateway = new FakePaymentGateway();
   const deps: Deps = {
     db,
     clock,
@@ -204,6 +212,7 @@ export async function createHarness(
     }),
     contactLimits: CONTACT_RATE_LIMITS,
     codeRequestLimits: CODE_REQUEST_LIMITS,
+    payments: gateway,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
@@ -286,6 +295,7 @@ export async function createHarness(
     storage,
     scanner,
     media,
+    gateway,
   };
   return harness;
 }
