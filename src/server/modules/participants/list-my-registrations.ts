@@ -1,52 +1,109 @@
-// listMyRegistrations() (#78): the participant dashboard's read model. The
-// signed-in member's own registrations, newest first: which competition,
-// its status, their Participant ID, the registration number once
-// confirmed, and what is still owed while it waits for payment. Only the
-// profile they own is read, so nobody else's registrations ever show.
-// Entries, results and certificates join it with later tickets.
+// listMyRegistrations() (#78, #81): the participant dashboard's read model.
+// The signed-in member's registrations, newest first: their own (on a
+// profile of their own, or, for a teen whose login is linked, on the
+// profile their guardian keeps) and, for a guardian, those of each child
+// they look after. Each says whose it is, which competition, its status,
+// the Participant ID, the registration number once confirmed, and what is
+// still owed while it waits for payment, to whoever pays: the adult, or
+// the child's guardian, never the child. Only those profiles are read, so
+// nobody else's registrations ever show. Entries, results and
+// certificates join it with later tickets.
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 
 import { authorize } from "../../access/can";
+import type { AppDb } from "../../db/app-db";
 import {
   competition,
   competitionFee,
+  guardian,
+  guardianLink,
   participantProfile,
   registration,
 } from "../../db/schema";
 import type { Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
-import type {
-  RegistrationRoute,
-  ParticipantOwnerKind,
-} from "../registration/domain/participant";
+import { verifiedLink } from "../guardians/child-access";
+import type { RegistrationRoute } from "../registration/domain/participant";
 import type { RegistrationStatus } from "../registration/domain/registration-status";
 
 export type MyRegistration = {
   registrationId: string;
+  /** The member's own, or a child's they look after as a guardian. */
+  whose: "mine" | "child";
+  participantName: string;
   competition: { name: string; slug: string };
   route: RegistrationRoute;
   status: RegistrationStatus;
   participantCode: string;
   /** Given once the registration is confirmed. */
   registrationNumber: string | null;
-  /** The individual fee still owed; null once nothing is owed. */
+  /**
+   * The individual fee still owed, to the member who pays it; null once
+   * nothing is owed, or when someone else (a teen's guardian) pays.
+   */
   amountDue: Money | null;
   createdAt: Date;
 };
 
-const OWN: ParticipantOwnerKind = "self";
+type Visible = { whose: "mine" | "child"; pays: boolean };
+
+/** The profiles whose registrations `userId` sees, and how. */
+async function visibleProfiles(
+  db: AppDb,
+  userId: string
+): Promise<Map<string, Visible>> {
+  const visible = new Map<string, Visible>();
+  const mine = await db
+    .select({
+      id: participantProfile.id,
+      ownerKind: participantProfile.ownerKind,
+    })
+    .from(participantProfile)
+    .where(
+      or(
+        and(
+          eq(participantProfile.ownerUserId, userId),
+          eq(participantProfile.ownerKind, "self")
+        ),
+        eq(participantProfile.loginUserId, userId)
+      )
+    );
+  for (const row of mine) {
+    visible.set(row.id, { whose: "mine", pays: row.ownerKind === "self" });
+  }
+  const children = await db
+    .select({ id: guardianLink.participantProfileId })
+    .from(guardianLink)
+    .innerJoin(guardian, eq(guardian.id, guardianLink.guardianId))
+    .where(and(eq(guardian.userId, userId), verifiedLink()));
+  for (const row of children) {
+    if (!visible.has(row.id)) {
+      visible.set(row.id, { whose: "child", pays: true });
+    }
+  }
+  return visible;
+}
+
+function signedInUserId(ctx: UseCaseContext, useCase: string): string {
+  if (ctx.actor.kind !== "user") {
+    throw new Error(`${useCase} needs a signed-in user`);
+  }
+  return ctx.actor.userId;
+}
 
 export async function listMyRegistrations(
   ctx: UseCaseContext
 ): Promise<MyRegistration[]> {
   await authorize(ctx, "registration.self.list");
-  if (ctx.actor.kind !== "user") {
-    throw new Error("listMyRegistrations needs a signed-in user");
-  }
+  const userId = signedInUserId(ctx, "listMyRegistrations");
+  const visible = await visibleProfiles(ctx.db, userId);
+  if (visible.size === 0) return [];
   const rows = await ctx.db
     .select({
       registrationId: registration.id,
+      profileId: registration.participantProfileId,
+      participantName: participantProfile.fullName,
       competitionName: competition.name,
       competitionSlug: competition.slug,
       route: registration.route,
@@ -71,49 +128,50 @@ export async function listMyRegistrations(
     )
     .where(
       and(
-        eq(participantProfile.ownerUserId, ctx.actor.userId),
-        eq(participantProfile.ownerKind, OWN)
+        inArray(registration.participantProfileId, [...visible.keys()]),
+        eq(registration.route, "individual")
       )
     )
     .orderBy(desc(registration.createdAt), desc(registration.id));
-  return rows.map((row) => ({
-    registrationId: row.registrationId,
-    competition: { name: row.competitionName, slug: row.competitionSlug },
-    route: row.route,
-    status: row.status,
-    participantCode: row.participantCode ?? "",
-    registrationNumber: row.registrationNumber,
-    amountDue:
-      row.status === "pending_payment" && row.fee !== null
-        ? { amountMinor: row.fee, currency: "INR" }
-        : null,
-    createdAt: row.createdAt,
-  }));
+  return rows.map((row) => {
+    const { whose, pays } = visible.get(row.profileId)!;
+    return {
+      registrationId: row.registrationId,
+      whose,
+      participantName: row.participantName,
+      competition: { name: row.competitionName, slug: row.competitionSlug },
+      route: row.route,
+      status: row.status,
+      participantCode: row.participantCode ?? "",
+      registrationNumber: row.registrationNumber,
+      amountDue:
+        pays && row.status === "pending_payment" && row.fee !== null
+          ? { amountMinor: row.fee, currency: "INR" }
+          : null,
+      createdAt: row.createdAt,
+    };
+  });
 }
 
 /**
- * Whether the signed-in member has registered themselves for anything:
- * the header's "My competitions" link asks on every page they open, so it
- * reads one row of their own profile's registrations, not the dashboard.
+ * Whether the signed-in member has any registration to see: the header's
+ * "My competitions" link asks on every page they open, so it reads one row,
+ * not the dashboard.
  */
 export async function hasMyRegistrations(
   ctx: UseCaseContext
 ): Promise<boolean> {
   await authorize(ctx, "registration.self.list");
-  if (ctx.actor.kind !== "user") {
-    throw new Error("hasMyRegistrations needs a signed-in user");
-  }
+  const userId = signedInUserId(ctx, "hasMyRegistrations");
+  const visible = await visibleProfiles(ctx.db, userId);
+  if (visible.size === 0) return false;
   const [found] = await ctx.db
     .select({ id: registration.id })
     .from(registration)
-    .innerJoin(
-      participantProfile,
-      eq(participantProfile.id, registration.participantProfileId)
-    )
     .where(
       and(
-        eq(participantProfile.ownerUserId, ctx.actor.userId),
-        eq(participantProfile.ownerKind, OWN)
+        inArray(registration.participantProfileId, [...visible.keys()]),
+        eq(registration.route, "individual")
       )
     )
     .limit(1);

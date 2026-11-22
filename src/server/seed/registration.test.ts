@@ -103,6 +103,7 @@ describe("the registration seed", () => {
       pending_payment: 0,
       // A fee given back (#80): nothing is refunded in the seed's NEIGH27.
       refunded: 0,
+      pending_guardian: 0,
     });
     const students = dashboard.ok ? dashboard.students : [];
     const groupsOfEnrolled = new Set(

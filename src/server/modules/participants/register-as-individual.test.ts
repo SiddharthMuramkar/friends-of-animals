@@ -29,6 +29,7 @@ describe("registerAsIndividual", () => {
       registrationId: expect.any(String),
       participantCode: expect.stringMatching(PARTICIPANT_ID),
       status: "pending_payment",
+      payNow: true,
     });
     if (!result.ok) return;
     // Issued on 15 January 2027 in India.
@@ -270,12 +271,12 @@ describe("registerAsIndividual", () => {
     ).toEqual({ ok: false, error: "not_found" });
   });
 
-  describe("an under-18", () => {
+  describe("an under-18 registering alone (#81)", () => {
     // The harness's clock: 10:00 IST on 15 January 2027.
     it.each([
       ["turns 18 today in India", "2009-01-15", true],
       ["turns 18 tomorrow", "2009-01-16", false],
-    ])("who %s", async (_, dateOfBirth, allowed) => {
+    ])("who %s", async (_, dateOfBirth, adult) => {
       const h = await createHarness();
       const competition = await openToIndividuals(h);
       const member = await signInMember(h);
@@ -284,8 +285,12 @@ describe("registerAsIndividual", () => {
         .as(member.actor)
         .registerAsIndividual(adultForm(competition, { dateOfBirth }));
 
-      expect(result.ok).toBe(allowed);
-      if (!allowed) expect(result).toEqual({ ok: false, error: "minor" });
+      // A minor on their own is asked to name a parent or guardian first.
+      expect(result).toEqual(
+        adult
+          ? expect.objectContaining({ ok: true, status: "pending_payment" })
+          : { ok: false, error: "guardian_details_required" }
+      );
     });
 
     it("born on 29 February turns 18 on 1 March in a year without one", async () => {
@@ -297,17 +302,18 @@ describe("registerAsIndividual", () => {
       h.clock.set(new Date("2026-02-28T06:30:00.000Z"));
       expect(await h.as(member.actor).registerAsIndividual(form)).toEqual({
         ok: false,
-        error: "minor",
+        error: "guardian_details_required",
       });
       h.clock.set(new Date("2026-03-01T06:30:00.000Z"));
       expect(await h.as(member.actor).registerAsIndividual(form)).toMatchObject(
         {
           ok: true,
+          status: "pending_payment",
         }
       );
     });
 
-    it("is refused with nothing written", async () => {
+    it("who names no guardian is refused with nothing written", async () => {
       const h = await createHarness();
       const competition = await openToIndividuals(h);
       const member = await signInMember(h);

@@ -59,6 +59,8 @@ export const participantsUseCases = (ctx: UseCaseContext) => ({
     payMyTestCheckout(ctx, input),
   listMyRegistrations: () => listMyRegistrations(ctx),
   hasMyRegistrations: () => hasMyRegistrations(ctx),
-  individualRegistrationForm: (input: { competitionSlug: string }) =>
-    individualRegistrationForm(ctx, input),
+  individualRegistrationForm: (input: {
+    competitionSlug: string;
+    forChildId?: string;
+  }) => individualRegistrationForm(ctx, input),
 });

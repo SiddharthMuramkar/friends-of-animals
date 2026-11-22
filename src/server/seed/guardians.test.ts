@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   guardian,
+  guardianInvitation,
   guardianLink,
   participantProfile,
+  registration,
   userRole,
 } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
@@ -20,6 +22,14 @@ async function rows(h: Harness) {
       .from(participantProfile)
       .orderBy(asc(participantProfile.id)),
     roles: await h.db.select().from(userRole).orderBy(asc(userRole.id)),
+    registrations: await h.db
+      .select()
+      .from(registration)
+      .orderBy(asc(registration.id)),
+    requests: await h.db
+      .select()
+      .from(guardianInvitation)
+      .orderBy(asc(guardianInvitation.id)),
   };
 }
 
@@ -53,6 +63,37 @@ describe("the guardians seed", () => {
     const teenActor = await h.signIn(teen, undefined, { secondFactor: false });
     expect(await h.as(teenActor).myGuardians()).toEqual([
       { fullName: account.name, relationship: "parent" },
+    ]);
+  });
+
+  it("gives a second, unlinked teen a registration held for the guardian they asked (#81)", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    const { heldTeen } = SEED_GUARDIANS;
+
+    const teen = await h.signIn(heldTeen, undefined, { secondFactor: false });
+    expect(await h.as(teen).listMyRegistrations()).toEqual([
+      expect.objectContaining({
+        whose: "mine",
+        participantName: heldTeen.name,
+        competition: expect.objectContaining({
+          slug: "neighbours-on-my-street",
+        }),
+        status: "pending_guardian",
+        amountDue: null,
+      }),
+    ]);
+    const requests = await h.db
+      .select()
+      .from(guardianInvitation)
+      .where(eq(guardianInvitation.kind, "guardian_request"));
+    expect(requests).toEqual([
+      expect.objectContaining({
+        requestedByUserId: heldTeen.id,
+        participantProfileId: heldTeen.profileId,
+        status: "pending",
+        guardianId: null,
+      }),
     ]);
   });
 

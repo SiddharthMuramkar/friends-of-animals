@@ -59,6 +59,7 @@ export default async function Page({ searchParams }: Props) {
 
 const PROBLEMS: readonly DeclareProblem[] = [
   "linked_child",
+  "registered_as_minor",
   "no_verified_email",
   "rate_limited",
   "unexpected",

@@ -127,7 +127,8 @@ describe("decideTeenAcceptance", () => {
       isTheInvitedContact: true,
       isAGuardianOfChild: false,
       isAGuardian: false,
-      registeredAsAnAdult: false,
+      holdsOtherRole: false,
+      ownProfile: "none" as "none" | "adult" | "minor",
       linkedToAnotherChild: false,
     },
     child: { ageYears: 15, hasLogin: false },
@@ -199,10 +200,26 @@ describe("decideTeenAcceptance", () => {
   });
 
   it("refuses an account that registered itself as an adult (#78)", () => {
-    const accepter = { ...ready.accepter, registeredAsAnAdult: true };
+    const accepter = { ...ready.accepter, ownProfile: "adult" as const };
     expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
       ok: false,
       reason: "accepter_is_adult",
+    });
+  });
+
+  it("refuses a teen with a profile of their own, held for a guardian they asked (#81)", () => {
+    const accepter = { ...ready.accepter, ownProfile: "minor" as const };
+    expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
+      ok: false,
+      reason: "accepter_has_own_profile",
+    });
+  });
+
+  it("refuses an account holding a staff, school or judge role", () => {
+    const accepter = { ...ready.accepter, holdsOtherRole: true };
+    expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
+      ok: false,
+      reason: "accepter_has_role",
     });
   });
 
@@ -210,7 +227,7 @@ describe("decideTeenAcceptance", () => {
     const accepter = {
       ...ready.accepter,
       isTheInvitedContact: false,
-      registeredAsAnAdult: true,
+      ownProfile: "adult" as const,
     };
     expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
       ok: false,
@@ -270,7 +287,8 @@ describe("decideTeenAcceptance", () => {
           isTheInvitedContact: false,
           isAGuardianOfChild: true,
           isAGuardian: true,
-          registeredAsAnAdult: true,
+          holdsOtherRole: true,
+          ownProfile: "adult",
           linkedToAnotherChild: true,
         },
       })

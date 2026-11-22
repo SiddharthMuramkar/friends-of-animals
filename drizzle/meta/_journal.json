@@ -372,6 +372,27 @@
       "when": 1795385101558,
       "tag": "0052_80_refund_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1795387953699,
+      "tag": "0053_81_pre_enum_minor_reg",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1795387954589,
+      "tag": "0054_81_minor_reg",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1795387955433,
+      "tag": "0055_81_minor_messages",
+      "breakpoints": true
     }
   ]
 }
