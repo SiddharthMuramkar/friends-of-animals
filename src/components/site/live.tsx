@@ -11,9 +11,12 @@ import { Suspense, type ReactNode } from "react";
  * Streaming in replaces the fallback's elements with new ones after the
  * first paint, which a page's main content can't afford (a tap on its
  * first button would miss). `published` avoids that: a cached read the
- * static shell renders whenever it can, on a build with a database or
- * when the server regenerates the page. It gives null when it can't read,
- * and Draft Mode skips it, so both keep the fallback and `load`.
+ * static shell renders when the server regenerates the page, which it
+ * does on its first request after the build. It gives null when it can't
+ * read (always while `next build` prerenders), and Draft Mode skips it, so
+ * both keep the fallback and `load`. It must be a `"use cache"` read: a
+ * request resuming the shell re-runs Live, and only a cached answer is
+ * sure to match the one the shell was rendered with.
  */
 export async function Live<T>({
   fallback,

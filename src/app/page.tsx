@@ -478,10 +478,10 @@ function HomeContent(page: HomePage) {
 }
 
 // The hero and sections come from the published home document. The static
-// shell renders it whenever the database can be read, so the hero and its
-// buttons are painted once; otherwise (a build without a database, or
-// Draft Mode) the shell holds the seed copy and the document streams in
-// at request time (see Live).
+// shell renders it once the server has regenerated the page, so the hero
+// and its buttons are painted once; until then (the build's shell, which
+// has no database) and in Draft Mode, the shell holds the seed copy and
+// the document streams in at request time (see Live).
 export default function Page() {
   return (
     <>

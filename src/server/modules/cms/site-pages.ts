@@ -5,20 +5,23 @@
 // Call the loaders at request time, inside <Suspense>
 // (the Live component), with the matching seed as the static shell's
 // fallback: the build has no database. The home page also gives Live its
-// published read for the shell (loadPublishedHomePage).
+// published read for the shell (loadPublishedHomePage), which the server
+// makes when it regenerates the page.
 
 import "server-only";
 
+import { cacheLife, cacheTag } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 
 import { isSampleContentEnabled } from "@/lib/site";
 
+import { errorSummaryForLogs } from "../../errors";
 import {
   canReadWhilePrerendering,
   loadPublishedDocument,
-  notReadWhilePrerendering,
+  UNREAD_SHELL_LIFE,
 } from "./cached";
-import { cmsPublicPath, type CmsDocumentKey } from "./domain/documents";
+import { cmsPublicPath, cmsTag, type CmsDocumentKey } from "./domain/documents";
 import { type OrgFacts, unconfirmedOrgFacts } from "./domain/org-facts";
 import type { CmsKind } from "./kinds";
 import { homeKind, type HomeBody } from "./kinds/home";
@@ -96,17 +99,28 @@ export async function loadHomePage(): Promise<HomePage> {
 /**
  * The published home page for the static shell (Live's `published`), so
  * the hero and its buttons are painted once and never streamed over. Null
- * on a build without database settings, or when a read at request time
- * fails: the page then keeps the seed and reads with loadHomePage, which
- * logs a failure that lasts.
+ * while `next build` prerenders the page, or when the read fails: the page
+ * then keeps the seed in its shell and streams loadHomePage over it, and
+ * the server regenerates the shell with this read on its next request.
+ *
+ * Cached, so each request that resumes a shell gets the answer that shell
+ * was rendered with (Next keeps a shell's cached values with it): a
+ * request after the build must take the seed-and-stream branch the build
+ * took, not read the database and leave the build's hole unfilled.
  */
 export async function loadPublishedHomePage(): Promise<HomePage | null> {
-  if (!canReadWhilePrerendering()) return notReadWhilePrerendering();
+  "use cache";
+  if (!canReadWhilePrerendering()) {
+    cacheLife(UNREAD_SHELL_LIFE);
+    return null;
+  }
   try {
     const [home, impact] = await Promise.all([
       loadPublishedDocument("home"),
       loadPublishedDocument("impact"),
     ]);
+    cacheTag(cmsTag("home"), cmsTag("impact"));
+    cacheLife("hours");
     return {
       home: home ? homeKind.sanitize(home.body) : homeKind.seedBody(),
       impact: impact ? impactKind.sanitize(impact.body) : unpublishedImpact(),
@@ -114,6 +128,10 @@ export async function loadPublishedHomePage(): Promise<HomePage | null> {
     };
   } catch (error) {
     unstable_rethrow(error);
+    console.error(
+      `CMS home page: the static shell could not read the published copy: ${errorSummaryForLogs(error)}`
+    );
+    cacheLife(UNREAD_SHELL_LIFE);
     return null;
   }
 }

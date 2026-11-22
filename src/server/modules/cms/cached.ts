@@ -6,13 +6,13 @@
 // Call it after `await connection()`, inside <Suspense>: the build has no
 // database. The page's fallback is the repo's copy, which is also what the
 // seed publishes as version 1. A static shell may read it too (the home
-// page's), but only after canReadWhilePrerendering().
+// page's), but only after canReadWhilePrerendering(), so only when the
+// server regenerates the page.
 
 import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
-
-import { env } from "@/env";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 import type { Actor } from "../../actor";
 import { as } from "../../app";
@@ -46,30 +46,25 @@ export async function loadPublishedDocument(
 }
 
 /**
- * Whether a static shell can read published documents. A build may have no
- * database settings, and a cached read that fails while prerendering fails
- * the build even when its caller catches it, so the shell asks first. With
- * settings but no database to reach, the build fails.
+ * Whether a static shell can read published documents now: never while
+ * `next build` prerenders it, which has no runtime config and must pass
+ * without a database (spec §1.7 trap 15), even when the build happens to
+ * have database settings. The server reads them when it regenerates the
+ * page.
  */
 export function canReadWhilePrerendering(): boolean {
-  try {
-    env();
-    return true;
-  } catch {
-    return false;
-  }
+  return process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD;
 }
 
 /**
- * A shell's stand-in for the published documents it couldn't read: none,
- * kept a minute, so the server regenerates the page with them soon after a
- * deploy (the build has no database) rather than in 5 minutes.
+ * The cache life of a shell's read that couldn't read the published
+ * documents (always while `next build` prerenders it): revalidated after a
+ * second, so the server regenerates the page with them on its first
+ * request after the build, or after a failed read, rather than in 5
+ * minutes. `stale` and `expire` keep the shell prerendered and in the App
+ * Shell (see the cacheLife docs).
  */
-export async function notReadWhilePrerendering(): Promise<null> {
-  "use cache";
-  cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
-  return null;
-}
+export const UNREAD_SHELL_LIFE = { stale: 300, revalidate: 1, expire: 3600 };
 
 /**
  * The version and date a policy page shows now, or null before version 1:
