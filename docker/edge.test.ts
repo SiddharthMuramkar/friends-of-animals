@@ -87,14 +87,36 @@ describe("docker/edge.yml", () => {
     expect(volumes).toContain("/var/lib/foa/acme-webroot:/srv/acme:ro");
   });
 
-  it("restarts, checks the admin API and has hard memory limits", () => {
+  it("restarts, checks the admin API over its socket and has hard limits", () => {
     expect(caddyText).toMatch(/^ {4}restart: unless-stopped$/m);
     expect(oneLine(caddyText)).toMatch(
-      /test: \["CMD", "wget", "-q", "-O", "\/dev\/null", "http:\/\/127\.0\.0\.1:2019\/config\/"\]/
+      /test: \["CMD", "curl", "-fsS", "-o", "\/dev\/null", "--unix-socket", "\/config\/admin\.sock", "http:\/\/localhost\/config\/"\]/
     );
     expect(caddyText).toMatch(/^ {4}mem_limit: 256m$/m);
     expect(caddyText).toMatch(/^ {4}memswap_limit: 256m$/m);
     expect(caddyText).toMatch(/^ {4}oom_score_adj: 500$/m);
+    expect(caddyText).toMatch(/^ {4}cpus: 0\.5$/m);
+  });
+
+  it("drops every capability but binding :80 and :443, and gains none", () => {
+    // Root in the host's network namespace: Docker's defaults would include
+    // NET_RAW there, enough to sniff the bridges' plaintext traffic.
+    expect(block(caddy, /^ {4}cap_drop:$/)).toEqual(["      - ALL"]);
+    expect(block(caddy, /^ {4}cap_add:$/)).toEqual([
+      "      - NET_BIND_SERVICE",
+    ]);
+    expect(block(caddy, /^ {4}security_opt:$/)).toEqual([
+      "      - no-new-privileges:true",
+    ]);
+  });
+
+  it("runs read-only, writing only /data, /config and a tmpfs /tmp", () => {
+    expect(caddyText).toMatch(/^ {4}read_only: true$/m);
+    expect(block(caddy, /^ {4}tmpfs:$/)).toEqual(["      - /tmp"]);
+    expect(volumes.filter((volume) => !volume.endsWith(":ro"))).toEqual([
+      "/var/lib/foa/caddy/data:/data",
+      "/var/lib/foa/caddy/config:/config",
+    ]);
   });
 
   it("logs through the shared journald anchor", () => {
@@ -114,8 +136,25 @@ describe("docker/caddy/Caddyfile", () => {
     expect(lines(caddyfileText).join("\n")).not.toMatch(/staging/);
   });
 
-  it("keeps the admin API on loopback: Caddy shares the host's network", () => {
-    expect(site("")).toContain("admin 127.0.0.1:2019");
+  it("serves the admin API on a unix socket under /config, not TCP", () => {
+    // On the host network a TCP admin port is reachable by every local
+    // process; the socket is reachable by root (and this container) only.
+    expect(site("")).toContain("admin unix//config/admin.sock|0600");
+    expect(site("").filter((line) => line.startsWith("admin "))).toHaveLength(
+      1
+    );
+    for (const text of [caddyfileText, composeText, read("./README.md")]) {
+      expect(text).not.toMatch(/:2019\b/);
+    }
+  });
+
+  it("is reloaded through that socket in the runbook", () => {
+    expect(read("./README.md")).toContain(
+      "docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile --address unix//config/admin.sock"
+    );
+    expect(composeText).toContain(
+      "docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile --address unix//config/admin.sock"
+    );
   });
 
   it("serves stats, errors and the db names, nothing else", () => {

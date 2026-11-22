@@ -14,8 +14,14 @@
 #   while Caddy owns :80, lego renews in webroot mode and Caddy serves the
 #   challenge files for the db names.
 #
+# - Hardened: every capability dropped but NET_BIND_SERVICE (:80, :443), no
+#   new privileges, and a read-only root filesystem. Caddy writes only /data
+#   (certificates), /config (autosave, the admin socket) and a tmpfs /tmp.
+# - The admin API is a unix socket, /config/admin.sock (0600), not a
+#   TCP port: on the host network every local process could reach that.
+#
 # Reload after a Caddyfile change:
-#   docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile
+#   docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile --address unix//config/admin.sock
 name: foa-edge
 
 x-logging: &logging
@@ -29,6 +35,15 @@ services:
     container_name: foa-caddy
     restart: unless-stopped
     network_mode: host
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     volumes:
       # The directory, not the file: git replaces the Caddyfile on a pull,
       # and a file mount would go on showing the old one.
@@ -41,16 +56,19 @@ services:
       test:
         [
           "CMD",
-          "wget",
-          "-q",
-          "-O",
+          "curl",
+          "-fsS",
+          "-o",
           "/dev/null",
-          "http://127.0.0.1:2019/config/",
+          "--unix-socket",
+          "/config/admin.sock",
+          "http://localhost/config/",
         ]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
+    cpus: 0.5
     mem_limit: 256m
     memswap_limit: 256m
     oom_score_adj: 500

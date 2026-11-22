@@ -1026,9 +1026,9 @@ Caddy terminates TLS on the VPS for the services that need a public HTTPS
 name (#118). Compose project `foa-edge` (`edge.yml`), sites in
 `caddy/Caddyfile`.
 
-| Container   | Image          | Network | Listens            | Limits                      |
-| ----------- | -------------- | ------- | ------------------ | --------------------------- |
-| `foa-caddy` | `caddy:2.11.9` | host    | :80, :443 (h1, h2) | 256 MB, `oom_score_adj` 500 |
+| Container   | Image          | Network | Listens            | Limits                               |
+| ----------- | -------------- | ------- | ------------------ | ------------------------------------ |
+| `foa-caddy` | `caddy:2.11.9` | host    | :80, :443 (h1, h2) | 0.5 CPU, 256 MB, `oom_score_adj` 500 |
 
 | Site                                                         | Serves                                           |
 | ------------------------------------------------------------ | ------------------------------------------------ |
@@ -1040,7 +1040,13 @@ name (#118). Compose project `foa-edge` (`edge.yml`), sites in
   firewalld's `http` and `https` services govern them (Firewall, above);
   Docker makes no rules for it and `FOA-INBOUND` doesn't apply. Umami and
   GlitchTip publish no port: Caddy reaches them across their bridges. The
-  admin API listens on 127.0.0.1:2019 only.
+  admin API is the unix socket `/config/admin.sock` (0600) inside the
+  container, `/var/lib/foa/caddy/config/admin.sock` on the host, not a TCP
+  port: on the host network any local process could reach a port.
+- **Hardened**: Caddy runs as root (the image has no other user) but with
+  every capability dropped except `NET_BIND_SERVICE`, `no-new-privileges`,
+  and a read-only root filesystem. It writes only `/data`, `/config` and a
+  tmpfs `/tmp`.
 - **Certificates**: Caddy gets and renews the stats and errors certificates
   itself from Let's Encrypt; `acme_ca` pins the production CA. Each name
   needs its A record (189.72.156.29, no AAAA) before Caddy loads its site.
@@ -1066,7 +1072,7 @@ firewall-cmd --zone=public --add-service=https             # Firewall, above
 firewall-cmd --permanent --zone=public --add-service=https
 docker compose -f docker/edge.yml up -d --wait
 # After a Caddyfile change:
-docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile
+docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile --address unix//config/admin.sock
 docker logs --since 10m foa-caddy     # certificate issuance and errors
 ```
 

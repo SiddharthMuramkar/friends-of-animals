@@ -5,7 +5,10 @@
 	# staging CA (https://acme-staging-v02.api.letsencrypt.org/directory)
 	# until issuance works, then back (README.md).
 	acme_ca https://acme-v02.api.letsencrypt.org/directory
-	admin 127.0.0.1:2019
+	# A unix socket under /config, root-only: on the host network a TCP
+	# port would be open to every local process. Healthcheck and reload use
+	# it (edge.yml).
+	admin unix//config/admin.sock|0600
 	servers {
 		protocols h1 h2
 	}
