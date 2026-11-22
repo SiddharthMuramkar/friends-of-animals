@@ -31,6 +31,18 @@ export const IDLE: PayView = { kind: "idle" };
 /** What Checkout hands back after a payment. */
 export type CheckoutReturn = { paymentId: string; signature: string };
 
+/**
+ * What a browser sent a confirm action as Checkout's answer, when it has
+ * that shape. The action's arguments are whatever was posted to it.
+ */
+export function checkoutReturnFrom(value: unknown): CheckoutReturn | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { paymentId, signature } = value as Record<string, unknown>;
+  return typeof paymentId === "string" && typeof signature === "string"
+    ? { paymentId, signature }
+    : null;
+}
+
 /** The fallback's test checkout's answer. */
 export type TestCheckoutResult =
   | ({ ok: true } & CheckoutReturn)

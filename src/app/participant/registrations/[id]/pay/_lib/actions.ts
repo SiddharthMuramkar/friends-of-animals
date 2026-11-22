@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { redirect, RedirectType } from "next/navigation";
 
 import {
+  checkoutReturnFrom,
   checkoutView,
   type CheckoutReturn,
   type PayView,
@@ -19,7 +20,7 @@ import type { PayForMyRegistrationResult } from "@/server/modules/participants";
 import { payOutcome } from "./pay-outcome";
 
 // An adult's pay page's server actions (#78): confirm a free place, and
-// the Checkout island's three (77c), which the page binds to the
+// the Checkout island's three (#77), which the page binds to the
 // registration: open the order, the fallback's test checkout, and confirm
 // what Checkout hands back. Every message is translated here, so the
 // island ships no catalogue. A use case that throws is never shown to the
@@ -114,16 +115,14 @@ export async function startMyPaymentAction(
 export async function confirmMyPaymentAction(
   registrationId: string,
   _batchId: string,
-  { paymentId, signature }: CheckoutReturn
+  answer: CheckoutReturn
 ): Promise<PayView> {
   const actor = await signedInUser();
+  const paid = checkoutReturnFrom(answer);
+  if (!paid) return problem("failed");
   let result;
   try {
-    result = await as(actor).confirmMyPayment({
-      registrationId,
-      paymentId,
-      signature,
-    });
+    result = await as(actor).confirmMyPayment({ registrationId, ...paid });
   } catch (error) {
     // Most often the gateway didn't answer: the webhook, or paying again,
     // still confirms a payment that went through.

@@ -7,9 +7,9 @@ import {
 import type { SeedAccount } from "./seed-account";
 import { signInByCode } from "./sign-in";
 
-// Steps of the institution journey (#77's Seam 2, 77c) that #73's spec
-// takes one by one: an authorised person sends an institution for
-// checking, and an FOA staff admin verifies it.
+// Steps of the institution journey (#77's Seam 2) that #73's spec takes
+// one by one: an authorised person sends an institution for checking, and
+// an FOA staff admin verifies it.
 
 /**
  * Fills in the institution form as its authorised person (signed in on

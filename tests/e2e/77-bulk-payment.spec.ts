@@ -15,12 +15,12 @@ import {
 import { test } from "./support/seed-account";
 import { signInByCode } from "./support/sign-in";
 
-// #77's Seam 2 journey (M1, 77c): a school pays for its whole class at
-// once. Its authorised person signs up by email code and sends the
-// institution for checking; a seeded FOA staff admin verifies it with
-// their authenticator; the authorised person registers it for the seeded
-// open competition, imports #76's clean 30-row file, and pays the 30 fees
-// in one payment; the payment's page and the students page then show all
+// #77's Seam 2 journey: a school pays for its whole class at once. Its
+// authorised person signs up by email code and sends the institution for
+// checking; a seeded FOA staff admin verifies it with their
+// authenticator; the authorised person registers it for the seeded open
+// competition, imports #76's clean 30-row file, and pays the 30 fees in
+// one payment; the payment's page and the students page then show all
 // 30 confirmed, each with its own registration number. The students page's
 // fees summary is checked with axe, light and dark, before and after
 // paying (the pay and payment pages' states are #77's 77-pay-page.spec.ts).

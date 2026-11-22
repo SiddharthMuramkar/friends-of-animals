@@ -11,6 +11,7 @@ import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import type { CheckoutParams } from "@/server/ports/payment-gateway";
 
 import {
+  checkoutReturnFrom,
   checkoutView,
   type CheckoutReturn,
   type PayView,
@@ -120,16 +121,17 @@ export async function confirmPaymentAction(
   institutionId: string,
   reference: string,
   batchId: string,
-  { paymentId, signature }: CheckoutReturn
+  answer: CheckoutReturn
 ): Promise<PayView> {
   const actor = await signedInUser();
+  const paid = checkoutReturnFrom(answer);
+  if (!paid) return problem("failed");
   let result;
   try {
     result = await as(actor).confirmCheckout({
       institutionId,
       batchId,
-      paymentId,
-      signature,
+      ...paid,
     });
   } catch (error) {
     // Most often the gateway didn't answer: the webhook, or paying again,

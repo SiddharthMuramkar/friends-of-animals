@@ -133,7 +133,7 @@ async function RegistrationCard({
       {amountDue ? (
         <div className="mt-4">
           {/* A full load: the pay page's CSP and headers come with its
-              document (77c). */}
+              document. */}
           <a
             href={payMyRegistrationPath(registration.registrationId)}
             className={buttonStyles({ variant: "primary" })}

@@ -1,4 +1,4 @@
-// payMyTestCheckout({ registrationId, outcome }) (#77, 77c): the fallback
+// payMyTestCheckout({ registrationId, outcome }) (#77): the fallback
 // gateway's test checkout on an adult's own pay page (#78), where a tester
 // pays or declines the order in place of Razorpay's Checkout, as a school
 // does on its pay page (../payments/pay-test-checkout.ts). It works only
