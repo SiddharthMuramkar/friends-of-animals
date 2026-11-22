@@ -33,6 +33,8 @@ describe("listMyRegistrations", () => {
     expect(await h.as(asha.actor).listMyRegistrations()).toEqual([
       {
         registrationId: second.registrationId,
+        whose: "mine",
+        participantName: "Asha Rao",
         competition: { name: "A Bowl of Water", slug: free.slug },
         route: "individual",
         status: "confirmed",
@@ -43,6 +45,8 @@ describe("listMyRegistrations", () => {
       },
       {
         registrationId: first.registrationId,
+        whose: "mine",
+        participantName: "Asha Rao",
         competition: { name: "Paws on Paper", slug: paid.slug },
         route: "individual",
         status: "pending_payment",
