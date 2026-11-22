@@ -6,6 +6,7 @@ import { FormAlert, SubmitButton, TextField } from "@/components/form";
 import type { SettingInput } from "@/server/modules/settings";
 
 import { changeSettingAction, type SettingFormView } from "../_lib/actions";
+import { IDLE } from "../_lib/form-state";
 
 export type SettingFormLabels = {
   /** The legend of an On/Off choice, or the label of a number. */
@@ -20,8 +21,6 @@ export type SettingFormLabels = {
   problem: string;
 };
 
-const START: SettingFormView = { status: "idle" };
-
 /**
  * Changes one setting: an On/Off choice or a whole number, then Save. The
  * outcome shows above the field; a refused number stays as typed, with
@@ -29,18 +28,23 @@ const START: SettingFormView = { status: "idle" };
  * after a save, so it is the new value from then on.
  */
 export function SettingForm({
+  idPrefix,
   settingKey,
   input,
   value,
   labels,
 }: {
+  /** Starts the id of the field and of its error; the page's, per setting. */
+  idPrefix: string;
   settingKey: string;
   input: SettingInput;
   value: boolean | number;
   labels: SettingFormLabels;
 }) {
-  const [view, formAction] = useActionState(changeSettingAction, START);
-  const id = `setting-${settingKey.replace(/\W/g, "-")}`;
+  const [view, formAction] = useActionState<SettingFormView, FormData>(
+    changeSettingAction,
+    IDLE
+  );
   const invalid = view.status === "invalid";
 
   return (
@@ -61,12 +65,12 @@ export function SettingForm({
 
       {input.kind === "boolean" ? (
         <fieldset
-          aria-describedby={invalid ? `${id}-error` : undefined}
+          aria-describedby={invalid ? `${idPrefix}-error` : undefined}
           className="flex flex-col gap-2"
         >
           <legend className="font-semibold text-ink">{labels.newValue}</legend>
           {invalid ? (
-            <p id={`${id}-error`} className="font-semibold text-danger">
+            <p id={`${idPrefix}-error`} className="font-semibold text-danger">
               {view.message}
             </p>
           ) : null}
@@ -93,7 +97,7 @@ export function SettingForm({
         </fieldset>
       ) : (
         <TextField
-          id={`${id}-value`}
+          id={`${idPrefix}-value`}
           name="value"
           type="number"
           inputMode="numeric"

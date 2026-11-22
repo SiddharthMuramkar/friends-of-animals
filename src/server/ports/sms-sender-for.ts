@@ -10,12 +10,6 @@ import { unconfiguredSmsSender, type SmsSender } from "./sms";
 import { captureSmsSender } from "./sms-capture";
 import { msg91SmsSender } from "./sms-msg91";
 
-/** MSG91's keys, once FOA's DLT registration gives them. */
-export type Msg91Keys = {
-  authKey?: string | undefined;
-  otpTemplateId?: string | undefined;
-};
-
 /**
  * Production sends real SMS through MSG91 once its keys are set (after
  * FOA's DLT registration); until then it refuses. Every other environment
@@ -25,7 +19,7 @@ export type Msg91Keys = {
 export function smsSenderFor(
   appEnv: Env["APP_ENV"],
   deps: DbWithClock,
-  msg91: Msg91Keys,
+  msg91: { authKey?: string | undefined; otpTemplateId?: string | undefined },
   fetchImpl: typeof fetch = fetch
 ): SmsSender {
   if (appEnv !== "production") return captureSmsSender(deps);

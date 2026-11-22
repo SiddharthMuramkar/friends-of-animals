@@ -11,6 +11,7 @@ import {
   type ShownInline,
 } from "@/content/legal";
 import { isFactShown, type OrgFact, SITE } from "@/lib/site";
+import { linkRel } from "@/server/rich-text/href";
 
 // The typed blocks of a policy or consent document as HTML: the policy
 // pages draw the repo's text and the published versions with these, so
@@ -20,7 +21,7 @@ import { isFactShown, type OrgFact, SITE } from "@/lib/site";
 // goes through shownLegalDoc first.
 
 const LINK =
-  "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
+  "text-link wrap-anywhere underline decoration-1 underline-offset-2 hover:text-link-hover";
 
 const FACT_VALUE: Record<LegalFact, unknown> = {
   legalName: SITE.org.legalName,
@@ -49,12 +50,24 @@ function Fact({ fact }: { fact: LegalFact }) {
   return <Placeholder fact={value} />;
 }
 
-/** One run of text with its strong words, links and facts. */
+/**
+ * One run of text with its strong words, links and facts. A link to
+ * another site is a plain <a> whose rel (linkRel) stops it reaching back
+ * through window.opener, sending a referrer or passing search rank.
+ */
 export function LegalInlines({ text }: { text: ShownInline[] }) {
   return text.map((i, k): ReactNode => {
     if (typeof i === "string") return i;
     if ("strong" in i) return <strong key={k}>{i.strong}</strong>;
     if ("fact" in i) return <Fact key={k} fact={i.fact} />;
+    const rel = linkRel(i.href);
+    if (rel) {
+      return (
+        <a key={k} href={i.href} rel={rel} className={LINK}>
+          {i.link}
+        </a>
+      );
+    }
     return (
       <SiteLink key={k} href={i.href} className={LINK}>
         {i.link}

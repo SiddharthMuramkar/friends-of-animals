@@ -10,6 +10,7 @@ import {
   type VerifiedAccount,
 } from "../identity/verified-account";
 import { ensureGrant } from "./access";
+import { competitionBuilder } from "./competitions";
 import { seedPhone } from "./identity";
 import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
@@ -79,6 +80,8 @@ export function seedFunctions(seeders: readonly Seeder[]) {
        */
       authenticator: (user: { id: string }) =>
         ensureSeedAuthenticator(deps, user.id),
+      /** A complete competition (draft unless told), no audit entry. */
+      competition: competitionBuilder(deps),
       /** Everything `pnpm db:seed` puts in a preview database. */
       preview: () => seedPreview(deps),
     };

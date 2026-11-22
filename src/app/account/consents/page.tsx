@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { SubmitButton } from "@/components/form";
+import { ConsentPolicyLink } from "@/components/legal/consent-policy-link";
 import {
   LegalSectionsText,
   LegalShortList,
@@ -15,10 +16,13 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { loadLegalVersion } from "@/server/modules/cms/cached";
+import { legalKeyForConsentPurpose } from "@/server/modules/cms/domain/documents";
 import type { MyConsent } from "@/server/modules/consent";
 
 import { ChangeNotice } from "./_components/change-notice";
 import { giveConsentAction, withdrawConsentAction } from "./_lib/actions";
+import { CONSENT_NOTICES } from "./_lib/notice";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("consent.meta");
@@ -29,13 +33,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type SearchParams = Promise<{ done?: string | string[] }>;
+type SearchParams = PageProps<"/account/consents">["searchParams"];
 
 export default async function Page({
   searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+}: PageProps<"/account/consents">) {
   const t = await getTranslations("consent");
   return (
     <Section hue="blue" tone="tint" width="prose" className="pt-10 sm:pt-14">
@@ -45,8 +47,8 @@ export default async function Page({
         title={t("title")}
         lead={t("lead")}
       />
-      {/* Consent is read per request, so it streams in behind this
-          boundary while the heading above is prerendered. */}
+      {/* The whole page renders per request (../layout.tsx); consent
+          streams in behind this boundary after the heading. */}
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
@@ -59,29 +61,30 @@ export default async function Page({
 const CARD =
   "rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
 
-const DONE = ["given", "withdrawn", "outdated"] as const;
-
 /** `given-<token>` and the like, from the action's redirect. */
 function doneOf(done: string | string[] | undefined) {
   if (typeof done !== "string") return null;
-  const kind = DONE.find((each) => done.startsWith(`${each}-`));
+  const kind = CONSENT_NOTICES.find((each) => done.startsWith(`${each}-`));
   return kind ? { kind, key: done } : null;
 }
 
 async function Consents({ searchParams }: { searchParams: SearchParams }) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, callout, format, consents, { done }] = await Promise.all([
+  const [t, callout, format, consents, policy, { done }] = await Promise.all([
     getTranslations("consent"),
     getTranslations("common.callout"),
     getFormatter(),
     as(actor).myConsents(),
+    // The messages consent rests on the privacy policy (#111).
+    loadLegalVersion(legalKeyForConsentPurpose("messages")),
     searchParams,
   ]);
   const messages = consents.find((each) => each.purpose === "messages");
   if (!messages) return null;
   const { state, history, currentDocument } = messages;
   const notice = doneOf(done);
+  const refused = notice?.kind === "outdated" || notice?.kind === "failed";
   const onCurrent =
     state.status === "given" && state.documentId === currentDocument?.id;
   const date = (at: Date) => format.dateTime(at, "long");
@@ -91,10 +94,8 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
       {notice ? (
         <ChangeNotice
           key={notice.key}
-          tone={notice.kind === "outdated" ? "danger" : "success"}
-          label={
-            notice.kind === "outdated" ? callout("danger") : callout("success")
-          }
+          tone={refused ? "danger" : "success"}
+          label={refused ? callout("danger") : callout("success")}
           message={t(`notice.${notice.kind}`)}
         />
       ) : null}
@@ -168,6 +169,11 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
               level="h3"
             />
           </Disclosure>
+          <ConsentPolicyLink
+            purpose="messages"
+            current={policy}
+            className="mt-4 text-ink"
+          />
         </section>
       ) : null}
 

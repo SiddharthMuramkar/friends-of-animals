@@ -94,6 +94,20 @@ describe("decideSettingChange", () => {
     ).toEqual({ ok: true, changed: false });
   });
 
+  it("replaces a stored value that no longer fits, even with the default", () => {
+    const current = resolveSetting("auth.staffSessionHours", { value: 48 });
+
+    expect(decideSettingChange(current, 12)).toEqual({
+      ok: true,
+      changed: true,
+      value: 12,
+      audit: {
+        before: { value: 12, source: "default" },
+        after: { value: 12 },
+      },
+    });
+  });
+
   it("refuses an invalid value", () => {
     const current = resolveSetting("auth.staffSessionHours", undefined);
 
@@ -117,6 +131,8 @@ describe("resolveAllSettings", () => {
     ).toEqual([
       ["auth.staffSessionHours", 12, "default"],
       ["sms.enabled", false, "default"],
+      ["sms.maxPerHour", 200, "default"],
+      ["sms.maxPerDay", 1000, "default"],
       ["org.has80G", true, "stored"],
       ["org.fcraEnabled", false, "default"],
     ]);

@@ -12,6 +12,7 @@ import { formatPhoneNumber } from "@/lib/phone";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
+import { ChannelChoice } from "./_components/channel-choice";
 import { savePreferencesAction } from "./_lib/actions";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -45,9 +46,6 @@ export default async function Page({
     </Section>
   );
 }
-
-const CHECKBOX =
-  "mt-1 size-6 shrink-0 rounded-md border-2 border-border-strong accent-primary";
 
 async function Choices({ searchParams }: { searchParams: SearchParams }) {
   const actor = await currentActor();
@@ -84,58 +82,35 @@ async function Choices({ searchParams }: { searchParams: SearchParams }) {
           <legend className="text-lead font-bold text-ink">
             {t("legend")}
           </legend>
-          <div className="flex items-start gap-3">
-            <input
-              id="channel-email"
-              type="checkbox"
-              name="email"
-              defaultChecked={preferences.email}
-              aria-describedby="channel-email-hint"
-              className={CHECKBOX}
-            />
-            <div>
-              <label
-                htmlFor="channel-email"
-                className="inline-flex min-h-8 items-center font-semibold text-ink"
-              >
-                {t("email")}
-              </label>
-              <p
-                id="channel-email-hint"
-                className="text-ink-muted wrap-anywhere"
-              >
+          <ChannelChoice
+            id="channel-email"
+            name="email"
+            label={t("email")}
+            defaultChecked={preferences.email}
+            hint={
+              <p>
                 {account.email
                   ? t("emailTo", { email: account.email })
                   : t("emailNone")}
               </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <input
-              id="channel-sms"
-              type="checkbox"
-              name="sms"
-              defaultChecked={preferences.sms}
-              aria-describedby="channel-sms-hint"
-              className={CHECKBOX}
-            />
-            <div>
-              <label
-                htmlFor="channel-sms"
-                className="inline-flex min-h-8 items-center font-semibold text-ink"
-              >
-                {t("sms")}
-              </label>
-              <div id="channel-sms-hint" className="text-ink-muted">
+            }
+          />
+          <ChannelChoice
+            id="channel-sms"
+            name="sms"
+            label={t("sms")}
+            defaultChecked={preferences.sms}
+            hint={
+              <>
                 <p>
                   {account.phone
                     ? t("smsTo", { phone: formatPhoneNumber(account.phone) })
                     : t("smsNoPhone")}
                 </p>
                 {smsOn ? null : <p className="mt-1">{t("smsOff")}</p>}
-              </div>
-            </div>
-          </div>
+              </>
+            }
+          />
         </fieldset>
         <SubmitButton pendingLabel={t("saving")} className="mt-6">
           {t("save")}

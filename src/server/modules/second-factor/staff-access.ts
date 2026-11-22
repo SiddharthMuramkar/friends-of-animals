@@ -11,7 +11,7 @@ import { grantsOf } from "../../access/grants";
 import type { SecondFactorRefusal } from "./domain/gate";
 import { secondFactorRefusal } from "./requirement";
 import { signedInUser } from "./session-factor";
-import type { SecondFactorContext } from "./totp";
+import type { SecondFactorContext } from "./enrolment";
 
 export type StaffAccess =
   /** `staff` is false for someone without a staff role. */

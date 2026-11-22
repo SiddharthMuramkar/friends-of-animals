@@ -7,6 +7,7 @@ import { ROUTES } from "@/lib/routes";
 import { safeNext, secondFactorPath } from "@/lib/second-factor-routes";
 import { as, currentActor } from "@/server/app";
 
+import { orSecondFactor } from "../_lib/refusal";
 import { VerifyForm } from "./verify-form";
 
 const CARD =
@@ -27,7 +28,7 @@ export async function VerifyPanel({
   const [t, tc, mine] = await Promise.all([
     getTranslations("security.form"),
     getTranslations("common.callout"),
-    as(actor).mySecondFactors(),
+    orSecondFactor(() => as(actor).mySecondFactors()),
   ]);
   const hasTotp = mine.factors.some((factor) => factor.kind === "totp");
   const hasPasskey = mine.factors.some((factor) => factor.kind === "passkey");

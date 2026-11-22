@@ -2,7 +2,7 @@
 # for the local Compose stack and any self-hosted fallback.
 #
 #   docker compose up -d --build --wait      # db + migrate + app, see docker-compose.yml
-#   docker build --build-arg APP_URL=https://shipped-it.dev -t foa-app .   # runner (default target)
+#   docker build --build-arg APP_URL=https://friendsofanimals.dev -t foa-app .   # runner (default target)
 #   docker build --target migrate -t foa-migrate .
 #   docker compose -f docker/workers.yml up -d --build   # worker, see docker/README.md
 #
@@ -72,10 +72,16 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 # database-url.ts reads the migrations journal; the welcome email its words.
 COPY drizzle ./drizzle
 COPY messages ./messages
-COPY scripts/load-env.ts ./scripts/load-env.ts
+# The scripts docker/README.md runs in the worker (docker/workers.test.ts).
+COPY scripts/load-env.ts scripts/purge-preview-files.ts scripts/purge-preview-files-cli.ts ./scripts/
+COPY scripts/offsite-restore.ts scripts/offsite-restore-args.ts ./scripts/
 COPY src ./src
 USER node
 CMD ["node", "--import", "tsx", "src/worker/main.ts"]
+
+# ---- worker-media: isolated image processing (#85) --------------------------
+FROM worker AS worker-media
+CMD ["node", "--import", "tsx", "src/worker-media/main.ts"]
 
 # ---- runner: the standalone server --------------------------------------------
 FROM ${NODE_IMAGE} AS runner

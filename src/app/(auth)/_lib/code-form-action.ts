@@ -32,15 +32,15 @@ import {
   type CodeFormView,
 } from "./code-form-state";
 
-/** What the visitor sent: the contact, and their name to sign up. */
+/**
+ * What the visitor sent: the contact, and their name to sign up. Sign-up's
+ * optional messages consent box (#64) sends the id of the document it
+ * showed, only when ticked; only the email form has that box.
+ */
 export type Entered = {
   intent: "sign-up" | "sign-in";
   contact: string;
   name: string;
-  /**
-   * Sign-up only: the messages consent document whose box was ticked
-   * (#64). Absent when the box wasn't ticked or isn't on the form.
-   */
   messagesConsent?: string;
 };
 
@@ -109,7 +109,8 @@ async function withText(
 /**
  * One step of a code form. `step` (from the pressed button) says what to
  * do: send a code, check the code, or start again. Signed in, the visitor
- * goes to their sessions.
+ * goes to their sessions, or to their consents when the messages consent
+ * box was ticked on a version that is no longer the current one.
  */
 export async function runCodeForm(
   channel: CodeFormChannel,
@@ -117,18 +118,14 @@ export async function runCodeForm(
 ): Promise<CodeFormView> {
   const intent =
     field(formData, "intent") === "sign-up" ? "sign-up" : "sign-in";
-  // Sign-up's optional messages consent box: the document id it showed,
-  // only when ticked.
   const messagesConsent =
     intent === "sign-up" ? field(formData, "messagesConsent") : "";
-  const consent = messagesConsent ? { messagesConsent } : {};
-  const entered: Entered = {
-    intent,
+  const typed = {
     contact: field(formData, channel.channel),
     name: field(formData, "name"),
-    ...consent,
+    ...(messagesConsent ? { messagesConsent } : {}),
   };
-  const typed = { contact: entered.contact, name: entered.name, ...consent };
+  const entered: Entered = { intent, ...typed };
   const step = field(formData, "step");
   // The step the form was showing; "Send a new code" asks for a code from
   // the code step.
@@ -152,10 +149,10 @@ export async function runCodeForm(
         );
       }
       // The box was ticked, but staff published a new version meanwhile:
-      // the account exists, and the settings page shows the new text.
-      const outcome =
+      // the account exists, and the consents page shows the new text.
+      const consent =
         "messagesConsent" in result ? result.messagesConsent : undefined;
-      if (outcome && outcome !== "given") consentNotRecorded = true;
+      consentNotRecorded = consent !== undefined && consent !== "given";
     } else {
       const result = await channel.request(actor, entered);
       return withText(

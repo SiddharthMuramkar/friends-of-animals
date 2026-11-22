@@ -24,7 +24,6 @@
 
 import { and, asc, eq, sql } from "drizzle-orm";
 
-import type { E164Phone } from "../../../lib/phone";
 import { currentConsent } from "../consent/domain/consent-state";
 import { subjectEvents } from "../consent/repository";
 import type { AppDb } from "../../db/app-db";
@@ -38,6 +37,7 @@ import {
   type MessageRouteRow,
   type MessageTemplateRow,
 } from "../../db/schema";
+import type { Ciphertext } from "../../crypto/field-cipher";
 import { readStoredPhone } from "../../identity/stored-phone";
 import { uuidv7 } from "../../ids";
 import type { Delivery, OutboxDeps } from "../../outbox";
@@ -56,7 +56,11 @@ type Recipient = {
   id: string;
   name: string;
   email: string | null;
-  phone: E164Phone | null;
+  /**
+   * The verified phone, still encrypted: it is decrypted only to send an
+   * SMS, so a worker without field keys still sends email and in-app.
+   */
+  storedPhone: Ciphertext | null;
 };
 
 type Message = {
@@ -148,11 +152,12 @@ async function recipientOf(
     .from(user)
     .where(eq(user.id, userId));
   if (!row) return null;
-  const phone =
-    row.phoneVerified && row.phoneCiphertext
-      ? readStoredPhone(deps, row.phoneCiphertext)
-      : null;
-  return { id: row.id, name: row.name, email: row.email, phone };
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    storedPhone: row.phoneVerified ? row.phoneCiphertext : null,
+  };
 }
 
 /** The user's channel choices, or the defaults while they made none. */
@@ -198,7 +203,7 @@ async function sendMessage(
     smsTemplateRegistered: Boolean(templates.sms?.dltTemplateId),
     contact: {
       email: recipient.email !== null,
-      verifiedPhone: recipient.phone !== null,
+      verifiedPhone: recipient.storedPhone !== null,
     },
   });
 
@@ -362,7 +367,7 @@ async function deliverByPort(
       });
     } else {
       await deps.sms.send({
-        to: message.recipient.phone!,
+        to: readStoredPhone(deps, message.recipient.storedPhone!),
         template: "message",
         dltTemplateId: content.dltTemplateId!,
         vars: message.values,

@@ -1,5 +1,6 @@
 // Notifications seed data (#69): each seeded member's inbox (one message
-// read, one unread) and channel choices. The templates and routes are not
+// read, one unread) and channel choices, and two template editors with the
+// seed authenticator for the journeys. The templates and routes are not
 // seed: a migration holds them (drizzle/*_69_notification_defaults.sql),
 // so production has them too. Loads under plain Node (the seed script):
 // relative imports only, no "server-only".
@@ -12,10 +13,13 @@ import {
   notificationPreference,
   user,
 } from "../db/schema";
+import { ensureVerifiedAccount } from "../identity/verified-account";
 import { renderTemplate } from "../modules/notifications/domain/template";
 import { DEFAULT_LOCALE } from "../modules/notifications/locale";
 import { normaliseEmailAddress } from "../ports/email";
-import { SEED_ACCOUNTS } from "./accounts";
+import { ensureGrant } from "./access";
+import { SEED_ACCOUNTS, SEED_TEMPLATE_EDITORS } from "./accounts";
+import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps } from "./types";
 
 const HOUR = 60 * 60 * 1000;
@@ -31,7 +35,8 @@ const PREFERENCES: Record<number, { email: boolean; sms: boolean }> = {
   1: { email: true, sms: false },
 };
 
-export async function seedNotifications({ db, clock }: SeedDeps) {
+export async function seedNotifications(deps: SeedDeps) {
+  const { db, clock } = deps;
   const now = clock.now();
   const [welcome] = await db
     .select({ subject: messageTemplate.subject, body: messageTemplate.body })
@@ -85,5 +90,14 @@ export async function seedNotifications({ db, clock }: SeedDeps) {
         .values({ userId: account.id, ...preferences, updatedAt: now })
         .onConflictDoNothing({ target: notificationPreference.userId });
     }
+  }
+
+  for (const account of Object.values(SEED_TEMPLATE_EDITORS)) {
+    const { id } = await ensureVerifiedAccount(deps, account);
+    await ensureGrant(deps, id, {
+      role: "content_manager",
+      scope: { type: "global" },
+    });
+    await ensureSeedAuthenticator(deps, id);
   }
 }

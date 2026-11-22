@@ -78,6 +78,19 @@ export function decideGive(
   return { kind: "record", action: "given", documentId: latest.id };
 }
 
+/**
+ * When the next event for a subject happens: now, or 1 ms after the
+ * subject's latest event if the clock reads no later than that (another
+ * server's clock running behind, or two servers in one millisecond). The
+ * use cases append under the subject's row lock, so this keeps the order
+ * of the log the order the events were made in, and the latest event the
+ * state.
+ */
+export function nextEventTime(state: ConsentState, now: Date): Date {
+  if (state.status === "never" || now > state.since) return now;
+  return new Date(state.since.getTime() + 1);
+}
+
 /** Withdrawing records an event only while consent is given. */
 export function decideWithdraw(state: ConsentState): ConsentDecision {
   if (state.status !== "given") return { kind: "unchanged" };

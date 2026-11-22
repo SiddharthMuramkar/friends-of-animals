@@ -2,12 +2,18 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
 import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
+import { SEED_TEMPLATE_EDITORS } from "../../src/server/seed/accounts";
 import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
-import { drainOutbox, freshEmail, readCode } from "./support/mailbox";
+import {
+  drainOutbox,
+  freshEmail,
+  readCode,
+  readEmail,
+} from "./support/mailbox";
 
 // #69: a member reads their in-app inbox, the header counts what is unread
 // in words, and they choose email or SMS; a content manager opens the
@@ -16,10 +22,8 @@ import { drainOutbox, freshEmail, readCode } from "./support/mailbox";
 // template pages are only viewed, so shared seed data stays as it is.
 // Staff pages need the second step (#60): the content manager enters the
 // seed authenticator's code (the preview-only SEED_TOTP_SECRET) on #60's
-// second-step page first.
-
-/** The seeded member who holds the content manager role (seed/access.ts). */
-const CONTENT_MANAGER = "member1@example.test";
+// second-step page first. Each project signs in its own seeded template
+// editor, so no other journey shares its one-use codes.
 
 async function enterCode(
   page: Page,
@@ -39,8 +43,10 @@ async function enterCode(
 /**
  * Enters the seed authenticator's code on #60's second-step page, which
  * then sends the browser to `next`. A code works once per authenticator,
- * and the other project may have just used this window's, so a refused
- * code is followed by the next window's, which one step of drift allows.
+ * and a run moments before may have used this window's, so a refused code
+ * is followed by the next window's, which one step of drift allows.
+ * A refusal is the form's alert in <main>: Next's route announcer, outside
+ * it, is an alert on every page.
  */
 async function enterSecondStep(page: Page, next: string) {
   const secret = base32Decode(SEED_TOTP_SECRET);
@@ -58,6 +64,7 @@ async function enterSecondStep(page: Page, next: string) {
           () => "waiting" as const
         ),
       page
+        .getByRole("main")
         .getByRole("alert")
         .waitFor()
         .then(
@@ -80,15 +87,45 @@ test("a new member reads their inbox, and the unread count drops", async ({
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await enterCode(page, request, email, "Create account");
   await drainOutbox(request);
+  // Another test's drain may hold this welcome a moment after ours returns.
+  // The dispatcher sends its email just before it writes the inbox item.
+  await readEmail(request, email, "Welcome to Friends of Animals");
+  const welcome = page.getByRole("heading", {
+    name: "Welcome to Friends of Animals",
+  });
+  await expect
+    .poll(
+      async () => {
+        await page.goto("/account/inbox");
+        // The list streams in after the page's heading.
+        await page.getByRole("heading", { name: "Messages" }).waitFor();
+        return welcome.isVisible();
+      },
+      { message: "the welcome message in the inbox" }
+    )
+    .toBe(true);
 
   await expectRendersAccessibly(page, "/account/inbox");
   await expectAccessibleInDark(page, "/account/inbox");
   const badge = page.getByRole("banner").getByRole("link", { name: /^Inbox/ });
   await expect(badge).toHaveAccessibleName("Inbox: 1 unread message");
   await expect(badge).toContainText("1 unread");
-  await expect(
-    page.getByRole("heading", { name: "Welcome to Friends of Animals" })
-  ).toBeVisible();
+  // The header still fits a 320 px screen with text at 200% (WCAG 1.4.10):
+  // the page never scrolls sideways.
+  const viewport = page.viewportSize();
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "200%";
+  });
+  await expect(badge).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth)
+  ).toBeLessThanOrEqual(320);
+  if (viewport) await page.setViewportSize(viewport);
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("font-size");
+  });
+  await expect(welcome).toBeVisible();
 
   await page
     .getByRole("button", {
@@ -112,12 +149,14 @@ test("a new member reads their inbox, and the unread count drops", async ({
 test("a content manager opens the message templates", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
+  const { email } =
+    testInfo.project.name === "mobile"
+      ? SEED_TEMPLATE_EDITORS.mobile
+      : SEED_TEMPLATE_EDITORS.desktop;
   await page.goto("/sign-in");
-  await page
-    .getByRole("textbox", { name: "Email address" })
-    .fill(CONTENT_MANAGER);
-  await enterCode(page, request, CONTENT_MANAGER, "Sign in");
+  await page.getByRole("textbox", { name: "Email address" }).fill(email);
+  await enterCode(page, request, email, "Sign in");
   await enterSecondStep(page, "/admin/templates");
 
   await expectRendersAccessibly(page, "/admin/templates");

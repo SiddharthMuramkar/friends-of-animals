@@ -14,6 +14,7 @@ import {
   listConsentDocumentVersions,
   previewConsentDocument,
   publishConsentDocument,
+  type PreviewConsentDocumentInput,
   type PublishConsentDocumentInput,
 } from "./documents";
 import type { ConsentPurpose, GivablePurpose } from "./domain/purposes";
@@ -26,10 +27,15 @@ export type {
   SignUpConsentOutcome,
   WithdrawConsentResult,
 } from "./consents";
+// Not a use case: it has no can() of its own. Only identity's
+// createAccount calls it, inside the transaction that makes the account,
+// after verifyEmailCode has authorized the visitor. Any other caller
+// must authorize first.
 export { recordSignUpConsent } from "./consents";
 export type { ConsentState } from "./domain/consent-state";
 export type {
   ConsentDocumentVersion,
+  PreviewConsentDocumentInput,
   PreviewConsentDocumentResult,
   PublishConsentDocumentInput,
   PublishConsentDocumentResult,
@@ -40,7 +46,7 @@ export type { SourceError, SourceErrorCode } from "./domain/document-source";
 export type { ConsentPurpose, GivablePurpose } from "./domain/purposes";
 
 export const consentUseCases = (ctx: UseCaseContext) => ({
-  previewConsentDocument: (input: { source: string }) =>
+  previewConsentDocument: (input: PreviewConsentDocumentInput) =>
     previewConsentDocument(ctx, input),
   publishConsentDocument: (input: PublishConsentDocumentInput) =>
     publishConsentDocument(ctx, input),

@@ -26,15 +26,21 @@ async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {
 }
 
 describe("seedPreview", () => {
-  it("creates a super admin and three members", async () => {
+  it("creates the preview accounts, two competition managers, dedicated consent publishers and template editors", async () => {
     const deps = await seedDeps();
     await seedPreview(deps);
 
     expect((await accounts(deps)).map((account) => account.email)).toEqual([
+      "competition-manager-2@example.test",
+      "competition-manager@example.test",
+      "consent-publisher-desktop@example.test",
+      "consent-publisher-mobile@example.test",
       "member1@example.test",
       "member2@example.test",
       "member3@example.test",
       "super-admin@example.test",
+      "template-editor-desktop@example.test",
+      "template-editor-mobile@example.test",
     ]);
   });
 

@@ -86,6 +86,8 @@ test("a new super admin adds a second factor, then changes a setting", async ({
   for (const label of [
     "Staff session length",
     "Sign-in codes by text message",
+    "Sign-in texts per hour",
+    "Sign-in texts per day",
     "80G registration held",
     "Foreign donations (FCRA)",
   ]) {

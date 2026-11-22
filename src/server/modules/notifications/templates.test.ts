@@ -153,6 +153,28 @@ describe("updateMessageTemplate", () => {
     ]);
   });
 
+  it("saves nothing for unchanged wording, and still names who last edited it", async () => {
+    const h = await createHarness();
+    const manager = await staff(h, "content_manager");
+    const edit = {
+      key: WELCOME,
+      channel: "email" as const,
+      subject: "Namaste from Friends of Animals",
+      body: "Dear {{recipient.name}},\n\nWelcome aboard.",
+    };
+    const saved = await h.as(manager).updateMessageTemplate(edit);
+    if (!saved.ok) throw new Error(`refused: ${saved.error}`);
+
+    const again = await h.as(manager).updateMessageTemplate(edit);
+
+    expect(again).toMatchObject({
+      ok: true,
+      template: { version: 2, updatedBy: saved.template.updatedBy },
+    });
+    expect(saved.template.updatedBy).not.toBeNull();
+    expect(await auditCount(h)).toBe(1);
+  });
+
   it("refuses an unknown placeholder as invalid_template and writes nothing", async () => {
     const h = await createHarness();
     const manager = await staff(h, "content_manager");

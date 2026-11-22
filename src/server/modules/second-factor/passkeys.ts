@@ -36,14 +36,21 @@ import {
 } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
+import { accountName } from "./account-name";
 import { guardedAttempt, type Locked } from "./attempts";
 import {
+  lockFactorSession,
   signedInUser,
   stampSession,
   type SignedInUser,
 } from "./session-factor";
 import { SECOND_FACTOR_SETTINGS } from "./settings";
-import { requireStepUpOnceEnrolled, type SecondFactorContext } from "./totp";
+import {
+  authorizeEnrolment,
+  dropPendingAuthenticators,
+  factorLabel,
+  type SecondFactorContext,
+} from "./enrolment";
 
 /**
  * EdDSA, ES256 and RS256 (COSE ids): what platform authenticators use.
@@ -60,9 +67,8 @@ function relyingParty(baseUrl: string) {
 const credentialResponse = <T>() =>
   z.custom<T>((value) => typeof value === "object" && value !== null);
 
-const label = z.string().trim().min(1).max(60);
 const finishRegistrationInput = z.object({
-  label,
+  label: factorLabel,
   response: credentialResponse<RegistrationResponseJSON>(),
 });
 const finishVerificationInput = z.object({
@@ -71,6 +77,7 @@ const finishVerificationInput = z.object({
 
 /** Keeps `challenge` as the one this session's ceremony must sign. */
 async function storeChallenge(
+  tx: AppDb,
   ctx: SecondFactorContext,
   actor: SignedInUser,
   purpose: WebauthnPurpose,
@@ -79,7 +86,7 @@ async function storeChallenge(
   const expiresAt = new Date(
     ctx.clock.now().getTime() + SECOND_FACTOR_SETTINGS.passkeyChallengeMs
   );
-  await ctx.db
+  await tx
     .insert(webauthnChallenge)
     .values({ sessionId: actor.sessionId, purpose, challenge, expiresAt })
     .onConflictDoUpdate({
@@ -126,10 +133,29 @@ function passkeysOf(db: AppDb, userId: string) {
     .orderBy(asc(secondFactor.id));
 }
 
-/** Transports as WebAuthn names them; unknown strings are dropped. */
+/** Transports as WebAuthn names them. */
 type Transport = NonNullable<
-  PublicKeyCredentialRequestOptionsJSON["allowCredentials"]
->[number]["transports"];
+  NonNullable<
+    PublicKeyCredentialRequestOptionsJSON["allowCredentials"]
+  >[number]["transports"]
+>[number];
+
+const TRANSPORTS: ReadonlySet<string> = new Set<Transport>([
+  "ble",
+  "cable",
+  "hybrid",
+  "internal",
+  "nfc",
+  "smart-card",
+  "usb",
+]);
+
+/** The stored transports WebAuthn names; unknown strings are dropped. */
+function knownTransports(stored: string[] | null): Transport[] {
+  return (stored ?? []).filter((each): each is Transport =>
+    TRANSPORTS.has(each)
+  );
+}
 
 function allowed(
   rows: { credentialId: string | null; transports: string[] | null }[]
@@ -139,7 +165,7 @@ function allowed(
       ? [
           {
             id: row.credentialId,
-            transports: (row.transports ?? []) as Transport,
+            transports: knownTransports(row.transports),
           },
         ]
       : []
@@ -157,31 +183,36 @@ export async function startPasskeyRegistration(
 ): Promise<StartPasskeyRegistrationResult> {
   await authorize(ctx, "second-factor.enrol");
   const actor = signedInUser(ctx.actor);
-  await requireStepUpOnceEnrolled(ctx, actor);
 
-  const [account] = await ctx.db
-    .select({ email: user.email, name: user.name })
-    .from(user)
-    .where(eq(user.id, actor.userId));
-  if (!account) throw new Error("The signed-in user has no account row");
-  const rp = relyingParty(ctx.auth.baseUrl);
-  const options = await generateRegistrationOptions({
-    rpName: SECOND_FACTOR_SETTINGS.issuer,
-    rpID: rp.id,
-    // An account made by phone has no address (#58): its name instead.
-    userName: account.email ?? account.name,
-    userDisplayName: account.name,
-    userID: Buffer.from(actor.userId.replaceAll("-", ""), "hex"),
-    attestationType: "none",
-    excludeCredentials: allowed(await passkeysOf(ctx.db, actor.userId)),
-    authenticatorSelection: {
-      residentKey: "preferred",
-      userVerification: "required",
-    },
-    supportedAlgorithmIDs: ALGORITHMS,
+  return ctx.db.transaction(async (tx) => {
+    await authorizeEnrolment(tx, ctx, actor);
+    const [account] = await tx
+      .select({
+        email: user.email,
+        phoneCiphertext: user.phoneCiphertext,
+        name: user.name,
+      })
+      .from(user)
+      .where(eq(user.id, actor.userId));
+    if (!account) throw new Error("The signed-in user has no account row");
+    const rp = relyingParty(ctx.auth.baseUrl);
+    const options = await generateRegistrationOptions({
+      rpName: SECOND_FACTOR_SETTINGS.issuer,
+      rpID: rp.id,
+      userName: accountName(ctx, account),
+      userDisplayName: account.name,
+      userID: Buffer.from(actor.userId.replaceAll("-", ""), "hex"),
+      attestationType: "none",
+      excludeCredentials: allowed(await passkeysOf(tx, actor.userId)),
+      authenticatorSelection: {
+        residentKey: "preferred",
+        userVerification: "required",
+      },
+      supportedAlgorithmIDs: ALGORITHMS,
+    });
+    await storeChallenge(tx, ctx, actor, "register", options.challenge);
+    return { ok: true, options } as const;
   });
-  await storeChallenge(ctx, actor, "register", options.challenge);
-  return { ok: true, options };
 }
 
 export type FinishPasskeyRegistrationResult =
@@ -194,7 +225,8 @@ export type FinishPasskeyRegistrationResult =
 
 /**
  * Checks the browser's new passkey against the challenge and keeps it as
- * a factor. This session has then passed its second factor.
+ * a factor. This session has then passed its second factor. If the user
+ * holds another factor by now, this needs step-up, however adding started.
  */
 export async function finishPasskeyRegistration(
   ctx: SecondFactorContext,
@@ -205,9 +237,10 @@ export async function finishPasskeyRegistration(
   const parsed = finishRegistrationInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const rp = relyingParty(ctx.auth.baseUrl);
-  const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
+    await authorizeEnrolment(tx, ctx, actor);
+    const now = ctx.clock.now();
     const challenge = await takeChallenge(tx, ctx, actor, "register");
     if (!challenge) return { ok: false, error: "challenge_expired" } as const;
 
@@ -247,6 +280,7 @@ export async function finishPasskeyRegistration(
     if (!inserted) {
       return { ok: false, error: "already_registered" } as const;
     }
+    await dropPendingAuthenticators(tx, actor.userId);
     await stampSession(tx, actor.sessionId, now, "passkey");
     await recordAudit(tx, ctx, {
       action: "second_factor.enrolled",
@@ -269,16 +303,21 @@ export async function startPasskeyVerification(
 ): Promise<StartPasskeyVerificationResult> {
   await authorize(ctx, "second-factor.verify");
   const actor = signedInUser(ctx.actor);
-  const passkeys = await passkeysOf(ctx.db, actor.userId);
-  if (passkeys.length === 0) return { ok: false, error: "not_enrolled" };
 
-  const options = await generateAuthenticationOptions({
-    rpID: relyingParty(ctx.auth.baseUrl).id,
-    allowCredentials: allowed(passkeys),
-    userVerification: "required",
+  return ctx.db.transaction(async (tx) => {
+    await lockFactorSession(tx, actor, ctx.clock);
+    const passkeys = await passkeysOf(tx, actor.userId);
+    if (passkeys.length === 0) {
+      return { ok: false, error: "not_enrolled" } as const;
+    }
+    const options = await generateAuthenticationOptions({
+      rpID: relyingParty(ctx.auth.baseUrl).id,
+      allowCredentials: allowed(passkeys),
+      userVerification: "required",
+    });
+    await storeChallenge(tx, ctx, actor, "verify", options.challenge);
+    return { ok: true, options } as const;
   });
-  await storeChallenge(ctx, actor, "verify", options.challenge);
-  return { ok: true, options };
 }
 
 export type FinishPasskeyVerificationResult =
@@ -304,30 +343,32 @@ export async function finishPasskeyVerification(
   const rp = relyingParty(ctx.auth.baseUrl);
 
   return ctx.db.transaction(async (tx) => {
+    await lockFactorSession(tx, actor, ctx.clock);
     const challenge = await takeChallenge(tx, ctx, actor, "verify");
     if (!challenge) return { ok: false, error: "challenge_expired" } as const;
+    // The factor's row before the lockout row (see guardedAttempt).
+    const [factor] = await tx
+      .select({
+        id: secondFactor.id,
+        publicKey: secondFactor.publicKey,
+        signCount: secondFactor.signCount,
+        transports: secondFactor.transports,
+      })
+      .from(secondFactor)
+      .where(
+        and(
+          eq(secondFactor.userId, actor.userId),
+          eq(secondFactor.kind, "passkey"),
+          eq(secondFactor.credentialId, String(response.id))
+        )
+      )
+      .for("update");
 
     return guardedAttempt<"not_verified">(
       tx,
       { ...ctx, actor },
       "passkey",
       async () => {
-        const [factor] = await tx
-          .select({
-            id: secondFactor.id,
-            publicKey: secondFactor.publicKey,
-            signCount: secondFactor.signCount,
-            transports: secondFactor.transports,
-          })
-          .from(secondFactor)
-          .where(
-            and(
-              eq(secondFactor.userId, actor.userId),
-              eq(secondFactor.kind, "passkey"),
-              eq(secondFactor.credentialId, String(response.id))
-            )
-          )
-          .for("update");
         if (!factor?.publicKey) {
           return { ok: false, error: "not_verified" } as const;
         }
@@ -344,7 +385,7 @@ export async function finishPasskeyVerification(
                 Buffer.from(factor.publicKey, "base64url")
               ),
               counter: factor.signCount ?? 0,
-              transports: (factor.transports ?? []) as Transport,
+              transports: knownTransports(factor.transports),
             },
             requireUserVerification: true,
           });
