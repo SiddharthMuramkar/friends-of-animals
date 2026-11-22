@@ -14,6 +14,7 @@ import { withDatabase } from "../server/db/database-url";
 import { SCHEDULES, type OutboxDeps } from "../server/outbox";
 import type { Clock } from "../server/ports/clock";
 import { emailSenderFor } from "../server/ports/email-sender-for";
+import type { ErrorReporter } from "../server/ports/errors";
 import type { MalwareScanner } from "../server/ports/malware-scanner";
 import type { ObjectStorage } from "../server/ports/storage";
 import type { WorkerConfig } from "./config";
@@ -48,6 +49,8 @@ export type WorkerIo = {
   beat: (at: Date) => Promise<void>;
   /** A tenant's tick failed: Sentry (#66, ./errors.ts). */
   onTenantError: (error: unknown, where: { tenant: string }) => void;
+  /** Where a scheduled run reports its failures: Sentry (./errors.ts). */
+  errors: ErrorReporter;
   /** Where the malware scan reads uploads (#63): R2, or storage that refuses. */
   storage: ObjectStorage;
   /** What the malware scan asks (#63): clamd, or a scanner that passes nothing. */
@@ -87,7 +90,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     const deps = depsFor(opened.db);
     const boss = await io.startBoss(single.databaseUrl);
     cleanups.unshift(() => boss.stop());
-    await registerSchedules(boss, SCHEDULES, deps);
+    await registerSchedules(boss, SCHEDULES, { ...deps, errors: io.errors });
     return createSupervisor({
       clock: io.clock,
       discoveryIntervalMs: 0,
