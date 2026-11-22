@@ -648,12 +648,10 @@ describe("a worker delivering a coordinator invitation (#74)", () => {
         FIELD_HMAC_KEY: KEYS.fieldHmacKey,
       }),
     });
-    const result = await app
-      .as(actor)
-      .inviteCoordinator({
-        institutionId: institution.id,
-        identifier: TEACHER,
-      });
+    const result = await app.as(actor).inviteCoordinator({
+      institutionId: institution.id,
+      identifier: TEACHER,
+    });
     expect(result.ok).toBe(true);
   }
 

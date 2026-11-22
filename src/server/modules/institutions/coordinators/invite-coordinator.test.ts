@@ -85,7 +85,7 @@ describe("inviteCoordinator", () => {
 
   it("invites by phone with an SMS when SMS is on", async () => {
     const h = await createHarness();
-    h.settings.set("sms.enabled", true);
+    await h.settings.set("sms.enabled", true);
     const { institution, admin } = await seedInstitution(h, {
       name: "Hill View School",
     });

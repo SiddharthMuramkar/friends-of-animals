@@ -119,7 +119,7 @@ describe("acceptInvitation", () => {
 
   it("matches a phone invitation by the account's verified phone", async () => {
     const h = await createHarness();
-    h.settings.set("sms.enabled", true);
+    await h.settings.set("sms.enabled", true);
     const { institution: x, token } = await invited(h, "098765 43210");
     const teacher = await h.seed.member({
       email: "meena@example.test",

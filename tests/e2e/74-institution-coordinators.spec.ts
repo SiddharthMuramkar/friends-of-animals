@@ -1,4 +1,9 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import { drainOutbox, freshEmail, readEmail } from "./support/mailbox";

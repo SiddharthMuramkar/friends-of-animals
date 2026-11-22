@@ -150,7 +150,10 @@ async function MyInstitution({ searchParams }: { searchParams: SearchParams }) {
           </ButtonLink>
         ) : null}
         {institution.status === "verified" ? (
-          <ButtonLink href={APP_ROUTES.institutionCoordinators} className="mt-5">
+          <ButtonLink
+            href={APP_ROUTES.institutionCoordinators}
+            className="mt-5"
+          >
             {coordinators("entry")}
           </ButtonLink>
         ) : null}

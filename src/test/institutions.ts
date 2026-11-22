@@ -34,7 +34,9 @@ export async function seedInstitution(
         decision: "suspend",
         reason,
       });
-      if (!suspended.ok) throw new Error(`Could not suspend: ${suspended.error}`);
+      if (!suspended.ok) {
+        throw new Error(`Could not suspend: ${suspended.error}`);
+      }
     }
   }
   if (status === "pending_verification" || status === "rejected") {
