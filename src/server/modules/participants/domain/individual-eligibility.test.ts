@@ -8,8 +8,17 @@ import {
 // 10:00 IST on 15 January 2027.
 const AT = new Date("2027-01-15T04:30:00.000Z");
 
+const OPEN = { registrationOpen: true, acceptsIndividuals: true, feeSet: true };
+
+const TEENS = { id: "teens", label: "13–17", minAge: 13, maxAge: 17 };
+const ADULTS = { id: "adults", label: "Adults", minAge: 18, maxAge: 99 };
+
 const welcome: IndividualRegistrationRequest = {
-  competition: { registrationOpen: true, acceptsIndividuals: true },
+  competition: {
+    ...OPEN,
+    ageCutoffDate: "2027-06-01",
+    ageGroups: [TEENS, ADULTS],
+  },
   dateOfBirth: "1995-08-20",
   alreadyRegistered: false,
   consents: {
@@ -27,6 +36,15 @@ describe("decideIndividualRegistration", () => {
     expect(decide({})).toEqual({
       ok: true,
       dateOfBirth: { year: 1995, month: 8, day: 20 },
+      ageGroup: ADULTS,
+    });
+  });
+
+  it("places them by their age on the competition's cut-off date", () => {
+    // 18 at registration, still 18 on the cut-off: Adults.
+    expect(decide({ dateOfBirth: "2008-12-01" })).toMatchObject({
+      ok: true,
+      ageGroup: ADULTS,
     });
   });
 
@@ -48,13 +66,23 @@ describe("decideIndividualRegistration", () => {
   it.each([
     [
       "registration is not open",
-      { competition: { registrationOpen: false, acceptsIndividuals: true } },
+      { competition: { ...welcome.competition, registrationOpen: false } },
       "registration_closed",
     ],
     [
       "the competition takes institutions only",
-      { competition: { registrationOpen: true, acceptsIndividuals: false } },
+      { competition: { ...welcome.competition, acceptsIndividuals: false } },
       "institutions_only",
+    ],
+    [
+      "the individual fee isn't set yet",
+      { competition: { ...welcome.competition, feeSet: false } },
+      "fee_not_set",
+    ],
+    [
+      "no age group takes an adult of their age",
+      { competition: { ...welcome.competition, ageGroups: [TEENS] } },
+      "outside_age_groups",
     ],
     [
       "the date of birth does not exist",
@@ -90,7 +118,12 @@ describe("decideIndividualRegistration", () => {
   it("gives the competition's reason before anything about the person", () => {
     expect(
       decide({
-        competition: { registrationOpen: false, acceptsIndividuals: false },
+        competition: {
+          ...welcome.competition,
+          registrationOpen: false,
+          acceptsIndividuals: false,
+          feeSet: false,
+        },
         dateOfBirth: "2012-03-03",
         alreadyRegistered: true,
         consents: { required: ["terms-v2"], given: [] },
@@ -98,15 +131,36 @@ describe("decideIndividualRegistration", () => {
     ).toEqual({ ok: false, reason: "registration_closed" });
     expect(
       decide({
-        competition: { registrationOpen: true, acceptsIndividuals: false },
+        competition: {
+          ...welcome.competition,
+          acceptsIndividuals: false,
+          feeSet: false,
+        },
         dateOfBirth: "2012-03-03",
       })
     ).toEqual({ ok: false, reason: "institutions_only" });
+    expect(
+      decide({
+        competition: { ...welcome.competition, feeSet: false },
+        dateOfBirth: "2012-03-03",
+      })
+    ).toEqual({ ok: false, reason: "fee_not_set" });
+  });
+
+  it("tells an adult outside the age groups before a duplicate or consents", () => {
+    expect(
+      decide({
+        competition: { ...welcome.competition, ageGroups: [TEENS] },
+        alreadyRegistered: true,
+        consents: { required: ["terms-v2"], given: [] },
+      })
+    ).toEqual({ ok: false, reason: "outside_age_groups" });
   });
 
   it("tells a minor to come back before asking for anything they could fix", () => {
     expect(
       decide({
+        competition: { ...welcome.competition, ageGroups: [TEENS] },
         dateOfBirth: "2012-03-03",
         alreadyRegistered: true,
         consents: { required: ["terms-v2"], given: [] },

@@ -14,8 +14,13 @@ import { SEED_PAYMENTS } from "./payments";
 import { SEED_REGISTRATIONS, SEED_STUDENTS } from "./registration";
 import { SEED_SCOPES } from "./scopes";
 
+/** The institution's batches; an adult's own is the participants seed's (#78). */
 async function batches(h: Awaited<ReturnType<typeof createHarness>>) {
-  return h.db.select().from(paymentBatch).orderBy(asc(paymentBatch.id));
+  return h.db
+    .select()
+    .from(paymentBatch)
+    .where(eq(paymentBatch.route, "institution"))
+    .orderBy(asc(paymentBatch.id));
 }
 
 describe("the payments seed", () => {

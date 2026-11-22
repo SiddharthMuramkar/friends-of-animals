@@ -8,6 +8,7 @@ import {
   institutionRegistrationPath,
   isNonProductionPath,
   newStudentPath,
+  payMyRegistrationPath,
   isSignedInPage,
   isSignedInPath,
   judgingGuidePath,
@@ -45,6 +46,20 @@ describe("isSignedInPage", () => {
     expect(judgingGuidePath("NEIGH27")).toBe(
       "/institution/competitions/NEIGH27/judging-guide"
     );
+  });
+
+  it("knows the pay page of an adult's own registration, whatever its id (#78)", () => {
+    const path = payMyRegistrationPath("01938a00-0000-7000-8000-000000009001");
+    expect(path).toBe(
+      "/participant/registrations/01938a00-0000-7000-8000-000000009001/pay"
+    );
+    expect(isSignedInPage(path)).toBe(true);
+    expect(isSignedInPath(path)).toBe(true);
+    expect(
+      isSignedInPage(
+        "/participant/registrations/01938a00-0000-7000-8000-000000009001"
+      )
+    ).toBe(false);
   });
 
   it("knows a competition's fees, prizes and terms page, whatever its id", () => {

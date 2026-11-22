@@ -6,9 +6,16 @@
 // numbered tax receipt: FY-sequential receipt numbers belong to donations
 // (#106).
 //
+// An adult paying for their own registration (#78) gets a receipt of their
+// own (`individual_payer`, template payment.receipt_individual), with the
+// registration number and their FOA Participant ID in place of the
+// institution's details.
+//
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+
+import type { ParticipationRoute } from "../competitions/domain/fees";
 import { createTranslator } from "next-intl";
 
 import registrationMessages from "../../../../messages/en-IN/registration.json";
@@ -17,8 +24,10 @@ import {
   competition,
   institution,
   institutionRegistration,
+  participantProfile,
   paymentBatch,
   paymentBatchItem,
+  registration,
 } from "../../db/schema";
 import { formatPaise } from "./domain/money-format";
 
@@ -30,6 +39,9 @@ export const RECEIPT_VARIABLES = [
   "payment.amount",
   "payment.students",
   "payment.reference",
+  // An adult's own payment (#78).
+  "registration.number",
+  "participant.code",
 ] as const;
 
 const t = createTranslator({
@@ -44,6 +56,7 @@ export async function receiptValues(
 ): Promise<Record<string, string>> {
   const [row] = await db
     .select({
+      route: paymentBatch.route,
       amountMinor: paymentBatch.amountMinor,
       gatewayPaymentId: paymentBatch.gatewayPaymentId,
       competitionName: competition.name,
@@ -52,28 +65,58 @@ export async function receiptValues(
     })
     .from(paymentBatch)
     .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
-    .innerJoin(institution, eq(institution.id, paymentBatch.institutionId))
-    .innerJoin(
+    .leftJoin(institution, eq(institution.id, paymentBatch.institutionId))
+    .leftJoin(
       institutionRegistration,
       eq(institutionRegistration.id, paymentBatch.institutionRegistrationId)
     )
     .where(eq(paymentBatch.id, batchId));
   if (!row) return {};
-  const [held] = await db
-    .select({ students: count() })
+  const held = await db
+    .select({
+      registrationNumber: registration.registrationNumber,
+      participantCode: participantProfile.participantCode,
+    })
     .from(paymentBatchItem)
+    .innerJoin(
+      registration,
+      eq(registration.id, paymentBatchItem.registrationId)
+    )
+    .innerJoin(
+      participantProfile,
+      eq(participantProfile.id, registration.participantProfileId)
+    )
     .where(
       and(
         eq(paymentBatchItem.batchId, batchId),
         isNull(paymentBatchItem.releasedAt)
       )
     );
+  const own = row.route === "individual" ? held[0] : undefined;
   return {
     "competition.name": row.competitionName,
-    "institution.name": row.institutionName,
-    "registration.reference": row.reference,
+    "institution.name": row.institutionName ?? "",
+    "registration.reference": row.reference ?? "",
     "payment.amount": formatPaise(row.amountMinor),
-    "payment.students": t("studentCount", { count: held?.students ?? 0 }),
+    "payment.students": t("studentCount", { count: held.length }),
     "payment.reference": row.gatewayPaymentId ?? "",
+    "registration.number": own?.registrationNumber ?? "",
+    "participant.code": own?.participantCode ?? "",
   };
+}
+
+/**
+ * Who paid batch `batchId`, if it was paid on `route`: the institution's
+ * receipt and an adult's own go to the payer by different routes.
+ */
+export async function payerOn(
+  db: AppDb,
+  batchId: string,
+  route: ParticipationRoute
+): Promise<string[]> {
+  const [row] = await db
+    .select({ payerUserId: paymentBatch.payerUserId })
+    .from(paymentBatch)
+    .where(and(eq(paymentBatch.id, batchId), eq(paymentBatch.route, route)));
+  return row?.payerUserId ? [row.payerUserId] : [];
 }

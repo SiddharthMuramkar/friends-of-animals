@@ -32,6 +32,9 @@ export type {
 // after verifyEmailCode has authorized the visitor. Any other caller
 // must authorize first.
 export { recordSignUpConsent } from "./consents";
+// Not a use case either: registerAsIndividual (#78) calls it inside the
+// transaction that saves the registration, after authorizing the member.
+export { recordRegistrationConsents } from "./consents";
 export type { ConsentState } from "./domain/consent-state";
 export type {
   ConsentDocumentVersion,

@@ -35,6 +35,8 @@ export const APP_ROUTES = {
   adminBlog: "/admin/blog",
   adminNewBlogPost: "/admin/blog/new",
   institutionCompetitions: "/institution/competitions",
+  /** The participant dashboard (#78): an adult's own registrations. */
+  participant: "/participant",
 } as const;
 
 /** A competition's judging guide, for the institutions taking part (#88). */
@@ -82,6 +84,11 @@ export function newStudentPath(
   return `/institution/registrations/${encodeURIComponent(reference)}/students/new?${query.toString()}`;
 }
 
+/** Where an adult pays for their own registration (#78). */
+export function payMyRegistrationPath(registrationId: string): string {
+  return `${APP_ROUTES.participant}/registrations/${encodeURIComponent(registrationId)}/pay`;
+}
+
 /**
  * Pages behind sign-in whose path has a dynamic segment, written as in the
  * app directory: each `[name]` stands for one path segment.
@@ -100,6 +107,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/students/new",
+  "/participant/registrations/[id]/pay",
 ] as const;
 
 /**
@@ -131,6 +139,7 @@ export const SIGNED_IN_PREFIXES = [
   "/dashboard",
   "/institution",
   "/institutions/register",
+  "/participant",
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

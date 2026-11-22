@@ -109,7 +109,9 @@ async function IndividualCompetitionButton({
   labels: Labels;
 }) {
   const { competition } = await searchParams;
-  return <IndividualButton link={individualLink(competition)} labels={labels} />;
+  return (
+    <IndividualButton link={individualLink(competition)} labels={labels} />
+  );
 }
 
 function IndividualButton({
