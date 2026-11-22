@@ -50,6 +50,8 @@ import {
 
 export type PostSourceErrorCode =
   | "empty_body"
+  | "body_too_long"
+  | "line_too_long"
   | "invalid_heading"
   | "unclosed_strong"
   | "unclosed_em"
@@ -80,21 +82,63 @@ export type ParsedPostSource =
   | { ok: true; body: PostBody }
   | { ok: false; errors: PostSourceError[] };
 
-/** The longest source and line it reads, in UTF-16 code units. */
+/**
+ * The longest source and line it reads, in UTF-16 code units: twenty and
+ * ten times the longest of the published stories. A Server Action reads
+ * whatever it is sent, so a longer one is refused before it is read.
+ */
 export const POST_SOURCE_LIMITS = { chars: 100_000, lineChars: 5_000 };
 
 const POST_IMAGE_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-const HEADING = /^(#{1,6})\s+(.*)$/;
-const BULLET = /^-\s+(.*)$/;
-const NUMBERED = /^\d+\.\s+(.*)$/;
-const DIRECTIVE = /^@([a-z-]*)(?:\s+(.*))?$/;
-const FOOTNOTE_LINE = /^\[\^([^\]]*)\]:(.*)$/;
-const FOOTNOTE_DEF = /^\s+(.*?)\s+<([^<>\s]+)>$/;
-const CALLOUT_HEAD = /^\[!([a-z]*)\](?:\s+(.*))?$/;
-const ATTRIBUTION = /^(?:—|--)\s+(.*?)\s*\[\^(f\d+)\]$/;
+// Every pattern reads a line in one pass, whatever it holds. With the `s`
+// flag a final `(.*)$` takes the rest of the line in one step, even past a
+// lone carriage return, so `\s+` before it never has to give characters
+// back (one-line fields collapse that whitespace when sanitised). A footnote
+// definition and an attribution have text between two runs of spaces,
+// which no pattern can split without backtracking, so code splits them
+// (footnoteDefinition, attributionOf).
+const HEADING = /^(#{1,6})\s+(.*)$/s;
+const BULLET = /^-\s+(.*)$/s;
+const NUMBERED = /^\d+\.\s+(.*)$/s;
+const DIRECTIVE = /^@([a-z-]*)(?:\s+(.*))?$/s;
+const FOOTNOTE_LINE = /^\[\^([^\]]*)\]:(.*)$/s;
+const FOOTNOTE_URL = /^<([^<>\s]+)>$/;
+const CALLOUT_HEAD = /^\[!([a-z]*)\](?:\s+(.*))?$/s;
+const ATTRIBUTION_MARK = /^\[\^(f\d+)\]$/;
 const FOOTNOTE_REF = /^\[\^(f\d+)\]/;
+const SPACE = /\s/;
+
+/**
+ * ` <text> <url>` after a footnote's `[^f1]:`: the text is everything
+ * before the last ` <`, trimmed. An address holds no `<`, so the last one
+ * opens it.
+ */
+function footnoteDefinition(
+  rest: string
+): { text: string; url: string } | null {
+  const open = rest.lastIndexOf("<");
+  if (open < 1 || !SPACE.test(rest[0]!) || !SPACE.test(rest[open - 1]!)) {
+    return null;
+  }
+  const url = FOOTNOTE_URL.exec(rest.slice(open));
+  return url ? { text: rest.slice(0, open).trim(), url: url[1]! } : null;
+}
+
+/**
+ * A source quote's last line, `— who [^f1]` (or `--`): who said it, and
+ * the source mark that ends the line. A mark holds no `[^`, so the last
+ * one starts it.
+ */
+function attributionOf(line: string): { who: string; fn: string } | null {
+  const dash = line.startsWith("—") ? 1 : line.startsWith("--") ? 2 : 0;
+  if (dash === 0 || !SPACE.test(line[dash] ?? "")) return null;
+  const start = line.lastIndexOf("[^");
+  if (start < dash) return null;
+  const mark = ATTRIBUTION_MARK.exec(line.slice(start));
+  return mark ? { who: line.slice(dash, start).trim(), fn: mark[1]! } : null;
+}
 
 type Failure = { code: PostSourceErrorCode };
 
@@ -257,18 +301,18 @@ class Parser {
       this.closeCallout(line, head, lines.slice(1));
       return;
     }
-    const attribution = ATTRIBUTION.exec(lines.at(-1)!);
+    const attribution = attributionOf(lines.at(-1)!);
     const words = lines.slice(0, -1);
     if (!attribution || words.length === 0 || words.some((w) => w === "")) {
       this.fail(line, "invalid_source_quote");
       return;
     }
-    const fn = attribution[2]!;
+    const { who, fn } = attribution;
     this.cites.push({ id: fn, line: line + lines.length - 1 });
     this.blocks.push({
       type: "sourceQuote",
       text: words.map((w, k) => this.plain(line + k, w)).join(" "),
-      attribution: this.plain(line + lines.length - 1, attribution[1]!),
+      attribution: this.plain(line + lines.length - 1, who),
       fn,
     });
   }
@@ -329,9 +373,9 @@ class Parser {
   }
 
   private footnote(line: number, id: string, rest: string) {
-    const def = FOOTNOTE_DEF.exec(rest);
-    const url = def ? sourceUrl(def[2]) : null;
-    const text = def ? this.plain(line, def[1]!) : "";
+    const def = footnoteDefinition(rest);
+    const url = def ? sourceUrl(def.url) : null;
+    const text = def ? this.plain(line, def.text) : "";
     if (!FOOTNOTE_ID.test(id) || !url || !text) {
       this.fail(line, "invalid_footnote");
     } else if (this.footnotes.some((note) => note.id === id)) {
@@ -409,8 +453,17 @@ class Parser {
 
 /** Parses an editor's source into a safe body, or every error with its line. */
 export function parsePostSource(source: string): ParsedPostSource {
+  if (source.length > POST_SOURCE_LIMITS.chars) {
+    return { ok: false, errors: [{ line: null, code: "body_too_long" }] };
+  }
   const parser = new Parser();
-  source.split(/\r?\n/).forEach((raw, index) => parser.read(raw, index + 1));
+  source.split(/\r?\n/).forEach((raw, index) => {
+    if (raw.length > POST_SOURCE_LIMITS.lineChars) {
+      parser.fail(index + 1, "line_too_long");
+    } else {
+      parser.read(raw, index + 1);
+    }
+  });
   parser.close();
   parser.checkSources();
   if (parser.blocks.length === 0 && parser.errors.length === 0) {
