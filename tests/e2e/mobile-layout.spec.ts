@@ -70,6 +70,13 @@ test("public content reflows on a compact phone with enlarged text", async ({
 });
 
 /**
+ * Ends the failure message of each check that reads React's streaming
+ * markers, which a React upgrade can change without breaking the page.
+ */
+const READS_REACT_MARKERS =
+  '(this check reads React\'s streaming markers: <template id="B:n">, $RC("B:n"), <div hidden id="S:n"> and their timed reveal; after a React upgrade, check the HTML still has them)';
+
+/**
  * The home page's HTML, as a visitor's browser gets it, after checking that
  * the response fills every Suspense hole its static shell leaves
  * (`<template id="B:n">`, filled by `$RC("B:n", …)`). A shell the request
@@ -85,7 +92,7 @@ async function homeHtml(page: Page): Promise<string> {
   );
   expect(
     holes.filter((id) => !filled.has(id)),
-    "holes left open"
+    `Suspense holes left open ${READS_REACT_MARKERS}`
   ).toEqual([]);
   return html;
 }
@@ -150,10 +157,16 @@ test("the homepage competition action fits on a compact phone", async ({
     await page.goto("/", { waitUntil: "domcontentloaded" });
     // The header's parts are streamed, so some wait to be revealed: the
     // clock really is holding them back.
-    expect(await streamed.count()).toBeGreaterThan(0);
+    expect(
+      await streamed.count(),
+      `no streamed part is held back ${READS_REACT_MARKERS}`
+    ).toBeGreaterThan(0);
     const painted = await action.elementHandle();
     await page.clock.runFor(1_000);
-    await expect(streamed).toHaveCount(0);
+    await expect(
+      streamed,
+      `streamed parts are still held back ${READS_REACT_MARKERS}`
+    ).toHaveCount(0);
     // A visitor tapping the action as the page settles must hit the same
     // link, still full size: never one torn out for a copy streamed later.
     expect(
