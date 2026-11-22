@@ -73,12 +73,14 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
             order, before the skip link and header (GOV.UK "Exit this page").
             CSS order puts it back under the header; body is its sticky
             containing block, so it stays on screen over the footer too.
-            Its own wrapper keeps that (display: contents, so the bar is
-            still body's flex item) and fences the slot in: a navigation
-            before the slot has hydrated makes React 19.3 hide its old
-            <Activity> by walking the DOM siblings after it, and that walk
-            doesn't stop at an Activity's end marker. Unwrapped, a quick
-            first click hid the header, main and footer for good. */}
+            The slot gets an element of its own because Next keeps the
+            slot's last pages in hidden <Activity> boundaries, and a
+            navigation before React has hydrated one hides it with a walk
+            that misses the boundary's end and hides every later sibling:
+            the header, <main> and the footer stayed blank (React's fix,
+            react/react#37814, is newer than Next 16.4.6's copy). Here the
+            walk ends with the slot. `contents` keeps body as the bar's flex
+            container. */}
         <div className="contents">{exit}</div>
         {/* The skip link is the header's first child (site-header.tsx). */}
         <SiteHeader />
