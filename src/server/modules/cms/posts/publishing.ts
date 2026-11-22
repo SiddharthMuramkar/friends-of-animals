@@ -55,7 +55,8 @@ type NotFound = { ok: false; error: "not_found" };
 type InvalidTransition = { ok: false; error: "invalid_transition" };
 
 export type SchedulePostResult =
-  | { ok: true; publishAt: Date }
+  /** `tags`: the public pages to refresh, if the post was already due. */
+  | { ok: true; publishAt: Date; tags: string[] }
   | NotFound
   | InvalidTransition
   | { ok: false; error: "not_in_future" | "invalid_instant" }
@@ -182,6 +183,9 @@ export async function schedulePost(
     }
     const refused = await goingLiveRefusal(tx, post.id, post);
     if (refused) return refused;
+    // A post already due is public before its job runs (publicPostFilter);
+    // a later instant takes it off the public site until then.
+    const wasPublic = isPostPublic(post, ctx.clock.now());
     await move(
       tx,
       ctx,
@@ -205,7 +209,8 @@ export async function schedulePost(
       },
       { availableAt: publishAt }
     );
-    return { ok: true, publishAt };
+    const tags: string[] = wasPublic ? postTags(post.slug) : [];
+    return { ok: true, publishAt, tags };
   });
 }
 
