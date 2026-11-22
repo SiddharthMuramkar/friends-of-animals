@@ -8,7 +8,7 @@
 // newest one works. Someone who already coordinates there, or the
 // authorised person themselves, can't be invited.
 
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../access/can";
@@ -35,6 +35,8 @@ import {
   storedInvitee,
   type Invitee,
 } from "./invitee";
+import { withdrawPendingInvitations } from "./pending-invitations";
+import { institutionResource } from "./policy";
 
 export type InviteCoordinatorInput = {
   institutionId: string;
@@ -58,11 +60,6 @@ const inviteInput = z.object({
   institutionId: z.uuid(),
   identifier: z.string().max(320),
 });
-
-/** The institution as a policy resource: it sits in its own scope. */
-export function institutionResource(institutionId: string) {
-  return { scopes: [{ type: "institution" as const, id: institutionId }] };
-}
 
 /** The account the invitee would accept with, if one exists already. */
 async function existingAccount(
@@ -151,31 +148,12 @@ export async function inviteCoordinator(
     }
 
     const stored = storedInvitee(ctx, invitee);
-    const superseded = await tx
-      .update(institutionInvitation)
-      .set({
-        status: "revoked",
-        revokedAt: now,
-        revokedByUserId: inviterId,
-        tokenCiphertext: null,
-      })
-      .where(
-        and(
-          eq(institutionInvitation.institutionId, institutionId),
-          eq(institutionInvitation.identifierHash, stored.identifierHash),
-          eq(institutionInvitation.status, "pending")
-        )
-      )
-      .returning({ id: institutionInvitation.id });
-    for (const { id } of superseded) {
-      await recordAudit(tx, ctx, {
-        action: "institution.invitation_revoked",
-        entity: { type: "institution", id: institutionId },
-        before: { invitationId: id, status: "pending" },
-        after: { invitationId: id, status: "revoked", reason: "superseded" },
-        actorRole,
-      });
-    }
+    await withdrawPendingInvitations(tx, ctx, {
+      institutionId,
+      identifierHashes: [stored.identifierHash],
+      reason: "superseded",
+      actorRole,
+    });
 
     const { token, tokenHash } = createLinkToken();
     const invitationId = uuidv7(now);

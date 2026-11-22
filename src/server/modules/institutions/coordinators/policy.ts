@@ -31,3 +31,11 @@ export const COORDINATORS_POLICY = {
   // phone is the one invited.
   "institution.invitation.accept": signedIn,
 } satisfies Policy<string>;
+
+/**
+ * An institution as the resource of these rules: it sits in its own scope,
+ * where its authorised person and its coordinators hold their roles.
+ */
+export function institutionResource(institutionId: string) {
+  return { scopes: [{ type: "institution" as const, id: institutionId }] };
+}

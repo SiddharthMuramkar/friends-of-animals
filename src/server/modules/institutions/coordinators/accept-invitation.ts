@@ -15,14 +15,12 @@ import { authorize } from "../../../access/can";
 import { sortGrants, type Grant } from "../../../access/domain/roles";
 import { grantsOf } from "../../../access/grants";
 import { recordAudit } from "../../../audit/record";
-import type { AppDb } from "../../../db/app-db";
 import {
   institution,
   institutionInvitation,
   user,
   userRole,
 } from "../../../db/schema";
-import { readStoredPhone } from "../../../identity/stored-phone";
 import { uuidv7 } from "../../../ids";
 import {
   hashLinkToken,
@@ -36,7 +34,11 @@ import {
   type InvitationStatus,
 } from "../domain/invitation";
 import { maskIdentifier, type InviteeChannel } from "../domain/mask-identifier";
-import { inviteeHash, readInvitee } from "./invitee";
+import { readInvitee } from "./invitee";
+import {
+  verifiedInviteeHashes,
+  withdrawPendingInvitations,
+} from "./pending-invitations";
 
 export type InvitationView = {
   institutionName: string;
@@ -77,44 +79,6 @@ function tokenHashOf(input: { token?: unknown }): string | null {
     : null;
 }
 
-/**
- * Whether `userId`'s verified email or phone has this blind index. Locks
- * the user's row when `lock` is set, as role changes do (#59), so a
- * concurrent change to their roles queues behind this one.
- */
-async function isInvitee(
-  db: AppDb,
-  ctx: Pick<UseCaseContext, "cipher" | "blindIndex">,
-  userId: string,
-  invitation: { channel: InviteeChannel; identifierHash: string },
-  lock = false
-): Promise<boolean> {
-  const query = db
-    .select({
-      email: user.email,
-      emailVerified: user.emailVerified,
-      phoneCiphertext: user.phoneCiphertext,
-      phoneVerified: user.phoneVerified,
-    })
-    .from(user)
-    .where(eq(user.id, userId));
-  const [account] = await (lock ? query.for("no key update") : query);
-  if (!account) return false;
-  if (invitation.channel === "email") {
-    return (
-      account.emailVerified &&
-      account.email !== null &&
-      inviteeHash(ctx, account.email) === invitation.identifierHash
-    );
-  }
-  return (
-    account.phoneVerified &&
-    account.phoneCiphertext !== null &&
-    inviteeHash(ctx, readStoredPhone(ctx, account.phoneCiphertext)) ===
-      invitation.identifierHash
-  );
-}
-
 export async function viewInvitation(
   ctx: UseCaseContext,
   input: { token: string }
@@ -151,7 +115,9 @@ export async function viewInvitation(
       expiresAt: row.expiresAt,
       forYou:
         ctx.actor.kind === "user"
-          ? await isInvitee(ctx.db, ctx, ctx.actor.userId, row)
+          ? (
+              await verifiedInviteeHashes(ctx.db, ctx, ctx.actor.userId)
+            ).includes(row.identifierHash)
           : null,
     },
   };
@@ -169,6 +135,15 @@ export async function acceptInvitation(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
+    // The acceptor's row first, as role changes lock users (#59) and
+    // removeCoordinator does before touching invitations: a removal and
+    // this accept queue in one order, and neither waits on the other's
+    // invitation rows.
+    await tx
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, userId))
+      .for("no key update");
     // The row lock makes one accept win; a second waits, then reads it
     // accepted.
     const [row] = await tx
@@ -196,7 +171,8 @@ export async function acceptInvitation(
     if (row.institutionStatus !== "verified") {
       return { ok: false, error: "institution_not_verified" } as const;
     }
-    if (!(await isInvitee(tx, ctx, userId, row, true))) {
+    const identifierHashes = await verifiedInviteeHashes(tx, ctx, userId);
+    if (!identifierHashes.includes(row.identifierHash)) {
       return { ok: false, error: "identifier_mismatch" } as const;
     }
 
@@ -243,6 +219,14 @@ export async function acceptInvitation(
       entity: { type: "institution", id: row.institutionId },
       before: { invitationId: row.id, status: "pending" },
       after: { invitationId: row.id, status: "accepted", userId },
+      actorRole: null,
+    });
+    // Their invitation to their other address, if one waits, is done with:
+    // left pending, it would bring them back after a removal.
+    await withdrawPendingInvitations(tx, ctx, {
+      institutionId: row.institutionId,
+      identifierHashes,
+      reason: "accepted_another",
       actorRole: null,
     });
     return { ok: true, institutionId: row.institutionId } as const;

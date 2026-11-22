@@ -9,7 +9,8 @@
 // scope first; removing and withdrawing check again inside their
 // transaction, so an authorised person who just lost the role can't finish.
 // The role is read fresh on every use case (#59), so a removed coordinator's
-// next call is refused even with their session still open.
+// next call is refused even with their session still open, and removing
+// them withdraws any invitation still waiting for them there.
 //
 // Each also needs the institution verified: #73 keeps the authorised
 // person's grant through a suspension, so the status is what stops them
@@ -39,8 +40,12 @@ import {
 } from "../domain/invitation";
 import { maskIdentifier, type InviteeChannel } from "../domain/mask-identifier";
 import type { InstitutionStatus } from "../domain/status";
-import { institutionResource } from "./invite-coordinator";
 import { readInvitee } from "./invitee";
+import {
+  verifiedInviteeHashes,
+  withdrawPendingInvitations,
+} from "./pending-invitations";
+import { institutionResource } from "./policy";
 
 export type Coordinator = { userId: string; name: string; since: Date };
 
@@ -239,6 +244,14 @@ export async function removeCoordinator(
       entity: { type: "institution", id: institutionId },
       before: { userId, role: grant.role },
       after: null,
+      actorRole,
+    });
+    // An invitation still waiting for their verified email or phone would
+    // let them straight back in; inviting them again is a new decision.
+    await withdrawPendingInvitations(tx, ctx, {
+      institutionId,
+      identifierHashes: await verifiedInviteeHashes(tx, ctx, userId),
+      reason: "coordinator_removed",
       actorRole,
     });
     return { ok: true } as const;
