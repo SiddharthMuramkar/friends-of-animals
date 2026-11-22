@@ -136,7 +136,7 @@ export async function takeCodeAllowance(
     ip: string;
     now: Date;
     secret: string;
-    /** The limits in force: the deps' `codeLimits`. */
+    /** CODE_REQUEST_LIMITS, or an environment's (codeRequestLimitsFor). */
     limits: CodeRequestLimits;
   }
 ): Promise<Allowance> {

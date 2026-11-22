@@ -26,16 +26,13 @@ import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
-import {
-  CODE_REQUEST_LIMITS,
-  type CodeRequestLimits,
-} from "@/server/identity/settings";
 import { isStaffRole } from "@/server/access/domain/roles";
 import { grantsOf } from "@/server/access/grants";
 import { base32Decode } from "@/server/modules/second-factor/domain/base32";
 import { TOTP, totpCode } from "@/server/modules/second-factor/domain/totp";
 import { isEnrolled } from "@/server/modules/second-factor/session-factor";
 import { CONTACT_RATE_LIMITS } from "@/server/modules/contact/domain/submission";
+import { CODE_REQUEST_LIMITS } from "@/server/identity/settings";
 import { proofOfWorkHumanCheck } from "@/server/modules/public-forms/proof-of-work-check";
 import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
@@ -156,11 +153,7 @@ export const TEST_FILES = {
 export const TEST_HUMAN_CHECK_DIFFICULTY = 4;
 
 export async function createHarness(
-  options: {
-    now?: Date | string;
-    /** Limits on sign-in codes; FOA's own (CODE_REQUEST_LIMITS) by default. */
-    codeLimits?: CodeRequestLimits;
-  } = {}
+  options: { now?: Date | string } = {}
 ): Promise<Harness> {
   const db = await createTestDb();
   // Close the database when the test ends. Left open, Postgres's timers,
@@ -205,7 +198,7 @@ export async function createHarness(
       difficulty: TEST_HUMAN_CHECK_DIFFICULTY,
     }),
     contactLimits: CONTACT_RATE_LIMITS,
-    codeLimits: options.codeLimits ?? CODE_REQUEST_LIMITS,
+    codeRequestLimits: CODE_REQUEST_LIMITS,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({

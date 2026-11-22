@@ -16,6 +16,7 @@ import adminCms from "../../messages/en-IN/adminCms.json";
 import adminBlog from "../../messages/en-IN/adminBlog.json";
 import adminInstitutions from "../../messages/en-IN/adminInstitutions.json";
 import adminSafeguarding from "../../messages/en-IN/adminSafeguarding.json";
+import adminRubrics from "../../messages/en-IN/adminRubrics.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -37,6 +38,7 @@ import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
 import inbox from "../../messages/en-IN/inbox.json";
 import institutions from "../../messages/en-IN/institutions.json";
+import judgingGuide from "../../messages/en-IN/judgingGuide.json";
 import institutionRegistration from "../../messages/en-IN/institutionRegistration.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
@@ -67,6 +69,7 @@ export const NAMESPACES = [
   "adminInstitutions",
   "adminSafeguarding",
   "adminBlog",
+  "adminRubrics",
   "auth",
   "authPhone",
   "awareness",
@@ -88,6 +91,7 @@ export const NAMESPACES = [
   "impact",
   "inbox",
   "institutions",
+  "judgingGuide",
   "institutionRegistration",
   "legal",
   "nav",
@@ -122,6 +126,7 @@ export const messages = {
   ...adminInstitutions,
   ...adminSafeguarding,
   ...adminBlog,
+  ...adminRubrics,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -143,6 +148,7 @@ export const messages = {
   ...impact,
   ...inbox,
   ...institutions,
+  ...judgingGuide,
   ...institutionRegistration,
   ...legal,
   ...nav,

@@ -3,7 +3,7 @@
 // A route row names an audience by key. Each audience turns an event into
 // the users who receive it. Later tickets add an audience here (#81
 // `guardian_of_participant`, #75 `institution_coordinators`) and route rows
-// that use it, in a migration.
+// that use it, in a migration; #88 added `competition_managers`.
 //
 // Every message knows its recipient (RECIPIENT_VARIABLES). An event may
 // give more variables (EVENT_VARIABLES): the names it provides and how to
@@ -13,10 +13,19 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { eq } from "drizzle-orm";
+import { and, asc, eq, or } from "drizzle-orm";
+import { createFormatter, createTranslator } from "next-intl";
 
+import adminRubrics from "../../../../messages/en-IN/adminRubrics.json";
+import competitionStatus from "../../../../messages/en-IN/competitionStatus.json";
+import { formats, LOCALE } from "../../../i18n/formats";
 import type { AppDb } from "../../db/app-db";
-import { institution } from "../../db/schema";
+import {
+  competition,
+  competitionTransitionBlock,
+  institution,
+  userRole,
+} from "../../db/schema";
 import type { Delivery, EventType } from "../../outbox";
 import {
   CONTACT_MESSAGE_VARIABLES,
@@ -24,6 +33,10 @@ import {
   contactTeamMembers,
 } from "../contact/notify";
 import { safeguardingLeads } from "../safeguarding/leads";
+import {
+  TRANSITION_BLOCK,
+  type TransitionBlock,
+} from "../competitions/domain/transition-block";
 
 /** The variables every message has about the person receiving it. */
 export const RECIPIENT_VARIABLES = ["recipient.name"] as const;
@@ -69,9 +82,26 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "cms.post_published":
       // A post (#112): it's about content, not a user.
       return null;
+    case "competition.transition_blocked":
+      // For the competition's managers (`competition_managers`).
+      return null;
+    case "rubric.published":
+    case "competition.disciplines_changed":
+      // Re-runs a refused move (#88); no route row names it.
+      return null;
     case "registration.institution_registered":
       // The principal isn't a user: their message goes by its own handler
       // (#75), not by a route row.
+      return null;
+  }
+}
+
+/** The competition an event is about, if a competition audience applies. */
+function competitionOf(delivery: Delivery): string | null {
+  switch (delivery.eventType) {
+    case "competition.transition_blocked":
+      return delivery.payload.competitionId;
+    default:
       return null;
   }
 }
@@ -99,6 +129,31 @@ export const AUDIENCES = {
   /** Every safeguarding lead (#116), whatever the event. */
   safeguarding_leads: async (db) =>
     (await safeguardingLeads(db)).map((lead) => lead.id),
+  /**
+   * Everyone who manages the event's competition: a competition manager
+   * scoped to it, or one with a global grant (#88).
+   */
+  competition_managers: async (db, delivery) => {
+    const competitionId = competitionOf(delivery);
+    if (!competitionId) return [];
+    const rows = await db
+      .selectDistinct({ userId: userRole.userId })
+      .from(userRole)
+      .where(
+        and(
+          eq(userRole.role, "competition_manager"),
+          or(
+            eq(userRole.scopeType, "global"),
+            and(
+              eq(userRole.scopeType, "competition"),
+              eq(userRole.scopeId, competitionId)
+            )
+          )
+        )
+      )
+      .orderBy(asc(userRole.userId));
+    return rows.map((row) => row.userId);
+  },
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -130,6 +185,75 @@ async function institutionValues(
     "institution.name": row.name,
     ...(row.code === null ? {} : { "institution.code": row.code }),
   };
+}
+
+// A refused move's words come from messages/en-IN, like every other copy
+// (FOA reviews them): the status as a sentence names it, why the move is
+// held back, and each discipline as the rubric pages name it. A missing
+// key fails the delivery loudly rather than mailing the key path.
+function refuseFallback(error: Error): never {
+  throw error;
+}
+const statusWords = createTranslator({
+  locale: LOCALE,
+  messages: competitionStatus,
+  namespace: "competitionStatus",
+  onError: refuseFallback,
+});
+const disciplineWords = createTranslator({
+  locale: LOCALE,
+  messages: adminRubrics,
+  namespace: "adminRubrics.disciplines",
+  onError: refuseFallback,
+});
+const format = createFormatter({ locale: LOCALE, formats });
+
+/**
+ * A refused move (#88): the competition, where it was going, and one
+ * sentence on what stands in the way, from the block as it is when the
+ * message goes.
+ */
+async function transitionBlockValues(
+  db: AppDb,
+  blockId: string
+): Promise<Record<string, string>> {
+  const [row] = await db
+    .select({
+      name: competition.name,
+      code: competition.code,
+      to: competitionTransitionBlock.toStatus,
+      reason: competitionTransitionBlock.reason,
+      details: competitionTransitionBlock.details,
+    })
+    .from(competitionTransitionBlock)
+    .innerJoin(
+      competition,
+      eq(competition.id, competitionTransitionBlock.competitionId)
+    )
+    .where(eq(competitionTransitionBlock.id, blockId));
+  if (!row) return {};
+  const block = TRANSITION_BLOCK.parse({ ...row.details, reason: row.reason });
+  return {
+    "competition.name": row.name,
+    "competition.code": row.code,
+    "transition.to": statusWords(`inSentence.${row.to}`),
+    "transition.reason": reasonSentence(block),
+  };
+}
+
+/** One sentence, for managers, on what holds a move back. */
+function reasonSentence(block: TransitionBlock): string {
+  switch (block.reason) {
+    case "rubrics_missing":
+      return statusWords("blockReason.rubrics_missing", {
+        disciplines: format.list(
+          block.missingDisciplines.map((discipline) =>
+            disciplineWords(discipline)
+          ),
+          "and"
+        ),
+      });
+  }
 }
 
 /** What each event lets a template say. */
@@ -167,6 +291,17 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "safeguarding.report_submitted": { names: [], load: async () => ({}) },
   "cms.post_scheduled": { names: [], load: async () => ({}) },
   "cms.post_published": { names: [], load: async () => ({}) },
+  "rubric.published": { names: [], load: async () => ({}) },
+  "competition.disciplines_changed": { names: [], load: async () => ({}) },
+  "competition.transition_blocked": {
+    names: [
+      "competition.name",
+      "competition.code",
+      "transition.to",
+      "transition.reason",
+    ],
+    load: (db, { payload }) => transitionBlockValues(db, payload.blockId),
+  },
   "registration.institution_registered": {
     names: [],
     load: async () => ({}),

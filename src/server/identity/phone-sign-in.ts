@@ -146,7 +146,7 @@ export async function requestPhoneCode(
     ip: meta.ip,
     now: ctx.clock.now(),
     secret: ctx.auth.secret,
-    limits: ctx.codeLimits,
+    limits: ctx.codeRequestLimits,
   });
   if (!allowance.ok) {
     return {

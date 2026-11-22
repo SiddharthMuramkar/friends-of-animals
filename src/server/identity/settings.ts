@@ -39,8 +39,8 @@ export const CODE_REQUEST_LIMITS = {
 } as const;
 
 /**
- * Limits shaped like CODE_REQUEST_LIMITS. The deps hold the ones in force
- * (codeRequestLimitsFor in src/server/deps.ts).
+ * The limits a code request counts against: CODE_REQUEST_LIMITS, or for a
+ * local run or a preview the looser ones from codeRequestLimitsFor (deps).
  */
 export type CodeRequestLimits = {
   readonly [K in keyof typeof CODE_REQUEST_LIMITS]: number;

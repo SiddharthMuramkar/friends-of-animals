@@ -12,6 +12,10 @@ import {
   type KeyDateKind,
 } from "../modules/competitions/domain/key-dates";
 import {
+  DISCIPLINES,
+  type Discipline,
+} from "../modules/competitions/domain/vocabulary";
+import {
   CONSENT_SUBJECT_TYPES,
   GIVABLE_PURPOSES,
   type ConsentSubjectType,
@@ -129,6 +133,41 @@ export type DomainEvent =
       payload: { postId: string };
     }
   | {
+      /**
+       * A guard refused a scheduled move of the competition (#88): the
+       * open competition_transition_block row `blockId` says why. Emitted
+       * once per refused move, so its managers are told once.
+       */
+      type: "competition.transition_blocked";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string; blockId: string };
+    }
+  | {
+      /**
+       * A competition manager published a rubric (#88). A move of its
+       * competition the guards refused is tried again.
+       */
+      type: "rubric.published";
+      aggregate: { type: "rubric"; id: string };
+      payload: {
+        rubricId: string;
+        competitionId: string;
+        discipline: Discipline;
+        version: number;
+      };
+    }
+  | {
+      /**
+       * A competition manager changed the disciplines of a competition
+       * whose move a guard refused (#88). The move is tried again, since
+       * the disciplines are what the school-judging guard checks. Not
+       * emitted while no move is refused: nothing else needs it yet.
+       */
+      type: "competition.disciplines_changed";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
       /** An institution registered for a competition (#75). */
       type: "registration.institution_registered";
       aggregate: { type: "institution_registration"; id: string };
@@ -183,6 +222,17 @@ export const EVENT_PAYLOADS = {
     publishAt: z.iso.datetime(),
   }),
   "cms.post_published": z.object({ postId: z.uuid() }),
+  "competition.transition_blocked": z.object({
+    competitionId: z.uuid(),
+    blockId: z.uuid(),
+  }),
+  "rubric.published": z.object({
+    rubricId: z.uuid(),
+    competitionId: z.uuid(),
+    discipline: z.enum(DISCIPLINES),
+    version: z.int().min(1),
+  }),
+  "competition.disciplines_changed": z.object({ competitionId: z.uuid() }),
   "registration.institution_registered": z.object({
     institutionRegistrationId: z.uuid(),
   }),
@@ -227,6 +277,10 @@ export const SUBSCRIBERS = {
   "cms.post_scheduled": ["cms.publish_scheduled_post"],
   // No route sends anything for it yet; a "new story" message can follow it.
   "cms.post_published": ["notifications.dispatch"],
+  "competition.transition_blocked": ["notifications.dispatch"],
+  // Each guard's retryOn events (modules/competitions/transition-guards.ts).
+  "rubric.published": ["competitions.retry_blocked_moves"],
+  "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],

@@ -23,8 +23,8 @@ import {
   smsSenderFor,
   storageFor,
 } from "./deps";
-import { CODE_REQUEST_LIMITS } from "./identity/settings";
 import { CONTACT_RATE_LIMITS } from "./modules/contact/domain/submission";
+import { CODE_REQUEST_LIMITS } from "./identity/settings";
 import { SmsNotConfiguredError } from "./ports/sms";
 import { readCapturedSms } from "./ports/sms-capture";
 import { systemClock } from "./ports/clock";
@@ -185,7 +185,7 @@ describe("codeRequestLimitsFor", () => {
   );
 
   it.each(["local", "preview"] as const)(
-    "lets one IP ask for many more codes on %s, where every E2E run signs in from the CI's address",
+    "lets one IP ask for many more codes on %s, where every E2E run shares the CI's address",
     (appEnv) => {
       expect(codeRequestLimitsFor(appEnv)).toEqual({
         ...CODE_REQUEST_LIMITS,
