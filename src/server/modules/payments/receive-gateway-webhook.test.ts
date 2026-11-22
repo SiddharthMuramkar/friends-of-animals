@@ -13,6 +13,7 @@ import {
   openOrder,
   paymentRows,
   registrationsOf,
+  reviewCasesOf,
   schoolWithStudents,
 } from "./testing";
 
@@ -193,7 +194,7 @@ describe("receiveGatewayWebhook", () => {
     ]);
   });
 
-  it("confirms nothing when the captured amount isn't the batch's, and records the mismatch", async () => {
+  it("confirms nothing when the captured amount isn't the batch's, records the mismatch and sends the batch to review (#79)", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 2 });
     const { batchId, orderId } = await openOrder(school);
@@ -203,9 +204,9 @@ describe("receiveGatewayWebhook", () => {
 
     const result = await receive(h, capturedWebhook(h, orderId));
 
-    expect(result).toEqual({ ok: true, outcome: "amount_mismatch" });
+    expect(result).toEqual({ ok: true, outcome: "needs_review" });
     expect(await batchRow(h, batchId)).toMatchObject({
-      status: "order_created",
+      status: "needs_review",
       capturedAt: null,
     });
     expect(
@@ -233,26 +234,26 @@ describe("receiveGatewayWebhook", () => {
     ]);
   });
 
-  it("confirms nothing for money that reaches a cancelled batch, and keeps the webhook as not payable", async () => {
+  it("confirms nothing for money that reaches a cancelled batch, and sends it to review (#79)", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 1 });
     const first = await openOrder(school);
     // A student is added, so paying again replaces the first batch, which
     // the gateway says is unpaid. The payer pays its order only after that
-    // (an old Checkout tab): money #79 turns into a review case.
+    // (an old Checkout tab): money that goes to review (#79).
     school.registrationIds.push(await enrol(h, school, 2));
     await openOrder(school);
     h.gateway.capture(first.orderId);
 
     const result = await receive(h, capturedWebhook(h, first.orderId));
 
-    expect(result).toEqual({ ok: true, outcome: "not_payable" });
-    expect((await batchRow(h, first.batchId)).status).toBe("cancelled");
+    expect(result).toEqual({ ok: true, outcome: "needs_review" });
+    expect((await batchRow(h, first.batchId)).status).toBe("needs_review");
     expect(
       (await registrationsOf(h, school.registrationIds)).map((r) => r.status)
     ).toEqual(["enrolled", "enrolled"]);
     expect(await h.db.select().from(gatewayWebhookEvent)).toMatchObject([
-      { orderId: first.orderId, outcome: "not_payable" },
+      { orderId: first.orderId, outcome: "needs_review" },
     ]);
   });
 
@@ -276,6 +277,7 @@ describe("receiveGatewayWebhook", () => {
         before: { status: "order_created" },
         after: {
           status: "captured",
+          captureMethod: "gateway",
           gatewayPaymentId: paymentId,
           capturedAt: h.clock.now().toISOString(),
           confirmed: 2,
@@ -306,7 +308,7 @@ describe("receiveGatewayWebhook", () => {
     );
   });
 
-  it("captures the batch but leaves a student withdrawn after the order opened unconfirmed", async () => {
+  it("confirms nobody and sends the batch to review when a student was withdrawn after the order opened (#79)", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 2 });
     const { batchId, orderId } = await openOrder(school);
@@ -317,22 +319,20 @@ describe("receiveGatewayWebhook", () => {
     });
     h.gateway.capture(orderId);
 
-    await receive(h, capturedWebhook(h, orderId));
+    expect(await receive(h, capturedWebhook(h, orderId))).toEqual({
+      ok: true,
+      outcome: "needs_review",
+    });
 
     expect((await registrationsOf(h, [kept])).map((r) => r.status)).toEqual([
-      "confirmed",
+      "enrolled",
     ]);
     expect(
       (await registrationsOf(h, [withdrawn])).map((r) => r.status)
     ).toEqual(["withdrawn"]);
-    const [captured] = await h.db
-      .select({ after: auditLog.after })
-      .from(auditLog)
-      .where(eq(auditLog.action, "payment.batch_captured"));
-    expect(captured?.after).toMatchObject({
-      confirmed: 1,
-      notConfirmed: [{ registrationId: withdrawn, status: "withdrawn" }],
-    });
-    expect((await batchRow(h, batchId)).status).toBe("captured");
+    expect((await batchRow(h, batchId)).status).toBe("needs_review");
+    expect(
+      (await reviewCasesOf(h, batchId)).map((each) => each.reason)
+    ).toEqual(["registration_cancelled"]);
   });
 });
