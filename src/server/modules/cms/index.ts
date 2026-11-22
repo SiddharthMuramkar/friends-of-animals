@@ -4,6 +4,7 @@
 
 import type { UseCaseContext } from "../../use-cases";
 import type { CmsDocumentKey } from "./domain/documents";
+import type { PostKind } from "./domain/post-kinds";
 import { getOrgFacts, getOrgFactsForPreview, orgFactsReadiness } from "./facts";
 import { currentLegalVersion } from "./legal";
 import {
@@ -19,6 +20,13 @@ import {
   type UploadPostImageInput,
 } from "./posts/images";
 import type { PostInput } from "./posts/input";
+import {
+  getPublishedPostBySlug,
+  latestPublishedPosts,
+  listPublishedPosts,
+  nextPostGoingLive,
+  publishedPostSlugs,
+} from "./posts/public-read";
 import {
   archivePost,
   publishPost,
@@ -113,4 +121,13 @@ export const cmsUseCases = (ctx: UseCaseContext) => ({
   publishPost: (input: { postId: string }) => publishPost(ctx, input),
   archivePost: (input: { postId: string }) => archivePost(ctx, input),
   restorePost: (input: { postId: string }) => restorePost(ctx, input),
+  // The public blog (#112b).
+  listPublishedPosts: (input?: { kind?: PostKind }) =>
+    listPublishedPosts(ctx, input),
+  latestPublishedPosts: (input: { limit: number }) =>
+    latestPublishedPosts(ctx, input),
+  getPublishedPostBySlug: (input: { slug: string }) =>
+    getPublishedPostBySlug(ctx, input),
+  publishedPostSlugs: () => publishedPostSlugs(ctx),
+  nextPostGoingLive: () => nextPostGoingLive(ctx),
 });

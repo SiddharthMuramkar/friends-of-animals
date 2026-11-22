@@ -31,6 +31,27 @@ function fileStorageSources(
   ];
 }
 
+/**
+ * Public post images (#112): pages show uploaded images' resized copies
+ * from the public bucket's own domain, PUBLIC_ASSET_BASE_URL. Images only.
+ */
+function publicAssetSources(
+  env: Record<string, string | undefined>
+): CspSources[] {
+  const origin = httpsOrigin(env.PUBLIC_ASSET_BASE_URL);
+  if (!origin) return [];
+  return [
+    { feature: "public post images", directives: { "img-src": [origin] } },
+  ];
+}
+
+/** The origin of an https URL, or null for anything else. */
+function httpsOrigin(value: string | undefined): string | null {
+  if (!value || !URL.canParse(value)) return null;
+  const url = new URL(value);
+  return url.protocol === "https:" ? url.origin : null;
+}
+
 /** The policy context for this process, from its environment. */
 export function cspContext(
   env: Record<string, string | undefined> = process.env
@@ -38,6 +59,10 @@ export function cspContext(
   return {
     appEnv: env.APP_ENV,
     nodeEnv: env.NODE_ENV,
-    sources: [...CSP_SOURCES, ...fileStorageSources(env)],
+    sources: [
+      ...CSP_SOURCES,
+      ...fileStorageSources(env),
+      ...publicAssetSources(env),
+    ],
   };
 }

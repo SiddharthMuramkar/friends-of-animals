@@ -1,4 +1,4 @@
-import { count } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { cmsPost, cmsPostImage } from "@/server/db/schema";
@@ -16,11 +16,12 @@ async function contentManager(h: Harness) {
   return h.signIn(account);
 }
 
+/** The public sample blog posts (the seed also imports the repo stories). */
 async function publicSlugs(h: Harness) {
   const rows = await h.db
     .select({ slug: cmsPost.slug })
     .from(cmsPost)
-    .where(publicPostFilter(h.clock.now()));
+    .where(and(publicPostFilter(h.clock.now()), eq(cmsPost.kind, "blog")));
   return rows.map((row) => row.slug);
 }
 
@@ -33,7 +34,9 @@ describe("the posts seed", () => {
     await h.seed.preview();
     const actor = await contentManager(h);
 
-    const posts = await h.as(actor).listPosts();
+    const posts = (await h.as(actor).listPosts()).filter(
+      (post) => post.kind === "blog"
+    );
 
     expect(
       posts

@@ -112,6 +112,11 @@ export type FilesConfig = {
   keyPrefix: string;
   /** Some purposes (test uploads) are refused in production. */
   appEnv: Env["APP_ENV"];
+  /**
+   * Where browsers load the public bucket's objects, ending in "/"; null
+   * while it has no domain, so the public site shows no uploaded image.
+   */
+  publicBaseUrl: string | null;
 };
 
 // Which SMS adapter an environment uses: shared with the VPS worker,
@@ -124,6 +129,7 @@ export type StorageEnv = {
   R2_ACCESS_KEY_ID?: string | undefined;
   R2_SECRET_ACCESS_KEY?: string | undefined;
   R2_BUCKET?: string | undefined;
+  PUBLIC_ASSET_BASE_URL?: string | undefined;
 };
 
 /** What a local run's disk store needs as well: the run and the app. */
@@ -193,6 +199,9 @@ export function filesConfigFor(
     bucket: storageBucketFor(env),
     keyPrefix: storagePrefixFor(env),
     appEnv: env.APP_ENV,
+    publicBaseUrl: env.PUBLIC_ASSET_BASE_URL
+      ? env.PUBLIC_ASSET_BASE_URL.replace(/\/*$/, "/")
+      : null,
   };
 }
 
