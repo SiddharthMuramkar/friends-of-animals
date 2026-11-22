@@ -4,12 +4,15 @@
 // version on the next request.
 //
 // Call it after `await connection()`, inside <Suspense>: the build has no
-// database, so it must never run while prerendering. The page's fallback
-// is the repo's copy, which is also what the seed publishes as version 1.
+// database. The page's fallback is the repo's copy, which is also what the
+// seed publishes as version 1. A static shell may read it too (the home
+// page's), but only after canReadWhilePrerendering().
 
 import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
+
+import { env } from "@/env";
 
 import type { Actor } from "../../actor";
 import { as } from "../../app";
@@ -40,6 +43,32 @@ export async function loadPublishedDocument(
   cacheTag(cmsTag(key));
   cacheLife("hours");
   return as(PUBLIC_READER).getPublishedDocument({ key });
+}
+
+/**
+ * Whether a static shell can read published documents. A build may have no
+ * database settings, and a cached read that fails while prerendering fails
+ * the build even when its caller catches it, so the shell asks first. With
+ * settings but no database to reach, the build fails.
+ */
+export function canReadWhilePrerendering(): boolean {
+  try {
+    env();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A shell's stand-in for the published documents it couldn't read: none,
+ * kept a minute, so the server regenerates the page with them soon after a
+ * deploy (the build has no database) rather than in 5 minutes.
+ */
+export async function notReadWhilePrerendering(): Promise<null> {
+  "use cache";
+  cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
+  return null;
 }
 
 /**

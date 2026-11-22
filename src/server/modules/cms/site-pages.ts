@@ -4,12 +4,20 @@
 // loadShownDocument); the contact page shows the facts' preview status.
 // Call the loaders at request time, inside <Suspense>
 // (the Live component), with the matching seed as the static shell's
-// fallback: the build has no database.
+// fallback: the build has no database. The home page also gives Live its
+// published read for the shell (loadPublishedHomePage).
 
 import "server-only";
 
+import { unstable_rethrow } from "next/navigation";
+
 import { isSampleContentEnabled } from "@/lib/site";
 
+import {
+  canReadWhilePrerendering,
+  loadPublishedDocument,
+  notReadWhilePrerendering,
+} from "./cached";
 import { cmsPublicPath, type CmsDocumentKey } from "./domain/documents";
 import { type OrgFacts, unconfirmedOrgFacts } from "./domain/org-facts";
 import type { CmsKind } from "./kinds";
@@ -83,6 +91,31 @@ export async function loadHomePage(): Promise<HomePage> {
     impact: bodyOf(impact, impactKind, unpublishedImpact),
     preview: previewOf("home", home),
   };
+}
+
+/**
+ * The published home page for the static shell (Live's `published`), so
+ * the hero and its buttons are painted once and never streamed over. Null
+ * on a build without database settings, or when a read at request time
+ * fails: the page then keeps the seed and reads with loadHomePage, which
+ * logs a failure that lasts.
+ */
+export async function loadPublishedHomePage(): Promise<HomePage | null> {
+  if (!canReadWhilePrerendering()) return notReadWhilePrerendering();
+  try {
+    const [home, impact] = await Promise.all([
+      loadPublishedDocument("home"),
+      loadPublishedDocument("impact"),
+    ]);
+    return {
+      home: home ? homeKind.sanitize(home.body) : homeKind.seedBody(),
+      impact: impact ? impactKind.sanitize(impact.body) : unpublishedImpact(),
+      preview: null,
+    };
+  } catch (error) {
+    unstable_rethrow(error);
+    return null;
+  }
 }
 
 export function seedAboutPage(): AboutPage {

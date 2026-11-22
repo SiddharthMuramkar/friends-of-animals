@@ -107,6 +107,38 @@ test("the homepage competition action fits on a compact phone", async ({
   expect(scrollWidth).toBe(clientWidth);
 });
 
+test("the homepage hero keeps its action while the streamed parts reveal", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  // React reveals the streamed parts of the page on a timer after the first
+  // paint. A paused clock holds them back, so the action first painted can be
+  // held before any of them replace what the static shell showed.
+  await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 60_000);
+  const streamed = page.locator('div[hidden][id^="S:"]');
+  const action = page
+    .getByRole("main")
+    .getByRole("link", { name: "See the competitions", exact: true });
+
+  try {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const painted = await action.elementHandle();
+    await page.clock.runFor(1_000);
+    await expect(streamed).toHaveCount(0);
+    // A visitor tapping the action as the page settles must hit the same
+    // link, still full size: never one torn out for a copy streamed later.
+    expect(
+      await action.evaluate((link, first) => link === first, painted)
+    ).toBe(true);
+    expect(
+      await painted!.evaluate((link) => link.getBoundingClientRect().height)
+    ).toBeGreaterThanOrEqual(44);
+  } finally {
+    await page.clock.resume();
+  }
+});
+
 test("the landscape menu stays open through hydration, scrolls, and closes", async ({
   page,
 }) => {
