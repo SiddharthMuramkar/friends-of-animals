@@ -264,7 +264,11 @@ describe("unschedulePost", () => {
     const at = later(h, 60);
     await h.as(actor).schedulePost({ postId, publishAt: at });
 
-    expect(await h.as(actor).unschedulePost({ postId })).toEqual({ ok: true });
+    // Not public yet, so no public page has anything to refresh.
+    expect(await h.as(actor).unschedulePost({ postId })).toEqual({
+      ok: true,
+      tags: [],
+    });
     h.clock.set(at);
     await h.drain();
 
@@ -282,6 +286,22 @@ describe("unschedulePost", () => {
         after: { status: "draft", publishAt: null },
       },
     ]);
+  });
+
+  it("takes a post already due, whose job hasn't run, off the public site and returns the tags to refresh", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const postId = await draft(h, actor);
+    const at = later(h, 60);
+    await h.as(actor).schedulePost({ postId, publishAt: at });
+    h.clock.set(later(h, 75));
+    expect(await publicSlugs(h)).toEqual(["kite-season"]);
+
+    expect(await h.as(actor).unschedulePost({ postId })).toEqual({
+      ok: true,
+      tags: ["posts", "post:kite-season"],
+    });
+    expect(await publicSlugs(h)).toEqual([]);
   });
 });
 
