@@ -24,8 +24,9 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
 - **pg-nonprod** holds `foa_staging`, the template `foa_seed` and one
   database per preview (`foa_pr_<n>_<fp>`, `foa_br_<slug>_<hash>_<fp>`). No
   archiving, no PITR.
-- **PgBouncer** is the only public endpoint: `db.shipped-it.dev:6432`, TLS
-  required (Let's Encrypt), SCRAM, transaction pooling.
+- **PgBouncer** is the only public endpoint: `db.friendsofanimals.dev:6432`
+  (`FOA_DB_DOMAIN`, see TLS certificate), TLS required (Let's Encrypt),
+  SCRAM, transaction pooling.
 - **One Postgres image**: only pg-prod has `build: ./postgres`; pg-nonprod
   runs the same tag with `pull_policy: never`. Two services building one tag
   export it twice in parallel, which the containerd image store (Docker 29's
@@ -58,6 +59,7 @@ backups, restore drill, preview sweep) and CrowdSec (`crowdsec/`).
 | `crowdsec/`                                                  | Both OSes: acquisition, local parser, whitelist, drop-ins   |
 | `crowdsec/crowdsec.repo`, `*-bouncer-nftables.yaml.local`    | Fedora: dnf repository, nftables bouncer settings           |
 | `crowdsec/crowdsec.sources`, `*-bouncer-iptables.yaml.local` | Ubuntu: apt source, iptables bouncer settings               |
+| `analytics.yml`                                              | Umami and its Cloudflare Tunnel (below)                     |
 
 ## Secrets
 
@@ -92,8 +94,8 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
-`vercel-urls.env` has exactly these keys (host `db.shipped-it.dev`, port 6432,
-`?sslmode=verify-full`):
+`vercel-urls.env` has exactly these keys (host `FOA_DB_DOMAIN`, default
+`db.friendsofanimals.dev`; port 6432; `?sslmode=verify-full`):
 
 | Key                    | Role               | Database               | PgBouncer pool |
 | ---------------------- | ------------------ | ---------------------- | -------------- |
@@ -230,13 +232,13 @@ cscli allowlists add foa-admin 189.72.156.29 2a02:4780:63:e413::1 \
     sed -E 's/:[0-9]+$//; s/^\[//; s/\]$//' | sort -u)
 systemctl start foa-pgbackrest-full.service  # first full backup
 scripts/restore-drill.sh
-scripts/smoke-test.sh                        # client checks through db.shipped-it.dev:6432
+scripts/smoke-test.sh                        # client checks through db.friendsofanimals.dev:6432
 ```
 
 Then copy the values from `/etc/foa/vercel-urls.env` into Vercel, as
-`DATABASE_URL` and `DIRECT_URL`: `PROD_*` into Production, `STAGING_*` into
-the `staging` custom environment (`shipped-it.dev`, deployed from `main`)
-and `PREVIEW_*` into Preview.
+`DATABASE_URL` and `DIRECT_URL`: `PROD_*` into Production. `STAGING_*` and
+`PREVIEW_*` stay unused while Vercel has no staging environment and no
+previews ([ADR 0001](../docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)).
 
 To rebuild production from backups instead of starting empty, run the
 `pgbackrest restore` (below) into the `foa-vps_pg-prod-data` volume _before_
@@ -360,28 +362,99 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
 
 ## TLS certificate
 
-- Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`,
-  listening only on the public address, `189.72.156.29:80`, for the seconds a
-  challenge takes). Not DNS-01: that would need an account-wide Vercel token
-  on this box. No ACME account e-mail is registered (set `FOA_ACME_EMAIL` to
-  add one).
+- PgBouncer's host name is `FOA_DB_DOMAIN`, default `db.friendsofanimals.dev`
+  (an A record to 189.72.156.29). `cert-renew.sh`, `install-cert.sh`,
+  `bootstrap-secrets.sh` and `smoke-test.sh` read it through
+  `scripts/db-host.sh`, which stops them (exit 2) on a value that isn't a
+  lower-case host name. Given `--print-config`, each prints its settings
+  (`cert-renew.sh` also the lego command) and changes nothing.
+  `foa-cert-renew.service` reads optional settings from
+  `/etc/foa/db-host.env` (not secret), for example:
+
+  ```sh
+  # More names on the certificate, space-separated
+  FOA_DB_DOMAIN_ALIASES=db.old.example
+  # ACME account e-mail
+  FOA_ACME_EMAIL=ops@example.org
+  ```
+
+  systemd reads that file (`EnvironmentFile=`) and keeps everything after
+  the `=` as the value, a `#` included, so a comment goes on a line of its
+  own. `cert-renew.sh` refuses (exit 2) a name, e-mail or webroot with a
+  comment left in it rather than pass it to lego. A shell's
+  `. /etc/foa/db-host.env` drops such a comment, so check the file the way
+  the timer reads it:
+
+  ```sh
+  systemd-run --wait --pipe -q -p EnvironmentFile=/etc/foa/db-host.env \
+    /srv/foa/docker/scripts/cert-renew.sh --print-config
+  ```
+
+  Only that service reads the file. Run by hand, the scripts take
+  `FOA_DB_DOMAIN` from the environment, so if the file sets it, export the
+  same value first. (`smoke-test.sh` stops when a URL in `vercel-urls.env`
+  names another host.)
+
+- Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`).
+  Not DNS-01: that would need an account-wide Vercel token on this box. No
+  ACME account e-mail is registered (set `FOA_ACME_EMAIL` to add one).
+  - While nothing else holds port 80 on the public address, lego answers the
+    challenge itself, listening only on `189.72.156.29:80` for the seconds a
+    challenge takes (a service on `127.0.0.1:80` doesn't count).
+  - Once another server holds it (foa-caddy listens on every address), lego
+    writes the challenge into `FOA_ACME_WEBROOT` (default
+    `/var/lib/foa/acme-webroot`), and that server must serve the directory's
+    `/.well-known/acme-challenge/` on port 80 for every name on the
+    certificate. The webroot must be a directory under `/var/lib/foa`: the
+    run makes it root's with mode 0755, even one that already exists.
+    foa-caddy (compose project `foa-edge`, whose files aren't in this repo
+    yet) mounts the directory read-only at `/srv/acme` and has a site block
+    for each name:
+
+    ```caddyfile
+    http://db.friendsofanimals.dev {
+    	handle /.well-known/acme-challenge/* {
+    		root * /srv/acme
+    		file_server
+    	}
+    	handle {
+    		respond 404
+    	}
+    }
+    ```
+- `FOA_DB_DOMAIN_ALIASES` (space-separated) puts more names on the same
+  certificate, after the host: PgBouncer serves one certificate, so a host
+  name being retired keeps working until it is dropped from the list. The
+  certificate holds exactly the host and these names (lego
+  `--force-cert-domains`; a name listed twice counts once). The first run
+  after the list changes re-issues it, with a new name added or a dropped
+  one taken off. Every name must resolve to this host whenever lego orders,
+  or the whole order fails, so drop a name from the list before its DNS
+  goes.
 - Port 80 must get through the host's INPUT filter: on Fedora that is the
   `http` service in firewalld's public zone (Firewall, below); on Ubuntu ufw
   is inactive. `cert-renew.sh` warns, and changes nothing, when firewalld's
   zone for that address allows neither the `http` service nor 80/tcp.
-- db.shipped-it.dev has no AAAA record. Adding one would break renewals:
+- The database host has no AAAA record. Adding one would break renewals:
   Let's Encrypt tries IPv6 first and falls back to IPv4 only on a timeout,
-  and lego listens on the IPv4 address only.
+  and port 80 answers on the IPv4 address only.
 - `foa-cert-renew.timer` runs `scripts/cert-renew.sh` daily: `lego run
   --renew-days 30` renews below 30 days left (or when the CA's renewal info
-  asks), then `scripts/install-cert.sh` copies cert + key into
-  `/etc/foa/pgbouncer-tls` if they changed and sends SIGHUP (RELOAD) to
-  PgBouncer. New connections get the new certificate; open ones keep theirs.
+  asks, or the names changed), then `scripts/install-cert.sh` copies cert +
+  key into `/etc/foa/pgbouncer-tls` if they changed and sends SIGHUP
+  (RELOAD) to PgBouncer. New connections get the new certificate; open ones
+  keep theirs.
+- A certificate issued elsewhere (for example from Caddy's storage) goes in
+  with `FOA_CERT_CRT=<crt> FOA_CERT_KEY=<key> scripts/install-cert.sh`: the
+  same key match check, owners, modes and reload. It refuses one variable
+  without the other, a missing or empty file, or a certificate that doesn't
+  name `FOA_DB_DOMAIN` or has a day or less left (exit 1, nothing
+  installed). `cert-renew.sh` always installs lego's pair.
 - Let's Encrypt lifetimes drop to 64 days on 2027-02-10 and 45 days on
   2028-02-16; the daily timer covers both. Watch `journalctl -u
   foa-cert-renew` (alerting is a TODO).
 - Manual: `systemctl start foa-cert-renew.service`; check with
-  `openssl s_client -connect db.shipped-it.dev:6432 -starttls postgres -servername db.shipped-it.dev </dev/null`.
+  `openssl s_client -connect db.friendsofanimals.dev:6432 -starttls postgres -servername db.friendsofanimals.dev </dev/null`.
 
 ## Firewall
 
@@ -749,7 +822,7 @@ heartbeat rows; leave it out and they say `unknown`.
 ## Checks
 
 `scripts/smoke-test.sh` runs 31 client-side checks through
-`db.shipped-it.dev:6432` from a throwaway `postgres:18.7-trixie` container:
+`db.friendsofanimals.dev:6432` from a throwaway `postgres:18.7-trixie` container:
 each URL logs in as the right role and database with `verify-full`, direct
 TLS and TLS 1.3, parameterized and named prepared statements through the
 transaction pool, `foa_app` cannot create in `public`, `nonprod_migrator` can
@@ -770,13 +843,14 @@ Uptime checks run at an outside provider (HR-23: provider, account and
 alert target are the owner's choice), so they see what users see, and they
 only call public URLs: nothing on the VPS needs to be reachable for them.
 Each check alerts on its own, so a stalled worker never pages as "the app
-is down". Staging is `https://shipped-it.dev`; production gets the same
-app and worker checks once its domain is live.
+is down". The app and worker checks call production,
+`https://friendsofanimals.dev`: Vercel has no staging environment
+([ADR 0001](../docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)).
 
 | Check  | Target                                      | Runs from                     | Alerts when                                                                                         | Alert goes to             | Silence and un-silence                                                                                                        |
 | ------ | ------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | App    | `GET` `/api/health`                         | Uptime provider, every minute | Not 200 on 2 checks in a row. 503 means the app can't query its database                            | Owner (HR-23)             | Pause the monitor (or open a maintenance window) in the provider; resume it after. A paused monitor never re-alerts by itself |
-| Pooler | TCP `db.shipped-it.dev:6432`                | Uptime provider, every minute | Connect fails on 2 checks in a row. TCP connect only, no login: probes must not fill CrowdSec's log | Owner (HR-23)             | Same as App. If CrowdSec ever bans the provider's addresses, add them to `crowdsec/foa-whitelist.yaml`                        |
+| Pooler | TCP `db.friendsofanimals.dev:6432`          | Uptime provider, every minute | Connect fails on 2 checks in a row. TCP connect only, no login: probes must not fill CrowdSec's log | Owner (HR-23)             | Same as App. If CrowdSec ever bans the provider's addresses, add them to `crowdsec/foa-whitelist.yaml`                        |
 | Worker | `GET` `/api/health/worker`                  | Uptime provider, every minute | Not 200 on 2 checks in a row: 503 `stale` (newest heartbeat over 120 s old) or `missing` (none)     | Owner (HR-23)             | Same as App. Pause it while the workers are stopped on purpose, and until HR-07 first starts them                             |
 | Errors | Sentry projects for the app and the workers | Sentry (`SENTRY_DSN`, HR-22)  | A new issue, or a resolved one that comes back                                                      | Owner (Sentry alert rule) | In Sentry, Archive the issue (until it escalates, or for a time); Unarchive to hear about it again                            |
 
@@ -791,12 +865,12 @@ monitored.
 touching production:
 
 1. Worker: `docker compose -f /srv/foa/docker/workers.yml stop worker-staging`.
-   After 120 s `https://shipped-it.dev/api/health/worker` turns 503
-   `stale`, and two failed checks later (about 4 minutes in all) the alert
-   arrives; `start worker-staging` clears it.
+   After 120 s staging's `/api/health/worker` turns 503 `stale`, and two
+   failed checks later (about 4 minutes in all) the alert arrives;
+   `start worker-staging` clears it.
 2. App and pooler: add a throwaway monitor for `/api/health/does-not-exist`
-   and one for TCP `db.shipped-it.dev:6433` (closed). Both alert; delete
-   them after.
+   and one for TCP `db.friendsofanimals.dev:6433` (closed). Both alert;
+   delete them after.
 3. Errors, with the workers' DSN set: start a throwaway staging worker
    pointed at a port nothing listens on. It fails to start, reports that
    to Sentry (`where` `worker.main`, `environment` `staging`) and exits 1;
@@ -846,6 +920,95 @@ Off-box (HR-24): in Vercel, Team Settings → Drains → add a log drain for
 the project to the chosen store; on the VPS, a shipper that reads the
 journal (for example `systemd-journal-upload`, or the store's own agent)
 sends the same entries there. The store keeps 365 days.
+
+## Analytics (Umami)
+
+Cookieless page views for the public site (#118). Compose project
+`foa-analytics` (`analytics.yml`), separate from `foa-vps`, so bringing the
+database stack down or up never touches it.
+
+| Container         | Image                                | Address                                 | Published | Limits          |
+| ----------------- | ------------------------------------ | --------------------------------------- | --------- | --------------- |
+| `foa-umami`       | `ghcr.io/umami-software/umami:3.5.0` | 10.112.12.30:3000 (`db`), plus `tunnel` | no        | 1 CPU, 1 GB     |
+| `foa-cloudflared` | `cloudflare/cloudflared:2026.11.1`   | `tunnel` only                           | no        | 0.5 CPU, 256 MB |
+
+- **Data**: database `umami` on pg-prod, owned by role `umami`
+  (`postgres/bootstrap/umami.sql`, connection limit 10). pgBackRest backs up
+  the whole pg-prod cluster, so `umami` is in every backup and restore drill.
+  Umami runs its own migrations when it starts.
+- **Ingress**: a remotely managed Cloudflare Tunnel. cloudflared dials out and
+  Cloudflare serves `stats.<domain>` over TLS: no port, no FOA-INBOUND rule
+  and no certificate here.
+- **What the site sends**: only staging and production builds with
+  `NEXT_PUBLIC_UMAMI_WEBSITE_ID` and `UMAMI_ORIGIN` set render the tracker.
+  The site loads it as `/stats/script.js` and posts to `/stats/api/send` on
+  its own origin; Next rewrites just those two paths to `UMAMI_ORIGIN`. No
+  cookies, no query strings or fragments, and none of the site's own pages
+  as referrers. Nothing is sent from signed-in
+  pages, sign-in and sign-up, or from a browser that showed a signed-in page
+  in the last 30 days (`src/lib/analytics/umami.ts`).
+
+Secrets (never in git):
+
+| Path                                        | Mode, owner | What                                                                   |
+| ------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
+| `/etc/foa/analytics.env`                    | 0600 root   | `DATABASE_URL` (role umami), `APP_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` |
+| `/etc/foa/secrets/umami_admin_password`     | 0400 root   | Umami's `admin` password, which replaced the seeded one                |
+| `/etc/foa/secrets/cloudflared_tunnel_token` | 0400 65532  | The tunnel token (cloudflared runs as 65532)                           |
+
+Bring-up (owner, HR-52), with the database stack running. Umami starts with
+the login `admin` / `umami`, which everyone knows, so the bootstrap replaces
+it before anything outside the VPS can reach Umami. Start the tunnel only
+after the bootstrap succeeded:
+
+```sh
+cd /srv/foa && git pull
+# 1. Cloudflare Zero Trust > Networks > Tunnels: create a cloudflared tunnel,
+#    add the public hostname stats.<domain> -> http://umami:3000, copy the
+#    token, then paste it here and end with Ctrl-D (never as an argument):
+sudo install -m 0400 -o 65532 -g 65532 /dev/stdin /etc/foa/secrets/cloudflared_tunnel_token
+# 2. Env file, role and database umami, pg_hba reload; then Umami alone (no
+#    tunnel, so unreachable from outside) and its seeded admin login replaced
+#    by a random password in /etc/foa/secrets/umami_admin_password:
+sudo docker/scripts/analytics-bootstrap.sh
+# 3. Only now the tunnel: start it and wait for both health checks:
+docker compose -f docker/analytics.yml up -d --wait
+```
+
+Then at `https://stats.<domain>`: sign in as `admin` with the password in
+`/etc/foa/secrets/umami_admin_password` (read it on the VPS yourself; if you
+change it in the dashboard, put the new one in that file too), turn on
+two-factor authentication, and add two websites, one for staging
+(`shipped-it.dev`) and one for production. In Vercel, set
+`NEXT_PUBLIC_UMAMI_WEBSITE_ID` (each environment its own website id) and
+`UMAMI_ORIGIN=https://stats.<domain>` for staging and Production only, then
+redeploy. Check that a page view arrives, and that `pgbackrest info` after
+the next backup and the next restore drill both show `umami`.
+
+To keep the dashboard off the internet altogether, give the tunnel's public
+hostname the path `^/(script\.js|api/send)$` (a regular expression; type the
+leading slash). Only the tracker and the collect endpoint stay public, and
+the site's rewrites need nothing else. Reach the dashboard over SSH instead:
+`ssh -L 3000:10.112.12.30:3000 <vps>`, then open `http://localhost:3000`.
+
+Umami counts unique visitors by IP address. Requests reach it through
+Vercel's rewrite and then Cloudflare, so check which header carries the
+visitor's address (not Vercel's) and set `CLIENT_IP_HEADER` in
+`analytics.env` to it. Pick one that Vercel or Cloudflare sets itself,
+replacing whatever the browser sent: a header visitors can set lets them
+forge the counts. Until then page views are right but unique visitors
+collapse onto Vercel's addresses.
+
+Upgrade: bump the image tag in `analytics.yml`, `git pull`, then
+`docker compose -f docker/analytics.yml up -d --wait`. Rotate the database
+password: delete the `DATABASE_URL` line from `analytics.env`, rerun the
+bootstrap script, then `docker compose -f docker/analytics.yml up -d
+--force-recreate umami`.
+
+```sh
+docker compose -f docker/analytics.yml ps
+docker exec foa-umami curl -fsS http://127.0.0.1:3000/api/heartbeat   # {"ok":true}
+```
 
 ## TODO and owner actions
 

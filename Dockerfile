@@ -2,7 +2,7 @@
 # for the local Compose stack and any self-hosted fallback.
 #
 #   docker compose up -d --build --wait      # db + migrate + app, see docker-compose.yml
-#   docker build --build-arg APP_URL=https://shipped-it.dev -t foa-app .   # runner (default target)
+#   docker build --build-arg APP_URL=https://friendsofanimals.dev -t foa-app .   # runner (default target)
 #   docker build --target migrate -t foa-migrate .
 #   docker compose -f docker/workers.yml up -d --build   # worker, see docker/README.md
 #
