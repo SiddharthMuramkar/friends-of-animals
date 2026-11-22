@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { noticeOf, noticeQuery } from "./notices";
+import { altRefusal, noticeOf, noticeQuery } from "./notices";
 
 describe("the editor's notices", () => {
   it("round-trips what was done, with a fresh key each time", () => {
@@ -35,5 +35,42 @@ describe("the editor's notices", () => {
       key: "saved-abc",
     });
     expect(noticeOf({ notice: ["saved-a", "saved-b"] })).toBeNull();
+  });
+});
+
+describe("why alt text wasn't saved", () => {
+  it("names a cover a live post needs described apart from text that is too long", () => {
+    expect(
+      altRefusal({
+        ok: false,
+        error: "invalid_input",
+        fields: ["coverAlt"],
+        errors: { coverAlt: "required" },
+      })
+    ).toBe("cover_alt_required");
+    expect(
+      altRefusal({
+        ok: false,
+        error: "invalid_input",
+        fields: ["alt"],
+        errors: { alt: "too_long" },
+      })
+    ).toBe("too_long");
+    expect(
+      altRefusal({
+        ok: false,
+        error: "invalid_input",
+        fields: ["excerpt"],
+        errors: { excerpt: "required" },
+      })
+    ).toBe("invalid_input");
+  });
+
+  it("passes the other refusals on as they are", () => {
+    expect(altRefusal({ ok: false, error: "archived" })).toBe("archived");
+    expect(altRefusal({ ok: false, error: "image_not_ready" })).toBe(
+      "image_not_ready"
+    );
+    expect(altRefusal({ ok: false, error: "not_found" })).toBe("not_found");
   });
 });

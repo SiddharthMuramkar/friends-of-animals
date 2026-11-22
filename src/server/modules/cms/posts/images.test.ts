@@ -65,6 +65,42 @@ async function uploadImage(
   return requested;
 }
 
+/**
+ * Uploads an image with alt text, waits for its public copies and makes it
+ * the post's cover: a post ready to go live. Returns the image's id.
+ */
+async function coverPost(h: Harness, actor: Actor, postId: string) {
+  const { postImageId } = await uploadImage(h, actor, postId);
+  await h.drain();
+  const updated = await h.as(actor).updatePost({
+    postId,
+    kind: "blog",
+    title: "Kinder skies in kite season",
+    slug: "kite-season",
+    excerpt: "Gujarat ran bird-care points.",
+    body: { blocks: [], footnotes: [] },
+    cover: { postImageId },
+  });
+  if (!updated.ok) throw new Error(JSON.stringify(updated));
+  return postImageId;
+}
+
+async function altOf(h: Harness, postImageId: string) {
+  const [row] = await h.db
+    .select({ alt: cmsPostImage.alt })
+    .from(cmsPostImage)
+    .where(eq(cmsPostImage.id, postImageId));
+  return row?.alt;
+}
+
+/** What going live refuses for a cover without alt text. */
+const COVER_ALT_REQUIRED = {
+  ok: false,
+  error: "invalid_input",
+  fields: ["coverAlt"],
+  errors: { coverAlt: "required" },
+};
+
 async function readBytes(h: Harness, bucket: string, key: string) {
   const stream = await h.storage.read({ bucket, key });
   return new Uint8Array(await new Response(stream).arrayBuffer());
@@ -233,7 +269,7 @@ describe("describePostImage", () => {
         postImageId,
         alt: "Volunteers <b>untangle</b> a kite",
       })
-    ).toEqual({ ok: true });
+    ).toEqual({ ok: true, tags: [] });
     expect(
       await h.as(actor).describePostImage({ postImageId, alt: "a".repeat(201) })
     ).toEqual({
@@ -254,6 +290,57 @@ describe("describePostImage", () => {
         images: [{ id: postImageId, alt: "Volunteers untangle a kite" }],
       },
     });
+  });
+
+  it("keeps a published post's cover described, and returns the tags to refresh", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const postId = await draft(h, actor);
+    const cover = await coverPost(h, actor, postId);
+    expect(await h.as(actor).publishPost({ postId })).toMatchObject({
+      ok: true,
+    });
+
+    expect(
+      await h.as(actor).describePostImage({ postImageId: cover, alt: " " })
+    ).toEqual(COVER_ALT_REQUIRED);
+    expect(await altOf(h, cover)).toBe("A kite over a rooftop");
+
+    expect(
+      await h
+        .as(actor)
+        .describePostImage({ postImageId: cover, alt: "Kites at dusk" })
+    ).toEqual({ ok: true, tags: ["posts", "post:kite-season"] });
+    expect(await altOf(h, cover)).toBe("Kites at dusk");
+  });
+
+  it("holds a scheduled post's cover to the same rule, so its job never puts it up without alt text", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const postId = await draft(h, actor);
+    const cover = await coverPost(h, actor, postId);
+    const at = new Date(h.clock.now().getTime() + 60 * 60_000);
+    expect(
+      await h.as(actor).schedulePost({ postId, publishAt: at })
+    ).toMatchObject({ ok: true });
+
+    expect(
+      await h.as(actor).describePostImage({ postImageId: cover, alt: "" })
+    ).toEqual(COVER_ALT_REQUIRED);
+    expect(
+      await h
+        .as(actor)
+        .describePostImage({ postImageId: cover, alt: "Kites at dusk" })
+    ).toEqual({ ok: true, tags: ["posts", "post:kite-season"] });
+
+    h.clock.set(at);
+    await h.drain();
+    const [row] = await h.db
+      .select({ status: cmsPost.status })
+      .from(cmsPost)
+      .where(eq(cmsPost.id, postId));
+    expect(row).toEqual({ status: "published" });
+    expect(await altOf(h, cover)).toBe("Kites at dusk");
   });
 });
 

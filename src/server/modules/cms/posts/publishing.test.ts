@@ -6,7 +6,7 @@
 import { and, asc, count, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { auditLog, cmsPost, outbox } from "@/server/db/schema";
+import { auditLog, cmsPost, cmsPostImage, outbox } from "@/server/db/schema";
 import { uuidv7 } from "@/server/ids";
 import { createHarness, type Harness } from "@/test/harness";
 import { readMediaFixture } from "@/test/media-fixtures";
@@ -212,6 +212,50 @@ describe("schedulePost", () => {
   });
 });
 
+describe("the scheduled publish", () => {
+  it("takes the post back to a draft, instead of putting it up, if it no longer qualifies at its instant", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const postId = await draft(h, actor);
+    const cover = await uploadImage(h, actor, postId);
+    await h.drain();
+    await h
+      .as(actor)
+      .updatePost({ postId, ...FIELDS, cover: { postImageId: cover } });
+    const at = later(h, 60);
+    expect(
+      await h.as(actor).schedulePost({ postId, publishAt: at })
+    ).toMatchObject({ ok: true });
+    // Written behind the use cases' back, which refuse it for a live post.
+    await h.db
+      .update(cmsPostImage)
+      .set({ alt: "" })
+      .where(eq(cmsPostImage.id, cover));
+
+    h.clock.set(at);
+    await h.drain();
+
+    expect(await postRow(h, postId)).toMatchObject({
+      status: "draft",
+      publishAt: null,
+      publishedAt: null,
+    });
+    expect(await publicSlugs(h)).toEqual([]);
+    expect(await publishedEvents(h, postId)).toBe(0);
+    expect((await auditOf(h, postId)).at(-1)).toEqual({
+      action: "cms_post.unscheduled",
+      actorKind: "system",
+      actorProcess: "worker",
+      before: {
+        status: "scheduled",
+        publishAt: at.toISOString(),
+        publishedAt: null,
+      },
+      after: { status: "draft", publishAt: null, publishedAt: null },
+    });
+  });
+});
+
 describe("unschedulePost", () => {
   it("makes the post a draft again, and its delivery does nothing", async () => {
     const h = await createHarness();
@@ -288,6 +332,28 @@ describe("publishPost", () => {
     expect(await postRow(h, postId)).toMatchObject({
       status: "published",
       publishedAt: now,
+    });
+    expect(await publishedEvents(h, postId)).toBe(1);
+  });
+
+  it("dates a scheduled post already due, whose job hasn't run, to its instant", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const postId = await draft(h, actor);
+    const at = later(h, 60);
+    await h.as(actor).schedulePost({ postId, publishAt: at });
+    h.clock.set(later(h, 75));
+
+    // Public since `at` (publicPostFilter), so readers already saw that date.
+    expect(await h.as(actor).publishPost({ postId })).toMatchObject({
+      ok: true,
+      publishedAt: at,
+    });
+    await h.drain();
+
+    expect(await postRow(h, postId)).toMatchObject({
+      status: "published",
+      publishedAt: at,
     });
     expect(await publishedEvents(h, postId)).toBe(1);
   });
