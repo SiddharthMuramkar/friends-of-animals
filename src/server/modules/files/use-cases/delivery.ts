@@ -10,12 +10,11 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { z } from "zod";
-
 import { can } from "../../../access/can";
 import { recordAudit } from "../../../audit/record";
 import { DomainError } from "../../../errors";
 import { invalidInput, type InvalidInput } from "../../../input";
+import { fileIdInput } from "../inputs";
 import {
   deliveryDecision,
   dispositionFor,
@@ -41,8 +40,6 @@ export type GetFileDownloadUrlResult =
         | Exclude<DeliveryRefusal, "forbidden">;
     };
 
-const getFileDownloadUrlInput = z.object({ fileId: z.uuid() });
-
 /**
  * A signed URL for the file, if the policy and its status allow it.
  * Throws forbidden for a caller the policy refuses, before the file is
@@ -54,7 +51,7 @@ export async function getFileDownloadUrl(
   ctx: FilesContext,
   input: GetFileDownloadUrlInput
 ): Promise<GetFileDownloadUrlResult> {
-  const parsed = getFileDownloadUrlInput.safeParse(input);
+  const parsed = fileIdInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { fileId } = parsed.data;
   const file = await findReadableFile(ctx, fileId);

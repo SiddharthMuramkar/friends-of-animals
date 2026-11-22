@@ -8,10 +8,9 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { z } from "zod";
-
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { FileStatus } from "../domain/file-status";
+import { fileIdInput } from "../inputs";
 import { findReadableFile } from "./readable-file";
 import type { FilesContext } from "./upload";
 
@@ -21,8 +20,6 @@ export type GetFileStatusResult =
   | { ok: true; fileId: string; status: FileStatus }
   | InvalidInput
   | { ok: false; error: "not_found" };
-
-const getFileStatusInput = z.object({ fileId: z.uuid() });
 
 /**
  * The file's status. Throws forbidden for a caller who may not read it,
@@ -34,7 +31,7 @@ export async function getFileStatus(
   ctx: FilesContext,
   input: GetFileStatusInput
 ): Promise<GetFileStatusResult> {
-  const parsed = getFileStatusInput.safeParse(input);
+  const parsed = fileIdInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { fileId } = parsed.data;
   const file = await findReadableFile(ctx, fileId);
