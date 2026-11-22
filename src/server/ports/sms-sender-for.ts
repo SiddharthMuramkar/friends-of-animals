@@ -1,6 +1,6 @@
 // Which SMS adapter an environment uses. Shared by the app
 // (src/server/deps.ts) and the VPS worker (src/worker), so both send the
-// same way, as ./email-sender-for.ts does for email.
+// same way.
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
@@ -10,7 +10,6 @@ import { unconfiguredSmsSender, type SmsSender } from "./sms";
 import { captureSmsSender } from "./sms-capture";
 import { msg91SmsSender } from "./sms-msg91";
 
-/** MSG91's auth key and the id of each DLT-approved template. */
 export type Msg91Settings = {
   authKey?: string | undefined;
   otpTemplateId?: string | undefined;
@@ -21,8 +20,7 @@ export type Msg91Settings = {
  * Production sends real SMS through MSG91 once its keys are set (after
  * FOA's DLT registration); until then it refuses. Every other environment
  * captures, so no real SMS leaves staging, previews or a local run, and
- * MSG91 is never called there. A template DLT hasn't approved yet (no id)
- * is refused by the MSG91 adapter on its own.
+ * MSG91 is never called there.
  */
 export function smsSenderFor(
   appEnv: Env["APP_ENV"],

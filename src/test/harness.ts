@@ -26,16 +26,25 @@ import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
+import { isStaffRole } from "@/server/access/domain/roles";
+import { grantsOf } from "@/server/access/grants";
+import { base32Decode } from "@/server/modules/second-factor/domain/base32";
+import { TOTP, totpCode } from "@/server/modules/second-factor/domain/totp";
+import { isEnrolled } from "@/server/modules/second-factor/session-factor";
 import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
+import { SEED_TOTP_SECRET } from "@/server/seed/second-factor";
 
 import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
-import { FakeSettings } from "./fakes/settings";
 import { FakeSms } from "./fakes/sms";
 import { FakeErrorReporter } from "./fakes/errors";
+import { FakeMalwareScanner } from "./fakes/malware-scanner";
+import { FakeMediaProcessor } from "./fakes/media";
+import { FakeStorage } from "./fakes/storage";
+import { TestSettings } from "./settings";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -50,10 +59,12 @@ export interface Harness {
   /** Every SMS use cases sent. */
   sms: FakeSms;
   /**
-   * Runtime settings, at their defaults (SMS off) until a test sets one:
-   * `h.settings.set("sms.enabled", true)`.
+   * Runtime settings, over this database's settings table: at their
+   * defaults (SMS off) until a test stores one,
+   * `await h.settings.set("sms.enabled", true)`, or a super admin changes
+   * one with changeSetting. Use cases read the same rows.
    */
-  settings: FakeSettings;
+  settings: TestSettings;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
   /** Every error use cases reported, scrubbed as Sentry would get it. */
@@ -74,9 +85,24 @@ export interface Harness {
   /**
    * Signs `user` in through the real email-code flow (from a fresh IP, so
    * it doesn't eat into a test's own limits) and returns the signed-in
-   * actor. The browser then holds that session.
+   * actor. The browser then holds that session. A user holding a staff
+   * role then passes their second factor too (`passSecondFactor`), as
+   * staff do before any staff screen; `{ secondFactor: false }` stops
+   * after the email code.
    */
-  signIn(user: { email: string }, meta?: Partial<RequestMeta>): Promise<Actor>;
+  signIn(
+    user: { email: string },
+    meta?: Partial<RequestMeta>,
+    options?: { secondFactor?: boolean }
+  ): Promise<Actor>;
+  /**
+   * Passes the second factor for `actor`'s session with a code from the
+   * seed authenticator (SEED_TOTP_SECRET), through verifySecondFactor.
+   * A user with no factor first gets the seed authenticator.
+   */
+  passSecondFactor(actor: Actor): Promise<void>;
+  /** The seed authenticator's code at `at` (default: now). */
+  totpCode(at?: Date): string;
   /** Builders that write to this database with this clock. */
   seed: SeedBuilders;
   /**
@@ -85,6 +111,21 @@ export interface Harness {
    * finds nothing due. Retries wait for `clock.advance()`.
    */
   drain(): Promise<DrainReport>;
+  /**
+   * The private buckets. `put(url, bytes, headers)` and `get(url)` use a
+   * presigned URL as the browser does, checked against the fake clock.
+   */
+  storage: FakeStorage;
+  /**
+   * Flags the EICAR test file (src/test/eicar.ts); counts scans and fails
+   * the next ones with `failNext(n)`.
+   */
+  scanner: FakeMalwareScanner;
+  /**
+   * Makes derivatives from image headers without decoding pixels; records
+   * its inputs and fails the next ones with `failNext(n, code)`.
+   */
+  media: FakeMediaProcessor;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -97,6 +138,13 @@ export const TEST_AUTH = {
   secret: "seam-1-test-secret-0123456789abcdef",
   baseUrl: "http://localhost:3000",
 };
+
+/** A local run's files config: test uploads allowed, under `local/`. */
+export const TEST_FILES = {
+  bucket: "foa-files-test",
+  keyPrefix: "local/",
+  appEnv: "local",
+} as const;
 
 export async function createHarness(
   options: { now?: Date | string } = {}
@@ -113,9 +161,12 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const sms = new FakeSms(clock);
-  const settings = new FakeSettings();
+  const settings = new TestSettings({ db, clock });
   const cookies = new FakeCookieJar(clock);
   const errors = new FakeErrorReporter();
+  const storage = new FakeStorage(clock);
+  const scanner = new FakeMalwareScanner();
+  const media = new FakeMediaProcessor();
   const deps: Deps = {
     db,
     clock,
@@ -131,6 +182,10 @@ export async function createHarness(
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
     settings,
     errors,
+    storage,
+    files: TEST_FILES,
+    scanner,
+    media,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
@@ -152,7 +207,7 @@ export async function createHarness(
     visitor: (overrides) => ({ kind: "visitor", meta: meta(overrides) }),
     currentActor: (overrides, cookie = cookies.header()) =>
       resolveActor(deps, headersFor(meta(overrides), cookie)),
-    async signIn(user, overrides) {
+    async signIn(user, overrides, options = {}) {
       signIns += 1;
       const visitor = harness.visitor({
         ip: `198.18.0.${signIns}`,
@@ -169,12 +224,50 @@ export async function createHarness(
       if (!verified.ok) {
         throw new Error(`Could not sign ${user.email} in: ${verified.error}`);
       }
-      return harness.currentActor(
+      const actor = await harness.currentActor(
         visitor.kind === "visitor" ? visitor.meta : {}
       );
+      if (
+        options.secondFactor !== false &&
+        actor.kind === "user" &&
+        (await grantsOf(db, actor.userId)).some((grant) =>
+          isStaffRole(grant.role)
+        )
+      ) {
+        await harness.passSecondFactor(actor);
+      }
+      return actor;
     },
+    async passSecondFactor(actor) {
+      if (actor.kind !== "user") {
+        throw new Error(`A ${actor.kind} has no second factor to pass`);
+      }
+      if (!(await isEnrolled(db, actor.userId))) {
+        await harness.seed.authenticator({ id: actor.userId });
+      }
+      // A code works once, so a second session in the same 30 seconds
+      // types the next one, which the one step of drift allows.
+      const now = clock.now().getTime();
+      let result;
+      for (const at of [now, now + TOTP.periodSeconds * 1000]) {
+        result = await app
+          .as(actor)
+          .verifySecondFactor({ code: harness.totpCode(new Date(at)) });
+        if (result.ok) return;
+      }
+      throw new Error(
+        `Could not pass the second factor: ${JSON.stringify(result)}. ` +
+          "Advance the clock between sign-ins, or use the user's own factor."
+      );
+    },
+    totpCode: (at = clock.now()) =>
+      totpCode(base32Decode(SEED_TOTP_SECRET), at),
     seed: createSeedBuilders(deps),
-    drain: () => drainUntilIdle(deps),
+    // Every queue, worker-media's included.
+    drain: () => drainUntilIdle(deps, { queue: "all" }),
+    storage,
+    scanner,
+    media,
   };
   return harness;
 }

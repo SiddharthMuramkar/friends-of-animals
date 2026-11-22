@@ -13,9 +13,10 @@ import type { E164Phone } from "../../lib/phone";
 
 /**
  * Every SMS FOA sends uses a template registered under India's DLT rules,
- * named here; MSG91 knows each by its template id.
+ * named here; MSG91 knows each by its template id. `message` is any
+ * message template staff edit (#69), which carries its own DLT id.
  */
-export type SmsTemplate = "sign-in-code" | "coordinator-invitation";
+export type SmsTemplate = "sign-in-code" | "coordinator-invitation" | "message";
 
 /**
  * One text message: the template and its variables (what MSG91 sends), and
@@ -26,6 +27,11 @@ export type SmsMessage = {
   template: SmsTemplate;
   vars: Record<string, string>;
   text: string;
+  /**
+   * The DLT template id the wording is registered under, for a `message`
+   * (from message_template.dlt_template_id). The others are configured.
+   */
+  dltTemplateId?: string | undefined;
 };
 
 /** A message as a mailbox holds it. */

@@ -29,6 +29,9 @@ describe("workerConfig", () => {
       connectionsPerDatabase: 1,
       heartbeatFile: "/tmp/foa-worker-heartbeat",
       passwordFile: undefined,
+      queue: { name: "default" },
+      r2: undefined,
+      clamd: { CLAMD_HOST: undefined, CLAMD_PORT: 3310 },
     });
   });
 
@@ -59,6 +62,9 @@ describe("workerConfig", () => {
       connectionsPerDatabase: 2,
       heartbeatFile: "/run/worker/heartbeat",
       passwordFile: "/run/secrets/db_password",
+      queue: { name: "default" },
+      r2: undefined,
+      clamd: { CLAMD_HOST: undefined, CLAMD_PORT: 3310 },
     });
   });
 
@@ -72,6 +78,62 @@ describe("workerConfig", () => {
 
     expect(name("staging")).toBe("worker-staging");
     expect(name("local")).toBe("worker-local");
+  });
+
+  it("runs worker-media on the media queue, with a time limit per job", () => {
+    expect(
+      workerConfig({
+        WORKER_MODE: "single",
+        APP_ENV: "production",
+        WORKER_DATABASE_URL: PROD_URL,
+        WORKER_QUEUE: "media",
+        MEDIA_TIMEOUT_SECONDS: "90",
+      })
+    ).toMatchObject({
+      mode: "single",
+      queue: { name: "media", timeoutSeconds: 90 },
+      identity: { worker: "worker-media", environment: "production" },
+    });
+  });
+
+  it("gives a media job 60 seconds unless told otherwise", () => {
+    const media = (APP_ENV: string) =>
+      workerConfig({
+        WORKER_MODE: "single",
+        APP_ENV,
+        WORKER_DATABASE_URL: PROD_URL,
+        WORKER_QUEUE: "media",
+      });
+
+    expect(media("staging")).toMatchObject({
+      queue: { name: "media", timeoutSeconds: 60 },
+      identity: { worker: "worker-media-staging" },
+    });
+    expect(media("local").identity.worker).toBe("worker-media-local");
+  });
+
+  it("refuses a media job time limit its outbox lease can't cover", () => {
+    // The relay's lease is 5 minutes; the job also reads and writes
+    // storage inside it.
+    for (const MEDIA_TIMEOUT_SECONDS of ["0", "241", "soon"]) {
+      expect(() =>
+        workerConfig({
+          WORKER_MODE: "single",
+          APP_ENV: "production",
+          WORKER_DATABASE_URL: PROD_URL,
+          WORKER_QUEUE: "media",
+          MEDIA_TIMEOUT_SECONDS,
+        })
+      ).toThrow(/MEDIA_TIMEOUT_SECONDS/);
+    }
+    expect(() =>
+      workerConfig({
+        WORKER_MODE: "single",
+        APP_ENV: "production",
+        WORKER_DATABASE_URL: PROD_URL,
+        WORKER_QUEUE: "scans",
+      })
+    ).toThrow(/WORKER_QUEUE/);
   });
 
   it("runs locally against DIRECT_URL by default", () => {
@@ -288,5 +350,69 @@ describe("withPassword", () => {
       adminUrl:
         "postgres://nonprod_worker:p%40ss%2Fword@10.112.12.11:5432/postgres",
     });
+  });
+});
+
+describe("the worker's malware scan settings", () => {
+  const production = {
+    APP_ENV: "production",
+    WORKER_DATABASE_URL: PROD_URL,
+  };
+  const R2 = {
+    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+    R2_ACCESS_KEY_ID: "worker-access-key-id",
+    R2_SECRET_ACCESS_KEY: "worker-s3cret-access-key",
+    R2_BUCKET: "foa-files",
+  };
+
+  it("reads R2 and clamd", () => {
+    const config = workerConfig({
+      ...production,
+      ...R2,
+      CLAMD_HOST: "clamav",
+      CLAMD_PORT: "3311",
+    });
+
+    expect(config.r2).toEqual({
+      accountId: R2.R2_ACCOUNT_ID,
+      accessKeyId: R2.R2_ACCESS_KEY_ID,
+      secretAccessKey: R2.R2_SECRET_ACCESS_KEY,
+    });
+    expect(config.clamd).toEqual({ CLAMD_HOST: "clamav", CLAMD_PORT: 3311 });
+  });
+
+  it("has neither without their variables, so every scan fails", () => {
+    const config = workerConfig(production);
+
+    expect(config.r2).toBeUndefined();
+    expect(config.clamd.CLAMD_HOST).toBeUndefined();
+  });
+
+  it("refuses half of R2, naming what is missing and never the secret", () => {
+    let message = "";
+    try {
+      workerConfig({
+        ...production,
+        R2_SECRET_ACCESS_KEY: R2.R2_SECRET_ACCESS_KEY,
+      });
+    } catch (error) {
+      message = String(error);
+    }
+
+    expect(message).toMatch(/^Error: Invalid environment/);
+    expect(message).toMatch(/R2_ACCOUNT_ID/);
+    expect(message).not.toContain(R2.R2_SECRET_ACCESS_KEY);
+  });
+
+  it("names every problem at once, the worker's own included", () => {
+    let message = "";
+    try {
+      workerConfig({ APP_ENV: "production", CLAMD_PORT: "70000" });
+    } catch (error) {
+      message = String(error);
+    }
+
+    expect(message).toMatch(/WORKER_DATABASE_URL/);
+    expect(message).toMatch(/CLAMD_PORT/);
   });
 });

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { umamiRewrites } from "./src/lib/analytics/umami";
 import { SIGNED_IN_PREFIXES } from "./src/lib/app-routes";
 import { cspHeaderRules } from "./src/lib/csp";
 import { cspContext } from "./src/lib/csp-sources";
@@ -43,6 +44,12 @@ const nextConfig: NextConfig = {
       ...cspHeaderRules(cspContext(), SIGNED_IN_PREFIXES),
       ...robotsHeaders(),
     ];
+  },
+  // Umami's tracker script and collect endpoint, proxied under /stats/ so
+  // analytics stays same-origin for the CSP (#118). Only those two paths,
+  // and none while UMAMI_ORIGIN is unset.
+  rewrites() {
+    return Promise.resolve(umamiRewrites(process.env.UMAMI_ORIGIN));
   },
 };
 

@@ -13,10 +13,19 @@ import type { FieldCipher } from "../server/crypto/field-cipher";
 import { fieldCryptoFor, type FieldKeyEnv } from "../server/crypto/keys";
 import type { AppDb } from "../server/db/app-db";
 import { withDatabase } from "../server/db/database-url";
-import { SCHEDULES, type OutboxDeps } from "../server/outbox";
+import { databaseSettings } from "../server/modules/settings/read";
+import {
+  SCHEDULES,
+  type DrainOptions,
+  type OutboxDeps,
+} from "../server/outbox";
 import type { Clock } from "../server/ports/clock";
 import { emailSenderFor } from "../server/ports/email-sender-for";
+import type { ErrorReporter } from "../server/ports/errors";
+import type { MalwareScanner } from "../server/ports/malware-scanner";
+import { unconfiguredMedia, type MediaProcessor } from "../server/ports/media";
 import { smsSenderFor } from "../server/ports/sms-sender-for";
+import type { ObjectStorage } from "../server/ports/storage";
 import type { WorkerConfig } from "./config";
 import type { WorkerLog } from "./log";
 import {
@@ -34,6 +43,17 @@ export type OpenedDatabase = { db: AppDb; end: () => Promise<void> };
 export type WorkerIo = {
   clock: Clock;
   log: WorkerLog;
+  /** Where uploaded files and their derivatives are kept (#63, #85). */
+  storage: ObjectStorage;
+  /** Checks each upload for malware (#63). */
+  scanner: MalwareScanner;
+  /**
+   * Makes worker-media's media processor (sharp, #85). Only the media queue
+   * calls it, so the default workers never load the image libraries.
+   */
+  makeMediaProcessor: (options: {
+    timeoutSeconds: number;
+  }) => Promise<MediaProcessor>;
   /** A client for `url` holding at most `connections` connections. */
   openDatabase: (url: string, connections: number) => OpenedDatabase;
   /** pg-nonprod's databases and their comments, through `adminUrl`. */
@@ -49,6 +69,8 @@ export type WorkerIo = {
   beat: (at: Date) => Promise<void>;
   /** A tenant's tick failed: Sentry (#66, ./errors.ts). */
   onTenantError: (error: unknown, where: { tenant: string }) => void;
+  /** Where a scheduled run reports its failures: Sentry (./errors.ts). */
+  errors: ErrorReporter;
 };
 
 export type Worker = {
@@ -61,38 +83,50 @@ export type Worker = {
 };
 
 /**
- * The field cipher, built on first use. A worker without its keys still
- * relays every event that reads no encrypted value; only a delivery that
- * does (an invitation's address and link) fails, and is retried, until the
- * keys are set.
+ * The field cipher, made at its first use: the worker decrypts a stored
+ * phone to send an SMS (src/server/modules/notifications/dispatch.ts), and
+ * an invitation's address and link to send it (#74). A local or preview
+ * worker without FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY uses the public
+ * development keys; a staging or production one without them refuses each
+ * such delivery with fieldCryptoFor's reason, kept on the outbox row for
+ * staff, while every other message goes.
  */
-function lazyCipher(env: FieldKeyEnv): FieldCipher {
+function cipherOnFirstUse(env: FieldKeyEnv): FieldCipher {
   let cipher: FieldCipher | undefined;
-  const built = () => (cipher ??= fieldCryptoFor(env).cipher);
+  const made = () => (cipher ??= fieldCryptoFor(env).cipher);
   return {
-    encrypt: (purpose, plaintext) => built().encrypt(purpose, plaintext),
-    decrypt: (purpose, stored) => built().decrypt(purpose, stored),
+    encrypt: (purpose, plaintext) => made().encrypt(purpose, plaintext),
+    decrypt: (purpose, stored) => made().decrypt(purpose, stored),
   };
 }
 
 export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   let supervisor: Supervisor | undefined;
   const cleanups: (() => Promise<void>)[] = [];
-  const cipher = lazyCipher({
+  const cipher = cipherOnFirstUse({
     APP_ENV: config.appEnv,
     FIELD_ENCRYPTION_KEYS: config.fieldEncryptionKeys,
     FIELD_HMAC_KEY: config.fieldHmacKey,
   });
+  /** The default workers never process media: their queue has no media job. */
+  let media: MediaProcessor = unconfiguredMedia;
+  const isMedia = config.queue.name === "media";
+  const drain: DrainOptions = { queue: config.queue.name };
 
+  // The same adapters as the app's deps (src/server/deps.ts). No MSG91
+  // keys yet, so production refuses SMS, as it does while sms.enabled is
+  // off; the runtime settings are the database's own.
   const depsFor = (db: AppDb): OutboxDeps => ({
     db,
     clock: io.clock,
     email: emailSenderFor(config.appEnv, { db, clock: io.clock }),
-    // MSG91 isn't configured on the worker yet: production refuses SMS
-    // (it is off there until DLT approval, HR-14); elsewhere it captures.
     sms: smsSenderFor(config.appEnv, { db, clock: io.clock }, {}),
+    settings: databaseSettings(db),
     cipher,
     auth: { baseUrl: config.siteUrl },
+    storage: io.storage,
+    scanner: io.scanner,
+    media,
   });
 
   async function startSingle(
@@ -105,9 +139,12 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     );
     cleanups.push(opened.end);
     const deps = depsFor(opened.db);
-    const boss = await io.startBoss(single.databaseUrl);
-    cleanups.unshift(() => boss.stop());
-    await registerSchedules(boss, SCHEDULES, deps);
+    // The schedules run once per database, on its default worker.
+    if (!isMedia) {
+      const boss = await io.startBoss(single.databaseUrl);
+      cleanups.unshift(() => boss.stop());
+      await registerSchedules(boss, SCHEDULES, { ...deps, errors: io.errors });
+    }
     return createSupervisor({
       clock: io.clock,
       discoveryIntervalMs: 0,
@@ -120,6 +157,8 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
           identity: single.identity,
           // The client outlives the tenant; stop() ends it.
           end: async () => {},
+          drain,
+          heartbeatRow: !isMedia,
         }),
       beat: io.beat,
       log: io.log,
@@ -145,6 +184,8 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
           deps: depsFor(opened.db),
           identity: preview.identity,
           end: opened.end,
+          drain,
+          heartbeatRow: !isMedia,
         });
       },
       beat: io.beat,
@@ -155,6 +196,11 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
 
   return {
     async start() {
+      if (config.queue.name === "media") {
+        media = await io.makeMediaProcessor({
+          timeoutSeconds: config.queue.timeoutSeconds,
+        });
+      }
       supervisor =
         config.mode === "single"
           ? await startSingle(config)

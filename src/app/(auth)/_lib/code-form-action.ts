@@ -32,11 +32,16 @@ import {
   type CodeFormView,
 } from "./code-form-state";
 
-/** What the visitor sent: the contact, and their name to sign up. */
+/**
+ * What the visitor sent: the contact, and their name to sign up. Sign-up's
+ * optional messages consent box (#64) sends the id of the document it
+ * showed, only when ticked; only the email form has that box.
+ */
 export type Entered = {
   intent: "sign-up" | "sign-in";
   contact: string;
   name: string;
+  messagesConsent?: string;
 };
 
 export type CodeFormChannel = {
@@ -104,18 +109,23 @@ async function withText(
 /**
  * One step of a code form. `step` (from the pressed button) says what to
  * do: send a code, check the code, or start again. Signed in, the visitor
- * goes to their sessions.
+ * goes to their sessions, or to their consents when the messages consent
+ * box was ticked on a version that is no longer the current one.
  */
 export async function runCodeForm(
   channel: CodeFormChannel,
   formData: FormData
 ): Promise<CodeFormView> {
-  const entered: Entered = {
-    intent: field(formData, "intent") === "sign-up" ? "sign-up" : "sign-in",
+  const intent =
+    field(formData, "intent") === "sign-up" ? "sign-up" : "sign-in";
+  const messagesConsent =
+    intent === "sign-up" ? field(formData, "messagesConsent") : "";
+  const typed = {
     contact: field(formData, channel.channel),
     name: field(formData, "name"),
+    ...(messagesConsent ? { messagesConsent } : {}),
   };
-  const typed = { contact: entered.contact, name: entered.name };
+  const entered: Entered = { intent, ...typed };
   const step = field(formData, "step");
   // The step the form was showing; "Send a new code" asks for a code from
   // the code step.
@@ -127,6 +137,7 @@ export async function runCodeForm(
     return withText(channel, { ...START, name: entered.name });
   }
 
+  let consentNotRecorded = false;
   try {
     if (step === "code") {
       const code = field(formData, "code");
@@ -137,6 +148,11 @@ export async function runCodeForm(
           afterVerify(channel.channel, result, { step: "code", ...typed })
         );
       }
+      // The box was ticked, but staff published a new version meanwhile:
+      // the account exists, and the consents page shows the new text.
+      const consent =
+        "messagesConsent" in result ? result.messagesConsent : undefined;
+      consentNotRecorded = consent !== undefined && consent !== "given";
     } else {
       const result = await channel.request(actor, entered);
       return withText(
@@ -157,5 +173,7 @@ export async function runCodeForm(
   }
   // Signed in: the session cookie is set. Outside the try, because
   // redirect() works by throwing.
-  redirect(APP_ROUTES.accountSessions);
+  redirect(
+    consentNotRecorded ? APP_ROUTES.accountConsents : APP_ROUTES.accountSessions
+  );
 }

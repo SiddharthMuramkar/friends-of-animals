@@ -1,0 +1,204 @@
+{
+  "adminCompetitions": {
+    "eyebrow": "Admin",
+    "loading": "Loading competitions…",
+    "denied": {
+      "title": "This page is for competition managers",
+      "body": "Your account doesn't manage competitions. If it should, ask a super admin to give you the competition manager role.",
+      "back": "Back to your account"
+    },
+    "notFound": {
+      "title": "There's no competition here",
+      "body": "It may have been a mistyped link. The list shows every competition you manage.",
+      "back": "Back to the competition list"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published"
+    },
+    "list": {
+      "meta": {
+        "title": "Competitions",
+        "description": "Create, edit, preview and publish competitions."
+      },
+      "title": "Competitions",
+      "lead": "Drafts stay private until you publish them. Published competitions show on the public competition pages.",
+      "new": "New competition",
+      "empty": "No competitions yet. Start with a new one.",
+      "listTitle": "Your competitions",
+      "code": "Code {code}",
+      "updated": "Last changed {date}",
+      "publishedOn": "Published {date}",
+      "edit": "Edit",
+      "editLabel": "Edit {name}",
+      "preview": "Preview",
+      "previewLabel": "Preview {name}"
+    },
+    "new": {
+      "meta": {
+        "title": "New competition",
+        "description": "Start a competition draft."
+      },
+      "title": "New competition",
+      "lead": "A code and a name are enough to save a draft. Fill in the rest before you publish."
+    },
+    "edit": {
+      "meta": {
+        "title": "Edit competition",
+        "description": "Change a competition's details, dates and categories."
+      },
+      "title": "Edit {name}",
+      "lead": "Save as often as you like. A draft stays private; changes to a published competition show on its public page at once.",
+      "preview": "Preview this competition",
+      "back": "Back to the competition list"
+    },
+    "preview": {
+      "meta": {
+        "title": "Preview competition",
+        "description": "See a competition as visitors will, then publish it."
+      },
+      "title": "Preview: {name}",
+      "leadDraft": "This is how the public page will show it. Nobody else can see it until you publish.",
+      "leadPublished": "This competition is published. This is what visitors see.",
+      "problemsTitle": "Before you can publish",
+      "problemsLead": "Fix these on the edit page, then come back to publish.",
+      "edit": "Edit this competition",
+      "publishTitle": "Ready to publish",
+      "publishLead": "Publishing puts it on the public competition pages straight away.",
+      "publish": "Publish",
+      "publishing": "Publishing…",
+      "publicPage": "Open the public page",
+      "back": "Back to the competition list"
+    },
+    "done": {
+      "created": "Draft saved. Keep filling it in, or preview it.",
+      "saved": "Changes saved.",
+      "published": "Published. It now shows on the public competition pages."
+    },
+    "vocabulary": {
+      "participation": {
+        "individuals": "Individuals",
+        "institutions": "Schools and institutions",
+        "both": "Individuals, and schools and institutions"
+      },
+      "discipline": {
+        "drawing": "Drawing",
+        "painting": "Painting",
+        "art": "Art",
+        "craft": "Craft",
+        "essay": "Essay",
+        "photography": "Photography",
+        "videography": "Videography"
+      },
+      "digitalScope": {
+        "all_participants": "every participant",
+        "shortlist_only": "the shortlist only"
+      },
+      "physicalArtwork": {
+        "not_required": "not needed",
+        "all_shortlisted": "every shortlisted entry",
+        "top_n": "the top {count} of each category's shortlist"
+      },
+      "keyDate": {
+        "registration_opens": "Registration opens",
+        "registration_closes": "Registration closes",
+        "submissions_close": "Submissions close",
+        "school_round_closes": "School round closes"
+      }
+    },
+    "form": {
+      "basics": "The basics",
+      "code": "Competition code",
+      "codeHint": "3 to 6 letters and the year's last two digits, like PAWS27. It goes into every registration number, so it can't change once published.",
+      "name": "Name",
+      "theme": "Theme",
+      "welfareMessage": "Animal welfare message",
+      "welfareMessageHint": "One or two sentences children read on the competition page.",
+      "whoAndWhat": "Who takes part, and in what",
+      "participation": "Who can take part",
+      "disciplines": "Disciplines",
+      "ageGroups": "Age groups",
+      "ageGroupsHint": "Ages are whole years on the cut-off date. Groups shouldn't share an age.",
+      "ageGroupRow": "Age group {row}",
+      "ageGroupLabel": "Label",
+      "minAge": "Youngest age",
+      "maxAge": "Oldest age",
+      "addAgeGroup": "Add an age group",
+      "removeAgeGroup": "Remove age group {row}",
+      "ageCutoffDate": "Age cut-off date",
+      "categories": "Categories",
+      "categoriesHint": "Each category is one discipline for one age group. Untick any you won't run.",
+      "categoriesEmpty": "Choose disciplines and add age groups to see the categories.",
+      "keyDates": "Key dates",
+      "keyDatesHint": "Enter every date and time in IST (India Standard Time).",
+      "keyDateIst": "{kind} (IST)",
+      "schoolRoundHint": "Only when schools and institutions take part.",
+      "rulesSection": "Rules",
+      "rules": "Rules",
+      "permittedMaterials": "Permitted materials",
+      "duration": "Duration",
+      "durationHint": "For example, 2 hours.",
+      "judging": "Judging and display",
+      "digitalScope": "Who submits digitally",
+      "shortlistPerCategory": "Shortlisted per category",
+      "schoolPositions": "Positions in the school round",
+      "physicalArtwork": "Who sends the physical artwork",
+      "physicalArtworkTopN": "How many of each category's shortlist",
+      "publicDisplay": "Artworks may be shown in public",
+      "auctionPermitted": "Artworks may be auctioned",
+      "save": "Save",
+      "saving": "Saving…",
+      "create": "Save draft",
+      "creating": "Saving…",
+      "digitalScopeOptions": {
+        "all_participants": "Every participant",
+        "shortlist_only": "Only the shortlist"
+      },
+      "physicalArtworkOptions": {
+        "not_required": "Nobody",
+        "all_shortlisted": "Every shortlisted entry",
+        "top_n": "The top few of each category's shortlist"
+      },
+      "none": "Not set"
+    },
+    "alerts": {
+      "invalid_input": "Some answers need fixing. Each one is marked below.",
+      "invalid_code": "The competition code needs fixing.",
+      "code_taken": "Another competition already uses that code.",
+      "code_locked": "This competition is published, so its code can't change.",
+      "invalid_date": "A date needs fixing. Each one is marked below.",
+      "not_ready": "This competition is published, so it can't have gaps. Each one is marked below.",
+      "not_found": "This competition isn't there any more.",
+      "refused": "Your account can't make this change.",
+      "not_draft": "This competition is already published."
+    },
+    "errors": {
+      "name": "Enter a name.",
+      "ageGroups": "Give every age group its own label, and whole-number ages.",
+      "categories": "A category names a discipline or age group that isn't chosen.",
+      "number": "Enter a whole number.",
+      "invalid": "Check this answer.",
+      "codeFormat": "Use 3 to 6 letters and two digits, like PAWS27.",
+      "codeTaken": "Another competition already uses this code.",
+      "codeLocked": "The code can't change once published.",
+      "date": "This date doesn't exist. Check the day and month."
+    },
+    "problems": {
+      "required": "{field}: fill this in.",
+      "dateInvalid": "{field}: this date doesn't exist.",
+      "ageGroupsNone": "Age groups: add at least one.",
+      "label_required": "Age group {row}: give it a label.",
+      "range_inverted": "Age group {row}: the youngest age is above the oldest.",
+      "age_out_of_bounds": "Age group {row}: ages run from 3 to 99.",
+      "label_duplicate": "Age group {row}: age group {other} has the same label.",
+      "overlaps": "Age group {row}: it shares an age with age group {other}.",
+      "unknown_discipline": "Category {row}: its discipline isn't chosen.",
+      "unknown_age_group": "Category {row}: its age group isn't there.",
+      "out_of_range": "{field}: this number is out of range.",
+      "keyDateRequired": "{kind}: set this date.",
+      "keyDateNotApplicable": "{kind}: only for competitions schools take part in. Clear it.",
+      "keyDateMustFollow": "{kind}: must come after {other}.",
+      "keyDateNotBefore": "{kind}: can't come before {other}."
+    }
+  }
+}
