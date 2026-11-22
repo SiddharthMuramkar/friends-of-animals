@@ -1,3 +1,4 @@
+import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
 import messages from "../../../../../../../messages/en-IN/studentImport.json";
@@ -5,6 +6,8 @@ import { STUDENT_CSV_COLUMNS } from "@/server/modules/registration/domain/studen
 import type {
   ImportStudentsResult,
   StudentCsvProblem,
+  StudentFieldError,
+  StudentImportProblem,
 } from "@/server/modules/registration";
 
 import {
@@ -159,7 +162,7 @@ describe("importView", () => {
     });
     const report = view.step === "done" ? (view.report ?? "") : "";
     const lines = report.slice(1).split("\r\n");
-    expect(report.startsWith("﻿")).toBe(true);
+    expect(report.startsWith("\uFEFF")).toBe(true);
     expect(lines[0]).toBe(`${HEADER.join(",")},row_number,problems`);
     // A spreadsheet must not run what someone typed.
     expect(lines[1]).toBe(
@@ -253,5 +256,113 @@ describe("the column guide", () => {
     expect(Object.keys(messages.studentImport.columns.describe)).toEqual(
       STUDENT_CSV_COLUMNS.map((column) => column.header)
     );
+  });
+});
+
+describe("importView with the real words", () => {
+  /** Throws on a missing message or a missing value, so a gap fails here. */
+  const t = createTranslator({
+    locale: "en-IN",
+    messages,
+    namespace: "studentImport",
+    timeZone: "Asia/Kolkata",
+    onError: (error) => {
+      throw error;
+    },
+  });
+  const realWords: ImportWords = {
+    t: (key, values) => t(key as never, values as never),
+    formatDate: (isoDate) => isoDate,
+  };
+
+  // Every code, checked by the compiler: a new one must be added here.
+  const FIELD_CODES = Object.keys({
+    required: true,
+    too_short: true,
+    too_long: true,
+    invalid_date: true,
+    in_future: true,
+    too_early: true,
+    invalid_format: true,
+    invalid_choice: true,
+    invalid_phone: true,
+    invalid_email: true,
+    invalid_characters: true,
+  } satisfies Record<StudentFieldError, true>) as StudentFieldError[];
+  const OTHER_PROBLEMS = Object.values({
+    outside_age_groups: {
+      field: "dateOfBirth",
+      code: "outside_age_groups",
+      age: 14,
+      groups: [{ id: "g1", label: "6–9", minAge: 6, maxAge: 9 }],
+      ageCutoffDate: "2027-06-01",
+    },
+    overlapping_age_groups: { code: "overlapping_age_groups" },
+    no_age_groups: { code: "no_age_groups" },
+    extra_cells: { code: "extra_cells" },
+    duplicate_in_file: { code: "duplicate_in_file", duplicateOf: 2 },
+    already_enrolled: { code: "already_enrolled" },
+  } satisfies Record<
+    Exclude<StudentImportProblem["code"], StudentFieldError>,
+    StudentImportProblem
+  >);
+  const FILE_PROBLEMS = Object.values({
+    empty: { code: "empty" },
+    too_large: { code: "too_large", maxBytes: 768_000 },
+    not_utf8: { code: "not_utf8" },
+    wrong_separator: { code: "wrong_separator", separator: ";" },
+    malformed: { code: "malformed", reason: "text_after_quote", line: 3 },
+    missing_columns: { code: "missing_columns", columns: ["full_name"] },
+    duplicate_columns: { code: "duplicate_columns", columns: ["grade"] },
+    too_many_columns: { code: "too_many_columns", maxColumns: 40, columns: 41 },
+    no_rows: { code: "no_rows" },
+    too_many_rows: { code: "too_many_rows", maxRows: 1000, rows: 1001 },
+  } satisfies Record<StudentCsvProblem["code"], StudentCsvProblem>);
+
+  it("has words for every problem a row can have, in every column", () => {
+    const problems: StudentImportProblem[] = [
+      ...STUDENT_CSV_COLUMNS.flatMap(({ field }) =>
+        FIELD_CODES.map((code) => ({ field, code }))
+      ),
+      ...OTHER_PROBLEMS,
+    ];
+    const result: ImportStudentsResult = {
+      ok: true,
+      counts: counts({ total: 1, notEnrolled: 1, invalid: 1 }),
+      header: STUDENT_CSV_COLUMNS.map((column) => column.header),
+      ignoredColumns: ["notes"],
+      notEnrolled: [{ rowNumber: 2, cells: [], problems }],
+    };
+
+    const view = importView(result, realWords);
+
+    expect(view).toMatchObject({ step: "done" });
+    const words = view.step === "done" ? view.rows[0]!.problems : [];
+    expect(words).toHaveLength(problems.length);
+    expect(words).toContain(
+      "full_name: it has a hidden character that can't be saved, often from copying and pasting. Type it again."
+    );
+  });
+
+  it("has words for every file it can't read, and every refusal", () => {
+    const attempts: ImportAttempt[] = [
+      ...FILE_PROBLEMS.map(
+        (problem) => ({ ok: false, error: "unreadable_file", problem }) as const
+      ),
+      "forbidden",
+      undefined,
+      { ok: false, error: "invalid_input", fields: ["file"] },
+      { ok: false, error: "not_found" },
+      { ok: false, error: "closed" },
+      { ok: false, error: "not_open_yet" },
+      { ok: false, error: "institution_not_verified" },
+    ];
+
+    for (const attempt of attempts) {
+      expect(importView(attempt, realWords)).toMatchObject({
+        step: "refused",
+        alert: expect.not.stringMatching(/studentImport\./),
+      });
+    }
   });
 });

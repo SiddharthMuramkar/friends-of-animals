@@ -204,6 +204,54 @@ describe("importStudents", () => {
     expect(await enrolledAudits(h)).toHaveLength(2);
   });
 
+  it("reports a row with a hidden control character in a cell, such as a NUL, and still enrols the good rows", async () => {
+    const h = await createHarness();
+    const school = await registeredSchool(h);
+    const rows = [
+      "Aanya Rao,2017-06-01,Class 4,Kavita Rao,parent,90000 00301",
+      "Ish\u0000aan Rao,2017-06-02,Class 4,Kavita Rao,parent,90000 00301",
+      "Kabir Shah,2016-02-03,Class\u00005,Meena Shah,parent,90000 00302",
+      "Meera Iyer,2017-03-04,Class\u001F4,Lakshmi Iyer,parent,90000 00305",
+      // Tab and line breaks inside a cell are only spacing.
+      'Tara\tSen,2017-05-06,"Class\r\n4",Rita Sen,parent,90000 00303',
+    ];
+
+    const result = await importAs(
+      h,
+      school,
+      [
+        "full_name,date_of_birth,grade,guardian_name,guardian_relationship,guardian_phone",
+        ...rows,
+      ].join("\r\n")
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      counts: { total: 5, enrolled: 2, notEnrolled: 3, invalid: 3 },
+      notEnrolled: [
+        {
+          rowNumber: 3,
+          problems: [{ field: "fullName", code: "invalid_characters" }],
+        },
+        {
+          rowNumber: 4,
+          problems: [{ field: "grade", code: "invalid_characters" }],
+        },
+        {
+          rowNumber: 5,
+          problems: [{ field: "grade", code: "invalid_characters" }],
+        },
+      ],
+    });
+    const enrolled = await h.db
+      .select({ fullName: participantProfile.fullName })
+      .from(participantProfile);
+    expect(enrolled.map((each) => each.fullName).toSorted()).toEqual([
+      "Aanya Rao",
+      "Tara Sen",
+    ]);
+  });
+
   describe("the same student twice", () => {
     it("enrols the first row for a child and reports later rows against it, by identity or roll number", async () => {
       const h = await createHarness();

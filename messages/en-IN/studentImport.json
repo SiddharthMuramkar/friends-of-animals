@@ -110,6 +110,7 @@
       "invalid_choice": "{column}: enter parent or legal guardian.",
       "invalid_phone": "{column}: enter an Indian mobile number, like 98765 43210.",
       "invalid_email": "{column}: enter an email address, like name@example.com.",
+      "invalid_characters": "{column}: it has a hidden character that can't be saved, often from copying and pasting. Type it again.",
       "outside_age_groups": "date_of_birth: this competition is for ages {minAge}–{maxAge} on {cutoff}; this student is {age}.",
       "age_groups_need_fixing": "This competition's age groups need fixing by Friends of Animals, so students can't be enrolled yet.",
       "extra_cells": "This row has more cells than the header row. Check for a stray comma.",

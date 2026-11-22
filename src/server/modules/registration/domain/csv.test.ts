@@ -83,7 +83,7 @@ describe("parseCsv", () => {
   });
 
   it("drops a leading byte order mark", () => {
-    expect(parseCsv("﻿a,b")).toEqual({ ok: true, records: [["a", "b"]] });
+    expect(parseCsv("\uFEFFa,b")).toEqual({ ok: true, records: [["a", "b"]] });
   });
 
   it("keeps Indic scripts and emoji as they are", () => {

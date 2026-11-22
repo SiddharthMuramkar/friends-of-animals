@@ -11,6 +11,7 @@
 // Pure. Loads under plain Node.
 
 import {
+  BOM,
   CsvSyntaxError,
   csvRecords,
   formatCsv,
@@ -292,8 +293,6 @@ function readRecords(
   }
   return { ok: true, file: { header, ignoredColumns, rows } };
 }
-
-const BOM = "﻿";
 
 /**
  * The blank template: the header row alone. The byte order mark makes

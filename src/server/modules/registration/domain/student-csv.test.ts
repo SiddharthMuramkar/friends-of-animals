@@ -41,7 +41,7 @@ describe("STUDENT_CSV_COLUMNS", () => {
 
 describe("studentCsvTemplate", () => {
   it("is the header row alone, with a byte order mark for spreadsheets", () => {
-    expect(studentCsvTemplate()).toBe(`﻿${HEADER.join(",")}\r\n`);
+    expect(studentCsvTemplate()).toBe(`\uFEFF${HEADER.join(",")}\r\n`);
   });
 
   it("reads back as a file with the right columns and no rows", () => {
@@ -107,7 +107,7 @@ describe("readStudentCsv", () => {
 
   it("tolerates a byte order mark", () => {
     const result = readStudentCsv(
-      bytes("﻿full_name,date_of_birth\nAsha Iyer,2001-01-01\n")
+      bytes("\uFEFFfull_name,date_of_birth\nAsha Iyer,2001-01-01\n")
     );
     expect(result.ok && result.file.header).toEqual([
       "full_name",
@@ -199,7 +199,7 @@ describe("readStudentCsv", () => {
       ok: false,
       problem: { code: "empty" },
     });
-    expect(readStudentCsv(bytes("﻿ \r\n"))).toEqual({
+    expect(readStudentCsv(bytes("\uFEFF \r\n"))).toEqual({
       ok: false,
       problem: { code: "empty" },
     });
@@ -458,7 +458,7 @@ describe("formatStudentImportReport", () => {
         },
       ]
     );
-    expect(report.startsWith("﻿")).toBe(true);
+    expect(report.startsWith("\uFEFF")).toBe(true);
     expect(parseCsv(report)).toEqual({
       ok: true,
       records: [
@@ -528,7 +528,7 @@ describe("formatStudentImportReport", () => {
       ]
     );
     expect(report).toBe(
-      "﻿" +
+      "\uFEFF" +
         formatCsv([
           ["full_name", "date_of_birth", "row_number", "problems"],
           ["Asha", "", "2", "p"],

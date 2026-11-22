@@ -28,7 +28,11 @@ export class CsvSyntaxError extends Error {
   }
 }
 
-const BOM = "\uFEFF";
+/**
+ * The byte order mark. A file starting with it opens in Excel as UTF-8, so
+ * names in any script survive; reading skips it.
+ */
+export const BOM = "\uFEFF";
 
 /**
  * The records of a CSV text, one at a time, so a reader can skip or count

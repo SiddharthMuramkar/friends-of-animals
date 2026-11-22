@@ -7,7 +7,7 @@ import { createHarness } from "@/test/harness";
 
 import { studentImportDownload } from "./csv-downloads";
 
-const BOM = "﻿";
+const BOM = "\uFEFF";
 const TEMPLATE_HEADER =
   "student_ref,full_name,date_of_birth,grade,guardian_name,guardian_relationship,guardian_phone,guardian_email,student_phone,student_email,address,pin_code,city,state";
 

@@ -10,6 +10,7 @@
 
 import type { UseCases } from "@/server/app";
 import { DomainError } from "@/server/errors";
+import { BOM } from "@/server/modules/registration/domain/csv";
 import { studentCsvTemplate } from "@/server/modules/registration/domain/student-csv";
 import { SAMPLE_STUDENT_IMPORT_CSV } from "@/server/seed/student-import-samples";
 
@@ -20,9 +21,6 @@ export type CsvDownload = {
   body: string | null;
   headers: Record<string, string>;
 };
-
-/** Makes Excel open the file as UTF-8, so names in any script survive. */
-const BOM = "﻿";
 
 const FILES: Record<
   StudentImportFile,

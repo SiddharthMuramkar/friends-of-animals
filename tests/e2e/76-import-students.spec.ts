@@ -92,7 +92,7 @@ test("an authorised person imports students from a spreadsheet, fixes the rows t
   await page.getByRole("link", { name: "Download the template" }).click();
   const template = await downloaded(await templateDownload);
   expect(template).toBe(
-    "﻿student_ref,full_name,date_of_birth,grade,guardian_name,guardian_relationship,guardian_phone,guardian_email,student_phone,student_email,address,pin_code,city,state\r\n"
+    "\uFEFFstudent_ref,full_name,date_of_birth,grade,guardian_name,guardian_relationship,guardian_phone,guardian_email,student_phone,student_email,address,pin_code,city,state\r\n"
   );
 
   await upload(
@@ -151,7 +151,7 @@ test("an authorised person imports students from a spreadsheet, fixes the rows t
   const report = await downloaded(await reportDownload);
   const lines = report.split("\r\n");
   expect(lines[0]).toBe(
-    "﻿student_ref,full_name,date_of_birth,grade,guardian_name,guardian_relationship,guardian_phone,guardian_email,row_number,problems"
+    "\uFEFFstudent_ref,full_name,date_of_birth,grade,guardian_name,guardian_relationship,guardian_phone,guardian_email,row_number,problems"
   );
   expect(lines).toHaveLength(6);
   // Phones go out with a quote in front, so a spreadsheet won't run them.
