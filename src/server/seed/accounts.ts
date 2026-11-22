@@ -1,10 +1,12 @@
 // The accounts every preview and local database is seeded with. All use the
 // reserved example.test domain, sign in by email code through the capture
-// mailbox, and keep fixed ids so links and journeys can name them. Seam 2
-// journeys will read these constants (57b adds tests/e2e/support/accounts.ts).
+// mailbox, and keep fixed ids so links and journeys can name them. Member 1
+// also has a phone, so it signs in by SMS code too (#58); the number is in
+// a block no real subscriber holds.
 //
-// The super admin role arrives with #59's seeder; until then this is a plain
-// account.
+// Their roles come from the access seeder (./access.ts): the super admin is
+// a global super admin, the first member holds several roles, the second is
+// a staff admin and the third holds none.
 
 export const SEED_ACCOUNTS = {
   superAdmin: {
@@ -17,6 +19,7 @@ export const SEED_ACCOUNTS = {
       id: "01938a00-0000-7000-8000-000000000101",
       name: "Asha Rao",
       email: "member1@example.test",
+      phone: "+91 90000 00101",
     },
     {
       id: "01938a00-0000-7000-8000-000000000102",
@@ -29,4 +32,33 @@ export const SEED_ACCOUNTS = {
       email: "member3@example.test",
     },
   ],
+} as const;
+
+// Dedicated publishers keep the consent journeys from sharing a one-use
+// staff code with the roles and second-factor journeys.
+export const SEED_CONSENT_PUBLISHERS = {
+  desktop: {
+    name: "Consent Staff Admin",
+    email: "consent-publisher-desktop@example.test",
+    role: "staff_admin",
+  },
+  mobile: {
+    name: "Consent Super Admin",
+    email: "consent-publisher-mobile@example.test",
+    role: "super_admin",
+  },
+} as const;
+
+// Content managers for the message template journey (#69), one per
+// journey project, so it shares no one-use staff code with #111's CMS
+// journey, which signs in Asha, the seeded content manager.
+export const SEED_TEMPLATE_EDITORS = {
+  desktop: {
+    name: "Template Editor Desktop",
+    email: "template-editor-desktop@example.test",
+  },
+  mobile: {
+    name: "Template Editor Mobile",
+    email: "template-editor-mobile@example.test",
+  },
 } as const;

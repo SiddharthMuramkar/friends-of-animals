@@ -5,6 +5,8 @@ import { getTranslations } from "next-intl/server";
 import { ExplainState } from "@/components/site/explain-state";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
+import { isFactShown } from "@/lib/site";
 
 import { LegalDocument } from "../_components/legal-document";
 
@@ -21,7 +23,7 @@ const CYBER_NUMBER = "1930";
 const CYBER_SITE = "cybercrime.gov.in";
 
 const CALL =
-  "inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 font-semibold text-primary-fg hover:bg-primary-hover [&_svg]:size-5";
+  "inline-flex min-h-11 max-w-full items-center gap-2 rounded-full bg-primary px-3 font-semibold text-primary-fg hover:bg-primary-hover sm:px-5 [&_svg]:size-5 [&_svg]:shrink-0";
 
 /** Helplines: 112, Childline 1098 and cybercrime.gov.in / 1930. */
 async function Helplines() {
@@ -33,7 +35,7 @@ async function Helplines() {
   return (
     <section
       aria-labelledby="helplines"
-      className="mb-8 max-w-3xl rounded-3xl border-2 border-red-700 bg-section-red p-6 sm:p-8 dark:border-red-400"
+      className="mb-8 max-w-3xl rounded-3xl border-2 border-red-700 bg-section-red px-4 py-6 sm:p-8 dark:border-red-400"
     >
       <h2
         id="helplines"
@@ -46,7 +48,7 @@ async function Helplines() {
         {lines.map(({ key, number }) => (
           <li
             key={key}
-            className="flex flex-col gap-2 rounded-2xl border-2 border-border bg-surface p-4"
+            className="flex flex-col gap-2 rounded-2xl border-2 border-border bg-surface p-3 sm:p-4"
           >
             <p className="font-semibold text-ink-muted">{t(key)}</p>
             <p className="font-display text-h2 leading-none font-bold text-ink">
@@ -55,11 +57,11 @@ async function Helplines() {
             <p className="text-sm text-ink-muted">{t(`${key}Body`)}</p>
             <a href={`tel:${number}`} className={`${CALL} mt-auto self-start`}>
               <Phone aria-hidden="true" />
-              {t("call", { number })}
+              <span className="min-w-0">{t("call", { number })}</span>
             </a>
           </li>
         ))}
-        <li className="flex flex-col gap-2 rounded-2xl border-2 border-border bg-surface p-4">
+        <li className="flex flex-col gap-2 rounded-2xl border-2 border-border bg-surface p-3 sm:p-4">
           <p className="font-semibold text-ink-muted">{t("cyber")}</p>
           <p className="font-display text-h4 leading-tight font-bold break-words text-ink">
             {CYBER_NUMBER}
@@ -68,7 +70,9 @@ async function Helplines() {
           <div className="mt-auto flex flex-col items-start gap-2">
             <a href={`tel:${CYBER_NUMBER}`} className={CALL}>
               <Phone aria-hidden="true" />
-              {t("call", { number: CYBER_NUMBER })}
+              <span className="min-w-0">
+                {t("call", { number: CYBER_NUMBER })}
+              </span>
             </a>
             <a
               href={`https://${CYBER_SITE}`}
@@ -98,12 +102,22 @@ export default async function Page() {
           <ExplainState
             title={t("form.title")}
             headingLevel="h3"
+            className="px-4 sm:px-8 [&_a]:max-w-full"
             back={{
               href: ROUTES.childProtection.path,
               label: t("form.back"),
             }}
           >
-            <p>{t("form.body")}</p>
+            <p>
+              {t("form.body")}
+              {/* Points at the email and phone in the text above, which
+                  production leaves out while they're unconfirmed. */}
+              <WithOrgFacts>
+                {({ email }) =>
+                  isFactShown(email) ? <> {t("form.until")}</> : null
+                }
+              </WithOrgFacts>
+            </p>
           </ExplainState>
         ),
       }}

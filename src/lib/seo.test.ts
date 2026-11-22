@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { SAMPLE_COMPETITIONS } from "@/content/sample";
+import {
+  EMPTY_TAX_FACTS,
+  mergeOrgFacts,
+} from "@/server/modules/cms/domain/org-facts";
 import { STORIES } from "@/content/stories";
 import { metaDescription } from "@/content/stories/text";
 import { messages } from "@/i18n/messages";
@@ -64,14 +68,17 @@ describe("jsonLdScript()", () => {
 });
 
 describe("organizationJsonLd()", () => {
-  const data = organizationJsonLd(new URL("https://shipped-it.dev"), "About.");
+  const data = organizationJsonLd(
+    new URL("https://friendsofanimals.dev"),
+    "About."
+  );
 
   it("describes FOA as an NGO with absolute URLs", () => {
     expect(data).toMatchObject({
       "@type": "NGO",
       name: "Friends of Animals",
-      url: "https://shipped-it.dev/",
-      logo: "https://shipped-it.dev/brand/foa-logo.svg",
+      url: "https://friendsofanimals.dev/",
+      logo: "https://friendsofanimals.dev/brand/foa-logo.svg",
     });
   });
 
@@ -80,11 +87,31 @@ describe("organizationJsonLd()", () => {
     expect(data).not.toHaveProperty("legalName");
     expect(JSON.stringify(data)).not.toContain("placeholder");
   });
+
+  it("adds the confirmed facts it is given", () => {
+    const facts = mergeOrgFacts(
+      { ...EMPTY_TAX_FACTS, legalName: "Friends of Animals Foundation" },
+      {
+        email: "hello@friendsofanimals.example",
+        phone: "",
+        address: "",
+        socials: ["https://www.instagram.com/example"],
+        grievanceOfficer: { name: "", email: "" },
+      }
+    );
+    expect(
+      organizationJsonLd(new URL("https://shipped-it.dev"), "About.", facts)
+    ).toMatchObject({
+      legalName: "Friends of Animals Foundation",
+      email: "hello@friendsofanimals.example",
+      sameAs: ["https://www.instagram.com/example"],
+    });
+  });
 });
 
 describe("breadcrumbJsonLd()", () => {
   it("numbers the crumbs from 1 with absolute URLs", () => {
-    const data = breadcrumbJsonLd(new URL("https://shipped-it.dev"), [
+    const data = breadcrumbJsonLd(new URL("https://friendsofanimals.dev"), [
       { name: "Competitions", path: "/competitions" },
       { name: "Kinder Skies", path: "/competitions/kinder-skies" },
     ]);
@@ -94,13 +121,13 @@ describe("breadcrumbJsonLd()", () => {
         "@type": "ListItem",
         position: 1,
         name: "Competitions",
-        item: "https://shipped-it.dev/competitions",
+        item: "https://friendsofanimals.dev/competitions",
       },
       {
         "@type": "ListItem",
         position: 2,
         name: "Kinder Skies",
-        item: "https://shipped-it.dev/competitions/kinder-skies",
+        item: "https://friendsofanimals.dev/competitions/kinder-skies",
       },
     ]);
   });

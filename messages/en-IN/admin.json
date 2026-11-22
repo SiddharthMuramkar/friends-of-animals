@@ -1,0 +1,49 @@
+{
+  "admin": {
+    "nav": {
+      "label": "Admin",
+      "roles": "Roles",
+      "audit": "Audit log"
+    },
+    "loading": "Loading…",
+    "denied": {
+      "title": "This page is for staff who manage access",
+      "body": "Your account doesn't have a role that opens it. If you need it for your work, ask a super admin.",
+      "back": "Go to your dashboard"
+    },
+    "roles": {
+      "member": "Member",
+      "participant": "Participant",
+      "guardian": "Parent or guardian",
+      "institution_admin": "Institution admin",
+      "institution_coordinator": "Institution coordinator",
+      "judge": "Judge",
+      "volunteer": "Volunteer",
+      "organisation_representative": "Organisation representative",
+      "staff_admin": "Staff admin",
+      "super_admin": "Super admin",
+      "competition_manager": "Competition manager",
+      "content_manager": "Content manager",
+      "community_manager": "Community manager",
+      "finance": "Finance",
+      "auction_manager": "Auction manager",
+      "adoption_coordinator": "Adoption coordinator"
+    },
+    "scopes": {
+      "global": "Everywhere",
+      "institution": "One institution",
+      "competition": "One competition",
+      "organisation": "One organisation"
+    },
+    "grant": {
+      "global": "{role}, everywhere",
+      "scoped": "{role} for {scope, select, institution {institution} competition {competition} organisation {organisation} other {scope}} {id}"
+    },
+    "facts": {
+      "title": "Some of FOA's details are still missing",
+      "body": "Until they are entered, the public site leaves these out and the health check says the facts are incomplete:",
+      "siteFacts": "Enter contact and grievance details (content manager)",
+      "taxFacts": "Enter the registered name, registration and PAN (super admin)"
+    }
+  }
+}

@@ -26,12 +26,33 @@ export type TestDb = Awaited<ReturnType<typeof createTestDb>>;
  * per `vitest run`; tests load the result through `createTestDb()`.
  */
 export async function migrateTemplate(): Promise<Blob> {
-  const client = await PGlite.create({ extensions });
+  const client = await createMigratedClient();
   try {
-    await migrate(drizzle({ client }), { migrationsFolder });
     return await client.dumpDataDir("none");
   } finally {
     await client.close();
+  }
+}
+
+/**
+ * Creates an empty PGlite with the extensions the migrations need, runs
+ * `before` on it, then applies the real migrations, and returns the client
+ * for the caller to close. For a test that must set something up before
+ * the migrations run, such as the default privileges a deployed database
+ * gives its app role; every other test uses `createTestDb()`, which loads
+ * an already migrated copy and is much faster.
+ */
+export async function createMigratedClient({
+  before,
+}: { before?: (empty: PGlite) => Promise<unknown> } = {}): Promise<PGlite> {
+  const client = await PGlite.create({ extensions });
+  try {
+    await before?.(client);
+    await migrate(drizzle({ client }), { migrationsFolder });
+    return client;
+  } catch (error) {
+    await client.close();
+    throw error;
   }
 }
 
@@ -60,21 +81,14 @@ async function readTemplate(): Promise<Blob> {
  * pays for the migrations.
  *
  * Use-case tests should use `createHarness()` from "@/test/harness", which
- * builds on this. Older code that imports `db` from "@/server/db" swaps it
- * with `vi.mock`. The factory is hoisted, so keep the instance in a variable:
+ * builds on this. Lower-level code takes the database as an argument, so a
+ * test passes it one directly, never by mocking an app module such as
+ * "@/server/db" (docs/agents/seam-1.md; CI's integrity job rejects it):
  *
- *   import { createTestDb, type TestDb } from "@/test/db";
+ *   import { createTestDb } from "@/test/db";
  *
- *   let testDb: TestDb;
- *   vi.mock("@/server/db", () => ({
- *     get db() {
- *       return testDb;
- *     },
- *   }));
- *
- *   beforeEach(async () => {
- *     testDb = await createTestDb();
- *   });
+ *   const db = await createTestDb();
+ *   await captureEmailSender({ db, clock }).send(message);
  */
 export async function createTestDb() {
   template ??= readTemplate().catch((error: unknown) => {
