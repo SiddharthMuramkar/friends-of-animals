@@ -3,7 +3,8 @@
 // mapping is tested without a page. A form asks for the contact (an email
 // address or a phone number, and a name to sign up), then for the code.
 // Phones have two outcomes of their own, a number from another country
-// and SMS switched off; both point to email.
+// and SMS switched off; both point to email. Email switched off (sign-in
+// opens soon) goes back to the first step.
 
 import type {
   RequestEmailCodeResult,
@@ -22,6 +23,7 @@ export type CodeFormAlert =
   | "no_account"
   | "unsupported_country"
   | "sms_disabled"
+  | "email_disabled"
   | "failed";
 
 export type CodeFormField = "contact" | "name" | "code";
@@ -138,7 +140,8 @@ export function afterVerify(
     case "code_invalid":
       return { step: "code", ...entered, fieldErrors: { code: true } };
     case "sms_disabled":
-      return { step: "contact", ...entered, alert: "sms_disabled" };
+    case "email_disabled":
+      return { step: "contact", ...entered, alert: result.error };
     default:
       return { step: "code", ...entered, alert: result.error };
   }

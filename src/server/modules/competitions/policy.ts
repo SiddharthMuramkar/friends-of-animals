@@ -1,12 +1,15 @@
 // Who may run the competition use cases (#70). Competition managers create
 // (global grant only), list, edit, preview and publish; a grant scoped to
 // one competition covers that competition alone. Super admin is not a
-// wildcard. Anyone, signed in or not, reads published competitions.
+// wildcard. Anyone, signed in or not, reads published competitions. Only
+// the worker moves a status on schedule (#71): nobody opens or closes
+// registration by hand.
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
 import {
   role,
+  system,
   type Decision,
   type Policy,
   type Rule,
@@ -35,6 +38,8 @@ export const COMPETITIONS_POLICY = {
   "competition.preview": role("competition_manager"),
   "competition.publish": role("competition_manager"),
   "competition.read_published": anyone,
+  /** A status job arriving at its key date (#71). */
+  "competition.advance_status": system("worker"),
 } satisfies Policy<string>;
 
 export type CompetitionsAction = keyof typeof COMPETITIONS_POLICY;

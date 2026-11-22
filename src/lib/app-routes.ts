@@ -26,8 +26,16 @@ export const APP_ROUTES = {
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
   adminTemplates: "/admin/templates",
+  institutionRegister: "/institutions/register",
+  myInstitution: "/institution",
+  adminInstitutions: "/admin/institutions",
   adminInbox: "/admin/inbox",
 } as const;
+
+/** One institution's page in the admin area. */
+export function adminInstitutionPath(institutionId: string): string {
+  return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
+}
 
 /**
  * Pages behind sign-in whose path has a dynamic segment, written as in the
@@ -37,6 +45,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
   "/admin/templates/[key]",
+  "/admin/institutions/[id]",
   "/admin/inbox/[id]",
 ] as const;
 
@@ -52,6 +61,8 @@ export const SIGNED_IN_PREFIXES = [
   "/admin",
   "/auth",
   "/dashboard",
+  "/institution",
+  "/institutions/register",
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

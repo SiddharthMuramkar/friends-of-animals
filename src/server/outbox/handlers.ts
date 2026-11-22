@@ -16,6 +16,7 @@ import type { AppDb } from "../db/app-db";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
+import { runStatusJob } from "../modules/competitions/advance-status";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
@@ -73,6 +74,8 @@ export const HANDLERS: Handlers = {
   "notifications.dispatch": dispatchEvent,
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
+  "competitions.advance_status": (deps, { payload }) =>
+    runStatusJob(deps, payload),
   // Emails a contact message's sender their reference (#113).
   "contact.send_acknowledgement": sendContactAcknowledgement,
 };

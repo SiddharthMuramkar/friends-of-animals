@@ -145,22 +145,43 @@
     {
       "idx": 20,
       "version": "7",
-      "when": 1795336497824,
-      "tag": "0020_113_contact_inbox",
+      "when": 1795338272044,
+      "tag": "0020_73_institution_registration_and_verification_institution",
       "breakpoints": true
     },
     {
       "idx": 21,
       "version": "7",
-      "when": 1795336498561,
-      "tag": "0021_113_contact_note_append_only",
+      "when": 1795338272700,
+      "tag": "0021_73_institution_messages",
       "breakpoints": true
     },
     {
       "idx": 22,
       "version": "7",
-      "when": 1795336499306,
-      "tag": "0022_113_contact_notification_defaults",
+      "when": 1795338294476,
+      "tag": "0022_71_the_schedule_changes_competition_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795343393394,
+      "tag": "0023_113_contact_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795343394315,
+      "tag": "0024_113_contact_note_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795343395201,
+      "tag": "0025_113_contact_notification_defaults",
       "breakpoints": true
     }
   ]
