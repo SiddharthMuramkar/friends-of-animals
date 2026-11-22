@@ -39,6 +39,7 @@ import { FakeEmail } from "./fakes/email";
 import { FakeErrorReporter } from "./fakes/errors";
 import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakeMediaProcessor } from "./fakes/media";
+import { FakePaymentGateway } from "./fakes/payment-gateway";
 import { FakeSms } from "./fakes/sms";
 import { FakeStorage } from "./fakes/storage";
 import { TEST_AUTH, TEST_FILES, TEST_HUMAN_CHECK_DIFFICULTY } from "./harness";
@@ -96,6 +97,7 @@ export function createPgWorld() {
     }),
     contactLimits: CONTACT_RATE_LIMITS,
     codeRequestLimits: CODE_REQUEST_LIMITS,
+    payments: new FakePaymentGateway(),
   };
   const app = createApp(deps);
   const seed: SeedBuilders = createSeedBuilders(deps);

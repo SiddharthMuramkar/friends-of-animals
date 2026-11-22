@@ -4,7 +4,8 @@
 // coordinators and FOA quote. Its coordinators then enrol students: each
 // student is a participant profile the institution manages, with one
 // registration per competition in the age group their date of birth puts
-// them in. Fees (#77) and the individual route (#78) add theirs here.
+// them in. Paying confirms it with a registration number (#77); the
+// individual route (#78) adds its own here.
 //
 // Personal data: `registered_by`, and a student's details on
 // `participant_profile`. The date of birth, phones, emails, the guardian's
@@ -195,7 +196,7 @@ export const registrationRouteEnum = pgEnum(
 );
 
 /**
- * Enrolled and withdrawn, for now. Payment (#77), refunds (#80) and
+ * Enrolled, confirmed (paid or free, #77) and withdrawn. Refunds (#80) and
  * guardians (#81) append their values in migrations of their own (rule
  * F2); the machine is in
  * src/server/modules/registration/domain/registration-status.ts.
@@ -204,6 +205,10 @@ export const registrationStatusEnum = pgEnum(
   "registration_status",
   REGISTRATION_STATUSES
 );
+
+/** The constraint `withUniqueCode` retries on when a number is taken. */
+export const REGISTRATION_NUMBER_UNIQUE =
+  "registration_registration_number_unique";
 
 /** A participant taking part in one competition, in one age group. */
 export const registration = pgTable(
@@ -229,10 +234,22 @@ export const registration = pgTable(
       .notNull()
       .references(() => competitionAgeGroup.id),
     status: registrationStatusEnum().notNull(),
+    /**
+     * `{competition code}-R-{6 Crockford base32}`, e.g. PAWS27-R-7KQ2M9:
+     * given when the registration is confirmed (#77), never changed.
+     */
+    registrationNumber: text("registration_number"),
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
   },
   (table) => [
+    unique(REGISTRATION_NUMBER_UNIQUE).on(table.registrationNumber),
+    // Named in the format only: a CHECK naming the new `confirmed` status
+    // would use the enum value in the run that adds it (rule F2).
+    check(
+      "registration_number_format",
+      sql`${table.registrationNumber} ~ '^[A-Z]{3,6}[0-9]{2}-R-[0-9A-HJKMNP-TV-Z]{6}$'`
+    ),
     check(
       "registration_institution_route",
       sql`(${table.institutionRegistrationId} IS NOT NULL) = (${table.route} = 'institution')`
