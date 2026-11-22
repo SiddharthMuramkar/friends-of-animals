@@ -10,12 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { PRIMARY_NAV, ROUTES } from "@/lib/routes";
 
-import {
-  DesktopNav,
-  DesktopNavView,
-  MobileMenu,
-  MobileMenuView,
-} from "./header-nav";
+import { DesktopNav, DesktopNavView, MobileMenu } from "./header-nav";
 
 export async function SiteHeader() {
   const t = await getTranslations("nav");
@@ -86,9 +81,8 @@ export async function SiteHeader() {
               light: tc("theme.light"),
             }}
           />
-          <Suspense fallback={<MobileMenuView {...menu} pathname={null} />}>
-            <MobileMenu {...menu} />
-          </Suspense>
+          {/* Not in a Suspense boundary: see MobileMenu. */}
+          <MobileMenu {...menu} />
         </div>
       </div>
     </header>

@@ -1,18 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { DesktopNavView, MobileMenuView } from "./header-nav";
+import { DesktopNavView, MenuLinksView } from "./header-nav";
 
 const items = [{ href: "/about", label: "About" }];
 const dashboard = { href: "/dashboard", label: "Dashboard" };
-const labels = {
-  menu: "Menu",
-  title: "Pages",
-  close: "Close menu",
-  nav: "Main",
-  donate: "Donate",
-  theme: "Theme",
-};
 
 const desktop = (pathname: string | null) =>
   renderToStaticMarkup(
@@ -24,14 +16,15 @@ const desktop = (pathname: string | null) =>
     />
   );
 
+// The phone menu's links, the only part of it that reads the pathname.
 const menu = (pathname: string | null) =>
   renderToStaticMarkup(
-    <MobileMenuView
+    <MenuLinksView
       items={items}
       dashboard={dashboard}
-      labels={labels}
       donateHref="/donate"
       pathname={pathname}
+      close={() => {}}
     />
   );
 
