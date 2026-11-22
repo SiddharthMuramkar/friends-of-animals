@@ -101,6 +101,7 @@ describe("the registration seed", () => {
       withdrawn: 1,
       // The individual route's status (#78): never a school's.
       pending_payment: 0,
+      pending_guardian: 0,
     });
     const students = dashboard.ok ? dashboard.students : [];
     const groupsOfEnrolled = new Set(
