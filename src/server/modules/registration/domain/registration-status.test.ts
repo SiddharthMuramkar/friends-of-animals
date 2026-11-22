@@ -14,9 +14,15 @@ const ALLOWED: Record<string, RegistrationCause> = {
   "enrolled->withdrawn": "coordinator",
   // Paid in full, or free (#77).
   "enrolled->confirmed": "payment",
+  // An adult's own registration, once its fee is paid or found free (#78).
+  "pending_payment->confirmed": "payment",
 };
 
-const CAUSES: readonly RegistrationCause[] = ["coordinator", "payment"];
+const CAUSES: readonly RegistrationCause[] = [
+  "coordinator",
+  "participant",
+  "payment",
+];
 
 const PAIRS = REGISTRATION_STATUSES.flatMap((from) =>
   REGISTRATION_STATUSES.map((to) => [from, to] as const)
@@ -28,7 +34,21 @@ describe("the registration status machine", () => {
       "enrolled",
       "confirmed",
       "withdrawn",
+      "pending_payment",
     ]);
+  });
+
+  it("starts an adult who registers themselves as waiting for payment", () => {
+    expect(initialRegistrationStatus("individual")).toEqual({
+      status: "pending_payment",
+      cause: "participant",
+    });
+  });
+
+  it("lets no participant confirm their own registration", () => {
+    expect(canTransition("pending_payment", "confirmed", "participant")).toBe(
+      false
+    );
   });
 
   it("starts a student enrolled by a coordinator as enrolled", () => {

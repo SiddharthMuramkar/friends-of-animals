@@ -35,6 +35,8 @@ export const APP_ROUTES = {
   adminBlog: "/admin/blog",
   adminNewBlogPost: "/admin/blog/new",
   institutionCompetitions: "/institution/competitions",
+  /** The participant dashboard (#78): an adult's own registrations. */
+  participant: "/participant",
 } as const;
 
 /** A competition's judging guide, for the institutions taking part (#88). */
@@ -80,6 +82,34 @@ export function newStudentPath(
 ): string {
   const query = new URLSearchParams({ institution: institutionId });
   return `/institution/registrations/${encodeURIComponent(reference)}/students/new?${query.toString()}`;
+}
+
+const INDIVIDUAL_REGISTER_PREFIX = `${APP_ROUTES.participant}/register/`;
+
+/**
+ * Where an adult registers for one competition on their own (#78). It
+ * takes their date of birth, phone and address, so it lives in the
+ * signed-in tree, under the nonce policy.
+ */
+export function individualRegisterPath(competitionSlug: string): string {
+  return `${INDIVIDUAL_REGISTER_PREFIX}${encodeURIComponent(competitionSlug)}`;
+}
+
+/**
+ * The competition slug in an individual register form's path, as sent
+ * (still percent-encoded), or null for any other path. src/proxy.ts checks
+ * it before the page renders, so an unknown or draft competition gets the
+ * 404 status, not a 200 page saying not found.
+ */
+export function individualRegisterSlug(pathname: string): string | null {
+  if (!pathname.startsWith(INDIVIDUAL_REGISTER_PREFIX)) return null;
+  const slug = pathname.slice(INDIVIDUAL_REGISTER_PREFIX.length);
+  return slug === "" || slug.includes("/") ? null : slug;
+}
+
+/** Where an adult pays for their own registration (#78). */
+export function payMyRegistrationPath(registrationId: string): string {
+  return `${APP_ROUTES.participant}/registrations/${encodeURIComponent(registrationId)}/pay`;
 }
 
 /** Where a coordinator pays their students' fees (#77). */
@@ -151,6 +181,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/import",
   "/institution/registrations/[ref]/import/template.csv",
   "/institution/registrations/[ref]/import/sample.csv",
+  "/participant/register/[slug]",
+  "/participant/registrations/[id]/pay",
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,
 ] as const;
@@ -184,6 +216,7 @@ export const SIGNED_IN_PREFIXES = [
   "/dashboard",
   "/institution",
   "/institutions/register",
+  "/participant",
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

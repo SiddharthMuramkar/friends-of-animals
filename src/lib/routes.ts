@@ -43,6 +43,13 @@ const DEFINITIONS = {
     sitemap: { updated: UPDATED, priority: 0.9 },
   },
   competition: { path: "/competitions/[slug]", hue: "pink" },
+  /** The route chooser (#78): through a school, or as an individual adult. */
+  participate: {
+    path: "/participate",
+    hue: "green",
+    footer: "takePart",
+    sitemap: { updated: "2026-11-22", priority: 0.7 },
+  },
   schools: {
     path: "/schools",
     hue: "green",

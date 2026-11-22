@@ -99,6 +99,8 @@ describe("the registration seed", () => {
       enrolled: 6,
       confirmed: 0,
       withdrawn: 1,
+      // The individual route's status (#78): never a school's.
+      pending_payment: 0,
     });
     const students = dashboard.ok ? dashboard.students : [];
     const groupsOfEnrolled = new Set(
@@ -116,7 +118,11 @@ describe("the registration seed", () => {
     await h.seed.preview();
 
     expect(await h.db.select().from(registration)).toEqual(once);
-    const profiles = await h.db.select().from(participantProfile);
+    // The school's students; adults' own profiles are the participants
+    // seed's (#78).
+    const profiles = (await h.db.select().from(participantProfile)).filter(
+      (profile) => profile.ownerKind === "institution"
+    );
     expect(profiles).toHaveLength(7);
     for (const profile of profiles) {
       expect(profile.dobCiphertext).toMatch(/^v\d+:/);

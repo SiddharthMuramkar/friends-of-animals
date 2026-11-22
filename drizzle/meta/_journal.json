@@ -306,8 +306,29 @@
     {
       "idx": 43,
       "version": "7",
-      "when": 1795367261624,
-      "tag": "0043_77_test_gateway",
+      "when": 1795367109750,
+      "tag": "0043_78_registration_pending_payment",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795367133124,
+      "tag": "0044_78_individual_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795368527018,
+      "tag": "0045_78_individual_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795371969739,
+      "tag": "0046_77_test_gateway",
       "breakpoints": true
     }
   ]

@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
 import {
+  individualRegisterSlug,
   isNonProductionPath,
   isSignedInPage,
   isSignedInPath,
@@ -141,9 +142,18 @@ export function createProxy({
       if (!hasSessionCookie(request.headers)) {
         return NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
       }
-      return isSignedInPage(pathname)
-        ? withNonceCsp(request)
-        : missingSignedInPage(request);
+      if (!isSignedInPage(pathname)) return missingSignedInPage(request);
+      // The individual register form names a public competition (#78):
+      // an unknown or draft one gets the 404 status here, before the
+      // page's notFound() could only stream a 200.
+      const competition = individualRegisterSlug(pathname);
+      if (
+        competition !== null &&
+        !(await isPublishedCompetition(competition))
+      ) {
+        return missingSignedInPage(request);
+      }
+      return withNonceCsp(request);
     }
 
     const [, section, raw = ""] = pathname.split("/");

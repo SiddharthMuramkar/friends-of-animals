@@ -6,6 +6,7 @@ import {
 import { NextRequest, type NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { individualLink } from "@/app/participate/_lib/individual-link";
 import { APP_ROUTES, SIGNED_IN_PREFIXES } from "@/lib/app-routes";
 import { publicCsp } from "@/lib/csp";
 import { PATH_HEADER } from "@/lib/second-factor-routes";
@@ -311,6 +312,69 @@ describe("proxy: the signed-in nonce policy", () => {
         expect(unstable_doesMiddlewareMatch({ config, url }), path).toBe(true);
       }
     }
+  });
+});
+
+describe("proxy: the individual register form (#78)", () => {
+  // The form takes a signed-in adult's date of birth, phone and address,
+  // so it renders per request under the nonce policy, like the school
+  // form; and an unknown or draft competition gets a real 404 before
+  // anything streams (a notFound() inside the page could only send a 200).
+  const proxy = createProxy({
+    isPublishedCompetitionSlug: async (slug) =>
+      slug === "neighbours-on-my-street",
+    isPublicPostSlug: async () => false,
+  });
+  /** Where the chooser's "Register as an individual" button leads. */
+  const form = (slug: string) => individualLink(slug).href;
+  const MISSING = "https://foa.example.test/__not-found";
+
+  it("runs on the form of any competition", () => {
+    for (const slug of ["neighbours-on-my-street", "no-such-competition"]) {
+      const url = `https://foa.example.test${form(slug)}`;
+      expect(unstable_doesMiddlewareMatch({ config, url }), slug).toBe(true);
+    }
+  });
+
+  it("sends a published competition's form the nonce policy, and renders it with the same nonce", async () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const response = await proxy(
+      request(form("neighbours-on-my-street"), SESSION)
+    );
+
+    expect(getRewrittenUrl(response)).toBeNull();
+    const policy = response.headers.get("content-security-policy");
+    expect(policy).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+    expect(policy).not.toMatch(/script-src [^;]*'unsafe-inline'/);
+    expect(pageHeaders(response).get("x-nonce")).toBe(
+      getScriptNonceFromHeader(policy!)
+    );
+  });
+
+  it("answers the form of an unknown, draft or malformed competition with the static 404", async () => {
+    vi.stubEnv("APP_ENV", "preview");
+    for (const slug of ["no-such-competition", "a-draft", "%E0%A4%A"]) {
+      const path = form("no-such-competition").replace(
+        "no-such-competition",
+        slug
+      );
+      const response = await proxy(request(path, SESSION));
+
+      expect(getRewrittenUrl(response), path).toBe(MISSING);
+      expect(response.headers.get("content-security-policy"), path).toBe(
+        publicCsp(cspContext()).value
+      );
+      expect(forwarded(response), path).toBeUndefined();
+    }
+  });
+
+  it("sends a visitor with no session cookie to sign in", async () => {
+    const response = await proxy(request(form("neighbours-on-my-street")));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://foa.example.test/sign-in"
+    );
   });
 });
 

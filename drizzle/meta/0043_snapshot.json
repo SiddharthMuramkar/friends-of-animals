@@ -1,5 +1,5 @@
 {
-  "id": "3cb1e3e2-736e-40b2-b806-885a191c7435",
+  "id": "4f132b31-4c3c-465e-9909-3770475fc164",
   "prevId": "c196b60b-f9d5-420a-9cd2-183977e3b64a",
   "version": "7",
   "dialect": "postgresql",
@@ -6404,135 +6404,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.gateway_test_order": {
-      "name": "gateway_test_order",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "amount_minor": {
-          "name": "amount_minor",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'INR'"
-        },
-        "receipt": {
-          "name": "receipt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "gateway_test_order_amount_positive": {
-          "name": "gateway_test_order_amount_positive",
-          "value": "\"gateway_test_order\".\"amount_minor\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.gateway_test_payment": {
-      "name": "gateway_test_payment",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "order_id": {
-          "name": "order_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_minor": {
-          "name": "amount_minor",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'INR'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "gateway_test_payment_order_id_idx": {
-          "name": "gateway_test_payment_order_id_idx",
-          "columns": [
-            {
-              "expression": "order_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "gateway_test_payment_order_id_gateway_test_order_id_fk": {
-          "name": "gateway_test_payment_order_id_gateway_test_order_id_fk",
-          "tableFrom": "gateway_test_payment",
-          "tableTo": "gateway_test_order",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.cms_post": {
       "name": "cms_post",
       "schema": "",
@@ -7265,7 +7136,8 @@
       "values": [
         "enrolled",
         "confirmed",
-        "withdrawn"
+        "withdrawn",
+        "pending_payment"
       ]
     },
     "public.payment_batch_status": {

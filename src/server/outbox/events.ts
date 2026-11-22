@@ -309,8 +309,12 @@ export const SUBSCRIBERS = {
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],
   // The family contact isn't a user, so no route row can name them: the
-  // confirmation goes by its own handler (#77).
-  "registration.confirmed": ["registration.send_confirmation"],
+  // confirmation goes by its own handler (#77). An adult's own goes by
+  // route row (#78).
+  "registration.confirmed": [
+    "registration.send_confirmation",
+    "notifications.dispatch",
+  ],
   // The payer's receipt goes by route row (#77).
   "payment.batch_captured": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
