@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
 import {
+  accessSync,
   chmodSync,
+  constants,
   chownSync,
   copyFileSync,
   existsSync,
@@ -37,11 +39,25 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true });
 });
 
-function tempDir() {
-  const dir = mkdtempSync(join(tmpdir(), "foa-preview-dropped-"));
+function tempDir(base = tmpdir()) {
+  const dir = mkdtempSync(join(base, "foa-preview-dropped-"));
   if (RUN_AS_NOBODY) chownSync(dir, 65534, 65534);
   dirs.push(dir);
   return dir;
+}
+
+/**
+ * A folder for the sweeper's purge records, which it fsyncs. On a disk
+ * (CI's /tmp) the first fsync waits for everything the runner has left
+ * unwritten, seconds after an install; on tmpfs it returns at once.
+ */
+function syncedStateDir() {
+  try {
+    accessSync("/dev/shm", constants.W_OK);
+    return tempDir("/dev/shm");
+  } catch {
+    return tempDir();
+  }
 }
 
 function fixturePath(dir: string) {
@@ -432,7 +448,7 @@ describe("sweep-preview-dbs.sh", () => {
         PATH: bin.path,
         GITHUB_TOKEN: "fixture",
         FOA_SWEEPER_ENV: join(dir, "sweeper.env"),
-        FOA_PREVIEW_PURGE_STATE: join(dir, "purge-state"),
+        FOA_PREVIEW_PURGE_STATE: join(syncedStateDir(), "purge-state"),
       },
     };
   }
