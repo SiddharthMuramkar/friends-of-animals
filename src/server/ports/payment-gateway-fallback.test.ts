@@ -1,14 +1,46 @@
+import { createHmac } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import { createHarness } from "@/test/harness";
 
 import {
+  FALLBACK_KEY,
+  FALLBACK_SIGNATURE_HEADER,
   fallbackPaymentGateway,
-  fallbackWebhook,
   isFallbackGateway,
+  type FallbackWebhookBody,
 } from "./payment-gateway-fallback";
 import { unconfiguredPaymentGateway } from "./payment-gateway";
 import { paymentGatewayContract } from "./payment-gateway.contract";
+
+let webhookSequence = 0;
+
+/**
+ * A webhook as the fallback would post one: signed with its key, with
+ * another key, or unsigned. A new call is a new event.
+ */
+function fallbackWebhook(
+  event: { type: string; orderId: string },
+  { signature = "valid" }: { signature?: "valid" | "invalid" | "missing" } = {}
+): { rawBody: string; headers: Headers } {
+  webhookSequence += 1;
+  const body: FallbackWebhookBody = {
+    id: `evt_fallback_${webhookSequence}`,
+    event: event.type,
+    orderId: event.orderId,
+  };
+  const rawBody = JSON.stringify(body);
+  const headers = new Headers({ "content-type": "application/json" });
+  if (signature !== "missing") {
+    const key = signature === "valid" ? FALLBACK_KEY : "not-the-fallback-key";
+    headers.set(
+      FALLBACK_SIGNATURE_HEADER,
+      createHmac("sha256", key).update(rawBody).digest("hex")
+    );
+  }
+  return { rawBody, headers };
+}
 
 paymentGatewayContract("fallbackPaymentGateway on PGlite", async () => {
   const h = await createHarness();

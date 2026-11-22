@@ -9,6 +9,7 @@
  * loads it under plain Node.
  */
 
+import { PAY_FEES_ROUTE } from "./app-routes";
 import type { HeaderRule } from "./csp";
 
 export type SecurityHeader = { key: string; value: string };
@@ -37,7 +38,9 @@ const PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=()";
 export function checkoutPageHeaders(): HeaderRule[] {
   return [
     {
-      source: "/institution/registrations/:ref/pay",
+      // The route the CSP scopes Razorpay's origins to (./csp-sources.ts),
+      // as a headers() source: each [name] segment becomes :name.
+      source: PAY_FEES_ROUTE.replaceAll(/\[(\w+)\]/g, ":$1"),
       headers: [
         {
           key: "Permissions-Policy",

@@ -18,6 +18,7 @@ import {
   payFeesPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
 import type { PaymentBatchStatus } from "@/server/modules/payments";
 import type { RegistrationStatus } from "@/server/modules/registration";
@@ -185,7 +186,7 @@ async function Batch({
           // A full load: the pay page's CSP comes with its document.
           <a
             href={payFeesPath(batch.reference, institutionId)}
-            className={`${buttonStyles({ variant: "primary" })} mt-5`}
+            className={cn(buttonStyles({ variant: "primary" }), "mt-5")}
           >
             {t("payNow")}
           </a>

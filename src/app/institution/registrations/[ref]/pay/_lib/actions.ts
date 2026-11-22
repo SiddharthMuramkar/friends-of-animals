@@ -7,17 +7,15 @@ import { feeText } from "@/components/competitions/fee-text";
 import { paymentBatchPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import { productionDeps } from "@/server/deps";
 import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import type { CheckoutParams } from "@/server/ports/payment-gateway";
-import { isFallbackGateway } from "@/server/ports/payment-gateway-fallback";
 
 import type {
   CheckoutReturn,
   CheckoutView,
   PayView,
   TestCheckoutResult,
-} from "./_lib/pay-view";
+} from "./pay-view";
 
 // The pay page's server actions (#77): open the batch's order, confirm
 // what Checkout hands back, and the fallback's test checkout. Every
@@ -157,26 +155,38 @@ export async function confirmPaymentAction(
 }
 
 /**
- * The fallback gateway's test checkout: the tester pays the order in full,
- * or declines. Only where the fallback is the gateway, which is never
- * production (src/server/ports/payment-gateway-select.ts).
+ * The fallback gateway's test checkout: the tester pays the batch's order
+ * in full, or declines. The use case refuses wherever the fallback isn't
+ * the gateway, which is never production
+ * (src/server/ports/payment-gateway-select.ts).
  */
 export async function payTestCheckoutAction(input: {
-  orderId: string;
+  institutionId: string;
+  batchId: string;
   outcome: "pay" | "decline";
 }): Promise<TestCheckoutResult> {
-  await signedInUser();
+  const actor = await signedInUser();
   const t = await getTranslations("payments.pay");
-  const gateway = productionDeps().payments;
-  if (!isFallbackGateway(gateway)) {
-    return { ok: false, message: t("testCheckout.unavailable") };
+  let result;
+  try {
+    result = await as(actor).payTestCheckout(input);
+  } catch (error) {
+    return {
+      ok: false,
+      message: t(`error.${thrown("payTestCheckout", error) ?? "failed"}`),
+    };
   }
-  const orderId = String(input.orderId).slice(0, 100);
-  if (input.outcome === "decline") {
-    await gateway.decline(orderId);
+  if (!result.ok) {
+    const key =
+      result.error === "unavailable"
+        ? "testCheckout.unavailable"
+        : result.error === "not_found"
+          ? "error.not_found"
+          : "error.failed";
+    return { ok: false, message: t(key) };
+  }
+  if (result.outcome === "declined") {
     return { ok: false, message: t("error.payment_failed") };
   }
-  const paid = await gateway.capture(orderId);
-  if (!paid) return { ok: false, message: t("error.not_found") };
-  return { ok: true, ...paid };
+  return { ok: true, paymentId: result.paymentId, signature: result.signature };
 }

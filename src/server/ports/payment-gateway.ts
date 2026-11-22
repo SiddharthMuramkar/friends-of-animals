@@ -4,7 +4,7 @@
 //     (src/test/fakes/payment-gateway.ts): Seam 1 tests.
 //   - Razorpay over fetch (./razorpay/gateway.ts), and a non-production
 //     fallback with a test checkout (./payment-gateway-fallback.ts).
-//   - `unconfiguredPaymentGateway`: production while Razorpay's live keys
+//   - `unconfiguredGateway(reason)`: production while Razorpay's live keys
 //     are missing. It refuses everything, so no payment is ever taken by
 //     accident.
 // ./payment-gateway-select.ts picks one per environment. Every adapter
@@ -113,16 +113,22 @@ export class PaymentGatewayNotConfiguredError extends Error {
 
 /**
  * The gateway while none is configured: it makes no order, opens no
- * checkout, and trusts no signature.
+ * checkout, and trusts no signature. What it throws gives `reason`, or by
+ * default that Razorpay's live keys are not set.
  */
-export const unconfiguredPaymentGateway: PaymentGateway = {
-  name: "unconfigured",
-  createOrder: () => Promise.reject(new PaymentGatewayNotConfiguredError()),
-  checkout: () => {
-    throw new PaymentGatewayNotConfiguredError();
-  },
-  verifyCheckout: () => false,
-  readWebhook: () => null,
-  fetchOrderPayments: () =>
-    Promise.reject(new PaymentGatewayNotConfiguredError()),
-};
+export function unconfiguredGateway(reason?: string): PaymentGateway {
+  const refuse = () => new PaymentGatewayNotConfiguredError(reason);
+  return {
+    name: "unconfigured",
+    createOrder: () => Promise.reject(refuse()),
+    checkout: () => {
+      throw refuse();
+    },
+    verifyCheckout: () => false,
+    readWebhook: () => null,
+    fetchOrderPayments: () => Promise.reject(refuse()),
+  };
+}
+
+/** The unconfigured gateway with the default reason. */
+export const unconfiguredPaymentGateway: PaymentGateway = unconfiguredGateway();

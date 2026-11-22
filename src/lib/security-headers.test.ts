@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 
+import { payFeesPath } from "./app-routes";
 import {
   checkoutPageHeaders,
   securityHeaders,
@@ -71,6 +72,15 @@ describe("checkoutPageHeaders", () => {
       // Checkout opens bank and wallet pages in popups and watches them.
       "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
     });
+  });
+
+  it("follows the pay page wherever its route goes", () => {
+    const { pathname } = new URL(
+      payFeesPath("NEIGH27-I-5EED1", "0193a8f0-0000-7000-8000-000000000001"),
+      "http://localhost:3000"
+    );
+
+    expect(matching(pathname)).toHaveLength(1);
   });
 
   it("leaves every other page's headers as they are", () => {

@@ -9,7 +9,7 @@ import {
   confirmPaymentAction,
   payTestCheckoutAction,
   startPaymentAction,
-} from "../actions";
+} from "../_lib/actions";
 import {
   IDLE,
   type CheckoutReturn,
@@ -206,6 +206,8 @@ export function CheckoutButton({
       {testing ? (
         <TestCheckout
           key={testing.checkout.orderId}
+          institutionId={institutionId}
+          batchId={testing.batchId}
           checkout={testing.checkout}
           labels={labels.testCheckout}
           disabled={confirming}
@@ -223,12 +225,16 @@ export function CheckoutButton({
  * would, so the rest of the flow is the same.
  */
 function TestCheckout({
+  institutionId,
+  batchId,
   checkout,
   labels,
   disabled,
   onPaid,
   onRefused,
 }: {
+  institutionId: string;
+  batchId: string;
   checkout: CheckoutView;
   labels: CheckoutLabels["testCheckout"];
   disabled: boolean;
@@ -244,7 +250,8 @@ function TestCheckout({
   async function answer(outcome: "pay" | "decline") {
     setBusy(outcome);
     const result = await payTestCheckoutAction({
-      orderId: checkout.orderId,
+      institutionId,
+      batchId,
       outcome,
     });
     setBusy(null);
@@ -261,12 +268,7 @@ function TestCheckout({
       aria-labelledby="test-checkout"
       className="rounded-3xl border-2 border-dashed border-border-strong bg-surface p-5 shadow-warm sm:p-6"
     >
-      <h2
-        id="test-checkout"
-        ref={heading}
-        tabIndex={-1}
-        className="text-h3 outline-none"
-      >
+      <h2 id="test-checkout" ref={heading} tabIndex={-1} className="text-h3">
         {labels.title}
       </h2>
       <p className="mt-2 text-ink-muted">{labels.body}</p>

@@ -7,9 +7,10 @@ import { test } from "./support/seed-registration";
 
 // #77: an institution pays its students' fees in one payment. The
 // authorised person of a fresh verified institution registers it for the
-// seeded open competition, enrols two students, opens the pay page, tries
-// the test checkout once and declines, then pays: the payment's page shows
-// both students confirmed with their registration numbers. CI's E2E job
+// seeded open competition, enrols two students, follows the students
+// page's link to the pay page, tries the test checkout once and declines,
+// then pays: the payment's page shows both students confirmed with their
+// registration numbers. CI's E2E job
 // runs with APP_ENV=local and no Razorpay keys, so the fallback gateway's
 // test checkout stands in for Razorpay's (Razorpay test mode needs HR-09).
 // Both pages are checked with axe, light and dark. The amounts, replays,
@@ -68,10 +69,19 @@ test("an institution pays every waiting student's fee in one payment and sees th
   )?.replace("Registration reference ", "");
   expect(reference).toMatch(/^NEIGH27-I-/);
 
-  // A full load, as every link to the pay page is: its CSP comes with it.
+  // The students page links to the pay page with a plain link: a full
+  // load, so the pay page's CSP comes with its document.
   const payPath = `/institution/registrations/${reference}/pay?institution=${school.id}`;
-  const response = await page.goto(payPath);
-  expect(response?.status()).toBe(200);
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (answer) =>
+        answer.request().isNavigationRequest() &&
+        new URL(answer.url()).pathname.endsWith("/pay")
+    ),
+    page.getByRole("link", { name: "Pay fees for 2 students" }).click(),
+  ]);
+  expect(response.status()).toBe(200);
+  expect(page.url()).toContain(payPath);
   await expect(
     page.getByRole("heading", { level: 1, name: "Pay fees" })
   ).toBeVisible();
@@ -136,7 +146,13 @@ test("an institution pays every waiting student's fee in one payment and sees th
     "/institution/registrations/[ref]/payments/[batchId] paid"
   );
 
-  // Nothing is left to pay, and the pay page points to the receipt.
+  // Nothing is left to pay: the students page no longer links to the pay
+  // page, and the pay page itself points to the receipt.
+  await page.getByRole("link", { name: "Back to your students" }).click();
+  await expect(
+    page.getByRole("heading", { level: 3, name: "Kabir Shah" })
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Pay fees/ })).toHaveCount(0);
   await page.goto(payPath);
   await expect(page.getByText("No fees are waiting")).toBeVisible();
   await expect(

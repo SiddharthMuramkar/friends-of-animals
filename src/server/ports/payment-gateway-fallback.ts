@@ -30,8 +30,9 @@ import type {
 } from "./payment-gateway";
 
 /** Public on purpose; see the note above. */
-const FALLBACK_KEY = "foa-fallback-gateway-key-not-a-secret";
-const SIGNATURE_HEADER = "x-fallback-gateway-signature";
+export const FALLBACK_KEY = "foa-fallback-gateway-key-not-a-secret";
+/** Where a fallback webhook carries its signature. */
+export const FALLBACK_SIGNATURE_HEADER = "x-fallback-gateway-signature";
 
 const HEX_SHA256 = /^[0-9a-f]{64}$/;
 
@@ -48,7 +49,11 @@ function sameSignature(expected: string, received: string | null): boolean {
 }
 
 /** What the fallback's webhooks carry, before signing. */
-type FallbackWebhookBody = { id: string; event: string; orderId: string };
+export type FallbackWebhookBody = {
+  id: string;
+  event: string;
+  orderId: string;
+};
 
 function parseWebhookBody(rawBody: string): FallbackWebhookBody | null {
   try {
@@ -64,34 +69,6 @@ function parseWebhookBody(rawBody: string): FallbackWebhookBody | null {
     // Not JSON: not one of ours.
   }
   return null;
-}
-
-let webhookSequence = 0;
-
-/**
- * A webhook as the fallback would post one, for tests: signed with its
- * key, with another key, or unsigned. A new call is a new event.
- */
-export function fallbackWebhook(
-  event: { type: string; orderId: string },
-  { signature = "valid" }: { signature?: "valid" | "invalid" | "missing" } = {}
-): { rawBody: string; headers: Headers } {
-  webhookSequence += 1;
-  const body: FallbackWebhookBody = {
-    id: `evt_fallback_${Date.now()}_${webhookSequence}`,
-    event: event.type,
-    orderId: event.orderId,
-  };
-  const rawBody = JSON.stringify(body);
-  const headers = new Headers({ "content-type": "application/json" });
-  if (signature === "valid") headers.set(SIGNATURE_HEADER, sign(rawBody));
-  if (signature === "invalid") {
-    headers.set(
-      SIGNATURE_HEADER,
-      createHmac("sha256", "not-the-fallback-key").update(rawBody).digest("hex")
-    );
-  }
-  return { rawBody, headers };
 }
 
 export class FallbackPaymentGateway implements PaymentGateway {
@@ -160,7 +137,7 @@ export class FallbackPaymentGateway implements PaymentGateway {
   }
 
   readWebhook(rawBody: string, headers: Headers): GatewayWebhook | null {
-    if (!sameSignature(sign(rawBody), headers.get(SIGNATURE_HEADER))) {
+    if (!sameSignature(sign(rawBody), headers.get(FALLBACK_SIGNATURE_HEADER))) {
       return null;
     }
     const body = parseWebhookBody(rawBody);

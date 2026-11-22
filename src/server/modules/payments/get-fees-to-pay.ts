@@ -89,7 +89,7 @@ export async function getFeesToPay(
       students,
       fee,
       total: fee
-        ? { amountMinor: fee.amountMinor * BigInt(students), currency: "INR" }
+        ? { ...fee, amountMinor: fee.amountMinor * BigInt(students) }
         : null,
       lastPaidBatchId: lastPaid?.id ?? null,
     },

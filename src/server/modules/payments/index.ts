@@ -18,6 +18,10 @@ import {
   type PayInstitutionFeesInput,
 } from "./pay-institution-fees";
 import {
+  payTestCheckout,
+  type PayTestCheckoutInput,
+} from "./pay-test-checkout";
+import {
   receiveGatewayWebhook,
   type ReceiveGatewayWebhookInput,
 } from "./receive-gateway-webhook";
@@ -47,6 +51,10 @@ export type {
   PayInstitutionFeesInput,
   PayInstitutionFeesResult,
 } from "./pay-institution-fees";
+export type {
+  PayTestCheckoutInput,
+  PayTestCheckoutResult,
+} from "./pay-test-checkout";
 
 export const paymentsUseCases = (ctx: UseCaseContext) => ({
   payInstitutionFees: (input: PayInstitutionFeesInput) =>
@@ -56,4 +64,5 @@ export const paymentsUseCases = (ctx: UseCaseContext) => ({
   confirmCheckout: (input: ConfirmCheckoutInput) => confirmCheckout(ctx, input),
   getPaymentBatch: (input: GetPaymentBatchInput) => getPaymentBatch(ctx, input),
   getFeesToPay: (input: GetFeesToPayInput) => getFeesToPay(ctx, input),
+  payTestCheckout: (input: PayTestCheckoutInput) => payTestCheckout(ctx, input),
 });

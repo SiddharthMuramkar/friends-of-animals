@@ -18,10 +18,7 @@
 
 import type { AppDb } from "../db/app-db";
 import type { Clock } from "./clock";
-import {
-  PaymentGatewayNotConfiguredError,
-  type PaymentGateway,
-} from "./payment-gateway";
+import { unconfiguredGateway, type PaymentGateway } from "./payment-gateway";
 import { fallbackPaymentGateway } from "./payment-gateway-fallback";
 import { razorpayGateway, type RazorpayKeys } from "./razorpay/gateway";
 
@@ -81,21 +78,6 @@ export function selectPaymentGateway(
   return { kind: "razorpay", keys: { keyId, keySecret, webhookSecret } };
 }
 
-/** A gateway that refuses every payment and says why. */
-function refusing(reason: string): PaymentGateway {
-  const refuse = () => new PaymentGatewayNotConfiguredError(reason);
-  return {
-    name: "unconfigured",
-    createOrder: () => Promise.reject(refuse()),
-    checkout: () => {
-      throw refuse();
-    },
-    verifyCheckout: () => false,
-    readWebhook: () => null,
-    fetchOrderPayments: () => Promise.reject(refuse()),
-  };
-}
-
 /** The adapter `env` gets, built. */
 export function paymentGatewayFor(
   env: PaymentGatewayEnv,
@@ -111,6 +93,6 @@ export function paymentGatewayFor(
     case "fallback":
       return fallbackPaymentGateway({ ...deps, appEnv: env.APP_ENV });
     case "unconfigured":
-      return refusing(REASONS[selection.reason]);
+      return unconfiguredGateway(REASONS[selection.reason]);
   }
 }

@@ -28,6 +28,7 @@
       "confirmingFree": "Confirming…",
       "confirmedFree": "{count, plural, one {# student is} other {# students are}} confirmed.",
       "lastPaid": "See your last payment",
+      "link": "Pay fees for {count, plural, one {# student} other {# students}}",
       "back": "Back to your students",
       "noInstitution": {
         "title": "There is nothing to pay here",
