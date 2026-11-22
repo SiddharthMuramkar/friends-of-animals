@@ -16,7 +16,7 @@ import { PostForm } from "../_components/post-form";
 import { createPostAction } from "../_lib/actions";
 import { postFormLabels, postFormOptions } from "../_lib/labels";
 import { emptyPostForm } from "../_lib/post-form";
-import { postsFor } from "../_lib/reads";
+import { mayWritePosts } from "../_lib/reads";
 
 // A new blog post or story (#112): saved as a draft, then edited, given
 // images and published from its own editor page.
@@ -60,7 +60,7 @@ async function NewPost() {
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const t = await getTranslations("adminBlog");
   // Only content managers see the form; createPost refuses anyone else.
-  if ((await postsFor(as(actor))) === null) {
+  if (!(await mayWritePosts(as(actor)))) {
     return (
       <ExplainState
         title={t("denied.title")}
