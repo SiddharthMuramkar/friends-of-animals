@@ -40,7 +40,6 @@ describe("seedPreview", () => {
       "member1@example.test",
       "member2@example.test",
       "member3@example.test",
-      "principal@example.test",
       "super-admin@example.test",
       "template-editor-desktop@example.test",
       "template-editor-mobile@example.test",

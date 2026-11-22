@@ -3,6 +3,8 @@
 // and journeys can name them. Loads under plain Node (the seed script):
 // relative imports only, no "server-only".
 
+import { and, eq } from "drizzle-orm";
+
 import { institution, institutionInvitation } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import { invitationExpiresAt } from "../modules/institutions/domain/invitation";
@@ -10,17 +12,12 @@ import { storedInvitee } from "../modules/institutions/coordinators/invitee";
 import { createLinkToken } from "../crypto/link-token";
 import { ensureGrant } from "./access";
 import { SEED_ACCOUNTS } from "./accounts";
-import { SEED_SCOPES } from "./scopes";
+import { SEED_INSTITUTIONS } from "./institutions";
 import type { SeedDeps } from "./types";
 
 export const SEED_COORDINATORS = {
-  institution: SEED_SCOPES.institution,
-  /** PROVISIONAL until #73 seeds the institution and its authorised person. */
-  principal: {
-    id: "01938a00-0000-7000-8000-000000000201",
-    name: "Seed Principal",
-    email: "principal@example.test",
-  },
+  institution: SEED_INSTITUTIONS.verified,
+  principal: SEED_INSTITUTIONS.verified.admin,
   /** Member 1 already coordinates there (./access.ts); kept so here too. */
   coordinator: SEED_ACCOUNTS.members[0],
   invitation: {
@@ -29,37 +26,16 @@ export const SEED_COORDINATORS = {
   },
 } as const;
 
-/**
- * PROVISIONAL stand-in for #73's institutions seed: the seeded institution,
- * verified, with its authorised person. Drop it once #73's seeder makes
- * them (it runs before this one).
- */
-async function ensureSeedInstitution(deps: SeedDeps): Promise<string> {
-  const now = deps.clock.now();
-  await deps.db
-    .insert(institution)
-    .values({
-      id: SEED_COORDINATORS.institution.id,
-      name: SEED_COORDINATORS.institution.name,
-      status: "verified",
-      createdAt: now,
-    })
-    .onConflictDoNothing();
-  const principal = await ensureVerifiedAccount(
-    deps,
-    SEED_COORDINATORS.principal
-  );
-  await ensureGrant(deps, principal.id, {
-    role: "institution_admin",
-    scope: { type: "institution", id: SEED_COORDINATORS.institution.id },
-  });
-  return principal.id;
-}
-
-/** The coordinator and the waiting invitation, after the access seed. */
+/** The coordinator and waiting invitation, after the institutions seed. */
 export async function seedCoordinators(deps: SeedDeps): Promise<void> {
-  const principalId = await ensureSeedInstitution(deps);
   const institutionId = SEED_COORDINATORS.institution.id;
+  const [verified] = await deps.db
+    .select({ principalId: institution.createdBy })
+    .from(institution)
+    .where(
+      and(eq(institution.id, institutionId), eq(institution.status, "verified"))
+    );
+  if (!verified) return;
   // Member 1, made by the identity seed (with its phone) before this runs.
   const { id, name, email } = SEED_COORDINATORS.coordinator;
   const coordinator = await ensureVerifiedAccount(deps, { id, name, email });
@@ -82,7 +58,7 @@ export async function seedCoordinators(deps: SeedDeps): Promise<void> {
         address: SEED_COORDINATORS.invitation.email,
       }),
       tokenHash: createLinkToken().tokenHash,
-      invitedByUserId: principalId,
+      invitedByUserId: verified.principalId,
       createdAt: now,
       expiresAt: invitationExpiresAt(now),
     })

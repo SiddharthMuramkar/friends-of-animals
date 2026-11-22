@@ -131,7 +131,7 @@ export async function inviteCoordinator(
     // Again inside the transaction: a role revoked since the first check
     // counts.
     const { role: actorRole } = await authorize(
-      { db: tx, actor: ctx.actor },
+      { db: tx, clock: ctx.clock, actor: ctx.actor },
       "institution.coordinators.manage",
       resource
     );

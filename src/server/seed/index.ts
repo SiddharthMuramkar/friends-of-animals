@@ -31,13 +31,14 @@ const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
   seedIdentity,
   seedAccess,
-  seedCoordinators,
   seedCompetitions,
   seedConsent,
   seedFiles,
   seedSecondFactor,
   seedSettings,
   seedInstitutions,
+  // After the institutions seed: it needs the verified institution.
+  seedCoordinators,
   seedNotifications,
   seedCms,
 ];

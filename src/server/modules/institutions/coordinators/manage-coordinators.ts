@@ -173,7 +173,7 @@ export async function removeCoordinator(
       .orderBy(asc(user.id))
       .for("no key update");
     const { role: actorRole } = await authorize(
-      { db: tx, actor: ctx.actor },
+      { db: tx, clock: ctx.clock, actor: ctx.actor },
       "institution.coordinators.manage",
       resource
     );
@@ -230,7 +230,7 @@ export async function revokeInvitation(
       )
       .for("update");
     const { role: actorRole } = await authorize(
-      { db: tx, actor: ctx.actor },
+      { db: tx, clock: ctx.clock, actor: ctx.actor },
       "institution.coordinators.manage",
       resource
     );

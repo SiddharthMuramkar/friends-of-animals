@@ -28,7 +28,7 @@ async function invite(
 }
 
 function coordinates(h: Harness, actor: Actor, institutionId: string) {
-  return can({ db: h.db, actor }, "institution.coordinate", {
+  return can({ db: h.db, clock: h.clock, actor }, "institution.coordinate", {
     scopes: [{ type: "institution", id: institutionId }],
   });
 }
