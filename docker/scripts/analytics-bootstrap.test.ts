@@ -2,6 +2,7 @@ import { spawnSync, type SpawnSyncOptions } from "node:child_process";
 import {
   chmodSync,
   chownSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -311,8 +312,14 @@ describe("analytics-bootstrap.sh bring-up", () => {
     // Everything main() may write lives here, owned by whoever runs it.
     root = join(dir, "etc-foa");
     mkdirSync(join(root, "secrets"), { recursive: true });
+    mkdirSync(join(root, "gates"));
     if (AS_ROOT) {
-      for (const path of [dir, root, join(root, "secrets")]) {
+      for (const path of [
+        dir,
+        root,
+        join(root, "secrets"),
+        join(root, "gates"),
+      ]) {
         chownSync(path, 65534, 0);
       }
     }
@@ -321,19 +328,22 @@ describe("analytics-bootstrap.sh bring-up", () => {
   /**
    * main() with every file it writes in `root`, and `id`, `install` and
    * `docker` stubbed. The stubs record each call, shell-quoted, one per
-   * line; docker keeps what foa-umami's exec read from stdin.
+   * line; docker also records whether Caddy's gate for the stats site was
+   * open at that moment, and keeps what foa-umami's exec read from stdin.
+   * With `swapFails`, foa-umami's exec (the login swap) exits 1.
    */
-  const bringUp = () =>
+  const bringUp = ({ swapFails = false } = {}) =>
     bootstrapWith(
       UNPRIVILEGED,
       [
         'root="$1"',
+        `swap_status=${swapFails ? 1 : 0}`,
         'ENV_FILE="$root/analytics.env"',
-        'TOKEN_FILE="$root/secrets/cloudflared_tunnel_token"',
         'ADMIN_FILE="$root/secrets/umami_admin_password"',
+        'GATE_FILE="$root/gates/stats"',
         "id() { echo 0; }",
         'install() { echo "install $*" >>"$root/calls"; }',
-        'docker() { printf "%q " "$@" >>"$root/calls"; echo >>"$root/calls"; if [ "$1 $3" = "exec foa-umami" ]; then cat >"$root/umami-stdin"; else cat >/dev/null; fi; }',
+        'docker() { printf "%q " "$@" >>"$root/calls"; echo >>"$root/calls"; if [ -e "$GATE_FILE" ]; then echo open; else echo closed; fi >>"$root/gate"; if [ "$1 $3" = "exec foa-umami" ]; then cat >"$root/umami-stdin"; return "$swap_status"; else cat >/dev/null; fi; }',
         "main",
       ].join("; "),
       root
@@ -343,22 +353,67 @@ describe("analytics-bootstrap.sh bring-up", () => {
       .trimEnd()
       .split("\n")
       .map((line) => line.trimEnd());
+  /** "open" or "closed": Caddy's gate for the stats site at each docker call. */
+  const gateAtCalls = () =>
+    readFileSync(join(root, "gate"), "utf8").trimEnd().split("\n");
+  const gateFile = () => join(root, "gates", "stats");
 
-  it("replaces Umami's seeded login with Umami alone up, before the tunnel can start", () => {
+  it("writes the env file and the role, starts Umami, then replaces its seeded login", () => {
     const run = bringUp();
 
-    expect(run.status).toBe(0);
+    expect(run).toMatchObject({ status: 0, stderr: "" });
+    expect(run.stdout.split("\n").slice(0, 3)).toEqual([
+      `closed ${gateFile()}: Caddy answers stats.friendsofanimals.dev with 503`,
+      `wrote ${join(root, "analytics.env")}`,
+      "applied umami.sql on foa-pg-prod and reloaded its configuration",
+    ]);
     const [sql, start, admin, ...rest] = calls();
     expect(sql).toMatch(/^exec -i -u postgres foa-pg-prod psql /);
-    // Umami only: cloudflared would put its dashboard on the internet.
     expect(start).toMatch(
       /^compose -f \S+\/docker\/analytics\.yml up -d --wait umami$/
     );
     expect(admin).toMatch(/^exec -i foa-umami node --input-type=module -e /);
     expect(rest).toEqual([]);
-    expect(run.stdout).toMatch(
-      /next: docker compose -f \S+\/docker\/analytics\.yml up -d --wait/
-    );
+  });
+
+  it("opens Caddy's stats site only after Umami's seeded login is replaced", () => {
+    const run = bringUp();
+
+    expect(run.status).toBe(0);
+    // Umami starts, and its admin/umami login is swapped, while Caddy still
+    // answers stats.friendsofanimals.dev with 503 (caddy/Caddyfile).
+    const [, start, admin] = calls();
+    expect(start).toMatch(/ up -d --wait umami$/);
+    expect(admin).toMatch(/^exec -i foa-umami /);
+    expect(gateAtCalls().slice(1, 3)).toEqual(["closed", "closed"]);
+    expect(existsSync(gateFile())).toBe(true);
+  });
+
+  it("closes the stats site before changing the database, on a rerun too", () => {
+    writeFileSync(gateFile(), ""); // opened by an earlier run
+
+    const run = bringUp();
+
+    expect(run.status).toBe(0);
+    // Umami may already be running and see the newly provisioned database.
+    expect(gateAtCalls()).toEqual(["closed", "closed", "closed"]);
+    expect(existsSync(gateFile())).toBe(true);
+  });
+
+  it("leaves the stats site closed when replacing the seeded login fails", () => {
+    writeFileSync(gateFile(), ""); // opened by an earlier run
+
+    const run = bringUp({ swapFails: true });
+
+    expect(run.status).not.toBe(0);
+    expect(existsSync(gateFile())).toBe(false);
+  });
+
+  it("asks for no tunnel token: Caddy (edge.yml) is Umami's ingress", () => {
+    const run = bringUp();
+
+    expect(run.status).toBe(0);
+    expect(run.stdout + run.stderr).not.toMatch(/tunnel|cloudflare/i);
   });
 
   it("hands Umami the new admin password from a 0400 file, never printing it", () => {
@@ -384,17 +439,62 @@ describe("analytics-bootstrap.sh bring-up", () => {
   });
 });
 
+describe("analytics-bootstrap.sh paths and step order", () => {
+  // The bring-up tests point every path at a temporary directory; these are
+  // the paths the real run uses. Sourcing only defines them.
+  const defaults = () =>
+    bootstrapWith(
+      UNPRIVILEGED,
+      'printf "%s\\n" "$ADMIN_FILE" "$GATE_FILE"'
+    ).stdout.split("\n");
+
+  it("keeps Umami's new admin password in /etc/foa/secrets", () => {
+    expect(defaults()[0]).toBe("/etc/foa/secrets/umami_admin_password");
+  });
+
+  it("gates the stats site with the file edge.yml mounts for Caddy", () => {
+    expect(defaults()[1]).toBe("/var/lib/foa/caddy/gates/stats");
+  });
+
+  it("closes the gate first and opens it only after replacing the login", () => {
+    const main = bootstrapWith(UNPRIVILEGED, "declare -f main").stdout;
+    const order = [
+      "close_gate",
+      "start_umami",
+      "write_admin_password",
+      "replace_seeded_login",
+      "open_gate",
+    ].map((step) => main.search(new RegExp(`^\\s+${step}\\b`, "m")));
+    expect(order.every((at) => at > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+});
+
 describe("analytics-bootstrap.sh usage", () => {
   it("prints its usage with --help", () => {
-    const run = spawnSync("bash", [SCRIPT, "--help"], { encoding: "utf8" });
+    const run = spawnSync("bash", [SCRIPT, "--help"], {
+      ...UNPRIVILEGED,
+      encoding: "utf8",
+    });
     expect(run.status).toBe(0);
     expect(run.stdout).toMatch(/Usage: .*analytics-bootstrap\.sh/);
   });
 
   it("refuses an unknown argument", () => {
-    const run = spawnSync("bash", [SCRIPT, "--force"], { encoding: "utf8" });
+    const run = spawnSync("bash", [SCRIPT, "--force"], {
+      ...UNPRIVILEGED,
+      encoding: "utf8",
+    });
     expect(run.status).toBe(2);
     expect(run.stderr).toMatch(/unknown argument: --force/);
+  });
+
+  it("says nothing about a tunnel in its usage", () => {
+    const run = spawnSync("bash", [SCRIPT, "--help"], {
+      ...UNPRIVILEGED,
+      encoding: "utf8",
+    });
+    expect(run.stdout).not.toMatch(/tunnel|cloudflare/i);
   });
 });
 

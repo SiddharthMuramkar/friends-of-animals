@@ -10,8 +10,8 @@ import {
   type VerifiedAccount,
 } from "../identity/verified-account";
 import { ensureGrant } from "./access";
-import { seedPhone } from "./identity";
 import { competitionBuilder } from "./competitions";
+import { seedPhone } from "./identity";
 import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
 

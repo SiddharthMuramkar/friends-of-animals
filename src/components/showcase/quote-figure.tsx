@@ -107,10 +107,10 @@ export async function QuoteFigure({
         </figcaption>
         {gloss && q.kidGloss ? (
           <p className="mt-4 flex flex-wrap items-baseline gap-x-3 text-ink">
-            <span className="font-hand text-lead text-(--section-heading,var(--ink))">
+            <span className="min-w-0 font-hand text-lead text-(--section-heading,var(--ink))">
               {t("inSimpleWords")}
             </span>
-            <span>{q.kidGloss}</span>
+            <span className="min-w-0">{q.kidGloss}</span>
           </p>
         ) : null}
       </div>

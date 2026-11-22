@@ -85,6 +85,7 @@ export async function ensureSeedAuthenticator(
 /** An authenticator for each seeded account holding a staff role. */
 export async function seedSecondFactor(deps: SeedDeps): Promise<void> {
   for (const account of [SEED_ACCOUNTS.superAdmin, ...SEED_ACCOUNTS.members]) {
+    // By address: seedIdentity has made the account, with its phone.
     const { id } = await ensureVerifiedAccount(deps, {
       id: account.id,
       name: account.name,

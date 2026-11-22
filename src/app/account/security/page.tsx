@@ -4,6 +4,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import { FormAlert, SubmitButton } from "@/components/form";
 import { ButtonLink } from "@/components/site/button-link";
 import { Callout } from "@/components/site/callout";
@@ -48,8 +49,9 @@ export default async function Page({
         title={t("title")}
         lead={t("lead")}
       />
-      {/* The session is read per request, so it streams in behind this
-          boundary while the heading above is prerendered. */}
+      {/* The whole page renders per request (app/account/layout.tsx, for
+          the CSP nonce); the session read streams in behind this
+          boundary, after the heading above. */}
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
@@ -73,7 +75,7 @@ async function Security({ searchParams }: { searchParams: SearchParams }) {
     getTranslations("security.passkey"),
     getTranslations("common.callout"),
     getFormatter(),
-    as(actor).mySecondFactors(),
+    orSecondFactor(() => as(actor).mySecondFactors()),
     searchParams,
   ]);
   const next = safeNext(params.next) ?? "";

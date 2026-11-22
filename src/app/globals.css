@@ -410,6 +410,7 @@
   }
   body {
     @apply bg-background font-sans text-body text-ink antialiased;
+    overflow-wrap: break-word;
   }
   h1,
   h2,

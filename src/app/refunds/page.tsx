@@ -43,16 +43,16 @@ export default async function Page() {
         items={SHORT.map((k) => t(`short.items.${k}`))}
       />
       <Section innerClassName="[&>*]:max-w-3xl">
-        <div className="grid gap-12">
+        <div className="grid grid-cols-1 gap-12">
           <PolicyBlock id="automatic" title={t("automatic.title")}>
-            <ul className="grid gap-3">
+            <ul className="grid grid-cols-1 gap-3">
               {AUTO.map((k) => (
                 <li key={k} className="flex items-start gap-3">
                   <CircleCheck
                     aria-hidden="true"
                     className="mt-0.5 size-5 shrink-0 text-green-700 dark:text-green-300"
                   />
-                  <span>{t(`automatic.items.${k}`)}</span>
+                  <span className="min-w-0">{t(`automatic.items.${k}`)}</span>
                 </li>
               ))}
             </ul>
@@ -62,14 +62,14 @@ export default async function Page() {
             <p className="text-ink-muted">{t("discretionary.late")}</p>
           </PolicyBlock>
           <PolicyBlock id="not-refunded" title={t("never.title")}>
-            <ul className="grid gap-3">
+            <ul className="grid grid-cols-1 gap-3">
               {NEVER.map((k) => (
                 <li key={k} className="flex items-start gap-3">
                   <CircleX
                     aria-hidden="true"
                     className="mt-0.5 size-5 shrink-0 text-red-700 dark:text-red-300"
                   />
-                  <span>{t(`never.items.${k}`)}</span>
+                  <span className="min-w-0">{t(`never.items.${k}`)}</span>
                 </li>
               ))}
             </ul>
@@ -88,7 +88,7 @@ export default async function Page() {
           </PolicyBlock>
           <section
             aria-labelledby="ask"
-            className="rounded-3xl border-2 border-border bg-surface p-6 shadow-warm sm:p-8"
+            className="rounded-3xl border-2 border-border bg-surface px-4 py-6 shadow-warm sm:p-8"
           >
             <h2 id="ask" className="text-h3">
               {t("ask.title")}
