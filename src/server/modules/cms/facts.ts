@@ -1,12 +1,14 @@
 // Reading FOA's organisation facts (#111).
 //
-//   getOrgFacts()         → anyone
-//   orgFactsReadiness()   → staff admin, super admin, content manager
+//   getOrgFacts()            → anyone
+//   getOrgFactsForPreview()  → content manager
+//   orgFactsReadiness()      → staff admin, super admin, content manager
 //
 // One read merges the two owners of the facts: the tax and registration
 // facts a super admin keeps in runtime settings (#62), and the published
 // `site_facts` document a content manager keeps. Anyone may read them:
-// every public page shows them.
+// every public page shows them. In Draft Mode a content manager sees the
+// open site facts draft in their place, to check it before publishing.
 //
 // Loads under plain Node: relative imports only.
 
@@ -20,7 +22,7 @@ import {
   type TaxFacts,
 } from "./domain/org-facts";
 import type { CmsContext } from "./publishing";
-import { getPublishedDocument } from "./reading";
+import { getDraftForPreview, getPublishedDocument } from "./reading";
 
 /** The tax facts as their settings hold them now; "" is not confirmed. */
 async function taxFacts(ctx: CmsContext): Promise<TaxFacts> {
@@ -42,6 +44,18 @@ export async function getOrgFacts(ctx: CmsContext): Promise<OrgFacts> {
     getPublishedDocument(ctx, { key: "site_facts" }),
   ]);
   return orgFactsFrom(tax, siteFacts);
+}
+
+/**
+ * The facts as they will read once the open site facts draft is
+ * published, for its preview; null while there is no draft.
+ */
+export async function getOrgFactsForPreview(
+  ctx: CmsContext
+): Promise<OrgFacts | null> {
+  await authorize(ctx, "cms.read_drafts");
+  const draft = await getDraftForPreview(ctx, { key: "site_facts" });
+  return draft ? orgFactsFrom(await taxFacts(ctx), draft) : null;
 }
 
 export type OrgFactsReadiness = { missing: PlaceholderKey[] };

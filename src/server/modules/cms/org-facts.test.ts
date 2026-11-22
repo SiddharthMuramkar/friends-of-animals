@@ -160,6 +160,87 @@ describe("organisation facts from the site facts document", () => {
   });
 });
 
+describe("previewing a site facts draft", () => {
+  const DRAFT_EMAIL = "draft@friendsofanimals.example";
+
+  async function publishedWithDraft(h: Harness) {
+    const actor = await contentManager(h);
+    const saved = await h
+      .as(actor)
+      .saveDraft({ key: "site_facts", body: SITE_FACTS });
+    if (!saved.ok) throw new Error(JSON.stringify(saved));
+    await h.as(actor).publishRevision({ revisionId: saved.revisionId });
+    h.clock.advance({ minutes: 1 });
+    const draft = await h.as(actor).saveDraft({
+      key: "site_facts",
+      body: { ...SITE_FACTS, email: DRAFT_EMAIL },
+    });
+    if (!draft.ok) throw new Error(JSON.stringify(draft));
+    return actor;
+  }
+
+  it("previews site facts on the contact page, where they show", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+
+    expect(await h.as(actor).startPreview({ key: "site_facts" })).toEqual({
+      ok: true,
+      path: "/contact",
+    });
+  });
+
+  it("shows a content manager the draft facts while everyone else still reads the published ones", async () => {
+    const h = await createHarness();
+    const actor = await publishedWithDraft(h);
+    const admin = await h.signIn(await h.seed.superAdmin());
+    h.clock.advance({ minutes: 1 });
+    expect(
+      await h.as(admin).changeSetting({
+        key: "org.legalName",
+        value: "Friends of Animals Foundation",
+      })
+    ).toMatchObject({ ok: true });
+
+    const preview = await h.as(actor).getOrgFactsForPreview();
+
+    // The draft's site facts, with the tax facts settings hold now.
+    expect(preview).toMatchObject({
+      legalName: "Friends of Animals Foundation",
+      email: DRAFT_EMAIL,
+      phone: SITE_FACTS.phone,
+      grievanceOfficer: SITE_FACTS.grievanceOfficer,
+    });
+    for (const who of [h.visitor(), actor]) {
+      expect(await h.as(who).getOrgFacts()).toMatchObject({
+        legalName: "Friends of Animals Foundation",
+        email: SITE_FACTS.email,
+      });
+    }
+  });
+
+  it("is null when site facts have no open draft", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+
+    expect(await h.as(actor).getOrgFactsForPreview()).toBeNull();
+  });
+
+  it("refuses the draft facts to anyone who may not preview drafts", async () => {
+    const h = await createHarness();
+    await publishedWithDraft(h);
+    const member = await h.signIn(await h.seed.member());
+    const staffAccount = await h.seed.member();
+    await h.seed.grant(staffAccount, { role: "staff_admin", scope: global });
+    const staffAdmin = await h.signIn(staffAccount);
+
+    for (const who of [h.visitor(), member, staffAdmin]) {
+      await expect(h.as(who).getOrgFactsForPreview()).rejects.toMatchObject({
+        code: "forbidden",
+      });
+    }
+  });
+});
+
 describe("orgFactsReadiness", () => {
   it("tells staff which facts are still missing, by placeholder key", async () => {
     const h = await createHarness();

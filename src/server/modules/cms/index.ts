@@ -4,7 +4,7 @@
 
 import type { UseCaseContext } from "../../use-cases";
 import type { CmsDocumentKey } from "./domain/documents";
-import { getOrgFacts, orgFactsReadiness } from "./facts";
+import { getOrgFacts, getOrgFactsForPreview, orgFactsReadiness } from "./facts";
 import { currentLegalVersion } from "./legal";
 import {
   listCmsDocuments,
@@ -50,5 +50,6 @@ export const cmsUseCases = (ctx: UseCaseContext) => ({
   currentLegalVersion: (input: { key: CmsDocumentKey }) =>
     currentLegalVersion(ctx, input),
   getOrgFacts: () => getOrgFacts(ctx),
+  getOrgFactsForPreview: () => getOrgFactsForPreview(ctx),
   orgFactsReadiness: () => orgFactsReadiness(ctx),
 });

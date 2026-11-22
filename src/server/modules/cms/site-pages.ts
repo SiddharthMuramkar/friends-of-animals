@@ -1,7 +1,8 @@
 // The public pages' CMS content (#111): the home page, about and impact
 // show their document through here, typed by its kind: the published
 // revision, or in Draft Mode the open draft for a content manager (111a's
-// loadShownDocument). Call the loaders at request time, inside <Suspense>
+// loadShownDocument); the contact page shows the facts' preview status.
+// Call the loaders at request time, inside <Suspense>
 // (the Live component), with the matching seed as the static shell's
 // fallback: the build has no database.
 
@@ -15,7 +16,7 @@ import type { CmsKind } from "./kinds";
 import { homeKind, type HomeBody } from "./kinds/home";
 import { impactKind, type ImpactBody } from "./kinds/impact";
 import { pageKind, type AboutPageBody } from "./kinds/page";
-import { getOrgFacts } from "./org-facts";
+import { loadShownOrgFacts } from "./org-facts";
 import { loadShownDocument, type ShownCmsDocument } from "./shown";
 
 /** Draft Mode's status line: which page, and whether a draft shows. */
@@ -93,15 +94,27 @@ export function seedAboutPage(): AboutPage {
 }
 
 export async function loadAboutPage(): Promise<AboutPage> {
-  const [about, facts] = await Promise.all([
+  const [about, { facts }] = await Promise.all([
     loadShownDocument("about"),
-    getOrgFacts(),
+    loadShownOrgFacts(),
   ]);
   return {
     about: bodyOf(about, pageKind, pageKind.seedBody),
     facts,
     preview: previewOf("about", about),
   };
+}
+
+/**
+ * Draft Mode's status line on the contact page, where site facts preview:
+ * whether the facts shown are the unpublished draft. Null outside Draft
+ * Mode.
+ */
+export async function loadFactsPreview(): Promise<CmsPreview | null> {
+  const shown = await loadShownOrgFacts();
+  return shown.previewing
+    ? { path: cmsPublicPath("site_facts"), showingDraft: shown.showingDraft }
+    : null;
 }
 
 export function seedImpactPage(): ImpactPage {

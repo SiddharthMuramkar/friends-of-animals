@@ -24,7 +24,7 @@ import {
   type CmsDocumentKey,
 } from "@/server/modules/cms/domain/documents";
 import { legalKind } from "@/server/modules/cms/kinds/legal";
-import { getOrgFacts } from "@/server/modules/cms/org-facts";
+import { loadShownOrgFacts } from "@/server/modules/cms/org-facts";
 import {
   loadShownDocument,
   type ShownCmsDocument,
@@ -141,9 +141,9 @@ async function ShownText({
   render: (text: LegalText) => ReactNode;
 }) {
   await connection();
-  const [shown, facts] = await Promise.all([
+  const [shown, { facts }] = await Promise.all([
     loadShownDocument(cmsKey),
-    getOrgFacts(),
+    loadShownOrgFacts(),
   ]);
   return shown && shown.body !== null
     ? render(legalKind.sanitize(shown.body))

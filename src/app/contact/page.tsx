@@ -4,10 +4,12 @@ import { getTranslations } from "next-intl/server";
 import { SiteLink } from "@/components/site/site-link";
 import type { ReactNode } from "react";
 
+import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
 import { ButtonLink } from "@/components/site/button-link";
 import { CONTACT_LINK, ContactFact } from "@/components/site/contact-fact";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
+import { Live } from "@/components/site/live";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
@@ -17,6 +19,7 @@ import { pageMetadata } from "@/lib/seo";
 import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { isFactShown } from "@/lib/site";
 import type { OrgFacts } from "@/server/modules/cms/domain/org-facts";
+import { loadFactsPreview } from "@/server/modules/cms/site-pages";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("contact.meta");
@@ -164,6 +167,10 @@ export default async function Page() {
               title={t("hero.title")}
               lead={t("hero.lead")}
             />
+            {/* Site facts preview here (#111): in Draft Mode, say so. */}
+            <Live fallback={null} load={loadFactsPreview}>
+              {(preview) => (preview ? <CmsDraftPreview {...preview} /> : null)}
+            </Live>
             <aside
               aria-labelledby="safety-title"
               className="mt-8 max-w-xl rounded-3xl border-2 border-danger-border bg-danger-bg p-5 sm:p-6"

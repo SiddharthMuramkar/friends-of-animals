@@ -25,7 +25,8 @@ import { freshEmail, readCode } from "./support/mailbox";
 // page's version numbers are this journey's alone. It reads the current
 // version rather than assuming 1, and adds a sentence of its own each run,
 // so it can run again on the same data. Then she opens the other pages'
-// form editors and publishes a new home page heading (111b).
+// form editors, previews a site facts draft on the contact page and
+// publishes a new home page heading (111b).
 
 const [asha] = SEED_ACCOUNTS.members;
 
@@ -79,12 +80,19 @@ test("a content manager publishes a policy page, then a new home heading", async
   const ADDED = `This sentence was added in the content editor (${Date.now().toString(36)}), to check the preview.`;
   // The home page's new heading, new each run too.
   const HEADING = `Kindness to animals starts with a drawing (${Date.now().toString(36)})`;
+  // A site facts draft's email, previewed and never published.
+  const FACTS_EMAIL = `hello-${Date.now().toString(36)}@friendsofanimals.example`;
   const violations = await recordCspViolations(page);
   await page.goto("/terms");
   const before = await shownVersion(page);
   await expect(shownText(page, ADDED)).toHaveCount(0);
 
   await signInAsContentManager(page, request, "/admin/cms");
+  // The admin shell tells staff which of FOA's details are still missing:
+  // the seed enters none.
+  await expect(
+    shownText(page, "Some of FOA's details are still missing")
+  ).toBeVisible();
   await expectAccessible(page, "/admin/cms");
   await expectAccessibleInDark(page, "/admin/cms");
   const terms = page.getByRole("row", { name: /^Terms of use/ });
@@ -148,6 +156,31 @@ test("a content manager publishes a policy page, then a new home heading", async
     await expectAccessible(page, `/admin/cms/${key}`);
     await expectAccessibleInDark(page, `/admin/cms/${key}`);
   }
+
+  // Site facts: a draft email previews on the contact page, to her alone.
+  await page.goto("/admin/cms/site_facts");
+  await page
+    .getByRole("group", { name: "How to reach FOA" })
+    .getByRole("textbox", { name: "Email address" })
+    .fill(FACTS_EMAIL);
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Draft saved." })
+  ).toBeVisible();
+  await page
+    .getByRole("region", { name: "The draft", exact: true })
+    .getByRole("button", { name: "Preview on the site" })
+    .click();
+  await expect(page).toHaveURL(/\/contact$/);
+  await expect(
+    page.getByRole("status").filter({ hasText: "Draft preview" })
+  ).toBeVisible();
+  await expect(shownText(page, FACTS_EMAIL)).toBeVisible();
+  await expectAccessible(page, "/contact in Draft Mode");
+  await page.getByRole("button", { name: "Exit preview" }).click();
+  await expect(page).toHaveURL(/\/contact$/);
+  await expect(shownText(page, "Draft preview")).toHaveCount(0);
+  await expect(shownText(page, FACTS_EMAIL)).toHaveCount(0);
 
   // The home hero: a new heading, published, shows on the home page.
   await page.goto("/admin/cms/home");
