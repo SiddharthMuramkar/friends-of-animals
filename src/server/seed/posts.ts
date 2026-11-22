@@ -29,9 +29,9 @@ type SeedPost = {
 const SEED_POSTS: readonly SeedPost[] = [
   {
     slug: "kinder-skies-results",
-    title: "Kinder Skies: what 1,200 children drew",
+    title: "Kinder Skies: what the children drew",
     excerpt:
-      "Schools across Gujarat sent in drawings of birds and kites. Here is what the judges saw.",
+      "Sample content for previews: drawings of birds and kites, and what the judges looked for.",
     status: "published",
     coverSiteImageId: "dog-bengaluru-auto-rickshaw",
     body: {

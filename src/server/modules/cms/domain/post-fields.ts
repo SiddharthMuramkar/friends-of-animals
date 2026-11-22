@@ -5,8 +5,11 @@
 //
 // Lengths are counted on the trimmed text, in UTF-16 code units, as zod's
 // `.max()` counts them.
+//
+// Loads under plain Node (the worker reaches it through ../posts/gates.ts):
+// relative imports only.
 
-import { renderedTitle, TITLE_MAX } from "@/lib/seo";
+import { renderedTitle, TITLE_MAX } from "../../../../lib/seo";
 
 export const POST_FIELD_MAX = {
   title: 80,
