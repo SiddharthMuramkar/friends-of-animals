@@ -35,6 +35,7 @@ import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
 import { FakeErrorReporter } from "./fakes/errors";
 import { FakeMalwareScanner } from "./fakes/malware-scanner";
+import { FakeMediaProcessor } from "./fakes/media";
 import { FakeSms } from "./fakes/sms";
 import { FakeStorage } from "./fakes/storage";
 import { TEST_AUTH, TEST_FILES } from "./harness";
@@ -81,10 +82,11 @@ export function createPgWorld() {
     }),
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
     settings: new TestSettings({ db, clock }),
-    errors: new FakeErrorReporter(),
     storage: new FakeStorage(clock),
     files: TEST_FILES,
+    errors: new FakeErrorReporter(),
     scanner: new FakeMalwareScanner(),
+    media: new FakeMediaProcessor(),
   };
   const app = createApp(deps);
   const seed: SeedBuilders = createSeedBuilders(deps);

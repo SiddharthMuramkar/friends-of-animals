@@ -42,6 +42,7 @@ import { FakeEmail } from "./fakes/email";
 import { FakeSms } from "./fakes/sms";
 import { FakeErrorReporter } from "./fakes/errors";
 import { FakeMalwareScanner } from "./fakes/malware-scanner";
+import { FakeMediaProcessor } from "./fakes/media";
 import { FakeStorage } from "./fakes/storage";
 import { TestSettings } from "./settings";
 
@@ -120,6 +121,11 @@ export interface Harness {
    * the next ones with `failNext(n)`.
    */
   scanner: FakeMalwareScanner;
+  /**
+   * Makes derivatives from image headers without decoding pixels; records
+   * its inputs and fails the next ones with `failNext(n, code)`.
+   */
+  media: FakeMediaProcessor;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -160,6 +166,7 @@ export async function createHarness(
   const errors = new FakeErrorReporter();
   const storage = new FakeStorage(clock);
   const scanner = new FakeMalwareScanner();
+  const media = new FakeMediaProcessor();
   const deps: Deps = {
     db,
     clock,
@@ -178,6 +185,7 @@ export async function createHarness(
     storage,
     files: TEST_FILES,
     scanner,
+    media,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
@@ -255,9 +263,11 @@ export async function createHarness(
     totpCode: (at = clock.now()) =>
       totpCode(base32Decode(SEED_TOTP_SECRET), at),
     seed: createSeedBuilders(deps),
-    drain: () => drainUntilIdle(deps),
+    // Every queue, worker-media's included.
+    drain: () => drainUntilIdle(deps, { queue: "all" }),
     storage,
     scanner,
+    media,
   };
   return harness;
 }

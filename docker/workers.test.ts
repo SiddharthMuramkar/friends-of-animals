@@ -404,7 +404,7 @@ describe("docker/workers.yml", () => {
     expect(gotenberg).toContain("--pdf-deny-list=.");
   });
 
-  it("keeps the media worker opt-in on the PDF bridge and uses the media entry point", () => {
+  it("serves the media queue with production storage, Postgres and a job deadline", () => {
     const media = service("worker-media");
     expect(media).toMatch(/^ {4}profiles:\n {6}- media$/m);
     expect(media).toContain("<<: *worker");
@@ -413,10 +413,25 @@ describe("docker/workers.yml", () => {
       'command: ["node", "--import", "tsx", "src/worker-media/main.ts"]'
     );
     expect(media).toContain("GOTENBERG_URL: http://foa-gotenberg:3000");
-    expect(media).toMatch(/^ {4}networks:\n {6}- pdf$/m);
+    expect(media).toMatch(/^ {4}networks:\n {6}- db\n {6}- pdf$/m);
+    expect(media).toContain("target: worker-media");
+    expect(media).toContain("WORKER_QUEUE: media");
+    expect(media).toContain('MEDIA_TIMEOUT_SECONDS: "60"');
     expect(media).toContain("cpus: 1");
     expect(media).toContain("pids_limit: 128");
-    expect(media).not.toMatch(/^ {4}secrets:|WORKER_DATABASE_URL/m);
+    expect(media).toContain("WORKER_DATABASE_URL: postgres://foa_worker@");
+    expect(media).toContain("source: pg_prod_foa_worker_password");
+    expect(media).toContain("WORKER_PASSWORD_FILE: /run/secrets/db_password");
+    // Its own R2 file for the derivatives: worker-prod's key stays put.
+    expect(envFiles(media)).toEqual([
+      { path: SENTRY_FILE, required: false },
+      { path: "/etc/foa/secrets/worker_media_r2.env", required: false },
+    ]);
+    const dockerfile = readFileSync(
+      new URL("../Dockerfile", import.meta.url),
+      "utf8"
+    );
+    expect(dockerfile).toMatch(/^FROM worker AS worker-media$/m);
     expect(shared()).toContain("read_only: true");
     expect(shared()).toMatch(/^ {4}- \/tmp$/m);
     expect(healthCommand()).toContain("/tmp/foa-worker-heartbeat");
@@ -430,7 +445,10 @@ describe("docker/workers.yml", () => {
     const own = service(name);
     expect(own).toMatch(new RegExp(`^ {4}mem_limit: ${memory}$`, "m"));
     expect(own).toMatch(/^ {4}oom_score_adj: 500$/m);
-    expect(own).not.toMatch(/^ {4}network_mode:|^ {6}(?:- db$|db:)/m);
+    expect(own).not.toMatch(/^ {4}(?:network_mode|ports):/m);
+    if (name !== "worker-media") {
+      expect(own).not.toMatch(/^ {6}(?:- db$|db:)/m);
+    }
     const settings = name === "worker-media" ? shared() : own;
     expect(settings).toMatch(/^ +healthcheck:$/m);
     expect(settings).toMatch(/^ +restart: unless-stopped$/m);

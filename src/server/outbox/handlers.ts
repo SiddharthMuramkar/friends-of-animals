@@ -12,11 +12,13 @@
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
 import type { AppDb } from "../db/app-db";
-import { sendWelcomeEmail } from "../modules/notifications/welcome-email";
+import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
+import { sendWelcomeEmail } from "../modules/notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
+import type { MediaProcessor } from "../ports/media";
 import type { ObjectStorage } from "../ports/storage";
 import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
@@ -27,6 +29,8 @@ export type OutboxDeps = {
   email: EmailSender;
   storage: ObjectStorage;
   scanner: MalwareScanner;
+  /** Used only by the media queue's handlers, in worker-media. */
+  media: MediaProcessor;
 };
 
 /** The event a handler listens to, from SUBSCRIBERS. */
@@ -61,6 +65,7 @@ export const HANDLERS: Handlers = {
   // one keeps each withdrawal on the outbox until the first module that
   // reacts to it adds its own handler; then remove this one.
   "consent.acknowledge_withdrawal": async () => {},
+  "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
 };
 
 /** Whether this code has a handler by that name. */

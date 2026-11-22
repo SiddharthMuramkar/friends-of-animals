@@ -35,6 +35,7 @@ import {
   type Delivery,
   type OutboxDeps,
 } from "./handlers";
+import { handlersInQueue, type QueueName } from "./queues";
 import {
   DEFAULT_RETRY_POLICY,
   claimUntil,
@@ -66,6 +67,11 @@ export type DrainReport = {
 export type DrainOptions = {
   /** The most deliveries one pass claims. */
   limit?: number;
+  /**
+   * Whose deliveries to claim (./queues.ts): "default" leaves the
+   * dedicated queues' handlers to their own workers.
+   */
+  queue?: QueueName;
 };
 
 /**
@@ -95,7 +101,11 @@ function due(now: Date) {
  * returns or throws, so without this such a delivery would be claimed
  * again every lease, forever, and never show as failed.
  */
-async function failLostClaims(db: AppDb, now: Date): Promise<number> {
+async function failLostClaims(
+  db: AppDb,
+  now: Date,
+  handlers: string[]
+): Promise<number> {
   const failed = await db
     .update(outbox)
     .set({
@@ -109,7 +119,7 @@ async function failLostClaims(db: AppDb, now: Date): Promise<number> {
         eq(outbox.status, "pending"),
         lte(outbox.lockedUntil, now),
         gte(outbox.attempts, POLICY.maxAttempts),
-        inArray(outbox.handler, KNOWN_HANDLERS)
+        inArray(outbox.handler, handlers)
       )
     )
     .returning({ id: outbox.id });
@@ -125,7 +135,8 @@ async function failLostClaims(db: AppDb, now: Date): Promise<number> {
 async function claim(
   db: AppDb,
   now: Date,
-  limit: number
+  limit: number,
+  handlers: string[]
 ): Promise<OutboxRow[]> {
   const ids = db
     .select({ id: outbox.id })
@@ -134,7 +145,7 @@ async function claim(
       and(
         due(now),
         lt(outbox.attempts, POLICY.maxAttempts),
-        inArray(outbox.handler, KNOWN_HANDLERS)
+        inArray(outbox.handler, handlers)
       )
     )
     .orderBy(asc(outbox.availableAt), asc(outbox.id))
@@ -224,11 +235,12 @@ async function run(deps: OutboxDeps, row: OutboxRow): Promise<DeliveryOutcome> {
  */
 export async function drainOutbox(
   deps: OutboxDeps,
-  { limit = DEFAULT_DRAIN_LIMIT }: DrainOptions = {}
+  { limit = DEFAULT_DRAIN_LIMIT, queue = "default" }: DrainOptions = {}
 ): Promise<DrainReport> {
   const now = deps.clock.now();
-  const lost = await failLostClaims(deps.db, now);
-  const claimed = await claim(deps.db, now, limit);
+  const handlers = handlersInQueue(queue, KNOWN_HANDLERS);
+  const lost = await failLostClaims(deps.db, now, handlers);
+  const claimed = await claim(deps.db, now, limit, handlers);
   const report: DrainReport = {
     dispatched: 0,
     retried: 0,

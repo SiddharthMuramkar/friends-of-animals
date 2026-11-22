@@ -43,10 +43,11 @@ describe("someUseCase", () => {
 | `h.cookies`                 | The browser's cookie store; `header()` saves a browser to pass to `currentActor(meta, cookie)` later                                                                                                           |
 | `h.errors`                  | `FakeErrorReporter`: `reported`, each as Sentry would get it (scrubbed) plus the `error`                                                                                                                       |
 | `h.db`                      | This test's database, for asserting on rows (audit rows count as behaviour)                                                                                                                                    |
-| `h.deps`                    | `{ db, clock, email, sms, settings, errors, auth, cipher, blindIndex, storage, files, scanner }`: what `productionDeps()` wires in `src/server/deps.ts`; fresh field keys per harness                          |
-| `h.drain()`                 | Delivers due outbox events in process with the real relay, pass after pass; returns the `DrainReport`                                                                                                          |
+| `h.deps`                    | `{ db, clock, email, sms, settings, errors, auth, cipher, blindIndex, storage, files, scanner, media }`: what `productionDeps()` wires in `src/server/deps.ts`; fresh field keys per harness                   |
+| `h.drain()`                 | Delivers due outbox events in process with the real relay on every queue, pass after pass; returns the `DrainReport`                                                                                           |
 | `h.storage`                 | `FakeStorage`: `put(url, bytes, headers)` and `get(url)` use presigned URLs as a browser does; `plant()`                                                                                                       |
 | `h.scanner`                 | `FakeMalwareScanner`: flags the EICAR test file (`src/test/eicar.ts`); `scans`, and `failNext(n)` as an outage                                                                                                 |
+| `h.media`                   | `FakeMediaProcessor`: derivatives sized from image headers, `processed` and `failNext(n, code)`                                                                                                                |
 
 `createHarness()` also fakes the system clock (`Date` only) and keeps it on
 `h.clock`, because Better Auth reads `new Date()` for code and session expiry.
