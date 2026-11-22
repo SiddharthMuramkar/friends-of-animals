@@ -19,6 +19,8 @@
 #   (certificates), /config (autosave, the admin socket) and a tmpfs /tmp.
 # - The admin API is a unix socket, /config/admin.sock (0600), not a
 #   TCP port: on the host network every local process could reach that.
+#   The healthcheck asks it for /metrics, the one path Caddy logs at debug,
+#   so it adds nothing to journald.
 #
 # Reload after a Caddyfile change:
 #   docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile --address unix//config/admin.sock
@@ -62,7 +64,7 @@ services:
           "/dev/null",
           "--unix-socket",
           "/config/admin.sock",
-          "http://localhost/config/",
+          "http://localhost/metrics",
         ]
       interval: 30s
       timeout: 5s

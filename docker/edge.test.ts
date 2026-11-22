@@ -4,6 +4,9 @@
 // read edge.yml and caddy/Caddyfile.
 
 import { describe, expect, it } from "vitest";
+import { umamiRewrites } from "../src/lib/analytics/umami";
+import { parseDsn } from "../src/lib/observability/config";
+import { envelopeUrl } from "../src/lib/observability/envelope";
 import {
   LOGGING_ANCHOR,
   block,
@@ -50,6 +53,15 @@ function caddyBlocks(text: string): Map<string, string[]> {
 const caddyfileText = read("./caddy/Caddyfile");
 const caddyfile = caddyBlocks(caddyfileText);
 const site = (address: string) => caddyfile.get(address) ?? [];
+const isSnippet = (key: string) => key.startsWith("(");
+
+/** A named matcher's lines in a site, without its braces. */
+function matcher(address: string, name: string): string[] {
+  const lines = site(address);
+  const at = lines.indexOf(`${name} {`);
+  if (at === -1) return [];
+  return lines.slice(at + 1, lines.indexOf("}", at));
+}
 
 const STATS = "stats.friendsofanimals.dev";
 const ERRORS = "errors.friendsofanimals.dev";
@@ -88,9 +100,11 @@ describe("docker/edge.yml", () => {
   });
 
   it("restarts, checks the admin API over its socket and has hard limits", () => {
+    // /metrics: Caddy logs every other admin request at info, which would
+    // put a line in journald every 30 s.
     expect(caddyText).toMatch(/^ {4}restart: unless-stopped$/m);
     expect(oneLine(caddyText)).toMatch(
-      /test: \["CMD", "curl", "-fsS", "-o", "\/dev\/null", "--unix-socket", "\/config\/admin\.sock", "http:\/\/localhost\/config\/"\]/
+      /test: \["CMD", "curl", "-fsS", "-o", "\/dev\/null", "--unix-socket", "\/config\/admin\.sock", "http:\/\/localhost\/metrics"\]/
     );
     expect(caddyText).toMatch(/^ {4}mem_limit: 256m$/m);
     expect(caddyText).toMatch(/^ {4}memswap_limit: 256m$/m);
@@ -158,9 +172,11 @@ describe("docker/caddy/Caddyfile", () => {
   });
 
   it("serves stats, errors and the db names, nothing else", () => {
-    expect([...caddyfile.keys()].filter((key) => key !== "").sort()).toEqual(
-      [ERRORS, DB, STATS].sort()
-    );
+    expect(
+      [...caddyfile.keys()]
+        .filter((key) => key !== "" && !isSnippet(key))
+        .sort()
+    ).toEqual([ERRORS, DB, STATS].sort());
   });
 
   it("proxies stats to Umami's fixed address on the db bridge", () => {
@@ -232,8 +248,10 @@ describe("the visitor address Umami sees", () => {
   // Umami takes the visitor's address from CLIENT_IP_HEADER, and when that
   // header is missing, from the first of a list of CDN headers it finds.
   // Vercel's rewrite sets X-Real-IP to the visitor's address, replacing
-  // whatever the browser sent; any other client-supplied header in Umami's
-  // list would let a visitor forge the counts.
+  // whatever the browser sent; any other header in Umami's list that a
+  // browser adds would take its place. That isn't all: Umami 3.5.0 prefers
+  // an `ip` in the /api/send body, and a request sent to stats.* directly
+  // sets its own X-Real-IP. Only the counts are at stake (README.md).
   const proxy = () => {
     const stats = site(STATS);
     const at = stats.indexOf("reverse_proxy 10.112.12.30:3000 {");
@@ -263,33 +281,137 @@ describe("the visitor address Umami sees", () => {
   });
 });
 
-describe("Caddy's access logs and CrowdSec", () => {
-  const install = read("./scripts/install-crowdsec.sh");
+describe("Caddy's access logs", () => {
+  const snippet = caddyfile.get("(access_log)") ?? [];
 
-  it.each([STATS, ERRORS])("%s writes JSON access logs to stdout", (name) => {
+  // Headers that carry the visitor's address, location or page. Vercel's
+  // rewrite adds the first twelve on every page view; Referer is the page.
+  // Caddy logs every request header but Cookie and Authorization.
+  const VISITOR_HEADERS = [
+    "X-Real-Ip",
+    "X-Forwarded-For",
+    "Forwarded",
+    "X-Vercel-Forwarded-For",
+    "X-Vercel-Ip-Continent",
+    "X-Vercel-Ip-Country",
+    "X-Vercel-Ip-Country-Region",
+    "X-Vercel-Ip-City",
+    "X-Vercel-Ip-Postal-Code",
+    "X-Vercel-Ip-Latitude",
+    "X-Vercel-Ip-Longitude",
+    "X-Vercel-Ip-Timezone",
+    "Referer",
+  ];
+
+  it("is one snippet, the only one", () => {
+    expect([...caddyfile.keys()].filter(isSnippet)).toEqual(["(access_log)"]);
+  });
+
+  it.each([STATS, ERRORS])("%s writes it", (name) => {
+    expect(site(name)).toContain("import access_log");
+    expect(site(name).filter((line) => /^log\b/.test(line))).toEqual([]);
+  });
+
+  it("is JSON on stdout", () => {
     // stdout goes to journald through the container's logging driver
     // (edge.yml); Caddy's own log stays on stderr.
-    const lines = site(name);
-    const at = lines.indexOf("log {");
-    expect(at).toBeGreaterThan(-1);
-    expect(lines.slice(at, at + 4)).toEqual([
+    expect(snippet.slice(0, 5)).toEqual([
       "log {",
       "output stdout",
-      "format json",
-      "}",
+      "format filter {",
+      "wrap json",
+      "fields {",
     ]);
   });
+
+  it("never holds the visitor's address, location or page (no PII in logs)", () => {
+    const fields = snippet.slice(
+      snippet.indexOf("fields {") + 1,
+      snippet.indexOf("}", snippet.indexOf("fields {"))
+    );
+    expect(fields).toEqual(
+      VISITOR_HEADERS.map((header) => `request>headers>${header} delete`)
+    );
+    // Cookie, Set-Cookie and Authorization stay REDACTED.
+    expect(caddyfileText).not.toMatch(/log_credentials/);
+  });
+
+  it("skips the tracker requests the site's /stats rewrites proxy", () => {
+    // Every visitor's page view, from Vercel's shared egress: never kept,
+    // and never counted towards a CrowdSec ban (which would cut Vercel off
+    // from PgBouncer too).
+    const proxied = umamiRewrites(`https://${STATS}`).map(
+      (rewrite) => new URL(rewrite.destination).pathname
+    );
+    expect(proxied).toEqual(["/script.js", "/api/send"]);
+    expect(matcher(STATS, "@tracker_script")).toEqual([
+      "method GET HEAD",
+      "path /script.js",
+    ]);
+    expect(matcher(STATS, "@tracker_send")).toEqual([
+      "method POST",
+      "path /api/send",
+    ]);
+    expect(site(STATS).filter((line) => line.startsWith("log_skip"))).toEqual([
+      "log_skip @tracker_script",
+      "log_skip @tracker_send",
+    ]);
+  });
+
+  it("skips the Sentry envelopes, and only those, on errors", () => {
+    const dsn = parseDsn(`https://key@${ERRORS}/1`);
+    expect(dsn).toBeDefined();
+    const path = new URL(envelopeUrl(dsn!)).pathname;
+    const envelope = matcher(ERRORS, "@envelope");
+    expect(envelope).toEqual([
+      "method POST",
+      "path_regexp ^/api/[0-9]+/envelope/$",
+    ]);
+    const pattern = new RegExp((envelope[1] ?? "").replace("path_regexp ", ""));
+    expect(path).toMatch(pattern);
+    expect("/api/1/store/").not.toMatch(pattern);
+    expect("/api/0/projects/").not.toMatch(pattern);
+    expect(site(ERRORS).filter((line) => line.startsWith("log_skip"))).toEqual([
+      "log_skip @envelope",
+    ]);
+  });
+});
+
+describe("CrowdSec on Caddy's access log", () => {
+  const install = read("./scripts/install-crowdsec.sh");
+  const acquis = lines(read("./crowdsec/acquis-foa-caddy.yaml"));
 
   it("acquires foa-caddy's access log from journald, stdout lines only", () => {
     // Docker's journald driver logs stdout at PRIORITY 6 and stderr at 3.
     // journalctl, not the docker source: no dockerd stream per line.
-    expect(lines(read("./crowdsec/acquis-foa-caddy.yaml"))).toEqual([
+    expect(acquis).toEqual([
       "source: journalctl",
       "journalctl_filter:",
       '  - "CONTAINER_NAME=foa-caddy"',
       '  - "PRIORITY=6"',
+      '  - "--output=cat"',
       "labels:",
       "  type: caddy",
+    ]);
+  });
+
+  it("gets bare JSON lines from journalctl, which crowdsecurity/caddy-logs parses", () => {
+    // CrowdSec 1.7 and 1.8 run `journalctl --follow -n 0` plus the
+    // journalctl_filter entries (getCommandArgs in
+    // pkg/acquisition/modules/journalctl/run.go), with no output mode of
+    // their own. journalctl's default prefixes each line with
+    // `Nov 22 05:11:28 <host> foa-caddy[<pid>]: `, and the caddy parser's
+    // UnmarshalJSON fails on every one of them.
+    const filters = block(acquis, /^journalctl_filter:$/).map(
+      (line) => JSON.parse(line.trim().replace(/^- /, "")) as string
+    );
+    const argv = ["--follow", "-n", "0", ...filters];
+    expect(argv.filter((arg) => /^(-o|--output)\b/.test(arg))).toEqual([
+      "--output=cat",
+    ]);
+    expect(filters.filter((arg) => !arg.startsWith("-"))).toEqual([
+      "CONTAINER_NAME=foa-caddy",
+      "PRIORITY=6",
     ]);
   });
 
@@ -302,23 +424,6 @@ describe("Caddy's access logs and CrowdSec", () => {
     );
   });
 
-  it("never bans for the paths Vercel proxies to the edge", () => {
-    // Every visitor's page views and every Sentry envelope arrive from
-    // Vercel's shared egress addresses; a ban would also cut them off from
-    // PgBouncer. Only those exact paths are spared.
-    const whitelist = lines(read("./crowdsec/foa-caddy-vercel-paths.yaml"));
-    expect(whitelist).toContain("name: foa/caddy-vercel-paths");
-    expect(whitelist).toContain(
-      `    - "evt.Meta.target_fqdn == '${STATS}' && evt.Meta.http_path matches '^/(script[.]js|api/send)([?]|$)'"`
-    );
-    expect(whitelist).toContain(
-      `    - "evt.Meta.target_fqdn == '${ERRORS}' && evt.Meta.http_path matches '^/api/[0-9]+/envelope/([?]|$)'"`
-    );
-    expect(install).toMatch(
-      /^install -m 0644 "\$SRC\/foa-caddy-vercel-paths\.yaml" \/etc\/crowdsec\/parsers\/s02-enrich\/foa-caddy-vercel-paths\.yaml$/m
-    );
-  });
-
   it("only installs files that exist under docker/crowdsec", () => {
     const sources = [...install.matchAll(/"\$SRC\/([^"]+)"/g)]
       .map(([, file]) => file ?? "")
@@ -327,5 +432,28 @@ describe("Caddy's access logs and CrowdSec", () => {
     for (const file of sources) {
       expect(() => read(`./crowdsec/${file}`), file).not.toThrow();
     }
+  });
+});
+
+describe("abuse control on the public stats and errors sites", () => {
+  const readme = read("./README.md");
+  const section = (from: string, to: string) =>
+    readme.slice(
+      readme.indexOf(from),
+      readme.indexOf(to, readme.indexOf(from))
+    );
+
+  it("is CrowdSec's HTTP scenarios, not a Caddy rate limit, as the README says", () => {
+    // The stock image has no rate-limit module, and nearly every request
+    // comes from Vercel's few shared egress addresses: a per-address limit
+    // would throttle every visitor at once.
+    expect(caddyfileText).not.toMatch(/rate_limit/);
+    expect(caddyText).toMatch(/^ {4}image: caddy:2\.11\.9$/m);
+    const edge = section("## Edge (Caddy)", "\n## ");
+    expect(edge).toContain("**Abuse control**");
+    expect(edge).toContain("crowdsecurity/caddy");
+    expect(section("## TODO and owner actions", "\n## ")).toContain(
+      "**Edge rate limit**"
+    );
   });
 });

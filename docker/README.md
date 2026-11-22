@@ -575,13 +575,16 @@ scenarios) on foa-caddy's JSON access log. Caddy writes it to stdout for the
 stats and errors sites (`caddy/Caddyfile`), the logging driver puts it in
 journald, and `crowdsec/acquis-foa-caddy.yaml` reads it from there
 (`CONTAINER_NAME=foa-caddy`, `PRIORITY=6`: stdout only, not Caddy's own
-log). Nearly every request reaching the edge comes from Vercel's shared
-egress addresses: the site's `/stats` rewrites and the Sentry envelopes. A
-ban on one of them would cut it off from PgBouncer too, so the whitelist
-`foa/caddy-vercel-paths` (`crowdsec/foa-caddy-vercel-paths.yaml`) spares
-exactly those paths (`/script.js` and `/api/send` on stats,
-`/api/<project>/envelope/` on errors). Anything else, from anyone, still
-counts. systemd drop-ins start
+log). It also passes `--output=cat`: CrowdSec runs `journalctl --follow -n 0`
+with the filter entries appended and no output mode of its own, and in
+journalctl's default format each line starts with
+`<date> <host> foa-caddy[<pid>]: `, which the caddy parser can't read.
+Nearly every request reaching the edge comes from Vercel's shared egress
+addresses: the site's `/stats` rewrites and the Sentry envelopes. A ban on
+one of them would cut it off from PgBouncer too, so Caddy doesn't log
+exactly those requests (`GET /script.js` and `POST /api/send` on stats,
+`POST /api/<project>/envelope/` on errors; Edge, below), and CrowdSec never
+sees them. Anything else, from anyone, still counts. systemd drop-ins start
 crowdsec (its docker acquisition makes it exit if the Docker API is not up
 yet) and the bouncer after Docker. Brute force (5 failures, leaking 1 per
 10 s) bans the source.
@@ -601,15 +604,20 @@ cscli alerts list; cscli decisions list
 cscli decisions delete --ip <ip>         # unban
 cscli allowlists inspect foa-admin
 cscli explain --type pgbouncer --log '<log line>'
+journalctl -n 1 -o cat CONTAINER_NAME=foa-caddy PRIORITY=6 > /tmp/caddy.log
+cscli explain --type caddy -f /tmp/caddy.log   # caddy-logs: parser success
 nft list table ip crowdsec               # Fedora: the bouncer's chains and ban sets
 ```
 
-Shared Vercel egress IPs could be banned if the app fails logins repeatedly
-(or land on a community blocklist): whitelist the Static IPs when they exist,
+Shared Vercel egress IPs could be banned if the app fails logins repeatedly,
+if someone scans the edge from their own Vercel functions (the HTTP
+scenarios ban at the host, PgBouncer included), or if they land on a
+community blocklist: whitelist the Static IPs when they exist,
 in `crowdsec/foa-whitelist.yaml` and a LAPI allowlist.
 
-CrowdSec issue #4781: the docker acquisition leaks a stream in dockerd for
-every container log line over 64 KiB. PgBouncer's lines are short, but if
+[CrowdSec issue #4781](https://github.com/crowdsecurity/crowdsec/issues/4781):
+the docker acquisition leaks a stream in dockerd for every container log
+line over 64 KiB. PgBouncer's lines are short, but if
 `ls /proc/$(pidof dockerd)/fd | wc -l` keeps growing, run
 `systemctl restart crowdsec`.
 
@@ -923,7 +931,9 @@ container's lines reach journald through dockerd and share one limit. If
 the cap fills first, the oldest files go early: `journalctl --disk-usage`
 shows how close it is, and the off-box store is the answer, not a bigger
 cap on the database disk. Container logs carry client IP addresses
-(PgBouncer, CrowdSec); keeping them a year waits on counsel (HR-30).
+(PgBouncer, CrowdSec, and Caddy for requests sent straight to the edge, never
+the site's visitors: Edge (Caddy), "Access log"); keeping them a year waits
+on counsel (HR-30).
 
 Install, once (HR-24):
 
@@ -1015,11 +1025,14 @@ Vercel's rewrite sets `X-Real-IP` to the visitor's address, replacing
 whatever the browser sent, and `analytics.yml` sets
 `CLIENT_IP_HEADER=x-real-ip`. Caddy passes `X-Real-IP` through and drops the
 other headers Umami would fall back to (`CF-Connecting-IP`,
-`True-Client-IP`, `X-Client-IP` and the other CDN ones), so a visitor can't
-forge the counts through the site. A request sent straight to
-`stats.friendsofanimals.dev` can still carry its own `X-Real-IP`: keeping
-only the tracker paths public (above) narrows that, but only the counts are
-at stake.
+`True-Client-IP`, `X-Client-IP` and the other CDN ones), so a header a
+browser adds can't replace the address Vercel set. That doesn't make the
+address unforgeable: Umami 3.5.0 takes an `ip` field in the `/api/send`
+body before any header, and a request sent straight to
+`stats.friendsofanimals.dev` can carry its own `X-Real-IP` (and the
+headers Caddy doesn't drop, such as `X-Appengine-User-Ip`). Only the
+counts and their countries are at stake: a forged address reaches Umami's
+statistics, never the site.
 
 Upgrade: bump the image tag in `analytics.yml`, `git pull`, then rerun the
 bootstrap. Caddy serves 503 whenever `/var/lib/foa/caddy/gates/stats` is
@@ -1076,6 +1089,27 @@ name (#118). Compose project `foa-edge` (`edge.yml`), sites in
   and Caddy serves it read-only for the `http://db.*` names. When port 80
   is free, lego answers the challenge on its standalone listener (TLS
   certificate, above).
+- **Access log**: the stats and errors sites write a JSON access log to
+  stdout (the `access_log` snippet in `caddy/Caddyfile`), which goes to
+  journald with the container's other lines (Logs, above) and from there to
+  CrowdSec. It never holds a visitor of the site: Caddy skips the requests
+  the site proxies for them (`log_skip`: the tracker script and page views
+  on stats, Sentry envelopes on errors). For every other request it deletes
+  the headers that carry someone's address, location or page (`X-Real-Ip`,
+  `X-Forwarded-For`, `Forwarded`, Vercel's `X-Vercel-Forwarded-For` and
+  `X-Vercel-Ip-*`, `Referer`) and redacts cookies and `Authorization`. What
+  remains is the connecting address (a scanner's, or the owner's on the
+  dashboard), host, method, path, status and user agent: what CrowdSec's
+  caddy parser reads.
+- **Abuse control**: CrowdSec's `crowdsecurity/caddy` collection (the
+  generic HTTP scenarios: probing, crawling, sensitive files, bad user
+  agents, known CVEs) bans abusive sources at the host (CrowdSec, above).
+  There is no Caddy rate limit. The `caddy:2.11.9` image has no rate-limit
+  module, so one needs a custom build with a pinned
+  `github.com/mholt/caddy-ratelimit`. And nearly every request arrives from
+  Vercel's few shared egress addresses: a limit per address would throttle
+  every visitor at once, and one per `X-Real-IP` trusts a header any direct
+  request can set. See TODO, "Edge rate limit".
 - **New host**: point `acme_ca` at Let's Encrypt's staging CA
   (`https://acme-staging-v02.api.letsencrypt.org/directory`) for the first
   start, and back to production once a certificate is issued, so a mistake
@@ -1201,3 +1235,9 @@ Upgrade: bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
    branch". The API refused the change for lack of permission. Meanwhile the
    migration's advisory lock keeps concurrent builds of one branch from
    applying the same migration twice.
+8. **Edge rate limit** (deferred, #118): CrowdSec's HTTP scenarios are the
+   edge's abuse control today (Edge, "Abuse control"). If Umami's
+   `/api/send` or GlitchTip's envelopes are ever flooded, build Caddy with
+   a pinned `caddy-ratelimit` (an image built and pinned here, not
+   `caddy:2.11.9`), and limit the paths Vercel doesn't proxy per address
+   and the proxied ones per site.

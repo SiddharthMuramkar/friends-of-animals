@@ -14,8 +14,7 @@
 #  - collection crowdsecurity/pgsql (PgBouncer/Postgres brute force), plus the
 #    local parser foa/pgbouncer-no-such-user and whitelist foa/whitelist.
 #  - collection crowdsecurity/caddy (generic HTTP scenarios on foa-caddy's
-#    access log), plus whitelist foa/caddy-vercel-paths for what Vercel
-#    proxies to the edge.
+#    access log).
 #  - acquisition: docker logs of the foa-pgbouncer container; foa-caddy's
 #    access log from journald.
 #  - crowdsec and the bouncer start after Docker (systemd drop-ins).
@@ -136,7 +135,6 @@ install -m 0644 "$SRC/acquis-foa-pgbouncer.yaml" /etc/crowdsec/acquis.d/foa-pgbo
 install -m 0644 "$SRC/foa-pgbouncer-no-such-user.yaml" /etc/crowdsec/parsers/s01-parse/foa-pgbouncer-no-such-user.yaml
 install -m 0644 "$SRC/foa-whitelist.yaml" /etc/crowdsec/parsers/s02-enrich/foa-whitelist.yaml
 install -m 0644 "$SRC/acquis-foa-caddy.yaml" /etc/crowdsec/acquis.d/foa-caddy.yaml
-install -m 0644 "$SRC/foa-caddy-vercel-paths.yaml" /etc/crowdsec/parsers/s02-enrich/foa-caddy-vercel-paths.yaml
 
 # 3. Bouncer settings for this OS; crowdsec and the bouncer after Docker --------
 install -m 0600 "$SRC/crowdsec-firewall-bouncer-$FLAVOUR.yaml.local" "$BOUNCER_CFG.local"

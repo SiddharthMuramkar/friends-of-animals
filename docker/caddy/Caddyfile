@@ -14,6 +14,37 @@
 	}
 }
 
+# The stats and errors sites' access log: JSON on stdout, which the logging
+# driver sends to journald (edge.yml) and CrowdSec reads from there
+# (crowdsec/acquis-foa-caddy.yaml). It keeps what CrowdSec's caddy parser
+# uses (client_ip, host, method, uri, status, User-Agent) and never the
+# visitor's address or page: no PII in logs (#118). Caddy already redacts
+# Cookie, Set-Cookie and Authorization. Each site also skips the requests
+# Vercel proxies for visitors (log_skip), so a page view logs nothing.
+(access_log) {
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>headers>X-Real-Ip delete
+				request>headers>X-Forwarded-For delete
+				request>headers>Forwarded delete
+				request>headers>X-Vercel-Forwarded-For delete
+				request>headers>X-Vercel-Ip-Continent delete
+				request>headers>X-Vercel-Ip-Country delete
+				request>headers>X-Vercel-Ip-Country-Region delete
+				request>headers>X-Vercel-Ip-City delete
+				request>headers>X-Vercel-Ip-Postal-Code delete
+				request>headers>X-Vercel-Ip-Latitude delete
+				request>headers>X-Vercel-Ip-Longitude delete
+				request>headers>X-Vercel-Ip-Timezone delete
+				request>headers>Referer delete
+			}
+		}
+	}
+}
+
 # db.* only need port 80, for lego's webroot HTTP-01 renewals of PgBouncer's
 # certificate (one certificate for both names). Explicit http:// so Caddy
 # never manages a certificate for these names.
@@ -29,12 +60,15 @@ http://db.friendsofanimals.dev, http://db.shipped-it.dev {
 
 # GlitchTip (errors.yml), on its own bridge.
 errors.friendsofanimals.dev {
-	# JSON access log on stdout: journald (edge.yml), then CrowdSec
-	# (crowdsec/acquis-foa-caddy.yaml).
-	log {
-		output stdout
-		format json
+	import access_log
+	# Sentry envelopes from the site's /monitoring tunnel and its server
+	# SDK, all from Vercel's shared egress: never logged, so never counted
+	# towards a CrowdSec ban (a ban would cut Vercel off from PgBouncer too).
+	@envelope {
+		method POST
+		path_regexp ^/api/[0-9]+/envelope/$
 	}
+	log_skip @envelope
 	encode zstd gzip
 	request_body {
 		max_size 20MB
@@ -49,10 +83,20 @@ errors.friendsofanimals.dev {
 # Umami (analytics.yml), on pg-prod's bridge: its dashboard, and the tracker
 # and collection endpoint the site reaches through Next's /stats rewrites.
 stats.friendsofanimals.dev {
-	log {
-		output stdout
-		format json
+	import access_log
+	# The tracker script and page views the site's /stats rewrites proxy
+	# (src/lib/analytics/umami.ts): every visitor's, from Vercel's shared
+	# egress. Never logged, so neither kept nor counted towards a ban.
+	@tracker_script {
+		method GET HEAD
+		path /script.js
 	}
+	@tracker_send {
+		method POST
+		path /api/send
+	}
+	log_skip @tracker_script
+	log_skip @tracker_send
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"
@@ -67,7 +111,10 @@ stats.friendsofanimals.dev {
 	# Umami reads the visitor's address from X-Real-IP (CLIENT_IP_HEADER in
 	# analytics.yml), which Vercel's rewrite sets, replacing the browser's.
 	# Without it Umami falls back to the first CDN header it finds: drop
-	# the ones a visitor could send to forge the counts.
+	# the ones a browser could add through the rewrite. This doesn't make
+	# the address unforgeable: Umami 3.5.0 prefers an `ip` in the
+	# /api/send body, and a request sent here directly sets its own
+	# X-Real-IP. Only the counts are at stake (README.md, Analytics).
 	reverse_proxy 10.112.12.30:3000 {
 		header_up -CF-Connecting-IP
 		header_up -True-Client-IP
