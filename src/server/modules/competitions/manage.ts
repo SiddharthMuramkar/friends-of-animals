@@ -23,6 +23,7 @@ import type { UseCaseContext } from "../../use-cases";
 import { orderedKeyDates } from "./domain/key-dates";
 import { publishProblems, type PublishProblem } from "./domain/publish-rules";
 import { competitionSlugCandidates } from "./domain/slug";
+import { rescheduledJobs } from "./domain/status-schedule";
 import type { CompetitionStatus } from "./domain/vocabulary";
 import {
   DEFAULT_FIELDS,
@@ -34,6 +35,7 @@ import {
   type FieldsRefusal,
   type FieldsToSave,
 } from "./fields";
+import { saveStatusJobs } from "./status-jobs";
 import {
   columnsOf,
   loadCompetition,
@@ -263,7 +265,9 @@ export type UpdateCompetitionResult =
  * pairing a category. Changing nothing records nothing (`changed: false`).
  *
  * Once published, a competition keeps its code (registration numbers are
- * made from it: `code_locked`) and must stay publishable (`not_ready`).
+ * made from it: `code_locked`) and must stay publishable (`not_ready`),
+ * and each key date added or moved gets a status job for its new instant
+ * (#71); the jobs of the old instants do nothing when they run.
  */
 export async function updateCompetition(
   ctx: CompetitionsContext,
@@ -321,6 +325,16 @@ export async function updateCompetition(
       }
       if (changed.includes("keyDates")) {
         await replaceKeyDates(tx, competitionId, values.keyDates);
+        await saveStatusJobs(
+          tx,
+          ctx.clock,
+          competitionId,
+          rescheduledJobs(
+            stored.row.status,
+            stored.values.keyDates,
+            values.keyDates
+          )
+        );
       }
       await recordAudit(tx, ctx, {
         action: "competition.updated",

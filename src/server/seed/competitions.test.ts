@@ -46,13 +46,13 @@ describe("the competitions seed", () => {
         code: "SKIES26",
         slug: "kinder-skies",
         participation: "institutions",
-        status: "published",
+        status: "registration_closed",
       },
       {
         code: "NEIGH27",
         slug: "neighbours-on-my-street",
         participation: "both",
-        status: "published",
+        status: "registration_open",
       },
       {
         code: "WATER27",
@@ -92,8 +92,8 @@ describe("the competitions seed", () => {
     expect(listed.map((c) => c.status).sort()).toEqual([
       "draft",
       "published",
-      "published",
-      "published",
+      "registration_closed",
+      "registration_open",
     ]);
     expect(
       await h
@@ -101,6 +101,45 @@ describe("the competitions seed", () => {
         .previewCompetition({ competitionId: SEED_SCOPES.competition.id })
     ).toMatchObject({ ok: true, status: "draft", competition: null });
   });
+
+  it.each(["2026-09-01", "2027-01-15", "2028-04-01"])(
+    "sets key dates that agree with the stored statuses on %s",
+    async (day) => {
+      const now = new Date(`${day}T04:30:00.000Z`);
+      const h = await createHarness({ now });
+      await h.seed.preview();
+      const reader = h.as(h.visitor());
+      const seeded = await reader.listPublishedCompetitions();
+
+      expect(
+        seeded.map(({ status, keyDates }) => ({
+          status,
+          openingPassed: keyDates[0]!.at <= now,
+          closingPassed: keyDates[1]!.at <= now,
+        }))
+      ).toEqual([
+        {
+          status: "registration_closed",
+          openingPassed: true,
+          closingPassed: true,
+        },
+        {
+          status: "registration_open",
+          openingPassed: true,
+          closingPassed: false,
+        },
+        {
+          status: "published",
+          openingPassed: false,
+          closingPassed: false,
+        },
+      ]);
+
+      await h.drain();
+      await h.seed.preview();
+      expect(await reader.listPublishedCompetitions()).toEqual(seeded);
+    }
+  );
 
   it("gives two global managers the seed authenticator, so each journey project passes the second factor as its own manager", async () => {
     const h = await createHarness();

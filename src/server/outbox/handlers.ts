@@ -12,6 +12,7 @@
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
 import type { AppDb } from "../db/app-db";
+import { runStatusJob } from "../modules/competitions/advance-status";
 import { sendWelcomeEmail } from "../modules/notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
@@ -46,6 +47,8 @@ type Handlers = {
 export const HANDLERS: Handlers = {
   "notifications.send_welcome_email": (deps, { payload }) =>
     sendWelcomeEmail(deps, payload),
+  "competitions.advance_status": (deps, { payload }) =>
+    runStatusJob(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

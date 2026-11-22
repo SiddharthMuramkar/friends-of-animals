@@ -71,6 +71,13 @@
       "when": 1795263153676,
       "tag": "0009_70_competitions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795263676023,
+      "tag": "0010_71_competition_status_schedule",
+      "breakpoints": true
     }
   ]
 }

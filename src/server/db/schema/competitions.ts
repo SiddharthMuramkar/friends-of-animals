@@ -34,7 +34,12 @@ import {
 } from "../../modules/competitions/domain/vocabulary";
 import { user } from "./identity";
 
-/** #71 adds the automatic statuses, #80 cancelled, each in its own migration. */
+/**
+ * The status machine's statuses. #71 added the ones the schedule moves to
+ * (registration open and closed) in a migration of their own; #80 adds
+ * cancelled the same way. A value is never used in the migration that adds
+ * it (rule F2).
+ */
 export const competitionStatusEnum = pgEnum(
   "competition_status",
   COMPETITION_STATUSES
