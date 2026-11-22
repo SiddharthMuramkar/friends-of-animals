@@ -143,7 +143,9 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
     },
     {
       id: "01938a00-0000-7000-8000-000000002103",
-      status: "registration_closed",
+      // Its submissions have closed, and the judging seed publishes every
+      // rubric it needs (#88), so its school round is under way.
+      status: "school_judging",
       slug: "kinder-skies",
       publishedAt: daysAgo(200),
       fields: {

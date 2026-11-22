@@ -283,11 +283,37 @@ _Avoid_: Cron job, recurring task
 
 **Status job**:
 An event held back until one of a published competition's key dates, which
-then moves the competition's status on (registration open, then closed) and
-records the move as done by the system. Editing the date saves a new one; the
-old one finds its date has moved and does nothing. Unlike a Scheduled job, it
-is tied to one competition and one instant.
+then moves the competition's status on (registration open, then closed, then
+school judging) and records the move as done by the system. Editing the date
+saves a new one; the old one finds its date has moved and does nothing. Unlike
+a Scheduled job, it is tied to one competition and one instant.
 _Avoid_: Status cron, status tick
+
+**Guard**:
+A condition on one move of a competition's status, such as "every enabled
+discipline has a published Rubric" before school judging. A Status job makes
+the move only while its guards pass.
+_Avoid_: Precondition, check, gate
+
+**Refused move**:
+A scheduled move a Guard held back: the competition stays where it is, its
+competition managers are told once, and the move is tried again after the
+events the Guard names. It is resolved when a later attempt makes the move.
+_Avoid_: Blocked flip, failed transition
+
+## Judging
+
+**Rubric**:
+The criteria judges score one discipline of a competition by, each with its
+weight and score range. It is a draft until a competition manager publishes
+it; a published one never changes, and a revision is a new version that
+replaces it when published.
+_Avoid_: Scorecard, marking scheme
+
+**Judging guide**:
+What a coordinator of a registered institution reads before their school
+round: FOA's judging framework and the published Rubric of each discipline.
+_Avoid_: Judging kit, rules
 
 ## Files
 

@@ -212,6 +212,7 @@ const STATUS: Record<PublicCompetition["status"], CompetitionStatus> = {
   published: "PUBLISHED",
   registration_open: "REGISTRATION_OPEN",
   registration_closed: "REGISTRATION_CLOSED",
+  school_judging: "SCHOOL_JUDGING",
 };
 
 const toDiscipline = (d: StoredDiscipline) => d.toUpperCase() as Discipline;
