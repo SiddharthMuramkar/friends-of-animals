@@ -10,6 +10,8 @@ export const APP_ROUTES = {
   accountSecurity: "/account/security",
   secondFactor: "/auth/second-factor",
   stepUp: "/auth/step-up",
+  /** The file upload demo (#63): every environment but production. */
+  accountFiles: "/account/files",
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
 } as const;
@@ -62,5 +64,17 @@ export function isSignedInPage(pathname: string): boolean {
   return (
     (Object.values(APP_ROUTES) as string[]).includes(pathname) ||
     APP_ROUTE_TEMPLATES.some((template) => fitsTemplate(pathname, template))
+  );
+}
+
+/**
+ * Pages that exist everywhere but production: src/proxy.ts answers 404
+ * for them there, before anything renders.
+ */
+export const NON_PRODUCTION_PREFIXES = [APP_ROUTES.accountFiles] as const;
+
+export function isNonProductionPath(pathname: string): boolean {
+  return NON_PRODUCTION_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }

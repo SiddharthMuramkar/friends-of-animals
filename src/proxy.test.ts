@@ -182,6 +182,45 @@ describe("proxy: the signed-in nonce policy", () => {
   });
 });
 
+describe("proxy: the file upload demo", () => {
+  it("is the 404, under the public policy, in production, signed in or not", () => {
+    vi.stubEnv("APP_ENV", "production");
+
+    for (const headers of [{}, SESSION]) {
+      const response = proxy(request("/account/files", headers));
+
+      expect(getRewrittenUrl(response)).toBe(
+        "https://foa.example.test/__not-found"
+      );
+      // Production only reports, so the policy's own key names the header.
+      const policy = publicCsp(cspContext());
+      expect(response.headers.get(policy.key)).toBe(policy.value);
+      expect(response.headers.get("location")).toBeNull();
+    }
+  });
+
+  it.each(["preview", "staging", "local"])(
+    "is a signed-in page under APP_ENV=%s",
+    (name) => {
+      vi.stubEnv("APP_ENV", name);
+
+      expect(proxy(request("/account/files")).headers.get("location")).toBe(
+        "https://foa.example.test/sign-in"
+      );
+      const page = pageHeaders(proxy(request("/account/files", SESSION)));
+      expect(page.get("x-nonce")).toEqual(expect.any(String));
+    }
+  );
+
+  it("leaves the other account pages to the sign-in check in production", () => {
+    vi.stubEnv("APP_ENV", "production");
+
+    expect(proxy(request("/account/sessions")).headers.get("location")).toBe(
+      "https://foa.example.test/sign-in"
+    );
+  });
+});
+
 describe("proxy: the page's path, for the staff gate (#60)", () => {
   it.each([
     APP_ROUTES.accountSecurity,

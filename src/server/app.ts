@@ -19,6 +19,7 @@ import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
 import { competitionsUseCases } from "./modules/competitions";
 import { secondFactorUseCases } from "./modules/second-factor";
+import { filesUseCases } from "./modules/files";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -26,6 +27,7 @@ const useCases = composeUseCases(
   accessUseCases,
   auditUseCases,
   secondFactorUseCases,
+  filesUseCases,
   competitionsUseCases
 );
 

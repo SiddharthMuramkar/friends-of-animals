@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { APP_ROUTES, isSignedInPage, isSignedInPath } from "./app-routes";
+import {
+  APP_ROUTES,
+  isNonProductionPath,
+  isSignedInPage,
+  isSignedInPath,
+} from "./app-routes";
 
 const COMPETITION_ID = "01938a00-0000-7000-8000-000000002001";
 
@@ -38,6 +43,7 @@ describe("isSignedInPage", () => {
 describe("isSignedInPath", () => {
   it("covers the account pages", () => {
     expect(isSignedInPath(APP_ROUTES.accountSessions)).toBe(true);
+    expect(isSignedInPath(APP_ROUTES.accountFiles)).toBe(true);
     expect(isSignedInPath("/account")).toBe(true);
   });
 
@@ -51,5 +57,18 @@ describe("isSignedInPath", () => {
     expect(isSignedInPath("/sign-in")).toBe(false);
     expect(isSignedInPath("/accountability")).toBe(false);
     expect(isSignedInPath("/")).toBe(false);
+  });
+});
+
+describe("isNonProductionPath", () => {
+  it("covers the file upload demo and everything under it", () => {
+    expect(isNonProductionPath(APP_ROUTES.accountFiles)).toBe(true);
+    expect(isNonProductionPath(`${APP_ROUTES.accountFiles}/x`)).toBe(true);
+  });
+
+  it("leaves other account pages alone", () => {
+    expect(isNonProductionPath(APP_ROUTES.accountSessions)).toBe(false);
+    expect(isNonProductionPath("/account/filesystem")).toBe(false);
+    expect(isNonProductionPath("/account")).toBe(false);
   });
 });
