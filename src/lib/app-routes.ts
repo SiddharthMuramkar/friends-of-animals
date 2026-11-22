@@ -30,6 +30,7 @@ export const APP_ROUTES = {
   myInstitution: "/institution",
   adminInstitutions: "/admin/institutions",
   institutionCoordinators: "/institution/coordinators",
+  adminInbox: "/admin/inbox",
   adminBlog: "/admin/blog",
   adminNewBlogPost: "/admin/blog/new",
 } as const;
@@ -53,6 +54,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/preview",
   "/admin/templates/[key]",
   "/admin/institutions/[id]",
+  "/admin/inbox/[id]",
   "/admin/blog/[id]",
 ] as const;
 

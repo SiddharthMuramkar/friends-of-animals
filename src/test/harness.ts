@@ -31,6 +31,8 @@ import { grantsOf } from "@/server/access/grants";
 import { base32Decode } from "@/server/modules/second-factor/domain/base32";
 import { TOTP, totpCode } from "@/server/modules/second-factor/domain/totp";
 import { isEnrolled } from "@/server/modules/second-factor/session-factor";
+import { CONTACT_RATE_LIMITS } from "@/server/modules/contact/domain/submission";
+import { proofOfWorkHumanCheck } from "@/server/modules/public-forms/proof-of-work-check";
 import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 import { SEED_TOTP_SECRET } from "@/server/seed/second-factor";
@@ -146,6 +148,9 @@ export const TEST_FILES = {
   appEnv: "local",
 } as const;
 
+/** Leading zero bits the harness's human check asks for: about 16 hashes. */
+export const TEST_HUMAN_CHECK_DIFFICULTY = 4;
+
 export async function createHarness(
   options: { now?: Date | string } = {}
 ): Promise<Harness> {
@@ -186,6 +191,12 @@ export async function createHarness(
     files: TEST_FILES,
     scanner,
     media,
+    // The real check, made easy: a few hashes to solve (src/test/human-check.ts).
+    humanCheck: proofOfWorkHumanCheck({
+      secret: TEST_AUTH.secret,
+      difficulty: TEST_HUMAN_CHECK_DIFFICULTY,
+    }),
+    contactLimits: CONTACT_RATE_LIMITS,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({

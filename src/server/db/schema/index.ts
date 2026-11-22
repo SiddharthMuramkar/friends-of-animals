@@ -22,3 +22,5 @@ export * from "./settings";
 export * from "./institutions";
 export * from "./notifications";
 export * from "./posts";
+export * from "./contact";
+export * from "./public-forms";
