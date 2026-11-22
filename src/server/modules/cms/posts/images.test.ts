@@ -184,6 +184,29 @@ describe("uploadPostImage", () => {
     expect(await h.db.select().from(cmsPostImage)).toEqual([]);
   });
 
+  it("leaves an archived post's images alone until it is restored", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const postId = await draft(h, actor);
+    const { postImageId } = await uploadImage(h, actor, postId);
+    await h.as(actor).publishPost({ postId });
+    await h.as(actor).archivePost({ postId });
+
+    expect(
+      await h.as(actor).uploadPostImage({
+        postId,
+        contentType: "image/jpeg",
+        sizeBytes: 1000,
+      })
+    ).toEqual({ ok: false, error: "archived" });
+    expect(
+      await h.as(actor).describePostImage({ postImageId, alt: "Changed" })
+    ).toEqual({ ok: false, error: "archived" });
+    expect(await h.db.select().from(cmsPostImage)).toMatchObject([
+      { id: postImageId, alt: "A kite over a rooftop" },
+    ]);
+  });
+
   it("can't be sidestepped by uploading a post image through the Files module", async () => {
     const h = await createHarness();
     const member = await h.signIn(await h.seed.member());
