@@ -21,7 +21,7 @@
 import {
   previewDatabaseName,
   type DatabaseEnv,
-} from "@/server/db/database-url";
+} from "../../../db/database-url";
 
 import type { FilePurpose } from "./purposes";
 
