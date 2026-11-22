@@ -47,6 +47,15 @@ describe("docker/analytics.yml", () => {
     expect(service(name)).toMatch(/^ {4}mem_limit: \d+[mg]$/m);
   });
 
+  it("caps Umami's swap too, and the kernel kills it before the databases", () => {
+    // LAUNCH 15.5: sidecars get oom_score_adj 500, like foa-caddy and
+    // foa-glitchtip, so pg-prod and PgBouncer survive memory pressure.
+    const umami = service("umami");
+    expect(umami).toMatch(/^ {4}mem_limit: 1g$/m);
+    expect(umami).toMatch(/^ {4}memswap_limit: 1g$/m);
+    expect(umami).toMatch(/^ {4}oom_score_adj: 500$/m);
+  });
+
   it("publishes no port beyond 127.0.0.1", () => {
     const published = top.flatMap((line, i) =>
       /^\s+ports:$/.test(line) ? block(top.slice(i), /ports:$/) : []

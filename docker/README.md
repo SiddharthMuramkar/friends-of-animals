@@ -949,9 +949,9 @@ Cookieless page views for the public site (#118). Compose project
 `foa-analytics` (`analytics.yml`), separate from `foa-vps`, so bringing the
 database stack down or up never touches it.
 
-| Container   | Image                                | Address                  | Published | Limits      |
-| ----------- | ------------------------------------ | ------------------------ | --------- | ----------- |
-| `foa-umami` | `ghcr.io/umami-software/umami:3.5.0` | 10.112.12.30:3000 (`db`) | no        | 1 CPU, 1 GB |
+| Container   | Image                                | Address                  | Published | Limits                           |
+| ----------- | ------------------------------------ | ------------------------ | --------- | -------------------------------- |
+| `foa-umami` | `ghcr.io/umami-software/umami:3.5.0` | 10.112.12.30:3000 (`db`) | no        | 1 CPU, 1 GB, `oom_score_adj` 500 |
 
 - **Data**: database `umami` on pg-prod, owned by role `umami`
   (`postgres/bootstrap/umami.sql`, connection limit 10). pgBackRest backs up
