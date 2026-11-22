@@ -22,4 +22,6 @@ export {
   SCHEDULES,
   scheduleProblems,
   type ScheduleDefinition,
+  type ScheduleDeps,
+  type ScheduleJob,
 } from "./schedules";

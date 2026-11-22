@@ -1,0 +1,65 @@
+{
+  "adminRoles": {
+    "meta": {
+      "title": "Roles",
+      "description": "Give people roles on Friends of Animals, and take them away."
+    },
+    "eyebrow": "Admin",
+    "title": "Roles",
+    "lead": "Find a person, then give them a role or take one away. A change counts from their next page, and the audit log keeps a record of it.",
+    "search": {
+      "title": "Find a person",
+      "label": "Name or email address",
+      "hint": "Part of their name, or the start of their email address: at least 2 letters.",
+      "submit": "Search",
+      "pending": "Searching…",
+      "tooShort": "Type at least 2 letters.",
+      "results": "People found",
+      "none": "Nobody's name or email address matches “{query}”.",
+      "selected": "Chosen",
+      "forbidden": "Only staff who manage access can search for people."
+    },
+    "user": {
+      "title": "Roles of {name}",
+      "noEmail": "No email address: signs in with a mobile number",
+      "notFound": "We couldn't find that person. Their account may have been deleted. Search again.",
+      "none": "{name} has no roles. Everyone who is signed in can use the member pages.",
+      "grantedAt": "Given {date}",
+      "grantedBy": "Given {date} by {name}",
+      "audit": "See changes to {name}'s account in the audit log"
+    },
+    "revoke": {
+      "submit": "Remove",
+      "submitFor": "Remove {grant}",
+      "pending": "Removing…"
+    },
+    "grantForm": {
+      "title": "Give a role",
+      "role": "Role",
+      "scopeType": "Where it applies",
+      "scopeId": "Institution, competition or organisation id",
+      "scopeIdHint": "Paste its id. Leave this empty when the role applies everywhere.",
+      "choose": "Choose…",
+      "submit": "Give role",
+      "pending": "Giving…"
+    },
+    "errors": {
+      "role": "Choose a role.",
+      "scopeType": "Choose where the role applies.",
+      "scopeNotAllowed": "This role can't apply here.",
+      "scopeId": "Paste an id in this form: 01938a00-0000-7000-8000-000000001001."
+    },
+    "alerts": {
+      "invalid_input": "Check the fields marked below.",
+      "scope_not_allowed": "That role can't apply there. For example, an institution coordinator is always for one institution, and a super admin is always everywhere.",
+      "last_super_admin": "This is the last super admin. Give someone else super admin first, so that someone can always manage roles.",
+      "not_found": "We couldn't find that person. Their account may have been deleted. Search again.",
+      "forbidden": "Only a super admin can give or remove roles."
+    },
+    "done": {
+      "granted": "Role given. It counts from their next page.",
+      "revoked": "Role removed. It stops counting from their next page.",
+      "unchanged": "Nothing changed: they already had that role, or had already lost it."
+    }
+  }
+}

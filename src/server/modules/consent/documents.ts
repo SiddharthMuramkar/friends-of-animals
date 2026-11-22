@@ -45,7 +45,10 @@ export type PublishedConsentDocument = {
   publishedAt: Date;
 };
 
-/** A version as staff see it: with who published it (null for seed data). */
+/**
+ * A version as staff see it: with who published it, or null once that
+ * account no longer exists.
+ */
 export type ConsentDocumentVersion = PublishedConsentDocument & {
   publishedBy: { id: string; name: string } | null;
 };

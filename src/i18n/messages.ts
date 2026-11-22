@@ -5,8 +5,13 @@
 import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
+import adminSettings from "../../messages/en-IN/adminSettings.json";
+import admin from "../../messages/en-IN/admin.json";
+import adminAudit from "../../messages/en-IN/adminAudit.json";
+import adminRoles from "../../messages/en-IN/adminRoles.json";
 import adminCms from "../../messages/en-IN/adminCms.json";
 import auth from "../../messages/en-IN/auth.json";
+import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
@@ -14,9 +19,11 @@ import consent from "../../messages/en-IN/consent.json";
 import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
+import dashboard from "../../messages/en-IN/dashboard.json";
 import donate from "../../messages/en-IN/donate.json";
 import emails from "../../messages/en-IN/emails.json";
 import error from "../../messages/en-IN/error.json";
+import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
@@ -36,8 +43,13 @@ export const NAMESPACES = [
   "a11y",
   "about",
   "account",
+  "adminSettings",
+  "admin",
+  "adminAudit",
+  "adminRoles",
   "adminCms",
   "auth",
+  "authPhone",
   "awareness",
   "common",
   "competitions",
@@ -45,9 +57,11 @@ export const NAMESPACES = [
   "consentAdmin",
   "contact",
   "credits",
+  "dashboard",
   "donate",
   "emails",
   "error",
+  "files",
   "footer",
   "home",
   "impact",
@@ -71,8 +85,13 @@ export const messages = {
   ...a11y,
   ...about,
   ...account,
+  ...adminSettings,
+  ...admin,
+  ...adminAudit,
+  ...adminRoles,
   ...adminCms,
   ...auth,
+  ...authPhone,
   ...awareness,
   ...common,
   ...competitions,
@@ -80,9 +99,11 @@ export const messages = {
   ...consentAdmin,
   ...contact,
   ...credits,
+  ...dashboard,
   ...donate,
   ...emails,
   ...error,
+  ...files,
   ...footer,
   ...home,
   ...impact,

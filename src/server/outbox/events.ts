@@ -21,6 +21,12 @@ export type DomainEvent =
       payload: { userId: string };
     }
   | {
+      /** An upload matched its declaration and awaits its malware scan. */
+      type: "files.file_uploaded";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
       /** Someone withdrew consent (#64); later modules stop what it allowed. */
       type: "consent.withdrawn";
       aggregate: { type: "consent_event"; id: string };
@@ -45,6 +51,7 @@ export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
  */
 export const EVENT_PAYLOADS = {
   "identity.user_signed_up": z.object({ userId: z.uuid() }),
+  "files.file_uploaded": z.object({ fileId: z.uuid() }),
   "consent.withdrawn": z.object({
     consentEventId: z.uuid(),
     subjectType: z.enum(CONSENT_SUBJECT_TYPES),
@@ -57,6 +64,7 @@ export const EVENT_PAYLOADS = {
 /** The handlers each event is delivered to, one outbox row apiece. */
 export const SUBSCRIBERS = {
   "identity.user_signed_up": ["notifications.send_welcome_email"],
+  "files.file_uploaded": ["files.scan_file"],
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #69, #119, #126, #131) add their handlers here.
   "consent.withdrawn": ["consent.acknowledge_withdrawal"],

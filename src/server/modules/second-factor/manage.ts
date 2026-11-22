@@ -8,7 +8,7 @@
 // admin clears their factors, and they enrol again. Loads under plain
 // Node: relative imports only.
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -19,11 +19,20 @@ import {
   secondFactorLockout,
   session,
   sessionSecondFactor,
-  user,
+  webauthnChallenge,
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
-import { isEnrolled, signedInUser } from "./session-factor";
-import type { SecondFactorContext } from "./totp";
+import {
+  isEnrolled,
+  lockFactorSession,
+  lockLiveSession,
+  lockUsers,
+  signedInUser,
+} from "./session-factor";
+import {
+  dropPendingAuthenticators,
+  type SecondFactorContext,
+} from "./enrolment";
 
 const removeInput = z.object({ factorId: z.uuid() });
 const resetInput = z.object({ userId: z.uuid() });
@@ -38,12 +47,17 @@ export async function removeSecondFactor(
   ctx: SecondFactorContext,
   input: { factorId: string }
 ): Promise<RemoveSecondFactorResult> {
-  const { role } = await authorize(ctx, "second-factor.remove");
+  await authorize(ctx, "second-factor.remove");
   const actor = signedInUser(ctx.actor);
   const parsed = removeInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
 
   return ctx.db.transaction(async (tx) => {
+    await lockFactorSession(tx, actor, ctx.clock);
+    const { role } = await authorize(
+      { ...ctx, db: tx },
+      "second-factor.remove"
+    );
     // Only the user's own factors match, so another's is "not found".
     const [removed] = await tx
       .delete(secondFactor)
@@ -60,13 +74,34 @@ export async function removeSecondFactor(
         confirmedAt: secondFactor.confirmedAt,
       });
     if (!removed) return { ok: false, error: "not_found" } as const;
-    // With no factor left, no session counts as having passed one, so a
-    // factor added later can't revive an old session's second factor.
-    if (!(await isEnrolled(tx, actor.userId))) {
+    const enrolled = await isEnrolled(tx, actor.userId);
+    if (!enrolled) {
+      // The stepped-up session can enrol a replacement. Other sessions
+      // must sign in again. Their stamps and challenges cascade away.
+      await tx
+        .delete(session)
+        .where(
+          and(eq(session.userId, actor.userId), ne(session.id, actor.sessionId))
+        );
+      await tx
+        .delete(sessionSecondFactor)
+        .where(eq(sessionSecondFactor.sessionId, actor.sessionId));
+      await tx
+        .delete(webauthnChallenge)
+        .where(eq(webauthnChallenge.sessionId, actor.sessionId));
+      await dropPendingAuthenticators(tx, actor.userId);
+    } else if (removed.confirmedAt) {
+      // Other sessions may have passed with the removed factor.
       await tx
         .delete(sessionSecondFactor)
         .where(
-          inArray(sessionSecondFactor.sessionId, sessionsOf(tx, actor.userId))
+          and(
+            inArray(
+              sessionSecondFactor.sessionId,
+              sessionsOf(tx, actor.userId)
+            ),
+            ne(sessionSecondFactor.sessionId, actor.sessionId)
+          )
         );
     }
     if (removed.confirmedAt) {
@@ -100,25 +135,32 @@ function sessionsOf(tx: AppDb, userId: string) {
 }
 
 /**
- * Clears every factor a user holds, every second factor their sessions
- * passed and any lockout, so they can enrol again.
+ * Clears the user's factors and lockout and ends every session, including
+ * its verification stamp and pending passkey challenges. The person who
+ * requested recovery signs in again before enrolling a replacement.
+ *
+ * The super admin's authority is checked again inside the transaction,
+ * with both accounts and the super admin's session locked: a sign-out of
+ * that session, a change to their factors or a revoke of their role either
+ * waits for the reset or, having committed first, refuses it.
  */
 export async function resetSecondFactors(
   ctx: SecondFactorContext,
   input: { userId: string }
 ): Promise<ResetSecondFactorsResult> {
-  const { role } = await authorize(ctx, "second-factor.reset");
+  await authorize(ctx, "second-factor.reset");
   const parsed = resetInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { userId } = parsed.data;
+  const actor = signedInUser(ctx.actor);
 
   return ctx.db.transaction(async (tx) => {
-    const [account] = await tx
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.id, userId))
-      .for("no key update");
-    if (!account) return { ok: false, error: "not_found" } as const;
+    const found = await lockUsers(tx, [actor.userId, userId]);
+    await lockLiveSession(tx, actor, ctx.clock);
+    const { role } = await authorize({ ...ctx, db: tx }, "second-factor.reset");
+    if (!found.has(userId.toLowerCase())) {
+      return { ok: false, error: "not_found" } as const;
+    }
 
     const removed = await tx
       .delete(secondFactor)
@@ -129,9 +171,7 @@ export async function resetSecondFactors(
         label: secondFactor.label,
         confirmedAt: secondFactor.confirmedAt,
       });
-    await tx
-      .delete(sessionSecondFactor)
-      .where(inArray(sessionSecondFactor.sessionId, sessionsOf(tx, userId)));
+    await tx.delete(session).where(eq(session.userId, userId));
     await tx
       .delete(secondFactorLockout)
       .where(eq(secondFactorLockout.userId, userId));

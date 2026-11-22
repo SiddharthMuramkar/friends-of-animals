@@ -19,7 +19,7 @@
       "messages": "News and updates by email"
     },
     "current": "Version {version}, published {date} by {name}.",
-    "currentSeeded": "Version {version}, published {date} with the seed data.",
+    "currentPublisherGone": "Version {version}, published {date} by an account that no longer exists.",
     "none": "Nothing published yet. Until you publish version 1, the page shows the text in the code.",
     "fromCms": "Its text is its policy page's. When a content manager publishes the page from Site content, this document gets the same text as its next version.",
     "published": "Published version {version}.",
@@ -63,6 +63,6 @@
     "history": "All versions",
     "versionSummary": "Version {version}: {title}",
     "versionPublished": "Published {date} by {name}.",
-    "versionSeeded": "Published {date} with the seed data."
+    "versionPublisherGone": "Published {date} by an account that no longer exists."
   }
 }

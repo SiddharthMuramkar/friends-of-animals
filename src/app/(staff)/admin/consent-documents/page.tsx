@@ -3,6 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import {
   LegalSectionsText,
   LegalShortList,
@@ -36,13 +37,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type SearchParams = Promise<{ published?: string | string[] }>;
+type SearchParams = PageProps<"/admin/consent-documents">["searchParams"];
 
 export default async function Page({
   searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+}: PageProps<"/admin/consent-documents">) {
   const t = await getTranslations("consentAdmin");
   return (
     <Section hue="neutral" tone="tint" className="pt-10 sm:pt-14">
@@ -52,8 +51,9 @@ export default async function Page({
         title={t("title")}
         lead={t("lead")}
       />
-      {/* Who is asking, and the documents, are read per request, so they
-          stream in behind this boundary while the heading is prerendered. */}
+      {/* The staff layout renders this page per request. Who is
+          asking, and the documents, stream in behind this boundary after
+          the heading. */}
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
@@ -103,7 +103,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
     getTranslations("consentAdmin.form"),
     getTranslations("common.callout"),
     getFormatter(),
-    versionsFor(actor),
+    orSecondFactor(() => versionsFor(actor), APP_ROUTES.adminConsentDocuments),
     searchParams,
   ]);
 
@@ -130,7 +130,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
           date: date(version.publishedAt),
           name: version.publishedBy.name,
         })
-      : t("versionSeeded", { date: date(version.publishedAt) });
+      : t("versionPublisherGone", { date: date(version.publishedAt) });
 
   return (
     <div className="mt-8 flex flex-col gap-8">
@@ -155,7 +155,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
                       date: date(current.publishedAt),
                       name: current.publishedBy.name,
                     })
-                  : t("currentSeeded", {
+                  : t("currentPublisherGone", {
                       version: current.version,
                       date: date(current.publishedAt),
                     })

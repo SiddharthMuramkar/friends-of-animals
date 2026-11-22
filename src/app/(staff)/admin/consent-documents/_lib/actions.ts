@@ -6,13 +6,14 @@ import { redirect } from "next/navigation";
 
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { secondFactorPath } from "@/lib/second-factor-routes";
 import { as, currentActor } from "@/server/app";
+import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import { consentDocumentTag } from "@/server/modules/consent/cached";
 import {
   CONSENT_PURPOSES,
   type ConsentPurpose,
 } from "@/server/modules/consent/domain/purposes";
-import { errorSummaryForLogs } from "@/server/errors";
 
 import {
   afterPreview,
@@ -84,13 +85,20 @@ export async function publishFormAction(
     if (!result.ok) return withText(afterPublishRefused(result, entered));
     version = result.version;
   } catch (error) {
+    if (error instanceof DomainError) {
+      const path = secondFactorPath(
+        error.code,
+        APP_ROUTES.adminConsentDocuments
+      );
+      if (path) redirect(path);
+    }
     console.error(
       `Consent document form: the use case failed: ${errorSummaryForLogs(error)}`
     );
     return withText({ ...entered, alert: "failed" });
   }
   updateTag(consentDocumentTag(purpose));
-  const token = Date.now().toString(36);
+  const token = crypto.randomUUID().slice(0, 8);
   redirect(
     `${APP_ROUTES.adminConsentDocuments}?published=${purpose}-${version}-${token}`
   );

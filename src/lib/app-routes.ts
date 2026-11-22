@@ -8,22 +8,47 @@ import { CMS_DOCUMENT_KEYS } from "../server/modules/cms/domain/documents";
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  accountSecurity: "/account/security",
+  dashboard: "/dashboard",
+  adminRoles: "/admin/roles",
+  adminAudit: "/admin/audit",
+  secondFactor: "/auth/second-factor",
+  stepUp: "/auth/step-up",
+  /** The file upload demo (#63): every environment but production. */
+  accountFiles: "/account/files",
+  adminSettings: "/admin/settings",
   accountConsents: "/account/consents",
   adminConsentDocuments: "/admin/consent-documents",
   adminCms: "/admin/cms",
-  accountSecurity: "/account/security",
-  secondFactor: "/auth/second-factor",
-  stepUp: "/auth/step-up",
 } as const;
 
 /**
  * Path prefixes that need a signed-in user. src/proxy.ts sends visitors
  * without a session cookie to sign in; #65's CSP gives these a nonce.
+ * Each tree also needs the proxy's matcher to list it, and a layout that
+ * waits for the request (src/app/account/layout.tsx), so it has no static
+ * shell.
  */
-export const SIGNED_IN_PREFIXES = ["/account", "/admin", "/auth"] as const;
+export const SIGNED_IN_PREFIXES = [
+  "/account",
+  "/admin",
+  "/auth",
+  "/dashboard",
+] as const;
 
 export function isSignedInPath(pathname: string): boolean {
-  return SIGNED_IN_PREFIXES.some(
+  return isUnderPrefix(pathname, SIGNED_IN_PREFIXES);
+}
+
+/**
+ * True when `pathname` is one of `prefixes` or below one, by whole
+ * segments: "/account/x" is under "/account", "/accounts" isn't.
+ */
+export function isUnderPrefix(
+  pathname: string,
+  prefixes: readonly string[]
+): boolean {
+  return prefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }
@@ -44,4 +69,16 @@ const CMS_EDITOR_PATHS: ReadonlySet<string> = new Set(
 /** The editor page of one CMS document (#111). */
 export function adminCmsDocumentPath(key: string): `/admin/cms/${string}` {
   return `/admin/cms/${key}`;
+}
+
+/**
+ * Pages that exist everywhere but production: src/proxy.ts answers 404
+ * for them there, before anything renders.
+ */
+export const NON_PRODUCTION_PREFIXES = [APP_ROUTES.accountFiles] as const;
+
+export function isNonProductionPath(pathname: string): boolean {
+  return NON_PRODUCTION_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
 }

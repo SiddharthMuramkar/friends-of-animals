@@ -2,13 +2,14 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
 import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
-import { SEED_ACCOUNTS } from "../../src/server/seed/accounts";
+import { SEED_CONSENT_PUBLISHERS } from "../../src/server/seed/accounts";
 import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {
   expectAccessible,
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
+import { nonceOf, onlyPolicy, recordCspViolations } from "./support/csp";
 import { freshEmail, readCode } from "./support/mailbox";
 
 // #64: consent documents and consent to messages. The preview seed
@@ -43,13 +44,15 @@ async function shownVersion(page: Page): Promise<number> {
 test("the privacy and terms pages show the published version and its text", async ({
   page,
 }) => {
-  await page.goto("/privacy");
+  await expectRendersAccessibly(page, "/privacy");
+  await expectAccessibleInDark(page, "/privacy");
   expect(await shownVersion(page)).toBeGreaterThanOrEqual(1);
   await expect(
     page.getByRole("heading", { name: "Who we are", level: 2 })
   ).toBeVisible();
 
-  await page.goto("/terms");
+  await expectRendersAccessibly(page, "/terms");
+  await expectAccessibleInDark(page, "/terms");
   expect(await shownVersion(page)).toBeGreaterThanOrEqual(1);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Terms of use"
@@ -164,28 +167,38 @@ test("a staff admin publishes a new version of the messages consent", async ({
   page,
   request,
 }, testInfo) => {
-  // Each project signs in a different admin, so the two never race for
-  // the same version number or code limit, nor use the seeded
-  // authenticator's code that #60's journey uses in the same project.
+  // Each project signs in a different admin, so the two never share a code
+  // limit. Both publish the messages consent, so each only expects a later
+  // version than the one it saw.
   const admin =
     testInfo.project.name === "desktop"
-      ? SEED_ACCOUNTS.members[1]
-      : SEED_ACCOUNTS.superAdmin;
+      ? SEED_CONSENT_PUBLISHERS.desktop
+      : SEED_CONSENT_PUBLISHERS.mobile;
+  const violations = await recordCspViolations(page);
 
   await page.goto("/sign-in");
   await finishWithCode(page, request, admin.email);
   await expect(page).toHaveURL(/\/account\/sessions$/);
 
-  // Staff pass the second factor first (#60), with the seeded authenticator.
   await page.goto("/admin/consent-documents");
-  await expect(page).toHaveURL(/\/auth\/second-factor/);
+  await expect(page).toHaveURL(
+    /\/auth\/second-factor\?next=%2Fadmin%2Fconsent-documents$/
+  );
   await page
     .getByRole("textbox", { name: "6-digit code" })
     .fill(totpCode(base32Decode(SEED_TOTP_SECRET), new Date()));
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page).toHaveURL(/\/admin\/consent-documents$/);
 
-  await expectAccessible(page, "/admin/consent-documents");
+  // Staff pages render per request under the strict nonce policy (#65).
+  const policy = await onlyPolicy(
+    await page.goto("/admin/consent-documents"),
+    "/admin/consent-documents"
+  );
+  expect(nonceOf(policy), "the staff page's nonce").toBeTruthy();
+  expect(policy).toContain("'strict-dynamic'");
+
+  await expectRendersAccessibly(page, "/admin/consent-documents");
   await expectAccessibleInDark(page, "/admin/consent-documents");
   // The privacy policy and the terms are their policy pages' text: only
   // publishing the page in the CMS publishes them (#111).
@@ -217,7 +230,9 @@ test("a staff admin publishes a new version of the messages consent", async ({
   const published = Number(
     /Published version (\d+)/.exec((await notice.textContent()) ?? "")?.[1]
   );
-  expect(published).toBe(before + 1);
+  expect(published).toBeGreaterThan(before);
+
+  expect(violations).toEqual([]);
 });
 
 test("a member is refused on the consent documents page", async ({

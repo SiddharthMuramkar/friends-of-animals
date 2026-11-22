@@ -2,15 +2,37 @@
 
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import {
+  type ReactNode,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 
 import { buttonStyles } from "@/components/site/button-link";
+import { isSignedInPath } from "@/lib/app-routes";
 import { cn } from "@/lib/utils";
 
 import { NavLink } from "./nav-link";
 import { ThemeSwitch } from "./theme-toggle";
 
 type Item = { href: string; label: string };
+
+/**
+ * The header's links, plus `dashboard` on pages behind sign-in: whoever
+ * sees those is signed in. Public pages stay static, so the header never
+ * reads the session to decide (#59).
+ */
+function withDashboard(
+  items: Item[],
+  dashboard: Item | undefined,
+  pathname: string | null
+): Item[] {
+  return dashboard && pathname !== null && isSignedInPath(pathname)
+    ? [...items, dashboard]
+    : items;
+}
 
 // The current page gets a cue that doesn't rely on colour alone, in the
 // section-blue heading colour (over 3:1 on the tint in both themes): an
@@ -24,17 +46,19 @@ const MENU_LINK =
 /** Desktop navigation (lg and up). */
 export function DesktopNavView({
   items,
+  dashboard,
   label,
   pathname,
 }: {
   items: Item[];
+  dashboard?: Item;
   label: string;
   pathname: string | null;
 }) {
   return (
     <nav aria-label={label} className="hidden lg:block">
       <ul className="flex items-center gap-1">
-        {items.map((item) => (
+        {withDashboard(items, dashboard, pathname).map((item) => (
           <li key={item.href}>
             <NavLink
               href={item.href}
@@ -50,7 +74,11 @@ export function DesktopNavView({
   );
 }
 
-export function DesktopNav(props: { items: Item[]; label: string }) {
+export function DesktopNav(props: {
+  items: Item[];
+  dashboard?: Item;
+  label: string;
+}) {
   return <DesktopNavView {...props} pathname={usePathname()} />;
 }
 
@@ -66,28 +94,113 @@ type MenuLabels = {
 /** Ties the Menu and Close buttons to the dialog through invoker commands. */
 const MENU_ID = "mobile-menu";
 
-/**
- * Small screens: a native modal <dialog> (focus trap, Escape and inert page
- * for free). It closes whenever the pathname changes, whether through one of
- * its links, Back or Forward, so it never lingers over another page.
- */
-export function MobileMenuView({
-  items,
-  labels,
-  donateHref,
-  pathname,
-}: {
+type MenuLinksProps = {
   items: Item[];
-  labels: MenuLabels;
+  dashboard?: Item;
   donateHref: string;
   pathname: string | null;
-}) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const close = () => dialog.current?.close();
+  close: () => void;
+};
+
+export function MenuLinksView({
+  items,
+  dashboard,
+  pathname,
+  close,
+}: MenuLinksProps) {
+  return (
+    <ul className="flex flex-col gap-1">
+      {withDashboard(items, dashboard, pathname).map((item) => (
+        <li key={item.href}>
+          <NavLink
+            href={item.href}
+            pathname={pathname}
+            // The pathname effect closes the menu once the new page shows,
+            // so the pending dot stays visible meanwhile. A link to the page
+            // already showing closes it at once.
+            onNavigate={item.href === pathname ? close : undefined}
+            className={MENU_LINK}
+          >
+            {item.label}
+          </NavLink>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The links, marked for the current page. The menu closes whenever the
+ * pathname changes, whether through one of its links, Back or Forward, so it
+ * never lingers over another page.
+ */
+function MenuLinks(props: Omit<MenuLinksProps, "pathname">) {
+  const pathname = usePathname();
+  const previousPathname = useRef(pathname);
+  const { close } = props;
 
   useEffect(() => {
-    dialog.current?.close();
-  }, [pathname]);
+    // The native command can open the dialog before this effect first runs.
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
+    close();
+  }, [pathname, close]);
+
+  return <MenuLinksView {...props} pathname={pathname} />;
+}
+
+function DonateLinkView({
+  donateHref,
+  pathname,
+  close,
+  children,
+}: Omit<MenuLinksProps, "items" | "dashboard"> & { children: ReactNode }) {
+  return (
+    <NavLink
+      href={donateHref}
+      pathname={pathname}
+      onNavigate={donateHref === pathname ? close : undefined}
+      className={cn(buttonStyles({ size: "lg" }), "w-full")}
+    >
+      {children}
+    </NavLink>
+  );
+}
+
+function DonateLink(
+  props: Omit<MenuLinksProps, "items" | "dashboard" | "pathname"> & {
+    children: ReactNode;
+  }
+) {
+  return <DonateLinkView {...props} pathname={usePathname()} />;
+}
+
+/**
+ * Small screens: a native modal <dialog> (focus trap, Escape and inert page
+ * for free).
+ *
+ * The button and the dialog sit outside any Suspense boundary, so the page's
+ * first HTML holds the only copy of each. usePathname() can suspend on routes
+ * with unknown params, and React may stream even a finished boundary
+ * separately, revealing it on a timer after the first paint. A menu inside
+ * such a boundary would be its fallback copy until then, and the reveal would
+ * delete it, open or not, from under a tap made before hydration. Only the
+ * parts marked for the current page sit in boundaries, inside the dialog.
+ */
+export function MobileMenu({
+  items,
+  dashboard,
+  labels,
+  donateHref,
+}: {
+  items: Item[];
+  dashboard?: Item;
+  labels: MenuLabels;
+  donateHref: string;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const close = useCallback(() => dialog.current?.close(), []);
+  const links = { items, dashboard, donateHref, close };
 
   return (
     <>
@@ -138,45 +251,24 @@ export function MobileMenuView({
           aria-label={labels.nav}
           className="flex-1 overflow-y-auto overscroll-contain px-3 py-4"
         >
-          <ul className="flex flex-col gap-1">
-            {items.map((item) => (
-              <li key={item.href}>
-                <NavLink
-                  href={item.href}
-                  pathname={pathname}
-                  // The pathname effect closes the menu once the new page
-                  // shows, so the pending dot stays visible meanwhile. A
-                  // link to the page already showing closes it at once.
-                  onNavigate={item.href === pathname ? close : undefined}
-                  className={MENU_LINK}
-                >
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
+          <Suspense fallback={<MenuLinksView {...links} pathname={null} />}>
+            <MenuLinks {...links} />
+          </Suspense>
         </nav>
         <div className="border-t border-border p-5">
           {/* From sm up the header shows its own theme button. */}
           <ThemeSwitch label={labels.theme} className="mb-3 sm:hidden" />
-          <NavLink
-            href={donateHref}
-            pathname={pathname}
-            onNavigate={donateHref === pathname ? close : undefined}
-            className={cn(buttonStyles({ size: "lg" }), "w-full")}
+          <Suspense
+            fallback={
+              <DonateLinkView {...links} pathname={null}>
+                {labels.donate}
+              </DonateLinkView>
+            }
           >
-            {labels.donate}
-          </NavLink>
+            <DonateLink {...links}>{labels.donate}</DonateLink>
+          </Suspense>
         </div>
       </dialog>
     </>
   );
-}
-
-export function MobileMenu(props: {
-  items: Item[];
-  labels: MenuLabels;
-  donateHref: string;
-}) {
-  return <MobileMenuView {...props} pathname={usePathname()} />;
 }

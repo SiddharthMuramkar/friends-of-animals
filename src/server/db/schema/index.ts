@@ -12,3 +12,7 @@ export * from "./outbox";
 export * from "./consent";
 export * from "./second-factor";
 export * from "./cms";
+export * from "./files";
+export * from "./offsite-copy";
+export * from "./worker";
+export * from "./settings";
