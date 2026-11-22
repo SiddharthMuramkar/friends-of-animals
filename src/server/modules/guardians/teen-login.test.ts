@@ -9,6 +9,10 @@ import {
   userRole,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import {
+  adultForm,
+  openToIndividuals,
+} from "@/server/modules/participants/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { bornYearsAgo, verifiedGuardian } from "./testing";
@@ -355,6 +359,36 @@ describe("acceptTeenInvitation", () => {
       error: "accepter_is_guardian",
     });
     expect(await profileOf(h, teenId)).toMatchObject({ loginUserId: null });
+  });
+
+  it("refuses an adult who registered themselves (#78): nothing is linked, and their roles stay as they were", async () => {
+    const h = await createHarness();
+    const competition = await openToIndividuals(h);
+    const arjun = await signedIn(h, ARJUN);
+    const registered = await h
+      .as(arjun)
+      .registerAsIndividual(adultForm(competition, { fullName: ARJUN.name }));
+    expect(registered).toMatchObject({ ok: true });
+    const rolesBefore = await rolesOf(h, arjun);
+    const { token, teenId, invitationId } = await invited(h);
+
+    expect(await h.as(arjun).acceptTeenInvitation({ token })).toEqual({
+      ok: false,
+      error: "accepter_is_adult",
+    });
+    expect(await profileOf(h, teenId)).toMatchObject({ loginUserId: null });
+    expect(await invitationRow(h, invitationId)).toMatchObject({
+      status: "pending",
+      acceptedByUserId: null,
+    });
+    expect(await rolesOf(h, arjun)).toEqual(rolesBefore);
+    expect(await h.as(arjun).myGuardians()).toEqual([]);
+    expect(
+      await h.db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.action, "guardian.teen_linked"))
+    ).toEqual([]);
   });
 
   it("refuses an account that is already another child's login", async () => {

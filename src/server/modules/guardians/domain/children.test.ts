@@ -127,6 +127,7 @@ describe("decideTeenAcceptance", () => {
       isTheInvitedContact: true,
       isAGuardianOfChild: false,
       isAGuardian: false,
+      registeredAsAnAdult: false,
       linkedToAnotherChild: false,
     },
     child: { ageYears: 15, hasLogin: false },
@@ -197,6 +198,26 @@ describe("decideTeenAcceptance", () => {
     });
   });
 
+  it("refuses an account that registered itself as an adult (#78)", () => {
+    const accepter = { ...ready.accepter, registeredAsAnAdult: true };
+    expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
+      ok: false,
+      reason: "accepter_is_adult",
+    });
+  });
+
+  it("tells an adult signed in with another address about the address first", () => {
+    const accepter = {
+      ...ready.accepter,
+      isTheInvitedContact: false,
+      registeredAsAnAdult: true,
+    };
+    expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
+      ok: false,
+      reason: "contact_mismatch",
+    });
+  });
+
   it("tells a guardian signed in with another address about the address first", () => {
     const accepter = {
       ...ready.accepter,
@@ -249,6 +270,7 @@ describe("decideTeenAcceptance", () => {
           isTheInvitedContact: false,
           isAGuardianOfChild: true,
           isAGuardian: true,
+          registeredAsAnAdult: true,
           linkedToAnotherChild: true,
         },
       })

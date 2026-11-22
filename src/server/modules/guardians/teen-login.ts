@@ -145,6 +145,24 @@ async function isAGuardian(tx: AppDb, userId: string): Promise<boolean> {
   return grants.some((grant) => grant.role === "guardian");
 }
 
+/**
+ * Whether the user keeps a profile of their own (#78), which registering
+ * gives only an adult. Read under the user's row lock, which registering
+ * as an individual also takes, so neither slips past the other.
+ */
+async function registeredAsAnAdult(tx: AppDb, userId: string) {
+  const [own] = await tx
+    .select({ id: participantProfile.id })
+    .from(participantProfile)
+    .where(
+      and(
+        eq(participantProfile.ownerUserId, userId),
+        eq(participantProfile.ownerKind, "self")
+      )
+    );
+  return own !== undefined;
+}
+
 /** The child's profile, locked so invites and accepts take turns. */
 async function lockedChild(tx: AppDb, childId: string) {
   const [row] = await tx
@@ -286,6 +304,13 @@ export async function withdrawTeenInvitation(
   return ctx.db.transaction(
     async (tx): Promise<WithdrawTeenInvitationResult> => {
       await lockedChild(tx, input.childId);
+      // Again under the child's lock, as inviting does: a link revoked
+      // since the first check counts.
+      await authorize(
+        { db: tx, clock: ctx.clock, actor: ctx.actor },
+        "guardian.child.manage",
+        await childResource(tx, ctx.actor, input.childId)
+      );
       const withdrawn = await withdrawPending(tx, input.childId, now);
       if (withdrawn.length === 0) {
         return { ok: false, error: "no_pending_invitation" };
@@ -414,6 +439,7 @@ export async function acceptTeenInvitation(
           userId
         ),
         isAGuardian: await isAGuardian(tx, userId),
+        registeredAsAnAdult: await registeredAsAnAdult(tx, userId),
         linkedToAnotherChild: otherProfile !== undefined,
       },
       child: {

@@ -7,6 +7,7 @@ describe("isTeenAcceptError", () => {
     expect(isTeenAcceptError("contact_mismatch")).toBe(true);
     expect(isTeenAcceptError("guardian_cannot_accept")).toBe(true);
     expect(isTeenAcceptError("accepter_is_guardian")).toBe(true);
+    expect(isTeenAcceptError("accepter_is_adult")).toBe(true);
     expect(isTeenAcceptError("identifier_mismatch")).toBe(false);
     expect(isTeenAcceptError(["expired"])).toBe(false);
   });
