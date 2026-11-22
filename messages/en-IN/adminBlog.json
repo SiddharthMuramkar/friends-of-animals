@@ -1,0 +1,223 @@
+{
+  "adminBlog": {
+    "meta": {
+      "title": "Blog and stories",
+      "description": "Write blog posts and stories, schedule them and publish them.",
+      "newTitle": "New post",
+      "editTitle": "Edit a post"
+    },
+    "eyebrow": "Admin",
+    "title": "Blog and stories",
+    "lead": "Write a post as a draft, add its images, then publish it now or schedule it for later.",
+    "loading": "Loading the posts…",
+    "denied": {
+      "title": "Only content managers can open this page",
+      "body": "Writing blog posts and stories is for content managers. Ask a super admin if you need the role.",
+      "back": "Back to your account"
+    },
+    "notFound": {
+      "title": "There is no such post",
+      "body": "It may have been typed wrongly. Every post is listed on the blog page.",
+      "back": "All posts"
+    },
+    "list": {
+      "new": "New post",
+      "empty": "There are no posts yet. Start one with New post.",
+      "caption": "Every post, the most recently changed first",
+      "post": "Post",
+      "kind": "Kind",
+      "status": "Status",
+      "when": "When",
+      "edit": "Edit",
+      "editLabel": "Edit “{title}”",
+      "scheduledFor": "Goes live {date}",
+      "publishedOn": "Published {date}",
+      "changedOn": "Changed {date}"
+    },
+    "kinds": {
+      "blog": "Blog post",
+      "story": "Story"
+    },
+    "statuses": {
+      "draft": "Draft",
+      "scheduled": "Scheduled",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "audiences": {
+      "everyone": "Everyone",
+      "families": "Families",
+      "kids": "Children"
+    },
+    "new": {
+      "title": "New post",
+      "lead": "Save it as a draft first. You can add images, preview it and publish it once it is saved.",
+      "back": "All posts"
+    },
+    "edit": {
+      "back": "All posts",
+      "status": "Status: {status}.",
+      "scheduledFor": "It goes live {date}.",
+      "publishedOn": "Published {date}.",
+      "archivedOn": "Archived {date}. Restore it to edit it again."
+    },
+    "form": {
+      "heading": "The post",
+      "kind": "Kind",
+      "title": "Title",
+      "slug": "Web address",
+      "slugHint": "Lower-case words joined by hyphens, as in kite-season. Leave it blank to make one from the title.",
+      "excerpt": "Summary",
+      "excerptHint": "One or two sentences under the title and on cards, up to 300 characters. A draft can leave it for later.",
+      "seoTitle": "Search title",
+      "seoTitleHint": "A shorter title for search results and the browser tab, needed when the title is long.",
+      "easyRead": "Easy read",
+      "easyReadHint": "One or two short sentences a young reader understands, up to 200 characters.",
+      "authorName": "Author",
+      "authorNameHint": "The name shown as the byline. Optional.",
+      "audience": "Who it is for",
+      "topics": "Topics",
+      "topicsHint": "Words separated by commas, as in kites, street-dogs.",
+      "featured": "Feature this post",
+      "cover": "Cover image",
+      "coverHint": "An image you uploaded below, or a photo from the site's library. Without one, the post shows a tile pattern.",
+      "coverNone": "No cover",
+      "coverUploaded": "Uploaded: {alt}",
+      "coverUploadedNoAlt": "Uploaded image without alt text",
+      "coverSite": "Site photo: {id}",
+      "source": "Text",
+      "sourceHint": "Leave a blank line between paragraphs. Write ## for a heading, - for a list, *emphasis*, **strong** and [words](https://example.org) for a link. Put an uploaded image in with @image and its id.",
+      "create": "Save draft",
+      "creating": "Saving…",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "fixErrors": "Fix these before you save:",
+      "problem": "Problem",
+      "lineError": "Line {line}: {message}",
+      "errors": {
+        "required": "Fill this in.",
+        "too_long": "This is too long.",
+        "taken": "Another post has this web address. Choose another.",
+        "too_short": "Use at least 3 characters.",
+        "invalid_format": "Use lower-case letters, digits and single hyphens only.",
+        "invalid": "This value isn't one we can save."
+      },
+      "alerts": {
+        "failed": "Something went wrong on our side. Nothing was saved. Please try again.",
+        "unknownImage": "The text or the cover names an image that isn't one of this post's. Upload it below first.",
+        "imageNotReady": "An image isn't ready yet. Wait a minute for its resized copies, then save again.",
+        "archived": "This post is archived. Restore it before you edit it.",
+        "notFound": "This post no longer exists."
+      },
+      "sourceErrors": {
+        "empty_body": "Write some text first.",
+        "invalid_heading": "Use ## or ### for a heading.",
+        "unclosed_strong": "A ** has no closing **.",
+        "unclosed_em": "A * has no closing *.",
+        "empty_mark": "There is nothing between the marks.",
+        "unclosed_link": "A link has no closing bracket.",
+        "invalid_link": "A link's address isn't one we allow.",
+        "invalid_footnote_ref": "A source mark should look like [^f1].",
+        "unknown_footnote": "This line cites a source that isn't listed.",
+        "uncited_footnote": "This source isn't cited anywhere.",
+        "duplicate_footnote": "This source is listed twice.",
+        "invalid_footnote": "A source needs its title and its web address in angle brackets.",
+        "unknown_quote": "There is no quote with that id.",
+        "invalid_image": "An image needs the id of one of this post's images, or site: and a photo's id.",
+        "unknown_site_image": "There is no site photo with that id.",
+        "unknown_directive": "Only @quote and @image start a line with @.",
+        "invalid_callout": "A callout starts with > [!info], [!success], [!warning] or [!danger].",
+        "empty_callout": "This callout has no text.",
+        "invalid_source_quote": "A quote's last line should be — who said it, and a source mark.",
+        "dangling_escape": "A backslash ends the line with nothing after it."
+      }
+    },
+    "images": {
+      "heading": "Images",
+      "lead": "Upload a cover or an image for the text. The site only ever shows resized copies, never the file you upload.",
+      "consentTitle": "Photos of children",
+      "consent": "Upload a photo that shows a child only if a parent or guardian has agreed in writing to it being published. Never name the child or their school in the image or its alt text.",
+      "none": "No images yet.",
+      "caption": "This post's images",
+      "id": "Id for the text",
+      "directive": "@image {id}",
+      "alt": "Alt text",
+      "altHint": "What the image shows, for people who can't see it. A cover needs it before the post goes live.",
+      "ready": "Ready",
+      "notReady": "Being prepared",
+      "state": "State",
+      "describe": "Save alt text",
+      "describing": "Saving…",
+      "upload": {
+        "label": "Image file",
+        "hint": "A JPEG, PNG or WebP image, up to 20 MB.",
+        "submit": "Upload image",
+        "uploading": "Uploading…",
+        "checking": "Checking the file…",
+        "ready": "Uploaded. Its resized copies are being made: reload the page in a minute.",
+        "slow": "The check is taking longer than usual. Reload the page in a few minutes.",
+        "errors": {
+          "noFile": "Choose an image first.",
+          "signedOut": "Your session has ended. Sign in again, then upload the image.",
+          "tooLarge": "Choose an image under 20 MB.",
+          "empty": "That file is empty.",
+          "typeNotAllowed": "Choose a JPEG, PNG or WebP image.",
+          "switchedOff": "Uploads aren't available here yet.",
+          "uploadFailed": "The upload didn't finish. Please try again.",
+          "uploadRejected": "The file that arrived wasn't the one chosen. Please try again.",
+          "blocked": "That file can't be used.",
+          "unknown": "Something went wrong. Please try again."
+        }
+      }
+    },
+    "publishing": {
+      "heading": "Publishing",
+      "draftLead": "Publish it now, or choose when it goes live.",
+      "scheduledLead": "It goes live {date}. Publish it now, choose another time or take it back to a draft.",
+      "publishedLead": "It is live. Archive it to take it off the site.",
+      "archivedLead": "It is off the site. Restore it as a draft to edit it again.",
+      "publishAt": "Go live at (India time)",
+      "schedule": "Schedule",
+      "reschedule": "Change the time",
+      "scheduling": "Scheduling…",
+      "publish": "Publish now",
+      "publishing": "Publishing…",
+      "unschedule": "Back to draft",
+      "unscheduling": "Saving…",
+      "archive": "Archive",
+      "archiving": "Archiving…",
+      "restore": "Restore as a draft",
+      "restoring": "Restoring…"
+    },
+    "preview": {
+      "heading": "Preview",
+      "lead": "The saved text as it will read. Uploaded images show here by their alt text.",
+      "image": "Image",
+      "imageReady": "{alt} (ready)",
+      "imageNotReady": "{alt} (being prepared)",
+      "noAlt": "No alt text yet"
+    },
+    "notices": {
+      "done": "Done",
+      "problem": "Problem",
+      "created": "Draft saved.",
+      "saved": "Changes saved.",
+      "scheduled": "Scheduled.",
+      "unscheduled": "Back to a draft.",
+      "published": "Published. The blog shows it now.",
+      "archived": "Archived. It is off the site.",
+      "restored": "Restored as a draft.",
+      "described": "Alt text saved.",
+      "refused": {
+        "not_in_future": "Choose a time in the future.",
+        "invalid_instant": "That isn't a date and time we can read.",
+        "invalid_transition": "That can't be done to a post in this state.",
+        "image_not_ready": "An image isn't ready yet. Wait a minute for its resized copies, then try again.",
+        "invalid_input": "It isn't ready to go live: it needs a summary, and alt text for an uploaded cover. Fill them in and save first.",
+        "too_long": "That alt text is too long.",
+        "not_found": "This post no longer exists.",
+        "failed": "Something went wrong on our side. Nothing changed. Please try again."
+      }
+    }
+  }
+}

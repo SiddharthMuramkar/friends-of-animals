@@ -29,11 +29,18 @@ export const APP_ROUTES = {
   institutionRegister: "/institutions/register",
   myInstitution: "/institution",
   adminInstitutions: "/admin/institutions",
+  adminBlog: "/admin/blog",
+  adminNewBlogPost: "/admin/blog/new",
 } as const;
 
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
+}
+
+/** One post's editor in the admin area (#112). */
+export function adminBlogPostPath(postId: string): string {
+  return `${APP_ROUTES.adminBlog}/${encodeURIComponent(postId)}`;
 }
 
 /**
@@ -45,6 +52,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/preview",
   "/admin/templates/[key]",
   "/admin/institutions/[id]",
+  "/admin/blog/[id]",
 ] as const;
 
 /**
