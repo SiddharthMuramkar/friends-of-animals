@@ -48,6 +48,7 @@ import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
 import notificationSettings from "../../messages/en-IN/notificationSettings.json";
 import participant from "../../messages/en-IN/participant.json";
+import payments from "../../messages/en-IN/payments.json";
 import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import safeguardingReport from "../../messages/en-IN/safeguardingReport.json";
@@ -107,6 +108,7 @@ export const NAMESPACES = [
   "notFound",
   "notificationSettings",
   "participant",
+  "payments",
   "pricing",
   "refunds",
   "safeguardingReport",
@@ -170,6 +172,7 @@ export const messages = {
   ...notFound,
   ...notificationSettings,
   ...participant,
+  ...payments,
   ...pricing,
   ...refunds,
   ...safeguardingReport,

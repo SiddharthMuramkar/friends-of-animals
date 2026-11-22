@@ -121,6 +121,29 @@ export function payMyRegistrationPath(registrationId: string): string {
   return `${APP_ROUTES.participant}/registrations/${encodeURIComponent(registrationId)}/pay`;
 }
 
+/** Where a coordinator pays their students' fees (#77). */
+export const PAY_FEES_ROUTE = "/institution/registrations/[ref]/pay";
+
+/** A payment batch's status and receipt (#77). */
+export const PAYMENT_BATCH_ROUTE =
+  "/institution/registrations/[ref]/payments/[batchId]";
+
+/** The pay page of one institution registration (#77). */
+export function payFeesPath(reference: string, institutionId: string): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/pay?${query.toString()}`;
+}
+
+/** One payment batch's status and receipt (#77). */
+export function paymentBatchPath(
+  reference: string,
+  batchId: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/payments/${encodeURIComponent(batchId)}?${query.toString()}`;
+}
+
 /**
  * Importing students from a CSV file into one institution registration
  * (#76), for the institution the user acts for.
@@ -170,6 +193,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/participant/register/[slug]",
   "/participant/registrations/[id]/pay",
   "/guardian/children/[id]",
+  PAY_FEES_ROUTE,
+  PAYMENT_BATCH_ROUTE,
 ] as const;
 
 /**

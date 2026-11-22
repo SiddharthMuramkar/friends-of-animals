@@ -136,6 +136,43 @@ describe("parseCspReport: application/reports+json", () => {
   });
 });
 
+describe("parseCspReport: Chrome's batches", () => {
+  it("accepts a full Reporting API batch of 100 realistic reports, so a page that lost its nonce is still heard", () => {
+    // Chrome queues reports and uploads them about once a minute, up to
+    // 100 at a time; each signed-in script blocked is one report.
+    const report = (n: number) => ({
+      type: "csp-violation",
+      age: 1200 + n,
+      url: "https://friendsofanimals.dev/institution/registrations/NEIGH27-I-5EED1/pay?institution=01938a00-0000-7000-8000-000000001001",
+      user_agent:
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36",
+      body: {
+        documentURL:
+          "https://friendsofanimals.dev/institution/registrations/NEIGH27-I-5EED1/pay?institution=01938a00-0000-7000-8000-000000001001",
+        referrer: "https://friendsofanimals.dev/institution/competitions",
+        blockedURL: `https://friendsofanimals.dev/_next/static/chunks/app/institution/registrations/%5Bref%5D/pay/page-${String(n).padStart(16, "0")}.js`,
+        effectiveDirective: "script-src-elem",
+        originalPolicy:
+          "default-src 'self'; script-src 'self' 'nonce-AAAAAAAAAAAAAAAAAAAAAA==' 'strict-dynamic' 'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; report-uri /api/csp-report; report-to csp",
+        disposition: "enforce",
+        statusCode: 200,
+        sourceFile: null,
+        lineNumber: 0,
+        columnNumber: 0,
+        sample: "",
+      },
+    });
+    const batch = JSON.stringify(
+      Array.from({ length: 100 }, (_, n) => report(n))
+    );
+
+    const result = parseCspReport("application/reports+json", batch);
+
+    expect(new TextEncoder().encode(batch).length).toBeGreaterThan(64 * 1024);
+    expect(result.ok && result.violations).toHaveLength(20);
+  });
+});
+
 describe("parseCspReport: refusals", () => {
   it("refuses a body over the size cap", () => {
     const big = legacy({

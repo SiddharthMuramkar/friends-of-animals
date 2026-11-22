@@ -6,7 +6,7 @@ import { Suspense } from "react";
 
 import { SubmitButton } from "@/components/form";
 import { OutcomeNotice } from "@/components/form/outcome-notice";
-import { ButtonLink } from "@/components/site/button-link";
+import { ButtonLink, buttonStyles } from "@/components/site/button-link";
 import { Chip } from "@/components/site/chip";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
@@ -15,6 +15,7 @@ import {
   APP_ROUTES,
   institutionCompetitionsPath,
   newStudentPath,
+  payFeesPath,
   studentImportPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
@@ -96,14 +97,16 @@ async function Students({
 }: Pick<Props, "params" | "searchParams">) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [{ ref }, query, t, callout, importWords, access] = await Promise.all([
-    params,
-    searchParams,
-    getTranslations("institutionRegistration.students"),
-    getTranslations("common.callout"),
-    getTranslations("studentImport"),
-    as(actor).myAccess(),
-  ]);
+  const [{ ref }, query, t, callout, importWords, payWords, access] =
+    await Promise.all([
+      params,
+      searchParams,
+      getTranslations("institutionRegistration.students"),
+      getTranslations("common.callout"),
+      getTranslations("studentImport"),
+      getTranslations("payments.pay"),
+      as(actor).myAccess(),
+    ]);
 
   const institutionId = chooseInstitution(
     actingInstitutions(access.grants),
@@ -204,6 +207,18 @@ async function Students({
         ) : (
           <p className="text-ink">{t(`enrolment.${enrolment}`)}</p>
         )}
+        {list.counts.enrolled > 0 ? (
+          <p>
+            {/* A full load: the pay page's CSP and headers come with its
+                document. */}
+            <a
+              href={payFeesPath(list.reference, institutionId)}
+              className={buttonStyles({ variant: "secondary" })}
+            >
+              {payWords("link", { count: list.counts.enrolled })}
+            </a>
+          </p>
+        ) : null}
       </div>
 
       <section aria-labelledby="students-list">

@@ -97,7 +97,7 @@ describe("cspOutputFailures", () => {
 
     expect(cspOutputFailures(build)).toEqual([
       "/about has an onclick attribute on <button>, which script-src-attr 'none' blocks.",
-      "/about has a javascript: URL in <a href>, which the CSP blocks.",
+      "/about has a javascript: URL in <a href>. The public policy's 'unsafe-inline' would run it, so pages keep them out.",
     ]);
   });
 });

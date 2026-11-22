@@ -5,8 +5,10 @@
 //   page rendered per request would no longer be "statically rendered".
 // - No signed-in page has one. A static shell's scripts were rendered at
 //   build time, so they can't carry the request's nonce and are blocked.
-// - No prerendered page has an inline event handler or a javascript: URL,
-//   which `script-src-attr 'none'` and `script-src` block.
+// - No prerendered page has an inline event handler, which
+//   `script-src-attr 'none'` blocks, or a javascript: URL. The public
+//   policy's 'unsafe-inline' (with no nonce or hash) would let a javascript:
+//   URL run, so this check is hardening the policy alone doesn't give.
 
 /** The parts of .next/prerender-manifest.json these checks read. */
 type ManifestRoute = { response?: string; srcRoute?: string | null };
@@ -135,7 +137,7 @@ export function cspOutputFailures(build: {
     ...build.pages.flatMap(({ page, html }) =>
       inlineHandlers(html).map((finding) =>
         finding.startsWith("a javascript:")
-          ? `${page} has ${finding}, which the CSP blocks.`
+          ? `${page} has ${finding}. The public policy's 'unsafe-inline' would run it, so pages keep them out.`
           : `${page} has ${finding}, which script-src-attr 'none' blocks.`
       )
     ),

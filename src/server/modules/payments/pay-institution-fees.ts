@@ -26,7 +26,7 @@ import { eq } from "drizzle-orm";
 import { createTranslator } from "next-intl";
 import { z } from "zod";
 
-import registrationMessages from "../../../../messages/en-IN/registration.json";
+import paymentMessages from "../../../../messages/en-IN/payments.json";
 import { authorize } from "../../access/can";
 import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
@@ -79,8 +79,8 @@ const payInput = z.object({
 
 const t = createTranslator({
   locale: "en-IN",
-  messages: registrationMessages,
-  namespace: "registration.payment",
+  messages: paymentMessages,
+  namespace: "payments.order",
 });
 
 /**
