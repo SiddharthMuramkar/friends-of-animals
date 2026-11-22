@@ -5,6 +5,7 @@ import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
+import { nonceOf, onlyPolicy, recordCspViolations } from "./support/csp";
 import { test } from "./support/seed-account";
 import { signInByCode } from "./support/sign-in";
 
@@ -53,7 +54,7 @@ test("the chooser puts the school route first, recommended, and says why", async
     main
       .getByRole("article", { name: "Participate as an Individual" })
       .getByRole("link", { name: "Register as an individual" })
-  ).toHaveAttribute("href", `/competitions/${OPEN.slug}/register`);
+  ).toHaveAttribute("href", `/participant/register/${OPEN.slug}`);
   await expectAccessibleInDark(page, "/participate");
 });
 
@@ -88,7 +89,8 @@ test("an adult registers for a competition on their own and sees it on their das
     })
   ).toBeVisible();
   await expect(shown(page, "Fee: ₹100.00")).toBeVisible();
-  await checkBothThemes(page, "/competitions/[slug]/register blank");
+  await expect(page).toHaveURL(`/participant/register/${OPEN.slug}`);
+  await checkBothThemes(page, "/participant/register/[slug] blank");
 
   const fill = (name: string, value: string) =>
     page.getByRole("textbox", { name, exact: true }).fill(value);
@@ -104,13 +106,13 @@ test("an adult registers for a competition on their own and sees it on their das
 
   // Under 18: the come-back pointer, on the date of birth.
   await expect(
-    shown(page, /Please come back when the guardian route opens/)
+    shown(page, /Please come back when entry with a parent or guardian opens/)
   ).toBeVisible();
   await expect(page.getByLabel("Date of birth")).toHaveAttribute(
     "aria-invalid",
     "true"
   );
-  await checkBothThemes(page, "/competitions/[slug]/register minor");
+  await checkBothThemes(page, "/participant/register/[slug] minor");
 
   await page.getByLabel("Date of birth").fill("1993-09-17");
   for (const box of await page.getByRole("checkbox").all()) await box.check();
@@ -160,4 +162,31 @@ test("a member who hasn't registered sees an empty dashboard", async ({
     page.getByText("You haven't registered for a competition yet.")
   ).toBeVisible();
   await expectAccessibleInDark(page, "/participant empty");
+});
+
+test("the register form is a signed-in page under the nonce policy, and an unknown competition's form is the 404", async ({
+  page,
+  request,
+  seedAccount,
+}) => {
+  const violations = await recordCspViolations(page);
+  const email = await seedAccount({ name: "E2E Careful Adult", grants: [] });
+  await signInByCode(page, request, email);
+
+  // It takes a date of birth, phone and address: a full load, so the
+  // server sends the page's HTML and its policy.
+  const path = `/participant/register/${OPEN.slug}`;
+  const policy = await onlyPolicy(await page.goto(path), path);
+  expect(nonceOf(policy), "the signed-in policy's nonce").toBeTruthy();
+  expect(policy).toContain("'strict-dynamic'");
+  expect(policy).not.toMatch(/script-src [^;]*'unsafe-inline'/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: `Register for ${OPEN.name}` })
+  ).toBeVisible();
+
+  // Checked before the page renders, so the status says so too.
+  const missing = await page.goto("/participant/register/no-such-competition");
+  expect(missing?.status()).toBe(404);
+
+  expect(violations).toEqual([]);
 });

@@ -33,11 +33,6 @@
       "eyebrow": "Register as an individual",
       "title": "Register for {competition}",
       "lead": "Tell us about yourself. You get an FOA Participant ID, then pay the fee online.",
-      "signIn": {
-        "title": "Sign in to register",
-        "body": "Sign in, or create an account, to register yourself for this competition.",
-        "link": "Sign in to register"
-      },
       "fee": "Fee: {amount}",
       "free": "This competition is free to enter.",
       "fields": {
@@ -45,7 +40,7 @@
         "dateOfBirth": "Date of birth",
         "dateOfBirthHint": "You must be 18 or over to register on your own.",
         "phone": "Mobile number",
-        "phoneHint": "An Indian mobile number, so we can reach you about your entry.",
+        "phoneHint": "You need an Indian mobile number to register, so we can reach you about your entry.",
         "pinCode": "PIN code",
         "city": "City",
         "state": "State",
@@ -79,8 +74,9 @@
         "consent_missing": "Agree to each document to register.",
         "not_found": "We couldn't find that competition."
       },
-      "minor": "You need to be 18 or over to register on your own. Please come back when the guardian route opens, or enter through your school.",
+      "minor": "You need to be 18 or over to register on your own. Please come back when entry with a parent or guardian opens, or enter through your school.",
       "dashboardLink": "See your registrations",
+      "backToCompetition": "Back to {competition}",
       "submitting": "Registering…",
       "unexpected": "Something went wrong. Please try again.",
       "countryPlaceholder": "Choose a country",

@@ -16,7 +16,7 @@ describe("the 'enter through your school' note", () => {
 });
 
 describe("the individual register form", () => {
-  it("tells a minor to come back when the guardian route opens", () => {
+  it("tells a minor to come back when entry with a guardian opens", () => {
     expect(en.participant.register.minor).toMatch(/come back/i);
     expect(en.participant.register.minor).toMatch(/guardian/);
   });

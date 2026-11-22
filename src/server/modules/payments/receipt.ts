@@ -14,8 +14,6 @@
 // Loads under plain Node (the worker): relative imports only.
 
 import { and, eq, isNull } from "drizzle-orm";
-
-import type { ParticipationRoute } from "../competitions/domain/fees";
 import { createTranslator } from "next-intl";
 
 import registrationMessages from "../../../../messages/en-IN/registration.json";
@@ -29,6 +27,7 @@ import {
   paymentBatchItem,
   registration,
 } from "../../db/schema";
+import type { ParticipationRoute } from "../competitions/domain/fees";
 import { formatPaise } from "./domain/money-format";
 
 /** The variables a receipt template may use, beyond the recipient's. */

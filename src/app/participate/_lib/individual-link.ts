@@ -6,7 +6,8 @@
 //
 // Pure: no imports beyond the routes.
 
-import { ROUTES, slugHref } from "@/lib/routes";
+import { individualRegisterPath } from "@/lib/app-routes";
+import { ROUTES } from "@/lib/routes";
 
 /** The same pattern as competition slugs (src/server/db/schema). */
 const SLUG = /^[a-z0-9-]{3,80}$/;
@@ -15,16 +16,11 @@ export type IndividualLink =
   | { kind: "register"; href: string }
   | { kind: "choose"; href: string };
 
-/** The register form of the competition `slug`. */
-export function registerPath(slug: string): string {
-  return `${slugHref("competition", slug)}/register`;
-}
-
 export function individualLink(
   competition: string | string[] | undefined
 ): IndividualLink {
   if (typeof competition === "string" && SLUG.test(competition)) {
-    return { kind: "register", href: registerPath(competition) };
+    return { kind: "register", href: individualRegisterPath(competition) };
   }
   return { kind: "choose", href: ROUTES.competitions.path };
 }

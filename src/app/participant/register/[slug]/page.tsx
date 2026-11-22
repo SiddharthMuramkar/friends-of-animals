@@ -1,43 +1,41 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { notFound } from "next/navigation";
-import { connection } from "next/server";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { ButtonLink } from "@/components/site/button-link";
+import { Callout } from "@/components/site/callout";
 import { PageHeader } from "@/components/site/heading";
+import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { ROUTES } from "@/lib/routes";
+import { ROUTES, slugHref } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { formatPaise } from "@/server/modules/payments/domain/money-format";
 import { countryOptions } from "@/server/modules/participants/register-input";
 
 import { TEXT_FIELDS, type FormField } from "./_lib/form-state";
-import { refusalView, type Refusal } from "./_lib/refusal";
+import { refusalBeforeForm, refusalView, type Refusal } from "./_lib/refusal";
 import {
   RegisterForm,
   type RegisterFormLabels,
 } from "./_components/register-form";
 
-// The individual register form (#78). Who is asking is read per request,
-// so the page renders at request time.
-export const instant = false;
+// The individual register form (#78), for a signed-in adult. It takes a
+// date of birth, phone and address, so it sits in the signed-in tree:
+// src/proxy.ts sends visitors to sign in, answers an unknown or draft
+// competition with the 404, and gives the page the nonce policy. The
+// participant layout waits for the request, so it renders at request time.
 
 const HUE = ROUTES.participate.hue;
-
-const LINK =
-  "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("participant.register.meta");
   return { title: t("title"), robots: { index: false, follow: false } };
 }
 
-type Props = PageProps<"/competitions/[slug]/register">;
+type Props = PageProps<"/participant/register/[slug]">;
 
-export default async function Page({ params }: Props) {
-  await connection();
+export default function Page({ params }: Props) {
   return (
     <Section hue={HUE} tone="tint" width="prose" className="pt-10 sm:pt-14">
       <Suspense fallback={<Loading />}>
@@ -72,27 +70,38 @@ async function Register({ params }: { params: Props["params"] }) {
     getTranslations("common.callout"),
   ]);
   const actor = await currentActor();
-  if (actor.kind !== "user") {
+  if (actor.kind !== "user") redirect(ROUTES.signIn.path);
+  const form = await as(actor).individualRegistrationForm({
+    competitionSlug: slug,
+  });
+  // The proxy has already answered an unknown or draft competition with
+  // the 404; this covers one unpublished since.
+  if (!form) notFound();
+  const competition = form.competition.name;
+  const blocked = refusalBeforeForm(form);
+  if (blocked) {
     return (
       <>
         <PageHeader
           eyebrow={t("eyebrow")}
           tile={HUE}
-          title={t("signIn.title")}
-          lead={t("signIn.body")}
+          title={t("title", { competition })}
         />
+        <Callout tone="info" className="mt-8">
+          <p>{tp(refusalView(blocked).message as "register.minor")}</p>
+          <p>
+            <SiteLink
+              href={slugHref("competition", form.competition.slug)}
+              className={inlineLink}
+            >
+              {t("backToCompetition", { competition })}
+            </SiteLink>
+          </p>
+        </Callout>
         <SchoolNote />
-        <div className="mt-8">
-          <ButtonLink href={ROUTES.signIn.path}>{t("signIn.link")}</ButtonLink>
-        </div>
       </>
     );
   }
-  const form = await as(actor).individualRegistrationForm({
-    competitionSlug: slug,
-  });
-  if (!form) notFound();
-  const competition = form.competition.name;
   const fee =
     form.fee === null
       ? null
@@ -174,7 +183,7 @@ async function SchoolNote() {
       <p className="mt-2 text-ink-muted">{note("body")}</p>
       <p className="mt-2 text-ink-muted">{note("ask")}</p>
       <p className="mt-2">
-        <SiteLink href={ROUTES.schools.path} className={LINK}>
+        <SiteLink href={ROUTES.schools.path} className={inlineLink}>
           {note("link")}
         </SiteLink>
       </p>

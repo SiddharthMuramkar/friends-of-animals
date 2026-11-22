@@ -39,8 +39,7 @@ async function MyInstitutionLink({ label }: { label: string }) {
 async function MyCompetitionsLink({ label }: { label: string }) {
   const actor = await currentActor();
   if (actor.kind !== "user") return null;
-  const mine = await as(actor).listMyRegistrations();
-  if (mine.length === 0) return null;
+  if (!(await as(actor).hasMyRegistrations())) return null;
   return (
     <ButtonLink href={APP_ROUTES.participant} variant="secondary">
       {label}

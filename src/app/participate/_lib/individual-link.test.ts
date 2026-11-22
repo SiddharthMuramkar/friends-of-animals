@@ -6,7 +6,7 @@ describe("individualLink", () => {
   it("leads to the competition's register form when the chooser names one", () => {
     expect(individualLink("neighbours-on-my-street")).toEqual({
       kind: "register",
-      href: "/competitions/neighbours-on-my-street/register",
+      href: "/participant/register/neighbours-on-my-street",
     });
   });
 

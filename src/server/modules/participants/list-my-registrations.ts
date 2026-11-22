@@ -90,3 +90,32 @@ export async function listMyRegistrations(
     createdAt: row.createdAt,
   }));
 }
+
+/**
+ * Whether the signed-in member has registered themselves for anything:
+ * the header's "My competitions" link asks on every page they open, so it
+ * reads one row of their own profile's registrations, not the dashboard.
+ */
+export async function hasMyRegistrations(
+  ctx: UseCaseContext
+): Promise<boolean> {
+  await authorize(ctx, "registration.self.list");
+  if (ctx.actor.kind !== "user") {
+    throw new Error("hasMyRegistrations needs a signed-in user");
+  }
+  const [found] = await ctx.db
+    .select({ id: registration.id })
+    .from(registration)
+    .innerJoin(
+      participantProfile,
+      eq(participantProfile.id, registration.participantProfileId)
+    )
+    .where(
+      and(
+        eq(participantProfile.ownerUserId, ctx.actor.userId),
+        eq(participantProfile.ownerKind, OWN)
+      )
+    )
+    .limit(1);
+  return found !== undefined;
+}

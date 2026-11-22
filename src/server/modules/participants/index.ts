@@ -10,7 +10,10 @@ import {
   confirmMyPayment,
   type ConfirmMyPaymentInput,
 } from "./confirm-my-payment";
-import { listMyRegistrations } from "./list-my-registrations";
+import {
+  hasMyRegistrations,
+  listMyRegistrations,
+} from "./list-my-registrations";
 import {
   payForMyRegistration,
   type PayForMyRegistrationInput,
@@ -45,6 +48,7 @@ export const participantsUseCases = (ctx: UseCaseContext) => ({
   confirmMyPayment: (input: ConfirmMyPaymentInput) =>
     confirmMyPayment(ctx, input),
   listMyRegistrations: () => listMyRegistrations(ctx),
+  hasMyRegistrations: () => hasMyRegistrations(ctx),
   individualRegistrationForm: (input: { competitionSlug: string }) =>
     individualRegistrationForm(ctx, input),
 });

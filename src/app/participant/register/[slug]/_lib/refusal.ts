@@ -40,3 +40,17 @@ const VIEWS: Record<Refusal, RefusalView> = {
 export function refusalView(refusal: Refusal): RefusalView {
   return VIEWS[refusal];
 }
+
+/**
+ * A refusal the page can show in place of the form, from what it already
+ * knows about the competition, so nobody fills everything in only to hear
+ * it takes schools only, or has no fee yet. Registering checks again.
+ */
+export function refusalBeforeForm(form: {
+  acceptsIndividuals: boolean;
+  fee: unknown;
+}): Refusal | null {
+  if (!form.acceptsIndividuals) return "institutions_only";
+  if (form.fee === null) return "fee_not_set";
+  return null;
+}

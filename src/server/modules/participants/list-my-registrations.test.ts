@@ -69,3 +69,31 @@ describe("listMyRegistrations", () => {
     );
   });
 });
+
+describe("hasMyRegistrations", () => {
+  it("says whether the member has registered themselves for anything", async () => {
+    const h = await createHarness();
+    const paid = await openToIndividuals(h, { name: "Paws on Paper" });
+    const asha = await signInMember(h);
+    const ravi = await signInMember(h);
+    // A school's student is nobody's own registration.
+    await schoolWithStudents(h, { students: 1 });
+
+    expect(await h.as(asha.actor).hasMyRegistrations()).toBe(false);
+    const registered = await h
+      .as(asha.actor)
+      .registerAsIndividual(adultForm(paid));
+    if (!registered.ok) throw new Error(JSON.stringify(registered));
+
+    expect(await h.as(asha.actor).hasMyRegistrations()).toBe(true);
+    expect(await h.as(ravi.actor).hasMyRegistrations()).toBe(false);
+  });
+
+  it("refuses a visitor", async () => {
+    const h = await createHarness();
+
+    await expect(h.as(h.visitor()).hasMyRegistrations()).rejects.toThrow(
+      DomainError
+    );
+  });
+});

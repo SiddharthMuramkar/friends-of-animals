@@ -9,8 +9,10 @@ import {
   SubmitButton,
   TextField,
 } from "@/components/form";
+import { inlineLink } from "@/components/site/link-styles";
 import { SiteLink } from "@/components/site/site-link";
 import { APP_ROUTES } from "@/lib/app-routes";
+import { cn } from "@/lib/utils";
 
 import { registerAsIndividualAction } from "../_lib/actions";
 import {
@@ -47,8 +49,6 @@ export type RegisterFormLabels = {
 const FIELDSET =
   "flex flex-col gap-5 rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
 const LEGEND = "px-2 text-lead font-bold text-ink";
-const LINK =
-  "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
 
 /**
  * The individual register form (#78). Every word comes in `labels`; the
@@ -111,7 +111,7 @@ export function RegisterForm({
           <p>{formLevel}</p>
           {state.refusal === "already_registered" ? (
             <p>
-              <SiteLink href={APP_ROUTES.participant} className={LINK}>
+              <SiteLink href={APP_ROUTES.participant} className={inlineLink}>
                 {labels.dashboardLink}
               </SiteLink>
             </p>
@@ -179,7 +179,7 @@ export function RegisterForm({
               />
               <span className="min-w-0">{document.label}</span>
             </label>
-            <SiteLink href={document.href} className={`${LINK} ms-9`}>
+            <SiteLink href={document.href} className={cn(inlineLink, "ms-9")}>
               {document.link}
             </SiteLink>
           </div>
