@@ -26,6 +26,11 @@ const OPEN = {
 
 const PARTICIPANT_ID = /FOA-P-\d{2}[0-9A-HJKMNP-TV-Z]{6}/;
 
+/** Text on the page in front: not a page Next keeps mounted and hidden. */
+function shown(page: Page, text: string | RegExp) {
+  return page.getByText(text).filter({ visible: true });
+}
+
 async function checkBothThemes(page: Page, label: string) {
   await expectAccessible(page, label);
   await expectAccessibleInDark(page, label);
@@ -75,10 +80,14 @@ test("an adult registers for a competition on their own and sees it on their das
   await expect(
     page.getByRole("heading", { level: 1, name: `Register for ${OPEN.name}` })
   ).toBeVisible();
+  // The note, as a heading here. Next keeps the chooser mounted and
+  // hidden after the click, so text checks below look at what is shown.
   await expect(
-    page.getByText("We encourage you to enter through your school")
+    page.getByRole("heading", {
+      name: "We encourage you to enter through your school",
+    })
   ).toBeVisible();
-  await expect(page.getByText("Fee: ₹100.00")).toBeVisible();
+  await expect(shown(page, "Fee: ₹100.00")).toBeVisible();
   await checkBothThemes(page, "/competitions/[slug]/register blank");
 
   const fill = (name: string, value: string) =>
@@ -95,7 +104,7 @@ test("an adult registers for a competition on their own and sees it on their das
 
   // Under 18: the come-back pointer, on the date of birth.
   await expect(
-    page.getByText(/Please come back when the guardian route opens/)
+    shown(page, /Please come back when the guardian route opens/)
   ).toBeVisible();
   await expect(page.getByLabel("Date of birth")).toHaveAttribute(
     "aria-invalid",
@@ -110,7 +119,7 @@ test("an adult registers for a competition on their own and sees it on their das
   await expect(
     page.getByRole("heading", { level: 1, name: `Pay for ${OPEN.name}` })
   ).toBeVisible();
-  await expect(page.getByText("Fee: ₹100.00")).toBeVisible();
+  await expect(shown(page, "Fee: ₹100.00")).toBeVisible();
   await checkBothThemes(page, "/participant/registrations/[id]/pay");
 
   await page.getByRole("button", { name: "Pay ₹100.00" }).click();
@@ -123,7 +132,7 @@ test("an adult registers for a competition on their own and sees it on their das
   await expect(
     page.getByRole("heading", { level: 1, name: "My competitions" })
   ).toBeVisible();
-  await expect(page.getByText(PARTICIPANT_ID)).toBeVisible();
+  await expect(shown(page, PARTICIPANT_ID)).toBeVisible();
   const card = page.getByRole("article", { name: OPEN.name });
   await expect(card.getByText("Waiting for payment")).toBeVisible();
   await expect(
