@@ -39,4 +39,18 @@ export const PAYMENTS_POLICY = {
   // An offline payment's proof: a cheque image shows an account number and
   // a signature.
   "payments.offline.proof.read": MONEY_STAFF,
+  // Refunds (#80). Asking for one: a manager of the batch's competition
+  // (or of every competition), or a staff admin.
+  "refunds.request": role("competition_manager", "staff_admin", "super_admin"),
+  // Approving, rejecting, retrying and recording a manual refund: finance
+  // only, behind a fresh second factor, since money moves. Nobody decides
+  // their own request (./refunds/decide-refund.ts).
+  "refunds.decide": stepUp(role("finance")),
+  // Reading refunds: whoever may ask for or decide them.
+  "refunds.read": role(
+    "finance",
+    "staff_admin",
+    "super_admin",
+    "competition_manager"
+  ),
 } satisfies Policy<string>;

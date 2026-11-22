@@ -21,6 +21,11 @@ export const SYNC_OUTCOMES = [
 
 export type SyncOutcome = (typeof SYNC_OUTCOMES)[number];
 
-export const WEBHOOK_OUTCOMES = [...SYNC_OUTCOMES, "ignored"] as const;
+export const WEBHOOK_OUTCOMES = [
+  ...SYNC_OUTCOMES,
+  "ignored",
+  /** A refund event (#80) synced one or more of our refunds. */
+  "refund_updated",
+] as const;
 
 export type WebhookOutcome = (typeof WEBHOOK_OUTCOMES)[number];

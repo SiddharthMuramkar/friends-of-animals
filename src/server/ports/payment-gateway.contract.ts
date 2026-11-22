@@ -22,7 +22,12 @@ export type PaymentGatewayContractSetup = () => Promise<{
    * post it: signed, signed with the wrong secret, or with no signature.
    */
   webhook: (
-    event: { type: string; orderId: string },
+    event: {
+      type: string;
+      orderId: string;
+      /** For a refund event (#80): the refund and its payment. */
+      refund?: { refundId: string; paymentId: string };
+    },
     options?: { signature?: "valid" | "invalid" | "missing" }
   ) => { rawBody: string; headers: Headers };
 }>;
@@ -185,6 +190,122 @@ export function paymentGatewayContract(
         );
         expect(gateway.readWebhook(rawBody, headers)).toBeNull();
       }
+    });
+
+    // Refunds (#80). Never a real gateway call: each adapter runs these
+    // against its own double.
+    async function capturedPayment(amount: Money = FEES) {
+      const world = await openOrder(amount);
+      const { paymentId } = await world.capture(world.orderId, amount);
+      return { ...world, paymentId };
+    }
+
+    const KEY = "0193a8f0-0000-7000-8000-00000000f001-1";
+
+    it("reports no refunds on a captured payment that has none", async () => {
+      const { gateway, paymentId } = await capturedPayment();
+
+      expect(await gateway.fetchRefunds(paymentId)).toEqual([]);
+    });
+
+    it("refunds part of a captured payment for the exact amount in paise, with its notes, and lists it", async () => {
+      const { gateway, paymentId } = await capturedPayment();
+      const notes = { refundId: "0193a8f0-0000-7000-8000-00000000f001" };
+
+      const refund = await gateway.refund({
+        paymentId,
+        amount: { amountMinor: 100_001n, currency: "INR" },
+        idempotencyKey: KEY,
+        notes,
+      });
+
+      expect(refund).toEqual({
+        id: expect.stringMatching(/\S/),
+        paymentId,
+        amountMinor: 100_001n,
+        currency: "INR",
+        status: expect.stringMatching(/^(pending|processed)$/),
+        notes,
+      });
+      expect(await gateway.fetchRefunds(paymentId)).toEqual([
+        { ...refund, status: expect.stringMatching(/^(pending|processed)$/) },
+      ]);
+    });
+
+    it("returns the same refund for the same idempotency key, and refunds once", async () => {
+      const { gateway, paymentId } = await capturedPayment();
+      const request = {
+        paymentId,
+        amount: { amountMinor: 50_000n, currency: "INR" as const },
+        idempotencyKey: KEY,
+        notes: { refundId: "0193a8f0-0000-7000-8000-00000000f001" },
+      };
+
+      const first = await gateway.refund(request);
+      const again = await gateway.refund(request);
+
+      expect(again.id).toBe(first.id);
+      expect(await gateway.fetchRefunds(paymentId)).toHaveLength(1);
+    });
+
+    it("refunds the rest under another key, and refuses more than is left", async () => {
+      const { gateway, paymentId } = await capturedPayment();
+      const refund = (amountMinor: bigint, idempotencyKey: string) =>
+        gateway.refund({
+          paymentId,
+          amount: { amountMinor, currency: "INR" },
+          idempotencyKey,
+          notes: {},
+        });
+
+      await refund(200_000n, KEY);
+      await refund(50_000n, `${KEY}0`);
+
+      await expect(refund(1n, `${KEY}00`)).rejects.toThrow();
+      expect(
+        (await gateway.fetchRefunds(paymentId)).map((each) => each.amountMinor)
+      ).toEqual(expect.arrayContaining([200_000n, 50_000n]));
+    });
+
+    it("keeps each payment's refunds apart", async () => {
+      const { gateway, paymentId, capture } = await capturedPayment();
+      const other = await gateway.createOrder({
+        amount: FEES,
+        receipt: "0193a8f0-0000-7000-8000-000000000006",
+        notes: {},
+      });
+      const second = await capture(other.orderId, FEES);
+
+      await gateway.refund({
+        paymentId,
+        amount: FEES,
+        idempotencyKey: KEY,
+        notes: {},
+      });
+
+      expect(await gateway.fetchRefunds(second.paymentId)).toEqual([]);
+    });
+
+    it("reads a refund webhook with the refund and the payment it returns", async () => {
+      const { gateway, orderId, paymentId, webhook } = await capturedPayment();
+      const refund = await gateway.refund({
+        paymentId,
+        amount: FEES,
+        idempotencyKey: KEY,
+        notes: {},
+      });
+      const { rawBody, headers } = webhook({
+        type: "refund.processed",
+        orderId,
+        refund: { refundId: refund.id, paymentId },
+      });
+
+      expect(gateway.readWebhook(rawBody, headers)).toEqual({
+        eventId: expect.stringMatching(/\S/),
+        type: "refund.processed",
+        orderId,
+        refund: { refundId: refund.id, paymentId },
+      });
     });
 
     it("refuses a webhook whose body changed after it was signed", async () => {

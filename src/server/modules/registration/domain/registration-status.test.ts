@@ -16,6 +16,8 @@ const ALLOWED: Record<string, RegistrationCause> = {
   "enrolled->confirmed": "payment",
   // An adult's own registration, once its fee is paid or found free (#78).
   "pending_payment->confirmed": "payment",
+  // A paid registration whose fee went back (#80): only the refund moves it.
+  "confirmed->refunded": "payment",
 };
 
 const CAUSES: readonly RegistrationCause[] = [
@@ -35,7 +37,16 @@ describe("the registration status machine", () => {
       "confirmed",
       "withdrawn",
       "pending_payment",
+      "refunded",
     ]);
+  });
+
+  it("never brings a refunded registration back (#80)", () => {
+    for (const to of REGISTRATION_STATUSES) {
+      for (const cause of CAUSES) {
+        expect(canTransition("refunded", to, cause)).toBe(false);
+      }
+    }
   });
 
   it("starts an adult who registers themselves as waiting for payment", () => {
