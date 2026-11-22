@@ -7,6 +7,7 @@ import { asc, eq } from "drizzle-orm";
 
 import { COMPETITION_TERMS_DRAFT } from "@/content/legal/competition-terms-draft";
 import type { Actor } from "@/server/actor";
+import type { AppDb } from "@/server/db/app-db";
 import {
   competitionConsentDocument,
   competitionFee,
@@ -15,7 +16,9 @@ import {
 } from "@/server/db/schema";
 import { parseConsentDocumentBody } from "@/server/modules/consent/domain/document-body";
 import { insertConsentDocumentVersion } from "@/server/modules/consent/insert-version";
+import type { SeedBuilders } from "@/server/seed";
 import type { SeedCompetitionOptions } from "@/server/seed/competitions";
+import type { FakeClock } from "@/test/fakes/clock";
 import type { Harness } from "@/test/harness";
 
 import type { RegisterAsIndividualInput } from "./register-input";
@@ -29,9 +32,12 @@ export const AGE_GROUPS = [
   { label: "Adults", minAge: 18, maxAge: 99 },
 ];
 
+/** What setting up a competition needs: the harness, or a real-Postgres world. */
+type World = { db: AppDb; seed: SeedBuilders; clock: FakeClock };
+
 /** Publishes the next version of `purpose` straight into the table. */
 async function publishedDocument(
-  h: Harness,
+  h: World,
   purpose: "competition_terms" | "privacy_notice"
 ): Promise<string> {
   const { title: _title, ...body } = COMPETITION_TERMS_DRAFT;
@@ -58,7 +64,7 @@ async function publishedDocument(
  * terms and privacy notice attached, both required.
  */
 export async function openToIndividuals(
-  h: Harness,
+  h: World,
   {
     fee = INDIVIDUAL_FEE,
     ...options

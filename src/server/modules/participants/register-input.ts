@@ -136,16 +136,19 @@ export type RegisterFormInput = z.input<typeof registerInput>;
  * profile's are used, as for a teen whose login is linked. A teen with no
  * guardian on the platform names one.
  */
-export type RegisterAsIndividualInput = Omit<
-  RegisterFormInput,
-  "fullName" | "dateOfBirth"
-> &
-  Partial<Pick<RegisterFormInput, "fullName" | "dateOfBirth">> & {
-    /** A child the signed-in guardian looks after. */
-    forChildId?: string;
-    /** The parent or guardian a teen asks, as typed. */
-    guardian?: GuardianDetailsInput;
-  };
+export type RegisterAsIndividualInput = ContactDetailsInput & {
+  /** Left out for a profile a guardian keeps, which has its own. */
+  fullName?: RegisterFormInput["fullName"];
+  /** Left out for a profile a guardian keeps, which has its own. */
+  dateOfBirth?: RegisterFormInput["dateOfBirth"];
+  /** A child the signed-in guardian looks after. */
+  forChildId?: string;
+  /** The parent or guardian a teen asks, as typed. */
+  guardian?: GuardianDetailsInput;
+};
+
+/** The form's other details: contact, address, school and consents. */
+type ContactDetailsInput = Omit<RegisterFormInput, "fullName" | "dateOfBirth">;
 
 /** The form's details, trimmed and checked. */
 export type RegisterInput = z.output<typeof registerInput>;

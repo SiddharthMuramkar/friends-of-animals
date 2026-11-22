@@ -23,8 +23,6 @@ import { z } from "zod";
 
 import { authorize } from "../../access/can";
 import { grantGlobalRole } from "../../access/flow-grant";
-import { grantsOf } from "../../access/grants";
-import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
 import {
   createLinkToken,
@@ -55,6 +53,7 @@ import { parseIsoDate } from "../registration/domain/calendar-date";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
 import type { GuardianRelationship } from "../registration/domain/student-details";
 import { verifiedEmailOf } from "./account-contact";
+import { holdsOtherRole, isAGuardian } from "./account-roles";
 import { childResource } from "./child-access";
 import { childDateOfBirth } from "./child-view";
 import {
@@ -63,7 +62,7 @@ import {
   type TeenAcceptanceRefusal,
   type TeenInviteRefusal,
 } from "./domain/children";
-import { guardianName, guardianOfUser } from "./guardian-record";
+import { guardianName } from "./guardian-record";
 import {
   parseTeenEmail,
   readTeenContact,
@@ -139,31 +138,6 @@ async function guardianUsersOf(tx: AppDb, childId: string): Promise<string[]> {
       )
     );
   return rows.map((row) => row.userId);
-}
-
-/**
- * Whether the user has declared as a guardian or holds the guardian role,
- * for any child. Read under the user's row lock, which declaring,
- * verifying and role grants also take, so none of them slips past.
- */
-async function isAGuardian(tx: AppDb, userId: string): Promise<boolean> {
-  if (await guardianOfUser(tx, userId)) return true;
-  const grants = await grantsOf(tx, userId);
-  return grants.some((grant) => grant.role === "guardian");
-}
-
-/** Roles that don't keep an account from being a child's own login. */
-const CHILD_LOGIN_ROLES: ReadonlySet<Role> = new Set<Role>([
-  "member",
-  "participant",
-  // Refused on its own, with its own reason (isAGuardian).
-  "guardian",
-]);
-
-/** Whether the user holds a staff, school, judge or other role. */
-async function holdsOtherRole(tx: AppDb, userId: string): Promise<boolean> {
-  const grants = await grantsOf(tx, userId);
-  return grants.some((grant) => !CHILD_LOGIN_ROLES.has(grant.role));
 }
 
 /**

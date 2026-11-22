@@ -50,6 +50,8 @@ const VIEWS: Record<Refusal, RefusalView> = {
     message: "register.refusal.guardian_contact_is_self",
     field: "guardianEmail",
   },
+  // A guardian's, staff, school or judge account never registers as a teen.
+  requester_has_role: { message: "register.refusal.requester_has_role" },
   rate_limited: { message: "register.refusal.rate_limited" },
 };
 

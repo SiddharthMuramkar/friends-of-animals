@@ -1,9 +1,14 @@
 // A teen who registers for a competition with no guardian on the platform
-// names one: their name, how they are related, and an email address or
-// phone number. FOA sends that person a guardian request: a link they open
-// after signing in with that same address. Once they have verified as a
-// guardian and accepted, they become the teen's guardian and the teen's
-// held registrations can be paid for.
+// names one: their name, how they are related, and an email address. FOA
+// sends that person a guardian request: a link they open after signing in
+// with that same address. Once they have verified as a guardian and
+// accepted, they become the teen's guardian, the teen's account becomes
+// the login of the profile they now keep, and the teen's held
+// registrations can be paid for.
+//
+// A child's login never holds the guardian role or a staff, school or
+// judge role (as for 81a's teen login invitation): an account that does
+// can't ask, and can't be made a child's login when the guardian accepts.
 //
 // Pure: the use cases normalise addresses, find the child's pending request
 // by its blind index and pass the facts in, with the clock's instant. Loads
@@ -12,10 +17,20 @@
 /** How long a guardian request's link works, like a teen login invitation's. */
 export const GUARDIAN_REQUEST_TTL_DAYS = 7;
 
-/** An email address or phone number, normalised the way accounts store it. */
-export type ContactAddress = { channel: "email" | "phone"; address: string };
+/** An email address, normalised the way accounts store it. */
+export type ContactAddress = { channel: "email"; address: string };
+
+/** What the teen's account holds, beyond being a member (../account-roles.ts). */
+export type RequesterRoles = {
+  /** Has declared as a guardian, or holds the guardian role. */
+  isAGuardian: boolean;
+  /** Holds a staff, school, judge or other role. */
+  holdsOtherRole: boolean;
+};
 
 export type GuardianRequestRefusal =
+  /** A guardian's, staff, school or judge account can't be a child's login. */
+  | "requester_has_role"
   /** The teen has no guardian yet and named nobody to ask. */
   | "guardian_details_required"
   /** The teen named one of their own addresses. */
@@ -33,18 +48,24 @@ export type GuardianRequestDecision =
  * guardian accepts. A child has at most one request waiting: naming the
  * same person again, or nobody, sends nothing more while its link works;
  * naming someone else, or asking again once the link has expired,
- * replaces it.
+ * replaces it. An account that holds a role a child's login can't is
+ * refused first.
  */
 export function decideGuardianRequest(input: {
+  /** The teen's account, signed in. */
+  requester: RequesterRoles;
   /** Where the teen asked FOA to send the request; null if they named nobody. */
   guardianContact: ContactAddress | null;
-  /** The teen's own verified email address and phone number. */
+  /** The teen's own verified email address. */
   ownContacts: readonly ContactAddress[];
   /** The child's request still waiting for an answer, if any. */
   pending: { sameContact: boolean; expiresAt: Date } | null;
   now: Date;
 }): GuardianRequestDecision {
   const { guardianContact, pending } = input;
+  if (holdsARole(input.requester)) {
+    return { ok: false, reason: "requester_has_role" };
+  }
   const live = pending !== null && pending.expiresAt > input.now;
   if (!guardianContact) {
     return live
@@ -71,7 +92,9 @@ export type GuardianRequestAcceptanceRefusal =
   | "contact_mismatch"
   | "guardian_not_verified"
   | "child_already_added"
-  | "already_linked";
+  | "already_linked"
+  | "requester_is_adult"
+  | "requester_has_role";
 
 /**
  * May the signed-in user accept this guardian request? The request is
@@ -79,8 +102,10 @@ export type GuardianRequestAcceptanceRefusal =
  * accepting: never the teen who asked, only the person asked, signed in
  * with that address, who has verified as a guardian (81a) and hasn't
  * already added the same child (by name and date of birth) themselves.
- * Last, the teen's login must not have been linked to another child's
- * profile since they asked.
+ * Last, the teen: their login must not have been linked to another
+ * child's profile since they asked, they must still be under 18, and their
+ * account must hold no role a child's login can't (guardian, staff, school
+ * or judge), all read when the guardian accepts.
  */
 export function decideGuardianRequestAcceptance(input: {
   /** Null when no guardian request has this token. */
@@ -98,11 +123,17 @@ export function decideGuardianRequestAcceptance(input: {
   };
   /** The accepter already keeps a child profile with the teen's identity. */
   childAlreadyAdded: boolean;
-  teenLinkedElsewhere: boolean;
+  /** The teen who asked, as they are now. */
+  requester: RequesterRoles & {
+    /** Their login is already another child's profile's. */
+    linkedElsewhere: boolean;
+    /** 18 or over on India's calendar now, by the profile's date of birth. */
+    isAdult: boolean;
+  };
 }): { ok: true } | { ok: false; reason: GuardianRequestAcceptanceRefusal } {
   const refuse = (reason: GuardianRequestAcceptanceRefusal) =>
     ({ ok: false, reason }) as const;
-  const { request, accepter } = input;
+  const { request, accepter, requester } = input;
 
   if (!request) return refuse("not_found");
   if (request.status === "accepted") return refuse("already_used");
@@ -114,8 +145,14 @@ export function decideGuardianRequestAcceptance(input: {
   if (!accepter.isTheRequestedContact) return refuse("contact_mismatch");
   if (!accepter.guardianVerified) return refuse("guardian_not_verified");
   if (input.childAlreadyAdded) return refuse("child_already_added");
-  if (input.teenLinkedElsewhere) return refuse("already_linked");
+  if (requester.linkedElsewhere) return refuse("already_linked");
+  if (requester.isAdult) return refuse("requester_is_adult");
+  if (holdsARole(requester)) return refuse("requester_has_role");
   return { ok: true };
+}
+
+function holdsARole(roles: RequesterRoles): boolean {
+  return roles.isAGuardian || roles.holdsOtherRole;
 }
 
 function sameAddress(a: ContactAddress, b: ContactAddress): boolean {

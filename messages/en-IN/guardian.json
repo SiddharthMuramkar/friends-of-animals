@@ -288,6 +288,8 @@
         "guardian_not_verified": "First register as a parent or guardian, with a code we email you.",
         "child_already_added": "You've already added this child yourself, so this request can't add them a second time. Please contact us, and we'll bring their registrations together.",
         "already_linked": "This teen's login is already linked to a parent or guardian.",
+        "requester_is_adult": "They are 18 or over now, so they don't need a parent or guardian to take part.",
+        "requester_has_role": "The account that sent this request looks after children, or works with Friends of Animals, a school or the judges, so it can't be a teen's login. Please contact us.",
         "invalid_input": "Choose how you are related to them."
       },
       "home": "Go to the home page"

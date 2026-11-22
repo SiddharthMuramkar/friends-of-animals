@@ -46,14 +46,10 @@ export async function registerAsIndividualAction(
   if (result.ok) {
     // Re-renders the header too, which now leads to "My competitions".
     refresh();
-    const { registrationId } = result;
-    const owed =
-      result.status === "pending_payment" &&
-      (await as(actor).listMyRegistrations()).some(
-        (mine) => mine.registrationId === registrationId && mine.amountDue
-      );
     redirect(
-      owed ? payMyRegistrationPath(registrationId) : APP_ROUTES.participant
+      result.payNow
+        ? payMyRegistrationPath(result.registrationId)
+        : APP_ROUTES.participant
     );
   }
   return afterResult(previous, values, result);

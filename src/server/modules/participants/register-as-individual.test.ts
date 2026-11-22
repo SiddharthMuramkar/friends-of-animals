@@ -29,6 +29,7 @@ describe("registerAsIndividual", () => {
       registrationId: expect.any(String),
       participantCode: expect.stringMatching(PARTICIPANT_ID),
       status: "pending_payment",
+      payNow: true,
     });
     if (!result.ok) return;
     // Issued on 15 January 2027 in India.

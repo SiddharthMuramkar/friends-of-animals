@@ -63,11 +63,20 @@ export async function subjectOf(
     );
     return { kind: "child", profileId: forChildId, actorRole: role };
   }
-  const [linked] = await ctx.db
+  const linked = await linkedProfileOf(ctx.db, userId);
+  return linked ? { kind: "linked", profileId: linked } : { kind: "own" };
+}
+
+/** The guardian-kept profile `userId` is the login of, if any. */
+export async function linkedProfileOf(
+  db: AppDb,
+  userId: string
+): Promise<string | null> {
+  const [linked] = await db
     .select({ id: participantProfile.id })
     .from(participantProfile)
     .where(eq(participantProfile.loginUserId, userId));
-  return linked ? { kind: "linked", profileId: linked.id } : { kind: "own" };
+  return linked?.id ?? null;
 }
 
 /** The children `userId` looks after as a verified guardian, oldest first. */

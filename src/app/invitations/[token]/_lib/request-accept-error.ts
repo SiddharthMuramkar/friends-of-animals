@@ -19,6 +19,8 @@ const REQUEST_ACCEPT_ERRORS: readonly RequestAcceptError[] = [
   "guardian_not_verified",
   "child_already_added",
   "already_linked",
+  "requester_is_adult",
+  "requester_has_role",
   "invalid_input",
 ];
 

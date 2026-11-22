@@ -8,11 +8,13 @@ import {
 const now = new Date("2026-11-21T10:00:00Z");
 const teenEmail = { channel: "email", address: "teen2@example.test" } as const;
 const mother = { channel: "email", address: "mother@example.test" } as const;
+const member = { isAGuardian: false, holdsOtherRole: false };
 
 describe("decideGuardianRequest", () => {
   it("sends a request to the guardian a teen names, open for 7 days", () => {
     expect(
       decideGuardianRequest({
+        requester: member,
         guardianContact: mother,
         ownContacts: [teenEmail],
         pending: null,
@@ -25,23 +27,48 @@ describe("decideGuardianRequest", () => {
     });
   });
 
-  it("refuses a teen naming their own email address or phone number as the guardian's", () => {
-    const teenPhone = { channel: "phone", address: "+919800000002" } as const;
-    for (const guardianContact of [teenEmail, teenPhone]) {
-      expect(
-        decideGuardianRequest({
-          guardianContact,
-          ownContacts: [teenEmail, teenPhone],
-          pending: null,
-          now,
-        })
-      ).toEqual({ ok: false, reason: "guardian_contact_is_self" });
-    }
+  it("refuses a teen naming their own email address as the guardian's", () => {
+    expect(
+      decideGuardianRequest({
+        requester: member,
+        guardianContact: teenEmail,
+        ownContacts: [teenEmail],
+        pending: null,
+        now,
+      })
+    ).toEqual({ ok: false, reason: "guardian_contact_is_self" });
   });
+
+  it.each([
+    ["has declared as a guardian", { ...member, isAGuardian: true }],
+    [
+      "holds a staff, school or judge role",
+      { ...member, holdsOtherRole: true },
+    ],
+  ])(
+    "refuses an account that %s before anything else, as a child's login can't",
+    (_, requester) => {
+      for (const pending of [
+        null,
+        { sameContact: true, expiresAt: new Date("2026-11-25T10:00:00Z") },
+      ]) {
+        expect(
+          decideGuardianRequest({
+            requester,
+            guardianContact: pending ? null : teenEmail,
+            ownContacts: [teenEmail],
+            pending,
+            now,
+          })
+        ).toEqual({ ok: false, reason: "requester_has_role" });
+      }
+    }
+  );
 
   it("asks for the guardian's details when a teen with no guardian names nobody", () => {
     expect(
       decideGuardianRequest({
+        requester: member,
         guardianContact: null,
         ownContacts: [teenEmail],
         pending: null,
@@ -53,6 +80,7 @@ describe("decideGuardianRequest", () => {
   it("sends nothing new when the same guardian was asked and the link still works", () => {
     expect(
       decideGuardianRequest({
+        requester: member,
         guardianContact: mother,
         ownContacts: [teenEmail],
         pending: {
@@ -72,6 +100,7 @@ describe("decideGuardianRequest", () => {
     ]) {
       expect(
         decideGuardianRequest({
+          requester: member,
           guardianContact: mother,
           ownContacts: [teenEmail],
           pending,
@@ -86,7 +115,12 @@ describe("decideGuardianRequest", () => {
   });
 
   it("needs no details again while the guardian already asked can still answer", () => {
-    const base = { guardianContact: null, ownContacts: [teenEmail], now };
+    const base = {
+      requester: member,
+      guardianContact: null,
+      ownContacts: [teenEmail],
+      now,
+    };
     expect(
       decideGuardianRequest({
         ...base,
@@ -115,6 +149,11 @@ describe("decideGuardianRequestAcceptance", () => {
     isTheRequestedContact: true,
     guardianVerified: true,
   };
+  const teen = {
+    ...member,
+    linkedElsewhere: false,
+    isAdult: false,
+  };
   const accept = (
     change: Partial<Parameters<typeof decideGuardianRequestAcceptance>[0]>
   ) =>
@@ -123,7 +162,7 @@ describe("decideGuardianRequestAcceptance", () => {
       now,
       accepter: mother,
       childAlreadyAdded: false,
-      teenLinkedElsewhere: false,
+      requester: teen,
       ...change,
     });
 
@@ -176,8 +215,23 @@ describe("decideGuardianRequestAcceptance", () => {
     ],
     [
       "the teen's login is already linked to another profile",
-      { teenLinkedElsewhere: true },
+      { requester: { ...teen, linkedElsewhere: true } },
       "already_linked",
+    ],
+    [
+      "the teen has turned 18 since asking",
+      { requester: { ...teen, isAdult: true } },
+      "requester_is_adult",
+    ],
+    [
+      "the teen has declared as a guardian since asking",
+      { requester: { ...teen, isAGuardian: true } },
+      "requester_has_role",
+    ],
+    [
+      "the teen's account holds a staff, school or judge role",
+      { requester: { ...teen, holdsOtherRole: true } },
+      "requester_has_role",
     ],
   ])("refuses when %s", (_, change, reason) => {
     expect(accept(change)).toEqual({ ok: false, reason });

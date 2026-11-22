@@ -17,12 +17,17 @@
 //       the teen's profile becomes theirs (the teen's account its login),
 //       and every registration held for a guardian waits for payment
 //
+// A child's login holds no guardian, staff, school or judge role, so it
+// never adds or manages other children (./policy.ts): asking refuses an
+// account that holds one, and accepting checks the teen's account again,
+// under its row lock, along with their age.
+//
 // The request is a `guardian_invitation` of kind guardian_request: its
 // address and the guardian's name are encrypted, the token kept as a hash
 // (plus an encrypted copy while pending, for the message). An unknown or
 // malformed token is "not found", with nothing said about why.
 
-import { and, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -57,7 +62,10 @@ import {
   GUARDIAN_RELATIONSHIPS,
   type GuardianRelationship,
 } from "../registration/domain/student-details";
+import { isAdultAt } from "../participants/domain/age";
 import { verifiedEmailOf } from "./account-contact";
+import { holdsOtherRole, isAGuardian } from "./account-roles";
+import { childDateOfBirth } from "./child-view";
 import {
   decideGuardianRequest,
   decideGuardianRequestAcceptance,
@@ -169,10 +177,11 @@ export type GuardianAskDecision =
   | { ok: false; error: GuardianRequestRefusal | "rate_limited" };
 
 /**
- * Decides, in the registering transaction, whether and whom to ask; on
- * success returns the write to run once the teen's profile is saved. A
- * refusal writes nothing. A new request counts against the requested
- * address's code allowance, so a teen can't flood someone's inbox.
+ * Decides, in the registering transaction (under the teen's user row
+ * lock), whether and whom to ask; on success returns the write to run once
+ * the teen's profile is saved. A refusal writes nothing. A new request
+ * counts against the requested address's code allowance, so a teen can't
+ * flood someone's inbox.
  */
 export async function askGuardianFor(
   tx: AppDb,
@@ -186,6 +195,7 @@ export async function askGuardianFor(
     : null;
   const ownEmail = await verifiedEmailOf(tx, ask.requesterUserId);
   const decision = decideGuardianRequest({
+    requester: await rolesOf(tx, ask.requesterUserId),
     guardianContact: ask.details
       ? { channel: "email", address: ask.details.email }
       : null,
@@ -254,6 +264,14 @@ export async function askGuardianFor(
         actorRole: null,
       });
     },
+  };
+}
+
+/** What the account holds that a child's login can't. */
+async function rolesOf(tx: AppDb, userId: string) {
+  return {
+    isAGuardian: await isAGuardian(tx, userId),
+    holdsOtherRole: await holdsOtherRole(tx, userId),
   };
 }
 
@@ -427,12 +445,20 @@ export async function acceptGuardianRequest(
 
   return ctx.db.transaction(
     async (tx): Promise<AcceptGuardianRequestResult> => {
-      // The accepter's row first, as role changes lock users (#59).
-      await tx
-        .select({ id: user.id })
-        .from(user)
-        .where(eq(user.id, userId))
-        .for("no key update");
+      // Both accounts' rows first, the accepter's and the teen's who asked
+      // (a request's requester never changes): role changes lock users
+      // (#59), as do declaring as a guardian and the teen registering, so
+      // the teen's roles and own profile hold still until this commits.
+      const [asked] = await tx
+        .select({ requesterUserId: guardianInvitation.requestedByUserId })
+        .from(guardianInvitation)
+        .where(
+          and(
+            eq(guardianInvitation.tokenHash, tokenHash),
+            eq(guardianInvitation.kind, "guardian_request")
+          )
+        );
+      await lockUsers(tx, [userId, asked?.requesterUserId ?? userId]);
       // The row lock makes one accept win; a second waits, then reads it
       // accepted.
       const [request] = await tx
@@ -459,12 +485,17 @@ export async function acceptGuardianRequest(
               ownerKind: participantProfile.ownerKind,
               ownerUserId: participantProfile.ownerUserId,
               identityHash: participantProfile.identityHash,
+              dobCiphertext: participantProfile.dobCiphertext,
             })
             .from(participantProfile)
             .where(eq(participantProfile.id, request.profileId))
             .for("update")
         : [];
-      if (!request?.requesterUserId || !profile) {
+      if (
+        !request?.requesterUserId ||
+        request.requesterUserId !== asked?.requesterUserId ||
+        !profile
+      ) {
         return { ok: false, error: "not_found" };
       }
       const teenUserId = request.requesterUserId;
@@ -501,7 +532,11 @@ export async function acceptGuardianRequest(
           guardianVerified: record?.verifiedAt != null,
         },
         childAlreadyAdded: sameChild !== undefined,
-        teenLinkedElsewhere: linkedElsewhere !== undefined,
+        requester: {
+          linkedElsewhere: linkedElsewhere !== undefined,
+          isAdult: isAdultAt(childDateOfBirth(ctx, profile).date, now),
+          ...(await rolesOf(tx, teenUserId)),
+        },
       });
       if (!decision.ok) return { ok: false, error: decision.reason };
       if (!record) throw new Error("unreachable");
@@ -557,6 +592,19 @@ export async function acceptGuardianRequest(
       return { ok: true, childId: profile.id, released };
     }
   );
+}
+
+/**
+ * Locks the users' rows in id order, so two transactions locking the same
+ * pair queue behind each other instead of deadlocking.
+ */
+async function lockUsers(tx: AppDb, userIds: string[]): Promise<void> {
+  await tx
+    .select({ id: user.id })
+    .from(user)
+    .where(inArray(user.id, userIds))
+    .orderBy(asc(user.id))
+    .for("no key update");
 }
 
 /**

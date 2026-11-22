@@ -80,6 +80,7 @@
         "adult_registers_self": "They are 18 or over now, so they register on their own.",
         "guardian_details_required": "You're under 18. Tell us who your parent or guardian is, and we'll ask them to confirm.",
         "guardian_contact_is_self": "That's your own email address. Enter your parent or guardian's.",
+        "requester_has_role": "This account looks after children, or works with Friends of Animals, a school or the judges, so it can't register someone under 18 on their own. A teen registers with their own account.",
         "rate_limited": "We've emailed that address several times already. Please try again in a few minutes."
       },
       "dashboardLink": "See your registrations",

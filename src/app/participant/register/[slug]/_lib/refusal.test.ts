@@ -14,6 +14,7 @@ const REFUSALS = [
   "consent_missing",
   "guardian_details_required",
   "guardian_contact_is_self",
+  "requester_has_role",
   "rate_limited",
 ] as const;
 

@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import type { Actor } from "@/server/actor";
 import {
   competitionAgeGroup,
   guardianInvitation,
@@ -8,7 +9,10 @@ import {
   registration,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
-import { bornYearsAgo } from "@/server/modules/guardians/testing";
+import {
+  bornYearsAgo,
+  verifiedGuardian,
+} from "@/server/modules/guardians/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import {
@@ -102,6 +106,7 @@ describe("registerAsIndividual for a minor", () => {
       registrationId: expect.any(String),
       participantCode: expect.stringMatching(PARTICIPANT_ID),
       status: "pending_payment",
+      payNow: true,
     });
     if (!result.ok) return;
     const [saved] = await h.db
@@ -141,7 +146,12 @@ describe("registerAsIndividual for a minor", () => {
         adultForm(competition, { fullName: "Rohan", dateOfBirth: "1990-01-01" })
       );
 
-    expect(result).toMatchObject({ ok: true, status: "pending_payment" });
+    // Their guardian pays, not them.
+    expect(result).toMatchObject({
+      ok: true,
+      status: "pending_payment",
+      payNow: false,
+    });
     if (!result.ok) return;
     const { profiles, registrations } = await participantRows(h);
     // No profile of their own: the guardian's child profile, its name kept.
@@ -211,6 +221,7 @@ describe("registerAsIndividual for a minor", () => {
         registrationId: expect.any(String),
         participantCode: expect.stringMatching(PARTICIPANT_ID),
         status: "pending_guardian",
+        payNow: false,
       });
       expect(await h.as(meera).listMyRegistrations()).toEqual([
         expect.objectContaining({
@@ -292,6 +303,67 @@ describe("registerAsIndividual for a minor", () => {
         fields: ["guardianName", "guardianRelationship", "guardianEmail"],
       });
       expect(await participantRows(h)).toEqual(before);
+    });
+
+    describe("refuses, writing nothing and asking nobody, an account that", () => {
+      async function refusedAsATeen(h: Harness, actor: Actor) {
+        const competition = await openToAllAges(h);
+        const before = await participantRows(h);
+
+        const result = await h
+          .as(actor)
+          .registerAsIndividual(teenForm(h, competition, MOTHER));
+        await h.drain();
+
+        expect(result).toEqual({ ok: false, error: "requester_has_role" });
+        expect(await participantRows(h)).toEqual(before);
+        expect(await h.db.select().from(guardianInvitation)).toEqual([]);
+        expect(h.email.lastTo("lakshmi.iyer@example.test")).toBeUndefined();
+      }
+
+      it("looks after a child as a verified guardian", async () => {
+        const h = await createHarness();
+        const meera = await verifiedGuardian(h, {
+          name: "Meera Iyer",
+          email: "meera@example.test",
+        });
+        const added = await h.as(meera.actor).addChild({
+          fullName: "Isha Iyer",
+          dateOfBirth: bornYearsAgo(h, 9),
+          relationship: "parent",
+        });
+        expect(added).toMatchObject({ ok: true });
+
+        await refusedAsATeen(h, meera.actor);
+      });
+
+      it("has declared as a guardian, even before verifying", async () => {
+        const h = await createHarness();
+        const meera = await h.signIn(await h.seed.member({ name: "Meera" }));
+        const declared = await h
+          .as(meera)
+          .registerAsGuardian({ fullName: "Meera Iyer", adultDeclared: true });
+        expect(declared).toMatchObject({ ok: true });
+
+        await refusedAsATeen(h, meera);
+      });
+
+      it.each([
+        ["a judge's", { role: "judge", scope: { type: "global" } }],
+        [
+          "a staff member's",
+          { role: "content_manager", scope: { type: "global" } },
+        ],
+      ] as const)("is %s", async (_, grant) => {
+        const h = await createHarness();
+        const member = await h.seed.member({ name: "Meera" });
+        await h.seed.grant(member, grant);
+
+        await refusedAsATeen(
+          h,
+          await h.signIn(member, undefined, { secondFactor: false })
+        );
+      });
     });
 
     it("asks the same guardian once for a second competition", async () => {
