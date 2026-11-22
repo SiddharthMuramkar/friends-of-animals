@@ -23,6 +23,7 @@ import {
   contactMessageValues,
   contactTeamMembers,
 } from "../contact/notify";
+import { safeguardingLeads } from "../safeguarding/leads";
 
 /** The variables every message has about the person receiving it. */
 export const RECIPIENT_VARIABLES = ["recipient.name"] as const;
@@ -61,6 +62,9 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The invitee may have no account yet: the invitation goes to the
       // invited address by its own handler (#74), not by a route row.
       return null;
+    case "safeguarding.report_submitted":
+      // About a child, never about a user: only the leads hear of it.
+      return null;
   }
 }
 
@@ -84,6 +88,9 @@ export const AUDIENCES = {
     delivery.eventType === "contact_message.received"
       ? contactTeamMembers(db, delivery.payload.messageId)
       : [],
+  /** Every safeguarding lead (#116), whatever the event. */
+  safeguarding_leads: async (db) =>
+    (await safeguardingLeads(db)).map((lead) => lead.id),
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -148,6 +155,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: async (db, delivery) =>
       (await contactMessageValues(db, delivery.payload.messageId)) ?? {},
   },
+  // Nothing of the report: the alert says only that one came in (#116).
+  "safeguarding.report_submitted": { names: [], load: async () => ({}) },
 };
 
 /** The variables a template on a route for `eventType` may use. */

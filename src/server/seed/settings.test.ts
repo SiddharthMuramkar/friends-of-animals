@@ -26,6 +26,7 @@ describe("the settings seed", () => {
       { key: "org.pan", value: "" },
       { key: "org.registrationNumber", value: "" },
       { key: "org.registrationType", value: "" },
+      { key: "safeguarding.reportsPerIpPerHour", value: 10 },
       { key: "sms.enabled", value: true },
       { key: "sms.maxPerDay", value: 1000 },
       { key: "sms.maxPerHour", value: 200 },

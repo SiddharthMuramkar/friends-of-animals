@@ -114,6 +114,12 @@ const DEFINITIONS = {
     footer: "policies",
     sitemap: { updated: UPDATED, priority: 0.5 },
   },
+  safeguardingReport: {
+    path: "/safeguarding/report",
+    hue: "neutral",
+    sitemap: { updated: "2026-11-22", priority: 0.5 },
+  },
+  safeguardingReportSent: { path: "/safeguarding/report/sent", hue: "neutral" },
   childProtection: {
     path: "/child-protection-policy",
     hue: "neutral",

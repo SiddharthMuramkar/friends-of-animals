@@ -2,11 +2,15 @@
 
 import { useActionState } from "react";
 
-import { FormAlert, SubmitButton, TextField } from "@/components/form";
+import {
+  FormAlert,
+  SelectField,
+  SubmitButton,
+  TextField,
+} from "@/components/form";
 
 import { grantRoleAction } from "../_lib/actions";
 import { EMPTY_ROLE_FORM } from "../_lib/form-view";
-import { SelectField } from "./select-field";
 
 type Option = { value: string; label: string };
 

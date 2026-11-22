@@ -14,6 +14,7 @@ import adminRoles from "../../messages/en-IN/adminRoles.json";
 import adminCompetitions from "../../messages/en-IN/adminCompetitions.json";
 import adminCms from "../../messages/en-IN/adminCms.json";
 import adminInstitutions from "../../messages/en-IN/adminInstitutions.json";
+import adminSafeguarding from "../../messages/en-IN/adminSafeguarding.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -41,6 +42,7 @@ import notFound from "../../messages/en-IN/notFound.json";
 import notificationSettings from "../../messages/en-IN/notificationSettings.json";
 import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
+import safeguardingReport from "../../messages/en-IN/safeguardingReport.json";
 import sample from "../../messages/en-IN/sample.json";
 import schools from "../../messages/en-IN/schools.json";
 import security from "../../messages/en-IN/security.json";
@@ -61,6 +63,7 @@ export const NAMESPACES = [
   "adminCompetitions",
   "adminCms",
   "adminInstitutions",
+  "adminSafeguarding",
   "auth",
   "authPhone",
   "awareness",
@@ -88,6 +91,7 @@ export const NAMESPACES = [
   "notificationSettings",
   "pricing",
   "refunds",
+  "safeguardingReport",
   "sample",
   "schools",
   "security",
@@ -112,6 +116,7 @@ export const messages = {
   ...adminCompetitions,
   ...adminCms,
   ...adminInstitutions,
+  ...adminSafeguarding,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -139,6 +144,7 @@ export const messages = {
   ...notificationSettings,
   ...pricing,
   ...refunds,
+  ...safeguardingReport,
   ...sample,
   ...schools,
   ...security,
