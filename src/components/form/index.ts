@@ -3,5 +3,7 @@
 // visible string.
 export { FormAlert } from "./form-alert";
 export { OutcomeNotice } from "./outcome-notice";
+export { SelectField } from "./select-field";
 export { SubmitButton } from "./submit-button";
+export { TextAreaField } from "./text-area-field";
 export { inputStyles, TextField } from "./text-field";

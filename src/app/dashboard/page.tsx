@@ -53,10 +53,12 @@ const LINK =
 async function Areas() {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, { dashboards }] = await Promise.all([
+  const [t, { dashboards, grants }] = await Promise.all([
     getTranslations("dashboard"),
     as(actor).myAccess(),
   ]);
+  // Only a safeguarding lead is pointed at the reports (#116).
+  const lead = grants.some((grant) => grant.role === "safeguarding_lead");
   const links = dashboardLinks(dashboards);
   const name = (link: DashboardLink) =>
     t(`areas.${link.area}`, { id: link.id ?? "" });
@@ -95,7 +97,7 @@ async function Areas() {
             />
             <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
           </div>
-          <AreaBody area={link.area} id={link.id} />
+          <AreaBody area={link.area} id={link.id} lead={lead} />
         </section>
       ))}
     </div>
@@ -105,9 +107,11 @@ async function Areas() {
 async function AreaBody({
   area,
   id,
+  lead,
 }: {
   area: DashboardLink["area"];
   id?: string;
+  lead: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -144,6 +148,14 @@ async function AreaBody({
         ? links([
             { href: APP_ROUTES.adminRoles, label: t("admin.roles") },
             { href: APP_ROUTES.adminAudit, label: t("admin.audit") },
+            ...(lead
+              ? [
+                  {
+                    href: APP_ROUTES.adminSafeguarding,
+                    label: t("admin.safeguarding"),
+                  },
+                ]
+              : []),
           ])
         : null}
     </div>
