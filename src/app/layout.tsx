@@ -10,6 +10,7 @@ import { SiteHeader } from "@/components/site-header";
 import { siteUrl } from "@/env";
 import { LOCALE } from "@/i18n/formats";
 import { fontVariables } from "@/lib/fonts";
+import { PAGE_TRANSITION_CLASS } from "@/lib/page-transition";
 import {
   DEFAULT_SOCIAL_IMAGE,
   organizationJsonLd,
@@ -77,8 +78,12 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
         <SiteHeader />
         <div className="order-2 flex flex-1 flex-col">
           <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
-            {/* Page changes cross-fade; the header is pinned (globals.css). */}
-            <ViewTransition>{children}</ViewTransition>
+            {/* A link to another page cross-fades, and nothing else starts a
+                view transition (page-transition.ts); the header is pinned
+                (globals.css). */}
+            <ViewTransition default={PAGE_TRANSITION_CLASS}>
+              {children}
+            </ViewTransition>
           </main>
           <SiteFooter />
         </div>
