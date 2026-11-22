@@ -24,6 +24,7 @@ import {
   getPublishedPostBySlug,
   latestPublishedPosts,
   listPublishedPosts,
+  nextPostGoingLive,
   publishedPostSlugs,
 } from "./posts/public-read";
 import {
@@ -128,4 +129,5 @@ export const cmsUseCases = (ctx: UseCaseContext) => ({
   getPublishedPostBySlug: (input: { slug: string }) =>
     getPublishedPostBySlug(ctx, input),
   publishedPostSlugs: () => publishedPostSlugs(ctx),
+  nextPostGoingLive: () => nextPostGoingLive(ctx),
 });

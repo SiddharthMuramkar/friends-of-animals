@@ -4,6 +4,7 @@
 //   latestPublishedPosts({ limit })    → visitor: featured first, then newest
 //   getPublishedPostBySlug({ slug })   → visitor: one public post, or null
 //   publishedPostSlugs()               → visitor: the proxy's /blog/<slug> check
+//   nextPostGoingLive()                → visitor: when the cached reads expire
 //
 // "Public" is publicPostFilter: a published post, or a scheduled one whose
 // instant has come (even before its job runs). Drafts, archived posts and
@@ -15,7 +16,7 @@
 // takes the story down. Production is never seeded, so without this its
 // blog would be empty until someone imported them.
 
-import { and, eq, type SQL } from "drizzle-orm";
+import { and, eq, gt, min, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../access/can";
@@ -192,4 +193,25 @@ export async function publishedPostSlugs(
   const rows = await publicRows(ctx);
   const repo = await repoCards(ctx);
   return [...rows, ...repo].map((post) => post.slug);
+}
+
+/**
+ * When the next scheduled post goes live, or null: the cached reads expire
+ * then (../domain/post-cache-life.ts), because nothing refreshes their tags
+ * at a scheduled instant. Only the instant: nothing about the post.
+ */
+export async function nextPostGoingLive(
+  ctx: PublicReadContext
+): Promise<Date | null> {
+  await authorize(ctx, "cms.post.read_published");
+  const [row] = await ctx.db
+    .select({ at: min(cmsPost.publishAt) })
+    .from(cmsPost)
+    .where(
+      and(
+        eq(cmsPost.status, "scheduled"),
+        gt(cmsPost.publishAt, ctx.clock.now())
+      )
+    );
+  return row?.at ?? null;
 }
