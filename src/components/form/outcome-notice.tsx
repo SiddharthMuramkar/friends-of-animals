@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
-import { FormAlert } from "./form-alert";
+// Through the kit's index, not ./form-alert: a second importer of
+// form-alert splits the kit's chunk and adds bytes to every page using it.
+import { FormAlert } from "@/components/form";
 
 /**
  * Says what a button that posted and came back to the page did (removing a
