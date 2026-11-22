@@ -1,6 +1,7 @@
 // Reading the capture mailbox over HTTP (GET /api/capture-mailbox). Outside
-// production every sign-in code lands in the mailbox, and on staging (the
-// public site) whoever reads it could sign in as anyone. So it is:
+// production every sign-in code, by email or SMS, lands in the mailbox,
+// and on staging (the public site) whoever reads it could sign in as
+// anyone. So it is:
 //   - absent in production (404), even with a token;
 //   - closed unless CAPTURE_MAILBOX_TOKEN is set (404);
 //   - only for the token holder (x-capture-mailbox-token, compared in
@@ -9,8 +10,10 @@
 
 import { createHash, timingSafeEqual } from "node:crypto";
 
+import { parsePhoneNumber } from "../../lib/phone";
 import type { DbWithClock } from "../db/app-db";
 import { readCapturedEmail } from "../ports/email-capture";
+import { readCapturedSms } from "../ports/sms-capture";
 
 export type MailboxRequest = {
   appEnv: "local" | "preview" | "staging" | "production";
@@ -44,7 +47,14 @@ export async function readMailbox(
     return { status: 401 };
   }
   if (!to) return { status: 400 };
-  const messages = await readCapturedEmail(mailbox, { to, limit: 5 });
+  // A phone number (any usual spelling) reads its texts; anything else is
+  // an email address.
+  const phone = parsePhoneNumber(to);
+  const messages = phone.ok
+    ? (await readCapturedSms(mailbox, { to: phone.e164, limit: 5 })).map(
+        (sms) => ({ ...sms, subject: "" })
+      )
+    : await readCapturedEmail(mailbox, { to, limit: 5 });
   return {
     status: 200,
     body: {

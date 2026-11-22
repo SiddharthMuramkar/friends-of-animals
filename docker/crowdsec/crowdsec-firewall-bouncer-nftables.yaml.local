@@ -1,0 +1,32 @@
+# Fedora (crowdsec-firewall-bouncer-nftables). Installed by
+# docker/scripts/install-crowdsec.sh as crowdsec-firewall-bouncer.yaml.local,
+# merged over /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml (mappings
+# merged, lists replaced). The values match the package defaults; they are
+# pinned here because the blocking depends on them.
+#
+# The bouncer keeps its own nftables tables, ip crowdsec and ip6 crowdsec6,
+# with a base chain per hook (crowdsec-chain-input, crowdsec-chain-forward) at
+# priority -10:
+#  - input: SSH and other host services;
+#  - forward: Docker-published ports (PgBouncer 6432). They are DNAT-ed in
+#    prerouting and never reach input; the source address is still the
+#    client's here.
+# -10 runs before Docker's FORWARD/DOCKER-USER (iptables-nft, priority 0) and
+# firewalld (priority +10), and a drop in any base chain is final, so a later
+# accept cannot let a banned address through. firewalld never flushes tables it
+# does not own (unlike the iptables-nft ones, which it flushes on reload when
+# it has direct rules), and Docker does not touch them either, so these rules
+# survive `firewall-cmd --reload`, Docker restarts and Docker's nftables
+# backend (which has no DOCKER-USER chain). DOCKER-USER's FOA-INBOUND jump
+# (docker-user-fw.sh) still applies after this.
+mode: nftables
+nftables_hooks:
+  - input
+  - forward
+nftables:
+  ipv4:
+    enabled: true
+    priority: -10
+  ipv6:
+    enabled: true
+    priority: -10

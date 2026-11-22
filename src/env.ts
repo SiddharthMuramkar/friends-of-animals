@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { z } from "zod";
+
 import { buildEnvSchema, envSchema, parseEnv, type Env } from "./env.schema";
 
 let cached: Env | undefined;
@@ -16,10 +18,20 @@ export function env(): Env {
   return cached;
 }
 
+export type BuildEnv = z.output<typeof buildEnvSchema>;
+
+/**
+ * What pages may read while `next build` prerenders them: process.env
+ * parsed with `buildEnvSchema`, which needs no database and no secrets.
+ */
+export function buildEnv(): BuildEnv {
+  return parseEnv(buildEnvSchema, process.env);
+}
+
 /**
  * Canonical base URL (APP_URL) for metadata and absolute links. Prerendered
  * pages call this during `next build`, so it reads only `buildEnvSchema`.
  */
 export function siteUrl(): URL {
-  return new URL(parseEnv(buildEnvSchema, process.env).APP_URL);
+  return new URL(buildEnv().APP_URL);
 }

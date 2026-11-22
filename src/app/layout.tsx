@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ViewTransition } from "react";
 
+import { UmamiAnalytics } from "@/components/analytics/umami-analytics";
 import { HistoryScrollGuard } from "@/components/site/history-scroll-guard";
 import { JsonLd } from "@/components/site/json-ld";
 import { SiteFooter } from "@/components/site-footer";
@@ -9,6 +10,7 @@ import { SiteHeader } from "@/components/site-header";
 import { siteUrl } from "@/env";
 import { LOCALE } from "@/i18n/formats";
 import { fontVariables } from "@/lib/fonts";
+import { PAGE_TRANSITION_CLASS } from "@/lib/page-transition";
 import {
   DEFAULT_SOCIAL_IMAGE,
   organizationJsonLd,
@@ -41,10 +43,9 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [DEFAULT_SOCIAL_IMAGE],
     },
     icons: {
-      icon: [
-        { url: "/favicon.ico", sizes: "32x32" },
-        { url: "/brand/favicon.svg", type: "image/svg+xml" },
-      ],
+      // Only the ICO: its frames are hinted per size (scripts/brand-logo.ts),
+      // and browsers prefer an SVG over it when both are offered.
+      icon: [{ url: "/favicon.ico?v=2", sizes: "16x16 24x24 32x32 48x48" }],
       apple: "/brand/apple-touch-icon.png",
     },
   };
@@ -71,19 +72,32 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
         {/* The @exit slot (Quick exit on /safeguarding) comes first in tab
             order, before the skip link and header (GOV.UK "Exit this page").
             CSS order puts it back under the header; body is its sticky
-            containing block, so it stays on screen over the footer too. */}
-        {exit}
+            containing block, so it stays on screen over the footer too.
+            The slot gets an element of its own because Next keeps the
+            slot's last pages in hidden <Activity> boundaries, and a
+            navigation before React has hydrated one hides it with a walk
+            that misses the boundary's end and hides every later sibling:
+            the header, <main> and the footer stayed blank (React's fix,
+            react/react#37814, is newer than Next 16.4.6's copy). Here the
+            walk ends with the slot. `contents` keeps body as the bar's flex
+            container. */}
+        <div className="contents">{exit}</div>
         {/* The skip link is the header's first child (site-header.tsx). */}
         <SiteHeader />
         <div className="order-2 flex flex-1 flex-col">
           <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
-            {/* Page changes cross-fade; the header is pinned (globals.css). */}
-            <ViewTransition>{children}</ViewTransition>
+            {/* A link to another page cross-fades, and nothing else starts a
+                view transition (page-transition.ts); the header is pinned
+                (globals.css). */}
+            <ViewTransition default={PAGE_TRANSITION_CLASS}>
+              {children}
+            </ViewTransition>
           </main>
           <SiteFooter />
         </div>
         <HistoryScrollGuard />
         <JsonLd data={organizationJsonLd(siteUrl(), t("tagline"))} />
+        <UmamiAnalytics />
       </body>
     </html>
   );

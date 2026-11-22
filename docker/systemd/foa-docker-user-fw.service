@@ -1,16 +1,27 @@
 [Unit]
 Description=FOA: filter inbound traffic to Docker-published ports (DOCKER-USER -> FOA-INBOUND)
 Documentation=file:/srv/foa/docker/README.md
-# Docker creates DOCKER-USER; re-apply whenever Docker (re)starts.
-After=docker.service
+# Docker creates DOCKER-USER: (re)apply whenever Docker (re)starts. firewalld
+# reloads, starts and stops never go through systemd (`firewall-cmd --reload`
+# is a D-Bus call), so `watch` follows them on D-Bus and re-applies.
+After=docker.service firewalld.service
 PartOf=docker.service
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-# Optional: PGBOUNCER_ALLOWED_SOURCES="<ip/cidr> ..." (Vercel Static IPs, TODO).
+Type=simple
+# Optional: PGBOUNCER_ALLOWED_SOURCES="<ip/cidr> ..." (Vercel Static IPs, TODO),
+# FOA_EXT_IF=<public interface> (default eth0).
 EnvironmentFile=-/etc/foa/firewall.env
-ExecStart=/srv/foa/docker/scripts/docker-user-fw.sh apply
+# Waits up to ~30 s for DOCKER-USER; the unit fails (and is retried) without it.
+ExecStartPre=/srv/foa/docker/scripts/docker-user-fw.sh apply
+ExecStart=/srv/foa/docker/scripts/docker-user-fw.sh watch
+ExecReload=/srv/foa/docker/scripts/docker-user-fw.sh apply
+# Without firewalld (Ubuntu) `watch` exits 0 at once: stay active (exited).
+RemainAfterExit=yes
+# A failed apply or a dead watcher is retried; every retry re-applies first.
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=3min
 
 [Install]
 WantedBy=docker.service multi-user.target

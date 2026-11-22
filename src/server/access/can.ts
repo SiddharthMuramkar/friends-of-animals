@@ -5,10 +5,18 @@
 // every call, so a grant or revoke counts at once, even for a session that
 // was already open. Loads under plain Node (the bootstrap command):
 // relative imports only, no "server-only".
+//
+// An action a staff role allows also needs the session's second factor
+// (#60): a staff member who hasn't enrolled, or hasn't passed it in this
+// session, is refused with that reason instead of forbidden. An action
+// marked `stepUp` needs one passed within the last 10 minutes.
 
 import type { Actor } from "../actor";
 import type { AppDb } from "../db/app-db";
 import { DomainError } from "../errors";
+import type { Clock } from "../ports/clock";
+import type { SecondFactorRefusal } from "../modules/second-factor/domain/gate";
+import { secondFactorRefusal } from "../modules/second-factor/requirement";
 import {
   decide,
   type Decision,
@@ -16,12 +24,20 @@ import {
   type Resource,
   type Subject,
 } from "./domain/policy";
-import type { Role } from "./domain/roles";
+import { isStaffRole, type Role } from "./domain/roles";
 import { grantsOf } from "./grants";
 import { POLICY, type Action } from "./policies";
 
-/** What a check needs: who is acting, and the database their grants are in. */
-export type PolicyContext = { db: AppDb; actor: Actor };
+/**
+ * What a check needs: who is acting, the database their grants and second
+ * factor are in, and the clock that dates a step-up.
+ */
+export type PolicyContext = { db: AppDb; clock: Clock; actor: Actor };
+
+/** A decision, or a refusal the actor can lift with their second factor. */
+export type CanDecision =
+  | Decision
+  | { allowed: false; secondFactor: SecondFactorRefusal };
 
 async function subjectOf({ db, actor }: PolicyContext): Promise<Subject> {
   switch (actor.kind) {
@@ -49,13 +65,28 @@ export function policyCheck<A extends string>(policy: Policy<A>) {
     ctx: PolicyContext,
     action: A,
     resource: Resource = {}
-  ): Promise<Decision> {
-    return decide(policy, await subjectOf(ctx), action, resource);
+  ): Promise<CanDecision> {
+    const decision = decide(policy, await subjectOf(ctx), action, resource);
+    if (!decision.allowed || ctx.actor.kind !== "user") return decision;
+    const { role } = decision;
+    const requirement = decision.stepUp
+      ? "step-up"
+      : role && isStaffRole(role)
+        ? "staff"
+        : null;
+    if (!requirement) return decision;
+    const refusal = await secondFactorRefusal(
+      ctx,
+      ctx.actor,
+      requirement,
+      role ? [role] : []
+    );
+    return refusal ? { allowed: false, secondFactor: refusal } : decision;
   }
 
   /**
-   * Throws DomainError("forbidden") unless `can` allows; returns the role
-   * that allowed it, for the audit log.
+   * Throws DomainError("forbidden"), or the second-factor refusal, unless
+   * `can` allows; returns the role that allowed it, for the audit log.
    */
   async function authorize(
     ctx: PolicyContext,
@@ -64,7 +95,9 @@ export function policyCheck<A extends string>(policy: Policy<A>) {
   ): Promise<{ role: Role | null }> {
     const decision = await can(ctx, action, resource);
     if (!decision.allowed) {
-      throw new DomainError("forbidden", `${ctx.actor.kind} may not ${action}`);
+      const code =
+        "secondFactor" in decision ? decision.secondFactor : "forbidden";
+      throw new DomainError(code, `${ctx.actor.kind} may not ${action}`);
     }
     return { role: decision.role };
   }

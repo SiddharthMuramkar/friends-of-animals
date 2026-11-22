@@ -1,0 +1,129 @@
+{
+  "participant": {
+    "participate": {
+      "meta": {
+        "title": "Take part in a competition",
+        "description": "Enter a Friends of Animals competition through your school, or as an individual adult."
+      },
+      "eyebrow": "Take part",
+      "title": "How would you like to take part?",
+      "lead": "Most participants enter through their school. Adults can also enter on their own.",
+      "recommended": "Recommended",
+      "school": {
+        "title": "Enter through your school"
+      },
+      "individual": {
+        "title": "Participate as an Individual",
+        "body": "If you are 18 or over, register yourself for a competition that takes individual entries, and pay the fee online.",
+        "under18": "Under 18? Enter through your school for now. Entry with a parent or guardian opens soon.",
+        "register": "Register as an individual",
+        "choose": "Choose a competition"
+      }
+    },
+    "schoolNote": {
+      "title": "We encourage you to enter through your school",
+      "body": "Schools judge their own students' work first, so every entry gets a fair first look, and your school can enter many students in one go.",
+      "ask": "Ask your teacher whether your school is taking part.",
+      "link": "Read about entering through a school"
+    },
+    "register": {
+      "meta": {
+        "title": "Register as an individual"
+      },
+      "eyebrow": "Register as an individual",
+      "title": "Register for {competition}",
+      "lead": "Tell us about yourself. You get an FOA Participant ID, then pay the fee online.",
+      "fee": "Fee: {amount}",
+      "free": "This competition is free to enter.",
+      "fields": {
+        "fullName": "Full name",
+        "dateOfBirth": "Date of birth",
+        "dateOfBirthHint": "You must be 18 or over to register on your own.",
+        "phone": "Mobile number",
+        "phoneHint": "You need an Indian mobile number to register, so we can reach you about your entry.",
+        "pinCode": "PIN code",
+        "city": "City",
+        "state": "State",
+        "country": "Country",
+        "schoolName": "School or college (optional)",
+        "consents": "What you agree to"
+      },
+      "consent": "I agree to the {title}",
+      "consentLink": "Read the {title}",
+      "submit": "Register",
+      "problems": "Some details need another look.",
+      "invalid": {
+        "fullName": "Enter your full name.",
+        "dateOfBirth": "Enter your date of birth.",
+        "phone": "Enter an Indian mobile number, such as 98765 43210.",
+        "pinCode": "Enter the six-digit PIN code, or your postal code if you live outside India.",
+        "city": "Enter your city.",
+        "state": "Enter your state.",
+        "country": "Choose your country.",
+        "schoolName": "Shorten the school or college name.",
+        "consents": "Agree to each document to register.",
+        "competitionSlug": "We couldn't find that competition."
+      },
+      "refusal": {
+        "registration_closed": "Registration for this competition isn't open.",
+        "institutions_only": "This competition takes entries through schools and other institutions only.",
+        "fee_not_set": "Registration opens once FOA has set the fee. Please come back soon.",
+        "dob_invalid": "Enter a real date of birth, in the past.",
+        "outside_age_groups": "This competition has no age group for your age.",
+        "already_registered": "You are already registered for this competition.",
+        "consent_missing": "Agree to each document to register.",
+        "not_found": "We couldn't find that competition."
+      },
+      "minor": "You need to be 18 or over to register on your own. Please come back when entry with a parent or guardian opens, or enter through your school.",
+      "dashboardLink": "See your registrations",
+      "backToCompetition": "Back to {competition}",
+      "submitting": "Registering…",
+      "unexpected": "Something went wrong. Please try again.",
+      "countryPlaceholder": "Choose a country",
+      "loading": "Loading the form…"
+    },
+    "dashboard": {
+      "meta": {
+        "title": "My competitions"
+      },
+      "eyebrow": "Participant",
+      "title": "My competitions",
+      "lead": "The competitions you registered for yourself, and where each one stands.",
+      "participantId": "FOA Participant ID: {code}",
+      "empty": "You haven't registered for a competition yet.",
+      "findCompetition": "Find a competition",
+      "registrationNumber": "Registration number {number}",
+      "registeredOn": "Registered on {date}",
+      "pay": "Pay {amount} for {competition}",
+      "confirmFree": "Confirm your free place in {competition}",
+      "comingSoon": "Entries, results and certificates will show here too.",
+      "loading": "Loading your registrations…"
+    },
+    "payment": {
+      "checkoutDescription": "Registration fee for {competition} ({participantCode})",
+      "meta": {
+        "title": "Pay for your registration"
+      },
+      "eyebrow": "Payment",
+      "title": "Pay for {competition}",
+      "amount": "Fee: {amount}",
+      "free": "This competition is free. Confirm your place to get your registration number.",
+      "pay": "Pay {amount}",
+      "confirmFree": "Confirm my place",
+      "confirmed": "You're registered. Your registration number is {number}.",
+      "writeNumber": "Write this number on the back of your artwork, and quote it if you contact us.",
+      "checkoutReady": "Your order is ready. Online payment opens here soon; we will let you know.",
+      "back": "Back to my competitions",
+      "error": {
+        "nothing_to_pay": "There is nothing to pay for this registration.",
+        "fee_not_set": "FOA hasn't set the fee yet. Please come back soon.",
+        "gateway_unavailable": "Online payment isn't available right now. Please try again later.",
+        "superseded": "Someone changed this payment while you were paying. Please try again.",
+        "invalid_input": "Something went wrong. Please try again."
+      },
+      "paying": "Opening payment…",
+      "confirming": "Confirming…",
+      "loading": "Loading your registration…"
+    }
+  }
+}

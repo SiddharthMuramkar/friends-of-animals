@@ -39,4 +39,25 @@ describe("resolveActor", () => {
     // Still says what failed: the class and the Postgres code.
     expect(String(error)).toMatch(/42P01/);
   });
+
+  it("keeps database context out of a session lifetime lookup failure", async () => {
+    const h = await createHarness();
+    const member = await h.seed.member();
+    await h.signIn(member);
+    await h.db.$client.exec(
+      'ALTER TABLE "user_role" RENAME TO "user_role_gone"'
+    );
+
+    const failure: unknown = await h.currentActor().then(
+      () => null,
+      (error: unknown) => error
+    );
+
+    const logged = inspect(failure, { depth: 10, showHidden: true });
+    expect(logged.includes(member.id)).toBe(false);
+    expect(logged.includes("user_role")).toBe(false);
+    expect(failure instanceof Error && !("cause" in failure)).toBe(true);
+    expect(logged.includes("Session lookup failed")).toBe(true);
+    expect(logged.includes("42P01")).toBe(true);
+  });
 });

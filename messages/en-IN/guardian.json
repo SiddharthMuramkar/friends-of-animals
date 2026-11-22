@@ -1,0 +1,219 @@
+{
+  "guardian": {
+    "codeEmail": {
+      "subject": "Your code to confirm you're a parent or guardian",
+      "text": "Your code is {code}.\n\nEnter it on Friends of Animals to confirm you're a parent or lawful guardian. It works for {minutes} minutes. If you didn't ask for it, you can ignore this email: nothing changes without the code.\n\nFriends of Animals"
+    },
+    "teenInvitationMessage": {
+      "subject": "Your own login on Friends of Animals",
+      "email": "Hello {child},\n\n{guardian} has invited you to your own login on Friends of Animals, linked to them as your parent or guardian. With it you can take part in FOA's competitions yourself.\n\nTo accept, open this link, then sign in or create an account with this email address:\n{link}\n\nThe link works until {expiresAt}. If you weren't expecting this, you can ignore this email.\n\nFriends of Animals"
+    },
+    "home": {
+      "meta": {
+        "title": "Your children"
+      },
+      "eyebrow": "Parents and guardians",
+      "title": "Your children",
+      "lead": "Add the children you look after. Under 13 you manage their profile; from 13 they can have their own login, linked to you.",
+      "loading": "Loading your children…",
+      "notRegistered": {
+        "body": "Register as a parent or lawful guardian to add your children and enter them in competitions.",
+        "action": "Register as a parent or guardian"
+      },
+      "unverified": {
+        "body": "Confirm it's you with the code we email you before you add any children.",
+        "action": "Confirm with a code"
+      },
+      "empty": "You haven't added any children yet.",
+      "addChild": "Add a child",
+      "listTitle": "Children you look after",
+      "age": "Age {age}",
+      "verified": "You're registered as a parent or guardian.",
+      "kind": {
+        "managed": "You manage this profile",
+        "linked": "Own login",
+        "invited": "Invited to own login",
+        "teenNoLogin": "Can have own login",
+        "adult": "Now an adult"
+      }
+    },
+    "register": {
+      "meta": {
+        "title": "Register as a parent or guardian"
+      },
+      "eyebrow": "Parents and guardians",
+      "title": "Register as a parent or guardian",
+      "lead": "Tell us who you are, then confirm it with a code we email you. You can add your children once that's done.",
+      "loading": "Loading…",
+      "fields": {
+        "fullName": "Your full name",
+        "phone": "Your mobile number (optional)",
+        "phoneHint": "An Indian mobile number, so FOA can reach you about your children.",
+        "adultDeclared": "I am 18 or older, and the parent or lawful guardian of the children I add."
+      },
+      "invalid": {
+        "fullName": "Enter your full name.",
+        "phone": "Enter an Indian mobile number, or leave it empty.",
+        "adultDeclared": "Tick this to confirm you're 18 or older and the child's parent or lawful guardian."
+      },
+      "problems": "Please fix the fields marked below.",
+      "submit": "Email me a code",
+      "submitting": "Sending…",
+      "errors": {
+        "linked_child": "This account is a child's own login, so it can't register as a guardian.",
+        "no_verified_email": "We email the code, and your account has no email address yet. Sign in with an email address to register as a guardian.",
+        "rate_limited": "You've asked for several codes. Please wait a few minutes and try again.",
+        "unexpected": "Something went wrong. Please try again."
+      },
+      "code": {
+        "title": "Enter your code",
+        "sentTo": "We emailed a 6-digit code to {address}. It works for 10 minutes.",
+        "label": "6-digit code",
+        "submit": "Confirm",
+        "submitting": "Confirming…",
+        "resend": "Email me a new code",
+        "resending": "Sending…",
+        "resent": "We sent a new code.",
+        "edit": "Change your details"
+      },
+      "codeErrors": {
+        "code_invalid": "That code isn't right. Check it and try again.",
+        "code_expired": "That code has expired. Ask for a new one.",
+        "too_many_attempts": "Too many wrong codes. Ask for a new one.",
+        "rate_limited": "You've asked for several codes. Please wait a few minutes and try again.",
+        "no_verified_email": "Your account has no email address to send a code to.",
+        "not_registered": "Tell us who you are first.",
+        "unexpected": "Something went wrong. Please try again."
+      }
+    },
+    "newChild": {
+      "meta": {
+        "title": "Add a child"
+      },
+      "eyebrow": "Parents and guardians",
+      "title": "Add a child",
+      "lead": "Children under 13 have a profile you manage, with no login. From 13 to 17 you can invite them to their own login, linked to you.",
+      "loading": "Loading…",
+      "fields": {
+        "fullName": "Child's full name",
+        "dateOfBirth": "Date of birth",
+        "relationship": "You are their",
+        "relationshipPlaceholder": "Choose one"
+      },
+      "relationships": {
+        "parent": "Parent",
+        "legal_guardian": "Legal guardian"
+      },
+      "invalid": {
+        "fullName": "Enter the child's full name.",
+        "dateOfBirth": "Enter a real date of birth, not in the future.",
+        "relationship": "Choose how you're related to the child."
+      },
+      "refusals": {
+        "dob_invalid": "Enter a real date of birth, not in the future.",
+        "adult": "This date of birth makes them 18 or older. Adults register themselves.",
+        "already_added": "You've already added this child.",
+        "unexpected": "Something went wrong. Please try again."
+      },
+      "problems": "Please fix the fields marked below.",
+      "submit": "Add child",
+      "submitting": "Adding…",
+      "back": "Back to your children"
+    },
+    "child": {
+      "meta": {
+        "title": "Your child"
+      },
+      "eyebrow": "Your child",
+      "loading": "Loading…",
+      "born": "Born {date}",
+      "age": "Age {age}",
+      "relationship": {
+        "parent": "You're their parent.",
+        "legal_guardian": "You're their legal guardian."
+      },
+      "managed": "Under 13, {name} has no login of their own. You manage this profile for them.",
+      "adult": "{name} is now 18 or older and registers themselves.",
+      "linked": "{name} has their own login, linked to you.",
+      "invite": {
+        "title": "Their own login",
+        "lead": "From 13, {name} can have their own login, linked to you. We'll email them a link that works for 7 days; they sign in or create an account with that address to accept.",
+        "email": "Their email address",
+        "emailHint": "Their own address, not yours.",
+        "submit": "Send invitation",
+        "submitting": "Sending…",
+        "expired": "The last invitation expired. You can send a new one."
+      },
+      "pending": {
+        "body": "Invitation sent to {address}. The link works until {date}.",
+        "withdraw": "Withdraw invitation",
+        "withdrawing": "Withdrawing…"
+      },
+      "inviteErrors": {
+        "invalid_input": "Enter an email address.",
+        "under_13": "Children under 13 can't have their own login.",
+        "adult": "{name} is 18 or older and registers themselves.",
+        "child_has_login": "{name} already has their own login.",
+        "invitee_is_guardian": "That address belongs to a parent or guardian. Use the child's own address.",
+        "unexpected": "Something went wrong. Please try again."
+      },
+      "outcome": {
+        "invited": "Invitation sent.",
+        "withdrawn": "Invitation withdrawn.",
+        "no_pending_invitation": "There was no invitation waiting.",
+        "added": "Child added."
+      },
+      "back": "Back to your children"
+    },
+    "invitation": {
+      "eyebrow": "Invitation",
+      "title": "Your own login",
+      "invited": "Your parent or guardian has invited you to your own login on Friends of Animals.",
+      "invitedBy": "{guardian} has invited you to your own login on Friends of Animals, linked to them.",
+      "sentTo": "This invitation was sent to {address}.",
+      "expires": "The link works until {date}.",
+      "signInLead": "Sign in, or create an account, with {address}. Then open the link in your invitation again.",
+      "signIn": "Sign in",
+      "signUp": "Create an account",
+      "accept": "Accept invitation",
+      "accepting": "Accepting…",
+      "mismatch": {
+        "title": "This invitation is for someone else",
+        "body": "You're signed in with a different email address. Sign out, then sign in with {address} and open the link again.",
+        "action": "Go to your sessions to sign out"
+      },
+      "accepted": {
+        "title": "Your login is linked",
+        "body": "This is your own login now, linked to {guardian}."
+      },
+      "used": {
+        "title": "This invitation was already accepted",
+        "body": "Each invitation link works once."
+      },
+      "expired": {
+        "title": "This invitation has expired",
+        "body": "Invitation links work for 7 days. Ask your parent or guardian to send you a new one."
+      },
+      "revoked": {
+        "title": "This invitation was withdrawn",
+        "body": "Ask your parent or guardian for a new invitation if you still need one."
+      },
+      "errors": {
+        "not_found": "This link doesn't work any more.",
+        "already_used": "This invitation was already accepted.",
+        "withdrawn": "This invitation was withdrawn.",
+        "expired": "This invitation has expired. Ask your parent or guardian to send a new one.",
+        "guardian_cannot_accept": "You sent this invitation. The child accepts it with their own account.",
+        "contact_mismatch": "This invitation is for a different email address than the one you're signed in with.",
+        "accepter_is_guardian": "This account is a parent's or guardian's, so it can't become a child's own login. Ask your parent or guardian to invite an email address that is yours alone.",
+        "accepter_is_adult": "This account has registered as an adult, so it can't become a child's own login. Ask your parent or guardian to invite an email address that is yours alone.",
+        "already_linked": "Your account is already linked to a child's profile.",
+        "child_has_login": "This profile already has its own login.",
+        "under_13": "Children under 13 can't have their own login.",
+        "adult": "This profile is now for an adult, who registers themselves."
+      },
+      "home": "Go to the home page",
+      "dashboard": "Go to your dashboard"
+    }
+  }
+}
