@@ -44,7 +44,8 @@
       "enrolled": "Waiting for payment",
       "confirmed": "Confirmed",
       "withdrawn": "Withdrawn",
-      "pending_payment": "Waiting for payment"
+      "pending_payment": "Waiting for payment",
+      "pending_guardian": "Waiting for a guardian"
     },
     "methods": {
       "cheque": "Cheque",
