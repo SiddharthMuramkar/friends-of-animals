@@ -214,6 +214,7 @@
         "invalid_choice": "Choose parent or legal guardian.",
         "invalid_phone": "Enter an Indian mobile number, like 98765 43210.",
         "invalid_email": "Enter an email address, like name@example.com.",
+        "invalid_characters": "This has a hidden character that can't be saved, often from copying and pasting. Please type it again.",
         "outside_age_groups": "This competition is for ages {minAge}–{maxAge} on {cutoff}; this student is {age}."
       }
     }

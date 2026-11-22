@@ -15,6 +15,7 @@ import {
   APP_ROUTES,
   institutionCompetitionsPath,
   newStudentPath,
+  studentImportPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
@@ -95,11 +96,12 @@ async function Students({
 }: Pick<Props, "params" | "searchParams">) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [{ ref }, query, t, callout, access] = await Promise.all([
+  const [{ ref }, query, t, callout, importWords, access] = await Promise.all([
     params,
     searchParams,
     getTranslations("institutionRegistration.students"),
     getTranslations("common.callout"),
+    getTranslations("studentImport"),
     as(actor).myAccess(),
   ]);
 
@@ -188,9 +190,15 @@ async function Students({
           })}
         </p>
         {enrolment === "open" ? (
-          <div>
+          <div className="flex flex-wrap gap-3">
             <ButtonLink href={newStudentPath(list.reference, institutionId)}>
               {t("add")}
+            </ButtonLink>
+            <ButtonLink
+              href={studentImportPath(list.reference, institutionId)}
+              variant="secondary"
+            >
+              {importWords("dashboardLink")}
             </ButtonLink>
           </div>
         ) : (

@@ -43,3 +43,19 @@ export function studentRefKey(studentRef: string | null): string | null {
   const key = studentRef.replace(/\s+/g, " ").trim().toUpperCase();
   return key === "" ? null : key;
 }
+
+/**
+ * The keys a student is recognised by, each prefixed with its kind so the
+ * two kinds never collide: the roll number when there is one, then the
+ * identity hash. Two students sharing any key are the same child, so
+ * enrolling (#75) and the CSV import (#76) find duplicates alike.
+ */
+export function matchKeys(student: {
+  identityHash: string;
+  studentRefKey: string | null;
+}): string[] {
+  return [
+    ...(student.studentRefKey === null ? [] : [`ref:${student.studentRefKey}`]),
+    `id:${student.identityHash}`,
+  ];
+}
