@@ -107,6 +107,42 @@ describe("giveConsent and withdrawConsent", () => {
     });
     expect(await h.as(asha).myConsents()).toEqual(ashas);
   });
+
+  it("orders each event after the subject's last, even when the clock reads earlier", async () => {
+    const h = await createHarness();
+    const document = await publishMessages(h);
+    const member = await h.signIn(await h.seed.member());
+    const givenAt = h.clock.now();
+    await h
+      .as(member)
+      .giveConsent({ purpose: "messages", documentId: document.id });
+
+    // Another server whose clock runs 50 ms behind takes the withdrawal.
+    h.clock.set(new Date(givenAt.getTime() - 50));
+    expect(await h.as(member).withdrawConsent({ purpose: "messages" })).toEqual(
+      { ok: true, changed: true }
+    );
+
+    const [messages] = await h.as(member).myConsents();
+    expect(messages?.state).toMatchObject({ status: "withdrawn" });
+    expect(messages?.history.map((event) => event.action)).toEqual([
+      "withdrawn",
+      "given",
+    ]);
+    const [withdrawn, given] = messages?.history ?? [];
+    expect(withdrawn?.occurredAt.getTime()).toBeGreaterThan(
+      given?.occurredAt.getTime() ?? Infinity
+    );
+
+    // Giving again from the slow clock still lands last.
+    expect(
+      await h
+        .as(member)
+        .giveConsent({ purpose: "messages", documentId: document.id })
+    ).toEqual({ ok: true, changed: true });
+    const [again] = await h.as(member).myConsents();
+    expect(again?.state).toMatchObject({ status: "given" });
+  });
 });
 
 describe("the audit log", () => {

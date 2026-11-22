@@ -23,6 +23,7 @@ import {
   currentConsent,
   decideGive,
   decideWithdraw,
+  nextEventTime,
   type ConsentEventAction,
   type ConsentState,
 } from "./domain/consent-state";
@@ -91,7 +92,8 @@ function signedInUser(ctx: ConsentContext): string {
 }
 
 /**
- * Appends one event for the subject, with its audit entry; a withdrawal
+ * Appends one event for the subject, after `state` (what its log says
+ * now, read under the subject's lock), with its audit entry; a withdrawal
  * also emits consent.withdrawn, so all three commit or none do. The entry
  * and the event hold ids only: a consent record says nothing more about
  * the person.
@@ -99,6 +101,7 @@ function signedInUser(ctx: ConsentContext): string {
 async function appendEvent(
   tx: AppDb,
   ctx: ConsentContext,
+  state: ConsentState,
   event: {
     subject: ConsentSubject;
     giverUserId: string;
@@ -108,7 +111,7 @@ async function appendEvent(
     method: ConsentMethod;
   }
 ): Promise<string> {
-  const now = ctx.clock.now();
+  const now = nextEventTime(state, ctx.clock.now());
   const id = nextEventId(now);
   await tx.insert(consentEvent).values({
     id,
@@ -169,14 +172,19 @@ export async function recordSignUpConsent(
   const decision = decideGive({ status: "never" }, latest, documentId);
   if (decision.kind === "reject") return decision.code;
   if (decision.kind === "unchanged") return "given";
-  await appendEvent(tx, ctx, {
-    subject: { type: "user", id: userId },
-    giverUserId: userId,
-    purpose,
-    action: "given",
-    documentId: decision.documentId,
-    method: "web_form",
-  });
+  await appendEvent(
+    tx,
+    ctx,
+    { status: "never" },
+    {
+      subject: { type: "user", id: userId },
+      giverUserId: userId,
+      purpose,
+      action: "given",
+      documentId: decision.documentId,
+      method: "web_form",
+    }
+  );
   return "given";
 }
 
@@ -201,7 +209,7 @@ export async function giveConsent(
       return { ok: false, error: decision.code } as const;
     }
     if (decision.kind === "unchanged") return { ok: true, changed: false };
-    await appendEvent(tx, ctx, {
+    await appendEvent(tx, ctx, state, {
       subject,
       giverUserId: userId,
       purpose,
@@ -230,7 +238,7 @@ export async function withdrawConsent(
     const state = currentConsent(await subjectEvents(tx, subject, purpose));
     const decision = decideWithdraw(state);
     if (decision.kind !== "record") return { ok: true, changed: false };
-    await appendEvent(tx, ctx, {
+    await appendEvent(tx, ctx, state, {
       subject,
       giverUserId: userId,
       purpose,

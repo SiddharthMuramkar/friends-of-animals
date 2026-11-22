@@ -14,7 +14,7 @@ import { noticeAfterGive, type ConsentNotice } from "./notice";
  * same notice twice is announced twice.
  */
 function backWith(done: ConsentNotice): never {
-  const token = Date.now().toString(36);
+  const token = crypto.randomUUID().slice(0, 8);
   redirect(
     `${APP_ROUTES.accountConsents}?done=${done}-${token}`,
     RedirectType.replace

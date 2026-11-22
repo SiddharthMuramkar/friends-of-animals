@@ -28,7 +28,10 @@ export const LEGAL_PAGE_PURPOSE = {
   terms: "terms",
 } as const satisfies Record<string, ConsentPurpose>;
 
-/** M0 records only `web_form`; guardian links and paper forms arrive in M1. */
+/**
+ * Only `web_form` is recorded now; guardian OTP links and paper forms come
+ * with guardian consent (#82).
+ */
 export const CONSENT_METHODS = [
   "web_form",
   "otp_link",

@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 
 import {
@@ -6,18 +7,30 @@ import {
   LegalShortList,
 } from "@/components/legal/legal-text";
 import { Disclosure } from "@/components/site/disclosure";
+import { errorSummaryForLogs } from "@/server/errors";
+import type { PublishedConsentDocument } from "@/server/modules/consent";
 import { cachedConsentDocument } from "@/server/modules/consent/cached";
 
 /**
  * The sign-up form's optional box for news and updates by email (#64).
  * Never ticked to begin with. Its value is the id of the messages consent
  * version shown here, so the consent recorded is to this exact text.
- * Renders nothing while no version is published. Reads the database, so
- * it sits inside <Suspense>.
+ * Renders nothing while no version is published, or if the database can't
+ * be read: the box is optional, so the form stays usable without it. Reads
+ * the database, so it sits inside <Suspense>.
  */
 export async function MessagesConsentField() {
   await connection();
-  const document = await cachedConsentDocument("messages");
+  let document: PublishedConsentDocument | null;
+  try {
+    document = await cachedConsentDocument("messages");
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(
+      `Sign-up form: could not read the messages consent: ${errorSummaryForLogs(error)}`
+    );
+    return null;
+  }
   if (!document) return null;
   const t = await getTranslations("auth.form.messagesConsent");
 

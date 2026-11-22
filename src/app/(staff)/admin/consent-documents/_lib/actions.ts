@@ -94,7 +94,7 @@ export async function publishFormAction(
     return withText({ ...entered, alert: "failed" });
   }
   updateTag(consentDocumentTag(purpose));
-  const token = Date.now().toString(36);
+  const token = crypto.randomUUID().slice(0, 8);
   redirect(
     `${APP_ROUTES.adminConsentDocuments}?published=${purpose}-${version}-${token}`
   );
