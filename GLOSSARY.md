@@ -170,6 +170,18 @@ published Revision, under a "Draft preview" status, until they leave it.
 Everyone else sees the published Revision.
 _Avoid_: Staging, preview deployment (a preview deployment is a whole site)
 
+**Post**:
+A blog post or a story: an article a content manager writes, with its own
+web address, cover and images. It is a Draft until it is published, now or
+at a scheduled instant, and leaves the public site only by being archived.
+_Avoid_: Article (alone), entry, page
+
+**Public copy**:
+A resized Derivative of a Post's image, copied to the public bucket so the
+public site can show it without signing. The original upload is never
+copied there.
+_Avoid_: Public URL, CDN image, original
+
 ## Messages
 
 **Capture mailbox**:
