@@ -11,23 +11,10 @@
 // Pure. Loads under plain Node.
 
 import { formatCsv, neutraliseFormula, parseCsv, restoreFormula } from "./csv";
+import type { StudentField } from "./student-details";
 
 /** The student details a column fills: #75's StudentInput keys. */
-export type StudentCsvField =
-  | "studentRef"
-  | "fullName"
-  | "dateOfBirth"
-  | "grade"
-  | "guardianName"
-  | "guardianRelationship"
-  | "guardianPhone"
-  | "guardianEmail"
-  | "phone"
-  | "email"
-  | "address"
-  | "pinCode"
-  | "city"
-  | "state";
+export type StudentCsvField = StudentField;
 
 /**
  * When a column must be filled in: always, for a student under 18, for an
