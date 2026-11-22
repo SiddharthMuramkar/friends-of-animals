@@ -48,3 +48,17 @@ export const SEED_CONSENT_PUBLISHERS = {
     role: "super_admin",
   },
 } as const;
+
+// Content managers for the message template journey (#69), one per
+// journey project, so it shares no one-use staff code with #111's CMS
+// journey, which signs in Asha, the seeded content manager.
+export const SEED_TEMPLATE_EDITORS = {
+  desktop: {
+    name: "Template Editor Desktop",
+    email: "template-editor-desktop@example.test",
+  },
+  mobile: {
+    name: "Template Editor Mobile",
+    email: "template-editor-mobile@example.test",
+  },
+} as const;
