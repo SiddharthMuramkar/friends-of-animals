@@ -169,6 +169,27 @@
       "when": 1795344975453,
       "tag": "0023_74_institution_coordinators",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795346525427,
+      "tag": "0024_113_contact_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795346526210,
+      "tag": "0025_113_contact_note_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795346527065,
+      "tag": "0026_113_contact_notification_defaults",
+      "breakpoints": true
     }
   ]
 }
