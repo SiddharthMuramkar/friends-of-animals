@@ -162,11 +162,17 @@ services:
       - ./clamav/clamd.conf:/etc/clamav/clamd.conf:ro
       - ./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro
     healthcheck:
-      test: ["CMD", "clamdcheck.sh"]
+      # PING clamd on loopback IPv4, one of its TCPAddr lines. The image's
+      # clamdcheck.sh pings `localhost`, which resolves to ::1 here, so it
+      # never reaches clamd (#63). The first start downloads and loads every
+      # signature (over 6 minutes on the VPS): start_period covers it.
+      test:
+        - CMD-SHELL
+        - printf 'zPING\0' | nc -w 3 127.0.0.1 3310 | grep -q PONG
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 6m
+      start_period: 10m
     networks:
       scan:
         # Keep this listener address in sync with clamav/clamd.conf. It sits
