@@ -568,7 +568,20 @@ On both it installs the `crowdsecurity/pgsql` collection, the acquisition of
 the `foa-pgbouncer` container's docker logs (`type: pgbouncer`), a local
 parser for PgBouncer's `closing because: no such user` (logins as `postgres`
 or unknown roles, which the hub parser misses), and a whitelist for the VPS's
-own addresses (IPv4 and IPv6) and the compose subnet. systemd drop-ins start
+own addresses (IPv4 and IPv6) and the compose subnet.
+
+It also installs the `crowdsecurity/caddy` collection (the generic HTTP
+scenarios) on foa-caddy's JSON access log. Caddy writes it to stdout for the
+stats and errors sites (`caddy/Caddyfile`), the logging driver puts it in
+journald, and `crowdsec/acquis-foa-caddy.yaml` reads it from there
+(`CONTAINER_NAME=foa-caddy`, `PRIORITY=6`: stdout only, not Caddy's own
+log). Nearly every request reaching the edge comes from Vercel's shared
+egress addresses: the site's `/stats` rewrites and the Sentry envelopes. A
+ban on one of them would cut it off from PgBouncer too, so the whitelist
+`foa/caddy-vercel-paths` (`crowdsec/foa-caddy-vercel-paths.yaml`) spares
+exactly those paths (`/script.js` and `/api/send` on stats,
+`/api/<project>/envelope/` on errors). Anything else, from anyone, still
+counts. systemd drop-ins start
 crowdsec (its docker acquisition makes it exit if the Docker API is not up
 yet) and the bouncer after Docker. Brute force (5 failures, leaking 1 per
 10 s) bans the source.
@@ -583,7 +596,7 @@ a home IP can change after the allowlist was made; add a new one with
 open the Hostinger browser console and run `cscli decisions delete --ip <ip>`.
 
 ```sh
-cscli metrics show acquisition parsers   # docker:foa-pgbouncer lines read/parsed
+cscli metrics show acquisition parsers   # docker:foa-pgbouncer, journalctl (foa-caddy) lines read/parsed
 cscli alerts list; cscli decisions list
 cscli decisions delete --ip <ip>         # unban
 cscli allowlists inspect foa-admin

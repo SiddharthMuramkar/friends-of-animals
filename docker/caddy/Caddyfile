@@ -29,6 +29,12 @@ http://db.friendsofanimals.dev, http://db.shipped-it.dev {
 
 # GlitchTip (errors.yml), on its own bridge.
 errors.friendsofanimals.dev {
+	# JSON access log on stdout: journald (edge.yml), then CrowdSec
+	# (crowdsec/acquis-foa-caddy.yaml).
+	log {
+		output stdout
+		format json
+	}
 	encode zstd gzip
 	request_body {
 		max_size 20MB
@@ -43,6 +49,10 @@ errors.friendsofanimals.dev {
 # Umami (analytics.yml), on pg-prod's bridge: its dashboard, and the tracker
 # and collection endpoint the site reaches through Next's /stats rewrites.
 stats.friendsofanimals.dev {
+	log {
+		output stdout
+		format json
+	}
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"

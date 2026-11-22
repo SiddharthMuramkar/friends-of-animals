@@ -1,0 +1,17 @@
+# Local CrowdSec whitelist (s02-enrich) for foa-caddy's access log. The site
+# reaches the edge through Vercel: every visitor's tracker script and page
+# view (next.config.ts rewrites /stats/script.js and /stats/api/send to
+# stats.*), and every Sentry envelope (/monitoring and the server SDK post to
+# errors.* /api/<project>/envelope/). All of that arrives from Vercel's
+# shared egress addresses, so one visitor with a scanner's user agent could
+# get one banned, and a ban drops it at the host: PgBouncer on 6432 too.
+# Spare exactly those paths; anything else, from anyone, still counts.
+# Installed by docker/scripts/install-crowdsec.sh.
+name: foa/caddy-vercel-paths
+description: "FOA: never ban for the paths Vercel proxies to the Caddy edge"
+filter: "evt.Meta.log_type == 'http_access-log'"
+whitelist:
+  reason: "FOA: Vercel egress (Umami tracker and Sentry envelopes)"
+  expression:
+    - "evt.Meta.target_fqdn == 'stats.friendsofanimals.dev' && evt.Meta.http_path matches '^/(script[.]js|api/send)([?]|$)'"
+    - "evt.Meta.target_fqdn == 'errors.friendsofanimals.dev' && evt.Meta.http_path matches '^/api/[0-9]+/envelope/([?]|$)'"

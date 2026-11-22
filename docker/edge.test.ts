@@ -262,3 +262,70 @@ describe("the visitor address Umami sees", () => {
     ).toEqual(["CLIENT_IP_HEADER: x-real-ip"]);
   });
 });
+
+describe("Caddy's access logs and CrowdSec", () => {
+  const install = read("./scripts/install-crowdsec.sh");
+
+  it.each([STATS, ERRORS])("%s writes JSON access logs to stdout", (name) => {
+    // stdout goes to journald through the container's logging driver
+    // (edge.yml); Caddy's own log stays on stderr.
+    const lines = site(name);
+    const at = lines.indexOf("log {");
+    expect(at).toBeGreaterThan(-1);
+    expect(lines.slice(at, at + 4)).toEqual([
+      "log {",
+      "output stdout",
+      "format json",
+      "}",
+    ]);
+  });
+
+  it("acquires foa-caddy's access log from journald, stdout lines only", () => {
+    // Docker's journald driver logs stdout at PRIORITY 6 and stderr at 3.
+    // journalctl, not the docker source: no dockerd stream per line.
+    expect(lines(read("./crowdsec/acquis-foa-caddy.yaml"))).toEqual([
+      "source: journalctl",
+      "journalctl_filter:",
+      '  - "CONTAINER_NAME=foa-caddy"',
+      '  - "PRIORITY=6"',
+      "labels:",
+      "  type: caddy",
+    ]);
+  });
+
+  it("installs the caddy collection and the acquisition", () => {
+    expect(install).toMatch(
+      /^cscli collections install crowdsecurity\/caddy$/m
+    );
+    expect(install).toMatch(
+      /^install -m 0644 "\$SRC\/acquis-foa-caddy\.yaml" \/etc\/crowdsec\/acquis\.d\/foa-caddy\.yaml$/m
+    );
+  });
+
+  it("never bans for the paths Vercel proxies to the edge", () => {
+    // Every visitor's page views and every Sentry envelope arrive from
+    // Vercel's shared egress addresses; a ban would also cut them off from
+    // PgBouncer. Only those exact paths are spared.
+    const whitelist = lines(read("./crowdsec/foa-caddy-vercel-paths.yaml"));
+    expect(whitelist).toContain("name: foa/caddy-vercel-paths");
+    expect(whitelist).toContain(
+      `    - "evt.Meta.target_fqdn == '${STATS}' && evt.Meta.http_path matches '^/(script[.]js|api/send)([?]|$)'"`
+    );
+    expect(whitelist).toContain(
+      `    - "evt.Meta.target_fqdn == '${ERRORS}' && evt.Meta.http_path matches '^/api/[0-9]+/envelope/([?]|$)'"`
+    );
+    expect(install).toMatch(
+      /^install -m 0644 "\$SRC\/foa-caddy-vercel-paths\.yaml" \/etc\/crowdsec\/parsers\/s02-enrich\/foa-caddy-vercel-paths\.yaml$/m
+    );
+  });
+
+  it("only installs files that exist under docker/crowdsec", () => {
+    const sources = [...install.matchAll(/"\$SRC\/([^"]+)"/g)]
+      .map(([, file]) => file ?? "")
+      .filter((file) => !file.includes("$"));
+    expect(sources.length).toBeGreaterThan(0);
+    for (const file of sources) {
+      expect(() => read(`./crowdsec/${file}`), file).not.toThrow();
+    }
+  });
+});
