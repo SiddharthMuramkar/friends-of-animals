@@ -10,7 +10,7 @@ type AppEnv = Env["APP_ENV"];
 
 const MiB = 1024 * 1024;
 
-export const FILE_PURPOSES = ["test_upload"] as const;
+export const FILE_PURPOSES = ["test_upload", "cms_image"] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
 
@@ -33,6 +33,12 @@ export type PurposeRule = {
   maxBytes: number;
   /** `non_production`: refused when APP_ENV is production. */
   environments: "all" | "non_production";
+  /**
+   * Whether any signed-in user may presign one with `requestUpload`. False
+   * for a purpose only its module's own use case presigns, after its own
+   * authorization (a post's images: `uploadPostImage`, #112).
+   */
+  directUpload: boolean;
 };
 
 export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
@@ -41,6 +47,17 @@ export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
     contentTypes: STORABLE_CONTENT_TYPES,
     maxBytes: 10 * MiB,
     environments: "non_production",
+    directUpload: true,
+  },
+  /**
+   * A blog post's or story's cover and inline images (#112). Shown publicly
+   * only through their resized copies (./media-work.ts).
+   */
+  cms_image: {
+    contentTypes: ["image/png", "image/jpeg", "image/webp"],
+    maxBytes: 20 * MiB,
+    environments: "all",
+    directUpload: false,
   },
 };
 

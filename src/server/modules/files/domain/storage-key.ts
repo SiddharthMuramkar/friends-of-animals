@@ -12,6 +12,11 @@
 //                             upload moves it, and the only key the scan
 //                             reads and downloads serve;
 //   <prefix>quarantine/<id>   where a file the scan flagged is moved.
+//
+// A purpose whose images the public site shows (a post's, #112) also gets
+// resized copies in the public bucket beside the private one,
+// `<bucket>-public`, at `<prefix>public/<purpose>/<id>/<kind>.webp`. Never
+// the original: only derivatives are copied there.
 // An upload URL can be used again until it expires, so whatever it sends
 // after completing lands in `incoming/` and never reaches the file.
 //
@@ -23,6 +28,7 @@ import {
   type DatabaseEnv,
 } from "../../../db/database-url";
 
+import type { DerivativeKind } from "./derivatives";
 import type { FilePurpose } from "./purposes";
 
 // Every preview database name ends in `_<fp>`, the migrations fingerprint,
@@ -99,7 +105,11 @@ function assertSafe(prefix: string, fileId: string): void {
 }
 
 /** Folders of the layout above that no purpose may be named after. */
-export const RESERVED_FOLDERS: readonly string[] = ["incoming", "quarantine"];
+export const RESERVED_FOLDERS: readonly string[] = [
+  "incoming",
+  "quarantine",
+  "public",
+];
 
 /**
  * `<prefix><purpose>/<fileId>`: the file's storage key. No upload URL ever
@@ -159,4 +169,39 @@ export function quarantineKeyFor({
 }): string {
   assertSafe(prefix, fileId);
   return `${prefix}quarantine/${fileId}`;
+}
+
+/** An R2 bucket name's longest: 63 characters. */
+const BUCKET_MAX = 63;
+
+/**
+ * The public bucket beside the private bucket `bucket`: `<bucket>-public`.
+ * Only resized copies of images the public site shows are written there.
+ */
+export function publicBucketFor(bucket: string): string {
+  const name = `${bucket}-public`;
+  if (name.length > BUCKET_MAX) {
+    throw new Error(`Bucket ${JSON.stringify(bucket)} has no room for -public`);
+  }
+  return name;
+}
+
+/**
+ * `<prefix>public/<purpose>/<fileId>/<kind>.webp`: a derivative's public
+ * copy. Built only from the prefix, the purpose, the file's UUID and the
+ * kind, so it can never name the original.
+ */
+export function publicCopyKeyFor({
+  prefix,
+  purpose,
+  fileId,
+  kind,
+}: {
+  prefix: string;
+  purpose: FilePurpose;
+  fileId: string;
+  kind: DerivativeKind;
+}): string {
+  assertSafe(prefix, fileId);
+  return `${prefix}public/${purpose}/${fileId}/${kind}.webp`;
 }
