@@ -90,6 +90,7 @@
       "listTitle": "Enrolled students",
       "empty": "No students yet. Add each student who takes part.",
       "grade": "Class: {grade}",
+      "number": "Registration number {number}",
       "ageGroup": "Age group: {label}",
       "withdraw": "Withdraw",
       "withdrawName": "Withdraw {name}",

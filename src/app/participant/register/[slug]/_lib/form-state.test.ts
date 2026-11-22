@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { afterResult, START, valuesFrom } from "./form-state";
+import { afterResult, registered, START, valuesFrom } from "./form-state";
 
 const typed = {
   ...START.values,
@@ -41,6 +41,7 @@ describe("the register form's state", () => {
       refusal: null,
       unexpected: false,
       askGuardian: false,
+      destination: null,
     });
   });
 
@@ -103,6 +104,19 @@ describe("the register form's state", () => {
       attempt: 1,
       values: typed,
       unexpected: true,
+    });
+  });
+
+  it("hands a registered adult the page to load next, with nothing to fix", () => {
+    const pay = "/participant/registrations/0b6e1d2c-reg/pay";
+    expect(registered(START, typed, pay)).toEqual({
+      attempt: 1,
+      values: typed,
+      errors: [],
+      refusal: null,
+      unexpected: false,
+      askGuardian: false,
+      destination: pay,
     });
   });
 });

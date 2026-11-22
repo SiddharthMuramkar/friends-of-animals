@@ -19,6 +19,7 @@ import {
   studentImportPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
 import type {
   EnrolledStudent,
@@ -30,6 +31,7 @@ import {
   chooseInstitution,
 } from "../../competitions/_lib/register-state";
 import { withdrawStudentAction } from "./_lib/actions";
+import { feeSummary, type FeeSummary } from "./_lib/fee-summary";
 import { isStudentsOutcome } from "./_lib/student-form-state";
 
 // Render the document on each request so its scripts carry the CSP nonce
@@ -100,16 +102,14 @@ async function Students({
 }: Pick<Props, "params" | "searchParams">) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [{ ref }, query, t, callout, importWords, payWords, access] =
-    await Promise.all([
-      params,
-      searchParams,
-      getTranslations("institutionRegistration.students"),
-      getTranslations("common.callout"),
-      getTranslations("studentImport"),
-      getTranslations("payments.pay"),
-      as(actor).myAccess(),
-    ]);
+  const [{ ref }, query, t, callout, importWords, access] = await Promise.all([
+    params,
+    searchParams,
+    getTranslations("institutionRegistration.students"),
+    getTranslations("common.callout"),
+    getTranslations("studentImport"),
+    as(actor).myAccess(),
+  ]);
 
   const institutionId = chooseInstitution(
     actingInstitutions(access.grants),
@@ -210,19 +210,12 @@ async function Students({
         ) : (
           <p className="text-ink">{t(`enrolment.${enrolment}`)}</p>
         )}
-        {list.counts.enrolled > 0 ? (
-          <p>
-            {/* A full load: the pay page's CSP and headers come with its
-                document. */}
-            <a
-              href={payFeesPath(list.reference, institutionId)}
-              className={buttonStyles({ variant: "secondary" })}
-            >
-              {payWords("link", { count: list.counts.enrolled })}
-            </a>
-          </p>
-        ) : null}
       </div>
+
+      <Fees
+        summary={feeSummary(list.counts)}
+        payHref={payFeesPath(list.reference, institutionId)}
+      />
 
       <section aria-labelledby="students-list">
         <SectionHeading id="students-list" title={t("listTitle")} />
@@ -259,6 +252,53 @@ async function Students({
   );
 }
 
+/**
+ * What the registration's fees come to (#77): how many students wait for
+ * their fee and how many are confirmed, and "Pay fees" while some wait.
+ * Nothing before a student is enrolled.
+ */
+async function Fees({
+  summary,
+  payHref,
+}: {
+  summary: FeeSummary;
+  payHref: string;
+}) {
+  if (summary.kind === "none") return null;
+  const [t, payWords] = await Promise.all([
+    getTranslations("payments.summary"),
+    getTranslations("payments.pay"),
+  ]);
+  return (
+    <section aria-labelledby="fees-summary" className={CARD}>
+      <SectionHeading id="fees-summary" title={t("title")} />
+      {summary.kind === "paid" ? (
+        <p className="mt-3 text-ink">{t("paid")}</p>
+      ) : null}
+      <dl className="mt-4 grid grid-cols-[1fr_auto] gap-x-4 gap-y-3 text-ink">
+        {summary.kind === "unpaid" ? (
+          <>
+            <dt>{t("waiting")}</dt>
+            <dd className="text-end font-semibold">{summary.unpaid}</dd>
+          </>
+        ) : null}
+        <dt>{t("confirmed")}</dt>
+        <dd className="text-end font-semibold">{summary.confirmed}</dd>
+      </dl>
+      {summary.kind === "unpaid" ? (
+        // A full load: the pay page's CSP and headers come with its
+        // document.
+        <a
+          href={payHref}
+          className={cn(buttonStyles({ variant: "primary" }), "mt-5")}
+        >
+          {payWords("link", { count: summary.unpaid })}
+        </a>
+      ) : null}
+    </section>
+  );
+}
+
 async function StudentCard({
   student,
   withdraw,
@@ -287,6 +327,11 @@ async function StudentCard({
       {student.grade ? (
         <p className="mt-1 text-ink-muted wrap-anywhere">
           {t("grade", { grade: student.grade })}
+        </p>
+      ) : null}
+      {student.registrationNumber ? (
+        <p className="mt-1 font-mono text-ink">
+          {t("number", { number: student.registrationNumber })}
         </p>
       ) : null}
       {withdraw ? (

@@ -5,9 +5,15 @@ import type { Actor } from "@/server/actor";
 import { auditLog, registration } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import { signedInStaff } from "@/server/modules/institutions/testing";
+import {
+  enrol as enrolNth,
+  openOrder,
+  schoolWithStudents,
+} from "@/server/modules/payments/testing";
 import { createHarness, type Harness } from "@/test/harness";
 import { seedInstitution } from "@/test/institutions";
 
+import { REGISTRATION_NUMBER } from "./domain/registration-number";
 import { AANYA, registeredSchool, signInCoordinator } from "./testing";
 
 type School = Awaited<ReturnType<typeof registeredSchool>>;
@@ -83,6 +89,7 @@ describe("listEnrolledStudents", () => {
           grade: "Class 4",
           ageGroupLabel: "10–13",
           status: "enrolled",
+          registrationNumber: null,
         },
         {
           registrationId: ben,
@@ -90,6 +97,7 @@ describe("listEnrolledStudents", () => {
           grade: "Class 1",
           ageGroupLabel: "6–9",
           status: "withdrawn",
+          registrationNumber: null,
         },
         {
           registrationId: zara,
@@ -97,6 +105,7 @@ describe("listEnrolledStudents", () => {
           grade: null,
           ageGroupLabel: "10–13",
           status: "enrolled",
+          registrationNumber: null,
         },
       ],
     });
@@ -129,6 +138,54 @@ describe("listEnrolledStudents", () => {
       students: [],
     });
     expect(after).toMatchObject({ ok: true, enrolment: "closed" });
+  });
+
+  it("shows each confirmed student's registration number once their fee is paid, and none while it waits", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 3 });
+    const { batchId, orderId } = await openOrder(school);
+    await h.as(school.coordinator.actor).confirmCheckout({
+      institutionId: school.institutionId,
+      batchId,
+      ...h.gateway.capture(orderId),
+    });
+    await enrolNth(h, school, 4);
+
+    const result = await h.as(school.coordinator.actor).listEnrolledStudents({
+      institutionId: school.institutionId,
+      reference: school.reference,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      counts: { enrolled: 1, confirmed: 3, withdrawn: 0 },
+    });
+    const students = result.ok ? result.students : [];
+    expect(
+      students.map(({ fullName, status, registrationNumber }) => [
+        fullName,
+        status,
+        registrationNumber,
+      ])
+    ).toEqual([
+      [
+        "Student A Rao",
+        "confirmed",
+        expect.stringMatching(REGISTRATION_NUMBER),
+      ],
+      [
+        "Student B Rao",
+        "confirmed",
+        expect.stringMatching(REGISTRATION_NUMBER),
+      ],
+      [
+        "Student C Rao",
+        "confirmed",
+        expect.stringMatching(REGISTRATION_NUMBER),
+      ],
+      ["Student D Rao", "enrolled", null],
+    ]);
+    expect(new Set(students.map((s) => s.registrationNumber)).size).toBe(4);
   });
 
   it("reads the reference as a URL or a person may carry it: any case, O for 0", async () => {

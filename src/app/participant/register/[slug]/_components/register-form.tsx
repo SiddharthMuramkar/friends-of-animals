@@ -1,7 +1,7 @@
 "use client";
 
 import { OctagonAlert } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 import {
   FormAlert,
@@ -52,8 +52,13 @@ export type RegisterFormLabels = {
   submit: string;
   submitting: string;
   dashboardLink: string;
-  /** common.callout.danger: meaning never by colour alone. */
+  /** Registered, while the next page loads. */
+  registered: string;
+  /** The next page's link, for a browser that doesn't load it by itself. */
+  continueLink: string;
+  /** common.callout words: meaning never by colour alone. */
   problem: string;
+  success: string;
 };
 
 const FIELDSET =
@@ -65,7 +70,8 @@ const LEGEND = "px-2 text-lead font-bold text-ink";
  * the action returns what to fix, or a refusal, and keeps what was typed.
  * A child's, or a linked teen's, name and date of birth are the profile's:
  * `kept` shows them in place of their fields. A teen on their own is asked
- * for their parent or guardian once registering says so.
+ * for their parent or guardian once registering says so. Once registered,
+ * it hands back the next page, which the browser loads.
  */
 export function RegisterForm({
   competitionSlug,
@@ -84,7 +90,13 @@ export function RegisterForm({
     registerAsIndividualAction.bind(null, competitionSlug, forChildId),
     START
   );
-  const { values } = state;
+  const { values, destination } = state;
+  // Registered: the next page (the pay page), loaded in full so its CSP
+  // and headers come with its own document. A client-side navigation would
+  // keep this page's.
+  useEffect(() => {
+    if (destination) window.location.assign(destination);
+  }, [destination]);
   const errorOf = (field: FormField): string | undefined => {
     if (!state.errors.includes(field)) return undefined;
     // A refusal tied to the field says why in its own words.
@@ -131,6 +143,20 @@ export function RegisterForm({
         : state.errors.length > 0
           ? labels.problems
           : null;
+
+  if (destination) {
+    return (
+      <FormAlert tone="success" label={labels.success}>
+        <p>{labels.registered}</p>
+        <p>
+          {/* A plain link: a full load, like the one above. */}
+          <a href={destination} className={inlineLink}>
+            {labels.continueLink}
+          </a>
+        </p>
+      </FormAlert>
+    );
+  }
 
   return (
     <form

@@ -221,7 +221,10 @@ async function Register({
     submit: t("submit"),
     submitting: t("submitting"),
     dashboardLink: t("dashboardLink"),
+    registered: t("registered"),
+    continueLink: t("continueLink"),
     problem: callout("danger"),
+    success: callout("success"),
   };
 
   return (

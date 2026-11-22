@@ -47,6 +47,14 @@ export type RegisterFormState = {
   unexpected: boolean;
   /** Show the parent or guardian fields: a teen on their own needs them. */
   askGuardian: boolean;
+  /**
+   * Registered: the page to go on to (the pay page, or the dashboard for a
+   * registration held for a guardian), which the browser loads in full. The
+   * pay page's CSP (Razorpay's origins) and headers come only with its own
+   * document, which a server action's redirect, a client-side navigation,
+   * would not fetch.
+   */
+  destination: string | null;
 };
 
 export const START: RegisterFormState = {
@@ -69,6 +77,7 @@ export const START: RegisterFormState = {
   refusal: null,
   unexpected: false,
   askGuardian: false,
+  destination: null,
 };
 
 /** What the form sent, every field as a string. */
@@ -117,14 +126,7 @@ export function afterResult(
   values: RegisterFormValues,
   result: Exclude<RegisterAsIndividualResult, { ok: true }> | "unexpected"
 ): RegisterFormState {
-  const base = {
-    attempt: previous.attempt + 1,
-    values,
-    errors: [] as FormField[],
-    refusal: null,
-    unexpected: false,
-    askGuardian: previous.askGuardian,
-  };
+  const base = next(previous, values);
   if (result === "unexpected") return { ...base, unexpected: true };
   if (result.error === "invalid_input") {
     const fields = new Set(result.fields);
@@ -139,5 +141,33 @@ export function afterResult(
     refusal: result.error,
     errors: field ? [field] : [],
     askGuardian: base.askGuardian || GUARDIAN_REFUSALS.includes(result.error),
+  };
+}
+
+/**
+ * The form once registered: on to `destination`, such as the pay page or,
+ * for a registration held for a guardian, the dashboard.
+ */
+export function registered(
+  previous: RegisterFormState,
+  values: RegisterFormValues,
+  destination: string
+): RegisterFormState {
+  return { ...next(previous, values), destination };
+}
+
+/** A submission's state before what came of it. */
+function next(
+  previous: RegisterFormState,
+  values: RegisterFormValues
+): RegisterFormState {
+  return {
+    attempt: previous.attempt + 1,
+    values,
+    errors: [],
+    refusal: null,
+    unexpected: false,
+    askGuardian: previous.askGuardian,
+    destination: null,
   };
 }

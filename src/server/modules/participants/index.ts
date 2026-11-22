@@ -18,6 +18,10 @@ import {
   payForMyRegistration,
   type PayForMyRegistrationInput,
 } from "./pay-for-my-registration";
+import {
+  payMyTestCheckout,
+  type PayMyTestCheckoutInput,
+} from "./pay-my-test-checkout";
 import { individualRegistrationForm } from "./registration-form";
 import {
   registerAsIndividual,
@@ -36,6 +40,10 @@ export type {
   PayForMyRegistrationResult,
 } from "./pay-for-my-registration";
 export type {
+  PayMyTestCheckoutInput,
+  PayMyTestCheckoutResult,
+} from "./pay-my-test-checkout";
+export type {
   RegisterAsIndividualInput,
   RegisterAsIndividualResult,
 } from "./register-as-individual";
@@ -47,6 +55,8 @@ export const participantsUseCases = (ctx: UseCaseContext) => ({
     payForMyRegistration(ctx, input),
   confirmMyPayment: (input: ConfirmMyPaymentInput) =>
     confirmMyPayment(ctx, input),
+  payMyTestCheckout: (input: PayMyTestCheckoutInput) =>
+    payMyTestCheckout(ctx, input),
   listMyRegistrations: () => listMyRegistrations(ctx),
   hasMyRegistrations: () => hasMyRegistrations(ctx),
   individualRegistrationForm: (input: {
