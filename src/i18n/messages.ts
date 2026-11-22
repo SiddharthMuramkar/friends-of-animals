@@ -5,55 +5,117 @@
 import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
+import adminInbox from "../../messages/en-IN/adminInbox.json";
+import adminSettings from "../../messages/en-IN/adminSettings.json";
+import admin from "../../messages/en-IN/admin.json";
+import adminAudit from "../../messages/en-IN/adminAudit.json";
+import adminTemplates from "../../messages/en-IN/adminTemplates.json";
+import adminRoles from "../../messages/en-IN/adminRoles.json";
+import adminCompetitions from "../../messages/en-IN/adminCompetitions.json";
+import adminCms from "../../messages/en-IN/adminCms.json";
+import adminBlog from "../../messages/en-IN/adminBlog.json";
+import adminInstitutions from "../../messages/en-IN/adminInstitutions.json";
+import adminSafeguarding from "../../messages/en-IN/adminSafeguarding.json";
+import adminRubrics from "../../messages/en-IN/adminRubrics.json";
+import adminCompetitionTerms from "../../messages/en-IN/adminCompetitionTerms.json";
 import auth from "../../messages/en-IN/auth.json";
+import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
+import competitionTerms from "../../messages/en-IN/competitionTerms.json";
+import consent from "../../messages/en-IN/consent.json";
+import consentAdmin from "../../messages/en-IN/consentAdmin.json";
+import competitionStatus from "../../messages/en-IN/competitionStatus.json";
 import contact from "../../messages/en-IN/contact.json";
+import coordinators from "../../messages/en-IN/coordinators.json";
+import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
+import dashboard from "../../messages/en-IN/dashboard.json";
 import donate from "../../messages/en-IN/donate.json";
-import emails from "../../messages/en-IN/emails.json";
 import error from "../../messages/en-IN/error.json";
+import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
+import inbox from "../../messages/en-IN/inbox.json";
+import institutions from "../../messages/en-IN/institutions.json";
+import judgingGuide from "../../messages/en-IN/judgingGuide.json";
+import institutionRegistration from "../../messages/en-IN/institutionRegistration.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
+import notificationSettings from "../../messages/en-IN/notificationSettings.json";
+import participant from "../../messages/en-IN/participant.json";
 import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
+import safeguardingReport from "../../messages/en-IN/safeguardingReport.json";
+import registration from "../../messages/en-IN/registration.json";
 import sample from "../../messages/en-IN/sample.json";
 import schools from "../../messages/en-IN/schools.json";
+import security from "../../messages/en-IN/security.json";
 import showcase from "../../messages/en-IN/showcase.json";
 import stories from "../../messages/en-IN/stories.json";
 import styleguide from "../../messages/en-IN/styleguide.json";
+import studentImport from "../../messages/en-IN/studentImport.json";
 
 export const NAMESPACES = [
   "a11y",
   "about",
   "account",
+  "adminInbox",
+  "adminSettings",
+  "admin",
+  "adminAudit",
+  "adminTemplates",
+  "adminRoles",
+  "adminCompetitions",
+  "adminCms",
+  "adminInstitutions",
+  "adminSafeguarding",
+  "adminBlog",
+  "adminRubrics",
+  "adminCompetitionTerms",
   "auth",
+  "authPhone",
   "awareness",
   "common",
   "competitions",
+  "competitionTerms",
+  "consent",
+  "consentAdmin",
+  "competitionStatus",
   "contact",
+  "coordinators",
+  "contactForm",
   "credits",
+  "dashboard",
   "donate",
-  "emails",
   "error",
+  "files",
   "footer",
   "home",
   "impact",
+  "inbox",
+  "institutions",
+  "judgingGuide",
+  "institutionRegistration",
   "legal",
   "nav",
   "notFound",
+  "notificationSettings",
+  "participant",
   "pricing",
   "refunds",
+  "safeguardingReport",
+  "registration",
   "sample",
   "schools",
+  "security",
   "showcase",
   "stories",
   "styleguide",
+  "studentImport",
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
@@ -63,28 +125,59 @@ export const messages = {
   ...a11y,
   ...about,
   ...account,
+  ...adminInbox,
+  ...adminSettings,
+  ...admin,
+  ...adminAudit,
+  ...adminTemplates,
+  ...adminRoles,
+  ...adminCompetitions,
+  ...adminCms,
+  ...adminInstitutions,
+  ...adminSafeguarding,
+  ...adminBlog,
+  ...adminRubrics,
+  ...adminCompetitionTerms,
   ...auth,
+  ...authPhone,
   ...awareness,
   ...common,
   ...competitions,
+  ...competitionTerms,
+  ...consent,
+  ...consentAdmin,
+  ...competitionStatus,
   ...contact,
+  ...coordinators,
+  ...contactForm,
   ...credits,
+  ...dashboard,
   ...donate,
-  ...emails,
   ...error,
+  ...files,
   ...footer,
   ...home,
   ...impact,
+  ...inbox,
+  ...institutions,
+  ...judgingGuide,
+  ...institutionRegistration,
   ...legal,
   ...nav,
   ...notFound,
+  ...notificationSettings,
+  ...participant,
   ...pricing,
   ...refunds,
+  ...safeguardingReport,
+  ...registration,
   ...sample,
   ...schools,
+  ...security,
   ...showcase,
   ...stories,
   ...styleguide,
+  ...studentImport,
 };
 
 export type Messages = typeof messages;

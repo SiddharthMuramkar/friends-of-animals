@@ -41,7 +41,7 @@ describe("STUDENT_CSV_COLUMNS", () => {
 
 describe("studentCsvTemplate", () => {
   it("is the header row alone, with a byte order mark for spreadsheets", () => {
-    expect(studentCsvTemplate()).toBe(`﻿${HEADER.join(",")}\r\n`);
+    expect(studentCsvTemplate()).toBe(`\uFEFF${HEADER.join(",")}\r\n`);
   });
 
   it("reads back as a file with the right columns and no rows", () => {
@@ -107,7 +107,7 @@ describe("readStudentCsv", () => {
 
   it("tolerates a byte order mark", () => {
     const result = readStudentCsv(
-      bytes("﻿full_name,date_of_birth\nAsha Iyer,2001-01-01\n")
+      bytes("\uFEFFfull_name,date_of_birth\nAsha Iyer,2001-01-01\n")
     );
     expect(result.ok && result.file.header).toEqual([
       "full_name",
@@ -199,7 +199,7 @@ describe("readStudentCsv", () => {
       ok: false,
       problem: { code: "empty" },
     });
-    expect(readStudentCsv(bytes("﻿ \r\n"))).toEqual({
+    expect(readStudentCsv(bytes("\uFEFF \r\n"))).toEqual({
       ok: false,
       problem: { code: "empty" },
     });
@@ -289,6 +289,153 @@ describe("readStudentCsv", () => {
     expect(file.length).toBeLessThanOrEqual(STUDENT_IMPORT_LIMITS.maxBytes);
     expect(readStudentCsv(file).ok).toBe(true);
   });
+
+  it("accepts the column limit and refuses one column more", () => {
+    const limits = { ...STUDENT_IMPORT_LIMITS, maxColumns: 4 };
+    const file = (extra: string) =>
+      bytes(`full_name,date_of_birth,${extra}\nAsha Iyer,2001-01-01\n`);
+    expect(readStudentCsv(file("a,b"), limits).ok).toBe(true);
+    expect(readStudentCsv(file("a,b,c"), limits)).toEqual({
+      ok: false,
+      problem: { code: "too_many_columns", maxColumns: 4, columns: 5 },
+    });
+  });
+
+  it("leaves the error report's own columns out of the column limit, so a report of a full file reads back", () => {
+    const limits = { ...STUDENT_IMPORT_LIMITS, maxColumns: 3 };
+    const report = formatStudentImportReport(
+      ["full_name", "date_of_birth", "section"],
+      [{ rowNumber: 2, cells: ["Asha Iyer", "2001-01-01", "B"], problems: [] }]
+    );
+    expect(readStudentCsv(bytes(report), limits).ok).toBe(true);
+  });
+
+  it("refuses the error report's own columns twice", () => {
+    expect(
+      readStudentCsv(
+        bytes(
+          "full_name,date_of_birth,problems,Problems\nAsha Iyer,2001-01-01,,\n"
+        )
+      )
+    ).toEqual({
+      ok: false,
+      problem: { code: "duplicate_columns", columns: ["problems"] },
+    });
+  });
+
+  it("leaves out blank header cells after the last named column, as spreadsheets write them", () => {
+    const result = readStudentCsv(
+      bytes(
+        "full_name,date_of_birth,,,\n" +
+          "Asha Iyer,2001-01-01,,,\n" +
+          "Ravi Kumar,2001-01-01,,oops,\n"
+      )
+    );
+    expect(result).toEqual({
+      ok: true,
+      file: {
+        header: ["full_name", "date_of_birth"],
+        ignoredColumns: [],
+        rows: [
+          expect.objectContaining({
+            rowNumber: 2,
+            cells: ["Asha Iyer", "2001-01-01"],
+            extraCells: false,
+          }),
+          // A cell under no column name is a shifted row, as beyond the header.
+          expect.objectContaining({
+            rowNumber: 3,
+            cells: ["Ravi Kumar", "2001-01-01"],
+            extraCells: true,
+          }),
+        ],
+      },
+    });
+  });
+
+  it("doesn't list a column with a blank name as left out", () => {
+    const result = readStudentCsv(
+      bytes("full_name, ,date_of_birth\nAsha Iyer,B,2001-01-01\n")
+    );
+    expect(result.ok && result.file.ignoredColumns).toEqual([]);
+    expect(result.ok && result.file.rows[0]?.input).toEqual({
+      fullName: "Asha Iyer",
+      dateOfBirth: "2001-01-01",
+    });
+  });
+
+  it("finds the header row below blank rows, and keeps counting them", () => {
+    const result = readStudentCsv(
+      bytes("\r\n,,\r\nfull_name,date_of_birth\r\nAsha Iyer,2001-01-01\r\n")
+    );
+    expect(result.ok && result.file.header).toEqual([
+      "full_name",
+      "date_of_birth",
+    ]);
+    expect(result.ok && result.file.rows.map((row) => row.rowNumber)).toEqual([
+      4,
+    ]);
+  });
+
+  // A file under the size limit can still name a huge number of columns or
+  // rows: refused before a single row is read into cells, or it runs the
+  // server out of memory.
+  it("refuses 150,000 columns in a file under the size limit", () => {
+    const file = bytes(
+      "full_name,date_of_birth" +
+        ",x".repeat(150_000) +
+        "\n" +
+        "N,1\n".repeat(30_000)
+    );
+    expect(file.length).toBeLessThanOrEqual(STUDENT_IMPORT_LIMITS.maxBytes);
+    expect(readStudentCsv(file)).toEqual({
+      ok: false,
+      problem: {
+        code: "too_many_columns",
+        maxColumns: STUDENT_IMPORT_LIMITS.maxColumns,
+        columns: 150_002,
+      },
+    });
+  });
+
+  it("refuses 30,000 rows under a header padded with 150,000 blank cells", () => {
+    const file = bytes(
+      "full_name,date_of_birth" +
+        ",".repeat(150_000) +
+        "\n" +
+        "x,1\n".repeat(30_000)
+    );
+    expect(file.length).toBeLessThanOrEqual(STUDENT_IMPORT_LIMITS.maxBytes);
+    expect(readStudentCsv(file)).toEqual({
+      ok: false,
+      problem: {
+        code: "too_many_rows",
+        maxRows: STUDENT_IMPORT_LIMITS.maxRows,
+        rows: 30_000,
+      },
+    });
+  });
+
+  it("refuses too many rows of a file at the column limit", () => {
+    const header = [
+      "full_name",
+      "date_of_birth",
+      ...Array.from(
+        { length: STUDENT_IMPORT_LIMITS.maxColumns - 2 },
+        (_, n) => `c${n}`
+      ),
+    ].join(",");
+    const file = bytes(header + "\n" + "x\n".repeat(300_000));
+    expect(file.length).toBeLessThanOrEqual(STUDENT_IMPORT_LIMITS.maxBytes);
+    expect(readStudentCsv(file)).toEqual({
+      ok: false,
+      problem: {
+        code: "too_many_rows",
+        maxRows: STUDENT_IMPORT_LIMITS.maxRows,
+        rows: 300_000,
+      },
+    });
+  });
 });
 
 describe("formatStudentImportReport", () => {
@@ -311,7 +458,7 @@ describe("formatStudentImportReport", () => {
         },
       ]
     );
-    expect(report.startsWith("﻿")).toBe(true);
+    expect(report.startsWith("\uFEFF")).toBe(true);
     expect(parseCsv(report)).toEqual({
       ok: true,
       records: [
@@ -381,7 +528,7 @@ describe("formatStudentImportReport", () => {
       ]
     );
     expect(report).toBe(
-      "﻿" +
+      "\uFEFF" +
         formatCsv([
           ["full_name", "date_of_birth", "row_number", "problems"],
           ["Asha", "", "2", "p"],

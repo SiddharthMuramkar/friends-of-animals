@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { formatCsv, neutraliseFormula, parseCsv, restoreFormula } from "./csv";
+import {
+  CsvSyntaxError,
+  csvRecords,
+  formatCsv,
+  neutraliseFormula,
+  parseCsv,
+  restoreFormula,
+} from "./csv";
 
 describe("parseCsv", () => {
   it("reads comma-separated records", () => {
@@ -76,7 +83,7 @@ describe("parseCsv", () => {
   });
 
   it("drops a leading byte order mark", () => {
-    expect(parseCsv("﻿a,b")).toEqual({ ok: true, records: [["a", "b"]] });
+    expect(parseCsv("\uFEFFa,b")).toEqual({ ok: true, records: [["a", "b"]] });
   });
 
   it("keeps Indic scripts and emoji as they are", () => {
@@ -108,6 +115,17 @@ describe("parseCsv", () => {
       reason: "text_after_quote",
       line: 3,
     });
+  });
+});
+
+describe("csvRecords", () => {
+  it("reads one record at a time, so a reader can stop before the rest", () => {
+    const records = csvRecords('a,b\n1,2\n"never closed');
+    expect(records.next()).toEqual({ done: false, value: ["a", "b"] });
+    expect(records.next()).toEqual({ done: false, value: ["1", "2"] });
+    expect(() => records.next()).toThrow(
+      new CsvSyntaxError("unterminated_quote", 3)
+    );
   });
 });
 
@@ -145,12 +163,15 @@ describe("neutraliseFormula", () => {
     ["@cmd", "'@cmd"],
     ["\tx", "'\tx"],
     ["\rx", "'\rx"],
+    ["\nx", "'\nx"],
+    [" =1", "' =1"],
+    ["  +91 98765 43210", "'  +91 98765 43210"],
     ["'=already quoted", "''=already quoted"],
   ])("prefixes %j so a spreadsheet shows it as text", (cell, safe) => {
     expect(neutraliseFormula(cell)).toBe(safe);
   });
 
-  it.each(["Aanya Rao", "2016-03-09", "", "'quoted", "a=b", " =1"])(
+  it.each(["Aanya Rao", "2016-03-09", "", "'quoted", "a=b", " a=1", " "])(
     "leaves %j as it is",
     (cell) => {
       expect(neutraliseFormula(cell)).toBe(cell);
@@ -163,6 +184,8 @@ describe("restoreFormula", () => {
     ["'+91 98765 43210", "+91 98765 43210"],
     ["'=SUM(A1)", "=SUM(A1)"],
     ["''=x", "'=x"],
+    ["' =1", " =1"],
+    ["'\nx", "\nx"],
   ])("removes the prefix neutraliseFormula added to %j", (cell, original) => {
     expect(restoreFormula(cell)).toBe(original);
   });
@@ -180,6 +203,9 @@ describe("restoreFormula", () => {
     "-",
     "@x",
     "\tx",
+    "\nx",
+    " =1",
+    "' @x",
     "'=x",
     "''@x",
     "plain",

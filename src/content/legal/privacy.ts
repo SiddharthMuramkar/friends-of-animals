@@ -29,11 +29,10 @@ export const privacy: LegalDoc = {
       blocks: [
         {
           p: [
-            "Friends of Animals (registered name: ",
-            { fact: "legalName" },
-            ") runs this website and its programmes. We decide why and how your personal data is used, which makes us the “data fiduciary” under India’s Digital Personal Data Protection Act, 2023. Our postal address is ",
-            { fact: "address" },
-            ".",
+            "Friends of Animals",
+            { clause: [" (registered name: ", { fact: "legalName" }, ")"] },
+            " runs this website and its programmes. We decide why and how your personal data is used, which makes us the “data fiduciary” under India’s Digital Personal Data Protection Act, 2023.",
+            { clause: [" Our postal address is ", { fact: "address" }, "."] },
           ],
         },
         {
@@ -244,7 +243,12 @@ export const privacy: LegalDoc = {
         },
         {
           p: [
-            "Write to our grievance officer (details below). We acknowledge every request within 48 hours and resolve it within 30 days. Every reply names the person you can contact. If you are not satisfied, you can complain to the Data Protection Board of India.",
+            {
+              clause: ["Write to our grievance officer (details below)."],
+              needs: ["grievanceOfficerEmail"],
+              otherwise: ["Our grievance officer handles these requests."],
+            },
+            " We acknowledge every request within 48 hours and resolve it within 30 days. Every reply names the person you can contact. If you are not satisfied, you can complain to the Data Protection Board of India.",
           ],
         },
       ],
@@ -255,9 +259,9 @@ export const privacy: LegalDoc = {
       blocks: [
         {
           list: [
-            ["Name: ", { fact: "grievanceOfficerName" }],
-            ["Email: ", { fact: "grievanceOfficerEmail" }],
-            ["Post: ", { fact: "address" }],
+            [{ clause: ["Name: ", { fact: "grievanceOfficerName" }] }],
+            [{ clause: ["Email: ", { fact: "grievanceOfficerEmail" }] }],
+            [{ clause: ["Post: ", { fact: "address" }] }],
           ],
         },
       ],

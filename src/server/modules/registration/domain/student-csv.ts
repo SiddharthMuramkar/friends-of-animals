@@ -10,24 +10,18 @@
 //
 // Pure. Loads under plain Node.
 
-import { formatCsv, neutraliseFormula, parseCsv, restoreFormula } from "./csv";
+import {
+  BOM,
+  CsvSyntaxError,
+  csvRecords,
+  formatCsv,
+  neutraliseFormula,
+  restoreFormula,
+} from "./csv";
+import type { StudentField } from "./student-details";
 
 /** The student details a column fills: #75's StudentInput keys. */
-export type StudentCsvField =
-  | "studentRef"
-  | "fullName"
-  | "dateOfBirth"
-  | "grade"
-  | "guardianName"
-  | "guardianRelationship"
-  | "guardianPhone"
-  | "guardianEmail"
-  | "phone"
-  | "email"
-  | "address"
-  | "pinCode"
-  | "city"
-  | "state";
+export type StudentCsvField = StudentField;
 
 /**
  * When a column must be filled in: always, for a student under 18, for an
@@ -72,17 +66,28 @@ const ROW_NUMBER = "row_number";
 const PROBLEMS = "problems";
 const REPORT_HEADERS: ReadonlySet<string> = new Set([ROW_NUMBER, PROBLEMS]);
 
-export type StudentImportLimits = { maxRows: number; maxBytes: number };
+export type StudentImportLimits = {
+  maxRows: number;
+  maxBytes: number;
+  /** Not counting the error report's own two columns. */
+  maxColumns: number;
+};
 
 /**
  * 1,000 rows, as the brief's prior art set. 750 KiB rather than its 2 MB:
  * the file arrives through a Server Action, which Next caps at 1 MB
  * including the form's other fields, and a full 1,000-row file of long
- * addresses is still well under 300 KB.
+ * addresses is still well under 300 KB. 40 columns: the template's 14 and
+ * room for an institution's own. The byte limit alone doesn't bound the
+ * work, since every row is read out to the header's width: a 300 KB
+ * header of 150,000 one-letter names over 30,000 short rows would be 4.5
+ * billion cells. So the columns and the rows are counted before any row
+ * is read into cells.
  */
 export const STUDENT_IMPORT_LIMITS: StudentImportLimits = {
   maxRows: 1000,
   maxBytes: 750 * 1024,
+  maxColumns: 40,
 };
 
 export type StudentCsvInput = Partial<Record<StudentCsvField, string>>;
@@ -119,6 +124,7 @@ export type StudentCsvProblem =
     }
   | { code: "missing_columns"; columns: string[] }
   | { code: "duplicate_columns"; columns: string[] }
+  | { code: "too_many_columns"; maxColumns: number; columns: number }
   | { code: "no_rows" }
   | { code: "too_many_rows"; maxRows: number; rows: number };
 
@@ -127,7 +133,7 @@ export type StudentCsvResult =
   | { ok: false; problem: StudentCsvProblem };
 
 /** "Date of Birth", " date-of-birth " and "DATE_OF_BIRTH" all match. */
-function normaliseHeader(header: string): string {
+export function normaliseHeader(header: string): string {
   return header
     .trim()
     .toLowerCase()
@@ -135,17 +141,24 @@ function normaliseHeader(header: string): string {
 }
 
 const isBlank = (cell: string) => cell.trim() === "";
+const isBlankRow = (record: readonly string[]) => record.every(isBlank);
+
+/**
+ * Spreadsheets write a cell for every column that was ever touched, so a
+ * header can end in any number of blank cells that name nothing. A row's
+ * cell under one of them counts as beyond the last column.
+ */
+function withoutTrailingBlanks(header: readonly string[]): string[] {
+  let end = header.length;
+  while (end > 0 && isBlank(header[end - 1]!)) end -= 1;
+  return header.slice(0, end);
+}
 
 /** Reads an uploaded file, or says why it can't be read. */
 export function readStudentCsv(
   bytes: Uint8Array,
   limits: StudentImportLimits = STUDENT_IMPORT_LIMITS
 ): StudentCsvResult {
-  const refuse = (problem: StudentCsvProblem): StudentCsvResult => ({
-    ok: false,
-    problem,
-  });
-
   if (bytes.length > limits.maxBytes) {
     return refuse({ code: "too_large", maxBytes: limits.maxBytes });
   }
@@ -158,15 +171,45 @@ export function readStudentCsv(
   }
   if (text.trim() === "") return refuse({ code: "empty" });
 
-  const parsed = parseCsv(text);
-  if (!parsed.ok) {
+  try {
+    return readRecords(csvRecords(text), limits);
+  } catch (error) {
+    if (!(error instanceof CsvSyntaxError)) throw error;
     return refuse({
       code: "malformed",
-      reason: parsed.reason,
-      line: parsed.line,
+      reason: error.reason,
+      line: error.line,
     });
   }
-  const [header = [], ...records] = parsed.records;
+}
+
+const refuse = (problem: StudentCsvProblem): StudentCsvResult => ({
+  ok: false,
+  problem,
+});
+
+/**
+ * The header, then the rows, one record at a time: a blank record is only
+ * counted, and the rows past the limit only counted, so the work and the
+ * memory stay within the limits whatever the file holds.
+ */
+function readRecords(
+  records: Iterator<string[]>,
+  limits: StudentImportLimits
+): StudentCsvResult {
+  // The header is the first row that isn't blank; rows above it still
+  // count in row numbers, as the spreadsheet numbers them.
+  let rowNumber = 0;
+  let first: string[] | undefined;
+  for (let next = records.next(); !next.done; next = records.next()) {
+    rowNumber += 1;
+    if (!isBlankRow(next.value)) {
+      first = next.value;
+      break;
+    }
+  }
+  if (!first) return refuse({ code: "empty" });
+  const header = withoutTrailingBlanks(first);
 
   if (header.length === 1) {
     const only = header[0] ?? "";
@@ -179,17 +222,27 @@ export function readStudentCsv(
   }
 
   const names = header.map(normaliseHeader);
+  // Before anything is done per column or per row.
+  const width = names.filter((name) => !REPORT_HEADERS.has(name)).length;
+  if (width > limits.maxColumns) {
+    return refuse({
+      code: "too_many_columns",
+      maxColumns: limits.maxColumns,
+      columns: width,
+    });
+  }
+
   const columns = new Map<number, StudentCsvColumn>();
   const ignoredColumns: string[] = [];
   const seen = new Set<string>();
   const duplicates = new Set<string>();
   names.forEach((name, index) => {
     const column = STUDENT_CSV_COLUMNS.find((known) => known.header === name);
-    if (column) {
+    if (column || REPORT_HEADERS.has(name)) {
       if (seen.has(name)) duplicates.add(name);
       seen.add(name);
-      columns.set(index, column);
-    } else if (!REPORT_HEADERS.has(name)) {
+      if (column) columns.set(index, column);
+    } else if (name !== "") {
       ignoredColumns.push(header[index] ?? "");
     }
   });
@@ -197,9 +250,10 @@ export function readStudentCsv(
   if (duplicates.size > 0) {
     return refuse({
       code: "duplicate_columns",
-      columns: STUDENT_CSV_COLUMNS.map((column) => column.header).filter(
-        (name) => duplicates.has(name)
-      ),
+      columns: [
+        ...STUDENT_CSV_COLUMNS.map((column) => column.header),
+        ...REPORT_HEADERS,
+      ].filter((name) => duplicates.has(name)),
     });
   }
   const missing = REQUIRED_HEADERS.filter((name) => !seen.has(name));
@@ -208,33 +262,37 @@ export function readStudentCsv(
   }
 
   const rows: StudentCsvRow[] = [];
-  records.forEach((record, index) => {
-    if (record.every(isBlank)) return;
+  let filled = 0;
+  for (let next = records.next(); !next.done; next = records.next()) {
+    rowNumber += 1;
+    const record = next.value;
+    if (isBlankRow(record)) continue;
+    filled += 1;
+    // Past the limit a row is only counted, for the refusal below.
+    if (filled > limits.maxRows) continue;
     const cells = header.map((_, column) =>
       restoreFormula(record[column] ?? "")
     );
     const input: StudentCsvInput = {};
     for (const [column, { field }] of columns) input[field] = cells[column];
     rows.push({
-      rowNumber: index + 2,
+      rowNumber,
       cells,
       input,
       extraCells: record.slice(header.length).some((cell) => !isBlank(cell)),
     });
-  });
+  }
 
-  if (rows.length === 0) return refuse({ code: "no_rows" });
-  if (rows.length > limits.maxRows) {
+  if (filled === 0) return refuse({ code: "no_rows" });
+  if (filled > limits.maxRows) {
     return refuse({
       code: "too_many_rows",
       maxRows: limits.maxRows,
-      rows: rows.length,
+      rows: filled,
     });
   }
   return { ok: true, file: { header, ignoredColumns, rows } };
 }
-
-const BOM = "﻿";
 
 /**
  * The blank template: the header row alone. The byte order mark makes

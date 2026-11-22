@@ -29,7 +29,7 @@ export function FlipCard({
     <div className={cn("flex flex-col perspective-distant", className)}>
       <div
         className={cn(
-          "grid flex-1 transition-transform duration-500 ease-out transform-3d motion-reduce:transition-none",
+          "grid flex-1 grid-cols-1 transition-transform duration-500 ease-out transform-3d motion-reduce:transition-none",
           flipped && "motion-safe:rotate-y-180"
         )}
       >
@@ -57,13 +57,13 @@ export function FlipCard({
         aria-pressed={flipped}
         aria-label={label}
         onClick={() => setFlipped((f) => !f)}
-        className="group mt-3 inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-full border-2 border-border-strong bg-surface px-5 font-semibold text-ink transition-[background-color,border-color] duration-200 hover:border-ink aria-pressed:border-teal-700 aria-pressed:bg-section-teal"
+        className="group mt-3 inline-flex min-h-11 max-w-full items-center justify-center gap-2 self-start rounded-full border-2 border-border-strong bg-surface px-5 font-semibold text-ink transition-[background-color,border-color] duration-200 hover:border-ink aria-pressed:border-teal-700 aria-pressed:bg-section-teal"
       >
         <RotateCw
           aria-hidden="true"
-          className="size-5 transition-transform duration-300 motion-safe:group-aria-pressed:rotate-180"
+          className="size-5 shrink-0 transition-transform duration-300 motion-safe:group-aria-pressed:rotate-180"
         />
-        <span>{buttonText}</span>
+        <span className="min-w-0 wrap-anywhere">{buttonText}</span>
       </button>
     </div>
   );
