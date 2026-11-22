@@ -2,7 +2,8 @@
 // what local runs, CI's E2E job, previews and staging pay through while no
 // Razorpay test keys are set (HR-09). It plays the gateway: it makes
 // orders, and its test checkout (the dialog on the pay page) lets a tester
-// pay or decline one. Its record lives in the database
+// pay or decline one. Refunds (#80) are processed the moment they are
+// made. Its record lives in the database
 // (src/server/db/schema/payment-test-gateway.ts), because previews run
 // serverless and an order must outlive the request that made it.
 //
@@ -15,15 +16,20 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne, sum } from "drizzle-orm";
 
 import type { AppDb } from "../db/app-db";
-import { gatewayTestOrder, gatewayTestPayment } from "../db/schema";
+import {
+  gatewayTestOrder,
+  gatewayTestPayment,
+  gatewayTestRefund,
+} from "../db/schema";
 import { uuidv7 } from "../ids";
 import type { Clock } from "./clock";
 import type {
   CheckoutParams,
   GatewayPayment,
+  GatewayRefund,
   GatewayWebhook,
   Money,
   PaymentGateway,
@@ -53,7 +59,17 @@ export type FallbackWebhookBody = {
   id: string;
   event: string;
   orderId: string;
+  /** For a refund event (#80). */
+  refund?: { refundId: string; paymentId: string };
 };
+
+const isRefundRef = (
+  value: unknown
+): value is { refundId: string; paymentId: string } =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { refundId?: unknown }).refundId === "string" &&
+  typeof (value as { paymentId?: unknown }).paymentId === "string";
 
 function parseWebhookBody(rawBody: string): FallbackWebhookBody | null {
   try {
@@ -63,7 +79,19 @@ function parseWebhookBody(rawBody: string): FallbackWebhookBody | null {
       typeof body.event === "string" &&
       typeof body.orderId === "string"
     ) {
-      return { id: body.id, event: body.event, orderId: body.orderId };
+      return {
+        id: body.id,
+        event: body.event,
+        orderId: body.orderId,
+        ...(isRefundRef(body.refund)
+          ? {
+              refund: {
+                refundId: body.refund.refundId,
+                paymentId: body.refund.paymentId,
+              },
+            }
+          : {}),
+      };
     }
   } catch {
     // Not JSON: not one of ours.
@@ -143,7 +171,12 @@ export class FallbackPaymentGateway implements PaymentGateway {
     const body = parseWebhookBody(rawBody);
     if (!body) return null;
     // The id is inside the signed body, so a replay can't change it.
-    return { eventId: body.id, type: body.event, orderId: body.orderId };
+    return {
+      eventId: body.id,
+      type: body.event,
+      orderId: body.orderId,
+      ...(body.refund ? { refund: body.refund } : {}),
+    };
   }
 
   async fetchOrderPayments(orderId: string): Promise<GatewayPayment[]> {
@@ -159,6 +192,84 @@ export class FallbackPaymentGateway implements PaymentGateway {
       amountMinor: row.amountMinor,
       currency: row.currency,
     }));
+  }
+
+  async refund({
+    paymentId,
+    amount,
+    idempotencyKey,
+    notes,
+  }: {
+    paymentId: string;
+    amount: Money;
+    idempotencyKey: string;
+    notes: Record<string, string>;
+  }): Promise<GatewayRefund> {
+    const [earlier] = await this.#db
+      .select()
+      .from(gatewayTestRefund)
+      .where(eq(gatewayTestRefund.idempotencyKey, idempotencyKey));
+    if (earlier) return refundView(earlier);
+    const [payment] = await this.#db
+      .select()
+      .from(gatewayTestPayment)
+      .where(
+        and(
+          eq(gatewayTestPayment.id, paymentId),
+          eq(gatewayTestPayment.status, "captured")
+        )
+      );
+    if (!payment) {
+      throw new RangeError("The fallback has no captured payment to refund");
+    }
+    const [refunded] = await this.#db
+      .select({ total: sum(gatewayTestRefund.amountMinor) })
+      .from(gatewayTestRefund)
+      .where(
+        and(
+          eq(gatewayTestRefund.paymentId, paymentId),
+          ne(gatewayTestRefund.status, "failed")
+        )
+      );
+    const out = BigInt(refunded?.total ?? "0");
+    if (
+      amount.amountMinor <= 0n ||
+      out + amount.amountMinor > payment.amountMinor
+    ) {
+      throw new RangeError("A fallback refund can't be more than is left");
+    }
+    const now = this.#clock.now();
+    const [made] = await this.#db
+      .insert(gatewayTestRefund)
+      .values({
+        id: `rfnd_fallback_${uuidv7(now).replaceAll("-", "")}`,
+        paymentId,
+        status: "processed",
+        amountMinor: amount.amountMinor,
+        currency: amount.currency,
+        notes,
+        idempotencyKey,
+        createdAt: now,
+      })
+      .onConflictDoNothing()
+      .returning();
+    if (made) return refundView(made);
+    // A concurrent request with the same key made it first.
+    const [raced] = await this.#db
+      .select()
+      .from(gatewayTestRefund)
+      .where(eq(gatewayTestRefund.idempotencyKey, idempotencyKey));
+    if (!raced) throw new Error("The fallback refund vanished");
+    return refundView(raced);
+  }
+
+  async fetchRefunds(paymentId: string): Promise<GatewayRefund[]> {
+    const rows = await this.#db
+      .select()
+      .from(gatewayTestRefund)
+      .where(eq(gatewayTestRefund.paymentId, paymentId))
+      .orderBy(asc(gatewayTestRefund.createdAt), asc(gatewayTestRefund.id));
+    return rows.map(refundView);
   }
 
   /**
@@ -200,6 +311,19 @@ export class FallbackPaymentGateway implements PaymentGateway {
     });
     return paymentId;
   }
+}
+
+function refundView(
+  row: typeof gatewayTestRefund.$inferSelect
+): GatewayRefund {
+  return {
+    id: row.id,
+    paymentId: row.paymentId,
+    amountMinor: row.amountMinor,
+    currency: row.currency,
+    status: row.status,
+    notes: { ...row.notes },
+  };
 }
 
 export function fallbackPaymentGateway(options: {

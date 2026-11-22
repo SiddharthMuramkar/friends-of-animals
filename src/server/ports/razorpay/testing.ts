@@ -2,9 +2,11 @@
 //   - `razorpayWebhook`: a webhook as Razorpay delivers it, the documented
 //     event envelope with the raw body signed (hex HMAC-SHA256 under the
 //     webhook secret) in X-Razorpay-Signature;
-//   - `fakeRazorpayApi`: a `fetch` that answers the two endpoints the
-//     adapter calls (POST /v1/orders, GET /v1/orders/{id}/payments) with
-//     Basic auth, records every request, and lets a test play the payer.
+//   - `fakeRazorpayApi`: a `fetch` that answers the endpoints the adapter
+//     calls (POST /v1/orders, GET /v1/orders/{id}/payments, and for refunds
+//     POST /v1/payments/{id}/refund with X-Refund-Idempotency and
+//     GET /v1/payments/{id}/refunds) with Basic auth, records every
+//     request, and lets a test play the payer.
 // Tests only: nothing in the app imports this file.
 
 import { createHmac } from "node:crypto";
@@ -16,6 +18,8 @@ export type SimulatedEvent = {
   orderId: string;
   paymentId?: string;
   amountMinor?: bigint;
+  /** For a refund event (#80): the refund and the payment it returns. */
+  refund?: { refundId: string; paymentId: string };
 };
 
 let sequence = 0;
@@ -53,8 +57,29 @@ export function razorpayEventBody(event: SimulatedEvent): string {
     currency: "INR",
     status: "paid",
   };
-  const payload =
-    event.type === "order.paid"
+  // A refund event carries the refund and its payment (razorpay.com/docs/
+  // webhooks/refunds): the payment's id is the refund's payment_id.
+  const refund = event.refund && {
+    id: event.refund.refundId,
+    entity: "refund",
+    amount,
+    currency: "INR",
+    payment_id: event.refund.paymentId,
+    notes: { comment: "Notes as sent" },
+    receipt: null,
+    acquirer_data: { arn: null },
+    created_at: createdAt,
+    batch_id: null,
+    status: event.type === "refund.failed" ? "failed" : "processed",
+    speed_processed: "normal",
+    speed_requested: "normal",
+  };
+  const payload = refund
+    ? {
+        refund: { entity: refund },
+        payment: { entity: { ...payment, id: event.refund!.paymentId } },
+      }
+    : event.type === "order.paid"
       ? { payment: { entity: payment }, order: { entity: order } }
       : { payment: { entity: payment } };
   return JSON.stringify({
@@ -102,11 +127,27 @@ export type RecordedRequest = {
   url: string;
   authorization: string | null;
   contentType: string | null;
+  /** X-Refund-Idempotency, on a refund request. */
+  idempotencyKey: string | null;
   /** The parsed JSON body; null for a request without one. */
   body: unknown;
 };
 
 type FakeOrder = { id: string; amount: number; currency: string };
+
+type FakeRefund = {
+  id: string;
+  entity: "refund";
+  amount: number;
+  currency: string;
+  payment_id: string;
+  notes: Record<string, string> | [];
+  receipt: string | null;
+  status: "pending" | "processed" | "failed";
+  speed_requested: string;
+  created_at: number;
+  idempotencyKey: string | null;
+};
 
 type FakePayment = {
   id: string;
@@ -156,6 +197,7 @@ export function fakeRazorpayApi({
   const requests: RecordedRequest[] = [];
   const orders: FakeOrder[] = [];
   const payments: FakePayment[] = [];
+  const refunds: FakeRefund[] = [];
   const outages: number[] = [];
   const expectedAuth = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
 
@@ -171,6 +213,7 @@ export function fakeRazorpayApi({
       url: request.url,
       authorization: request.headers.get("authorization"),
       contentType: request.headers.get("content-type"),
+      idempotencyKey: request.headers.get("x-refund-idempotency"),
       body: text === "" ? null : (JSON.parse(text) as unknown),
     });
     const outage = outages.shift();
@@ -231,7 +274,79 @@ export function fakeRazorpayApi({
       return json(200, { entity: "collection", count: items.length, items });
     }
 
+    const refundPath = /^\/v1\/payments\/([^/]+)\/refund$/.exec(
+      url.pathname
+    );
+    if (request.method === "POST" && refundPath) {
+      const paymentId = decodeURIComponent(refundPath[1]!);
+      const payment = payments.find((each) => each.id === paymentId);
+      if (!payment) return badRequest("The id provided does not exist");
+      const key = request.headers.get("x-refund-idempotency");
+      if (key !== null && !/^[A-Za-z0-9_-]{10,}$/.test(key)) {
+        return badRequest("The idempotency key is invalid");
+      }
+      const earlier = key
+        ? refunds.find((each) => each.idempotencyKey === key)
+        : undefined;
+      if (earlier) return json(200, refundView(earlier));
+      if (payment.status !== "captured") {
+        return badRequest("The payment has not been captured");
+      }
+      const body = JSON.parse(text) as {
+        amount?: unknown;
+        speed?: unknown;
+        notes?: unknown;
+        receipt?: unknown;
+      };
+      const amount = body.amount ?? payment.amount;
+      const refunded = refunds
+        .filter((each) => each.payment_id === paymentId)
+        .filter((each) => each.status !== "failed")
+        .reduce((sum, each) => sum + each.amount, 0);
+      if (!Number.isSafeInteger(amount) || (amount as number) < 100) {
+        return badRequest("The amount must be at least INR 1.00");
+      }
+      if (refunded + (amount as number) > payment.amount) {
+        return badRequest(
+          "The refund amount provided is greater than amount captured"
+        );
+      }
+      const refund: FakeRefund = {
+        id: nextId("rfnd"),
+        entity: "refund",
+        amount: amount as number,
+        currency: payment.currency,
+        payment_id: paymentId,
+        notes: (body.notes as Record<string, string> | undefined) ?? [],
+        receipt: typeof body.receipt === "string" ? body.receipt : null,
+        status: "processed",
+        speed_requested: typeof body.speed === "string" ? body.speed : "normal",
+        created_at: 1_798_000_200,
+        idempotencyKey: key,
+      };
+      refunds.push(refund);
+      return json(200, refundView(refund));
+    }
+
+    const refundsPath = /^\/v1\/payments\/([^/]+)\/refunds$/.exec(
+      url.pathname
+    );
+    if (request.method === "GET" && refundsPath) {
+      const paymentId = decodeURIComponent(refundsPath[1]!);
+      if (!payments.some((each) => each.id === paymentId)) {
+        return badRequest("The id provided does not exist");
+      }
+      const items = refunds
+        .filter((each) => each.payment_id === paymentId)
+        .map(refundView);
+      return json(200, { entity: "collection", count: items.length, items });
+    }
+
     return badRequest("The requested URL was not found on the server.", 404);
+  }
+
+  function refundView({ idempotencyKey: _key, ...refund }: FakeRefund) {
+    return { ...refund, acquirer_data: { arn: null }, batch_id: null };
   }
 
   function attempt(orderId: string, status: string, amount?: bigint): string {
@@ -272,6 +387,12 @@ export function fakeRazorpayApi({
     /** A payment attempt on `orderId` in another state, e.g. "failed". */
     attempt(orderId: string, status: string): string {
       return attempt(orderId, status);
+    },
+    /** Razorpay finishes a refund later: processed or failed. */
+    settleRefund(refundId: string, status: "processed" | "failed"): void {
+      const refund = refunds.find((each) => each.id === refundId);
+      if (!refund) throw new Error(`fakeRazorpayApi: no refund ${refundId}`);
+      refund.status = status;
     },
     /** The next request gets this HTTP status, as an outage would. */
     failNext(status = 503): void {

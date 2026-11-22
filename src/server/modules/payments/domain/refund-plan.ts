@@ -11,7 +11,7 @@ export type ItemRefundState = "none" | "live" | "refunded";
 
 export type RefundableBatch = {
   /** Captured, through the gateway or offline. */
-  paid: boolean;
+  captured: boolean;
   /** What the batch captured, in paise. */
   amountMinor: bigint;
   currency: "INR";
@@ -22,20 +22,20 @@ export type RefundableBatch = {
   }[];
 };
 
-/** No `itemIds` means every item that is left. */
-export type RefundRequest = { itemIds?: readonly string[] };
+/** No `registrationIds` means every item that is left. */
+export type RefundRequest = { registrationIds?: readonly string[] };
 
 export type RefundPlan =
   | {
       ok: true;
       /** In the order asked for; batch order for a whole-batch refund. */
-      itemIds: string[];
+      registrationIds: string[];
       amountMinor: bigint;
       currency: "INR";
     }
   | {
       ok: false;
-      reason: "batch_not_paid" | "empty" | "nothing_to_refund" | "exceeds_paid";
+      reason: "batch_not_captured" | "empty" | "nothing_to_refund" | "exceeds_paid";
     }
   | {
       ok: false;
@@ -44,35 +44,35 @@ export type RefundPlan =
         | "unknown_item"
         | "item_in_live_refund"
         | "item_already_refunded";
-      itemId: string;
+      registrationId: string;
     };
 
 export function planRefund(
   batch: RefundableBatch,
   request: RefundRequest
 ): RefundPlan {
-  if (!batch.paid) return { ok: false, reason: "batch_not_paid" };
+  if (!batch.captured) return { ok: false, reason: "batch_not_captured" };
 
   const byId = new Map(batch.items.map((item) => [item.id, item]));
   let chosen: RefundableBatch["items"][number][];
-  if (request.itemIds === undefined) {
+  if (request.registrationIds === undefined) {
     chosen = batch.items.filter((item) => item.refund === "none");
   } else {
-    if (request.itemIds.length === 0) return { ok: false, reason: "empty" };
+    if (request.registrationIds.length === 0) return { ok: false, reason: "empty" };
     chosen = [];
     const seen = new Set<string>();
-    for (const itemId of request.itemIds) {
-      if (seen.has(itemId)) {
-        return { ok: false, reason: "duplicate_item", itemId };
+    for (const registrationId of request.registrationIds) {
+      if (seen.has(registrationId)) {
+        return { ok: false, reason: "duplicate_item", registrationId };
       }
-      seen.add(itemId);
-      const item = byId.get(itemId);
-      if (!item) return { ok: false, reason: "unknown_item", itemId };
+      seen.add(registrationId);
+      const item = byId.get(registrationId);
+      if (!item) return { ok: false, reason: "unknown_item", registrationId };
       if (item.refund === "live") {
-        return { ok: false, reason: "item_in_live_refund", itemId };
+        return { ok: false, reason: "item_in_live_refund", registrationId };
       }
       if (item.refund === "refunded") {
-        return { ok: false, reason: "item_already_refunded", itemId };
+        return { ok: false, reason: "item_already_refunded", registrationId };
       }
       chosen.push(item);
     }
@@ -90,7 +90,7 @@ export function planRefund(
 
   return {
     ok: true,
-    itemIds: chosen.map((item) => item.id),
+    registrationIds: chosen.map((item) => item.id),
     amountMinor,
     currency: batch.currency,
   };
