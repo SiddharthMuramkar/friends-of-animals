@@ -19,6 +19,8 @@ export * from "./offsite-copy";
 export * from "./worker";
 export * from "./competitions";
 export * from "./competition-terms";
+export * from "./competition-transitions";
+export * from "./judging";
 export * from "./settings";
 export * from "./safeguarding";
 export * from "./contact";

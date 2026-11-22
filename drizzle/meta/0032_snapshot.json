@@ -1,5 +1,5 @@
 {
-  "id": "5a61ca17-c54a-4362-b198-bd69f4904aec",
+  "id": "c36ca9b3-2e59-4160-a6b6-08f48cc199e5",
   "prevId": "c5b9ae81-4f3f-4858-9990-961ba53883ce",
   "version": "7",
   "dialect": "postgresql",
@@ -5023,8 +5023,7 @@
       "values": [
         "privacy_notice",
         "terms",
-        "messages",
-        "competition_terms"
+        "messages"
       ]
     },
     "public.consent_subject_type": {
@@ -5137,7 +5136,8 @@
         "draft",
         "published",
         "registration_open",
-        "registration_closed"
+        "registration_closed",
+        "school_judging"
       ]
     },
     "public.incident_log_kind": {

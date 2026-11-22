@@ -12,6 +12,7 @@ import { FakeClock } from "@/test/fakes/clock";
 import type { E164Phone } from "@/lib/phone";
 
 import {
+  codeRequestLimitsFor,
   contactLimitsFor,
   DEVELOPMENT_AUTH_SECRET,
   emailSignInReady,
@@ -23,6 +24,7 @@ import {
   storageFor,
 } from "./deps";
 import { CONTACT_RATE_LIMITS } from "./modules/contact/domain/submission";
+import { CODE_REQUEST_LIMITS } from "./identity/settings";
 import { SmsNotConfiguredError } from "./ports/sms";
 import { readCapturedSms } from "./ports/sms-capture";
 import { systemClock } from "./ports/clock";
@@ -169,6 +171,25 @@ describe("contactLimitsFor", () => {
       expect(contactLimitsFor(appEnv)).toEqual({
         perIpPerHour: 100,
         perEmailPerDay: CONTACT_RATE_LIMITS.perEmailPerDay,
+      });
+    }
+  );
+});
+
+describe("codeRequestLimitsFor", () => {
+  it.each(["staging", "production"] as const)(
+    "keeps FOA's sign-in code limits on %s",
+    (appEnv) => {
+      expect(codeRequestLimitsFor(appEnv)).toEqual(CODE_REQUEST_LIMITS);
+    }
+  );
+
+  it.each(["local", "preview"] as const)(
+    "lets one IP ask for many more codes on %s, where every E2E run shares the CI's address",
+    (appEnv) => {
+      expect(codeRequestLimitsFor(appEnv)).toEqual({
+        ...CODE_REQUEST_LIMITS,
+        perIp: 200,
       });
     }
   );

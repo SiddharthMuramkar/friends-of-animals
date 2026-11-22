@@ -19,6 +19,7 @@ import { recordAudit } from "../../audit/record";
 import { competition } from "../../db/schema";
 import { sqlState } from "../../errors";
 import { uuidv7 } from "../../ids";
+import { emit } from "../../outbox/emit";
 import type { UseCaseContext } from "../../use-cases";
 import { orderedKeyDates } from "./domain/key-dates";
 import { publishProblems, type PublishProblem } from "./domain/publish-rules";
@@ -46,6 +47,7 @@ import {
   replaceAgeGroups,
   replaceKeyDates,
 } from "./store";
+import { hasRefusedMove } from "./transition-guards";
 
 /** What the competition use cases use: the database, the clock and the actor. */
 export type CompetitionsContext = Pick<
@@ -274,7 +276,9 @@ export type UpdateCompetitionResult =
  * Once published, a competition keeps its code (registration numbers are
  * made from it: `code_locked`) and must stay publishable (`not_ready`),
  * and each key date added or moved gets a status job for its new instant
- * (#71); the jobs of the old instants do nothing when they run.
+ * (#71); the jobs of the old instants do nothing when they run. Changing
+ * the disciplines while a move is refused tries the move again (#88):
+ * the school-judging guard checks them.
  */
 export async function updateCompetition(
   ctx: CompetitionsContext,
@@ -342,6 +346,16 @@ export async function updateCompetition(
             values.keyDates
           )
         );
+      }
+      if (
+        changed.includes("disciplines") &&
+        (await hasRefusedMove(tx, competitionId))
+      ) {
+        await emit(tx, ctx.clock, {
+          type: "competition.disciplines_changed",
+          aggregate: { type: "competition", id: competitionId },
+          payload: { competitionId },
+        });
       }
       await recordAudit(tx, ctx, {
         action: "competition.updated",

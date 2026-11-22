@@ -1,6 +1,6 @@
 {
-  "id": "8957e7ae-ea8d-4ce3-9e9b-97d5fbc546d7",
-  "prevId": "5a61ca17-c54a-4362-b198-bd69f4904aec",
+  "id": "5a4d98d0-a9b5-41a3-af02-656ad0986a71",
+  "prevId": "c36ca9b3-2e59-4160-a6b6-08f48cc199e5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2990,57 +2990,89 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.competition_award_scheme": {
-      "name": "competition_award_scheme",
+    "public.competition_transition_block": {
+      "name": "competition_transition_block",
       "schema": "",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
         "competition_id": {
           "name": "competition_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "round": {
-          "name": "round",
-          "type": "award_round",
+        "from_status": {
+          "name": "from_status",
+          "type": "competition_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "scheme": {
-          "name": "scheme",
-          "type": "award_scheme",
+        "to_status": {
+          "name": "to_status",
+          "type": "competition_status",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'ranked_123'"
+          "notNull": true
         },
-        "prizes": {
-          "name": "prizes",
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "details": {
+          "name": "details",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
+          "notNull": true
         },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
+        "blocked_at": {
+          "name": "blocked_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "competition_award_scheme_updated_by_user_id_idx": {
-          "name": "competition_award_scheme_updated_by_user_id_idx",
+        "competition_transition_block_open": {
+          "name": "competition_transition_block_open",
           "columns": [
             {
-              "expression": "updated_by_user_id",
+              "expression": "competition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "to_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"competition_transition_block\".\"resolved_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "competition_transition_block_competition_idx": {
+          "name": "competition_transition_block_competition_idx",
+          "columns": [
+            {
+              "expression": "competition_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3053,9 +3085,9 @@
         }
       },
       "foreignKeys": {
-        "competition_award_scheme_competition_id_competition_id_fk": {
-          "name": "competition_award_scheme_competition_id_competition_id_fk",
-          "tableFrom": "competition_award_scheme",
+        "competition_transition_block_competition_id_competition_id_fk": {
+          "name": "competition_transition_block_competition_id_competition_id_fk",
+          "tableFrom": "competition_transition_block",
           "tableTo": "competition",
           "columnsFrom": [
             "competition_id"
@@ -3063,214 +3095,149 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "competition_award_scheme_updated_by_user_id_user_id_fk": {
-          "name": "competition_award_scheme_updated_by_user_id_user_id_fk",
-          "tableFrom": "competition_award_scheme",
-          "tableTo": "user",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "competition_award_scheme_competition_id_round_pk": {
-          "name": "competition_award_scheme_competition_id_round_pk",
-          "columns": [
-            "competition_id",
-            "round"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "competition_award_scheme_prizes_object": {
-          "name": "competition_award_scheme_prizes_object",
-          "value": "jsonb_typeof(\"competition_award_scheme\".\"prizes\") = 'object'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.competition_consent_document": {
-      "name": "competition_consent_document",
-      "schema": "",
-      "columns": {
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "purpose": {
-          "name": "purpose",
-          "type": "consent_purpose",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "consent_document_id": {
-          "name": "consent_document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attached_by_user_id": {
-          "name": "attached_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attached_at": {
-          "name": "attached_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "competition_consent_document_consent_document_id_idx": {
-          "name": "competition_consent_document_consent_document_id_idx",
-          "columns": [
-            {
-              "expression": "consent_document_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "competition_consent_document_attached_by_user_id_idx": {
-          "name": "competition_consent_document_attached_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "attached_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "competition_consent_document_competition_id_competition_id_fk": {
-          "name": "competition_consent_document_competition_id_competition_id_fk",
-          "tableFrom": "competition_consent_document",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "competition_consent_document_consent_document_id_consent_document_id_fk": {
-          "name": "competition_consent_document_consent_document_id_consent_document_id_fk",
-          "tableFrom": "competition_consent_document",
-          "tableTo": "consent_document",
-          "columnsFrom": [
-            "consent_document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "competition_consent_document_attached_by_user_id_user_id_fk": {
-          "name": "competition_consent_document_attached_by_user_id_user_id_fk",
-          "tableFrom": "competition_consent_document",
-          "tableTo": "user",
-          "columnsFrom": [
-            "attached_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "competition_consent_document_competition_id_purpose_pk": {
-          "name": "competition_consent_document_competition_id_purpose_pk",
-          "columns": [
-            "competition_id",
-            "purpose"
-          ]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.competition_fee": {
-      "name": "competition_fee",
+    "public.rubric": {
+      "name": "rubric",
       "schema": "",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
         "competition_id": {
           "name": "competition_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "route": {
-          "name": "route",
-          "type": "participation_route",
+        "discipline": {
+          "name": "discipline",
+          "type": "competition_discipline",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "amount_minor": {
-          "name": "amount_minor",
-          "type": "bigint",
+        "version": {
+          "name": "version",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
+        "status": {
+          "name": "status",
+          "type": "rubric_status",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'INR'"
+          "default": "'draft'"
         },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
+        "created_by_user_id": {
+          "name": "created_by_user_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
         },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "published_by_user_id": {
+          "name": "published_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "competition_fee_updated_by_user_id_idx": {
-          "name": "competition_fee_updated_by_user_id_idx",
+        "rubric_one_draft_per_discipline": {
+          "name": "rubric_one_draft_per_discipline",
           "columns": [
             {
-              "expression": "updated_by_user_id",
+              "expression": "competition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "discipline",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rubric\".\"status\" = 'draft'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "rubric_one_published_per_discipline": {
+          "name": "rubric_one_published_per_discipline",
+          "columns": [
+            {
+              "expression": "competition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "discipline",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"rubric\".\"status\" = 'published'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "rubric_created_by_user_id_idx": {
+          "name": "rubric_created_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "created_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "rubric_published_by_user_id_idx": {
+          "name": "rubric_published_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "published_by_user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3283,9 +3250,9 @@
         }
       },
       "foreignKeys": {
-        "competition_fee_competition_id_competition_id_fk": {
-          "name": "competition_fee_competition_id_competition_id_fk",
-          "tableFrom": "competition_fee",
+        "rubric_competition_id_competition_id_fk": {
+          "name": "rubric_competition_id_competition_id_fk",
+          "tableFrom": "rubric",
           "tableTo": "competition",
           "columnsFrom": [
             "competition_id"
@@ -3293,15 +3260,28 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "competition_fee_updated_by_user_id_user_id_fk": {
-          "name": "competition_fee_updated_by_user_id_user_id_fk",
-          "tableFrom": "competition_fee",
+        "rubric_created_by_user_id_user_id_fk": {
+          "name": "rubric_created_by_user_id_user_id_fk",
+          "tableFrom": "rubric",
           "tableTo": "user",
           "columnsFrom": [
-            "updated_by_user_id"
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "rubric_published_by_user_id_user_id_fk": {
+          "name": "rubric_published_by_user_id_user_id_fk",
+          "tableFrom": "rubric",
+          "tableTo": "user",
+          "columnsFrom": [
+            "published_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -3310,25 +3290,133 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "competition_fee_competition_id_route_pk": {
-          "name": "competition_fee_competition_id_route_pk",
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rubric_version_unique": {
+          "name": "rubric_version_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "competition_id",
-            "route"
+            "discipline",
+            "version"
           ]
         }
       },
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "competition_fee_amount_not_negative": {
-          "name": "competition_fee_amount_not_negative",
-          "value": "\"competition_fee\".\"amount_minor\" >= 0"
+        "rubric_version_positive": {
+          "name": "rubric_version_positive",
+          "value": "\"rubric\".\"version\" >= 1"
         },
-        "competition_fee_currency_inr": {
-          "name": "competition_fee_currency_inr",
-          "value": "\"competition_fee\".\"currency\" = 'INR'"
+        "rubric_published_at_matches_status": {
+          "name": "rubric_published_at_matches_status",
+          "value": "(\"rubric\".\"status\" = 'draft') = (\"rubric\".\"published_at\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.rubric_criterion": {
+      "name": "rubric_criterion",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "rubric_id": {
+          "name": "rubric_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "weight": {
+          "name": "weight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "min_score": {
+          "name": "min_score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "max_score": {
+          "name": "max_score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rubric_criterion_rubric_id_rubric_id_fk": {
+          "name": "rubric_criterion_rubric_id_rubric_id_fk",
+          "tableFrom": "rubric_criterion",
+          "tableTo": "rubric",
+          "columnsFrom": [
+            "rubric_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rubric_criterion_position_unique": {
+          "name": "rubric_criterion_position_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "rubric_id",
+            "position"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "rubric_criterion_position": {
+          "name": "rubric_criterion_position",
+          "value": "\"rubric_criterion\".\"position\" >= 0"
+        },
+        "rubric_criterion_label": {
+          "name": "rubric_criterion_label",
+          "value": "char_length(\"rubric_criterion\".\"label\") BETWEEN 1 AND 120"
+        },
+        "rubric_criterion_description": {
+          "name": "rubric_criterion_description",
+          "value": "char_length(\"rubric_criterion\".\"description\") <= 600"
+        },
+        "rubric_criterion_weight": {
+          "name": "rubric_criterion_weight",
+          "value": "\"rubric_criterion\".\"weight\" BETWEEN 1 AND 100"
+        },
+        "rubric_criterion_scores": {
+          "name": "rubric_criterion_scores",
+          "value": "\"rubric_criterion\".\"min_score\" >= 0 AND \"rubric_criterion\".\"max_score\" <= 100 AND \"rubric_criterion\".\"min_score\" < \"rubric_criterion\".\"max_score\""
         }
       },
       "isRLSEnabled": false
@@ -5366,8 +5454,7 @@
       "values": [
         "privacy_notice",
         "terms",
-        "messages",
-        "competition_terms"
+        "messages"
       ]
     },
     "public.consent_subject_type": {
@@ -5480,32 +5567,17 @@
         "draft",
         "published",
         "registration_open",
-        "registration_closed"
+        "registration_closed",
+        "school_judging"
       ]
     },
-    "public.award_round": {
-      "name": "award_round",
+    "public.rubric_status": {
+      "name": "rubric_status",
       "schema": "public",
       "values": [
-        "school",
-        "foa_final"
-      ]
-    },
-    "public.award_scheme": {
-      "name": "award_scheme",
-      "schema": "public",
-      "values": [
-        "ranked_123",
-        "medals_gsb",
-        "grades_ab"
-      ]
-    },
-    "public.participation_route": {
-      "name": "participation_route",
-      "schema": "public",
-      "values": [
-        "individual",
-        "institution"
+        "draft",
+        "published",
+        "superseded"
       ]
     },
     "public.incident_log_kind": {

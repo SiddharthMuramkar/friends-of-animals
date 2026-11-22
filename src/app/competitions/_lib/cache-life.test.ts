@@ -48,6 +48,20 @@ describe("the public pages' cache life", () => {
   });
 
   it("keeps the hours profile when no move is ahead", () => {
+    // No status change hangs on the school round's date yet.
+    const judging: Scheduled = {
+      status: "school_judging",
+      keyDates: [
+        { kind: "registration_opens", at: at(-30 * MINUTE_MS) },
+        { kind: "registration_closes", at: at(-20 * MINUTE_MS) },
+        { kind: "submissions_close", at: at(-10 * MINUTE_MS) },
+        { kind: "school_round_closes", at: at(10 * MINUTE_MS) },
+      ],
+    };
+    expect(publicCacheLife([judging], NOW)).toEqual(HOURS);
+  });
+
+  it("refreshes when submissions close and school judging starts (#88)", () => {
     const closed: Scheduled = {
       status: "registration_closed",
       keyDates: [
@@ -56,7 +70,10 @@ describe("the public pages' cache life", () => {
         { kind: "submissions_close", at: at(10 * MINUTE_MS) },
       ],
     };
-    expect(publicCacheLife([closed], NOW)).toEqual(HOURS);
+    expect(publicCacheLife([closed], NOW)).toEqual({
+      ...HOURS,
+      revalidate: 600,
+    });
   });
 
   it("keeps the hours profile when the next move is more than an hour off", () => {
