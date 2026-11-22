@@ -64,8 +64,12 @@ const recordInput = z.object({
   reference: z.string().max(200),
   amount: z.string().max(40),
   receivedOn: z.string().max(40),
-  proofFileId: z.uuid(),
+  // Empty when the form sent no proof: refused as a missing proof, after
+  // the fields, so the form can mark everything at once.
+  proofFileId: z.string().max(64),
 });
+
+const fileId = z.uuid();
 
 export async function recordOfflinePayment(
   ctx: UseCaseContext,
@@ -85,14 +89,16 @@ export async function recordOfflinePayment(
   return ctx.db.transaction(async (tx): Promise<RecordOfflinePaymentResult> => {
     const batch = await lockBatch(tx, batchId);
     if (!batch) return { ok: false, error: "not_found" };
-    const [proof] = await tx
-      .select({
-        ownerUserId: fileAsset.ownerUserId,
-        purpose: fileAsset.purpose,
-        status: fileAsset.status,
-      })
-      .from(fileAsset)
-      .where(eq(fileAsset.id, proofFileId));
+    const [proof] = fileId.safeParse(proofFileId).success
+      ? await tx
+          .select({
+            ownerUserId: fileAsset.ownerUserId,
+            purpose: fileAsset.purpose,
+            status: fileAsset.status,
+          })
+          .from(fileAsset)
+          .where(eq(fileAsset.id, proofFileId))
+      : [];
     const now = ctx.clock.now();
     const decision = decideOfflineCapture({
       batch: { status: batch.status, amountMinor: batch.amountMinor },

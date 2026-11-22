@@ -379,6 +379,23 @@ describe("recordOfflinePayment refusals", () => {
     expect(await offlinePaymentOf(h, batchId)).toBeNull();
   });
 
+  it("takes no proof as a missing one, after the fields, as a form sends it", async () => {
+    const h = await createHarness();
+    const { batchId } = await openBatch(h);
+    const finance = await signInStaff(h, "finance");
+    const record = (overrides: Partial<ReturnType<typeof cheque>>) =>
+      h
+        .as(finance.actor)
+        .recordOfflinePayment({ ...cheque(batchId, ""), ...overrides });
+
+    expect(await record({})).toEqual({ ok: false, error: "proof_invalid" });
+    expect(await record({ reference: "" })).toEqual({
+      ok: false,
+      error: "fields_invalid",
+      errors: { reference: "reference_invalid" },
+    });
+  });
+
   it("refuses a file uploaded for something else", async () => {
     const h = await createHarness();
     const { batchId } = await openBatch(h);

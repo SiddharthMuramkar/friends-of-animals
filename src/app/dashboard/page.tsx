@@ -64,6 +64,12 @@ async function Areas() {
   ]);
   // Only a safeguarding lead is pointed at the reports (#116).
   const lead = grants.some((grant) => grant.role === "safeguarding_lead");
+  // Finance, staff admins and super admins look after payments (#79).
+  const money = grants.some((grant) =>
+    (["finance", "staff_admin", "super_admin"] as const).some(
+      (role) => grant.role === role
+    )
+  );
   const links = dashboardLinks(dashboards);
   const name = (link: DashboardLink) =>
     t(`areas.${link.area}`, { id: link.id ?? "" });
@@ -102,7 +108,7 @@ async function Areas() {
             />
             <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
           </div>
-          <AreaBody area={link.area} id={link.id} lead={lead} />
+          <AreaBody area={link.area} id={link.id} lead={lead} money={money} />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
       ))}
@@ -114,10 +120,12 @@ async function AreaBody({
   area,
   id,
   lead,
+  money,
 }: {
   area: DashboardLink["area"];
   id?: string;
   lead: boolean;
+  money: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -160,6 +168,14 @@ async function AreaBody({
                   {
                     href: APP_ROUTES.adminSafeguarding,
                     label: t("admin.safeguarding"),
+                  },
+                ]
+              : []),
+            ...(money
+              ? [
+                  {
+                    href: APP_ROUTES.adminPaymentsReview,
+                    label: t("admin.payments"),
                   },
                 ]
               : []),

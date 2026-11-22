@@ -148,7 +148,11 @@ describe("decideOfflineCapture()", () => {
     (status: FileStatus, accepted) => {
       const decision = decideOfflineCapture(
         capture({
-          proof: { ownerUserId: FINANCE, purpose: "offline_payment_proof", status },
+          proof: {
+            ownerUserId: FINANCE,
+            purpose: "offline_payment_proof",
+            status,
+          },
         })
       );
       expect(decision.ok ? "accepted" : decision.error).toBe(
