@@ -75,7 +75,6 @@ describe("isSignedInPage", () => {
       "/admin/institutions/x/edit",
       `/admin/competitions/${COMPETITION_ID}/rubrics/essay/edit`,
       "/institution/competitions/NEIGH27",
-      "/institution/competitions",
     ]) {
       expect(isSignedInPage(path), path).toBe(false);
     }

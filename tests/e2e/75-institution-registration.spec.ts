@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import { drainOutbox, freshEmail, readEmail } from "./support/mailbox";
@@ -45,6 +45,15 @@ function card(page: Page, name: string) {
   return page.getByRole("article", { name });
 }
 
+/**
+ * The card's registration window chip, whose whole text is `label`: the
+ * card's date line can start with the same words ("Registration closed
+ * 19 August 2026 at 11:59 pm IST.").
+ */
+function windowChip(article: Locator, label: string) {
+  return article.getByText(label, { exact: true });
+}
+
 test("a coordinator sees the seeded registration's reference and a closed competition", async ({
   page,
   request,
@@ -61,14 +70,11 @@ test("a coordinator sees the seeded registration's reference and a closed compet
   await expect(page.getByText(`For ${INSTITUTION}`)).toBeVisible();
 
   const open = card(page, OPEN);
-  await expect(open.getByText("Registration open")).toBeVisible();
+  await expect(windowChip(open, "Registration open")).toBeVisible();
   await expect(open.getByText(SEEDED_REFERENCE)).toBeVisible();
   await expect(open.getByRole("button")).toHaveCount(0);
   const closed = card(page, CLOSED);
-  // Exact: the closing date's sentence starts with the same words.
-  await expect(
-    closed.getByText("Registration closed", { exact: true })
-  ).toBeVisible();
+  await expect(windowChip(closed, "Registration closed")).toBeVisible();
   await expect(closed.getByRole("button")).toHaveCount(0);
   await checkBothThemes(page, "/institution/competitions registered");
 });
@@ -106,7 +112,7 @@ test("an authorised person registers their institution and the principal is told
   await page.getByRole("link", { name: "Register for competitions" }).click();
   await expect(page.getByText(`For ${school.name}`)).toBeVisible();
   const open = card(page, OPEN);
-  await expect(open.getByText("Registration open")).toBeVisible();
+  await expect(windowChip(open, "Registration open")).toBeVisible();
   await checkBothThemes(page, "/institution/competitions open");
 
   await open
