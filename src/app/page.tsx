@@ -109,20 +109,24 @@ async function Hero() {
         <span className="absolute bottom-16 left-[4%] hidden size-5 -rotate-6 rounded-[22%] bg-teal-400 sm:block" />
         <span className="absolute right-[6%] bottom-8 hidden size-4 rotate-6 rounded-[22%] bg-pink-400 sm:block" />
       </div>
-      <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-12 px-4 py-8 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
+      <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-7 px-4 py-5 sm:gap-12 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
         <div>
           <Eyebrow tile="green">{t("hero.eyebrow")}</Eyebrow>
           <h1
             id="home-title"
-            className="mt-4 font-display text-[2.75rem] leading-[1.05] font-extrabold text-balance text-ink sm:text-display lg:text-[4.5rem]"
+            className="mt-2 font-display text-[clamp(2rem,1.25rem+3.75vw,2.75rem)] leading-[1.05] font-extrabold text-balance text-ink sm:mt-4 sm:text-display lg:text-[4.5rem]"
           >
             {t(hero.heading)}
           </h1>
-          <p className="mt-5 max-w-prose text-lg text-ink-muted sm:mt-6 sm:text-lead">
+          <p className="mt-3 max-w-prose text-base text-ink-muted max-sm:leading-6 sm:mt-6 sm:text-lead">
             {t(hero.subheading)}
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink href={hero.primaryCta.href} size="lg">
+          <div className="mt-4 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
+            <ButtonLink
+              href={hero.primaryCta.href}
+              size="lg"
+              className="max-sm:min-h-11 max-sm:px-5 max-sm:py-1.5 max-sm:text-base"
+            >
               {t(hero.primaryCta.label)}
             </ButtonLink>
             {hero.secondaryCta ? (
@@ -130,6 +134,7 @@ async function Hero() {
                 href={hero.secondaryCta.href}
                 variant="secondary"
                 size="lg"
+                className="max-sm:min-h-11 max-sm:px-5 max-sm:py-1.5 max-sm:text-base"
               >
                 {t(hero.secondaryCta.label)}
               </ButtonLink>
