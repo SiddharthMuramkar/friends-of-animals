@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { identityKeyInput, normaliseNameForMatching } from "./identity-key";
+import {
+  identityKeyInput,
+  matchKeys,
+  normaliseNameForMatching,
+} from "./identity-key";
 
 const DOB = { year: 2016, month: 3, day: 9 };
 
@@ -38,5 +42,20 @@ describe("identityKeyInput", () => {
     expect(identityKeyInput("Aanya Rao", DOB)).not.toBe(
       identityKeyInput("Aanya Rao", { ...DOB, day: 10 })
     );
+  });
+});
+
+describe("matchKeys", () => {
+  it("recognises a student by roll number first, then identity", () => {
+    expect(matchKeys({ identityHash: "h1", studentRefKey: "4B-07" })).toEqual([
+      "ref:4B-07",
+      "id:h1",
+    ]);
+  });
+
+  it("has only the identity without a roll number", () => {
+    expect(matchKeys({ identityHash: "h1", studentRefKey: null })).toEqual([
+      "id:h1",
+    ]);
   });
 });

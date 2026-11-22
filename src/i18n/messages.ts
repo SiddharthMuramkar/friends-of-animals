@@ -56,6 +56,7 @@ import security from "../../messages/en-IN/security.json";
 import showcase from "../../messages/en-IN/showcase.json";
 import stories from "../../messages/en-IN/stories.json";
 import styleguide from "../../messages/en-IN/styleguide.json";
+import studentImport from "../../messages/en-IN/studentImport.json";
 
 export const NAMESPACES = [
   "a11y",
@@ -112,6 +113,7 @@ export const NAMESPACES = [
   "showcase",
   "stories",
   "styleguide",
+  "studentImport",
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
@@ -172,6 +174,7 @@ export const messages = {
   ...showcase,
   ...stories,
   ...styleguide,
+  ...studentImport,
 };
 
 export type Messages = typeof messages;
