@@ -4,8 +4,8 @@ import { Live } from "@/components/site/live";
 import {
   type OrgFacts,
   unconfirmedOrgFacts,
-} from "@/server/cms/domain/org-facts";
-import { getOrgFacts } from "@/server/cms/org-facts";
+} from "@/server/modules/cms/domain/org-facts";
+import { getOrgFacts } from "@/server/modules/cms/org-facts";
 
 /**
  * FOA's organisation facts, read at request time. The static shell shows

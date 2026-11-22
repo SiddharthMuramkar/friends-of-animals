@@ -55,11 +55,16 @@ export const safeguarding: LegalDoc = {
       blocks: [
         {
           p: [
-            "If a child is in danger now, call 112 first. Then tell us. Until our online report form is ready, write to ",
-            { fact: "email" },
-            " with “Safeguarding” in the subject, or call ",
-            { fact: "phone" },
-            ".",
+            "If a child is in danger now, call 112 first. Then tell us.",
+            {
+              clause: [
+                " Until our online report form is ready, write to ",
+                { fact: "email" },
+                " with “Safeguarding” in the subject",
+                { clause: [", or call ", { fact: "phone" }] },
+                ".",
+              ],
+            },
           ],
         },
         {

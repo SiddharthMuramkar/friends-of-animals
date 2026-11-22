@@ -134,7 +134,7 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
               </li>
             </ol>
           </nav>
-          <div className="mt-8 grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="mt-8 grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
             <header>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <Chip tone={AUDIENCE_TONE[story.audience]}>
@@ -189,7 +189,7 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
         </Section>
 
         <Section hue="yellow" className="pt-10 sm:pt-14">
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-14">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-14">
             <nav
               aria-labelledby="toc"
               className="lg:sticky lg:top-[calc(var(--header-height)+1.5rem)] lg:order-2 lg:self-start"
@@ -237,7 +237,7 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
         <h2 id="related" className="text-h2 text-(--section-heading)">
           {t("related")}
         </h2>
-        <ul className="mt-8 grid gap-6 md:grid-cols-2">
+        <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
           {related(story).map((s) => (
             <li key={s.slug} className="flex">
               <StoryCard story={s} className="w-full" />

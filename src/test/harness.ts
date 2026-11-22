@@ -13,19 +13,25 @@
 // here and in src/server/deps.ts. Outbox events are not a port: `drain()`
 // runs the real relay over these deps. See docs/agents/seam-1.md.
 
+import { randomBytes } from "node:crypto";
 import { onTestFinished, vi } from "vitest";
 
 import { createApp, type UseCases } from "@/server/app";
+import {
+  createBlindIndex,
+  type BlindIndexKey,
+} from "@/server/crypto/blind-index";
+import { createFieldCipher } from "@/server/crypto/field-cipher";
 import type { Actor, RequestMeta } from "@/server/actor";
 import type { Deps } from "@/server/deps";
 import { resolveActor } from "@/server/identity";
 import { headersFor } from "@/server/identity/request";
-import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { isStaffRole } from "@/server/access/domain/roles";
 import { grantsOf } from "@/server/access/grants";
-import { base32Decode } from "@/server/second-factor/domain/base32";
-import { TOTP, totpCode } from "@/server/second-factor/domain/totp";
-import { isEnrolled } from "@/server/second-factor/session-factor";
+import { base32Decode } from "@/server/modules/second-factor/domain/base32";
+import { TOTP, totpCode } from "@/server/modules/second-factor/domain/totp";
+import { isEnrolled } from "@/server/modules/second-factor/session-factor";
+import { drainUntilIdle, type DrainReport } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 import { SEED_TOTP_SECRET } from "@/server/seed/second-factor";
 
@@ -33,6 +39,12 @@ import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
+import { FakeSms } from "./fakes/sms";
+import { FakeErrorReporter } from "./fakes/errors";
+import { FakeMalwareScanner } from "./fakes/malware-scanner";
+import { FakeMediaProcessor } from "./fakes/media";
+import { FakeStorage } from "./fakes/storage";
+import { TestSettings } from "./settings";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -44,8 +56,19 @@ export interface Harness {
   clock: FakeClock;
   /** Every email use cases sent. */
   email: FakeEmail;
+  /** Every SMS use cases sent. */
+  sms: FakeSms;
+  /**
+   * Runtime settings, over this database's settings table: at their
+   * defaults (SMS off) until a test stores one,
+   * `await h.settings.set("sms.enabled", true)`, or a super admin changes
+   * one with changeSetting. Use cases read the same rows.
+   */
+  settings: TestSettings;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
+  /** Every error use cases reported, scrubbed as Sentry would get it. */
+  errors: FakeErrorReporter;
   /** What use cases run against: the fakes above plus test auth config. */
   deps: Deps;
   /** The use cases, acting as `actor`: the same ones server actions call. */
@@ -88,6 +111,21 @@ export interface Harness {
    * finds nothing due. Retries wait for `clock.advance()`.
    */
   drain(): Promise<DrainReport>;
+  /**
+   * The private buckets. `put(url, bytes, headers)` and `get(url)` use a
+   * presigned URL as the browser does, checked against the fake clock.
+   */
+  storage: FakeStorage;
+  /**
+   * Flags the EICAR test file (src/test/eicar.ts); counts scans and fails
+   * the next ones with `failNext(n)`.
+   */
+  scanner: FakeMalwareScanner;
+  /**
+   * Makes derivatives from image headers without decoding pixels; records
+   * its inputs and fails the next ones with `failNext(n, code)`.
+   */
+  media: FakeMediaProcessor;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -100,6 +138,13 @@ export const TEST_AUTH = {
   secret: "seam-1-test-secret-0123456789abcdef",
   baseUrl: "http://localhost:3000",
 };
+
+/** A local run's files config: test uploads allowed, under `local/`. */
+export const TEST_FILES = {
+  bucket: "foa-files-test",
+  keyPrefix: "local/",
+  appEnv: "local",
+} as const;
 
 export async function createHarness(
   options: { now?: Date | string } = {}
@@ -115,8 +160,33 @@ export async function createHarness(
     onChange: (now) => vi.setSystemTime(now),
   });
   const email = new FakeEmail(clock);
+  const sms = new FakeSms(clock);
+  const settings = new TestSettings({ db, clock });
   const cookies = new FakeCookieJar(clock);
-  const deps: Deps = { db, clock, email, cookies, auth: TEST_AUTH };
+  const errors = new FakeErrorReporter();
+  const storage = new FakeStorage(clock);
+  const scanner = new FakeMalwareScanner();
+  const media = new FakeMediaProcessor();
+  const deps: Deps = {
+    db,
+    clock,
+    email,
+    sms,
+    cookies,
+    auth: TEST_AUTH,
+    // Fresh keys per harness, as a deployment has its own.
+    cipher: createFieldCipher({
+      primary: 1,
+      keys: new Map([[1, randomBytes(32)]]),
+    }),
+    blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
+    settings,
+    errors,
+    storage,
+    files: TEST_FILES,
+    scanner,
+    media,
+  };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
     ...DEFAULT_META,
@@ -128,7 +198,10 @@ export async function createHarness(
     db,
     clock,
     email,
+    sms,
+    settings,
     cookies,
+    errors,
     deps,
     as: (actor) => app.as(actor),
     visitor: (overrides) => ({ kind: "visitor", meta: meta(overrides) }),
@@ -190,7 +263,11 @@ export async function createHarness(
     totpCode: (at = clock.now()) =>
       totpCode(base32Decode(SEED_TOTP_SECRET), at),
     seed: createSeedBuilders(deps),
-    drain: () => drainUntilIdle(deps),
+    // Every queue, worker-media's included.
+    drain: () => drainUntilIdle(deps, { queue: "all" }),
+    storage,
+    scanner,
+    media,
   };
   return harness;
 }

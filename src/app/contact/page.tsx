@@ -15,6 +15,8 @@ import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { WithOrgFacts } from "@/components/site/with-org-facts";
+import { isFactShown } from "@/lib/site";
+import type { OrgFacts } from "@/server/modules/cms/domain/org-facts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("contact.meta");
@@ -49,11 +51,107 @@ const call = (number: string) => (chunks: ReactNode) => (
 
 export default async function Page() {
   const t = await getTranslations("contact");
-  const details = [
-    { key: "email", icon: Mail },
-    { key: "phone", icon: Phone },
-    { key: "address", icon: MapPin },
-  ] as const;
+  // Production leaves out unconfirmed details with their labels, and the
+  // whole "How to reach us" column once none is left.
+  const contactSection = (facts: OrgFacts) => {
+    const { email, phone, address } = facts;
+    const details = (
+      [
+        { key: "email", icon: Mail, fact: email },
+        { key: "phone", icon: Phone, fact: phone },
+        { key: "address", icon: MapPin, fact: address },
+      ] as const
+    ).filter(({ fact }) => isFactShown(fact));
+    return (
+      <Section
+        labelledBy={details.length > 0 ? "details-title" : "topics-title"}
+      >
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          {details.length > 0 ? (
+            <div>
+              <SectionHeading id="details-title" title={t("details.title")} />
+              <dl className="mt-8 grid gap-4">
+                {details.map(({ key, icon: Icon, fact }) => (
+                  <div
+                    key={key}
+                    className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 rounded-3xl border-2 border-border bg-surface p-4"
+                  >
+                    <dt className="contents">
+                      <span
+                        aria-hidden="true"
+                        className="row-span-2 grid size-11 place-items-center rounded-[22%] bg-section-blue text-section-blue-heading"
+                      >
+                        <Icon className="size-5" />
+                      </span>
+                      <span className="text-sm font-semibold text-ink-muted">
+                        {t(`details.${key}`)}
+                      </span>
+                    </dt>
+                    <dd className="col-start-2 mt-0.5">
+                      {key === "address" ? (
+                        <Placeholder fact={fact} />
+                      ) : (
+                        <ContactFact kind={key} fact={fact} />
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-6 font-display text-lead font-semibold">
+                {t("details.reply")}
+              </p>
+              {/* "Until then, please use email": only true beside an email. */}
+              {isFactShown(email) ? (
+                <p className="mt-2 text-ink-muted">{t("details.form")}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div>
+            <h2 id="topics-title" className="text-h3">
+              {t("topics.title")}
+            </h2>
+            <p className="mt-3 text-ink-muted">{t("topics.lead")}</p>
+            <ul className="mt-6 grid grid-cols-1 gap-3">
+              {TOPICS.map((k) => (
+                <li
+                  key={k}
+                  className="rounded-3xl border-2 border-border bg-surface p-5"
+                >
+                  <h3 className="flex items-center gap-2 font-sans text-body font-bold">
+                    <TileMarker hue="blue" size="sm" />
+                    <span className="min-w-0">
+                      {t(`topics.items.${k}.title`)}
+                    </span>
+                  </h3>
+                  <p className="mt-1.5 text-ink-muted">
+                    {t(`topics.items.${k}.body`)}
+                  </p>
+                </li>
+              ))}
+              <li className="rounded-3xl border-2 border-danger-border bg-danger-bg p-5">
+                <h3 className="flex items-center gap-2 font-sans text-body font-bold">
+                  <ShieldAlert
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-danger"
+                  />
+                  <span className="min-w-0">
+                    {t("topics.safeguarding.title")}
+                  </span>
+                </h3>
+                <p className="mt-1.5 text-ink">
+                  {t("topics.safeguarding.body")}
+                </p>
+                <SiteLink href={ROUTES.safeguarding.path} className={LINK}>
+                  {t("topics.safeguarding.link")}
+                </SiteLink>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </Section>
+    );
+  };
 
   return (
     <>
@@ -113,84 +211,7 @@ export default async function Page() {
         </div>
       </Section>
 
-      <Section labelledBy="details-title">
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <div>
-            <SectionHeading id="details-title" title={t("details.title")} />
-            <dl className="mt-8 grid gap-4">
-              {details.map(({ key, icon: Icon }) => (
-                <div
-                  key={key}
-                  className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 rounded-3xl border-2 border-border bg-surface p-4"
-                >
-                  <dt className="contents">
-                    <span
-                      aria-hidden="true"
-                      className="row-span-2 grid size-11 place-items-center rounded-[22%] bg-section-blue text-section-blue-heading"
-                    >
-                      <Icon className="size-5" />
-                    </span>
-                    <span className="text-sm font-semibold text-ink-muted">
-                      {t(`details.${key}`)}
-                    </span>
-                  </dt>
-                  <dd className="col-start-2 mt-0.5">
-                    <WithOrgFacts>
-                      {(facts) =>
-                        key === "address" ? (
-                          <Placeholder fact={facts.address} />
-                        ) : (
-                          <ContactFact kind={key} fact={facts[key]} />
-                        )
-                      }
-                    </WithOrgFacts>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-6 font-display text-lead font-semibold">
-              {t("details.reply")}
-            </p>
-            <p className="mt-2 text-ink-muted">{t("details.form")}</p>
-          </div>
-
-          <div>
-            <h2 className="text-h3">{t("topics.title")}</h2>
-            <p className="mt-3 text-ink-muted">{t("topics.lead")}</p>
-            <ul className="mt-6 grid gap-3">
-              {TOPICS.map((k) => (
-                <li
-                  key={k}
-                  className="rounded-3xl border-2 border-border bg-surface p-5"
-                >
-                  <h3 className="flex items-center gap-2 font-sans text-body font-bold">
-                    <TileMarker hue="blue" size="sm" />
-                    {t(`topics.items.${k}.title`)}
-                  </h3>
-                  <p className="mt-1.5 text-ink-muted">
-                    {t(`topics.items.${k}.body`)}
-                  </p>
-                </li>
-              ))}
-              <li className="rounded-3xl border-2 border-danger-border bg-danger-bg p-5">
-                <h3 className="flex items-center gap-2 font-sans text-body font-bold">
-                  <ShieldAlert
-                    aria-hidden="true"
-                    className="size-4 text-danger"
-                  />
-                  {t("topics.safeguarding.title")}
-                </h3>
-                <p className="mt-1.5 text-ink">
-                  {t("topics.safeguarding.body")}
-                </p>
-                <SiteLink href={ROUTES.safeguarding.path} className={LINK}>
-                  {t("topics.safeguarding.link")}
-                </SiteLink>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </Section>
+      <WithOrgFacts>{(facts) => contactSection(facts)}</WithOrgFacts>
 
       <Section hue="neutral" tone="tint" labelledBy="before-title">
         <h2 id="before-title" className="text-h3">

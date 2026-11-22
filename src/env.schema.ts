@@ -5,6 +5,10 @@
 
 import { z } from "zod";
 
+import { parseBlindIndexKey } from "./server/crypto/blind-index";
+import { parseKeyRing } from "./server/crypto/field-cipher";
+import { isUmamiOrigin } from "./lib/analytics/umami";
+import { parseDsn } from "./lib/observability/config";
 import { previewDatabase } from "./server/db/database-url";
 
 /** A postgres:// URL; `whenUnset` is the error shown when it is missing. */
@@ -41,7 +45,7 @@ const buildVariables = {
   VERCEL: vercel,
   APP_ENV: appEnv,
   /**
-   * Canonical base URL, e.g. https://shipped-it.dev. Only the server reads
+   * Canonical base URL, e.g. https://friendsofanimals.dev. Only the server reads
    * it, so it needs no NEXT_PUBLIC_ prefix, but prerendered pages bake it
    * in at build time.
    */
@@ -55,6 +59,22 @@ const buildVariables = {
    */
   VERCEL_BRANCH_URL: z.string().optional(),
   VERCEL_URL: z.string().optional(),
+  /**
+   * Cookieless page views (src/lib/analytics/umami.ts): this deployment's
+   * Umami website (staging and production each have one) and the Umami
+   * server's origin, e.g. https://stats.shipped-it.dev. Pages send nothing
+   * outside staging and production, or while either is unset.
+   */
+  NEXT_PUBLIC_UMAMI_WEBSITE_ID: z
+    .uuid({ error: "must be an Umami website id (a UUID)" })
+    .optional(),
+  UMAMI_ORIGIN: z
+    .url({ protocol: /^https$/, error: "must be an https URL" })
+    .refine(isUmamiOrigin, {
+      error:
+        "must be an origin with no path, e.g. https://stats.shipped-it.dev",
+    })
+    .optional(),
 };
 
 /**
@@ -78,6 +98,28 @@ function secret() {
     .optional();
 }
 
+/**
+ * A field-encryption key variable, checked with its own parser. The parser's
+ * message names the problem, never the key.
+ */
+function fieldKey(parse: (value: string) => unknown) {
+  return z
+    .string()
+    .superRefine((value, ctx) => {
+      try {
+        parse(value);
+      } catch (error) {
+        ctx.issues.push({
+          code: "custom",
+          // Never the key itself: errors are logged.
+          input: undefined,
+          message: error instanceof Error ? error.message : "is malformed",
+        });
+      }
+    })
+    .optional();
+}
+
 /** Secrets the app server reads. */
 const secretVariables = {
   /**
@@ -92,7 +134,120 @@ const secretVariables = {
    * route answers 404.
    */
   CAPTURE_MAILBOX_TOKEN: secret(),
+  /**
+   * The field cipher's key ring, "<version>:<base64 32 bytes>,..." (the
+   * highest version encrypts), and the blind index key (base64 32 bytes).
+   * Required on staging and production; a local run or a preview without
+   * them uses public development keys (src/server/crypto/keys.ts).
+   */
+  FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
+  FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+  /**
+   * MSG91, production's SMS provider: the account's auth key and the id of
+   * the DLT-approved sign-in code template. Optional: without them
+   * production refuses to send SMS (sign-in by phone stays switched off
+   * until DLT approval), and other environments never call MSG91.
+   */
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
 };
+
+/**
+ * Private file storage (#63): Cloudflare R2 through its S3 API. All four,
+ * or none: without them storage refuses every call (src/server/deps.ts),
+ * which is where production stays until FOA's buckets exist. Staging and
+ * previews share the non-production bucket, each under its own prefix.
+ */
+const storageVariables = {
+  /** 32 hex characters; it names the endpoint's host. */
+  R2_ACCOUNT_ID: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/, { error: "must be 32 lower-case hex characters" })
+    .optional(),
+  /** An R2 API token's key pair, scoped to R2_BUCKET. */
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, {
+      error: "must be an R2 bucket name: 3-63 of a-z, 0-9 and -",
+    })
+    .optional(),
+};
+
+const STORAGE_VARIABLES = [
+  "R2_ACCOUNT_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+] as const;
+
+type StorageVariables = Partial<
+  Record<(typeof STORAGE_VARIABLES)[number], string>
+>;
+
+/** Storage is configured whole or not at all. */
+function requireWholeStorageConfig(
+  values: StorageVariables,
+  ctx: z.RefinementCtx<StorageVariables>
+) {
+  const missing = STORAGE_VARIABLES.filter(
+    (name) => values[name] === undefined
+  );
+  if (missing.length === 0 || missing.length === STORAGE_VARIABLES.length) {
+    return;
+  }
+  ctx.issues.push({
+    code: "custom",
+    path: [missing[0]!],
+    input: undefined,
+    message:
+      `R2 is half configured. Set ${missing.join(", ")} too, or unset ` +
+      "every R2_ variable to run without storage.",
+  });
+}
+
+/**
+ * Error tracking (#66). Read by the server at runtime; the browser gets
+ * NEXT_PUBLIC_SENTRY_DSN baked in at build time.
+ */
+const errorTrackingVariables = {
+  /**
+   * The app's Sentry DSN, public by design. Unset turns error tracking
+   * off; production requires it. The message never repeats a bad value.
+   */
+  NEXT_PUBLIC_SENTRY_DSN: z
+    .string()
+    .refine((value) => parseDsn(value) !== undefined, {
+      error:
+        "is not a valid Sentry DSN. Copy it from the Sentry project's " +
+        "Client Keys page, or leave it empty to turn error tracking off.",
+    })
+    .optional(),
+  /** Set by Vercel: the commit the deployment was built from. */
+  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
+};
+
+/**
+ * The malware scanner (#63): clamd in the `foa-clamav` sidecar, which only
+ * the VPS workers can reach (docker/workers.yml). Without CLAMD_HOST every
+ * scan is an error and uploads wait unscanned, as they do on Vercel, which
+ * never reaches clamd; the workers set it (HR-08).
+ */
+const scannerVariables = {
+  CLAMD_HOST: z.string().optional(),
+  CLAMD_PORT: z.coerce
+    .number({ error: "must be a TCP port, 1 to 65535" })
+    .int({ error: "must be a TCP port, 1 to 65535" })
+    .min(1, { error: "must be a TCP port, 1 to 65535" })
+    .max(65_535, { error: "must be a TCP port, 1 to 65535" })
+    .default(3310),
+};
+
+/** Where the scan job finds clamd; the worker parses it too. */
+export const scannerEnvSchema = z.object(scannerVariables);
+
+export type ScannerEnv = z.output<typeof scannerEnvSchema>;
 
 type AppEnv = (typeof APP_ENVS)[number];
 
@@ -160,7 +315,7 @@ function requireAppUrl(
       input: values.APP_URL,
       message:
         `APP_URL is not set. APP_ENV=${deployed} needs its canonical base ` +
-        "URL, e.g. https://shipped-it.dev, at build time and at runtime." +
+        "URL, e.g. https://friendsofanimals.dev, at build time and at runtime." +
         (deployed === "preview"
           ? " (Previews default to https://$VERCEL_BRANCH_URL, which is not set either.)"
           : ""),
@@ -217,6 +372,67 @@ function requireAuthSecret(
       message:
         `BETTER_AUTH_SECRET is not set. APP_ENV=${values.APP_ENV} needs its ` +
         "own random secret of 32 characters or more (openssl rand -hex 32).",
+    });
+  }
+}
+
+/** Production reports its errors, so it can't start without a DSN. */
+function requireSentryInProduction(
+  values: { APP_ENV?: AppEnv | undefined; NEXT_PUBLIC_SENTRY_DSN?: string },
+  ctx: z.RefinementCtx<{
+    APP_ENV?: AppEnv | undefined;
+    NEXT_PUBLIC_SENTRY_DSN?: string;
+  }>
+) {
+  if (values.APP_ENV === "production" && !values.NEXT_PUBLIC_SENTRY_DSN) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["NEXT_PUBLIC_SENTRY_DSN"],
+      input: values.NEXT_PUBLIC_SENTRY_DSN,
+      message:
+        "NEXT_PUBLIC_SENTRY_DSN is not set. APP_ENV=production reports " +
+        "its errors to Sentry: set the app project's DSN at build time " +
+        "and at runtime.",
+    });
+  }
+}
+
+/**
+ * Staging and production encrypt personal data under keys of their own;
+ * the development keys are public.
+ */
+function requireFieldKeys(
+  values: {
+    APP_ENV?: AppEnv | undefined;
+    FIELD_ENCRYPTION_KEYS?: string | undefined;
+    FIELD_HMAC_KEY?: string | undefined;
+  },
+  ctx: z.RefinementCtx<{
+    APP_ENV?: AppEnv | undefined;
+    FIELD_ENCRYPTION_KEYS?: string | undefined;
+    FIELD_HMAC_KEY?: string | undefined;
+  }>
+) {
+  if (values.APP_ENV !== "staging" && values.APP_ENV !== "production") return;
+  if (values.FIELD_ENCRYPTION_KEYS === undefined) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["FIELD_ENCRYPTION_KEYS"],
+      input: undefined,
+      message:
+        `FIELD_ENCRYPTION_KEYS is not set. APP_ENV=${values.APP_ENV} needs ` +
+        'its own key ring, e.g. "1:$(openssl rand -base64 32)". Keep an ' +
+        "offline copy: a lost key loses every value stored under it.",
+    });
+  }
+  if (values.FIELD_HMAC_KEY === undefined) {
+    ctx.issues.push({
+      code: "custom",
+      path: ["FIELD_HMAC_KEY"],
+      input: undefined,
+      message:
+        `FIELD_HMAC_KEY is not set. APP_ENV=${values.APP_ENV} needs its own ` +
+        "blind index key (openssl rand -base64 32).",
     });
   }
 }
@@ -278,11 +494,17 @@ export const envSchema = z
         "postgres://foa:foa@localhost:5432/foa (see .env.example)."
     ),
     ...secretVariables,
+    ...storageVariables,
+    ...errorTrackingVariables,
+    ...scannerVariables,
   })
   .superRefine(requireAppEnvOnVercel, always)
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
   .superRefine(requireAuthSecret, always)
+  .superRefine(requireFieldKeys, always)
+  .superRefine(requireWholeStorageConfig, always)
+  .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 
 export type Env = z.output<typeof envSchema>;
@@ -310,6 +532,47 @@ export const migrationEnvSchema = z
   .superRefine(requirePreviewDatabase, always);
 
 export type MigrationEnv = z.output<typeof migrationEnvSchema>;
+
+/**
+ * The keys the seed script encrypts seeded personal data with, read as the
+ * app reads them, so the app finds and reads what the seed stored. The seed
+ * runs only on previews and local runs, so they may be left out.
+ */
+export const fieldKeyEnvSchema = z
+  .object({
+    APP_ENV: appEnv,
+    FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
+    FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
+  })
+  .transform(({ APP_ENV, ...keys }) => ({
+    ...keys,
+    APP_ENV: APP_ENV ?? "local",
+  }));
+
+/**
+ * What `pnpm files:purge-preview` reads (scripts/purge-preview-files.ts):
+ * APP_ENV and all four R2 variables, the non-production bucket's. Purging
+ * without storage can't do anything, so none of them is optional here.
+ */
+export const purgeEnvSchema = z
+  .object({ APP_ENV: appEnv, ...storageVariables })
+  .required({
+    R2_ACCOUNT_ID: true,
+    R2_ACCESS_KEY_ID: true,
+    R2_SECRET_ACCESS_KEY: true,
+    R2_BUCKET: true,
+  });
+
+/**
+ * What the worker's scan job reads besides its database
+ * (src/worker/config.ts): the R2 variables, all four or none, and where
+ * clamd is. Without R2 or CLAMD_HOST every scan fails and uploads wait.
+ */
+export const scanJobEnvSchema = z
+  .object({ ...storageVariables, ...scannerVariables })
+  .superRefine(requireWholeStorageConfig);
+
+export type ScanJobEnv = z.output<typeof scanJobEnvSchema>;
 
 /**
  * Parses an env-like object, usually process.env, against `schema`. Empty

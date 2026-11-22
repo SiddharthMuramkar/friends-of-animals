@@ -6,8 +6,9 @@ import {
 import { NextRequest, type NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SIGNED_IN_PREFIXES } from "@/lib/app-routes";
+import { APP_ROUTES, SIGNED_IN_PREFIXES } from "@/lib/app-routes";
 import { publicCsp } from "@/lib/csp";
+import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { cspContext } from "@/lib/csp-sources";
 
 import { config, proxy } from "./proxy";
@@ -114,7 +115,13 @@ describe("proxy: the signed-in nonce policy", () => {
     vi.stubEnv("APP_ENV", "preview");
     // A request-time notFound() under the signed-in layout could only stream
     // a 200; the prerendered 404 has no nonce on its scripts.
-    for (const path of ["/account", "/account/nope", "/account/sessions/x"]) {
+    for (const path of [
+      "/account",
+      "/account/nope",
+      "/account/sessions/x",
+      "/admin/competitions/x",
+      "/admin/competitions/x/delete",
+    ]) {
       const response = proxy(request(path, SESSION));
 
       expect(getRewrittenUrl(response), path).toBe(
@@ -127,6 +134,21 @@ describe("proxy: the signed-in nonce policy", () => {
     }
   });
 
+  it("sends a competition's edit and preview pages the nonce policy too", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    for (const page of ["edit", "preview"]) {
+      const path = `/admin/competitions/01938a00-0000-7000-8000-000000002001/${page}`;
+      const response = proxy(request(path, SESSION));
+
+      expect(getRewrittenUrl(response), path).toBeNull();
+      const policy = response.headers.get("content-security-policy");
+      expect(policy, path).toMatch(/script-src 'self' 'nonce-[^']+'/);
+      expect(pageHeaders(response).get("x-nonce"), path).toBe(
+        getScriptNonceFromHeader(policy!)
+      );
+    }
+  });
+
   it("still sends a visitor with no session cookie to sign in", () => {
     const response = proxy(request("/account/sessions"));
 
@@ -134,6 +156,47 @@ describe("proxy: the signed-in nonce policy", () => {
     expect(response.headers.get("location")).toBe(
       "https://foa.example.test/sign-in"
     );
+  });
+
+  describe("on the staff admin pages", () => {
+    it("sends a page the nonce policy, and renders it with the same nonce", () => {
+      vi.stubEnv("APP_ENV", "preview");
+      const response = proxy(
+        request(APP_ROUTES.adminConsentDocuments, SESSION)
+      );
+
+      const policy = response.headers.get("content-security-policy");
+      expect(policy).toMatch(
+        /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/
+      );
+      expect(policy).not.toMatch(/script-src [^;]*'unsafe-inline'/);
+      const page = pageHeaders(response);
+      expect(page.get("content-security-policy")).toBe(policy);
+      expect(page.get("x-nonce")).toBe(getScriptNonceFromHeader(policy!));
+    });
+
+    it("sends a visitor with no session cookie to sign in", () => {
+      const response = proxy(request(APP_ROUTES.adminConsentDocuments));
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        "https://foa.example.test/sign-in"
+      );
+    });
+
+    it("answers a path with no page with the static 404", () => {
+      vi.stubEnv("APP_ENV", "preview");
+      for (const path of ["/admin", "/admin/nope"]) {
+        const response = proxy(request(path, SESSION));
+
+        expect(getRewrittenUrl(response), path).toBe(
+          "https://foa.example.test/__not-found"
+        );
+        expect(response.headers.get("content-security-policy"), path).toBe(
+          publicCsp(cspContext()).value
+        );
+      }
+    });
   });
 
   it("leaves public pages to next.config.ts headers()", () => {
@@ -150,6 +213,13 @@ describe("proxy: the signed-in nonce policy", () => {
     }
   });
 
+  it("runs on every page in APP_ROUTES", () => {
+    for (const path of Object.values(APP_ROUTES)) {
+      const url = `https://foa.example.test${path}`;
+      expect(unstable_doesMiddlewareMatch({ config, url }), path).toBe(true);
+    }
+  });
+
   it("runs on every path under SIGNED_IN_PREFIXES", () => {
     for (const prefix of SIGNED_IN_PREFIXES) {
       for (const path of [prefix, `${prefix}/sessions`, `${prefix}/a/b`]) {
@@ -157,5 +227,81 @@ describe("proxy: the signed-in nonce policy", () => {
         expect(unstable_doesMiddlewareMatch({ config, url }), path).toBe(true);
       }
     }
+  });
+});
+
+describe("proxy: the file upload demo", () => {
+  it("is the 404, under the public policy, in production, signed in or not", () => {
+    vi.stubEnv("APP_ENV", "production");
+
+    for (const headers of [{}, SESSION]) {
+      const response = proxy(request("/account/files", headers));
+
+      expect(getRewrittenUrl(response)).toBe(
+        "https://foa.example.test/__not-found"
+      );
+      // Production only reports, so the policy's own key names the header.
+      const policy = publicCsp(cspContext());
+      expect(response.headers.get(policy.key)).toBe(policy.value);
+      expect(response.headers.get("location")).toBeNull();
+    }
+  });
+
+  it.each(["preview", "staging", "local"])(
+    "is a signed-in page under APP_ENV=%s",
+    (name) => {
+      vi.stubEnv("APP_ENV", name);
+
+      expect(proxy(request("/account/files")).headers.get("location")).toBe(
+        "https://foa.example.test/sign-in"
+      );
+      const page = pageHeaders(proxy(request("/account/files", SESSION)));
+      expect(page.get("x-nonce")).toEqual(expect.any(String));
+    }
+  );
+
+  it("leaves the other account pages to the sign-in check in production", () => {
+    vi.stubEnv("APP_ENV", "production");
+
+    expect(proxy(request("/account/sessions")).headers.get("location")).toBe(
+      "https://foa.example.test/sign-in"
+    );
+  });
+});
+
+describe("proxy: the page's path, for the staff gate (#60)", () => {
+  it.each([
+    APP_ROUTES.accountSecurity,
+    APP_ROUTES.secondFactor,
+    APP_ROUTES.stepUp,
+  ])("sends a visitor without a session cookie from %s to sign in", (path) => {
+    const response = proxy(request(path));
+    expect(response.status).toBe(307);
+    expect(new URL(response.headers.get("location")!).pathname).toBe(
+      "/sign-in"
+    );
+  });
+
+  it("renders a signed-in page knowing its path and query, to come back to", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const path = `${APP_ROUTES.stepUp}?next=%2Fadmin%2Froles`;
+
+    expect(pageHeaders(proxy(request(path, SESSION))).get(PATH_HEADER)).toBe(
+      path
+    );
+  });
+
+  it("never passes on a path header the browser sent itself", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    const response = proxy(
+      request(APP_ROUTES.accountSecurity, {
+        ...SESSION,
+        [PATH_HEADER]: "https://example.com",
+      })
+    );
+
+    expect(pageHeaders(response).get(PATH_HEADER)).toBe(
+      APP_ROUTES.accountSecurity
+    );
   });
 });

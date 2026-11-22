@@ -19,7 +19,7 @@ import { user, userRole } from "../db/schema";
 import { uuidv7 } from "../ids";
 import { invalidInput, type InvalidInput } from "../input";
 import { recordAudit } from "../audit/record";
-import { capSessionsAtStaffLifetime } from "../second-factor/session-lifetimes";
+import { capSessionsAtStaffLifetime } from "../modules/second-factor/session-lifetimes";
 import type { UseCaseContext } from "../use-cases";
 import { authorize } from "./can";
 import {
@@ -225,7 +225,8 @@ export type UserGrant = Grant & {
 export type ListUserRolesResult =
   | {
       ok: true;
-      user: { id: string; name: string; email: string };
+      // `email` is null for an account made by phone (#58).
+      user: { id: string; name: string; email: string | null };
       grants: UserGrant[];
     }
   | InvalidInput

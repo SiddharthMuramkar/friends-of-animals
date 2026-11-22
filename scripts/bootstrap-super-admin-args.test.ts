@@ -102,4 +102,22 @@ describe("bootstrapTarget", () => {
       error: expect.stringContaining("?host="),
     });
   });
+
+  it("refuses a URL with no host, whatever --target says", () => {
+    // postgres-js connects such a URL to PGHOST, else localhost, so
+    // "Target: /foa" wouldn't say which database the bootstrap writes to.
+    // Each passes the env schema.
+    for (const url of [
+      "postgres:///foa",
+      "postgresql:///foa?sslmode=require",
+      "postgres:/foa",
+    ]) {
+      for (const confirmed of [undefined, "/foa", "localhost/foa"]) {
+        expect(bootstrapTarget(url, confirmed), `${url} ${confirmed}`).toEqual({
+          ok: false,
+          error: expect.stringContaining("names no host"),
+        });
+      }
+    }
+  });
 });

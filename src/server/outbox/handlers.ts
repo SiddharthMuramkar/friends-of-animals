@@ -12,13 +12,26 @@
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
 import type { AppDb } from "../db/app-db";
-import { sendWelcomeEmail } from "../notifications/welcome-email";
+import { processImageAsset } from "../modules/files/process-image";
+import { scanUploadedFile } from "../modules/files/scan-handler";
+import { sendWelcomeEmail } from "../modules/notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
+import type { MalwareScanner } from "../ports/malware-scanner";
+import type { MediaProcessor } from "../ports/media";
+import type { ObjectStorage } from "../ports/storage";
 import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
-export type OutboxDeps = { db: AppDb; clock: Clock; email: EmailSender };
+export type OutboxDeps = {
+  db: AppDb;
+  clock: Clock;
+  email: EmailSender;
+  storage: ObjectStorage;
+  scanner: MalwareScanner;
+  /** Used only by the media queue's handlers, in worker-media. */
+  media: MediaProcessor;
+};
 
 /** The event a handler listens to, from SUBSCRIBERS. */
 type EventFor<H extends HandlerName> = {
@@ -46,11 +59,13 @@ type Handlers = {
 export const HANDLERS: Handlers = {
   "notifications.send_welcome_email": (deps, { payload }) =>
     sendWelcomeEmail(deps, payload),
+  "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
   // Nothing to do yet: consent state is read live, so a withdrawal counts
   // at once. emit() saves no row for an event without handlers, so this
   // one keeps each withdrawal on the outbox until the first module that
   // reacts to it adds its own handler; then remove this one.
   "consent.acknowledge_withdrawal": async () => {},
+  "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
 };
 
 /** Whether this code has a handler by that name. */

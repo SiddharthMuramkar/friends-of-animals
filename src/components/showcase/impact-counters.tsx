@@ -68,9 +68,9 @@ export async function ImpactCounters({
             className="flex flex-col-reverse justify-end gap-1 border-t-2 border-border pt-4"
           >
             <dt className="text-ink-muted">{t(`labels.${key}`)}</dt>
-            <dd className="flex items-center gap-3 font-display text-h1 leading-none font-bold text-ink">
+            <dd className="flex flex-wrap items-center gap-3 font-display text-h1 leading-none font-bold text-ink">
               <TileMarker hue={HUES[i % HUES.length]} size="lg" />
-              {display}
+              <span className="min-w-0">{display}</span>
             </dd>
           </div>
         ))}

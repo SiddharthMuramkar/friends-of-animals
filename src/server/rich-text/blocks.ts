@@ -10,6 +10,10 @@
 //   - unknown shapes, unknown facts and extra keys are dropped;
 //   - empty pieces, blocks and sections are dropped.
 //
+// Text here is text as published: a clause of the repo's policies (#172)
+// is an unknown shape, since a published version holds none (#64's
+// toConsentDocumentBody keeps a clause's words instead).
+//
 // It never throws: a bad stored row renders as whatever is safe in it.
 // Profiles are data; later tickets add theirs (blog posts add images).
 //
@@ -19,8 +23,8 @@ import {
   LEGAL_FACTS,
   type LegalBlock,
   type LegalFact,
-  type LegalInline,
   type LegalSection,
+  type ShownInline,
 } from "../../content/legal/model";
 import { safeHref } from "./href";
 import { stripMarkup } from "./strip-markup";
@@ -39,8 +43,8 @@ export type RichTextProfile = keyof typeof PROFILES;
 
 /** A policy-style document: the short version, then titled sections. */
 export type DocumentBody = {
-  short: LegalInline[][];
-  sections: LegalSection[];
+  short: ShownInline[][];
+  sections: LegalSection<ShownInline>[];
 };
 
 type Fields = Record<string, unknown>;
@@ -58,7 +62,7 @@ function text(value: unknown): string {
   return typeof value === "string" ? stripMarkup(value) : "";
 }
 
-function inline(value: unknown, profile: Profile): LegalInline | null {
+function inline(value: unknown, profile: Profile): ShownInline | null {
   if (typeof value === "string") return text(value) || null;
   if (!isFields(value)) return null;
   if ("strong" in value) {
@@ -82,14 +86,17 @@ function inline(value: unknown, profile: Profile): LegalInline | null {
 export function sanitizeInlines(
   value: unknown,
   profile: RichTextProfile
-): LegalInline[] {
+): ShownInline[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((piece) => inline(piece, PROFILES[profile]))
     .filter((piece) => piece !== null);
 }
 
-function block(value: unknown, profile: RichTextProfile): LegalBlock | null {
+function block(
+  value: unknown,
+  profile: RichTextProfile
+): LegalBlock<ShownInline> | null {
   if (!isFields(value)) return null;
   if (hasOnlyKeys(value, "p")) {
     const p = sanitizeInlines(value.p, profile);
@@ -108,7 +115,7 @@ function block(value: unknown, profile: RichTextProfile): LegalBlock | null {
 export function sanitizeBlocks(
   value: unknown,
   profile: RichTextProfile
-): LegalBlock[] {
+): LegalBlock<ShownInline>[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((item) => block(item, profile))
@@ -144,7 +151,7 @@ export function sanitizeDocumentBody(
         .filter((line) => line.length > 0)
     : [];
   const used = new Set<string>();
-  const sections: LegalSection[] = [];
+  const sections: LegalSection<ShownInline>[] = [];
   const rawSections = Array.isArray(value.sections) ? value.sections : [];
   for (const raw of rawSections) {
     if (!isFields(raw)) continue;

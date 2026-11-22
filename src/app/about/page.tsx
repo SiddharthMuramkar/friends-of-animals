@@ -18,12 +18,13 @@ import { TileDivider, TileMarker } from "@/components/site/tile";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { isFactShown } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import {
   type AboutPage,
   loadAboutPage,
   seedAboutPage,
-} from "@/server/cms/site-pages";
+} from "@/server/modules/cms/site-pages";
 
 import { EasyRead } from "@/components/site/easy-read";
 
@@ -115,7 +116,7 @@ async function AboutContent({ about, facts }: AboutPage) {
           title={about.duty.title}
           lead={about.duty.body}
         />
-        <div className="mt-10 grid gap-10 lg:grid-cols-2 lg:gap-14">
+        <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-14">
           <QuoteFigure id="Q01" hue="blue" />
           <QuoteFigure id="Q02" hue="green" size="md" />
         </div>
@@ -127,7 +128,7 @@ async function AboutContent({ about, facts }: AboutPage) {
 
       {/* Vision and mission, in FOA's own words. */}
       <Section width="wide" tone="tint" hue="blue">
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {(
             [
               ["visionTitle", "vision", "yellow"],
@@ -140,7 +141,7 @@ async function AboutContent({ about, facts }: AboutPage) {
             >
               <h2 className="flex items-center gap-3 text-h3">
                 <TileMarker hue={tile} size="lg" />
-                {about.vision[title]}
+                <span className="min-w-0">{about.vision[title]}</span>
               </h2>
               <p className="mt-4 font-display text-h5 leading-snug font-semibold text-ink">
                 {about.vision[body]}
@@ -152,7 +153,7 @@ async function AboutContent({ about, facts }: AboutPage) {
 
       {/* Why compassion is a skill. */}
       <Section labelledBy="about-skill" width="wide" hue="blue">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16">
           <Photo
             id="cat-lentils-west-bengal"
             sizes="(min-width: 1024px) 40vw, 92vw"
@@ -195,7 +196,7 @@ async function AboutContent({ about, facts }: AboutPage) {
         tone="tint"
         hue="yellow"
       >
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:gap-14">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:gap-14">
           <SectionHeading
             id="about-ashoka"
             eyebrow={about.ashoka.eyebrow}
@@ -215,7 +216,7 @@ async function AboutContent({ about, facts }: AboutPage) {
           tile="blue"
           title={about.how.title}
         />
-        <ol className="mt-10 grid gap-6 md:grid-cols-3">
+        <ol className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
           {HOW.map(({ key, Icon, tile }, i) => (
             <li
               key={key}
@@ -239,7 +240,7 @@ async function AboutContent({ about, facts }: AboutPage) {
         </ol>
         <h3 className="mt-16 flex items-center gap-3 text-h3 sm:mt-20">
           <TileMarker hue="yellow" size="lg" />
-          {t("how.photos.title")}
+          <span className="min-w-0">{t("how.photos.title")}</span>
         </h3>
         <HappyMosaic
           layout="row3"
@@ -264,13 +265,13 @@ async function AboutContent({ about, facts }: AboutPage) {
           {about.people.items.map((item, i) => (
             <li
               key={item}
-              className="inline-flex min-h-11 items-center gap-2.5 rounded-full border-2 border-border bg-surface px-4 py-2 font-semibold text-ink"
+              className="inline-flex min-h-11 max-w-full items-center gap-2.5 rounded-full border-2 border-border bg-surface px-4 py-2 font-semibold text-ink"
             >
               <TileMarker
                 hue={PEOPLE_TILES[i % PEOPLE_TILES.length]}
                 size="sm"
               />
-              {item}
+              <span className="min-w-0">{item}</span>
             </li>
           ))}
         </ul>
@@ -302,7 +303,7 @@ async function AboutContent({ about, facts }: AboutPage) {
           tile="green"
           title={about.objectives.title}
         />
-        <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {about.objectives.items.map((o, i) => (
             <li
               key={o.title}
@@ -331,11 +332,14 @@ async function AboutContent({ about, facts }: AboutPage) {
             title={about.transparency.title}
             lead={about.transparency.body}
           />
-          <p className="mt-6 flex flex-wrap items-center gap-2 text-body text-ink">
-            {t("transparency.registration")}
-            <Placeholder fact={facts.registration.type} />
-            <Placeholder fact={facts.registration.number} />
-          </p>
+          {isFactShown(facts.registration.type) ||
+          isFactShown(facts.registration.number) ? (
+            <p className="mt-6 flex flex-wrap items-center gap-2 text-body text-ink">
+              {t("transparency.registration")}
+              <Placeholder fact={facts.registration.type} />
+              <Placeholder fact={facts.registration.number} />
+            </p>
+          ) : null}
           <ButtonLink
             href={ROUTES.donate.path}
             variant="secondary"

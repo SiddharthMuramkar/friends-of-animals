@@ -1,15 +1,19 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { umamiRewrites } from "./src/lib/analytics/umami";
 import { SIGNED_IN_PREFIXES } from "./src/lib/app-routes";
 import { cspHeaderRules } from "./src/lib/csp";
 import { cspContext } from "./src/lib/csp-sources";
 import { robotsHeaders } from "./src/lib/indexing";
 import { securityHeaders } from "./src/lib/security-headers";
-import { assertNoPlaceholdersInProduction } from "./src/lib/site";
+import { unconfirmedFactsWarning } from "./src/lib/site";
 
-// A production build must not ship "To be confirmed" organisation facts.
-assertNoPlaceholdersInProduction();
+// Production ships without the organisation facts FOA hasn't confirmed
+// (owner's decision, 2026-11-21): pages leave them out, and the build log
+// names them.
+const factsWarning = unconfirmedFactsWarning();
+if (factsWarning) console.warn(factsWarning);
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -40,6 +44,12 @@ const nextConfig: NextConfig = {
       ...cspHeaderRules(cspContext(), SIGNED_IN_PREFIXES),
       ...robotsHeaders(),
     ];
+  },
+  // Umami's tracker script and collect endpoint, proxied under /stats/ so
+  // analytics stays same-origin for the CSP (#118). Only those two paths,
+  // and none while UMAMI_ORIGIN is unset.
+  rewrites() {
+    return Promise.resolve(umamiRewrites(process.env.UMAMI_ORIGIN));
   },
 };
 

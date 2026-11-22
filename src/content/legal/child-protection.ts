@@ -25,9 +25,9 @@ export const childProtection: LegalDoc = {
       blocks: [
         {
           p: [
-            "This policy sets out how Friends of Animals (registered name: ",
-            { fact: "legalName" },
-            ") protects every child who takes part in our competitions, events and programmes. A child is anyone under 18.",
+            "This policy sets out how Friends of Animals",
+            { clause: [" (registered name: ", { fact: "legalName" }, ")"] },
+            " protects every child who takes part in our competitions, events and programmes. A child is anyone under 18.",
           ],
         },
         {
@@ -179,9 +179,14 @@ export const childProtection: LegalDoc = {
       blocks: [
         {
           p: [
-            "We review this policy every year, and after any serious incident. Questions about it can go to ",
-            { fact: "email" },
-            ".",
+            "We review this policy every year, and after any serious incident.",
+            {
+              clause: [
+                " Questions about it can go to ",
+                { fact: "email" },
+                ".",
+              ],
+            },
           ],
         },
       ],

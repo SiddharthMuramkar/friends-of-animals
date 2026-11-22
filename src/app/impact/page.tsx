@@ -14,7 +14,7 @@ import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { isSampleContentEnabled } from "@/lib/site";
 import { Live } from "@/components/site/live";
-import { loadImpact, seedImpact } from "@/server/cms/site-pages";
+import { loadImpact, seedImpact } from "@/server/modules/cms/site-pages";
 
 import { EasyRead } from "@/components/site/easy-read";
 
@@ -135,7 +135,7 @@ export default async function Page() {
           </TableScroller>
           <div>
             <h3 className="text-h3">{t("method.rules.title")}</h3>
-            <ol className="mt-5 grid gap-4">
+            <ol className="mt-5 grid grid-cols-1 gap-4">
               {RULES.map((k, i) => (
                 <li key={k} className="flex items-start gap-3">
                   <span
@@ -144,7 +144,9 @@ export default async function Page() {
                   >
                     {i + 1}
                   </span>
-                  <span className="pt-0.5">{t(`method.rules.${k}`)}</span>
+                  <span className="min-w-0 pt-0.5">
+                    {t(`method.rules.${k}`)}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -180,14 +182,16 @@ export default async function Page() {
 
       <Section labelledBy="publish-title" hue={HUE}>
         <SectionHeading id="publish-title" title={t("publish.title")} />
-        <ul className="mt-8 grid gap-5 sm:grid-cols-2">
+        <ul className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
           {PUBLISH.map(({ key, hue }) => (
             <li
               key={key}
               className="flex items-start gap-4 rounded-3xl bg-surface p-6 shadow-warm"
             >
               <TileMarker hue={hue} size="lg" />
-              <span className="text-lead">{t(`publish.items.${key}`)}</span>
+              <span className="min-w-0 text-lead">
+                {t(`publish.items.${key}`)}
+              </span>
             </li>
           ))}
         </ul>

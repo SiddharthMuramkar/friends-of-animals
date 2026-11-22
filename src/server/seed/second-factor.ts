@@ -10,11 +10,14 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { isStaffRole } from "../access/domain/roles";
 import { grantsOf } from "../access/grants";
 import { secondFactor } from "../db/schema";
-import { uuidv7 } from "../ids";
-import { base32Decode } from "../second-factor/domain/base32";
-import { openTotpSecret, sealTotpSecret } from "../second-factor/secret-box";
-import { SEED_ACCOUNTS } from "./accounts";
 import { ensureVerifiedAccount } from "../identity/verified-account";
+import { uuidv7 } from "../ids";
+import { base32Decode } from "../modules/second-factor/domain/base32";
+import {
+  openTotpSecret,
+  sealTotpSecret,
+} from "../modules/second-factor/secret-box";
+import { SEED_ACCOUNTS } from "./accounts";
 import type { SeedDeps } from "./types";
 
 /**
@@ -82,7 +85,12 @@ export async function ensureSeedAuthenticator(
 /** An authenticator for each seeded account holding a staff role. */
 export async function seedSecondFactor(deps: SeedDeps): Promise<void> {
   for (const account of [SEED_ACCOUNTS.superAdmin, ...SEED_ACCOUNTS.members]) {
-    const { id } = await ensureVerifiedAccount(deps, account);
+    // By address: seedIdentity has made the account, with its phone.
+    const { id } = await ensureVerifiedAccount(deps, {
+      id: account.id,
+      name: account.name,
+      email: account.email,
+    });
     const grants = await grantsOf(deps.db, id);
     if (grants.some((grant) => isStaffRole(grant.role))) {
       await ensureSeedAuthenticator(deps, id);

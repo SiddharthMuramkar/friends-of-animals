@@ -3,10 +3,16 @@ import { type NextRequest, NextResponse } from "next/server";
 import { competitionParams } from "@/app/competitions/_lib/view";
 import { isStorySlug } from "@/content/stories";
 import { getSampleCompetitions } from "@/content/sample";
-import { isSignedInPage, isSignedInPath } from "@/lib/app-routes";
+import {
+  isNonProductionPath,
+  isSignedInPage,
+  isSignedInPath,
+} from "@/lib/app-routes";
 import { createNonce, publicCsp, signedInCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
 import { ROUTES } from "@/lib/routes";
+import { PATH_HEADER } from "@/lib/second-factor-routes";
+import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 
 // Unlisted slugs render at request time, and the header's <Suspense> starts
@@ -36,6 +42,9 @@ function withNonceCsp(request: NextRequest): NextResponse {
   headers.delete("content-security-policy-report-only");
   headers.set(policy.key, policy.value);
   headers.set("x-nonce", nonce);
+  // The page's path, so the staff gate (#60) can send the user back to it;
+  // set here, so one the browser sent never reaches the page.
+  headers.set(PATH_HEADER, request.nextUrl.pathname + request.nextUrl.search);
   const response = NextResponse.next({ request: { headers } });
   response.headers.set(policy.key, policy.value);
   return response;
@@ -57,6 +66,11 @@ function missingSignedInPage(request: NextRequest): NextResponse {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Demo pages don't exist in production: the 404 for everyone, visitors
+  // included, before the sign-in check.
+  if (appEnv() === "production" && isNonProductionPath(pathname)) {
+    return missingSignedInPage(request);
+  }
   // Pages behind sign-in: a request without a session cookie goes straight
   // to sign in. With one, the page checks the session itself.
   if (isSignedInPath(pathname)) {
@@ -88,5 +102,11 @@ export const config = {
     "/competitions/:slug",
     "/account",
     "/account/:path*",
+    "/admin",
+    "/admin/:path*",
+    "/auth",
+    "/auth/:path*",
+    "/dashboard",
+    "/dashboard/:path*",
   ],
 };

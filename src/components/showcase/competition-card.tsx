@@ -65,7 +65,7 @@ export async function CompetitionCard({
           </H>
           <p className="mt-2 text-ink-muted">{c.theme}</p>
         </div>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm">
+        <dl className="grid grid-cols-[fit-content(45%)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm [&>dt]:wrap-anywhere">
           <dt className="font-semibold text-ink">{t("disciplines")}</dt>
           <dd className="text-ink-muted">
             {format.list(
@@ -107,11 +107,13 @@ export async function CompetitionCard({
         </dl>
         <p className="mt-auto flex items-center gap-2 rounded-2xl bg-section-pink px-4 py-3 font-semibold text-section-pink-heading">
           <CalendarDays aria-hidden="true" className="size-5 shrink-0" />
-          {next
-            ? t(`keyDate.${next.kind}`, {
-                date: format.dateTime(new Date(next.at), "long"),
-              })
-            : t("keyDate.none")}
+          <span className="min-w-0">
+            {next
+              ? t(`keyDate.${next.kind}`, {
+                  date: format.dateTime(new Date(next.at), "long"),
+                })
+              : t("keyDate.none")}
+          </span>
         </p>
         <CardCredit id={c.coverImageId} />
       </div>
