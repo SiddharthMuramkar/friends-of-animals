@@ -10,6 +10,7 @@ import {
   type CmsPost,
   type CmsPostImage,
 } from "../../../db/schema";
+import { sqlState } from "../../../errors";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,6 +29,25 @@ export async function loadPost(
   const query = db.select().from(cmsPost).where(eq(cmsPost.id, postId));
   const [row] = lock ? await query.for("update") : await query;
   return row ?? null;
+}
+
+/**
+ * Whether `error` is the unique index refusing a second post at one
+ * address: a save that committed between slugTaken and this write.
+ */
+export function isSlugConflict(error: unknown): boolean {
+  let current = error;
+  for (let depth = 0; depth < 3; depth++) {
+    if (typeof current !== "object" || current === null) return false;
+    // PGlite's errors name it `constraint`, postgres-js's `constraint_name`.
+    const record = current as Record<string, unknown>;
+    const name = record.constraint ?? record.constraint_name;
+    if (sqlState(current) === "23505" && name === "cms_post_slug_unique") {
+      return true;
+    }
+    current = record.cause;
+  }
+  return false;
 }
 
 /** Whether another post than `exceptId` has the address `slug`. */

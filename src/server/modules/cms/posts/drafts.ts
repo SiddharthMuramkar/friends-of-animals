@@ -36,7 +36,14 @@ import {
   type PostInputRefusal,
   type PostValues,
 } from "./input";
-import { allPosts, imagesOf, loadPost, postImagesIn, slugTaken } from "./store";
+import {
+  allPosts,
+  imagesOf,
+  isSlugConflict,
+  loadPost,
+  postImagesIn,
+  slugTaken,
+} from "./store";
 
 export type PostsContext = Pick<UseCaseContext, "db" | "clock" | "actor">;
 
@@ -155,6 +162,21 @@ async function imagesBelong(
   return (await postImagesIn(db, postId, named)).length === named.length;
 }
 
+/**
+ * Runs a save, answering `slug: taken` when the unique index catches a post
+ * saved at the same address since the save's own check.
+ */
+async function takenIfConflict<R>(
+  save: () => Promise<R>
+): Promise<R | PostInputRefusal> {
+  try {
+    return await save();
+  } catch (error) {
+    if (isSlugConflict(error)) return refusal({ slug: "taken" });
+    throw error;
+  }
+}
+
 /** Saves a new draft. */
 export async function createPost(
   ctx: PostsContext,
@@ -170,20 +192,22 @@ export async function createPost(
   }
   const now = ctx.clock.now();
 
-  return ctx.db.transaction(async (tx) => {
-    if (await slugTaken(tx, values.slug)) return refusal({ slug: "taken" });
-    const postId = uuidv7(now);
-    await tx.insert(cmsPost).values({
-      id: postId,
-      ...columns(values),
-      status: "draft",
-      createdBy: userIdOf(ctx),
-      updatedBy: userIdOf(ctx),
-      createdAt: now,
-      updatedAt: now,
-    });
-    return { ok: true, postId, slug: values.slug } as const;
-  });
+  return takenIfConflict(() =>
+    ctx.db.transaction(async (tx) => {
+      if (await slugTaken(tx, values.slug)) return refusal({ slug: "taken" });
+      const postId = uuidv7(now);
+      await tx.insert(cmsPost).values({
+        id: postId,
+        ...columns(values),
+        status: "draft",
+        createdBy: userIdOf(ctx),
+        updatedBy: userIdOf(ctx),
+        createdAt: now,
+        updatedAt: now,
+      });
+      return { ok: true, postId, slug: values.slug } as const;
+    })
+  );
 }
 
 /** Saves the editor's changes to a post. */
@@ -195,31 +219,33 @@ export async function updatePost(
   const { postId, ...fields } = input;
   const now = ctx.clock.now();
 
-  return ctx.db.transaction(async (tx): Promise<UpdatePostResult> => {
-    const post = await loadPost(tx, postId, { lock: true });
-    if (!post) return { ok: false, error: "not_found" };
-    if (!canEditPost(post.status)) return { ok: false, error: "archived" };
-    // A scheduled or published post stays ready to go live.
-    const live = post.status !== "draft";
-    const read = readPostInput(fields, { draft: !live });
-    if (!read.ok) return read;
-    const { values } = read;
-    if (await slugTaken(tx, values.slug, post.id)) {
-      return refusal({ slug: "taken" });
-    }
-    if (!(await imagesBelong(tx, post.id, values))) {
-      return { ok: false, error: "unknown_image" };
-    }
-    if (live) {
-      const refused = await goingLiveRefusal(tx, post.id, values);
-      if (refused) return refused;
-    }
-    await tx
-      .update(cmsPost)
-      .set({ ...columns(values), updatedBy: userIdOf(ctx), updatedAt: now })
-      .where(eq(cmsPost.id, post.id));
-    return { ok: true, tags: live ? postTags(post.slug, values.slug) : [] };
-  });
+  return takenIfConflict(() =>
+    ctx.db.transaction(async (tx): Promise<UpdatePostResult> => {
+      const post = await loadPost(tx, postId, { lock: true });
+      if (!post) return { ok: false, error: "not_found" };
+      if (!canEditPost(post.status)) return { ok: false, error: "archived" };
+      // A scheduled or published post stays ready to go live.
+      const live = post.status !== "draft";
+      const read = readPostInput(fields, { draft: !live });
+      if (!read.ok) return read;
+      const { values } = read;
+      if (await slugTaken(tx, values.slug, post.id)) {
+        return refusal({ slug: "taken" });
+      }
+      if (!(await imagesBelong(tx, post.id, values))) {
+        return { ok: false, error: "unknown_image" };
+      }
+      if (live) {
+        const refused = await goingLiveRefusal(tx, post.id, values);
+        if (refused) return refused;
+      }
+      await tx
+        .update(cmsPost)
+        .set({ ...columns(values), updatedBy: userIdOf(ctx), updatedAt: now })
+        .where(eq(cmsPost.id, post.id));
+      return { ok: true, tags: live ? postTags(post.slug, values.slug) : [] };
+    })
+  );
 }
 
 /** A post as its editor sees it, body sanitised again on the way out. */
