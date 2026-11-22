@@ -197,7 +197,7 @@ export default async function AwarenessPage() {
         <p className="mt-6 inline-flex rounded-2xl bg-surface px-4 py-3 font-semibold text-ink shadow-warm">
           {t("neighbours.rule")}
         </p>
-        <ul className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-10 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {NEIGHBOURS.map((n) => (
             <li key={n.id}>
               <NeighbourCard n={n} />
@@ -222,11 +222,11 @@ export default async function AwarenessPage() {
           lead={t("helps.lead")}
         />
         <QuoteFigure id="Q22" size="md" hue="pink" className="mt-10" />
-        <ul className="mt-10 grid gap-4 md:grid-cols-2">
+        <ul className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
           {SWAPS.map((key) => (
             <li
               key={key}
-              className="grid gap-3 rounded-3xl border-2 border-border bg-surface p-5 sm:grid-cols-2 sm:p-6"
+              className="grid grid-cols-1 gap-3 rounded-3xl border-2 border-border bg-surface p-5 sm:grid-cols-2 sm:p-6"
             >
               <p>
                 <span className="block text-sm font-semibold text-red-700 dark:text-red-400">
@@ -258,7 +258,7 @@ export default async function AwarenessPage() {
           title={t("hurt.title")}
           lead={t("hurt.lead")}
         />
-        <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ol className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {HURT_ANIMAL_KID_STEPS.map((step, i) => (
             <li
               key={step}
@@ -270,14 +270,14 @@ export default async function AwarenessPage() {
               >
                 {i + 1}
               </span>
-              <span className="pt-1 font-display text-lead leading-snug font-semibold text-ink">
+              <span className="min-w-0 pt-1 font-display text-lead leading-snug font-semibold text-ink wrap-anywhere">
                 {step}
               </span>
             </li>
           ))}
         </ol>
 
-        <div className="mt-10 grid items-start gap-6 lg:grid-cols-2">
+        <div className="mt-10 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
           <Callout tone="info" title={t("hurt.saveTitle")}>
             <p>{t("hurt.saveBody")}</p>
             <p>{t("hurt.save1962")}</p>
@@ -340,7 +340,7 @@ export default async function AwarenessPage() {
 
       {/* 7. Kindness pledge card */}
       <Section hue="teal" tone="tint" id="pledge" labelledBy="pledge-title">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
           <SectionHeading
             id="pledge-title"
             eyebrow={t("pledge.eyebrow")}
@@ -351,6 +351,7 @@ export default async function AwarenessPage() {
           <HappyMosaic
             layout="pair"
             label={t("pledge.photosLabel")}
+            className="max-sm:px-1"
             tiles={PLEDGE_PHOTOS.map(([id, key]) => ({
               id,
               caption: t(`pledge.photos.${key}`),

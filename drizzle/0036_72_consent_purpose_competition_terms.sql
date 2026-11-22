@@ -1,0 +1,1 @@
+ALTER TYPE "public"."consent_purpose" ADD VALUE 'competition_terms';

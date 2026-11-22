@@ -29,6 +29,349 @@
       "when": 1795244914302,
       "tag": "0003_61_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795246027580,
+      "tag": "0004_59_roles_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795246028322,
+      "tag": "0005_59_audit_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795262127275,
+      "tag": "0006_58_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795262528065,
+      "tag": "0007_61_worker_heartbeat",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795324638135,
+      "tag": "0008_60_staff_two_factor_gate_and",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795327013133,
+      "tag": "0009_63_prefixes_seam2",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795329682761,
+      "tag": "0010_62_runtime_settings_screen",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795329688488,
+      "tag": "0011_64_consent_documents_and_consent_to",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795329689105,
+      "tag": "0012_64_consent_document_immutable",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795329719681,
+      "tag": "0013_68_nightly_copy_of_r2_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795331135910,
+      "tag": "0014_85_derivatives",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1795333344916,
+      "tag": "0015_70_module_admin",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795333366801,
+      "tag": "0016_111_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795333367515,
+      "tag": "0017_111_cms_revision_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795335781902,
+      "tag": "0018_69_message_templates_in_app_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795335782583,
+      "tag": "0019_69_notification_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1795338272044,
+      "tag": "0020_73_institution_registration_and_verification_institution",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1795338272700,
+      "tag": "0021_73_institution_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795338294476,
+      "tag": "0022_71_the_schedule_changes_competition_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795344975453,
+      "tag": "0023_74_institution_coordinators",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795346525427,
+      "tag": "0024_113_contact_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795346526210,
+      "tag": "0025_113_contact_note_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795346527065,
+      "tag": "0026_113_contact_notification_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1795346746921,
+      "tag": "0027_116_role_safeguarding_lead",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1795346883687,
+      "tag": "0028_116_safeguarding_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795346884604,
+      "tag": "0029_116_incident_log_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795346885515,
+      "tag": "0030_116_safeguarding_alert_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795348464745,
+      "tag": "0031_112_posts",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795351687416,
+      "tag": "0032_88_competition_status_school_judging",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795351688307,
+      "tag": "0033_88_rubrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1795351689128,
+      "tag": "0034_88_rubric_immutability",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795351689903,
+      "tag": "0035_88_transition_blocked_message",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1795355899390,
+      "tag": "0036_72_consent_purpose_competition_terms",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1795356119479,
+      "tag": "0037_72_competition_terms",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1795357614195,
+      "tag": "0038_75_institution_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1795360077507,
+      "tag": "0039_75_enrol_students",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1795362925616,
+      "tag": "0040_77_registration_confirmed",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795363144559,
+      "tag": "0041_77_payments_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795363677380,
+      "tag": "0042_77_payment_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1795367109750,
+      "tag": "0043_78_registration_pending_payment",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795367133124,
+      "tag": "0044_78_individual_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795368527018,
+      "tag": "0045_78_individual_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795375891311,
+      "tag": "0046_81_guardians",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795378201297,
+      "tag": "0047_77_razorpay",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1795378998087,
+      "tag": "0048_79_review_enum_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1795379034026,
+      "tag": "0049_79_offline_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1795384621701,
+      "tag": "0050_80_refund_enum_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1795384622664,
+      "tag": "0051_80_refunds",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1795385101558,
+      "tag": "0052_80_refund_messages",
+      "breakpoints": true
     }
   ]
 }

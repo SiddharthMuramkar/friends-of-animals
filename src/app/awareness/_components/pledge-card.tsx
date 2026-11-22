@@ -263,7 +263,7 @@ export function PledgeCard({
     "inline-flex min-h-11 cursor-pointer items-center rounded-full border-2 border-border-strong bg-surface px-4 font-semibold text-ink transition-colors hover:border-ink has-checked:border-teal-700 has-checked:bg-teal-700 has-checked:text-white has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus";
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-12">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-12">
       <form
         ref={formRef}
         className="space-y-8"
@@ -292,7 +292,7 @@ export function PledgeCard({
           />
         </div>
 
-        <fieldset>
+        <fieldset className="min-w-0">
           <legend className="font-semibold text-ink">{labels.animal}</legend>
           <div className="mt-3 flex flex-wrap gap-2">
             {animals.map((a) => (
@@ -311,9 +311,9 @@ export function PledgeCard({
           </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset className="min-w-0">
           <legend className="font-semibold text-ink">{labels.promise}</legend>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {promises.map((p) => (
               <label
                 key={p.id}
@@ -350,7 +350,7 @@ export function PledgeCard({
           <button
             type="button"
             onClick={() => fileRef.current && saveFile(fileRef.current)}
-            className={buttonStyles()}
+            className={cn(buttonStyles(), "flex-wrap")}
           >
             <Download aria-hidden="true" />
             {labels.download}
@@ -359,7 +359,10 @@ export function PledgeCard({
             <button
               type="button"
               onClick={share}
-              className={buttonStyles({ variant: "secondary" })}
+              className={cn(
+                buttonStyles({ variant: "secondary" }),
+                "flex-wrap"
+              )}
             >
               <Share2 aria-hidden="true" />
               {labels.share}

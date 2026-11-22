@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   appEnv,
-  assertNoPlaceholdersInProduction,
   findPlaceholders,
   isPlaceholder,
   isSampleContentEnabled,
   placeholder,
   SITE,
+  unconfirmedFactsWarning,
 } from "./site";
 
 describe("placeholder()", () => {
@@ -36,7 +36,7 @@ describe("findPlaceholders()", () => {
   });
 
   it("finds the org facts FOA has not confirmed yet", () => {
-    expect(findPlaceholders(SITE.org)).toContain("legalName");
+    expect(findPlaceholders(SITE.org)).toContain("fees.school");
   });
 });
 
@@ -54,34 +54,43 @@ describe("appEnv() and samples", () => {
   });
 });
 
-describe("assertNoPlaceholdersInProduction()", () => {
-  const withPlaceholder = { email: placeholder("email"), name: "FOA" };
+// Owner's decision of 2026-11-21: production ships without the facts FOA
+// hasn't confirmed, so the build names them instead of failing.
+describe("unconfirmedFactsWarning()", () => {
+  const withPlaceholders = {
+    email: placeholder("email"),
+    name: "FOA",
+    fees: { school: placeholder("feeSchool") },
+  };
 
-  it("fails a production build while placeholders remain", () => {
-    expect(() =>
-      assertNoPlaceholdersInProduction(
-        { APP_ENV: "production" },
-        withPlaceholder
-      )
-    ).toThrow(/email/);
+  it("names each unconfirmed fact in one line for a production build", () => {
+    expect(
+      unconfirmedFactsWarning({ APP_ENV: "production" }, withPlaceholders)
+    ).toBe(
+      "Warning: production leaves out the organisation facts FOA hasn't confirmed yet (SITE.org in src/lib/site.ts): email, fees.school"
+    );
   });
 
-  it("fails production with the real SITE.org today", () => {
-    expect(() =>
-      assertNoPlaceholdersInProduction({ APP_ENV: "production" })
-    ).toThrow(/placeholder/i);
+  // FOA's contact, registration and grievance facts live in the database
+  // (getOrgFacts, checked by /api/health); only the fees stay in code.
+  it("names the real SITE.org's unconfirmed facts by dotted path today", () => {
+    const line = unconfirmedFactsWarning({ APP_ENV: "production" });
+    expect(line).toContain("fees.school");
+    expect(line).toContain("fees.individual");
+    expect(line).not.toContain("legalName");
+    expect(line).not.toContain("\n");
   });
 
-  it("lets staging and local builds through", () => {
-    expect(() =>
-      assertNoPlaceholdersInProduction({ APP_ENV: "staging" }, withPlaceholder)
-    ).not.toThrow();
-    expect(() => assertNoPlaceholdersInProduction({})).not.toThrow();
+  it("says nothing for local, preview and staging builds", () => {
+    for (const env of [{}, { APP_ENV: "preview" }, { APP_ENV: "staging" }]) {
+      expect(unconfirmedFactsWarning(env, withPlaceholders)).toBeUndefined();
+    }
+    expect(unconfirmedFactsWarning({})).toBeUndefined();
   });
 
-  it("passes production once every fact is confirmed", () => {
-    expect(() =>
-      assertNoPlaceholdersInProduction({ APP_ENV: "production" }, { a: "x" })
-    ).not.toThrow();
+  it("says nothing once every fact is confirmed", () => {
+    expect(
+      unconfirmedFactsWarning({ APP_ENV: "production" }, { a: "x" })
+    ).toBeUndefined();
   });
 });

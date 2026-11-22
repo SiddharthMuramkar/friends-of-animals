@@ -41,7 +41,7 @@ describe("signing up", () => {
     expect(rows).toEqual([
       expect.objectContaining({
         eventType: "identity.user_signed_up",
-        handler: "notifications.send_welcome_email",
+        handler: "notifications.dispatch",
         aggregateType: "user",
         aggregateId: userId,
         payload: { userId },
