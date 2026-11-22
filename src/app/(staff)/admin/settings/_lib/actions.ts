@@ -7,8 +7,7 @@ import { redirect } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
-import { ORG_FACTS_TAG } from "@/server/modules/cms/domain/documents";
-import { ORG_FACT_SETTINGS } from "@/server/modules/cms/domain/org-facts";
+import { tagsToRefreshForSetting } from "@/server/modules/cms/domain/org-facts";
 import {
   isSettingKey,
   type SettingInput,
@@ -92,7 +91,7 @@ export async function changeSettingAction(
   }
   if (state.status === "saved") {
     // The tax facts show on public pages through one cached read (#111).
-    if (known && ORG_FACT_SETTINGS.has(known)) updateTag(ORG_FACTS_TAG);
+    if (known) for (const tag of tagsToRefreshForSetting(known)) updateTag(tag);
     refresh();
   }
   return withMessage(state, kind);

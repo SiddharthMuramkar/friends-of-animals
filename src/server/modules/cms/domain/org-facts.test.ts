@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { placeholder } from "../../../../lib/site";
 import { factsKind } from "../kinds/facts";
+import { ORG_FACTS_TAG } from "./documents";
 import {
   EMPTY_TAX_FACTS,
   legalFactValue,
   mergeOrgFacts,
   missingOrgFacts,
+  tagsToRefreshForSetting,
 } from "./org-facts";
 
 const siteFacts = {
@@ -104,5 +106,24 @@ describe("legalFactValue", () => {
     expect(legalFactValue(facts, "grievanceOfficerEmail")).toBe(
       siteFacts.grievanceOfficer.email
     );
+  });
+});
+
+describe("tagsToRefreshForSetting", () => {
+  it("refreshes the shared facts read when a tax fact setting changes", () => {
+    for (const key of [
+      "org.legalName",
+      "org.registrationType",
+      "org.registrationNumber",
+      "org.pan",
+    ]) {
+      expect(tagsToRefreshForSetting(key)).toEqual([ORG_FACTS_TAG]);
+    }
+  });
+
+  it("refreshes nothing for a setting that isn't a fact", () => {
+    for (const key of ["sms.enabled", "org.fcraEnabled"]) {
+      expect(tagsToRefreshForSetting(key)).toEqual([]);
+    }
   });
 });

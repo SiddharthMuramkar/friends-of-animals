@@ -19,6 +19,7 @@ import {
   type PlaceholderKey,
 } from "../../../../lib/site";
 import { factsKind, type SiteFactsBody } from "../kinds/facts";
+import { ORG_FACTS_TAG } from "./documents";
 
 export type OrgFacts = {
   legalName: OrgFact;
@@ -54,6 +55,14 @@ export const ORG_FACT_SETTINGS: ReadonlySet<string> = new Set([
   "org.registrationNumber",
   "org.pan",
 ]);
+
+/**
+ * The cached reads to refresh when the setting `key` changes: the shared
+ * facts read for a tax fact, nothing for any other setting.
+ */
+export function tagsToRefreshForSetting(key: string): string[] {
+  return ORG_FACT_SETTINGS.has(key) ? [ORG_FACTS_TAG] : [];
+}
 
 export const EMPTY_TAX_FACTS: TaxFacts = {
   legalName: "",

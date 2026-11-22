@@ -264,9 +264,10 @@ async function AboutContent({ about, facts, preview }: AboutPage) {
           lead={about.people.lead}
         />
         <ul className="mt-8 flex flex-wrap gap-3">
+          {/* Items may repeat (the schema allows it), so key by place. */}
           {about.people.items.map((item, i) => (
             <li
-              key={item}
+              key={i}
               className="inline-flex min-h-11 max-w-full items-center gap-2.5 rounded-full border-2 border-border bg-surface px-4 py-2 font-semibold text-ink"
             >
               <TileMarker
