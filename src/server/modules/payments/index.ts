@@ -26,6 +26,24 @@ import {
   type ReceiveGatewayWebhookInput,
 } from "./receive-gateway-webhook";
 import {
+  getOfflinePaymentProof,
+  type GetOfflinePaymentProofInput,
+} from "./offline-proof";
+import {
+  getPaymentBatchForStaff,
+  type GetPaymentBatchForStaffInput,
+} from "./staff-batch";
+import {
+  resolvePaymentReviewCase,
+  type ResolvePaymentReviewCaseInput,
+} from "./resolve-review-case";
+import {
+  getPaymentReviewCase,
+  listPaymentReviewCases,
+  type GetPaymentReviewCaseInput,
+  type ListPaymentReviewCasesInput,
+} from "./review-cases";
+import {
   recordOfflinePayment,
   requestOfflinePaymentProofUpload,
   type RecordOfflinePaymentInput,
@@ -42,6 +60,28 @@ export type {
   RequestOfflinePaymentProofUploadInput,
   RequestOfflinePaymentProofUploadResult,
 } from "./record-offline-payment";
+export type {
+  ResolvePaymentReviewCaseInput,
+  ResolvePaymentReviewCaseResult,
+} from "./resolve-review-case";
+export type {
+  GetPaymentReviewCaseInput,
+  GetPaymentReviewCaseResult,
+  ListPaymentReviewCasesInput,
+  ListPaymentReviewCasesResult,
+  PaymentReviewCaseItem,
+  PaymentReviewCaseView,
+  PaymentReviewPayer,
+} from "./review-cases";
+export type {
+  GetOfflinePaymentProofInput,
+  GetOfflinePaymentProofResult,
+} from "./offline-proof";
+export type {
+  GetPaymentBatchForStaffInput,
+  GetPaymentBatchForStaffResult,
+  StaffPaymentBatch,
+} from "./staff-batch";
 export type { SyncOutcome, WebhookOutcome } from "./domain/outcomes";
 export type {
   ConfirmCheckoutInput,
@@ -83,4 +123,14 @@ export const paymentsUseCases = (ctx: UseCaseContext) => ({
   ) => requestOfflinePaymentProofUpload(ctx, input),
   recordOfflinePayment: (input: RecordOfflinePaymentInput) =>
     recordOfflinePayment(ctx, input),
+  listPaymentReviewCases: (input: ListPaymentReviewCasesInput) =>
+    listPaymentReviewCases(ctx, input),
+  getPaymentReviewCase: (input: GetPaymentReviewCaseInput) =>
+    getPaymentReviewCase(ctx, input),
+  resolvePaymentReviewCase: (input: ResolvePaymentReviewCaseInput) =>
+    resolvePaymentReviewCase(ctx, input),
+  getOfflinePaymentProof: (input: GetOfflinePaymentProofInput) =>
+    getOfflinePaymentProof(ctx, input),
+  getPaymentBatchForStaff: (input: GetPaymentBatchForStaffInput) =>
+    getPaymentBatchForStaff(ctx, input),
 });

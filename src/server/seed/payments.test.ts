@@ -2,10 +2,13 @@ import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import {
+  offlinePayment,
   paymentBatch,
   paymentBatchItem,
+  paymentReviewCase,
   registration,
 } from "@/server/db/schema";
+import { signInStaff } from "@/server/modules/payments/testing";
 import { REGISTRATION_NUMBER } from "@/server/modules/registration/domain/registration-number";
 import { createHarness } from "@/test/harness";
 
@@ -24,25 +27,65 @@ async function batches(h: Awaited<ReturnType<typeof createHarness>>) {
 }
 
 describe("the payments seed", () => {
-  it("adds one paid and one unpaid batch, and running it again changes nothing", async () => {
+  it("adds paid, unpaid, cheque-paid and in-review batches, and running it again changes nothing", async () => {
     const h = await createHarness();
     await h.seed.preview();
-    const once = {
+    const rows = async () => ({
       batches: await batches(h),
       items: await h.db.select().from(paymentBatchItem),
       registrations: await h.db.select().from(registration),
-    };
+      offlinePayments: await h.db.select().from(offlinePayment),
+      reviewCases: await h.db.select().from(paymentReviewCase),
+    });
+    const once = await rows();
     await h.seed.preview();
 
     expect(once.batches.map(({ id, status }) => ({ id, status }))).toEqual([
       { id: SEED_PAYMENTS.paid.batchId, status: "captured" },
       { id: SEED_PAYMENTS.unpaid.batchId, status: "order_created" },
+      { id: SEED_PAYMENTS.cheque.batchId, status: "captured" },
+      { id: SEED_PAYMENTS.inReview.batchId, status: "needs_review" },
     ]);
-    expect({
-      batches: await batches(h),
-      items: await h.db.select().from(paymentBatchItem),
-      registrations: await h.db.select().from(registration),
-    }).toEqual(once);
+    expect(await rows()).toEqual(once);
+  });
+
+  it("shows finance a batch paid by cheque and an open case for money that came after the close (#79)", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    const finance = await signInStaff(h, "finance");
+
+    const cheque = await h
+      .as(finance.actor)
+      .getPaymentBatchForStaff({ batchId: SEED_PAYMENTS.cheque.batchId });
+    expect(cheque).toMatchObject({
+      ok: true,
+      batch: {
+        status: "captured",
+        captureMethod: "offline",
+        competitionName: "Kinder Skies",
+        offlinePayment: { method: "cheque", reference: "004512" },
+      },
+    });
+    const students = cheque.ok ? cheque.batch.students : [];
+    expect(students).toHaveLength(2);
+    for (const student of students) {
+      expect(student.status).toBe("confirmed");
+      expect(student.registrationNumber).toMatch(REGISTRATION_NUMBER);
+    }
+
+    expect(
+      await h.as(finance.actor).listPaymentReviewCases({ state: "open" })
+    ).toMatchObject({
+      ok: true,
+      cases: [
+        {
+          id: SEED_PAYMENTS.inReview.caseId,
+          batchId: SEED_PAYMENTS.inReview.batchId,
+          reason: "registration_closed",
+          resolution: null,
+        },
+      ],
+    });
   });
 
   it("confirms the paid batch's students in the closed competition, each with a registration number", async () => {
