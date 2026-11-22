@@ -1,7 +1,6 @@
 // Replaces Umami's seeded admin login (admin / umami, which everyone knows)
 // with the password on stdin (#118). analytics-bootstrap.sh runs it inside
-// foa-umami, against Umami's own port, after starting Umami alone and before
-// the tunnel that puts Umami on the internet is up:
+// foa-umami, against Umami's own port, right after starting Umami:
 //
 //   docker exec -i foa-umami node --input-type=module -e "$(<this file)" <password-file
 //

@@ -1,0 +1,57 @@
+# Caddy, the TLS edge on the VPS (#118). A Compose project of its own, next
+# to the database stack:
+#
+#   docker compose -f /srv/foa/docker/edge.yml up -d --wait
+#
+# Runbook: docker/README.md, "Edge (Caddy)". Sites: caddy/Caddyfile.
+#
+# - network_mode host: Caddy binds :80 and :443 on the host itself, so
+#   firewalld (services http and https) governs them and DOCKER-USER doesn't
+#   apply. It reaches Umami (10.112.12.30) and GlitchTip (10.112.13.10) on
+#   their bridges; neither publishes a port.
+# - Certificates and ACME state live in /var/lib/foa/caddy.
+# - /var/lib/foa/acme-webroot is lego's webroot for PgBouncer's certificate:
+#   while Caddy owns :80, lego renews in webroot mode and Caddy serves the
+#   challenge files for the db names.
+#
+# Reload after a Caddyfile change:
+#   docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile
+name: foa-edge
+
+x-logging: &logging
+  driver: journald
+  options:
+    tag: "{{.Name}}"
+
+services:
+  caddy:
+    image: caddy:2.11.9
+    container_name: foa-caddy
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      # The directory, not the file: git replaces the Caddyfile on a pull,
+      # and a file mount would go on showing the old one.
+      - ./caddy:/etc/caddy:ro
+      - /var/lib/foa/caddy/data:/data
+      - /var/lib/foa/caddy/config:/config
+      - /var/lib/foa/caddy/gates:/srv/gates:ro
+      - /var/lib/foa/acme-webroot:/srv/acme:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:2019/config/",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: 256m
+    memswap_limit: 256m
+    oom_score_adj: 500
+    logging: *logging

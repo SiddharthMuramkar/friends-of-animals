@@ -26,6 +26,17 @@ function codeFor(secret: Uint8Array, stepsAhead = 0): string {
   return totpCode(secret, new Date(Date.now() + stepsAhead * 30_000));
 }
 
+/**
+ * A well-formed code no step of drift around now accepts, with a margin
+ * for the clock moving on before the server checks it.
+ */
+function wrongCodeFor(secret: Uint8Array): string {
+  const near = [-2, -1, 0, 1, 2].map((step) => codeFor(secret, step));
+  return ["000000", "111111", "222222", "333333", "444444", "555555"].find(
+    (code) => !near.includes(code)
+  )!;
+}
+
 async function signIn(
   page: Page,
   request: Parameters<typeof readCode>[0],
@@ -105,9 +116,13 @@ test("staff pass their second factor, then step up for a sensitive change", asyn
     "/auth/second-factor?next=%2Faccount%2Fsecurity"
   );
   await expectAccessibleInDark(page, "/auth/second-factor");
-  await page.getByRole("textbox", { name: "6-digit code" }).fill("000000");
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(wrongCodeFor(secret));
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("alert")).toContainText("didn't match");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "didn't match"
+  );
 
   await page
     .getByRole("textbox", { name: "6-digit code" })
