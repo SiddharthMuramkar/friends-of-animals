@@ -127,6 +127,20 @@
       "when": 1795333367515,
       "tag": "0017_111_cms_revision_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795335781902,
+      "tag": "0018_69_message_templates_in_app_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795335782583,
+      "tag": "0019_69_notification_defaults",
+      "breakpoints": true
     }
   ]
 }

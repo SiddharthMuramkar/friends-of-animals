@@ -11,6 +11,7 @@ import type {
 export type SentSms = ReceivedSms & {
   template: SmsTemplate;
   vars: Record<string, string>;
+  dltTemplateId?: string | undefined;
 };
 
 /** A number as typed, in E.164 when it is an Indian mobile. */
@@ -42,6 +43,9 @@ export class FakeSms implements SmsSender {
       text: message.text,
       template: message.template,
       vars: { ...message.vars },
+      ...(message.dltTemplateId === undefined
+        ? {}
+        : { dltTemplateId: message.dltTemplateId }),
       sentAt: this.#clock.now(),
     });
   }

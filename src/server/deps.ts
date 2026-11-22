@@ -27,9 +27,8 @@ import {
 import { systemClock } from "./ports/clock";
 import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
-import { unconfiguredSmsSender, type SmsSender } from "./ports/sms";
-import { captureSmsSender } from "./ports/sms-capture";
-import { msg91SmsSender } from "./ports/sms-msg91";
+import type { SmsSender } from "./ports/sms";
+import { smsSenderFor } from "./ports/sms-sender-for";
 import type { Settings } from "./ports/settings";
 import { databaseSettings } from "./modules/settings/read";
 import type { EmailSender } from "./ports/email";
@@ -86,28 +85,9 @@ export type FilesConfig = {
   appEnv: Env["APP_ENV"];
 };
 
-/**
- * Production sends real SMS through MSG91 once its keys are set (after
- * FOA's DLT registration); until then it refuses. Every other environment
- * captures, so no real SMS leaves staging, previews or a local run, and
- * MSG91 is never called there.
- */
-export function smsSenderFor(
-  appEnv: Env["APP_ENV"],
-  deps: DbWithClock,
-  msg91: { authKey?: string | undefined; otpTemplateId?: string | undefined },
-  fetchImpl: typeof fetch = fetch
-): SmsSender {
-  if (appEnv !== "production") return captureSmsSender(deps);
-  if (!msg91.authKey || !msg91.otpTemplateId) return unconfiguredSmsSender;
-  return msg91SmsSender(
-    {
-      authKey: msg91.authKey,
-      templates: { "sign-in-code": msg91.otpTemplateId },
-    },
-    fetchImpl
-  );
-}
+// Which SMS adapter an environment uses: shared with the VPS worker,
+// which sends messages the same way (#69).
+export { smsSenderFor };
 
 /** The R2 variables (src/env.schema.ts): all of them, or none. */
 export type StorageEnv = {

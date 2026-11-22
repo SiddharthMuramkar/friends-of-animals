@@ -1,0 +1,73 @@
+{
+  "adminTemplates": {
+    "meta": {
+      "title": "Message templates",
+      "description": "Edit the email, SMS and inbox messages Friends of Animals sends."
+    },
+    "eyebrow": "Admin",
+    "title": "Message templates",
+    "lead": "The words of every message we send. A saved change applies to the next message, with no new release.",
+    "loading": "Loading templates…",
+    "denied": {
+      "title": "Only content managers edit messages",
+      "body": "Your account doesn't have the content manager role. A super admin can give it to you.",
+      "back": "Back to the home page"
+    },
+    "listTitle": "Templates",
+    "sentWhen": "Sent when {events}",
+    "notSent": "No event sends it yet.",
+    "eventsJoin": "{first} or {second}",
+    "events": {
+      "identity": { "user_signed_up": "someone creates an account" },
+      "consent": { "withdrawn": "someone withdraws their consent to messages" }
+    },
+    "keys": {
+      "identity": { "welcome": "Welcome" },
+      "consent": { "withdrawal_receipt": "Receipt for withdrawn consent" }
+    },
+    "channels": { "email": "Email", "sms": "SMS", "in_app": "Inbox" },
+    "version": "Version {version}",
+    "registered": "DLT registered",
+    "unregistered": "Not DLT registered, so not sent",
+    "edit": "Edit",
+    "editLabel": "Edit {name}",
+    "editor": {
+      "meta": {
+        "title": "Edit a message template",
+        "description": "Change the words of one message, channel by channel."
+      },
+      "back": "All templates",
+      "notFound": "There is no template with that name.",
+      "lead": "Write plain text. Put a variable in double curly brackets and we fill it in for each person.",
+      "variables": "Variables you can use",
+      "noVariables": "This message has no variables.",
+      "subject": "Subject",
+      "title": "Title",
+      "body": "Message",
+      "dlt": "DLT template id",
+      "dltHint": "The id this exact wording is registered under. Changing the wording clears it, and SMS stops until the new wording is registered.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved as version {version}.",
+      "unchanged": "Nothing changed.",
+      "stale": "Someone saved a newer version while you were editing. Reload the page to see it, then make your change again.",
+      "invalid": "Check the message and try again.",
+      "forbidden": "Only content managers and super admins can edit templates.",
+      "preview": "Preview",
+      "previewHint": "With sample values, as last saved.",
+      "changed": "Version {version}, saved {date} by {name}",
+      "original": "Version {version}, the original wording",
+      "problems": {
+        "unknown_variable": "{name} is not a variable this message can use.",
+        "unclosed_placeholder": "A variable starts with two curly brackets but never ends.",
+        "invalid_placeholder": "Only a variable name can go between double curly brackets.",
+        "required": "Write something here.",
+        "too_long": "Make it at most {max, number} characters.",
+        "too_long_input": "This is too long to save.",
+        "not_allowed": "This channel doesn't use this field.",
+        "invalid": "Use the digits of the DLT template id."
+      },
+      "samples": { "recipient": { "name": "Asha Rao" } }
+    }
+  }
+}

@@ -2,8 +2,10 @@ import { ArrowLeft, ExternalLink, PencilLine } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 
+import { CompetitionDetail } from "@/components/competitions/competition-detail";
+import { fromPublic } from "@/components/competitions/model";
 import { FormAlert, SubmitButton } from "@/components/form";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
@@ -19,7 +21,6 @@ import {
   DoneNotice,
   StatusChip,
 } from "../../_components/admin-states";
-import { CompetitionDetail } from "../../_components/competition-detail";
 import { publishCompetitionAction } from "../../_lib/actions";
 import { problemMessage } from "../../_lib/form-view";
 import { competitionHref } from "../../_lib/href";
@@ -39,10 +40,23 @@ type Props = PageProps<"/admin/competitions/[id]/preview">;
 export default async function Page({ params, searchParams }: Props) {
   const t = await getTranslations("adminCompetitions");
   return (
+    <Suspense
+      fallback={
+        <AdminSection>
+          <p className="text-ink-muted">{t("loading")}</p>
+        </AdminSection>
+      }
+    >
+      <PreviewCompetition params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+/** The preview's own part: its heading, actions and what stops publishing. */
+function AdminSection({ children }: { children: ReactNode }) {
+  return (
     <Section hue="blue" tone="tint" width="prose" className="pt-10 sm:pt-14">
-      <Suspense fallback={<p className="text-ink-muted">{t("loading")}</p>}>
-        <PreviewCompetition params={params} searchParams={searchParams} />
-      </Suspense>
+      {children}
     </Section>
   );
 }
@@ -71,91 +85,107 @@ async function PreviewCompetition({ params, searchParams }: Props) {
     ]);
   } catch (error) {
     if (error instanceof DomainError && error.code === "forbidden") {
-      return <CompetitionsDenied />;
+      return (
+        <AdminSection>
+          <CompetitionsDenied />
+        </AdminSection>
+      );
     }
     throw error;
   }
   const [result, edit] = views;
-  if (!result.ok || !edit.ok) return <CompetitionNotFound />;
+  if (!result.ok || !edit.ok) {
+    return (
+      <AdminSection>
+        <CompetitionNotFound />
+      </AdminSection>
+    );
+  }
   const name = edit.competition.fields.name;
   const refusal = REFUSALS.find((each) => each === refused);
   const draft = result.status === "draft";
 
   return (
     <>
-      <PageHeader
-        eyebrow={t("eyebrow")}
-        tile="blue"
-        title={t("preview.title", { name })}
-        lead={draft ? t("preview.leadDraft") : t("preview.leadPublished")}
-        className="wrap-anywhere"
-      />
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <StatusChip status={result.status} />
-        <ButtonLink href={competitionHref(id, "edit")} variant="secondary">
-          <PencilLine aria-hidden="true" />
-          {t("preview.edit")}
-        </ButtonLink>
-        {!draft && result.competition ? (
-          <ButtonLink
-            href={slugHref("competition", result.competition.slug)}
-            variant="secondary"
-          >
-            <ExternalLink aria-hidden="true" />
-            {t("preview.publicPage")}
+      <AdminSection>
+        <PageHeader
+          eyebrow={t("eyebrow")}
+          tile="blue"
+          title={t("preview.title", { name })}
+          lead={draft ? t("preview.leadDraft") : t("preview.leadPublished")}
+          className="wrap-anywhere"
+        />
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <StatusChip status={result.status} />
+          <ButtonLink href={competitionHref(id, "edit")} variant="secondary">
+            <PencilLine aria-hidden="true" />
+            {t("preview.edit")}
           </ButtonLink>
-        ) : null}
-        <ButtonLink href={APP_ROUTES.adminCompetitions} variant="quiet">
-          <ArrowLeft aria-hidden="true" />
-          {t("preview.back")}
-        </ButtonLink>
-      </div>
-      <DoneNotice done={done} />
-      {refusal ? (
-        <FormAlert tone="danger" label={callout("danger")} className="mt-8">
-          <p>{t(`alerts.${refusal}`)}</p>
-        </FormAlert>
-      ) : null}
-
-      {result.problems.length > 0 ? (
-        <section aria-labelledby="preview-problems" className={`${CARD} mt-8`}>
-          <SectionHeading
-            id="preview-problems"
-            title={t("preview.problemsTitle")}
-          />
-          <p className="mt-3 text-ink-muted">{t("preview.problemsLead")}</p>
-          <ul className="mt-4 list-disc pl-6 text-ink">
-            {result.problems.map((problem, index) => (
-              <li key={index}>
-                {translate(t, problemMessage(problem).message)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {draft && result.problems.length === 0 ? (
-        <section aria-labelledby="preview-publish" className={`${CARD} mt-8`}>
-          <SectionHeading
-            id="preview-publish"
-            title={t("preview.publishTitle")}
-          />
-          <p className="mt-3 text-ink-muted">{t("preview.publishLead")}</p>
-          <form
-            action={publishCompetitionAction.bind(null, id)}
-            className="mt-4"
-          >
-            <SubmitButton pendingLabel={t("preview.publishing")}>
-              {t("preview.publish")}
-            </SubmitButton>
-          </form>
-        </section>
-      ) : null}
-
-      {result.competition ? (
-        <div className="mt-8">
-          <CompetitionDetail competition={result.competition} />
+          {!draft && result.competition ? (
+            <ButtonLink
+              href={slugHref("competition", result.competition.slug)}
+              variant="secondary"
+            >
+              <ExternalLink aria-hidden="true" />
+              {t("preview.publicPage")}
+            </ButtonLink>
+          ) : null}
+          <ButtonLink href={APP_ROUTES.adminCompetitions} variant="quiet">
+            <ArrowLeft aria-hidden="true" />
+            {t("preview.back")}
+          </ButtonLink>
         </div>
+        <DoneNotice done={done} />
+        {refusal ? (
+          <FormAlert tone="danger" label={callout("danger")} className="mt-8">
+            <p>{t(`alerts.${refusal}`)}</p>
+          </FormAlert>
+        ) : null}
+
+        {result.problems.length > 0 ? (
+          <section
+            aria-labelledby="preview-problems"
+            className={`${CARD} mt-8`}
+          >
+            <SectionHeading
+              id="preview-problems"
+              title={t("preview.problemsTitle")}
+            />
+            <p className="mt-3 text-ink-muted">{t("preview.problemsLead")}</p>
+            <ul className="mt-4 list-disc pl-6 text-ink">
+              {result.problems.map((problem, index) => (
+                <li key={index}>
+                  {translate(t, problemMessage(problem).message)}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {draft && result.problems.length === 0 ? (
+          <section aria-labelledby="preview-publish" className={`${CARD} mt-8`}>
+            <SectionHeading
+              id="preview-publish"
+              title={t("preview.publishTitle")}
+            />
+            <p className="mt-3 text-ink-muted">{t("preview.publishLead")}</p>
+            <form
+              action={publishCompetitionAction.bind(null, id)}
+              className="mt-4"
+            >
+              <SubmitButton pendingLabel={t("preview.publishing")}>
+                {t("preview.publish")}
+              </SubmitButton>
+            </form>
+          </section>
+        ) : null}
+      </AdminSection>
+      {/* The public page's body, as it will go live (#70, 70b). */}
+      {result.competition ? (
+        <CompetitionDetail
+          competition={fromPublic(result.competition)}
+          titleAs="h2"
+        />
       ) : null}
     </>
   );
