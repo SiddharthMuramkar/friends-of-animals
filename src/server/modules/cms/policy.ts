@@ -33,6 +33,8 @@ export const CMS_POLICY = {
   "cms.post.write": role("content_manager"),
   /** Schedule, publish, unschedule, archive and restore. */
   "cms.post.publish": role("content_manager"),
+  /** Published posts, and scheduled ones whose instant has come (#112b). */
+  "cms.post.read_published": anyone,
 } satisfies Policy<string>;
 
 export type CmsAction = keyof typeof CMS_POLICY;

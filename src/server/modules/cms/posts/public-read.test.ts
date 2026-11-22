@@ -106,10 +106,9 @@ describe("the public read of posts", () => {
       for (const slug of HIDDEN) expect(read).not.toContain(slug);
     }
     for (const slug of PUBLIC) {
-      expect(
-        (await visitor.getPublishedPostBySlug({ slug }))?.slug,
+      expect((await visitor.getPublishedPostBySlug({ slug }))?.slug, slug).toBe(
         slug
-      ).toBe(slug);
+      );
     }
     for (const slug of [...HIDDEN, "no-such-post"]) {
       expect(await visitor.getPublishedPostBySlug({ slug }), slug).toBeNull();

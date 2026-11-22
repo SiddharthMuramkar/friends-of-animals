@@ -9,8 +9,10 @@
 import type { Audience, Block, Footnote } from "@/content/stories";
 import type { SiteImageId } from "@/lib/images/credits";
 
+import type { PostKind } from "./post-kinds";
+
 /** Blog posts and stories share one model; the kind only labels them. */
-export type PostKind = "blog" | "story";
+export type { PostKind } from "./post-kinds";
 
 /**
  * An image a visitor may load: one of the site's licensed photos, or the
