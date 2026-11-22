@@ -1,7 +1,7 @@
 /**
  * Legal and policy documents as typed blocks: a plain-language "short
  * version" first, then the full text in sections.
- * Unconfirmed organisation facts are references into SITE.org, rendered as
+ * Organisation facts are references into getOrgFacts(), rendered as
  * visible placeholders until FOA confirms them; never typed in by hand.
  * Production leaves them out, so each sits in a clause (resolveLegalDoc).
  */

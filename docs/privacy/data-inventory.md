@@ -31,6 +31,7 @@ stored plain, but still listed.
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `user`                      | `name`, `email`, `phone_ciphertext`                                                                                                                                                                              |
 | `institution`               | `contact_email`, `contact_phone`, `principal_name`, `principal_email_ciphertext`, `principal_phone_ciphertext`, `created_by`, `verified_by`                                                                      |
+| `institution_invitation`    | `identifier_ciphertext`, `identifier_hash`, `token_ciphertext`, `invited_by_user_id`, `accepted_by_user_id`, `revoked_by_user_id`                                                                                |
 | `safeguarding_report`       | `description_ciphertext`, `subject_details_ciphertext`, `subject_age`, `reporter_name_ciphertext`, `reporter_contact_ciphertext`, `escalation_reference_ciphertext`, `outcome_ciphertext`, `assigned_to_user_id` |
 | `safeguarding_incident_log` | `body_ciphertext`, `author_user_id`                                                                                                                                                                              |
 

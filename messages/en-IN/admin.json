@@ -39,6 +39,12 @@
     "grant": {
       "global": "{role}, everywhere",
       "scoped": "{role} for {scope, select, institution {institution} competition {competition} organisation {organisation} other {scope}} {id}"
+    },
+    "facts": {
+      "title": "Some of FOA's details are still missing",
+      "body": "Until they are entered, the public site leaves these out and the health check says the facts are incomplete:",
+      "siteFacts": "Enter contact and grievance details (content manager)",
+      "taxFacts": "Enter the registered name, registration and PAN (super admin)"
     }
   }
 }

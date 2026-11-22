@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 
+import {
+  type OrgFacts,
+  unconfirmedOrgFacts,
+} from "../server/modules/cms/domain/org-facts";
 import { isPlaceholder, SITE } from "./site";
 
 type SocialImage = { url: string; width: number; height: number; alt: string };
@@ -97,10 +101,14 @@ export function breadcrumbJsonLd(
 
 /**
  * Site-wide NGO structured data. Unconfirmed facts are left out, never sent
- * as placeholders.
+ * as placeholders; with no facts passed, none are confirmed.
  */
-export function organizationJsonLd(base: URL, description: string) {
-  const { email, legalName, socials } = SITE.org;
+export function organizationJsonLd(
+  base: URL,
+  description: string,
+  facts: OrgFacts = unconfirmedOrgFacts()
+) {
+  const { email, legalName, socials } = facts;
   return {
     "@context": "https://schema.org",
     "@type": "NGO",

@@ -1,7 +1,6 @@
 CREATE TYPE "public"."incident_log_kind" AS ENUM('note', 'status_change', 'escalation');--> statement-breakpoint
 CREATE TYPE "public"."safeguarding_report_status" AS ENUM('new', 'triaged', 'investigating', 'escalated', 'resolved');--> statement-breakpoint
 CREATE TYPE "public"."safeguarding_severity" AS ENUM('critical', 'high', 'medium', 'low');--> statement-breakpoint
-ALTER TYPE "public"."role" ADD VALUE 'safeguarding_lead';--> statement-breakpoint
 CREATE TABLE "safeguarding_incident_log" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"report_id" uuid NOT NULL,

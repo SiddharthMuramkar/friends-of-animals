@@ -11,7 +11,7 @@ import { IDLE } from "../_lib/form-state";
 export type SettingFormLabels = {
   /** The legend of an On/Off choice, or the label of a number. */
   newValue: string;
-  /** "A whole number from 1 to 24." for a number. */
+  /** "A whole number from 1 to 24." for a number; the length for text. */
   range?: string;
   on: string;
   off: string;
@@ -22,7 +22,8 @@ export type SettingFormLabels = {
 };
 
 /**
- * Changes one setting: an On/Off choice or a whole number, then Save. The
+ * Changes one setting: an On/Off choice, a whole number or a line of
+ * text, then Save. The
  * outcome shows above the field; a refused number stays as typed, with
  * the reason beside it. `value` is what applies now; the page refreshes
  * after a save, so it is the new value from then on.
@@ -38,7 +39,7 @@ export function SettingForm({
   idPrefix: string;
   settingKey: string;
   input: SettingInput;
-  value: boolean | number;
+  value: boolean | number | string;
   labels: SettingFormLabels;
 }) {
   const [view, formAction] = useActionState<SettingFormView, FormData>(
@@ -95,6 +96,18 @@ export function SettingForm({
             ))}
           </div>
         </fieldset>
+      ) : input.kind === "text" ? (
+        <TextField
+          id={`${idPrefix}-value`}
+          name="value"
+          type="text"
+          maxLength={input.maxLength}
+          defaultValue={invalid ? view.entered : String(value)}
+          label={labels.newValue}
+          hint={labels.range}
+          error={invalid ? view.message : undefined}
+          className="max-w-xl"
+        />
       ) : (
         <TextField
           id={`${idPrefix}-value`}

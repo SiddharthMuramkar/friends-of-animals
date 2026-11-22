@@ -446,7 +446,7 @@ describe("listCmsDocuments and listRevisions", () => {
     expect(documents.find((d) => d.key === "home")).toEqual({
       key: "home",
       kind: "home",
-      editable: false,
+      editable: true,
       published: null,
       hasDraft: false,
     });
