@@ -378,6 +378,13 @@ on the competition's cut-off date. Withdrawing ends it; enrolling again makes
 a new one.
 _Avoid_: Entry, sign-up, registering a student
 
+**Student import**:
+Enrolling many students at once from a CSV file in the template's columns.
+Every row is held to the rules of an Enrolment; good rows are enrolled, and
+the rest come back in a report of rows to fix, which the coordinator corrects
+and uploads again. Nothing of the file is kept.
+_Avoid_: Bulk upload, batch enrolment, import job
+
 ## Files
 
 **File**:
