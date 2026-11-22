@@ -24,6 +24,7 @@ import {
   retryBlockedMoves,
   runStatusJob,
 } from "../modules/competitions/advance-status";
+import { notifyPrincipal } from "../modules/registration/principal-message";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -101,6 +102,8 @@ export const HANDLERS: Handlers = {
   // Tries a refused move again after an event its guard names (#88).
   "competitions.retry_blocked_moves": (deps, { payload }) =>
     retryBlockedMoves(deps, payload),
+  "registration.notify_principal": (deps, { payload }) =>
+    notifyPrincipal(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

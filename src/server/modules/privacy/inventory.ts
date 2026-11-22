@@ -73,6 +73,14 @@ const WHILE_POST_EXISTS = {
   toConfirm: true,
 } as const;
 
+const WHILE_REGISTRATION_KEPT = {
+  period:
+    "While the institution takes part, then 3 years after the competition ends (HR-31)",
+  basis:
+    "Lets the institution and FOA see who registered it, and answer a query about the registration",
+  toConfirm: true,
+} as const;
+
 export const DATA_INVENTORY: readonly InventoryEntry[] = [
   // Accounts (#57, #58)
   {
@@ -266,5 +274,13 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     column: "updated_by",
     purpose: "Records which content manager last changed the post",
     retention: WHILE_POST_EXISTS,
+  },
+  // Institution registrations for a competition (#75)
+  {
+    table: "institution_registration",
+    column: "registered_by",
+    purpose:
+      "Records which coordinator or authorised person registered the institution for the competition",
+    retention: WHILE_REGISTRATION_KEPT,
   },
 ];

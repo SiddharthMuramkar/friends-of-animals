@@ -89,6 +89,10 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "competition.disciplines_changed":
       // Re-runs a refused move (#88); no route row names it.
       return null;
+    case "registration.institution_registered":
+      // The principal isn't a user: their message goes by its own handler
+      // (#75), not by a route row.
+      return null;
   }
 }
 
@@ -297,6 +301,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
       "transition.reason",
     ],
     load: (db, { payload }) => transitionBlockValues(db, payload.blockId),
+  },
+  "registration.institution_registered": {
+    names: [],
+    load: async () => ({}),
   },
 };
 

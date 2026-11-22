@@ -11,7 +11,7 @@ import { ButtonLink } from "@/components/site/button-link";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { APP_ROUTES, institutionCompetitionsPath } from "@/lib/app-routes";
 import { formatPhoneNumber } from "@/lib/phone";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
@@ -64,6 +64,7 @@ async function MyInstitution({ searchParams }: { searchParams: SearchParams }) {
     types,
     callout,
     coordinators,
+    registration,
     format,
     mine,
     { registered },
@@ -73,6 +74,7 @@ async function MyInstitution({ searchParams }: { searchParams: SearchParams }) {
     getTranslations("institutions.type"),
     getTranslations("common.callout"),
     getTranslations("coordinators.manage"),
+    getTranslations("institutionRegistration.competitions"),
     getFormatter(),
     as(actor).getMyInstitution(),
     searchParams,
@@ -150,12 +152,17 @@ async function MyInstitution({ searchParams }: { searchParams: SearchParams }) {
           </ButtonLink>
         ) : null}
         {institution.status === "verified" ? (
-          <ButtonLink
-            href={APP_ROUTES.institutionCoordinators}
-            className="mt-5"
-          >
-            {coordinators("entry")}
-          </ButtonLink>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <ButtonLink href={APP_ROUTES.institutionCoordinators}>
+              {coordinators("entry")}
+            </ButtonLink>
+            <ButtonLink
+              href={institutionCompetitionsPath(institution.id)}
+              variant="secondary"
+            >
+              {registration("entry")}
+            </ButtonLink>
+          </div>
         ) : null}
       </section>
 

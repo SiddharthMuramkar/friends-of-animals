@@ -21,6 +21,7 @@ import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
 import { seedInstitutions } from "./institutions";
 import { seedNotifications } from "./notifications";
+import { seedRegistrations } from "./registration";
 import { seedPosts } from "./posts";
 import { seedSecondFactor } from "./second-factor";
 import { seedSettings } from "./settings";
@@ -47,6 +48,8 @@ const seeders: readonly Seeder[] = [
   seedInstitutions,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,
+  // After the institutions and competitions seeds: it needs both.
+  seedRegistrations,
   seedNotifications,
   seedContact,
   seedCms,
