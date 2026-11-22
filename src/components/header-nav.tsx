@@ -11,12 +11,28 @@ import {
 } from "react";
 
 import { buttonStyles } from "@/components/site/button-link";
+import { isSignedInPath } from "@/lib/app-routes";
 import { cn } from "@/lib/utils";
 
 import { NavLink } from "./nav-link";
 import { ThemeSwitch } from "./theme-toggle";
 
 type Item = { href: string; label: string };
+
+/**
+ * The header's links, plus `dashboard` on pages behind sign-in: whoever
+ * sees those is signed in. Public pages stay static, so the header never
+ * reads the session to decide (#59).
+ */
+function withDashboard(
+  items: Item[],
+  dashboard: Item | undefined,
+  pathname: string | null
+): Item[] {
+  return dashboard && pathname !== null && isSignedInPath(pathname)
+    ? [...items, dashboard]
+    : items;
+}
 
 // The current page gets a cue that doesn't rely on colour alone, in the
 // section-blue heading colour (over 3:1 on the tint in both themes): an
@@ -30,17 +46,19 @@ const MENU_LINK =
 /** Desktop navigation (lg and up). */
 export function DesktopNavView({
   items,
+  dashboard,
   label,
   pathname,
 }: {
   items: Item[];
+  dashboard?: Item;
   label: string;
   pathname: string | null;
 }) {
   return (
     <nav aria-label={label} className="hidden lg:block">
       <ul className="flex items-center gap-1">
-        {items.map((item) => (
+        {withDashboard(items, dashboard, pathname).map((item) => (
           <li key={item.href}>
             <NavLink
               href={item.href}
@@ -56,7 +74,11 @@ export function DesktopNavView({
   );
 }
 
-export function DesktopNav(props: { items: Item[]; label: string }) {
+export function DesktopNav(props: {
+  items: Item[];
+  dashboard?: Item;
+  label: string;
+}) {
   return <DesktopNavView {...props} pathname={usePathname()} />;
 }
 
@@ -74,15 +96,21 @@ const MENU_ID = "mobile-menu";
 
 type MenuLinksProps = {
   items: Item[];
+  dashboard?: Item;
   donateHref: string;
   pathname: string | null;
   close: () => void;
 };
 
-function MenuLinksView({ items, pathname, close }: MenuLinksProps) {
+export function MenuLinksView({
+  items,
+  dashboard,
+  pathname,
+  close,
+}: MenuLinksProps) {
   return (
     <ul className="flex flex-col gap-1">
-      {items.map((item) => (
+      {withDashboard(items, dashboard, pathname).map((item) => (
         <li key={item.href}>
           <NavLink
             href={item.href}
@@ -126,7 +154,7 @@ function DonateLinkView({
   pathname,
   close,
   children,
-}: Omit<MenuLinksProps, "items"> & { children: ReactNode }) {
+}: Omit<MenuLinksProps, "items" | "dashboard"> & { children: ReactNode }) {
   return (
     <NavLink
       href={donateHref}
@@ -140,7 +168,9 @@ function DonateLinkView({
 }
 
 function DonateLink(
-  props: Omit<MenuLinksProps, "items" | "pathname"> & { children: ReactNode }
+  props: Omit<MenuLinksProps, "items" | "dashboard" | "pathname"> & {
+    children: ReactNode;
+  }
 ) {
   return <DonateLinkView {...props} pathname={usePathname()} />;
 }
@@ -159,16 +189,18 @@ function DonateLink(
  */
 export function MobileMenu({
   items,
+  dashboard,
   labels,
   donateHref,
 }: {
   items: Item[];
+  dashboard?: Item;
   labels: MenuLabels;
   donateHref: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const close = useCallback(() => dialog.current?.close(), []);
-  const links = { items, donateHref, close };
+  const links = { items, dashboard, donateHref, close };
 
   return (
     <>

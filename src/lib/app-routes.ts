@@ -7,6 +7,9 @@
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
   accountSecurity: "/account/security",
+  dashboard: "/dashboard",
+  adminRoles: "/admin/roles",
+  adminAudit: "/admin/audit",
   secondFactor: "/auth/second-factor",
   stepUp: "/auth/step-up",
   /** The file upload demo (#63): every environment but production. */
@@ -23,7 +26,12 @@ export const APP_ROUTES = {
  * waits for the request (src/app/account/layout.tsx), so it has no static
  * shell.
  */
-export const SIGNED_IN_PREFIXES = ["/account", "/admin", "/auth"] as const;
+export const SIGNED_IN_PREFIXES = [
+  "/account",
+  "/admin",
+  "/auth",
+  "/dashboard",
+] as const;
 
 export function isSignedInPath(pathname: string): boolean {
   return isUnderPrefix(pathname, SIGNED_IN_PREFIXES);

@@ -106,5 +106,7 @@ export const config = {
     "/admin/:path*",
     "/auth",
     "/auth/:path*",
+    "/dashboard",
+    "/dashboard/:path*",
   ],
 };
