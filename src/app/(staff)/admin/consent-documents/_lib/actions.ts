@@ -6,13 +6,14 @@ import { redirect } from "next/navigation";
 
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { secondFactorPath } from "@/lib/second-factor-routes";
 import { as, currentActor } from "@/server/app";
+import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import { consentDocumentTag } from "@/server/modules/consent/cached";
 import {
   CONSENT_PURPOSES,
   type ConsentPurpose,
 } from "@/server/modules/consent/domain/purposes";
-import { errorSummaryForLogs } from "@/server/errors";
 
 import {
   afterPreview,
@@ -50,7 +51,10 @@ function isPurpose(value: string): value is ConsentPurpose {
  * The publish form's one action. `intent` (from the pressed button) says
  * what to do: preview the source, or publish it as the next version.
  * Publishing refreshes the cached current version, then goes back to the
- * page, which lists the new version and says so.
+ * page, which lists the new version and says so. The privacy notice and
+ * the terms are their policy pages' text: only publishing the page in the
+ * CMS publishes them (#111), so the page offers no form for them and the
+ * use cases refuse them.
  */
 export async function publishFormAction(
   _previous: PublishFormView | null,
@@ -69,6 +73,7 @@ export async function publishFormAction(
   try {
     if (field(formData, "intent") !== "publish") {
       const preview = await as(actor).previewConsentDocument({
+        purpose,
         source: entered.source,
       });
       return withText(afterPreview(preview, entered));
@@ -80,13 +85,20 @@ export async function publishFormAction(
     if (!result.ok) return withText(afterPublishRefused(result, entered));
     version = result.version;
   } catch (error) {
+    if (error instanceof DomainError) {
+      const path = secondFactorPath(
+        error.code,
+        APP_ROUTES.adminConsentDocuments
+      );
+      if (path) redirect(path);
+    }
     console.error(
       `Consent document form: the use case failed: ${errorSummaryForLogs(error)}`
     );
     return withText({ ...entered, alert: "failed" });
   }
   updateTag(consentDocumentTag(purpose));
-  const token = Date.now().toString(36);
+  const token = crypto.randomUUID().slice(0, 8);
   redirect(
     `${APP_ROUTES.adminConsentDocuments}?published=${purpose}-${version}-${token}`
   );

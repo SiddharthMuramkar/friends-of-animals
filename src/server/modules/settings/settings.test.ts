@@ -36,6 +36,8 @@ describe("readSetting", () => {
 
     expect(await readSetting(h.db, "auth.staffSessionHours")).toBe(12);
     expect(await readSetting(h.db, "sms.enabled")).toBe(false);
+    expect(await readSetting(h.db, "sms.maxPerHour")).toBe(200);
+    expect(await readSetting(h.db, "sms.maxPerDay")).toBe(1000);
     expect(await readSetting(h.db, "org.has80G")).toBe(false);
     expect(await readSetting(h.db, "org.fcraEnabled")).toBe(false);
   });
@@ -64,6 +66,26 @@ describe("listSettings", () => {
         source: "default",
         storedInvalid: false,
         input: { kind: "boolean" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
+        key: "sms.maxPerHour",
+        value: 200,
+        defaultValue: 200,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "integer", min: 1, max: 1000, unit: "texts" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
+        key: "sms.maxPerDay",
+        value: 1000,
+        defaultValue: 1000,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "integer", min: 1, max: 5000, unit: "texts" },
         updatedAt: null,
         updatedBy: null,
       },
@@ -183,9 +205,50 @@ describe("changeSetting", () => {
     expect(await rowCounts(h)).toEqual({ settings: 1, auditEntries: 1 });
   });
 
+  it("replaces a stored value that no longer fits, even with the default", async () => {
+    const h = await createHarness();
+    const admin = await h.signIn(await h.seed.superAdmin());
+    // Stored before the setting's schema changed: 99 hours no longer fits,
+    // so the default of 12 applies and the screen asks for a new value.
+    await h.db.insert(setting).values({
+      key: "auth.staffSessionHours",
+      value: 99,
+      updatedAt: h.clock.now(),
+    });
+
+    expect(
+      await h
+        .as(admin)
+        .changeSetting({ key: "auth.staffSessionHours", value: 12 })
+    ).toEqual({ ok: true, changed: true });
+
+    const listed = await h.as(admin).listSettings();
+    expect(
+      listed.find((each) => each.key === "auth.staffSessionHours")
+    ).toMatchObject({ value: 12, source: "stored", storedInvalid: false });
+    const audit = await h.as(admin).searchAuditLog({ entityType: "setting" });
+    expect(audit).toMatchObject({
+      ok: true,
+      entries: [
+        {
+          action: "setting.changed",
+          entity: { type: "setting", id: "auth.staffSessionHours" },
+          before: { value: 12, source: "default" },
+          after: { value: 12 },
+        },
+      ],
+    });
+    expect(audit.ok && audit.entries).toHaveLength(1);
+  });
+
   it.each([
     { value: 0, problem: { reason: "too_small", min: 1 } },
     { value: 25, problem: { reason: "too_big", max: 24 } },
+    // Past 2^53, zod's own safe-integer bound fails too; the setting's
+    // bound is still the one to report.
+    { value: 2 ** 53, problem: { reason: "too_big", max: 24 } },
+    { value: 1e20, problem: { reason: "too_big", max: 24 } },
+    { value: -1e20, problem: { reason: "too_small", min: 1 } },
     { value: 1.5, problem: { reason: "wrong_type" } },
     { value: "12", problem: { reason: "wrong_type" } },
     { value: null, problem: { reason: "wrong_type" } },
@@ -324,5 +387,54 @@ describe("the staff session lifetime setting", () => {
     expect(await storedExpiry(h, actor)).toEqual(expiry);
     h.clock.advance({ hours: 12 });
     expect(await seenAs(h, browser)).toBe("visitor");
+  });
+});
+
+describe("the SMS settings", () => {
+  const PHONE = "+91 98765 43210";
+
+  it("switch #58's sign-in by text on and off at once", async () => {
+    const h = await createHarness();
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const visitor = h.visitor({ ip: "203.0.113.77" });
+
+    await h.as(admin).changeSetting({ key: "sms.enabled", value: true });
+
+    expect(await h.as(visitor).signInMethods()).toEqual({
+      email: true,
+      phone: true,
+    });
+    expect(await h.as(visitor).requestPhoneCode({ phone: PHONE })).toEqual({
+      ok: true,
+    });
+    expect(h.sms.codeFor(PHONE)).toMatch(/^\d{6}$/);
+
+    await h.as(admin).changeSetting({ key: "sms.enabled", value: false });
+
+    expect(await h.as(visitor).signInMethods()).toEqual({
+      email: true,
+      phone: false,
+    });
+    expect(await h.as(visitor).requestPhoneCode({ phone: PHONE })).toEqual({
+      ok: false,
+      error: "sms_disabled",
+    });
+  });
+
+  it("set #58's ceiling on sign-in texts at once", async () => {
+    const h = await createHarness();
+    const admin = await h.signIn(await h.seed.superAdmin());
+    await h.as(admin).changeSetting({ key: "sms.enabled", value: true });
+
+    await h.as(admin).changeSetting({ key: "sms.maxPerHour", value: 1 });
+
+    const from = (n: number) => h.as(h.visitor({ ip: `198.51.100.${n}` }));
+    expect(await from(1).requestPhoneCode({ phone: PHONE })).toEqual({
+      ok: true,
+    });
+    expect(
+      await from(2).requestPhoneCode({ phone: "+91 98765 43211" })
+    ).toMatchObject({ ok: false, error: "rate_limited" });
+    expect(h.sms.sent).toHaveLength(1);
   });
 });

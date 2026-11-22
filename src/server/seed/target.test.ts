@@ -82,6 +82,20 @@ describe("seedTarget", () => {
     }
   });
 
+  it("refuses a URL with no host, which the database client fills in itself", () => {
+    // postgres-js connects it to PGHOST, else localhost.
+    for (const url of [
+      "postgres:///foa",
+      "postgresql:///foa?sslmode=require",
+      "postgres:/foa",
+    ]) {
+      expect(seedTarget({ DIRECT_URL: url }), url).toEqual({
+        seed: false,
+        reason: expect.stringMatching(/names no host/),
+      });
+    }
+  });
+
   it("refuses a local URL that tunnels into a deployed database", () => {
     // An SSH tunnel (docker/README.md) or PgBouncer on the database server
     // reaches pg-prod or pg-nonprod through a loopback address, so a local

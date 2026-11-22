@@ -4,6 +4,7 @@ import {
   currentConsent,
   decideGive,
   decideWithdraw,
+  nextEventTime,
   type ConsentEventRecord,
   type ConsentState,
 } from "./consent-state";
@@ -164,4 +165,30 @@ describe("decideWithdraw", () => {
   ])("changes nothing when $name", ({ state }) => {
     expect(decideWithdraw(state)).toEqual({ kind: "unchanged" });
   });
+});
+
+describe("nextEventTime", () => {
+  const since = new Date("2027-01-15T04:30:00.000Z"); // GIVEN_V1.since
+
+  it("is now for a subject with no events", () => {
+    const now = new Date("2020-01-01T00:00:00.000Z");
+    expect(nextEventTime(NEVER, now)).toEqual(now);
+  });
+
+  it("is now when the clock reads after the latest event", () => {
+    const now = new Date(since.getTime() + 1);
+    expect(nextEventTime(GIVEN_V1, now)).toEqual(now);
+  });
+
+  it.each([
+    { name: "in the same millisecond", offset: 0 },
+    { name: "earlier", offset: -50 },
+  ])(
+    "is 1 ms after the latest event when the clock reads $name",
+    ({ offset }) => {
+      expect(
+        nextEventTime(GIVEN_V1, new Date(since.getTime() + offset))
+      ).toEqual(new Date(since.getTime() + 1));
+    }
+  );
 });

@@ -33,3 +33,16 @@ gave it, how, on which text, and the whole history.
   new text.
 - `published_by_user_id` has no foreign key, as in the audit log: `ON DELETE
   SET NULL` would update a row the trigger protects.
+- `consent_event` has no append-only trigger yet. Its `giver_user_id` is a
+  foreign key with `ON DELETE SET NULL` (indexed, so deleting a user doesn't
+  scan the log), so a trigger that refused every UPDATE would block deleting
+  a user. Until then the audit log records every give and withdrawal. A
+  trigger must allow exactly that change (`giver_user_id` to null, nothing
+  else) and refuse DELETE and TRUNCATE, once FOA rules whether a person's
+  consent history may ever be erased. #82 extends the log and adds it.
+- Sign-up records its consent inside identity's account transaction, so
+  `identity/create-account.ts` (an M0 foundation) imports this module's
+  `recordSignUpConsent`, and `outbox/events.ts` imports its purpose and
+  subject-type lists for the `consent.withdrawn` payload.
+  Invert it (a sign-up hook, events registered by the module) if more
+  modules need the same.

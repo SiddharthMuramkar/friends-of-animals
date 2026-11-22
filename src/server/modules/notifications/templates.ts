@@ -247,9 +247,20 @@ export async function updateMessageTemplate(
       } as const;
     }
     if (!revision.changed) {
+      // Nothing to save: the view still names whoever last edited it.
+      const [lastEditor] = row.updatedByUserId
+        ? await tx
+            .select({ name: user.name })
+            .from(user)
+            .where(eq(user.id, row.updatedByUserId))
+        : [];
       return {
         ok: true,
-        template: viewOf({ ...row, updatedById: null, updatedByName: null }),
+        template: viewOf({
+          ...row,
+          updatedById: lastEditor ? row.updatedByUserId : null,
+          updatedByName: lastEditor?.name ?? null,
+        }),
       } as const;
     }
 

@@ -41,9 +41,9 @@ const CONTACT_INPUT = {
  * Sign up or sign in by a code, in two steps on one form: the email
  * address or mobile number (and, to sign up, a name), then the code we
  * send. Every message comes translated from `action`; static words come
- * in `labels`. To sign up, `consentField` (the optional messages consent
- * box, from the server) shows on the first step, and the code step sends
- * on what was ticked.
+ * in `labels`. To sign up by email, `consentField` (the optional messages
+ * consent box, from the server) shows on the first step, and the code
+ * step sends on what was ticked.
  */
 export function CodeForm({
   action,
@@ -62,7 +62,7 @@ export function CodeForm({
   signUpPath: string;
   /** By phone: the email form for this intent, for numbers we can't text. */
   emailPath?: string;
-  /** Sign-up's optional messages consent box (#64). */
+  /** By email, to sign up: the optional messages consent box (#64). */
   consentField?: ReactNode;
 }) {
   const [view, formAction] = useActionState(action, START_VIEW);

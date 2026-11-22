@@ -32,8 +32,9 @@ export type CodeFormState = {
   contact: string;
   name: string;
   /**
-   * Sign-up only: the messages consent document whose box was ticked, so
-   * the code step can send it on. Absent when the box wasn't ticked (#64).
+   * Sign-up by email only: the messages consent document whose box was
+   * ticked, so the code step can send it on. Absent when the box wasn't
+   * ticked.
    */
   messagesConsent?: string;
   /** A code was just sent to `contact`. */

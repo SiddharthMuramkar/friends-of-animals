@@ -7,26 +7,15 @@ import type {
 import { getTranslations } from "next-intl/server";
 import { redirect, RedirectType } from "next/navigation";
 
+import { field, signedIn } from "@/app/auth/_lib/action-input";
 import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import { APP_ROUTES } from "@/lib/app-routes";
-import { ROUTES } from "@/lib/routes";
 import { safeNext } from "@/lib/second-factor-routes";
-import { as, currentActor } from "@/server/app";
+import { as } from "@/server/app";
 
 import { groupKey, qrCode } from "./totp-setup";
 
 const SECURITY = APP_ROUTES.accountSecurity;
-
-async function signedIn() {
-  const actor = await currentActor();
-  if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  return actor;
-}
-
-function field(formData: FormData, name: string): string {
-  const value = formData.get(name);
-  return typeof value === "string" ? value : "";
-}
 
 /**
  * Back to the page the user was sent here from, now that a new factor has

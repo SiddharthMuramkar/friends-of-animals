@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { BadgeConstellation } from "@/components/showcase/badge-constellation";
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
 import { cachedNow } from "@/components/showcase/clock";
+import { fromSample } from "@/components/competitions/model";
 import { CompetitionCard } from "@/components/showcase/competition-card";
 import { GalleryFrames } from "@/components/showcase/gallery-frames";
 import { HappyMosaic } from "@/components/showcase/happy-mosaic";
@@ -109,20 +110,24 @@ async function Hero() {
         <span className="absolute bottom-16 left-[4%] hidden size-5 -rotate-6 rounded-[22%] bg-teal-400 sm:block" />
         <span className="absolute right-[6%] bottom-8 hidden size-4 rotate-6 rounded-[22%] bg-pink-400 sm:block" />
       </div>
-      <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-12 px-4 py-8 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
+      <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-7 px-4 py-5 sm:gap-12 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
         <div>
           <Eyebrow tile="green">{t("hero.eyebrow")}</Eyebrow>
           <h1
             id="home-title"
-            className="mt-4 font-display text-[2.75rem] leading-[1.05] font-extrabold text-balance text-ink sm:text-display lg:text-[4.5rem]"
+            className="mt-2 font-display text-[clamp(2rem,1.25rem+3.75vw,2.75rem)] leading-[1.05] font-extrabold text-balance text-ink sm:mt-4 sm:text-display lg:text-[4.5rem]"
           >
             {t(hero.heading)}
           </h1>
-          <p className="mt-5 max-w-prose text-lg text-ink-muted sm:mt-6 sm:text-lead">
+          <p className="mt-3 max-w-prose text-base text-ink-muted max-sm:leading-6 sm:mt-6 sm:text-lead">
             {t(hero.subheading)}
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink href={hero.primaryCta.href} size="lg">
+          <div className="mt-4 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
+            <ButtonLink
+              href={hero.primaryCta.href}
+              size="lg"
+              className="max-sm:min-h-11 max-sm:px-5 max-sm:py-1.5 max-sm:text-base"
+            >
               {t(hero.primaryCta.label)}
             </ButtonLink>
             {hero.secondaryCta ? (
@@ -130,6 +135,7 @@ async function Hero() {
                 href={hero.secondaryCta.href}
                 variant="secondary"
                 size="lg"
+                className="max-sm:min-h-11 max-sm:px-5 max-sm:py-1.5 max-sm:text-base"
               >
                 {t(hero.secondaryCta.label)}
               </ButtonLink>
@@ -173,11 +179,11 @@ async function Competitions() {
       />
       {list.length > 0 ? (
         <>
-          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
-                  competition={c}
+                  competition={fromSample(c)}
                   headingLevel={3}
                   className="w-full"
                 />
@@ -193,14 +199,14 @@ async function Competitions() {
                     <TileMarker hue="pink" size="lg" />
                     <TileMarker hue="yellow" size="lg" />
                   </span>
-                  <span className="font-display text-h4 leading-tight font-bold text-ink">
+                  <span className="max-w-full font-display text-h4 leading-tight font-bold text-ink">
                     {t("moreTitle")}
                   </span>
-                  <span className="inline-flex min-h-11 items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4">
-                    {t("all")}
+                  <span className="inline-flex min-h-11 max-w-full items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4">
+                    <span className="min-w-0">{t("all")}</span>
                     <ArrowRight
                       aria-hidden="true"
-                      className="size-5 transition-transform motion-safe:group-hover:translate-x-1"
+                      className="size-5 shrink-0 transition-transform motion-safe:group-hover:translate-x-1"
                     />
                   </span>
                 </SiteLink>
@@ -246,7 +252,7 @@ async function WhyChildren() {
   const t = await getTranslations("home.why");
   return (
     <Section labelledBy="home-why" width="wide" hue="red">
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-center lg:gap-16">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-center lg:gap-16">
         <div>
           <SectionHeading
             id="home-why"
@@ -322,7 +328,7 @@ async function Stories() {
         title={t("title")}
         lead={t("lead")}
       />
-      <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {latestStories(3).map((story) => (
           <li key={story.slug} className="flex">
             <StoryCard story={story} headingLevel={3} className="w-full" />

@@ -105,3 +105,45 @@ describe("<CodeForm> by email", () => {
     expect(html).toMatch(/<input[^>]* id="email"/);
   });
 });
+
+describe("<CodeForm> with the messages consent box", () => {
+  const box = (
+    <input
+      type="checkbox"
+      name="messagesConsent"
+      value="01938a00-0000-7000-8000-000000000c01"
+    />
+  );
+
+  it("shows the box on a sign-up's first step", () => {
+    const html = renderToStaticMarkup(
+      <CodeForm
+        action={noop}
+        channel="email"
+        intent="sign-up"
+        labels={emailLabels}
+        signUpPath="/sign-up"
+        consentField={box}
+      />
+    );
+
+    expect(html).toMatch(
+      /<input type="checkbox" name="messagesConsent" value="01938a00-0000-7000-8000-000000000c01"\/>/
+    );
+  });
+
+  it("never shows it to sign in", () => {
+    const html = renderToStaticMarkup(
+      <CodeForm
+        action={noop}
+        channel="email"
+        intent="sign-in"
+        labels={{ ...emailLabels, verify: "Sign in" }}
+        signUpPath="/sign-up"
+        consentField={box}
+      />
+    );
+
+    expect(html).not.toContain('name="messagesConsent"');
+  });
+});

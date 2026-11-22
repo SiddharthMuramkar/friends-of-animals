@@ -10,18 +10,17 @@
 #   2. postgres/bootstrap/umami.sql in foa-pg-prod: role and database umami,
 #      with that password, passed over stdin and never as an argument. Then
 #      pg_reload_conf(), so pg_hba.prod.conf's umami rule applies.
-#   3. Umami alone (`up -d --wait umami`), never cloudflared: without the
-#      tunnel nothing outside the VPS reaches it.
+#   3. Umami (`up -d --wait umami`), once its health check passes.
 #   4. /etc/foa/secrets/umami_admin_password (0400 root, 32 random bytes as
 #      hex) replaces Umami's seeded admin/umami login, which everyone knows,
 #      from inside the container (umami-admin-password.mjs, the password over
-#      stdin). So the dashboard is never on the internet with that login.
-#   5. The tunnel token: if /etc/foa/secrets/cloudflared_tunnel_token exists,
-#      make it 0400 for cloudflared's user (65532); else say how to create it.
+#      stdin).
 #
-# Run after `git pull` in /srv/foa and with the database stack up. Start the
-# tunnel only after it succeeds: `docker compose -f docker/analytics.yml up -d
-# --wait` (docker/README.md).
+# Umami publishes no port and needs no certificate: Caddy (edge.yml) serves
+# stats.friendsofanimals.dev and proxies it to Umami.
+#
+# Run after `git pull` in /srv/foa and with the database stack up
+# (docker/README.md).
 #
 # Usage: sudo analytics-bootstrap.sh
 # The functions above main() are tested by analytics-bootstrap.test.ts, which
@@ -32,9 +31,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/analytics.yml"
 ADMIN_SCRIPT="$SCRIPT_DIR/umami-admin-password.mjs"
 ENV_FILE=/etc/foa/analytics.env
-TOKEN_FILE=/etc/foa/secrets/cloudflared_tunnel_token
 ADMIN_FILE=/etc/foa/secrets/umami_admin_password
-CLOUDFLARED_UID=65532 # nonroot in the distroless cloudflared image
+# Caddy serves stats.friendsofanimals.dev only while this file exists
+# (caddy/Caddyfile; edge.yml mounts the directory read-only at /srv/gates).
+GATE_FILE=/var/lib/foa/caddy/gates/stats
 UMAMI_CONTAINER=foa-umami
 PG_CONTAINER=foa-pg-prod
 PG_HOST=10.112.12.10 # pg-prod on network db (compose.yml)
@@ -44,8 +44,7 @@ usage() {
   cat <<EOF
 Usage: $0
 Writes Umami's env file, creates its role and database on pg-prod, starts
-Umami alone and replaces its seeded admin login, and checks the Cloudflare
-Tunnel token. Then start the tunnel. Idempotent; run as root.
+Umami and replaces its seeded admin login. Idempotent; run as root.
 EOF
 }
 
@@ -126,9 +125,7 @@ private_dir() {
   [ -d "$1" ] || install -d -m 0700 -o root -g root "$1"
 }
 
-# start_umami: Umami alone, once its health check passes. Not cloudflared:
-# the tunnel would put the dashboard on the internet before
-# replace_seeded_login has run.
+# start_umami: Umami, once its health check passes.
 start_umami() {
   docker compose -f "$COMPOSE_FILE" up -d --wait umami
 }
@@ -161,16 +158,22 @@ replace_seeded_login() {
     -e "$(<"$ADMIN_SCRIPT")" <"$file"
 }
 
-check_token() {
-  if [ -s "$TOKEN_FILE" ]; then
-    chown "$CLOUDFLARED_UID:$CLOUDFLARED_UID" "$TOKEN_FILE"
-    chmod 0400 "$TOKEN_FILE"
-    echo "kept $TOKEN_FILE"
-  else
-    echo "missing $TOKEN_FILE: paste the tunnel token into" \
-      "sudo install -m 0400 -o $CLOUDFLARED_UID -g $CLOUDFLARED_UID /dev/stdin $TOKEN_FILE" \
-      "(end with Ctrl-D), then rerun"
-  fi
+# close_gate FILE: Caddy answers stats.friendsofanimals.dev with 503 from
+# now on. Close it before provisioning the database: an already running or
+# restarting Umami instance could reach a fresh database immediately.
+close_gate() {
+  rm -f "$1"
+  echo "closed $1: Caddy answers stats.friendsofanimals.dev with 503"
+}
+
+# open_gate FILE: let Caddy proxy stats.friendsofanimals.dev to Umami. Only
+# once replace_seeded_login has succeeded.
+open_gate() {
+  local file=$1 dir
+  dir="$(dirname "$file")"
+  [ -d "$dir" ] || install -d -m 0755 -o root -g root "$dir"
+  echo "analytics-bootstrap.sh replaced Umami's seeded admin login" >"$file"
+  echo "opened $file: Caddy serves stats.friendsofanimals.dev"
 }
 
 main() {
@@ -184,8 +187,8 @@ main() {
   command -v docker >/dev/null || die "docker not found"
   umask 077
 
+  close_gate "$GATE_FILE"
   private_dir "$(dirname "$ENV_FILE")"
-  private_dir "$(dirname "$TOKEN_FILE")"
   private_dir "$(dirname "$ADMIN_FILE")"
   write_env "$ENV_FILE"
   apply_sql "$(db_password "$(env_value "$ENV_FILE" DATABASE_URL)")"
@@ -193,8 +196,7 @@ main() {
   start_umami
   write_admin_password "$ADMIN_FILE"
   replace_seeded_login "$ADMIN_FILE"
-  check_token
-  echo "next: docker compose -f $COMPOSE_FILE up -d --wait (starts the tunnel)"
+  open_gate "$GATE_FILE"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi

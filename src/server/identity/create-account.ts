@@ -7,18 +7,23 @@
 // `disableSignUp`, so it never creates one.
 
 import type { Ciphertext } from "../crypto/field-cipher";
+import { user } from "../db/schema";
+import { uuidv7 } from "../ids";
 import {
   recordSignUpConsent,
   type SignUpConsentOutcome,
 } from "../modules/consent";
-import { user } from "../db/schema";
-import { uuidv7 } from "../ids";
 import { emit } from "../outbox";
 import type { UseCaseContext } from "../use-cases";
 
-/** How the account is reached: an email address, or a stored phone (#58). */
+/**
+ * How the account is reached: an email address, or a stored phone (#58).
+ * By email, `messagesConsent` is the id of the messages consent document
+ * the sign-up form showed, when its box was ticked. News and updates go by
+ * email, so the phone form has no such box.
+ */
 export type NewAccount =
-  | { name: string; email: string }
+  | { name: string; email: string; messagesConsent?: string }
   | {
       name: string;
       phone: { phoneCiphertext: Ciphertext; phoneHash: string };
@@ -30,14 +35,13 @@ export type CreatedAccount =
 
 /**
  * Creates a verified account for `email` (already normalised), or for a
- * phone (./stored-phone.ts), and emits identity.user_signed_up with it.
- * `messagesConsent` is the id of the messages consent document the form
- * showed, when its box was ticked. Creates, emits and records nothing if
- * the address or phone got an account meanwhile.
+ * phone (./stored-phone.ts), emits identity.user_signed_up with it, and
+ * records the messages consent ticked at sign-up. Creates, emits and
+ * records nothing if the address or phone got an account meanwhile.
  */
 export async function createAccount(
   ctx: Pick<UseCaseContext, "db" | "clock" | "actor">,
-  input: NewAccount & { messagesConsent?: string }
+  input: NewAccount
 ): Promise<CreatedAccount> {
   const { db, clock } = ctx;
   return db.transaction(async (tx) => {
@@ -71,7 +75,9 @@ export async function createAccount(
       aggregate: { type: "user", id: created.id },
       payload: { userId: created.id },
     });
-    if (input.messagesConsent === undefined) return { created: true } as const;
+    if (!("email" in input) || input.messagesConsent === undefined) {
+      return { created: true } as const;
+    }
     const messagesConsent = await recordSignUpConsent(tx, ctx, {
       userId: created.id,
       purpose: "messages",
