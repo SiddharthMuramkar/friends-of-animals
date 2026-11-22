@@ -13,10 +13,7 @@ import {
   listChildren,
   type AddChildInput,
 } from "./children";
-import {
-  acceptGuardianRequest,
-  viewGuardianRequest,
-} from "./guardian-request";
+import { acceptGuardianRequest, viewGuardianRequest } from "./guardian-request";
 import {
   acceptTeenInvitation,
   inviteTeenLogin,

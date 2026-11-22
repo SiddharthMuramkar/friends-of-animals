@@ -8,9 +8,13 @@ const REFUSALS = [
   "registration_closed",
   "institutions_only",
   "dob_invalid",
-  "minor",
+  "under_13_needs_guardian",
+  "adult_registers_self",
   "already_registered",
   "consent_missing",
+  "guardian_details_required",
+  "guardian_contact_is_self",
+  "rate_limited",
 ] as const;
 
 /** The participant namespace's message at a dotted key, if there is one. */
@@ -32,14 +36,11 @@ describe("refusalView", () => {
     expect(typeof message === "string" && message.trim()).toBeTruthy();
   });
 
-  it("answers a minor with the come-back pointer", () => {
-    expect(refusalView("minor").message).toBe("register.minor");
-  });
-
   it("puts a refusal the person can fix on the field that needs fixing", () => {
     expect(refusalView("dob_invalid").field).toBe("dateOfBirth");
-    expect(refusalView("minor").field).toBe("dateOfBirth");
+    expect(refusalView("under_13_needs_guardian").field).toBe("dateOfBirth");
     expect(refusalView("consent_missing").field).toBe("consents");
+    expect(refusalView("guardian_contact_is_self").field).toBe("guardianEmail");
   });
 
   it("shows the competition's own refusals above the form", () => {

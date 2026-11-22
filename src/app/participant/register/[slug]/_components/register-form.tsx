@@ -18,6 +18,7 @@ import { registerAsIndividualAction } from "../_lib/actions";
 import {
   START,
   type FormField,
+  type GuardianField,
   type RegisterFormState,
   type TextField as Field,
 } from "../_lib/form-state";
@@ -37,6 +38,15 @@ export type RegisterFormLabels = {
   }[];
   countries: { value: string; label: string }[];
   countryPlaceholder: string;
+  /** A teen's parent or guardian (#81). */
+  guardian: {
+    legend: string;
+    lead: string;
+    fields: Record<GuardianField, string>;
+    emailHint: string;
+    relationships: { value: string; label: string }[];
+    relationshipPlaceholder: string;
+  };
   problems: string;
   unexpected: string;
   submit: string;
@@ -51,18 +61,27 @@ const FIELDSET =
 const LEGEND = "px-2 text-lead font-bold text-ink";
 
 /**
- * The individual register form (#78). Every word comes in `labels`; the
- * action returns what to fix, or a refusal, and keeps what was typed.
+ * The individual register form (#78, #81). Every word comes in `labels`;
+ * the action returns what to fix, or a refusal, and keeps what was typed.
+ * A child's, or a linked teen's, name and date of birth are the profile's:
+ * `kept` shows them in place of their fields. A teen on their own is asked
+ * for their parent or guardian once registering says so.
  */
 export function RegisterForm({
   competitionSlug,
+  forChildId,
+  kept,
   labels,
 }: {
   competitionSlug: string;
+  /** The child a guardian is registering, if any. */
+  forChildId: string | null;
+  /** The profile's name and date of birth, and where they come from. */
+  kept: { summary: string; note: string } | null;
   labels: RegisterFormLabels;
 }) {
   const [state, formAction] = useActionState(
-    registerAsIndividualAction.bind(null, competitionSlug),
+    registerAsIndividualAction.bind(null, competitionSlug, forChildId),
     START
   );
   const { values } = state;
@@ -84,6 +103,20 @@ export function RegisterForm({
       defaultValue={values[field]}
       label={labels.fields[field]}
       hint={labels.hints[field]}
+      error={errorOf(field)}
+      {...input}
+    />
+  );
+  const guardianText = (
+    field: Exclude<GuardianField, "guardianRelationship">,
+    input: Partial<Parameters<typeof TextField>[0]> = {}
+  ) => (
+    <TextField
+      id={field}
+      name={field}
+      required
+      defaultValue={values[field]}
+      label={labels.guardian.fields[field]}
       error={errorOf(field)}
       {...input}
     />
@@ -120,8 +153,17 @@ export function RegisterForm({
       ) : null}
 
       <fieldset className={FIELDSET}>
-        {text("fullName", { autoComplete: "name", maxLength: 100 })}
-        {text("dateOfBirth", { type: "date", autoComplete: "bday" })}
+        {kept ? (
+          <div>
+            <p className="text-lead font-semibold text-ink">{kept.summary}</p>
+            <p className="mt-1 text-ink-muted">{kept.note}</p>
+          </div>
+        ) : (
+          <>
+            {text("fullName", { autoComplete: "name", maxLength: 100 })}
+            {text("dateOfBirth", { type: "date", autoComplete: "bday" })}
+          </>
+        )}
         {text("phone", {
           type: "tel",
           autoComplete: "tel",
@@ -148,6 +190,36 @@ export function RegisterForm({
           maxLength: 150,
         })}
       </fieldset>
+
+      {state.askGuardian ? (
+        <fieldset className={FIELDSET} aria-describedby="guardian-lead">
+          <legend className={LEGEND}>{labels.guardian.legend}</legend>
+          <p id="guardian-lead" className="text-ink">
+            {labels.guardian.lead}
+          </p>
+          {guardianText("guardianName", {
+            autoComplete: "off",
+            maxLength: 100,
+          })}
+          <SelectField
+            id="guardianRelationship"
+            name="guardianRelationship"
+            required
+            defaultValue={values.guardianRelationship}
+            label={labels.guardian.fields.guardianRelationship}
+            placeholder={labels.guardian.relationshipPlaceholder}
+            options={labels.guardian.relationships}
+            error={errorOf("guardianRelationship")}
+          />
+          {guardianText("guardianEmail", {
+            type: "email",
+            autoComplete: "off",
+            inputMode: "email",
+            maxLength: 254,
+            hint: labels.guardian.emailHint,
+          })}
+        </fieldset>
+      ) : null}
 
       <fieldset
         className={FIELDSET}

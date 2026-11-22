@@ -16,8 +16,10 @@ import { formatPaise } from "@/server/modules/payments/domain/money-format";
 import { payForMyRegistrationAction } from "./_lib/actions";
 import { isPayOutcome } from "./_lib/pay-outcome";
 
-// Paying for an adult's own registration (#78): the fee, and the button
-// that opens a payment batch of one, or confirms a free place at once.
+// Paying for an adult's own registration (#78), or a guardian's child's
+// (#81): the fee, and the button that opens a payment batch of one, or
+// confirms a free place at once. A registration waiting for a guardian,
+// or one a teen's guardian pays, says so instead.
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("participant.payment.meta");
@@ -110,6 +112,10 @@ async function Pay({ params, searchParams }: Props) {
             )}
           </form>
         </div>
+      ) : mine.status === "pending_guardian" ? (
+        <p className={CARD}>{t("error.awaiting_guardian")}</p>
+      ) : mine.status === "pending_payment" ? (
+        <p className={CARD}>{t("guardianPays")}</p>
       ) : (
         <p className={CARD}>{t("error.nothing_to_pay")}</p>
       )}

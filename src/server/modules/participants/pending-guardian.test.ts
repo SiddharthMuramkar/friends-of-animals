@@ -10,7 +10,10 @@ import {
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import { paymentRows } from "@/server/modules/payments/testing";
-import { bornYearsAgo, verifiedGuardian } from "@/server/modules/guardians/testing";
+import {
+  bornYearsAgo,
+  verifiedGuardian,
+} from "@/server/modules/guardians/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { adultForm, openToIndividuals, participantRows } from "./testing";
@@ -289,6 +292,7 @@ describe("viewGuardianRequest", () => {
         expiresAt: expect.any(Date),
         forYou: null,
         teen: null,
+        guardianVerified: null,
       },
     });
     if (asVisitor.ok) {
@@ -305,6 +309,7 @@ describe("viewGuardianRequest", () => {
       ok: true,
       request: {
         forYou: true,
+        guardianVerified: true,
         teen: {
           name: "Meera Iyer",
           relationship: "parent",
@@ -315,6 +320,21 @@ describe("viewGuardianRequest", () => {
     expect(
       await h.as(h.visitor()).viewGuardianRequest({ token: "not-a-token" })
     ).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("tells the person asked that they still need to verify as a guardian", async () => {
+    const h = await createHarness();
+    const meera = await heldTeen(h);
+    const lakshmi = await h.signIn(
+      await h.seed.member({ name: "Lakshmi Iyer", email: MOTHER_EMAIL })
+    );
+
+    expect(
+      await h.as(lakshmi).viewGuardianRequest({ token: meera.token })
+    ).toMatchObject({
+      ok: true,
+      request: { forYou: true, guardianVerified: false },
+    });
   });
 });
 
@@ -327,9 +347,9 @@ describe("paying for a guardian's child", () => {
       children: [{ fullName: "Rohan Desai", age: 15, loginUserId: teen.id }],
     });
     const rohan = await h.signIn(teen);
-    const registered = await h.as(rohan).registerAsIndividual(
-      adultForm(competition)
-    );
+    const registered = await h
+      .as(rohan)
+      .registerAsIndividual(adultForm(competition));
     if (!registered.ok) throw new Error(JSON.stringify(registered));
     const pay = (actor: Awaited<ReturnType<typeof h.signIn>>) =>
       h

@@ -76,7 +76,9 @@ describe("the guardians seed", () => {
       expect.objectContaining({
         whose: "mine",
         participantName: heldTeen.name,
-        competition: expect.objectContaining({ slug: "neighbours-on-my-street" }),
+        competition: expect.objectContaining({
+          slug: "neighbours-on-my-street",
+        }),
         status: "pending_guardian",
         amountDue: null,
       }),

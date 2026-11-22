@@ -30,7 +30,6 @@
 import { and, eq, ne } from "drizzle-orm";
 
 import { authorize } from "../../access/can";
-import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import {
@@ -50,7 +49,6 @@ import {
   askGuardianFor,
   hasVerifiedGuardian,
   readGuardianDetails,
-  type GuardianDetailsField,
 } from "../guardians/guardian-request";
 import { guardianOfUser } from "../guardians/guardian-record";
 import type { GuardianRequestRefusal } from "../guardians/domain/guardian-request";
@@ -72,6 +70,7 @@ import {
 } from "./domain/individual-eligibility";
 import type { MinorRegistrant } from "./domain/minor-registration";
 import { participantCodeFormat } from "./domain/participant-code";
+import { keptProfile, subjectOf, type Subject } from "./registrant";
 import {
   parseRegisterInput,
   type RegisterAsIndividualInput,
@@ -96,67 +95,6 @@ export type RegisterAsIndividualResult =
         | GuardianRequestRefusal
         | "rate_limited";
     };
-
-/**
- * Whose registration it is: the member's own, on a profile of their own;
- * their linked teen login's profile, which a guardian keeps; or a child
- * they look after, as that child's guardian.
- */
-type Subject =
-  | { kind: "own" }
-  | { kind: "linked"; profileId: string }
-  | { kind: "child"; profileId: string; actorRole: Role | null };
-
-/** A guardian-kept profile's name and date of birth, read back. */
-async function keptProfile(
-  ctx: UseCaseContext,
-  db: AppDb,
-  profileId: string
-): Promise<{ fullName: string; dateOfBirth: string } | null> {
-  const [row] = await db
-    .select({
-      fullName: participantProfile.fullName,
-      dobCiphertext: participantProfile.dobCiphertext,
-    })
-    .from(participantProfile)
-    .where(
-      and(
-        eq(participantProfile.id, profileId),
-        eq(participantProfile.ownerKind, "guardian")
-      )
-    );
-  if (!row) return null;
-  return {
-    fullName: row.fullName,
-    dateOfBirth: ctx.cipher.decrypt(PROFILE_PURPOSE.dob, row.dobCiphertext),
-  };
-}
-
-/**
- * Who the registration is for. Naming a child needs the guardian's link
- * to them (refused as forbidden otherwise, like any child of somebody
- * else's); a linked teen login always registers on their own child
- * profile, never on a profile of their own with a typed date of birth.
- */
-async function subjectOf(
-  ctx: UseCaseContext,
-  userId: string,
-  forChildId: string | undefined
-): Promise<Subject> {
-  if (forChildId !== undefined) {
-    const { role } = await authorize(
-      ctx,
-      "guardian.child.manage",
-      await childResource(ctx.db, ctx.actor, forChildId)
-    );
-    return { kind: "child", profileId: forChildId, actorRole: role };
-  }
-  const [linked] = await ctx.db
-    .select({ id: participantProfile.id })
-    .from(participantProfile)
-    .where(eq(participantProfile.loginUserId, userId));
-  return linked ? { kind: "linked", profileId: linked.id } : { kind: "own" };
-}
 
 /**
  * The competition named by `slug`, share-locked so a status job waits for

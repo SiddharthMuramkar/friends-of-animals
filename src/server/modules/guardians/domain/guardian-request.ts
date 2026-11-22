@@ -82,7 +82,10 @@ export type GuardianRequestAcceptanceRefusal =
  */
 export function decideGuardianRequestAcceptance(input: {
   /** Null when no guardian request has this token. */
-  request: { status: "pending" | "accepted" | "revoked"; expiresAt: Date } | null;
+  request: {
+    status: "pending" | "accepted" | "revoked";
+    expiresAt: Date;
+  } | null;
   now: Date;
   accepter: {
     isTheRequester: boolean;

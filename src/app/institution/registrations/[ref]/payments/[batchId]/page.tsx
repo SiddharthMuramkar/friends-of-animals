@@ -89,6 +89,8 @@ const STUDENT_TONE = {
   withdrawn: "neutral",
   // The individual route's (#78); never in a school's batch.
   pending_payment: "marigold",
+  // An individual's, never a school's (#81).
+  pending_guardian: "marigold",
 } as const satisfies Record<RegistrationStatus, string>;
 
 const param = (value: string | string[] | undefined) =>

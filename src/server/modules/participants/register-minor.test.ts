@@ -75,8 +75,11 @@ const LINK = /\/invitations\/[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/;
 
 /** The form a guardian sends for their child: no name or date of birth. */
 function childForm(competition: OpenCompetition, childId: string) {
-  const { fullName: _name, dateOfBirth: _dob, ...form } =
-    adultForm(competition);
+  const {
+    fullName: _name,
+    dateOfBirth: _dob,
+    ...form
+  } = adultForm(competition);
   return { ...form, forChildId: childId };
 }
 
@@ -166,9 +169,11 @@ describe("registerAsIndividual for a minor", () => {
     const isha = await h.signIn(child);
     const before = await participantRows(h);
 
-    const result = await h.as(isha).registerAsIndividual(
-      adultForm(competition, { dateOfBirth: bornYearsAgo(h, 12, 300) })
-    );
+    const result = await h
+      .as(isha)
+      .registerAsIndividual(
+        adultForm(competition, { dateOfBirth: bornYearsAgo(h, 12, 300) })
+      );
 
     expect(result).toEqual({ ok: false, error: "under_13_needs_guardian" });
     expect(await participantRows(h)).toEqual(before);
@@ -208,7 +213,10 @@ describe("registerAsIndividual for a minor", () => {
         status: "pending_guardian",
       });
       expect(await h.as(meera).listMyRegistrations()).toEqual([
-        expect.objectContaining({ status: "pending_guardian", amountDue: null }),
+        expect.objectContaining({
+          status: "pending_guardian",
+          amountDue: null,
+        }),
       ]);
       await h.drain();
       const sent = h.email.sent.filter(
@@ -250,9 +258,11 @@ describe("registerAsIndividual for a minor", () => {
       const meera = await h.signIn(teen);
       const before = await participantRows(h);
 
-      const result = await h.as(meera).registerAsIndividual(
-        teenForm(h, competition, { ...MOTHER, email: "Meera@example.test" })
-      );
+      const result = await h
+        .as(meera)
+        .registerAsIndividual(
+          teenForm(h, competition, { ...MOTHER, email: "Meera@example.test" })
+        );
 
       expect(result).toEqual({ ok: false, error: "guardian_contact_is_self" });
       expect(await participantRows(h)).toEqual(before);
@@ -291,9 +301,7 @@ describe("registerAsIndividual for a minor", () => {
       const meera = await h.signIn(await h.seed.member());
 
       await h.as(meera).registerAsIndividual(teenForm(h, first, MOTHER));
-      const again = await h
-        .as(meera)
-        .registerAsIndividual(teenForm(h, second));
+      const again = await h.as(meera).registerAsIndividual(teenForm(h, second));
       await h.drain();
 
       expect(again).toMatchObject({ ok: true, status: "pending_guardian" });

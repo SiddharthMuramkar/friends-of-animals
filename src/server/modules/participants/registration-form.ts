@@ -1,9 +1,13 @@
-// individualRegistrationForm({ competitionSlug }) (#78): what the individual
-// register form shows for a competition: its name, the individual fee (or
-// that it is free, or not set yet) and the documents a registrant agrees
-// to, each the exact version the competition pinned (#72), by id, so the
-// ticked boxes name those versions. Null for no competition, or a draft.
-// Signed-in members only, like registering itself.
+// individualRegistrationForm({ competitionSlug, forChildId? }) (#78, #81):
+// what the individual register form shows for a competition: its name, the
+// individual fee (or that it is free, or not set yet), the documents a
+// registrant agrees to, each the exact version the competition pinned
+// (#72), by id, so the ticked boxes name those versions, and who is
+// registering: the member themselves (with the children they look after,
+// to choose from), a teen whose login is linked, or the child named, with
+// the name and date of birth the guardian gave. Null for no competition,
+// or a draft. Signed-in members only, like registering itself; naming a
+// child needs the guardian's link to them.
 
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -18,12 +22,26 @@ import { offeredRoutes } from "../competitions/domain/fees";
 import { getRegistrationTerms } from "../competitions/terms/read";
 import { pinnedDocuments } from "../competitions/terms/repository";
 import { COMPETITION_SLUG_PATTERN } from "./register-input";
+import { childrenOf, keptProfile, subjectOf } from "./registrant";
 
 export type IndividualRegistrationForm = {
   competition: { name: string; slug: string };
   acceptsIndividuals: boolean;
   /** Null until FOA sets it; zero for a free competition. */
   fee: Money | null;
+  /**
+   * The member themselves, with the children they could register instead;
+   * a linked teen, or a child, with the profile's name and date of birth.
+   */
+  registrant:
+    | { kind: "own"; children: { id: string; fullName: string }[] }
+    | { kind: "linked"; fullName: string; dateOfBirth: string }
+    | {
+        kind: "child";
+        childId: string;
+        fullName: string;
+        dateOfBirth: string;
+      };
   documents: {
     documentId: string;
     purpose: AttachablePurpose;
@@ -40,9 +58,11 @@ const formInput = z.object({
 
 export async function individualRegistrationForm(
   ctx: UseCaseContext,
-  input: { competitionSlug: string }
+  input: { competitionSlug: string; forChildId?: string }
 ): Promise<IndividualRegistrationForm | null> {
   await authorize(ctx, "registration.individual.create");
+  if (ctx.actor.kind !== "user") throw new Error("unreachable");
+  const subject = await subjectOf(ctx, ctx.actor.userId, input.forChildId);
   const parsed = formInput.safeParse(input);
   if (!parsed.success) return null;
   const [found] = await ctx.db
@@ -64,12 +84,28 @@ export async function individualRegistrationForm(
       pinned.title,
     ])
   );
+  const kept =
+    subject.kind === "own"
+      ? null
+      : await keptProfile(ctx, ctx.db, subject.profileId);
+  if (subject.kind !== "own" && !kept) {
+    throw new Error(`Profile ${subject.profileId} is not a guardian's child`);
+  }
   return {
     competition: { name: found.name, slug: found.slug },
     acceptsIndividuals: offeredRoutes(found.participation).includes(
       "individual"
     ),
     fee: terms.fees.individual,
+    registrant:
+      subject.kind === "own"
+        ? {
+            kind: "own",
+            children: await childrenOf(ctx.db, ctx.actor.userId),
+          }
+        : subject.kind === "linked"
+          ? { kind: "linked", ...kept! }
+          : { kind: "child", childId: subject.profileId, ...kept! },
     documents: terms.documents.map((document) => ({
       documentId: document.documentId,
       purpose: document.purpose,

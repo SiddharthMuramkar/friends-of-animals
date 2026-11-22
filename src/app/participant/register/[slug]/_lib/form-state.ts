@@ -21,10 +21,19 @@ export const TEXT_FIELDS = [
 
 export type TextField = (typeof TEXT_FIELDS)[number];
 
-/** A field the form can mark: a text field or the consent boxes. */
-export type FormField = TextField | "consents";
+/** A teen's parent or guardian (#81), asked for when they are needed. */
+export const GUARDIAN_FIELDS = [
+  "guardianName",
+  "guardianRelationship",
+  "guardianEmail",
+] as const;
 
-export type RegisterFormValues = Record<TextField, string> & {
+export type GuardianField = (typeof GUARDIAN_FIELDS)[number];
+
+/** A field the form can mark: a text field, the consent boxes or a guardian's. */
+export type FormField = TextField | "consents" | GuardianField;
+
+export type RegisterFormValues = Record<TextField | GuardianField, string> & {
   consents: string[];
 };
 
@@ -36,6 +45,8 @@ export type RegisterFormState = {
   errors: FormField[];
   refusal: Refusal | null;
   unexpected: boolean;
+  /** Show the parent or guardian fields: a teen on their own needs them. */
+  askGuardian: boolean;
 };
 
 export const START: RegisterFormState = {
@@ -49,16 +60,20 @@ export const START: RegisterFormState = {
     state: "",
     country: "IN",
     schoolName: "",
+    guardianName: "",
+    guardianRelationship: "",
+    guardianEmail: "",
     consents: [],
   },
   errors: [],
   refusal: null,
   unexpected: false,
+  askGuardian: false,
 };
 
 /** What the form sent, every field as a string. */
 export function valuesFrom(formData: FormData): RegisterFormValues {
-  const text = (field: TextField) => {
+  const text = (field: TextField | GuardianField) => {
     const value = formData.get(field);
     return typeof value === "string" ? value : "";
   };
@@ -71,13 +86,26 @@ export function valuesFrom(formData: FormData): RegisterFormValues {
     state: text("state"),
     country: text("country"),
     schoolName: text("schoolName"),
+    guardianName: text("guardianName"),
+    guardianRelationship: text("guardianRelationship"),
+    guardianEmail: text("guardianEmail"),
     consents: formData
       .getAll("consents")
       .filter((value): value is string => typeof value === "string"),
   };
 }
 
-const FORM_ORDER: readonly FormField[] = [...TEXT_FIELDS, "consents"];
+const FORM_ORDER: readonly FormField[] = [
+  ...TEXT_FIELDS,
+  ...GUARDIAN_FIELDS,
+  "consents",
+];
+
+/** Refusals that ask a teen on their own for their guardian. */
+const GUARDIAN_REFUSALS: readonly Refusal[] = [
+  "guardian_details_required",
+  "guardian_contact_is_self",
+];
 
 /**
  * The form after a refused submission: the fields at fault, or the
@@ -95,6 +123,7 @@ export function afterResult(
     errors: [] as FormField[],
     refusal: null,
     unexpected: false,
+    askGuardian: previous.askGuardian,
   };
   if (result === "unexpected") return { ...base, unexpected: true };
   if (result.error === "invalid_input") {
@@ -105,5 +134,10 @@ export function afterResult(
     return { ...base, errors };
   }
   const { field } = refusalView(result.error);
-  return { ...base, refusal: result.error, errors: field ? [field] : [] };
+  return {
+    ...base,
+    refusal: result.error,
+    errors: field ? [field] : [],
+    askGuardian: base.askGuardian || GUARDIAN_REFUSALS.includes(result.error),
+  };
 }

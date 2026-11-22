@@ -126,7 +126,8 @@ export function readGuardianDetails(
   if (!relationship) fields.push("guardianRelationship");
   const email = typed.email.length <= 320 ? parseTeenEmail(typed.email) : null;
   if (!email) fields.push("guardianEmail");
-  if (!fullName.success || !relationship || !email) return { ok: false, fields };
+  if (!fullName.success || !relationship || !email)
+    return { ok: false, fields };
   return {
     ok: true,
     details: { fullName: fullName.data, relationship, email: email.address },
@@ -291,6 +292,11 @@ export type GuardianRequestView = {
    * for a visitor.
    */
   forYou: boolean | null;
+  /**
+   * Whether the person asked has verified as a guardian, which accepting
+   * needs; null for anyone else.
+   */
+  guardianVerified: boolean | null;
   /** Who asked, and what waits: shown to the person asked only. */
   teen: {
     name: string;
@@ -378,6 +384,10 @@ export async function viewGuardianRequest(
         row.contactHash
       : null;
   const status = invitationStatus(row, ctx.clock.now());
+  const record =
+    forYou && ctx.actor.kind === "user"
+      ? await guardianOfUser(ctx.db, ctx.actor.userId)
+      : null;
   return {
     ok: true,
     request: {
@@ -385,6 +395,7 @@ export async function viewGuardianRequest(
       sentTo: maskIdentifier(contact.channel, contact.address),
       expiresAt: row.expiresAt,
       forYou,
+      guardianVerified: forYou ? record?.verifiedAt != null : null,
       teen:
         forYou && status === "pending"
           ? {
@@ -484,7 +495,9 @@ export async function acceptGuardianRequest(
       if (!record) throw new Error("unreachable");
       if (profile.ownerKind !== "self" || profile.ownerUserId !== teenUserId) {
         // Only a teen's own profile is ever asked about.
-        throw new Error(`Guardian request ${request.id} is not on a teen's own profile`);
+        throw new Error(
+          `Guardian request ${request.id} is not on a teen's own profile`
+        );
       }
 
       await tx

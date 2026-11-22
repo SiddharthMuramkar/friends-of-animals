@@ -74,7 +74,9 @@ describe("messages about a minor", () => {
     await h.drain();
 
     const email = messages(h).find((m) => m.to === "kavita@example.test");
-    expect(email?.subject).toBe("Rohan Desai is registered for A Bowl of Water");
+    expect(email?.subject).toBe(
+      "Rohan Desai is registered for A Bowl of Water"
+    );
     expect(email?.text).toContain("Hello Kavita Desai");
     expect(email?.text).toMatch(/registration number is [A-Z]{3,6}\d{2}-R-/);
     expect(messages(h).map((m) => m.to)).toEqual(["kavita@example.test"]);

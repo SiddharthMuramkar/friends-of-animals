@@ -171,10 +171,9 @@ export const guardianInvitation = pgTable(
       onDelete: "cascade",
     }),
     /** The teen who asked a guardian (guardian_request only). */
-    requestedByUserId: uuid("requested_by_user_id").references(
-      () => user.id,
-      { onDelete: "cascade" }
-    ),
+    requestedByUserId: uuid("requested_by_user_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
     /**
      * The guardian's name as the teen gave it, encrypted for purpose
      * "guardian_invitation.invitee_name" (guardian_request only).
