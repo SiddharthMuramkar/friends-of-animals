@@ -89,14 +89,16 @@
         "order_created": "Waiting for payment",
         "captured": "Paid",
         "failed": "Not started",
-        "cancelled": "Replaced"
+        "cancelled": "Replaced",
+        "needs_review": "Being checked"
       },
       "statusBody": {
         "created": "This payment is still being set up.",
         "order_created": "We haven't received this payment yet. If you have paid, your students are confirmed as soon as the payment service tells us.",
         "captured": "Paid on {date}. Each student below is confirmed.",
         "failed": "The payment service couldn't start this payment, so nothing was charged.",
-        "cancelled": "A newer payment replaced this one before anything was paid."
+        "cancelled": "A newer payment replaced this one before anything was paid.",
+        "needs_review": "We received money for this payment that we need to check by hand. Nothing more is charged and nothing is refunded until our finance team has looked at it. Please don't pay again."
       },
       "summaryTitle": "Payment details",
       "amount": "Amount",

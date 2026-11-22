@@ -39,7 +39,7 @@ import { invalidInput, type InvalidInput } from "../../input";
 import type { CheckoutParams, Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
 import { getRegistrationTerms } from "../competitions/terms/read";
-import { endUnpaidBatch, lockBatch } from "../payments/batches";
+import { endUnpaidBatch, heldInReview, lockBatch } from "../payments/batches";
 import { nextPaymentBatchStatus } from "../payments/domain/batch-status";
 import { syncBatch } from "../payments/sync-batch";
 import { confirmRegistrations } from "../registration/confirm";
@@ -191,6 +191,9 @@ async function planPayment(
     if (mine.status !== "pending_payment") {
       return done({ ok: false, error: "nothing_to_pay" });
     }
+    // A payment for it is in review (#79): staff decide, nobody pays again.
+    const [inReview] = await heldInReview(tx, registrationId);
+    if (inReview) return done({ ok: false, error: "nothing_to_pay" });
     const fee = (await getRegistrationTerms(tx, mine.competitionId))?.fees
       .individual;
     if (!fee) return done({ ok: false, error: "fee_not_set" });

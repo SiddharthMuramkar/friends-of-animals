@@ -1,4 +1,4 @@
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { fileAsset } from "@/server/db/schema";
@@ -13,9 +13,11 @@ describe("the files seed", () => {
     await h.seed.preview();
     await h.seed.preview();
 
+    // The demo files; the payments seed adds a cheque's proof (#79).
     const rows = await h.db
       .select()
       .from(fileAsset)
+      .where(eq(fileAsset.purpose, "test_upload"))
       .orderBy(asc(fileAsset.ownerUserId));
     expect(rows.map((row) => row.ownerUserId)).toEqual(
       SEED_ACCOUNTS.members.map((member) => member.id)
@@ -39,13 +41,14 @@ describe("the files seed", () => {
   it("keys the rows under the preview's prefix and writes no object", async () => {
     const h = await createHarness();
     await h.seed.preview();
-    await h.db.delete(fileAsset);
+    const demo = eq(fileAsset.purpose, "test_upload");
+    await h.db.delete(fileAsset).where(demo);
 
     await seedFilesAt({ bucket: "foa-files-nonprod", keyPrefix: "pr-12/" })(
       h.deps
     );
 
-    const rows = await h.db.select().from(fileAsset);
+    const rows = await h.db.select().from(fileAsset).where(demo);
     expect(rows).toHaveLength(SEED_ACCOUNTS.members.length);
     for (const row of rows) {
       expect(row.bucket).toBe("foa-files-nonprod");

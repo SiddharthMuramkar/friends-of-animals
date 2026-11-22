@@ -3,16 +3,20 @@
 // students enrolled through the real use case. Test code only; nothing in
 // the app imports it.
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import type { Actor } from "@/server/actor";
 import {
   auditLog,
   competitionFee,
+  competitionKeyDate,
+  fileAsset,
   gatewayWebhookEvent,
+  offlinePayment,
   outbox,
   paymentBatch,
   paymentBatchItem,
+  paymentReviewCase,
   registration,
 } from "@/server/db/schema";
 import { AANYA, registeredSchool } from "@/server/modules/registration/testing";
@@ -139,6 +143,14 @@ export async function paymentRows(h: Harness) {
       .orderBy(gatewayWebhookEvent.id),
     audit: await h.db.select().from(auditLog).orderBy(asc(auditLog.id)),
     outbox: await h.db.select().from(outbox).orderBy(asc(outbox.id)),
+    offlinePayments: await h.db
+      .select()
+      .from(offlinePayment)
+      .orderBy(offlinePayment.id),
+    reviewCases: await h.db
+      .select()
+      .from(paymentReviewCase)
+      .orderBy(paymentReviewCase.id),
   };
 }
 
@@ -163,4 +175,98 @@ export async function batchRow(h: Harness, batchId: string) {
     .where(eq(paymentBatch.id, batchId));
   if (!row) throw new Error(`No batch ${batchId}`);
   return row;
+}
+
+/** The roles that may record offline payments and resolve review cases. */
+export type PaymentsStaffRole = "finance" | "staff_admin" | "super_admin";
+
+/**
+ * A signed-in user holding `role` globally (none for a plain member), who
+ * passed their second factor on signing in, as staff do.
+ */
+export async function signInStaff(
+  h: Harness,
+  role: PaymentsStaffRole | "competition_manager" | null = "finance"
+): Promise<{ actor: Actor; userId: string }> {
+  const user = await h.seed.member();
+  if (role) await h.seed.grant(user, { role, scope: { type: "global" } });
+  return { actor: await h.signIn(user), userId: user.id };
+}
+
+/** A scanned cheque, as far as the fakes care: bytes of a declared size. */
+export const CHEQUE_SCAN = new Uint8Array(2048).fill(3);
+
+/**
+ * Uploads a cheque scan as `actor` for batch `batchId`, as finance's browser
+ * does, and returns its file id. The file is `uploaded` (awaiting its
+ * scan) unless `status` says where the scan got to.
+ */
+export async function uploadProof(
+  h: Harness,
+  actor: Actor,
+  batchId: string,
+  status?: "clean" | "scanning" | "quarantined"
+): Promise<string> {
+  const requested = await h.as(actor).requestOfflinePaymentProofUpload({
+    batchId,
+    contentType: "application/pdf",
+    sizeBytes: CHEQUE_SCAN.length,
+  });
+  if (!requested.ok) throw new Error(JSON.stringify(requested));
+  const stored = await h.storage.put(
+    requested.uploadUrl,
+    CHEQUE_SCAN,
+    requested.headers
+  );
+  if (!stored.ok) throw new Error(`not stored: ${stored.error}`);
+  const completed = await h
+    .as(actor)
+    .completeUpload({ fileId: requested.fileId });
+  if (!completed.ok) throw new Error(JSON.stringify(completed));
+  if (status) {
+    // Stands in for the scanner (docs/agents/seam-1.md).
+    await h.db
+      .update(fileAsset)
+      .set({ status })
+      .where(eq(fileAsset.id, requested.fileId));
+  }
+  return requested.fileId;
+}
+
+/** A batch's offline payment row, if any. */
+export async function offlinePaymentOf(h: Harness, batchId: string) {
+  const [row] = await h.db
+    .select()
+    .from(offlinePayment)
+    .where(eq(offlinePayment.batchId, batchId));
+  return row ?? null;
+}
+
+/** A batch's review cases, oldest first. */
+export async function reviewCasesOf(h: Harness, batchId: string) {
+  return h.db
+    .select()
+    .from(paymentReviewCase)
+    .where(eq(paymentReviewCase.batchId, batchId))
+    .orderBy(asc(paymentReviewCase.openedAt), asc(paymentReviewCase.id));
+}
+
+/**
+ * Moves the school's competition's registration close to a minute ago, as
+ * if the clock had passed it (advancing the clock 55 days would end every
+ * session).
+ */
+export async function closeRegistration(
+  h: Harness,
+  school: { competition: { id: string } }
+): Promise<void> {
+  await h.db
+    .update(competitionKeyDate)
+    .set({ at: new Date(h.clock.now().getTime() - 60_000) })
+    .where(
+      and(
+        eq(competitionKeyDate.competitionId, school.competition.id),
+        eq(competitionKeyDate.kind, "registration_closes")
+      )
+    );
 }

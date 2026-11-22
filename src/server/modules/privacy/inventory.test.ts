@@ -102,6 +102,18 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
+  it("lists every personal-data column of an offline payment and a payment in review (#79)", () => {
+    expect(
+      [
+        "offline_payment.reference",
+        "offline_payment.proof_file_asset_id",
+        "offline_payment.recorded_by_user_id",
+        "payment_review_case.resolution_reason",
+        "payment_review_case.resolved_by_user_id",
+      ].filter((column) => !listed.has(column))
+    ).toEqual([]);
+  });
+
   it("lists who registered an institution for a competition", () => {
     expect(listed.has("institution_registration.registered_by")).toBe(true);
   });

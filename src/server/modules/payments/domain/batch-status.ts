@@ -12,15 +12,25 @@ export const PAYMENT_BATCH_STATUSES = [
   "created",
   /** The gateway made an order; waiting for the payer. */
   "order_created",
-  /** The gateway captured a payment for the full amount. */
+  /** Paid: the gateway captured a payment for the full amount, or finance
+   * recorded an offline payment (#79). */
   "captured",
   /** The gateway refused to make an order. */
   "failed",
   /** Replaced by a newer batch before anyone paid. */
   "cancelled",
+  /** The gateway captured money the batch couldn't accept (#79). Nothing
+   * is confirmed or refunded until staff resolve its review case. */
+  "needs_review",
 ] as const;
 
 export type PaymentBatchStatus = (typeof PAYMENT_BATCH_STATUSES)[number];
+
+/** How a captured batch was paid (#79): through the gateway's order, or by
+ * an offline payment finance recorded. Null on a batch never captured. */
+export const PAYMENT_CAPTURE_METHODS = ["gateway", "offline"] as const;
+
+export type PaymentCaptureMethod = (typeof PAYMENT_CAPTURE_METHODS)[number];
 
 export const PAYMENT_BATCH_EVENTS = [
   /** The gateway returned an order id. */
@@ -31,6 +41,16 @@ export const PAYMENT_BATCH_EVENTS = [
   "captured",
   /** The payer started again over a changed set of registrations. */
   "superseded",
+  /** Finance recorded a cheque, bank transfer or cash for the batch (#79). */
+  "offline_recorded",
+  /** A captured payment couldn't be accepted; a review case opened (#79). */
+  "review_opened",
+  /** Staff accepted the money: the registrations are confirmed. */
+  "review_confirmed",
+  /** Staff resolved the case of a batch that was paid before it. */
+  "review_cleared",
+  /** Staff resolved the case of a batch nobody had paid: it lets go. */
+  "review_dismissed",
 ] as const;
 
 export type PaymentBatchEvent = (typeof PAYMENT_BATCH_EVENTS)[number];
@@ -54,16 +74,24 @@ const TRANSITIONS: Readonly<
     order_opened: "order_created",
     order_refused: "failed",
     superseded: "cancelled",
+    offline_recorded: "captured",
   },
   order_created: {
     captured: "captured",
     superseded: "cancelled",
+    offline_recorded: "captured",
+    review_opened: "needs_review",
   },
-  // Refunds (#80) and the review case for late captures (#79) add their
-  // moves here.
-  captured: {},
-  failed: {},
-  cancelled: {},
+  // Refunds (#80) add their moves here.
+  captured: { review_opened: "needs_review" },
+  failed: { review_opened: "needs_review" },
+  cancelled: { review_opened: "needs_review" },
+  needs_review: {
+    review_opened: "needs_review",
+    review_confirmed: "captured",
+    review_cleared: "captured",
+    review_dismissed: "cancelled",
+  },
 };
 
 /** Where `event` takes a batch in status `from`, or why it can't. */
@@ -80,7 +108,9 @@ export function nextPaymentBatchStatus(
 /**
  * Whether a batch in this status still holds its registrations, so no other
  * batch may include them. A paid batch holds them for good; a failed or
- * cancelled one lets them go, so the payer can try again.
+ * cancelled one lets them go, so the payer can try again. A batch in review
+ * keeps those it held when the case opened, so nobody pays for them twice
+ * while staff decide; one that had let them go doesn't take them back.
  */
 export function holdsRegistrations(status: PaymentBatchStatus): boolean {
   return status !== "failed" && status !== "cancelled";

@@ -207,6 +207,20 @@ Checkout return or a webhook only says a capture may have happened; the
 gateway's own record of the order decides.
 _Avoid_: Payment success, settlement
 
+**Offline payment**:
+A cheque, bank transfer or cash FOA received for a Payment batch, recorded by
+finance with a reference and a private proof file. It captures the batch as
+the gateway would, so its registrations are confirmed the same way.
+_Avoid_: Manual payment, cash entry
+
+**Payment needing review**:
+Money the gateway captured that its Payment batch couldn't accept: a second
+payment, a withdrawn registration, the wrong amount, money after
+registration closed, or for a replaced batch. The batch waits in review, one
+review case per payment, until staff accept, refund or keep the money with a
+reason. Nothing is confirmed or refunded on its own.
+_Avoid_: Failed payment, disputed payment, exception
+
 **Test checkout**:
 Where a payer pays outside production while no Razorpay test keys are set:
 the fallback gateway's stand-in for Razorpay's Checkout, on the pay page. It
