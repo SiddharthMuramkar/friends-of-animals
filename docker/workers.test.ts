@@ -1,0 +1,651 @@
+// docker/workers.yml can't be started here (no docker), so these tests read
+// its text: the services, their limits, health checks, connections and
+// secrets. The health check's command itself is run against real files.
+
+import { spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, relative } from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
+
+import { fieldCryptoFor } from "../src/server/crypto/keys";
+import { workerConfig } from "../src/worker/config";
+
+const TEXT = readFileSync(new URL("./workers.yml", import.meta.url), "utf8");
+const SERVICES = ["worker-prod", "worker-staging", "worker-preview"];
+
+/** The lines indented under a top-level `key:`, or under `services:`. */
+function block(name: string, parent?: string): string {
+  const lines = TEXT.split("\n");
+  const indent = parent === undefined ? "" : "  ";
+  let start = 0;
+  if (parent !== undefined) {
+    start = lines.indexOf(`${parent}:`);
+    expect(start, `${parent}: not found`).toBeGreaterThanOrEqual(0);
+  }
+  const head = lines.findIndex(
+    (line, i) =>
+      i >= start &&
+      (line === `${indent}${name}:` || line.startsWith(`${indent}${name}: &`))
+  );
+  expect(head, `${name} not found`).toBeGreaterThanOrEqual(0);
+  const body: string[] = [];
+  for (const line of lines.slice(head + 1)) {
+    if (line.trim() !== "" && !line.startsWith(`${indent}  `)) break;
+    body.push(line);
+  }
+  return body.join("\n");
+}
+
+/** The settings every worker merges in (`<<: *worker`). */
+const shared = () => block("x-worker");
+const service = (name: string) => block(name, "services");
+
+/** Whether IPv4 `address` lies inside `cidr` (e.g. 10.112.14.0/28). */
+function inCidr(address: string, cidr: string): boolean {
+  const toInt = (ip: string) =>
+    ip.split(".").reduce((n, octet) => n * 256 + Number(octet), 0);
+  const [base, bits] = cidr.split("/");
+  const size = 2 ** (32 - Number(bits));
+  const start = Math.floor(toInt(base!) / size) * size;
+  const at = toInt(address);
+  return at >= start && at < start + size;
+}
+
+const SENTRY_FILE = "/etc/foa/secrets/worker_sentry.env";
+/** The production app's field keys, for worker-prod alone (#74). */
+const FIELD_KEYS_FILE = "/etc/foa/secrets/worker_prod_field_keys.env";
+
+/** A service's `env_file:` entries, in order. */
+function envFiles(own: string): { path: string; required: boolean }[] {
+  const list = /^ {4}env_file:\n((?: {6}.*\n?)+)/m.exec(own)?.[1] ?? "";
+  return [
+    ...list.matchAll(/^ {6}- path: (\S+)\n {8}required: (true|false)$/gm),
+  ].map((m) => ({ path: m[1]!, required: m[2] === "true" }));
+}
+
+/**
+ * A service's own `environment:` settings, quotes dropped; merged anchors
+ * (`<<: *clamd`) are left out.
+ */
+function environment(own: string): Record<string, string> {
+  const list = /^ {4}environment:\n((?: {6}.*\n?)+)/m.exec(own)?.[1] ?? "";
+  return Object.fromEntries(
+    [...list.matchAll(/^ {6}([A-Z0-9_]+): (.+)$/gm)].map((m) => [
+      m[1]!,
+      m[2]!.replace(/^"(.*)"$/, "$1"),
+    ])
+  );
+}
+
+/** A health check's shell command, as Compose passes it to sh -c. */
+function healthCommand(settings: string = shared()): string {
+  const match = /test:\n\s+- CMD-SHELL\n\s+- (.+)\n/.exec(`${settings}\n`);
+  expect(match, "a CMD-SHELL health check").not.toBeNull();
+  return match![1]!;
+}
+
+/** A Compose duration (`30s`, `10m`) in seconds. */
+function seconds(duration: string): number {
+  const match = /^(\d+)(s|m)$/.exec(duration);
+  expect(match, `duration ${duration}`).not.toBeNull();
+  return Number(match![1]) * (match![2] === "m" ? 60 : 1);
+}
+
+/** One healthcheck setting of a service, e.g. `start_period`. */
+function healthSetting(own: string, key: string): string {
+  const value = new RegExp(`^ {6}${key}: (\\S+)$`, "m").exec(own)?.[1];
+  expect(value, key).toBeDefined();
+  return value!;
+}
+
+describe("docker/workers.yml", () => {
+  it("defines the production, staging and shared preview workers and their sidecars", () => {
+    const names = [...block("services").matchAll(/^ {2}([a-z-]+):$/gm)].map(
+      (m) => m[1]
+    );
+    expect(names).toEqual([
+      ...SERVICES,
+      "foa-clamav",
+      "foa-gotenberg",
+      "worker-media",
+    ]);
+  });
+
+  it.each(SERVICES)(
+    "gives %s the shared worker settings and its own limits",
+    (name) => {
+      const own = service(name);
+      expect(own).toMatch(/^ {4}<<: \*worker$/m);
+      expect(own).toMatch(/^ {4}cpus: [0-9.]+$/m);
+      expect(own).toMatch(/^ {4}mem_limit: [0-9]+m$/m);
+    }
+  );
+
+  it("restarts the workers, logs through the shared anchor and publishes no port", () => {
+    expect(shared()).toMatch(/^ {2}restart: unless-stopped$/m);
+    // #66: journald, kept a year (docker/logging.test.ts), not json-file.
+    expect(shared()).toMatch(/^ {2}logging: \*logging$/m);
+    expect(block("x-logging")).toMatch(/^ {2}driver: journald$/m);
+    expect(TEXT).not.toMatch(/json-file|max-size|max-file/);
+    expect(TEXT).not.toMatch(/^\s+ports:/m);
+    expect(TEXT).not.toMatch(/^\s+expose:/m);
+  });
+
+  it("reads every worker's Sentry DSN from /etc/foa/secrets, if there is one", () => {
+    for (const name of [...SERVICES, "worker-media"]) {
+      expect(envFiles(service(name)), name).toContainEqual({
+        path: SENTRY_FILE,
+        required: false,
+      });
+    }
+    // The DSN itself never sits in git.
+    expect(TEXT).not.toMatch(/SENTRY_DSN:/);
+  });
+
+  it.each([
+    ["worker-prod", "/etc/foa/secrets/worker_prod_r2.env", [FIELD_KEYS_FILE]],
+    ["worker-staging", "/etc/foa/preview-files.env", []],
+    ["worker-preview", "/etc/foa/preview-files.env", []],
+  ])(
+    "gives %s its own environment's R2 credentials for the upload scan",
+    (name, file, more) => {
+      // Without all four R2_ variables the worker's scan fails every file
+      // (src/worker/main.ts), so each database worker needs its bucket's.
+      // worker-prod also reads the app's field keys (below).
+      expect(envFiles(service(name))).toEqual([
+        { path: SENTRY_FILE, required: false },
+        { path: file, required: false },
+        ...more.map((path) => ({ path, required: false })),
+      ]);
+    }
+  );
+
+  describe("worker-prod's links and field keys (#74)", () => {
+    // The production app's canonical URL (LAUNCH B8) and keys (B7): the
+    // worker builds an invitation's link from the one and reads the
+    // invitee's address and the link's token with the other.
+    const prod = () => service("worker-prod");
+
+    it("gives worker-prod the site's URL, for the links in its messages", () => {
+      expect(environment(prod())).toMatchObject({
+        APP_URL: "https://friendsofanimals.dev",
+      });
+    });
+
+    it("reads the app's field keys from worker-prod's own optional file", () => {
+      expect(envFiles(prod())).toContainEqual({
+        path: FIELD_KEYS_FILE,
+        required: false,
+      });
+      // Only worker-prod reads production's keys.
+      expect(TEXT.split(FIELD_KEYS_FILE)).toHaveLength(2);
+      // The keys themselves never sit in git.
+      expect(TEXT).not.toMatch(/FIELD_(ENCRYPTION_KEYS|HMAC_KEY):/);
+    });
+
+    it("hands worker-prod a configuration that can link and address an invitation", () => {
+      // What Compose gives the worker: its environment, plus the key file's
+      // two lines (stand-ins here).
+      const config = workerConfig({
+        ...environment(prod()),
+        FIELD_ENCRYPTION_KEYS: `1:${Buffer.alloc(32, 7).toString("base64")}`,
+        FIELD_HMAC_KEY: Buffer.alloc(32, 9).toString("base64"),
+      });
+
+      expect(config.appEnv).toBe("production");
+      expect(config.siteUrl).toBe("https://friendsofanimals.dev");
+      // Production refuses to make a cipher without its keys.
+      expect(() =>
+        fieldCryptoFor({
+          APP_ENV: config.appEnv,
+          FIELD_ENCRYPTION_KEYS: config.fieldEncryptionKeys,
+          FIELD_HMAC_KEY: config.fieldHmacKey,
+        })
+      ).not.toThrow();
+    });
+  });
+
+  it("shares no env file through the worker anchor, so production's R2 key stays with worker-prod", () => {
+    // Every worker merges x-worker, preview and staging included: a file
+    // listed there would hand production's bucket to all of them.
+    expect(shared()).not.toMatch(/env_file:/);
+    const prodR2 = "/etc/foa/secrets/worker_prod_r2.env";
+    for (const name of ["worker-staging", "worker-preview", "worker-media"]) {
+      expect(service(name), name).not.toContain(prodR2);
+    }
+    expect(TEXT.split(prodR2)).toHaveLength(2);
+    // The keys themselves never sit in git.
+    expect(TEXT).not.toMatch(/R2_[A-Z_]+:/);
+  });
+
+  it("runs the worker image target read-only on the db network", () => {
+    expect(shared()).toMatch(/target: worker/);
+    expect(shared()).toMatch(/^ {2}read_only: true$/m);
+    expect(shared()).toMatch(/^ {4}- db$/m);
+    expect(block("networks")).toMatch(/external: true/);
+    expect(block("networks")).toMatch(/name: foa-vps_db/);
+  });
+
+  it("builds one image per worker, so redeploying one never swaps another's", () => {
+    const images = SERVICES.map(
+      (name) => /image: (\S+)/.exec(service(name))?.[1]
+    );
+    expect(new Set(images).size).toBe(3);
+  });
+
+  it.each([
+    [
+      "worker-prod",
+      "single",
+      "production",
+      "WORKER_DATABASE_URL",
+      "foa_worker@10.112.12.10:5432/foa",
+    ],
+    [
+      "worker-staging",
+      "single",
+      "staging",
+      "WORKER_DATABASE_URL",
+      "staging_worker@10.112.12.11:5432/foa_staging",
+    ],
+    [
+      "worker-preview",
+      "preview",
+      "preview",
+      "WORKER_ADMIN_URL",
+      "nonprod_worker@10.112.12.11:5432/postgres",
+    ],
+  ])(
+    "connects %s to Postgres directly, not through PgBouncer",
+    (name, mode, appEnv, variable, target) => {
+      const own = service(name);
+      expect(own).toContain(`WORKER_MODE: ${mode}`);
+      expect(own).toContain(`APP_ENV: ${appEnv}`);
+      expect(own).toContain(`${variable}: postgres://${target}`);
+      expect(own).not.toMatch(/6432|pgbouncer/i);
+    }
+  );
+
+  it("keeps passwords out of the file: each worker reads its own secret", () => {
+    expect(TEXT).not.toMatch(/postgres:\/\/[^@\s]+:[^@\s]+@/);
+    const files = SERVICES.map((name) => {
+      const own = service(name);
+      expect(own).toContain("WORKER_PASSWORD_FILE: /run/secrets/db_password");
+      const source = /source: (\S+)\n\s+target: db_password/.exec(own)?.[1];
+      expect(source, `${name}'s secret`).toBeDefined();
+      return source;
+    });
+    expect(new Set(files).size).toBe(3);
+    for (const source of files) {
+      expect(block("secrets")).toContain(
+        `${source}:\n    file: /etc/foa/secrets/${source}`
+      );
+    }
+  });
+
+  it("caps the shared preview worker at one connection per preview database", () => {
+    expect(service("worker-preview")).toContain(
+      "WORKER_CONNECTIONS_PER_DATABASE: 1"
+    );
+  });
+
+  it("keeps ClamAV scanning on the private bridge while FreshClam updates", () => {
+    const clamav = service("foa-clamav");
+    expect(clamav).toMatch(/^ {4}image: clamav\/clamav:\d+\.\d+\.\d+$/m);
+    expect(clamav).toContain("entrypoint: /init-unprivileged");
+    expect(clamav).toContain("user: clamav");
+    expect(clamav).toContain('CLAMAV_NO_FRESHCLAMD: "false"');
+    expect(clamav).toContain("foa-clamav-db:/var/lib/clamav");
+    expect(block("volumes")).toContain("foa-clamav-db:");
+    expect(block("networks")).toContain("scan:\n    internal: true");
+    expect(clamav).toMatch(/^ {6}scan:$/m);
+    expect(clamav).toMatch(/^ {8}ipv4_address: 10\.112\.14\.2$/m);
+    expect(clamav).toMatch(/^ {6}clamav-updates: \{\}$/m);
+    expect(clamav).toContain("./clamav/clamd.conf:/etc/clamav/clamd.conf:ro");
+    const clamd = readFileSync(
+      new URL("./clamav/clamd.conf", import.meta.url),
+      "utf8"
+    );
+    expect(clamd.match(/^TCPAddr .+$/gm)).toEqual([
+      "TCPAddr 127.0.0.1",
+      "TCPAddr 10.112.14.2",
+    ]);
+    expect(clamd).toContain("TCPSocket 3310");
+    // /init-unprivileged waits for this socket before it counts clamd as up.
+    expect(clamd).toMatch(/^LocalSocket \/tmp\/clamd\.sock$/m);
+    expect(clamd).toContain("ConcurrentDatabaseReload no");
+    // A file over clamd's scan limits is only partly scanned; without this
+    // it would still come back `stream: OK` and count as clean.
+    expect(clamd).toMatch(/^AlertExceedsMax yes$/m);
+    expect(clamav).toContain(
+      "./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro"
+    );
+    const freshclam = readFileSync(
+      new URL("./clamav/freshclam.conf", import.meta.url),
+      "utf8"
+    );
+    expect(freshclam).toContain("NotifyClamd /etc/clamav/clamd.conf");
+    expect(freshclam).toContain("TestDatabases no");
+  });
+
+  describe("foa-clamav's health check", () => {
+    const clamd = readFileSync(
+      new URL("./clamav/clamd.conf", import.meta.url),
+      "utf8"
+    );
+    const command = () => healthCommand(service("foa-clamav"));
+
+    it("pings clamd on an address it listens on, never `localhost`", () => {
+      // The image's clamdcheck.sh pings `localhost`, which resolves to ::1
+      // there, while clamd listens on IPv4 only: the container stayed
+      // unhealthy while clamd answered scans.
+      expect(command()).not.toMatch(/localhost|clamdcheck\.sh/);
+      const target = /\bnc -w (\d+) (\S+) (\d+) /.exec(command());
+      expect(target, "an `nc -w <s> <address> <port>` call").not.toBeNull();
+      const [, wait, address, port] = target!;
+      expect(clamd.match(/^TCPAddr (.+)$/gm)).toContain(`TCPAddr ${address}`);
+      expect(clamd).toMatch(new RegExp(`^TCPSocket ${port}$`, "m"));
+      // nc gives up before Docker kills the check.
+      expect(Number(wait)).toBeLessThan(
+        seconds(healthSetting(service("foa-clamav"), "timeout"))
+      );
+    });
+
+    describe("run against a stand-in nc", () => {
+      const dir = mkdtempSync(join(tmpdir(), "foa-clamav-health-"));
+      afterAll(() => rmSync(dir, { recursive: true, force: true }));
+      // Saves what the check sends and answers with $REPLY, as clamd would;
+      // with no $REPLY it fails like nc on a refused connection.
+      writeFileSync(
+        join(dir, "nc"),
+        '#!/bin/sh\ncat > "$SENT"\n[ -n "$REPLY" ] || exit 1\nprintf "$REPLY"\n',
+        { mode: 0o755 }
+      );
+
+      function healthy(reply: string): { ok: boolean; sent: string } {
+        const sent = join(dir, `sent-${reply.length}`);
+        const run = spawnSync("sh", ["-c", command()], {
+          env: {
+            ...process.env,
+            PATH: `${dir}:${process.env.PATH}`,
+            SENT: sent,
+            REPLY: reply,
+          },
+        });
+        return { ok: run.status === 0, sent: readFileSync(sent, "latin1") };
+      }
+
+      it("passes when clamd answers PONG to its PING", () => {
+        const { ok, sent } = healthy("PONG\\0");
+        expect(sent).toBe("zPING\0");
+        expect(ok).toBe(true);
+      });
+
+      it("fails when clamd is down or answers anything else", () => {
+        expect(healthy("").ok).toBe(false);
+        expect(healthy("UNKNOWN COMMAND\\0").ok).toBe(false);
+      });
+    });
+
+    it("waits out the first signature load, and the README's --wait waits longer", () => {
+      // The first start downloads and loads every signature: over 6 minutes
+      // on the VPS (#63, 2026-11-22). Failures inside start_period don't count.
+      const own = service("foa-clamav");
+      const start = seconds(healthSetting(own, "start_period"));
+      expect(start).toBeGreaterThanOrEqual(600);
+      const readme = readFileSync(
+        new URL("./README.md", import.meta.url),
+        "utf8"
+      );
+      const waits = [
+        ...readme.matchAll(/--wait-timeout (\d+)[^\n]*\n[^\n]*foa-clamav/g),
+      ];
+      expect(
+        waits.length,
+        "a --wait-timeout that starts foa-clamav"
+      ).toBeGreaterThan(0);
+      for (const [, wait] of waits) {
+        expect(Number(wait)).toBeGreaterThan(
+          start + seconds(healthSetting(own, "interval"))
+        );
+      }
+    });
+  });
+
+  it("keeps clamd's fixed scan address out of the range Docker hands out", () => {
+    // The workers join `scan` with dynamic addresses and start alongside
+    // foa-clamav. If Docker could hand out clamd's address, a worker that
+    // attaches first takes it and foa-clamav fails with "Address already in
+    // use". So dynamic addresses come from an ip_range that excludes it.
+    const scan = /^ {2}scan:\n((?: {4}.*\n)+)/m.exec(`${block("networks")}\n`);
+    expect(scan, "networks.scan").not.toBeNull();
+    const subnet = /^ {8}- subnet: (\S+)$/m.exec(scan![1]!)?.[1];
+    const range = /^ {10}ip_range: (\S+)$/m.exec(scan![1]!)?.[1];
+    expect(subnet, "scan subnet").toBeDefined();
+    expect(range, "scan ip_range").toBeDefined();
+    const fixed = /^ {8}ipv4_address: (\S+)$/m.exec(service("foa-clamav"))?.[1];
+    expect(fixed, "foa-clamav's scan address").toBeDefined();
+    expect(inCidr(fixed!, subnet!), `${fixed} in ${subnet}`).toBe(true);
+    expect(
+      inCidr(range!.split("/")[0]!, subnet!),
+      `${range} in ${subnet}`
+    ).toBe(true);
+    expect(inCidr(fixed!, range!), `${fixed} outside ${range}`).toBe(false);
+  });
+
+  it("configures every database worker to scan through foa-clamav:3310", () => {
+    expect(shared()).toMatch(/^ {4}- scan$/m);
+    for (const name of SERVICES) {
+      expect(service(name)).toContain("<<: *clamd");
+    }
+    const scanner = block("x-clamd");
+    expect(scanner).toContain("CLAMD_HOST: foa-clamav");
+    expect(scanner).toContain('CLAMD_PORT: "3310"');
+  });
+
+  it("renders PDFs from local files through a private Gotenberg 9 API", () => {
+    const gotenberg = service("foa-gotenberg");
+    const image = /^ {4}image: gotenberg\/gotenberg:9\.(\d+)\.\d+$/m.exec(
+      gotenberg
+    );
+    expect(image).not.toBeNull();
+    expect(Number(image?.[1])).toBeGreaterThanOrEqual(8);
+    expect(gotenberg).toContain("http://127.0.0.1:3000/health");
+    expect(gotenberg).toMatch(/^ {4}networks:\n {6}- pdf$/m);
+    expect(block("networks")).toContain("pdf:\n    internal: true");
+    expect(gotenberg).toContain("--api-timeout=30s");
+    expect(gotenberg).toContain("--chromium-allow-list=^file:///tmp/");
+    expect(gotenberg).toContain("--libreoffice-allow-list=^file:///tmp/");
+    expect(gotenberg).toContain("--libreoffice-enable-macros=false");
+    expect(gotenberg).toContain("--api-disable-download-from=true");
+    expect(gotenberg).toContain("--webhook-disable=true");
+    expect(gotenberg).toContain("--pdf-deny-list=.");
+  });
+
+  it("serves the media queue with production storage, Postgres and a job deadline", () => {
+    const media = service("worker-media");
+    expect(media).toMatch(/^ {4}profiles:\n {6}- media$/m);
+    expect(media).toContain("<<: *worker");
+    expect(media).toContain("image: foa-workers/worker-media\n");
+    expect(media).toContain(
+      'command: ["node", "--import", "tsx", "src/worker-media/main.ts"]'
+    );
+    expect(media).toContain("GOTENBERG_URL: http://foa-gotenberg:3000");
+    expect(media).toMatch(/^ {4}networks:\n {6}- db\n {6}- pdf$/m);
+    expect(media).toContain("target: worker-media");
+    expect(media).toContain("WORKER_QUEUE: media");
+    expect(media).toContain('MEDIA_TIMEOUT_SECONDS: "60"');
+    expect(media).toContain("cpus: 1");
+    expect(media).toContain("pids_limit: 128");
+    expect(media).toContain("WORKER_DATABASE_URL: postgres://foa_worker@");
+    expect(media).toContain("source: pg_prod_foa_worker_password");
+    expect(media).toContain("WORKER_PASSWORD_FILE: /run/secrets/db_password");
+    // Its own R2 file for the derivatives: worker-prod's key stays put.
+    expect(envFiles(media)).toEqual([
+      { path: SENTRY_FILE, required: false },
+      { path: "/etc/foa/secrets/worker_media_r2.env", required: false },
+    ]);
+    const dockerfile = readFileSync(
+      new URL("../Dockerfile", import.meta.url),
+      "utf8"
+    );
+    expect(dockerfile).toMatch(/^FROM worker AS worker-media$/m);
+    expect(shared()).toContain("read_only: true");
+    expect(shared()).toMatch(/^ {4}- \/tmp$/m);
+    expect(healthCommand()).toContain("/tmp/foa-worker-heartbeat");
+  });
+
+  it.each([
+    ["foa-clamav", "2g"],
+    ["foa-gotenberg", "1g"],
+    ["worker-media", "2g"],
+  ])("limits %s to %s and drops container privileges", (name, memory) => {
+    const own = service(name);
+    expect(own).toMatch(new RegExp(`^ {4}mem_limit: ${memory}$`, "m"));
+    expect(own).toMatch(/^ {4}oom_score_adj: 500$/m);
+    expect(own).not.toMatch(/^ {4}(?:network_mode|ports):/m);
+    if (name !== "worker-media") {
+      expect(own).not.toMatch(/^ {6}(?:- db$|db:)/m);
+    }
+    const settings = name === "worker-media" ? shared() : own;
+    expect(settings).toMatch(/^ +healthcheck:$/m);
+    expect(settings).toMatch(/^ +restart: unless-stopped$/m);
+    expect(settings).toMatch(/^ +logging: \*logging$/m);
+    expect(settings).toMatch(/cap_drop:\n +- ALL\n/);
+    expect(settings).toMatch(/security_opt:\n +- no-new-privileges:true\n/);
+  });
+
+  describe("its health check", () => {
+    const dir = mkdtempSync(join(tmpdir(), "foa-worker-health-"));
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+    function healthy(ageSeconds: number | undefined): boolean {
+      const file = join(dir, `heartbeat-${ageSeconds ?? "missing"}`);
+      if (ageSeconds !== undefined) {
+        writeFileSync(file, "2027-01-15T04:30:00.000Z\n");
+        const at = new Date(Date.now() - ageSeconds * 1000);
+        utimesSync(file, at, at);
+      }
+      const command = healthCommand().replaceAll(
+        "/tmp/foa-worker-heartbeat",
+        file
+      );
+      return spawnSync("sh", ["-c", command]).status === 0;
+    }
+
+    it("passes while the heartbeat file is under 120 seconds old", () => {
+      expect(healthy(1)).toBe(true);
+      expect(healthy(110)).toBe(true);
+    });
+
+    it("fails once it is older, or missing", () => {
+      expect(healthy(130)).toBe(false);
+      expect(healthy(3600)).toBe(false);
+      expect(healthy(undefined)).toBe(false);
+    });
+
+    it("reads the file the worker writes", () => {
+      for (const name of SERVICES) {
+        expect(service(name)).not.toContain("WORKER_HEARTBEAT_FILE");
+      }
+      expect(healthCommand()).toContain("/tmp/foa-worker-heartbeat");
+    });
+  });
+});
+
+// The runbooks run pnpm scripts inside the worker image (docker/README.md's
+// restore, the preview-dropped hook's purge). The worker target copies
+// scripts/ file by file, so each script, and every file it imports, must be
+// among them, or the documented command fails with module-not-found.
+describe("the worker image's documented pnpm scripts", () => {
+  const REPO = join(import.meta.dirname, "..");
+  const read = (path: string) => readFileSync(join(REPO, path), "utf8");
+
+  /** The source paths the Dockerfile's worker target copies from the context. */
+  function workerSources(): string[] {
+    const stage = read("Dockerfile")
+      .split(/^FROM .* AS worker$/m)[1]
+      ?.split(/^FROM /m)[0];
+    expect(stage, "a worker target").toBeDefined();
+    return stage!
+      .split("\n")
+      .filter((line) => line.startsWith("COPY ") && !line.includes("--from="))
+      .flatMap((line) => line.trim().split(/\s+/).slice(1, -1));
+  }
+
+  /** The pnpm scripts the docs run in a worker container or the worker image. */
+  function documentedScripts(): string[] {
+    const readme = read("docker/README.md");
+    const hook = read("docker/scripts/preview-dropped.d/50-purge-files.sh");
+    const names = [
+      ...[...readme.matchAll(/worker-[a-z]+ pnpm ([a-z:-]+)/g)].map(
+        (m) => m[1]!
+      ),
+      ...[...hook.matchAll(/"\$IMAGE" pnpm ([a-z:-]+)/g)].map((m) => m[1]!),
+    ];
+    return [...new Set(names)].sort();
+  }
+
+  function resolveImport(from: string, specifier: string): string | undefined {
+    let base: string;
+    if (specifier.startsWith("@/")) base = join("src", specifier.slice(2));
+    else if (specifier.startsWith(".")) base = join(dirname(from), specifier);
+    else return undefined;
+    return [base, `${base}.ts`, `${base}.tsx`, join(base, "index.ts")].find(
+      (path) => /\.tsx?$/.test(path) && existsSync(join(REPO, path))
+    );
+  }
+
+  /** The file and every repo file it imports, transitively. */
+  function closure(entry: string): string[] {
+    const seen = new Set<string>();
+    const queue = [entry];
+    while (queue.length > 0) {
+      const file = queue.pop()!;
+      if (seen.has(file)) continue;
+      seen.add(file);
+      for (const m of read(file).matchAll(
+        /(?:from|import)\s*\(?\s*"([^"]+)"/g
+      )) {
+        const next = resolveImport(file, m[1]!);
+        if (next !== undefined) queue.push(next);
+      }
+    }
+    return [...seen].sort();
+  }
+
+  it("finds the restore and the preview purge among them", () => {
+    expect(documentedScripts()).toEqual(
+      expect.arrayContaining(["files:purge-preview", "offsite:restore"])
+    );
+  });
+
+  it.each(documentedScripts())(
+    "copies %s and everything it imports into the worker target",
+    (name) => {
+      const scripts = JSON.parse(read("package.json")).scripts as Record<
+        string,
+        string
+      >;
+      const match = /^tsx (\S+\.ts)\b/.exec(scripts[name] ?? "");
+      expect(match, `package.json runs ${name} with tsx`).not.toBeNull();
+      const sources = workerSources();
+      const missing = closure(match![1]!).filter(
+        (file) =>
+          !sources.some(
+            (source) =>
+              file === source || !relative(source, file).startsWith("..")
+          )
+      );
+      expect(missing).toEqual([]);
+    }
+  );
+});

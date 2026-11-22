@@ -1,0 +1,20 @@
+# CrowdSec's upstream RPM repository (packagecloud), installed on Fedora by
+# docker/scripts/install-crowdsec.sh. Fedora's own repositories carry no
+# crowdsec, and packagecloud's fedora/41 and later trees are empty, so this is
+# the rpm_any tree that CrowdSec's own installer (install.crowdsec.net) uses
+# for every RPM distribution: EL9 builds of static Go binaries.
+#  - repo_gpgcheck: repomd.xml is signed by packagecloud's repository key, the
+#    same key as the apt source (6A89E3C2...6E93CD0C).
+#  - gpgcheck: every RPM is signed by "Crowdsec Rpm Archive" (9082D8CA...3CDF0DB4).
+# The script writes both keys after checking their fingerprints.
+# includepkgs: this repository can only ever supply CrowdSec's own packages,
+# never a replacement for a Fedora package.
+[crowdsec]
+name=CrowdSec (packagecloud rpm_any)
+baseurl=https://packagecloud.io/crowdsec/crowdsec/rpm_any/rpm_any/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-crowdsec-packagecloud,file:///etc/pki/rpm-gpg/RPM-GPG-KEY-crowdsec-rpm
+sslverify=1
+includepkgs=crowdsec,crowdsec-firewall-bouncer-*

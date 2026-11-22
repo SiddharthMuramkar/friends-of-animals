@@ -1,0 +1,55 @@
+{
+  "competitionTerms": {
+    "heading": "Fees, prizes and terms",
+    "prizesAbove": "This competition's prizes are listed above, under Fees, prizes and terms.",
+    "fees": {
+      "heading": "Fees",
+      "route": {
+        "individual": "Entering on your own",
+        "institution": "Entering through a school or institution"
+      },
+      "free": "Free",
+      "notSet": "To be announced"
+    },
+    "awards": {
+      "heading": "Prizes and recognition",
+      "round": {
+        "school": "School round",
+        "foa_final": "FOA final"
+      },
+      "scheme": {
+        "ranked_123": "Ranked 1st, 2nd and 3rd",
+        "medals_gsb": "Gold, silver and bronze",
+        "grades_ab": "A and B grades"
+      },
+      "band": {
+        "first": "1st",
+        "second": "2nd",
+        "third": "3rd",
+        "gold": "Gold",
+        "silver": "Silver",
+        "bronze": "Bronze",
+        "grade_a": "A grade",
+        "grade_b": "B grade"
+      },
+      "noPrize": "No prize listed"
+    },
+    "documents": {
+      "heading": "What you agree to",
+      "lead": "Registering means agreeing to these exact versions.",
+      "link": "{title}, version {version}",
+      "none": "The terms will be linked here before registration opens."
+    },
+    "documentPage": {
+      "meta": {
+        "title": "Competition document",
+        "description": "The exact version of a document that a Friends of Animals competition asks people to agree to."
+      },
+      "eyebrow": "Competition document",
+      "loading": "Loading the document",
+      "lead": "This is the exact text of this version. A newer version, if there is one, doesn't change what was agreed to here.",
+      "version": "Version {version} · Published {date}",
+      "shortVersion": "The short version"
+    }
+  }
+}

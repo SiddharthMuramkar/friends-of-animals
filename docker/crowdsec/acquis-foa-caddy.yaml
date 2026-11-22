@@ -1,0 +1,23 @@
+# CrowdSec acquisition: foa-caddy's JSON access log (docker/caddy/Caddyfile,
+# the access_log snippet the stats and errors sites import).
+# Installed to /etc/crowdsec/acquis.d/ by docker/scripts/install-crowdsec.sh.
+# Read from journald, where the container's logging driver puts it
+# (edge.yml), rather than through dockerd: CrowdSec's docker source leaks
+# a dockerd stream per long line
+# (https://github.com/crowdsecurity/crowdsec/issues/4781). Docker's journald
+# driver logs stdout at PRIORITY 6 and stderr at 3, so this takes the access
+# log and leaves Caddy's own log (stderr) out.
+# CrowdSec runs `journalctl --follow -n 0` followed by these entries, so
+# "--output=cat" reaches journalctl too: each line is then the bare JSON
+# message. In journalctl's default format it would start with
+# `<date> <host> foa-caddy[<pid>]: `, and crowdsecurity/caddy-logs could
+# parse none of them.
+# type=caddy becomes evt.Parsed.program, which crowdsecurity/caddy-logs
+# (collection crowdsecurity/caddy) expects.
+source: journalctl
+journalctl_filter:
+  - "CONTAINER_NAME=foa-caddy"
+  - "PRIORITY=6"
+  - "--output=cat"
+labels:
+  type: caddy
