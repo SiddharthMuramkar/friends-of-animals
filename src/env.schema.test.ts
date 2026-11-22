@@ -361,6 +361,85 @@ describe("envSchema: field encryption keys", () => {
   });
 });
 
+describe("envSchema: SES email", () => {
+  const SES = {
+    SES_ACCESS_KEY_ID: "AKIAFOATESTKEY000001",
+    SES_SECRET_ACCESS_KEY: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    SES_FROM: "Friends of Animals <no-reply@friendsofanimals.dev>",
+  };
+
+  it("leaves SES unset by default, in ap-south-1 and the sandbox", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config).toMatchObject({
+      SES_REGION: "ap-south-1",
+      SES_PRODUCTION_ACCESS: false,
+    });
+    expect(config.SES_ACCESS_KEY_ID).toBeUndefined();
+    expect(config.SES_SECRET_ACCESS_KEY).toBeUndefined();
+    expect(config.SES_FROM).toBeUndefined();
+    expect(config.SES_CONFIGURATION_SET).toBeUndefined();
+  });
+
+  it("reads the key, the sender and the configuration set", () => {
+    const config = parseEnv(envSchema, {
+      DATABASE_URL,
+      ...SES,
+      SES_REGION: "eu-west-1",
+      SES_CONFIGURATION_SET: "foa-prod",
+    });
+    expect(config).toMatchObject({
+      ...SES,
+      SES_REGION: "eu-west-1",
+      SES_CONFIGURATION_SET: "foa-prod",
+    });
+  });
+
+  it("refuses part of SES's key and sender, naming what is missing", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        SES_ACCESS_KEY_ID: SES.SES_ACCESS_KEY_ID,
+      })
+    ).toThrow(
+      /SES_SECRET_ACCESS_KEY is not set[\s\S]*all three or none[\s\S]*SES_FROM is not set/
+    );
+  });
+
+  it("never echoes the secret in its error", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        SES_SECRET_ACCESS_KEY: SES.SES_SECRET_ACCESS_KEY,
+      })
+    ).toThrow(
+      expect.objectContaining({
+        message: expect.not.stringContaining("wJalrXUtnFEMI"),
+      })
+    );
+  });
+
+  it('reads SES_PRODUCTION_ACCESS as "true" or "false", nothing else', () => {
+    const read = (value: string) =>
+      parseEnv(envSchema, { DATABASE_URL, ...SES, SES_PRODUCTION_ACCESS: value })
+        .SES_PRODUCTION_ACCESS;
+    expect(read("true")).toBe(true);
+    expect(read("false")).toBe(false);
+    expect(() => read("yes")).toThrow(/SES_PRODUCTION_ACCESS/);
+  });
+
+  it("refuses a sender without an address, a key id with a space and a made-up region", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        ...SES,
+        SES_FROM: "Friends of Animals",
+        SES_ACCESS_KEY_ID: "AKIAFOATESTKEY000001 ",
+        SES_REGION: "mumbai",
+      })
+    ).toThrow(/at SES_REGION[\s\S]*at SES_ACCESS_KEY_ID[\s\S]*at SES_FROM/);
+  });
+});
+
 describe("migrationEnvSchema", () => {
   it("reads DIRECT_URL", () => {
     const url = "postgresql://migrator:p@db.example.org:6432/foa";
