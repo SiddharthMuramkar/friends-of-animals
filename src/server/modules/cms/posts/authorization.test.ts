@@ -72,6 +72,7 @@ type World = Awaited<ReturnType<typeof world>>;
 function attempts(h: Harness, actor: Actor, w: World) {
   const publishAt = new Date(h.clock.now().getTime() + 60 * 60_000);
   return {
+    checkPostWriter: () => h.as(actor).checkPostWriter(),
     listPosts: () => h.as(actor).listPosts(),
     getPostForEdit: () => h.as(actor).getPostForEdit({ postId: w.draftId }),
     createPost: () =>
@@ -162,6 +163,7 @@ describe("the post use cases", () => {
     const actor = await contentManager(h);
     const allowed = attempts(h, actor, w);
 
+    await expect(allowed.checkPostWriter()).resolves.toBeUndefined();
     expect(await allowed.listPosts()).toHaveLength(2);
     expect(await allowed.getPostForEdit()).toMatchObject({ ok: true });
     expect(await allowed.createPost()).toMatchObject({ ok: true });

@@ -80,6 +80,9 @@ export type ParsedPostSource =
   | { ok: true; body: PostBody }
   | { ok: false; errors: PostSourceError[] };
 
+/** The longest source and line it reads, in UTF-16 code units. */
+export const POST_SOURCE_LIMITS = { chars: 100_000, lineChars: 5_000 };
+
 const POST_IMAGE_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 

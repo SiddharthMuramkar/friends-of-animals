@@ -7,7 +7,11 @@ import { article as stork } from "@/content/stories/articles/the-stork-that-gets
 import { article as pilots } from "@/content/stories/articles/two-pilots-two-puppies";
 
 import { sanitizePostBody, type PostBody } from "./post-body";
-import { formatPostSource, parsePostSource } from "./post-source";
+import {
+  formatPostSource,
+  parsePostSource,
+  POST_SOURCE_LIMITS,
+} from "./post-source";
 
 const IMAGE_A = "0190f0e0-0000-7000-8000-00000000000a";
 
@@ -202,6 +206,67 @@ describe("parsePostSource", () => {
         footnotes: [],
       },
     });
+  });
+
+  it("refuses a body longer than a post may be, without reading it", () => {
+    expect(errorsOf("a".repeat(POST_SOURCE_LIMITS.chars + 1))).toEqual([
+      { line: null, code: "body_too_long" },
+    ]);
+  });
+
+  it("refuses a line longer than a line may be, at its line", () => {
+    const long = "a".repeat(POST_SOURCE_LIMITS.lineChars + 1);
+
+    expect(errorsOf(`Fine.\n\n${long}\n\nAlso fine.`)).toEqual([
+      { line: 3, code: "line_too_long" },
+    ]);
+  });
+
+  it("reads a body that fills both limits", () => {
+    const line = "a".repeat(POST_SOURCE_LIMITS.lineChars);
+    const lines = Math.floor(POST_SOURCE_LIMITS.chars / (line.length + 1));
+
+    expect(parsePostSource(Array(lines).fill(line).join("\n"))).toMatchObject({
+      ok: true,
+    });
+  });
+});
+
+describe("parsePostSource on hostile input", () => {
+  // Each source once made a pattern backtrack: cubically on a source line
+  // or an attribution that is mostly spaces (4,000 took ten seconds), and
+  // quadratically on a line that a lone carriage return breaks. A Server
+  // Action reads whatever it is sent, so every source within the limits
+  // has to read in one pass. Each line here is within the line limit.
+  const spaces = " ".repeat(4000);
+
+  /** `line` repeated to fill the body limit. */
+  function filled(line: string, between = "\n"): string {
+    const count = Math.floor(
+      POST_SOURCE_LIMITS.chars / (line.length + between.length)
+    );
+    return Array(count).fill(line).join(between);
+  }
+
+  it.each([
+    ["a source line of spaces with no address", `Hi[^f1]\n\n[^f1]:${spaces}x`],
+    ["a source line of spaced words", `Hi[^f1]\n\n[^f1]: ${"x ".repeat(2000)}`],
+    ["an attribution of spaces with no source mark", `> Words\n> —${spaces}x`],
+    ["an attribution of spaced words", `> Words\n> -- ${"x ".repeat(2000)}`],
+    ["headings a carriage return breaks", filled(`##${spaces}\rx\ry`)],
+    ["headings a line separator breaks", filled(`##${spaces} x y`)],
+    ["directives a carriage return breaks", filled(`@image${spaces}\rx\ry`)],
+    ["list items a carriage return breaks", filled(`-${spaces}\rx\ry`)],
+    ["numbered items a carriage return breaks", filled(`1.${spaces}\rx\ry`)],
+    [
+      "callouts a carriage return breaks",
+      filled(`> [!info]${spaces}\rx\ry`, "\n\n"),
+    ],
+  ])("reads %s in well under a second", (_what, source) => {
+    const started = performance.now();
+    parsePostSource(source);
+
+    expect(performance.now() - started).toBeLessThan(100);
   });
 });
 
