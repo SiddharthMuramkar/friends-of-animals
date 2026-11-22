@@ -12,7 +12,10 @@ import type {
   ScheduleJob,
 } from "../../outbox/schedules";
 import { readOffsiteSettings } from "./config";
-import { OffsiteCopyNotConfiguredError } from "./errors";
+import {
+  OffsiteCopyIncompleteError,
+  OffsiteCopyNotConfiguredError,
+} from "./errors";
 import { OFFSITE_COPY_JOB, runOffsiteCopy } from "./run-copy";
 
 type Connect = (settings: { r2: S3BucketConfig; b2: S3BucketConfig }) => {
@@ -54,16 +57,29 @@ export async function runScheduledOffsiteCopy(
     }
     throw error;
   }
-  await runOffsiteCopy(
-    {
-      db: deps.db,
-      clock: deps.clock,
-      errors: deps.errors,
-      ...connect({ r2: settings.r2, b2: settings.b2 }),
-      config: settings.config,
-    },
-    attempt
-  );
+  try {
+    await runOffsiteCopy(
+      {
+        db: deps.db,
+        clock: deps.clock,
+        errors: deps.errors,
+        ...connect({ r2: settings.r2, b2: settings.b2 }),
+        config: settings.config,
+      },
+      attempt
+    );
+  } catch (error) {
+    // An incomplete run has reported itself. Anything else (a database
+    // error, a listing naming a key twice) would otherwise leave the
+    // copy going stale without anyone told.
+    if (attempt.finalAttempt && !(error instanceof OffsiteCopyIncompleteError)) {
+      deps.errors.report(error, {
+        where: OFFSITE_COPY_JOB,
+        tags: { job: OFFSITE_COPY_JOB },
+      });
+    }
+    throw error;
+  }
 }
 
 export const offsiteCopySchedule: ScheduleDefinition = {
