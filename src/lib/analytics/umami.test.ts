@@ -393,10 +393,7 @@ describe("createAnalyticsGuard: every send the tracker makes", () => {
     expect(
       guard.beforeSend(
         "event",
-        pageview(
-          "/about",
-          "https://shipped-it.dev/unlisted-links/SECRET-TOKEN"
-        )
+        pageview("/about", "https://shipped-it.dev/unlisted-links/SECRET-TOKEN")
       )
     ).toMatchObject({ referrer: "" });
   });
