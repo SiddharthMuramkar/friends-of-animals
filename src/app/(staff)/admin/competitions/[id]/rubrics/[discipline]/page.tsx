@@ -28,6 +28,7 @@ import type {
 import { isRefusal } from "../../../../_lib/refusal";
 import { RubricEditor } from "../_components/rubric-editor";
 import { reviseRubricAction, startRubricAction } from "../_lib/actions";
+import { MAX_ROWS } from "../_lib/criteria-form";
 import { draftView, weightTotal } from "../_lib/editor-view";
 import { readOutcome, rubricsHref } from "../_lib/href";
 
@@ -232,7 +233,9 @@ async function DisciplineRubric({
               total: t("editor.total", { total: weightTotal(initial.rows) }),
             }}
             labels={{
-              rowTitles: initial.rows.map((_, index) =>
+              // One per row a refused save can come back with, not
+              // only the draft's, so every row's fieldset has a name.
+              rowTitles: Array.from({ length: MAX_ROWS }, (_, index) =>
                 t("editor.rowTitle", { number: index + 1 })
               ),
               newRowTitle: t("editor.newRowTitle"),

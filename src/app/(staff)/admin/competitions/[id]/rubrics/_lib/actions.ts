@@ -107,8 +107,9 @@ export async function reviseRubricAction(form: FormData): Promise<void> {
 }
 
 /**
- * Saves the draft's criteria and, for "Save and publish", publishes it.
- * Returns the editor's next view when something is refused.
+ * Saves the draft's criteria ("Save draft", updateRubricDraft), or saves
+ * and publishes them in one go ("Save and publish", publishRubric with the
+ * criteria). Returns the editor's next view when something is refused.
  */
 export async function saveRubricAction(
   _previous: RubricEditorView,
@@ -163,11 +164,11 @@ export async function saveRubricAction(
       ),
     });
 
-  const saved = await orForbidden(() =>
-    as(actor).updateRubricDraft({ rubricId, criteria: criteria.criteria })
-  );
-  if (!saved.ok) return keep(t(`refusals.${saved.error}`));
   if (!publish) {
+    const saved = await orForbidden(() =>
+      as(actor).updateRubricDraft({ rubricId, criteria: criteria.criteria })
+    );
+    if (!saved.ok) return keep(t(`refusals.${saved.error}`));
     redirect(
       disciplineRubricHref(
         competitionId,
@@ -179,7 +180,7 @@ export async function saveRubricAction(
   }
 
   const published = await orForbidden(() =>
-    as(actor).publishRubric({ rubricId })
+    as(actor).publishRubric({ rubricId, criteria: criteria.criteria })
   );
   if (!published.ok) {
     if (published.error === "not_publishable") {

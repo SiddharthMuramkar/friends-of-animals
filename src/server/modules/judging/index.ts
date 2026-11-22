@@ -45,7 +45,8 @@ export const judgingUseCases = (ctx: UseCaseContext) => ({
     rubricId: string;
     criteria: RubricCriterion[];
   }) => updateRubricDraft(ctx, input),
-  publishRubric: (input: { rubricId: string }) => publishRubric(ctx, input),
+  publishRubric: (input: { rubricId: string; criteria?: RubricCriterion[] }) =>
+    publishRubric(ctx, input),
   startRubricRevision: (input: { rubricId: string }) =>
     startRubricRevision(ctx, input),
   listRubrics: (input: { competitionId: string }) => listRubrics(ctx, input),

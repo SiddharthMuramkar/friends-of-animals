@@ -14,7 +14,11 @@
 // Loads under plain Node (the worker): relative imports only.
 
 import { and, asc, eq, or } from "drizzle-orm";
+import { createFormatter, createTranslator } from "next-intl";
 
+import adminRubrics from "../../../../messages/en-IN/adminRubrics.json";
+import competitionStatus from "../../../../messages/en-IN/competitionStatus.json";
+import { formats, LOCALE } from "../../../i18n/formats";
 import type { AppDb } from "../../db/app-db";
 import {
   competition,
@@ -27,10 +31,6 @@ import {
   TRANSITION_BLOCK,
   type TransitionBlock,
 } from "../competitions/domain/transition-block";
-import type {
-  CompetitionStatus,
-  Discipline,
-} from "../competitions/domain/vocabulary";
 
 /** The variables every message has about the person receiving it. */
 export const RECIPIENT_VARIABLES = ["recipient.name"] as const;
@@ -148,21 +148,20 @@ async function institutionValues(
   };
 }
 
-/** How a notice names a status a guarded move goes to. */
-const STATUS_WORDS: Partial<Record<CompetitionStatus, string>> = {
-  school_judging: "school judging",
-};
-
-/** Discipline names in English, as the admin pages show them. */
-const DISCIPLINE_WORDS: Record<Discipline, string> = {
-  drawing: "Drawing",
-  painting: "Painting",
-  art: "Art",
-  craft: "Craft",
-  essay: "Essay",
-  photography: "Photography",
-  videography: "Videography",
-};
+// A refused move's words come from messages/en-IN, like every other copy
+// (FOA reviews them): the status as a sentence names it, why the move is
+// held back, and each discipline as the rubric pages name it.
+const statusWords = createTranslator({
+  locale: LOCALE,
+  messages: competitionStatus,
+  namespace: "competitionStatus",
+});
+const disciplineWords = createTranslator({
+  locale: LOCALE,
+  messages: adminRubrics,
+  namespace: "adminRubrics.disciplines",
+});
+const format = createFormatter({ locale: LOCALE, formats });
 
 /**
  * A refused move (#88): the competition, where it was going, and one
@@ -192,7 +191,7 @@ async function transitionBlockValues(
   return {
     "competition.name": row.name,
     "competition.code": row.code,
-    "transition.to": STATUS_WORDS[row.to] ?? row.to.replaceAll("_", " "),
+    "transition.to": statusWords(`inSentence.${row.to}`),
     "transition.reason": reasonSentence(block),
   };
 }
@@ -200,12 +199,15 @@ async function transitionBlockValues(
 /** One sentence, for managers, on what holds a move back. */
 function reasonSentence(block: TransitionBlock): string {
   switch (block.reason) {
-    case "rubrics_missing": {
-      const missing = block.missingDisciplines
-        .map((discipline) => DISCIPLINE_WORDS[discipline])
-        .join(", ");
-      return `These disciplines have no published rubric yet: ${missing}.`;
-    }
+    case "rubrics_missing":
+      return statusWords("blockReason.rubrics_missing", {
+        disciplines: format.list(
+          block.missingDisciplines.map((discipline) =>
+            disciplineWords(discipline)
+          ),
+          "and"
+        ),
+      });
   }
 }
 

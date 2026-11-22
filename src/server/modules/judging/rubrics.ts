@@ -6,7 +6,7 @@
 //
 //   createRubricDraft({ competitionId, discipline })  → version 1, default criteria
 //   updateRubricDraft({ rubricId, criteria })         → replaces a draft's criteria
-//   publishRubric({ rubricId })                       → supersedes the old version; rubric.published
+//   publishRubric({ rubricId, criteria? })            → saves them, then supersedes the old version; rubric.published
 //   startRubricRevision({ rubricId })                 → a published rubric's next draft
 //   listRubrics({ competitionId })                    → each discipline's state, any refused move
 //   getDisciplineRubrics({ competitionId, discipline }) → every version, newest first
@@ -86,6 +86,7 @@ export type UpdateRubricDraftResult =
   | { ok: true; rubric: RubricView }
   | InvalidInput
   | NotFound
+  | Locked
   | NotEditable;
 
 export type PublishRubricResult =
@@ -149,6 +150,10 @@ const rubricInput = z.object({ rubricId: z.uuid() });
 const updateInput = z.object({
   rubricId: z.uuid(),
   criteria: rubricCriteriaSchema,
+});
+const publishInput = z.object({
+  rubricId: z.uuid(),
+  criteria: rubricCriteriaSchema.optional(),
 });
 
 /** The scope a competition's rubrics sit in, for `can()`. */
@@ -275,6 +280,23 @@ async function insertCriteria(
   );
 }
 
+/** Replaces a locked draft's criteria with `criteria`, in that order. */
+async function replaceCriteria(
+  tx: AppDb,
+  rubricId: string,
+  criteria: readonly RubricCriterion[],
+  now: Date
+): Promise<void> {
+  await tx
+    .delete(rubricCriterion)
+    .where(eq(rubricCriterion.rubricId, rubricId));
+  await insertCriteria(tx, rubricId, criteria, now);
+  await tx
+    .update(rubric)
+    .set({ updatedAt: now })
+    .where(eq(rubric.id, rubricId));
+}
+
 function actorUserId(ctx: RubricContext): string | null {
   return ctx.actor.kind === "user" ? ctx.actor.userId : null;
 }
@@ -355,7 +377,8 @@ export async function createRubricDraft(
 
 /**
  * Replaces a draft's criteria with `criteria`, in that order. A draft may
- * be half finished: publishing checks the weights, saving doesn't.
+ * be half finished: publishing checks the weights, saving doesn't. Once
+ * school judging has started, drafts stay as they are too.
  */
 export async function updateRubricDraft(
   ctx: RubricContext,
@@ -375,17 +398,14 @@ export async function updateRubricDraft(
     ctx.db.transaction(async (tx) => {
       const row = await lockRubric(tx, rubricId);
       if (!row) return { ok: false, error: "not_found" } as const;
+      const found = await loadCompetition(tx, row.competitionId, "share");
+      if (found && rubricsLocked(found.status)) {
+        return { ok: false, error: "rubric_locked_by_judging" } as const;
+      }
       if (!isRubricEditable(row.status)) {
         return { ok: false, error: "rubric_not_editable" } as const;
       }
-      await tx
-        .delete(rubricCriterion)
-        .where(eq(rubricCriterion.rubricId, rubricId));
-      await insertCriteria(tx, rubricId, criteria, now);
-      await tx
-        .update(rubric)
-        .set({ updatedAt: now })
-        .where(eq(rubric.id, rubricId));
+      await replaceCriteria(tx, rubricId, criteria, now);
       return { ok: true, rubric: await viewById(tx, rubricId) } as const;
     })
   );
@@ -395,19 +415,24 @@ export async function updateRubricDraft(
  * Publishes a draft whose criteria pass `publishProblems`. The version it
  * replaces, if any, becomes superseded in the same transaction, and the
  * audit log records the change.
+ *
+ * Given `criteria` ("Save and publish"), it first saves them over the
+ * draft's, in the same transaction and under the same lock, so what is
+ * published is what this manager typed. They stay saved, as a draft, when
+ * their problems stop the publishing.
  */
 export async function publishRubric(
   ctx: RubricContext,
-  input: { rubricId: string }
+  input: { rubricId: string; criteria?: RubricCriterion[] }
 ): Promise<PublishRubricResult> {
   const { role } = await authorize(
     ctx,
     "rubric.manage",
     await rubricScope(ctx.db, input?.rubricId)
   );
-  const parsed = rubricInput.safeParse(input);
+  const parsed = publishInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const { rubricId } = parsed.data;
+  const { rubricId, criteria: typed } = parsed.data;
   const now = ctx.clock.now();
 
   return frozenAsNotEditable(() =>
@@ -421,6 +446,7 @@ export async function publishRubric(
       if (!isRubricEditable(row.status)) {
         return { ok: false, error: "rubric_not_editable" } as const;
       }
+      if (typed) await replaceCriteria(tx, rubricId, typed, now);
       const criteria = (await criteriaOf(tx, [rubricId])).get(rubricId) ?? [];
       const problems = publishProblems(criteria);
       if (problems.length > 0) {

@@ -77,9 +77,11 @@ const CARD =
   "flex flex-col gap-3 rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
 
 async function Guide({ params }: { params: Params }) {
+  // Next has decoded the segment already; decoding it again would throw
+  // on a stray `%` instead of finding no competition.
   const { code } = await params;
   const [result, t, format] = await Promise.all([
-    load(decodeURIComponent(code)),
+    load(code),
     getTranslations("judgingGuide"),
     getFormatter(),
   ]);

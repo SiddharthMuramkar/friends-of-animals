@@ -39,7 +39,7 @@ export type ParsedCriteriaForm =
   | { ok: false; rows: CriterionRow[]; tooMany?: true };
 
 /** More rows than this are never read, whatever `rows` says. */
-const MAX_ROWS = 20;
+export const MAX_ROWS = 20;
 
 function text(form: FormData, name: string): string {
   const value = form.get(name);
