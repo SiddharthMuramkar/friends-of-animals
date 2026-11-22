@@ -5,13 +5,19 @@
 //
 // The browser PUTs the bytes straight to object storage through a presigned
 // URL, which signs in the declared type and length; then it calls
-// completeUpload, which checks the stored object against the declaration
-// before the file goes on to its malware scan (files.file_uploaded).
+// completeUpload, which takes the object and checks it against the
+// declaration before the file goes on to its malware scan
+// (files.file_uploaded).
+//
+// The URL names the upload key, `<prefix>incoming/<id>`, and it takes
+// another PUT until it expires: presigned URLs aren't single-use. So
+// completing moves the object to the file's storage key, which no URL
+// names, and the scan and every download read only that. Bytes sent to the
+// URL after that never reach what was scanned (domain/storage-key.ts).
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
 import { and, eq } from "drizzle-orm";
-import { z } from "zod";
 
 import { authorize } from "../../../access/can";
 import type { AppDb } from "../../../db/app-db";
@@ -19,7 +25,9 @@ import { fileAsset, type FileAssetRow } from "../../../db/schema";
 import { uuidv7 } from "../../../ids";
 import { invalidInput, type InvalidInput } from "../../../input";
 import { emit } from "../../../outbox/emit";
+import { ObjectMissingError, type ObjectStorage } from "../../../ports/storage";
 import type { UseCaseContext } from "../../../use-cases";
+import { fileIdInput, requestUploadInput } from "../inputs";
 import {
   nextFileStatus,
   type FileEvent,
@@ -28,12 +36,15 @@ import {
 import {
   checkStoredObject,
   checkUploadRequest,
-  FILE_PURPOSES,
   normaliseContentType,
   type FilePurpose,
   type UploadRefusal,
 } from "../domain/purposes";
-import { storageKeyFor } from "../domain/storage-key";
+import {
+  storageKeyFor,
+  storagePrefixOf,
+  uploadKeyFor,
+} from "../domain/storage-key";
 
 /** What the Files use cases use. */
 export type FilesContext = Pick<
@@ -62,12 +73,6 @@ export type RequestUploadResult =
   | InvalidInput
   | { ok: false; error: UploadRefusal };
 
-const requestUploadInput = z.object({
-  purpose: z.enum(FILE_PURPOSES),
-  contentType: z.string().max(255),
-  sizeBytes: z.int().nonnegative(),
-});
-
 /**
  * Records a pending file and presigns its upload. Nothing is written when
  * the purpose's rules refuse the declaration.
@@ -94,7 +99,7 @@ export async function requestUpload(
   const storageKey = storageKeyFor({ prefix: keyPrefix, purpose, fileId });
   const { url, headers } = await ctx.storage.presignPut({
     bucket,
-    key: storageKey,
+    key: uploadKeyFor({ prefix: keyPrefix, fileId }),
     contentType,
     contentLength: sizeBytes,
     expiresInSeconds: UPLOAD_URL_TTL_SECONDS,
@@ -136,44 +141,52 @@ export type CompleteUploadResult =
         | "upload_rejected";
     };
 
-const completeUploadInput = z.object({ fileId: z.uuid() });
-
 /**
- * Confirms that the stored object is what was declared. A match marks the
- * file uploaded and emits files.file_uploaded, in one transaction; a
- * mismatch deletes the object and rejects the file. Safe to call again:
- * a file that is no longer pending is reported as it stands.
+ * Takes the upload: moves the object from the upload key to the file's
+ * storage key and checks it there against the declaration. A match marks
+ * the file uploaded and emits files.file_uploaded; a mismatch deletes the
+ * object and rejects the file. Safe to call again: a file that is no
+ * longer pending is reported as it stands, and storage is left alone.
  */
 export async function completeUpload(
   ctx: FilesContext,
   input: CompleteUploadInput
 ): Promise<CompleteUploadResult> {
   await authorize(ctx, "file.upload");
-  const parsed = completeUploadInput.safeParse(input);
+  const parsed = fileIdInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { fileId } = parsed.data;
-  const file = await findFile(ctx.db, fileId);
-  if (!file) return { ok: false, error: "not_found" };
-  await authorize(ctx, "file.complete", { ownerId: file.ownerUserId });
-  if (file.status !== "pending_upload") return asItStands(file);
+  const found = await findFile(ctx.db, fileId);
+  if (!found) return { ok: false, error: "not_found" };
+  await authorize(ctx, "file.complete", { ownerId: found.ownerUserId });
+  if (found.status !== "pending_upload") return asItStands(found);
 
-  const ref = { bucket: file.bucket, key: file.storageKey };
-  const check = checkStoredObject(file, await ctx.storage.head(ref));
-  if (!check.ok && check.refusal === "upload_missing") {
-    return { ok: false, error: "upload_missing" };
-  }
-  const now = ctx.clock.now();
-  if (!check.ok) {
-    // Delete first: if the update then fails, the file is still pending
-    // and a retry finds no object, rather than an object left behind.
-    await ctx.storage.delete(ref);
-    const rejected = await leavePending(ctx.db, file, "upload_rejected", now);
-    return rejected
-      ? { ok: false, error: "upload_rejected" }
-      : asItStands((await findFile(ctx.db, fileId))!);
-  }
+  // The row stays locked while the object moves and the status changes, so
+  // the storage key is written only while the file is pending, by one call
+  // at a time: another call waits, then finds it no longer pending. The
+  // scan can't start before this commits, since its event is emitted here.
+  return ctx.db.transaction(async (tx): Promise<CompleteUploadResult> => {
+    const file = await lockFile(tx, fileId);
+    if (!file) return { ok: false, error: "not_found" };
+    if (file.status !== "pending_upload") return asItStands(file);
 
-  return ctx.db.transaction(async (tx) => {
+    const stored = { bucket: file.bucket, key: file.storageKey };
+    await takeUpload(ctx.storage, file);
+    const check = checkStoredObject(file, await ctx.storage.head(stored));
+    if (!check.ok && check.refusal === "upload_missing") {
+      return { ok: false, error: "upload_missing" };
+    }
+    const now = ctx.clock.now();
+    if (!check.ok) {
+      // Delete first: if the update then fails, the file is still pending
+      // and a retry finds no object, rather than an object left behind.
+      await ctx.storage.delete(stored);
+      const rejected = await leavePending(tx, file, "upload_rejected", now);
+      return rejected
+        ? { ok: false, error: "upload_rejected" }
+        : asItStands((await findFile(tx, fileId))!);
+    }
+
     const status = await leavePending(tx, file, "upload_confirmed", now);
     if (!status) return asItStands((await findFile(tx, fileId))!);
     await emit(tx, ctx.clock, {
@@ -181,8 +194,29 @@ export async function completeUpload(
       aggregate: { type: "file_asset", id: fileId },
       payload: { fileId },
     });
-    return { ok: true, fileId, status } as const;
+    return { ok: true, fileId, status };
   });
+}
+
+/**
+ * Moves the browser's PUT, if one has arrived, from the upload key to the
+ * file's storage key. Nothing at the upload key can also mean an earlier
+ * call moved it and then failed before its status change, so the caller
+ * checks the storage key either way.
+ */
+async function takeUpload(
+  storage: ObjectStorage,
+  file: FileAssetRow
+): Promise<void> {
+  const from = uploadKeyFor({
+    prefix: storagePrefixOf(file),
+    fileId: file.id,
+  });
+  try {
+    await storage.move({ bucket: file.bucket, from, to: file.storageKey });
+  } catch (error) {
+    if (!(error instanceof ObjectMissingError)) throw error;
+  }
 }
 
 async function findFile(
@@ -193,6 +227,19 @@ async function findFile(
     .select()
     .from(fileAsset)
     .where(eq(fileAsset.id, fileId));
+  return row;
+}
+
+/** The file's row, locked until the transaction ends. */
+async function lockFile(
+  tx: AppDb,
+  fileId: string
+): Promise<FileAssetRow | undefined> {
+  const [row] = await tx
+    .select()
+    .from(fileAsset)
+    .where(eq(fileAsset.id, fileId))
+    .for("update");
   return row;
 }
 

@@ -8,7 +8,7 @@ import { Section } from "@/components/site/section";
 import { ROUTES } from "@/lib/routes";
 import { appEnv } from "@/lib/site";
 import { currentActor } from "@/server/app";
-import { PURPOSE_RULES } from "@/server/modules/files/domain/purposes";
+import { PURPOSE_RULES } from "@/server/modules/files";
 
 import { UploadForm } from "./_components/upload-form";
 import { typeNameKeys } from "./_lib/upload";
@@ -53,7 +53,10 @@ const MiB = 1024 * 1024;
 async function Upload() {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  // The proxy already answers 404 in production; this is the backstop.
+  // The proxy's 404 in production (src/proxy.ts) is the real one. This is
+  // only a backstop that keeps the form off the page: inside <Suspense> the
+  // response has already started streaming, so it renders the not-found UI
+  // with status 200.
   if (appEnv() === "production") notFound();
 
   const [t, callout, format] = await Promise.all([

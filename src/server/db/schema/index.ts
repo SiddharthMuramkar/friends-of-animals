@@ -11,3 +11,4 @@ export * from "./audit";
 export * from "./outbox";
 export * from "./files";
 export * from "./offsite-copy";
+export * from "./worker";

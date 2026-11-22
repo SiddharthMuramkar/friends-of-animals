@@ -19,13 +19,12 @@ import {
   requestUploadAction,
 } from "../_lib/actions";
 import {
-  downloadPathFor,
-  messageKeyFor,
-  nextPollDelay,
-  phaseForStatus,
-  putHeaders,
-  type MessageKey,
-} from "../_lib/upload";
+  runUpload,
+  wait,
+  type UploadSteps,
+  type UploadView,
+} from "../_lib/run-upload";
+import { downloadPathFor, type MessageKey } from "../_lib/upload";
 
 export type UploadFormLabels = {
   field: { label: string; hint: string };
@@ -44,77 +43,18 @@ export type UploadFormLabels = {
   errors: Record<MessageKey, string>;
 };
 
-type View =
-  | { step: "idle" }
-  | { step: "uploading" }
-  | { step: "checking" }
-  | { step: "ready"; fileId: string }
-  | { step: "slow" }
-  | { step: "failed"; message: MessageKey };
-
-/** Resolves after `ms`, or at once if `signal` aborts. */
-function wait(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener("abort", () => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
-}
-
-/**
- * Presigns, PUTs the file straight to storage with exactly the signed
- * headers, completes, then asks about the scan every 2 s for a minute.
- * Reports each step through `show`; stops quietly once `signal` aborts.
- */
-async function upload(
-  file: File,
-  signal: AbortSignal,
-  show: (view: View) => void
-): Promise<void> {
-  show({ step: "uploading" });
-  const requested = await requestUploadAction({
-    contentType: file.type,
-    sizeBytes: file.size,
-  });
-  if (!requested.ok) {
-    return show({ step: "failed", message: messageKeyFor(requested.error) });
-  }
-  try {
-    const put = await fetch(requested.uploadUrl, {
-      method: "PUT",
-      headers: putHeaders(requested.headers),
-      body: file,
-      signal,
-    });
-    if (!put.ok) return show({ step: "failed", message: "uploadFailed" });
-  } catch {
-    if (signal.aborted) return;
-    return show({ step: "failed", message: "uploadFailed" });
-  }
-
-  const { fileId } = requested;
-  let result = await completeUploadAction(fileId);
-  const started = Date.now();
-  for (;;) {
-    if (signal.aborted) return;
-    if (!result.ok) {
-      return show({ step: "failed", message: messageKeyFor(result.error) });
-    }
-    const phase = phaseForStatus(result.status);
-    if (phase === "ready") return show({ step: "ready", fileId });
-    if (phase === "unavailable") {
-      return show({ step: "failed", message: "blocked" });
-    }
-    show({ step: "checking" });
-    const delay = nextPollDelay(Date.now() - started);
-    if (delay === null) return show({ step: "slow" });
-    await wait(delay, signal);
-    if (signal.aborted) return;
-    result = await fileStatusAction(fileId);
-  }
-}
+/** The browser's side of each upload step. */
+const BROWSER_STEPS: UploadSteps = {
+  requestUpload: requestUploadAction,
+  completeUpload: completeUploadAction,
+  fileStatus: fileStatusAction,
+  async put(url, body, headers, signal) {
+    const response = await fetch(url, { method: "PUT", headers, body, signal });
+    return response.ok;
+  },
+  wait,
+  now: () => Date.now(),
+};
 
 const STATUS_ICON = {
   uploading: LoaderCircle,
@@ -136,7 +76,7 @@ export function UploadForm({
   /** The content types the server takes, for the file picker. */
   accept: string;
 }) {
-  const [view, setView] = useState<View>({ step: "idle" });
+  const [view, setView] = useState<UploadView>({ step: "idle" });
   const [pending, startTransition] = useTransition();
   const input = useRef<HTMLInputElement>(null);
   const running = useRef<AbortController | null>(null);
@@ -154,7 +94,9 @@ export function UploadForm({
     running.current?.abort();
     const controller = new AbortController();
     running.current = controller;
-    startTransition(() => upload(file, controller.signal, setView));
+    startTransition(() =>
+      runUpload(file, controller.signal, setView, BROWSER_STEPS)
+    );
   }
 
   const statusLine =

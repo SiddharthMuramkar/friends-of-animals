@@ -9,6 +9,7 @@
 import { fileAsset } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import {
+  storageBucketFor,
   storageKeyFor,
   storagePrefixFor,
 } from "../modules/files/domain/storage-key";
@@ -27,15 +28,15 @@ const DEMO_PNG_BYTES = 68;
 export type SeedFilesLocation = { bucket: string; keyPrefix: string };
 
 /**
- * The bucket and key prefix the app uses in this deployment, worked out as
- * `filesConfigFor` (src/server/deps.ts) does: the seed script runs with
- * the deployment's variables, before the app starts.
+ * The bucket and key prefix the app uses in this deployment, worked out by
+ * the same rules as `filesConfigFor` (src/server/deps.ts): the seed script
+ * runs with the deployment's variables, before the app starts.
  */
 export function seedFilesLocation(
   env: Readonly<Record<string, string | undefined>> = process.env
 ): SeedFilesLocation {
   return {
-    bucket: env.R2_BUCKET || "unconfigured",
+    bucket: storageBucketFor(env),
     keyPrefix: storagePrefixFor(env),
   };
 }
@@ -46,7 +47,12 @@ export function seedFilesAt({ bucket, keyPrefix }: SeedFilesLocation): Seeder {
     const now = deps.clock.now();
     for (const { account, id } of SEED_FILES) {
       // By address, as the access seed does: the account keeps its own id.
-      const owner = await ensureVerifiedAccount(deps, account);
+      // The identity seed, which runs first, has already given it its phone.
+      const owner = await ensureVerifiedAccount(deps, {
+        id: account.id,
+        name: account.name,
+        email: account.email,
+      });
       await deps.db
         .insert(fileAsset)
         .values({

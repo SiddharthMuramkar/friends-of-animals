@@ -9,7 +9,7 @@ import {
 } from "./env.schema";
 
 const DATABASE_URL = "postgres://foa:foa@localhost:5432/foa";
-const SITE = "https://shipped-it.dev";
+const SITE = "https://friendsofanimals.dev";
 const SECRET = "0123456789abcdef0123456789abcdef";
 
 describe("parseEnv", () => {
@@ -128,6 +128,47 @@ describe("buildEnvSchema", () => {
     );
     expect(parseEnv(buildEnvSchema, { APP_URL: SITE }).APP_URL).toBe(SITE);
   });
+
+  it("reads the Umami website id and origin, which may be left out", () => {
+    const umami = {
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: "94db1cb1-74f4-4a40-ad6c-962362670409",
+      UMAMI_ORIGIN: "https://stats.shipped-it.dev",
+    };
+    expect(parseEnv(buildEnvSchema, umami)).toMatchObject(umami);
+    expect(parseEnv(buildEnvSchema, {})).not.toHaveProperty("UMAMI_ORIGIN");
+  });
+
+  it("refuses an Umami website id that isn't a UUID", () => {
+    expect(() =>
+      parseEnv(buildEnvSchema, { NEXT_PUBLIC_UMAMI_WEBSITE_ID: "shipped-it" })
+    ).toThrow(/NEXT_PUBLIC_UMAMI_WEBSITE_ID/);
+  });
+
+  it("refuses an Umami origin that isn't https", () => {
+    for (const origin of ["http://stats.shipped-it.dev", "stats.example"]) {
+      expect(() => parseEnv(buildEnvSchema, { UMAMI_ORIGIN: origin })).toThrow(
+        /UMAMI_ORIGIN/
+      );
+    }
+  });
+
+  // next.config.ts's rewrites refuse these too, but only once a build loads.
+  it("refuses an Umami origin with a path, query or fragment", () => {
+    for (const origin of [
+      "https://shipped-it.dev/umami",
+      "https://stats.shipped-it.dev/?site=1",
+      "https://stats.shipped-it.dev/#top",
+    ]) {
+      expect(() => parseEnv(buildEnvSchema, { UMAMI_ORIGIN: origin })).toThrow(
+        /UMAMI_ORIGIN/
+      );
+    }
+    expect(
+      parseEnv(buildEnvSchema, {
+        UMAMI_ORIGIN: "https://stats.shipped-it.dev/",
+      }).UMAMI_ORIGIN
+    ).toBe("https://stats.shipped-it.dev/");
+  });
 });
 
 describe("envSchema", () => {
@@ -197,6 +238,8 @@ describe("envSchema", () => {
         APP_ENV: "staging",
         APP_URL: SITE,
         BETTER_AUTH_SECRET: SECRET,
+        FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+        FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
       }).APP_ENV
     ).toBe("staging");
   });
@@ -236,6 +279,66 @@ describe("envSchema", () => {
   });
 });
 
+describe("envSchema: field encryption keys", () => {
+  const KEYS = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+  const HMAC = "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=";
+  const deployed = {
+    DATABASE_URL,
+    APP_URL: SITE,
+    BETTER_AUTH_SECRET: SECRET,
+    // Production also needs error tracking (#66).
+    NEXT_PUBLIC_SENTRY_DSN: "https://abc123@o1.ingest.us.sentry.io/4507",
+  };
+
+  it.each(["staging", "production"] as const)(
+    "requires FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY on %s",
+    (APP_ENV) => {
+      expect(() => parseEnv(envSchema, { ...deployed, APP_ENV })).toThrow(
+        /FIELD_ENCRYPTION_KEYS is not set[\s\S]*FIELD_HMAC_KEY is not set/
+      );
+      const config = parseEnv(envSchema, {
+        ...deployed,
+        APP_ENV,
+        FIELD_ENCRYPTION_KEYS: KEYS,
+        FIELD_HMAC_KEY: HMAC,
+      });
+      expect(config).toMatchObject({
+        FIELD_ENCRYPTION_KEYS: KEYS,
+        FIELD_HMAC_KEY: HMAC,
+      });
+    }
+  );
+
+  it("lets a local run or a preview go without them", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config.FIELD_ENCRYPTION_KEYS).toBeUndefined();
+    expect(config.FIELD_HMAC_KEY).toBeUndefined();
+  });
+
+  it("refuses keys that aren't 32 bytes of base64", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        FIELD_ENCRYPTION_KEYS: "1:short",
+        FIELD_HMAC_KEY: "short",
+      })
+    ).toThrow(
+      /openssl rand -base64 32[\s\S]*at FIELD_ENCRYPTION_KEYS[\s\S]*at FIELD_HMAC_KEY/
+    );
+  });
+
+  it("never echoes a key in its error", () => {
+    const leaked = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, FIELD_ENCRYPTION_KEYS: leaked })
+    ).toThrow(
+      expect.objectContaining({
+        message: expect.not.stringContaining("MDEyMzQ1"),
+      })
+    );
+  });
+});
+
 describe("envSchema: error tracking", () => {
   const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
   const staging = {
@@ -243,6 +346,9 @@ describe("envSchema: error tracking", () => {
     APP_ENV: "staging",
     APP_URL: SITE,
     BETTER_AUTH_SECRET: SECRET,
+    // Staging and production also need field keys (#58).
+    FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+    FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
   };
   const production = { ...staging, APP_ENV: "production" };
 
@@ -423,6 +529,9 @@ describe("envSchema storage", () => {
       APP_URL: SITE,
       BETTER_AUTH_SECRET: SECRET,
       NEXT_PUBLIC_SENTRY_DSN: DSN,
+      // Production also needs field keys (#58).
+      FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+      FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
     });
     expect(production.R2_BUCKET).toBeUndefined();
   });

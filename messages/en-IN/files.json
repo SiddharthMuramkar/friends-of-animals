@@ -2,11 +2,11 @@
   "files": {
     "meta": {
       "title": "Upload a test file",
-      "description": "Try a private upload. Every file is checked for viruses before anyone can open it."
+      "description": "Try a private upload. Every file is checked for viruses, and only you can open yours until it passes."
     },
     "eyebrow": "Your account",
     "title": "Upload a test file",
-    "lead": "Try a private upload. We check every file for viruses before anyone can open it, and only you and FOA staff can open yours.",
+    "lead": "Try a private upload. We check every file for viruses. Until it passes, only you can open yours; after that, FOA staff can too.",
     "testOnly": "This page is for testing. It isn't on the live site.",
     "loading": "Loading the upload form…",
     "field": {

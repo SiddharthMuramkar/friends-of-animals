@@ -8,6 +8,9 @@
 //     variables set. Moving to another S3-compatible store (S3 Mumbai) is a
 //     change of endpoint and credentials.
 //   - the in-memory fake (src/test/fakes/storage.ts): Seam 1 tests.
+//   - disk (./storage-disk.ts): a local run without the R2_* variables, as
+//     on a laptop and in CI's E2E job. Files on this machine, signed URLs
+//     on the app's own /api/local-storage route.
 //   - `unconfiguredStorage`: a deployment without storage config. It refuses
 //     every call, so nothing pretends to store a file.
 // Every adapter passes ./storage.contract.ts.
@@ -39,8 +42,9 @@ export interface ObjectStorage {
 
   /**
    * A URL that GETs the object before `expiresInSeconds` pass, served with
-   * `contentType` and a Content-Disposition of `disposition` with
-   * `filename`, whatever the object was stored with.
+   * `contentType`, a Content-Disposition of `disposition` with `filename`
+   * and a Cache-Control of `FILE_CACHE_CONTROL`, whatever the object was
+   * stored with: no cache may keep a private file past the URL's expiry.
    */
   presignGet(input: {
     bucket: string;
@@ -73,6 +77,9 @@ export interface ObjectStorage {
     prefix: string;
   }): Promise<{ deleted: number }>;
 }
+
+/** The Cache-Control every presigned GET is served with. */
+export const FILE_CACHE_CONTROL = "private, no-store";
 
 /** One or more lower-case folders, each ending in "/": `pr-12/`. */
 const PURGEABLE_PREFIX = /^(?:[a-z0-9_-]+\/)+$/;

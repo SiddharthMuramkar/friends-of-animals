@@ -39,8 +39,10 @@ describe("redactText", () => {
 
   it("drops the query string and fragment of absolute URLs", () => {
     expect(
-      redactText("GET https://shipped-it.dev/sign-in?email=a%40b.c#top 500")
-    ).toBe("GET https://shipped-it.dev/sign-in 500");
+      redactText(
+        "GET https://friendsofanimals.dev/sign-in?email=a%40b.c#top 500"
+      )
+    ).toBe("GET https://friendsofanimals.dev/sign-in 500");
   });
 });
 
@@ -102,10 +104,58 @@ describe("redactText: database errors", () => {
   });
 });
 
+describe("redactText on a duplicate key whose value has no closing bracket", () => {
+  it("hides every line of a value that runs past its line", () => {
+    expect(redactText("Key (email)=(Ravi\nKumar) already exists.")).toBe(
+      "Key (email)=[redacted]"
+    );
+  });
+
+  it("hides a value the text ends inside", () => {
+    expect(redactText("Key (email)=(Ravi Kumar")).toBe(
+      "Key (email)=[redacted]"
+    );
+  });
+
+  it("hides a value cut off by truncation, brackets inside it included", () => {
+    for (const value of ["Ravi Kumar ", "Ravi (Kumar) "]) {
+      const text = `Key (email)=(${value.repeat(1000)}) already exists.`;
+
+      expect(redactText(text)).toBe("Key (email)=[redacted][truncated]");
+    }
+  });
+});
+
+describe("redactText on a URL with a user and password in it", () => {
+  it("hides them whatever the scheme", () => {
+    expect(
+      redactText("connect postgres://foa_worker:Zq8!fake@pg-prod:5432/foa")
+    ).toBe("connect postgres://[redacted]@pg-prod:5432/foa");
+    expect(
+      redactText("GET https://asha:tok_fake@api.example.test/v1?x=1 500")
+    ).toBe("GET https://[redacted]@api.example.test/v1 500");
+  });
+
+  it("hides a password that holds an unescaped @", () => {
+    expect(redactText("redis://default:p@ss@cache:6379")).toBe(
+      "redis://[redacted]@cache:6379"
+    );
+  });
+
+  it("leaves URLs without them alone, an @ in the path too", () => {
+    const text = "postgres://pg-prod:5432/foa and https://example.test/@asha";
+
+    expect(redactText(text)).toBe(text);
+    expect(redactText("postgres://[redacted]@pg-prod/foa")).toBe(
+      "postgres://[redacted]@pg-prod/foa"
+    );
+  });
+});
+
 describe("stripQuery", () => {
   it("keeps the path of absolute and relative URLs", () => {
-    expect(stripQuery("https://shipped-it.dev/a/b?x=1#y")).toBe(
-      "https://shipped-it.dev/a/b"
+    expect(stripQuery("https://friendsofanimals.dev/a/b?x=1#y")).toBe(
+      "https://friendsofanimals.dev/a/b"
     );
     expect(stripQuery("/api/x?phone=9876543210")).toBe("/api/x");
     expect(stripQuery("/plain")).toBe("/plain");
@@ -131,7 +181,7 @@ describe("scrubEvent", () => {
       },
       request: {
         method: "POST",
-        url: "https://shipped-it.dev/sign-in?email=asha%40example.test",
+        url: "https://friendsofanimals.dev/sign-in?email=asha%40example.test",
         query_string: "email=asha%40example.test",
         data: { email: "asha@example.test", name: "Asha Rao" },
         cookies: { "better-auth.session_token": "secret-cookie" },
@@ -200,7 +250,7 @@ describe("scrubEvent", () => {
       user: { id: "u_01938a0000007000" },
       request: {
         method: "POST",
-        url: "https://shipped-it.dev/sign-in",
+        url: "https://friendsofanimals.dev/sign-in",
         headers: {
           "Content-Type": "application/json",
           "x-vercel-id": "bom1::abc",

@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 
 import { previewDatabaseName } from "@/server/db/database-url";
 
+import { FILE_PURPOSES } from "./purposes";
 import {
   quarantineKeyFor,
+  RESERVED_FOLDERS,
   storageKeyFor,
   storagePrefixFor,
   storagePrefixForDatabase,
+  storagePrefixOf,
+  uploadKeyFor,
 } from "./storage-key";
 
 const hash8 = (ref: string) =>
@@ -138,5 +142,69 @@ describe("quarantineKeyFor", () => {
     expect(quarantineKeyFor({ prefix: "staging/", fileId: FILE_ID })).toBe(
       `staging/quarantine/${FILE_ID}`
     );
+  });
+});
+
+describe("uploadKeyFor", () => {
+  it("has the browser PUT to the incoming folder, never the storage key", () => {
+    expect(uploadKeyFor({ prefix: "pr-12/", fileId: FILE_ID })).toBe(
+      `pr-12/incoming/${FILE_ID}`
+    );
+    expect(uploadKeyFor({ prefix: "", fileId: FILE_ID })).toBe(
+      `incoming/${FILE_ID}`
+    );
+    for (const purpose of FILE_PURPOSES) {
+      expect(uploadKeyFor({ prefix: "local/", fileId: FILE_ID })).not.toBe(
+        storageKeyFor({ prefix: "local/", purpose, fileId: FILE_ID })
+      );
+    }
+  });
+
+  it("refuses an id or prefix that could escape its folder", () => {
+    expect(() => uploadKeyFor({ prefix: "local/", fileId: "../x" })).toThrow();
+    expect(() => uploadKeyFor({ prefix: "../", fileId: FILE_ID })).toThrow();
+  });
+});
+
+describe("the layout's own folders", () => {
+  it("are never a purpose's name", () => {
+    for (const purpose of FILE_PURPOSES) {
+      expect(RESERVED_FOLDERS).not.toContain(purpose);
+    }
+    expect(() =>
+      storageKeyFor({
+        prefix: "local/",
+        purpose: "incoming" as never,
+        fileId: FILE_ID,
+      })
+    ).toThrow();
+  });
+});
+
+describe("storagePrefixOf", () => {
+  it("finds the environment prefix a file is stored under", () => {
+    for (const prefix of ["", "local/", "pr-12/", "br-abcd1234/"]) {
+      expect(
+        storagePrefixOf({
+          id: FILE_ID,
+          purpose: "test_upload",
+          storageKey: storageKeyFor({
+            prefix,
+            purpose: "test_upload",
+            fileId: FILE_ID,
+          }),
+        })
+      ).toBe(prefix);
+    }
+  });
+
+  it("refuses a key that isn't the file's own", () => {
+    expect(() =>
+      storagePrefixOf({
+        id: FILE_ID,
+        purpose: "test_upload",
+        storageKey: `local/quarantine/${FILE_ID}`,
+      })
+    ).toThrow();
   });
 });
