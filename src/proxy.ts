@@ -33,5 +33,7 @@ export const config = {
     "/institutions/register/:path*",
     "/participant",
     "/participant/:path*",
+    "/guardian",
+    "/guardian/:path*",
   ],
 };

@@ -40,8 +40,13 @@ const BLOCKED_KEYWORDS = new Set([
 
 const MAX_TEXT = 300;
 
-/** Bodies over this many bytes are refused with 413. */
-export const CSP_REPORT_MAX_BYTES = 16 * 1024;
+/**
+ * Bodies over this many bytes are refused with 413. Chrome uploads its
+ * queued reports in one batch of up to 100 (about 90 KB), so a page that
+ * lost its nonce must still fit. CSP_REPORT_MAX_VIOLATIONS and the route's
+ * per-minute budget limit what gets logged.
+ */
+export const CSP_REPORT_MAX_BYTES = 128 * 1024;
 
 /** At most this many violations are kept from one Reporting API batch. */
 export const CSP_REPORT_MAX_VIOLATIONS = 20;

@@ -20,7 +20,8 @@
     },
     "member": {
       "body": "Your competition entries, certificates and donations will show here as those parts of the site open.",
-      "sessions": "See where you're signed in"
+      "sessions": "See where you're signed in",
+      "children": "Your children, as a parent or guardian"
     },
     "admin": {
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",

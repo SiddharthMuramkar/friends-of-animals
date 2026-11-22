@@ -253,6 +253,37 @@ describe("proxy: the signed-in nonce policy", () => {
     });
   });
 
+  it("adds Razorpay Checkout's origins to the pay page's policy alone, once keys are set", async () => {
+    vi.stubEnv("APP_ENV", "preview");
+    vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_1DP5mmOlF5G5ag");
+
+    const pay = await proxy(
+      request("/institution/registrations/NEIGH27-I-5EED1/pay", SESSION)
+    );
+    const students = await proxy(
+      request("/institution/registrations/NEIGH27-I-5EED1", SESSION)
+    );
+
+    expect(pay.headers.get("content-security-policy")).toMatch(
+      /frame-src https:\/\/api\.razorpay\.com/
+    );
+    expect(pageHeaders(pay).get("content-security-policy")).toBe(
+      pay.headers.get("content-security-policy")
+    );
+    expect(students.headers.get("content-security-policy")).not.toContain(
+      "razorpay"
+    );
+  });
+
+  it("never runs on the payment gateway's webhook, so nothing sends it to sign in", () => {
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "https://foa.example.test/api/webhooks/razorpay",
+      })
+    ).toBe(false);
+  });
+
   it("leaves public pages to next.config.ts headers()", async () => {
     for (const path of [
       "/blog/kinder-skies-in-kite-season",

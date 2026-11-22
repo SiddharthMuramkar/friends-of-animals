@@ -37,7 +37,16 @@ export const APP_ROUTES = {
   institutionCompetitions: "/institution/competitions",
   /** The participant dashboard (#78): an adult's own registrations. */
   participant: "/participant",
+  /** A guardian's children (#81), and where they declare and verify. */
+  guardian: "/guardian",
+  guardianRegister: "/guardian/register",
+  guardianNewChild: "/guardian/children/new",
 } as const;
+
+/** One child's page, for the guardian who looks after them (#81). */
+export function guardianChildPath(childId: string): string {
+  return `/guardian/children/${encodeURIComponent(childId)}`;
+}
 
 /** A competition's judging guide, for the institutions taking part (#88). */
 export function judgingGuidePath(competitionCode: string): string {
@@ -112,6 +121,29 @@ export function payMyRegistrationPath(registrationId: string): string {
   return `${APP_ROUTES.participant}/registrations/${encodeURIComponent(registrationId)}/pay`;
 }
 
+/** Where a coordinator pays their students' fees (#77). */
+export const PAY_FEES_ROUTE = "/institution/registrations/[ref]/pay";
+
+/** A payment batch's status and receipt (#77). */
+export const PAYMENT_BATCH_ROUTE =
+  "/institution/registrations/[ref]/payments/[batchId]";
+
+/** The pay page of one institution registration (#77). */
+export function payFeesPath(reference: string, institutionId: string): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/pay?${query.toString()}`;
+}
+
+/** One payment batch's status and receipt (#77). */
+export function paymentBatchPath(
+  reference: string,
+  batchId: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/payments/${encodeURIComponent(batchId)}?${query.toString()}`;
+}
+
 /**
  * Importing students from a CSV file into one institution registration
  * (#76), for the institution the user acts for.
@@ -160,18 +192,22 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/import/sample.csv",
   "/participant/register/[slug]",
   "/participant/registrations/[id]/pay",
+  "/guardian/children/[id]",
+  PAY_FEES_ROUTE,
+  PAYMENT_BATCH_ROUTE,
 ] as const;
 
 /**
- * Where coordinator invitations' pages live (#74). Each path carries its
- * link token, the bearer credential, so analytics leaves the whole prefix
- * out (src/lib/analytics/umami.ts).
+ * Where coordinator (#74) and teen-login (#81) invitations' pages live.
+ * Each path carries its link token, the bearer credential, so analytics
+ * leaves the whole prefix out (src/lib/analytics/umami.ts).
  */
 export const INVITATIONS_PREFIX = "/invitations";
 
 /**
- * A coordinator invitation's page. Anyone holding the link can open it
- * (it is the bearer of the invitation), so it is not behind sign-in.
+ * An invitation's page, a coordinator's or a teen's. Anyone holding the
+ * link can open it (it is the bearer of the invitation), so it is not
+ * behind sign-in.
  */
 export function invitationPath(token: string): string {
   return `${INVITATIONS_PREFIX}/${encodeURIComponent(token)}`;
@@ -192,6 +228,7 @@ export const SIGNED_IN_PREFIXES = [
   "/institution",
   "/institutions/register",
   "/participant",
+  "/guardian",
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

@@ -140,6 +140,7 @@ async function AreaBody({
       {area === "member"
         ? links([
             { href: APP_ROUTES.accountSessions, label: t("member.sessions") },
+            { href: APP_ROUTES.guardian, label: t("member.children") },
           ])
         : null}
       {area === "institution" && id
