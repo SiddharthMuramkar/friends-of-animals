@@ -50,9 +50,15 @@ async function Header() {
   return <PageHeader eyebrow={t("eyebrow")} tile="teal" title={t("title")} />;
 }
 
+/** Which kind of invitation this is isn't known yet: a neutral heading. */
 async function Loading() {
   const t = await getTranslations("coordinators.invitation");
-  return <p className="text-ink-muted">{t("loading")}</p>;
+  return (
+    <>
+      <PageHeader tile="teal" title={t("meta.title")} />
+      <p className="mt-6 text-ink-muted">{t("loading")}</p>
+    </>
+  );
 }
 
 const CARD =

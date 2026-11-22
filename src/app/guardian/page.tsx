@@ -11,6 +11,7 @@ import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import { APP_ROUTES, guardianChildPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
 import type { ChildSummary } from "@/server/modules/guardians";
 
@@ -57,7 +58,7 @@ async function Children() {
 
   if (!profile.registered) {
     return (
-      <div className={`${CARD} mt-8`}>
+      <div className={cn(CARD, "mt-8")}>
         <p className="text-ink">{t("notRegistered.body")}</p>
         <div className="mt-4">
           <ButtonLink href={APP_ROUTES.guardianRegister}>

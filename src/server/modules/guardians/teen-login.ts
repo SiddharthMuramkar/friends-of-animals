@@ -22,6 +22,8 @@ import { and, eq, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
+import { grantGlobalRole } from "../../access/flow-grant";
+import { grantsOf } from "../../access/grants";
 import { recordAudit } from "../../audit/record";
 import {
   createLinkToken,
@@ -57,7 +59,7 @@ import {
   type TeenAcceptanceRefusal,
   type TeenInviteRefusal,
 } from "./domain/children";
-import { guardianName } from "./guardian-record";
+import { guardianName, guardianOfUser } from "./guardian-record";
 import {
   parseTeenEmail,
   readTeenContact,
@@ -65,7 +67,6 @@ import {
   teenContactHash,
   TEEN_INVITATION_TOKEN,
 } from "./teen-contact";
-import { grantGlobalRole } from "./verify-guardian";
 
 export type InviteTeenLoginInput = { childId: string; email: string };
 
@@ -131,6 +132,17 @@ async function guardianUsersOf(tx: AppDb, childId: string): Promise<string[]> {
       )
     );
   return rows.map((row) => row.userId);
+}
+
+/**
+ * Whether the user has declared as a guardian or holds the guardian role,
+ * for any child. Read under the user's row lock, which declaring,
+ * verifying and role grants also take, so none of them slips past.
+ */
+async function isAGuardian(tx: AppDb, userId: string): Promise<boolean> {
+  if (await guardianOfUser(tx, userId)) return true;
+  const grants = await grantsOf(tx, userId);
+  return grants.some((grant) => grant.role === "guardian");
 }
 
 /** The child's profile, locked so invites and accepts take turns. */
@@ -401,6 +413,7 @@ export async function acceptTeenInvitation(
         isAGuardianOfChild: (await guardianUsersOf(tx, child.id)).includes(
           userId
         ),
+        isAGuardian: await isAGuardian(tx, userId),
         linkedToAnotherChild: otherProfile !== undefined,
       },
       child: {

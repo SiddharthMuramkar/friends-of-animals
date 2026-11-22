@@ -205,6 +205,7 @@
         "expired": "This invitation has expired. Ask your parent or guardian to send a new one.",
         "guardian_cannot_accept": "You sent this invitation. The child accepts it with their own account.",
         "contact_mismatch": "This invitation is for a different email address than the one you're signed in with.",
+        "accepter_is_guardian": "This account is a parent's or guardian's, so it can't become a child's own login. Ask your parent or guardian to invite an email address that is yours alone.",
         "already_linked": "Your account is already linked to a child's profile.",
         "child_has_login": "This profile already has its own login.",
         "under_13": "Children under 13 can't have their own login.",

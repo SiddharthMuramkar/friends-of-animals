@@ -303,6 +303,60 @@ describe("acceptTeenInvitation", () => {
     });
   });
 
+  it("refuses an account that declared and verified as a guardian first: no login, and its roles stay as they were", async () => {
+    const h = await createHarness();
+    const arjun = await verifiedGuardian(h, ARJUN);
+    const rolesBefore = await rolesOf(h, arjun.actor);
+    const { token, teenId, invitationId } = await invited(h);
+
+    expect(await h.as(arjun.actor).acceptTeenInvitation({ token })).toEqual({
+      ok: false,
+      error: "accepter_is_guardian",
+    });
+    expect(await profileOf(h, teenId)).toMatchObject({ loginUserId: null });
+    expect(await invitationRow(h, invitationId)).toMatchObject({
+      status: "pending",
+      acceptedByUserId: null,
+    });
+    expect(await rolesOf(h, arjun.actor)).toEqual(rolesBefore);
+    expect(await h.as(arjun.actor).myGuardians()).toEqual([]);
+  });
+
+  it("refuses an account that has declared as a guardian, even before verifying", async () => {
+    const h = await createHarness();
+    const { token, teenId } = await invited(h);
+    const arjun = await signedIn(h, ARJUN);
+    await h
+      .as(arjun)
+      .registerAsGuardian({ fullName: "Arjun Rao", adultDeclared: true });
+
+    expect(await h.as(arjun).acceptTeenInvitation({ token })).toEqual({
+      ok: false,
+      error: "accepter_is_guardian",
+    });
+    expect(await profileOf(h, teenId)).toMatchObject({ loginUserId: null });
+    expect(await rolesOf(h, arjun)).not.toContain("participant");
+  });
+
+  it("refuses an account granted the guardian role by staff", async () => {
+    const h = await createHarness();
+    const { token, teenId } = await invited(h);
+    const member = await h.seed.member(ARJUN);
+    const admin = await h.signIn(await h.seed.superAdmin());
+    await h.as(admin).grantRole({
+      userId: member.id,
+      role: "guardian",
+      scope: { type: "global" },
+    });
+    const arjun = await h.signIn(member);
+
+    expect(await h.as(arjun).acceptTeenInvitation({ token })).toEqual({
+      ok: false,
+      error: "accepter_is_guardian",
+    });
+    expect(await profileOf(h, teenId)).toMatchObject({ loginUserId: null });
+  });
+
   it("refuses an account that is already another child's login", async () => {
     const h = await createHarness();
     const { token } = await invited(h);
@@ -375,6 +429,8 @@ describe("acceptTeenInvitation", () => {
   });
 });
 
+// Anyone holding the link may read it, signed in or not: the link is the
+// bearer credential, so there is no refused actor to test.
 describe("viewTeenInvitation", () => {
   it("shows a link holder a masked address, and the guardian's name only to the invited teen", async () => {
     const h = await createHarness();
@@ -422,6 +478,11 @@ describe("myGuardians", () => {
     const h = await createHarness();
     const member = await signedIn(h, ARJUN);
     expect(await h.as(member).myGuardians()).toEqual([]);
+  });
+
+  it("is refused to visitors", async () => {
+    const h = await createHarness();
+    await expect(h.as(h.visitor()).myGuardians()).rejects.toThrow(DomainError);
   });
 });
 

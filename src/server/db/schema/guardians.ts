@@ -139,6 +139,9 @@ export const guardianLink = pgTable(
     uniqueIndex("guardian_link_active_pair_unique")
       .on(table.guardianId, table.participantProfileId)
       .where(sql`${table.revokedAt} IS NULL`),
+    // Deleting a guardian deletes their links, revoked ones too; the
+    // partial index above skips those.
+    index("guardian_link_guardian_id_idx").on(table.guardianId),
     // A teen's guardians, and a child's page, look links up by the child.
     index("guardian_link_participant_profile_id_idx").on(
       table.participantProfileId

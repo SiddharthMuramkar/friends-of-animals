@@ -62,6 +62,7 @@ CREATE UNIQUE INDEX "guardian_invitation_one_pending_per_child" ON "guardian_inv
 CREATE INDEX "guardian_invitation_guardian_id_idx" ON "guardian_invitation" USING btree ("guardian_id");--> statement-breakpoint
 CREATE INDEX "guardian_invitation_accepted_by_user_id_idx" ON "guardian_invitation" USING btree ("accepted_by_user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "guardian_link_active_pair_unique" ON "guardian_link" USING btree ("guardian_id","participant_profile_id") WHERE "guardian_link"."revoked_at" IS NULL;--> statement-breakpoint
+CREATE INDEX "guardian_link_guardian_id_idx" ON "guardian_link" USING btree ("guardian_id");--> statement-breakpoint
 CREATE INDEX "guardian_link_participant_profile_id_idx" ON "guardian_link" USING btree ("participant_profile_id");--> statement-breakpoint
 ALTER TABLE "participant_profile" ADD CONSTRAINT "participant_profile_login_user_id_user_id_fk" FOREIGN KEY ("login_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "participant_profile_login_user_unique" ON "participant_profile" USING btree ("login_user_id");--> statement-breakpoint

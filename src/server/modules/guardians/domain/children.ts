@@ -87,6 +87,7 @@ export type TeenAcceptanceRefusal =
   | "expired"
   | "guardian_cannot_accept"
   | "contact_mismatch"
+  | "accepter_is_guardian"
   | "already_linked"
   | "child_has_login"
   | "under_13"
@@ -100,9 +101,11 @@ export type TeenInvitationState = {
 /**
  * May the signed-in user accept this teen-login invitation? The invitation
  * is checked first (an unknown token says nothing more), then who is
- * accepting: only the invited contact, signed in with it, who is not one of
- * the child's guardians and is not already another child's login. Last, the
- * child must still be 13 to 17 and without a login at `now`.
+ * accepting: only the invited contact, signed in with it, who is no
+ * guardian at all and is not already another child's login. A minor's
+ * login never holds the guardian role, so it can't add or manage children;
+ * registering as a guardian refuses a linked login the other way round.
+ * Last, the child must still be 13 to 17 and without a login at `now`.
  */
 export function decideTeenAcceptance(input: {
   /** Null when no invitation has this token. */
@@ -112,6 +115,8 @@ export function decideTeenAcceptance(input: {
     /** The signed-in user's verified address is the invited one. */
     isTheInvitedContact: boolean;
     isAGuardianOfChild: boolean;
+    /** Has declared as a guardian, or holds the role, for any child. */
+    isAGuardian: boolean;
     linkedToAnotherChild: boolean;
   };
   child: { ageYears: number; hasLogin: boolean };
@@ -128,6 +133,7 @@ export function decideTeenAcceptance(input: {
   }
   if (accepter.isAGuardianOfChild) return refuse("guardian_cannot_accept");
   if (!accepter.isTheInvitedContact) return refuse("contact_mismatch");
+  if (accepter.isAGuardian) return refuse("accepter_is_guardian");
   if (accepter.linkedToAnotherChild) return refuse("already_linked");
   if (child.hasLogin) return refuse("child_has_login");
   const tooYoungOrOld = ageRefusal(child.ageYears);

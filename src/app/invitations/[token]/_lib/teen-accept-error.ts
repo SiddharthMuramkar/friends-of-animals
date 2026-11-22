@@ -15,6 +15,7 @@ const TEEN_ACCEPT_ERRORS: readonly TeenAcceptError[] = [
   "expired",
   "guardian_cannot_accept",
   "contact_mismatch",
+  "accepter_is_guardian",
   "already_linked",
   "child_has_login",
   "under_13",

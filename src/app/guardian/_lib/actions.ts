@@ -6,7 +6,8 @@ import { redirect, RedirectType, unstable_rethrow } from "next/navigation";
 import { APP_ROUTES, guardianChildPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import { errorSummaryForLogs } from "@/server/errors";
+import { DomainError, errorSummaryForLogs } from "@/server/errors";
+import type { WithdrawTeenInvitationResult } from "@/server/modules/guardians";
 
 import {
   afterAddChild,
@@ -143,10 +144,7 @@ export async function addChildAction(
   };
   let childId: string;
   try {
-    const result = await as(actor).addChild({
-      ...values,
-      relationship: values.relationship as "parent",
-    });
+    const result = await as(actor).addChild(values);
     if (!result.ok) {
       if (result.error === "guardian_not_verified") {
         redirect(APP_ROUTES.guardianRegister);
@@ -187,11 +185,20 @@ export async function inviteTeenAction(
   backToChild(childId, "invited");
 }
 
-/** Withdraws the waiting invitation and comes back to the child's page. */
+/**
+ * Withdraws the waiting invitation and comes back to the child's page. A
+ * child this guardian may no longer manage leads back to their children.
+ */
 export async function withdrawTeenInvitationAction(
   childId: string
 ): Promise<void> {
   const actor = await signedInActor();
-  const result = await as(actor).withdrawTeenInvitation({ childId });
+  let result: WithdrawTeenInvitationResult;
+  try {
+    result = await as(actor).withdrawTeenInvitation({ childId });
+  } catch (error) {
+    if (!(error instanceof DomainError)) throw error;
+    redirect(APP_ROUTES.guardian, RedirectType.replace);
+  }
   backToChild(childId, result.ok ? "withdrawn" : result.error);
 }

@@ -126,6 +126,7 @@ describe("decideTeenAcceptance", () => {
     accepter: {
       isTheInvitedContact: true,
       isAGuardianOfChild: false,
+      isAGuardian: false,
       linkedToAnotherChild: false,
     },
     child: { ageYears: 15, hasLogin: false },
@@ -172,6 +173,7 @@ describe("decideTeenAcceptance", () => {
       ...ready.accepter,
       isTheInvitedContact: false,
       isAGuardianOfChild: true,
+      isAGuardian: true,
     };
     expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
       ok: false,
@@ -181,6 +183,26 @@ describe("decideTeenAcceptance", () => {
 
   it("refuses someone signed in with a different address", () => {
     const accepter = { ...ready.accepter, isTheInvitedContact: false };
+    expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
+      ok: false,
+      reason: "contact_mismatch",
+    });
+  });
+
+  it("refuses a guardian's account, even one that is no guardian of this child", () => {
+    const accepter = { ...ready.accepter, isAGuardian: true };
+    expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
+      ok: false,
+      reason: "accepter_is_guardian",
+    });
+  });
+
+  it("tells a guardian signed in with another address about the address first", () => {
+    const accepter = {
+      ...ready.accepter,
+      isTheInvitedContact: false,
+      isAGuardian: true,
+    };
     expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
       ok: false,
       reason: "contact_mismatch",
@@ -226,6 +248,7 @@ describe("decideTeenAcceptance", () => {
         accepter: {
           isTheInvitedContact: false,
           isAGuardianOfChild: true,
+          isAGuardian: true,
           linkedToAnotherChild: true,
         },
       })

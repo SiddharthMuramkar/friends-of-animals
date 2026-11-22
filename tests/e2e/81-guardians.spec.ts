@@ -35,7 +35,7 @@ async function checkBothThemes(page: Page, label: string) {
   await expectAccessibleInDark(page, label);
 }
 
-/** Opens `path` and checks it answers below 400 (spec 1.8). */
+/** Opens `path` and checks it answers below 400. */
 async function visit(page: Page, path: string) {
   const response = await page.goto(path);
   expect(response?.status(), `HTTP status of ${path}`).toBeLessThan(400);

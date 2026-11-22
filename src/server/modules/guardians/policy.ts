@@ -6,7 +6,9 @@
 // children needs; acting on one child also needs an active guardian_link
 // between the acting guardian and that child, which the use case reports
 // as the resource's owner (./child-access.ts). A teen with a linked login
-// holds no guardian role, so they can't add siblings or invite anyone.
+// holds no guardian role, so they can't add siblings or invite anyone:
+// accepting a teen login refuses a guardian's account, and declaring as a
+// guardian refuses a linked login.
 //
 // Loads under plain Node: relative imports only, no "server-only".
 

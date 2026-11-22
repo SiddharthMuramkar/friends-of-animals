@@ -1,5 +1,5 @@
 {
-  "id": "46cbe4e5-466a-4b9e-a443-5d2732440a57",
+  "id": "513e0694-fc5f-4349-b0ce-a41a8e9a19b5",
   "prevId": "0b40f7d8-5ca8-4a10-84ba-f5e6c1c37a0f",
   "version": "7",
   "dialect": "postgresql",
@@ -6949,6 +6949,21 @@
           ],
           "isUnique": true,
           "where": "\"guardian_link\".\"revoked_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "guardian_link_guardian_id_idx": {
+          "name": "guardian_link_guardian_id_idx",
+          "columns": [
+            {
+              "expression": "guardian_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}

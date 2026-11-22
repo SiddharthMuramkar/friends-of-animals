@@ -31,10 +31,7 @@ import { ageAt, parseDateOfBirth } from "../participants/domain/age";
 import { formatIsoDate } from "../registration/domain/calendar-date";
 import { identityKeyInput } from "../registration/domain/identity-key";
 import { IDENTITY_HASH_PURPOSE } from "../registration/domain/prepare-student";
-import {
-  GUARDIAN_RELATIONSHIPS,
-  type GuardianRelationship,
-} from "../registration/domain/student-details";
+import { GUARDIAN_RELATIONSHIPS } from "../registration/domain/student-details";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
 import { activeLinkOf, childResource } from "./child-access";
 import {
@@ -54,7 +51,11 @@ export type AddChildInput = {
   fullName: string;
   /** `YYYY-MM-DD`, as `<input type="date">` submits it. */
   dateOfBirth: string;
-  relationship: GuardianRelationship;
+  /**
+   * One of GUARDIAN_RELATIONSHIPS, as the form submits it; anything else
+   * comes back as invalid input.
+   */
+  relationship: string;
 };
 
 export type AddChildResult =

@@ -19,14 +19,11 @@ import { z } from "zod";
 
 import guardianMessages from "../../../../messages/en-IN/guardian.json";
 import { authorize } from "../../access/can";
-import { sortGrants, type Grant } from "../../access/domain/roles";
-import { grantsOf } from "../../access/grants";
+import { grantGlobalRole } from "../../access/flow-grant";
 import { recordAudit } from "../../audit/record";
-import type { AppDb } from "../../db/app-db";
-import { guardian, user, userRole } from "../../db/schema";
+import { guardian, user } from "../../db/schema";
 import { takeCodeAllowance } from "../../identity/rate-limit";
 import { SIGN_IN_CODE } from "../../identity/settings";
-import { uuidv7 } from "../../ids";
 import type { EmailMessage } from "../../ports/email";
 import type { UseCaseContext } from "../../use-cases";
 import { maskIdentifier } from "../institutions/domain/mask-identifier";
@@ -158,41 +155,4 @@ export async function confirmGuardianVerification(
       return { ok: true };
     }
   );
-}
-
-/**
- * Grants `role` everywhere to `userId`, with its audit entry; holding it
- * already changes nothing. Granted by the flow itself, so no user is named
- * as granting it.
- */
-export async function grantGlobalRole(
-  tx: AppDb,
-  ctx: Pick<UseCaseContext, "clock" | "actor">,
-  userId: string,
-  role: "guardian" | "participant"
-): Promise<void> {
-  const now = ctx.clock.now();
-  const grant: Grant = { role, scope: { type: "global" } };
-  const before = await grantsOf(tx, userId);
-  const [inserted] = await tx
-    .insert(userRole)
-    .values({
-      id: uuidv7(now),
-      userId,
-      role,
-      scopeType: "global",
-      scopeId: null,
-      grantedByUserId: null,
-      grantedAt: now,
-    })
-    .onConflictDoNothing()
-    .returning({ id: userRole.id });
-  if (!inserted) return;
-  await recordAudit(tx, ctx, {
-    action: "role.granted",
-    entity: { type: "user", id: userId },
-    before,
-    after: sortGrants([...before, grant]),
-    actorRole: null,
-  });
 }

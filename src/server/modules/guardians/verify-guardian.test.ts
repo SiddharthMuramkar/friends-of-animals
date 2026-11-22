@@ -116,6 +116,9 @@ describe("registerAsGuardian", () => {
     await expect(
       h.as(h.visitor()).registerAsGuardian(DECLARATION)
     ).rejects.toThrow(DomainError);
+    await expect(h.as(h.visitor()).myGuardianProfile()).rejects.toThrow(
+      DomainError
+    );
   });
 });
 
