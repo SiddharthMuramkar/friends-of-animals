@@ -27,9 +27,9 @@ import {
 } from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import { uuidv7 } from "../ids";
-import { REQUESTED_GUARDIAN_NAME } from "../modules/guardians/guardian-request";
 import { storedGuardianDetails } from "../modules/guardians/guardian-record";
 import {
+  REQUESTED_GUARDIAN_NAME,
   storedTeenContact,
   TEEN_INVITATION_TOKEN,
 } from "../modules/guardians/teen-contact";

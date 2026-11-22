@@ -18,6 +18,12 @@ export const TEEN_CONTACT = "guardian_invitation.contact";
 /** The purpose the cipher binds a link token's stored copy to. */
 export const TEEN_INVITATION_TOKEN = "guardian_invitation.token";
 
+/**
+ * The purpose the cipher binds the guardian's name a teen gives in a
+ * guardian request (81b) to.
+ */
+export const REQUESTED_GUARDIAN_NAME = "guardian_invitation.invitee_name";
+
 export type TeenContact = {
   channel: GuardianInvitationChannel;
   address: string;

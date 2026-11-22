@@ -11,8 +11,10 @@ import * as schema from "../../../src/server/db/schema";
 import { DEVELOPMENT_AUTH_SECRET } from "../../../src/server/identity/settings";
 import { uuidv7 } from "../../../src/server/ids";
 import { invitationExpiresAt } from "../../../src/server/modules/institutions/domain/invitation";
-import { REQUESTED_GUARDIAN_NAME } from "../../../src/server/modules/guardians/guardian-request";
-import { storedTeenContact } from "../../../src/server/modules/guardians/teen-contact";
+import {
+  REQUESTED_GUARDIAN_NAME,
+  storedTeenContact,
+} from "../../../src/server/modules/guardians/teen-contact";
 import { formatIsoDate } from "../../../src/server/modules/registration/domain/calendar-date";
 import { identityKeyInput } from "../../../src/server/modules/registration/domain/identity-key";
 import { IDENTITY_HASH_PURPOSE } from "../../../src/server/modules/registration/domain/prepare-student";

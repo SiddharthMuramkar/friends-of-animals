@@ -68,13 +68,11 @@ import { guardianOfUser } from "./guardian-record";
 import {
   parseTeenEmail,
   readTeenContact,
+  REQUESTED_GUARDIAN_NAME,
   storedTeenContact,
   teenContactHash,
   TEEN_INVITATION_TOKEN,
 } from "./teen-contact";
-
-/** The purpose the cipher binds a requested guardian's name to. */
-export const REQUESTED_GUARDIAN_NAME = "guardian_invitation.invitee_name";
 
 /** A parent or guardian a teen names, as typed. */
 export type GuardianDetailsInput = {

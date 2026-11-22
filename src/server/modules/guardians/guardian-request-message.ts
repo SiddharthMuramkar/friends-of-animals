@@ -19,8 +19,11 @@ import { formats, LOCALE } from "../../../i18n/formats";
 import { invitationPath } from "../../../lib/app-routes";
 import { guardianInvitation, participantProfile } from "../../db/schema";
 import { invitationStatus } from "../institutions/domain/invitation";
-import { REQUESTED_GUARDIAN_NAME } from "./guardian-request";
-import { readTeenContact, TEEN_INVITATION_TOKEN } from "./teen-contact";
+import {
+  readTeenContact,
+  REQUESTED_GUARDIAN_NAME,
+  TEEN_INVITATION_TOKEN,
+} from "./teen-contact";
 import type { TeenInvitationMessageDeps } from "./teen-invitation-message";
 
 const t = createTranslator({
