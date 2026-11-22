@@ -90,20 +90,20 @@ test("finance reads a payment in review and the batches, and each form says what
     "After registration closed"
   );
   await checkBothThemes(page, "/admin/payments/review");
-  await page.getByRole("link", { name: "Resolved" }).click();
+  await page.getByRole("link", { name: "Resolved", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/payments\/review\?view=resolved$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await checkBothThemes(page, "/admin/payments/review?view=resolved");
 
   // The payment's own page, and its decision sent without a reason.
-  await page.getByRole("link", { name: "Open" }).click();
+  await page.getByRole("link", { name: "Open", exact: true }).click();
   await seeded.click();
   await expect(page).toHaveURL(/\/admin\/payments\/review\/[0-9a-f-]{36}$/);
   await expect(
     page.getByRole("heading", { level: 1, name: "Payment of ₹1,000.00" })
   ).toBeVisible();
   await expect(page).toHaveTitle(/^Payment needing review ·/);
-  await expect(page.getByText("Kinder Skies")).toBeVisible();
+  await expect(page.getByText("Kinder Skies", { exact: true })).toBeVisible();
   await checkBothThemes(page, "/admin/payments/review/[id]");
   await page.getByRole("button", { name: "Accept the money" }).click();
   await expect(
@@ -124,7 +124,9 @@ test("finance reads a payment in review and the batches, and each form says what
     page.getByRole("heading", { level: 1, name: "Payment of ₹1,000.00" })
   ).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Details" }).getByText("Needs review")
+    page
+      .getByRole("region", { name: "Details", exact: true })
+      .getByText("Needs review")
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "After registration closed, Open" })
@@ -133,7 +135,10 @@ test("finance reads a payment in review and the batches, and each form says what
 
   // The batch paid by cheque, with its offline payment.
   await visit(page, `/admin/payments/batches/${SEEDED.chequeBatch}`);
-  const offline = page.getByRole("region", { name: "Offline payment" });
+  const offline = page.getByRole("region", {
+    name: "Offline payment",
+    exact: true,
+  });
   await expect(offline).toContainText("Cheque");
   await expect(offline).toContainText("004512");
   await expect(
@@ -164,7 +169,7 @@ test("finance reads a payment in review and the batches, and each form says what
   await visit(page, `/admin/payments/batches/${SEEDED.unpaidBatch}`);
   await expect(
     page
-      .getByRole("region", { name: "Details" })
+      .getByRole("region", { name: "Details", exact: true })
       .getByText("Waiting for payment", { exact: true })
   ).toBeVisible();
 });

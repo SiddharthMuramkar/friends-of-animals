@@ -9,6 +9,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_PAYMENTS_REVIEW,
   APP_ROUTES,
   institutionCompetitionsPath,
   judgingGuidePath,
@@ -174,7 +175,7 @@ async function AreaBody({
             ...(money
               ? [
                   {
-                    href: APP_ROUTES.adminPaymentsReview,
+                    href: ADMIN_PAYMENTS_REVIEW,
                     label: t("admin.payments"),
                   },
                 ]

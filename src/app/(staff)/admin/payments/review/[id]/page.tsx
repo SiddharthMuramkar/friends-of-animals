@@ -11,9 +11,9 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_PAYMENTS_REVIEW,
   adminPaymentBatchPath,
   adminPaymentReviewCasePath,
-  APP_ROUTES,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
@@ -60,7 +60,7 @@ export default async function Page({ params, searchParams }: Props) {
   return (
     <Section hue="neutral" tone="tint" className="pt-10 sm:pt-14">
       <ButtonLink
-        href={APP_ROUTES.adminPaymentsReview}
+        href={ADMIN_PAYMENTS_REVIEW}
         variant="quiet"
         className="-ms-5 mb-4"
       >
@@ -92,7 +92,7 @@ async function ReviewCase({
         title={t("case.notFound.title")}
         headingLevel="h1"
         back={{
-          href: APP_ROUTES.adminPaymentsReview,
+          href: ADMIN_PAYMENTS_REVIEW,
           label: t("case.notFound.back"),
         }}
       >

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ADMIN_PAYMENTS_REVIEW,
   adminCmsDocumentPath,
+  adminPaymentBatchPath,
+  adminPaymentReviewCasePath,
   adminInstitutionPath,
   APP_ROUTES,
   guardianChildPath,
@@ -26,6 +29,16 @@ describe("isSignedInPage", () => {
     for (const path of Object.values(APP_ROUTES)) {
       expect(isSignedInPage(path), path).toBe(true);
     }
+  });
+
+  it("knows the payments pages (#79), though the review list isn't in APP_ROUTES", () => {
+    expect(isSignedInPage(ADMIN_PAYMENTS_REVIEW)).toBe(true);
+    expect(isSignedInPage(adminPaymentReviewCasePath(COMPETITION_ID))).toBe(
+      true
+    );
+    expect(isSignedInPage(adminPaymentBatchPath(COMPETITION_ID))).toBe(true);
+    expect(isSignedInPage("/admin/payments")).toBe(false);
+    expect(isSignedInPage("/admin/payments/batches")).toBe(false);
   });
 
   it("knows a competition's edit and preview pages, whatever its id", () => {

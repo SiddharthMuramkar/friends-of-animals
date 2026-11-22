@@ -8,7 +8,10 @@ import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import { TableScroller } from "@/components/site/table-scroller";
-import { adminPaymentReviewCasePath, APP_ROUTES } from "@/lib/app-routes";
+import {
+  ADMIN_PAYMENTS_REVIEW,
+  adminPaymentReviewCasePath,
+} from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type { PaymentReviewCaseItem } from "@/server/modules/payments";
@@ -33,8 +36,8 @@ type View = "open" | "resolved";
 
 const viewHref = (view: View) =>
   view === "resolved"
-    ? `${APP_ROUTES.adminPaymentsReview}?view=resolved`
-    : APP_ROUTES.adminPaymentsReview;
+    ? `${ADMIN_PAYMENTS_REVIEW}?view=resolved`
+    : ADMIN_PAYMENTS_REVIEW;
 
 /**
  * Payments needing review (#79): money the gateway captured that its batch
