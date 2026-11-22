@@ -13,10 +13,11 @@ const EMAIL: CodeFormChannel = {
     as(actor).requestEmailCode(
       intent === "sign-up" ? { intent, email, name } : { intent, email }
     ),
-  verify: (actor, { intent, contact: email, name }, code) =>
+  // A sign-up sends on the messages consent box, when it was ticked.
+  verify: (actor, { intent, contact: email, name, messagesConsent }, code) =>
     as(actor).verifyEmailCode(
       intent === "sign-up"
-        ? { intent, email, name, code }
+        ? { intent, email, name, code, messagesConsent }
         : { intent, email, code }
     ),
   shown: (email) => email,
