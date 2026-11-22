@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type ComponentProps, useSyncExternalStore } from "react";
 
 import { type ConnectionHints, shouldSkipPrefetch } from "@/lib/connection";
+import { PAGE_NAVIGATION } from "@/lib/page-transition";
 
 type Connection = ConnectionHints & EventTarget;
 
@@ -25,12 +26,24 @@ const skipPrefetchOnServer = () => false;
  * The site's internal link: next/link, except that it never prefetches
  * when the visitor has data saver on or a 2G-slow connection (the App
  * Router doesn't check either). Everyone else keeps instant navigation.
+ * Its navigation carries PAGE_NAVIGATION, the only transition the page
+ * cross-fades for (page-transition.ts).
  */
-export function SiteLink({ prefetch, ...props }: ComponentProps<typeof Link>) {
+export function SiteLink({
+  prefetch,
+  transitionTypes,
+  ...props
+}: ComponentProps<typeof Link>) {
   const skip = useSyncExternalStore(
     subscribe,
     skipPrefetch,
     skipPrefetchOnServer
   );
-  return <Link prefetch={skip ? false : prefetch} {...props} />;
+  return (
+    <Link
+      prefetch={skip ? false : prefetch}
+      transitionTypes={[PAGE_NAVIGATION, ...(transitionTypes ?? [])]}
+      {...props}
+    />
+  );
 }
