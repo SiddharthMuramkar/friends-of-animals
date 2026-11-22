@@ -44,6 +44,27 @@ function block(name: string, parent?: string): string {
 const shared = () => block("x-worker");
 const service = (name: string) => block(name, "services");
 
+/** Whether IPv4 `address` lies inside `cidr` (e.g. 10.112.14.0/28). */
+function inCidr(address: string, cidr: string): boolean {
+  const toInt = (ip: string) =>
+    ip.split(".").reduce((n, octet) => n * 256 + Number(octet), 0);
+  const [base, bits] = cidr.split("/");
+  const size = 2 ** (32 - Number(bits));
+  const start = Math.floor(toInt(base!) / size) * size;
+  const at = toInt(address);
+  return at >= start && at < start + size;
+}
+
+const SENTRY_FILE = "/etc/foa/secrets/worker_sentry.env";
+
+/** A service's `env_file:` entries, in order. */
+function envFiles(own: string): { path: string; required: boolean }[] {
+  const list = /^ {4}env_file:\n((?: {6}.*\n?)+)/m.exec(own)?.[1] ?? "";
+  return [
+    ...list.matchAll(/^ {6}- path: (\S+)\n {8}required: (true|false)$/gm),
+  ].map((m) => ({ path: m[1]!, required: m[2] === "true" }));
+}
+
 /** The health check's shell command, as Compose passes it to sh -c. */
 function healthCommand(): string {
   const match = /test:\n\s+- CMD-SHELL\n\s+- (.+)\n/.exec(shared());
@@ -84,12 +105,44 @@ describe("docker/workers.yml", () => {
     expect(TEXT).not.toMatch(/^\s+expose:/m);
   });
 
-  it("reads the workers' Sentry DSN from /etc/foa/secrets, if there is one", () => {
-    expect(shared()).toMatch(
-      /^ {2}env_file:\n {4}- path: \/etc\/foa\/secrets\/worker_sentry\.env\n {6}required: false$/m
-    );
+  it("reads every worker's Sentry DSN from /etc/foa/secrets, if there is one", () => {
+    for (const name of [...SERVICES, "worker-media"]) {
+      expect(envFiles(service(name)), name).toContainEqual({
+        path: SENTRY_FILE,
+        required: false,
+      });
+    }
     // The DSN itself never sits in git.
     expect(TEXT).not.toMatch(/SENTRY_DSN:/);
+  });
+
+  it.each([
+    ["worker-prod", "/etc/foa/secrets/worker_prod_r2.env"],
+    ["worker-staging", "/etc/foa/preview-files.env"],
+    ["worker-preview", "/etc/foa/preview-files.env"],
+  ])(
+    "gives %s its own environment's R2 credentials for the upload scan",
+    (name, file) => {
+      // Without all four R2_ variables the worker's scan fails every file
+      // (src/worker/main.ts), so each database worker needs its bucket's.
+      expect(envFiles(service(name))).toEqual([
+        { path: SENTRY_FILE, required: false },
+        { path: file, required: false },
+      ]);
+    }
+  );
+
+  it("shares no env file through the worker anchor, so production's R2 key stays with worker-prod", () => {
+    // Every worker merges x-worker, preview and staging included: a file
+    // listed there would hand production's bucket to all of them.
+    expect(shared()).not.toMatch(/env_file:/);
+    const prodR2 = "/etc/foa/secrets/worker_prod_r2.env";
+    for (const name of ["worker-staging", "worker-preview", "worker-media"]) {
+      expect(service(name), name).not.toContain(prodR2);
+    }
+    expect(TEXT.split(prodR2)).toHaveLength(2);
+    // The keys themselves never sit in git.
+    expect(TEXT).not.toMatch(/R2_[A-Z_]+:/);
   });
 
   it("runs the worker image target read-only on the db network", () => {
@@ -187,7 +240,12 @@ describe("docker/workers.yml", () => {
       "TCPAddr 10.112.14.2",
     ]);
     expect(clamd).toContain("TCPSocket 3310");
+    // /init-unprivileged waits for this socket before it counts clamd as up.
+    expect(clamd).toMatch(/^LocalSocket \/tmp\/clamd\.sock$/m);
     expect(clamd).toContain("ConcurrentDatabaseReload no");
+    // A file over clamd's scan limits is only partly scanned; without this
+    // it would still come back `stream: OK` and count as clean.
+    expect(clamd).toMatch(/^AlertExceedsMax yes$/m);
     expect(clamav).toContain(
       "./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro"
     );
@@ -197,6 +255,27 @@ describe("docker/workers.yml", () => {
     );
     expect(freshclam).toContain("NotifyClamd /etc/clamav/clamd.conf");
     expect(freshclam).toContain("TestDatabases no");
+  });
+
+  it("keeps clamd's fixed scan address out of the range Docker hands out", () => {
+    // The workers join `scan` with dynamic addresses and start alongside
+    // foa-clamav. If Docker could hand out clamd's address, a worker that
+    // attaches first takes it and foa-clamav fails with "Address already in
+    // use". So dynamic addresses come from an ip_range that excludes it.
+    const scan = /^ {2}scan:\n((?: {4}.*\n)+)/m.exec(`${block("networks")}\n`);
+    expect(scan, "networks.scan").not.toBeNull();
+    const subnet = /^ {8}- subnet: (\S+)$/m.exec(scan![1]!)?.[1];
+    const range = /^ {10}ip_range: (\S+)$/m.exec(scan![1]!)?.[1];
+    expect(subnet, "scan subnet").toBeDefined();
+    expect(range, "scan ip_range").toBeDefined();
+    const fixed = /^ {8}ipv4_address: (\S+)$/m.exec(service("foa-clamav"))?.[1];
+    expect(fixed, "foa-clamav's scan address").toBeDefined();
+    expect(inCidr(fixed!, subnet!), `${fixed} in ${subnet}`).toBe(true);
+    expect(
+      inCidr(range!.split("/")[0]!, subnet!),
+      `${range} in ${subnet}`
+    ).toBe(true);
+    expect(inCidr(fixed!, range!), `${fixed} outside ${range}`).toBe(false);
   });
 
   it("configures every database worker to scan through foa-clamav:3310", () => {
@@ -232,9 +311,7 @@ describe("docker/workers.yml", () => {
     const media = service("worker-media");
     expect(media).toMatch(/^ {4}profiles:\n {6}- media$/m);
     expect(media).toContain("<<: *worker");
-    expect(media).toContain(
-      "image: foa-workers/worker-media:${WORKER_VERSION:-unknown}"
-    );
+    expect(media).toContain("image: foa-workers/worker-media\n");
     expect(media).toContain(
       'command: ["node", "--import", "tsx", "src/worker-media/main.ts"]'
     );
@@ -248,10 +325,11 @@ describe("docker/workers.yml", () => {
     expect(media).toContain("WORKER_DATABASE_URL: postgres://foa_worker@");
     expect(media).toContain("source: pg_prod_foa_worker_password");
     expect(media).toContain("WORKER_PASSWORD_FILE: /run/secrets/db_password");
-    expect(media).toContain("env_file: *worker-prod-env");
-    expect(service("worker-prod")).toContain(
-      "/etc/foa/secrets/worker_prod_files.env"
-    );
+    // Its own R2 file for the derivatives: worker-prod's key stays put.
+    expect(envFiles(media)).toEqual([
+      { path: SENTRY_FILE, required: false },
+      { path: "/etc/foa/secrets/worker_media_r2.env", required: false },
+    ]);
     const dockerfile = readFileSync(
       new URL("../Dockerfile", import.meta.url),
       "utf8"

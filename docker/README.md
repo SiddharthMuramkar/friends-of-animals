@@ -82,7 +82,10 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_prod_foa_worker_password`          | 1000, 0400      | `foa_worker` (worker-prod)            |
 | `/etc/foa/secrets/pg_nonprod_staging_worker_password`   | 1000, 0400      | `staging_worker` (worker-staging)     |
 | `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
-| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for all three workers   |
+| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for every worker        |
+| `/etc/foa/secrets/worker_prod_r2.env` (optional, HR-08) | root, 0600      | Prod bucket `R2_*`, worker-prod only  |
+| `/etc/foa/secrets/worker_media_r2.env` (optional)       | root, 0600      | Prod bucket `R2_*`, worker-media only |
+| `/etc/foa/preview-files.env` (optional)                 | root, 0600      | Non-prod `R2_*`: staging, previews    |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
 | `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
@@ -92,7 +95,9 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 
 999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours;
 1000 is `node` in the worker image. The worker secrets come from
-`scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`.
+`scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`;
+the optional `.env` files are written by hand (Workers, "Scan, PDF and
+media sidecars").
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
@@ -864,9 +869,9 @@ heartbeat rows; leave it out and they say `unknown`.
 - Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
   its poll, stops pg-boss and closes its connections within 30 s).
 - Updating: `git -C /srv/foa pull`, then the "Run" line; only a changed
-  image is recreated. The database workers build from `/srv/foa` (main), and each has
-  its own image (`foa-workers/worker-<name>`), so rebuilding one never swaps
-  another's.
+  image is recreated. The workers build from `/srv/foa` (main), and each
+  has its own untagged image (`foa-workers/worker-<name>`), so rebuilding
+  one never swaps another's and a deploy leaves no old tag behind.
 - Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
 - Rotating a worker password: replace its file in `/etc/foa/secrets`, rerun
   `scripts/worker-roles.sh`, restart that worker.
@@ -874,7 +879,7 @@ heartbeat rows; leave it out and they say `unknown`.
   database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
   email, and restarts on code changes.
 
-### Scan, PDF and media sidecars (B10)
+### Scan, PDF and media sidecars
 
 | Service         | Connection and health check                                                                                          | Memory |
 | --------------- | -------------------------------------------------------------------------------------------------------------------- | ------ |
@@ -887,8 +892,31 @@ internal `scan` bridge and loopback. FreshClam uses a separate bridge to
 reach the signature mirror and keeps its databases in `foa-clamav-db`.
 Allow six minutes for the initial signature load. Scans wait during a
 signature reload so ClamAV can stay within its memory limit. Check the
-journal for signature-load failures. The upload scan also requires the
-worker's environment-specific R2 configuration (HR-06).
+journal for signature-load failures.
+
+The upload scan also reads each file from its environment's R2 bucket, so a
+database worker scans only with all four `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` and `R2_BUCKET` (HR-08). Without them every scan fails
+and uploads wait unscanned. Each worker lists its own optional env file;
+none goes through the shared `x-worker` anchor, which every worker merges:
+
+| Worker                             | R2 file (root, 0600)                   | Bucket                                 |
+| ---------------------------------- | -------------------------------------- | -------------------------------------- |
+| `worker-prod`                      | `/etc/foa/secrets/worker_prod_r2.env`  | production                             |
+| `worker-media` (derivatives)       | `/etc/foa/secrets/worker_media_r2.env` | production                             |
+| `worker-staging`, `worker-preview` | `/etc/foa/preview-files.env`           | non-production (also the purge hook's) |
+
+Write the production file with the R2 token scoped to the production
+bucket, without printing it, then recreate worker-prod:
+
+```sh
+install -m 0600 -o root -g root /dev/null /etc/foa/secrets/worker_prod_r2.env
+# R2_ACCOUNT_ID=, R2_ACCESS_KEY_ID=, R2_SECRET_ACCESS_KEY=, R2_BUCKET= lines
+docker compose -f workers.yml up -d --wait worker-prod
+```
+
+Put only the four `R2_` lines in these files: a service's `environment:`
+overrides anything else they set.
 
 Gotenberg and the media worker share the internal `pdf` network. Send
 documents and their assets as file uploads. Chromium and LibreOffice
@@ -905,16 +933,18 @@ docker compose -f workers.yml ps foa-clamav foa-gotenberg
 ```
 
 The `media` profile is opt-in. After the Files migrations are applied,
-configure `/etc/foa/secrets/worker_prod_files.env` (root, mode 0600) with the
-four `R2_*` variables for the private production bucket. Both `worker-prod`
-and `worker-media` read it. The token must allow reads and writes in that bucket.
+write `/etc/foa/secrets/worker_media_r2.env` (root, mode 0600) with the four
+`R2_*` variables for the private production bucket, as for worker-prod's file
+above. Only `worker-media` reads it. Its token must allow reads and writes in
+that bucket, because the media worker stores the derivatives there.
 
 The default worker scans uploads and queues image derivatives. The media worker
-connects directly to the same database and drains only those deliveries, one
-image at a time. `MEDIA_TIMEOUT_SECONDS` defaults to 60 seconds for image
-processing. It uses the container heartbeat file for health checks. The
-database heartbeat read by `/api/health/worker` continues to track the
-default worker. The PDF adapter in #100 uses the Gotenberg endpoint.
+connects directly to the same database (on `db`, which also routes to R2) and
+drains only those deliveries, one image at a time. `MEDIA_TIMEOUT_SECONDS`
+defaults to 60 seconds for image processing. It uses the container heartbeat
+file for health checks. The database heartbeat read by `/api/health/worker`
+continues to track the default worker. The PDF adapter in #100 uses the
+Gotenberg endpoint.
 
 ```sh
 WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
