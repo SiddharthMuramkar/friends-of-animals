@@ -26,12 +26,13 @@ stored plain, but still listed.
 
 ## What is listed so far
 
-| Table                      | Columns                                                                                                                                     |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `user`                     | `name`, `email`, `phone_ciphertext`                                                                                                         |
-| `institution`              | `contact_email`, `contact_phone`, `principal_name`, `principal_email_ciphertext`, `principal_phone_ciphertext`, `created_by`, `verified_by` |
-| `institution_invitation`   | `identifier_ciphertext`, `identifier_hash`, `token_ciphertext`, `invited_by_user_id`, `accepted_by_user_id`, `revoked_by_user_id`           |
-| `institution_registration` | `registered_by`                                                                                                                             |
+| Table                      | Columns                                                                                                                                                                                                                                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `user`                     | `name`, `email`, `phone_ciphertext`                                                                                                                                                                                                                                                            |
+| `institution`              | `contact_email`, `contact_phone`, `principal_name`, `principal_email_ciphertext`, `principal_phone_ciphertext`, `created_by`, `verified_by`                                                                                                                                                    |
+| `institution_invitation`   | `identifier_ciphertext`, `identifier_hash`, `token_ciphertext`, `invited_by_user_id`, `accepted_by_user_id`, `revoked_by_user_id`                                                                                                                                                              |
+| `institution_registration` | `registered_by`                                                                                                                                                                                                                                                                                |
+| `participant_profile`      | `full_name`, `dob_ciphertext`, `grade`, `student_ref`, `phone_ciphertext`, `email_ciphertext`, `guardian_name_ciphertext`, `guardian_relationship`, `guardian_phone_ciphertext`, `guardian_email_ciphertext`, `address_ciphertext`, `pin_code`, `city`, `state`, `identity_hash`, `created_by` |
 
 Sessions, the audit log's IP addresses and the other early tables are listed
 by the data inventory and retention ticket (#114), which also enforces

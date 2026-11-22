@@ -13,7 +13,6 @@
 import { and, eq, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { parsePhoneNumber } from "../../../lib/phone";
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
@@ -32,7 +31,7 @@ import {
 import { initialRegistrationStatus } from "./domain/registration-status";
 import type { StudentField, StudentInput } from "./domain/student-details";
 import { ageGroupsOf, loadEnrolmentFacts } from "./enrolment-facts";
-import { studentColumns } from "./student-profile";
+import { normaliseStudentPhone, studentColumns } from "./student-profile";
 
 export type EnrolStudentInput = {
   institutionId: string;
@@ -81,12 +80,6 @@ const enrolInput = z.object({
     guardianEmail: text,
   }),
 });
-
-/** #58's normaliser, as the student rules take it. */
-export function normaliseStudentPhone(raw: string): string | null {
-  const parsed = parsePhoneNumber(raw);
-  return parsed.ok ? parsed.e164 : null;
-}
 
 /**
  * Whether the child is already enrolled under this institution

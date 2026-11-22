@@ -4,12 +4,19 @@
 // the rest plain. Shared by enrolling and the seed. Loads under plain Node
 // (the seed script): relative imports only, no "server-only".
 
+import { parsePhoneNumber } from "../../../lib/phone";
 import type { Ciphertext, FieldCipher } from "../../crypto/field-cipher";
 import { formatIsoDate } from "./domain/calendar-date";
 import type {
   GuardianRelationship,
   StudentDetails,
 } from "./domain/student-details";
+
+/** #58's normaliser, as the student rules take it: E.164 or null. */
+export function normaliseStudentPhone(raw: string): string | null {
+  const parsed = parsePhoneNumber(raw);
+  return parsed.ok ? parsed.e164 : null;
+}
 
 /** The purpose each encrypted column binds its values to. */
 export const PROFILE_PURPOSE = {

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { institutionRegistration } from "@/server/db/schema";
+import {
+  institutionRegistration,
+  participantProfile,
+  registration,
+} from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 import { seedInstitution } from "@/test/institutions";
 
 import { SEED_COORDINATORS } from "./coordinators";
-import { SEED_REGISTRATIONS } from "./registration";
+import { SEED_REGISTRATIONS, SEED_STUDENTS } from "./registration";
 import { SEED_SCOPES } from "./scopes";
 
 describe("the registration seed", () => {
@@ -65,5 +69,73 @@ describe("the registration seed", () => {
         registeredBy: null,
       }),
     ]);
+  });
+
+  it("enrols six students across the competition's age groups and one withdrawn, under the seeded registration", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    const coordinator = await h.signIn(SEED_COORDINATORS.coordinator);
+
+    const dashboard = await h.as(coordinator).listEnrolledStudents({
+      institutionId: SEED_SCOPES.institution.id,
+      reference: "NEIGH27-I-5EED1",
+    });
+
+    expect(dashboard.ok && dashboard.counts).toEqual({
+      enrolled: 6,
+      withdrawn: 1,
+    });
+    const students = dashboard.ok ? dashboard.students : [];
+    const groupsOfEnrolled = new Set(
+      students
+        .filter((student) => student.status === "enrolled")
+        .map((student) => student.ageGroupLabel)
+    );
+    expect(groupsOfEnrolled.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it("enrols them once however often it runs, with fictional contacts stored encrypted", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    const once = await h.db.select().from(registration);
+    await h.seed.preview();
+
+    expect(await h.db.select().from(registration)).toEqual(once);
+    const profiles = await h.db.select().from(participantProfile);
+    expect(profiles).toHaveLength(7);
+    for (const profile of profiles) {
+      expect(profile.dobCiphertext).toMatch(/^v\d+:/);
+      const phone = h.deps.cipher.decrypt(
+        "participant_profile.guardian_phone",
+        profile.guardianPhoneCiphertext!
+      );
+      expect(phone).toMatch(/^\+9190000051\d\d$/);
+      const email = h.deps.cipher.decrypt(
+        "participant_profile.guardian_email",
+        profile.guardianEmailCiphertext!
+      );
+      expect(email).toMatch(/@example\.test$/);
+    }
+  });
+
+  it("recognises a seeded student, so a coordinator can't enrol them again", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    const coordinator = await h.signIn(SEED_COORDINATORS.coordinator);
+    const [seeded] = SEED_STUDENTS;
+
+    const result = await h.as(coordinator).enrolStudent({
+      institutionId: SEED_SCOPES.institution.id,
+      reference: "NEIGH27-I-5EED1",
+      student: {
+        fullName: seeded!.fullName,
+        dateOfBirth: seeded!.dateOfBirth,
+        guardianName: "Someone Else",
+        guardianRelationship: "parent",
+        guardianPhone: "90000 05199",
+      },
+    });
+
+    expect(result).toEqual({ ok: false, error: "already_enrolled" });
   });
 });
