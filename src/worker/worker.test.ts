@@ -1,10 +1,18 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { AppDb } from "@/server/db/app-db";
-import { capturedMessage, outbox, workerHeartbeat } from "@/server/db/schema";
+import {
+  capturedMessage,
+  fileAsset,
+  outbox,
+  workerHeartbeat,
+} from "@/server/db/schema";
 import { emitUserSignedUp } from "@/server/outbox/testing";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
+import { FakeMalwareScanner } from "@/test/fakes/malware-scanner";
+import { FakeStorage } from "@/test/fakes/storage";
 import { createHarness } from "@/test/harness";
 
 import type { WorkerConfig } from "./config";
@@ -21,6 +29,8 @@ const COMMON = {
   heartbeatFile: "/tmp/foa-worker-heartbeat",
   passwordFile: undefined,
   sentryDsn: undefined,
+  r2: undefined,
+  clamd: { CLAMD_PORT: 3310 },
 } as const;
 
 function singleConfig(
@@ -63,12 +73,15 @@ async function brokenDb(): Promise<AppDb> {
 
 /**
  * Fake I/O: `databases` maps a URL's database name to a test database;
- * `catalog` is what pg-nonprod lists. Records what the worker opened.
+ * `catalog` is what pg-nonprod lists; `overrides` replace any of the rest.
+ * Records what the worker opened.
  */
 function fakeIo(
   databases: Record<string, AppDb>,
-  catalog: ListedDatabase[] = []
+  catalog: ListedDatabase[] = [],
+  overrides: Partial<WorkerIo> = {}
 ) {
+  const clock = new FakeClock();
   const record = {
     opened: [] as { url: string; connections: number }[],
     ended: [] as string[],
@@ -81,7 +94,7 @@ function fakeIo(
     errors: [] as { error: unknown; tenant: string }[],
   };
   const io: WorkerIo = {
-    clock: new FakeClock(),
+    clock,
     log: (entry) => record.log.push(entry),
     onTenantError: (error, { tenant }) => record.errors.push({ error, tenant }),
     openDatabase(url, connections) {
@@ -124,11 +137,47 @@ function fakeIo(
     async beat(at) {
       record.beats.push(at);
     },
+    storage: new FakeStorage(clock),
+    scanner: new FakeMalwareScanner(),
+    ...overrides,
   };
   return { io, record };
 }
 
 describe("a single-database worker", () => {
+  it("scans an upload in its database with its storage and scanner", async () => {
+    const h = await createHarness();
+    const owner = await h.signIn(await h.seed.member());
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ]);
+    const requested = await h.as(owner).requestUpload({
+      purpose: "test_upload",
+      contentType: "image/png",
+      sizeBytes: png.length,
+    });
+    if (!requested.ok) throw new Error(`refused: ${requested.error}`);
+    await h.storage.put(requested.uploadUrl, png, requested.headers);
+    await h.as(owner).completeUpload({ fileId: requested.fileId });
+    const { io } = fakeIo({ foa: h.db }, [], {
+      clock: h.clock,
+      storage: h.storage,
+      scanner: h.scanner,
+    });
+
+    const worker = createWorker(singleConfig("local"), io);
+    await worker.start();
+    await worker.tick();
+
+    expect(h.scanner.scans).toBe(1);
+    expect(
+      await h.db
+        .select({ status: fileAsset.status })
+        .from(fileAsset)
+        .where(eq(fileAsset.id, requested.fileId))
+    ).toEqual([{ status: "clean" }]);
+  });
+
   it("drains its database, captures the email and beats", async () => {
     const h = await createHarness();
     const member = await h.seed.member();

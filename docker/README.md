@@ -715,10 +715,30 @@ pg-nonprod databases whose comment starts with `foa-preview `:
 
 Anything uncertain (API error, rate limit, odd name or comment) is kept;
 `foa_seed`, `foa_staging`, `postgres` and the templates are never touched,
-and only names matching `foa_(pr|br)_[a-z0-9_]+` are dropped. `--dry-run`
+and only names shaped like a preview's (`foa_pr_<n>_<fp>` or
+`foa_br_[<slug>_]<hash>_<fp>`) whose comment matches the name's storage prefix
+are dropped. `--dry-run`
 prints what it would drop. Unauthenticated GitHub API calls are limited to 60
 an hour; with many open previews, or if the repo goes private, put a read-only
 `GITHUB_TOKEN=...` in `/etc/foa/sweeper.env` (0600).
+
+Before each drop the sweeper records it in
+`/var/lib/foa/preview-purge/<database>.pending` (`FOA_PREVIEW_PURGE_STATE`;
+one sweep at a time, under a lock there). At the end of every sweep, for each
+record whose storage prefix no database uses any more and whose PR is still
+closed (or branch still gone), it runs `scripts/run-preview-dropped-hooks.sh
+<database>`, which runs every executable `scripts/preview-dropped.d/*.sh`
+with that name. The record goes once the hooks succeed; a failing hook is
+logged and retried on the next sweep (a dry run runs none). To see what is
+pending, `ls /var/lib/foa/preview-purge`. `50-purge-files.sh` deletes that
+preview's files (`pr-<n>/` or `br-<hash>/` in the non-production bucket) by
+running `pnpm files:purge-preview --database <name>` in the worker image
+(`FOA_WORKER_IMAGE`, default `foa-workers/worker-preview`, the image
+`workers.yml` builds; never pulled). It reads the
+**non-production** bucket's `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` and `R2_BUCKET` from `/etc/foa/preview-files.env`
+(root, 0600; never production's, and no `APP_ENV`: the hook sets
+`APP_ENV=preview`). Without that file it fails and the files stay.
 
 ## Workers
 

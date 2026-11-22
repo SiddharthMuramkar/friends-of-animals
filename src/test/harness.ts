@@ -42,6 +42,8 @@ import { FakeEmail } from "./fakes/email";
 import { FakeSettings } from "./fakes/settings";
 import { FakeSms } from "./fakes/sms";
 import { FakeErrorReporter } from "./fakes/errors";
+import { FakeMalwareScanner } from "./fakes/malware-scanner";
+import { FakeStorage } from "./fakes/storage";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -106,6 +108,16 @@ export interface Harness {
    * finds nothing due. Retries wait for `clock.advance()`.
    */
   drain(): Promise<DrainReport>;
+  /**
+   * The private buckets. `put(url, bytes, headers)` and `get(url)` use a
+   * presigned URL as the browser does, checked against the fake clock.
+   */
+  storage: FakeStorage;
+  /**
+   * Flags the EICAR test file (src/test/eicar.ts); counts scans and fails
+   * the next ones with `failNext(n)`.
+   */
+  scanner: FakeMalwareScanner;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -118,6 +130,13 @@ export const TEST_AUTH = {
   secret: "seam-1-test-secret-0123456789abcdef",
   baseUrl: "http://localhost:3000",
 };
+
+/** A local run's files config: test uploads allowed, under `local/`. */
+export const TEST_FILES = {
+  bucket: "foa-files-test",
+  keyPrefix: "local/",
+  appEnv: "local",
+} as const;
 
 export async function createHarness(
   options: { now?: Date | string } = {}
@@ -137,6 +156,8 @@ export async function createHarness(
   const settings = new FakeSettings();
   const cookies = new FakeCookieJar(clock);
   const errors = new FakeErrorReporter();
+  const storage = new FakeStorage(clock);
+  const scanner = new FakeMalwareScanner();
   const deps: Deps = {
     db,
     clock,
@@ -152,6 +173,9 @@ export async function createHarness(
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
     settings,
     errors,
+    storage,
+    files: TEST_FILES,
+    scanner,
   };
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
@@ -230,6 +254,8 @@ export async function createHarness(
       totpCode(base32Decode(SEED_TOTP_SECRET), at),
     seed: createSeedBuilders(deps),
     drain: () => drainUntilIdle(deps),
+    storage,
+    scanner,
   };
   return harness;
 }
