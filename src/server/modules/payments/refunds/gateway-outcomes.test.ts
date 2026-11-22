@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { outbox } from "@/server/db/schema";
+import { outbox, paymentBatch } from "@/server/db/schema";
 import { listFailedDeliveries } from "@/server/outbox";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -277,6 +277,30 @@ describe("a lost answer", () => {
     await h.drain();
     expect(h.gateway.refunds).toHaveLength(1);
     expect((await refundRow(h, refundId)).status).toBe("refunded");
+  });
+});
+
+describe("a batch paid through another gateway", () => {
+  it("is never refunded through this one: it stays approved and the delivery fails for staff to see", async () => {
+    const h = await createHarness();
+    const { paid, refundId } = await approved(h);
+    await h.db
+      .update(paymentBatch)
+      .set({ gateway: "razorpay" })
+      .where(eq(paymentBatch.id, paid.batchId));
+
+    await h.drain();
+
+    expect(h.gateway.refunds).toHaveLength(0);
+    expect((await refundRow(h, refundId)).status).toBe("approved");
+    expect(
+      await h
+        .as(h.visitor())
+        .receiveGatewayWebhook(
+          refundWebhook(h, "refund.processed", paid, "rfnd_elsewhere")
+        )
+    ).toEqual({ ok: true, outcome: "refund_updated" });
+    expect(h.gateway.refunds).toHaveLength(0);
   });
 });
 

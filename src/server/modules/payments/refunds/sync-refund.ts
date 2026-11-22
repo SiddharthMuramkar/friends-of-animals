@@ -67,6 +67,9 @@ export const REFUND_SYNC_OUTCOMES = [
   "amount_mismatch",
   /** Sent, but the gateway doesn't list it. */
   "missing_at_gateway",
+  /** The batch was paid through another gateway than this one: only that
+   * one may refund it. */
+  "other_gateway",
 ] as const;
 
 export type RefundSyncOutcome = (typeof REFUND_SYNC_OUTCOMES)[number];
@@ -100,6 +103,12 @@ export async function syncRefund(
     return "unchanged";
   }
   if (found.method === "manual") return "awaiting_manual";
+  // Only the gateway that took the payment can give it back.
+  const [batch] = await deps.db
+    .select({ gateway: paymentBatch.gateway })
+    .from(paymentBatch)
+    .where(eq(paymentBatch.id, found.batchId));
+  if (batch?.gateway !== deps.payments.name) return "other_gateway";
 
   let atGateway: GatewayRefund[] = await deps.payments.fetchRefunds(
     subject.paymentId
@@ -283,8 +292,9 @@ export async function syncRefundsOfPayment(
 
 /**
  * The outbox handler refunds.send: syncs the refund as the worker. A
- * refund the gateway answered for another amount, or lost, fails the
- * delivery, so staff see it among the failed deliveries.
+ * refund the gateway answered for another amount, or lost, or one this
+ * worker's gateway didn't take (its keys are missing), fails the delivery:
+ * it is retried, then kept among the failed deliveries for staff.
  */
 export async function sendApprovedRefund(
   deps: Omit<RefundSyncDeps, "actor">,
@@ -294,7 +304,11 @@ export async function sendApprovedRefund(
     { ...deps, actor: { kind: "system", process: "worker" } },
     refundId
   );
-  if (outcome === "amount_mismatch" || outcome === "missing_at_gateway") {
+  if (
+    outcome === "amount_mismatch" ||
+    outcome === "missing_at_gateway" ||
+    outcome === "other_gateway"
+  ) {
     throw new Error(`Refund ${refundId}: ${outcome}`);
   }
 }

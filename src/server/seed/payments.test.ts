@@ -14,6 +14,7 @@ import { createHarness } from "@/test/harness";
 
 import { SEED_COORDINATORS } from "./coordinators";
 import { SEED_PAYMENTS } from "./payments";
+import { SEED_REFUNDS } from "./refunds";
 import { SEED_REGISTRATIONS, SEED_STUDENTS } from "./registration";
 import { SEED_SCOPES } from "./scopes";
 
@@ -45,6 +46,8 @@ describe("the payments seed", () => {
       { id: SEED_PAYMENTS.unpaid.batchId, status: "order_created" },
       { id: SEED_PAYMENTS.cheque.batchId, status: "captured" },
       { id: SEED_PAYMENTS.inReview.batchId, status: "needs_review" },
+      // The refunds seed's batch of one, refunded (#80).
+      { id: SEED_REFUNDS.refunded.batchId, status: "captured" },
     ]);
     expect(await rows()).toEqual(once);
   });
