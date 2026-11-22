@@ -3,12 +3,12 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 
 import { AiMark } from "@/components/art/ai-mark";
-import { InPageLink } from "@/components/site/in-page-link";
 import { NEIGHBOURS } from "@/content/awareness/neighbours";
 import { STREET_SCENE } from "@/content/awareness/street-scene";
 import { siteArt } from "@/lib/art";
 import { cn } from "@/lib/utils";
 
+import { DismissibleLink } from "./dismissible-link";
 import styles from "./street-scene.module.css";
 
 // next/image placeholder mode and quality (constants: the lint rule bars
@@ -84,15 +84,14 @@ export async function StreetScene({ className }: { className?: string }) {
               {/* Replaces the history entry, scrolls to and focuses the
                   card: a plain hash link breaks Back (#36). Escape hides
                   the name (WCAG 1.4.13). */}
-              <InPageLink
+              <DismissibleLink
                 href={`#neighbour-${spot.neighbour}`}
                 className={styles.pin}
-                dismissible
               >
                 <span className={styles.label}>
                   {NAMES.get(spot.neighbour)}
                 </span>
-              </InPageLink>
+              </DismissibleLink>
             </li>
           ))}
         </ul>

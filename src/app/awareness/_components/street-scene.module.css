@@ -2,7 +2,7 @@
    around an animal, so the animal shows through it; its name appears on
    keyboard focus, and on hover too once the picture is wide enough for names
    beside the rings (screen readers always get it). Escape hides a shown name
-   (WCAG 1.4.13; InPageLink `dismissible` sets data-dismissed). */
+   (WCAG 1.4.13; DismissibleLink sets data-dismissed). */
 
 /* The list over the picture. A size container: names lay out by the
    picture's width, and a name can sit against its edge (cqh). Above the
