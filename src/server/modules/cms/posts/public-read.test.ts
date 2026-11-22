@@ -320,7 +320,7 @@ describe("a post's uploaded images, publicly", () => {
     const shown = [
       post,
       card,
-      blogPostingJsonLd(post!, "https://foa.example.test"),
+      blogPostingJsonLd(post!, new URL("https://foa.example.test")),
       postMetadata(post!),
     ];
     const images = urlsIn(shown).filter((url) => url.includes("cms_image"));
