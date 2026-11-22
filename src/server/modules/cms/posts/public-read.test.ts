@@ -3,9 +3,17 @@
 // still waiting for its instant. Driven through the editors' use cases, so
 // every post got to its status the way the admin pages put it there.
 
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { createHarness, type Harness } from "@/test/harness";
+import { cmsPost } from "@/server/db/schema";
+
+import {
+  blogPostingJsonLd,
+  postMetadata,
+} from "@/server/modules/cms/domain/post-seo";
+import { createHarness, TEST_FILES, type Harness } from "@/test/harness";
+import { readMediaFixture } from "@/test/media-fixtures";
 
 const global = { type: "global" } as const;
 const MINUTE = 60_000;
@@ -215,5 +223,150 @@ describe("who may read public posts", () => {
         (await reads.getPublishedPostBySlug({ slug: "for-everyone" }))?.slug
       ).toBe("for-everyone");
     }
+  });
+});
+
+/** Uploads a JPEG for the post and waits for its public copies. */
+async function uploadedImage(
+  h: Harness,
+  editor: Editor,
+  postId: string,
+  alt: string
+) {
+  const jpeg = readMediaFixture("gpsJpeg");
+  const requested = await h.as(editor).uploadPostImage({
+    postId,
+    contentType: "image/jpeg",
+    sizeBytes: jpeg.length,
+    alt,
+  });
+  if (!requested.ok) throw new Error(JSON.stringify(requested));
+  const stored = await h.storage.put(
+    requested.uploadUrl,
+    jpeg,
+    requested.headers
+  );
+  if (!stored.ok) throw new Error(`not stored: ${stored.error}`);
+  const completed = await h
+    .as(editor)
+    .completeUpload({ fileId: requested.fileId });
+  if (!completed.ok) throw new Error(JSON.stringify(completed));
+  await h.drain();
+  return requested;
+}
+
+/** Every string in `value` that looks like a URL or a storage key. */
+function urlsIn(value: unknown): string[] {
+  const json = JSON.stringify(value);
+  return [...json.matchAll(/"((?:https?:\/\/|\/|local\/)[^"]*)"/g)].map(
+    (match) => match[1]!
+  );
+}
+
+describe("a post's uploaded images, publicly", () => {
+  it("show only through their public copies, never the original upload", async () => {
+    const h = await createHarness();
+    const editor = await contentManager(h);
+    const postId = await draft(h, editor, "kite-season");
+    const cover = await uploadedImage(h, editor, postId, "A kite over a roof");
+    const inline = await uploadedImage(h, editor, postId, "Volunteers");
+    const updated = await h.as(editor).updatePost({
+      postId,
+      kind: "blog",
+      title: "Kinder skies in kite season",
+      slug: "kite-season",
+      excerpt: "Gujarat ran bird-care points.",
+      body: {
+        blocks: [
+          { type: "paragraph", text: ["Birds first."] },
+          { type: "image", postImageId: inline.postImageId, caption: "Help" },
+        ],
+        footnotes: [],
+      },
+      cover: { postImageId: cover.postImageId },
+    });
+    if (!updated.ok) throw new Error(JSON.stringify(updated));
+    expect(await h.as(editor).publishPost({ postId })).toMatchObject({
+      ok: true,
+    });
+
+    const visitor = h.as(h.visitor());
+    const post = await visitor.getPublishedPostBySlug({ slug: "kite-season" });
+    const publicBase = `${TEST_FILES.publicBaseUrl}local/public/cms_image/`;
+
+    expect(post?.cover).toEqual({
+      source: "public",
+      url: `${publicBase}${cover.fileId}/post_cover_1200.webp`,
+      width: 1200,
+      height: 900,
+      alt: "A kite over a roof",
+    });
+    expect(post?.body.blocks[1]).toEqual({
+      type: "image",
+      image: {
+        source: "public",
+        url: `${publicBase}${inline.fileId}/post_inline_960.webp`,
+        width: 960,
+        height: 720,
+        alt: "Volunteers",
+      },
+      caption: "Help",
+    });
+    const [card] = (await visitor.listPublishedPosts()).filter(
+      (c) => c.slug === "kite-season"
+    );
+    expect(card?.cover).toEqual(post?.cover);
+
+    const shown = [
+      post,
+      card,
+      blogPostingJsonLd(post!, "https://foa.example.test"),
+      postMetadata(post!),
+    ];
+    const images = urlsIn(shown).filter((url) => url.includes("cms_image"));
+    expect(images.length).toBeGreaterThanOrEqual(4);
+    for (const url of images)
+      expect(url.startsWith(publicBase), url).toBe(true);
+    for (const fileId of [cover.fileId, inline.fileId]) {
+      expect(JSON.stringify(shown)).not.toContain(`local/cms_image/${fileId}`);
+    }
+    expect(JSON.stringify(shown)).not.toContain(TEST_FILES.bucket + "/");
+  });
+
+  it("are left out while their public copies don't exist", async () => {
+    const h = await createHarness();
+    const editor = await contentManager(h);
+    const postId = await published(h, editor, "no-copies-yet");
+    // An image whose copies aren't made yet can't go live, so it reaches a
+    // public body only through a stored body (a row edited by hand).
+    const requested = await h.as(editor).uploadPostImage({
+      postId,
+      contentType: "image/jpeg",
+      sizeBytes: 100,
+      alt: "Not ready",
+    });
+    if (!requested.ok) throw new Error(JSON.stringify(requested));
+    await h.db
+      .update(cmsPost)
+      .set({
+        body: {
+          blocks: [
+            { type: "paragraph", text: ["Words."] },
+            { type: "image", postImageId: requested.postImageId },
+          ],
+          footnotes: [],
+        },
+        coverImageId: requested.postImageId,
+      })
+      .where(eq(cmsPost.id, postId));
+
+    const post = await h
+      .as(h.visitor())
+      .getPublishedPostBySlug({ slug: "no-copies-yet" });
+
+    expect(post?.cover).toBeNull();
+    expect(post?.body.blocks).toEqual([
+      { type: "paragraph", text: ["Words."] },
+    ]);
   });
 });
