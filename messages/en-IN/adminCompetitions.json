@@ -75,30 +75,6 @@
       "saved": "Changes saved.",
       "published": "Published. It now shows on the public competition pages."
     },
-    "detail": {
-      "theme": "Theme",
-      "welfareMessage": "Animal welfare message",
-      "whoCanTakePart": "Who can take part",
-      "disciplines": "Disciplines",
-      "ageGroups": "Age groups",
-      "ageGroup": "{label}: ages {min} to {max}",
-      "ageCutoff": "Ages are counted on {date}.",
-      "categories": "Categories",
-      "category": "{discipline}, {ageGroup}",
-      "keyDates": "Key dates",
-      "rules": "Rules",
-      "permittedMaterials": "Permitted materials",
-      "duration": "Duration",
-      "judging": "Judging and display",
-      "digitalScope": "Digital submissions: {scope}",
-      "shortlist": "Shortlisted per category: {count}",
-      "schoolPositions": "School round positions: {count}",
-      "physicalArtwork": "Physical artwork: {rule}",
-      "publicDisplay": "Artworks may be shown in public: {answer}",
-      "auctionPermitted": "Artworks may be auctioned: {answer}",
-      "yes": "Yes",
-      "no": "No"
-    },
     "vocabulary": {
       "participation": {
         "individuals": "Individuals",

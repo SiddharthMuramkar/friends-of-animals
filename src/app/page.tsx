@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { BadgeConstellation } from "@/components/showcase/badge-constellation";
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
 import { cachedNow } from "@/components/showcase/clock";
+import { fromSample } from "@/components/competitions/model";
 import { CompetitionCard } from "@/components/showcase/competition-card";
 import { GalleryFrames } from "@/components/showcase/gallery-frames";
 import { HappyMosaic } from "@/components/showcase/happy-mosaic";
@@ -182,7 +183,7 @@ async function Competitions() {
             {list.map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
-                  competition={c}
+                  competition={fromSample(c)}
                   headingLevel={3}
                   className="w-full"
                 />
