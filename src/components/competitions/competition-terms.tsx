@@ -3,9 +3,9 @@ import { getFormatter, getTranslations } from "next-intl/server";
 
 import { SiteLink } from "@/components/site/site-link";
 import { TileMarker } from "@/components/site/tile";
-import type { PublicCompetitionTerms } from "@/server/modules/competitions/terms";
-
+import { cn } from "@/lib/utils";
 import { feeText } from "./fee-text";
+import type { CompetitionTermsView } from "./model";
 
 const LINK =
   "inline-flex min-h-6 items-center gap-2 text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
@@ -18,9 +18,11 @@ const LINK =
 export async function CompetitionTerms({
   terms,
   headingLevel = "h2",
+  className,
 }: {
-  terms: PublicCompetitionTerms;
+  terms: CompetitionTermsView;
   headingLevel?: "h2" | "h3";
+  className?: string;
 }) {
   const [t, tFees, format] = await Promise.all([
     getTranslations("competitionTerms"),
@@ -33,7 +35,10 @@ export async function CompetitionTerms({
   return (
     <section
       aria-labelledby="competition-terms"
-      className="rounded-3xl border-2 border-border bg-surface p-6 shadow-warm sm:p-8"
+      className={cn(
+        "rounded-3xl border-2 border-border bg-surface p-6 shadow-warm sm:p-8",
+        className
+      )}
     >
       <Heading
         id="competition-terms"

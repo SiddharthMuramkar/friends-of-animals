@@ -4,7 +4,10 @@
 // Pure: the caller passes next-intl's translator and formatter, so the
 // same words render on the server and in tests.
 
-import type { FeeLine } from "@/server/modules/competitions/domain/fees";
+import type { CompetitionTermsView } from "./model";
+
+/** One route's fee from the page's view: paise are digits there. */
+type FeeLine = CompetitionTermsView["fees"][number];
 
 export type FeeTextIntl = {
   t: (key: "free" | "notSet") => string;
@@ -21,8 +24,9 @@ export function feeText(line: FeeLine, intl: FeeTextIntl): string {
     case "not_set":
       return intl.t("notSet");
     case "amount": {
-      const rupees = line.paise / 100n;
-      const paise = line.paise % 100n;
+      const amount = BigInt(line.paise);
+      const rupees = amount / 100n;
+      const paise = amount % 100n;
       if (paise === 0n) return intl.format.number(rupees, "inr");
       // Intl formats bigints exactly but not fractions of them, so the
       // paise are written onto the formatted rupees.

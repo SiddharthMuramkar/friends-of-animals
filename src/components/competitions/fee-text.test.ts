@@ -18,20 +18,20 @@ const intl = {
 describe("feeText", () => {
   it("writes whole rupees without paise, grouped the Indian way", () => {
     expect(
-      feeText({ route: "individual", kind: "amount", paise: 12400000n }, intl)
+      feeText({ route: "individual", kind: "amount", paise: "12400000" }, intl)
     ).toBe("₹1,24,000");
   });
 
   it("keeps the paise when there are some", () => {
     expect(
-      feeText({ route: "institution", kind: "amount", paise: 2500050n }, intl)
+      feeText({ route: "institution", kind: "amount", paise: "2500050" }, intl)
     ).toBe("₹25,000.50");
   });
 
   it("stays exact above 2^31 paise", () => {
     expect(
       feeText(
-        { route: "institution", kind: "amount", paise: 2147483649n },
+        { route: "institution", kind: "amount", paise: "2147483649" },
         intl
       )
     ).toBe("₹2,14,74,836.49");

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createHarness } from "@/test/harness";
 
+import { completeFields } from "../testing";
 import { getRegistrationTerms } from "./read";
 import { publishDocument, signInManager } from "./testing";
 
@@ -25,12 +26,10 @@ describe("the public read model's terms", () => {
       scheme: "medals_gsb",
       prizes: { gold: "A trophy and art supplies" },
     });
-    await h
-      .as(manager)
-      .attachConsentDocument({
-        competitionId: id,
-        purpose: "competition_terms",
-      });
+    await h.as(manager).attachConsentDocument({
+      competitionId: id,
+      purpose: "competition_terms",
+    });
     await publishDocument(h, "competition_terms", "v2");
 
     const published = await h.as(h.visitor()).getPublishedCompetition({ slug });
@@ -84,6 +83,51 @@ describe("the public read model's terms", () => {
       { route: "individual", kind: "not_set" },
     ]);
     expect(published?.terms.documents).toEqual([]);
+  });
+
+  it("shows a draft's terms in its manager's preview, as the public page will", async () => {
+    const h = await createHarness();
+    const manager = await signInManager(h);
+    const created = await h.as(manager).createCompetition(completeFields());
+    if (!created.ok) throw new Error(created.error);
+    const id = created.competition.id;
+    await h.as(manager).setCompetitionFees({
+      competitionId: id,
+      fees: { individual: "1,500", institution: "0" },
+      currency: "INR",
+    });
+
+    const preview = await h
+      .as(manager)
+      .previewCompetition({ competitionId: id });
+
+    expect(preview.ok && preview.competition?.terms).toEqual({
+      fees: [
+        { route: "individual", kind: "amount", paise: 150000n },
+        { route: "institution", kind: "free" },
+      ],
+      awards: [
+        {
+          roundKey: "school",
+          scheme: "ranked_123",
+          bands: [
+            { band: "first", prize: null },
+            { band: "second", prize: null },
+            { band: "third", prize: null },
+          ],
+        },
+        {
+          roundKey: "foa_final",
+          scheme: "ranked_123",
+          bands: [
+            { band: "first", prize: null },
+            { band: "second", prize: null },
+            { band: "third", prize: null },
+          ],
+        },
+      ],
+      documents: [],
+    });
   });
 
   it("keeps a draft's terms hidden with the draft", async () => {

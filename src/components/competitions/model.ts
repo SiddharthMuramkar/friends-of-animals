@@ -26,6 +26,7 @@ import type {
   PhysicalArtwork,
   PublicCompetition,
 } from "@/server/modules/competitions";
+import type { PublicCompetitionTerms } from "@/server/modules/competitions/terms";
 
 export type { CompetitionStatus, Discipline, KeyDateKind, ParticipationRoute };
 export { DISCIPLINES } from "@/content/sample/model";
@@ -184,6 +185,31 @@ export function fileRules(disciplines: readonly Discipline[]): FileRule[] {
   }));
 }
 
+type TermsFee = PublicCompetitionTerms["fees"][number];
+
+/**
+ * A competition's fees, prizes and pinned documents (#72) as its page
+ * shows them. Paise are digits, not a bigint, so the view survives JSON.
+ */
+export type CompetitionTermsView = {
+  fees: readonly (
+    | Exclude<TermsFee, { kind: "amount" }>
+    | { route: TermsFee["route"]; kind: "amount"; paise: string }
+  )[];
+  awards: PublicCompetitionTerms["awards"];
+  documents: PublicCompetitionTerms["documents"];
+};
+
+function termsView(terms: PublicCompetitionTerms): CompetitionTermsView {
+  return {
+    fees: terms.fees.map((line) =>
+      line.kind === "amount" ? { ...line, paise: line.paise.toString() } : line
+    ),
+    awards: terms.awards,
+    documents: terms.documents,
+  };
+}
+
 /** What a competition's page shows: the card, and the rest of its rules. */
 export type CompetitionView = CompetitionCardModel & {
   welfareMessage: string;
@@ -199,6 +225,8 @@ export type CompetitionView = CompetitionCardModel & {
   physicalArtwork: PhysicalArtwork;
   publicDisplay: boolean;
   auctionPermitted: boolean;
+  /** Null when the read carries none. */
+  terms: CompetitionTermsView | null;
 };
 
 const KEY_DATE_KIND: Record<StoredKeyDateKind, KeyDateKind> = {
@@ -231,9 +259,12 @@ const ROUTES: Record<Participation, CompetitionCardModel["routes"]> = {
 
 /**
  * A competition from the module's public view (the read model, or a
- * draft's preview) as its page and card show it.
+ * draft's preview) as its page and card show it, with its terms if the
+ * read has them.
  */
-export function fromPublic(c: PublicCompetition): CompetitionView {
+export function fromPublic(
+  c: PublicCompetition & { terms?: PublicCompetitionTerms }
+): CompetitionView {
   const disciplines = c.disciplines.map(toDiscipline);
   return {
     slug: c.slug,
@@ -268,6 +299,7 @@ export function fromPublic(c: PublicCompetition): CompetitionView {
     physicalArtwork: c.physicalArtwork,
     publicDisplay: c.publicDisplay,
     auctionPermitted: c.auctionPermitted,
+    terms: c.terms ? termsView(c.terms) : null,
   };
 }
 

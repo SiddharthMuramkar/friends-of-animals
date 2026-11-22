@@ -227,7 +227,66 @@ describe("fromPublic", () => {
       physicalArtwork: { kind: "top_n", count: 2 },
       publicDisplay: true,
       auctionPermitted: false,
+      terms: null,
     });
+  });
+
+  it("carries the competition's terms, with each fee's paise as digits so it survives JSON", () => {
+    const view = fromPublic({
+      ...published,
+      terms: {
+        fees: [
+          { route: "institution", kind: "amount", paise: 2147483649n },
+          { route: "individual", kind: "free" },
+        ],
+        awards: [
+          {
+            roundKey: "foa_final",
+            scheme: "medals_gsb",
+            bands: [
+              { band: "gold", prize: "A trophy" },
+              { band: "silver", prize: null },
+              { band: "bronze", prize: null },
+            ],
+          },
+        ],
+        documents: [
+          {
+            purpose: "competition_terms",
+            title: "Competition terms",
+            version: 2,
+            href: "/documents/competition-terms/2",
+          },
+        ],
+      },
+    });
+
+    expect(view.terms).toEqual({
+      fees: [
+        { route: "institution", kind: "amount", paise: "2147483649" },
+        { route: "individual", kind: "free" },
+      ],
+      awards: [
+        {
+          roundKey: "foa_final",
+          scheme: "medals_gsb",
+          bands: [
+            { band: "gold", prize: "A trophy" },
+            { band: "silver", prize: null },
+            { band: "bronze", prize: null },
+          ],
+        },
+      ],
+      documents: [
+        {
+          purpose: "competition_terms",
+          title: "Competition terms",
+          version: 2,
+          href: "/documents/competition-terms/2",
+        },
+      ],
+    });
+    expect(JSON.parse(JSON.stringify(view))).toEqual(view);
   });
 
   it("offers only the ways in the competition allows", () => {
