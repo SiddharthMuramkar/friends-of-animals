@@ -12,10 +12,6 @@
       "body": "It may have been a mistyped link. The list shows every competition you manage.",
       "back": "Back to the competition list"
     },
-    "status": {
-      "draft": "Draft",
-      "published": "Published"
-    },
     "list": {
       "meta": {
         "title": "Competitions",

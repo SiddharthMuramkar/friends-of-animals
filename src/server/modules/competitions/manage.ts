@@ -23,7 +23,11 @@ import type { UseCaseContext } from "../../use-cases";
 import { orderedKeyDates } from "./domain/key-dates";
 import { publishProblems, type PublishProblem } from "./domain/publish-rules";
 import { competitionSlugCandidates } from "./domain/slug";
-import { rescheduledJobs } from "./domain/status-schedule";
+import {
+  rescheduledJobs,
+  upcomingChange,
+  type UpcomingChange,
+} from "./domain/status-schedule";
 import type { CompetitionStatus } from "./domain/vocabulary";
 import {
   DEFAULT_FIELDS,
@@ -214,6 +218,8 @@ export type CompetitionForEdit = {
   status: CompetitionStatus;
   publishedAt: Date | null;
   fields: CompetitionFields;
+  /** The schedule's next move, for the countdown under the status (#71). */
+  nextChange: UpcomingChange;
 };
 
 export type GetCompetitionForEditResult =
@@ -244,6 +250,7 @@ export async function getCompetitionForEdit(
       status: row.status,
       publishedAt: row.publishedAt,
       fields: fieldsOf(values),
+      nextChange: upcomingChange(row.status, values.keyDates, ctx.clock.now()),
     },
   };
 }

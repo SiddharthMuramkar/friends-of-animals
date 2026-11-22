@@ -2,7 +2,7 @@
   "competitionStatus": {
     "label": {
       "draft": "Draft",
-      "published": "Upcoming",
+      "published": "Published",
       "registration_open": "Registration open",
       "registration_closed": "Registration closed"
     },

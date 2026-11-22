@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { StatusCountdown } from "@/components/competitions/status-countdown";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
@@ -95,6 +96,11 @@ async function EditCompetition({ params, searchParams }: Props) {
           {t("edit.back")}
         </ButtonLink>
       </div>
+      <StatusCountdown
+        change={competition.nextChange}
+        now={new Date()}
+        className="mt-3"
+      />
       <DoneNotice done={done} />
       <div className="mt-8">
         <CompetitionForm

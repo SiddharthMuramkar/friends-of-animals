@@ -257,6 +257,54 @@ describe("the status schedule", () => {
   });
 });
 
+describe("the next status change, as the admin page counts down to it", () => {
+  async function nextChange(h: Harness, manager: Actor, competitionId: string) {
+    const edit = await h.as(manager).getCompetitionForEdit({ competitionId });
+    if (!edit.ok) throw new Error(edit.error);
+    return edit.competition.nextChange;
+  }
+
+  it("names the next move and its instant, says it is due once passed, and moves on after it", async () => {
+    const h = await createHarness();
+    const { manager, competitionId } = await publishedCompetition(h);
+
+    expect(await nextChange(h, manager, competitionId)).toEqual({
+      kind: "scheduled",
+      to: "registration_open",
+      at: OPENS,
+    });
+
+    h.clock.set(OPENS);
+    expect(await nextChange(h, manager, competitionId)).toEqual({
+      kind: "due",
+      to: "registration_open",
+      at: OPENS,
+    });
+
+    await h.drain();
+    expect(await nextChange(h, manager, competitionId)).toEqual({
+      kind: "scheduled",
+      to: "registration_closed",
+      at: CLOSES,
+    });
+
+    h.clock.set(CLOSES);
+    await h.drain();
+    expect(await nextChange(h, manager, competitionId)).toBeNull();
+  });
+
+  it("has none for a draft: publishing comes first", async () => {
+    const h = await createHarness();
+    const manager = await signInManager(h);
+    const created = await h
+      .as(manager)
+      .createCompetition(completeFields({ keyDates: KEY_DATES }));
+    if (!created.ok) throw new Error(created.error);
+
+    expect(await nextChange(h, manager, created.competition.id)).toBeNull();
+  });
+});
+
 describe("advanceCompetitionStatus: who may", () => {
   it("lets the worker run a status job", async () => {
     const h = await createHarness();
