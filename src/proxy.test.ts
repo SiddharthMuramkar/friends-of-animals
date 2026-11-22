@@ -115,7 +115,13 @@ describe("proxy: the signed-in nonce policy", () => {
     vi.stubEnv("APP_ENV", "preview");
     // A request-time notFound() under the signed-in layout could only stream
     // a 200; the prerendered 404 has no nonce on its scripts.
-    for (const path of ["/account", "/account/nope", "/account/sessions/x"]) {
+    for (const path of [
+      "/account",
+      "/account/nope",
+      "/account/sessions/x",
+      "/admin/competitions/x",
+      "/admin/competitions/x/delete",
+    ]) {
       const response = proxy(request(path, SESSION));
 
       expect(getRewrittenUrl(response), path).toBe(
@@ -125,6 +131,21 @@ describe("proxy: the signed-in nonce policy", () => {
         publicCsp(cspContext()).value
       );
       expect(forwarded(response), path).toBeUndefined();
+    }
+  });
+
+  it("sends a competition's edit and preview pages the nonce policy too", () => {
+    vi.stubEnv("APP_ENV", "preview");
+    for (const page of ["edit", "preview"]) {
+      const path = `/admin/competitions/01938a00-0000-7000-8000-000000002001/${page}`;
+      const response = proxy(request(path, SESSION));
+
+      expect(getRewrittenUrl(response), path).toBeNull();
+      const policy = response.headers.get("content-security-policy");
+      expect(policy, path).toMatch(/script-src 'self' 'nonce-[^']+'/);
+      expect(pageHeaders(response).get("x-nonce"), path).toBe(
+        getScriptNonceFromHeader(policy!)
+      );
     }
   });
 

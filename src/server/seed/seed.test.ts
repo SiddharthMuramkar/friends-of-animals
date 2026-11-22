@@ -26,11 +26,13 @@ async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {
 }
 
 describe("seedPreview", () => {
-  it("creates the preview accounts and dedicated consent publishers", async () => {
+  it("creates the preview accounts, two competition managers and dedicated consent publishers", async () => {
     const deps = await seedDeps();
     await seedPreview(deps);
 
     expect((await accounts(deps)).map((account) => account.email)).toEqual([
+      "competition-manager-2@example.test",
+      "competition-manager@example.test",
       "consent-publisher-desktop@example.test",
       "consent-publisher-mobile@example.test",
       "member1@example.test",
