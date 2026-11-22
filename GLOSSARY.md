@@ -164,6 +164,35 @@ stories and tips. Sign-in codes, receipts and notices the law requires are not
 News and updates and never depend on it.
 _Avoid_: Marketing, newsletter, messages (alone)
 
+## Competition terms
+
+**Route**:
+A way into a competition: entering on your own, or through a school or
+institution. A competition offers one or both.
+_Avoid_: Track, channel, participation type
+
+**Fee**:
+What one Route costs, in paise and INR, set by a competition manager. Zero
+means free; a Route with no Fee set yet can't take registrations. Fees lock
+once registration opens.
+_Avoid_: Price, charge, amount (alone)
+
+**Round**:
+A stage a competition's entries are judged in: the school round (when
+institutions take part) and the FOA final.
+_Avoid_: Stage, phase, level
+
+**Award scheme**:
+How a Round recognises its best entries: ranked 1st, 2nd and 3rd (the
+default), gold, silver and bronze, or A and B grades. Each place in it is a
+Band, with an optional prize.
+_Avoid_: Prize structure, ranking, grading
+
+**Pin**:
+The one Version of a Consent document a competition asks registrants to agree
+to. Publishing a newer Version leaves the Pin alone until a manager moves it.
+_Avoid_: Link, attachment (alone), current version
+
 ## Site content
 
 **Content document**:

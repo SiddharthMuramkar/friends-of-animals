@@ -1,5 +1,5 @@
 {
-  "id": "aaa79aed-8d93-4e5b-8e1a-71dd092e4b10",
+  "id": "4f478450-0a95-4e88-a887-a5347eab2b8f",
   "prevId": "03f1d423-699a-4430-9fc5-bed4a710fd6c",
   "version": "7",
   "dialect": "postgresql",
@@ -5024,161 +5024,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.institution_registration": {
-      "name": "institution_registration",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "institution_id": {
-          "name": "institution_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reference": {
-          "name": "reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "institution_registration_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "registered_by": {
-          "name": "registered_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "institution_registration_competition_id_idx": {
-          "name": "institution_registration_competition_id_idx",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "institution_registration_registered_by_idx": {
-          "name": "institution_registration_registered_by_idx",
-          "columns": [
-            {
-              "expression": "registered_by",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "institution_registration_institution_id_institution_id_fk": {
-          "name": "institution_registration_institution_id_institution_id_fk",
-          "tableFrom": "institution_registration",
-          "tableTo": "institution",
-          "columnsFrom": [
-            "institution_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "institution_registration_competition_id_competition_id_fk": {
-          "name": "institution_registration_competition_id_competition_id_fk",
-          "tableFrom": "institution_registration",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "institution_registration_registered_by_user_id_fk": {
-          "name": "institution_registration_registered_by_user_id_fk",
-          "tableFrom": "institution_registration",
-          "tableTo": "user",
-          "columnsFrom": [
-            "registered_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "institution_registration_institution_competition_unique": {
-          "name": "institution_registration_institution_competition_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "institution_id",
-            "competition_id"
-          ]
-        },
-        "institution_registration_reference_unique": {
-          "name": "institution_registration_reference_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "reference"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "institution_registration_reference_format": {
-          "name": "institution_registration_reference_format",
-          "value": "\"institution_registration\".\"reference\" ~ '^[A-Z]{3,6}[0-9]{2}-I-[0-9A-HJKMNP-TV-Z]{5}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.cms_post": {
       "name": "cms_post",
       "schema": "",
@@ -5609,7 +5454,8 @@
       "values": [
         "privacy_notice",
         "terms",
-        "messages"
+        "messages",
+        "competition_terms"
       ]
     },
     "public.consent_subject_type": {
@@ -5845,13 +5691,6 @@
         "sms_disabled",
         "sms_unregistered",
         "no_contact"
-      ]
-    },
-    "public.institution_registration_status": {
-      "name": "institution_registration_status",
-      "schema": "public",
-      "values": [
-        "active"
       ]
     },
     "public.post_audience": {

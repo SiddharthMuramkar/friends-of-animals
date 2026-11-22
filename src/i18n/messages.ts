@@ -17,11 +17,13 @@ import adminBlog from "../../messages/en-IN/adminBlog.json";
 import adminInstitutions from "../../messages/en-IN/adminInstitutions.json";
 import adminSafeguarding from "../../messages/en-IN/adminSafeguarding.json";
 import adminRubrics from "../../messages/en-IN/adminRubrics.json";
+import adminCompetitionTerms from "../../messages/en-IN/adminCompetitionTerms.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
+import competitionTerms from "../../messages/en-IN/competitionTerms.json";
 import consent from "../../messages/en-IN/consent.json";
 import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import competitionStatus from "../../messages/en-IN/competitionStatus.json";
@@ -70,11 +72,13 @@ export const NAMESPACES = [
   "adminSafeguarding",
   "adminBlog",
   "adminRubrics",
+  "adminCompetitionTerms",
   "auth",
   "authPhone",
   "awareness",
   "common",
   "competitions",
+  "competitionTerms",
   "consent",
   "consentAdmin",
   "competitionStatus",
@@ -127,11 +131,13 @@ export const messages = {
   ...adminSafeguarding,
   ...adminBlog,
   ...adminRubrics,
+  ...adminCompetitionTerms,
   ...auth,
   ...authPhone,
   ...awareness,
   ...common,
   ...competitions,
+  ...competitionTerms,
   ...consent,
   ...consentAdmin,
   ...competitionStatus,

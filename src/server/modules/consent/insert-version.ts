@@ -18,6 +18,7 @@ const FIRST_TITLES: Record<ConsentPurpose, string> = {
   privacy_notice: "Privacy policy",
   terms: "Terms of use",
   messages: MESSAGES_CONSENT_DRAFT.title,
+  competition_terms: "Competition terms",
 };
 
 export type ConsentVersionInput = {

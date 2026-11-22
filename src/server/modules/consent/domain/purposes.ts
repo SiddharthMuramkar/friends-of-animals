@@ -5,11 +5,16 @@
 //
 // Loads under plain Node (schema, seed): relative imports only.
 
-/** #82 adds participation, public display and the other guardian purposes. */
+/**
+ * `competition_terms` is a competition's own terms (#72), apart from the
+ * site's terms of use. #82 adds participation, public display and the
+ * other guardian purposes.
+ */
 export const CONSENT_PURPOSES = [
   "privacy_notice",
   "terms",
   "messages",
+  "competition_terms",
 ] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 
