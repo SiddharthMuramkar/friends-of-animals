@@ -16,6 +16,7 @@ import {
   type AwardsFormState,
   type FeesEntered,
   type FeesFormState,
+  secondFactorRedirect,
 } from "./form-state";
 import { competitionTermsPath } from "./paths";
 
@@ -36,7 +37,11 @@ async function refreshPublicPage(actor: Actor, competitionId: string) {
   if (read.ok) updateTag(COMPETITION_TAGS.slug(read.terms.competition.slug));
 }
 
-/** The fees form: free for everyone, or a fee per offered route. */
+/**
+ * The fees form: free for everyone, or a fee per offered route. Fees are
+ * money, so a manager whose second factor is too old steps up (#60) and
+ * comes back to save again.
+ */
 export async function saveFeesAction(
   _previous: FeesFormState | null,
   formData: FormData
@@ -64,6 +69,9 @@ export async function saveFeesAction(
     }
     return afterSetFees(result, entered);
   } catch (error) {
+    // redirect() throws; from the catch block, this try doesn't catch it.
+    const lift = secondFactorRedirect(error, competitionId);
+    if (lift) redirect(lift);
     console.error(
       `Competition fees form: the use case failed: ${errorSummaryForLogs(error)}`
     );
@@ -96,6 +104,8 @@ export async function saveRoundAwardsAction(
     }
     return afterSetRoundAwards(result, entered);
   } catch (error) {
+    const lift = secondFactorRedirect(error, competitionId);
+    if (lift) redirect(lift);
     console.error(
       `Competition awards form: the use case failed: ${errorSummaryForLogs(error)}`
     );
@@ -122,6 +132,8 @@ export async function documentAction(formData: FormData): Promise<void> {
       if (result.changed) await refreshPublicPage(actor, competitionId);
     }
   } catch (error) {
+    const lift = secondFactorRedirect(error, competitionId);
+    if (lift) redirect(lift);
     console.error(
       `Competition documents form: the use case failed: ${errorSummaryForLogs(error)}`
     );

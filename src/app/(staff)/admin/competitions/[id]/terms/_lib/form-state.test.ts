@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { DomainError } from "@/server/errors";
 import type { SetCompetitionFeesResult } from "@/server/modules/competitions/terms";
 
 import {
   afterSetFees,
   afterSetRoundAwards,
+  secondFactorRedirect,
   type FeesFormState,
 } from "./form-state";
 
@@ -89,5 +91,29 @@ describe("afterSetRoundAwards", () => {
     expect(afterSetRoundAwards({ ok: false, error: "not_found" }, awards)).toEqual(
       { entered: awards, error: "failed" }
     );
+  });
+});
+
+describe("secondFactorRedirect", () => {
+  const id = "01938a00-0000-7000-8000-000000002101";
+  const back = encodeURIComponent(`/admin/competitions/${id}/terms`);
+
+  it("sends a fee change refused for an old second factor to step up, then back here", () => {
+    expect(
+      secondFactorRedirect(new DomainError("step_up_required", "refused"), id)
+    ).toBe(`/auth/step-up?next=${back}`);
+    expect(
+      secondFactorRedirect(
+        new DomainError("second_factor_required", "refused"),
+        id
+      )
+    ).toBe(`/auth/second-factor?next=${back}`);
+  });
+
+  it("is null for a refusal no second factor lifts, or any other error", () => {
+    expect(
+      secondFactorRedirect(new DomainError("forbidden", "refused"), id)
+    ).toBeNull();
+    expect(secondFactorRedirect(new Error("boom"), id)).toBeNull();
   });
 });

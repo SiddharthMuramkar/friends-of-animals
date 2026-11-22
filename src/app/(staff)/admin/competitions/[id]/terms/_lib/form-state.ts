@@ -1,12 +1,16 @@
 // What the terms forms show after a save. Pure, so the mapping from a use
 // case's result to the form is tested without a page.
 
+import { secondFactorPath } from "@/lib/second-factor-routes";
+import { DomainError } from "@/server/errors";
 import type { RoundAwardsError } from "@/server/modules/competitions/domain/award-schemes";
 import type { ParticipationRoute } from "@/server/modules/competitions/domain/fees";
 import type {
   SetCompetitionFeesResult,
   SetRoundAwardsResult,
 } from "@/server/modules/competitions/terms";
+
+import { competitionTermsPath } from "./paths";
 
 export type FeesEntered = {
   mode: "free" | "paid";
@@ -24,7 +28,7 @@ export type FeesFormState = {
   entered: FeesEntered;
   outcome?: "saved" | "unchanged";
   /** A problem for the whole form. */
-  alert?: "failed" | "locked" | "noParticipation" | "currency" | "stepUp";
+  alert?: "failed" | "locked" | "noParticipation" | "currency";
   fieldErrors: Partial<Record<ParticipationRoute, FeeFieldError>>;
 };
 
@@ -82,4 +86,17 @@ export function afterSetRoundAwards(
     return { entered, error: "failed" };
   }
   return { entered, error: result.error };
+}
+
+/**
+ * Where a change refused for want of a second factor sends the manager:
+ * fees are money, so they step up (#60), then come back to this page to
+ * save again. Null for anything else.
+ */
+export function secondFactorRedirect(
+  error: unknown,
+  competitionId: string
+): string | null {
+  if (!(error instanceof DomainError)) return null;
+  return secondFactorPath(error.code, competitionTermsPath(competitionId));
 }
