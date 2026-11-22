@@ -9,6 +9,7 @@
 
 import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
+import { seedConsent } from "./consent";
 import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
 import { seedSecondFactor } from "./second-factor";
@@ -24,6 +25,7 @@ const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
   seedIdentity,
   seedAccess,
+  seedConsent,
   seedFiles,
   seedSecondFactor,
   seedSettings,

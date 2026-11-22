@@ -11,6 +11,8 @@ import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
+import consent from "../../messages/en-IN/consent.json";
+import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
 import donate from "../../messages/en-IN/donate.json";
@@ -42,6 +44,8 @@ export const NAMESPACES = [
   "awareness",
   "common",
   "competitions",
+  "consent",
+  "consentAdmin",
   "contact",
   "credits",
   "donate",
@@ -77,6 +81,8 @@ export const messages = {
   ...awareness,
   ...common,
   ...competitions,
+  ...consent,
+  ...consentAdmin,
   ...contact,
   ...credits,
   ...donate,

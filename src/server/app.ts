@@ -15,6 +15,7 @@ import { headers } from "next/headers";
 import { accessUseCases } from "./access";
 import type { Actor } from "./actor";
 import { auditUseCases } from "./audit";
+import { consentUseCases } from "./modules/consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
 import { secondFactorUseCases } from "./modules/second-factor";
@@ -28,7 +29,8 @@ const useCases = composeUseCases(
   auditUseCases,
   secondFactorUseCases,
   filesUseCases,
-  settingsUseCases
+  settingsUseCases,
+  consentUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

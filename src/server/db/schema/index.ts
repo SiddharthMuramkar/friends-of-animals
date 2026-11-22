@@ -10,6 +10,7 @@ export * from "./access";
 export * from "./audit";
 export * from "./second-factor";
 export * from "./outbox";
+export * from "./consent";
 export * from "./files";
 export * from "./worker";
 export * from "./settings";

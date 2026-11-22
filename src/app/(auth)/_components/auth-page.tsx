@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { PageHeader } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
@@ -11,8 +11,17 @@ import { emailCodeAction } from "../_lib/actions";
 import { CodeForm } from "./code-form";
 import { PhoneOption } from "./phone-option";
 
-/** The sign-up and sign-in pages: a heading, the form, the other way in. */
-export async function AuthPage({ intent }: { intent: "sign-up" | "sign-in" }) {
+/**
+ * The sign-up and sign-in pages: a heading, the form, the other way in.
+ * `consentField` is sign-up's optional messages consent box.
+ */
+export async function AuthPage({
+  intent,
+  consentField,
+}: {
+  intent: "sign-up" | "sign-in";
+  consentField?: ReactNode;
+}) {
   const page = await getTranslations(
     intent === "sign-up" ? "auth.signUp" : "auth.signIn"
   );
@@ -34,6 +43,7 @@ export async function AuthPage({ intent }: { intent: "sign-up" | "sign-in" }) {
           channel="email"
           intent={intent}
           signUpPath={ROUTES.signUp.path}
+          consentField={consentField}
           labels={{
             name: { label: t("name.label"), hint: t("name.hint") },
             contact: { label: t("email.label"), hint: t("email.hint") },

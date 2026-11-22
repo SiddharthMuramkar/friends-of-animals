@@ -12,11 +12,16 @@ export const APP_ROUTES = {
   /** The file upload demo (#63): every environment but production. */
   accountFiles: "/account/files",
   adminSettings: "/admin/settings",
+  accountConsents: "/account/consents",
+  adminConsentDocuments: "/admin/consent-documents",
 } as const;
 
 /**
  * Path prefixes that need a signed-in user. src/proxy.ts sends visitors
  * without a session cookie to sign in; #65's CSP gives these a nonce.
+ * Each tree also needs the proxy's matcher to list it, and a layout that
+ * waits for the request (src/app/account/layout.tsx), so it has no static
+ * shell.
  */
 export const SIGNED_IN_PREFIXES = ["/account", "/admin", "/auth"] as const;
 
