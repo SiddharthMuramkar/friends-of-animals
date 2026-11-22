@@ -24,5 +24,6 @@ export * from "./contact";
 export * from "./public-forms";
 export * from "./institutions";
 export * from "./notifications";
+export * from "./registration";
 export * from "./contact";
 export * from "./public-forms";

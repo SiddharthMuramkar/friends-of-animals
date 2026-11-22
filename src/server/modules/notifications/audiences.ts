@@ -65,6 +65,10 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "safeguarding.report_submitted":
       // About a child, never about a user: only the leads hear of it.
       return null;
+    case "registration.institution_registered":
+      // The principal isn't a user: their message goes by its own handler
+      // (#75), not by a route row.
+      return null;
   }
 }
 
@@ -157,6 +161,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   // Nothing of the report: the alert says only that one came in (#116).
   "safeguarding.report_submitted": { names: [], load: async () => ({}) },
+  "registration.institution_registered": {
+    names: [],
+    load: async () => ({}),
+  },
 };
 
 /** The variables a template on a route for `eventType` may use. */

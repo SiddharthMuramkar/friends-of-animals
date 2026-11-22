@@ -12,6 +12,7 @@ import {
 import { ensureGrant } from "./access";
 import { competitionBuilder } from "./competitions";
 import { seedPhone } from "./identity";
+import { institutionRegistrationBuilder } from "./registration";
 import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
 
@@ -82,6 +83,8 @@ export function seedFunctions(seeders: readonly Seeder[]) {
         ensureSeedAuthenticator(deps, user.id),
       /** A complete competition (draft unless told), no audit entry. */
       competition: competitionBuilder(deps),
+      /** An institution registered for a competition: no checks, no message. */
+      institutionRegistration: institutionRegistrationBuilder(deps),
       /** Everything `pnpm db:seed` puts in a preview database. */
       preview: () => seedPreview(deps),
     };

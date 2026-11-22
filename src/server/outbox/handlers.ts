@@ -19,6 +19,7 @@ import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { runStatusJob } from "../modules/competitions/advance-status";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
+import { notifyPrincipal } from "../modules/registration/principal-message";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -89,6 +90,8 @@ export const HANDLERS: Handlers = {
     sendCoordinatorInvitation(deps, payload),
   // Emails a contact message's sender their reference (#113).
   "contact.send_acknowledgement": sendContactAcknowledgement,
+  "registration.notify_principal": (deps, { payload }) =>
+    notifyPrincipal(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

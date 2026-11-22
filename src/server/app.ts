@@ -29,6 +29,7 @@ import { coordinatorsUseCases } from "./modules/institutions/coordinators";
 import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
 import { safeguardingUseCases } from "./modules/safeguarding";
+import { registrationUseCases } from "./modules/registration";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -46,7 +47,8 @@ const useCases = composeUseCases(
   coordinatorsUseCases,
   publicFormUseCases,
   contactUseCases,
-  safeguardingUseCases
+  safeguardingUseCases,
+  registrationUseCases
 );
 
 /** Every use case, by name, bound to one actor. */
