@@ -1,5 +1,5 @@
-// Payloads an editor might paste, or a bad row might hold, for every
-// rich-text sanitiser's tests (#111 F12: one shared corpus). A test puts
+// Payloads an editor might paste, or a bad row might hold: one corpus
+// shared by every rich-text sanitiser's tests. A test puts
 // each payload into every string field a profile keeps, sanitises, and
 // checks that no string left in the result looks like markup.
 //

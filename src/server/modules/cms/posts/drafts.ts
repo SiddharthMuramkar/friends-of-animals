@@ -50,7 +50,7 @@ export type PostsContext = Pick<UseCaseContext, "db" | "clock" | "actor">;
 
 export type PostImageSummary = {
   id: string;
-  /** The private original, which only the editor's preview shows. */
+  /** Its private original's file asset, which no page shows. */
   fileId: string;
   alt: string;
   /** Whether its public copies exist, so it may go live. */
