@@ -24,8 +24,9 @@ Compose project `foa-vps` (`docker/compose.yml`), network `db` =
 - **pg-nonprod** holds `foa_staging`, the template `foa_seed` and one
   database per preview (`foa_pr_<n>_<fp>`, `foa_br_<slug>_<hash>_<fp>`). No
   archiving, no PITR.
-- **PgBouncer** is the only public endpoint: `db.shipped-it.dev:6432`, TLS
-  required (Let's Encrypt), SCRAM, transaction pooling.
+- **PgBouncer** is the only public endpoint: `db.friendsofanimals.dev:6432`
+  (`FOA_DB_DOMAIN`, see TLS certificate), TLS required (Let's Encrypt),
+  SCRAM, transaction pooling.
 - **One Postgres image**: only pg-prod has `build: ./postgres`; pg-nonprod
   runs the same tag with `pull_policy: never`. Two services building one tag
   export it twice in parallel, which the containerd image store (Docker 29's
@@ -58,6 +59,9 @@ backups, restore drill, preview sweep) and CrowdSec (`crowdsec/`).
 | `crowdsec/`                                                  | Both OSes: acquisition, local parser, whitelist, drop-ins   |
 | `crowdsec/crowdsec.repo`, `*-bouncer-nftables.yaml.local`    | Fedora: dnf repository, nftables bouncer settings           |
 | `crowdsec/crowdsec.sources`, `*-bouncer-iptables.yaml.local` | Ubuntu: apt source, iptables bouncer settings               |
+| `analytics.yml`                                              | Umami (Analytics, below)                                    |
+| `edge.yml`, `caddy/Caddyfile`                                | Caddy, the TLS edge (Edge, below)                           |
+| `errors.yml`                                                 | GlitchTip (Errors, below)                                   |
 
 ## Secrets
 
@@ -75,6 +79,13 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_nonprod_staging_migrator_password` | 999, 0400       | `staging_migrator`                    |
 | `/etc/foa/secrets/pg_nonprod_staging_app_password`      | 999, 0400       | `staging_app`                         |
 | `/etc/foa/secrets/pgbouncer_auth_password`              | 999, 0400       | `pgbouncer_auth` on both servers      |
+| `/etc/foa/secrets/pg_prod_foa_worker_password`          | 1000, 0400      | `foa_worker` (worker-prod)            |
+| `/etc/foa/secrets/pg_nonprod_staging_worker_password`   | 1000, 0400      | `staging_worker` (worker-staging)     |
+| `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
+| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for every worker        |
+| `/etc/foa/secrets/worker_prod_r2.env` (optional, HR-08) | root, 0600      | Prod bucket `R2_*`, worker-prod only  |
+| `/etc/foa/secrets/worker_media_r2.env` (optional)       | root, 0600      | Prod bucket `R2_*`, worker-media only |
+| `/etc/foa/preview-files.env` (optional)                 | root, 0600      | Non-prod `R2_*`: staging, previews    |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
 | `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
@@ -82,12 +93,16 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/lego/`                                        | root, 0700      | ACME account key, certificate, key    |
 | `/etc/foa/pgbouncer-tls/`                               | root:6432, 0750 | Installed cert (0444) and key (0400)  |
 
-999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours.
+999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours;
+1000 is `node` in the worker image. The worker secrets come from
+`scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`;
+the optional `.env` files are written by hand (Workers, "Scan, PDF and
+media sidecars").
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
-`vercel-urls.env` has exactly these keys (host `db.shipped-it.dev`, port 6432,
-`?sslmode=verify-full`):
+`vercel-urls.env` has exactly these keys (host `FOA_DB_DOMAIN`, default
+`db.friendsofanimals.dev`; port 6432; `?sslmode=verify-full`):
 
 | Key                    | Role               | Database               | PgBouncer pool |
 | ---------------------- | ------------------ | ---------------------- | -------------- |
@@ -224,13 +239,13 @@ cscli allowlists add foa-admin 189.72.156.29 2a02:4780:63:e413::1 \
     sed -E 's/:[0-9]+$//; s/^\[//; s/\]$//' | sort -u)
 systemctl start foa-pgbackrest-full.service  # first full backup
 scripts/restore-drill.sh
-scripts/smoke-test.sh                        # client checks through db.shipped-it.dev:6432
+scripts/smoke-test.sh                        # client checks through db.friendsofanimals.dev:6432
 ```
 
 Then copy the values from `/etc/foa/vercel-urls.env` into Vercel, as
-`DATABASE_URL` and `DIRECT_URL`: `PROD_*` into Production, `STAGING_*` into
-the `staging` custom environment (`shipped-it.dev`, deployed from `main`)
-and `PREVIEW_*` into Preview.
+`DATABASE_URL` and `DIRECT_URL`: `PROD_*` into Production. `STAGING_*` and
+`PREVIEW_*` stay unused while Vercel has no staging environment and no
+previews ([ADR 0001](../docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)).
 
 To rebuild production from backups instead of starting empty, run the
 `pgbackrest restore` (below) into the `foa-vps_pg-prod-data` volume _before_
@@ -302,6 +317,9 @@ Roles and databases (`postgres/bootstrap/`):
 | pg-nonprod | `staging_app`      | LOGIN; CONNECT on `foa_staging`; same DML-only defaults (`FOR ROLE staging_migrator`). pg_hba: `foa_staging` only                                                                                                                 |
 | pg-nonprod | `nonprod_migrator` | Previews. LOGIN CREATEDB; owns `foa_seed` and the previews it creates; CONNECT on `postgres`. No CONNECT on `foa_staging`, and pg_hba rejects it there                                                                            |
 | pg-nonprod | `nonprod_app`      | Previews. LOGIN; same DML-only defaults (`FOR ROLE nonprod_migrator`); kept out of `foa_staging` the same way                                                                                                                     |
+| pg-prod    | `foa_worker`       | worker-prod. LOGIN; member of `foa_app` (DML); owns schema `pgboss` in `foa`. `workers-prod.sql`                                                                                                                                  |
+| pg-nonprod | `staging_worker`   | worker-staging. LOGIN; member of `staging_app`; owns schema `pgboss` in `foa_staging`. pg_hba: `foa_staging` only. `workers-nonprod.sql`                                                                                          |
+| pg-nonprod | `nonprod_worker`   | worker-preview. LOGIN; member of `nonprod_app`; CONNECT on `postgres` (lists previews) and, through PUBLIC, on each preview. Never `foa_staging`. `workers-nonprod.sql`                                                           |
 | both       | `pgbouncer_auth`   | LOGIN NOINHERIT; CONNECT on `postgres`; EXECUTE `pgbouncer.get_auth`                                                                                                                                                              |
 | both       | `postgres`         | superuser: container socket, or TCP from 10.112.12.1 (SSH tunnel) only                                                                                                                                                            |
 
@@ -351,28 +369,98 @@ reload with `docker kill -s HUP foa-pgbouncer`, read `docker logs foa-pgbouncer`
 
 ## TLS certificate
 
-- Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`,
-  listening only on the public address, `189.72.156.29:80`, for the seconds a
-  challenge takes). Not DNS-01: that would need an account-wide Vercel token
-  on this box. No ACME account e-mail is registered (set `FOA_ACME_EMAIL` to
-  add one).
+- PgBouncer's host name is `FOA_DB_DOMAIN`, default `db.friendsofanimals.dev`
+  (an A record to 189.72.156.29). `cert-renew.sh`, `install-cert.sh`,
+  `bootstrap-secrets.sh` and `smoke-test.sh` read it through
+  `scripts/db-host.sh`, which stops them (exit 2) on a value that isn't a
+  lower-case host name. Given `--print-config`, each prints its settings
+  (`cert-renew.sh` also the lego command) and changes nothing.
+  `foa-cert-renew.service` reads optional settings from
+  `/etc/foa/db-host.env` (not secret), for example:
+
+  ```sh
+  # More names on the certificate, space-separated
+  FOA_DB_DOMAIN_ALIASES=db.old.example
+  # ACME account e-mail
+  FOA_ACME_EMAIL=ops@example.org
+  ```
+
+  systemd reads that file (`EnvironmentFile=`) and keeps everything after
+  the `=` as the value, a `#` included, so a comment goes on a line of its
+  own. `cert-renew.sh` refuses (exit 2) a name, e-mail or webroot with a
+  comment left in it rather than pass it to lego. A shell's
+  `. /etc/foa/db-host.env` drops such a comment, so check the file the way
+  the timer reads it:
+
+  ```sh
+  systemd-run --wait --pipe -q -p EnvironmentFile=/etc/foa/db-host.env \
+    /srv/foa/docker/scripts/cert-renew.sh --print-config
+  ```
+
+  Only that service reads the file. Run by hand, the scripts take
+  `FOA_DB_DOMAIN` from the environment, so if the file sets it, export the
+  same value first. (`smoke-test.sh` stops when a URL in `vercel-urls.env`
+  names another host.)
+
+- Let's Encrypt via **HTTP-01** with `goacme/lego:v5.6.0` (`--network host`).
+  Not DNS-01: that would need an account-wide Vercel token on this box. No
+  ACME account e-mail is registered (set `FOA_ACME_EMAIL` to add one).
+  - While nothing else holds port 80 on the public address, lego answers the
+    challenge itself, listening only on `189.72.156.29:80` for the seconds a
+    challenge takes (a service on `127.0.0.1:80` doesn't count).
+  - Once another server holds it (foa-caddy listens on every address), lego
+    writes the challenge into `FOA_ACME_WEBROOT` (default
+    `/var/lib/foa/acme-webroot`), and that server must serve the directory's
+    `/.well-known/acme-challenge/` on port 80 for every name on the
+    certificate. The webroot must be a directory under `/var/lib/foa`: the
+    run makes it root's with mode 0755, even one that already exists.
+    foa-caddy (compose project `foa-edge` in `edge.yml`) mounts the directory
+    read-only at `/srv/acme` and has a site block for each name:
+
+    ```caddyfile
+    http://db.friendsofanimals.dev {
+      handle /.well-known/acme-challenge/* {
+        root * /srv/acme
+        file_server
+      }
+      handle {
+        respond 404
+      }
+    }
+    ```
+- `FOA_DB_DOMAIN_ALIASES` (space-separated) puts more names on the same
+  certificate, after the host: PgBouncer serves one certificate, so a host
+  name being retired keeps working until it is dropped from the list. The
+  certificate holds exactly the host and these names (lego
+  `--force-cert-domains`; a name listed twice counts once). The first run
+  after the list changes re-issues it, with a new name added or a dropped
+  one taken off. Every name must resolve to this host whenever lego orders,
+  or the whole order fails, so drop a name from the list before its DNS
+  goes.
 - Port 80 must get through the host's INPUT filter: on Fedora that is the
   `http` service in firewalld's public zone (Firewall, below); on Ubuntu ufw
   is inactive. `cert-renew.sh` warns, and changes nothing, when firewalld's
   zone for that address allows neither the `http` service nor 80/tcp.
-- db.shipped-it.dev has no AAAA record. Adding one would break renewals:
+- The database host has no AAAA record. Adding one would break renewals:
   Let's Encrypt tries IPv6 first and falls back to IPv4 only on a timeout,
-  and lego listens on the IPv4 address only.
+  and port 80 answers on the IPv4 address only.
 - `foa-cert-renew.timer` runs `scripts/cert-renew.sh` daily: `lego run
   --renew-days 30` renews below 30 days left (or when the CA's renewal info
-  asks), then `scripts/install-cert.sh` copies cert + key into
-  `/etc/foa/pgbouncer-tls` if they changed and sends SIGHUP (RELOAD) to
-  PgBouncer. New connections get the new certificate; open ones keep theirs.
+  asks, or the names changed), then `scripts/install-cert.sh` copies cert +
+  key into `/etc/foa/pgbouncer-tls` if they changed and sends SIGHUP
+  (RELOAD) to PgBouncer. New connections get the new certificate; open ones
+  keep theirs.
+- A certificate issued elsewhere (for example from Caddy's storage) goes in
+  with `FOA_CERT_CRT=<crt> FOA_CERT_KEY=<key> scripts/install-cert.sh`: the
+  same key match check, owners, modes and reload. It refuses one variable
+  without the other, a missing or empty file, or a certificate that doesn't
+  name `FOA_DB_DOMAIN` or has a day or less left (exit 1, nothing
+  installed). `cert-renew.sh` always installs lego's pair.
 - Let's Encrypt lifetimes drop to 64 days on 2027-02-10 and 45 days on
   2028-02-16; the daily timer covers both. Watch `journalctl -u
   foa-cert-renew` (alerting is a TODO).
 - Manual: `systemctl start foa-cert-renew.service`; check with
-  `openssl s_client -connect db.shipped-it.dev:6432 -starttls postgres -servername db.shipped-it.dev </dev/null`.
+  `openssl s_client -connect db.friendsofanimals.dev:6432 -starttls postgres -servername db.friendsofanimals.dev </dev/null`.
 
 ## Firewall
 
@@ -430,8 +518,16 @@ Host ports are INPUT traffic, which this unit never touches:
   firewall-cmd --permanent --zone=public --add-service=http
   ```
 
-  It stays open, IPv4 and IPv6: outside a challenge nothing listens, and the
-  kernel answers with a reset. Ubuntu: ufw is inactive, nothing to do.
+  It stays open, IPv4 and IPv6. Caddy listens there (Edge, below); while it
+  is stopped, nothing listens outside a challenge, and the kernel answers
+  with a reset. Ubuntu: ufw is inactive, nothing to do.
+
+- **Port 443** for Caddy (Edge, below), opened the same way:
+
+  ```sh
+  firewall-cmd --zone=public --add-service=https
+  firewall-cmd --permanent --zone=public --add-service=https
+  ```
 
 CrowdSec's bouncer blocks banned addresses on top of all this (below). Any
 port published later must bind 127.0.0.1; this chain drops it on eth0
@@ -477,7 +573,27 @@ On both it installs the `crowdsecurity/pgsql` collection, the acquisition of
 the `foa-pgbouncer` container's docker logs (`type: pgbouncer`), a local
 parser for PgBouncer's `closing because: no such user` (logins as `postgres`
 or unknown roles, which the hub parser misses), and a whitelist for the VPS's
-own addresses (IPv4 and IPv6) and the compose subnet. systemd drop-ins start
+own addresses (IPv4 and IPv6) and the compose subnet.
+
+It also installs the `crowdsecurity/caddy` collection (the generic HTTP
+scenarios) on foa-caddy's JSON access log. Caddy writes it to stdout for the
+stats and errors sites (`caddy/Caddyfile`), the logging driver puts it in
+journald, and `crowdsec/acquis-foa-caddy.yaml` reads it from there
+(`CONTAINER_NAME=foa-caddy`, `PRIORITY=6`: stdout only, not Caddy's own
+log). It also passes `--output=cat`: CrowdSec runs `journalctl --follow -n 0`
+with the filter entries appended and no output mode of its own, and in
+journalctl's default format each line starts with
+`<date> <host> foa-caddy[<pid>]: `, which the caddy parser can't read.
+Nearly every request reaching the edge comes from Vercel's shared egress
+addresses: the site's `/stats` rewrites and the Sentry envelopes. A ban on
+one of them would cut it off from PgBouncer too, so Caddy doesn't log
+exactly those paths (`/script.js` and `/api/send` on stats,
+`/api/<project>/envelope/` on errors; Edge, below), for every method and
+query string: the rewrites match the path only and forward both, so a
+visitor could otherwise send `PUT /stats/script.js` or a probe query and
+get Vercel's address logged. CrowdSec never sees those paths, so it misses
+a direct scanner on them too (TODO, "Edge rate limit"). Anything else, from
+anyone, still counts. systemd drop-ins start
 crowdsec (its docker acquisition makes it exit if the Docker API is not up
 yet) and the bouncer after Docker. Brute force (5 failures, leaking 1 per
 10 s) bans the source.
@@ -492,20 +608,25 @@ a home IP can change after the allowlist was made; add a new one with
 open the Hostinger browser console and run `cscli decisions delete --ip <ip>`.
 
 ```sh
-cscli metrics show acquisition parsers   # docker:foa-pgbouncer lines read/parsed
+cscli metrics show acquisition parsers   # docker:foa-pgbouncer, journalctl (foa-caddy) lines read/parsed
 cscli alerts list; cscli decisions list
 cscli decisions delete --ip <ip>         # unban
 cscli allowlists inspect foa-admin
 cscli explain --type pgbouncer --log '<log line>'
+journalctl -n 1 -o cat CONTAINER_NAME=foa-caddy PRIORITY=6 > /tmp/caddy.log
+cscli explain --type caddy -f /tmp/caddy.log   # caddy-logs: parser success
 nft list table ip crowdsec               # Fedora: the bouncer's chains and ban sets
 ```
 
-Shared Vercel egress IPs could be banned if the app fails logins repeatedly
-(or land on a community blocklist): whitelist the Static IPs when they exist,
+Shared Vercel egress IPs could be banned if the app fails logins repeatedly,
+if someone scans the edge from their own Vercel functions (the HTTP
+scenarios ban at the host, PgBouncer included), or if they land on a
+community blocklist: whitelist the Static IPs when they exist,
 in `crowdsec/foa-whitelist.yaml` and a LAPI allowlist.
 
-CrowdSec issue #4781: the docker acquisition leaks a stream in dockerd for
-every container log line over 64 KiB. PgBouncer's lines are short, but if
+[CrowdSec issue #4781](https://github.com/crowdsecurity/crowdsec/issues/4781):
+the docker acquisition leaks a stream in dockerd for every container log
+line over 64 KiB. PgBouncer's lines are short, but if
 `ls /proc/$(pidof dockerd)/fd | wc -l` keeps growing, run
 `systemctl restart crowdsec`.
 
@@ -611,6 +732,142 @@ the promoted server keeps archiving on its new timeline; `docker start
 foa-pg-prod`, verify, `docker start foa-pgbouncer`, replay `ErasureLedger`,
 then take a full backup.
 
+## Off-site copy of files (Backblaze B2)
+
+R2 keeps no old versions, so production's uploaded files are copied every
+night to one Backblaze B2 bucket (#68). The copy runs inside `worker-prod` as
+the pg-boss schedule `offsite_copy`
+(`src/server/modules/offsite-copy/schedule.ts`), so it starts once #61's
+worker (`docker/workers.yml`) is deployed. Staging, previews and local runs
+never copy.
+
+- **When:** 01:30 IST, an hour before pgBackRest. A run starts no new copy
+  after two hours; what is left waits for the next night (the first full copy
+  can take several nights) and doesn't count as a failure.
+- **What:** every object in `OFFSITE_SOURCE_BUCKETS` that is new or changed
+  (etag or size) since its last copy, to `<B2_BUCKET>/<source bucket>/<key>`,
+  with its type, its metadata and its R2 etag as `foa-source-etag`. Keys under
+  `staging/`, `local/`, `pr-<n>/` or `br-<hash>/` are never copied. A
+  single-part object goes with its Content-MD5, so B2 refuses damaged bytes,
+  and every write asks for SSE-B2. The table `offsite_copy` records each copy.
+- **Deletions:** an object gone from R2 is marked, and its copy stays for
+  `OFFSITE_RETENTION_DAYS` (30) counted from the first night that found it
+  gone; then the copy and its row are deleted. An object back in R2 before
+  then is unmarked (and copied again only if it changed). A listing that comes
+  back empty while B2 holds live copies refuses that bucket, as a wrong bucket
+  or token would look. Marking more than a tenth of a bucket's copies (ten or
+  more) in one night sends a Sentry warning: the retention window is the time
+  to look.
+- **A bucket that is really empty now** (every file deleted on purpose) is
+  refused every night, with a Sentry event on each final attempt. Once you
+  have checked in R2 that it is empty, start its retention window by hand,
+  on pg-prod's `foa` as a member of `foa_app`:
+  `UPDATE offsite_copy SET deleted_in_source_at = now() WHERE source_bucket =
+  '<bucket>' AND deleted_in_source_at IS NULL;`. The copies stay for
+  `OFFSITE_RETENTION_DAYS`, then go as usual.
+- **Failures:** a run with a failed copy, purge or listing throws, and pg-boss
+  retries it three times, 15 minutes apart with backoff (each attempt expires
+  after three hours). A retry copies only what is still missing. Sentry gets
+  one event on the final attempt (tag `job:offsite_copy`) with counts and at
+  most ten keys. Production without its settings fails the same way and names
+  each missing variable.
+- **Losing `offsite_copy`** is safe: the next run copies everything again and
+  never deletes a copy it has no row for.
+
+Owner setup (HR-25, HR-13): a private B2 bucket with default encryption
+(SSE-B2) on and a lifecycle rule that keeps prior versions for 1-7 days (an
+S3 delete only hides a B2 file, so this is a second, short safety net), and
+an application key restricted to that bucket with `listFiles`, `readFiles`,
+`writeFiles` and `deleteFiles`. In R2, an API token with Object Read only on
+the production buckets. The restore needs a separate token that may write;
+the operator keeps it, not the VPS.
+
+### Settings (worker-prod only)
+
+Each variable can be given as `<NAME>_FILE`, the path of a file holding the
+value. Keys and secrets arrive that way, as Compose secrets, never as
+environment values.
+
+| Variable                       | What                                                    | Secret |
+| ------------------------------ | ------------------------------------------------------- | ------ |
+| `APP_ENV`                      | `production`; anything else copies nothing              | no     |
+| `OFFSITE_SOURCE_BUCKETS`       | The production R2 buckets, separated by commas          | no     |
+| `OFFSITE_RETENTION_DAYS`       | Days a copy outlives its object (1-3650, default 30)    | no     |
+| `R2_ACCOUNT_ID`                | The Cloudflare account id (32 hex characters)           | no     |
+| `OFFSITE_R2_ACCESS_KEY_ID`     | The read-only R2 token's key id                         | yes    |
+| `OFFSITE_R2_SECRET_ACCESS_KEY` | The read-only R2 token's secret                         | yes    |
+| `B2_S3_ENDPOINT`               | B2's S3 endpoint, `https://s3.<region>.backblazeb2.com` | no     |
+| `B2_REGION`                    | The B2 region, e.g. `eu-central-003`                    | no     |
+| `B2_BUCKET`                    | The B2 bucket; not one of the source buckets            | no     |
+| `B2_KEY_ID`                    | The B2 application key's id                             | yes    |
+| `B2_APPLICATION_KEY`           | The B2 application key                                  | yes    |
+
+For `docker/workers.yml` (#61), `worker-prod` takes them like this, with each
+secret file under `/etc/foa/secrets/` (0400, owned by the worker's user):
+
+```yaml
+services:
+  worker-prod:
+    environment:
+      OFFSITE_SOURCE_BUCKETS: foa-files-prod
+      R2_ACCOUNT_ID: <account id>
+      OFFSITE_R2_ACCESS_KEY_ID_FILE: /run/secrets/offsite_r2_access_key_id
+      OFFSITE_R2_SECRET_ACCESS_KEY_FILE: /run/secrets/offsite_r2_secret_access_key
+      B2_S3_ENDPOINT: https://s3.<region>.backblazeb2.com
+      B2_REGION: <region>
+      B2_BUCKET: <bucket>
+      B2_KEY_ID_FILE: /run/secrets/b2_key_id
+      B2_APPLICATION_KEY_FILE: /run/secrets/b2_application_key
+    secrets:
+      - offsite_r2_access_key_id
+      - offsite_r2_secret_access_key
+      - b2_key_id
+      - b2_application_key
+secrets:
+  offsite_r2_access_key_id:
+    file: /etc/foa/secrets/offsite_r2_access_key_id
+  offsite_r2_secret_access_key:
+    file: /etc/foa/secrets/offsite_r2_secret_access_key
+  b2_key_id:
+    file: /etc/foa/secrets/b2_key_id
+  b2_application_key:
+    file: /etc/foa/secrets/b2_application_key
+```
+
+### Restore one file
+
+You need the file's R2 bucket and key (`file_asset.bucket` and
+`storage_key`, or the keys in the Sentry event) and the R2 token that may
+write to the bucket you restore into. Type the token in; `-e NAME` without a
+value hands the container your shell's value, so it never reaches the shell
+history or the VPS's disk:
+
+```sh
+cd /srv/foa/docker
+read -r OFFSITE_RESTORE_R2_ACCESS_KEY_ID
+read -rs OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
+export OFFSITE_RESTORE_R2_ACCESS_KEY_ID OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
+docker compose -f workers.yml exec \
+  -e OFFSITE_RESTORE_R2_ACCESS_KEY_ID -e OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY \
+  worker-prod pnpm offsite:restore --bucket <bucket> --key <key>
+unset OFFSITE_RESTORE_R2_ACCESS_KEY_ID OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
+```
+
+- It writes the B2 copy back to `<bucket>/<key>` with its type and metadata,
+  sending the Content-MD5 of the etag R2 had, so R2 refuses a damaged copy.
+- An object already at that key is left alone: add `--overwrite` to replace
+  it, or `--to <bucket>` to restore into another bucket first and compare.
+- `B2 holds no copy`: check the bucket and key; a file deleted from R2 more
+  than the retention window (plus a night) ago is gone, apart from B2's
+  hidden versions for a few more days (restore one in B2's web console).
+- Exit codes: 0 restored, 1 refused or failed (the message says why), 2 bad
+  arguments.
+- It restores bytes only. A `file_asset` row deleted along with the file
+  must be put back separately.
+- While it runs, the token is in the process's environment, so anyone who can
+  read `/proc/<pid>/environ` in the container, or `docker inspect` the exec,
+  can see it. Use a token made for this restore and revoke it afterwards.
+
 ## Preview databases and the sweeper
 
 `scripts/sweep-preview-dbs.sh` (hourly via `foa-preview-sweep.timer`) lists
@@ -624,15 +881,217 @@ pg-nonprod databases whose comment starts with `foa-preview `:
 
 Anything uncertain (API error, rate limit, odd name or comment) is kept;
 `foa_seed`, `foa_staging`, `postgres` and the templates are never touched,
-and only names matching `foa_(pr|br)_[a-z0-9_]+` are dropped. `--dry-run`
+and only names shaped like a preview's (`foa_pr_<n>_<fp>` or
+`foa_br_[<slug>_]<hash>_<fp>`) whose comment matches the name's storage prefix
+are dropped. `--dry-run`
 prints what it would drop. Unauthenticated GitHub API calls are limited to 60
 an hour; with many open previews, or if the repo goes private, put a read-only
 `GITHUB_TOKEN=...` in `/etc/foa/sweeper.env` (0600).
 
+Before each drop the sweeper records it in
+`/var/lib/foa/preview-purge/<database>.pending` (`FOA_PREVIEW_PURGE_STATE`;
+one sweep at a time, under a lock there). At the end of every sweep, for each
+record whose storage prefix no database uses any more and whose PR is still
+closed (or branch still gone), it runs `scripts/run-preview-dropped-hooks.sh
+<database>`, which runs every executable `scripts/preview-dropped.d/*.sh`
+with that name. The record goes once the hooks succeed; a failing hook is
+logged and retried on the next sweep (a dry run runs none). To see what is
+pending, `ls /var/lib/foa/preview-purge`. `50-purge-files.sh` deletes that
+preview's files (`pr-<n>/` or `br-<hash>/` in the non-production bucket) by
+running `pnpm files:purge-preview --database <name>` in the worker image
+(`FOA_WORKER_IMAGE`, default `foa-workers/worker-preview`, the image
+`workers.yml` builds; never pulled). It reads the
+**non-production** bucket's `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` and `R2_BUCKET` from `/etc/foa/preview-files.env`
+(root, 0600; never production's, and no `APP_ENV`: the hook sets
+`APP_ENV=preview`). Without that file it fails and the files stay.
+
+## Workers
+
+`workers.yml` (Compose project `foa-workers`, issue #61) runs the background
+workers and their sidecars next to the database stack. The database workers
+join its `db` network (`foa-vps_db`, so start `compose.yml` first). Each runs
+`src/worker/main.ts` from the
+Dockerfile's `worker` target, drains its database's outbox every 5 s and
+connects to Postgres directly, never through PgBouncer: pg-boss holds
+sessions, which transaction pooling breaks. None publishes a port.
+
+| Service          | Database                       | Role             | Does                                 | Limits          |
+| ---------------- | ------------------------------ | ---------------- | ------------------------------------ | --------------- |
+| `worker-prod`    | pg-prod `foa`                  | `foa_worker`     | outbox relay, `SCHEDULES` on pg-boss | 1 CPU, 512 MB   |
+| `worker-staging` | pg-nonprod `foa_staging`       | `staging_worker` | outbox relay, `SCHEDULES` on pg-boss | 0.5 CPU, 384 MB |
+| `worker-preview` | pg-nonprod, every live preview | `nonprod_worker` | outbox relay only, 1 connection each | 0.5 CPU, 512 MB |
+
+- **Health:** after each healthy poll the worker touches
+  `/tmp/foa-worker-heartbeat` (a tmpfs; the root file system is read-only),
+  and the health check passes while it is under 120 s old. Single-database
+  workers stop touching it while their database fails; `worker-preview`
+  while it can't list the previews (one broken preview doesn't count). Each
+  poll also upserts the worker's row in `worker_heartbeat` in every database
+  it drains (worker, environment, last seen, version), which
+  `/api/health/worker` reads ("Monitoring and alerts").
+  `restart: unless-stopped` restarts a worker that exits; Docker doesn't
+  restart an unhealthy one, so watch `docker ps`.
+- **Logs:** one JSON object per line (`event`, `database`, counts), with
+  error classes and codes but never messages or addresses; in the host's
+  journal for a year ("Logs").
+- **Errors:** a failed tick (once, until that database recovers), an
+  uncaught exception or unhandled rejection (then the worker exits 1 and
+  restarts), and a failed start go to Sentry, scrubbed, tagged with the
+  database and APP_ENV, when `/etc/foa/secrets/worker_sentry.env` holds
+  `SENTRY_DSN=...` (HR-22). Without it they are only logged.
+- **Email:** staging and previews capture every message in their database's
+  mailbox; production refuses until SES exists (HR-12), so its deliveries
+  retry and end `failed`, visible to staff.
+- **Schedules:** `SCHEDULES` (`src/server/outbox/schedules.ts`) is registered
+  with pg-boss in schema `pgboss` (owned by the worker role) at every start;
+  a schedule removed from the code is unscheduled. Previews run none.
+
+### Preview databases: attach and detach
+
+There are no Vercel previews today
+(`docs/adr/0001-ci-e2e-and-prebuilt-deploys.md`), so `worker-preview` finds
+no preview database and idles, still healthy. If previews come back, it
+behaves as follows.
+
+`worker-preview` lists pg-nonprod's databases every 60 s from `postgres`
+and serves exactly those the sweeper would recognise: `foa_pr_<n>[_<fp>]`
+labelled `foa-preview pr=<n>`, or `foa_br_…` labelled `foa-preview
+branch=<ref>`. A new preview is attached at the next listing, with no
+manual step (its first deploy's migration creates and labels the database).
+When the sweeper drops a preview (`WITH (FORCE)` ends the worker's
+session), the next drain sees SQLSTATE 3D000 and the worker lets go at
+once; a database that just stops being listed is let go at the next
+listing. Each attach and detach is logged (`tenant.attached`,
+`tenant.detached`). The worker runs one code version for every preview:
+deliveries for handlers it doesn't have are left pending (`skipped`), and
+the preview drain route (`POST /api/preview/drain`) covers Seam 2 journeys
+meanwhile.
+
+### First start (owner, HR-07)
+
+```sh
+cd /srv/foa/docker
+docker exec foa-pg-prod psql -U postgres -c 'SELECT pg_reload_conf()'     # after git pull: pg_hba
+docker exec foa-pg-nonprod psql -U postgres -c 'SELECT pg_reload_conf()'
+scripts/worker-roles.sh               # roles + /etc/foa/secrets/*_worker_password
+WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
+  docker compose -f workers.yml up -d --build --wait --wait-timeout 660 \
+  worker-prod foa-clamav foa-gotenberg
+docker compose -f workers.yml ps worker-prod foa-clamav foa-gotenberg
+```
+
+Then check that the production worker's heartbeat row is fresh. Its
+`last_seen_at` moves every 5 s.
+
+```sh
+docker exec foa-pg-prod psql -U postgres -d foa -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
+```
+
+`worker-preview` writes a row only in the previews it serves, so with no
+previews it has none; `ps` showing it healthy means it can list them.
+
+### Run, restart and read the logs
+
+Run from `/srv/foa/docker`. `WORKER_VERSION` is only recorded in the
+heartbeat rows; leave it out and they say `unknown`.
+
+| Worker           | Run (build and start)                                               | Restart                                                | Logs                                                              |
+| ---------------- | ------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| `worker-prod`    | `docker compose -f workers.yml up -d --build --wait worker-prod`    | `docker compose -f workers.yml restart worker-prod`    | `docker compose -f workers.yml logs -f --tail=200 worker-prod`    |
+| `worker-staging` | `docker compose -f workers.yml up -d --build --wait worker-staging` | `docker compose -f workers.yml restart worker-staging` | `docker compose -f workers.yml logs -f --tail=200 worker-staging` |
+| `worker-preview` | `docker compose -f workers.yml up -d --build --wait worker-preview` | `docker compose -f workers.yml restart worker-preview` | `docker compose -f workers.yml logs -f --tail=200 worker-preview` |
+
+- Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
+  its poll, stops pg-boss and closes its connections within 30 s).
+- Updating: `git -C /srv/foa pull`, then the "Run" line; only a changed
+  image is recreated. The workers build from `/srv/foa` (main), and each
+  has its own untagged image (`foa-workers/worker-<name>`), so rebuilding
+  one never swaps another's and a deploy leaves no old tag behind.
+- Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
+- Rotating a worker password: replace its file in `/etc/foa/secrets`, rerun
+  `scripts/worker-roles.sh`, restart that worker.
+- A local run needs none of this: `pnpm worker:dev` drains the local
+  database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
+  email, and restarts on code changes.
+
+### Scan, PDF and media sidecars
+
+| Service         | Connection and health check                                                                                            | Memory |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- | ------ |
+| `foa-clamav`    | Database workers use `CLAMD_HOST=foa-clamav` and `CLAMD_PORT=3310`. The health check sends `PING` to `127.0.0.1:3310`. | 2 GiB  |
+| `foa-gotenberg` | Media uses `GOTENBERG_URL=http://foa-gotenberg:3000`. The health check calls `GET /health` on loopback.                | 1 GiB  |
+| `worker-media`  | Runs the media entry point with a read-only root and `/tmp` tmpfs. Health requires a heartbeat under 120 s old.        | 2 GiB  |
+
+All three log to journald and use private networks. Clamd listens on the
+internal `scan` bridge and loopback. FreshClam uses a separate bridge to
+reach the signature mirror and keeps its databases in `foa-clamav-db`.
+Allow ten minutes for the initial signature load. Scans wait during a
+signature reload so ClamAV can stay within its memory limit. Check the
+journal for signature-load failures.
+
+The upload scan also reads each file from its environment's R2 bucket, so a
+database worker scans only with all four `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` and `R2_BUCKET` (HR-08). Without them every scan fails
+and uploads wait unscanned. Each worker lists its own optional env file;
+none goes through the shared `x-worker` anchor, which every worker merges:
+
+| Worker                             | R2 file (root, 0600)                   | Bucket                                 |
+| ---------------------------------- | -------------------------------------- | -------------------------------------- |
+| `worker-prod`                      | `/etc/foa/secrets/worker_prod_r2.env`  | production                             |
+| `worker-media` (derivatives)       | `/etc/foa/secrets/worker_media_r2.env` | production                             |
+| `worker-staging`, `worker-preview` | `/etc/foa/preview-files.env`           | non-production (also the purge hook's) |
+
+Write the production file with the R2 token scoped to the production
+bucket, without printing it, then recreate worker-prod:
+
+```sh
+install -m 0600 -o root -g root /dev/null /etc/foa/secrets/worker_prod_r2.env
+# R2_ACCOUNT_ID=, R2_ACCESS_KEY_ID=, R2_SECRET_ACCESS_KEY=, R2_BUCKET= lines
+docker compose -f workers.yml up -d --wait worker-prod
+```
+
+Put only the four `R2_` lines in these files: a service's `environment:`
+overrides anything else they set.
+
+Gotenberg and the media worker share the internal `pdf` network. Send
+documents and their assets as file uploads. Chromium and LibreOffice
+accept local URLs under `/tmp` and API requests time out after 30 s.
+
+To recreate the scan and PDF sidecars after updating their image or
+configuration, run from `/srv/foa/docker`. Keep the signature volume
+attached so ClamAV can reuse its database.
+
+```sh
+docker compose -f workers.yml up -d --force-recreate --wait --wait-timeout 660 \
+  foa-clamav foa-gotenberg
+docker compose -f workers.yml ps foa-clamav foa-gotenberg
+```
+
+The `media` profile is opt-in. After the Files migrations are applied,
+write `/etc/foa/secrets/worker_media_r2.env` (root, mode 0600) with the four
+`R2_*` variables for the private production bucket, as for worker-prod's file
+above. Only `worker-media` reads it. Its token must allow reads and writes in
+that bucket, because the media worker stores the derivatives there.
+
+The default worker scans uploads and queues image derivatives. The media worker
+connects directly to the same database (on `db`, which also routes to R2) and
+drains only those deliveries, one image at a time. `MEDIA_TIMEOUT_SECONDS`
+defaults to 60 seconds for image processing. It uses the container heartbeat
+file for health checks. The database heartbeat read by `/api/health/worker`
+continues to track the default worker. The PDF adapter in #100 uses the
+Gotenberg endpoint.
+
+```sh
+WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
+  docker compose -f workers.yml --profile media up -d --build --wait \
+  worker-media foa-gotenberg
+```
+
 ## Checks
 
 `scripts/smoke-test.sh` runs 31 client-side checks through
-`db.shipped-it.dev:6432` from a throwaway `postgres:18.7-trixie` container:
+`db.friendsofanimals.dev:6432` from a throwaway `postgres:18.7-trixie` container:
 each URL logs in as the right role and database with `verify-full`, direct
 TLS and TLS 1.3, parameterized and named prepared statements through the
 transaction pool, `foa_app` cannot create in `public`, `nonprod_migrator` can
@@ -647,6 +1106,354 @@ against the placeholder by design). The container gets the host's CA bundle
 as one file, symlinks resolved: on Fedora `/etc/ssl/certs/ca-certificates.crt`
 links into `/etc/pki/ca-trust`, which would dangle inside the container.
 
+## Monitoring and alerts
+
+[GitHub Actions Uptime](../.github/workflows/uptime.yml) is scheduled every
+five minutes on the default branch. It can also run on demand from Actions.
+Both HTTPS probes require HTTP 200 from the configured URL. Redirects fail
+the probe. The database probe tests TCP connectivity without authenticating.
+Each HTTPS probe retries once after 30 seconds on a timeout or an HTTP 408,
+429, 500, 502, 503 or 504 response. A DNS failure, a refused connection or
+a TLS error fails that step at once. The database probe tries a second time
+30 seconds after a failed connection.
+
+| Check  | Target                            | Alerts when                                                | Alert goes to                       | Silence and un-silence                                    |
+| ------ | --------------------------------- | ---------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------- |
+| App    | `/api/health`                     | The HTTPS request fails or returns a status other than 200 | Scheduled recipient via Actions     | Disable Uptime in Actions and have the owner re-enable it |
+| Pooler | `db.friendsofanimals.dev:6432`    | TCP cannot connect on either attempt                       | Scheduled recipient via Actions     | Same as App                                               |
+| Worker | `/api/health/worker`              | The HTTPS request fails or returns a status other than 200 | Scheduled recipient via Actions     | Same as App                                               |
+| Errors | GlitchTip app and worker projects | An error matches the configured alert rule                 | Owner via error-tracking alert rule | Archive or unarchive the issue in the error tracker       |
+
+The worker writes its `worker_heartbeat` row after each poll. The health
+route returns HTTP 200 with `Cache-Control: no-store` while the heartbeat is
+at most 120 seconds old. A stale or missing heartbeat or a failed query
+returns HTTP 503.
+
+GitHub initially sends scheduled notifications to the workflow creator. A
+cron edit shifts delivery to the editor, and re-enabling a disabled schedule
+shifts it to the account that re-enabled the workflow. A default-branch change
+can also change the scheduled run actor. Manual runs notify the person who
+started the run according to their settings.
+[Scheduled workflow actor](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#actor-for-scheduled-workflows) ·
+[Workflow notifications](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs)
+
+The intended recipient is the repository owner's account,
+`SiddharthMuramkar`. Use that account to enable or re-enable Uptime and to
+edit its cron. In GitHub's notification settings under System → Actions,
+enable Email or On GitHub and select **Only notify for failed workflows**.
+[GitHub Actions notification settings](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-github-actions-notifications)
+
+In a public repository, GitHub disables scheduled workflows after 60 days
+without repository activity. A disabled Uptime stops checking and sends no
+alert. If the Actions tab shows Uptime as disabled, re-enable it with the
+owner's account as described above.
+
+**HR-23 recipient receipt is pending.** Have the owner confirm the actor on
+a normal scheduled Uptime run. To verify delivery, use a separate test
+repository owned by the same account. Schedule a workflow named
+`HR-23 notification drill` with empty permissions and a single `exit 1`
+step. After the first scheduled failure, disable the drill. Record the run
+URL, actor, notification channel, and UTC time of the owner's receipt under
+HR-23.
+
+## Logs
+
+Logs are kept for 365 days. On the VPS they stay in the host's journal
+today; an off-box copy, and the app's logs from Vercel, go to one store
+once the owner picks it (HR-24).
+
+| Source                                                                    | Goes to                                                      | Kept                                                      | Read with                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Containers: `foa-pg-prod`, `foa-pg-nonprod`, `foa-pgbouncer`, the workers | Host journal, through Docker's journald driver (`x-logging`) | 12 to 13 months, at most 20 GiB                           | `docker logs foa-pgbouncer`, `docker compose -f /srv/foa/docker/workers.yml logs worker-staging`, `journalctl -t foa-pg-prod --since 2026-11-01`; after a container is gone, `journalctl CONTAINER_NAME=foa-pg-prod` |
+| Host units (`foa-*` timers and services, CrowdSec, sshd)                  | Host journal                                                 | Same                                                      | `journalctl -u foa-pgbackrest-full.service --since -7d`                                                                                                                                                              |
+| Restore drills                                                            | `/var/log/foa/` (never pruned)                               | Forever                                                   | See "Restore drill"                                                                                                                                                                                                  |
+| The app on Vercel (functions, builds, requests)                           | Vercel's runtime logs, then a Vercel log drain (HR-24)       | Vercel: a short, plan-bound window. Drain store: 365 days | Vercel dashboard or `vercel logs`; the store's search once the drain exists                                                                                                                                          |
+
+`docker/systemd/journald-foa.conf` sets the year (`MaxRetentionSec=1year`,
+monthly files), the 20 GiB cap and a higher rate limit, since every
+container's lines reach journald through dockerd and share one limit. If
+the cap fills first, the oldest files go early: `journalctl --disk-usage`
+shows how close it is, and the off-box store is the answer, not a bigger
+cap on the database disk. Container logs carry client IP addresses
+(PgBouncer, CrowdSec, and Caddy for requests sent straight to the edge, never
+the site's visitors: Edge (Caddy), "Access log"); keeping them a year waits
+on counsel (HR-30).
+
+Install, once (HR-24):
+
+```sh
+install -D -m 0644 /srv/foa/docker/systemd/journald-foa.conf \
+  /etc/systemd/journald.conf.d/foa.conf
+systemctl restart systemd-journald
+journalctl --disk-usage
+# Recreates the containers with the journald driver. Postgres restarts:
+# pick a quiet moment. Lines logged before the switch go with the old containers.
+docker compose -f /srv/foa/docker/compose.yml up -d --wait
+docker inspect -f '{{.HostConfig.LogConfig.Type}}' foa-pgbouncer   # journald
+```
+
+Off-box (HR-24): in Vercel, Team Settings → Drains → add a log drain for
+the project to the chosen store; on the VPS, a shipper that reads the
+journal (for example `systemd-journal-upload`, or the store's own agent)
+sends the same entries there. The store keeps 365 days.
+
+## Analytics (Umami)
+
+Cookieless page views for the public site (#118). Compose project
+`foa-analytics` (`analytics.yml`), separate from `foa-vps`, so bringing the
+database stack down or up never touches it.
+
+| Container   | Image                                | Address                  | Published | Limits                           |
+| ----------- | ------------------------------------ | ------------------------ | --------- | -------------------------------- |
+| `foa-umami` | `ghcr.io/umami-software/umami:3.5.0` | 10.112.12.30:3000 (`db`) | no        | 1 CPU, 1 GB, `oom_score_adj` 500 |
+
+- **Data**: database `umami` on pg-prod, owned by role `umami`
+  (`postgres/bootstrap/umami.sql`, connection limit 10). pgBackRest backs up
+  the whole pg-prod cluster, so `umami` is in every backup and restore drill.
+  Umami runs its own migrations when it starts.
+- **Ingress**: Caddy (Edge, below) serves `https://stats.friendsofanimals.dev`
+  and proxies it to 10.112.12.30:3000 across the `db` bridge. Umami publishes
+  no port and holds no certificate.
+- **What the site sends**: the production build renders the tracker when
+  `NEXT_PUBLIC_UMAMI_WEBSITE_ID` and `UMAMI_ORIGIN` are set.
+  The site loads it as `/stats/script.js` and posts to `/stats/api/send` on
+  its own origin; Next rewrites just those two paths to `UMAMI_ORIGIN`. No
+  cookies, no query strings or fragments, and none of the site's own pages
+  as referrers. Nothing is sent from signed-in
+  pages, sign-in and sign-up, or from a browser that showed a signed-in page
+  in the last 30 days (`src/lib/analytics/umami.ts`).
+
+Secrets (never in git):
+
+| Path                                    | Mode, owner | What                                                                   |
+| --------------------------------------- | ----------- | ---------------------------------------------------------------------- |
+| `/etc/foa/analytics.env`                | 0600 root   | `DATABASE_URL` (role umami), `APP_SECRET`, `TWO_FACTOR_ENCRYPTION_KEY` |
+| `/etc/foa/secrets/umami_admin_password` | 0400 root   | Umami's `admin` password, which replaced the seeded one                |
+
+Bring-up (owner, HR-52), with the database stack and the edge running.
+The stats site serves 503 until the bootstrap replaces Umami's seeded admin
+login. On each run, the bootstrap closes the site before provisioning the
+database and reopens it only after the login replacement succeeds.
+
+```sh
+cd /srv/foa && git pull
+# Env file, role and database umami, pg_hba reload; then Umami, and its
+# seeded admin login replaced by a random password in
+# /etc/foa/secrets/umami_admin_password. This opens the stats site:
+sudo docker/scripts/analytics-bootstrap.sh
+```
+
+The stats site is already in `caddy/Caddyfile`; its A record must point at
+the VPS before Caddy can get its certificate (Edge, below).
+
+Then at `https://stats.friendsofanimals.dev`: sign in as `admin` with the
+password in `/etc/foa/secrets/umami_admin_password` (read it on the VPS
+yourself; if you change it in the dashboard, put the new one in that file
+too), turn on two-factor authentication, and add a website for
+`friendsofanimals.dev`. Set `NEXT_PUBLIC_UMAMI_WEBSITE_ID` to that website's
+ID and `UMAMI_ORIGIN=https://stats.friendsofanimals.dev` in Vercel Production.
+Follow the [production deployment runbook](../README.md#deploying).
+Check that a page view arrives, and that `pgbackrest info` after the next
+backup and the next restore drill both show `umami`.
+
+To keep the dashboard off the internet altogether, have the stats site in
+`caddy/Caddyfile` serve only `/script.js` and `/api/send` (a pull request,
+like any change there). Only the tracker and the collect endpoint stay
+public, and the site's rewrites need nothing else. Reach the dashboard over
+SSH instead: `ssh -L 3000:10.112.12.30:3000 <vps>`, then open
+`http://localhost:3000`.
+
+Umami counts unique visitors by IP address. Requests reach it through
+Vercel's rewrite and then Caddy, so the connecting address is Vercel's.
+Vercel's rewrite sets `X-Real-IP` to the visitor's address, replacing
+whatever the browser sent, and `analytics.yml` sets
+`CLIENT_IP_HEADER=x-real-ip`. Caddy passes `X-Real-IP` through and drops the
+other headers Umami would fall back to (`CF-Connecting-IP`,
+`True-Client-IP`, `X-Client-IP` and the other CDN ones), so a header a
+browser adds can't replace the address Vercel set. That doesn't make the
+address unforgeable: Umami 3.5.0 takes an `ip` field in the `/api/send`
+body before any header, and a request sent straight to
+`stats.friendsofanimals.dev` can carry its own `X-Real-IP` (and the
+headers Caddy doesn't drop, such as `X-Appengine-User-Ip`). Only the
+counts and their countries are at stake: a forged address reaches Umami's
+statistics, never the site.
+
+Upgrade: bump the image tag in `analytics.yml`, `git pull`, then rerun the
+bootstrap. Caddy serves 503 whenever `/var/lib/foa/caddy/gates/stats` is
+absent. Before restoring or replacing Umami's database, remove that marker
+and confirm the stats site returns 503. After maintenance, rerun the
+bootstrap to verify the admin login and reopen the site. If the login step
+fails, correct the problem and rerun the bootstrap.
+
+To rotate the database password, delete the `DATABASE_URL` line from
+`analytics.env` and rerun the bootstrap. Compose recreates Umami with the
+new environment.
+
+```sh
+docker compose -f docker/analytics.yml ps
+docker exec foa-umami curl -fsS http://127.0.0.1:3000/api/heartbeat   # {"ok":true}
+```
+
+## Edge (Caddy)
+
+Caddy terminates TLS on the VPS for the services that need a public HTTPS
+name (#118). Compose project `foa-edge` (`edge.yml`), sites in
+`caddy/Caddyfile`.
+
+| Container   | Image          | Network | Listens            | Limits                               |
+| ----------- | -------------- | ------- | ------------------ | ------------------------------------ |
+| `foa-caddy` | `caddy:2.11.9` | host    | :80, :443 (h1, h2) | 0.5 CPU, 256 MB, `oom_score_adj` 500 |
+
+| Site                                                         | Serves                                           |
+| ------------------------------------------------------------ | ------------------------------------------------ |
+| `stats.friendsofanimals.dev`                                 | Umami at 10.112.12.30:3000 (Analytics, above)    |
+| `errors.friendsofanimals.dev`                                | GlitchTip at 10.112.13.10:8000 (Errors, below)   |
+| `http://db.friendsofanimals.dev`, `http://db.shipped-it.dev` | Port 80 only: lego's challenge files, else a 404 |
+
+- **Host network**: Caddy binds :80 and :443 on the host itself, so
+  firewalld's `http` and `https` services govern them (Firewall, above);
+  Docker makes no rules for it and `FOA-INBOUND` doesn't apply. Umami and
+  GlitchTip publish no port: Caddy reaches them across their bridges. The
+  admin API is the unix socket `/config/admin.sock` (0600) inside the
+  container, `/var/lib/foa/caddy/config/admin.sock` on the host, not a TCP
+  port: on the host network any local process could reach a port.
+- **Hardened**: Caddy runs as root (the image has no other user) but with
+  every capability dropped except `NET_BIND_SERVICE`, `no-new-privileges`,
+  and a read-only root filesystem. It writes only `/data`, `/config` and a
+  tmpfs `/tmp`.
+- **Certificates**: Caddy gets and renews the stats and errors certificates
+  itself from Let's Encrypt; `acme_ca` pins the production CA. Each name
+  needs its A record (189.72.156.29, no AAAA) before Caddy loads its site.
+  Certificates and ACME state live in `/var/lib/foa/caddy/{data,config}`:
+  keep them across recreates, or Caddy asks for new certificates, and Let's
+  Encrypt issues at most 5 a week for the same set of names.
+- **One owner of port 80**: foa-caddy listens on this port while it runs.
+  `scripts/cert-renew.sh` then uses lego's webroot mode for the PgBouncer
+  certificate. lego writes the challenge into `/var/lib/foa/acme-webroot`,
+  and Caddy serves it read-only for the `http://db.*` names. When port 80
+  is free, lego answers the challenge on its standalone listener (TLS
+  certificate, above).
+- **Access log**: the stats and errors sites write a JSON access log to
+  stdout (the `access_log` snippet in `caddy/Caddyfile`), which goes to
+  journald with the container's other lines (Logs, above) and from there to
+  CrowdSec. It never holds a visitor of the site: Caddy skips the paths
+  the site proxies for them, whatever the method or query (`log_skip`: the
+  tracker script and page views on stats, Sentry envelopes on errors). For
+  every other request it deletes
+  the headers that carry someone's address, location or page (`X-Real-Ip`,
+  `X-Forwarded-For`, `Forwarded`, Vercel's `X-Vercel-Forwarded-For` and
+  `X-Vercel-Ip-*`, `Referer`) and redacts cookies and `Authorization`. What
+  remains is the connecting address (a scanner's, or the owner's on the
+  dashboard), host, method, path with its query string, status and user
+  agent: what CrowdSec's caddy parser reads. Caddy's own log (stderr) goes
+  through the same filter (`log default`): when Umami or GlitchTip is down,
+  each request it couldn't proxy, a skipped one included, lands there with
+  its headers.
+- **Abuse control**: CrowdSec's `crowdsecurity/caddy` collection (the
+  generic HTTP scenarios: probing, crawling, sensitive files, bad user
+  agents, known CVEs) bans abusive sources at the host (CrowdSec, above).
+  There is no Caddy rate limit. The `caddy:2.11.9` image has no rate-limit
+  module, so one needs a custom build with a pinned
+  `github.com/mholt/caddy-ratelimit`. And nearly every request arrives from
+  Vercel's few shared egress addresses: a limit per address would throttle
+  every visitor at once, and one per `X-Real-IP` trusts a header any direct
+  request can set. See TODO, "Edge rate limit".
+- **New host**: point `acme_ca` at Let's Encrypt's staging CA
+  (`https://acme-staging-v02.api.letsencrypt.org/directory`) for the first
+  start, and back to production once a certificate is issued, so a mistake
+  can't run into production's rate limits.
+
+Start, reload and recreate, from `/srv/foa`:
+
+```sh
+cd /srv/foa && git pull
+firewall-cmd --zone=public --add-service=https             # Firewall, above
+firewall-cmd --permanent --zone=public --add-service=https
+docker compose -f docker/edge.yml up -d --wait
+# After a Caddyfile change:
+docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile --address unix//config/admin.sock
+docker logs --since 10m foa-caddy     # certificate issuance and errors
+```
+
+`caddy/` is mounted as a directory, so a reload reads the Caddyfile that git
+just wrote; a single-file mount would keep showing the old one. A recreate
+keeps the project, container and data paths, so the certificates survive it.
+
+## Errors (GlitchTip)
+
+GlitchTip collects the site's and the workers' errors through the Sentry SDK
+(#66) at `https://errors.friendsofanimals.dev`. Compose project `foa-errors`
+(`errors.yml`), network `foa-errors` = `10.112.13.0/24` on bridge
+`br-foa-errors`.
+
+| Container          | Image                       | Address           | Published | Limits                      |
+| ------------------ | --------------------------- | ----------------- | --------- | --------------------------- |
+| `foa-glitchtip`    | `glitchtip/glitchtip:7.0.0` | 10.112.13.10:8000 | no        | 1 GB, `oom_score_adj` 500   |
+| `foa-glitchtip-pg` | `postgres:18.7-alpine`      | 10.112.13.11:5432 | no        | 512 MB, `oom_score_adj` 500 |
+
+- **Hardened**: neither container gains new privileges. GlitchTip runs as
+  its image's user (`app`, 5000) with no capabilities; its Postgres keeps
+  only `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID` and `SETUID`, which its
+  entrypoint needs to own the data directory, read the password file and
+  drop to `postgres`.
+- **One container** runs GlitchTip's web server and its workers.
+  `VALKEY_URL` is empty, so Postgres is the task queue, cache and session
+  store: no Valkey or Redis.
+- **Its own Postgres**, not pg-prod: GlitchTip's partitioned tables need
+  `max_locks_per_transaction=512`, and pg-prod's settings and `pg_hba` are
+  tuned for `foa`. Data in `/var/lib/foa/glitchtip/pg` (owned by 70, the
+  image's postgres user), uploads in `/var/lib/foa/glitchtip/uploads` (owned
+  by 5000, GlitchTip's user). Neither is in pgBackRest: losing them loses the
+  error history, nothing else.
+- **Closed**: self-sign-up ends with the first user, only superusers create
+  organisations, and the Django admin, the OpenAPI page, MCP, uptime checks
+  and log ingestion are off. Mail goes to the container log
+  (`EMAIL_URL=consolemail://`).
+- **Ingress**: Caddy (Edge, above). Browsers send their events through the
+  site's own `/monitoring` route (#66), so its CSP keeps `connect-src
+  'self'`.
+
+Secrets (never in git, never printed; each value is `openssl rand -hex
+32`):
+
+| Path                                     | Mode, owner | What                                                                             |
+| ---------------------------------------- | ----------- | -------------------------------------------------------------------------------- |
+| `/etc/foa/secrets/glitchtip.env`         | 0600 root   | `SECRET_KEY`, and `DATABASE_URL` for role glitchtip at 10.112.13.11:5432         |
+| `/etc/foa/secrets/glitchtip_pg_password` | 0400 70     | The same password, for foa-glitchtip-pg's first start (`POSTGRES_PASSWORD_FILE`) |
+
+**First start on a new host**, or after losing `/var/lib/foa/glitchtip/pg`
+(no backup restores it): GlitchTip lets the first account that signs up
+become superuser, even with sign-up turned off, and Caddy already routes
+`errors.friendsofanimals.dev` with a public certificate. So create the
+owner's account before the web server runs: start only the database, run the
+migrations and `createsuperuser` in one-off containers, then start GlitchTip.
+foa-glitchtip must be stopped meanwhile (after a database loss:
+`docker compose -f docker/errors.yml stop glitchtip`): the one-off
+containers take its fixed address, 10.112.13.10.
+
+```sh
+cd /srv/foa && git pull
+docker compose -f docker/errors.yml stop glitchtip    # if it runs
+docker compose -f docker/errors.yml up -d --wait glitchtip-pg
+docker compose -f docker/errors.yml run --rm glitchtip ./manage.py migrate
+docker compose -f docker/errors.yml run --rm glitchtip ./manage.py createsuperuser
+docker compose -f docker/errors.yml up -d --wait
+```
+
+Start and recreate, with the edge running and the superuser in place:
+
+```sh
+cd /srv/foa && git pull
+# GlitchTip migrates its database on start: up to 2 minutes.
+docker compose -f docker/errors.yml up -d --wait
+docker compose -f docker/errors.yml ps
+```
+
+The organisation `foa` and its two projects, one for the site and one for
+the workers, live in GlitchTip's database. Their DSNs are Vercel
+Production's `NEXT_PUBLIC_SENTRY_DSN` and `/etc/foa/secrets/worker_sentry.env`.
+Upgrade: bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
+
 ## TODO and owner actions
 
 1. **Vercel Static IPs** (deferred): allowlist them in
@@ -658,24 +1465,34 @@ links into `/etc/pki/ca-trust`, which would dangle inside the container.
    migrations run in the build: turning on "Use Static IPs for builds" needs a
    static-IP region for builds as well, and its IPs on the allowlist, or the
    allowlist blocks every migration.
-2. **Off-site backups on FOA's Cloudflare (#18)**: pgBackRest `repo2` on R2
+2. **Off-site copy of files (#68, HR-25, HR-13)**: B2 bucket and key, a
+   read-only R2 token, the settings in `worker-prod`, the retention value
+   (30 days proposed) and one restore tried against real buckets (above).
+3. **Off-site backups on FOA's Cloudflare (#18)**: pgBackRest `repo2` on R2
    (own passphrase), plus a daily `age`-encrypted `pg_dump` to a separate,
    bucket-locked R2 bucket kept 35 days. Until then backups live on the same
    disk as the database.
-3. **Hostinger managed firewall**: if it is ever enabled it must allow TCP 22,
-   80 (ACME renewals) and 6432, with the SSH rule added first.
-4. **Offline copy** of `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` with
+4. **Hostinger managed firewall**: if it is ever enabled it must allow TCP 22,
+   80 (ACME renewals, Caddy), 443 (Caddy) and 6432, with the SSH rule added
+   first.
+5. **Offline copy** of `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` with
    the owner.
-5. **Alerting** (operations ticket): failed `foa-pgbackrest-*`,
+6. **Alerting** (operations ticket): failed `foa-pgbackrest-*`,
    `foa-restore-drill`, `foa-cert-renew` or archiving
    (`pg_stat_archiver.failed_count`), and a periodic `pgbackrest check`. The
    restore drill cannot see archiving that has stalled, because it can only
    replay the WAL that reached the repository.
-6. The future worker connects directly on the `db` network (pg_hba already
-   allows the app roles from 10.112.12.0/24); give it its own role if it
-   needs rights beyond `foa_app`.
-7. **One build per branch** (owner): Vercel → Project Settings → Build and
+7. **Workers (HR-07):** apply the roles and start `workers.yml` (Workers,
+   "First start"), and settle the CPU and memory caps there for the shared
+   VPS.
+8. **One build per branch** (owner): Vercel → Project Settings → Build and
    Deployment → On-Demand Concurrent Builds → "Run up to one build per
    branch". The API refused the change for lack of permission. Meanwhile the
    migration's advisory lock keeps concurrent builds of one branch from
    applying the same migration twice.
+9. **Edge rate limit** (deferred, #118): CrowdSec's HTTP scenarios are the
+   edge's abuse control today (Edge, "Abuse control"). If Umami's
+   `/api/send` or GlitchTip's envelopes are ever flooded, build Caddy with
+   a pinned `caddy-ratelimit` (an image built and pinned here, not
+   `caddy:2.11.9`), and limit the paths Vercel doesn't proxy per address
+   and the proxied ones per site.

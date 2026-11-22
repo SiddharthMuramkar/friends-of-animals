@@ -3,11 +3,16 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
 import { isStorySlug } from "@/content/stories";
-import { isSignedInPage, isSignedInPath } from "@/lib/app-routes";
+import {
+  isNonProductionPath,
+  isSignedInPage,
+  isSignedInPath,
+} from "@/lib/app-routes";
 import { createNonce, publicCsp, signedInCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
 import { ROUTES } from "@/lib/routes";
 import { PATH_HEADER } from "@/lib/second-factor-routes";
+import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
@@ -100,6 +105,11 @@ export function createProxy({
   // Rejecting them here, before rendering starts, gives a real 404.
   return async function proxy(request) {
     const { pathname } = request.nextUrl;
+    // Demo pages don't exist in production: the 404 for everyone, visitors
+    // included, before the sign-in check.
+    if (appEnv() === "production" && isNonProductionPath(pathname)) {
+      return missingSignedInPage(request);
+    }
     // Pages behind sign-in: a request without a session cookie goes
     // straight to sign in. With one, the page checks the session itself.
     if (isSignedInPath(pathname)) {

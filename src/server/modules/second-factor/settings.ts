@@ -13,8 +13,13 @@ export const SECOND_FACTOR_SETTINGS = {
   stepUpWindowMs: STEP_UP_WINDOW_MS,
   /** 5 failed codes in 15 minutes lock the user out for 15 minutes. */
   lockout: LOCKOUT_DEFAULTS,
-  /** Staff sessions last 12 hours from sign-in, everyone else's 30 days. */
+  /**
+   * Everyone else's sessions last 30 days from sign-in. Staff sessions
+   * last the auth.staffSessionHours runtime setting (#62) instead.
+   */
   sessionLifetimes: SESSION_LIFETIME_DEFAULTS,
   /** How long a passkey challenge can be answered. */
   passkeyChallengeMs: 5 * 60 * 1000,
+  /** How long a new authenticator app waits for its first code. */
+  totpEnrolmentMs: 10 * 60 * 1000,
 } as const;

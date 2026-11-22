@@ -26,6 +26,17 @@ function codeFor(secret: Uint8Array, stepsAhead = 0): string {
   return totpCode(secret, new Date(Date.now() + stepsAhead * 30_000));
 }
 
+/**
+ * A well-formed code no step of drift around now accepts, with a margin
+ * for the clock moving on before the server checks it.
+ */
+function wrongCodeFor(secret: Uint8Array): string {
+  const near = [-2, -1, 0, 1, 2].map((step) => codeFor(secret, step));
+  return ["000000", "111111", "222222", "333333", "444444", "555555"].find(
+    (code) => !near.includes(code)
+  )!;
+}
+
 async function signIn(
   page: Page,
   request: Parameters<typeof readCode>[0],
@@ -62,10 +73,44 @@ test("a member adds an authenticator app, then steps up to remove it", async ({
 
   await page.getByRole("textbox", { name: "Name it" }).first().fill("Phone");
   await page.getByRole("button", { name: "Set up an app" }).click();
-  await expect(
-    page.getByRole("img", { name: /QR code for adding Friends of Animals/ })
-  ).toBeVisible();
+  const qr = page.getByRole("img", {
+    name: /QR code for adding Friends of Animals/,
+  });
+  await expect(qr).toBeVisible();
   await expectAccessible(page, "/account/security, setting up an app");
+
+  const viewport = page.viewportSize();
+  await page.setViewportSize({ width: 320, height: 640 });
+  const instructions = page.getByText("Scan this code with your app.");
+  for (const [fontSize, expectedSize] of [
+    ["100%", "16px"],
+    ["200%", "32px"],
+  ]) {
+    await page.evaluate((size) => {
+      document.documentElement.style.fontSize = size;
+    }, fontSize);
+    await page.waitForFunction(
+      (size) => getComputedStyle(document.documentElement).fontSize === size,
+      expectedSize
+    );
+    const { width, height, availableWidth, bottom } = await qr.evaluate(
+      (code) => {
+        const bounds = code.getBoundingClientRect();
+        return {
+          width: bounds.width,
+          height: bounds.height,
+          bottom: bounds.bottom,
+          availableWidth: code.closest("form")!.clientWidth,
+        };
+      }
+    );
+    expect(width, `QR width at ${fontSize} text size`).toBeLessThanOrEqual(
+      availableWidth
+    );
+    expect(width).toBeCloseTo(height);
+    expect((await instructions.boundingBox())?.y).toBeGreaterThan(bottom);
+  }
+
   const key = await page
     .getByText(/^([A-Z2-7]{4} ){7}[A-Z2-7]{4}$/)
     .textContent();
@@ -76,6 +121,10 @@ test("a member adds an authenticator app, then steps up to remove it", async ({
     .fill(codeFor(secret));
   await page.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByRole("status")).toContainText("Added.");
+  if (viewport) await page.setViewportSize(viewport);
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("font-size");
+  });
   await expect(
     page.getByText("Authenticator app", { exact: true })
   ).toBeVisible();
@@ -105,9 +154,13 @@ test("staff pass their second factor, then step up for a sensitive change", asyn
     "/auth/second-factor?next=%2Faccount%2Fsecurity"
   );
   await expectAccessibleInDark(page, "/auth/second-factor");
-  await page.getByRole("textbox", { name: "6-digit code" }).fill("000000");
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(wrongCodeFor(secret));
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("alert")).toContainText("didn't match");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "didn't match"
+  );
 
   await page
     .getByRole("textbox", { name: "6-digit code" })

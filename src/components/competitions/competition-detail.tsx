@@ -172,7 +172,7 @@ export async function CompetitionDetail({
 
       {c.welfareMessage ? (
         <Section labelledBy="theme-title" hue={HUE}>
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
             <div>
               <Eyebrow tile="pink">{t("theme.eyebrow")}</Eyebrow>
               <h2
@@ -277,7 +277,7 @@ export async function CompetitionDetail({
             title={t("timeline.title")}
             lead={t("timeline.lead")}
           />
-          <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ol className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {steps.map((s, i) => (
               <li
                 key={s.kind}
@@ -299,7 +299,7 @@ export async function CompetitionDetail({
                 >
                   {i + 1}
                 </span>
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold text-ink">
                     {t(`timeline.steps.${s.kind}`)}
                   </p>
@@ -330,7 +330,7 @@ export async function CompetitionDetail({
           id="routes-title"
           title={c.routes.length > 1 ? t("routes.title") : t("routes.titleOne")}
         />
-        <div className="mt-8 grid gap-5 md:grid-cols-2">
+        <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
           {school ? (
             <article className="rounded-3xl border-2 border-green-700 bg-surface p-6 shadow-warm dark:border-green-400">
               <div className="flex flex-wrap items-center gap-3">
@@ -392,7 +392,7 @@ export async function CompetitionDetail({
 
       <Section hue={HUE} tone="tint">
         <CertificatePreview />
-        <div className="mx-auto mt-12 grid max-w-5xl gap-8 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="mx-auto mt-12 grid grid-cols-1 max-w-5xl gap-8 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <div>
             <h3 id="recognition-title" className="text-h3">
               {t("recognition.title")}
@@ -429,7 +429,7 @@ export async function CompetitionDetail({
       {c.disciplines.length > 0 ? (
         <Section labelledBy="files-title" hue={HUE}>
           <SectionHeading id="files-title" title={t("files.title")} />
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {fileRules(c.disciplines).map((r) => (
               <li
                 key={r.discipline}
@@ -481,7 +481,7 @@ export async function CompetitionDetail({
       ) : null}
 
       <Section labelledBy="rules-title" hue={HUE}>
-        <div className="grid gap-10 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
           <div>
             <h2 id="rules-title" className="text-h3">
               {t("rules.title")}
@@ -572,7 +572,7 @@ export async function CompetitionDetail({
       </Section>
 
       <Section labelledBy="consent-title" hue={HUE} tone="tint">
-        <div className="grid gap-10 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
           <div>
             <h2 id="consent-title" className="text-h3">
               {t("consent.title")}

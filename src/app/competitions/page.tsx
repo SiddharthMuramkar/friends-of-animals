@@ -72,7 +72,7 @@ async function OpenCompetitions() {
         {t("list.lead")}
       </p>
       <CompetitionFilters className="mt-8">
-        <ul className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((c) => {
             const tokens = filterTokens(c);
             return (
@@ -204,7 +204,7 @@ export default async function Page() {
       </Section>
 
       <Section labelledBy="own-title" hue={HUE} tone="tint">
-        <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-14">
           <div>
             <SectionHeading
               id="own-title"

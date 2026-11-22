@@ -88,7 +88,7 @@ function FootnoteRef({
           <a
             href={note.url}
             rel="noreferrer"
-            className="inline-flex min-h-6 items-center gap-1.5 font-semibold text-link underline underline-offset-2 hover:text-link-hover"
+            className="inline-flex min-h-6 items-center gap-1.5 font-semibold text-link underline underline-offset-2 hover:text-link-hover pointer-coarse:min-h-11"
           >
             {ctx.labels.openSource}
             <ExternalLink aria-hidden="true" className="size-4" />
@@ -97,7 +97,7 @@ function FootnoteRef({
             type="button"
             popoverTarget={popId}
             popoverTargetAction="hide"
-            className="ms-auto inline-flex min-h-8 items-center rounded-full border-2 border-border px-3 text-sm font-semibold hover:bg-surface-muted"
+            className="ms-auto inline-flex min-h-8 items-center rounded-full border-2 border-border px-3 text-sm font-semibold hover:bg-surface-muted pointer-coarse:min-h-11"
           >
             {ctx.labels.close}
           </button>
@@ -166,7 +166,7 @@ function Box({
               >
                 {k + 1}
               </span>
-              <span className="pt-0.5">
+              <span className="min-w-0 pt-0.5">
                 <Inlines text={text} ctx={ctx} path={`${path}-${k}`} />
               </span>
             </li>

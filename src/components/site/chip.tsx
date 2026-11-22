@@ -27,7 +27,7 @@ export function Chip({
   return (
     <span
       className={cn(
-        "inline-flex min-h-7 items-center gap-1.5 rounded-full border px-3 py-1 text-sm leading-tight font-semibold [&_svg]:size-4",
+        "inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full border px-3 py-1 text-sm leading-tight font-semibold wrap-anywhere [&_svg]:size-4 [&_svg]:shrink-0",
         TONE[tone],
         className
       )}

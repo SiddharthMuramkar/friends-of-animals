@@ -26,12 +26,33 @@ export type TestDb = Awaited<ReturnType<typeof createTestDb>>;
  * per `vitest run`; tests load the result through `createTestDb()`.
  */
 export async function migrateTemplate(): Promise<Blob> {
-  const client = await PGlite.create({ extensions });
+  const client = await createMigratedClient();
   try {
-    await migrate(drizzle({ client }), { migrationsFolder });
     return await client.dumpDataDir("none");
   } finally {
     await client.close();
+  }
+}
+
+/**
+ * Creates an empty PGlite with the extensions the migrations need, runs
+ * `before` on it, then applies the real migrations, and returns the client
+ * for the caller to close. For a test that must set something up before
+ * the migrations run, such as the default privileges a deployed database
+ * gives its app role; every other test uses `createTestDb()`, which loads
+ * an already migrated copy and is much faster.
+ */
+export async function createMigratedClient({
+  before,
+}: { before?: (empty: PGlite) => Promise<unknown> } = {}): Promise<PGlite> {
+  const client = await PGlite.create({ extensions });
+  try {
+    await before?.(client);
+    await migrate(drizzle({ client }), { migrationsFolder });
+    return client;
+  } catch (error) {
+    await client.close();
+    throw error;
   }
 }
 
