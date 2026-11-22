@@ -1,6 +1,7 @@
 "use server";
 
 import { getTranslations } from "next-intl/server";
+import { refresh } from "next/cache";
 import { redirect, RedirectType } from "next/navigation";
 
 import { APP_ROUTES } from "@/lib/app-routes";
@@ -36,6 +37,8 @@ export async function inviteCoordinatorAction(
     identifier,
   });
   const state = inviteFormState(identifier, result);
+  // The list of waiting invitations shows the new one at once.
+  if (result.ok) refresh();
   const t = await getTranslations("coordinators.manage");
   return {
     ...state,
