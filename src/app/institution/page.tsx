@@ -58,16 +58,25 @@ const CARD =
 async function MyInstitution({ searchParams }: { searchParams: SearchParams }) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, statuses, types, callout, format, mine, { registered }] =
-    await Promise.all([
-      getTranslations("institutions.mine"),
-      getTranslations("institutions.status"),
-      getTranslations("institutions.type"),
-      getTranslations("common.callout"),
-      getFormatter(),
-      as(actor).getMyInstitution(),
-      searchParams,
-    ]);
+  const [
+    t,
+    statuses,
+    types,
+    callout,
+    coordinators,
+    format,
+    mine,
+    { registered },
+  ] = await Promise.all([
+    getTranslations("institutions.mine"),
+    getTranslations("institutions.status"),
+    getTranslations("institutions.type"),
+    getTranslations("common.callout"),
+    getTranslations("coordinators.manage"),
+    getFormatter(),
+    as(actor).getMyInstitution(),
+    searchParams,
+  ]);
 
   if (!mine.ok) {
     return (
@@ -138,6 +147,11 @@ async function MyInstitution({ searchParams }: { searchParams: SearchParams }) {
         {institution.status === "rejected" ? (
           <ButtonLink href={APP_ROUTES.institutionRegister} className="mt-5">
             {t("registerAgain")}
+          </ButtonLink>
+        ) : null}
+        {institution.status === "verified" ? (
+          <ButtonLink href={APP_ROUTES.institutionCoordinators} className="mt-5">
+            {coordinators("entry")}
           </ButtonLink>
         ) : null}
       </section>

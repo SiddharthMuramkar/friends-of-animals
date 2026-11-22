@@ -1,19 +1,8 @@
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Browser,
-  type Page,
-  type TestInfo,
-} from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
-import {
-  drainOutbox,
-  freshEmail,
-  readCode,
-  readEmail,
-} from "./support/mailbox";
+import { drainOutbox, freshEmail, readEmail } from "./support/mailbox";
+import { newDevice, signInByCode } from "./support/sign-in";
 
 // #74: the authorised person of the seeded verified institution invites a
 // teacher by email. The teacher opens the link signed out, creates an
@@ -30,35 +19,9 @@ const ADMIN = "institution-admin@example.test";
 const SUBJECT = `Join ${INSTITUTION} as a coordinator on Friends of Animals`;
 const LINK = /\/invitations\/[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/;
 
-async function signIn(
-  page: Page,
-  request: APIRequestContext,
-  email: string,
-  name?: string
-) {
-  await page.goto(name ? "/sign-up" : "/sign-in");
-  if (name) await page.getByRole("textbox", { name: "Your name" }).fill(name);
-  await page.getByRole("textbox", { name: "Email address" }).fill(email);
-  await page.getByRole("button", { name: "Email me a code" }).click();
-  const code = await readCode(request, email);
-  await page.getByRole("textbox", { name: "6-digit code" }).fill(code);
-  await page
-    .getByRole("button", { name: /^(Create account|Sign in)$/ })
-    .click();
-  await expect(page).toHaveURL(/\/account\/sessions$/);
-}
-
 async function checkBothThemes(page: Page, label: string) {
   await expectAccessible(page, label);
   await expectAccessibleInDark(page, label);
-}
-
-/** Another person's browser, with this project's settings. */
-function anotherBrowser(browser: Browser, testInfo: TestInfo) {
-  return browser.newPage({
-    baseURL: testInfo.project.use.baseURL,
-    storageState: testInfo.project.use.storageState,
-  });
 }
 
 /**
@@ -92,8 +55,10 @@ test("an authorised person invites a teacher, who accepts and is then removed", 
   const teacher = freshEmail(testInfo.project.name);
 
   // The authorised person's list: the seeded coordinator and invitation.
-  await signIn(page, request, ADMIN);
-  await page.goto("/institution/coordinators");
+  await signInByCode(page, request, ADMIN);
+  await page.goto("/institution");
+  await page.getByRole("link", { name: "Manage coordinators" }).click();
+  await expect(page).toHaveURL(/\/institution\/coordinators$/);
   await expect(
     page.getByRole("heading", { level: 1, name: "Coordinators" })
   ).toBeVisible();
@@ -112,7 +77,7 @@ test("an authorised person invites a teacher, who accepts and is then removed", 
   const link = await invite(page, request, teacher);
 
   // The teacher opens the link signed out.
-  const invitee = await anotherBrowser(browser, testInfo);
+  const invitee = await newDevice(browser, testInfo);
   await invitee.goto(link);
   await expect(
     invitee.getByText(
@@ -132,7 +97,7 @@ test("an authorised person invites a teacher, who accepts and is then removed", 
   await checkBothThemes(page, "/invitations/[token] for someone else");
 
   // The teacher creates an account with the invited address and accepts.
-  await signIn(invitee, request, teacher, teacherName);
+  await signInByCode(invitee, request, teacher, teacherName);
   await invitee.goto(link);
   await checkBothThemes(invitee, "/invitations/[token] ready to accept");
   await invitee.getByRole("button", { name: "Accept invitation" }).click();
@@ -172,7 +137,7 @@ test("an authorised person invites a teacher, who accepts and is then removed", 
     invitee.getByText("This invitation was withdrawn")
   ).toBeVisible();
   await checkBothThemes(invitee, "/invitations/[token] withdrawn");
-  await invitee.close();
+  await invitee.context().close();
 });
 
 test("a link that matches no invitation shows that it doesn't work", async ({
