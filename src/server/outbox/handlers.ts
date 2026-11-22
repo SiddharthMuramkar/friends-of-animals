@@ -11,15 +11,18 @@
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
+import { dispatchEvent } from "../modules/notifications/dispatch";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { runStatusJob } from "../modules/competitions/advance-status";
-import { sendWelcomeEmail } from "../modules/notifications/welcome-email";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
 import type { MediaProcessor } from "../ports/media";
+import type { Settings } from "../ports/settings";
+import type { SmsSender } from "../ports/sms";
 import type { ObjectStorage } from "../ports/storage";
 import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
@@ -28,6 +31,11 @@ export type OutboxDeps = {
   db: AppDb;
   clock: Clock;
   email: EmailSender;
+  sms: SmsSender;
+  /** Runtime settings, such as whether messages may go by SMS. */
+  settings: Settings;
+  /** Reads a recipient's stored phone number. */
+  cipher: FieldCipher;
   storage: ObjectStorage;
   scanner: MalwareScanner;
   /** Used only by the media queue's handlers, in worker-media. */
@@ -39,16 +47,19 @@ type EventFor<H extends HandlerName> = {
   [T in EventType]: H extends (typeof SUBSCRIBERS)[T][number] ? T : never;
 }[EventType];
 
-/** One delivery, as its handler receives it. */
-export type Delivery<T extends EventType = EventType> = {
-  /** The outbox row's id: the delivery's idempotency key. */
-  id: string;
-  eventId: string;
-  occurredAt: Date;
-  /** 1 on the first try. */
-  attempt: number;
-  payload: EventOf<T>["payload"];
-};
+/** One delivery, as its handler receives it: one per event type in `T`. */
+export type Delivery<T extends EventType = EventType> = T extends EventType
+  ? {
+      /** The outbox row's id: the delivery's idempotency key. */
+      id: string;
+      eventId: string;
+      eventType: T;
+      occurredAt: Date;
+      /** 1 on the first try. */
+      attempt: number;
+      payload: EventOf<T>["payload"];
+    }
+  : never;
 
 type Handlers = {
   [H in HandlerName]: (
@@ -58,14 +69,9 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
-  "notifications.send_welcome_email": (deps, { payload }) =>
-    sendWelcomeEmail(deps, payload),
+  // Sends the messages the event's route rows name (#69).
+  "notifications.dispatch": dispatchEvent,
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
-  // Nothing to do yet: consent state is read live, so a withdrawal counts
-  // at once. emit() saves no row for an event without handlers, so this
-  // one keeps each withdrawal on the outbox until the first module that
-  // reacts to it adds its own handler; then remove this one.
-  "consent.acknowledge_withdrawal": async () => {},
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>
     runStatusJob(deps, payload),

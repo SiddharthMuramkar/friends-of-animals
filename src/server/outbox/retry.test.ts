@@ -114,7 +114,7 @@ describe("a delivery whose handler fails", () => {
         eventType: "identity.user_signed_up",
         aggregateType: "user",
         aggregateId: member.id,
-        handler: "notifications.send_welcome_email",
+        handler: "notifications.dispatch",
         attempts: maxAttempts,
         occurredAt: row.occurredAt,
         lastError: "Error: Mailbox [email] refused the message",

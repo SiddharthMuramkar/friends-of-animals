@@ -1,15 +1,22 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
+import type { E164Phone } from "@/lib/phone";
+import { fieldCryptoFor } from "@/server/crypto/keys";
 import type { AppDb } from "@/server/db/app-db";
 import {
   capturedMessage,
   fileAsset,
   fileDerivative,
   fileProcessing,
+  inboxItem,
+  messageRoute,
+  messageTemplate,
   outbox,
+  user,
   workerHeartbeat,
 } from "@/server/db/schema";
+import { storedPhone } from "@/server/identity/stored-phone";
 import { OffsiteCopyNotConfiguredError } from "@/server/modules/offsite-copy/errors";
 import { drainUntilIdle } from "@/server/outbox";
 import { emitUserSignedUp } from "@/server/outbox/testing";
@@ -300,6 +307,82 @@ describe("a single-database worker", () => {
   });
 });
 
+const PHONE = "+919876543210" as E164Phone;
+
+/**
+ * SMS switched on in the database's settings, a welcome message by email,
+ * SMS and in-app with its SMS registered, and a member with a verified
+ * phone stored under the public development keys.
+ */
+async function welcomeBySms(h: Harness) {
+  await h.settings.set("sms.enabled", true);
+  await h.db
+    .update(messageRoute)
+    .set({ channels: ["email", "sms", "in_app"] })
+    .where(eq(messageRoute.templateKey, "identity.welcome"));
+  await h.db
+    .update(messageTemplate)
+    .set({ dltTemplateId: "1107170000000000001" })
+    .where(
+      and(
+        eq(messageTemplate.key, "identity.welcome"),
+        eq(messageTemplate.channel, "sms")
+      )
+    );
+  const member = await h.seed.member();
+  await h.db
+    .update(user)
+    .set({
+      ...storedPhone(fieldCryptoFor({ APP_ENV: "local" }), PHONE),
+      phoneVerified: true,
+    })
+    .where(eq(user.id, member.id));
+  await emitUserSignedUp(h, member.id);
+  return member;
+}
+
+describe("a worker's messages by SMS", () => {
+  it("texts a member while the database's settings switch SMS on", async () => {
+    const h = await createHarness();
+    const member = await welcomeBySms(h);
+    const { io } = fakeIo({ foa: h.db });
+
+    const worker = createWorker(singleConfig("local"), io);
+    await worker.start();
+    await worker.tick();
+
+    const captured = await h.db.select().from(capturedMessage);
+    const byChannel = captured
+      .map((m) => [m.channel, m.toAddress])
+      .sort(([a], [b]) => String(a).localeCompare(String(b)));
+    expect(byChannel).toEqual([
+      ["email", member.email],
+      ["sms", PHONE],
+    ]);
+  });
+
+  it("sends the email and the inbox item without field keys, and keeps retrying the SMS", async () => {
+    const h = await createHarness();
+    const member = await welcomeBySms(h);
+    const { io } = fakeIo({ foa: h.db });
+
+    const worker = createWorker(singleConfig("staging"), io);
+    await worker.start();
+    await worker.tick();
+
+    const captured = await h.db.select().from(capturedMessage);
+    expect(captured.map((m) => [m.channel, m.toAddress])).toEqual([
+      ["email", member.email],
+    ]);
+    expect(
+      await h.db.select().from(inboxItem).where(eq(inboxItem.userId, member.id))
+    ).toHaveLength(1);
+    const [delivery] = await h.db.select().from(outbox);
+    expect(delivery).toMatchObject({ status: "pending", attempts: 1 });
+    expect(delivery?.lastError).toContain("FIELD_ENCRYPTION_KEYS");
+  });
+});
+
 describe("a worker's failed ticks", () => {
   it("are reported with the database in single mode", async () => {
     const { io, record } = fakeIo({ foa: await brokenDb() });
@@ -465,7 +548,7 @@ describe("worker-media", () => {
       await h.db
         .select({ status: outbox.status })
         .from(outbox)
-        .where(eq(outbox.handler, "notifications.send_welcome_email"))
+        .where(eq(outbox.handler, "notifications.dispatch"))
     ).toEqual([{ status: "pending" }]);
     expect(await h.db.select().from(capturedMessage)).toEqual([]);
   });

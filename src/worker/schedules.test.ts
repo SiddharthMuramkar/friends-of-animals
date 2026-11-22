@@ -1,5 +1,8 @@
+import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
+import { createFieldCipher } from "@/server/crypto/field-cipher";
+import { databaseSettings } from "@/server/modules/settings";
 import {
   SCHEDULES,
   type ScheduleDefinition,
@@ -11,6 +14,7 @@ import { FakeClock } from "@/test/fakes/clock";
 import { FakeEmail } from "@/test/fakes/email";
 import { FakeErrorReporter } from "@/test/fakes/errors";
 import { FakeMalwareScanner } from "@/test/fakes/malware-scanner";
+import { FakeSms } from "@/test/fakes/sms";
 import { FakeStorage } from "@/test/fakes/storage";
 
 import {
@@ -50,10 +54,17 @@ function recordingBoss(existing: string[] = []) {
 }
 
 const clock = new FakeClock();
+const db = {} as ScheduleDeps["db"];
 const deps = {
-  db: {} as ScheduleDeps["db"],
+  db,
   clock,
   email: new FakeEmail(clock),
+  sms: new FakeSms(clock),
+  settings: databaseSettings(db),
+  cipher: createFieldCipher({
+    primary: 1,
+    keys: new Map([[1, randomBytes(32)]]),
+  }),
   storage: new FakeStorage(clock),
   scanner: new FakeMalwareScanner(),
   media: unconfiguredMedia,

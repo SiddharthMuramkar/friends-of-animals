@@ -20,6 +20,7 @@ import { consentUseCases } from "./modules/consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
 import { competitionsUseCases } from "./modules/competitions";
+import { notificationsUseCases } from "./modules/notifications";
 import { secondFactorUseCases } from "./modules/second-factor";
 import { filesUseCases } from "./modules/files";
 import { settingsUseCases } from "./modules/settings";
@@ -34,7 +35,8 @@ const useCases = composeUseCases(
   settingsUseCases,
   consentUseCases,
   competitionsUseCases,
-  cmsUseCases
+  cmsUseCases,
+  notificationsUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

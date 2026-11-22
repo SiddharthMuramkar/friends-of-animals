@@ -18,3 +18,4 @@ export * from "./offsite-copy";
 export * from "./worker";
 export * from "./competitions";
 export * from "./settings";
+export * from "./notifications";
