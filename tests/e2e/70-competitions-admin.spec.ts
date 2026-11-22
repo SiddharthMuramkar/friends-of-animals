@@ -190,7 +190,21 @@ test("a competition manager sees what a draft needs, then creates, edits, previe
     page.getByRole("heading", { name: "Ready to publish" })
   ).toBeVisible();
   await expect(page.getByText("1 April 2027 at 9:00 am IST")).toBeVisible();
+  // The public page's own body (70b), so the preview shows what goes live.
+  for (const heading of [
+    "Who can enter, and with what",
+    "Dates to remember",
+    "The rules",
+  ]) {
+    await expect(
+      page.getByRole("heading", { name: heading }),
+      heading
+    ).toBeVisible();
+  }
   await checkBothThemes(page, "/admin/competitions/[id]/preview");
+  // The public list is read once before publishing, so the check after it
+  // shows the publish refreshed the cached list (70b).
+  expect((await request.get("/competitions")).ok()).toBe(true);
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByRole("status")).toContainText("Published.");
   await expect(
@@ -204,6 +218,21 @@ test("a competition manager sees what a draft needs, then creates, edits, previe
   await expect(
     page.getByRole("listitem").filter({ hasText: name })
   ).toContainText("Published");
+
+  // The public pages show it straight away, with no deploy (70b).
+  const list = await page.goto("/competitions");
+  expect(list?.status()).toBeLessThan(400);
+  const href = await page
+    .locator("main")
+    .getByRole("link", { name })
+    .first()
+    .getAttribute("href");
+  expect(href).toMatch(/^\/competitions\/[a-z0-9-]+$/);
+  const detail = await page.goto(href!);
+  expect(detail?.status(), href!).toBe(200);
+  await expect(
+    page.locator("main").getByRole("heading", { level: 1 })
+  ).toHaveText(name);
   expect(violations).toEqual([]);
 });
 

@@ -207,13 +207,15 @@ async function run(deps: OutboxDeps, row: OutboxRow): Promise<DeliveryOutcome> {
     if (!isKnownHandler(row.handler)) {
       throw new Error(`No handler named ${row.handler}`);
     }
-    const delivery: Delivery = {
+    // payloadOf checked the payload against this event type's schema.
+    const delivery = {
       id: row.id,
       eventId: row.eventId,
+      eventType: row.eventType,
       occurredAt: row.occurredAt,
       attempt: row.attempts,
       payload: payloadOf(row),
-    };
+    } as Delivery;
     // payloadOf checked that this handler takes this event's payload.
     await (
       HANDLERS[row.handler] as (

@@ -9,6 +9,8 @@ import { CMS_DOCUMENT_KEYS } from "../server/modules/cms/domain/documents";
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  accountInbox: "/account/inbox",
+  accountNotifications: "/account/notifications",
   accountSecurity: "/account/security",
   dashboard: "/dashboard",
   adminRoles: "/admin/roles",
@@ -23,6 +25,7 @@ export const APP_ROUTES = {
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
+  adminTemplates: "/admin/templates",
 } as const;
 
 /**
@@ -32,6 +35,7 @@ export const APP_ROUTES = {
 export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
+  "/admin/templates/[key]",
 ] as const;
 
 /**

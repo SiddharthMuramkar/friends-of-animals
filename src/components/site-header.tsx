@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { HeaderHeightSync } from "@/components/header-height-sync";
+import { InboxBadge } from "@/components/inbox-badge";
 import { Logo } from "@/components/logo";
 import { ButtonLink } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
@@ -67,7 +68,13 @@ export async function SiteHeader() {
         >
           <DesktopNav items={items} dashboard={dashboard} label={t("label")} />
         </Suspense>
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        {/* Wraps too: with very large text on a phone, the inbox link and
+            Menu stack rather than push the page wider than the screen. */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+          {/* Signed-in only: the session streams in after the shell. */}
+          <Suspense fallback={null}>
+            <InboxBadge />
+          </Suspense>
           <ButtonLink href={ROUTES.donate.path} className="max-sm:hidden">
             {t("donate")}
           </ButtonLink>
