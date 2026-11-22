@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  * centred, rather than widen the page on phones.
  */
 export const buttonStyles = cva(
-  "inline-flex items-center justify-center gap-2 rounded-full text-center font-semibold text-balance transition-[background-color,box-shadow,translate,scale,color] duration-200 ease-out select-none active:scale-[0.98] [&_svg]:size-5 [&_svg]:shrink-0 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 disabled:pointer-events-none disabled:opacity-60",
+  "inline-flex max-w-full items-center justify-center gap-2 rounded-full text-center font-semibold text-balance wrap-anywhere transition-[background-color,box-shadow,translate,scale,color] duration-200 ease-out select-none active:scale-[0.98] [&_svg]:size-5 [&_svg]:shrink-0 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       variant: {

@@ -100,7 +100,7 @@ export default async function Page() {
           </TableScroller>
         </PolicyBlock>
         <h2 className="mt-14 text-h2">{t("detail.title")}</h2>
-        <div className="mt-8 grid gap-10">
+        <div className="mt-8 grid grid-cols-1 gap-10">
           {DETAIL.map((k) => (
             <PolicyBlock key={k} id={k} title={t(`detail.${k}.title`)}>
               <p>{t(`detail.${k}.body`)}</p>
