@@ -91,9 +91,9 @@ const WHILE_REGISTRATION_KEPT = {
 
 const WHILE_STUDENT_TAKES_PART = {
   period:
-    "Until 3 years after the last competition the student was enrolled in (HR-31)",
+    "Until 3 years after the last competition the participant (a school's student, or an adult on their own) was registered for (HR-31)",
   basis:
-    "FOA and the school run the competition with it, and answer queries about entries, results and certificates",
+    "FOA, and the school for its students, run the competition with it, and answer queries about entries, results and certificates",
   toConfirm: true,
 } as const;
 
@@ -303,14 +303,15 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
   {
     table: "participant_profile",
     column: "full_name",
-    purpose: "Names the student on the school's list, entries and certificates",
+    purpose:
+      "Names the participant (a school's student, or an adult on their own) on lists, entries and certificates",
     retention: WHILE_STUDENT_TAKES_PART,
   },
   {
     table: "participant_profile",
     column: "dob_ciphertext",
     purpose:
-      "Places the student in an age group on the competition's cut-off date (encrypted)",
+      "Places the participant in an age group on the competition's cut-off date, and keeps an adult registering on their own from being a minor (encrypted)",
     retention: WHILE_STUDENT_TAKES_PART,
   },
   {
@@ -329,7 +330,8 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
   {
     table: "participant_profile",
     column: "phone_ciphertext",
-    purpose: "Reaches an adult student about their entry (encrypted)",
+    purpose:
+      "Reaches an adult student, or an adult registered on their own, about their entry (encrypted)",
     retention: WHILE_STUDENT_TAKES_PART,
   },
   {
@@ -372,19 +374,20 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
   {
     table: "participant_profile",
     column: "pin_code",
-    purpose: "Locates the student for regional rounds and reports",
+    purpose:
+      "Locates the participant for regional rounds and reports (an adult abroad gives their postal code)",
     retention: WHILE_STUDENT_TAKES_PART,
   },
   {
     table: "participant_profile",
     column: "city",
-    purpose: "Locates the student for regional rounds and reports",
+    purpose: "Locates the participant for regional rounds and reports",
     retention: WHILE_STUDENT_TAKES_PART,
   },
   {
     table: "participant_profile",
     column: "state",
-    purpose: "Locates the student for regional rounds and reports",
+    purpose: "Locates the participant for regional rounds and reports",
     retention: WHILE_STUDENT_TAKES_PART,
   },
   {
@@ -401,13 +404,42 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
       "Records which coordinator or authorised person first entered the student",
     retention: WHILE_STUDENT_TAKES_PART,
   },
+  // Adults who register themselves (#78): their own profile
+  {
+    table: "participant_profile",
+    column: "owner_user_id",
+    purpose:
+      "Links an adult's own profile to their account, so only they see and pay for their registrations",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "participant_code",
+    purpose:
+      "The FOA Participant ID that names an adult to FOA across competitions; never a way to sign in",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "country",
+    purpose:
+      "Where an adult on their own lives, so their postal code reads right and FOA reports by country",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "school_name",
+    purpose:
+      "The school or college an adult on their own names, if any, so FOA can invite it to take part",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
   // Fee payments (#77). Webhook events keep no body: it carries the payer's
   // email and phone.
   {
     table: "payment_batch",
     column: "payer_user_id",
     purpose:
-      "Records who paid an institution's fees, so the receipt reaches them and FOA can answer a query about the payment",
+      "Records who paid an institution's fees, or an adult their own (#78), so the receipt reaches them and FOA can answer a query about the payment",
     retention: PAYMENT_RECORD,
   },
 ];

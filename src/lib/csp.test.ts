@@ -5,6 +5,8 @@ import { modifyRouteRegex } from "next/dist/lib/redirect-status";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { describe, expect, it } from "vitest";
 
+import { individualLink } from "../app/participate/_lib/individual-link";
+import { SIGNED_IN_PREFIXES } from "./app-routes";
 import {
   createNonce,
   cspHeaderRules,
@@ -318,6 +320,14 @@ describe("cspHeaderRules", () => {
     expect(headersFor(rules, "/administrator")).toContainEqual(
       publicCsp(context)
     );
+  });
+
+  it("leaves the individual register form (#78) to the proxy's nonce policy", () => {
+    // It takes a signed-in adult's date of birth, phone and address.
+    const rules = cspHeaderRules(context, SIGNED_IN_PREFIXES);
+    const pathname = individualLink("neighbours-on-my-street").href;
+    const keys = headersFor(rules, pathname).map((h) => h.key);
+    for (const key of POLICY_KEYS) expect(keys, pathname).not.toContain(key);
   });
 
   it("names the report endpoint on every path, signed-in ones included", () => {

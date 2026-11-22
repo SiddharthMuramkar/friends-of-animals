@@ -30,6 +30,7 @@ import {
 import {
   GIVABLE_PURPOSES,
   type ConsentMethod,
+  type ConsentPurpose,
   type GivablePurpose,
 } from "./domain/purposes";
 import {
@@ -83,6 +84,12 @@ const giveInput = z.object({
 
 const withdrawInput = z.object({ purpose: z.enum(GIVABLE_PURPOSES) });
 
+function givable(purpose: ConsentPurpose): GivablePurpose {
+  const found = GIVABLE_PURPOSES.find((each) => each === purpose);
+  if (!found) throw new Error(`Consent to ${purpose} can't be withdrawn`);
+  return found;
+}
+
 function signedInUser(ctx: ConsentContext): string {
   if (ctx.actor.kind !== "user") {
     // authorize() has already refused anyone else.
@@ -105,7 +112,7 @@ async function appendEvent(
   event: {
     subject: ConsentSubject;
     giverUserId: string;
-    purpose: GivablePurpose;
+    purpose: ConsentPurpose;
     action: ConsentEventAction;
     documentId: string;
     method: ConsentMethod;
@@ -132,10 +139,12 @@ async function appendEvent(
     documentId: event.documentId,
   };
   if (event.action === "withdrawn") {
+    // Only a purpose a person gives can be withdrawn.
+    const purpose = givable(event.purpose);
     await emit(tx, ctx.clock, {
       type: "consent.withdrawn",
       aggregate: { type: "consent_event", id },
-      payload: ids,
+      payload: { ...ids, purpose },
     });
   }
   await recordAudit(tx, ctx, {
@@ -186,6 +195,38 @@ export async function recordSignUpConsent(
     }
   );
   return "given";
+}
+
+/**
+ * Records the documents a person agreed to while registering for a
+ * competition (#78), in the registration's transaction (the register use
+ * case has authorized them): each one given by web form to the exact
+ * version the competition pinned (#72), which may be older than the
+ * latest. A document they already agreed to, at that version, records
+ * nothing again.
+ */
+export async function recordRegistrationConsents(
+  tx: AppDb,
+  ctx: ConsentContext,
+  input: {
+    userId: string;
+    documents: readonly { purpose: ConsentPurpose; documentId: string }[];
+  }
+): Promise<void> {
+  const subject: ConsentSubject = { type: "user", id: input.userId };
+  await lockUserSubject(tx, input.userId);
+  for (const { purpose, documentId } of input.documents) {
+    const state = currentConsent(await subjectEvents(tx, subject, purpose));
+    if (state.status === "given" && state.documentId === documentId) continue;
+    await appendEvent(tx, ctx, state, {
+      subject,
+      giverUserId: input.userId,
+      purpose,
+      action: "given",
+      documentId,
+      method: "web_form",
+    });
+  }
 }
 
 /** Gives the signed-in user's consent to the purpose's current document. */

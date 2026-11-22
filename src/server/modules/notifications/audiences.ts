@@ -33,7 +33,8 @@ import {
   contactTeamMembers,
 } from "../contact/notify";
 import { safeguardingLeads } from "../safeguarding/leads";
-import { RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
+import { ownerOfRegistration } from "../participants/owner";
+import { payerOn, RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
 import {
   CONFIRMATION_VARIABLES,
   confirmationValues,
@@ -123,10 +124,27 @@ type Audience = (db: AppDb, delivery: Delivery) => Promise<string[]>;
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
   /** The user the event is about: the new account, the one who withdrew. */
-  subject_user: async (_db, delivery) => {
+  subject_user: async (db, delivery) => {
+    // The institution's receipt; an adult's own goes as individual_payer.
+    if (delivery.eventType === "payment.batch_captured") {
+      return payerOn(db, delivery.payload.batchId, "institution");
+    }
     const userId = subjectUserOf(delivery);
     return userId ? [userId] : [];
   },
+  /** Whoever paid for their own registration (#78): their receipt. */
+  individual_payer: async (db, delivery) =>
+    delivery.eventType === "payment.batch_captured"
+      ? payerOn(db, delivery.payload.batchId, "individual")
+      : [],
+  /**
+   * The adult whose own registration it is (#78), for its confirmation; a
+   * school's student has none, so nobody receives it here.
+   */
+  registration_owner: async (db, delivery) =>
+    delivery.eventType === "registration.confirmed"
+      ? ownerOfRegistration(db, delivery.payload.registrationId)
+      : [],
   /**
    * Whoever wrote through the contact form (#113). They have no account, so
    * no user receives it here: the contact module emails their address with
