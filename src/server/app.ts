@@ -25,6 +25,7 @@ import { secondFactorUseCases } from "./modules/second-factor";
 import { filesUseCases } from "./modules/files";
 import { settingsUseCases } from "./modules/settings";
 import { institutionUseCases } from "./modules/institutions";
+import { coordinatorsUseCases } from "./modules/institutions/coordinators";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -38,7 +39,8 @@ const useCases = composeUseCases(
   competitionsUseCases,
   cmsUseCases,
   notificationsUseCases,
-  institutionUseCases
+  institutionUseCases,
+  coordinatorsUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

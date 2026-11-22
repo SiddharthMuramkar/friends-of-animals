@@ -58,6 +58,8 @@ x-worker: &worker
   #   the R2_* variables of its environment's bucket (#63), which the upload
   #     scan reads files from. Optional: without them every scan fails and
   #     uploads wait unscanned (src/worker/main.ts).
+  #   worker-prod only: the production app's field keys (#58, #74), from
+  #     its own file.
   healthcheck:
     # The worker touches /tmp/foa-worker-heartbeat after each healthy poll
     # (every 5 s): healthy while it is under 120 s old.
@@ -88,10 +90,18 @@ services:
       # The production bucket's R2_* (root, 0600). Only this worker reads it.
       - path: /etc/foa/secrets/worker_prod_r2.env
         required: false
+      # FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY (root, 0600): the same
+      # values as the production app's (/etc/foa/secrets/app/), to read an
+      # invitee's address and an invitation's link (#74) and a stored phone.
+      # Optional: without them each such delivery fails and retries.
+      - path: /etc/foa/secrets/worker_prod_field_keys.env
+        required: false
     environment:
       <<: *clamd
       WORKER_MODE: single
       APP_ENV: production
+      # The site's canonical URL, for the links in messages (#74).
+      APP_URL: https://friendsofanimals.dev
       WORKER_DATABASE_URL: postgres://foa_worker@10.112.12.10:5432/foa
       WORKER_PASSWORD_FILE: /run/secrets/db_password
     secrets:

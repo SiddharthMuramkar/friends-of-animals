@@ -38,10 +38,6 @@
     },
     "editor": {
       "back": "All pages",
-      "later": {
-        "title": "This page's editor isn't ready yet",
-        "body": "It still shows the text in the code. Its editor comes with the next part of the site content work."
-      },
       "state": {
         "published": "Published: version {version}, {date}.",
         "notPublished": "Not published yet. Until you publish version 1, the page shows the text in the code.",
@@ -57,7 +53,8 @@
         "fixErrors": "Fix these before you save:",
         "invalidBody": "The text doesn't make a complete page. Check that every section has a title and some text.",
         "failed": "Something went wrong on our side. Nothing was saved. Please try again.",
-        "problem": "Problem"
+        "problem": "Problem",
+        "fixFields": "Some fields need fixing. Each one says what's wrong."
       },
       "draft": {
         "heading": "The draft",
@@ -67,7 +64,8 @@
         "previewing": "Opening the preview…",
         "publish": "Publish as version {version}",
         "publishing": "Publishing…",
-        "shortVersion": "The short version"
+        "shortVersion": "The short version",
+        "leadFields": "Preview it on the site to see it in place before you publish it."
       },
       "notices": {
         "done": "Done",
@@ -94,6 +92,21 @@
         },
         "savedOn": "Saved {date}",
         "publishedOn": "Published {date}"
+      },
+      "fields": {
+        "count": "Enter a whole number, 0 or more, or leave it empty to hide this counter.",
+        "none": "None",
+        "other": "Also check:",
+        "lead": "Each field is plain text: anything that looks like code or markup is removed when you save.",
+        "hints": {
+          "lines": "One per line.",
+          "markup": "Leave a blank line between paragraphs. Start a list item with a dash. Write **bold** for strong words and [words](/page) for a link.",
+          "titled": "For each item, write its title on one line and its text on the next. Leave a blank line between items.",
+          "toggles": "Untick a section to hide it. The order stays as shown.",
+          "counts": "Leave a counter empty to hide it. Counts under 10 never show.",
+          "optional": "Optional: leave it empty for none.",
+          "length": "Up to {maxLength} characters."
+        }
       }
     },
     "preview": {
@@ -101,6 +114,150 @@
       "draft": "You're seeing the unpublished draft. Everyone else sees the published version.",
       "noDraft": "This page has no unpublished draft, so you're seeing the published version.",
       "exit": "Exit preview"
+    },
+    "groups": {
+      "home": {
+        "hero": "Hero",
+        "buttons": "Buttons",
+        "counters": "Counters on the home page",
+        "sections": "Sections"
+      },
+      "page": {
+        "hero": "Top of the page",
+        "duty": "Where we start",
+        "vision": "Vision and mission",
+        "skill": "Why it works",
+        "ashoka": "An old Indian idea",
+        "how": "How it works",
+        "people": "Who it is for",
+        "objectives": "Objectives",
+        "transparency": "Our promise",
+        "name": "Small print"
+      },
+      "impact": {
+        "counters": "Impact counters"
+      },
+      "facts": {
+        "contact": "How to reach FOA",
+        "grievance": "Grievance officer"
+      }
+    },
+    "fields": {
+      "home": {
+        "hero": {
+          "eyebrow": "Small heading above the title",
+          "heading": "Main heading",
+          "subheading": "Text under the heading",
+          "imageAssetId": "Picture",
+          "caption": "Caption under the picture",
+          "note": "Handwritten note on the picture",
+          "primaryCta": {
+            "label": "Main button: words",
+            "href": "Main button: page it opens"
+          },
+          "secondaryCta": {
+            "label": "Second button: words",
+            "href": "Second button: page it opens"
+          }
+        },
+        "counterKeys": "Counter {n}",
+        "sections": "Sections shown on the home page"
+      },
+      "page": {
+        "hero": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "lead": "Introduction",
+          "easy": "Easy-read line"
+        },
+        "duty": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "body": "Text",
+          "court": "Line before the Supreme Court quote"
+        },
+        "vision": {
+          "visionTitle": "Vision: title",
+          "vision": "Vision",
+          "missionTitle": "Mission: title",
+          "mission": "Mission"
+        },
+        "skill": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "easy": "Easy-read line",
+          "body": "Text",
+          "detailSummary": "Title of the part for parents and teachers",
+          "detail": "Text for parents and teachers"
+        },
+        "ashoka": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "body": "Text"
+        },
+        "how": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "steps": {
+            "title": "Step {n}: title",
+            "body": "Step {n}: text"
+          }
+        },
+        "people": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "lead": "Introduction",
+          "items": "Who it is for"
+        },
+        "objectives": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "items": "Objectives"
+        },
+        "transparency": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "body": "Text"
+        },
+        "name": "Small print at the end of the page"
+      },
+      "impact": {
+        "asOf": "Counted on",
+        "counters": "Counters"
+      },
+      "facts": {
+        "email": "Email address",
+        "phone": "Phone number",
+        "address": "Postal address",
+        "socials": "Social media profiles (full https:// addresses)",
+        "grievanceOfficer": {
+          "name": "Name",
+          "email": "Email address"
+        }
+      }
+    },
+    "options": {
+      "sections": {
+        "competitions": "Competitions",
+        "howItWorks": "How it works",
+        "whyChildren": "Why children",
+        "gallery": "Gallery",
+        "impact": "Impact counters",
+        "stories": "Stories",
+        "seasonal": "Seasonal competition",
+        "badges": "Badges",
+        "donate": "Donate",
+        "joy": "Joy of animals",
+        "events": "Events (needs the events module)"
+      },
+      "counters": {
+        "participants": "Participants",
+        "institutions": "Schools and institutions",
+        "competitions": "Competitions",
+        "statesReached": "States reached",
+        "artworksShowcased": "Artworks showcased",
+        "certificatesIssued": "Certificates issued"
+      }
     }
   }
 }

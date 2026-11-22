@@ -36,7 +36,7 @@ describe("findPlaceholders()", () => {
   });
 
   it("finds the org facts FOA has not confirmed yet", () => {
-    expect(findPlaceholders(SITE.org)).toContain("legalName");
+    expect(findPlaceholders(SITE.org)).toContain("fees.school");
   });
 });
 
@@ -71,10 +71,13 @@ describe("unconfirmedFactsWarning()", () => {
     );
   });
 
+  // FOA's contact, registration and grievance facts live in the database
+  // (getOrgFacts, checked by /api/health); only the fees stay in code.
   it("names the real SITE.org's unconfirmed facts by dotted path today", () => {
     const line = unconfirmedFactsWarning({ APP_ENV: "production" });
-    expect(line).toContain("legalName");
-    expect(line).toContain("registration.number");
+    expect(line).toContain("fees.school");
+    expect(line).toContain("fees.individual");
+    expect(line).not.toContain("legalName");
     expect(line).not.toContain("\n");
   });
 

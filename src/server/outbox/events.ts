@@ -91,6 +91,12 @@ export type DomainEvent =
       type: "competitions.key_date_scheduled";
       aggregate: { type: "competition"; id: string };
       payload: { competitionId: string; kind: KeyDateKind; dueAt: string };
+    }
+  | {
+      /** An authorised person invited a coordinator (#74). */
+      type: "institution.coordinator_invited";
+      aggregate: { type: "institution_invitation"; id: string };
+      payload: { invitationId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -133,6 +139,7 @@ export const EVENT_PAYLOADS = {
     kind: z.enum(KEY_DATE_KINDS),
     dueAt: z.iso.datetime(),
   }),
+  "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -157,6 +164,11 @@ export const SUBSCRIBERS = {
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
   "competitions.key_date_scheduled": ["competitions.advance_status"],
+  // An invitee has no account yet, so no route row can name them: the
+  // invitation goes to the invited address itself (#74).
+  "institution.coordinator_invited": [
+    "institutions.send_coordinator_invitation",
+  ],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

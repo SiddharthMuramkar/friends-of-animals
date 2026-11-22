@@ -74,7 +74,8 @@ export function resolveAllSettings(
 export type SettingValueProblem =
   | { reason: "wrong_type" }
   | { reason: "too_small"; min: number }
-  | { reason: "too_big"; max: number };
+  | { reason: "too_big"; max: number }
+  | { reason: "too_long"; maxLength: number };
 
 export type ParsedSettingValue<K extends SettingKey> =
   | { ok: true; value: SettingValue<K> }
@@ -102,6 +103,12 @@ export function parseSettingValue<K extends SettingKey>(
  * the setting's own.
  */
 function problemOf(issues: readonly z.core.$ZodIssue[]): SettingValueProblem {
+  const longest = issues.find(
+    (issue) => issue.code === "too_big" && issue.origin === "string"
+  );
+  if (longest?.code === "too_big") {
+    return { reason: "too_long", maxLength: Number(longest.maximum) };
+  }
   const maxima = issues.flatMap((issue) =>
     issue.code === "too_big" ? [Number(issue.maximum)] : []
   );

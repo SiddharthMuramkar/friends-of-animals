@@ -68,6 +68,7 @@ const deps = {
   storage: new FakeStorage(clock),
   scanner: new FakeMalwareScanner(),
   media: unconfiguredMedia,
+  auth: {},
   errors: new FakeErrorReporter(),
 } satisfies ScheduleDeps;
 

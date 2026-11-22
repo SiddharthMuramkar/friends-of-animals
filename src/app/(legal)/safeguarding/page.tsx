@@ -5,7 +5,8 @@ import { getTranslations } from "next-intl/server";
 import { ExplainState } from "@/components/site/explain-state";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isFactShown, SITE } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
+import { isFactShown } from "@/lib/site";
 
 import { LegalDocument } from "../_components/legal-document";
 
@@ -111,7 +112,11 @@ export default async function Page() {
               {t("form.body")}
               {/* Points at the email and phone in the text above, which
                   production leaves out while they're unconfirmed. */}
-              {isFactShown(SITE.org.email) ? <> {t("form.until")}</> : null}
+              <WithOrgFacts>
+                {({ email }) =>
+                  isFactShown(email) ? <> {t("form.until")}</> : null
+                }
+              </WithOrgFacts>
             </p>
           </ExplainState>
         ),

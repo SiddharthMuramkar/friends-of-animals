@@ -9,6 +9,13 @@ describe("settingValueFromForm", () => {
     expect(settingValueFromForm("sms.enabled", "false")).toBe(false);
   });
 
+  it("reads a line of text, ignoring surrounding spaces", () => {
+    expect(settingValueFromForm("org.legalName", "  FOA Trust ")).toBe(
+      "FOA Trust"
+    );
+    expect(settingValueFromForm("org.legalName", "")).toBe("");
+  });
+
   it("reads a whole number, ignoring surrounding spaces", () => {
     expect(settingValueFromForm("auth.staffSessionHours", " 8 ")).toBe(8);
     expect(settingValueFromForm("auth.staffSessionHours", "-3")).toBe(-3);
