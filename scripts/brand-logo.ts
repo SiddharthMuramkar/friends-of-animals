@@ -205,11 +205,11 @@ export const FAVICON_GRIDS: readonly PixelGrid[] = [
     gap: 0,
     // At 16 and 24 px the traced letters are 3–5 px tall and blur away.
     letters: {
-      top: 2,
+      top: 1,
       bitmaps: [
-        ["XXX", "X..", "XX.", "X.."],
-        ["XXX", "X.X", "X.X", "XXX"],
-        [".X.", "X.X", "XXX", "X.X"],
+        ["XXX", "X..", "XX.", "X..", "X.."],
+        ["XXX", "X.X", "X.X", "X.X", "XXX"],
+        [".X.", "X.X", "XXX", "X.X", "X.X"],
       ],
     },
   },
@@ -219,7 +219,7 @@ export const FAVICON_GRIDS: readonly PixelGrid[] = [
     tileHeight: 10,
     gap: 1,
     letters: {
-      top: 4,
+      top: 2,
       bitmaps: [
         [".XXXX", ".X...", ".XXX.", ".X...", ".X..."],
         // The ring, with a dot for the paw.

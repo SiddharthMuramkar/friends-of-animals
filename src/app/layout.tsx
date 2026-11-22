@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ViewTransition } from "react";
 
+import { UmamiAnalytics } from "@/components/analytics/umami-analytics";
 import { HistoryScrollGuard } from "@/components/site/history-scroll-guard";
 import { JsonLd } from "@/components/site/json-ld";
 import { SiteFooter } from "@/components/site-footer";
@@ -43,7 +44,7 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       // Only the ICO: its frames are hinted per size (scripts/brand-logo.ts),
       // and browsers prefer an SVG over it when both are offered.
-      icon: [{ url: "/favicon.ico", sizes: "16x16 24x24 32x32 48x48" }],
+      icon: [{ url: "/favicon.ico?v=2", sizes: "16x16 24x24 32x32 48x48" }],
       apple: "/brand/apple-touch-icon.png",
     },
   };
@@ -83,6 +84,7 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
         </div>
         <HistoryScrollGuard />
         <JsonLd data={organizationJsonLd(siteUrl(), t("tagline"))} />
+        <UmamiAnalytics />
       </body>
     </html>
   );
