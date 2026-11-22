@@ -65,11 +65,25 @@ function envFiles(own: string): { path: string; required: boolean }[] {
   ].map((m) => ({ path: m[1]!, required: m[2] === "true" }));
 }
 
-/** The health check's shell command, as Compose passes it to sh -c. */
-function healthCommand(): string {
-  const match = /test:\n\s+- CMD-SHELL\n\s+- (.+)\n/.exec(shared());
+/** A health check's shell command, as Compose passes it to sh -c. */
+function healthCommand(settings: string = shared()): string {
+  const match = /test:\n\s+- CMD-SHELL\n\s+- (.+)\n/.exec(`${settings}\n`);
   expect(match, "a CMD-SHELL health check").not.toBeNull();
   return match![1]!;
+}
+
+/** A Compose duration (`30s`, `10m`) in seconds. */
+function seconds(duration: string): number {
+  const match = /^(\d+)(s|m)$/.exec(duration);
+  expect(match, `duration ${duration}`).not.toBeNull();
+  return Number(match![1]) * (match![2] === "m" ? 60 : 1);
+}
+
+/** One healthcheck setting of a service, e.g. `start_period`. */
+function healthSetting(own: string, key: string): string {
+  const value = new RegExp(`^ {6}${key}: (\\S+)$`, "m").exec(own)?.[1];
+  expect(value, key).toBeDefined();
+  return value!;
 }
 
 describe("docker/workers.yml", () => {
@@ -224,8 +238,6 @@ describe("docker/workers.yml", () => {
     expect(clamav).toContain('CLAMAV_NO_FRESHCLAMD: "false"');
     expect(clamav).toContain("foa-clamav-db:/var/lib/clamav");
     expect(block("volumes")).toContain("foa-clamav-db:");
-    expect(clamav).toContain("clamdcheck.sh");
-    expect(clamav).toContain("start_period: 6m");
     expect(block("networks")).toContain("scan:\n    internal: true");
     expect(clamav).toMatch(/^ {6}scan:$/m);
     expect(clamav).toMatch(/^ {8}ipv4_address: 10\.112\.14\.2$/m);
@@ -255,6 +267,90 @@ describe("docker/workers.yml", () => {
     );
     expect(freshclam).toContain("NotifyClamd /etc/clamav/clamd.conf");
     expect(freshclam).toContain("TestDatabases no");
+  });
+
+  describe("foa-clamav's health check", () => {
+    const clamd = readFileSync(
+      new URL("./clamav/clamd.conf", import.meta.url),
+      "utf8"
+    );
+    const command = () => healthCommand(service("foa-clamav"));
+
+    it("pings clamd on an address it listens on, never `localhost`", () => {
+      // The image's clamdcheck.sh pings `localhost`, which resolves to ::1
+      // there, while clamd listens on IPv4 only: the container stayed
+      // unhealthy while clamd answered scans.
+      expect(command()).not.toMatch(/localhost|clamdcheck\.sh/);
+      const target = /\bnc -w (\d+) (\S+) (\d+) /.exec(command());
+      expect(target, "an `nc -w <s> <address> <port>` call").not.toBeNull();
+      const [, wait, address, port] = target!;
+      expect(clamd.match(/^TCPAddr (.+)$/gm)).toContain(`TCPAddr ${address}`);
+      expect(clamd).toMatch(new RegExp(`^TCPSocket ${port}$`, "m"));
+      // nc gives up before Docker kills the check.
+      expect(Number(wait)).toBeLessThan(
+        seconds(healthSetting(service("foa-clamav"), "timeout"))
+      );
+    });
+
+    describe("run against a stand-in nc", () => {
+      const dir = mkdtempSync(join(tmpdir(), "foa-clamav-health-"));
+      afterAll(() => rmSync(dir, { recursive: true, force: true }));
+      // Saves what the check sends and answers with $REPLY, as clamd would;
+      // with no $REPLY it fails like nc on a refused connection.
+      writeFileSync(
+        join(dir, "nc"),
+        '#!/bin/sh\ncat > "$SENT"\n[ -n "$REPLY" ] || exit 1\nprintf "$REPLY"\n',
+        { mode: 0o755 }
+      );
+
+      function healthy(reply: string): { ok: boolean; sent: string } {
+        const sent = join(dir, `sent-${reply.length}`);
+        const run = spawnSync("sh", ["-c", command()], {
+          env: {
+            ...process.env,
+            PATH: `${dir}:${process.env.PATH}`,
+            SENT: sent,
+            REPLY: reply,
+          },
+        });
+        return { ok: run.status === 0, sent: readFileSync(sent, "latin1") };
+      }
+
+      it("passes when clamd answers PONG to its PING", () => {
+        const { ok, sent } = healthy("PONG\\0");
+        expect(sent).toBe("zPING\0");
+        expect(ok).toBe(true);
+      });
+
+      it("fails when clamd is down or answers anything else", () => {
+        expect(healthy("").ok).toBe(false);
+        expect(healthy("UNKNOWN COMMAND\\0").ok).toBe(false);
+      });
+    });
+
+    it("waits out the first signature load, and the README's --wait waits longer", () => {
+      // The first start downloads and loads every signature: over 6 minutes
+      // on the VPS (#63, 2026-11-22). Failures inside start_period don't count.
+      const own = service("foa-clamav");
+      const start = seconds(healthSetting(own, "start_period"));
+      expect(start).toBeGreaterThanOrEqual(600);
+      const readme = readFileSync(
+        new URL("./README.md", import.meta.url),
+        "utf8"
+      );
+      const waits = [
+        ...readme.matchAll(/--wait-timeout (\d+)[^\n]*\n[^\n]*foa-clamav/g),
+      ];
+      expect(
+        waits.length,
+        "a --wait-timeout that starts foa-clamav"
+      ).toBeGreaterThan(0);
+      for (const [, wait] of waits) {
+        expect(Number(wait)).toBeGreaterThan(
+          start + seconds(healthSetting(own, "interval"))
+        );
+      }
+    });
   });
 
   it("keeps clamd's fixed scan address out of the range Docker hands out", () => {

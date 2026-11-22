@@ -839,7 +839,7 @@ docker exec foa-pg-prod psql -U postgres -c 'SELECT pg_reload_conf()'     # afte
 docker exec foa-pg-nonprod psql -U postgres -c 'SELECT pg_reload_conf()'
 scripts/worker-roles.sh               # roles + /etc/foa/secrets/*_worker_password
 WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
-  docker compose -f workers.yml up -d --build --wait --wait-timeout 480 \
+  docker compose -f workers.yml up -d --build --wait --wait-timeout 660 \
   worker-prod foa-clamav foa-gotenberg
 docker compose -f workers.yml ps worker-prod foa-clamav foa-gotenberg
 ```
@@ -880,16 +880,16 @@ heartbeat rows; leave it out and they say `unknown`.
 
 ### Scan, PDF and media sidecars
 
-| Service         | Connection and health check                                                                                          | Memory |
-| --------------- | -------------------------------------------------------------------------------------------------------------------- | ------ |
-| `foa-clamav`    | Database workers use `CLAMD_HOST=foa-clamav` and `CLAMD_PORT=3310`. `clamdcheck.sh` checks the local clamd listener. | 2 GiB  |
-| `foa-gotenberg` | Media uses `GOTENBERG_URL=http://foa-gotenberg:3000`. The health check calls `GET /health` on loopback.              | 1 GiB  |
-| `worker-media`  | Runs the media entry point with a read-only root and `/tmp` tmpfs. Health requires a heartbeat under 120 s old.      | 2 GiB  |
+| Service         | Connection and health check                                                                                            | Memory |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- | ------ |
+| `foa-clamav`    | Database workers use `CLAMD_HOST=foa-clamav` and `CLAMD_PORT=3310`. The health check sends `PING` to `127.0.0.1:3310`. | 2 GiB  |
+| `foa-gotenberg` | Media uses `GOTENBERG_URL=http://foa-gotenberg:3000`. The health check calls `GET /health` on loopback.                | 1 GiB  |
+| `worker-media`  | Runs the media entry point with a read-only root and `/tmp` tmpfs. Health requires a heartbeat under 120 s old.        | 2 GiB  |
 
 All three log to journald and use private networks. Clamd listens on the
 internal `scan` bridge and loopback. FreshClam uses a separate bridge to
 reach the signature mirror and keeps its databases in `foa-clamav-db`.
-Allow six minutes for the initial signature load. Scans wait during a
+Allow ten minutes for the initial signature load. Scans wait during a
 signature reload so ClamAV can stay within its memory limit. Check the
 journal for signature-load failures.
 
@@ -925,7 +925,7 @@ configuration, run from `/srv/foa/docker`. Keep the signature volume
 attached so ClamAV can reuse its database.
 
 ```sh
-docker compose -f workers.yml up -d --force-recreate --wait --wait-timeout 480 \
+docker compose -f workers.yml up -d --force-recreate --wait --wait-timeout 660 \
   foa-clamav foa-gotenberg
 docker compose -f workers.yml ps foa-clamav foa-gotenberg
 ```
