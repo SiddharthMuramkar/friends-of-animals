@@ -16,6 +16,7 @@ import type { AppDb } from "../db/app-db";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
+import { runStatusJob } from "../modules/competitions/advance-status";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -72,6 +73,8 @@ export const HANDLERS: Handlers = {
   "notifications.dispatch": dispatchEvent,
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
+  "competitions.advance_status": (deps, { payload }) =>
+    runStatusJob(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

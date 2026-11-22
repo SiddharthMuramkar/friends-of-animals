@@ -60,6 +60,16 @@ describe("listSettings", () => {
         updatedBy: null,
       },
       {
+        key: "auth.emailSignIn",
+        value: true,
+        defaultValue: true,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "boolean" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
         key: "sms.enabled",
         value: false,
         defaultValue: false,

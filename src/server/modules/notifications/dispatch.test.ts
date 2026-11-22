@@ -106,6 +106,25 @@ describe("dispatching an event through its routes", () => {
     expect(delivery).toMatchObject({ status: "sent", templateVersion: 2 });
   });
 
+  it("puts a subject on one line, whatever line breaks a name brings", async () => {
+    const h = await createHarness();
+    const manager = await contentManager(h);
+    await h.as(manager).updateMessageTemplate({
+      key: "identity.welcome",
+      channel: "email",
+      subject: "Namaste, {{recipient.name}}",
+      body: "Dear {{recipient.name}},\n\nWelcome to the pack.",
+    });
+
+    await signUp(h, "Asha\r\nBcc: ravi@example.test\u2028Rao\t", ASHA);
+    await h.drain();
+
+    const welcome = h.email.lastTo(ASHA);
+    expect(welcome?.subject).toBe("Namaste, Asha Bcc: ravi@example.test Rao");
+    // The body is text, where a line break is only a line break.
+    expect(welcome?.text).toContain("Dear Asha\r\nBcc: ravi@example.test");
+  });
+
   it("escapes a variable's value in the email's HTML", async () => {
     const h = await createHarness();
 
