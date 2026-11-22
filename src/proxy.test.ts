@@ -14,9 +14,13 @@ import { createProxy } from "@/request-proxy";
 
 import { config } from "./proxy";
 
-// Competition slugs are checked against the database (#70); here none is
-// published. src/proxy.competitions.test.ts covers that check.
-const proxy = createProxy({ isPublishedCompetitionSlug: async () => false });
+// Competition and post slugs are checked against the database (#70,
+// #112); here no competition is published and one story is.
+// src/proxy.competitions.test.ts and src/proxy.blog.test.ts cover them.
+const proxy = createProxy({
+  isPublishedCompetitionSlug: async () => false,
+  isPublicPostSlug: async (slug) => slug === "kinder-skies-in-kite-season",
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();

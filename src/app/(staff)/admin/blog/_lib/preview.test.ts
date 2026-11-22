@@ -5,7 +5,7 @@ import { previewBody } from "./preview";
 const IMAGE = "01938a00-1234-7abc-8def-0123456789ab";
 
 describe("previewBody", () => {
-  it("shows a site photo as the stories do, and an uploaded image by its alt text", () => {
+  it("shows a site photo as the public page does, and an uploaded image by its alt text", () => {
     const body = previewBody(
       {
         blocks: [
@@ -32,7 +32,7 @@ describe("previewBody", () => {
       { type: "paragraph", text: ["Birds first."] },
       {
         type: "image",
-        imageId: "dog-bengaluru-auto-rickshaw",
+        image: { source: "site", id: "dog-bengaluru-auto-rickshaw" },
         caption: "A dog",
       },
       {
