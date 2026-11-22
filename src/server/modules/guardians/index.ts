@@ -13,6 +13,14 @@ import {
   type AddChildInput,
 } from "./children";
 import {
+  acceptTeenInvitation,
+  inviteTeenLogin,
+  myGuardians,
+  viewTeenInvitation,
+  withdrawTeenInvitation,
+  type InviteTeenLoginInput,
+} from "./teen-login";
+import {
   myGuardianProfile,
   registerAsGuardian,
   type RegisterAsGuardianInput,
@@ -35,6 +43,15 @@ export type {
   RegisterAsGuardianResult,
 } from "./register-guardian";
 export type {
+  AcceptTeenInvitationResult,
+  InviteTeenLoginInput,
+  InviteTeenLoginResult,
+  MyGuardian,
+  TeenInvitationView,
+  ViewTeenInvitationResult,
+  WithdrawTeenInvitationResult,
+} from "./teen-login";
+export type {
   ConfirmGuardianVerificationResult,
   StartGuardianVerificationResult,
 } from "./verify-guardian";
@@ -49,4 +66,12 @@ export const guardiansUseCases = (ctx: UseCaseContext) => ({
   addChild: (input: AddChildInput) => addChild(ctx, input),
   listChildren: () => listChildren(ctx),
   getChild: (input: { childId: string }) => getChild(ctx, input),
+  inviteTeenLogin: (input: InviteTeenLoginInput) => inviteTeenLogin(ctx, input),
+  withdrawTeenInvitation: (input: { childId: string }) =>
+    withdrawTeenInvitation(ctx, input),
+  viewTeenInvitation: (input: { token: string }) =>
+    viewTeenInvitation(ctx, input),
+  acceptTeenInvitation: (input: { token: string }) =>
+    acceptTeenInvitation(ctx, input),
+  myGuardians: () => myGuardians(ctx),
 });
