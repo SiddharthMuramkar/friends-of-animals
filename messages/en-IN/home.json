@@ -8,15 +8,6 @@
       "text": "Registration is open: {name}. Closes {closes, date, long}.",
       "link": "See the competition"
     },
-    "hero": {
-      "eyebrow": "An Indian non-profit for children and animals",
-      "heading": "Children’s art that grows kindness to animals",
-      "subheading": "Friends of Animals runs drawing, painting, craft, writing, photography and film competitions for children and young adults. Every one is about animals and how to treat them well, and every entry earns a certificate.",
-      "primary": "See the competitions",
-      "secondary": "Bring FOA to your school",
-      "caption": "A street dog takes a seat in an auto-rickshaw.",
-      "note": "This seat is taken"
-    },
     "competitions": {
       "eyebrow": "Enter now",
       "title": "Competitions you can enter",

@@ -64,3 +64,14 @@ export function noticeOf(params: Params): EditorNotice | null {
 export type EditorView = EditorState & {
   text: { alert?: string; sourceErrors: string[] };
 };
+
+/**
+ * What a kind's form shows after a Save that didn't save: what was
+ * entered, each field's problems in words (issues no field matches under
+ * ""), and a line for the whole form.
+ */
+export type FieldsEditorView = {
+  values: Record<string, string | boolean>;
+  errors: Record<string, string[]>;
+  alert?: string;
+};

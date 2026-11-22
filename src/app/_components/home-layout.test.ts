@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { SAMPLE_COMPETITIONS } from "@/content/sample";
+import { homeKind } from "@/server/modules/cms/kinds/home";
 
 import {
   activeAnnouncement,
-  HOME_LAYOUT,
   type HomeLayout,
   openAnnouncement,
   visibleSections,
 } from "./home-layout";
+
+const HOME_LAYOUT = homeKind.seedBody();
 
 const base: HomeLayout = {
   ...HOME_LAYOUT,

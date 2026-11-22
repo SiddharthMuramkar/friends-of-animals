@@ -31,14 +31,17 @@ import { legalKind } from "@/server/modules/cms/kinds/legal";
 import { formatConsentDocumentSource } from "@/server/modules/consent/domain/document-source";
 
 import { EditorNotice } from "../_components/editor-notice";
+import { KindEditor } from "../_components/kind-editor";
 import { LegalEditor } from "../_components/legal-editor";
 import { publishRevisionAction, startPreviewAction } from "../_lib/actions";
 import { noticeOf, type EditorNotice as Notice } from "../_lib/editor-state";
+import { kindForm } from "../_lib/kind-forms";
 
 // One CMS document's editor (#111). A legal page is edited in #64's
-// plain-text markup: Save keeps it as the draft, which this page shows as
-// it will read; Preview opens the public page in Draft Mode; Publish makes
-// the draft the next version. Kinds without an editor yet (111b's) say so.
+// plain-text markup, and Save keeps it as the draft, which this page shows
+// as it will read. Home, about, impact and site facts are edited as forms
+// (../_lib/kind-forms.ts). Preview opens the public page in Draft Mode;
+// Publish makes the draft the next version.
 
 type Props = PageProps<"/admin/cms/[key]">;
 
@@ -132,36 +135,15 @@ async function Editor({ params, searchParams }: Props) {
     );
   }
 
-  if (cmsDocumentKind(key) !== "legal") {
-    return (
-      <>
-        {back}
-        <PageHeader eyebrow={t("eyebrow")} tile="blue" title={name} />
-        <ExplainState
-          title={t("editor.later.title")}
-          back={{ href: APP_ROUTES.adminCms, label: t("editor.back") }}
-          className="mt-8"
-        >
-          <p>{t("editor.later.body")}</p>
-        </ExplainState>
-      </>
-    );
-  }
-
   const { draft, published, revisions } = data;
   const date = (at: Date) => format.dateTime(at, "long");
   const notice = noticeOf(query);
-  // The editor starts from the draft, else the published text, else the
-  // repo's text that version 1 is seeded with.
-  const source = formatConsentDocumentSource(
-    draft
-      ? legalKind.sanitize(draft.body)
-      : published
-        ? legalKind.sanitize(published.body)
-        : legalKind.seedBody(key)
-  );
-  const draftBody = draft ? legalKind.sanitize(draft.body) : null;
+  const kind = cmsDocumentKind(key);
+  const form = kindForm(kind);
   const nextVersion = (published?.version ?? 0) + 1;
+  // A form remounts after each save and publish (a new token), so it
+  // starts again from what was saved, without its old errors.
+  const formKey = `${draft?.revisionId ?? "none"}:${notice?.kind === "refused" ? "" : (notice?.key ?? "")}`;
 
   return (
     <>
@@ -195,21 +177,30 @@ async function Editor({ params, searchParams }: Props) {
             {t("editor.form.heading")}
           </h2>
           <div className="mt-5">
-            <LegalEditor
-              // Each save and publish comes back with a new token: start
-              // the form again from what it saved, without its old errors.
-              key={`${draft?.revisionId ?? "none"}:${notice?.kind === "refused" ? "" : (notice?.key ?? "")}`}
-              documentKey={key}
-              defaultSource={source}
-              labels={{
-                label: t("editor.form.label"),
-                hint: t("editor.form.hint"),
-                save: t("editor.form.save"),
-                saving: t("editor.form.saving"),
-                fixErrors: t("editor.form.fixErrors"),
-                problem: t("editor.form.problem"),
-              }}
-            />
+            {form ? (
+              <KindEditor
+                key={formKey}
+                documentKey={key}
+                form={form}
+                stored={(draft ?? published)?.body}
+              />
+            ) : (
+              <LegalEditor
+                key={formKey}
+                documentKey={key}
+                defaultSource={formatConsentDocumentSource(
+                  legalBodyOf(key, data)
+                )}
+                labels={{
+                  label: t("editor.form.label"),
+                  hint: t("editor.form.hint"),
+                  save: t("editor.form.save"),
+                  saving: t("editor.form.saving"),
+                  fixErrors: t("editor.form.fixErrors"),
+                  problem: t("editor.form.problem"),
+                }}
+              />
+            )}
           </div>
         </section>
 
@@ -217,9 +208,11 @@ async function Editor({ params, searchParams }: Props) {
           <h2 id="cms-draft" className="text-h3">
             {t("editor.draft.heading")}
           </h2>
-          {draft && draftBody ? (
+          {draft ? (
             <>
-              <p className="mt-2 text-ink-muted">{t("editor.draft.lead")}</p>
+              <p className="mt-2 text-ink-muted">
+                {form ? t("editor.draft.leadFields") : t("editor.draft.lead")}
+              </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <form action={startPreviewAction}>
                   <input type="hidden" name="key" value={key} />
@@ -242,22 +235,9 @@ async function Editor({ params, searchParams }: Props) {
                   </SubmitButton>
                 </form>
               </div>
-              <div className="mt-8 border-t-2 border-border pt-6">
-                {draftBody.short.length > 0 ? (
-                  <>
-                    <h3 className="text-lead font-bold text-ink">
-                      {t("editor.draft.shortVersion")}
-                    </h3>
-                    <LegalShortList
-                      points={draftBody.short}
-                      className="mt-3 list-disc space-y-1 pl-5"
-                    />
-                  </>
-                ) : null}
-                <div className="mt-6">
-                  <LegalSectionsText sections={draftBody.sections} level="h3" />
-                </div>
-              </div>
+              {form ? null : (
+                <LegalDraft body={legalKind.sanitize(draft.body)} />
+              )}
             </>
           ) : (
             <p className="mt-2 text-ink-muted">{t("editor.draft.none")}</p>
@@ -351,5 +331,39 @@ async function NoticeOf({ notice }: { notice: Notice }) {
           : t("published", { version: notice.version })
       }
     />
+  );
+}
+
+/**
+ * The body the legal editor starts from: the draft, else the published
+ * text, else the repo's text that version 1 is seeded with.
+ */
+function legalBodyOf(key: CmsDocumentKey, data: EditorData) {
+  const stored = data.draft ?? data.published;
+  return stored ? legalKind.sanitize(stored.body) : legalKind.seedBody(key);
+}
+
+/** A legal draft as it will read. */
+async function LegalDraft({
+  body,
+}: {
+  body: ReturnType<typeof legalKind.sanitize>;
+}) {
+  const t = await getTranslations("adminCms.editor.draft");
+  return (
+    <div className="mt-8 border-t-2 border-border pt-6">
+      {body.short.length > 0 ? (
+        <>
+          <h3 className="text-lead font-bold text-ink">{t("shortVersion")}</h3>
+          <LegalShortList
+            points={body.short}
+            className="mt-3 list-disc space-y-1 pl-5"
+          />
+        </>
+      ) : null}
+      <div className="mt-6">
+        <LegalSectionsText sections={body.sections} level="h3" />
+      </div>
+    </div>
   );
 }
