@@ -178,7 +178,7 @@ async function Competitions() {
       />
       {list.length > 0 ? (
         <>
-          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
@@ -198,14 +198,14 @@ async function Competitions() {
                     <TileMarker hue="pink" size="lg" />
                     <TileMarker hue="yellow" size="lg" />
                   </span>
-                  <span className="font-display text-h4 leading-tight font-bold text-ink">
+                  <span className="max-w-full font-display text-h4 leading-tight font-bold text-ink">
                     {t("moreTitle")}
                   </span>
-                  <span className="inline-flex min-h-11 items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4">
-                    {t("all")}
+                  <span className="inline-flex min-h-11 max-w-full items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4">
+                    <span className="min-w-0">{t("all")}</span>
                     <ArrowRight
                       aria-hidden="true"
-                      className="size-5 transition-transform motion-safe:group-hover:translate-x-1"
+                      className="size-5 shrink-0 transition-transform motion-safe:group-hover:translate-x-1"
                     />
                   </span>
                 </SiteLink>
@@ -251,7 +251,7 @@ async function WhyChildren() {
   const t = await getTranslations("home.why");
   return (
     <Section labelledBy="home-why" width="wide" hue="red">
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-center lg:gap-16">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-center lg:gap-16">
         <div>
           <SectionHeading
             id="home-why"
@@ -327,7 +327,7 @@ async function Stories() {
         title={t("title")}
         lead={t("lead")}
       />
-      <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {latestStories(3).map((story) => (
           <li key={story.slug} className="flex">
             <StoryCard story={story} headingLevel={3} className="w-full" />

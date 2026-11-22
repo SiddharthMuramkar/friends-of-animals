@@ -21,7 +21,7 @@ import { linkRel } from "@/server/rich-text/href";
 // goes through shownLegalDoc first.
 
 const LINK =
-  "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
+  "text-link wrap-anywhere underline decoration-1 underline-offset-2 hover:text-link-hover";
 
 const FACT_VALUE: Record<LegalFact, unknown> = {
   legalName: SITE.org.legalName,

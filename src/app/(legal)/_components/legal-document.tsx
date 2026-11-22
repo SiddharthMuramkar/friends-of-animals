@@ -188,14 +188,14 @@ function LegalBody({
       {top}
       <section
         aria-labelledby="short-version"
-        className="max-w-3xl rounded-3xl border-2 border-blue-700 bg-section-blue p-6 sm:p-8 dark:border-blue-400"
+        className="max-w-3xl rounded-3xl border-2 border-blue-700 bg-section-blue px-4 py-6 sm:p-8 dark:border-blue-400"
       >
         <h2
           id="short-version"
           className="flex items-center gap-2.5 font-display text-h4 leading-tight text-(--section-blue-heading)"
         >
           <TileMarker hue="blue" />
-          {shortTitle}
+          <span className="min-w-0">{shortTitle}</span>
         </h2>
         <ul className="mt-4 space-y-3 text-lead text-ink">
           {text.short.map((point, k) => (
@@ -204,14 +204,14 @@ function LegalBody({
                 aria-hidden="true"
                 className="mt-2.5 size-2.5 shrink-0 rounded-[22%] bg-blue-700 dark:bg-blue-400"
               />
-              <span>
+              <span className="min-w-0">
                 <LegalInlines text={point} />
               </span>
             </li>
           ))}
         </ul>
       </section>
-      <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-14">
+      <div className="mt-12 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-14">
         <nav
           aria-labelledby="legal-toc"
           className="lg:sticky lg:top-[calc(var(--header-height)+var(--quick-exit-offset,0px)+1.5rem)] lg:order-2 lg:self-start"

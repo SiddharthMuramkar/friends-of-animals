@@ -54,7 +54,7 @@ export async function TwoDoors({
       </H>
       <p className="mt-4 max-w-prose text-lead text-ink-muted">{t("lead")}</p>
 
-      <fieldset className="mt-8 grid gap-4 sm:grid-cols-2">
+      <fieldset className="mt-8 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
         <legend className="sr-only">{t("legend")}</legend>
         {DOORS.map((door) => (
           <div
@@ -81,7 +81,7 @@ export async function TwoDoors({
                 {/* The label's ::after stretches over the card: click anywhere. */}
                 <label
                   htmlFor={`${id}-${door}`}
-                  className="cursor-pointer font-display text-h4 leading-tight font-bold text-ink after:absolute after:inset-0 after:rounded-3xl after:content-['']"
+                  className="min-w-0 cursor-pointer font-display text-h4 leading-tight font-bold text-ink after:absolute after:inset-0 after:rounded-3xl after:content-['']"
                 >
                   {t(`doors.${door}.title`)}
                 </label>
@@ -103,7 +103,7 @@ export async function TwoDoors({
         ))}
       </fieldset>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {DOORS.map((door) => (
           <div
             key={door}
@@ -127,7 +127,7 @@ export async function TwoDoors({
                   >
                     {step}
                   </span>
-                  <span className="pt-1 text-ink">
+                  <span className="min-w-0 pt-1 text-ink">
                     {door === "school"
                       ? t(`steps.school.${step}`)
                       : t(`steps.self.${step as "1" | "2" | "3"}`)}
@@ -159,7 +159,7 @@ export async function TwoDoors({
                 size="lg"
                 className="mt-0.5"
               />
-              <span className="text-ink">{t(`together.${step}`)}</span>
+              <span className="min-w-0 text-ink">{t(`together.${step}`)}</span>
             </li>
           ))}
         </ul>

@@ -35,7 +35,7 @@ export async function MessagesConsentField() {
   const t = await getTranslations("auth.form.messagesConsent");
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border-2 border-border p-4">
+    <div className="flex flex-col gap-3 rounded-2xl border-2 border-border p-[min(1rem,8%)]">
       <label className="flex min-h-11 items-start gap-3 font-semibold text-ink">
         <input
           type="checkbox"
@@ -44,7 +44,7 @@ export async function MessagesConsentField() {
           aria-describedby="messages-consent-points"
           className="mt-0.5 size-6 shrink-0 accent-primary"
         />
-        <span>{t("label")}</span>
+        <span className="min-w-0">{t("label")}</span>
       </label>
       <LegalShortList
         id="messages-consent-points"
