@@ -172,6 +172,14 @@ describe("limits per IP and per email address", () => {
     ]);
   });
 
+  it("counts an address by its mailbox, without any +tag", () => {
+    const [, perAddress] = contactRateRules({
+      ip: "203.0.113.10",
+      email: "asha.rao+camp+2027@example.test",
+    });
+    expect(perAddress?.key).toBe("asha.rao@example.test");
+  });
+
   it("follows other limits when given them", () => {
     const rules = contactRateRules(
       { ip: "203.0.113.10", email: "asha@example.test" },

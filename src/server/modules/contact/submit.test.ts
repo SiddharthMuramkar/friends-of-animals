@@ -318,6 +318,23 @@ describe("the limits", () => {
     expect(await h.db.$count(contactMessage)).toBe(5);
   });
 
+  it("counts an address's +tag forms as that address, so one inbox gets 5 a day", async () => {
+    const h = await createHarness();
+    for (let index = 0; index < 5; index++) {
+      const result = await send(h, h.visitor({ ip: `192.0.2.${index + 1}` }), {
+        email: `asha.rao+${index}@example.test`,
+      });
+      expect(result.ok).toBe(true);
+    }
+
+    const sixth = await send(h, h.visitor({ ip: "192.0.2.99" }), {
+      email: "asha.rao@example.test",
+    });
+
+    expect(sixth).toMatchObject({ ok: false, error: "rate_limited" });
+    expect(await h.db.$count(contactMessage)).toBe(5);
+  });
+
   it("doesn't count a refused message against the sender", async () => {
     const h = await createHarness();
     const busy = h.visitor({ ip: "203.0.113.60" });
