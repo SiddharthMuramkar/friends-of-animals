@@ -14,10 +14,9 @@ export const SYNC_OUTCOMES = [
   "already_captured",
   /** No payment on the order is captured yet. */
   "awaiting_payment",
-  /** A captured payment doesn't match the batch's amount; nothing confirmed. */
-  "amount_mismatch",
-  /** Money arrived for a batch that failed or was replaced; nothing confirmed. */
-  "not_payable",
+  /** Money arrived that the batch can't accept, or the batch is in review
+   * already: nothing confirmed, nothing refunded, a case for staff (#79). */
+  "needs_review",
 ] as const;
 
 export type SyncOutcome = (typeof SYNC_OUTCOMES)[number];

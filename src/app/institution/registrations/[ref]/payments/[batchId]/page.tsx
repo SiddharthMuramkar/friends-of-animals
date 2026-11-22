@@ -81,6 +81,7 @@ const BATCH_TONE = {
   captured: "green",
   failed: "neutral",
   cancelled: "neutral",
+  needs_review: "marigold",
 } as const satisfies Record<PaymentBatchStatus, string>;
 
 const STUDENT_TONE = {

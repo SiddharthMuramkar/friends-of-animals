@@ -10,8 +10,13 @@ import {
   role,
   signedIn,
   signedOut,
+  stepUp,
   type Policy,
 } from "../../access/domain/policy";
+
+/** FOA's people who look after money (#79). Super admin is named: it is no
+ * wildcard. */
+const MONEY_STAFF = role("finance", "staff_admin", "super_admin");
 
 export const PAYMENTS_POLICY = {
   // Opening an order for the institution's fees and confirming the
@@ -23,4 +28,15 @@ export const PAYMENTS_POLICY = {
   // A gateway's webhook arrives with no session: its signature, checked on
   // the raw body, is what authorises it, so anyone may hand one in.
   "payments.gateway_signal": anyOf(signedOut, signedIn),
+  // Recording a cheque, transfer or cash confirms registrations as a
+  // capture does: money moves, so a fresh second factor (#60). Presigning
+  // its proof upload is part of the same act.
+  "payments.offline.record": stepUp(MONEY_STAFF),
+  // Reading batches, review cases and what was paid (#79).
+  "payments.review.read": MONEY_STAFF,
+  // Resolving a review case accepts, refunds or keeps money.
+  "payments.review.resolve": stepUp(MONEY_STAFF),
+  // An offline payment's proof: a cheque image shows an account number and
+  // a signature.
+  "payments.offline.proof.read": MONEY_STAFF,
 } satisfies Policy<string>;

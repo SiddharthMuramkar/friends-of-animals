@@ -87,6 +87,30 @@ describe("checkUploadRequest", () => {
     ).toEqual({ ok: false, refusal: "type_not_allowed" });
   });
 
+  it("takes an offline payment's proof (#79) in production: a PDF or photo up to 10 MiB", () => {
+    const proof = { purpose: "offline_payment_proof" } as const;
+    for (const contentType of [
+      "application/pdf",
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+    ]) {
+      expect(
+        checkUploadRequest(
+          { ...proof, contentType, sizeBytes: 10 * MiB },
+          "production"
+        )
+      ).toEqual({ ok: true });
+    }
+    expect(
+      checkUploadRequest(
+        { ...proof, contentType: "application/pdf", sizeBytes: 10 * MiB + 1 },
+        "production"
+      )
+    ).toEqual({ ok: false, refusal: "too_large" });
+    expect(PURPOSE_RULES.offline_payment_proof.directUpload).toBe(false);
+  });
+
   it("allows only types that are safe to serve back", () => {
     for (const rule of Object.values(PURPOSE_RULES)) {
       for (const type of rule.contentTypes) {

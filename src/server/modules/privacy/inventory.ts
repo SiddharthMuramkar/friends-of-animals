@@ -469,6 +469,41 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
       "Records who paid an institution's fees, or an adult their own (#78), so the receipt reaches them and FOA can answer a query about the payment",
     retention: PAYMENT_RECORD,
   },
+  // Offline payments and payments needing review (#79).
+  {
+    table: "offline_payment",
+    column: "reference",
+    purpose:
+      "The cheque number, bank transfer reference or FOA cash receipt finance recorded a payment with, so the money can be traced to the payer's bank",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "offline_payment",
+    column: "proof_file_asset_id",
+    purpose:
+      "The scan or photo of the cheque, transfer advice or cash receipt; a cheque shows the payer's account number and signature. Only finance and staff admins open it",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "offline_payment",
+    column: "recorded_by_user_id",
+    purpose:
+      "Who in finance recorded the offline payment, so FOA can answer for it",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "payment_review_case",
+    column: "resolution_reason",
+    purpose:
+      "Why staff accepted, refunded or kept a payment in review: free text that may name the payer or what they said",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "payment_review_case",
+    column: "resolved_by_user_id",
+    purpose: "Who resolved a payment in review, so FOA can answer for it",
+    retention: PAYMENT_RECORD,
+  },
   // Guardians and their children (#81). A child's profile is a
   // participant_profile row (owner_kind guardian), listed above.
   {

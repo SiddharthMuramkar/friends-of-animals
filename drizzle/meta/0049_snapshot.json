@@ -1,6 +1,6 @@
 {
-  "id": "7019a438-7933-484a-91f5-02b4f7b8a0d7",
-  "prevId": "d1ae47b2-a194-4104-a810-ebe16b29dc4b",
+  "id": "da19cf2f-53b6-4900-87cb-a5308aa861c6",
+  "prevId": "c2f48192-c96e-417f-bc29-f95b078ac15b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6193,6 +6193,158 @@
       },
       "isRLSEnabled": false
     },
+    "public.offline_payment": {
+      "name": "offline_payment",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "method": {
+          "name": "method",
+          "type": "offline_payment_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_on": {
+          "name": "received_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proof_file_asset_id": {
+          "name": "proof_file_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recorded_by_user_id": {
+          "name": "recorded_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "offline_payment_proof_file_asset_id_idx": {
+          "name": "offline_payment_proof_file_asset_id_idx",
+          "columns": [
+            {
+              "expression": "proof_file_asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "offline_payment_recorded_by_user_id_idx": {
+          "name": "offline_payment_recorded_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "recorded_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "offline_payment_batch_id_payment_batch_id_fk": {
+          "name": "offline_payment_batch_id_payment_batch_id_fk",
+          "tableFrom": "offline_payment",
+          "tableTo": "payment_batch",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "offline_payment_proof_file_asset_id_file_asset_id_fk": {
+          "name": "offline_payment_proof_file_asset_id_file_asset_id_fk",
+          "tableFrom": "offline_payment",
+          "tableTo": "file_asset",
+          "columnsFrom": [
+            "proof_file_asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "offline_payment_recorded_by_user_id_user_id_fk": {
+          "name": "offline_payment_recorded_by_user_id_user_id_fk",
+          "tableFrom": "offline_payment",
+          "tableTo": "user",
+          "columnsFrom": [
+            "recorded_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "offline_payment_batch_unique": {
+          "name": "offline_payment_batch_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "batch_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "offline_payment_amount_positive": {
+          "name": "offline_payment_amount_positive",
+          "value": "\"offline_payment\".\"amount_minor\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.payment_batch": {
       "name": "payment_batch",
       "schema": "",
@@ -6269,6 +6421,13 @@
         "gateway_payment_id": {
           "name": "gateway_payment_id",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capture_method": {
+          "name": "capture_method",
+          "type": "payment_capture_method",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -6434,11 +6593,11 @@
         },
         "payment_batch_order_when_opened": {
           "name": "payment_batch_order_when_opened",
-          "value": "\"payment_batch\".\"status\" NOT IN ('order_created', 'captured') OR \"payment_batch\".\"gateway_order_id\" IS NOT NULL"
+          "value": "\"payment_batch\".\"gateway_order_id\" IS NOT NULL OR \"payment_batch\".\"status\" NOT IN ('order_created', 'captured') OR (\"payment_batch\".\"status\" = 'captured' AND \"payment_batch\".\"capture_method\" = 'offline')"
         },
         "payment_batch_payment_when_captured": {
           "name": "payment_batch_payment_when_captured",
-          "value": "\"payment_batch\".\"status\" <> 'captured' OR (\"payment_batch\".\"captured_at\" IS NOT NULL AND \"payment_batch\".\"gateway_payment_id\" IS NOT NULL)"
+          "value": "\"payment_batch\".\"status\" <> 'captured' OR (\"payment_batch\".\"captured_at\" IS NOT NULL AND (\"payment_batch\".\"gateway_payment_id\" IS NOT NULL OR \"payment_batch\".\"capture_method\" = 'offline'))"
         }
       },
       "isRLSEnabled": false
@@ -6548,6 +6707,192 @@
         "payment_batch_item_amount_positive": {
           "name": "payment_batch_item_amount_positive",
           "value": "\"payment_batch_item\".\"amount_minor\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.payment_review_case": {
+      "name": "payment_review_case",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "payment_review_reason",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gateway_payment_id": {
+          "name": "gateway_payment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "batch_status_before": {
+          "name": "batch_status_before",
+          "type": "payment_batch_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_by_user_id": {
+          "name": "resolved_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "payment_review_outcome",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolution_reason": {
+          "name": "resolution_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refund_due": {
+          "name": "refund_due",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {
+        "payment_review_case_batch_id_idx": {
+          "name": "payment_review_case_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payment_review_case_opened_at_idx": {
+          "name": "payment_review_case_opened_at_idx",
+          "columns": [
+            {
+              "expression": "opened_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payment_review_case_resolved_by_user_id_idx": {
+          "name": "payment_review_case_resolved_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "resolved_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "payment_review_case_batch_id_payment_batch_id_fk": {
+          "name": "payment_review_case_batch_id_payment_batch_id_fk",
+          "tableFrom": "payment_review_case",
+          "tableTo": "payment_batch",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "payment_review_case_resolved_by_user_id_user_id_fk": {
+          "name": "payment_review_case_resolved_by_user_id_user_id_fk",
+          "tableFrom": "payment_review_case",
+          "tableTo": "user",
+          "columnsFrom": [
+            "resolved_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "payment_review_case_payment_unique": {
+          "name": "payment_review_case_payment_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "batch_id",
+            "gateway_payment_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "payment_review_case_resolved_together": {
+          "name": "payment_review_case_resolved_together",
+          "value": "(\"payment_review_case\".\"resolved_at\" IS NULL) = (\"payment_review_case\".\"outcome\" IS NULL) AND (\"payment_review_case\".\"outcome\" IS NULL) = (\"payment_review_case\".\"resolution_reason\" IS NULL)"
+        },
+        "payment_review_case_refund_only_on_refund": {
+          "name": "payment_review_case_refund_only_on_refund",
+          "value": "NOT \"payment_review_case\".\"refund_due\" OR \"payment_review_case\".\"outcome\" = 'refund'"
         }
       },
       "isRLSEnabled": false
@@ -6678,26 +7023,7 @@
           "name": "guardian_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
-        },
-        "requested_by_user_id": {
-          "name": "requested_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "invitee_name_ciphertext": {
-          "name": "invitee_name_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "relationship": {
-          "name": "relationship",
-          "type": "guardian_relationship",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "participant_profile_id": {
           "name": "participant_profile_id",
@@ -6819,21 +7145,6 @@
           "method": "btree",
           "with": {}
         },
-        "guardian_invitation_requested_by_user_id_idx": {
-          "name": "guardian_invitation_requested_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "requested_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "guardian_invitation_accepted_by_user_id_idx": {
           "name": "guardian_invitation_accepted_by_user_id_idx",
           "columns": [
@@ -6857,19 +7168,6 @@
           "tableTo": "guardian",
           "columnsFrom": [
             "guardian_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "guardian_invitation_requested_by_user_id_user_id_fk": {
-          "name": "guardian_invitation_requested_by_user_id_user_id_fk",
-          "tableFrom": "guardian_invitation",
-          "tableTo": "user",
-          "columnsFrom": [
-            "requested_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -6916,18 +7214,6 @@
       },
       "policies": {},
       "checkConstraints": {
-        "guardian_invitation_teen_login_has_guardian": {
-          "name": "guardian_invitation_teen_login_has_guardian",
-          "value": "\"guardian_invitation\".\"kind\" <> 'teen_login' OR \"guardian_invitation\".\"guardian_id\" IS NOT NULL"
-        },
-        "guardian_invitation_request_complete": {
-          "name": "guardian_invitation_request_complete",
-          "value": "\"guardian_invitation\".\"kind\" <> 'guardian_request' OR (\"guardian_invitation\".\"requested_by_user_id\" IS NOT NULL AND \"guardian_invitation\".\"invitee_name_ciphertext\" IS NOT NULL AND \"guardian_invitation\".\"relationship\" IS NOT NULL)"
-        },
-        "guardian_invitation_request_fields_only_on_requests": {
-          "name": "guardian_invitation_request_fields_only_on_requests",
-          "value": "\"guardian_invitation\".\"kind\" = 'guardian_request' OR (\"guardian_invitation\".\"requested_by_user_id\" IS NULL AND \"guardian_invitation\".\"invitee_name_ciphertext\" IS NULL AND \"guardian_invitation\".\"relationship\" IS NULL)"
-        },
         "guardian_invitation_token_only_while_pending": {
           "name": "guardian_invitation_token_only_while_pending",
           "value": "\"guardian_invitation\".\"status\" = 'pending' OR \"guardian_invitation\".\"token_ciphertext\" IS NULL"
@@ -7669,7 +7955,8 @@
       "schema": "public",
       "values": [
         "test_upload",
-        "cms_image"
+        "cms_image",
+        "offline_payment_proof"
       ]
     },
     "public.file_asset_status": {
@@ -7897,8 +8184,7 @@
         "consent_withdrawn",
         "sms_disabled",
         "sms_unregistered",
-        "no_contact",
-        "no_guardian"
+        "no_contact"
       ]
     },
     "public.guardian_relationship": {
@@ -7940,8 +8226,16 @@
         "enrolled",
         "confirmed",
         "withdrawn",
-        "pending_payment",
-        "pending_guardian"
+        "pending_payment"
+      ]
+    },
+    "public.offline_payment_method": {
+      "name": "offline_payment_method",
+      "schema": "public",
+      "values": [
+        "cheque",
+        "bank_transfer",
+        "cash"
       ]
     },
     "public.payment_batch_status": {
@@ -7952,7 +8246,36 @@
         "order_created",
         "captured",
         "failed",
-        "cancelled"
+        "cancelled",
+        "needs_review"
+      ]
+    },
+    "public.payment_capture_method": {
+      "name": "payment_capture_method",
+      "schema": "public",
+      "values": [
+        "gateway",
+        "offline"
+      ]
+    },
+    "public.payment_review_outcome": {
+      "name": "payment_review_outcome",
+      "schema": "public",
+      "values": [
+        "confirm",
+        "refund",
+        "keep"
+      ]
+    },
+    "public.payment_review_reason": {
+      "name": "payment_review_reason",
+      "schema": "public",
+      "values": [
+        "already_paid",
+        "registration_cancelled",
+        "amount_mismatch",
+        "registration_closed",
+        "batch_superseded"
       ]
     },
     "public.guardian_invitation_channel": {
