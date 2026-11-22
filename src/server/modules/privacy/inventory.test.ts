@@ -102,6 +102,10 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
+  it("lists who registered an institution for a competition", () => {
+    expect(listed.has("institution_registration.registered_by")).toBe(true);
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>

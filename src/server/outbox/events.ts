@@ -166,6 +166,12 @@ export type DomainEvent =
       type: "competition.disciplines_changed";
       aggregate: { type: "competition"; id: string };
       payload: { competitionId: string };
+    }
+  | {
+      /** An institution registered for a competition (#75). */
+      type: "registration.institution_registered";
+      aggregate: { type: "institution_registration"; id: string };
+      payload: { institutionRegistrationId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -227,6 +233,9 @@ export const EVENT_PAYLOADS = {
     version: z.int().min(1),
   }),
   "competition.disciplines_changed": z.object({ competitionId: z.uuid() }),
+  "registration.institution_registered": z.object({
+    institutionRegistrationId: z.uuid(),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -272,6 +281,9 @@ export const SUBSCRIBERS = {
   // Each guard's retryOn events (modules/competitions/transition-guards.ts).
   "rubric.published": ["competitions.retry_blocked_moves"],
   "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
+  // The principal is a contact on the institution, not a user, so no
+  // route row can name them: the message goes by its own handler (#75).
+  "registration.institution_registered": ["registration.notify_principal"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

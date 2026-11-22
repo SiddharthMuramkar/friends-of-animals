@@ -267,6 +267,13 @@
       "when": 1795356119479,
       "tag": "0037_72_competition_terms",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1795357614195,
+      "tag": "0038_75_institution_registration",
+      "breakpoints": true
     }
   ]
 }
