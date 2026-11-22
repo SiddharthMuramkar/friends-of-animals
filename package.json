@@ -21,6 +21,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",
     "admin:bootstrap-super-admin": "tsx scripts/bootstrap-super-admin.ts",
+    "offsite:restore": "tsx scripts/offsite-restore.ts",
     "worker": "tsx src/worker/main.ts",
     "worker:dev": "APP_ENV=local WORKER_MODE=single tsx watch src/worker/main.ts",
     "brand:assets": "tsx scripts/brand-assets.ts",

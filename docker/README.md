@@ -82,7 +82,9 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_prod_foa_worker_password`          | 1000, 0400      | `foa_worker` (worker-prod)            |
 | `/etc/foa/secrets/pg_nonprod_staging_worker_password`   | 1000, 0400      | `staging_worker` (worker-staging)     |
 | `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
-| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for all three workers   |
+| `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for every worker        |
+| `/etc/foa/secrets/worker_prod_r2.env` (optional, HR-08) | root, 0600      | Prod bucket `R2_*`, worker-prod only  |
+| `/etc/foa/preview-files.env` (optional)                 | root, 0600      | Non-prod `R2_*`: staging, previews    |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
 | `/etc/foa/secrets/pgbackrest_cipher.conf`               | 999, 0400       | pgBackRest `conf.d` snippet (derived) |
@@ -92,7 +94,9 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 
 999 is `postgres` inside the Postgres image; 6432 is `pgbouncer` in ours;
 1000 is `node` in the worker image. The worker secrets come from
-`scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`.
+`scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`;
+the optional `.env` files are written by hand (Workers, "Scan, PDF and
+media sidecars").
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
@@ -727,6 +731,142 @@ the promoted server keeps archiving on its new timeline; `docker start
 foa-pg-prod`, verify, `docker start foa-pgbouncer`, replay `ErasureLedger`,
 then take a full backup.
 
+## Off-site copy of files (Backblaze B2)
+
+R2 keeps no old versions, so production's uploaded files are copied every
+night to one Backblaze B2 bucket (#68). The copy runs inside `worker-prod` as
+the pg-boss schedule `offsite_copy`
+(`src/server/modules/offsite-copy/schedule.ts`), so it starts once #61's
+worker (`docker/workers.yml`) is deployed. Staging, previews and local runs
+never copy.
+
+- **When:** 01:30 IST, an hour before pgBackRest. A run starts no new copy
+  after two hours; what is left waits for the next night (the first full copy
+  can take several nights) and doesn't count as a failure.
+- **What:** every object in `OFFSITE_SOURCE_BUCKETS` that is new or changed
+  (etag or size) since its last copy, to `<B2_BUCKET>/<source bucket>/<key>`,
+  with its type, its metadata and its R2 etag as `foa-source-etag`. Keys under
+  `staging/`, `local/`, `pr-<n>/` or `br-<hash>/` are never copied. A
+  single-part object goes with its Content-MD5, so B2 refuses damaged bytes,
+  and every write asks for SSE-B2. The table `offsite_copy` records each copy.
+- **Deletions:** an object gone from R2 is marked, and its copy stays for
+  `OFFSITE_RETENTION_DAYS` (30) counted from the first night that found it
+  gone; then the copy and its row are deleted. An object back in R2 before
+  then is unmarked (and copied again only if it changed). A listing that comes
+  back empty while B2 holds live copies refuses that bucket, as a wrong bucket
+  or token would look. Marking more than a tenth of a bucket's copies (ten or
+  more) in one night sends a Sentry warning: the retention window is the time
+  to look.
+- **A bucket that is really empty now** (every file deleted on purpose) is
+  refused every night, with a Sentry event on each final attempt. Once you
+  have checked in R2 that it is empty, start its retention window by hand,
+  on pg-prod's `foa` as a member of `foa_app`:
+  `UPDATE offsite_copy SET deleted_in_source_at = now() WHERE source_bucket =
+  '<bucket>' AND deleted_in_source_at IS NULL;`. The copies stay for
+  `OFFSITE_RETENTION_DAYS`, then go as usual.
+- **Failures:** a run with a failed copy, purge or listing throws, and pg-boss
+  retries it three times, 15 minutes apart with backoff (each attempt expires
+  after three hours). A retry copies only what is still missing. Sentry gets
+  one event on the final attempt (tag `job:offsite_copy`) with counts and at
+  most ten keys. Production without its settings fails the same way and names
+  each missing variable.
+- **Losing `offsite_copy`** is safe: the next run copies everything again and
+  never deletes a copy it has no row for.
+
+Owner setup (HR-25, HR-13): a private B2 bucket with default encryption
+(SSE-B2) on and a lifecycle rule that keeps prior versions for 1-7 days (an
+S3 delete only hides a B2 file, so this is a second, short safety net), and
+an application key restricted to that bucket with `listFiles`, `readFiles`,
+`writeFiles` and `deleteFiles`. In R2, an API token with Object Read only on
+the production buckets. The restore needs a separate token that may write;
+the operator keeps it, not the VPS.
+
+### Settings (worker-prod only)
+
+Each variable can be given as `<NAME>_FILE`, the path of a file holding the
+value. Keys and secrets arrive that way, as Compose secrets, never as
+environment values.
+
+| Variable                       | What                                                    | Secret |
+| ------------------------------ | ------------------------------------------------------- | ------ |
+| `APP_ENV`                      | `production`; anything else copies nothing              | no     |
+| `OFFSITE_SOURCE_BUCKETS`       | The production R2 buckets, separated by commas          | no     |
+| `OFFSITE_RETENTION_DAYS`       | Days a copy outlives its object (1-3650, default 30)    | no     |
+| `R2_ACCOUNT_ID`                | The Cloudflare account id (32 hex characters)           | no     |
+| `OFFSITE_R2_ACCESS_KEY_ID`     | The read-only R2 token's key id                         | yes    |
+| `OFFSITE_R2_SECRET_ACCESS_KEY` | The read-only R2 token's secret                         | yes    |
+| `B2_S3_ENDPOINT`               | B2's S3 endpoint, `https://s3.<region>.backblazeb2.com` | no     |
+| `B2_REGION`                    | The B2 region, e.g. `eu-central-003`                    | no     |
+| `B2_BUCKET`                    | The B2 bucket; not one of the source buckets            | no     |
+| `B2_KEY_ID`                    | The B2 application key's id                             | yes    |
+| `B2_APPLICATION_KEY`           | The B2 application key                                  | yes    |
+
+For `docker/workers.yml` (#61), `worker-prod` takes them like this, with each
+secret file under `/etc/foa/secrets/` (0400, owned by the worker's user):
+
+```yaml
+services:
+  worker-prod:
+    environment:
+      OFFSITE_SOURCE_BUCKETS: foa-files-prod
+      R2_ACCOUNT_ID: <account id>
+      OFFSITE_R2_ACCESS_KEY_ID_FILE: /run/secrets/offsite_r2_access_key_id
+      OFFSITE_R2_SECRET_ACCESS_KEY_FILE: /run/secrets/offsite_r2_secret_access_key
+      B2_S3_ENDPOINT: https://s3.<region>.backblazeb2.com
+      B2_REGION: <region>
+      B2_BUCKET: <bucket>
+      B2_KEY_ID_FILE: /run/secrets/b2_key_id
+      B2_APPLICATION_KEY_FILE: /run/secrets/b2_application_key
+    secrets:
+      - offsite_r2_access_key_id
+      - offsite_r2_secret_access_key
+      - b2_key_id
+      - b2_application_key
+secrets:
+  offsite_r2_access_key_id:
+    file: /etc/foa/secrets/offsite_r2_access_key_id
+  offsite_r2_secret_access_key:
+    file: /etc/foa/secrets/offsite_r2_secret_access_key
+  b2_key_id:
+    file: /etc/foa/secrets/b2_key_id
+  b2_application_key:
+    file: /etc/foa/secrets/b2_application_key
+```
+
+### Restore one file
+
+You need the file's R2 bucket and key (`file_asset.bucket` and
+`storage_key`, or the keys in the Sentry event) and the R2 token that may
+write to the bucket you restore into. Type the token in; `-e NAME` without a
+value hands the container your shell's value, so it never reaches the shell
+history or the VPS's disk:
+
+```sh
+cd /srv/foa/docker
+read -r OFFSITE_RESTORE_R2_ACCESS_KEY_ID
+read -rs OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
+export OFFSITE_RESTORE_R2_ACCESS_KEY_ID OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
+docker compose -f workers.yml exec \
+  -e OFFSITE_RESTORE_R2_ACCESS_KEY_ID -e OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY \
+  worker-prod pnpm offsite:restore --bucket <bucket> --key <key>
+unset OFFSITE_RESTORE_R2_ACCESS_KEY_ID OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
+```
+
+- It writes the B2 copy back to `<bucket>/<key>` with its type and metadata,
+  sending the Content-MD5 of the etag R2 had, so R2 refuses a damaged copy.
+- An object already at that key is left alone: add `--overwrite` to replace
+  it, or `--to <bucket>` to restore into another bucket first and compare.
+- `B2 holds no copy`: check the bucket and key; a file deleted from R2 more
+  than the retention window (plus a night) ago is gone, apart from B2's
+  hidden versions for a few more days (restore one in B2's web console).
+- Exit codes: 0 restored, 1 refused or failed (the message says why), 2 bad
+  arguments.
+- It restores bytes only. A `file_asset` row deleted along with the file
+  must be put back separately.
+- While it runs, the token is in the process's environment, so anyone who can
+  read `/proc/<pid>/environ` in the container, or `docker inspect` the exec,
+  can see it. Use a token made for this restore and revoke it afterwards.
+
 ## Preview databases and the sweeper
 
 `scripts/sweep-preview-dbs.sh` (hourly via `foa-preview-sweep.timer`) lists
@@ -768,8 +908,9 @@ running `pnpm files:purge-preview --database <name>` in the worker image
 ## Workers
 
 `workers.yml` (Compose project `foa-workers`, issue #61) runs the background
-workers next to the database stack, on its `db` network (`foa-vps_db`, so
-start `compose.yml` first). Each runs `src/worker/main.ts` from the
+workers and their sidecars next to the database stack. The database workers
+join its `db` network (`foa-vps_db`, so start `compose.yml` first). Each runs
+`src/worker/main.ts` from the
 Dockerfile's `worker` target, drains its database's outbox every 5 s and
 connects to Postgres directly, never through PgBouncer: pg-boss holds
 sessions, which transaction pooling breaks. None publishes a port.
@@ -834,16 +975,16 @@ docker exec foa-pg-prod psql -U postgres -c 'SELECT pg_reload_conf()'     # afte
 docker exec foa-pg-nonprod psql -U postgres -c 'SELECT pg_reload_conf()'
 scripts/worker-roles.sh               # roles + /etc/foa/secrets/*_worker_password
 WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
-  docker compose -f workers.yml up -d --build --wait
-docker compose -f workers.yml ps      # all three "healthy"
+  docker compose -f workers.yml up -d --build --wait --wait-timeout 480 \
+  worker-prod foa-clamav foa-gotenberg
+docker compose -f workers.yml ps worker-prod foa-clamav foa-gotenberg
 ```
 
-Then check that each single-database worker's heartbeat row is fresh (its
-`last_seen_at` moves every 5 s):
+Then check that the production worker's heartbeat row is fresh. Its
+`last_seen_at` moves every 5 s.
 
 ```sh
 docker exec foa-pg-prod psql -U postgres -d foa -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
-docker exec foa-pg-nonprod psql -U postgres -d foa_staging -c 'SELECT worker, last_seen_at, version FROM worker_heartbeat'
 ```
 
 `worker-preview` writes a row only in the previews it serves, so with no
@@ -863,15 +1004,77 @@ heartbeat rows; leave it out and they say `unknown`.
 - Stop one: `docker compose -f workers.yml stop worker-staging` (it finishes
   its poll, stops pg-boss and closes its connections within 30 s).
 - Updating: `git -C /srv/foa pull`, then the "Run" line; only a changed
-  image is recreated. All three build from `/srv/foa` (main), and each has
-  its own image (`foa-workers/worker-<name>`), so rebuilding one never swaps
-  another's.
+  image is recreated. The workers build from `/srv/foa` (main), and each
+  has its own untagged image (`foa-workers/worker-<name>`), so rebuilding
+  one never swaps another's and a deploy leaves no old tag behind.
 - Only errors: `docker compose -f workers.yml logs worker-preview | grep '"level":"error"'`.
 - Rotating a worker password: replace its file in `/etc/foa/secrets`, rerun
   `scripts/worker-roles.sh`, restart that worker.
 - A local run needs none of this: `pnpm worker:dev` drains the local
   database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
   email, and restarts on code changes.
+
+### Scan, PDF and media sidecars
+
+| Service         | Connection and health check                                                                                          | Memory |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- | ------ |
+| `foa-clamav`    | Database workers use `CLAMD_HOST=foa-clamav` and `CLAMD_PORT=3310`. `clamdcheck.sh` checks the local clamd listener. | 2 GiB  |
+| `foa-gotenberg` | Media uses `GOTENBERG_URL=http://foa-gotenberg:3000`. The health check calls `GET /health` on loopback.              | 1 GiB  |
+| `worker-media`  | Runs the media entry point with a read-only root and `/tmp` tmpfs. Health requires a heartbeat under 120 s old.      | 2 GiB  |
+
+All three log to journald and use private networks. Clamd listens on the
+internal `scan` bridge and loopback. FreshClam uses a separate bridge to
+reach the signature mirror and keeps its databases in `foa-clamav-db`.
+Allow six minutes for the initial signature load. Scans wait during a
+signature reload so ClamAV can stay within its memory limit. Check the
+journal for signature-load failures.
+
+The upload scan also reads each file from its environment's R2 bucket, so a
+database worker scans only with all four `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` and `R2_BUCKET` (HR-08). Without them every scan fails
+and uploads wait unscanned. Each worker lists its own optional env file;
+none goes through the shared `x-worker` anchor, which every worker merges:
+
+| Worker                             | R2 file (root, 0600)                  | Bucket                                 |
+| ---------------------------------- | ------------------------------------- | -------------------------------------- |
+| `worker-prod`                      | `/etc/foa/secrets/worker_prod_r2.env` | production                             |
+| `worker-staging`, `worker-preview` | `/etc/foa/preview-files.env`          | non-production (also the purge hook's) |
+
+Write the production file with the R2 token scoped to the production
+bucket, without printing it, then recreate worker-prod:
+
+```sh
+install -m 0600 -o root -g root /dev/null /etc/foa/secrets/worker_prod_r2.env
+# R2_ACCOUNT_ID=, R2_ACCESS_KEY_ID=, R2_SECRET_ACCESS_KEY=, R2_BUCKET= lines
+docker compose -f workers.yml up -d --wait worker-prod
+```
+
+Put only the four `R2_` lines in these files: a service's `environment:`
+overrides anything else they set.
+
+Gotenberg and the media worker share the internal `pdf` network. Send
+documents and their assets as file uploads. Chromium and LibreOffice
+accept local URLs under `/tmp` and API requests time out after 30 s.
+
+To recreate the scan and PDF sidecars after updating their image or
+configuration, run from `/srv/foa/docker`. Keep the signature volume
+attached so ClamAV can reuse its database.
+
+```sh
+docker compose -f workers.yml up -d --force-recreate --wait --wait-timeout 480 \
+  foa-clamav foa-gotenberg
+docker compose -f workers.yml ps foa-clamav foa-gotenberg
+```
+
+The `media` profile is opt-in. Enable it once #85 ships the media entry
+point, media queue connection, and heartbeat. The PDF adapter in #100
+uses the Gotenberg endpoint.
+
+```sh
+WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \
+  docker compose -f workers.yml --profile media up -d --build --wait \
+  worker-media foa-gotenberg
+```
 
 ## Checks
 
@@ -1250,29 +1453,32 @@ Upgrade: bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
    migrations run in the build: turning on "Use Static IPs for builds" needs a
    static-IP region for builds as well, and its IPs on the allowlist, or the
    allowlist blocks every migration.
-2. **Off-site backups on FOA's Cloudflare (#18)**: pgBackRest `repo2` on R2
+2. **Off-site copy of files (#68, HR-25, HR-13)**: B2 bucket and key, a
+   read-only R2 token, the settings in `worker-prod`, the retention value
+   (30 days proposed) and one restore tried against real buckets (above).
+3. **Off-site backups on FOA's Cloudflare (#18)**: pgBackRest `repo2` on R2
    (own passphrase), plus a daily `age`-encrypted `pg_dump` to a separate,
    bucket-locked R2 bucket kept 35 days. Until then backups live on the same
    disk as the database.
-3. **Hostinger managed firewall**: if it is ever enabled it must allow TCP 22,
+4. **Hostinger managed firewall**: if it is ever enabled it must allow TCP 22,
    80 (ACME renewals, Caddy), 443 (Caddy) and 6432, with the SSH rule added
    first.
-4. **Offline copy** of `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` with
+5. **Offline copy** of `/etc/foa/secrets/pgbackrest_repo1_cipher_pass` with
    the owner.
-5. **Alerting** (operations ticket): failed `foa-pgbackrest-*`,
+6. **Alerting** (operations ticket): failed `foa-pgbackrest-*`,
    `foa-restore-drill`, `foa-cert-renew` or archiving
    (`pg_stat_archiver.failed_count`), and a periodic `pgbackrest check`. The
    restore drill cannot see archiving that has stalled, because it can only
    replay the WAL that reached the repository.
-6. **Workers (HR-07):** apply the roles and start `workers.yml` (Workers,
+7. **Workers (HR-07):** apply the roles and start `workers.yml` (Workers,
    "First start"), and settle the CPU and memory caps there for the shared
    VPS.
-7. **One build per branch** (owner): Vercel → Project Settings → Build and
+8. **One build per branch** (owner): Vercel → Project Settings → Build and
    Deployment → On-Demand Concurrent Builds → "Run up to one build per
    branch". The API refused the change for lack of permission. Meanwhile the
    migration's advisory lock keeps concurrent builds of one branch from
    applying the same migration twice.
-8. **Edge rate limit** (deferred, #118): CrowdSec's HTTP scenarios are the
+9. **Edge rate limit** (deferred, #118): CrowdSec's HTTP scenarios are the
    edge's abuse control today (Edge, "Abuse control"). If Umami's
    `/api/send` or GlitchTip's envelopes are ever flooded, build Caddy with
    a pinned `caddy-ratelimit` (an image built and pinned here, not

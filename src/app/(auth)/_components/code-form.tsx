@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, type ReactNode } from "react";
 
 import { FormAlert, SubmitButton, TextField } from "@/components/form";
 import { inlineLink } from "@/components/site/link-styles";
@@ -41,7 +41,9 @@ const CONTACT_INPUT = {
  * Sign up or sign in by a code, in two steps on one form: the email
  * address or mobile number (and, to sign up, a name), then the code we
  * send. Every message comes translated from `action`; static words come
- * in `labels`.
+ * in `labels`. To sign up by email, `consentField` (the optional messages
+ * consent box, from the server) shows on the first step, and the code
+ * step sends on what was ticked.
  */
 export function CodeForm({
   action,
@@ -50,6 +52,7 @@ export function CodeForm({
   labels,
   signUpPath,
   emailPath,
+  consentField,
 }: {
   action: (previous: CodeFormView, formData: FormData) => Promise<CodeFormView>;
   channel: CodeChannel;
@@ -59,6 +62,8 @@ export function CodeForm({
   signUpPath: string;
   /** By phone: the email form for this intent, for numbers we can't text. */
   emailPath?: string;
+  /** By email, to sign up: the optional messages consent box (#64). */
+  consentField?: ReactNode;
 }) {
   const [view, formAction] = useActionState(action, START_VIEW);
   const { text } = view;
@@ -123,6 +128,7 @@ export function CodeForm({
             hint={labels.contact.hint}
             error={text.errors.contact}
           />
+          {intent === "sign-up" ? consentField : null}
           <div>
             <SubmitButton
               name="step"
@@ -137,6 +143,13 @@ export function CodeForm({
         <>
           <input type="hidden" name={channel} value={view.contact} />
           <input type="hidden" name="name" value={view.name} />
+          {view.messagesConsent ? (
+            <input
+              type="hidden"
+              name="messagesConsent"
+              value={view.messagesConsent}
+            />
+          ) : null}
           <TextField
             id="code"
             name="code"

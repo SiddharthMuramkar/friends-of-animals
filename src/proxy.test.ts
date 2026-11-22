@@ -158,6 +158,47 @@ describe("proxy: the signed-in nonce policy", () => {
     );
   });
 
+  describe("on the staff admin pages", () => {
+    it("sends a page the nonce policy, and renders it with the same nonce", () => {
+      vi.stubEnv("APP_ENV", "preview");
+      const response = proxy(
+        request(APP_ROUTES.adminConsentDocuments, SESSION)
+      );
+
+      const policy = response.headers.get("content-security-policy");
+      expect(policy).toMatch(
+        /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/
+      );
+      expect(policy).not.toMatch(/script-src [^;]*'unsafe-inline'/);
+      const page = pageHeaders(response);
+      expect(page.get("content-security-policy")).toBe(policy);
+      expect(page.get("x-nonce")).toBe(getScriptNonceFromHeader(policy!));
+    });
+
+    it("sends a visitor with no session cookie to sign in", () => {
+      const response = proxy(request(APP_ROUTES.adminConsentDocuments));
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        "https://foa.example.test/sign-in"
+      );
+    });
+
+    it("answers a path with no page with the static 404", () => {
+      vi.stubEnv("APP_ENV", "preview");
+      for (const path of ["/admin", "/admin/nope"]) {
+        const response = proxy(request(path, SESSION));
+
+        expect(getRewrittenUrl(response), path).toBe(
+          "https://foa.example.test/__not-found"
+        );
+        expect(response.headers.get("content-security-policy"), path).toBe(
+          publicCsp(cspContext()).value
+        );
+      }
+    });
+  });
+
   it("leaves public pages to next.config.ts headers()", () => {
     for (const path of [
       "/blog/kinder-skies-in-kite-season",
@@ -169,6 +210,13 @@ describe("proxy: the signed-in nonce policy", () => {
         expect(response.headers.get(key), path).toBeNull();
         expect(forwarded(response)?.get(key) ?? null, path).toBeNull();
       }
+    }
+  });
+
+  it("runs on every page in APP_ROUTES", () => {
+    for (const path of Object.values(APP_ROUTES)) {
+      const url = `https://foa.example.test${path}`;
+      expect(unstable_doesMiddlewareMatch({ config, url }), path).toBe(true);
     }
   });
 
