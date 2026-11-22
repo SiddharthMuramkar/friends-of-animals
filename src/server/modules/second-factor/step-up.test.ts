@@ -454,6 +454,45 @@ describe("resetSecondFactors", () => {
     ).toHaveLength(1);
   });
 
+  it("refuses when the initiating session ended after the request resolved it, even with a fresh step-up", async () => {
+    const h = await createHarness();
+    const { actor } = await freshSuperAdmin(h);
+    const { staff } = await staffWithFactor(h);
+    // Staff sessions last 12 hours from sign-in. Step up near the end,
+    // then let the session run out before the reset runs.
+    h.clock.advance({ hours: 11, minutes: 55 });
+    await h.passSecondFactor(actor);
+    h.clock.advance({ minutes: 6 });
+
+    await expect(
+      h.as(actor).resetSecondFactors({ userId: staff.id })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(
+      await h.db
+        .select()
+        .from(secondFactor)
+        .where(eq(secondFactor.userId, staff.id))
+    ).toHaveLength(1);
+  });
+
+  it("refuses when the initiating session was signed out after the request resolved it", async () => {
+    const h = await createHarness();
+    const { actor } = await freshSuperAdmin(h);
+    const { staff } = await staffWithFactor(h);
+    await h.as(actor).signOutEverywhere();
+
+    // The session's step-up stamp ended with it.
+    await expect(
+      h.as(actor).resetSecondFactors({ userId: staff.id })
+    ).rejects.toMatchObject({ code: "step_up_required" });
+    expect(
+      await h.db
+        .select()
+        .from(secondFactor)
+        .where(eq(secondFactor.userId, staff.id))
+    ).toHaveLength(1);
+  });
+
   it("is for super admins only", async () => {
     const h = await createHarness();
     const { staff } = await staffWithFactor(h);

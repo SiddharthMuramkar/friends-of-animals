@@ -14,11 +14,9 @@ import { authorize } from "../../access/can";
 import { isStaffRole } from "../../access/domain/roles";
 import { grantsOf } from "../../access/grants";
 import { recordAudit } from "../../audit/record";
-import type { AppDb } from "../../db/app-db";
 import { secondFactor, user, type SecondFactorKind } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
-import type { UseCaseContext } from "../../use-cases";
 import { accountName } from "./account-name";
 import { guardedAttempt, type Locked } from "./attempts";
 import { base32Encode } from "./domain/base32";
@@ -28,75 +26,29 @@ import {
   TOTP,
   verifyTotp,
 } from "./domain/totp";
-import { openTotpSecret, sealTotpSecret } from "./secret-box";
-import { DomainError } from "../../errors";
-import { secondFactorRefusal } from "./requirement";
 import {
-  isEnrolled,
+  authorizeEnrolment,
+  dropPendingAuthenticators,
+  factorLabel,
+  type SecondFactorContext,
+} from "./enrolment";
+import { openTotpSecret, sealTotpSecret } from "./secret-box";
+import {
   lockFactorSession,
   secondFactorStatus,
   signedInUser,
   stampSession,
-  type SignedInUser,
 } from "./session-factor";
 import { SECOND_FACTOR_SETTINGS } from "./settings";
 
-export type SecondFactorContext = Pick<
-  UseCaseContext,
-  "db" | "clock" | "actor" | "auth" | "cipher"
->;
-
-const label = z.string().trim().min(1).max(60);
 const code = z
   .string()
   .transform((typed) => typed.replace(/\s+/g, ""))
   .pipe(z.string().regex(new RegExp(`^\\d{${TOTP.digits}}$`)));
 
-const startInput = z.object({ label });
+const startInput = z.object({ label: factorLabel });
 const confirmInput = z.object({ factorId: z.uuid(), code });
 const verifyInput = z.object({ code });
-
-/**
- * Check the live session and any step-up requirement under the same lock
- * as removal and reset. Both starting and finishing enrolment use it.
- */
-export async function authorizeEnrolment(
-  tx: AppDb,
-  ctx: SecondFactorContext,
-  actor: SignedInUser
-): Promise<void> {
-  await lockFactorSession(tx, actor, ctx.clock);
-  if (!(await isEnrolled(tx, actor.userId))) return;
-  const refusal = await secondFactorRefusal(
-    { db: tx, clock: ctx.clock },
-    actor,
-    "step-up",
-    []
-  );
-  if (refusal) {
-    throw new DomainError(refusal, "Adding a factor needs a fresh one");
-  }
-}
-
-/**
- * Drops the user's authenticator apps still waiting for their first code.
- * Starting again drops them, and so does confirming any factor: from then
- * on, adding one needs step-up, so none is left over to confirm later.
- */
-export async function dropPendingAuthenticators(
-  tx: AppDb,
-  userId: string
-): Promise<void> {
-  await tx
-    .delete(secondFactor)
-    .where(
-      and(
-        eq(secondFactor.userId, userId),
-        eq(secondFactor.kind, "totp"),
-        isNull(secondFactor.confirmedAt)
-      )
-    );
-}
 
 export type StartTotpEnrolmentResult =
   | {

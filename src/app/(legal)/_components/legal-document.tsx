@@ -230,7 +230,7 @@ function LegalBody({
                 <li key={s.id}>
                   <InPageLink
                     href={`#${s.id}`}
-                    className="flex min-h-8 items-center rounded-lg px-2 text-ink hover:bg-surface-muted hover:text-link"
+                    className="flex min-h-8 items-center rounded-lg px-2 text-ink hover:bg-surface-muted hover:text-link pointer-coarse:min-h-11"
                   >
                     {s.title}
                   </InPageLink>
