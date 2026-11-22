@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { OutcomeNotice, SubmitButton } from "@/components/form";
+import { SubmitButton } from "@/components/form";
+import { OutcomeNotice } from "@/components/form/outcome-notice";
 import { ButtonLink } from "@/components/site/button-link";
 import { Chip } from "@/components/site/chip";
 import { ExplainState } from "@/components/site/explain-state";

@@ -159,6 +159,16 @@ describe("listSettings", () => {
         updatedAt: null,
         updatedBy: null,
       },
+      {
+        key: "safeguarding.reportsPerIpPerHour",
+        value: 10,
+        defaultValue: 10,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "integer", min: 1, max: 100, unit: "reports" },
+        updatedAt: null,
+        updatedBy: null,
+      },
     ]);
   });
 

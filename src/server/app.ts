@@ -28,6 +28,7 @@ import { institutionUseCases } from "./modules/institutions";
 import { coordinatorsUseCases } from "./modules/institutions/coordinators";
 import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
+import { safeguardingUseCases } from "./modules/safeguarding";
 import { registrationUseCases } from "./modules/registration";
 import { composeUseCases } from "./use-cases";
 
@@ -46,6 +47,7 @@ const useCases = composeUseCases(
   coordinatorsUseCases,
   publicFormUseCases,
   contactUseCases,
+  safeguardingUseCases,
   registrationUseCases
 );
 

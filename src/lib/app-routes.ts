@@ -31,6 +31,7 @@ export const APP_ROUTES = {
   adminInstitutions: "/admin/institutions",
   institutionCoordinators: "/institution/coordinators",
   adminInbox: "/admin/inbox",
+  adminSafeguarding: "/admin/safeguarding",
   institutionCompetitions: "/institution/competitions",
 } as const;
 
@@ -79,6 +80,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/templates/[key]",
   "/admin/institutions/[id]",
   "/admin/inbox/[id]",
+  "/admin/safeguarding/[id]",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/students/new",
 ] as const;
