@@ -5,6 +5,7 @@ import { can } from "@/server/access";
 import type { Actor } from "@/server/actor";
 import { auditLog, userRole } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { signedInStaff } from "@/server/modules/institutions/testing";
 import { createHarness, type Harness } from "@/test/harness";
 import { makeCoordinator, seedInstitution } from "@/test/institutions";
 
@@ -329,6 +330,79 @@ describe("authorization and isolation", () => {
       await h.as(adminActor).listCoordinators({ institutionId: x.id })
     ).toMatchObject({
       ok: true,
+    });
+    expect(
+      await h
+        .as(adminActor)
+        .revokeInvitation({ institutionId: x.id, invitationId })
+    ).toEqual({ ok: true });
+    expect(
+      await h
+        .as(adminActor)
+        .removeCoordinator({ institutionId: x.id, userId: coordinator.id })
+    ).toEqual({ ok: true });
+  });
+});
+
+describe("an institution that isn't verified", () => {
+  it("lets its authorised person list, remove and withdraw only while it is verified", async () => {
+    // #73 keeps the authorised person's institution_admin grant through a
+    // suspension, so the status, not the role, must stop them.
+    const h = await createHarness();
+    const { institution: x, admin } = await seedInstitution(h);
+    const coordinator = await h.seed.member();
+    await makeCoordinator(h, coordinator, x.id);
+    const adminActor = await h.signIn(admin);
+    const { invitationId } = await invite(
+      h,
+      adminActor,
+      x.id,
+      "ravi@school.test"
+    );
+    const staff = h.as(await signedInStaff(h));
+    const decide = async (decision: "suspend" | "verify") => {
+      const result = await staff.decideInstitution({
+        institutionId: x.id,
+        decision,
+        reason: "Checked the school's records",
+      });
+      if (!result.ok) throw new Error(`Could not ${decision}: ${result.error}`);
+    };
+    const refused = { ok: false, error: "institution_not_verified" };
+
+    await decide("suspend");
+
+    expect(
+      await h.as(adminActor).listCoordinators({ institutionId: x.id })
+    ).toEqual(refused);
+    expect(
+      await h
+        .as(adminActor)
+        .removeCoordinator({ institutionId: x.id, userId: coordinator.id })
+    ).toEqual(refused);
+    expect(
+      await h
+        .as(adminActor)
+        .revokeInvitation({ institutionId: x.id, invitationId })
+    ).toEqual(refused);
+    expect(
+      await coordinates(h, await h.signIn(coordinator), x.id)
+    ).toMatchObject({ allowed: true });
+    expect(
+      await h.db
+        .select({ action: auditLog.action })
+        .from(auditLog)
+        .where(eq(auditLog.action, "institution.coordinator_removed"))
+    ).toEqual([]);
+
+    await decide("verify");
+
+    expect(
+      await h.as(adminActor).listCoordinators({ institutionId: x.id })
+    ).toMatchObject({
+      ok: true,
+      coordinators: [{ userId: coordinator.id }],
+      invitations: [{ id: invitationId, status: "pending" }],
     });
     expect(
       await h
