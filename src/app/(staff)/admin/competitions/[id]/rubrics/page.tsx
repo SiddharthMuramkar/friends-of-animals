@@ -103,7 +103,7 @@ async function Rubrics({ params }: { params: Params }) {
     );
   }
 
-  const { competition, disciplines } = result;
+  const { competition, disciplines, schoolJudgingBlock } = result;
   const missing = disciplines
     .filter((entry) => !entry.published)
     .map((entry) => t(`disciplines.${entry.discipline}`));
@@ -128,6 +128,16 @@ async function Rubrics({ params }: { params: Params }) {
               disciplines: format.list(missing, "and"),
             })}
           </p>
+          {schoolJudgingBlock ? (
+            <p>
+              {t("index.held", {
+                date: format.dateTime(
+                  schoolJudgingBlock.blockedAt,
+                  "longDateTime"
+                ),
+              })}
+            </p>
+          ) : null}
         </Callout>
       ) : (
         <Callout tone="success">

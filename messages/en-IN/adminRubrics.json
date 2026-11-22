@@ -36,6 +36,7 @@
       "competition": "Competition {code}: {name}",
       "listTitle": "Disciplines",
       "missing": "School judging can't start yet. These disciplines have no published rubric: {disciplines}.",
+      "held": "The move into school judging was held back on {date}, and competition managers were told. It happens by itself once the last rubric is published.",
       "ready": "Every discipline has a published rubric, so school judging can start on time.",
       "locked": "School judging has started, so rubrics can no longer change.",
       "published": "Published, version {version}",
