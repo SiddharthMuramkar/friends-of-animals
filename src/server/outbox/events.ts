@@ -125,6 +125,17 @@ export type DomainEvent =
         discipline: Discipline;
         version: number;
       };
+    }
+  | {
+      /**
+       * A competition manager changed the disciplines of a competition
+       * whose move a guard refused (#88). The move is tried again, since
+       * the disciplines are what the school-judging guard checks. Not
+       * emitted while no move is refused: nothing else needs it yet.
+       */
+      type: "competition.disciplines_changed";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -178,6 +189,7 @@ export const EVENT_PAYLOADS = {
     discipline: z.enum(DISCIPLINES),
     version: z.int().min(1),
   }),
+  "competition.disciplines_changed": z.object({ competitionId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -210,6 +222,7 @@ export const SUBSCRIBERS = {
   "competition.transition_blocked": ["notifications.dispatch"],
   // Each guard's retryOn events (modules/competitions/transition-guards.ts).
   "rubric.published": ["competitions.retry_blocked_moves"],
+  "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

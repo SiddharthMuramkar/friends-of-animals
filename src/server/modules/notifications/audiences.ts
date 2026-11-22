@@ -70,6 +70,7 @@ function subjectUserOf(delivery: Delivery): string | null {
       // For the competition's managers (`competition_managers`).
       return null;
     case "rubric.published":
+    case "competition.disciplines_changed":
       // Re-runs a refused move (#88); no route row names it.
       return null;
   }
@@ -154,16 +155,22 @@ async function institutionValues(
 
 // A refused move's words come from messages/en-IN, like every other copy
 // (FOA reviews them): the status as a sentence names it, why the move is
-// held back, and each discipline as the rubric pages name it.
+// held back, and each discipline as the rubric pages name it. A missing
+// key fails the delivery loudly rather than mailing the key path.
+function refuseFallback(error: Error): never {
+  throw error;
+}
 const statusWords = createTranslator({
   locale: LOCALE,
   messages: competitionStatus,
   namespace: "competitionStatus",
+  onError: refuseFallback,
 });
 const disciplineWords = createTranslator({
   locale: LOCALE,
   messages: adminRubrics,
   namespace: "adminRubrics.disciplines",
+  onError: refuseFallback,
 });
 const format = createFormatter({ locale: LOCALE, formats });
 
@@ -242,6 +249,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "competitions.key_date_scheduled": { names: [], load: async () => ({}) },
   "institution.coordinator_invited": { names: [], load: async () => ({}) },
   "rubric.published": { names: [], load: async () => ({}) },
+  "competition.disciplines_changed": { names: [], load: async () => ({}) },
   "competition.transition_blocked": {
     names: [
       "competition.name",
