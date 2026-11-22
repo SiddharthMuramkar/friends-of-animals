@@ -8,6 +8,10 @@
 import { z } from "zod";
 
 import {
+  KEY_DATE_KINDS,
+  type KeyDateKind,
+} from "../modules/competitions/domain/key-dates";
+import {
   CONSENT_SUBJECT_TYPES,
   GIVABLE_PURPOSES,
   type ConsentSubjectType,
@@ -79,6 +83,16 @@ export type DomainEvent =
   /** Verified again after a suspension, with the Institution ID it had. */
   | InstitutionDecided<"institution.reinstated">
   | {
+      /**
+       * A published competition's key date was set for `dueAt` (#71), on
+       * publishing or by an edit. Saved with `availableAt: dueAt`, so its
+       * status job runs once the date arrives.
+       */
+      type: "competitions.key_date_scheduled";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string; kind: KeyDateKind; dueAt: string };
+    }
+  | {
       /** An authorised person invited a coordinator (#74). */
       type: "institution.coordinator_invited";
       aggregate: { type: "institution_invitation"; id: string };
@@ -120,6 +134,11 @@ export const EVENT_PAYLOADS = {
   "institution.rejected": INSTITUTION_DECIDED,
   "institution.suspended": INSTITUTION_DECIDED,
   "institution.reinstated": INSTITUTION_DECIDED,
+  "competitions.key_date_scheduled": z.object({
+    competitionId: z.uuid(),
+    kind: z.enum(KEY_DATE_KINDS),
+    dueAt: z.iso.datetime(),
+  }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
@@ -144,6 +163,7 @@ export const SUBSCRIBERS = {
   "institution.rejected": ["notifications.dispatch"],
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
+  "competitions.key_date_scheduled": ["competitions.advance_status"],
   // An invitee has no account yet, so no route row can name them: the
   // invitation goes to the invited address itself (#74).
   "institution.coordinator_invited": [

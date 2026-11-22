@@ -29,10 +29,14 @@ import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import type { SmsSender } from "./ports/sms";
 import { smsSenderFor } from "./ports/sms-sender-for";
-import type { Settings } from "./ports/settings";
+import type { SettingKey, SettingValue, Settings } from "./ports/settings";
 import { databaseSettings } from "./modules/settings/read";
 import type { EmailSender } from "./ports/email";
-import { emailSenderFor } from "./ports/email-sender-for";
+import {
+  emailSenderFor,
+  sesConfigOf,
+  type SesVariables,
+} from "./ports/email-sender-for";
 import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 import {
@@ -184,6 +188,41 @@ export function scannerFor(
   return malwareScannerFor(env);
 }
 
+/**
+ * Whether sign-in by emailed code can work here. Every environment but
+ * production captures email, so it can. Production needs SES configured
+ * and out of its sandbox (SES_PRODUCTION_ACCESS, set by infra once AWS
+ * approves): in the sandbox SES only sends to verified addresses, so a
+ * new visitor's code would never arrive (DECISIONS R-27, HR-12).
+ */
+export function emailSignInReady(
+  env: SesVariables & {
+    APP_ENV: Env["APP_ENV"];
+    SES_PRODUCTION_ACCESS: boolean;
+  }
+): boolean {
+  if (env.APP_ENV !== "production") return true;
+  return sesConfigOf(env) !== null && env.SES_PRODUCTION_ACCESS;
+}
+
+/**
+ * The runtime settings use cases read: `settings`, except that email
+ * sign-in (`auth.emailSignIn`) stays off while it can't work here, however
+ * it is switched. Switching it off works everywhere.
+ */
+export function settingsFor(
+  settings: Settings,
+  { emailSignInReady: ready }: { emailSignInReady: boolean }
+): Settings {
+  if (ready) return settings;
+  return {
+    async get<K extends SettingKey>(key: K): Promise<SettingValue<K>> {
+      if (key === "auth.emailSignIn") return false as SettingValue<K>;
+      return settings.get(key);
+    },
+  };
+}
+
 let production: Deps | undefined;
 
 /** The app's deps, built on first use from `env()`. */
@@ -193,7 +232,7 @@ export function productionDeps(): Deps {
     production = {
       db,
       clock: systemClock,
-      email: emailSenderFor(config.APP_ENV, { db, clock: systemClock }),
+      email: emailSenderFor(config.APP_ENV, { db, clock: systemClock }, config),
       sms: smsSenderFor(
         config.APP_ENV,
         { db, clock: systemClock },
@@ -212,8 +251,11 @@ export function productionDeps(): Deps {
       ...fieldCryptoFor(config),
       storage: storageFor(config),
       files: filesConfigFor(config),
-      // The settings table, read on every call (#62).
-      settings: databaseSettings(db),
+      // The settings table, read on every call (#62), with email sign-in
+      // held off until SES can send it (R-27).
+      settings: settingsFor(databaseSettings(db), {
+        emailSignInReady: emailSignInReady(config),
+      }),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
       scanner: scannerFor(config),

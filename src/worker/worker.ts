@@ -114,12 +114,13 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   const drain: DrainOptions = { queue: config.queue.name };
 
   // The same adapters as the app's deps (src/server/deps.ts). No MSG91
-  // keys yet, so production refuses SMS, as it does while sms.enabled is
-  // off; the runtime settings are the database's own.
+  // or SES keys yet, so production refuses SMS, as it does while
+  // sms.enabled is off, and email, until AWS grants SES production access
+  // (DECISIONS R-27); the runtime settings are the database's own.
   const depsFor = (db: AppDb): OutboxDeps => ({
     db,
     clock: io.clock,
-    email: emailSenderFor(config.appEnv, { db, clock: io.clock }),
+    email: emailSenderFor(config.appEnv, { db, clock: io.clock }, {}),
     sms: smsSenderFor(config.appEnv, { db, clock: io.clock }, {}),
     settings: databaseSettings(db),
     cipher,

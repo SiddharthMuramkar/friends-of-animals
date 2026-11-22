@@ -145,22 +145,29 @@
     {
       "idx": 20,
       "version": "7",
-      "when": 1795336308131,
-      "tag": "0020_73_institutions",
+      "when": 1795338272044,
+      "tag": "0020_73_institution_registration_and_verification_institution",
       "breakpoints": true
     },
     {
       "idx": 21,
       "version": "7",
-      "when": 1795336308865,
+      "when": 1795338272700,
       "tag": "0021_73_institution_messages",
       "breakpoints": true
     },
     {
       "idx": 22,
       "version": "7",
-      "when": 1795338824840,
-      "tag": "0022_74_institution_coordinators",
+      "when": 1795338294476,
+      "tag": "0022_71_the_schedule_changes_competition_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795340903497,
+      "tag": "0023_74_institution_coordinators",
       "breakpoints": true
     }
   ]

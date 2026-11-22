@@ -214,6 +214,86 @@ function requireWholeStorageConfig(
 }
 
 /**
+ * Amazon SES, production's email provider (#57, HR-12): the region, an IAM
+ * key pair allowed to send, the sender, and an optional configuration set.
+ * Key id, secret and sender come together or not at all: without them
+ * production refuses to send email (src/server/ports/email-sender-for.ts),
+ * and other environments never call SES whatever is set. Messages never
+ * repeat a value, since the secret is among them.
+ */
+const sesVariables = {
+  /** An AWS region name; FOA sends from Mumbai. */
+  SES_REGION: z
+    .string()
+    .regex(/^[a-z]{2}(-[a-z]+)+-\d$/, {
+      error: "must be an AWS region name, like ap-south-1",
+    })
+    .default("ap-south-1"),
+  SES_ACCESS_KEY_ID: z
+    .string()
+    .regex(/^[A-Z0-9]{16,128}$/, {
+      error: "must be an AWS access key id: 16 or more of A-Z and 0-9",
+    })
+    .optional(),
+  SES_SECRET_ACCESS_KEY: z.string().optional(),
+  /** "Friends of Animals <no-reply@friendsofanimals.dev>", or just the address. */
+  SES_FROM: z
+    .string()
+    .regex(
+      /^(?:[^<>@]*<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/,
+      {
+        error:
+          "must be an email address, or a name and <address>, like " +
+          "Friends of Animals <no-reply@friendsofanimals.dev>",
+      }
+    )
+    .optional(),
+  /** SES's configuration set for event publishing; optional. */
+  SES_CONFIGURATION_SET: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,64}$/, {
+      error: "must be an SES configuration set name: 1-64 of A-Z, 0-9, _ and -",
+    })
+    .optional(),
+  /**
+   * "true" once AWS has moved FOA's SES account out of the sandbox, so it
+   * may send to any address. Until then email sign-in stays off in
+   * production even with the keys set (DECISIONS R-27).
+   */
+  SES_PRODUCTION_ACCESS: z
+    .enum(["true", "false"], { error: 'must be "true" or "false"' })
+    .default("false")
+    .transform((value) => value === "true"),
+};
+
+const SES_VARIABLES = [
+  "SES_ACCESS_KEY_ID",
+  "SES_SECRET_ACCESS_KEY",
+  "SES_FROM",
+] as const;
+
+type SesKeyVariables = Partial<Record<(typeof SES_VARIABLES)[number], string>>;
+
+/** SES's key id, secret and sender come together or not at all. */
+function requireWholeSesConfig(
+  values: SesKeyVariables,
+  ctx: z.RefinementCtx<SesKeyVariables>
+) {
+  const missing = SES_VARIABLES.filter((name) => values[name] === undefined);
+  if (missing.length === 0 || missing.length === SES_VARIABLES.length) return;
+  for (const name of missing) {
+    ctx.issues.push({
+      code: "custom",
+      path: [name],
+      input: undefined,
+      message:
+        `${name} is not set. SES needs ${SES_VARIABLES.join(", ")}: ` +
+        "all three or none (none: production sends no email).",
+    });
+  }
+}
+
+/**
  * Error tracking (#66). Read by the server at runtime; the browser gets
  * NEXT_PUBLIC_SENTRY_DSN baked in at build time.
  */
@@ -501,6 +581,7 @@ export const envSchema = z
     ),
     ...secretVariables,
     ...storageVariables,
+    ...sesVariables,
     ...errorTrackingVariables,
     ...scannerVariables,
   })
@@ -510,6 +591,7 @@ export const envSchema = z
   .superRefine(requireAuthSecret, always)
   .superRefine(requireFieldKeys, always)
   .superRefine(requireWholeStorageConfig, always)
+  .superRefine(requireWholeSesConfig, always)
   .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 

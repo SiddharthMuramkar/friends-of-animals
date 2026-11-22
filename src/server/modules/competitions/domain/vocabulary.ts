@@ -3,11 +3,11 @@
 // Node (drizzle-kit, the seed script): relative imports only.
 
 /**
- * Where a competition is in its life. A draft is never public; #71 adds the
- * statuses that follow publishing, #80 cancelled.
+ * Where a competition is in its life. A draft is never public; the status
+ * machine (#71) defines the statuses that follow publishing and who moves
+ * a competition between them. #80 adds cancelled.
  */
-export const COMPETITION_STATUSES = ["draft", "published"] as const;
-export type CompetitionStatus = (typeof COMPETITION_STATUSES)[number];
+export { COMPETITION_STATUSES, type CompetitionStatus } from "./status-machine";
 
 /** The seven disciplines FOA runs. */
 export const DISCIPLINES = [

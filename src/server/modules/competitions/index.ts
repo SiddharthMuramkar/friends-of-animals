@@ -3,6 +3,10 @@
 // ones. Its use cases join `as(actor)` through `competitionsUseCases`.
 
 import type { UseCaseContext } from "../../use-cases";
+import {
+  advanceCompetitionStatus,
+  type AdvanceCompetitionStatusInput,
+} from "./advance-status";
 import type { CompetitionInput } from "./fields";
 import {
   createCompetition,
@@ -18,6 +22,10 @@ import {
   publishedCompetitionSlugs,
 } from "./read-model";
 
+export type {
+  AdvanceCompetitionStatusInput,
+  AdvanceCompetitionStatusResult,
+} from "./advance-status";
 export { COMPETITION_TAGS } from "./cache-tags";
 export type { KeyDateKind } from "./domain/key-dates";
 export type { PublishProblem } from "./domain/publish-rules";
@@ -59,4 +67,6 @@ export const competitionsUseCases = (ctx: UseCaseContext) => ({
   getPublishedCompetition: (input: { slug: string }) =>
     getPublishedCompetition(ctx, input),
   publishedCompetitionSlugs: () => publishedCompetitionSlugs(ctx),
+  advanceCompetitionStatus: (input: AdvanceCompetitionStatusInput) =>
+    advanceCompetitionStatus(ctx, input),
 });
