@@ -9,19 +9,12 @@ import { createHarness, type Harness } from "@/test/harness";
 
 import {
   FEE_PAISE,
+  openOrder,
   paymentRows,
   registrationsOf,
   schoolWithStudents,
   type School,
 } from "./testing";
-
-async function openOrder(h: Harness, school: School) {
-  const result = await school.pay();
-  if (!result.ok || result.kind !== "checkout") {
-    throw new Error(`No order: ${JSON.stringify(result)}`);
-  }
-  return { batchId: result.batchId, orderId: result.checkout.orderId };
-}
 
 /** What the browser posts back after Checkout, as the coordinator. */
 function confirm(
@@ -49,7 +42,7 @@ describe("confirmCheckout", () => {
   it("confirms the batch's registrations when Checkout's signature is genuine", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 2 });
-    const { batchId, orderId } = await openOrder(h, school);
+    const { batchId, orderId } = await openOrder(school);
     const returned = h.gateway.capture(orderId);
 
     const result = await confirm(h, school, { batchId, ...returned });
@@ -68,7 +61,7 @@ describe("confirmCheckout", () => {
   it("refuses a signature that isn't genuine and changes nothing", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h);
-    const { batchId, orderId } = await openOrder(h, school);
+    const { batchId, orderId } = await openOrder(school);
     const { paymentId } = h.gateway.capture(orderId);
     const before = await paymentRows(h);
 
@@ -90,8 +83,8 @@ describe("confirmCheckout", () => {
       code: "OTHR27",
       students: 1,
     });
-    const mine = await openOrder(h, school);
-    const theirs = await openOrder(h, other);
+    const mine = await openOrder(school);
+    const theirs = await openOrder(other);
     const returned = h.gateway.capture(theirs.orderId);
 
     const result = await confirm(h, school, {
@@ -111,7 +104,7 @@ describe("confirmCheckout", () => {
     async (_, signals) => {
       const h = await createHarness();
       const school = await schoolWithStudents(h, { students: 2 });
-      const { batchId, orderId } = await openOrder(h, school);
+      const { batchId, orderId } = await openOrder(school);
       const returned = h.gateway.capture(orderId);
       const outcomes: string[] = [];
       let afterFirst: Awaited<ReturnType<typeof registrationsOf>> = [];
@@ -155,7 +148,7 @@ describe("confirmCheckout", () => {
       students: 0,
     });
     const member = await h.signIn(await h.seed.member());
-    const { batchId, orderId } = await openOrder(h, school);
+    const { batchId, orderId } = await openOrder(school);
     const returned = h.gateway.capture(orderId);
 
     await expect(
@@ -182,7 +175,7 @@ describe("confirmCheckout", () => {
       code: "OTHR27",
       students: 1,
     });
-    const theirs = await openOrder(h, other);
+    const theirs = await openOrder(other);
     const returned = h.gateway.capture(theirs.orderId);
 
     expect(
@@ -195,7 +188,7 @@ describe("getPaymentBatch", () => {
   it("shows the coordinator the batch, its students and, once paid, their registration numbers", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 2 });
-    const { batchId, orderId } = await openOrder(h, school);
+    const { batchId, orderId } = await openOrder(school);
     const read = () =>
       h.as(school.coordinator.actor).getPaymentBatch({
         institutionId: school.institutionId,
@@ -256,7 +249,7 @@ describe("getPaymentBatch", () => {
       students: 0,
     });
     const member = await h.signIn(await h.seed.member());
-    const { batchId } = await openOrder(h, school);
+    const { batchId } = await openOrder(school);
     const input = { institutionId: school.institutionId, batchId };
 
     await expect(

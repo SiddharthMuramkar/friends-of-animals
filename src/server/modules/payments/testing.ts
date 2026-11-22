@@ -73,6 +73,15 @@ export async function schoolWithStudents(
 
 export type School = Awaited<ReturnType<typeof schoolWithStudents>>;
 
+/** Pays the school's fees as its coordinator and returns the open order. */
+export async function openOrder(school: School) {
+  const result = await school.pay();
+  if (!result.ok || result.kind !== "checkout") {
+    throw new Error(`No order: ${JSON.stringify(result)}`);
+  }
+  return { batchId: result.batchId, orderId: result.checkout.orderId };
+}
+
 /** The competition's institution fee, as FOA set it (#72). */
 export async function setInstitutionFee(
   h: Harness,

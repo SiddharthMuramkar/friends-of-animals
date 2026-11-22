@@ -89,6 +89,24 @@ describe("FakePaymentGateway", () => {
     expect(gateway.orders).toHaveLength(1);
   });
 
+  it("fails the next read of an order's payments on demand, then reads them again", async () => {
+    const gateway = new FakePaymentGateway();
+    const { orderId } = await gateway.createOrder({
+      amount: FEES,
+      receipt: "batch-1",
+      notes: {},
+    });
+    const { paymentId } = gateway.capture(orderId);
+    gateway.failNextFetch();
+
+    await expect(gateway.fetchOrderPayments(orderId)).rejects.toThrow(
+      "FakePaymentGateway: payments unavailable"
+    );
+    expect(
+      (await gateway.fetchOrderPayments(orderId)).map((payment) => payment.id)
+    ).toEqual([paymentId]);
+  });
+
   it("signs a webhook about no order", () => {
     const gateway = new FakePaymentGateway();
     const { rawBody, headers } = gateway.webhook({

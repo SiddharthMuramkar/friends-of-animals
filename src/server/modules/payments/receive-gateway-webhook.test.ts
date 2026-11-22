@@ -1,27 +1,20 @@
 import { and, eq, like } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import type { Actor } from "@/server/actor";
 import { auditLog, gatewayWebhookEvent } from "@/server/db/schema";
+import { DomainError } from "@/server/errors";
 import { REGISTRATION_NUMBER } from "@/server/modules/registration/domain/registration-number";
 import { createHarness, type Harness } from "@/test/harness";
 
 import {
   batchRow,
   enrol,
+  openOrder,
   paymentRows,
   registrationsOf,
   schoolWithStudents,
-  type School,
 } from "./testing";
-
-/** Pays the school's fees and returns the open order. */
-async function openOrder(h: Harness, school: School) {
-  const result = await school.pay();
-  if (!result.ok || result.kind !== "checkout") {
-    throw new Error(`No order: ${JSON.stringify(result)}`);
-  }
-  return { batchId: result.batchId, orderId: result.checkout.orderId };
-}
 
 /** The gateway posts `payment.captured` for `orderId`, as a visitor. */
 function capturedWebhook(
@@ -42,7 +35,7 @@ describe("receiveGatewayWebhook", () => {
   it("confirms every registration in the batch with a unique number once the gateway captured the payment", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 3 });
-    const { batchId, orderId } = await openOrder(h, school);
+    const { batchId, orderId } = await openOrder(school);
     h.clock.advance({ minutes: 5 });
     const { paymentId } = h.gateway.capture(orderId);
 
@@ -71,7 +64,7 @@ describe("receiveGatewayWebhook", () => {
   it("keeps each webhook's event id and what it led to, never its body", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h);
-    const { orderId } = await openOrder(h, school);
+    const { orderId } = await openOrder(school);
     h.gateway.capture(orderId);
     const webhook = capturedWebhook(h, orderId);
 
@@ -95,7 +88,7 @@ describe("receiveGatewayWebhook", () => {
   it("answers a replayed webhook as a duplicate and changes nothing", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h);
-    const { orderId } = await openOrder(h, school);
+    const { orderId } = await openOrder(school);
     h.gateway.capture(orderId);
     const webhook = capturedWebhook(h, orderId);
     await receive(h, webhook);
@@ -113,7 +106,7 @@ describe("receiveGatewayWebhook", () => {
     async (signature) => {
       const h = await createHarness();
       const school = await schoolWithStudents(h);
-      const { orderId } = await openOrder(h, school);
+      const { orderId } = await openOrder(school);
       h.gateway.capture(orderId);
       const before = await paymentRows(h);
 
@@ -124,10 +117,40 @@ describe("receiveGatewayWebhook", () => {
     }
   );
 
+  it("takes a genuine webhook from a signed-in user too, since the signature is what authorises it", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h);
+    const { orderId } = await openOrder(school);
+    h.gateway.capture(orderId);
+    const member = await h.signIn(await h.seed.member());
+
+    const result = await h
+      .as(member)
+      .receiveGatewayWebhook(capturedWebhook(h, orderId));
+
+    expect(result).toEqual({ ok: true, outcome: "captured" });
+  });
+
+  it("is not for the platform's own processes, and stores nothing for them", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h);
+    const { orderId } = await openOrder(school);
+    h.gateway.capture(orderId);
+    const before = await paymentRows(h);
+    const system: Actor = { kind: "system", process: "worker" };
+
+    await expect(
+      h.as(system).receiveGatewayWebhook(capturedWebhook(h, orderId))
+    ).rejects.toThrow(DomainError);
+
+    expect(await h.db.select().from(gatewayWebhookEvent)).toEqual([]);
+    expect(await paymentRows(h)).toEqual(before);
+  });
+
   it("rejects a signed body that was changed on the way", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h);
-    const { orderId } = await openOrder(h, school);
+    const { orderId } = await openOrder(school);
     const webhook = capturedWebhook(h, orderId);
 
     const result = await receive(h, {
@@ -141,7 +164,7 @@ describe("receiveGatewayWebhook", () => {
   it("waits while the gateway has captured nothing on the order", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h);
-    const { batchId, orderId } = await openOrder(h, school);
+    const { batchId, orderId } = await openOrder(school);
     h.gateway.fail(orderId);
 
     const result = await receive(
@@ -173,7 +196,7 @@ describe("receiveGatewayWebhook", () => {
   it("confirms nothing when the captured amount isn't the batch's, and records the mismatch", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 2 });
-    const { batchId, orderId } = await openOrder(h, school);
+    const { batchId, orderId } = await openOrder(school);
     const { paymentId } = h.gateway.capture(orderId, {
       amount: { amountMinor: 50_000n, currency: "INR" },
     });
@@ -213,10 +236,12 @@ describe("receiveGatewayWebhook", () => {
   it("confirms nothing for money that reaches a cancelled batch, and keeps the webhook as not payable", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 1 });
-    const first = await openOrder(h, school);
-    // A student is added, so paying again replaces the first batch.
+    const first = await openOrder(school);
+    // A student is added, so paying again replaces the first batch, which
+    // the gateway says is unpaid. The payer pays its order only after that
+    // (an old Checkout tab): money #79 turns into a review case.
     school.registrationIds.push(await enrol(h, school, 2));
-    await openOrder(h, school);
+    await openOrder(school);
     h.gateway.capture(first.orderId);
 
     const result = await receive(h, capturedWebhook(h, first.orderId));
@@ -234,7 +259,7 @@ describe("receiveGatewayWebhook", () => {
   it("writes the capture and each confirmation to the audit log, before and after", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 2 });
-    const { batchId, orderId } = await openOrder(h, school);
+    const { batchId, orderId } = await openOrder(school);
     const { paymentId } = h.gateway.capture(orderId);
 
     await receive(h, capturedWebhook(h, orderId));
@@ -284,7 +309,7 @@ describe("receiveGatewayWebhook", () => {
   it("captures the batch but leaves a student withdrawn after the order opened unconfirmed", async () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h, { students: 2 });
-    const { batchId, orderId } = await openOrder(h, school);
+    const { batchId, orderId } = await openOrder(school);
     const [kept, withdrawn] = school.registrationIds as [string, string];
     await h.as(school.coordinator.actor).withdrawStudent({
       ...school.ids,

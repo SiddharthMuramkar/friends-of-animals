@@ -8,10 +8,17 @@
 //
 // - A free competition (fee 0) confirms the registrations at once, with
 //   no batch and no order.
+// - An open order may have been paid already, with neither the Checkout
+//   return nor the webhook in yet. So before reusing or replacing it, the
+//   batch is synced against the gateway's record first (./sync-batch.ts):
+//   a paid order is captured there, its students are confirmed, and only
+//   the students still unpaid are charged. While the gateway can't answer,
+//   the open order is kept as it is. (Money that reaches an order after it
+//   was replaced is recorded as not payable, for #79 to review.)
 // - Paying again over the same students reuses the open order. A changed
 //   set (a student added or withdrawn) cancels the old batch, lets its
 //   students go and opens a new one.
-// - No transaction stays open across the gateway call: the batch is saved
+// - No transaction stays open across a gateway call: the batch is saved
 //   (`created`), the order is asked for, then the order id is saved
 //   (`order_created`), or the batch fails and lets its students go.
 
@@ -21,6 +28,7 @@ import { z } from "zod";
 
 import registrationMessages from "../../../../messages/en-IN/registration.json";
 import { authorize } from "../../access/can";
+import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
 import { paymentBatch, paymentBatchItem } from "../../db/schema";
 import { uuidv7 } from "../../ids";
@@ -40,6 +48,7 @@ import {
 } from "./batches";
 import { batchTotal } from "./domain/batch-amount";
 import { nextPaymentBatchStatus } from "./domain/batch-status";
+import { syncBatch } from "./sync-batch";
 
 export type PayInstitutionFeesInput = {
   institutionId: string;
@@ -74,9 +83,13 @@ const t = createTranslator({
   namespace: "registration.payment",
 });
 
-/** What tx1 decided: an answer now, an order to reuse, or one to open. */
+/**
+ * What the planning transaction decided: an answer now, an open order to
+ * check with the gateway first, or a new order to open.
+ */
 type Plan =
   | { kind: "done"; result: PayInstitutionFeesResult }
+  | { kind: "check"; batchId: string }
   | {
       kind: "open";
       batchId: string;
@@ -84,8 +97,10 @@ type Plan =
       count: number;
       reference: string;
       competitionName: string;
-      actorRole: Awaited<ReturnType<typeof authorize>>["role"];
     };
+
+/** Plans tried before giving way to payers who keep replacing the batch. */
+const MAX_PLANS = 3;
 
 export async function payInstitutionFees(
   ctx: UseCaseContext,
@@ -93,13 +108,47 @@ export async function payInstitutionFees(
 ): Promise<PayInstitutionFeesResult> {
   const parsed = payInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const { institutionId, reference } = parsed.data;
-  const resource = institutionResource(institutionId);
-  await authorize(ctx, "payments.pay", resource);
+  const { role: actorRole } = await authorize(
+    ctx,
+    "payments.pay",
+    institutionResource(parsed.data.institutionId)
+  );
+
+  // The batch whose order the gateway was last asked about.
+  let checked: string | null = null;
+  for (let plans = 0; plans < MAX_PLANS; plans++) {
+    const plan = await planPayment(ctx, parsed.data, actorRole, checked);
+    if (plan.kind === "done") return plan.result;
+    if (plan.kind === "open") return openOrder(ctx, plan, actorRole);
+    try {
+      await syncBatch(ctx, plan.batchId, actorRole);
+    } catch (error) {
+      ctx.errors.report(error, {
+        where: "payments.syncBeforePay",
+        tags: { gateway: ctx.payments.name },
+        extra: { batchId: plan.batchId },
+      });
+      return { ok: false, error: "gateway_unavailable" };
+    }
+    checked = plan.batchId;
+  }
+  return { ok: false, error: "superseded" };
+}
+
+/**
+ * In one transaction, with the institution registration locked: what is
+ * owed, and whether the open batch is reused, replaced or checked first.
+ * An open order is only reused or replaced once `checked` names it.
+ */
+async function planPayment(
+  ctx: UseCaseContext,
+  { institutionId, reference }: z.infer<typeof payInput>,
+  actorRole: Role | null,
+  checked: string | null
+): Promise<Plan> {
   const now = ctx.clock.now();
   const gateway = ctx.payments;
-
-  const plan = await ctx.db.transaction(async (tx): Promise<Plan> => {
+  return ctx.db.transaction(async (tx): Promise<Plan> => {
     const done = (result: PayInstitutionFeesResult): Plan => ({
       kind: "done",
       result,
@@ -111,11 +160,6 @@ export async function payInstitutionFees(
       { institutionId, reference },
       now,
       { lock: true }
-    );
-    const { role: actorRole } = await authorize(
-      { db: tx, clock: ctx.clock, actor: ctx.actor },
-      "payments.pay",
-      resource
     );
     if (!facts) return done({ ok: false, error: "not_found" });
     if (facts.enrolment === "institution_not_verified") {
@@ -131,11 +175,17 @@ export async function payInstitutionFees(
 
     const open = await openBatchOf(tx, registered.id);
     if (open) {
-      const held = await heldItems(tx, open.id);
-      const sameOrder =
+      // Only the gateway that made the order can say whether it was paid.
+      const askable =
         open.status === "order_created" &&
         open.gatewayOrderId !== null &&
-        open.gateway === gateway.name &&
+        open.gateway === gateway.name;
+      if (askable && open.id !== checked) {
+        return { kind: "check", batchId: open.id };
+      }
+      const held = await heldItems(tx, open.id);
+      const sameOrder =
+        askable &&
         fee.amountMinor > 0n &&
         held.length === payable.length &&
         held.every(
@@ -208,12 +258,22 @@ export async function payInstitutionFees(
       count: payable.length,
       reference: registered.reference,
       competitionName: facts.competition.name,
-      actorRole,
     };
   });
-  if (plan.kind === "done") return plan.result;
+}
 
-  const { batchId, total, actorRole } = plan;
+/**
+ * Asks the gateway for the new batch's order, outside any transaction,
+ * then records it; a refused order fails the batch and lets its students
+ * go.
+ */
+async function openOrder(
+  ctx: UseCaseContext,
+  plan: Extract<Plan, { kind: "open" }>,
+  actorRole: Role | null
+): Promise<PayInstitutionFeesResult> {
+  const gateway = ctx.payments;
+  const { batchId, total } = plan;
   let orderId: string;
   try {
     ({ orderId } = await gateway.createOrder({

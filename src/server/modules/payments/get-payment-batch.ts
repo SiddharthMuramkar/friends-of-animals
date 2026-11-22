@@ -48,6 +48,8 @@ export type PaymentBatchView = {
   checkout: CheckoutParams | null;
 };
 
+export type GetPaymentBatchInput = { institutionId: string; batchId: string };
+
 export type GetPaymentBatchResult =
   | { ok: true; batch: PaymentBatchView }
   | InvalidInput
@@ -65,7 +67,7 @@ const byName = new Intl.Collator("en-IN", { sensitivity: "base" });
 
 export async function getPaymentBatch(
   ctx: UseCaseContext,
-  input: { institutionId: string; batchId: string }
+  input: GetPaymentBatchInput
 ): Promise<GetPaymentBatchResult> {
   const parsed = getInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);

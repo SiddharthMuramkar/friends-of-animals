@@ -12,6 +12,9 @@
 // names an order, and the use case then reads the order's payments back
 // through `fetchOrderPayments` (src/server/modules/payments/sync-batch.ts).
 //
+// There is no refund here yet: #80 adds a refund method to the port (and
+// to every adapter and the contract) when refunds arrive.
+//
 // Loads under plain Node: relative type imports only.
 
 import type { Money } from "../modules/payments/domain/batch-amount";

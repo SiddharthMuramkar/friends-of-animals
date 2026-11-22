@@ -7,7 +7,10 @@
 
 import type { UseCaseContext } from "../../use-cases";
 import { confirmCheckout, type ConfirmCheckoutInput } from "./confirm-checkout";
-import { getPaymentBatch } from "./get-payment-batch";
+import {
+  getPaymentBatch,
+  type GetPaymentBatchInput,
+} from "./get-payment-batch";
 import {
   payInstitutionFees,
   type PayInstitutionFeesInput,
@@ -27,6 +30,7 @@ export type {
   ConfirmCheckoutResult,
 } from "./confirm-checkout";
 export type {
+  GetPaymentBatchInput,
   GetPaymentBatchResult,
   PaymentBatchItemView,
   PaymentBatchView,
@@ -43,6 +47,5 @@ export const paymentsUseCases = (ctx: UseCaseContext) => ({
   receiveGatewayWebhook: (input: ReceiveGatewayWebhookInput) =>
     receiveGatewayWebhook(ctx, input),
   confirmCheckout: (input: ConfirmCheckoutInput) => confirmCheckout(ctx, input),
-  getPaymentBatch: (input: { institutionId: string; batchId: string }) =>
-    getPaymentBatch(ctx, input),
+  getPaymentBatch: (input: GetPaymentBatchInput) => getPaymentBatch(ctx, input),
 });

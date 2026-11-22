@@ -39,13 +39,15 @@ type FakeWebhookBody = { id: string; event: string; orderId: string | null };
  * passes the same contract as the real adapters
  * (src/server/ports/payment-gateway.contract.ts) and adds what tests need
  * to play the payer and the gateway: capture or fail an order, post signed
- * (or badly signed) webhooks, refuse the next order, list the orders.
+ * (or badly signed) webhooks, refuse the next order or the next read of
+ * an order's payments, list the orders.
  */
 export class FakePaymentGateway implements PaymentGateway {
   readonly name = "fake";
   readonly #orders: FakeOrder[] = [];
   readonly #payments: GatewayPayment[] = [];
   #refusals = 0;
+  #fetchFailures = 0;
   #sequence = 0;
 
   async createOrder(order: {
@@ -98,6 +100,10 @@ export class FakePaymentGateway implements PaymentGateway {
   }
 
   async fetchOrderPayments(orderId: string): Promise<GatewayPayment[]> {
+    if (this.#fetchFailures > 0) {
+      this.#fetchFailures -= 1;
+      throw new Error("FakePaymentGateway: payments unavailable");
+    }
     return this.#payments
       .filter((payment) => payment.orderId === orderId)
       .map((payment) => ({ ...payment }));
@@ -131,6 +137,11 @@ export class FakePaymentGateway implements PaymentGateway {
   /** Makes the next `createOrder` reject, as a gateway outage would. */
   refuseNextOrder(): void {
     this.#refusals += 1;
+  }
+
+  /** Makes the next `fetchOrderPayments` reject, as a gateway outage would. */
+  failNextFetch(): void {
+    this.#fetchFailures += 1;
   }
 
   /**
