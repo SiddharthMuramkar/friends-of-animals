@@ -7,6 +7,7 @@ import type { CmsDocumentKey } from "./domain/documents";
 import { getOrgFacts, getOrgFactsForPreview, orgFactsReadiness } from "./facts";
 import { currentLegalVersion } from "./legal";
 import {
+  checkPostWriter,
   createPost,
   getPostForEdit,
   listPosts,
@@ -98,6 +99,7 @@ export const cmsUseCases = (ctx: UseCaseContext) => ({
   getOrgFactsForPreview: () => getOrgFactsForPreview(ctx),
   orgFactsReadiness: () => orgFactsReadiness(ctx),
   // Blog posts and stories (#112).
+  checkPostWriter: () => checkPostWriter(ctx),
   createPost: (input: PostInput) => createPost(ctx, input),
   updatePost: (input: PostInput & { postId: string }) => updatePost(ctx, input),
   getPostForEdit: (input: { postId: string }) => getPostForEdit(ctx, input),

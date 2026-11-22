@@ -23,17 +23,15 @@ import {
   type NoticeKind,
   type RefusalCode,
 } from "./notices";
-import {
-  afterSave,
-  postInputOf,
-  readPostForm,
-  type PostFormState,
-} from "./post-form";
+import { readPostForm, type PostFormState } from "./post-form";
+import { savePostStep, type SaveOutcome } from "./save-steps";
 
 // The post editor's Server Actions (#112). Each one checks who is asking,
 // reads its form and calls one use case, which authorises again: a Server
-// Action can be called directly, whatever the page showed. A change that
-// alters the public blog refreshes the tags its use case returns.
+// Action can be called directly, whatever the page showed. A save asks
+// whether the actor may write posts before it parses the body
+// (./save-steps.ts). A change that alters the public blog refreshes the
+// tags its use case returns.
 
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -50,14 +48,6 @@ function back(postId: string, kind: NoticeKind, refused?: RefusalCode): never {
   redirect(`${adminBlogPostPath(postId)}?${noticeQuery(kind, refused)}`);
 }
 
-function sourceRefused(
-  values: PostFormState["values"],
-  sourceErrors: PostFormState["sourceErrors"],
-  attempt: number
-): PostFormState {
-  return { attempt: attempt + 1, values, errors: {}, sourceErrors };
-}
-
 function failed(
   values: PostFormState["values"],
   attempt: number
@@ -71,29 +61,33 @@ function failed(
   };
 }
 
+/**
+ * Saves the form for the signed-in actor. Anything the step throws that
+ * isn't on purpose is logged and shown as a save that failed.
+ */
+async function save(
+  what: string,
+  input: Parameters<typeof savePostStep>[1]
+): Promise<SaveOutcome> {
+  const actor = await signedInActor();
+  try {
+    return await savePostStep(as(actor), input);
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    console.error(`Post editor: ${what} failed: ${errorSummaryForLogs(error)}`);
+    const attempt = input.previous?.attempt ?? 0;
+    return { ok: false, state: failed(readPostForm(input.formData), attempt) };
+  }
+}
+
 /** Saves a new draft from the form, then opens its editor. */
 export async function createPostAction(
   previous: PostFormState | null,
   formData: FormData
 ): Promise<PostFormState> {
-  const actor = await signedInActor();
-  const values = readPostForm(formData);
-  const attempt = previous?.attempt ?? 0;
-  const read = postInputOf(values);
-  if (!read.ok) return sourceRefused(values, read.sourceErrors, attempt);
-  let postId: string;
-  try {
-    const result = await as(actor).createPost(read.input);
-    if (!result.ok) return afterSave(result, values, attempt);
-    postId = result.postId;
-  } catch (error) {
-    if (error instanceof DomainError) throw error;
-    console.error(
-      `Post editor: creating failed: ${errorSummaryForLogs(error)}`
-    );
-    return failed(values, attempt);
-  }
-  back(postId, "created");
+  const saved = await save("creating", { formData, previous });
+  if (!saved.ok) return saved.state;
+  back(saved.postId, "created");
 }
 
 /** Saves the editor's changes; a live post's public pages refresh. */
@@ -102,20 +96,9 @@ export async function updatePostAction(
   previous: PostFormState | null,
   formData: FormData
 ): Promise<PostFormState> {
-  const actor = await signedInActor();
-  const values = readPostForm(formData);
-  const attempt = previous?.attempt ?? 0;
-  const read = postInputOf(values);
-  if (!read.ok) return sourceRefused(values, read.sourceErrors, attempt);
-  try {
-    const result = await as(actor).updatePost({ postId, ...read.input });
-    if (!result.ok) return afterSave(result, values, attempt);
-    for (const tag of result.tags) updateTag(tag);
-  } catch (error) {
-    if (error instanceof DomainError) throw error;
-    console.error(`Post editor: saving failed: ${errorSummaryForLogs(error)}`);
-    return failed(values, attempt);
-  }
+  const saved = await save("saving", { postId, formData, previous });
+  if (!saved.ok) return saved.state;
+  for (const tag of saved.tags) updateTag(tag);
   back(postId, "saved");
 }
 

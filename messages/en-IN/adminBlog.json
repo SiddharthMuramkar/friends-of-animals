@@ -111,6 +111,8 @@
       },
       "sourceErrors": {
         "empty_body": "Write some text first.",
+        "body_too_long": "The text is longer than one post can be. Split it into two posts.",
+        "line_too_long": "This line is too long. Break it into shorter paragraphs with blank lines.",
         "invalid_heading": "Use ## or ### for a heading.",
         "unclosed_strong": "A ** has no closing **.",
         "unclosed_em": "A * has no closing *.",

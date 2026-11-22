@@ -1,5 +1,6 @@
 // Writing blog posts and stories (#112).
 //
+//   checkPostWriter()               → content manager
 //   createPost(input)               → content manager
 //   updatePost({ postId, ...input }) → content manager
 //   getPostForEdit({ postId })       → content manager
@@ -175,6 +176,15 @@ async function takenIfConflict<R>(
     if (isSlugConflict(error)) return refusal({ slug: "taken" });
     throw error;
   }
+}
+
+/**
+ * Refuses, as createPost and updatePost would, unless the actor may write
+ * posts. The editor's Server Actions ask first and read the form after,
+ * so a form sent by someone else is never parsed.
+ */
+export async function checkPostWriter(ctx: PostsContext): Promise<void> {
+  await authorize(ctx, "cms.post.write");
 }
 
 /** Saves a new draft. */
