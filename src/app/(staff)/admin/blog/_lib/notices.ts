@@ -23,6 +23,7 @@ export const REFUSAL_CODES = [
   "image_not_ready",
   "invalid_input",
   "too_long",
+  "archived",
   "not_found",
   "failed",
 ] as const;

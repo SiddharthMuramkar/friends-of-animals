@@ -36,6 +36,7 @@ import {
 } from "../../files/domain/storage-key";
 import { presignUpload } from "../../files/use-cases/upload";
 import { POST_FIELD_MAX } from "../domain/post-fields";
+import { canEditPost } from "../domain/post-status";
 import { refusal, type PostInputRefusal } from "./input";
 import { isRowId, loadPost } from "./store";
 
@@ -68,12 +69,13 @@ export type UploadPostImageResult =
       expiresAt: Date;
     }
   | PostInputRefusal
-  | { ok: false; error: "not_found" | UploadRefusal };
+  /** Archived posts are read-only until restored. */
+  | { ok: false; error: "not_found" | "archived" | UploadRefusal };
 
 export type DescribePostImageResult =
   | { ok: true }
   | PostInputRefusal
-  | { ok: false; error: "not_found" };
+  | { ok: false; error: "not_found" | "archived" };
 
 const uploadInput = z.object({
   postId: z.string(),
@@ -117,6 +119,7 @@ export async function uploadPostImage(
   return ctx.db.transaction(async (tx): Promise<UploadPostImageResult> => {
     const post = await loadPost(tx, parsed.data.postId, { lock: true });
     if (!post) return { ok: false, error: "not_found" };
+    if (!canEditPost(post.status)) return { ok: false, error: "archived" };
     const presigned = await presignUpload(ctx, tx, {
       purpose: "cms_image",
       contentType: parsed.data.contentType,
@@ -159,12 +162,23 @@ export async function describePostImage(
   }
   const alt = readAlt(parsed.data.alt);
   if (typeof alt !== "string") return alt;
-  const updated = await ctx.db
-    .update(cmsPostImage)
-    .set({ alt })
-    .where(eq(cmsPostImage.id, parsed.data.postImageId))
-    .returning({ id: cmsPostImage.id });
-  return updated.length > 0 ? { ok: true } : { ok: false, error: "not_found" };
+  const { postImageId } = parsed.data;
+  return ctx.db.transaction(async (tx): Promise<DescribePostImageResult> => {
+    const [image] = await tx
+      .select({ postId: cmsPostImage.postId })
+      .from(cmsPostImage)
+      .where(eq(cmsPostImage.id, postImageId));
+    const post = image
+      ? await loadPost(tx, image.postId, { lock: true })
+      : null;
+    if (!post) return { ok: false, error: "not_found" };
+    if (!canEditPost(post.status)) return { ok: false, error: "archived" };
+    await tx
+      .update(cmsPostImage)
+      .set({ alt })
+      .where(eq(cmsPostImage.id, postImageId));
+    return { ok: true };
+  });
 }
 
 export type PublishPostImageDeps = {

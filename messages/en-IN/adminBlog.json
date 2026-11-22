@@ -215,6 +215,7 @@
         "image_not_ready": "An image isn't ready yet. Wait a minute for its resized copies, then try again.",
         "invalid_input": "It isn't ready to go live: it needs a summary, and alt text for an uploaded cover. Fill them in and save first.",
         "too_long": "That alt text is too long.",
+        "archived": "This post is archived. Restore it first.",
         "not_found": "This post no longer exists.",
         "failed": "Something went wrong on our side. Nothing changed. Please try again."
       }
