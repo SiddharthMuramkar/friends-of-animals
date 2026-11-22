@@ -114,6 +114,12 @@ const DEFINITIONS = {
     footer: "policies",
     sitemap: { updated: UPDATED, priority: 0.5 },
   },
+  safeguardingReport: {
+    path: "/safeguarding/report",
+    hue: "neutral",
+    sitemap: { updated: "2026-11-22", priority: 0.5 },
+  },
+  safeguardingReportSent: { path: "/safeguarding/report/sent", hue: "neutral" },
   childProtection: {
     path: "/child-protection-policy",
     hue: "neutral",
@@ -135,6 +141,8 @@ const DEFINITIONS = {
   styleguide: { path: "/styleguide", hue: "multi", nonProduction: true },
   signUp: { path: "/sign-up", hue: "blue" },
   signIn: { path: "/sign-in", hue: "blue", footer: "takePart" },
+  signUpPhone: { path: "/sign-up/phone", hue: "blue" },
+  signInPhone: { path: "/sign-in/phone", hue: "blue" },
 } as const satisfies Record<string, RouteDef>;
 
 export type RouteId = keyof typeof DEFINITIONS;

@@ -1,6 +1,7 @@
-// Shared contract for every EmailSender adapter. The in-memory fake and the
-// capture adapter both run it, so the fake stays faithful: a fake that passes
-// a check the capture adapter fails is wrong. Only imported by *.test.ts.
+// Shared contract for every EmailSender adapter. The in-memory fake, the
+// capture adapter and the SES adapter (against a fake SES) all run it, so
+// the fake stays faithful: a fake that passes a check the capture adapter
+// fails is wrong. Only imported by *.test.ts.
 
 import { describe, expect, it } from "vitest";
 

@@ -9,7 +9,7 @@
       "title": "Your sessions",
       "lead": "Where you're signed in to Friends of Animals.",
       "loading": "Loading your account…",
-      "signedInAs": "You're signed in as {name} ({email}).",
+      "signedInAs": "You're signed in as {name} ({contact}).",
       "listTitle": "Signed in on",
       "device": "{browser} on {os}",
       "deviceBrowserOnly": "{browser}",

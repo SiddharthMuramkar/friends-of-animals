@@ -2,29 +2,48 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { HeaderHeightSync } from "@/components/header-height-sync";
+import { InboxBadge } from "@/components/inbox-badge";
 import { Logo } from "@/components/logo";
 import { ButtonLink } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
 import { SkipLink } from "@/components/site/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { APP_ROUTES } from "@/lib/app-routes";
 import { PRIMARY_NAV, ROUTES } from "@/lib/routes";
+import { as, currentActor } from "@/server/app";
 
-import {
-  DesktopNav,
-  DesktopNavView,
-  MobileMenu,
-  MobileMenuView,
-} from "./header-nav";
+import { DesktopNav, DesktopNavView, MobileMenu } from "./header-nav";
+
+/**
+ * "My institution", for a signed-in user who holds the institution-admin
+ * role (#73). Reads the session, so the header renders it under
+ * <Suspense>; everyone else gets nothing.
+ */
+async function MyInstitutionLink({ label }: { label: string }) {
+  const actor = await currentActor();
+  if (actor.kind !== "user") return null;
+  const { grants } = await as(actor).myAccess();
+  if (!grants.some((grant) => grant.role === "institution_admin")) return null;
+  return (
+    <ButtonLink href={APP_ROUTES.myInstitution} variant="secondary">
+      {label}
+    </ButtonLink>
+  );
+}
 
 export async function SiteHeader() {
   const t = await getTranslations("nav");
   const tc = await getTranslations("common");
+  const td = await getTranslations("dashboard");
   const items = PRIMARY_NAV.map((r) => ({
     href: r.path,
     label: t(`links.${r.id}`),
   }));
+  // Shown on pages behind sign-in only (header-nav.tsx).
+  const dashboard = { href: APP_ROUTES.dashboard, label: td("headerLink") };
   const menu = {
     items,
+    dashboard,
     donateHref: ROUTES.donate.path,
     labels: {
       menu: t("menu"),
@@ -65,9 +84,18 @@ export async function SiteHeader() {
             <DesktopNavView items={items} label={t("label")} pathname={null} />
           }
         >
-          <DesktopNav items={items} label={t("label")} />
+          <DesktopNav items={items} dashboard={dashboard} label={t("label")} />
         </Suspense>
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        {/* Wraps too: with very large text on a phone, the inbox link and
+            Menu stack rather than push the page wider than the screen. */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+          {/* Signed-in only: the session streams in after the shell. */}
+          <Suspense fallback={null}>
+            <InboxBadge />
+          </Suspense>
+          <Suspense fallback={null}>
+            <MyInstitutionLink label={t("links.myInstitution")} />
+          </Suspense>
           <ButtonLink href={ROUTES.donate.path} className="max-sm:hidden">
             {t("donate")}
           </ButtonLink>
@@ -81,9 +109,8 @@ export async function SiteHeader() {
               light: tc("theme.light"),
             }}
           />
-          <Suspense fallback={<MobileMenuView {...menu} pathname={null} />}>
-            <MobileMenu {...menu} />
-          </Suspense>
+          {/* Not in a Suspense boundary: see MobileMenu. */}
+          <MobileMenu {...menu} />
         </div>
       </div>
     </header>

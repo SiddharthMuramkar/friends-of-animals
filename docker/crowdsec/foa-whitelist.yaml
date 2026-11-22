@@ -1,8 +1,12 @@
 # Local CrowdSec whitelist (s02-enrich). Never ban:
-#  - the VPS's own public address: connections the host makes to
-#    db.shipped-it.dev (smoke tests, health probes) arrive from it, and a ban
-#    in INPUT would also hit the host's own traffic;
+#  - the VPS's own public addresses: connections the host makes to its
+#    database host (FOA_DB_DOMAIN, db.friendsofanimals.dev: smoke tests,
+#    health probes) arrive from them, and a ban in INPUT would also hit the
+#    host's own traffic. IPv6: only the host's address, not the on-link /48,
+#    which other Hostinger customers share;
 #  - the compose network.
+# Parser whitelists stop local alerts only; community blocklist entries need a
+# LAPI allowlist (`cscli allowlists`).
 # TODO: add the Vercel Static IPs once bought. They are shared NAT addresses:
 # a ban would cut off the app (and other tenants behind them).
 name: foa/whitelist
@@ -11,5 +15,6 @@ whitelist:
   reason: "FOA VPS own addresses"
   ip:
     - "189.72.156.29"
+    - "2a02:4780:63:e413::1"
   cidr:
     - "10.112.12.0/24"

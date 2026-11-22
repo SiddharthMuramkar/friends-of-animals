@@ -1,0 +1,54 @@
+{
+  "adminAudit": {
+    "meta": {
+      "title": "Audit log",
+      "description": "Every change to roles and other records on Friends of Animals, and who made it."
+    },
+    "eyebrow": "Admin",
+    "title": "Audit log",
+    "lead": "Changes that staff and the platform make to roles and other records, newest first. Nobody can edit or delete an entry.",
+    "filters": {
+      "title": "Search the log",
+      "person": "Person's user id",
+      "personHint": "Shows what they did, and changes to their account. The Roles page links to each person's entries.",
+      "entityType": "Kind of record",
+      "entityTypeHint": "For example: user",
+      "action": "Action",
+      "actionHint": "For example: role.granted or role.revoked",
+      "submit": "Search",
+      "clear": "Clear search"
+    },
+    "errors": {
+      "person": "Paste a user id in this form: 01938a00-0000-7000-8000-000000000101.",
+      "entityType": "Use a short name, at most 64 characters, like user.",
+      "action": "Use a short name, at most 100 characters, like role.granted."
+    },
+    "alerts": {
+      "invalid": "Check the fields marked below.",
+      "badPage": "That page link doesn't work any more. Start again from the newest entries."
+    },
+    "results": "Entries",
+    "none": "No entries match this search.",
+    "noneYet": "Nothing has been recorded yet.",
+    "entry": {
+      "who": "Who",
+      "entity": "Record",
+      "entityValue": "{type} {id}",
+      "before": "Before",
+      "after": "After",
+      "added": "Added",
+      "removed": "Removed",
+      "nothing": "Nothing",
+      "noRoles": "No roles",
+      "ip": "IP address",
+      "actorAs": "{name}, as {role}",
+      "deletedAccount": "A deleted account",
+      "system": "The platform: {process, select, seed {seed data} worker {background work} cli {the command line} other {a process}}",
+      "visitor": "Someone not signed in",
+      "personLink": "Entries for this person"
+    },
+    "pages": "More entries",
+    "older": "Older entries",
+    "newest": "Newest entries"
+  }
+}

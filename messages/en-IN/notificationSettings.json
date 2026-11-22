@@ -1,0 +1,27 @@
+{
+  "notificationSettings": {
+    "meta": {
+      "title": "Email and SMS choices",
+      "description": "Choose how Friends of Animals sends you messages: by email, by SMS or both."
+    },
+    "eyebrow": "Your account",
+    "title": "Email and SMS",
+    "lead": "Choose how we send you messages. Every message also appears in your inbox.",
+    "loading": "Loading your choices…",
+    "legend": "Send my messages by",
+    "email": "Email",
+    "emailTo": "To {email}",
+    "emailNone": "Your account has no email address, so email can't reach you.",
+    "sms": "SMS",
+    "smsTo": "To {phone}",
+    "smsNoPhone": "Your account has no phone number, so SMS can't reach you.",
+    "smsOff": "We don't send SMS yet. Until we do, those messages come by email and to your inbox.",
+    "required": "Some messages are required by law, such as receipts and safeguarding notices. We send those however you choose here.",
+    "consent": "To stop news and updates altogether, withdraw your consent to messages.",
+    "save": "Save choices",
+    "saving": "Saving…",
+    "saved": "Your choices are saved.",
+    "bothOff": "Choose email, SMS or both.",
+    "inbox": "Go to your inbox"
+  }
+}

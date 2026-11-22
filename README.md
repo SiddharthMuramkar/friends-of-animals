@@ -173,13 +173,15 @@ The app's `db` client connects on first use, with prepared statements off (PgBou
 
 ### Databases on Vercel
 
-Both URLs point at PgBouncer on the VPS, `db.shipped-it.dev:6432`, with `?sslmode=verify-full`. PgBouncer sends database `foa` to `pg-prod` and every other name to `pg-nonprod`.
+Both URLs point at PgBouncer on the VPS, `db.friendsofanimals.dev:6432` (the VPS scripts take the host name from `FOA_DB_DOMAIN`), with `?sslmode=verify-full`. PgBouncer sends database `foa` to `pg-prod` and every other name to `pg-nonprod`.
 
 | Environment | Database in the URL                 | `DATABASE_URL` role | `DIRECT_URL` role  |
 | ----------- | ----------------------------------- | ------------------- | ------------------ |
 | production  | `foa`                               | `foa_app`           | `foa_migrator`     |
 | staging     | `foa_staging`                       | `staging_app`       | `staging_migrator` |
 | preview     | `foa_pr`, a placeholder (see below) | `nonprod_app`       | `nonprod_migrator` |
+
+Only the production row is in use while Vercel has no staging environment and no previews ([ADR 0001](docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)). The rest of this section, on staging, previews and per-preview databases, describes what the code and the VPS still support.
 
 The app roles can only read and write rows, and PgBouncer pools them by transaction. The migrator roles own the schema and get session mode through a per-user `pool_mode`, so the migration's advisory lock holds. Staging and previews have separate roles: Vercel has no build-only variables, so any preview function could use the preview's `DIRECT_URL`, and the preview roles cannot connect to `foa_staging` at all.
 
@@ -225,20 +227,24 @@ pnpm exec playwright install --with-deps chromium   # once
 # Previews sit behind Vercel Authentication, so pass the project's
 # Protection Bypass for Automation secret (Vercel → Settings →
 # Deployment Protection), here read with the Vercel CLI without printing it:
-export VERCEL_AUTOMATION_BYPASS_SECRET="$(vercel api /v9/projects/friends-of-animals --scope acme-ef4b \
+export VERCEL_AUTOMATION_BYPASS_SECRET="$(vercel api /v9/projects/friends-of-animals --scope bitacu1 \
   | jq -r '.protectionBypass | to_entries[] | select(.value.scope == "automation-bypass") | .key')"
-PLAYWRIGHT_BASE_URL=https://friends-of-animals-<hash>-acme-ef4b.vercel.app pnpm test:e2e
+PLAYWRIGHT_BASE_URL=https://friends-of-animals-<hash>-bitacu1.vercel.app pnpm test:e2e
 
-# Staging needs no secret.
-PLAYWRIGHT_BASE_URL=https://shipped-it.dev pnpm test:e2e
+# Production, read-only: only the prod-smoke project runs there (ADR 0001).
+PLAYWRIGHT_BASE_URL=https://friendsofanimals.dev pnpm test:e2e --project=prod-smoke
 
 # A local production build (pnpm build, then DATABASE_URL=… PORT=3100 pnpm start):
 PLAYWRIGHT_BASE_URL=http://localhost:3100 pnpm test:e2e
 ```
 
+For the roles and staff second-factor journeys, run the server with `APP_ENV=local`.
+Playwright uses `DIRECT_URL` to seed accounts in the same local database, with
+the same `BETTER_AUTH_SECRET` as the server if you set one.
+
 Add `--ui` to watch the tests run, or `--project=desktop` for one viewport. A failed test leaves a trace and a screenshot in `test-results/`; open a trace with `pnpm exec playwright show-trace <path>/trace.zip`.
 
-The secret goes only to this project's own deployments (`https://friends-of-animals-…-acme-ef4b.vercel.app`), so a run pointed at localhost, staging or a mistyped URL never sends it. Global setup (`tests/e2e/global-setup.ts`) trades it once for Vercel's bypass cookie, saved in `playwright/.auth/` (git-ignored), and the tests use the cookie, so the secret never appears in a trace. The cookie does (it opens that one preview for a week), so CI strips it from traces before uploading them.
+The secret goes only to this project's own deployments (`https://friends-of-animals-…-bitacu1.vercel.app`), so a run pointed at localhost, staging or a mistyped URL never sends it. Global setup (`tests/e2e/global-setup.ts`) trades it once for Vercel's bypass cookie, saved in `playwright/.auth/` (git-ignored), and the tests use the cookie, so the secret never appears in a trace. The cookie does (it opens that one preview for a week), so CI strips it from traces before uploading them.
 
 ## Continuous integration
 
@@ -272,23 +278,14 @@ The schemas live in `src/env.schema.ts`. The server validates its environment as
 
 ## Deploying
 
-The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel.json`. Which branch deploys where:
+The app runs on Vercel Pro with its functions in `bom1` (Mumbai), set in `vercel.json`. Vercel builds nothing from Git, so there are no preview deployments and no staging environment ([ADR 0001](docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)). Production, at [friendsofanimals.dev](https://friendsofanimals.dev) (`www.` redirects to it) on the database `foa`, is deployed only by `.github/workflows/deploy-production.yml`, from a commit on `main` that it builds on the runner.
 
-| Branch       | Vercel environment           | Domain                                                                   | Database      |
-| ------------ | ---------------------------- | ------------------------------------------------------------------------ | ------------- |
-| `main`       | custom environment `staging` | [shipped-it.dev](https://shipped-it.dev), public; `www.` redirects to it | `foa_staging` |
-| `production` | Production                   | FOA's own domain                                                         | `foa`         |
-| any other    | Preview                      | its `*.vercel.app` URLs, behind Vercel Authentication                    | its own       |
+There, `vercel build` runs the `vercel-build` script, which applies the migrations, runs the seed and then builds:
 
-Every push to `main` deploys staging. The `production` branch doesn't exist yet: production stays dormant until FOA's domain is added to it, then `production` is created from `main` and pushed. Promoting a staging deployment to Production in Vercel rebuilds it with the Production variables, so it runs the migrations against `pg-prod`.
+- Migrations connect through `DIRECT_URL` only (the migrator role, which PgBouncer gives session mode), never `DATABASE_URL`. It must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails. The workflow takes it from the `PROD_DIRECT_URL` secret of the GitHub environment `production`, so the build migrates `foa` in place.
+- The databases (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups, and the `foa_seed` template) are set up in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), from `docker/` (runbook: [`docker/README.md`](docker/README.md)). `pnpm db:seed` (`scripts/seed.ts`) fills a local or preview database with the seed accounts. It is idempotent, and on staging and production it exits without connecting.
 
-Vercel detects Next.js and runs the `vercel-build` script, which applies the migrations, seeds a preview's database and then builds:
-
-- Migrations connect through `DIRECT_URL` only (the migrator role, which PgBouncer gives session mode), never `DATABASE_URL`. It must be available at **build** time: without it `pnpm db:migrate` exits with an error and the deployment fails.
-- Staging and production migrate the database `DIRECT_URL` names (`foa_staging`, `foa`) in place. Each preview deployment gets its own database (`foa_pr_<n>_<fp>`, or `foa_br_<slug>_<hash>_<fp>` before its PR) on the non-production Postgres, created during the build ([Databases on Vercel](#databases-on-vercel)).
-- The databases (Postgres 18 on the Mumbai VPS behind PgBouncer, with backups, and the `foa_seed` template) are set up in [#12](https://github.com/SiddharthMuramkar/friends-of-animals/issues/12), from `docker/` (runbook: [`docker/README.md`](docker/README.md)). `foa_seed` stays empty: after migrating, `pnpm db:seed` (`scripts/seed.ts`) fills a preview's own database with the seed accounts. It is idempotent, and on staging and production it exits without connecting.
-
-Set `APP_ENV`, `DATABASE_URL` and `DIRECT_URL` per environment in the Vercel project settings, and `APP_URL` for staging (`https://shipped-it.dev`) and production; without them the build fails. Vercel exposes them to the build as well as at runtime, which `APP_URL` needs.
+Set `APP_ENV` and `APP_URL` (`https://friendsofanimals.dev`) as plain Production variables in the Vercel project, so the workflow's `vercel pull` hands them to the build, which fails without them. `DATABASE_URL` is a sensitive one: Vercel gives it to the server at runtime.
 
 `GET /api/health` runs `select 1` and answers `{"status":"ok","db":{"ok":true,"ms":<n>}}`, or 503 with `{"status":"error","db":{"ok":false}}` (details go to the server log only). It is never cached.
 

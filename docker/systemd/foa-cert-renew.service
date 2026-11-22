@@ -1,5 +1,5 @@
 [Unit]
-Description=FOA: renew the db.shipped-it.dev certificate (lego, HTTP-01) and reload PgBouncer
+Description=FOA: renew the database host's certificate (lego, HTTP-01) and reload PgBouncer
 Documentation=file:/srv/foa/docker/README.md
 Wants=network-online.target
 After=network-online.target docker.service
@@ -7,6 +7,12 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+# Optional settings for cert-renew.sh: FOA_DB_DOMAIN (default
+# db.friendsofanimals.dev), FOA_DB_DOMAIN_ALIASES, FOA_ACME_WEBROOT,
+# FOA_ACME_EMAIL, one NAME=value per line. A comment needs a line of its own:
+# systemd keeps one after a value as part of the value. See docker/README.md,
+# "TLS certificate".
+EnvironmentFile=-/etc/foa/db-host.env
 # lego sleeps a random while before a due renewal; allow for it.
 TimeoutStartSec=30min
 ExecStart=/srv/foa/docker/scripts/cert-renew.sh
