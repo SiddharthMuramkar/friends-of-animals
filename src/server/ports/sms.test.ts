@@ -75,6 +75,26 @@ describe("msg91SmsSender", () => {
     });
   });
 
+  it("refuses a template it has no DLT template id for, without calling MSG91", async () => {
+    const { fetch, calls } = fakeFetch(() =>
+      Response.json({ type: "success" })
+    );
+
+    const error = await failure(
+      sender(fetch).send({
+        to: "+919876543210" as E164Phone,
+        template: "coordinator-invitation",
+        vars: { institution: "Green Valley School", link: "https://x/y" },
+        text: "Green Valley School invites you.",
+      })
+    );
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("coordinator-invitation");
+    expect(calls).toHaveLength(0);
+    expect(leaks(error)).toEqual([]);
+  });
+
   it("rejects when MSG91 answers with an error, keeping its reason but no number, code or key", async () => {
     const { fetch } = fakeFetch(() =>
       Response.json({

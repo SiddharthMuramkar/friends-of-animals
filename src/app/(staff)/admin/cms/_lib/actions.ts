@@ -9,6 +9,7 @@ import { adminCmsDocumentPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import {
+  cmsDocumentKind,
   isCmsDocumentKey,
   type CmsDocumentKey,
 } from "@/server/modules/cms/domain/documents";
@@ -19,8 +20,19 @@ import {
   afterSave,
   type EditorState,
   type EditorView,
+  type FieldsEditorView,
   type RefusalReason,
 } from "./editor-state";
+import {
+  bodyFrom,
+  fieldsOf,
+  type FieldProblem,
+  type FormValues,
+  issuesByField,
+  kindForm,
+  optionName,
+  orderName,
+} from "./kind-forms";
 
 // The CMS editor's Server Actions (#111). Each one checks who is asking,
 // validates its form and calls one use case, which authorises again: a
@@ -88,6 +100,101 @@ export async function saveLegalDraftAction(
   } catch (error) {
     console.error(`CMS editor: saving failed: ${errorSummaryForLogs(error)}`);
     return withText({ source, alert: "failed" });
+  }
+  redirect(editorPath(key, `saved=${token()}`));
+}
+
+/** What was entered in a kind's form, to put back after it resets. */
+function enteredValues(
+  fields: ReturnType<typeof fieldsOf>,
+  formData: FormData
+): FormValues {
+  const values: FormValues = {};
+  for (const each of fields) {
+    if (each.input === "toggles" || each.input === "counts") {
+      values[orderName(each)] = field(formData, orderName(each));
+      for (const option of each.options ?? []) {
+        const name = optionName(each, option);
+        values[name] =
+          each.input === "toggles"
+            ? formData.get(name) === "on"
+            : field(formData, name);
+      }
+    } else {
+      values[each.name] = field(formData, each.name);
+    }
+  }
+  return values;
+}
+
+/** The words for a field's problems, translated here on the server. */
+async function problemText(
+  problems: Record<string, FieldProblem>
+): Promise<Record<string, string[]>> {
+  const [t, sourceText] = await Promise.all([
+    getTranslations("adminCms.editor.fields"),
+    getTranslations("consentAdmin.form"),
+  ]);
+  return Object.fromEntries(
+    Object.entries(problems).map(([name, problem]) => [
+      name,
+      problem.kind === "count"
+        ? [t("count")]
+        : problem.errors.map(({ line, code }) =>
+            line === null
+              ? sourceText(`errors.${code}`)
+              : sourceText("lineError", {
+                  line,
+                  message: sourceText(`errors.${code}`),
+                })
+          ),
+    ])
+  );
+}
+
+/**
+ * Saves the draft of a home, about, impact or site facts document from
+ * its form. Problems come back beside their fields, with what was typed;
+ * a saved draft reloads the page, which shows it.
+ */
+export async function saveFieldsDraftAction(
+  _previous: FieldsEditorView | null,
+  formData: FormData
+): Promise<FieldsEditorView> {
+  const actor = await signedInActor();
+  const key = field(formData, "key");
+  const form = isCmsDocumentKey(key) ? kindForm(cmsDocumentKind(key)) : null;
+  const t = await getTranslations("adminCms.editor.form");
+  if (!isCmsDocumentKey(key) || !form) {
+    return { values: {}, errors: {}, alert: t("failed") };
+  }
+  const values = enteredValues(fieldsOf(form), formData);
+  const read = bodyFrom(
+    form,
+    (name) => field(formData, name),
+    (name) => formData.get(name) === "on"
+  );
+  if (!read.ok) {
+    return {
+      values,
+      errors: await problemText(read.problems),
+      alert: t("fixFields"),
+    };
+  }
+  try {
+    const result = await as(actor).saveDraft({ key, body: read.body });
+    if (!result.ok) {
+      return result.error === "invalid_body"
+        ? {
+            values,
+            errors: issuesByField(form, result.issues),
+            alert: t("fixFields"),
+          }
+        : { values, errors: {}, alert: t("failed") };
+    }
+  } catch (error) {
+    console.error(`CMS editor: saving failed: ${errorSummaryForLogs(error)}`);
+    return { values, errors: {}, alert: t("failed") };
   }
   redirect(editorPath(key, `saved=${token()}`));
 }

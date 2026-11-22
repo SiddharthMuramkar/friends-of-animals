@@ -29,6 +29,7 @@ export const APP_ROUTES = {
   institutionRegister: "/institutions/register",
   myInstitution: "/institution",
   adminInstitutions: "/admin/institutions",
+  institutionCoordinators: "/institution/coordinators",
 } as const;
 
 /** A competition's judging guide, for the institutions taking part (#88). */
@@ -54,6 +55,21 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/rubrics/[discipline]",
   "/institution/competitions/[code]/judging-guide",
 ] as const;
+
+/**
+ * Where coordinator invitations' pages live (#74). Each path carries its
+ * link token, the bearer credential, so analytics leaves the whole prefix
+ * out (src/lib/analytics/umami.ts).
+ */
+export const INVITATIONS_PREFIX = "/invitations";
+
+/**
+ * A coordinator invitation's page. Anyone holding the link can open it
+ * (it is the bearer of the invitation), so it is not behind sign-in.
+ */
+export function invitationPath(token: string): string {
+  return `${INVITATIONS_PREFIX}/${encodeURIComponent(token)}`;
+}
 
 /**
  * Path prefixes that need a signed-in user. src/proxy.ts sends visitors

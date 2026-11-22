@@ -2,7 +2,8 @@ import { BadgeCheck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Placeholder } from "@/components/site/placeholder";
-import { isFactShown, SITE } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
+import { isFactShown } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 const POINTS = ["sources", "quotes", "numbers", "noLink"] as const;
@@ -40,21 +41,25 @@ export async function FactChecks({ className }: { className?: string }) {
         ))}
       </ul>
       {/* Production drops the line until FOA's email is confirmed. */}
-      {isFactShown(SITE.org.email) ? (
-        <p className="mt-5 flex flex-wrap items-center gap-2 text-ink-muted">
-          {t("mistake")}{" "}
-          <Placeholder fact={SITE.org.email}>
-            {(email) => (
-              <a
-                href={`mailto:${email}`}
-                className="text-link underline underline-offset-2"
-              >
-                {email}
-              </a>
-            )}
-          </Placeholder>
-        </p>
-      ) : null}
+      <WithOrgFacts>
+        {({ email }) =>
+          isFactShown(email) ? (
+            <p className="mt-5 flex flex-wrap items-center gap-2 text-ink-muted">
+              {t("mistake")}{" "}
+              <Placeholder fact={email}>
+                {(address) => (
+                  <a
+                    href={`mailto:${address}`}
+                    className="text-link underline underline-offset-2"
+                  >
+                    {address}
+                  </a>
+                )}
+              </Placeholder>
+            </p>
+          ) : null
+        }
+      </WithOrgFacts>
     </aside>
   );
 }

@@ -26,7 +26,7 @@ const DEPLOYED_APP_ENVS = ["preview", "staging", "production"] as const;
 const APP_ENVS = ["local", ...DEPLOYED_APP_ENVS] as const;
 
 /** What APP_URL is when it is unset on a local run. */
-const LOCAL_APP_URL = "http://localhost:3000";
+export const LOCAL_APP_URL = "http://localhost:3000";
 
 /** Set to "1" by Vercel, at build time and at runtime. */
 const vercel = z.string().optional();
@@ -102,7 +102,7 @@ function secret() {
  * A field-encryption key variable, checked with its own parser. The parser's
  * message names the problem, never the key.
  */
-function fieldKey(parse: (value: string) => unknown) {
+export function fieldKey(parse: (value: string) => unknown) {
   return z
     .string()
     .superRefine((value, ctx) => {
@@ -150,6 +150,12 @@ const secretVariables = {
    */
   MSG91_AUTH_KEY: z.string().optional(),
   MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+  /**
+   * The MSG91 id of the DLT-approved coordinator invitation template (#74,
+   * HR-14). Optional: without it, phone invitations fail to send in
+   * production; they stay refused there anyway while `sms.enabled` is off.
+   */
+  MSG91_COORDINATOR_INVITATION_TEMPLATE_ID: z.string().optional(),
 };
 
 /**

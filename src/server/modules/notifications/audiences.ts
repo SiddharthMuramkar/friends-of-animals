@@ -62,6 +62,10 @@ function subjectUserOf(delivery: Delivery): string | null {
       // A status job (#71): it's about a competition, not a user, and no
       // route row names it.
       return null;
+    case "institution.coordinator_invited":
+      // The invitee may have no account yet: the invitation goes to the
+      // invited address by its own handler (#74), not by a route row.
+      return null;
     case "competition.transition_blocked":
       // For the competition's managers (`competition_managers`).
       return null;
@@ -236,6 +240,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => institutionValues(db, payload.institutionId),
   },
   "competitions.key_date_scheduled": { names: [], load: async () => ({}) },
+  "institution.coordinator_invited": { names: [], load: async () => ({}) },
   "rubric.published": { names: [], load: async () => ({}) },
   "competition.transition_blocked": {
     names: [

@@ -16,7 +16,7 @@ import type { E164Phone } from "../../lib/phone";
  * named here; MSG91 knows each by its template id. `message` is any
  * message template staff edit (#69), which carries its own DLT id.
  */
-export type SmsTemplate = "sign-in-code" | "message";
+export type SmsTemplate = "sign-in-code" | "coordinator-invitation" | "message";
 
 /**
  * One text message: the template and its variables (what MSG91 sends), and
