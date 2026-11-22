@@ -13,6 +13,7 @@
 
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
+import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
@@ -36,8 +37,16 @@ export type OutboxDeps = {
   sms: SmsSender;
   /** Runtime settings, such as whether messages may go by SMS. */
   settings: Settings;
-  /** Reads a recipient's stored phone number. */
+  /**
+   * Reads a recipient's stored phone number, and an invitation's address
+   * and link (#74).
+   */
   cipher: FieldCipher;
+  /**
+   * The site's base URL, for links in messages. A worker started without
+   * APP_URL has none, and a message that needs a link fails until it does.
+   */
+  auth: { baseUrl?: string | undefined };
   storage: ObjectStorage;
   scanner: MalwareScanner;
   /** Used only by the media queue's handlers, in worker-media. */
@@ -77,6 +86,8 @@ export const HANDLERS: Handlers = {
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>
     runStatusJob(deps, payload),
+  "institutions.send_coordinator_invitation": (deps, { payload }) =>
+    sendCoordinatorInvitation(deps, payload),
   "cms.publish_post_image": (deps, { payload }) =>
     publishPostImage(deps, payload),
   "cms.publish_scheduled_post": (deps, { payload }) =>

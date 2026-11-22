@@ -85,10 +85,19 @@ async function Settings() {
     getFormatter(),
   ]);
 
-  const shown = (setting: SettingView, value: boolean | number) =>
-    setting.input.kind === "boolean"
-      ? t(value ? "values.on" : "values.off")
-      : t("values.amount", { unit: setting.input.unit, count: Number(value) });
+  const shown = (setting: SettingView, value: boolean | number | string) => {
+    switch (setting.input.kind) {
+      case "boolean":
+        return t(value ? "values.on" : "values.off");
+      case "integer":
+        return t("values.amount", {
+          unit: setting.input.unit,
+          count: Number(value),
+        });
+      case "text":
+        return value === "" ? t("values.notSet") : String(value);
+    }
+  };
 
   const lastChange = (setting: SettingView) => {
     if (!setting.updatedAt) return t("facts.usingDefault");
@@ -100,13 +109,15 @@ async function Settings() {
 
   const labelsFor = (setting: SettingView): SettingFormLabels => ({
     newValue:
-      setting.input.kind === "boolean"
-        ? t("form.newValue")
-        : t("form.newAmount", { unit: setting.input.unit }),
+      setting.input.kind === "integer"
+        ? t("form.newAmount", { unit: setting.input.unit })
+        : t("form.newValue"),
     range:
       setting.input.kind === "integer"
         ? t("form.range", { min: setting.input.min, max: setting.input.max })
-        : undefined,
+        : setting.input.kind === "text"
+          ? t("form.length", { maxLength: setting.input.maxLength })
+          : undefined,
     on: t("values.on"),
     off: t("values.off"),
     save: t("form.save"),

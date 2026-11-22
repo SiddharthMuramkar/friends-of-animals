@@ -13,7 +13,8 @@ import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isFactShown, SITE } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
+import { isFactShown } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 import { EasyRead } from "@/components/site/easy-read";
@@ -231,12 +232,16 @@ export default async function Page() {
           className="mt-10"
         >
           <p>{t("contact.openBody")}</p>
-          {isFactShown(SITE.org.email) ? (
-            <p className="flex flex-wrap items-center gap-2">
-              {t("contact.contactLabel")}
-              <ContactFact kind="email" fact={SITE.org.email} />
-            </p>
-          ) : null}
+          <WithOrgFacts>
+            {({ email }) =>
+              isFactShown(email) ? (
+                <p className="flex flex-wrap items-center gap-2">
+                  {t("contact.contactLabel")}
+                  <ContactFact kind="email" fact={email} />
+                </p>
+              ) : null
+            }
+          </WithOrgFacts>
         </ExplainState>
         <ButtonLink href={ROUTES.contact.path} size="lg" className="mt-8">
           {t("contact.contactCta")}

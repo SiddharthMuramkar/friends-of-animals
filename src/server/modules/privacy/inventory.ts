@@ -36,6 +36,21 @@ const WHILE_INSTITUTION_TAKES_PART = {
   toConfirm: true,
 } as const;
 
+const AFTER_INVITATION_CLOSES = {
+  period:
+    "90 days after the invitation is accepted, withdrawn or expires (HR-31)",
+  basis:
+    "Lets the authorised person and FOA see who was invited, and answer a query about it",
+  toConfirm: true,
+} as const;
+
+const WHILE_INVITATION_PENDING = {
+  period: "Until the invitation is accepted, withdrawn or expires",
+  basis:
+    "Builds the link in the message when it is sent; cleared once the invitation is no longer waiting",
+  toConfirm: true,
+} as const;
+
 const WHILE_POST_EXISTS = {
   period: "While the post exists; deleted with it",
   basis:
@@ -108,6 +123,46 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     column: "verified_by",
     purpose: "Records which FOA staff member verified the institution",
     retention: WHILE_INSTITUTION_TAKES_PART,
+  },
+  // Coordinator invitations (#74)
+  {
+    table: "institution_invitation",
+    column: "identifier_ciphertext",
+    purpose:
+      "The email or mobile number a coordinator invitation goes to (encrypted)",
+    retention: AFTER_INVITATION_CLOSES,
+  },
+  {
+    table: "institution_invitation",
+    column: "identifier_hash",
+    purpose:
+      "Matches the invitee's account, and a second invitation to the same person, without storing the address readably",
+    retention: AFTER_INVITATION_CLOSES,
+  },
+  {
+    table: "institution_invitation",
+    column: "token_ciphertext",
+    purpose:
+      "The invitation link's secret, so the message can carry it (encrypted)",
+    retention: WHILE_INVITATION_PENDING,
+  },
+  {
+    table: "institution_invitation",
+    column: "invited_by_user_id",
+    purpose: "Records which authorised person sent the invitation",
+    retention: AFTER_INVITATION_CLOSES,
+  },
+  {
+    table: "institution_invitation",
+    column: "accepted_by_user_id",
+    purpose: "Records which account accepted the invitation",
+    retention: AFTER_INVITATION_CLOSES,
+  },
+  {
+    table: "institution_invitation",
+    column: "revoked_by_user_id",
+    purpose: "Records which authorised person withdrew the invitation",
+    retention: AFTER_INVITATION_CLOSES,
   },
   // Blog posts and stories (#112)
   {

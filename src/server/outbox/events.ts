@@ -93,6 +93,12 @@ export type DomainEvent =
       payload: { competitionId: string; kind: KeyDateKind; dueAt: string };
     }
   | {
+      /** An authorised person invited a coordinator (#74). */
+      type: "institution.coordinator_invited";
+      aggregate: { type: "institution_invitation"; id: string };
+      payload: { invitationId: string };
+    }
+  | {
       /**
        * A post was scheduled for `publishAt` (#112). Saved with
        * `availableAt: publishAt`, so its publish job runs at the instant.
@@ -148,6 +154,7 @@ export const EVENT_PAYLOADS = {
     kind: z.enum(KEY_DATE_KINDS),
     dueAt: z.iso.datetime(),
   }),
+  "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
   "cms.post_scheduled": z.object({
     postId: z.uuid(),
     publishAt: z.iso.datetime(),
@@ -178,6 +185,11 @@ export const SUBSCRIBERS = {
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
   "competitions.key_date_scheduled": ["competitions.advance_status"],
+  // An invitee has no account yet, so no route row can name them: the
+  // invitation goes to the invited address itself (#74).
+  "institution.coordinator_invited": [
+    "institutions.send_coordinator_invitation",
+  ],
   "cms.post_scheduled": ["cms.publish_scheduled_post"],
   // No route sends anything for it yet; a "new story" message can follow it.
   "cms.post_published": ["notifications.dispatch"],

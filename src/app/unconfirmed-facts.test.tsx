@@ -13,6 +13,7 @@ import PricingPage from "@/app/pricing/page";
 import RefundsPage from "@/app/refunds/page";
 import SchoolsPage from "@/app/schools/page";
 import { messages } from "@/i18n/messages";
+import { pageKind } from "@/server/modules/cms/kinds/page";
 import { renderHtml, visibleText } from "@/test/render";
 
 // The owner's decision of 2026-11-21: production ships without the
@@ -211,7 +212,7 @@ describe("other pages in production", () => {
     expect(html).not.toMatch(
       wholeText(messages.about.transparency.registration)
     );
-    expect(visibleText(html)).toContain(messages.about.transparency.title);
+    expect(visibleText(html)).toContain(pageKind.seedBody().transparency.title);
   });
 
   it("/pricing leaves out the fee column but keeps who pays on each route", async () => {

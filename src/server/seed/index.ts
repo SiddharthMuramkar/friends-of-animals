@@ -9,6 +9,7 @@
 
 import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
+import { seedCoordinators } from "./coordinators";
 import { seedCompetitions } from "./competitions";
 import { seedCms } from "./cms";
 import { seedConsent } from "./consent";
@@ -37,6 +38,8 @@ const seeders: readonly Seeder[] = [
   seedSecondFactor,
   seedSettings,
   seedInstitutions,
+  // After the institutions seed: it needs the verified institution.
+  seedCoordinators,
   seedNotifications,
   seedCms,
   seedPosts,
