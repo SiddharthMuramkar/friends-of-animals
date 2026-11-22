@@ -8,7 +8,7 @@
  * next.config.ts loads it under plain Node.
  */
 
-import { PAY_FEES_ROUTE } from "./app-routes";
+import { CHECKOUT_ROUTES } from "./app-routes";
 import type { CspContext, CspSources } from "./csp";
 import { r2Origin } from "./r2-origin";
 
@@ -47,7 +47,8 @@ function publicAssetSources(
 }
 
 /**
- * Razorpay Checkout (#77), on the pay page alone and only while Razorpay
+ * Razorpay Checkout (#77), on the pay pages alone (a school's, and an
+ * adult's own, #78) and only while Razorpay
  * keys are set (the fallback's test checkout is on our own origin). The
  * page's nonce'd island loads checkout.js ('strict-dynamic' then trusts
  * it; the script origin is only for browsers without 'strict-dynamic'),
@@ -64,7 +65,7 @@ function razorpayCheckoutSources(
     {
       feature: "Razorpay Checkout",
       areas: ["signedIn"],
-      routes: [PAY_FEES_ROUTE],
+      routes: CHECKOUT_ROUTES,
       directives: {
         "script-src": ["https://checkout.razorpay.com"],
         "frame-src": ["https://api.razorpay.com"],

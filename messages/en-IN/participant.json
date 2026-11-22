@@ -112,7 +112,7 @@
       "confirmFree": "Confirm my place",
       "confirmed": "You're registered. Your registration number is {number}.",
       "writeNumber": "Write this number on the back of your artwork, and quote it if you contact us.",
-      "checkoutReady": "Your order is ready. Online payment opens here soon; we will let you know.",
+      "checkoutReady": "This place now has a fee. Pay it with the button below.",
       "back": "Back to my competitions",
       "error": {
         "nothing_to_pay": "There is nothing to pay for this registration.",

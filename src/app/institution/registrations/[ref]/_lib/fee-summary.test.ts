@@ -10,4 +10,17 @@ describe("feeSummary", () => {
       confirmed: 12,
     });
   });
+
+  it("says every fee is paid once no enrolled student is waiting", () => {
+    expect(feeSummary({ enrolled: 0, confirmed: 30, withdrawn: 1 })).toEqual({
+      kind: "paid",
+      confirmed: 30,
+    });
+  });
+
+  it("says nothing about fees before any student is enrolled", () => {
+    expect(feeSummary({ enrolled: 0, confirmed: 0, withdrawn: 3 })).toEqual({
+      kind: "none",
+    });
+  });
 });

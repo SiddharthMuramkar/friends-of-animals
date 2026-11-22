@@ -16,6 +16,7 @@ import { invalidInput, type InvalidInput } from "../../input";
 import { isFallbackGateway } from "../../ports/payment-gateway-fallback";
 import type { UseCaseContext } from "../../use-cases";
 import { institutionResource } from "../institutions/coordinators/policy";
+import { answerTestCheckout, type TestCheckoutAnswer } from "./test-checkout";
 
 export type PayTestCheckoutInput = {
   institutionId: string;
@@ -24,10 +25,9 @@ export type PayTestCheckoutInput = {
 };
 
 export type PayTestCheckoutResult =
-  | { ok: true; outcome: "paid"; paymentId: string; signature: string }
-  | { ok: true; outcome: "declined" }
+  | TestCheckoutAnswer
   | InvalidInput
-  | { ok: false; error: "not_found" | "unavailable" };
+  | { ok: false; error: "unavailable" };
 
 const testCheckoutInput = z.object({
   institutionId: z.uuid(),
@@ -60,14 +60,5 @@ export async function payTestCheckout(
     );
   if (!batch?.orderId) return { ok: false, error: "not_found" };
 
-  if (outcome === "decline") {
-    const declined = await gateway.decline(batch.orderId);
-    return declined
-      ? { ok: true, outcome: "declined" }
-      : { ok: false, error: "not_found" };
-  }
-  const paid = await gateway.capture(batch.orderId);
-  return paid
-    ? { ok: true, outcome: "paid", ...paid }
-    : { ok: false, error: "not_found" };
+  return answerTestCheckout(gateway, batch.orderId, outcome);
 }

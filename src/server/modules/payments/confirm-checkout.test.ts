@@ -205,6 +205,8 @@ describe("getPaymentBatch", () => {
         reference: school.reference,
         competition: { code: "PAWS27", name: "Paws on the Pavement" },
         capturedAt: null,
+        // Which adapter made the order: the status page says it (77c).
+        gateway: "fake",
         checkout: { orderId, gateway: "fake" },
       },
     });
@@ -229,7 +231,12 @@ describe("getPaymentBatch", () => {
     const paid = await read();
     expect(paid).toMatchObject({
       ok: true,
-      batch: { status: "captured", capturedAt: h.clock.now(), checkout: null },
+      batch: {
+        status: "captured",
+        capturedAt: h.clock.now(),
+        gateway: "fake",
+        checkout: null,
+      },
     });
     expect(
       paid.ok &&

@@ -116,6 +116,9 @@ export function individualRegisterSlug(pathname: string): string | null {
   return slug === "" || slug.includes("/") ? null : slug;
 }
 
+/** An adult's own pay page (#78), as a route template. */
+export const PAY_MY_REGISTRATION_ROUTE = "/participant/registrations/[id]/pay";
+
 /** Where an adult pays for their own registration (#78). */
 export function payMyRegistrationPath(registrationId: string): string {
   return `${APP_ROUTES.participant}/registrations/${encodeURIComponent(registrationId)}/pay`;
@@ -123,6 +126,16 @@ export function payMyRegistrationPath(registrationId: string): string {
 
 /** Where a coordinator pays their students' fees (#77). */
 export const PAY_FEES_ROUTE = "/institution/registrations/[ref]/pay";
+
+/**
+ * The pages with the Checkout island (#77): a school's pay page and an
+ * adult's own (#78). Razorpay's origins and its headers come with these
+ * documents only (./csp-sources.ts, ./security-headers.ts).
+ */
+export const CHECKOUT_ROUTES = [
+  PAY_FEES_ROUTE,
+  PAY_MY_REGISTRATION_ROUTE,
+] as const;
 
 /** A payment batch's status and receipt (#77). */
 export const PAYMENT_BATCH_ROUTE =
@@ -191,8 +204,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/import/template.csv",
   "/institution/registrations/[ref]/import/sample.csv",
   "/participant/register/[slug]",
-  "/participant/registrations/[id]/pay",
   "/guardian/children/[id]",
+  PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,
 ] as const;

@@ -1,8 +1,9 @@
 // listEnrolledStudents({ institutionId, reference }) (#75): the
 // coordinator dashboard of one institution registration. Its students by
 // name, each with grade, age group and status, counts by status, and
-// whether more can be added now. Names and grades only: no date of birth
-// and no contact details, which stay encrypted and unread here.
+// whether more can be added now, and each confirmed student's registration
+// number (#77). Names and grades only: no date of birth and no contact
+// details, which stay encrypted and unread here.
 
 import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -29,6 +30,8 @@ export type EnrolledStudent = {
   grade: string | null;
   ageGroupLabel: string;
   status: RegistrationStatus;
+  /** Given once the student is confirmed (#77); null until then. */
+  registrationNumber: string | null;
 };
 
 export type ListEnrolledStudentsResult =
@@ -90,6 +93,7 @@ export async function listEnrolledStudents(
       grade: participantProfile.grade,
       ageGroupLabel: competitionAgeGroup.label,
       status: registration.status,
+      registrationNumber: registration.registrationNumber,
     })
     .from(registration)
     .innerJoin(

@@ -10,15 +10,16 @@ import { as, currentActor } from "@/server/app";
 import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import type { CheckoutParams } from "@/server/ports/payment-gateway";
 
-import type {
-  CheckoutReturn,
-  CheckoutView,
-  PayView,
-  TestCheckoutResult,
-} from "./pay-view";
+import {
+  checkoutView,
+  type CheckoutReturn,
+  type PayView,
+  type TestCheckoutResult,
+} from "@/components/payments/pay-view";
 
 // The pay page's server actions (#77): open the batch's order, confirm
-// what Checkout hands back, and the fallback's test checkout. Every
+// what Checkout hands back, and the fallback's test checkout. The page
+// binds each to the institution and registration it pays for. Every
 // message is translated here, so the island ships no catalogue. A use
 // case that throws is never shown to the payer: a refusal of the actor
 // says "forbidden", anything else is logged (class only) and says that
@@ -52,55 +53,44 @@ function thrown(useCase: string, error: unknown): "forbidden" | undefined {
   return undefined;
 }
 
-function field(formData: FormData, name: string): string {
-  const value = formData.get(name);
-  return typeof value === "string" ? value : "";
-}
-
 async function signedInUser() {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   return actor;
 }
 
-async function checkoutView(checkout: CheckoutParams): Promise<CheckoutView> {
+/** The order's checkout, with its amount as the pay page writes it. */
+async function checkoutFor(checkout: CheckoutParams) {
   const [format, t] = await Promise.all([
     getFormatter(),
     getTranslations("payments.pay"),
   ]);
-  return {
-    gateway: checkout.gateway,
-    orderId: checkout.orderId,
-    amountMinor: checkout.amount.amountMinor.toString(),
-    amountText: feeText(
-      {
-        route: "institution",
-        kind: "amount",
-        paise: checkout.amount.amountMinor.toString(),
-      },
-      {
-        t: () => t("free"),
-        format: { number: (value, name) => format.number(value, name) },
-      }
-    ),
-    description: checkout.description,
-    publicKey: checkout.publicKey,
-  };
+  const amountText = feeText(
+    {
+      route: "institution",
+      kind: "amount",
+      paise: checkout.amount.amountMinor.toString(),
+    },
+    {
+      t: () => t("free"),
+      format: { number: (value, name) => format.number(value, name) },
+    }
+  );
+  return checkoutView(checkout, amountText);
 }
 
 /**
  * Opens (or reuses) the gateway order for every waiting student's fee, or
  * confirms them at once when the competition is free.
  */
-export async function startPaymentAction(formData: FormData): Promise<PayView> {
+export async function startPaymentAction(
+  institutionId: string,
+  reference: string
+): Promise<PayView> {
   const actor = await signedInUser();
-  const input = {
-    institutionId: field(formData, "institutionId"),
-    reference: field(formData, "reference"),
-  };
   let result;
   try {
-    result = await as(actor).payInstitutionFees(input);
+    result = await as(actor).payInstitutionFees({ institutionId, reference });
   } catch (error) {
     return problem(thrown("payInstitutionFees", error) ?? "failed");
   }
@@ -117,7 +107,7 @@ export async function startPaymentAction(formData: FormData): Promise<PayView> {
   return {
     kind: "checkout",
     batchId: result.batchId,
-    checkout: await checkoutView(result.checkout),
+    checkout: await checkoutFor(result.checkout),
   };
 }
 
@@ -127,14 +117,12 @@ export async function startPaymentAction(formData: FormData): Promise<PayView> {
  * problem comes back; success redirects.
  */
 export async function confirmPaymentAction(
-  input: {
-    institutionId: string;
-    reference: string;
-    batchId: string;
-  } & CheckoutReturn
+  institutionId: string,
+  reference: string,
+  batchId: string,
+  { paymentId, signature }: CheckoutReturn
 ): Promise<PayView> {
   const actor = await signedInUser();
-  const { institutionId, reference, batchId, paymentId, signature } = input;
   let result;
   try {
     result = await as(actor).confirmCheckout({
@@ -160,16 +148,20 @@ export async function confirmPaymentAction(
  * the gateway, which is never production
  * (src/server/ports/payment-gateway-select.ts).
  */
-export async function payTestCheckoutAction(input: {
-  institutionId: string;
-  batchId: string;
-  outcome: "pay" | "decline";
-}): Promise<TestCheckoutResult> {
+export async function payTestCheckoutAction(
+  institutionId: string,
+  batchId: string,
+  outcome: "pay" | "decline"
+): Promise<TestCheckoutResult> {
   const actor = await signedInUser();
   const t = await getTranslations("payments.pay");
   let result;
   try {
-    result = await as(actor).payTestCheckout(input);
+    result = await as(actor).payTestCheckout({
+      institutionId,
+      batchId,
+      outcome,
+    });
   } catch (error) {
     return {
       ok: false,
