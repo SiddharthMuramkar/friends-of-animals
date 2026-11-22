@@ -101,6 +101,8 @@ describe("the registration seed", () => {
       withdrawn: 1,
       // The individual route's status (#78): never a school's.
       pending_payment: 0,
+      // A fee given back (#80): nothing is refunded in the seed's NEIGH27.
+      refunded: 0,
       pending_guardian: 0,
     });
     const students = dashboard.ok ? dashboard.students : [];

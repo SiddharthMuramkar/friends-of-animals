@@ -104,6 +104,7 @@ describe("reviewReasonFor()", () => {
       "amount_mismatch",
       "registration_closed",
       "batch_superseded",
+      "paid_while_in_review",
     ]);
   });
 
@@ -119,6 +120,8 @@ describe("allowedOutcomes()", () => {
     "amount_mismatch",
     "registration_closed",
     "batch_superseded",
+    // #80, from #79's review: a full payment while another was in review.
+    "paid_while_in_review",
   ];
 
   it.each(

@@ -21,7 +21,11 @@ let webhookSequence = 0;
  * another key, or unsigned. A new call is a new event.
  */
 function fallbackWebhook(
-  event: { type: string; orderId: string },
+  event: {
+    type: string;
+    orderId: string;
+    refund?: { refundId: string; paymentId: string };
+  },
   { signature = "valid" }: { signature?: "valid" | "invalid" | "missing" } = {}
 ): { rawBody: string; headers: Headers } {
   webhookSequence += 1;
@@ -29,6 +33,7 @@ function fallbackWebhook(
     id: `evt_fallback_${webhookSequence}`,
     event: event.type,
     orderId: event.orderId,
+    ...(event.refund ? { refund: event.refund } : {}),
   };
   const rawBody = JSON.stringify(body);
   const headers = new Headers({ "content-type": "application/json" });

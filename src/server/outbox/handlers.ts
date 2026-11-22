@@ -28,10 +28,12 @@ import { notifyPrincipal } from "../modules/registration/principal-message";
 import { sendRegistrationConfirmation } from "../modules/registration/confirmation-message";
 import { sendGuardianRequest } from "../modules/guardians/guardian-request-message";
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
+import { sendApprovedRefund } from "../modules/payments/refunds/sync-refund";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
 import type { MediaProcessor } from "../ports/media";
+import type { PaymentGateway } from "../ports/payment-gateway";
 import type { Settings } from "../ports/settings";
 import type { SmsSender } from "../ports/sms";
 import type { ObjectStorage } from "../ports/storage";
@@ -59,6 +61,8 @@ export type OutboxDeps = {
   scanner: MalwareScanner;
   /** Used only by the media queue's handlers, in worker-media. */
   media: MediaProcessor;
+  /** Sends approved refunds and reads them back (#80). */
+  payments: PaymentGateway;
 };
 
 /** The event a handler listens to, from SUBSCRIBERS. */
@@ -112,6 +116,9 @@ export const HANDLERS: Handlers = {
   // Emails a guardian's invitation to their teen's own login (#81).
   "guardians.send_teen_invitation": (deps, { payload }) =>
     sendTeenInvitation(deps, payload),
+  // Sends an approved refund to the gateway, or adopts the one it holds
+  // (#80). Safe to repeat: the gateway's refund is found by its notes.
+  "refunds.send": (deps, { payload }) => sendApprovedRefund(deps, payload),
   // Emails a teen's request to the guardian they named (#81).
   "guardians.send_guardian_request": (deps, { payload }) =>
     sendGuardianRequest(deps, payload),

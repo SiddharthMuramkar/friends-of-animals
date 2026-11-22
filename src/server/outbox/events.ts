@@ -199,6 +199,31 @@ export type DomainEvent =
       payload: { invitationId: string };
     }
   | {
+      /**
+       * A refund was approved (#80): by finance, by its kind (a
+       * cancellation or a duplicate), or again on a retry. Its gateway
+       * refund goes out from here (refunds.send).
+       */
+      type: "refund.approved";
+      aggregate: { type: "refund"; id: string };
+      payload: { refundId: string };
+    }
+  | {
+      /**
+       * A refund's money is back with the payer (#80). `payerUserId` started
+       * the batch's payment and is told; null once their account is gone.
+       */
+      type: "refund.processed";
+      aggregate: { type: "refund"; id: string };
+      payload: { refundId: string; payerUserId: string | null };
+    }
+  | {
+      /** The gateway gave up on a refund (#80); finance is told to act. */
+      type: "refund.failed";
+      aggregate: { type: "refund"; id: string };
+      payload: { refundId: string };
+    }
+  | {
       /** A teen with no guardian yet asked one to verify and accept (#81). */
       type: "guardian.guardian_requested";
       aggregate: { type: "guardian_invitation"; id: string };
@@ -273,6 +298,12 @@ export const EVENT_PAYLOADS = {
     payerUserId: z.uuid().nullable(),
   }),
   "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
+  "refund.approved": z.object({ refundId: z.uuid() }),
+  "refund.processed": z.object({
+    refundId: z.uuid(),
+    payerUserId: z.uuid().nullable(),
+  }),
+  "refund.failed": z.object({ refundId: z.uuid() }),
   "guardian.guardian_requested": z.object({ requestId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
@@ -334,6 +365,11 @@ export const SUBSCRIBERS = {
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).
   "guardian.teen_invited": ["guardians.send_teen_invitation"],
+  // The one funnel to the gateway (#80): approval, system refunds, retries.
+  "refund.approved": ["refunds.send"],
+  // The payer's notice and finance's alert go by route row (#80).
+  "refund.processed": ["notifications.dispatch"],
+  "refund.failed": ["notifications.dispatch"],
   // The guardian a teen names may have no account yet: the request goes to
   // the address the teen gave by its own handler (#81).
   "guardian.guardian_requested": ["guardians.send_guardian_request"],

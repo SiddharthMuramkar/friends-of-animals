@@ -100,16 +100,30 @@ export async function syncBatch(
         return decision.kind;
       case "in_review":
         return "needs_review";
-      case "extra_captures":
+      case "extra_captures": {
         // The batch is paid, or its payment is in review: each new one is
-        // a second payment.
+        // a second payment. Why it can't land is asked as for any capture
+        // (#80, from #79's review): a full payment while a short one is in
+        // review is one staff may accept once that one is resolved.
+        const registrations = await registrationsAtCapture(tx, ctx, batch);
         await review(
-          decision.paymentIds.map((paymentId) => ({
-            paymentId,
-            reason: "already_paid",
-          }))
+          decision.paymentIds.map((paymentId) => {
+            const paid = paymentNamed(paymentId);
+            const reason =
+              reviewReasonFor({
+                amountMatches:
+                  paid.amountMinor === batch.amountMinor &&
+                  paid.currency === "INR",
+                registrations,
+              }) ??
+              (batch.status === "captured"
+                ? "already_paid"
+                : "paid_while_in_review");
+            return { paymentId, reason };
+          })
         );
         return "needs_review";
+      }
       case "amount_mismatch": {
         const paid = paymentNamed(decision.paymentId);
         await recordAudit(tx, ctx, {

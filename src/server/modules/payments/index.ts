@@ -7,6 +7,7 @@
 // src/app/institution/registrations/[ref].
 
 import type { UseCaseContext } from "../../use-cases";
+import { refundsUseCases } from "./refunds";
 import { confirmCheckout, type ConfirmCheckoutInput } from "./confirm-checkout";
 import { getFeesToPay, type GetFeesToPayInput } from "./get-fees-to-pay";
 import {
@@ -83,6 +84,7 @@ export type {
   StaffPaymentBatch,
 } from "./staff-batch";
 export type { SyncOutcome, WebhookOutcome } from "./domain/outcomes";
+export type * from "./refunds";
 export type {
   ConfirmCheckoutInput,
   ConfirmCheckoutResult,
@@ -133,4 +135,6 @@ export const paymentsUseCases = (ctx: UseCaseContext) => ({
     getOfflinePaymentProof(ctx, input),
   getPaymentBatchForStaff: (input: GetPaymentBatchForStaffInput) =>
     getPaymentBatchForStaff(ctx, input),
+  // #80: refunds.
+  ...refundsUseCases(ctx),
 });

@@ -33,6 +33,7 @@ const STATUS_TONE = {
   confirmed: "blue",
   withdrawn: "neutral",
   pending_payment: "marigold",
+  refunded: "neutral",
   pending_guardian: "marigold",
 } as const satisfies Record<RegistrationStatus, string>;
 

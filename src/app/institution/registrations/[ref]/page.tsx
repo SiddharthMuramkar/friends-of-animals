@@ -86,6 +86,7 @@ const STATUS_TONE = {
   withdrawn: "neutral",
   // The individual route's (#78); never on a school's list.
   pending_payment: "marigold",
+  refunded: "neutral",
   // An individual's, never a school's (#81).
   pending_guardian: "marigold",
 } as const satisfies Record<RegistrationStatus, string>;

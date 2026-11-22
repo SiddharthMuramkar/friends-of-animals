@@ -504,6 +504,47 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     purpose: "Who resolved a payment in review, so FOA can answer for it",
     retention: PAYMENT_RECORD,
   },
+  // Refunds (#80): money records, kept as long as the payment they return.
+  {
+    table: "refund",
+    column: "reason",
+    purpose:
+      "Why a refund was asked for, or why the system made it: free text that may name the payer or what they said",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "refund",
+    column: "requested_by",
+    purpose: "Who asked for a refund, so nobody decides their own request",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "refund",
+    column: "decided_by",
+    purpose:
+      "Who in finance approved or rejected a refund, so FOA can answer for it",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "refund",
+    column: "decision_note",
+    purpose:
+      "Finance's note on approving or rejecting a refund: free text the requester reads",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "refund",
+    column: "manual_reference",
+    purpose:
+      "The transfer reference (UTR), cheque number or cash receipt of a refund paid back by hand",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "refund",
+    column: "manual_recorded_by",
+    purpose: "Who in finance recorded paying a refund back by hand",
+    retention: PAYMENT_RECORD,
+  },
   // Guardians and their children (#81). A child's profile is a
   // participant_profile row (owner_kind guardian), listed above.
   {

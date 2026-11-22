@@ -216,10 +216,26 @@ _Avoid_: Manual payment, cash entry
 **Payment needing review**:
 Money the gateway captured that its Payment batch couldn't accept: a second
 payment, a withdrawn registration, the wrong amount, money after
-registration closed, or for a replaced batch. The batch waits in review, one
-review case per payment, until staff accept, refund or keep the money with a
-reason. Nothing is confirmed or refunded on its own.
+registration closed, or for a replaced batch. The batch waits in review (a
+paid batch stays paid), one review case per payment, until staff accept,
+refund or keep the money with a reason. Nothing is confirmed or refunded on
+its own.
 _Avoid_: Failed payment, disputed payment, exception
+
+**Refund**:
+A Payment batch's money going back to whoever paid it: every student it has
+left, some of them (a partial refund), or a whole payment it couldn't keep.
+A refund someone asks for waits for finance to approve it behind a fresh
+second factor; a cancellation or a payment resolved in review is approved by
+the system. Approved refunds go to the gateway, or are paid back by hand for
+an offline payment. A registration is refunded only once its money is back.
+_Avoid_: Reversal, chargeback, credit note
+
+**Duplicate refund**:
+A payment in review resolved with a refund: the payment goes back in full,
+with no finance approval, and no registration changes. Most often the second
+of two payments.
+_Avoid_: Auto-refund, double refund
 
 **Test checkout**:
 Where a payer pays outside production while no Razorpay test keys are set:

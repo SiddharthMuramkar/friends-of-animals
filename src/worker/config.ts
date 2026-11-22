@@ -45,6 +45,11 @@
 //                                    them every scan fails and files wait
 //   CLAMD_HOST, CLAMD_PORT           clamd (3310), which the scan asks; without
 //                                    a host every scan fails and files wait
+//   RAZORPAY_KEY_ID,                 the app's Razorpay keys, all three or none,
+//   RAZORPAY_KEY_SECRET,             to send approved refunds (#80). Without
+//   RAZORPAY_WEBHOOK_SECRET          them production's worker refuses each
+//                                    refund (it retries), and other
+//                                    environments refund through the fallback
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
@@ -54,6 +59,7 @@ import {
   fieldKey,
   LOCAL_APP_URL,
   parseEnv,
+  refundJobEnvSchema,
   scanJobEnvSchema,
   type ScannerEnv,
 } from "../env.schema";
@@ -87,6 +93,8 @@ type Common = {
   /** The app's field keys (FIELD_ENCRYPTION_KEYS, FIELD_HMAC_KEY). */
   fieldEncryptionKeys: string | undefined;
   fieldHmacKey: string | undefined;
+  /** Razorpay's keys, to send refunds (#80); absent, none are set. */
+  razorpay?: { keyId: string; keySecret: string; webhookSecret: string };
 };
 
 /**
@@ -216,7 +224,13 @@ const schema = z
 export function workerConfig(
   source: Record<string, string | undefined>
 ): WorkerConfig {
-  const env = parseEnv(z.intersection(schema, scanJobEnvSchema), source);
+  const env = parseEnv(
+    z.intersection(
+      z.intersection(schema, scanJobEnvSchema),
+      refundJobEnvSchema
+    ),
+    source
+  );
   const media = env.WORKER_QUEUE === "media";
   const common: Common = {
     appEnv: env.APP_ENV,
@@ -248,6 +262,18 @@ export function workerConfig(
       env.APP_URL ?? (env.APP_ENV === "local" ? LOCAL_APP_URL : undefined),
     fieldEncryptionKeys: env.FIELD_ENCRYPTION_KEYS,
     fieldHmacKey: env.FIELD_HMAC_KEY,
+    // The schema takes all three Razorpay variables or none.
+    ...(env.RAZORPAY_KEY_ID &&
+    env.RAZORPAY_KEY_SECRET &&
+    env.RAZORPAY_WEBHOOK_SECRET
+      ? {
+          razorpay: {
+            keyId: env.RAZORPAY_KEY_ID,
+            keySecret: env.RAZORPAY_KEY_SECRET,
+            webhookSecret: env.RAZORPAY_WEBHOOK_SECRET,
+          },
+        }
+      : {}),
   };
   if (env.WORKER_MODE === "preview") {
     // The refinement above guarantees it.

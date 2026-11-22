@@ -39,6 +39,11 @@ import { safeguardingLeads } from "../safeguarding/leads";
 import { ownerOfRegistration } from "../participants/owner";
 import { payerOn, RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
 import {
+  financeTeam,
+  REFUND_VARIABLES,
+  refundValues,
+} from "../payments/refunds/notice";
+import {
   CONFIRMATION_VARIABLES,
   confirmationValues,
 } from "../registration/confirmation-message";
@@ -113,6 +118,15 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "guardian.teen_invited":
       // The teen may have no account yet: the invitation goes to the
       // invited address by its own handler (#81), not by a route row.
+      return null;
+    case "refund.approved":
+      // The funnel to the gateway (#80); no route row names it.
+      return null;
+    case "refund.processed":
+      // Whoever started the batch's payment is told their money is back.
+      return delivery.payload.payerUserId;
+    case "refund.failed":
+      // For the finance team (`finance_team`), not a user it is about.
       return null;
     case "guardian.guardian_requested":
       // The guardian a teen names may have no account yet: the request
@@ -215,6 +229,8 @@ export const AUDIENCES = {
       .orderBy(asc(userRole.userId));
     return rows.map((row) => row.userId);
   },
+  /** Everyone holding the finance role (#80): a refund needs them. */
+  finance_team: async (db) => financeTeam(db),
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -376,6 +392,15 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => receiptValues(db, payload.batchId),
   },
   "guardian.teen_invited": { names: [], load: async () => ({}) },
+  "refund.approved": { names: [], load: async () => ({}) },
+  "refund.processed": {
+    names: REFUND_VARIABLES,
+    load: (db, { payload }) => refundValues(db, payload.refundId),
+  },
+  "refund.failed": {
+    names: REFUND_VARIABLES,
+    load: (db, { payload }) => refundValues(db, payload.refundId),
+  },
   "guardian.guardian_requested": { names: [], load: async () => ({}) },
 };
 

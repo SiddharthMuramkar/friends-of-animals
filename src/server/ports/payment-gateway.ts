@@ -14,15 +14,18 @@
 // names an order, and the use case then reads the order's payments back
 // through `fetchOrderPayments` (src/server/modules/payments/sync-batch.ts).
 //
-// There is no refund here yet: #80 adds a refund method to the port (and
-// to every adapter and the contract) when refunds arrive.
+// Refunds (#80) follow the same rule: `refund` asks for one, keyed by an
+// idempotency key so a retry never refunds twice, and every later signal
+// (a refund webhook, a retry) reads the payment's refunds back through
+// `fetchRefunds` (src/server/modules/payments/refunds/sync-refund.ts).
 //
 // Loads under plain Node: relative type imports only.
 
 import type { Money } from "../modules/payments/domain/batch-amount";
 import type { GatewayPayment } from "../modules/payments/domain/capture-decision";
+import type { GatewayRefund } from "../modules/payments/domain/refund-sync";
 
-export type { GatewayPayment, Money };
+export type { GatewayPayment, GatewayRefund, Money };
 
 /** Which adapter made an order; stored with the batch. */
 export const GATEWAY_NAMES = [
@@ -54,6 +57,9 @@ export type GatewayWebhook = {
   type: string;
   /** The order it is about, or null for an event about no order. */
   orderId: string | null;
+  /** For a refund event (#80): the gateway's refund and the payment it
+   * returns. Absent on every other event. */
+  refund?: { refundId: string; paymentId: string };
 };
 
 export interface PaymentGateway {
@@ -95,6 +101,22 @@ export interface PaymentGateway {
 
   /** Every payment attempt on `orderId`, as the gateway records it. */
   fetchOrderPayments(orderId: string): Promise<GatewayPayment[]>;
+
+  /**
+   * Refunds `amount` of the captured payment `paymentId` (#80): all of it
+   * or part. A second call with the same `idempotencyKey` returns the
+   * refund the first made instead of refunding again. Rejects if the
+   * gateway refuses, for example for more than is left of the payment.
+   */
+  refund(request: {
+    paymentId: string;
+    amount: Money;
+    idempotencyKey: string;
+    notes: Record<string, string>;
+  }): Promise<GatewayRefund>;
+
+  /** Every refund of `paymentId`, as the gateway records it. */
+  fetchRefunds(paymentId: string): Promise<GatewayRefund[]>;
 }
 
 /** Thrown in production while no payment gateway is configured. */
@@ -127,6 +149,8 @@ export function unconfiguredGateway(reason?: string): PaymentGateway {
     verifyCheckout: () => false,
     readWebhook: () => null,
     fetchOrderPayments: () => Promise.reject(refuse()),
+    refund: () => Promise.reject(refuse()),
+    fetchRefunds: () => Promise.reject(refuse()),
   };
 }
 

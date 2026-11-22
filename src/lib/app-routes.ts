@@ -71,6 +71,22 @@ export function adminPaymentReviewCasePath(caseId: string): string {
   return `${ADMIN_PAYMENTS_REVIEW}/${encodeURIComponent(caseId)}`;
 }
 
+/**
+ * Refunds (#80): the finance queue and each refund's page. Listed with
+ * APP_ROUTE_TEMPLATES rather than in APP_ROUTES, like the payments pages.
+ */
+export const ADMIN_REFUNDS = "/admin/refunds";
+
+/** One refund's page: finance approves, rejects, retries or records it. */
+export function adminRefundPath(refundId: string): string {
+  return `${ADMIN_REFUNDS}/${encodeURIComponent(refundId)}`;
+}
+
+/** Where a competition manager or staff admin asks for a batch's refund. */
+export function adminBatchRefundPath(batchId: string): string {
+  return `${adminPaymentBatchPath(batchId)}/refund`;
+}
+
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
@@ -205,6 +221,9 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_PAYMENTS_REVIEW,
   "/admin/payments/batches/[id]",
   "/admin/payments/review/[id]",
+  ADMIN_REFUNDS,
+  "/admin/refunds/[id]",
+  "/admin/payments/batches/[id]/refund",
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/students/new",

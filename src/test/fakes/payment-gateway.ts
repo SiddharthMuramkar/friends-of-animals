@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type {
   CheckoutParams,
   GatewayPayment,
+  GatewayRefund,
   GatewayWebhook,
   Money,
   PaymentGateway,
@@ -31,8 +32,16 @@ export type FakeOrder = {
   notes: Record<string, string>;
 };
 
+/** A refund the fake holds, with the idempotency key it was made under. */
+export type FakeRefund = GatewayRefund & { idempotencyKey: string };
+
 /** What the fake's webhooks carry, before signing. */
-type FakeWebhookBody = { id: string; event: string; orderId: string | null };
+type FakeWebhookBody = {
+  id: string;
+  event: string;
+  orderId: string | null;
+  refund?: { refundId: string; paymentId: string };
+};
 
 /**
  * In-memory payment gateway for Seam 1 tests, with a webhook simulator. It
@@ -40,12 +49,20 @@ type FakeWebhookBody = { id: string; event: string; orderId: string | null };
  * (src/server/ports/payment-gateway.contract.ts) and adds what tests need
  * to play the payer and the gateway: capture or fail an order, post signed
  * (or badly signed) webhooks, refuse the next order or the next read of
- * an order's payments, list the orders.
+ * an order's payments, list the orders. For refunds (#80): list them,
+ * choose how the next one answers (pending, processed, failed, refused,
+ * or recorded with its answer lost), and settle a pending one later.
  */
 export class FakePaymentGateway implements PaymentGateway {
   readonly name = "fake";
   readonly #orders: FakeOrder[] = [];
   readonly #payments: GatewayPayment[] = [];
+  readonly #refunds: FakeRefund[] = [];
+  readonly #refundAnswers: (
+    | GatewayRefund["status"]
+    | "refused"
+    | "lost_response"
+  )[] = [];
   #refusals = 0;
   #fetchFailures = 0;
   #sequence = 0;
@@ -96,7 +113,12 @@ export class FakePaymentGateway implements PaymentGateway {
     const signature = headers.get(SIGNATURE_HEADER);
     if (!sameSignature(sign(WEBHOOK_SECRET, rawBody), signature)) return null;
     const body = JSON.parse(rawBody) as FakeWebhookBody;
-    return { eventId: body.id, type: body.event, orderId: body.orderId };
+    return {
+      eventId: body.id,
+      type: body.event,
+      orderId: body.orderId,
+      ...(body.refund ? { refund: body.refund } : {}),
+    };
   }
 
   async fetchOrderPayments(orderId: string): Promise<GatewayPayment[]> {
@@ -107,6 +129,83 @@ export class FakePaymentGateway implements PaymentGateway {
     return this.#payments
       .filter((payment) => payment.orderId === orderId)
       .map((payment) => ({ ...payment }));
+  }
+
+  async refund(request: {
+    paymentId: string;
+    amount: Money;
+    idempotencyKey: string;
+    notes: Record<string, string>;
+  }): Promise<GatewayRefund> {
+    const earlier = this.#refunds.find(
+      (each) => each.idempotencyKey === request.idempotencyKey
+    );
+    if (earlier) return this.#view(earlier);
+    const answer = this.#refundAnswers.shift() ?? "processed";
+    if (answer === "refused") {
+      throw new Error("FakePaymentGateway: refund refused");
+    }
+    const payment = this.#payments.find(
+      (each) => each.id === request.paymentId && each.status === "captured"
+    );
+    if (!payment) {
+      throw new Error(`FakePaymentGateway: no captured ${request.paymentId}`);
+    }
+    const refunded = this.#refunds
+      .filter(
+        (each) => each.paymentId === payment.id && each.status !== "failed"
+      )
+      .reduce((sum, each) => sum + each.amountMinor, 0n);
+    if (
+      request.amount.amountMinor <= 0n ||
+      refunded + request.amount.amountMinor > payment.amountMinor
+    ) {
+      throw new Error("FakePaymentGateway: more than is left to refund");
+    }
+    const refund: FakeRefund = {
+      id: `rfnd_fake_${this.#next()}`,
+      paymentId: payment.id,
+      amountMinor: request.amount.amountMinor,
+      currency: request.amount.currency,
+      status: answer === "lost_response" ? "processed" : answer,
+      notes: { ...request.notes },
+      idempotencyKey: request.idempotencyKey,
+    };
+    this.#refunds.push(refund);
+    if (answer === "lost_response") {
+      throw new Error("FakePaymentGateway: the refund's answer was lost");
+    }
+    return this.#view(refund);
+  }
+
+  async fetchRefunds(paymentId: string): Promise<GatewayRefund[]> {
+    return this.#refunds
+      .filter((each) => each.paymentId === paymentId)
+      .map((each) => this.#view(each));
+  }
+
+  /** Every refund made so far, oldest first, with its idempotency key. */
+  get refunds(): readonly FakeRefund[] {
+    return this.#refunds;
+  }
+
+  /**
+   * How the next `refund` answers: accepted and still `pending`, already
+   * `processed` (the default), `failed`, `refused` (it throws and records
+   * nothing), or `lost_response` (it records a processed refund, then
+   * throws, as a timeout after the gateway acted would).
+   */
+  answerNextRefund(
+    answer: GatewayRefund["status"] | "refused" | "lost_response"
+  ): void {
+    this.#refundAnswers.push(answer);
+  }
+
+  /** The gateway finishes a pending refund: processed or failed. */
+  settleRefund(refundId: string, status: "processed" | "failed"): void {
+    const refund = this.#refunds.find((each) => each.id === refundId);
+    if (!refund) throw new Error(`FakePaymentGateway: no refund ${refundId}`);
+    refund.status = status;
   }
 
   /** Every order made so far, oldest first. */
@@ -150,7 +249,11 @@ export class FakePaymentGateway implements PaymentGateway {
    * Passing the same body and headers again is a replay.
    */
   webhook(
-    event: { type: string; orderId: string | null },
+    event: {
+      type: string;
+      orderId: string | null;
+      refund?: { refundId: string; paymentId: string };
+    },
     {
       signature = "valid",
     }: { signature?: "valid" | "invalid" | "missing" } = {}
@@ -159,6 +262,7 @@ export class FakePaymentGateway implements PaymentGateway {
       id: `evt_fake_${this.#next()}`,
       event: event.type,
       orderId: event.orderId,
+      ...(event.refund ? { refund: event.refund } : {}),
     };
     const rawBody = JSON.stringify(body);
     const headers = new Headers({ "content-type": "application/json" });
@@ -187,6 +291,10 @@ export class FakePaymentGateway implements PaymentGateway {
       currency: paid.currency,
     });
     return paymentId;
+  }
+
+  #view({ idempotencyKey: _key, ...refund }: FakeRefund): GatewayRefund {
+    return { ...refund, notes: { ...refund.notes } };
   }
 
   #next(): number {

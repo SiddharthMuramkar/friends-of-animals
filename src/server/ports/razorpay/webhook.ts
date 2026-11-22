@@ -1,7 +1,9 @@
 // Reads a Razorpay webhook (#77): the X-Razorpay-Signature over the raw
 // body is checked first (./signature.ts), and only then is the body parsed
 // for the event name and the order it is about (the payment's order_id, or
-// the order's own id for order events).
+// the order's own id for order events). A refund event (refund.created,
+// refund.processed, refund.failed: razorpay.com/docs/webhooks/refunds) also
+// names the refund and the payment it returns (#80).
 //
 // The event's id, which the payments module dedupes webhooks on, is the
 // SHA-256 of the signed body, not Razorpay's x-razorpay-event-id header:
@@ -34,6 +36,14 @@ const eventBody = z.object({
         })
         .optional(),
       order: z.object({ entity: entityWithId }).optional(),
+      refund: z
+        .object({
+          entity: z.object({
+            id: z.string().min(1),
+            payment_id: z.string().min(1),
+          }),
+        })
+        .optional(),
     })
     .optional(),
 });
@@ -68,10 +78,14 @@ export function readRazorpayWebhook(
   const parsed = eventBody.safeParse(parseJson(rawBody));
   if (!parsed.success) return null;
   const { event, payload } = parsed.data;
+  const refund = payload?.refund?.entity;
   return {
     eventId: createHash("sha256").update(rawBody).digest("hex"),
     type: event,
     orderId:
       payload?.payment?.entity.order_id ?? payload?.order?.entity.id ?? null,
+    ...(refund
+      ? { refund: { refundId: refund.id, paymentId: refund.payment_id } }
+      : {}),
   };
 }

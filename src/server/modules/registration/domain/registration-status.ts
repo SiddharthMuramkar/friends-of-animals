@@ -17,6 +17,8 @@ export const REGISTRATION_STATUSES = [
   "withdrawn",
   /** An adult registered themselves and has not paid yet (#78). */
   "pending_payment",
+  /** Its fee went back to the payer (#80): no longer registered. */
+  "refunded",
   /**
    * A minor's registration, held until a guardian has verified and
    * accepted them (#81): it can't be paid for or confirmed until then.
@@ -69,12 +71,13 @@ const TRANSITIONS: {
   >;
 } = {
   enrolled: { withdrawn: "coordinator", confirmed: "payment" },
-  // Withdrawing a paid student waits for refunds (#80).
-  confirmed: {},
+  // A refund that lists it moves it, once the money is back (#80).
+  confirmed: { refunded: "payment" },
   withdrawn: {},
   // Withdrawing an unpaid registration of one's own waits for a later
   // ticket; only the payment moves it.
   pending_payment: { confirmed: "payment" },
+  refunded: {},
   // Only a verified guardian's acceptance releases it; nothing confirms it
   // directly, and nothing moves a registration back here.
   pending_guardian: { pending_payment: "guardian" },

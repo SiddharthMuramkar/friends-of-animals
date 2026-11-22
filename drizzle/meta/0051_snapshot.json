@@ -1,6 +1,6 @@
 {
-  "id": "7ca38799-baab-46e6-878f-4f787bb700b4",
-  "prevId": "c51913d3-d40d-4505-b9f5-753d8ae7eabe",
+  "id": "4e40fcd8-8b57-4dcc-822d-bac568e606d1",
+  "prevId": "d150ea97-5478-4abd-9816-a6c71b33c49e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7023,26 +7023,7 @@
           "name": "guardian_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
-        },
-        "requested_by_user_id": {
-          "name": "requested_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "invitee_name_ciphertext": {
-          "name": "invitee_name_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "relationship": {
-          "name": "relationship",
-          "type": "guardian_relationship",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "participant_profile_id": {
           "name": "participant_profile_id",
@@ -7164,21 +7145,6 @@
           "method": "btree",
           "with": {}
         },
-        "guardian_invitation_requested_by_user_id_idx": {
-          "name": "guardian_invitation_requested_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "requested_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "guardian_invitation_accepted_by_user_id_idx": {
           "name": "guardian_invitation_accepted_by_user_id_idx",
           "columns": [
@@ -7202,19 +7168,6 @@
           "tableTo": "guardian",
           "columnsFrom": [
             "guardian_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "guardian_invitation_requested_by_user_id_user_id_fk": {
-          "name": "guardian_invitation_requested_by_user_id_user_id_fk",
-          "tableFrom": "guardian_invitation",
-          "tableTo": "user",
-          "columnsFrom": [
-            "requested_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -7261,18 +7214,6 @@
       },
       "policies": {},
       "checkConstraints": {
-        "guardian_invitation_teen_login_has_guardian": {
-          "name": "guardian_invitation_teen_login_has_guardian",
-          "value": "\"guardian_invitation\".\"kind\" <> 'teen_login' OR \"guardian_invitation\".\"guardian_id\" IS NOT NULL"
-        },
-        "guardian_invitation_request_complete": {
-          "name": "guardian_invitation_request_complete",
-          "value": "\"guardian_invitation\".\"kind\" <> 'guardian_request' OR (\"guardian_invitation\".\"requested_by_user_id\" IS NOT NULL AND \"guardian_invitation\".\"invitee_name_ciphertext\" IS NOT NULL AND \"guardian_invitation\".\"relationship\" IS NOT NULL)"
-        },
-        "guardian_invitation_request_fields_only_on_requests": {
-          "name": "guardian_invitation_request_fields_only_on_requests",
-          "value": "\"guardian_invitation\".\"kind\" = 'guardian_request' OR (\"guardian_invitation\".\"requested_by_user_id\" IS NULL AND \"guardian_invitation\".\"invitee_name_ciphertext\" IS NULL AND \"guardian_invitation\".\"relationship\" IS NULL)"
-        },
         "guardian_invitation_token_only_while_pending": {
           "name": "guardian_invitation_token_only_while_pending",
           "value": "\"guardian_invitation\".\"status\" = 'pending' OR \"guardian_invitation\".\"token_ciphertext\" IS NULL"
@@ -7549,6 +7490,669 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.gateway_test_refund": {
+      "name": "gateway_test_refund",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "payment_id": {
+          "name": "payment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'INR'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "gateway_test_refund_payment_id_idx": {
+          "name": "gateway_test_refund_payment_id_idx",
+          "columns": [
+            {
+              "expression": "payment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "gateway_test_refund_payment_id_gateway_test_payment_id_fk": {
+          "name": "gateway_test_refund_payment_id_gateway_test_payment_id_fk",
+          "tableFrom": "gateway_test_refund",
+          "tableTo": "gateway_test_payment",
+          "columnsFrom": [
+            "payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "gateway_test_refund_idempotency_key": {
+          "name": "gateway_test_refund_idempotency_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "idempotency_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "gateway_test_refund_amount_positive": {
+          "name": "gateway_test_refund_amount_positive",
+          "value": "\"gateway_test_refund\".\"amount_minor\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.refund": {
+      "name": "refund",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "review_case_id": {
+          "name": "review_case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gateway_payment_id": {
+          "name": "gateway_payment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "refund_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "refund_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "method": {
+          "name": "method",
+          "type": "refund_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'INR'"
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_by": {
+          "name": "requested_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decision_note": {
+          "name": "decision_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempt": {
+          "name": "attempt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "gateway_refund_id": {
+          "name": "gateway_refund_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_method": {
+          "name": "manual_method",
+          "type": "refund_manual_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_reference": {
+          "name": "manual_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_recorded_by": {
+          "name": "manual_recorded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refunded_at": {
+          "name": "refunded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failed_at": {
+          "name": "failed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "refund_batch_id_idx": {
+          "name": "refund_batch_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_status_requested_at_idx": {
+          "name": "refund_status_requested_at_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "requested_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_requested_at_idx": {
+          "name": "refund_requested_at_idx",
+          "columns": [
+            {
+              "expression": "requested_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_gateway_payment_id_idx": {
+          "name": "refund_gateway_payment_id_idx",
+          "columns": [
+            {
+              "expression": "gateway_payment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_review_case_id_idx": {
+          "name": "refund_review_case_id_idx",
+          "columns": [
+            {
+              "expression": "review_case_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_requested_by_idx": {
+          "name": "refund_requested_by_idx",
+          "columns": [
+            {
+              "expression": "requested_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_decided_by_idx": {
+          "name": "refund_decided_by_idx",
+          "columns": [
+            {
+              "expression": "decided_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_manual_recorded_by_idx": {
+          "name": "refund_manual_recorded_by_idx",
+          "columns": [
+            {
+              "expression": "manual_recorded_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "refund_batch_id_payment_batch_id_fk": {
+          "name": "refund_batch_id_payment_batch_id_fk",
+          "tableFrom": "refund",
+          "tableTo": "payment_batch",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "refund_review_case_id_payment_review_case_id_fk": {
+          "name": "refund_review_case_id_payment_review_case_id_fk",
+          "tableFrom": "refund",
+          "tableTo": "payment_review_case",
+          "columnsFrom": [
+            "review_case_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "refund_requested_by_user_id_fk": {
+          "name": "refund_requested_by_user_id_fk",
+          "tableFrom": "refund",
+          "tableTo": "user",
+          "columnsFrom": [
+            "requested_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "refund_decided_by_user_id_fk": {
+          "name": "refund_decided_by_user_id_fk",
+          "tableFrom": "refund",
+          "tableTo": "user",
+          "columnsFrom": [
+            "decided_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "refund_manual_recorded_by_user_id_fk": {
+          "name": "refund_manual_recorded_by_user_id_fk",
+          "tableFrom": "refund",
+          "tableTo": "user",
+          "columnsFrom": [
+            "manual_recorded_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "refund_idempotency_key": {
+          "name": "refund_idempotency_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "idempotency_key"
+          ]
+        },
+        "refund_gateway_refund_id": {
+          "name": "refund_gateway_refund_id",
+          "nullsNotDistinct": false,
+          "columns": [
+            "gateway_refund_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "refund_amount_positive": {
+          "name": "refund_amount_positive",
+          "value": "\"refund\".\"amount_minor\" > 0"
+        },
+        "refund_currency_inr": {
+          "name": "refund_currency_inr",
+          "value": "\"refund\".\"currency\" = 'INR'"
+        },
+        "refund_attempt_positive": {
+          "name": "refund_attempt_positive",
+          "value": "\"refund\".\"attempt\" >= 1"
+        },
+        "refund_reason_present": {
+          "name": "refund_reason_present",
+          "value": "length(trim(\"refund\".\"reason\")) > 0"
+        },
+        "refund_decider_not_requester": {
+          "name": "refund_decider_not_requester",
+          "value": "\"refund\".\"requested_by\" IS NULL OR \"refund\".\"decided_by\" IS NULL OR \"refund\".\"requested_by\" <> \"refund\".\"decided_by\""
+        },
+        "refund_gateway_has_payment": {
+          "name": "refund_gateway_has_payment",
+          "value": "\"refund\".\"method\" <> 'gateway' OR \"refund\".\"gateway_payment_id\" IS NOT NULL"
+        },
+        "refund_manual_recorded_when_refunded": {
+          "name": "refund_manual_recorded_when_refunded",
+          "value": "\"refund\".\"method\" <> 'manual' OR \"refund\".\"status\" <> 'refunded' OR (\"refund\".\"manual_method\" IS NOT NULL AND \"refund\".\"manual_reference\" IS NOT NULL)"
+        },
+        "refund_manual_has_no_gateway_refund": {
+          "name": "refund_manual_has_no_gateway_refund",
+          "value": "\"refund\".\"method\" <> 'manual' OR \"refund\".\"gateway_refund_id\" IS NULL"
+        },
+        "refund_failed_at_when_failed": {
+          "name": "refund_failed_at_when_failed",
+          "value": "\"refund\".\"status\" <> 'failed' OR \"refund\".\"failed_at\" IS NOT NULL"
+        },
+        "refund_refunded_at_when_refunded": {
+          "name": "refund_refunded_at_when_refunded",
+          "value": "(\"refund\".\"status\" = 'refunded') = (\"refund\".\"refunded_at\" IS NOT NULL)"
+        },
+        "refund_case_only_for_duplicates": {
+          "name": "refund_case_only_for_duplicates",
+          "value": "(\"refund\".\"kind\" = 'duplicate') = (\"refund\".\"review_case_id\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.refund_item": {
+      "name": "refund_item",
+      "schema": "",
+      "columns": {
+        "refund_id": {
+          "name": "refund_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_id": {
+          "name": "registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "released_at": {
+          "name": "released_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "refund_item_live_registration_unique": {
+          "name": "refund_item_live_registration_unique",
+          "columns": [
+            {
+              "expression": "registration_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"refund_item\".\"released_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_item_batch_id_registration_id_idx": {
+          "name": "refund_item_batch_id_registration_id_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "registration_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "refund_item_refund_id_refund_id_fk": {
+          "name": "refund_item_refund_id_refund_id_fk",
+          "tableFrom": "refund_item",
+          "tableTo": "refund",
+          "columnsFrom": [
+            "refund_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "refund_item_registration_id_registration_id_fk": {
+          "name": "refund_item_registration_id_registration_id_fk",
+          "tableFrom": "refund_item",
+          "tableTo": "registration",
+          "columnsFrom": [
+            "registration_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "refund_item_batch_item_fk": {
+          "name": "refund_item_batch_item_fk",
+          "tableFrom": "refund_item",
+          "tableTo": "payment_batch_item",
+          "columnsFrom": [
+            "batch_id",
+            "registration_id"
+          ],
+          "columnsTo": [
+            "batch_id",
+            "registration_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "refund_item_refund_id_registration_id_pk": {
+          "name": "refund_item_refund_id_registration_id_pk",
+          "columns": [
+            "refund_id",
+            "registration_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "refund_item_amount_positive": {
+          "name": "refund_item_amount_positive",
+          "value": "\"refund_item\".\"amount_minor\" > 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.cms_post": {
@@ -8243,8 +8847,7 @@
         "consent_withdrawn",
         "sms_disabled",
         "sms_unregistered",
-        "no_contact",
-        "no_guardian"
+        "no_contact"
       ]
     },
     "public.guardian_relationship": {
@@ -8287,7 +8890,7 @@
         "confirmed",
         "withdrawn",
         "pending_payment",
-        "pending_guardian"
+        "refunded"
       ]
     },
     "public.offline_payment_method": {
@@ -8336,7 +8939,8 @@
         "registration_cancelled",
         "amount_mismatch",
         "registration_closed",
-        "batch_superseded"
+        "batch_superseded",
+        "paid_while_in_review"
       ]
     },
     "public.guardian_invitation_channel": {
@@ -8370,6 +8974,44 @@
       "values": [
         "email_otp",
         "phone_otp"
+      ]
+    },
+    "public.refund_kind": {
+      "name": "refund_kind",
+      "schema": "public",
+      "values": [
+        "discretionary",
+        "cancellation",
+        "duplicate"
+      ]
+    },
+    "public.refund_manual_method": {
+      "name": "refund_manual_method",
+      "schema": "public",
+      "values": [
+        "cheque",
+        "bank_transfer",
+        "cash"
+      ]
+    },
+    "public.refund_method": {
+      "name": "refund_method",
+      "schema": "public",
+      "values": [
+        "gateway",
+        "manual"
+      ]
+    },
+    "public.refund_status": {
+      "name": "refund_status",
+      "schema": "public",
+      "values": [
+        "requested",
+        "approved",
+        "rejected",
+        "processing",
+        "refunded",
+        "failed"
       ]
     },
     "public.post_audience": {

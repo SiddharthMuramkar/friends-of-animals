@@ -1,7 +1,9 @@
 // Opening review cases (#79): captured payments a batch can't accept. The
 // batch moves to needs_review, and each payment gets one case, with why
 // and where the batch stood, so resolving it knows where the batch goes
-// back to. Nothing is confirmed or refunded here.
+// back to. A captured batch paid again stays captured (#80, from #79's
+// review): its students are confirmed, and only the second payment is in
+// review. Nothing is confirmed or refunded here.
 //
 // Each payment is reviewed once: a case is unique per batch and payment,
 // and the capture decision skips payments that already have one, so a
@@ -100,7 +102,10 @@ export async function openReviewCases(
 ): Promise<number> {
   if (reviewed.length === 0) return 0;
   const batchStatusBefore = await statusBeforeReview(tx, batch);
-  const move = nextPaymentBatchStatus(batch.status, "review_opened");
+  const move =
+    batch.status === "captured"
+      ? ({ ok: true, to: "captured" } as const)
+      : nextPaymentBatchStatus(batch.status, "review_opened");
   if (!move.ok) throw new Error(`Batch ${batch.id} can't go to review`);
   const now = ctx.clock.now();
   if (batch.status !== move.to) {

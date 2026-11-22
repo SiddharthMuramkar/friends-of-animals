@@ -73,6 +73,7 @@ describe("listEnrolledStudents", () => {
         confirmed: 0,
         withdrawn: 1,
         pending_payment: 0,
+        refunded: 0,
         pending_guardian: 0,
       },
       students: [
@@ -118,7 +119,13 @@ describe("listEnrolledStudents", () => {
     expect(before).toMatchObject({
       ok: true,
       enrolment: "open",
-      counts: { enrolled: 0, confirmed: 0, withdrawn: 0, pending_payment: 0 },
+      counts: {
+        enrolled: 0,
+        confirmed: 0,
+        withdrawn: 0,
+        pending_payment: 0,
+        refunded: 0,
+      },
       students: [],
     });
     expect(after).toMatchObject({ ok: true, enrolment: "closed" });
