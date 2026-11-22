@@ -26,7 +26,9 @@ import {
 } from "../../../rich-text/post-body";
 import type { UseCaseContext } from "../../../use-cases";
 import type { PostAudience, PostKind } from "../domain/post-kinds";
-import type { PostStatus } from "../domain/post-status";
+import { canEditPost, type PostStatus } from "../domain/post-status";
+import { postTags } from "./cache-tags";
+import { goingLiveRefusal, type ImageNotReady } from "./gates";
 import {
   readPostInput,
   refusal,
@@ -95,7 +97,9 @@ export type UpdatePostResult =
   | { ok: true; tags: string[] }
   | PostInputRefusal
   | UnknownImage
-  | { ok: false; error: "not_found" };
+  | ImageNotReady
+  /** Archived posts are read-only until restored. */
+  | { ok: false; error: "not_found" | "archived" };
 
 export type GetPostForEditResult =
   | { ok: true; post: PostForEdit }
@@ -194,7 +198,10 @@ export async function updatePost(
   return ctx.db.transaction(async (tx): Promise<UpdatePostResult> => {
     const post = await loadPost(tx, postId, { lock: true });
     if (!post) return { ok: false, error: "not_found" };
-    const read = readPostInput(fields, { draft: true });
+    if (!canEditPost(post.status)) return { ok: false, error: "archived" };
+    // A scheduled or published post stays ready to go live.
+    const live = post.status !== "draft";
+    const read = readPostInput(fields, { draft: !live });
     if (!read.ok) return read;
     const { values } = read;
     if (await slugTaken(tx, values.slug, post.id)) {
@@ -203,11 +210,15 @@ export async function updatePost(
     if (!(await imagesBelong(tx, post.id, values))) {
       return { ok: false, error: "unknown_image" };
     }
+    if (live) {
+      const refused = await goingLiveRefusal(tx, post.id, values);
+      if (refused) return refused;
+    }
     await tx
       .update(cmsPost)
       .set({ ...columns(values), updatedBy: userIdOf(ctx), updatedAt: now })
       .where(eq(cmsPost.id, post.id));
-    return { ok: true, tags: [] };
+    return { ok: true, tags: live ? postTags(post.slug, values.slug) : [] };
   });
 }
 

@@ -91,6 +91,21 @@ export type DomainEvent =
       type: "competitions.key_date_scheduled";
       aggregate: { type: "competition"; id: string };
       payload: { competitionId: string; kind: KeyDateKind; dueAt: string };
+    }
+  | {
+      /**
+       * A post was scheduled for `publishAt` (#112). Saved with
+       * `availableAt: publishAt`, so its publish job runs at the instant.
+       */
+      type: "cms.post_scheduled";
+      aggregate: { type: "cms_post"; id: string };
+      payload: { postId: string; publishAt: string };
+    }
+  | {
+      /** A post went live, by hand or at its scheduled instant (#112). */
+      type: "cms.post_published";
+      aggregate: { type: "cms_post"; id: string };
+      payload: { postId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -133,6 +148,11 @@ export const EVENT_PAYLOADS = {
     kind: z.enum(KEY_DATE_KINDS),
     dueAt: z.iso.datetime(),
   }),
+  "cms.post_scheduled": z.object({
+    postId: z.uuid(),
+    publishAt: z.iso.datetime(),
+  }),
+  "cms.post_published": z.object({ postId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -158,6 +178,9 @@ export const SUBSCRIBERS = {
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
   "competitions.key_date_scheduled": ["competitions.advance_status"],
+  "cms.post_scheduled": ["cms.publish_scheduled_post"],
+  // No route sends anything for it yet; a "new story" message can follow it.
+  "cms.post_published": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

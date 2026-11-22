@@ -18,6 +18,13 @@ import {
 } from "./posts/images";
 import type { PostInput } from "./posts/input";
 import {
+  archivePost,
+  publishPost,
+  restorePost,
+  schedulePost,
+  unschedulePost,
+} from "./posts/publishing";
+import {
   listCmsDocuments,
   listRevisions,
   publishRevision,
@@ -57,6 +64,14 @@ export type {
   UploadPostImageResult,
 } from "./posts/images";
 export type {
+  ArchivePostResult,
+  PublishPostResult,
+  RestorePostResult,
+  SchedulePostResult,
+  UnschedulePostResult,
+} from "./posts/publishing";
+export { POST_TAGS } from "./posts/cache-tags";
+export type {
   PostInput,
   PostInputField,
   PostInputRefusal,
@@ -84,4 +99,10 @@ export const cmsUseCases = (ctx: UseCaseContext) => ({
   uploadPostImage: (input: UploadPostImageInput) => uploadPostImage(ctx, input),
   describePostImage: (input: { postImageId: string; alt: string }) =>
     describePostImage(ctx, input),
+  schedulePost: (input: { postId: string; publishAt: Date | string }) =>
+    schedulePost(ctx, input),
+  unschedulePost: (input: { postId: string }) => unschedulePost(ctx, input),
+  publishPost: (input: { postId: string }) => publishPost(ctx, input),
+  archivePost: (input: { postId: string }) => archivePost(ctx, input),
+  restorePost: (input: { postId: string }) => restorePost(ctx, input),
 });

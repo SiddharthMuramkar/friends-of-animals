@@ -18,6 +18,7 @@ import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { runStatusJob } from "../modules/competitions/advance-status";
 import { publishPostImage } from "../modules/cms/posts/images";
+import { publishScheduledPost } from "../modules/cms/posts/publishing";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -78,6 +79,8 @@ export const HANDLERS: Handlers = {
     runStatusJob(deps, payload),
   "cms.publish_post_image": (deps, { payload }) =>
     publishPostImage(deps, payload),
+  "cms.publish_scheduled_post": (deps, { payload }) =>
+    publishScheduledPost(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */
