@@ -33,10 +33,14 @@ export const REFUND_TEXT_MAX_LENGTH = 500;
 export function checkRefundText(
   raw: string,
   { required }: { required: boolean }
-): { ok: true; text: string | null } | { ok: false; error: "required" | "too_long" } {
+):
+  | { ok: true; text: string | null }
+  | { ok: false; error: "required" | "too_long" } {
   const text = raw.trim();
   if (text === "") {
-    return required ? { ok: false, error: "required" } : { ok: true, text: null };
+    return required
+      ? { ok: false, error: "required" }
+      : { ok: true, text: null };
   }
   if (characterCount(text) > REFUND_TEXT_MAX_LENGTH) {
     return { ok: false, error: "too_long" };
@@ -107,7 +111,9 @@ export async function releaseItems(
   await tx
     .update(refundItem)
     .set({ releasedAt: at })
-    .where(and(eq(refundItem.refundId, refundId), isNull(refundItem.releasedAt)));
+    .where(
+      and(eq(refundItem.refundId, refundId), isNull(refundItem.releasedAt))
+    );
 }
 
 /**
@@ -124,7 +130,9 @@ export async function refundRegistrations(
     .select({ id: registration.id, status: registration.status })
     .from(refundItem)
     .innerJoin(registration, eq(registration.id, refundItem.registrationId))
-    .where(and(eq(refundItem.refundId, refundId), isNull(refundItem.releasedAt)))
+    .where(
+      and(eq(refundItem.refundId, refundId), isNull(refundItem.releasedAt))
+    )
     .orderBy(asc(registration.id))
     .for("update", { of: registration });
   const moving = rows

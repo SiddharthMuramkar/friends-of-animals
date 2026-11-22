@@ -10,7 +10,12 @@
 import { and, asc, eq } from "drizzle-orm";
 
 import type { AppDb } from "../../../db/app-db";
-import { competition, paymentBatch, refund, userRole } from "../../../db/schema";
+import {
+  competition,
+  paymentBatch,
+  refund,
+  userRole,
+} from "../../../db/schema";
 import { formatPaise } from "../domain/money-format";
 
 /** The variables a refund template may use, beyond the recipient's. */

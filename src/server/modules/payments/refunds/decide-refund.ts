@@ -151,7 +151,12 @@ export async function rejectRefund(
     if (!row) return { ok: false, error: "not_found" };
     if (row.status === "requested") {
       const check = checkRefundDecision(row, decidedBy);
-      if (!check.ok) return { ok: false, error: check.reason === "same_person" ? "same_person" : "not_rejectable" };
+      if (!check.ok)
+        return {
+          ok: false,
+          error:
+            check.reason === "same_person" ? "same_person" : "not_rejectable",
+        };
     }
     const move = nextRefundStatus(row.status, "rejected");
     if (!move.ok) return { ok: false, error: "not_rejectable" };

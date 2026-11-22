@@ -21,10 +21,7 @@ import {
   type GetRefundInput,
   type ListRefundsInput,
 } from "./list-refunds";
-import {
-  requestRefund,
-  type RequestRefundInput,
-} from "./request-refund";
+import { requestRefund, type RequestRefundInput } from "./request-refund";
 import {
   recordManualRefund,
   retryRefund,
@@ -56,10 +53,7 @@ export type {
   RetryRefundInput,
   RetryRefundResult,
 } from "./retry-refund";
-export type {
-  RequestRefundInput,
-  RequestRefundResult,
-} from "./request-refund";
+export type { RequestRefundInput, RequestRefundResult } from "./request-refund";
 
 export const refundsUseCases = (ctx: UseCaseContext) => ({
   requestRefund: (input: RequestRefundInput) => requestRefund(ctx, input),

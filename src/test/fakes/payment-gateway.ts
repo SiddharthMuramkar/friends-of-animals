@@ -152,7 +152,9 @@ export class FakePaymentGateway implements PaymentGateway {
       throw new Error(`FakePaymentGateway: no captured ${request.paymentId}`);
     }
     const refunded = this.#refunds
-      .filter((each) => each.paymentId === payment.id && each.status !== "failed")
+      .filter(
+        (each) => each.paymentId === payment.id && each.status !== "failed"
+      )
       .reduce((sum, each) => sum + each.amountMinor, 0n);
     if (
       request.amount.amountMinor <= 0n ||

@@ -15,7 +15,11 @@ import {
 // request page's batch. Students appear by registration number, never by
 // name.
 
-async function ask(h: Harness, paid: CapturedBatch, registrationIds?: string[]) {
+async function ask(
+  h: Harness,
+  paid: CapturedBatch,
+  registrationIds?: string[]
+) {
   const staff = await signInStaff(h, "staff_admin");
   const result = await h.as(staff.actor).requestRefund({
     batchId: paid.batchId,
@@ -29,39 +33,42 @@ async function ask(h: Harness, paid: CapturedBatch, registrationIds?: string[]) 
 describe("listRefunds", () => {
   it("lists refunds waiting for finance newest first, then those in progress and done", async () => {
     const h = await createHarness();
-    const older = await capturedBatch(h, { students: 2, name: "Banyan School" });
+    const older = await capturedBatch(h, {
+      students: 2,
+      name: "Banyan School",
+    });
     const first = await ask(h, older);
     h.clock.advance({ minutes: 2 });
     const newer = await capturedBatch(h, { students: 3, code: "KITE27" });
     const second = await ask(h, newer, [newer.registrationIds[0]!]);
     const finance = await signInStaff(h, "finance");
 
-    expect(
-      await h.as(finance.actor).listRefunds({ state: "waiting" })
-    ).toEqual({
-      ok: true,
-      refunds: [
-        expect.objectContaining({
-          id: second.refundId,
-          kind: "discretionary",
-          status: "requested",
-          amountMinor: FEE_PAISE,
-          students: 1,
-          competitionName: "Competition KITE27",
-          payer: { kind: "institution", name: "Test School" },
-        }),
-        expect.objectContaining({
-          id: first.refundId,
-          amountMinor: FEE_PAISE * 2n,
-          students: 2,
-          payer: { kind: "institution", name: "Banyan School" },
-        }),
-      ],
-    });
+    expect(await h.as(finance.actor).listRefunds({ state: "waiting" })).toEqual(
+      {
+        ok: true,
+        refunds: [
+          expect.objectContaining({
+            id: second.refundId,
+            kind: "discretionary",
+            status: "requested",
+            amountMinor: FEE_PAISE,
+            students: 1,
+            competitionName: "Competition KITE27",
+            payer: { kind: "institution", name: "Test School" },
+          }),
+          expect.objectContaining({
+            id: first.refundId,
+            amountMinor: FEE_PAISE * 2n,
+            students: 2,
+            payer: { kind: "institution", name: "Banyan School" },
+          }),
+        ],
+      }
+    );
 
     await h.as(finance.actor).approveRefund({ refundId: first.refundId });
     expect(
-      (await h.as(finance.actor).listRefunds({ state: "in_progress" }))
+      await h.as(finance.actor).listRefunds({ state: "in_progress" })
     ).toMatchObject({ ok: true, refunds: [{ id: first.refundId }] });
     await h.drain();
     expect(
@@ -80,9 +87,9 @@ describe("listRefunds", () => {
       (await signInStaff(h, "staff_admin")).actor,
       (await signInManager(h, "global")).actor,
     ]) {
-      expect(
-        await h.as(actor).listRefunds({ state: "waiting" })
-      ).toMatchObject({ ok: true });
+      expect(await h.as(actor).listRefunds({ state: "waiting" })).toMatchObject(
+        { ok: true }
+      );
     }
     for (const actor of [
       await h.signIn(await h.seed.member()),

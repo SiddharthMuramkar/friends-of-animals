@@ -197,7 +197,10 @@ export const refundItem = pgTable(
     foreignKey({
       name: "refund_item_batch_item_fk",
       columns: [table.batchId, table.registrationId],
-      foreignColumns: [paymentBatchItem.batchId, paymentBatchItem.registrationId],
+      foreignColumns: [
+        paymentBatchItem.batchId,
+        paymentBatchItem.registrationId,
+      ],
     }).onDelete("restrict"),
     // One live refund at a time holds a registration, and a refunded one
     // holds it for good: nothing is refunded twice.

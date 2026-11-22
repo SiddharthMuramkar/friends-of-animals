@@ -85,7 +85,11 @@ describe("refund", () => {
   });
 
   it.each<[string, (now: Date) => Partial<NewRefund>, RegExp]>([
-    ["a refund of nothing", () => ({ amountMinor: 0n }), /refund_amount_positive/],
+    [
+      "a refund of nothing",
+      () => ({ amountMinor: 0n }),
+      /refund_amount_positive/,
+    ],
     ["another currency", () => ({ currency: "USD" }), /refund_currency_inr/],
     ["an empty reason", () => ({ reason: "  " }), /refund_reason_present/],
     ["attempt 0", () => ({ attempt: 0 }), /refund_attempt_positive/],

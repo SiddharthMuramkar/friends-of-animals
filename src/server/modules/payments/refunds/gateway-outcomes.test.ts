@@ -49,7 +49,11 @@ function refundWebhook(
   options?: { signature?: "valid" | "invalid" | "missing" }
 ) {
   return h.gateway.webhook(
-    { type, orderId: paid.orderId, refund: { refundId, paymentId: paid.paymentId } },
+    {
+      type,
+      orderId: paid.orderId,
+      refund: { refundId, paymentId: paid.paymentId },
+    },
     options
   );
 }
@@ -86,9 +90,10 @@ describe("a refund the gateway holds", () => {
       paid,
       h.gateway.refunds[0]!.id
     );
-    expect(
-      await h.as(h.visitor()).receiveGatewayWebhook(webhook)
-    ).toEqual({ ok: true, outcome: "refund_updated" });
+    expect(await h.as(h.visitor()).receiveGatewayWebhook(webhook)).toEqual({
+      ok: true,
+      outcome: "refund_updated",
+    });
     expect((await refundRow(h, refundId)).status).toBe("refunded");
     expect(await statusesOf(h, paid.registrationIds)).toEqual([
       "refunded",
@@ -110,9 +115,11 @@ describe("a refund the gateway holds", () => {
     const early = await approved(h);
     // The webhook names a payment of ours before our drain has sent
     // anything: it sends and settles the refund itself.
-    const webhookFirst = await h.as(h.visitor()).receiveGatewayWebhook(
-      refundWebhook(h, "refund.processed", early.paid, "rfnd_unknown")
-    );
+    const webhookFirst = await h
+      .as(h.visitor())
+      .receiveGatewayWebhook(
+        refundWebhook(h, "refund.processed", early.paid, "rfnd_unknown")
+      );
     await h.drain();
 
     expect(webhookFirst).toEqual({ ok: true, outcome: "refund_updated" });
@@ -134,13 +141,11 @@ describe("a refund the gateway holds", () => {
     const before = await refundRows(h);
 
     expect(
-      await h
-        .as(h.visitor())
-        .receiveGatewayWebhook(
-          refundWebhook(h, "refund.processed", paid, h.gateway.refunds[0]!.id, {
-            signature: "invalid",
-          })
-        )
+      await h.as(h.visitor()).receiveGatewayWebhook(
+        refundWebhook(h, "refund.processed", paid, h.gateway.refunds[0]!.id, {
+          signature: "invalid",
+        })
+      )
     ).toEqual({ ok: false, error: "rejected" });
     expect(await refundRows(h)).toEqual(before);
     expect((await refundRow(h, refundId)).status).toBe("processing");
@@ -236,9 +241,9 @@ describe("a refund the gateway fails", () => {
       (await signInStaff(h, "staff_admin")).actor,
       (await signInManager(h, "global")).actor,
     ]) {
-      await expect(
-        h.as(actor).retryRefund({ refundId })
-      ).rejects.toMatchObject({ code: "forbidden" });
+      await expect(h.as(actor).retryRefund({ refundId })).rejects.toMatchObject(
+        { code: "forbidden" }
+      );
     }
   });
 });
@@ -369,7 +374,9 @@ describe("a batch paid offline", () => {
       error: "not_manual",
     });
     await expect(
-      h.as((await signInStaff(h, "staff_admin")).actor).recordManualRefund(manual)
+      h
+        .as((await signInStaff(h, "staff_admin")).actor)
+        .recordManualRefund(manual)
     ).rejects.toMatchObject({ code: "forbidden" });
   });
 });

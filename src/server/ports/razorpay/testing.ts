@@ -274,9 +274,7 @@ export function fakeRazorpayApi({
       return json(200, { entity: "collection", count: items.length, items });
     }
 
-    const refundPath = /^\/v1\/payments\/([^/]+)\/refund$/.exec(
-      url.pathname
-    );
+    const refundPath = /^\/v1\/payments\/([^/]+)\/refund$/.exec(url.pathname);
     if (request.method === "POST" && refundPath) {
       const paymentId = decodeURIComponent(refundPath[1]!);
       const payment = payments.find((each) => each.id === paymentId);
@@ -328,9 +326,7 @@ export function fakeRazorpayApi({
       return json(200, refundView(refund));
     }
 
-    const refundsPath = /^\/v1\/payments\/([^/]+)\/refunds$/.exec(
-      url.pathname
-    );
+    const refundsPath = /^\/v1\/payments\/([^/]+)\/refunds$/.exec(url.pathname);
     if (request.method === "GET" && refundsPath) {
       const paymentId = decodeURIComponent(refundsPath[1]!);
       if (!payments.some((each) => each.id === paymentId)) {

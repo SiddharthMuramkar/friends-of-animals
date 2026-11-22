@@ -28,7 +28,9 @@ describe("planRefund()", () => {
   });
 
   it("refunds only the listed items of a partial refund", () => {
-    expect(planRefund(batch(), { registrationIds: ["reg-c", "reg-a"] })).toEqual({
+    expect(
+      planRefund(batch(), { registrationIds: ["reg-c", "reg-a"] })
+    ).toEqual({
       ok: true,
       registrationIds: ["reg-c", "reg-a"],
       amountMinor: 65_000n,
@@ -67,7 +69,9 @@ describe("planRefund()", () => {
   });
 
   it("refuses an item listed twice", () => {
-    expect(planRefund(batch(), { registrationIds: ["reg-a", "reg-a"] })).toEqual({
+    expect(
+      planRefund(batch(), { registrationIds: ["reg-a", "reg-a"] })
+    ).toEqual({
       ok: false,
       reason: "duplicate_item",
       registrationId: "reg-a",
@@ -75,7 +79,9 @@ describe("planRefund()", () => {
   });
 
   it("refuses an item from another batch", () => {
-    expect(planRefund(batch(), { registrationIds: ["reg-a", "reg-z"] })).toEqual({
+    expect(
+      planRefund(batch(), { registrationIds: ["reg-a", "reg-z"] })
+    ).toEqual({
       ok: false,
       reason: "unknown_item",
       registrationId: "reg-z",

@@ -31,7 +31,10 @@ import {
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import type { RegistrationStatus } from "../../registration/domain/registration-status";
-import type { PaymentBatchStatus, PaymentCaptureMethod } from "../domain/batch-status";
+import type {
+  PaymentBatchStatus,
+  PaymentCaptureMethod,
+} from "../domain/batch-status";
 import type { OfflinePaymentMethod } from "../domain/offline-payment";
 import type { ItemRefundState } from "../domain/refund-plan";
 import type {
@@ -391,7 +394,10 @@ export async function getRefundableBatch(
       status: registration.status,
     })
     .from(paymentBatchItem)
-    .innerJoin(registration, eq(registration.id, paymentBatchItem.registrationId))
+    .innerJoin(
+      registration,
+      eq(registration.id, paymentBatchItem.registrationId)
+    )
     .where(
       and(
         eq(paymentBatchItem.batchId, row.id),

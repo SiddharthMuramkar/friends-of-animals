@@ -5,7 +5,12 @@ import { outbox, user } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { signInStaff } from "../testing";
-import { capturedBatch, REASON, refundRow, type CapturedBatch } from "./testing";
+import {
+  capturedBatch,
+  REASON,
+  refundRow,
+  type CapturedBatch,
+} from "./testing";
 
 // #80 slice 5 (messages): once a refund's money is back, whoever paid the
 // batch is told, by email and in the app (refund.processed, emitted in

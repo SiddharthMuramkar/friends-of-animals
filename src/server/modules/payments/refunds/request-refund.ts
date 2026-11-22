@@ -106,83 +106,86 @@ export async function requestRefund(
   if (!reason.ok) {
     return {
       ok: false,
-      error: reason.error === "required" ? "reason_required" : "reason_too_long",
+      error:
+        reason.error === "required" ? "reason_required" : "reason_too_long",
     };
   }
 
   try {
-    return await ctx.db.transaction(async (tx): Promise<RequestRefundResult> => {
-      // One request at a time per batch, so two can't list one student.
-      const batch = await lockBatch(tx, batchId);
-      if (!batch) return { ok: false, error: "not_found" };
-      const plan = planRefund(
-        {
-          captured: batch.status === "captured",
-          amountMinor: batch.amountMinor,
-          currency: "INR",
-          items: await refundableItems(tx, batch.id),
-        },
-        registrationIds === undefined ? {} : { registrationIds }
-      );
-      if (!plan.ok) return refusalOf(plan);
-
-      const now = ctx.clock.now();
-      const refundId = uuidv7(now);
-      const manual = batch.captureMethod === "offline";
-      const status = initialRefundStatus("discretionary");
-      await tx.insert(refund).values({
-        id: refundId,
-        batchId: batch.id,
-        gatewayPaymentId: manual ? null : batch.gatewayPaymentId,
-        kind: "discretionary",
-        status,
-        method: manual ? "manual" : "gateway",
-        amountMinor: plan.amountMinor,
-        currency: plan.currency,
-        reason: reason.text ?? "",
-        requestedBy,
-        requestedAt: now,
-        updatedAt: now,
-      });
-      const charged = new Map(
-        (await refundableItems(tx, batch.id)).map((item) => [
-          item.id,
-          item.amountMinor,
-        ])
-      );
-      await tx.insert(refundItem).values(
-        plan.registrationIds.map((registrationId) => ({
-          refundId,
-          batchId: batch.id,
-          registrationId,
-          amountMinor: charged.get(registrationId) ?? 0n,
-        }))
-      );
-      await auditRefund(
-        tx,
-        ctx,
-        refundId,
-        {
-          action: "refund.requested",
-          before: null,
-          after: {
-            batchId: batch.id,
-            kind: "discretionary",
-            status,
-            method: manual ? "manual" : "gateway",
-            amountMinor: plan.amountMinor.toString(),
-            registrationIds: plan.registrationIds,
+    return await ctx.db.transaction(
+      async (tx): Promise<RequestRefundResult> => {
+        // One request at a time per batch, so two can't list one student.
+        const batch = await lockBatch(tx, batchId);
+        if (!batch) return { ok: false, error: "not_found" };
+        const plan = planRefund(
+          {
+            captured: batch.status === "captured",
+            amountMinor: batch.amountMinor,
+            currency: "INR",
+            items: await refundableItems(tx, batch.id),
           },
-        },
-        role
-      );
-      return {
-        ok: true,
-        refundId,
-        amountMinor: plan.amountMinor,
-        registrationIds: plan.registrationIds,
-      };
-    });
+          registrationIds === undefined ? {} : { registrationIds }
+        );
+        if (!plan.ok) return refusalOf(plan);
+
+        const now = ctx.clock.now();
+        const refundId = uuidv7(now);
+        const manual = batch.captureMethod === "offline";
+        const status = initialRefundStatus("discretionary");
+        await tx.insert(refund).values({
+          id: refundId,
+          batchId: batch.id,
+          gatewayPaymentId: manual ? null : batch.gatewayPaymentId,
+          kind: "discretionary",
+          status,
+          method: manual ? "manual" : "gateway",
+          amountMinor: plan.amountMinor,
+          currency: plan.currency,
+          reason: reason.text ?? "",
+          requestedBy,
+          requestedAt: now,
+          updatedAt: now,
+        });
+        const charged = new Map(
+          (await refundableItems(tx, batch.id)).map((item) => [
+            item.id,
+            item.amountMinor,
+          ])
+        );
+        await tx.insert(refundItem).values(
+          plan.registrationIds.map((registrationId) => ({
+            refundId,
+            batchId: batch.id,
+            registrationId,
+            amountMinor: charged.get(registrationId) ?? 0n,
+          }))
+        );
+        await auditRefund(
+          tx,
+          ctx,
+          refundId,
+          {
+            action: "refund.requested",
+            before: null,
+            after: {
+              batchId: batch.id,
+              kind: "discretionary",
+              status,
+              method: manual ? "manual" : "gateway",
+              amountMinor: plan.amountMinor.toString(),
+              registrationIds: plan.registrationIds,
+            },
+          },
+          role
+        );
+        return {
+          ok: true,
+          refundId,
+          amountMinor: plan.amountMinor,
+          registrationIds: plan.registrationIds,
+        };
+      }
+    );
   } catch (error) {
     // Another refund took a student between the plan and the write.
     if (sqlState(error) === "23505" && registrationIds?.[0]) {

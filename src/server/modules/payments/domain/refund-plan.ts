@@ -35,7 +35,11 @@ export type RefundPlan =
     }
   | {
       ok: false;
-      reason: "batch_not_captured" | "empty" | "nothing_to_refund" | "exceeds_paid";
+      reason:
+        | "batch_not_captured"
+        | "empty"
+        | "nothing_to_refund"
+        | "exceeds_paid";
     }
   | {
       ok: false;
@@ -58,7 +62,8 @@ export function planRefund(
   if (request.registrationIds === undefined) {
     chosen = batch.items.filter((item) => item.refund === "none");
   } else {
-    if (request.registrationIds.length === 0) return { ok: false, reason: "empty" };
+    if (request.registrationIds.length === 0)
+      return { ok: false, reason: "empty" };
     chosen = [];
     const seen = new Set<string>();
     for (const registrationId of request.registrationIds) {

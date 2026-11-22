@@ -153,6 +153,7 @@
       },
       "back": "Payments needing review",
       "title": "Payment of {amount}",
+      "refundLink": "Refunds of this payment",
       "notFound": {
         "title": "No payment with that link",
         "body": "It may have been typed wrongly.",

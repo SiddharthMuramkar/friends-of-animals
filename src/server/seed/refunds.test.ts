@@ -20,9 +20,19 @@ describe("the refunds seed", () => {
     const once = await rows();
     await h.seed.preview();
 
-    expect(once.refunds.map(({ id, status, kind }) => ({ id, status, kind }))).toEqual([
-      { id: SEED_REFUNDS.requested.refundId, status: "requested", kind: "discretionary" },
-      { id: SEED_REFUNDS.refunded.refundId, status: "refunded", kind: "discretionary" },
+    expect(
+      once.refunds.map(({ id, status, kind }) => ({ id, status, kind }))
+    ).toEqual([
+      {
+        id: SEED_REFUNDS.requested.refundId,
+        status: "requested",
+        kind: "discretionary",
+      },
+      {
+        id: SEED_REFUNDS.refunded.refundId,
+        status: "refunded",
+        kind: "discretionary",
+      },
     ]);
     expect(await rows()).toEqual(once);
   });

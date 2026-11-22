@@ -313,9 +313,7 @@ export class FallbackPaymentGateway implements PaymentGateway {
   }
 }
 
-function refundView(
-  row: typeof gatewayTestRefund.$inferSelect
-): GatewayRefund {
+function refundView(row: typeof gatewayTestRefund.$inferSelect): GatewayRefund {
   return {
     id: row.id,
     paymentId: row.paymentId,

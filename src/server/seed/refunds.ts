@@ -114,7 +114,8 @@ async function seedRefundedBatch(deps: SeedDeps): Promise<void> {
     cutoff,
     await ageGroupsOf(deps.db, paid.competitionId)
   );
-  if (!placed.ok) throw new Error(`Seed student ${seed.profileOf} fits no group`);
+  if (!placed.ok)
+    throw new Error(`Seed student ${seed.profileOf} fits no group`);
   const now = deps.clock.now();
   await deps.db
     .insert(registration)
@@ -172,7 +173,8 @@ async function seedRefundedBatch(deps: SeedDeps): Promise<void> {
     method: "gateway",
     amountMinor: SAMPLE_FEE,
     currency: "INR",
-    reason: "The student fell ill and couldn't take part; the school asked for the fee back.",
+    reason:
+      "The student fell ill and couldn't take part; the school asked for the fee back.",
     requestedBy: REQUESTER,
     requestedAt: now,
     decidedAt: now,

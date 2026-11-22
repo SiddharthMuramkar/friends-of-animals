@@ -115,7 +115,11 @@ describe("resolving a payment in review with a refund", () => {
       action: "refund.approved",
       actorUserId: staff.userId,
       before: null,
-      after: { kind: "duplicate", status: "approved", reviewCaseId: paid.caseId },
+      after: {
+        kind: "duplicate",
+        status: "approved",
+        reviewCaseId: paid.caseId,
+      },
     });
 
     await h.drain();
@@ -241,7 +245,10 @@ describe("startSystemRefund (for 80b's cancellations)", () => {
   it("approves a refund of every student the batch has left, once per key", async () => {
     const h = await createHarness();
     const paid = await capturedBatch(h, { students: 3 });
-    const system = { clock: h.clock, actor: { kind: "system", process: "worker" } } as const;
+    const system = {
+      clock: h.clock,
+      actor: { kind: "system", process: "worker" },
+    } as const;
     const cancel = () =>
       h.db.transaction((tx) =>
         startSystemRefund(tx, system, {
@@ -292,7 +299,10 @@ describe("startSystemRefund (for 80b's cancellations)", () => {
       .as(staff.actor)
       .requestRefund({ batchId: paid.batchId, reason: REASON });
     if (!asked.ok) throw new Error("not asked");
-    const system = { clock: h.clock, actor: { kind: "system", process: "worker" } } as const;
+    const system = {
+      clock: h.clock,
+      actor: { kind: "system", process: "worker" },
+    } as const;
 
     const result = await h.db.transaction(async (tx) => {
       const superseded = await supersedeRequestedRefunds(tx, system, {

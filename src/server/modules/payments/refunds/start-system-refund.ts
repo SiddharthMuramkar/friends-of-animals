@@ -87,7 +87,9 @@ export async function startSystemRefund(
         currency: "INR",
         items: left,
       },
-      request.registrationIds ? { registrationIds: request.registrationIds } : {}
+      request.registrationIds
+        ? { registrationIds: request.registrationIds }
+        : {}
     );
     if (!plan.ok) return { skipped: "nothing_to_refund" };
     const charged = new Map(left.map((item) => [item.id, item.amountMinor]));
@@ -176,7 +178,9 @@ export async function supersedeRequestedRefunds(
   const waiting = await tx
     .select({ id: refund.id })
     .from(refund)
-    .where(and(inArray(refund.batchId, batchIds), eq(refund.status, "requested")))
+    .where(
+      and(inArray(refund.batchId, batchIds), eq(refund.status, "requested"))
+    )
     .orderBy(refund.id);
   const superseded: string[] = [];
   for (const { id } of waiting) {

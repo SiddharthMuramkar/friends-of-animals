@@ -229,7 +229,10 @@ describe("separation of duties", () => {
     const h = await createHarness();
     const paid = await capturedBatch(h);
     const both = await h.seed.member();
-    await h.seed.grant(both, { role: "staff_admin", scope: { type: "global" } });
+    await h.seed.grant(both, {
+      role: "staff_admin",
+      scope: { type: "global" },
+    });
     await h.seed.grant(both, { role: "finance", scope: { type: "global" } });
     const actor = await h.signIn(both);
     const asked = await h

@@ -187,7 +187,8 @@ async function apply(
   if (decision.event === "sent") return "processing";
 
   const move = nextRefundStatus(status, decision.event);
-  if (!move.ok) throw new Error(`Refund ${row.id} can't take ${decision.event}`);
+  if (!move.ok)
+    throw new Error(`Refund ${row.id} can't take ${decision.event}`);
   if (move.to === "refunded") {
     await tx
       .update(refund)
