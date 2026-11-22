@@ -82,18 +82,37 @@ test("a member signs out of another device, then everywhere", async ({
   await expect(sessions).toHaveCount(1);
   // The pressed button went with its row: the page says it worked, and
   // focus moves to that message instead of dropping to the top.
-  await expect(
-    page.getByRole("status").filter({ hasText: "That device is signed out." })
-  ).toBeVisible();
+  // getByRole leaves out a page Next.js keeps hidden in <Activity> after
+  // leaving it, which getByText would still find.
+  const signedOut = page
+    .getByRole("status")
+    .filter({ hasText: "That device is signed out." });
+  await expect(signedOut).toBeVisible();
   await expect(page.locator(":focus")).toContainText(
     "That device is signed out."
   );
+  // The router refresh can render the notice before the title is restored.
+  await expect(page).toHaveTitle("Your sessions · Friends of Animals");
   await expectAccessible(page, "/account/sessions after a sign-out");
-  // It says so once: the address drops ?signedOut, so a reload is quiet.
   await expect(page).toHaveURL(/\/account\/sessions$/);
+
+  // It says so once. Leaving and coming Back shows the page Next.js kept,
+  // without the notice; so do a reload and a link that claims a sign-out.
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "Friends of Animals home page" })
+    .click();
+  await expect(page).toHaveURL((url) => url.pathname === "/");
+  await page.goBack();
+  await expect(page).toHaveURL(/\/account\/sessions$/);
+  await expect(sessions).toHaveCount(1);
+  await expect(signedOut).toHaveCount(0);
   await page.reload();
   await expect(sessions).toHaveCount(1);
-  await expect(page.getByText("That device is signed out.")).toHaveCount(0);
+  await expect(signedOut).toHaveCount(0);
+  await page.goto("/account/sessions?signedOut=x");
+  await expect(sessions).toHaveCount(1);
+  await expect(signedOut).toHaveCount(0);
   await laptop.goto("/account/sessions");
   await expect(laptop).toHaveURL(/\/sign-in$/);
 

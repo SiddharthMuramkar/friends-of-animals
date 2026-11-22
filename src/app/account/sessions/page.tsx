@@ -13,8 +13,8 @@ import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type { SessionSummary } from "@/server/identity";
 
-import { SignedOutNotice } from "./_components/signed-out-notice";
-import { signOutEverywhereAction, signOutSessionAction } from "./_lib/actions";
+import { SessionSignOut, SignOutForm } from "./_components/session-sign-out";
+import { signOutEverywhereAction } from "./_lib/actions";
 import { sessionAddress } from "./_lib/address";
 import { describeDevice } from "./_lib/device";
 
@@ -27,11 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type SearchParams = PageProps<"/account/sessions">["searchParams"];
-
-export default async function Page({
-  searchParams,
-}: PageProps<"/account/sessions">) {
+export default async function Page() {
   const t = await getTranslations("account.sessions");
   return (
     <Section hue="blue" tone="tint" width="prose" className="pt-10 sm:pt-14">
@@ -46,7 +42,7 @@ export default async function Page({
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
-        <Sessions searchParams={searchParams} />
+        <Sessions />
       </Suspense>
     </Section>
   );
@@ -55,18 +51,16 @@ export default async function Page({
 const CARD =
   "rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
 
-async function Sessions({ searchParams }: { searchParams: SearchParams }) {
+async function Sessions() {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, callout, format, account, sessions, { signedOut }] =
-    await Promise.all([
-      getTranslations("account.sessions"),
-      getTranslations("common.callout"),
-      getFormatter(),
-      as(actor).getAccount(),
-      as(actor).listSessions(),
-      searchParams,
-    ]);
+  const [t, callout, format, account, sessions] = await Promise.all([
+    getTranslations("account.sessions"),
+    getTranslations("common.callout"),
+    getFormatter(),
+    as(actor).getAccount(),
+    as(actor).listSessions(),
+  ]);
 
   const deviceName = (session: SessionSummary) => {
     const { browser, os } = describeDevice(session.userAgent);
@@ -89,59 +83,55 @@ async function Sessions({ searchParams }: { searchParams: SearchParams }) {
         })}
       </p>
 
-      {typeof signedOut === "string" ? (
-        <SignedOutNotice
-          key={signedOut}
-          label={callout("success")}
-          message={t("signedOut")}
-        />
-      ) : null}
-
-      <section aria-labelledby="sessions-list">
-        <SectionHeading id="sessions-list" title={t("listTitle")} />
-        <ul className="mt-5 flex flex-col gap-4">
-          {sessions.map((session) => {
-            const device = deviceName(session);
-            const date = format.dateTime(session.startedAt, "longDateTime");
-            const address = sessionAddress(session.ipAddress);
-            return (
-              <li key={session.id} className={CARD}>
-                <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
-                  <MonitorSmartphone
-                    aria-hidden="true"
-                    className="size-5 shrink-0"
-                  />
-                  <span>{device}</span>
-                  {session.current ? (
-                    <Chip tone="green">{t("thisDevice")}</Chip>
-                  ) : null}
-                </p>
-                <p className="mt-2 text-ink-muted">{t("started", { date })}</p>
-                {address ? (
-                  <p className="text-ink-muted wrap-anywhere">
-                    {t(address.kind, { address: address.text })}
+      {/* Says so above the list when a device is signed out. */}
+      <SessionSignOut label={callout("success")} message={t("signedOut")}>
+        <section aria-labelledby="sessions-list">
+          <SectionHeading id="sessions-list" title={t("listTitle")} />
+          <ul className="mt-5 flex flex-col gap-4">
+            {sessions.map((session) => {
+              const device = deviceName(session);
+              const date = format.dateTime(session.startedAt, "longDateTime");
+              const address = sessionAddress(session.ipAddress);
+              return (
+                <li key={session.id} className={CARD}>
+                  <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
+                    <MonitorSmartphone
+                      aria-hidden="true"
+                      className="size-5 shrink-0"
+                    />
+                    <span>{device}</span>
+                    {session.current ? (
+                      <Chip tone="green">{t("thisDevice")}</Chip>
+                    ) : null}
                   </p>
-                ) : null}
-                <form action={signOutSessionAction} className="mt-4">
-                  <input type="hidden" name="sessionId" value={session.id} />
-                  <SubmitButton
-                    variant="secondary"
-                    pendingLabel={t("signingOut")}
-                  >
-                    {/* One sentence for screen readers, so it translates
+                  <p className="mt-2 text-ink-muted">
+                    {t("started", { date })}
+                  </p>
+                  {address ? (
+                    <p className="text-ink-muted wrap-anywhere">
+                      {t(address.kind, { address: address.text })}
+                    </p>
+                  ) : null}
+                  <SignOutForm sessionId={session.id} className="mt-4">
+                    <SubmitButton
+                      variant="secondary"
+                      pendingLabel={t("signingOut")}
+                    >
+                      {/* One sentence for screen readers, so it translates
                         whole; it starts with the visible words (WCAG
                         2.5.3). */}
-                    <span aria-hidden="true">{t("signOut")}</span>
-                    <span className="sr-only">
-                      {t("signOutOf", { device, date })}
-                    </span>
-                  </SubmitButton>
-                </form>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+                      <span aria-hidden="true">{t("signOut")}</span>
+                      <span className="sr-only">
+                        {t("signOutOf", { device, date })}
+                      </span>
+                    </SubmitButton>
+                  </SignOutForm>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </SessionSignOut>
 
       <section aria-labelledby="sessions-everywhere" className={CARD}>
         <h2 id="sessions-everywhere" className="text-lead font-bold text-ink">

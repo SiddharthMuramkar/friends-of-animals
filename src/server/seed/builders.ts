@@ -4,8 +4,15 @@
 // Node: relative imports only, no "server-only".
 
 import type { Grant } from "../access/domain/roles";
+import { storedPhone } from "../identity/stored-phone";
+import {
+  ensureVerifiedAccount,
+  type VerifiedAccount,
+} from "../identity/verified-account";
 import { ensureGrant } from "./access";
-import { ensureAccount, seedPhone, type SeededUser } from "./identity";
+import { competitionBuilder } from "./competitions";
+import { seedPhone } from "./identity";
+import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
 
 const MEMBER_NAMES = [
@@ -39,14 +46,16 @@ export function seedFunctions(seeders: readonly Seeder[]) {
      */
     async function member(
       details: { name?: string; email?: string; phone?: string } = {}
-    ): Promise<SeededUser> {
+    ): Promise<VerifiedAccount> {
       members += 1;
-      return ensureAccount(deps, {
+      return ensureVerifiedAccount(deps, {
         name:
           details.name ?? MEMBER_NAMES[(members - 1) % MEMBER_NAMES.length]!,
         email: details.email ?? `test-member-${members}@example.test`,
         phone:
-          details.phone === undefined ? undefined : seedPhone(details.phone),
+          details.phone === undefined
+            ? undefined
+            : storedPhone(deps, seedPhone(details.phone)),
       });
     }
     /** Gives `user` a grant (no audit entry: it is seed data). */
@@ -65,6 +74,14 @@ export function seedFunctions(seeders: readonly Seeder[]) {
         });
         return account;
       },
+      /**
+       * Gives `user` a confirmed authenticator app with SEED_TOTP_SECRET
+       * (no audit entry: it is seed data).
+       */
+      authenticator: (user: { id: string }) =>
+        ensureSeedAuthenticator(deps, user.id),
+      /** A complete competition (draft unless told), no audit entry. */
+      competition: competitionBuilder(deps),
       /** Everything `pnpm db:seed` puts in a preview database. */
       preview: () => seedPreview(deps),
     };

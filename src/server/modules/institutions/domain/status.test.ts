@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  allowedDecisions,
   decideInstitutionStatus,
   INSTITUTION_DECISIONS,
   INSTITUTION_STATUSES,
@@ -112,5 +113,20 @@ describe("the reason for a decision", () => {
         reason: "",
       })
     ).toEqual({ ok: false, error: "transition_not_allowed" });
+  });
+});
+
+describe("allowedDecisions", () => {
+  it("offers staff exactly the decisions the table allows from each status", () => {
+    expect(
+      Object.fromEntries(
+        INSTITUTION_STATUSES.map((status) => [status, allowedDecisions(status)])
+      )
+    ).toEqual({
+      pending_verification: ["verify", "reject"],
+      verified: ["suspend"],
+      rejected: [],
+      suspended: ["verify"],
+    });
   });
 });

@@ -1,39 +1,61 @@
-// PROVISIONAL test support for #74 while #73 (institutions) is unmerged:
-// makes an institution row in a given status, with its authorised person
-// holding `institution_admin` there, the way #73's verify step leaves it.
-// Swap for #73's `h.seed.institution(...)` builder once it lands.
+// Coordinator test institutions use the real registration and staff
+// decision flow. A grant on a pending or rejected fixture isolates the
+// verified-only invitation rule from the policy check.
 
 import type { InstitutionStatus } from "@/server/modules/institutions/domain/status";
-import { institution } from "@/server/db/schema";
-import { uuidv7 } from "@/server/ids";
+import {
+  registeredInstitution,
+  signedInStaff,
+} from "@/server/modules/institutions/testing";
 
 import type { Harness } from "./harness";
 
-let institutions = 0;
+/**
+ * An invitation's link in a message (#74), its 43-character token in the
+ * first group.
+ */
+export const INVITATION_LINK =
+  /\/invitations\/([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
 
 export async function seedInstitution(
   h: Harness,
   options: { status?: InstitutionStatus; name?: string } = {}
 ) {
-  institutions += 1;
-  const [row] = await h.db
-    .insert(institution)
-    .values({
-      id: uuidv7(h.clock.now()),
-      name: options.name ?? `Test School ${institutions}`,
-      status: options.status ?? "verified",
-      createdAt: h.clock.now(),
-    })
-    .returning();
-  const admin = await h.seed.member({
-    name: `Principal ${institutions}`,
-    email: `principal-${institutions}@school.test`,
+  const name = options.name ?? "Test School";
+  const status = options.status ?? "verified";
+  const { person: admin, institutionId: id } = await registeredInstitution(h, {
+    name,
   });
-  await h.seed.grant(admin, {
-    role: "institution_admin",
-    scope: { type: "institution", id: row!.id },
-  });
-  return { institution: row!, admin };
+  if (status !== "pending_verification") {
+    const staff = h.as(await signedInStaff(h));
+    const reason = "Checked the school's records";
+    const result = await staff.decideInstitution({
+      institutionId: id,
+      decision: status === "rejected" ? "reject" : "verify",
+      reason,
+    });
+    if (!result.ok) throw new Error(`Could not decide: ${result.error}`);
+    if (status === "suspended") {
+      const suspended = await staff.decideInstitution({
+        institutionId: id,
+        decision: "suspend",
+        reason,
+      });
+      if (!suspended.ok) {
+        throw new Error(`Could not suspend: ${suspended.error}`);
+      }
+    }
+  }
+  if (status === "pending_verification" || status === "rejected") {
+    await h.seed.grant(admin, {
+      role: "institution_admin",
+      scope: { type: "institution", id },
+    });
+  }
+  // The decisions' own messages to the authorised person (#73) go now, so
+  // a test sees only what its own step sends.
+  await h.drain();
+  return { institution: { id, name }, admin };
 }
 
 /** Gives `user` the coordinator role at `institutionId`, as seed data. */

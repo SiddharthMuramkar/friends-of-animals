@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ViewTransition } from "react";
 
+import { UmamiAnalytics } from "@/components/analytics/umami-analytics";
 import { HistoryScrollGuard } from "@/components/site/history-scroll-guard";
 import { JsonLd } from "@/components/site/json-ld";
 import { SiteFooter } from "@/components/site-footer";
@@ -9,6 +10,7 @@ import { SiteHeader } from "@/components/site-header";
 import { siteUrl } from "@/env";
 import { LOCALE } from "@/i18n/formats";
 import { fontVariables } from "@/lib/fonts";
+import { PAGE_TRANSITION_CLASS } from "@/lib/page-transition";
 import {
   DEFAULT_SOCIAL_IMAGE,
   organizationJsonLd,
@@ -41,10 +43,9 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [DEFAULT_SOCIAL_IMAGE],
     },
     icons: {
-      icon: [
-        { url: "/favicon.ico", sizes: "32x32" },
-        { url: "/brand/favicon.svg", type: "image/svg+xml" },
-      ],
+      // Only the ICO: its frames are hinted per size (scripts/brand-logo.ts),
+      // and browsers prefer an SVG over it when both are offered.
+      icon: [{ url: "/favicon.ico?v=2", sizes: "16x16 24x24 32x32 48x48" }],
       apple: "/brand/apple-touch-icon.png",
     },
   };
@@ -77,13 +78,18 @@ export default async function RootLayout({ children, exit }: LayoutProps<"/">) {
         <SiteHeader />
         <div className="order-2 flex flex-1 flex-col">
           <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
-            {/* Page changes cross-fade; the header is pinned (globals.css). */}
-            <ViewTransition>{children}</ViewTransition>
+            {/* A link to another page cross-fades, and nothing else starts a
+                view transition (page-transition.ts); the header is pinned
+                (globals.css). */}
+            <ViewTransition default={PAGE_TRANSITION_CLASS}>
+              {children}
+            </ViewTransition>
           </main>
           <SiteFooter />
         </div>
         <HistoryScrollGuard />
         <JsonLd data={organizationJsonLd(siteUrl(), t("tagline"))} />
+        <UmamiAnalytics />
       </body>
     </html>
   );

@@ -5,9 +5,10 @@
 
 import { z } from "zod";
 
-import { parseDsn } from "./lib/observability/config";
 import { parseBlindIndexKey } from "./server/crypto/blind-index";
 import { parseKeyRing } from "./server/crypto/field-cipher";
+import { isUmamiOrigin } from "./lib/analytics/umami";
+import { parseDsn } from "./lib/observability/config";
 import { previewDatabase } from "./server/db/database-url";
 
 /** A postgres:// URL; `whenUnset` is the error shown when it is missing. */
@@ -25,7 +26,7 @@ const DEPLOYED_APP_ENVS = ["preview", "staging", "production"] as const;
 const APP_ENVS = ["local", ...DEPLOYED_APP_ENVS] as const;
 
 /** What APP_URL is when it is unset on a local run. */
-const LOCAL_APP_URL = "http://localhost:3000";
+export const LOCAL_APP_URL = "http://localhost:3000";
 
 /** Set to "1" by Vercel, at build time and at runtime. */
 const vercel = z.string().optional();
@@ -44,7 +45,7 @@ const buildVariables = {
   VERCEL: vercel,
   APP_ENV: appEnv,
   /**
-   * Canonical base URL, e.g. https://shipped-it.dev. Only the server reads
+   * Canonical base URL, e.g. https://friendsofanimals.dev. Only the server reads
    * it, so it needs no NEXT_PUBLIC_ prefix, but prerendered pages bake it
    * in at build time.
    */
@@ -58,6 +59,22 @@ const buildVariables = {
    */
   VERCEL_BRANCH_URL: z.string().optional(),
   VERCEL_URL: z.string().optional(),
+  /**
+   * Cookieless page views (src/lib/analytics/umami.ts): this deployment's
+   * Umami website (staging and production each have one) and the Umami
+   * server's origin, e.g. https://stats.shipped-it.dev. Pages send nothing
+   * outside staging and production, or while either is unset.
+   */
+  NEXT_PUBLIC_UMAMI_WEBSITE_ID: z
+    .uuid({ error: "must be an Umami website id (a UUID)" })
+    .optional(),
+  UMAMI_ORIGIN: z
+    .url({ protocol: /^https$/, error: "must be an https URL" })
+    .refine(isUmamiOrigin, {
+      error:
+        "must be an origin with no path, e.g. https://stats.shipped-it.dev",
+    })
+    .optional(),
 };
 
 /**
@@ -85,7 +102,7 @@ function secret() {
  * A field-encryption key variable, checked with its own parser. The parser's
  * message names the problem, never the key.
  */
-function fieldKey(parse: (value: string) => unknown) {
+export function fieldKey(parse: (value: string) => unknown) {
   return z
     .string()
     .superRefine((value, ctx) => {
@@ -142,6 +159,141 @@ const secretVariables = {
 };
 
 /**
+ * Private file storage (#63): Cloudflare R2 through its S3 API. All four,
+ * or none: without them storage refuses every call (src/server/deps.ts),
+ * which is where production stays until FOA's buckets exist. Staging and
+ * previews share the non-production bucket, each under its own prefix.
+ */
+const storageVariables = {
+  /** 32 hex characters; it names the endpoint's host. */
+  R2_ACCOUNT_ID: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/, { error: "must be 32 lower-case hex characters" })
+    .optional(),
+  /** An R2 API token's key pair, scoped to R2_BUCKET. */
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, {
+      error: "must be an R2 bucket name: 3-63 of a-z, 0-9 and -",
+    })
+    .optional(),
+};
+
+const STORAGE_VARIABLES = [
+  "R2_ACCOUNT_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+] as const;
+
+type StorageVariables = Partial<
+  Record<(typeof STORAGE_VARIABLES)[number], string>
+>;
+
+/** Storage is configured whole or not at all. */
+function requireWholeStorageConfig(
+  values: StorageVariables,
+  ctx: z.RefinementCtx<StorageVariables>
+) {
+  const missing = STORAGE_VARIABLES.filter(
+    (name) => values[name] === undefined
+  );
+  if (missing.length === 0 || missing.length === STORAGE_VARIABLES.length) {
+    return;
+  }
+  ctx.issues.push({
+    code: "custom",
+    path: [missing[0]!],
+    input: undefined,
+    message:
+      `R2 is half configured. Set ${missing.join(", ")} too, or unset ` +
+      "every R2_ variable to run without storage.",
+  });
+}
+
+/**
+ * Amazon SES, production's email provider (#57, HR-12): the region, an IAM
+ * key pair allowed to send, the sender, and an optional configuration set.
+ * Key id, secret and sender come together or not at all: without them
+ * production refuses to send email (src/server/ports/email-sender-for.ts),
+ * and other environments never call SES whatever is set. Messages never
+ * repeat a value, since the secret is among them.
+ */
+const sesVariables = {
+  /** An AWS region name; FOA sends from Mumbai. */
+  SES_REGION: z
+    .string()
+    .regex(/^[a-z]{2}(-[a-z]+)+-\d$/, {
+      error: "must be an AWS region name, like ap-south-1",
+    })
+    .default("ap-south-1"),
+  SES_ACCESS_KEY_ID: z
+    .string()
+    .regex(/^[A-Z0-9]{16,128}$/, {
+      error: "must be an AWS access key id: 16 or more of A-Z and 0-9",
+    })
+    .optional(),
+  SES_SECRET_ACCESS_KEY: z.string().optional(),
+  /** "Friends of Animals <no-reply@friendsofanimals.dev>", or just the address. */
+  SES_FROM: z
+    .string()
+    .regex(
+      /^(?:[^<>@]*<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/,
+      {
+        error:
+          "must be an email address, or a name and <address>, like " +
+          "Friends of Animals <no-reply@friendsofanimals.dev>",
+      }
+    )
+    .optional(),
+  /** SES's configuration set for event publishing; optional. */
+  SES_CONFIGURATION_SET: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,64}$/, {
+      error: "must be an SES configuration set name: 1-64 of A-Z, 0-9, _ and -",
+    })
+    .optional(),
+  /**
+   * "true" once AWS has moved FOA's SES account out of the sandbox, so it
+   * may send to any address. Until then email sign-in stays off in
+   * production even with the keys set (DECISIONS R-27).
+   */
+  SES_PRODUCTION_ACCESS: z
+    .enum(["true", "false"], { error: 'must be "true" or "false"' })
+    .default("false")
+    .transform((value) => value === "true"),
+};
+
+const SES_VARIABLES = [
+  "SES_ACCESS_KEY_ID",
+  "SES_SECRET_ACCESS_KEY",
+  "SES_FROM",
+] as const;
+
+type SesKeyVariables = Partial<Record<(typeof SES_VARIABLES)[number], string>>;
+
+/** SES's key id, secret and sender come together or not at all. */
+function requireWholeSesConfig(
+  values: SesKeyVariables,
+  ctx: z.RefinementCtx<SesKeyVariables>
+) {
+  const missing = SES_VARIABLES.filter((name) => values[name] === undefined);
+  if (missing.length === 0 || missing.length === SES_VARIABLES.length) return;
+  for (const name of missing) {
+    ctx.issues.push({
+      code: "custom",
+      path: [name],
+      input: undefined,
+      message:
+        `${name} is not set. SES needs ${SES_VARIABLES.join(", ")}: ` +
+        "all three or none (none: production sends no email).",
+    });
+  }
+}
+
+/**
  * Error tracking (#66). Read by the server at runtime; the browser gets
  * NEXT_PUBLIC_SENTRY_DSN baked in at build time.
  */
@@ -161,6 +313,27 @@ const errorTrackingVariables = {
   /** Set by Vercel: the commit the deployment was built from. */
   VERCEL_GIT_COMMIT_SHA: z.string().optional(),
 };
+
+/**
+ * The malware scanner (#63): clamd in the `foa-clamav` sidecar, which only
+ * the VPS workers can reach (docker/workers.yml). Without CLAMD_HOST every
+ * scan is an error and uploads wait unscanned, as they do on Vercel, which
+ * never reaches clamd; the workers set it (HR-08).
+ */
+const scannerVariables = {
+  CLAMD_HOST: z.string().optional(),
+  CLAMD_PORT: z.coerce
+    .number({ error: "must be a TCP port, 1 to 65535" })
+    .int({ error: "must be a TCP port, 1 to 65535" })
+    .min(1, { error: "must be a TCP port, 1 to 65535" })
+    .max(65_535, { error: "must be a TCP port, 1 to 65535" })
+    .default(3310),
+};
+
+/** Where the scan job finds clamd; the worker parses it too. */
+export const scannerEnvSchema = z.object(scannerVariables);
+
+export type ScannerEnv = z.output<typeof scannerEnvSchema>;
 
 type AppEnv = (typeof APP_ENVS)[number];
 
@@ -228,7 +401,7 @@ function requireAppUrl(
       input: values.APP_URL,
       message:
         `APP_URL is not set. APP_ENV=${deployed} needs its canonical base ` +
-        "URL, e.g. https://shipped-it.dev, at build time and at runtime." +
+        "URL, e.g. https://friendsofanimals.dev, at build time and at runtime." +
         (deployed === "preview"
           ? " (Previews default to https://$VERCEL_BRANCH_URL, which is not set either.)"
           : ""),
@@ -407,14 +580,19 @@ export const envSchema = z
         "postgres://foa:foa@localhost:5432/foa (see .env.example)."
     ),
     ...secretVariables,
+    ...storageVariables,
+    ...sesVariables,
     ...errorTrackingVariables,
+    ...scannerVariables,
   })
   .superRefine(requireAppEnvOnVercel, always)
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
   .superRefine(requireAuthSecret, always)
-  .superRefine(requireSentryInProduction, always)
   .superRefine(requireFieldKeys, always)
+  .superRefine(requireWholeStorageConfig, always)
+  .superRefine(requireWholeSesConfig, always)
+  .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 
 export type Env = z.output<typeof envSchema>;
@@ -458,6 +636,31 @@ export const fieldKeyEnvSchema = z
     ...keys,
     APP_ENV: APP_ENV ?? "local",
   }));
+
+/**
+ * What `pnpm files:purge-preview` reads (scripts/purge-preview-files.ts):
+ * APP_ENV and all four R2 variables, the non-production bucket's. Purging
+ * without storage can't do anything, so none of them is optional here.
+ */
+export const purgeEnvSchema = z
+  .object({ APP_ENV: appEnv, ...storageVariables })
+  .required({
+    R2_ACCOUNT_ID: true,
+    R2_ACCESS_KEY_ID: true,
+    R2_SECRET_ACCESS_KEY: true,
+    R2_BUCKET: true,
+  });
+
+/**
+ * What the worker's scan job reads besides its database
+ * (src/worker/config.ts): the R2 variables, all four or none, and where
+ * clamd is. Without R2 or CLAMD_HOST every scan fails and uploads wait.
+ */
+export const scanJobEnvSchema = z
+  .object({ ...storageVariables, ...scannerVariables })
+  .superRefine(requireWholeStorageConfig);
+
+export type ScanJobEnv = z.output<typeof scanJobEnvSchema>;
 
 /**
  * Parses an env-like object, usually process.env, against `schema`. Empty

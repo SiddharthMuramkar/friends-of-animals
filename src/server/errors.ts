@@ -1,12 +1,27 @@
 /**
+ * Why a use case refused to run:
+ * - `forbidden`: the actor may never do this.
+ * - `enrolment_required`: staff must set up a second factor first (#60).
+ * - `second_factor_required`: staff must pass their second factor in this
+ *   session first.
+ * - `step_up_required`: a sensitive action needs a fresh second factor.
+ */
+export type DomainErrorCode =
+  | "forbidden"
+  | "enrolment_required"
+  | "second_factor_required"
+  | "step_up_required";
+
+/**
  * Thrown by a use case for something the caller must never do, such as an
  * actor acting without permission. Expected outcomes (a wrong code, a rate
- * limit) are returned as results instead. Edges map `code` to a message.
+ * limit) are returned as results instead. Edges map `code` to a message,
+ * or to the second-factor page that lets the actor go on.
  */
 export class DomainError extends Error {
-  readonly code: "forbidden";
+  readonly code: DomainErrorCode;
 
-  constructor(code: "forbidden", message: string) {
+  constructor(code: DomainErrorCode, message: string) {
     super(message);
     this.name = "DomainError";
     this.code = code;

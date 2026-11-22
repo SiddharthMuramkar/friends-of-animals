@@ -46,7 +46,7 @@
       },
       "code": {
         "label": "6-digit code",
-        "hint": "We sent it to {phone}. It works for {minutes} minutes.",
+        "hint": "We sent it to {contact}. It works for {minutes} minutes.",
         "error": "That code isn't right. Check the text message and try again."
       },
       "sendCode": "Text me a code",
@@ -56,7 +56,7 @@
       "checking": "Checking…",
       "resend": "Send a new code",
       "changePhone": "Use a different number",
-      "sent": "We've sent a code to {phone}.",
+      "sent": "We've sent a code to {contact}.",
       "signUpInstead": "Create an account instead",
       "alerts": {
         "rate_limited": "You've asked for a lot of codes. Try again in {minutes, plural, one {# minute} other {# minutes}}.",

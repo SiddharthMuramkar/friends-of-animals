@@ -9,7 +9,7 @@ import {
 } from "./env.schema";
 
 const DATABASE_URL = "postgres://foa:foa@localhost:5432/foa";
-const SITE = "https://shipped-it.dev";
+const SITE = "https://friendsofanimals.dev";
 const SECRET = "0123456789abcdef0123456789abcdef";
 
 describe("parseEnv", () => {
@@ -128,6 +128,47 @@ describe("buildEnvSchema", () => {
     );
     expect(parseEnv(buildEnvSchema, { APP_URL: SITE }).APP_URL).toBe(SITE);
   });
+
+  it("reads the Umami website id and origin, which may be left out", () => {
+    const umami = {
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: "94db1cb1-74f4-4a40-ad6c-962362670409",
+      UMAMI_ORIGIN: "https://stats.shipped-it.dev",
+    };
+    expect(parseEnv(buildEnvSchema, umami)).toMatchObject(umami);
+    expect(parseEnv(buildEnvSchema, {})).not.toHaveProperty("UMAMI_ORIGIN");
+  });
+
+  it("refuses an Umami website id that isn't a UUID", () => {
+    expect(() =>
+      parseEnv(buildEnvSchema, { NEXT_PUBLIC_UMAMI_WEBSITE_ID: "shipped-it" })
+    ).toThrow(/NEXT_PUBLIC_UMAMI_WEBSITE_ID/);
+  });
+
+  it("refuses an Umami origin that isn't https", () => {
+    for (const origin of ["http://stats.shipped-it.dev", "stats.example"]) {
+      expect(() => parseEnv(buildEnvSchema, { UMAMI_ORIGIN: origin })).toThrow(
+        /UMAMI_ORIGIN/
+      );
+    }
+  });
+
+  // next.config.ts's rewrites refuse these too, but only once a build loads.
+  it("refuses an Umami origin with a path, query or fragment", () => {
+    for (const origin of [
+      "https://shipped-it.dev/umami",
+      "https://stats.shipped-it.dev/?site=1",
+      "https://stats.shipped-it.dev/#top",
+    ]) {
+      expect(() => parseEnv(buildEnvSchema, { UMAMI_ORIGIN: origin })).toThrow(
+        /UMAMI_ORIGIN/
+      );
+    }
+    expect(
+      parseEnv(buildEnvSchema, {
+        UMAMI_ORIGIN: "https://stats.shipped-it.dev/",
+      }).UMAMI_ORIGIN
+    ).toBe("https://stats.shipped-it.dev/");
+  });
 });
 
 describe("envSchema", () => {
@@ -238,6 +279,66 @@ describe("envSchema", () => {
   });
 });
 
+describe("envSchema: field encryption keys", () => {
+  const KEYS = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+  const HMAC = "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=";
+  const deployed = {
+    DATABASE_URL,
+    APP_URL: SITE,
+    BETTER_AUTH_SECRET: SECRET,
+    // Production also needs error tracking (#66).
+    NEXT_PUBLIC_SENTRY_DSN: "https://abc123@o1.ingest.us.sentry.io/4507",
+  };
+
+  it.each(["staging", "production"] as const)(
+    "requires FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY on %s",
+    (APP_ENV) => {
+      expect(() => parseEnv(envSchema, { ...deployed, APP_ENV })).toThrow(
+        /FIELD_ENCRYPTION_KEYS is not set[\s\S]*FIELD_HMAC_KEY is not set/
+      );
+      const config = parseEnv(envSchema, {
+        ...deployed,
+        APP_ENV,
+        FIELD_ENCRYPTION_KEYS: KEYS,
+        FIELD_HMAC_KEY: HMAC,
+      });
+      expect(config).toMatchObject({
+        FIELD_ENCRYPTION_KEYS: KEYS,
+        FIELD_HMAC_KEY: HMAC,
+      });
+    }
+  );
+
+  it("lets a local run or a preview go without them", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config.FIELD_ENCRYPTION_KEYS).toBeUndefined();
+    expect(config.FIELD_HMAC_KEY).toBeUndefined();
+  });
+
+  it("refuses keys that aren't 32 bytes of base64", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        FIELD_ENCRYPTION_KEYS: "1:short",
+        FIELD_HMAC_KEY: "short",
+      })
+    ).toThrow(
+      /openssl rand -base64 32[\s\S]*at FIELD_ENCRYPTION_KEYS[\s\S]*at FIELD_HMAC_KEY/
+    );
+  });
+
+  it("never echoes a key in its error", () => {
+    const leaked = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, FIELD_ENCRYPTION_KEYS: leaked })
+    ).toThrow(
+      expect.objectContaining({
+        message: expect.not.stringContaining("MDEyMzQ1"),
+      })
+    );
+  });
+});
+
 describe("envSchema: error tracking", () => {
   const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
   const staging = {
@@ -245,6 +346,7 @@ describe("envSchema: error tracking", () => {
     APP_ENV: "staging",
     APP_URL: SITE,
     BETTER_AUTH_SECRET: SECRET,
+    // Staging and production also need field keys (#58).
     FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
     FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
   };
@@ -300,62 +402,111 @@ describe("envSchema: error tracking", () => {
   });
 });
 
-describe("envSchema: field encryption keys", () => {
-  const KEYS = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
-  const HMAC = "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=";
-  const deployed = {
-    DATABASE_URL,
-    APP_URL: SITE,
-    BETTER_AUTH_SECRET: SECRET,
-    NEXT_PUBLIC_SENTRY_DSN: "https://abc123@o1.ingest.us.sentry.io/4507",
-  };
-
-  it.each(["staging", "production"] as const)(
-    "requires FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY on %s",
-    (APP_ENV) => {
-      expect(() => parseEnv(envSchema, { ...deployed, APP_ENV })).toThrow(
-        /FIELD_ENCRYPTION_KEYS is not set[\s\S]*FIELD_HMAC_KEY is not set/
-      );
-      const config = parseEnv(envSchema, {
-        ...deployed,
-        APP_ENV,
-        FIELD_ENCRYPTION_KEYS: KEYS,
-        FIELD_HMAC_KEY: HMAC,
-      });
-      expect(config).toMatchObject({
-        FIELD_ENCRYPTION_KEYS: KEYS,
-        FIELD_HMAC_KEY: HMAC,
-      });
-    }
-  );
-
-  it("lets a local run or a preview go without them", () => {
-    const config = parseEnv(envSchema, { DATABASE_URL });
-    expect(config.FIELD_ENCRYPTION_KEYS).toBeUndefined();
-    expect(config.FIELD_HMAC_KEY).toBeUndefined();
+describe("envSchema: malware scanner", () => {
+  it("reads where clamd listens", () => {
+    const config = parseEnv(envSchema, {
+      DATABASE_URL,
+      CLAMD_HOST: "clamav",
+      CLAMD_PORT: "3311",
+    });
+    expect(config).toMatchObject({ CLAMD_HOST: "clamav", CLAMD_PORT: 3311 });
   });
 
-  it("refuses keys that aren't 32 bytes of base64", () => {
+  it("leaves CLAMD_HOST out and CLAMD_PORT at clamd's 3310 by default", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config).not.toHaveProperty("CLAMD_HOST");
+    expect(config).toHaveProperty("CLAMD_PORT", 3310);
+  });
+
+  it.each(["clamd", "0", "65536", "33.1"])(
+    "refuses CLAMD_PORT=%s",
+    (CLAMD_PORT) => {
+      expect(() =>
+        parseEnv(envSchema, { DATABASE_URL, CLAMD_HOST: "clamav", CLAMD_PORT })
+      ).toThrow(/at CLAMD_PORT/);
+    }
+  );
+});
+
+describe("envSchema: SES email", () => {
+  const SES = {
+    SES_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE",
+    SES_SECRET_ACCESS_KEY: "test-ses-secret-access-key",
+    SES_FROM: "Friends of Animals <no-reply@friendsofanimals.dev>",
+  };
+
+  it("leaves SES unset by default, in ap-south-1 and the sandbox", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config).toMatchObject({
+      SES_REGION: "ap-south-1",
+      SES_PRODUCTION_ACCESS: false,
+    });
+    expect(config.SES_ACCESS_KEY_ID).toBeUndefined();
+    expect(config.SES_SECRET_ACCESS_KEY).toBeUndefined();
+    expect(config.SES_FROM).toBeUndefined();
+    expect(config.SES_CONFIGURATION_SET).toBeUndefined();
+  });
+
+  it("reads the key, the sender and the configuration set", () => {
+    const config = parseEnv(envSchema, {
+      DATABASE_URL,
+      ...SES,
+      SES_REGION: "eu-west-1",
+      SES_CONFIGURATION_SET: "foa-prod",
+    });
+    expect(config).toMatchObject({
+      ...SES,
+      SES_REGION: "eu-west-1",
+      SES_CONFIGURATION_SET: "foa-prod",
+    });
+  });
+
+  it("refuses part of SES's key and sender, naming what is missing", () => {
     expect(() =>
       parseEnv(envSchema, {
         DATABASE_URL,
-        FIELD_ENCRYPTION_KEYS: "1:short",
-        FIELD_HMAC_KEY: "short",
+        SES_ACCESS_KEY_ID: SES.SES_ACCESS_KEY_ID,
       })
     ).toThrow(
-      /openssl rand -base64 32[\s\S]*at FIELD_ENCRYPTION_KEYS[\s\S]*at FIELD_HMAC_KEY/
+      /SES_SECRET_ACCESS_KEY is not set[\s\S]*all three or none[\s\S]*SES_FROM is not set/
     );
   });
 
-  it("never echoes a key in its error", () => {
-    const leaked = "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
+  it("never echoes the secret in its error", () => {
     expect(() =>
-      parseEnv(envSchema, { DATABASE_URL, FIELD_ENCRYPTION_KEYS: leaked })
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        SES_SECRET_ACCESS_KEY: SES.SES_SECRET_ACCESS_KEY,
+      })
     ).toThrow(
       expect.objectContaining({
-        message: expect.not.stringContaining("MDEyMzQ1"),
+        message: expect.not.stringContaining("test-ses-secret-access-key"),
       })
     );
+  });
+
+  it('reads SES_PRODUCTION_ACCESS as "true" or "false", nothing else', () => {
+    const read = (value: string) =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        ...SES,
+        SES_PRODUCTION_ACCESS: value,
+      }).SES_PRODUCTION_ACCESS;
+    expect(read("true")).toBe(true);
+    expect(read("false")).toBe(false);
+    expect(() => read("yes")).toThrow(/SES_PRODUCTION_ACCESS/);
+  });
+
+  it("refuses a sender without an address, a key id with a space and a made-up region", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        ...SES,
+        SES_FROM: "Friends of Animals",
+        SES_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE ",
+        SES_REGION: "mumbai",
+      })
+    ).toThrow(/at SES_REGION[\s\S]*at SES_ACCESS_KEY_ID[\s\S]*at SES_FROM/);
   });
 });
 
@@ -436,5 +587,55 @@ describe("migrationEnvSchema", () => {
         VERCEL_GIT_COMMIT_REF: "main",
       }).APP_ENV
     ).toBe("staging");
+  });
+});
+
+describe("envSchema storage", () => {
+  const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
+  const R2 = {
+    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+    R2_ACCESS_KEY_ID: "test-access-key-id",
+    R2_SECRET_ACCESS_KEY: "test-secret-access-key",
+    R2_BUCKET: "foa-files-nonprod",
+  };
+
+  it("reads the R2 variables", () => {
+    expect(parseEnv(envSchema, { DATABASE_URL, ...R2 })).toMatchObject(R2);
+  });
+
+  it("lets every environment leave all of them out, production included", () => {
+    // Production storage waits for FOA's R2 buckets; until then it refuses.
+    const production = parseEnv(envSchema, {
+      DATABASE_URL,
+      APP_ENV: "production",
+      APP_URL: SITE,
+      BETTER_AUTH_SECRET: SECRET,
+      NEXT_PUBLIC_SENTRY_DSN: DSN,
+      // Production also needs field keys (#58).
+      FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+      FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
+    });
+    expect(production.R2_BUCKET).toBeUndefined();
+  });
+
+  it("refuses part of the R2 config, naming what is missing", () => {
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, R2_BUCKET: R2.R2_BUCKET })
+    ).toThrow(
+      /R2 is half configured[\s\S]*R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY/
+    );
+  });
+
+  it("refuses an account id or bucket name R2 wouldn't have", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        ...R2,
+        R2_ACCOUNT_ID: "evil.example.com/x",
+      })
+    ).toThrow(/at R2_ACCOUNT_ID/);
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, ...R2, R2_BUCKET: "Foa_Files" })
+    ).toThrow(/at R2_BUCKET/);
   });
 });

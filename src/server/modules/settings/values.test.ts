@@ -1,0 +1,158 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  decideSettingChange,
+  parseSettingValue,
+  resolveAllSettings,
+  resolveSetting,
+} from "./values";
+
+describe("resolveSetting", () => {
+  it("returns the documented default when nothing is stored", () => {
+    expect(resolveSetting("sms.enabled", undefined)).toEqual({
+      key: "sms.enabled",
+      value: false,
+      defaultValue: false,
+      source: "default",
+      storedInvalid: false,
+    });
+  });
+
+  it("returns the stored value when one is stored", () => {
+    expect(resolveSetting("auth.staffSessionHours", { value: 8 })).toEqual({
+      key: "auth.staffSessionHours",
+      value: 8,
+      defaultValue: 12,
+      source: "stored",
+      storedInvalid: false,
+    });
+  });
+
+  it("falls back to the default when the stored value no longer fits", () => {
+    expect(resolveSetting("auth.staffSessionHours", { value: 48 })).toEqual({
+      key: "auth.staffSessionHours",
+      value: 12,
+      defaultValue: 12,
+      source: "default",
+      storedInvalid: true,
+    });
+  });
+});
+
+describe("parseSettingValue", () => {
+  it("accepts a value that passes the setting's schema", () => {
+    expect(parseSettingValue("sms.enabled", true)).toEqual({
+      ok: true,
+      value: true,
+    });
+    expect(parseSettingValue("auth.staffSessionHours", 24)).toEqual({
+      ok: true,
+      value: 24,
+    });
+  });
+
+  it("trims a text setting, and takes empty as not set yet", () => {
+    expect(parseSettingValue("org.pan", " AAAAA0000A ")).toEqual({
+      ok: true,
+      value: "AAAAA0000A",
+    });
+    expect(parseSettingValue("org.legalName", "")).toEqual({
+      ok: true,
+      value: "",
+    });
+  });
+
+  it.each([
+    ["sms.enabled", "yes", { reason: "wrong_type" }],
+    ["sms.enabled", null, { reason: "wrong_type" }],
+    ["auth.staffSessionHours", "12", { reason: "wrong_type" }],
+    ["auth.staffSessionHours", 1.5, { reason: "wrong_type" }],
+    ["auth.staffSessionHours", 0, { reason: "too_small", min: 1 }],
+    ["auth.staffSessionHours", 25, { reason: "too_big", max: 24 }],
+    ["org.pan", "AAAAA0000AB", { reason: "too_long", maxLength: 10 }],
+    ["org.legalName", 42, { reason: "wrong_type" }],
+  ] as const)("refuses %s = %j with %j", (key, raw, problem) => {
+    expect(parseSettingValue(key, raw)).toEqual({
+      ok: false,
+      error: "invalid_value",
+      problem,
+    });
+  });
+});
+
+describe("decideSettingChange", () => {
+  it("stores a new value and records the value before and after", () => {
+    const current = resolveSetting("org.has80G", undefined);
+
+    expect(decideSettingChange(current, true)).toEqual({
+      ok: true,
+      changed: true,
+      value: true,
+      audit: {
+        before: { value: false, source: "default" },
+        after: { value: true },
+      },
+    });
+  });
+
+  it("is not a change when the value already applies", () => {
+    expect(
+      decideSettingChange(resolveSetting("sms.enabled", undefined), false)
+    ).toEqual({ ok: true, changed: false });
+    expect(
+      decideSettingChange(
+        resolveSetting("auth.staffSessionHours", { value: 8 }),
+        8
+      )
+    ).toEqual({ ok: true, changed: false });
+  });
+
+  it("replaces a stored value that no longer fits, even with the default", () => {
+    const current = resolveSetting("auth.staffSessionHours", { value: 48 });
+
+    expect(decideSettingChange(current, 12)).toEqual({
+      ok: true,
+      changed: true,
+      value: 12,
+      audit: {
+        before: { value: 12, source: "default" },
+        after: { value: 12 },
+      },
+    });
+  });
+
+  it("refuses an invalid value", () => {
+    const current = resolveSetting("auth.staffSessionHours", undefined);
+
+    expect(decideSettingChange(current, 0)).toEqual({
+      ok: false,
+      error: "invalid_value",
+      problem: { reason: "too_small", min: 1 },
+    });
+  });
+});
+
+describe("resolveAllSettings", () => {
+  it("lists every setting in catalogue order, ignoring unknown rows", () => {
+    const resolved = resolveAllSettings([
+      { key: "org.has80G", value: true },
+      { key: "retired.setting", value: "anything" },
+    ]);
+
+    expect(
+      resolved.map(({ key, value, source }) => [key, value, source])
+    ).toEqual([
+      ["auth.staffSessionHours", 12, "default"],
+      ["auth.emailSignIn", true, "default"],
+      ["sms.enabled", false, "default"],
+      ["sms.maxPerHour", 200, "default"],
+      ["sms.maxPerDay", 1000, "default"],
+      ["org.has80G", true, "stored"],
+      ["org.fcraEnabled", false, "default"],
+      ["org.legalName", "", "default"],
+      ["org.registrationType", "", "default"],
+      ["org.registrationNumber", "", "default"],
+      ["org.pan", "", "default"],
+    ]);
+  });
+});

@@ -7,11 +7,13 @@ import {
 } from "./support/a11y";
 import { freshPhone, readCode } from "./support/mailbox";
 
-// #58: sign up and sign in by SMS code. Previews switch SMS on and capture
-// every text, so the code is read from the preview's capture mailbox. Each
-// test uses its own number, so runs and projects don't share codes or the
-// 5-codes-per-phone limit. Seeded member1 signing in by phone, the SMS-off
-// notice and the limits are proved at Seam 1 (staging is where SMS is off).
+// #58: sign up and sign in by SMS code. Local runs and previews switch SMS
+// on and capture every text, so the code is read from the capture mailbox.
+// Each test uses its own number, so runs and projects don't share codes or
+// the 5-codes-per-phone limit. Seeded member1 signing in by phone and the
+// limits are proved at Seam 1. SMS is off on staging and production, whose
+// phone pages show a note instead of the form: /styleguide shows that note,
+// so axe checks it here.
 
 async function askForCode(page: Page, phone: string) {
   await page.getByRole("textbox", { name: "Mobile number" }).fill(phone);
@@ -81,11 +83,26 @@ test("a number from another country is pointed to email", async ({ page }) => {
     .fill("+44 7700 900123");
   await page.getByRole("button", { name: "Text me a code" }).click();
 
-  await expect(page.getByRole("alert")).toContainText(
+  // In <main>: Next.js's route announcer is an alert too.
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "We can only text Indian mobile numbers for now."
   );
   await expect(
     page.getByRole("link", { name: "Use your email instead" }).first()
   ).toHaveAttribute("href", "/sign-in");
   await expectAccessible(page, "/sign-in/phone, another country");
+});
+
+test("the note shown while SMS is off renders accessibly, light and dark", async ({
+  page,
+}) => {
+  await expectRendersAccessibly(page, "/styleguide");
+  const note = page.locator("aside", {
+    hasText: "We can't text sign-in codes yet",
+  });
+  await expect(note).toBeVisible();
+  await expect(
+    note.getByRole("link", { name: "Sign in with your email" })
+  ).toHaveAttribute("href", "/sign-in");
+  await expectAccessibleInDark(page, "/styleguide");
 });
