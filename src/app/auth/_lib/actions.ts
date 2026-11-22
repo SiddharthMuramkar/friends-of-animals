@@ -8,10 +8,10 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { APP_ROUTES } from "@/lib/app-routes";
-import { ROUTES } from "@/lib/routes";
 import { safeNext } from "@/lib/second-factor-routes";
-import { as, currentActor } from "@/server/app";
+import { as } from "@/server/app";
 
+import { field, signedIn } from "./action-input";
 import { orSecondFactor } from "./refusal";
 
 /** What the second-factor form shows after a try: translated text. */
@@ -34,17 +34,6 @@ async function alertFor(
   return error === "locked"
     ? { alert: t("locked", { minutes: Math.ceil(retryAfterSeconds / 60) }) }
     : { alert: t(error) };
-}
-
-async function signedIn() {
-  const actor = await currentActor();
-  if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  return actor;
-}
-
-function field(formData: FormData, name: string): string {
-  const value = formData.get(name);
-  return typeof value === "string" ? value : "";
 }
 
 /** Where to go once the second factor passes. */

@@ -25,10 +25,14 @@ import { invalidInput, type InvalidInput } from "../../input";
 import {
   isEnrolled,
   lockFactorSession,
-  lockUser,
+  lockLiveSession,
+  lockUsers,
   signedInUser,
 } from "./session-factor";
-import { dropPendingAuthenticators, type SecondFactorContext } from "./totp";
+import {
+  dropPendingAuthenticators,
+  type SecondFactorContext,
+} from "./enrolment";
 
 const removeInput = z.object({ factorId: z.uuid() });
 const resetInput = z.object({ userId: z.uuid() });
@@ -134,6 +138,11 @@ function sessionsOf(tx: AppDb, userId: string) {
  * Clears the user's factors and lockout and ends every session, including
  * its verification stamp and pending passkey challenges. The person who
  * requested recovery signs in again before enrolling a replacement.
+ *
+ * The super admin's authority is checked again inside the transaction,
+ * with both accounts and the super admin's session locked: a sign-out of
+ * that session, a change to their factors or a revoke of their role either
+ * waits for the reset or, having committed first, refuses it.
  */
 export async function resetSecondFactors(
   ctx: SecondFactorContext,
@@ -143,11 +152,15 @@ export async function resetSecondFactors(
   const parsed = resetInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { userId } = parsed.data;
+  const actor = signedInUser(ctx.actor);
 
   return ctx.db.transaction(async (tx) => {
-    const found = await lockUser(tx, userId);
+    const found = await lockUsers(tx, [actor.userId, userId]);
+    await lockLiveSession(tx, actor, ctx.clock);
     const { role } = await authorize({ ...ctx, db: tx }, "second-factor.reset");
-    if (!found) return { ok: false, error: "not_found" } as const;
+    if (!found.has(userId.toLowerCase())) {
+      return { ok: false, error: "not_found" } as const;
+    }
 
     const removed = await tx
       .delete(secondFactor)

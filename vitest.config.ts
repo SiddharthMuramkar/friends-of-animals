@@ -24,6 +24,8 @@ export default defineConfig({
       "docker/**/*.test.ts",
       "tests/e2e/**/*.test.ts",
     ],
+    // Real-Postgres races run apart, in `pnpm test:pg` (vitest.pg.config.ts).
+    exclude: ["**/node_modules/**", "**/*.pg.test.ts"],
     environment: "node",
     // Migrates the PGlite template once per run, before any test file.
     globalSetup: ["src/test/global-setup.ts"],

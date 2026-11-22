@@ -41,6 +41,17 @@ function wrongCodeFor(secret: Uint8Array): string {
   )!;
 }
 
+/**
+ * A well-formed code no step of drift around now accepts, with a margin
+ * for the clock moving on before the server checks it.
+ */
+function wrongCodeFor(secret: Uint8Array): string {
+  const near = [-2, -1, 0, 1, 2].map((step) => codeFor(secret, step));
+  return ["000000", "111111", "222222", "333333", "444444", "555555"].find(
+    (code) => !near.includes(code)
+  )!;
+}
+
 async function signIn(
   page: Page,
   request: Parameters<typeof readCode>[0],
