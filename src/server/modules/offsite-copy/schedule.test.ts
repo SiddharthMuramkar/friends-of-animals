@@ -7,7 +7,10 @@ import { SCHEDULES } from "@/server/outbox/schedules";
 import { FakeCopyBucket } from "@/test/fakes/copy-bucket";
 import { createHarness } from "@/test/harness";
 
-import { OffsiteCopyNotConfiguredError } from "./errors";
+import {
+  OffsiteCopyIncompleteError,
+  OffsiteCopyNotConfiguredError,
+} from "./errors";
 import { runScheduledOffsiteCopy } from "./schedule";
 
 const PRODUCTION = {
@@ -139,5 +142,86 @@ describe("runScheduledOffsiteCopy", () => {
     expect(
       await b2.exists({ bucket: "foa-offsite", key: "foa-files-prod/avatar/a" })
     ).toBe(true);
+  });
+
+  /** R2 whose listing names one key twice, so the plan throws. */
+  function twiceListed(r2: FakeCopyBucket): CopyBucket {
+    return {
+      read: (input) => r2.read(input),
+      write: (input) => r2.write(input),
+      delete: (input) => r2.delete(input),
+      exists: (input) => r2.exists(input),
+      async *list() {
+        const object = {
+          key: "avatar/a",
+          etag: "0123456789abcdef0123456789abcdef",
+          sizeBytes: 3,
+          lastModified: new Date("2027-01-15T00:00:00Z"),
+        };
+        yield object;
+        yield object;
+      },
+    };
+  }
+
+  it("reports an unexpected failure on the final attempt only", async () => {
+    const h = await createHarness();
+    const b2 = new FakeCopyBucket({ clock: h.clock });
+    const connect = () => ({
+      source: twiceListed(new FakeCopyBucket({ clock: h.clock })),
+      target: b2,
+    });
+
+    await expect(
+      runScheduledOffsiteCopy(
+        h.deps,
+        { finalAttempt: false },
+        { env: PRODUCTION, connect }
+      )
+    ).rejects.toThrow("twice");
+    expect(h.errors.reported).toEqual([]);
+
+    const error = await runScheduledOffsiteCopy(
+      h.deps,
+      { finalAttempt: true },
+      { env: PRODUCTION, connect }
+    ).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(h.errors.reported).toEqual([
+      expect.objectContaining({
+        error,
+        tags: { job: "offsite_copy", where: "offsite_copy" },
+      }),
+    ]);
+  });
+
+  it("reports an incomplete run once, not again as unexpected", async () => {
+    const h = await createHarness();
+    const failing: CopyBucket = {
+      read: async () => null,
+      write: async () => {},
+      delete: async () => {},
+      exists: async () => false,
+      // eslint-disable-next-line require-yield
+      async *list() {
+        throw new Error("R2 is down");
+      },
+    };
+
+    await expect(
+      runScheduledOffsiteCopy(
+        h.deps,
+        { finalAttempt: true },
+        {
+          env: PRODUCTION,
+          connect: () => ({
+            source: failing,
+            target: new FakeCopyBucket({ clock: h.clock }),
+          }),
+        }
+      )
+    ).rejects.toThrow(OffsiteCopyIncompleteError);
+    expect(h.errors.reported).toHaveLength(1);
   });
 });
