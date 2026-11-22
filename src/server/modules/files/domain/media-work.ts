@@ -14,7 +14,7 @@ import { normaliseContentType, type FilePurpose } from "./purposes";
 export const IMAGE_DERIVATIVES: {
   readonly [P in FilePurpose]?: readonly DerivativeKind[];
 } = {
-  /** The demo upload page shows the thumbnail; a preview proves the job. */
+  /** Lets the test uploads prove the media job end to end (Seam 1, previews). */
   test_upload: ["thumb_320", "display_1600"],
 };
 

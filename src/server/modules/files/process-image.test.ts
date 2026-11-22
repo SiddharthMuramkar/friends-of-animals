@@ -230,6 +230,28 @@ describe("the media job", () => {
     });
   });
 
+  it("records nothing for a file that stops being clean while it is processed", async () => {
+    const h = await world();
+    const { fileId } = await upload(h, "image/jpeg", JPEG);
+    const media = h.deps.media;
+    h.deps.media = {
+      async processImage(input) {
+        const result = await media.processImage(input);
+        // Clean only ever leaves for deleted (domain/file-status.ts).
+        await h.db
+          .update(fileAsset)
+          .set({ status: "deleted" })
+          .where(eq(fileAsset.id, fileId));
+        return result;
+      },
+    };
+
+    await h.drain();
+
+    expect(await derivatives(h, fileId)).toEqual([]);
+    expect(await processing(h, fileId)).toMatchObject({ status: "queued" });
+  });
+
   it("makes each derivative once when the job is delivered twice", async () => {
     const h = await world();
     const { fileId } = await upload(h, "image/jpeg", JPEG);

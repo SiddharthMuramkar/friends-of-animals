@@ -144,7 +144,8 @@ async function readAll(
  * Writes the objects first, then records them and finishes the job in one
  * transaction, so a row never points at a missing object. If the job was
  * finished meanwhile, the objects written are the same ones, and no row
- * changes.
+ * changes. If the file is no longer clean, nothing is recorded and the job
+ * stays queued: a redelivery finds the file isn't clean and does nothing.
  */
 async function storeDerivatives(
   { db, clock, storage }: MediaJobDeps,
@@ -180,6 +181,14 @@ async function storeDerivatives(
     });
   }
   await db.transaction(async (tx) => {
+    // The file may have left clean (for deleted) while it was processed;
+    // held until commit, so it can't leave while its derivatives go in.
+    const [still] = await tx
+      .select({ status: fileAsset.status })
+      .from(fileAsset)
+      .where(eq(fileAsset.id, file.id))
+      .for("share");
+    if (still?.status !== "clean") return;
     if (!(await finish(tx, now, file.id, { status: "done" }))) return;
     if (rows.length > 0) await tx.insert(fileDerivative).values(rows);
     await emit(tx, clock, {

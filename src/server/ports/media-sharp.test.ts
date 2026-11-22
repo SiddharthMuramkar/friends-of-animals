@@ -1,3 +1,4 @@
+import exifr from "exifr";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
@@ -40,6 +41,25 @@ describe("sharpMediaProcessor", () => {
     expect(webpMetadata(kept)).toEqual(
       expect.arrayContaining(["EXIF", "XMP ", "Apple", "iPhone"])
     );
+  });
+
+  it("plants GPS and camera details in the HEIC the strip checks use", async () => {
+    // The same guard for iphone.heic, whose metadata sits in HEIF boxes
+    // that sharp can't re-encode; exifr reads them directly.
+    const tags = await exifr.parse(
+      Buffer.from(readMediaFixture("iphoneHeic")),
+      {
+        gps: true,
+        tiff: true,
+      }
+    );
+
+    expect(tags).toMatchObject({
+      latitude: expect.any(Number),
+      longitude: expect.any(Number),
+      Make: "Apple",
+      Model: "iPhone 15 Pro",
+    });
   });
 
   it("turns a rotated JPEG the right way, not just to the right size", async () => {

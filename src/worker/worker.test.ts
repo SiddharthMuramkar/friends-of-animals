@@ -447,4 +447,35 @@ describe("worker-media", () => {
     // The container's health check reads the heartbeat file.
     expect(record.beats).toEqual([io.clock.now()]);
   });
+
+  it("makes one image per poll, so it beats between images", async () => {
+    // One job may take up to its deadline; a poll that drained a backlog
+    // would go minutes without touching the heartbeat file the container's
+    // health check reads (120 s).
+    const h = await createHarness();
+    await cleanImages(h, 2);
+    const { io, record } = fakeIo({ foa: h.db }, [], {
+      storage: h.storage,
+      media: h.media,
+    });
+    const statuses = async () =>
+      (
+        await h.db
+          .select({ status: fileProcessing.status })
+          .from(fileProcessing)
+      )
+        .map(({ status }) => status)
+        .sort();
+
+    const worker = createWorker(MEDIA_CONFIG, io);
+    await worker.start();
+    await worker.tick();
+    expect(await statuses()).toEqual(["done", "queued"]);
+    expect(record.beats).toHaveLength(1);
+
+    await worker.tick();
+    expect(await statuses()).toEqual(["done", "done"]);
+    expect(record.beats).toHaveLength(2);
+    await worker.stop();
+  });
 });
