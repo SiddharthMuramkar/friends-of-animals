@@ -26,7 +26,7 @@ describe("emit", () => {
         eventType: "identity.user_signed_up",
         aggregateType: "user",
         aggregateId: event.aggregate.id,
-        handler: "notifications.send_welcome_email",
+        handler: "notifications.dispatch",
         payload: { userId: event.payload.userId },
         status: "pending",
         attempts: 0,

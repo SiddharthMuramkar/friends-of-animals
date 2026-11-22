@@ -9,8 +9,11 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import type { FieldCipher } from "../server/crypto/field-cipher";
+import { fieldCryptoFor } from "../server/crypto/keys";
 import type { AppDb } from "../server/db/app-db";
 import { withDatabase } from "../server/db/database-url";
+import { databaseSettings } from "../server/modules/settings/read";
 import {
   SCHEDULES,
   type DrainOptions,
@@ -21,6 +24,7 @@ import { emailSenderFor } from "../server/ports/email-sender-for";
 import type { ErrorReporter } from "../server/ports/errors";
 import type { MalwareScanner } from "../server/ports/malware-scanner";
 import { unconfiguredMedia, type MediaProcessor } from "../server/ports/media";
+import { smsSenderFor } from "../server/ports/sms-sender-for";
 import type { ObjectStorage } from "../server/ports/storage";
 import type { WorkerConfig } from "./config";
 import type { WorkerLog } from "./log";
@@ -78,18 +82,43 @@ export type Worker = {
   stop(): Promise<void>;
 };
 
+/**
+ * The field cipher, made at its first use: the worker decrypts a stored
+ * phone only to send an SMS (src/server/modules/notifications/dispatch.ts).
+ * It reads no field keys yet, so a local or preview worker uses the public
+ * development keys, and a staging or production one refuses each SMS to a
+ * stored phone with fieldCryptoFor's reason, kept on the outbox row for
+ * staff, while email and in-app messages go. Give it its keys before SMS
+ * is switched on there (HR-14).
+ */
+function cipherOnFirstUse(appEnv: WorkerConfig["appEnv"]): FieldCipher {
+  let cipher: FieldCipher | undefined;
+  const made = () => (cipher ??= fieldCryptoFor({ APP_ENV: appEnv }).cipher);
+  return {
+    encrypt: (purpose, plaintext) => made().encrypt(purpose, plaintext),
+    decrypt: (purpose, stored) => made().decrypt(purpose, stored),
+  };
+}
+
 export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   let supervisor: Supervisor | undefined;
   const cleanups: (() => Promise<void>)[] = [];
+  const cipher = cipherOnFirstUse(config.appEnv);
   /** The default workers never process media: their queue has no media job. */
   let media: MediaProcessor = unconfiguredMedia;
   const isMedia = config.queue.name === "media";
   const drain: DrainOptions = { queue: config.queue.name };
 
+  // The same adapters as the app's deps (src/server/deps.ts). No MSG91
+  // keys yet, so production refuses SMS, as it does while sms.enabled is
+  // off; the runtime settings are the database's own.
   const depsFor = (db: AppDb): OutboxDeps => ({
     db,
     clock: io.clock,
     email: emailSenderFor(config.appEnv, { db, clock: io.clock }),
+    sms: smsSenderFor(config.appEnv, { db, clock: io.clock }, {}),
+    settings: databaseSettings(db),
+    cipher,
     storage: io.storage,
     scanner: io.scanner,
     media,
