@@ -281,6 +281,27 @@
       "when": 1795360077507,
       "tag": "0039_75_enrol_students",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1795362925616,
+      "tag": "0040_77_registration_confirmed",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795363144559,
+      "tag": "0041_77_payments_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795363677380,
+      "tag": "0042_77_payment_messages",
+      "breakpoints": true
     }
   ]
 }

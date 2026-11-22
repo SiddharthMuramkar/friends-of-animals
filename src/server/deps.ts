@@ -54,6 +54,10 @@ import type { MalwareScanner } from "./ports/malware-scanner";
 import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { localScanner } from "./ports/malware-scanner-local";
 import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
+import {
+  unconfiguredPaymentGateway,
+  type PaymentGateway,
+} from "./ports/payment-gateway";
 import { serverErrorReporter } from "./observability/server-reporter";
 import type { HumanCheck } from "./ports/human-check";
 import {
@@ -96,6 +100,8 @@ export interface Deps extends DbWithClock {
   contactLimits: ContactRateLimits;
   /** The sign-in code limits per address or phone, and per IP. */
   codeRequestLimits: CodeRequestLimits;
+  /** Takes fee payments: orders, Checkout and webhooks (#77). */
+  payments: PaymentGateway;
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
@@ -320,6 +326,8 @@ export function productionDeps(): Deps {
       errors: serverErrorReporter,
       scanner: scannerFor(config),
       media: unconfiguredMedia,
+      // Refuses every payment until 77b wires Razorpay.
+      payments: unconfiguredPaymentGateway,
     };
   }
   return production;

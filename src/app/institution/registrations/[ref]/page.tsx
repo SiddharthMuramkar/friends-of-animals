@@ -81,6 +81,7 @@ const CARD =
 
 const STATUS_TONE = {
   enrolled: "green",
+  confirmed: "blue",
   withdrawn: "neutral",
 } as const satisfies Record<RegistrationStatus, string>;
 
@@ -182,6 +183,7 @@ async function Students({
         <p className="font-semibold text-ink">
           {t("counts", {
             enrolled: list.counts.enrolled,
+            confirmed: list.counts.confirmed,
             withdrawn: list.counts.withdrawn,
           })}
         </p>
