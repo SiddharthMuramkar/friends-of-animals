@@ -13,7 +13,10 @@
 #    fingerprint is pinned below.
 #  - collection crowdsecurity/pgsql (PgBouncer/Postgres brute force), plus the
 #    local parser foa/pgbouncer-no-such-user and whitelist foa/whitelist.
-#  - acquisition: docker logs of the foa-pgbouncer container.
+#  - collection crowdsecurity/caddy (generic HTTP scenarios on foa-caddy's
+#    access log).
+#  - acquisition: docker logs of the foa-pgbouncer container; foa-caddy's
+#    access log from journald.
 #  - crowdsec and the bouncer start after Docker (systemd drop-ins).
 #
 # Usage: sudo install-crowdsec.sh
@@ -126,10 +129,12 @@ fi
 # 2. Hub content and local files ------------------------------------------------
 cscli hub update
 cscli collections install crowdsecurity/pgsql
+cscli collections install crowdsecurity/caddy
 install -d -m 0755 /etc/crowdsec/acquis.d /etc/crowdsec/parsers/s01-parse /etc/crowdsec/parsers/s02-enrich
 install -m 0644 "$SRC/acquis-foa-pgbouncer.yaml" /etc/crowdsec/acquis.d/foa-pgbouncer.yaml
 install -m 0644 "$SRC/foa-pgbouncer-no-such-user.yaml" /etc/crowdsec/parsers/s01-parse/foa-pgbouncer-no-such-user.yaml
 install -m 0644 "$SRC/foa-whitelist.yaml" /etc/crowdsec/parsers/s02-enrich/foa-whitelist.yaml
+install -m 0644 "$SRC/acquis-foa-caddy.yaml" /etc/crowdsec/acquis.d/foa-caddy.yaml
 
 # 3. Bouncer settings for this OS; crowdsec and the bouncer after Docker --------
 install -m 0600 "$SRC/crowdsec-firewall-bouncer-$FLAVOUR.yaml.local" "$BOUNCER_CFG.local"
