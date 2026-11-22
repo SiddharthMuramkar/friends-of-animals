@@ -106,6 +106,29 @@ describe("the data inventory", () => {
     expect(listed.has("institution_registration.registered_by")).toBe(true);
   });
 
+  it("lists every personal-data column of a participant profile", () => {
+    expect(
+      [
+        "full_name",
+        "dob_ciphertext",
+        "grade",
+        "student_ref",
+        "phone_ciphertext",
+        "email_ciphertext",
+        "guardian_name_ciphertext",
+        "guardian_relationship",
+        "guardian_phone_ciphertext",
+        "guardian_email_ciphertext",
+        "address_ciphertext",
+        "pin_code",
+        "city",
+        "state",
+        "identity_hash",
+        "created_by",
+      ].filter((column) => !listed.has(`participant_profile.${column}`))
+    ).toEqual([]);
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>

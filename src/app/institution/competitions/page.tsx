@@ -6,12 +6,13 @@ import { Suspense } from "react";
 
 import { SubmitButton } from "@/components/form";
 import { OutcomeNotice } from "@/components/form/outcome-notice";
+import { ButtonLink } from "@/components/site/button-link";
 import { Chip } from "@/components/site/chip";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { APP_ROUTES, institutionRegistrationPath } from "@/lib/app-routes";
 import { ROUTES, slugHref } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type {
@@ -226,6 +227,23 @@ async function CompetitionCard({
             {competition.registration.reference}
           </p>
           <p className="mt-1 text-sm text-ink-muted">{t("referenceHint")}</p>
+          <p className="mt-4">
+            <ButtonLink
+              href={institutionRegistrationPath(
+                competition.registration.reference,
+                institution.id
+              )}
+              variant="secondary"
+            >
+              <span aria-hidden="true">{t("students")}</span>
+              <span className="sr-only">
+                {t("studentsFor", {
+                  institution: institution.name,
+                  competition: competition.name,
+                })}
+              </span>
+            </ButtonLink>
+          </p>
         </div>
       ) : competition.window === "open" ? (
         <form action={registerForCompetitionAction} className="mt-5">
