@@ -9,6 +9,8 @@ export const APP_ROUTES = {
   accountSecurity: "/account/security",
   secondFactor: "/auth/second-factor",
   stepUp: "/auth/step-up",
+  /** The file upload demo (#63): every environment but production. */
+  accountFiles: "/account/files",
   accountConsents: "/account/consents",
   adminConsentDocuments: "/admin/consent-documents",
 } as const;
@@ -42,4 +44,16 @@ export function isUnderPrefix(
 /** Whether `pathname` is one of the pages in APP_ROUTES. */
 export function isSignedInPage(pathname: string): boolean {
   return (Object.values(APP_ROUTES) as string[]).includes(pathname);
+}
+
+/**
+ * Pages that exist everywhere but production: src/proxy.ts answers 404
+ * for them there, before anything renders.
+ */
+export const NON_PRODUCTION_PREFIXES = [APP_ROUTES.accountFiles] as const;
+
+export function isNonProductionPath(pathname: string): boolean {
+  return NON_PRODUCTION_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
 }

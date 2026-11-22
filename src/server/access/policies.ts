@@ -4,6 +4,7 @@
 // super admin is not a wildcard.
 
 import { IDENTITY_POLICY } from "../identity/policy";
+import { FILES_POLICY } from "../modules/files/policy";
 import { CONSENT_POLICY } from "../modules/consent/policy";
 import { SECOND_FACTOR_POLICY } from "../modules/second-factor/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
@@ -13,6 +14,7 @@ export const POLICY = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
   SECOND_FACTOR_POLICY,
+  FILES_POLICY,
   CONSENT_POLICY
 );
 

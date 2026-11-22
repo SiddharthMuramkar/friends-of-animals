@@ -15,7 +15,7 @@ const PREVIEW_WORKER: WorkerIdentity = {
 function tenantFor(h: Harness, identity = PREVIEW_WORKER) {
   return createTenant({
     database: "foa_pr_143_0a1b2c3d",
-    deps: { db: h.db, clock: h.clock, email: h.email },
+    deps: h.deps,
     identity,
     end: async () => {},
   });
@@ -79,7 +79,7 @@ describe("closing a tenant", () => {
     let ended = 0;
     const tenant = createTenant({
       database: "foa_pr_143_0a1b2c3d",
-      deps: { db: h.db, clock: h.clock, email: h.email },
+      deps: h.deps,
       identity: PREVIEW_WORKER,
       end: async () => {
         ended += 1;

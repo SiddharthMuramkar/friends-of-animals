@@ -402,6 +402,32 @@ describe("envSchema: error tracking", () => {
   });
 });
 
+describe("envSchema: malware scanner", () => {
+  it("reads where clamd listens", () => {
+    const config = parseEnv(envSchema, {
+      DATABASE_URL,
+      CLAMD_HOST: "clamav",
+      CLAMD_PORT: "3311",
+    });
+    expect(config).toMatchObject({ CLAMD_HOST: "clamav", CLAMD_PORT: 3311 });
+  });
+
+  it("leaves CLAMD_HOST out and CLAMD_PORT at clamd's 3310 by default", () => {
+    const config = parseEnv(envSchema, { DATABASE_URL });
+    expect(config).not.toHaveProperty("CLAMD_HOST");
+    expect(config).toHaveProperty("CLAMD_PORT", 3310);
+  });
+
+  it.each(["clamd", "0", "65536", "33.1"])(
+    "refuses CLAMD_PORT=%s",
+    (CLAMD_PORT) => {
+      expect(() =>
+        parseEnv(envSchema, { DATABASE_URL, CLAMD_HOST: "clamav", CLAMD_PORT })
+      ).toThrow(/at CLAMD_PORT/);
+    }
+  );
+});
+
 describe("migrationEnvSchema", () => {
   it("reads DIRECT_URL", () => {
     const url = "postgresql://migrator:p@db.example.org:6432/foa";
@@ -479,5 +505,55 @@ describe("migrationEnvSchema", () => {
         VERCEL_GIT_COMMIT_REF: "main",
       }).APP_ENV
     ).toBe("staging");
+  });
+});
+
+describe("envSchema storage", () => {
+  const DSN = "https://abc123@o1.ingest.us.sentry.io/4507";
+  const R2 = {
+    R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+    R2_ACCESS_KEY_ID: "test-access-key-id",
+    R2_SECRET_ACCESS_KEY: "test-secret-access-key",
+    R2_BUCKET: "foa-files-nonprod",
+  };
+
+  it("reads the R2 variables", () => {
+    expect(parseEnv(envSchema, { DATABASE_URL, ...R2 })).toMatchObject(R2);
+  });
+
+  it("lets every environment leave all of them out, production included", () => {
+    // Production storage waits for FOA's R2 buckets; until then it refuses.
+    const production = parseEnv(envSchema, {
+      DATABASE_URL,
+      APP_ENV: "production",
+      APP_URL: SITE,
+      BETTER_AUTH_SECRET: SECRET,
+      NEXT_PUBLIC_SENTRY_DSN: DSN,
+      // Production also needs field keys (#58).
+      FIELD_ENCRYPTION_KEYS: "1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+      FIELD_HMAC_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
+    });
+    expect(production.R2_BUCKET).toBeUndefined();
+  });
+
+  it("refuses part of the R2 config, naming what is missing", () => {
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, R2_BUCKET: R2.R2_BUCKET })
+    ).toThrow(
+      /R2 is half configured[\s\S]*R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY/
+    );
+  });
+
+  it("refuses an account id or bucket name R2 wouldn't have", () => {
+    expect(() =>
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        ...R2,
+        R2_ACCOUNT_ID: "evil.example.com/x",
+      })
+    ).toThrow(/at R2_ACCOUNT_ID/);
+    expect(() =>
+      parseEnv(envSchema, { DATABASE_URL, ...R2, R2_BUCKET: "Foa_Files" })
+    ).toThrow(/at R2_BUCKET/);
   });
 });

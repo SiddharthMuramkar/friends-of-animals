@@ -1,5 +1,5 @@
 {
-  "id": "63187c31-7874-4dfb-b895-7b5619c11525",
+  "id": "76223297-89f7-45b6-a957-4faedf617493",
   "prevId": "0794fbfa-c813-4470-ada4-069a2da09b22",
   "version": "7",
   "dialect": "postgresql",
@@ -1285,8 +1285,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.consent_document": {
-      "name": "consent_document",
+    "public.file_asset": {
+      "name": "file_asset",
       "schema": "",
       "columns": {
         "id": {
@@ -1295,191 +1295,102 @@
           "primaryKey": true,
           "notNull": true
         },
+        "owner_user_id": {
+          "name": "owner_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "purpose": {
           "name": "purpose",
-          "type": "consent_purpose",
+          "type": "file_asset_purpose",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
+        "content_type": {
+          "name": "content_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "body": {
-          "name": "body",
-          "type": "jsonb",
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
-        "published_at": {
-          "name": "published_at",
+        "bucket": {
+          "name": "bucket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "file_asset_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending_upload'"
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scan_result": {
+          "name": "scan_result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scanned_at": {
+          "name": "scanned_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploaded_at": {
+          "name": "uploaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
-        "published_by_user_id": {
-          "name": "published_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "consent_document_purpose_version_unique": {
-          "name": "consent_document_purpose_version_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "purpose",
-            "version"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "consent_document_version_positive": {
-          "name": "consent_document_version_positive",
-          "value": "\"consent_document\".\"version\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.consent_event": {
-      "name": "consent_event",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "subject_type": {
-          "name": "subject_type",
-          "type": "consent_subject_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_id": {
-          "name": "subject_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "giver_user_id": {
-          "name": "giver_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "purpose": {
-          "name": "purpose",
-          "type": "consent_purpose",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_id": {
-          "name": "document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "action": {
-          "name": "action",
-          "type": "consent_event_action",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "consent_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurred_at": {
-          "name": "occurred_at",
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         }
       },
       "indexes": {
-        "consent_event_subject_idx": {
-          "name": "consent_event_subject_idx",
+        "file_asset_owner_created_idx": {
+          "name": "file_asset_owner_created_idx",
           "columns": [
             {
-              "expression": "subject_type",
+              "expression": "owner_user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "subject_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "purpose",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
+              "expression": "created_at",
               "isExpression": false,
               "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "consent_event_document_id_idx": {
-          "name": "consent_event_document_id_idx",
-          "columns": [
-            {
-              "expression": "document_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "consent_event_giver_user_id_idx": {
-          "name": "consent_event_giver_user_id_idx",
-          "columns": [
-            {
-              "expression": "giver_user_id",
-              "isExpression": false,
-              "asc": true,
               "nulls": "last"
             }
           ],
@@ -1490,37 +1401,37 @@
         }
       },
       "foreignKeys": {
-        "consent_event_giver_user_id_user_id_fk": {
-          "name": "consent_event_giver_user_id_user_id_fk",
-          "tableFrom": "consent_event",
+        "file_asset_owner_user_id_user_id_fk": {
+          "name": "file_asset_owner_user_id_user_id_fk",
+          "tableFrom": "file_asset",
           "tableTo": "user",
           "columnsFrom": [
-            "giver_user_id"
+            "owner_user_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "consent_event_document_id_consent_document_id_fk": {
-          "name": "consent_event_document_id_consent_document_id_fk",
-          "tableFrom": "consent_event",
-          "tableTo": "consent_document",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "file_asset_storage_key_unique": {
+          "name": "file_asset_storage_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "storage_key"
+          ]
+        }
+      },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "file_asset_size_bytes_positive": {
+          "name": "file_asset_size_bytes_positive",
+          "value": "\"file_asset\".\"size_bytes\" > 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.worker_heartbeat": {
@@ -1633,38 +1544,24 @@
         "failed"
       ]
     },
-    "public.consent_event_action": {
-      "name": "consent_event_action",
+    "public.file_asset_purpose": {
+      "name": "file_asset_purpose",
       "schema": "public",
       "values": [
-        "given",
-        "withdrawn"
+        "test_upload"
       ]
     },
-    "public.consent_method": {
-      "name": "consent_method",
+    "public.file_asset_status": {
+      "name": "file_asset_status",
       "schema": "public",
       "values": [
-        "web_form",
-        "otp_link",
-        "paper_form",
-        "staff_recorded"
-      ]
-    },
-    "public.consent_purpose": {
-      "name": "consent_purpose",
-      "schema": "public",
-      "values": [
-        "privacy_notice",
-        "terms",
-        "messages"
-      ]
-    },
-    "public.consent_subject_type": {
-      "name": "consent_subject_type",
-      "schema": "public",
-      "values": [
-        "user"
+        "pending_upload",
+        "uploaded",
+        "scanning",
+        "clean",
+        "quarantined",
+        "rejected",
+        "deleted"
       ]
     }
   },
