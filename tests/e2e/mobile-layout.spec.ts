@@ -54,12 +54,24 @@ test("the landscape menu stays open through hydration, scrolls, and closes", asy
   const about = nav.getByRole("link", { name: "About", exact: true });
   const close = menu.getByRole("button", { name: "Close menu" });
 
+  // React reveals the streamed parts of the page on a timer after the first
+  // paint. A paused clock holds them back, so the tap always lands first.
+  await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 60_000);
+  const streamed = page.locator('div[hidden][id^="S:"]');
+
   try {
     // The native button works while the mobile connection loads the scripts.
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(streamed).not.toHaveCount(0);
     await trigger.click();
     await expect(menu).toBeVisible();
+    // Revealing the streamed content must not close or replace the menu.
+    await page.clock.runFor(1_000);
+    await expect(streamed).toHaveCount(0);
+    await expect(menu).toBeVisible();
   } finally {
+    await page.clock.resume();
     scripts.resolve();
   }
   // HeaderHeightSync writes the measured height after hydration.
