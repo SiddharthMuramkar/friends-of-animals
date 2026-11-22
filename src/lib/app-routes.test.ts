@@ -44,6 +44,15 @@ describe("isSignedInPage", () => {
     );
   });
 
+  it("knows a competition's fees, prizes and terms page, whatever its id", () => {
+    expect(isSignedInPage(`/admin/competitions/${COMPETITION_ID}/terms`)).toBe(
+      true
+    );
+    expect(
+      isSignedInPage(`/admin/competitions/${COMPETITION_ID}/terms/more`)
+    ).toBe(false);
+  });
+
   it("knows an institution's review page, whatever its id", () => {
     expect(
       isSignedInPage(

@@ -90,6 +90,13 @@ export function legalKeyForConsentPurpose(
   return CONSENT_PURPOSE_PAGE[purpose];
 }
 
+/** Whether a purpose rests on a policy page. A competition's terms (#72) don't. */
+export function isLinkedConsentPurpose(
+  purpose: string
+): purpose is LinkedConsentPurpose {
+  return Object.hasOwn(CONSENT_PURPOSE_PAGE, purpose);
+}
+
 /**
  * The public page that shows a document, where previewing its draft
  * starts. Site facts preview on the contact page, which shows them all.

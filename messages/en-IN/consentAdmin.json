@@ -16,7 +16,8 @@
     "purposes": {
       "privacy_notice": "Privacy policy",
       "terms": "Terms of use",
-      "messages": "News and updates by email"
+      "messages": "News and updates by email",
+      "competition_terms": "Competition terms"
     },
     "current": "Version {version}, published {date} by {name}.",
     "currentPublisherGone": "Version {version}, published {date} by an account that no longer exists.",
