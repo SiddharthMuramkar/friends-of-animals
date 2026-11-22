@@ -131,6 +131,8 @@ describe("resolveAllSettings", () => {
     ).toEqual([
       ["auth.staffSessionHours", 12, "default"],
       ["sms.enabled", false, "default"],
+      ["sms.maxPerHour", 200, "default"],
+      ["sms.maxPerDay", 1000, "default"],
       ["org.has80G", true, "stored"],
       ["org.fcraEnabled", false, "default"],
     ]);

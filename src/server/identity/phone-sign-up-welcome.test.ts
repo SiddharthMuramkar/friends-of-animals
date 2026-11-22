@@ -12,7 +12,7 @@ const PHONE = "+91 98765 43210";
 
 async function smsOn() {
   const h = await createHarness();
-  h.settings.set("sms.enabled", true);
+  await h.settings.set("sms.enabled", true);
   return h;
 }
 

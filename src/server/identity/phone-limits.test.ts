@@ -11,7 +11,7 @@ const PHONE = "+91 98765 43210";
 
 async function harness({ sms }: { sms: "on" | "off" }) {
   const h = await createHarness();
-  h.settings.set("sms.enabled", sms === "on");
+  await h.settings.set("sms.enabled", sms === "on");
   return h;
 }
 
@@ -44,7 +44,7 @@ describe("while SMS is switched off", () => {
     const h = await harness({ sms: "on" });
     await h.as(h.visitor()).requestPhoneCode({ phone: PHONE });
     const code = h.sms.codeFor(PHONE) ?? "";
-    h.settings.set("sms.enabled", false);
+    await h.settings.set("sms.enabled", false);
 
     const result = await h.as(h.visitor()).verifyPhoneCode({
       intent: "sign-up",
@@ -77,7 +77,7 @@ describe("signInMethods", () => {
       phone: false,
     });
 
-    h.settings.set("sms.enabled", true);
+    await h.settings.set("sms.enabled", true);
     expect(await h.as(h.visitor()).signInMethods()).toEqual({
       email: true,
       phone: true,
@@ -219,7 +219,7 @@ describe("the ceiling on sign-in texts from everyone together", () => {
 
   it("refuses a text over the hourly ceiling, whatever the phone or IP, until the hour ends", async () => {
     const h = await harness({ sms: "on" });
-    h.settings.set("sms.maxPerHour", 3);
+    await h.settings.set("sms.maxPerHour", 3);
     for (let n = 0; n < 3; n++) {
       expect(await from(h, n).requestPhoneCode({ phone: nthPhone(n) })).toEqual(
         { ok: true }
@@ -242,7 +242,7 @@ describe("the ceiling on sign-in texts from everyone together", () => {
 
   it("refuses a text over the daily ceiling until midnight UTC", async () => {
     const h = await harness({ sms: "on" });
-    h.settings.set("sms.maxPerDay", 4);
+    await h.settings.set("sms.maxPerDay", 4);
     for (let n = 0; n < 4; n++) {
       expect(await from(h, n).requestPhoneCode({ phone: nthPhone(n) })).toEqual(
         { ok: true }
@@ -261,7 +261,7 @@ describe("the ceiling on sign-in texts from everyone together", () => {
 
   it("counts neither email codes nor texts another limit refused", async () => {
     const h = await harness({ sms: "on" });
-    h.settings.set("sms.maxPerHour", 1);
+    await h.settings.set("sms.maxPerHour", 1);
     const busy = h.as(h.visitor({ ip: "203.0.113.7" }));
     for (let n = 0; n < 20; n++) {
       expect(
