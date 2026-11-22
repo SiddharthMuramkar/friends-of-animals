@@ -14,6 +14,7 @@ import {
   openToIndividuals,
 } from "@/server/modules/participants/testing";
 import { createHarness, type Harness } from "@/test/harness";
+import { seedInstitution } from "@/test/institutions";
 
 import { bornYearsAgo, verifiedGuardian } from "./testing";
 
@@ -185,6 +186,20 @@ describe("inviteTeenLogin", () => {
       ok: false,
       error: "withdrawn",
     });
+  });
+
+  it("sends one address no more invitations than sign-in codes in a window", async () => {
+    const h = await createHarness();
+    const f = await family(h);
+    const invite = () =>
+      h.as(f.actor).inviteTeenLogin({ childId: f.teenId, email: ARJUN.email });
+
+    for (let sent = 0; sent < 5; sent++) {
+      expect(await invite()).toMatchObject({ ok: true });
+    }
+    expect(await invite()).toEqual({ ok: false, error: "rate_limited" });
+    h.clock.advance({ minutes: 15 });
+    expect(await invite()).toMatchObject({ ok: true });
   });
 
   it("stores the address encrypted and the token only as a hash", async () => {
@@ -389,6 +404,74 @@ describe("acceptTeenInvitation", () => {
         .from(auditLog)
         .where(eq(auditLog.action, "guardian.teen_linked"))
     ).toEqual([]);
+  });
+
+  it("refuses a teen whose own registrations wait for a guardian they asked, and keeps the guardian's name from them", async () => {
+    const h = await createHarness();
+    const competition = await openToIndividuals(h);
+    const arjun = await signedIn(h, ARJUN);
+    const held = await h.as(arjun).registerAsIndividual({
+      ...adultForm(competition, {
+        fullName: ARJUN.name,
+        dateOfBirth: bornYearsAgo(h, 15, 30),
+      }),
+      guardian: {
+        fullName: "Sunita Rao",
+        relationship: "parent",
+        email: "sunita.other@example.test",
+      },
+    });
+    expect(held).toMatchObject({ ok: true, status: "pending_guardian" });
+    const { token, teenId } = await invited(h);
+
+    expect(await h.as(arjun).viewTeenInvitation({ token })).toMatchObject({
+      invitation: { forYou: true, guardianName: null },
+    });
+    expect(await h.as(arjun).acceptTeenInvitation({ token })).toEqual({
+      ok: false,
+      error: "accepter_has_own_profile",
+    });
+    expect(await profileOf(h, teenId)).toMatchObject({ loginUserId: null });
+  });
+
+  it.each([
+    ["a judge", { role: "judge", scope: { type: "global" } }],
+    ["a staff member", { role: "content_manager", scope: { type: "global" } }],
+  ] as const)(
+    "refuses %s's account, and keeps the guardian's name from it",
+    async (_, grant) => {
+      const h = await createHarness();
+      const { token, teenId } = await invited(h);
+      const member = await h.seed.member(ARJUN);
+      await h.seed.grant(member, grant);
+      const arjun = await h.signIn(member, undefined, { secondFactor: false });
+
+      expect(await h.as(arjun).viewTeenInvitation({ token })).toMatchObject({
+        invitation: { forYou: true, guardianName: null },
+      });
+      expect(await h.as(arjun).acceptTeenInvitation({ token })).toEqual({
+        ok: false,
+        error: "accepter_has_role",
+      });
+      expect(await profileOf(h, teenId)).toMatchObject({ loginUserId: null });
+    }
+  );
+
+  it("refuses a coordinator of a school", async () => {
+    const h = await createHarness();
+    const { token } = await invited(h);
+    const member = await h.seed.member(ARJUN);
+    const { institution } = await seedInstitution(h);
+    await h.seed.grant(member, {
+      role: "institution_coordinator",
+      scope: { type: "institution", id: institution.id },
+    });
+    const arjun = await h.signIn(member);
+
+    expect(await h.as(arjun).acceptTeenInvitation({ token })).toEqual({
+      ok: false,
+      error: "accepter_has_role",
+    });
   });
 
   it("refuses an account that is already another child's login", async () => {

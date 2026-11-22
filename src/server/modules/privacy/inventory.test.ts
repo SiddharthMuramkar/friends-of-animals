@@ -174,6 +174,24 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
+  it("lists every personal-data column of a teen's guardian request, kept 30 days after it closes (81b)", () => {
+    const columns = [
+      "invitee_name_ciphertext",
+      "relationship",
+      "requested_by_user_id",
+    ];
+    expect(
+      columns.filter((column) => !listed.has(`guardian_invitation.${column}`))
+    ).toEqual([]);
+    for (const column of columns) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === "guardian_invitation" && each.column === column
+      );
+      expect(entry?.retention.period, column).toMatch(/^30 days after/);
+      expect(entry?.retention.toConfirm, column).toBe(true);
+    }
+  });
+
   it("says a profile's shared columns are kept for a guardian's child too (#81)", () => {
     for (const column of ["full_name", "dob_ciphertext", "owner_user_id"]) {
       const entry = DATA_INVENTORY.find(

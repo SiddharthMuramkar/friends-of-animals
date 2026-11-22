@@ -24,6 +24,7 @@ import { z } from "zod";
 import { authorize } from "../../access/can";
 import { grantGlobalRole } from "../../access/flow-grant";
 import { grantsOf } from "../../access/grants";
+import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
 import {
   createLinkToken,
@@ -38,6 +39,7 @@ import {
   participantProfile,
   user,
 } from "../../db/schema";
+import { takeCodeAllowance } from "../../identity/rate-limit";
 import { uuidv7 } from "../../ids";
 import type { InvalidInput } from "../../input";
 import { emit } from "../../outbox";
@@ -48,7 +50,9 @@ import {
   type InvitationStatus,
 } from "../institutions/domain/invitation";
 import { maskIdentifier } from "../institutions/domain/mask-identifier";
-import { ageAt } from "../participants/domain/age";
+import { ageAt, isAdultAt } from "../participants/domain/age";
+import { parseIsoDate } from "../registration/domain/calendar-date";
+import { PROFILE_PURPOSE } from "../registration/student-profile";
 import type { GuardianRelationship } from "../registration/domain/student-details";
 import { verifiedEmailOf } from "./account-contact";
 import { childResource } from "./child-access";
@@ -73,7 +77,7 @@ export type InviteTeenLoginInput = { childId: string; email: string };
 export type InviteTeenLoginResult =
   | { ok: true; invitationId: string; expiresAt: Date }
   | InvalidInput
-  | { ok: false; error: TeenInviteRefusal };
+  | { ok: false; error: TeenInviteRefusal | "rate_limited" };
 
 export type WithdrawTeenInvitationResult =
   | { ok: true }
@@ -89,7 +93,10 @@ export type TeenInvitationView = {
    * null for a visitor.
    */
   forYou: boolean | null;
-  /** Who invited them, shown to the invited teen only. */
+  /**
+   * Who invited them, shown only to the invited teen signed in with an
+   * account that accepting would take.
+   */
   guardianName: string | null;
 };
 
@@ -145,14 +152,34 @@ async function isAGuardian(tx: AppDb, userId: string): Promise<boolean> {
   return grants.some((grant) => grant.role === "guardian");
 }
 
+/** Roles that don't keep an account from being a child's own login. */
+const CHILD_LOGIN_ROLES: ReadonlySet<Role> = new Set<Role>([
+  "member",
+  "participant",
+  // Refused on its own, with its own reason (isAGuardian).
+  "guardian",
+]);
+
+/** Whether the user holds a staff, school, judge or other role. */
+async function holdsOtherRole(tx: AppDb, userId: string): Promise<boolean> {
+  const grants = await grantsOf(tx, userId);
+  return grants.some((grant) => !CHILD_LOGIN_ROLES.has(grant.role));
+}
+
 /**
- * Whether the user keeps a profile of their own (#78), which registering
- * gives only an adult. Read under the user's row lock, which registering
- * as an individual also takes, so neither slips past the other.
+ * The user's own profile (#78): none, an adult's, or a teen's held for a
+ * guardian they asked (81b), by its date of birth at `now`. Read under the
+ * user's row lock, which registering as an individual also takes, so
+ * neither slips past the other.
  */
-async function registeredAsAnAdult(tx: AppDb, userId: string) {
+async function ownProfileOf(
+  tx: AppDb,
+  ctx: Pick<UseCaseContext, "cipher">,
+  userId: string,
+  now: Date
+): Promise<"none" | "adult" | "minor"> {
   const [own] = await tx
-    .select({ id: participantProfile.id })
+    .select({ dobCiphertext: participantProfile.dobCiphertext })
     .from(participantProfile)
     .where(
       and(
@@ -160,7 +187,58 @@ async function registeredAsAnAdult(tx: AppDb, userId: string) {
         eq(participantProfile.ownerKind, "self")
       )
     );
-  return own !== undefined;
+  if (!own) return "none";
+  const dateOfBirth = parseIsoDate(
+    ctx.cipher.decrypt(PROFILE_PURPOSE.dob, own.dobCiphertext)
+  );
+  if (!dateOfBirth) throw new Error("A stored date of birth is not a date");
+  return isAdultAt(dateOfBirth, now) ? "adult" : "minor";
+}
+
+/** Another child's profile the user is already the login of, if any. */
+async function linkedToAnotherChild(
+  tx: AppDb,
+  userId: string,
+  childId: string
+): Promise<boolean> {
+  const [other] = await tx
+    .select({ id: participantProfile.id })
+    .from(participantProfile)
+    .where(
+      and(
+        eq(participantProfile.loginUserId, userId),
+        ne(participantProfile.id, childId)
+      )
+    );
+  return other !== undefined;
+}
+
+/** Who is accepting, as the decision weighs them beyond their address. */
+async function accepterFacts(
+  tx: AppDb,
+  ctx: Pick<UseCaseContext, "cipher">,
+  userId: string,
+  childId: string,
+  now: Date
+) {
+  return {
+    isAGuardianOfChild: (await guardianUsersOf(tx, childId)).includes(userId),
+    isAGuardian: await isAGuardian(tx, userId),
+    holdsOtherRole: await holdsOtherRole(tx, userId),
+    ownProfile: await ownProfileOf(tx, ctx, userId, now),
+    linkedToAnotherChild: await linkedToAnotherChild(tx, userId, childId),
+  };
+}
+
+/** Whether nothing about who the account is would stop it accepting. */
+function acceptable(facts: Awaited<ReturnType<typeof accepterFacts>>) {
+  return (
+    !facts.isAGuardianOfChild &&
+    !facts.isAGuardian &&
+    !facts.holdsOtherRole &&
+    facts.ownProfile === "none" &&
+    !facts.linkedToAnotherChild
+  );
 }
 
 /** The child's profile, locked so invites and accepts take turns. */
@@ -221,7 +299,7 @@ export async function inviteTeenLogin(
     resource
   );
   if (ctx.actor.kind !== "user") throw new Error("unreachable");
-  const { userId } = ctx.actor;
+  const { userId, meta } = ctx.actor;
   const parsed = inviteInput.safeParse(input);
   const contact = parsed.success ? parseTeenEmail(parsed.data.email) : null;
   if (!parsed.success || !contact) {
@@ -258,6 +336,16 @@ export async function inviteTeenLogin(
         account !== undefined && guardians.includes(account.id),
     });
     if (!decision.ok) return { ok: false, error: decision.reason };
+    // A guardian can't flood an address: invitations count against its
+    // sign-in code allowance.
+    const allowance = await takeCodeAllowance(tx, {
+      to: { channel: "email", key: contact.address },
+      ip: meta.ip,
+      now,
+      secret: ctx.auth.secret,
+      limits: ctx.codeRequestLimits,
+    });
+    if (!allowance.ok) return { ok: false, error: "rate_limited" };
 
     const superseded = await withdrawPending(tx, childId, now);
     const { token, tokenHash } = createLinkToken();
@@ -352,6 +440,7 @@ export async function viewTeenInvitation(
       status: guardianInvitation.status,
       expiresAt: guardianInvitation.expiresAt,
       fullNameCiphertext: guardian.fullNameCiphertext,
+      childId: guardianInvitation.participantProfileId,
     })
     .from(guardianInvitation)
     .innerJoin(guardian, eq(guardian.id, guardianInvitation.guardianId))
@@ -368,6 +457,19 @@ export async function viewTeenInvitation(
       ? (await verifiedContactHash(ctx.db, ctx, ctx.actor.userId)) ===
         row.contactHash
       : null;
+  // The guardian's name only to an account accepting would take.
+  const showGuardian =
+    forYou === true &&
+    ctx.actor.kind === "user" &&
+    acceptable(
+      await accepterFacts(
+        ctx.db,
+        ctx,
+        ctx.actor.userId,
+        row.childId,
+        ctx.clock.now()
+      )
+    );
   return {
     ok: true,
     invitation: {
@@ -375,7 +477,7 @@ export async function viewTeenInvitation(
       sentTo: maskIdentifier(contact.channel, contact.address),
       expiresAt: row.expiresAt,
       forYou,
-      guardianName: forYou ? guardianName(ctx, row) : null,
+      guardianName: showGuardian ? guardianName(ctx, row) : null,
     },
   };
 }
@@ -419,15 +521,6 @@ export async function acceptTeenInvitation(
     const child = invitation ? await lockedChild(tx, invitation.childId) : null;
     if (!invitation || !child) return { ok: false, error: "not_found" };
 
-    const [otherProfile] = await tx
-      .select({ id: participantProfile.id })
-      .from(participantProfile)
-      .where(
-        and(
-          eq(participantProfile.loginUserId, userId),
-          ne(participantProfile.id, child.id)
-        )
-      );
     const decision = decideTeenAcceptance({
       invitation,
       now,
@@ -435,12 +528,7 @@ export async function acceptTeenInvitation(
         isTheInvitedContact:
           (await verifiedContactHash(tx, ctx, userId)) ===
           invitation.contactHash,
-        isAGuardianOfChild: (await guardianUsersOf(tx, child.id)).includes(
-          userId
-        ),
-        isAGuardian: await isAGuardian(tx, userId),
-        registeredAsAnAdult: await registeredAsAnAdult(tx, userId),
-        linkedToAnotherChild: otherProfile !== undefined,
+        ...(await accepterFacts(tx, ctx, userId, child.id, now)),
       },
       child: {
         ageYears: ageAt(childDateOfBirth(ctx, child).date, now),
