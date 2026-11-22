@@ -2,8 +2,10 @@
 // separate connections, which PGlite (one serial connection) can't show.
 // CI's pg-concurrency job migrates its service database and runs these;
 // locally, point DIRECT_URL (or DATABASE_URL) at a throwaway database on
-// this machine. Anything that isn't loopback is refused, so a test never
-// touches a shared or production database.
+// this machine. The URL must pass the local seed's guard (notLocal in
+// src/server/seed/target.ts): a host on this machine, no host the client
+// could read differently, and not a deployed role or database, which
+// PgBouncer or a tunnel can serve on loopback too.
 //
 //   const world = createPgWorld();
 //   const admin = await world.signedIn(await world.seed.superAdmin(...));
@@ -26,6 +28,7 @@ import { session } from "@/server/db/schema";
 import type { Deps } from "@/server/deps";
 import { stampSession } from "@/server/modules/second-factor/session-factor";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
+import { notLocal } from "@/server/seed/target";
 
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
@@ -34,8 +37,6 @@ import { FakeErrorReporter } from "./fakes/errors";
 import { FakeSettings } from "./fakes/settings";
 import { FakeSms } from "./fakes/sms";
 import { TEST_AUTH } from "./harness";
-
-const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 
 /** The test database's URL; refuses one that isn't on this machine. */
 export function pgTestUrl(): string {
@@ -46,9 +47,8 @@ export function pgTestUrl(): string {
         "throwaway database on this machine."
     );
   }
-  if (!LOOPBACK.has(new URL(url).hostname)) {
-    throw new Error("pnpm test:pg only runs against a loopback database.");
-  }
+  const refused = notLocal(url, "pnpm test:pg");
+  if (refused) throw new Error(refused);
   return url;
 }
 
@@ -126,6 +126,8 @@ export function createPgWorld() {
     async waitForLockWaiters(n: number, timeoutMs = 3000): Promise<void> {
       const deadline = Date.now() + timeoutMs;
       for (;;) {
+        // postgres-js's execute() returns the rows as an array. PGlite's
+        // returns { rows }, so don't copy this indexing into PGlite code.
         const [row] = await db.execute<{ n: number }>(raw`
           select count(*)::int as n from pg_stat_activity
           where datname = current_database() and wait_event_type = 'Lock'

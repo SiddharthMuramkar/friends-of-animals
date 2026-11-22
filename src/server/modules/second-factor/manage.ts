@@ -29,7 +29,10 @@ import {
   lockUsers,
   signedInUser,
 } from "./session-factor";
-import { dropPendingAuthenticators, type SecondFactorContext } from "./totp";
+import {
+  dropPendingAuthenticators,
+  type SecondFactorContext,
+} from "./enrolment";
 
 const removeInput = z.object({ factorId: z.uuid() });
 const resetInput = z.object({ userId: z.uuid() });

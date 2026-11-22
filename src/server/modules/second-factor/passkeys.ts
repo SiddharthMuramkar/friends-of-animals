@@ -48,8 +48,9 @@ import { SECOND_FACTOR_SETTINGS } from "./settings";
 import {
   authorizeEnrolment,
   dropPendingAuthenticators,
+  factorLabel,
   type SecondFactorContext,
-} from "./totp";
+} from "./enrolment";
 
 /**
  * EdDSA, ES256 and RS256 (COSE ids): what platform authenticators use.
@@ -66,9 +67,8 @@ function relyingParty(baseUrl: string) {
 const credentialResponse = <T>() =>
   z.custom<T>((value) => typeof value === "object" && value !== null);
 
-const label = z.string().trim().min(1).max(60);
 const finishRegistrationInput = z.object({
-  label,
+  label: factorLabel,
   response: credentialResponse<RegistrationResponseJSON>(),
 });
 const finishVerificationInput = z.object({
