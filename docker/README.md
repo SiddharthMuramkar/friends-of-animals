@@ -852,7 +852,10 @@ links into `/etc/pki/ca-trust`, which would dangle inside the container.
 five minutes on the default branch. It can also run on demand from Actions.
 Both HTTPS probes require HTTP 200 from the configured URL. Redirects fail
 the probe. The database probe tests TCP connectivity without authenticating.
-Each step allows one retry after 30 seconds for transient failures.
+Each HTTPS probe retries once after 30 seconds on a timeout or an HTTP 408,
+429, 500, 502, 503 or 504 response. A DNS failure, a refused connection or
+a TLS error fails that step at once. The database probe tries a second time
+30 seconds after a failed connection.
 
 | Check  | Target                            | Alerts when                                                | Alert goes to                       | Silence and un-silence                                    |
 | ------ | --------------------------------- | ---------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------- |
@@ -879,6 +882,11 @@ The intended recipient is the repository owner's account,
 edit its cron. In GitHub's notification settings under System → Actions,
 enable Email or On GitHub and select **Only notify for failed workflows**.
 [GitHub Actions notification settings](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-github-actions-notifications)
+
+In a public repository, GitHub disables scheduled workflows after 60 days
+without repository activity. A disabled Uptime stops checking and sends no
+alert. If the Actions tab shows Uptime as disabled, re-enable it with the
+owner's account as described above.
 
 **HR-23 recipient receipt is pending.** Have the owner confirm the actor on
 a normal scheduled Uptime run. To verify delivery, use a separate test

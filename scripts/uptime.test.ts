@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { once } from "node:events";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
+import { createServer as createTcpServer } from "node:net";
 import { describe, expect, it } from "vitest";
 
 const HTTP_PROBES = [
@@ -16,13 +17,28 @@ function workflow(): string {
   );
 }
 
-function probeCommand(name: string, path: string): string {
-  const step = workflow()
+const DATABASE_PROBE = "Check the database listener";
+
+function steps(): string[] {
+  return workflow()
     .split(/^      - name: /m)
-    .find((entry) => entry.startsWith(`${name}\n`));
-  const run = step?.match(/^        run: ([^\n]+)\n((?: {10}[^\n]*\n)*)/m);
+    .slice(1);
+}
+
+function step(name: string): string {
+  const entry = steps().find((block) => block.startsWith(`${name}\n`));
+  if (!entry) throw new Error(`Missing step ${name}`);
+  return entry;
+}
+
+function runScript(name: string): string {
+  const run = step(name).match(/^        run: ([^\n]+)\n((?: {10}[^\n]*\n)*)/m);
   if (!run) throw new Error(`Missing run script for ${name}`);
-  const command = run[1] === "|" ? run[2] : run[1];
+  return run[1] === "|" ? run[2] : run[1];
+}
+
+function probeCommand(name: string, path: string): string {
+  const command = runScript(name);
   expect(command.match(/https?:\/\/[^\s"'\\]+/g)).toEqual([
     `https://friendsofanimals.dev${path}`,
   ]);
@@ -74,6 +90,75 @@ describe("the production uptime workflow", () => {
     expect(config).toContain("nc -z -w5 db.friendsofanimals.dev 6432");
     expect(config).not.toMatch(/\bcontinue-on-error:/);
   });
+
+  it("runs every check even when an earlier one fails", () => {
+    expect(steps().map((block) => block.split("\n")[0])).toEqual([
+      HTTP_PROBES[0].name,
+      DATABASE_PROBE,
+      HTTP_PROBES[1].name,
+    ]);
+    for (const block of steps()) {
+      expect(block).toMatch(/^        if: \$\{\{ !cancelled\(\) \}\}$/m);
+    }
+  });
+});
+
+describe(DATABASE_PROBE, () => {
+  async function closedPort(): Promise<number> {
+    const probe = createTcpServer().listen(0, "127.0.0.1");
+    await once(probe, "listening");
+    const address = probe.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Missing loopback port");
+    }
+    await new Promise<void>((resolve) => probe.close(() => resolve()));
+    return address.port;
+  }
+
+  it.each([
+    { outcome: "an open listener", opensAfterMs: 0, exitCode: 0, tries: 1 },
+    {
+      outcome: "a listener that opens before the retry",
+      opensAfterMs: 300,
+      exitCode: 0,
+      tries: 1,
+    },
+    { outcome: "a closed port", opensAfterMs: null, exitCode: 1, tries: 0 },
+  ])(
+    "exits $exitCode for $outcome",
+    async ({ opensAfterMs, exitCode, tries }) => {
+      const port = await closedPort();
+      let connections = 0;
+      const listener = createTcpServer((socket) => {
+        connections += 1;
+        socket.destroy();
+      });
+      const opening =
+        opensAfterMs === null
+          ? Promise.resolve()
+          : new Promise<void>((resolve) => {
+              setTimeout(() => {
+                listener.listen(port, "127.0.0.1", () => resolve());
+              }, opensAfterMs);
+            });
+      const command = runScript(DATABASE_PROBE)
+        .replaceAll("db.friendsofanimals.dev 6432", `127.0.0.1 ${port}`)
+        // Exercise the retry without a 30-second wait.
+        .replace("sleep 30", "sleep 1");
+      expect(command).not.toContain("friendsofanimals.dev");
+
+      try {
+        if (opensAfterMs === 0) await opening;
+        const [code] = await Promise.all([bashExitCode(command), opening]);
+        expect(code).toBe(exitCode);
+        expect(connections).toBe(tries);
+      } finally {
+        if (listener.listening) {
+          await new Promise<void>((resolve) => listener.close(() => resolve()));
+        }
+      }
+    }
+  );
 });
 
 describe.each(HTTP_PROBES)("$name", ({ name, path }) => {
