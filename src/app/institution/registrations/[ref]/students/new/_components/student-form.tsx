@@ -134,7 +134,6 @@ export function StudentForm({
                 name="guardianRelationship"
                 value={relationship}
                 defaultChecked={values.guardianRelationship === relationship}
-                aria-invalid={relationshipError ? true : undefined}
                 className={BOX}
               />
               <span>{labels.guardianRelationship[relationship]}</span>
