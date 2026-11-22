@@ -116,7 +116,8 @@ test("an authorised person enrols a student, fixing the form, and withdraws them
     page.getByRole("heading", { level: 1, name: "Add a student" })
   ).toBeVisible();
   await expect(
-    page.getByText("This competition is for ages 5–17 on 1 January 2027.")
+    // Its children's groups and, for adults on their own (#78), Adults.
+    page.getByText("This competition is for ages 5–99 on 1 January 2027.")
   ).toBeVisible();
   await checkBothThemes(
     page,
@@ -140,14 +141,16 @@ test("an authorised person enrols a student, fixing the form, and withdraws them
 
   const fill = (name: string, value: string) =>
     page.getByRole("textbox", { name, exact: true }).fill(value);
-  // 21 on the competition's cut-off date: too old for every age group.
+  // 3 on the competition's cut-off date: too young for every age group.
   await fill("Full name", "Vikram Rao");
-  await page.getByLabel("Date of birth").fill("2005-03-10");
-  await fill("Student's mobile number", "90000 05190");
+  await page.getByLabel("Date of birth").fill("2023-03-10");
+  await fill("Parent or guardian's name", "Asha Menon");
+  await page.getByRole("radio", { name: "Parent" }).check();
+  await fill("Parent or guardian's mobile number", "90000 05191");
   await submit.click();
   await expect(
     page.getByText(
-      "This competition is for ages 5–17 on 1 January 2027; this student is 21."
+      "This competition is for ages 5–99 on 1 January 2027; this student is 3."
     )
   ).toBeVisible();
   await checkBothThemes(

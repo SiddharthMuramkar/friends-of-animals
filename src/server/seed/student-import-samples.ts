@@ -3,9 +3,9 @@
 // mistake, and a clean 30-row file (#77c's journey reuses it). Fictional
 // students, example.test emails and +91 90000 06xxx / 07xxx numbers.
 //
-// Every date of birth fits both the seeded open competition (NEIGH27: 5–17
-// on 1 January 2027) and the registration tests' competition (6–13 on
-// 1 June 2027). Loads under plain Node: no imports at all.
+// Every date of birth fits both the seeded open competition (NEIGH27: its
+// children's groups, 5–17 on 1 January 2027) and the registration tests'
+// competition (6–13 on 1 June 2027). Loads under plain Node: no imports at all.
 
 const CRLF = "\r\n";
 

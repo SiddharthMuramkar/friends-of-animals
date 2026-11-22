@@ -33,6 +33,7 @@ import { judgingUseCases } from "./modules/judging";
 import { competitionTermsUseCases } from "./modules/competitions/terms";
 import { registrationUseCases } from "./modules/registration";
 import { paymentsUseCases } from "./modules/payments";
+import { participantsUseCases } from "./modules/participants";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -54,7 +55,8 @@ const useCases = composeUseCases(
   judgingUseCases,
   competitionTermsUseCases,
   registrationUseCases,
-  paymentsUseCases
+  paymentsUseCases,
+  participantsUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { participantCode } from "./participant-code";
+import { generateCode } from "../../codes/codes";
+import { participantCode, participantCodeFormat } from "./participant-code";
 
 const FORMAT = /^FOA-P-\d{2}[0-9A-HJKMNP-TV-Z]{6}$/;
 
@@ -35,5 +36,18 @@ describe("participantCode", () => {
     // I, L, O and U are left out so codes read back without mix-ups.
     for (const symbols of ["7K3M9", "7K3M9QX", "7K3M9I", "LOU000", "7k3m9q"])
       expect(() => participantCode(at, symbols)).toThrow(RangeError);
+  });
+});
+
+describe("participantCodeFormat", () => {
+  it("draws codes for the codes module in the same shape, for the year of issue", () => {
+    // Bytes 7, 20, 3, 19, 9 and 23 are 7, M, 3, K, 9 and Q in Crockford base32.
+    const bytes = () => Uint8Array.from([7, 20, 3, 19, 9, 23]);
+    expect(
+      generateCode(
+        participantCodeFormat(new Date("2026-12-31T18:30:00.000Z")),
+        bytes
+      )
+    ).toBe("FOA-P-277M3K9Q");
   });
 });
