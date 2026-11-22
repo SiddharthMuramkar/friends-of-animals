@@ -1,0 +1,41 @@
+{
+  "dashboard": {
+    "meta": {
+      "title": "Your dashboard",
+      "description": "Your areas on Friends of Animals, one for each kind of role you hold."
+    },
+    "headerLink": "Dashboard",
+    "eyebrow": "Your account",
+    "title": "Your dashboard",
+    "lead": "One account for every role you hold. Pick the area you want to work in.",
+    "loading": "Loading your areas…",
+    "switcher": "Your areas",
+    "comingSoon": "Coming soon",
+    "areas": {
+      "member": "Member",
+      "admin": "Admin",
+      "institution": "Institution {id}",
+      "judge": "Judging",
+      "organisation": "Organisation {id}"
+    },
+    "member": {
+      "body": "Your competition entries, certificates and donations will show here as those parts of the site open.",
+      "sessions": "See where you're signed in"
+    },
+    "admin": {
+      "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
+      "roles": "Roles",
+      "audit": "Audit log",
+      "safeguarding": "Safeguarding reports"
+    },
+    "institution": {
+      "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."
+    },
+    "judge": {
+      "body": "The entries you're asked to judge will show here when judging opens."
+    },
+    "organisation": {
+      "body": "Your organisation's own page comes later. Your role there is already set."
+    }
+  }
+}

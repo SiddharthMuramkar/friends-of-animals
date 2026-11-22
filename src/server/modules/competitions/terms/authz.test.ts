@@ -83,3 +83,42 @@ describe("who may change a competition's terms", () => {
     }
   );
 });
+
+describe("a fresh second factor", () => {
+  it("is needed to set fees, which are money, and refusing writes nothing", async () => {
+    const h = await createHarness();
+    const { id } = await seedCompetition(h, { participation: "both" });
+    // Signing in passes the manager's second factor (the harness).
+    const manager = await signInManager(h);
+    const setFees = () =>
+      h.as(manager).setCompetitionFees({
+        competitionId: id,
+        fees: { individual: "100", institution: "1,000" },
+        currency: "INR",
+      });
+
+    h.clock.advance({ minutes: 10, seconds: 1 });
+    const before = await termsRowCounts(h);
+    await expect(setFees()).rejects.toMatchObject({
+      name: "DomainError",
+      code: "step_up_required",
+    });
+    expect(await termsRowCounts(h)).toEqual(before);
+
+    await h.passSecondFactor(manager);
+    expect(await setFees()).toEqual({ ok: true, changed: true });
+  });
+
+  it("is not needed for awards, documents or reading the terms", async () => {
+    const h = await createHarness();
+    const { id } = await seedCompetition(h, { participation: "both" });
+    await publishDocument(h, "privacy_notice");
+    const manager = await signInManager(h);
+
+    h.clock.advance({ minutes: 10, seconds: 1 });
+    const { setCompetitionFees: _money, ...others } = useCases(h, manager, id);
+    for (const [name, run] of Object.entries(others)) {
+      expect(await run(), name).toMatchObject({ ok: true });
+    }
+  });
+});

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { Role } from "../../../access/domain/roles";
 import { checkSecondFactor, isStaffRole, STAFF_ROLES } from "./gate";
 
 const now = new Date("2027-01-15T04:30:00.000Z");
@@ -11,7 +12,7 @@ const notEnrolled = { enrolled: false, verifiedAt: null };
 const enrolledNotVerified = { enrolled: true, verifiedAt: null };
 
 describe("staff roles", () => {
-  it("are the eight FOA staff roles from the ticket", () => {
+  it("are the eight FOA staff roles from the ticket, and the safeguarding lead (#116)", () => {
     expect([...STAFF_ROLES].sort()).toEqual([
       "adoption_coordinator",
       "auction_manager",
@@ -19,12 +20,13 @@ describe("staff roles", () => {
       "competition_manager",
       "content_manager",
       "finance",
+      "safeguarding_lead",
       "staff_admin",
       "super_admin",
     ]);
   });
 
-  it.each([
+  it.each<Role>([
     "member",
     "participant",
     "guardian",
@@ -131,7 +133,7 @@ describe("checkSecondFactor for step-up", () => {
   });
 
   it("sends anyone without a factor to enrolment first, staff or not", () => {
-    for (const roles of [["super_admin"], ["member"]]) {
+    for (const roles of [["super_admin"], ["member"]] satisfies Role[][]) {
       expect(
         checkSecondFactor({
           requirement: "step-up",

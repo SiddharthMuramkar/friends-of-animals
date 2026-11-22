@@ -5,6 +5,12 @@
       "shortVersion": "The short version",
       "lastUpdated": "Last updated {date}",
       "versionUpdated": "Version {version} · Last updated {date}",
+      "policyLink": "See also our <link>{page}</link>, version {version}.",
+      "policyLinkNoVersion": "See also our <link>{page}</link>.",
+      "policyPages": {
+        "legal_privacy": "privacy policy",
+        "legal_terms": "terms of use"
+      },
       "toc": "On this page",
       "fullText": "The full text",
       "questions": "Questions about this page? Write to"
@@ -46,9 +52,9 @@
         "call": "Call {number}"
       },
       "form": {
-        "title": "An online report form is coming",
-        "body": "We are building a form that works without an account and lets you stay anonymous. Until it opens, please use the email or phone above.",
-        "back": "Child protection policy"
+        "title": "Report a concern online",
+        "body": "Our form works without an account, and you can stay anonymous. Only our safeguarding lead reads what you send.",
+        "link": "Report a concern"
       }
     },
     "childProtection": {

@@ -25,6 +25,7 @@ import type { Participation } from "../domain/vocabulary";
 /** What the terms need to know about the competition itself. */
 export type CompetitionForTerms = {
   id: string;
+  code: string;
   slug: string;
   name: string;
   status: string;
@@ -34,6 +35,7 @@ export type CompetitionForTerms = {
 
 const competitionColumns = {
   id: competition.id,
+  code: competition.code,
   slug: competition.slug,
   name: competition.name,
   status: competition.status,

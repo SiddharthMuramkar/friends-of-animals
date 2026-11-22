@@ -1,7 +1,8 @@
 import { type LegalDoc, POLICIES_UPDATED } from "./model";
 
-// The public report form needs a back end (later), so this page names an
-// interim channel (placeholders).
+// The public report form (/safeguarding/report, #116) is the first way to
+// raise a concern; the email and phone stay as other ways (placeholders
+// until FOA confirms them).
 export const safeguarding: LegalDoc = {
   updated: POLICIES_UPDATED,
   short: [
@@ -55,11 +56,18 @@ export const safeguarding: LegalDoc = {
       blocks: [
         {
           p: [
-            "If a child is in danger now, call 112 first. Then tell us. Until our online report form is ready, write to ",
-            { fact: "email" },
-            " with “Safeguarding” in the subject, or call ",
-            { fact: "phone" },
-            ".",
+            "If a child is in danger now, call 112 first. Then tell us through our ",
+            { link: "report form", href: "/safeguarding/report" },
+            ". It works without an account, and you can stay anonymous.",
+            {
+              clause: [
+                " You can also write to ",
+                { fact: "email" },
+                " with “Safeguarding” in the subject",
+                { clause: [", or call ", { fact: "phone" }] },
+                ".",
+              ],
+            },
           ],
         },
         {

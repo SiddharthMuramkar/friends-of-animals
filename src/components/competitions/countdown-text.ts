@@ -1,8 +1,10 @@
 // The words under a competition's status chip: when the schedule moves it
 // next, as an absolute time in IST and how far off that is. Once the
-// instant has passed but the worker has not moved the status yet (a public
-// page may be up to 5 minutes old), it says the move is happening shortly
-// instead of counting below zero.
+// instant has passed but the status shown has not moved yet (the worker
+// makes the move within seconds, and a public page's cached read refreshes
+// from a minute after the instant, see src/app/competitions/_lib/
+// cache-life.ts), it says the move is happening shortly instead of
+// counting below zero.
 //
 // Pure: the caller passes next-intl's translator and formatter, so the
 // same words render on the server and in tests.
@@ -10,7 +12,13 @@
 import type { CompetitionStatus } from "@/server/modules/competitions/domain/status-machine";
 import type { UpcomingChange } from "@/server/modules/competitions/domain/status-schedule";
 
-type CountdownKey = "opens" | "opensDue" | "closes" | "closesDue";
+type CountdownKey =
+  | "opens"
+  | "opensDue"
+  | "closes"
+  | "closesDue"
+  | "entriesClose"
+  | "entriesCloseDue";
 
 export type CountdownIntl = {
   t: (key: CountdownKey, values?: { at: string; relative: string }) => string;
@@ -27,6 +35,7 @@ const KEYS: Record<
 > = {
   registration_open: { scheduled: "opens", due: "opensDue" },
   registration_closed: { scheduled: "closes", due: "closesDue" },
+  school_judging: { scheduled: "entriesClose", due: "entriesCloseDue" },
 };
 
 /** The countdown sentence for `change`, or null when nothing is ahead. */

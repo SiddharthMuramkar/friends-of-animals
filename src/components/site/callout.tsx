@@ -24,13 +24,18 @@ export async function Callout({
   const { icon: Icon, box, label } = CALLOUT_TONE[tone];
   return (
     <aside className={cn(calloutBox, box, className)}>
-      <p className={cn("flex items-center gap-2 font-semibold", label)}>
+      <p
+        className={cn(
+          "flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold",
+          label
+        )}
+      >
         <Icon aria-hidden="true" className="size-5 shrink-0" />
         <span>{t(tone)}</span>
         {title ? (
           <>
             <span aria-hidden="true">·</span>
-            <span className="text-ink">{title}</span>
+            <span className="min-w-0 text-ink">{title}</span>
           </>
         ) : null}
       </p>

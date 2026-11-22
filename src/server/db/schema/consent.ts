@@ -8,7 +8,7 @@
 //
 // Consent itself is an event log: each give and each withdrawal is one
 // row, and the current state for a subject and purpose is its latest
-// event (src/server/consent/domain/consent-state.ts).
+// event (src/server/modules/consent/domain/consent-state.ts).
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
@@ -27,12 +27,13 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { ConsentDocumentBody } from "../../consent/domain/document-body";
+import type { ConsentDocumentBody } from "../../modules/consent/domain/document-body";
 import {
   CONSENT_METHODS,
   CONSENT_PURPOSES,
   CONSENT_SUBJECT_TYPES,
-} from "../../consent/domain/purposes";
+} from "../../modules/consent/domain/purposes";
+import { cmsRevision } from "./cms";
 import { user } from "./identity";
 
 /** #82 adds the guardian purposes, each in its own migration. */
@@ -63,11 +64,19 @@ export const consentDocument = pgTable(
     body: jsonb().$type<ConsentDocumentBody>().notNull(),
     publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
     /**
-     * Who published it; null for seed data. No foreign key: ON DELETE SET
-     * NULL would update this table, which the trigger refuses, and so
-     * block deleting the user.
+     * Who published it (the seeded super admin, for seed data). No foreign
+     * key: ON DELETE SET NULL would update this table, which the trigger
+     * refuses, and so block deleting the user. The id stays after that
+     * account is deleted.
      */
     publishedByUserId: uuid("published_by_user_id"),
+    /**
+     * The published revision of the policy page this version rests on
+     * (#111): the privacy page for the privacy notice and messages, the
+     * terms page for the terms. Null for versions published before the
+     * CMS, and for seed data.
+     */
+    legalRevisionId: uuid("legal_revision_id").references(() => cmsRevision.id),
   },
   (table) => [
     // Also the index for "the latest version of a purpose".
@@ -76,6 +85,8 @@ export const consentDocument = pgTable(
       table.version
     ),
     check("consent_document_version_positive", sql`${table.version} > 0`),
+    // A CMS revision's consent documents, without scanning the table.
+    index("consent_document_legal_revision_id_idx").on(table.legalRevisionId),
   ]
 );
 
@@ -119,6 +130,9 @@ export const consentEvent = pgTable(
       table.id.desc()
     ),
     index("consent_event_document_id_idx").on(table.documentId),
+    // Deleting a user sets this to null; the index keeps that from
+    // scanning the whole log.
+    index("consent_event_giver_user_id_idx").on(table.giverUserId),
   ]
 );
 

@@ -41,12 +41,10 @@ describe("attachConsentDocument", () => {
     const v1 = await publishDocument(h, "competition_terms", "v1");
 
     expect(
-      await h
-        .as(manager)
-        .attachConsentDocument({
-          competitionId: id,
-          purpose: "competition_terms",
-        })
+      await h.as(manager).attachConsentDocument({
+        competitionId: id,
+        purpose: "competition_terms",
+      })
     ).toEqual({ ok: true, changed: true, document: { id: v1.id, version: 1 } });
 
     const v2 = await publishDocument(h, "competition_terms", "v2");
@@ -63,12 +61,10 @@ describe("attachConsentDocument", () => {
     });
 
     expect(
-      await h
-        .as(manager)
-        .attachConsentDocument({
-          competitionId: id,
-          purpose: "competition_terms",
-        })
+      await h.as(manager).attachConsentDocument({
+        competitionId: id,
+        purpose: "competition_terms",
+      })
     ).toEqual({ ok: true, changed: true, document: { id: v2.id, version: 2 } });
     expect(await pins(h, id)).toEqual([
       { purpose: "competition_terms", documentId: v2.id },
@@ -159,29 +155,23 @@ describe("detachConsentDocument", () => {
     const manager = await signInManager(h);
     const { id } = await seedCompetition(h);
     await publishDocument(h, "competition_terms");
-    await h
-      .as(manager)
-      .attachConsentDocument({
-        competitionId: id,
-        purpose: "competition_terms",
-      });
+    await h.as(manager).attachConsentDocument({
+      competitionId: id,
+      purpose: "competition_terms",
+    });
 
     expect(
-      await h
-        .as(manager)
-        .detachConsentDocument({
-          competitionId: id,
-          purpose: "competition_terms",
-        })
+      await h.as(manager).detachConsentDocument({
+        competitionId: id,
+        purpose: "competition_terms",
+      })
     ).toEqual({ ok: true, changed: true });
     expect(await pins(h, id)).toEqual([]);
     expect(
-      await h
-        .as(manager)
-        .detachConsentDocument({
-          competitionId: id,
-          purpose: "competition_terms",
-        })
+      await h.as(manager).detachConsentDocument({
+        competitionId: id,
+        purpose: "competition_terms",
+      })
     ).toEqual({ ok: true, changed: false });
   });
 
@@ -205,29 +195,23 @@ describe("the audit log for documents", () => {
     const { id } = await seedCompetition(h);
     const v1 = await publishDocument(h, "competition_terms", "v1");
     const attach = () =>
-      h
-        .as(manager)
-        .attachConsentDocument({
-          competitionId: id,
-          purpose: "competition_terms",
-        });
+      h.as(manager).attachConsentDocument({
+        competitionId: id,
+        purpose: "competition_terms",
+      });
 
     await attach();
     const v2 = await publishDocument(h, "competition_terms", "v2");
     await attach();
     await attach();
-    await h
-      .as(manager)
-      .detachConsentDocument({
-        competitionId: id,
-        purpose: "competition_terms",
-      });
-    await h
-      .as(manager)
-      .detachConsentDocument({
-        competitionId: id,
-        purpose: "competition_terms",
-      });
+    await h.as(manager).detachConsentDocument({
+      competitionId: id,
+      purpose: "competition_terms",
+    });
+    await h.as(manager).detachConsentDocument({
+      competitionId: id,
+      purpose: "competition_terms",
+    });
 
     const pinOf = (document: { id: string; version: number }) => ({
       purpose: "competition_terms",

@@ -82,3 +82,35 @@ export function attachmentState(
   }
   return "current";
 }
+
+/** The largest version a Postgres `integer` column holds. */
+const MAX_VERSION = 2_147_483_647;
+
+/**
+ * Where a published version of an attachable document reads, for
+ * everyone: `/documents/competition-terms/2`.
+ */
+export function documentVersionPath(
+  purpose: AttachablePurpose,
+  version: number
+): `/documents/${string}` {
+  return `/documents/${purpose.replaceAll("_", "-")}/${version}`;
+}
+
+/**
+ * The purpose and version a document path names, or null when it names
+ * no attachable purpose or no plain positive version.
+ */
+export function parseDocumentVersionPath(
+  purposeSegment: string,
+  versionSegment: string
+): { purpose: AttachablePurpose; version: number } | null {
+  const purpose = ATTACHABLE_PURPOSES.find(
+    (candidate) => candidate.replaceAll("_", "-") === purposeSegment
+  );
+  if (purpose === undefined || !/^[1-9]\d{0,9}$/.test(versionSegment)) {
+    return null;
+  }
+  const version = Number(versionSegment);
+  return version <= MAX_VERSION ? { purpose, version } : null;
+}

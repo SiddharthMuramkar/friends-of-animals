@@ -75,12 +75,17 @@ export function documentSource(marker: string): string {
   return `## Taking part\n\nDraft competition terms, ${marker}. Not FOA's words.`;
 }
 
-/** Publishes the next version of `purpose` as a staff admin; returns it. */
+/**
+ * Publishes the next version of `purpose`; returns it. The privacy notice
+ * is the privacy page's text, so a content manager publishes that page
+ * (#111); staff admins publish the others on #64's screen.
+ */
 export async function publishDocument(
   h: Harness,
   purpose: "competition_terms" | "privacy_notice" | "messages",
   marker = "version"
 ): Promise<{ id: string; version: number }> {
+  if (purpose === "privacy_notice") return publishPrivacyPage(h, marker);
   const admin = await signInWith(h, "staff_admin");
   const published = await h.as(admin).publishConsentDocument({
     purpose,
@@ -89,6 +94,36 @@ export async function publishDocument(
   });
   if (!published.ok) throw new Error(JSON.stringify(published));
   return { id: published.id, version: published.version };
+}
+
+async function publishPrivacyPage(
+  h: Harness,
+  marker: string
+): Promise<{ id: string; version: number }> {
+  const manager = await signInWith(h, "content_manager");
+  const saved = await h.as(manager).saveDraft({
+    key: "legal_privacy",
+    body: {
+      short: [[`Draft privacy notice, ${marker}.`]],
+      sections: [
+        {
+          id: "who-we-are",
+          title: "Who we are",
+          blocks: [{ p: [`Draft privacy text, ${marker}. Not FOA's words.`] }],
+        },
+      ],
+    },
+  });
+  if (!saved.ok) throw new Error(JSON.stringify(saved));
+  const published = await h
+    .as(manager)
+    .publishRevision({ revisionId: saved.revisionId });
+  if (!published.ok) throw new Error(JSON.stringify(published));
+  const notice = await h
+    .as(h.visitor())
+    .currentConsentDocument({ purpose: "privacy_notice" });
+  if (!notice) throw new Error("The privacy page published no notice");
+  return { id: notice.id, version: notice.version };
 }
 
 /** The terms rows and audit entries, to show a refusal wrote nothing. */

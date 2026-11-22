@@ -15,6 +15,7 @@ import { awardPlan, type RoundAwardPlan } from "../domain/award-schemes";
 import {
   ATTACHABLE_PURPOSES,
   attachmentState,
+  documentVersionPath,
   isRequiredForRegistration,
   type AttachablePurpose,
   type AttachmentState,
@@ -119,14 +120,6 @@ export async function getCompetitionTermsForEdit(
   };
 }
 
-/** Where a published version of a consent document reads, for everyone. */
-export function consentDocumentVersionPath(
-  purpose: AttachablePurpose,
-  version: number
-): `/documents/${string}` {
-  return `/documents/${purpose.replaceAll("_", "-")}/${version}`;
-}
-
 /** A competition's terms as the public detail page shows them. */
 export type PublicCompetitionTerms = {
   /** Per offered route: free, an amount in paise, or not set yet. */
@@ -162,7 +155,7 @@ export async function publicCompetitionTerms(
       purpose,
       title,
       version,
-      href: consentDocumentVersionPath(purpose, version),
+      href: documentVersionPath(purpose, version),
     })),
   };
 }

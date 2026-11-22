@@ -11,6 +11,7 @@ import {
   detachConsentDocument,
   type ConsentDocumentChangeInput,
 } from "./documents";
+import { getCompetitionDocumentVersion } from "./document-version";
 import { setCompetitionFees, type SetCompetitionFeesInput } from "./fees";
 import { getCompetitionTermsForEdit } from "./read";
 
@@ -19,6 +20,7 @@ export type {
   ConsentDocumentChangeInput,
   DetachConsentDocumentResult,
 } from "./documents";
+export type { CompetitionDocumentVersion } from "./document-version";
 export type { SetCompetitionFeesInput, SetCompetitionFeesResult } from "./fees";
 export type { SetRoundAwardsInput, SetRoundAwardsResult } from "./awards";
 export type {
@@ -28,11 +30,7 @@ export type {
   PublicCompetitionTerms,
   RegistrationTerms,
 } from "./read";
-export {
-  consentDocumentVersionPath,
-  getRegistrationTerms,
-  publicCompetitionTerms,
-} from "./read";
+export { getRegistrationTerms, publicCompetitionTerms } from "./read";
 export { COMPETITION_TERMS_POLICY } from "./policy";
 
 export const competitionTermsUseCases = (ctx: UseCaseContext) => ({
@@ -45,4 +43,8 @@ export const competitionTermsUseCases = (ctx: UseCaseContext) => ({
     attachConsentDocument(ctx, input),
   detachConsentDocument: (input: ConsentDocumentChangeInput) =>
     detachConsentDocument(ctx, input),
+  getCompetitionDocumentVersion: (input: {
+    purpose: string;
+    version: number;
+  }) => getCompetitionDocumentVersion(ctx, input),
 });

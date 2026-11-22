@@ -6,6 +6,7 @@
 // The defaults are the settings defaults (HR-19); the runtime settings
 // screen (#62) passes stored values instead. Pure: no I/O.
 
+import type { Role } from "../../../access/domain/roles";
 import { isStaffRole } from "./gate";
 
 const HOUR = 60 * 60 * 1000;
@@ -20,7 +21,7 @@ export const SESSION_LIFETIME_DEFAULTS: SessionLifetimes = {
 
 /** How long a session may last for a user holding `roles`. */
 export function sessionLifetimeMs(
-  roles: readonly string[],
+  roles: readonly Role[],
   lifetimes: SessionLifetimes = SESSION_LIFETIME_DEFAULTS
 ): number {
   return roles.some(isStaffRole) ? lifetimes.staffMs : lifetimes.memberMs;
@@ -30,7 +31,7 @@ type SessionTimes = {
   createdAt: Date;
   /** The expiry stored or proposed for the session. */
   expiresAt: Date;
-  roles: readonly string[];
+  roles: readonly Role[];
   lifetimes?: SessionLifetimes;
 };
 
