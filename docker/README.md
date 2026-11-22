@@ -728,6 +728,13 @@ never copy.
   or token would look. Marking more than a tenth of a bucket's copies (ten or
   more) in one night sends a Sentry warning: the retention window is the time
   to look.
+- **A bucket that is really empty now** (every file deleted on purpose) is
+  refused every night, with a Sentry event on each final attempt. Once you
+  have checked in R2 that it is empty, start its retention window by hand,
+  on pg-prod's `foa` as a member of `foa_app`:
+  `UPDATE offsite_copy SET deleted_in_source_at = now() WHERE source_bucket =
+  '<bucket>' AND deleted_in_source_at IS NULL;`. The copies stay for
+  `OFFSITE_RETENTION_DAYS`, then go as usual.
 - **Failures:** a run with a failed copy, purge or listing throws, and pg-boss
   retries it three times, 15 minutes apart with backoff (each attempt expires
   after three hours). A retry copies only what is still missing. Sentry gets
@@ -827,6 +834,9 @@ unset OFFSITE_RESTORE_R2_ACCESS_KEY_ID OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
   arguments.
 - It restores bytes only. A `file_asset` row deleted along with the file
   must be put back separately.
+- While it runs, the token is in the process's environment, so anyone who can
+  read `/proc/<pid>/environ` in the container, or `docker inspect` the exec,
+  can see it. Use a token made for this restore and revoke it afterwards.
 
 ## Preview databases and the sweeper
 
