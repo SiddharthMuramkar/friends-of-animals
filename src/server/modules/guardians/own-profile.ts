@@ -1,11 +1,11 @@
 // The account's own participant profile (#78), as who may become a guardian
-// or a child's login weighs it (81b): none, an adult's, or a minor's. A
+// or a child's login weighs it (#81): none, an adult's, or a minor's. A
 // 13- to 17-year-old who registers alone keeps a profile of their own
-// holding their date of birth, held for the guardian they asked, so the
-// account is known to be a minor's: it never accepts a teen login
-// invitation (./teen-login.ts), declares as a guardian
-// (./register-guardian.ts) or accepts another teen's guardian request
-// (./guardian-request.ts).
+// holding their date of birth, held for the guardian they asked. A later
+// registration refuses a different date of birth, so the account stays
+// known to be a minor's: it never accepts a teen login invitation
+// (./teen-login.ts), declares as a guardian (./register-guardian.ts) or
+// accepts another teen's guardian request (./guardian-request.ts).
 //
 // Read under the user's row lock, which registering as an individual also
 // takes, so neither slips past the other.

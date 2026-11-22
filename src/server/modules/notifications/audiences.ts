@@ -116,7 +116,7 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "guardian.guardian_requested":
       // The guardian a teen names may have no account yet: the request
-      // goes to the address the teen gave by its own handler (81b).
+      // goes to the address the teen gave by its own handler (#81).
       return null;
   }
 }

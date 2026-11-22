@@ -20,7 +20,7 @@ import { createHarness, type Harness } from "@/test/harness";
 
 import { adultForm, openToIndividuals, participantRows } from "./testing";
 
-// 81b: a teen with no guardian on the platform is held as pending_guardian
+// #81: a teen with no guardian on the platform is held as pending_guardian
 // until the guardian they named verifies and accepts. Until then nothing
 // pays for or confirms the registration; once accepted, the guardian pays.
 
@@ -152,6 +152,105 @@ describe("registerAsGuardian, after registering alone", () => {
         .as(actor)
         .registerAsGuardian({ fullName: "Lakshmi Iyer", adultDeclared: true })
     ).toEqual({ ok: true });
+  });
+});
+
+describe("a date of birth already on a profile of one's own", () => {
+  async function rows(h: Harness) {
+    return {
+      participants: await participantRows(h),
+      requests: await h.db.select().from(guardianInvitation),
+    };
+  }
+
+  it("keeps a teen held for a guardian held when they type an adult's on their next form", async () => {
+    const h = await createHarness();
+    const meera = await heldTeen(h);
+    const second = await openToIndividuals(h, { name: "Wings 2027" });
+    const before = await rows(h);
+
+    expect(
+      await h.as(meera.actor).registerAsIndividual(
+        adultForm(second, {
+          fullName: "Meera Iyer",
+          dateOfBirth: bornYearsAgo(h, 25),
+        })
+      )
+    ).toEqual({ ok: false, error: "dob_mismatch" });
+    // Nothing written: the profile still holds a 15-year-old's date of birth.
+    expect(await rows(h)).toEqual(before);
+    expect(await meera.status()).toBe("pending_guardian");
+    expect(
+      await h
+        .as(meera.actor)
+        .payForMyRegistration({ registrationId: meera.registrationId })
+    ).toEqual({ ok: false, error: "awaiting_guardian" });
+    expect(
+      await h
+        .as(meera.actor)
+        .registerAsGuardian({ fullName: "Meera Iyer", adultDeclared: true })
+    ).toEqual({ ok: false, error: "registered_as_minor" });
+  });
+
+  it("keeps an adult who registered an adult when they type a teen's on their next form", async () => {
+    const h = await createHarness();
+    const first = await openToIndividuals(h, { fee: 0n, name: "Paws 2027" });
+    const second = await openToIndividuals(h, { name: "Wings 2027" });
+    const actor = await h.signIn(
+      await h.seed.member({ name: "Meera Iyer", email: "meera@example.test" })
+    );
+    expect(
+      await h
+        .as(actor)
+        .registerAsIndividual(adultForm(first, { fullName: "Meera Iyer" }))
+    ).toMatchObject({ ok: true, status: "pending_payment" });
+    const before = await rows(h);
+
+    expect(
+      await h.as(actor).registerAsIndividual({
+        ...adultForm(second, {
+          fullName: "Meera Iyer",
+          dateOfBirth: bornYearsAgo(h, 15, 30),
+        }),
+        guardian: {
+          fullName: "Lakshmi Iyer",
+          relationship: "parent",
+          email: MOTHER_EMAIL,
+        },
+      })
+    ).toEqual({ ok: false, error: "dob_mismatch" });
+    expect(await rows(h)).toEqual(before);
+    await h.drain();
+    expect(h.email.lastTo(MOTHER_EMAIL)).toBeUndefined();
+    // Still an adult's account: it may declare as a guardian.
+    expect(
+      await h
+        .as(actor)
+        .registerAsGuardian({ fullName: "Meera Iyer", adultDeclared: true })
+    ).toEqual({ ok: true });
+  });
+
+  it("lets a teen held for a guardian register again with the same one, held for the same request", async () => {
+    const h = await createHarness();
+    const meera = await heldTeen(h);
+    const second = await openToIndividuals(h, { name: "Wings 2027" });
+    const [request] = await h.db.select().from(guardianInvitation);
+
+    expect(
+      await h.as(meera.actor).registerAsIndividual({
+        ...adultForm(second, {
+          fullName: "Meera Iyer",
+          // The one heldTeen typed.
+          dateOfBirth: bornYearsAgo(h, 15, 30),
+        }),
+        guardian: {
+          fullName: "Lakshmi Iyer",
+          relationship: "parent",
+          email: MOTHER_EMAIL,
+        },
+      })
+    ).toMatchObject({ ok: true, status: "pending_guardian", payNow: false });
+    expect(await h.db.select().from(guardianInvitation)).toEqual([request]);
   });
 });
 
@@ -558,6 +657,17 @@ describe("viewGuardianRequest", () => {
     expect(
       await h.as(h.visitor()).viewGuardianRequest({ token: "not-a-token" })
     ).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("refuses anyone but a person at the link, such as a background job", async () => {
+    const h = await createHarness();
+    const meera = await heldTeen(h);
+
+    await expect(
+      h
+        .as({ kind: "system", process: "worker" })
+        .viewGuardianRequest({ token: meera.token })
+    ).rejects.toThrow(DomainError);
   });
 
   it("tells the person asked that they still need to verify as a guardian", async () => {

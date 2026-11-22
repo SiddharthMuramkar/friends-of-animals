@@ -38,15 +38,25 @@ export type RegistrationCause =
   | "payment"
   | "guardian";
 
-/** How a registration enters the machine on each route. */
+/**
+ * How a registration enters the machine on each route: the status it
+ * usually starts in, any other it may start in, and who creates it. A
+ * minor's individual registration starts held for their guardian when
+ * none has verified yet (#81).
+ */
 const ENTRY: {
   readonly [Route in "institution" | "individual"]: {
     status: RegistrationStatus;
+    alsoStartsIn: readonly RegistrationStatus[];
     cause: RegistrationCause;
   };
 } = {
-  institution: { status: "enrolled", cause: "coordinator" },
-  individual: { status: "pending_payment", cause: "participant" },
+  institution: { status: "enrolled", alsoStartsIn: [], cause: "coordinator" },
+  individual: {
+    status: "pending_payment",
+    alsoStartsIn: ["pending_guardian"],
+    cause: "participant",
+  },
 };
 
 /**
@@ -70,12 +80,22 @@ const TRANSITIONS: {
   pending_guardian: { pending_payment: "guardian" },
 };
 
-/** The status a new registration starts in, and who creates it. */
+/** The status a new registration usually starts in, and who creates it. */
 export function initialRegistrationStatus(route: keyof typeof ENTRY): {
   status: RegistrationStatus;
   cause: RegistrationCause;
 } {
-  return ENTRY[route];
+  const { status, cause } = ENTRY[route];
+  return { status, cause };
+}
+
+/** Whether a new registration on `route` may start in `status`. */
+export function canStartIn(
+  route: keyof typeof ENTRY,
+  status: RegistrationStatus
+): boolean {
+  const entry = ENTRY[route];
+  return entry.status === status || entry.alsoStartsIn.includes(status);
 }
 
 /** Who may move a registration from `from` to `to`, or null if nobody may. */

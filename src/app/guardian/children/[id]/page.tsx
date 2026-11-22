@@ -25,7 +25,7 @@ import { InviteTeenForm } from "./_components/invite-teen-form";
 // One child's page (#81), for a guardian linked to them: their details,
 // from 13 to 17 their own login (invite them, see the invitation waiting,
 // or that the login is linked), and where to register them for a
-// competition (81b). Anyone else gets the not-found
+// competition (#81). Anyone else gets the not-found
 // page, streamed inside <Suspense>, so with status 200.
 
 export async function generateMetadata(): Promise<Metadata> {

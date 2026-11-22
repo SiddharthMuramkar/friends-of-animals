@@ -26,6 +26,11 @@ const VIEWS: Record<Refusal, RefusalView> = {
     message: "register.refusal.dob_invalid",
     field: "dateOfBirth",
   },
+  // A profile's date of birth stays the one first given (#81).
+  dob_mismatch: {
+    message: "register.refusal.dob_mismatch",
+    field: "dateOfBirth",
+  },
   // A guardian registers a child under 13 (#81).
   under_13_needs_guardian: {
     message: "register.refusal.under_13_needs_guardian",
@@ -58,6 +63,9 @@ const VIEWS: Record<Refusal, RefusalView> = {
 export function refusalView(refusal: Refusal): RefusalView {
   return VIEWS[refusal];
 }
+
+/** Every refusal the form may show, so the page words each one. */
+export const REFUSALS = Object.keys(VIEWS) as readonly Refusal[];
 
 /**
  * A refusal the page can show in place of the form, from what it already

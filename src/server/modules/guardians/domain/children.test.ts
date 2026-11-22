@@ -207,7 +207,7 @@ describe("decideTeenAcceptance", () => {
     });
   });
 
-  it("refuses a teen with a profile of their own, held for a guardian they asked (81b)", () => {
+  it("refuses a teen with a profile of their own, held for a guardian they asked (#81)", () => {
     const accepter = { ...ready.accepter, ownProfile: "minor" as const };
     expect(decideTeenAcceptance({ ...ready, accepter })).toEqual({
       ok: false,

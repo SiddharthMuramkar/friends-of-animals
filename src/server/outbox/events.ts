@@ -199,7 +199,7 @@ export type DomainEvent =
       payload: { invitationId: string };
     }
   | {
-      /** A teen with no guardian yet asked one to verify and accept (81b). */
+      /** A teen with no guardian yet asked one to verify and accept (#81). */
       type: "guardian.guardian_requested";
       aggregate: { type: "guardian_invitation"; id: string };
       payload: { requestId: string };
@@ -335,7 +335,7 @@ export const SUBSCRIBERS = {
   // invitation goes to the invited address by its own handler (#81).
   "guardian.teen_invited": ["guardians.send_teen_invitation"],
   // The guardian a teen names may have no account yet: the request goes to
-  // the address the teen gave by its own handler (81b).
+  // the address the teen gave by its own handler (#81).
   "guardian.guardian_requested": ["guardians.send_guardian_request"],
 } as const satisfies { [T in EventType]: readonly string[] };
 

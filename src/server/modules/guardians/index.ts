@@ -2,7 +2,7 @@
 // parent or lawful guardian and verifies by a one-time code; a verified
 // guardian adds children (under 13: a profile they manage, with no login;
 // 13 to 17: invited to an own login, linked to them). Its use cases join
-// `as(actor)` through `guardiansUseCases`. 81b adds a teen's request to a
+// `as(actor)` through `guardiansUseCases`. #81 adds a teen's request to a
 // guardian they name, whose acceptance releases the teen's registrations
 // held until a guardian has verified.
 

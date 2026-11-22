@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canStartIn,
   canTransition,
   initialRegistrationStatus,
   REGISTRATION_STATUSES,
@@ -49,6 +50,22 @@ describe("the registration status machine", () => {
       cause: "participant",
     });
   });
+
+  it.each(REGISTRATION_STATUSES)(
+    "starts an individual registration only waiting for its fee or a guardian: %s",
+    (status) => {
+      expect(canStartIn("individual", status)).toBe(
+        status === "pending_payment" || status === "pending_guardian"
+      );
+    }
+  );
+
+  it.each(REGISTRATION_STATUSES)(
+    "starts a student only as enrolled: %s",
+    (status) => {
+      expect(canStartIn("institution", status)).toBe(status === "enrolled");
+    }
+  );
 
   it("lets no participant confirm their own registration", () => {
     expect(canTransition("pending_payment", "confirmed", "participant")).toBe(

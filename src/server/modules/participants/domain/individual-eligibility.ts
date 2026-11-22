@@ -6,6 +6,10 @@
 // 13 to 17 may register themselves, and a minor's registration is held
 // until a guardian has verified (./minor-registration.ts).
 //
+// A date of birth, once a profile holds it, is the one every later
+// registration counts: a different one typed is refused, never stored, so
+// nobody's age (and with it the guardian rules) changes by retyping it.
+//
 // Two different dates count. Whether someone is an adult is their age on
 // India's calendar at the registration instant; which age group they enter
 // is their age on the competition's cut-off date (#75), as for a school's
@@ -18,6 +22,7 @@ import {
   type AgeGroup,
 } from "../../registration/domain/age-group";
 import {
+  compareDates,
   parseIsoDate,
   type CalendarDate,
 } from "../../registration/domain/calendar-date";
@@ -44,6 +49,11 @@ export type IndividualRegistrationRequest = {
   /** As typed, or as the child's profile keeps it: `YYYY-MM-DD`. */
   dateOfBirth: string;
   /**
+   * The date of birth the person's profile already holds (`YYYY-MM-DD`),
+   * or null before their first registration. A typed one must match it.
+   */
+  storedDateOfBirth: string | null;
+  /**
    * Who registers: the person themselves (with their guardian's state, if
    * they turn out to be a minor), or a guardian for their own child.
    */
@@ -66,6 +76,7 @@ export type IndividualRegistrationRefusal =
   | "institutions_only"
   | "fee_not_set"
   | "dob_invalid"
+  | "dob_mismatch"
   | Exclude<MinorRegistrationRefusal, "not_a_minor">
   | "outside_age_groups"
   | "already_registered"
@@ -100,6 +111,11 @@ export function decideIndividualRegistration(
   if (!competition.feeSet) return refuse("fee_not_set");
   const dateOfBirth = parseDateOfBirth(request.dateOfBirth, request.at);
   if (!dateOfBirth) return refuse("dob_invalid");
+  if (request.storedDateOfBirth !== null) {
+    const stored = parseIsoDate(request.storedDateOfBirth);
+    if (!stored) throw new Error("A stored date of birth is not a date");
+    if (compareDates(dateOfBirth, stored) !== 0) return refuse("dob_mismatch");
+  }
   const ageYears = ageAt(dateOfBirth, request.at);
   const start =
     ageYears >= ADULT_AGE && request.registrant.kind === "self"

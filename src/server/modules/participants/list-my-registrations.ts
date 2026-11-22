@@ -9,7 +9,7 @@
 // nobody else's registrations ever show. Entries, results and
 // certificates join it with later tickets.
 
-import { and, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 
 import { authorize } from "../../access/can";
 import type { AppDb } from "../../db/app-db";
@@ -23,6 +23,7 @@ import {
 } from "../../db/schema";
 import type { Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
+import { verifiedLink } from "../guardians/child-access";
 import type { RegistrationRoute } from "../registration/domain/participant";
 import type { RegistrationStatus } from "../registration/domain/registration-status";
 
@@ -75,13 +76,7 @@ async function visibleProfiles(
     .select({ id: guardianLink.participantProfileId })
     .from(guardianLink)
     .innerJoin(guardian, eq(guardian.id, guardianLink.guardianId))
-    .where(
-      and(
-        eq(guardian.userId, userId),
-        isNotNull(guardian.verifiedAt),
-        isNull(guardianLink.revokedAt)
-      )
-    );
+    .where(and(eq(guardian.userId, userId), verifiedLink()));
   for (const row of children) {
     if (!visible.has(row.id)) {
       visible.set(row.id, { whose: "child", pays: true });

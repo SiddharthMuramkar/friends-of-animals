@@ -23,7 +23,12 @@ import {
   TEXT_FIELDS,
   type FormField,
 } from "./_lib/form-state";
-import { refusalBeforeForm, refusalView, type Refusal } from "./_lib/refusal";
+import {
+  REFUSALS,
+  refusalBeforeForm,
+  refusalView,
+  type Refusal,
+} from "./_lib/refusal";
 import {
   RegisterForm,
   type RegisterFormLabels,
@@ -61,22 +66,6 @@ async function Loading() {
   const t = await getTranslations("participant.register");
   return <p className="text-ink-muted">{t("loading")}</p>;
 }
-
-const REFUSALS: readonly Refusal[] = [
-  "registration_closed",
-  "institutions_only",
-  "fee_not_set",
-  "dob_invalid",
-  "under_13_needs_guardian",
-  "adult_registers_self",
-  "outside_age_groups",
-  "already_registered",
-  "consent_missing",
-  "guardian_details_required",
-  "guardian_contact_is_self",
-  "rate_limited",
-  "not_found",
-];
 
 /** The form, or null for a competition there is none for or a child not theirs. */
 async function formFor(

@@ -1,4 +1,4 @@
-// A teen's guardian request (81b): a 13- to 17-year-old with no guardian on
+// A teen's guardian request (#81): a 13- to 17-year-old with no guardian on
 // the platform who registers for a competition names a parent or guardian,
 // and FOA asks that person to verify and accept. Until a verified guardian
 // accepts, the teen's registrations are held as pending_guardian.
@@ -29,7 +29,7 @@
 // (plus an encrypted copy while pending, for the message). An unknown or
 // malformed token is "not found", with nothing said about why.
 
-import { and, asc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -67,6 +67,7 @@ import {
 import { isAdultAt } from "../participants/domain/age";
 import { verifiedEmailOf } from "./account-contact";
 import { holdsOtherRole, isAGuardian } from "./account-roles";
+import { verifiedLink } from "./child-access";
 import { childDateOfBirth } from "./child-view";
 import {
   decideGuardianRequest,
@@ -663,11 +664,7 @@ export async function hasVerifiedGuardian(
     .from(guardianLink)
     .innerJoin(guardian, eq(guardian.id, guardianLink.guardianId))
     .where(
-      and(
-        eq(guardianLink.participantProfileId, profileId),
-        isNull(guardianLink.revokedAt),
-        isNotNull(guardian.verifiedAt)
-      )
+      and(eq(guardianLink.participantProfileId, profileId), verifiedLink())
     )
     .limit(1);
   return row !== undefined;

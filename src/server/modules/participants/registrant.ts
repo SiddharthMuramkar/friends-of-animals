@@ -6,7 +6,7 @@
 // guardian-kept profile here, and weighs who registers for the minor
 // rules.
 
-import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { authorize } from "../../access/can";
 import type { Role } from "../../access/domain/roles";
@@ -19,7 +19,7 @@ import {
 } from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
 import { withUniqueCode } from "../codes/codes";
-import { childResource } from "../guardians/child-access";
+import { childResource, verifiedLink } from "../guardians/child-access";
 import { hasVerifiedGuardian } from "../guardians/guardian-request";
 import { guardianOfUser } from "../guardians/guardian-record";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
@@ -32,13 +32,17 @@ export type Subject =
   | { kind: "linked"; profileId: string }
   | { kind: "child"; profileId: string; actorRole: Role | null };
 
-/** A guardian-kept profile's name and date of birth (`YYYY-MM-DD`). */
-export async function keptProfile(
-  ctx: Pick<UseCaseContext, "cipher">,
-  db: AppDb,
-  profileId: string
+/**
+ * The name and date of birth (`YYYY-MM-DD`) of the guardian-kept profile a
+ * linked teen or a child registers on, which the form doesn't change; null
+ * for the member's own.
+ */
+export async function keptDetailsOf(
+  ctx: Pick<UseCaseContext, "cipher" | "db">,
+  subject: Subject
 ): Promise<{ fullName: string; dateOfBirth: string } | null> {
-  const [row] = await db
+  if (subject.kind === "own") return null;
+  const [row] = await ctx.db
     .select({
       fullName: participantProfile.fullName,
       dobCiphertext: participantProfile.dobCiphertext,
@@ -46,11 +50,13 @@ export async function keptProfile(
     .from(participantProfile)
     .where(
       and(
-        eq(participantProfile.id, profileId),
+        eq(participantProfile.id, subject.profileId),
         eq(participantProfile.ownerKind, "guardian")
       )
     );
-  if (!row) return null;
+  if (!row) {
+    throw new Error(`Profile ${subject.profileId} is not a guardian's child`);
+  }
   return {
     fullName: row.fullName,
     dateOfBirth: ctx.cipher.decrypt(PROFILE_PURPOSE.dob, row.dobCiphertext),
@@ -108,13 +114,7 @@ export async function childrenOf(
       participantProfile,
       eq(participantProfile.id, guardianLink.participantProfileId)
     )
-    .where(
-      and(
-        eq(guardian.userId, userId),
-        isNotNull(guardian.verifiedAt),
-        isNull(guardianLink.revokedAt)
-      )
-    )
+    .where(and(eq(guardian.userId, userId), verifiedLink()))
     .orderBy(asc(participantProfile.createdAt), asc(participantProfile.id));
 }
 

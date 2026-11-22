@@ -20,7 +20,7 @@ export const TEEN_INVITATION_TOKEN = "guardian_invitation.token";
 
 /**
  * The purpose the cipher binds the guardian's name a teen gives in a
- * guardian request (81b) to.
+ * guardian request (#81) to.
  */
 export const REQUESTED_GUARDIAN_NAME = "guardian_invitation.invitee_name";
 

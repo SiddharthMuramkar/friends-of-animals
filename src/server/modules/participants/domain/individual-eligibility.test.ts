@@ -21,6 +21,7 @@ const welcome: IndividualRegistrationRequest = {
     ageGroups: [TEENS, ADULTS],
   },
   dateOfBirth: "1995-08-20",
+  storedDateOfBirth: null,
   registrant: { kind: "self", guardian: "none" },
   alreadyRegistered: false,
   consents: {
@@ -97,6 +98,11 @@ describe("decideIndividualRegistration", () => {
       "the date of birth is in the future",
       { dateOfBirth: "2027-01-16" },
       "dob_invalid",
+    ],
+    [
+      "the date of birth differs from the one their profile holds",
+      { storedDateOfBirth: "1995-08-21" },
+      "dob_mismatch",
     ],
     [
       "a child under 13 registers themselves",
@@ -239,6 +245,39 @@ describe("decideIndividualRegistration", () => {
         consents: { required: ["terms-v2"], given: [] },
       })
     ).toEqual({ ok: false, reason: "under_13_needs_guardian" });
+  });
+
+  it("lets someone register again with the date of birth their profile holds", () => {
+    expect(decide({ storedDateOfBirth: "1995-08-20" })).toMatchObject({
+      ok: true,
+      status: "pending_payment",
+    });
+  });
+
+  it("decides nobody's age on a date of birth retyped over the stored one", () => {
+    // A teen held for a guardian types an adult's date of birth, and an
+    // adult types a teen's: both are refused, not decided on the new one.
+    expect(
+      decide({ dateOfBirth: "1995-08-20", storedDateOfBirth: "2011-06-01" })
+    ).toEqual({ ok: false, reason: "dob_mismatch" });
+    expect(
+      decide({ dateOfBirth: "2011-06-01", storedDateOfBirth: "1995-08-20" })
+    ).toEqual({ ok: false, reason: "dob_mismatch" });
+  });
+
+  it("tells someone their date of birth isn't the stored one before the minor rules or a duplicate", () => {
+    expect(
+      decide({
+        dateOfBirth: "2016-03-03",
+        storedDateOfBirth: "1995-08-20",
+        alreadyRegistered: true,
+        consents: { required: ["terms-v2"], given: [] },
+      })
+    ).toEqual({ ok: false, reason: "dob_mismatch" });
+    // A date that doesn't exist is still just mistyped.
+    expect(
+      decide({ dateOfBirth: "1995-02-30", storedDateOfBirth: "1995-08-20" })
+    ).toEqual({ ok: false, reason: "dob_invalid" });
   });
 
   it("reports a duplicate before missing consents", () => {

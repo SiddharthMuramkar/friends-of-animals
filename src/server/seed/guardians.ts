@@ -1,7 +1,7 @@
 // Guardians seed data (#81): a verified guardian with an under-13 child
 // they manage and a teen whose own login is linked to them, under fixed
 // ids so links and journeys can name them; and a second teen with no
-// guardian on the platform (81b), registered for Neighbours on My Street
+// guardian on the platform (#81), registered for Neighbours on My Street
 // (NEIGH27) on a profile of their own, held until the guardian they named
 // accepts their request. Dates of birth are counted back
 // from the clock the first time the seed runs, so the children are 8 and 15

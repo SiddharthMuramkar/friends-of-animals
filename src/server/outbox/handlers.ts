@@ -112,7 +112,7 @@ export const HANDLERS: Handlers = {
   // Emails a guardian's invitation to their teen's own login (#81).
   "guardians.send_teen_invitation": (deps, { payload }) =>
     sendTeenInvitation(deps, payload),
-  // Emails a teen's request to the guardian they named (81b).
+  // Emails a teen's request to the guardian they named (#81).
   "guardians.send_guardian_request": (deps, { payload }) =>
     sendGuardianRequest(deps, payload),
 };

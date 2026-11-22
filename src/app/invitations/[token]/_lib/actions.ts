@@ -41,7 +41,7 @@ export async function acceptTeenInvitationAction(token: string): Promise<void> {
 }
 
 /**
- * Accepts a teen's guardian request (81b) behind `token`, as their parent
+ * Accepts a teen's guardian request (#81) behind `token`, as their parent
  * or guardian, and comes back to its page, which then shows the outcome.
  */
 export async function acceptGuardianRequestAction(

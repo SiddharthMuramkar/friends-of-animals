@@ -7,7 +7,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
 import {
@@ -16,6 +16,7 @@ import {
   participantProfile,
   registration,
 } from "../../db/schema";
+import { verifiedLink } from "../guardians/child-access";
 
 export async function registrationOwner(
   db: AppDb,
@@ -66,8 +67,7 @@ export async function paysFor(
         eq(registration.route, "individual"),
         eq(participantProfile.ownerKind, "guardian"),
         eq(guardian.userId, userId),
-        isNotNull(guardian.verifiedAt),
-        isNull(guardianLink.revokedAt)
+        verifiedLink()
       )
     )
     .limit(1);

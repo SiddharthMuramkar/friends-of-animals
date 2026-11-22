@@ -107,7 +107,7 @@ const AFTER_TEEN_INVITATION_CLOSES = {
   toConfirm: true,
 } as const;
 
-/** A teen's guardian request (81b): who they named, and its answer. */
+/** A teen's guardian request (#81): who they named, and its answer. */
 const AFTER_GUARDIAN_REQUEST_CLOSES = {
   period:
     "30 days after the request is accepted, withdrawn or expires (HR-31); an accepted request's guardian is then on the guardian record",
@@ -559,7 +559,7 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     table: "guardian_invitation",
     column: "contact_ciphertext",
     purpose:
-      "The email a guardian invited their teen to an own login at, or a teen gave for the guardian they asked (81b), to send the link (encrypted)",
+      "The email a guardian invited their teen to an own login at, or a teen gave for the guardian they asked (#81), to send the link (encrypted)",
     retention: AFTER_TEEN_INVITATION_CLOSES,
   },
   {
@@ -580,7 +580,7 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     table: "guardian_invitation",
     column: "accepted_by_user_id",
     purpose:
-      "Records which account accepted the invitation as the teen's own, or a teen's guardian request as their guardian (81b)",
+      "Records which account accepted the invitation as the teen's own, or a teen's guardian request as their guardian (#81)",
     retention: AFTER_TEEN_INVITATION_CLOSES,
   },
   {

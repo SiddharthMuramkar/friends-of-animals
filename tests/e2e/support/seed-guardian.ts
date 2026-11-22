@@ -61,7 +61,7 @@ export type SeedGuardianRequest = (details: {
  * verified guardian with the children asked for, written as the preview
  * seed writes its guardian (src/server/seed/guardians.ts). A teen
  * invitation, if asked for, comes with its link, as its email would carry
- * it. `seedGuardianRequest` (81b): a fresh teen on a profile of their own
+ * it. `seedGuardianRequest` (#81): a fresh teen on a profile of their own
  * who asked a guardian, with the request's link. Local app servers only,
  * like `seedAccount`; the profiles (and any registrations made on them in
  * the test) go after the test, before the accounts.
@@ -242,7 +242,7 @@ export const test = base.extend<{
     } finally {
       try {
         if (profileIds.length > 0) {
-          // A child registered in the test keeps a registration (81b),
+          // A child registered in the test keeps a registration (#81),
           // which would hold the profile; links and invitations go with
           // the profiles.
           await db

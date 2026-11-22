@@ -7,7 +7,7 @@ import { drainOutbox, freshEmail, readEmail } from "./support/mailbox";
 import { test } from "./support/seed-guardian";
 import { newDevice, signInByCode } from "./support/sign-in";
 
-// 81b: a minor takes part on the individual route with a guardian. A teen
+// #81: a minor takes part on the individual route with a guardian. A teen
 // with no guardian on the platform registers, is asked who their parent or
 // guardian is, and is held until that person confirms from the link FOA
 // emails them; then the registration waits for the guardian to pay. A

@@ -11,7 +11,7 @@
 // An account known to be a minor's can't declare itself a guardian: a
 // teen whose login is linked to a child's profile, or one who registered
 // alone with a date of birth under 18 (./own-profile.ts), whose profile
-// is held for the guardian they asked (81b).
+// is held for the guardian they asked (#81).
 
 import { eq } from "drizzle-orm";
 import { z } from "zod";

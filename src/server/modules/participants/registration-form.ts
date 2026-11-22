@@ -22,7 +22,7 @@ import { offeredRoutes } from "../competitions/domain/fees";
 import { getRegistrationTerms } from "../competitions/terms/read";
 import { pinnedDocuments } from "../competitions/terms/repository";
 import { COMPETITION_SLUG_PATTERN } from "./register-input";
-import { childrenOf, keptProfile, subjectOf } from "./registrant";
+import { childrenOf, keptDetailsOf, subjectOf } from "./registrant";
 
 export type IndividualRegistrationForm = {
   competition: { name: string; slug: string };
@@ -84,13 +84,7 @@ export async function individualRegistrationForm(
       pinned.title,
     ])
   );
-  const kept =
-    subject.kind === "own"
-      ? null
-      : await keptProfile(ctx, ctx.db, subject.profileId);
-  if (subject.kind !== "own" && !kept) {
-    throw new Error(`Profile ${subject.profileId} is not a guardian's child`);
-  }
+  const kept = await keptDetailsOf(ctx, subject);
   return {
     competition: { name: found.name, slug: found.slug },
     acceptsIndividuals: offeredRoutes(found.participation).includes(

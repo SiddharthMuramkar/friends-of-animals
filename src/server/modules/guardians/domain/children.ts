@@ -126,7 +126,7 @@ export function decideTeenAcceptance(input: {
     holdsOtherRole: boolean;
     /**
      * A profile of their own: an adult's (#78), so the login can't be a
-     * child's; or a teen's held for a guardian they asked (81b), whom
+     * child's; or a teen's held for a guardian they asked (#81), whom
      * that request links instead.
      */
     ownProfile: "none" | "adult" | "minor";

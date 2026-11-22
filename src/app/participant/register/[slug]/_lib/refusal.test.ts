@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import en from "../../../../../../messages/en-IN/participant.json";
 
-import { refusalBeforeForm, refusalView } from "./refusal";
+import { REFUSALS as WORDED, refusalBeforeForm, refusalView } from "./refusal";
 
 const REFUSALS = [
   "registration_closed",
   "institutions_only",
   "dob_invalid",
+  "dob_mismatch",
   "under_13_needs_guardian",
   "adult_registers_self",
   "already_registered",
@@ -37,8 +38,20 @@ describe("refusalView", () => {
     expect(typeof message === "string" && message.trim()).toBeTruthy();
   });
 
+  it("hands the page every refusal to word, so none shows blank", () => {
+    expect(WORDED).toEqual(
+      expect.arrayContaining([
+        ...REFUSALS,
+        "fee_not_set",
+        "outside_age_groups",
+        "not_found",
+      ])
+    );
+  });
+
   it("puts a refusal the person can fix on the field that needs fixing", () => {
     expect(refusalView("dob_invalid").field).toBe("dateOfBirth");
+    expect(refusalView("dob_mismatch").field).toBe("dateOfBirth");
     expect(refusalView("under_13_needs_guardian").field).toBe("dateOfBirth");
     expect(refusalView("consent_missing").field).toBe("consents");
     expect(refusalView("guardian_contact_is_self").field).toBe("guardianEmail");

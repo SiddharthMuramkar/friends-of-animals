@@ -21,7 +21,7 @@ import { isAcceptError } from "./_lib/accept-error";
 // The token in the address is the invitation's only key: the page is never
 // indexed, and the token is never logged or echoed beyond its own link. A
 // token is a coordinator's invitation (#74), a teen's own login (#81) or a
-// teen's request to the guardian they named (81b); each kind has its own
+// teen's request to the guardian they named (#81); each kind has its own
 // heading, so the heading streams in with it.
 
 export async function generateMetadata(): Promise<Metadata> {

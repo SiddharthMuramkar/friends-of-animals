@@ -1,5 +1,5 @@
 // Why accepting a guardian request failed, as the invitation page reads it
-// back from the address bar (81b): only reasons acceptGuardianRequest
+// back from the address bar (#81): only reasons acceptGuardianRequest
 // returns are shown.
 
 import type { AcceptGuardianRequestResult } from "@/server/modules/guardians";

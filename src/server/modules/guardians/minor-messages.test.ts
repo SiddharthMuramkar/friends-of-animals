@@ -8,7 +8,7 @@ import {
 } from "@/server/modules/participants/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
-// 81b: messages about a minor go to the minor's guardians. A confirmed
+// #81: messages about a minor go to the minor's guardians. A confirmed
 // registration of a guardian's child reaches the guardian by email and in
 // the inbox; a teen with an own login gets an in-app copy only; a minor
 // with no verified guardian is not messaged at all.

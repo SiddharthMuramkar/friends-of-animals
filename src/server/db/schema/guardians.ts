@@ -10,7 +10,7 @@
 // address, setting the profile's `login_user_id`.
 //
 // A teen of 13 to 17 with no guardian on the platform who registers for a
-// competition (81b) names one instead: a `guardian_invitation` of kind
+// competition (#81) names one instead: a `guardian_invitation` of kind
 // guardian_request, from the teen (`requested_by_user_id`) to the address
 // they gave, with the guardian's name and relationship as the teen gave
 // them. It has no guardian record yet: `guardian_id` is set when a

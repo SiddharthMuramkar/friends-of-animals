@@ -126,7 +126,7 @@ export function decideGuardianRequestAcceptance(input: {
     guardianVerified: boolean;
     /**
      * Their own participant profile, by its date of birth now: none, an
-     * adult's, or a minor's (a teen who registered alone, 81b).
+     * adult's, or a minor's (a teen who registered alone, #81).
      */
     ownProfile: "none" | "adult" | "minor";
   };

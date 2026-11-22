@@ -4,7 +4,10 @@
 // - an adult registers themselves. The first time, they get a profile of
 //   their own with an FOA Participant ID (FOA-P-{YY}{6}, YY the year in
 //   India); a later registration finds that profile again and keeps the
-//   latest details they give;
+//   latest details they give, except the date of birth: the profile's
+//   stays, and a different one typed is refused, so a teen held for a
+//   guardian can't type their way to an adult's age, nor an adult to a
+//   teen's;
 // - a verified guardian registers a child they look after (`forChildId`),
 //   and a teen whose login is linked to a guardian registers themselves:
 //   both on the child's profile, with its name and date of birth (the
@@ -59,6 +62,7 @@ import {
 } from "../registration/domain/calendar-date";
 import { identityKeyInput } from "../registration/domain/identity-key";
 import { IDENTITY_HASH_PURPOSE } from "../registration/domain/prepare-student";
+import { canStartIn } from "../registration/domain/registration-status";
 import { registrationWindow } from "../registration/domain/registration-window";
 import { ageGroupsOf } from "../registration/enrolment-facts";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
@@ -68,7 +72,7 @@ import {
 } from "./domain/individual-eligibility";
 import { participantCodeFormat } from "./domain/participant-code";
 import {
-  keptProfile,
+  keptDetailsOf,
   linkedProfileOf,
   lockedKeptProfile,
   registrantOf,
@@ -149,15 +153,21 @@ async function competitionFacts(tx: AppDb, slug: string, now: Date) {
 }
 
 /**
- * The member's own profile, if they have one. Read under the member's user
- * row lock, which a guardian accepting their request also takes (it makes
- * the profile the guardian's), so the profile can't change hands meanwhile.
+ * The member's own profile, if they have one, with the date of birth it
+ * holds (`YYYY-MM-DD`). Read under the member's user row lock, which a
+ * guardian accepting their request also takes (it makes the profile the
+ * guardian's), so the profile can't change hands meanwhile.
  */
-async function ownProfile(tx: AppDb, userId: string) {
+async function ownProfile(
+  ctx: Pick<UseCaseContext, "cipher">,
+  tx: AppDb,
+  userId: string
+) {
   const [found] = await tx
     .select({
       id: participantProfile.id,
       participantCode: participantProfile.participantCode,
+      dobCiphertext: participantProfile.dobCiphertext,
     })
     .from(participantProfile)
     .where(
@@ -166,7 +176,12 @@ async function ownProfile(tx: AppDb, userId: string) {
         eq(participantProfile.ownerKind, "self")
       )
     );
-  return found ?? null;
+  if (!found) return null;
+  return {
+    id: found.id,
+    participantCode: found.participantCode,
+    dateOfBirth: ctx.cipher.decrypt(PROFILE_PURPOSE.dob, found.dobCiphertext),
+  };
 }
 
 async function hasLiveRegistration(
@@ -223,13 +238,7 @@ async function registerOnce(
   const userId = ctx.actor.userId;
   const { forChildId, guardian: guardianInput, ...typed } = input;
   const subject = await subjectOf(ctx, userId, forChildId);
-  const kept =
-    subject.kind === "own"
-      ? null
-      : await keptProfile(ctx, ctx.db, subject.profileId);
-  if (subject.kind !== "own" && !kept) {
-    throw new Error(`Profile ${subject.profileId} is not a guardian's child`);
-  }
+  const kept = await keptDetailsOf(ctx, subject);
   // A child's name and date of birth are the profile's.
   const parsed = parseRegisterInput(kept ? { ...typed, ...kept } : typed);
   if (!parsed.ok) {
@@ -259,7 +268,10 @@ async function registerOnce(
       }
       const stored =
         subject.kind === "own"
-          ? ({ kind: "own", profile: await ownProfile(tx, userId) } as const)
+          ? ({
+              kind: "own",
+              profile: await ownProfile(ctx, tx, userId),
+            } as const)
           : ({
               kind: "kept",
               profile: await lockedKeptProfile(tx, subject.profileId),
@@ -283,6 +295,10 @@ async function registerOnce(
           ageGroups: await ageGroupsOf(tx, target.id),
         },
         dateOfBirth: form.dateOfBirth,
+        storedDateOfBirth:
+          stored.kind === "own"
+            ? (stored.profile?.dateOfBirth ?? null)
+            : (kept?.dateOfBirth ?? null),
         registrant: await registrantOf(tx, userId, subject),
         alreadyRegistered:
           profile !== null &&
@@ -319,6 +335,9 @@ async function registerOnce(
 
       const registrationId = uuidv7(now);
       const { status } = decision;
+      if (!canStartIn("individual", status)) {
+        throw new Error(`An individual registration can't start ${status}`);
+      }
       await tx.insert(registration).values({
         id: registrationId,
         participantProfileId: saved.id,
@@ -435,7 +454,10 @@ async function createProfile(
   return { id, participantCode };
 }
 
-/** The latest details replace the old ones; the Participant ID stays. */
+/**
+ * The latest details replace the old ones; the Participant ID and the date
+ * of birth stay (the decision refused a different one).
+ */
 async function updateProfile(
   tx: AppDb,
   profile: { id: string; participantCode: string | null },
@@ -445,9 +467,10 @@ async function updateProfile(
   if (profile.participantCode === null) {
     throw new Error(`Profile ${profile.id} of its owner has no Participant ID`);
   }
+  const { dobCiphertext: _stays, ...latest } = details;
   await tx
     .update(participantProfile)
-    .set({ ...details, updatedAt: now })
+    .set({ ...latest, updatedAt: now })
     .where(eq(participantProfile.id, profile.id));
   return { id: profile.id, participantCode: profile.participantCode };
 }

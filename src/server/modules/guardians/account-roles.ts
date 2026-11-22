@@ -1,7 +1,7 @@
 // What an account holds beyond being a member, as becoming a child's own
 // login weighs it (#81): a guardian (declared, or the role) never becomes a
 // child's login, and nor does a staff, school or judge account. Both the
-// teen login invitation (81a) and the guardian request (81b) refuse them,
+// teen login invitation and the guardian request refuse them,
 // so a teen's linked login never adds or manages other children.
 //
 // Read under the user's row lock: declaring, verifying and role grants

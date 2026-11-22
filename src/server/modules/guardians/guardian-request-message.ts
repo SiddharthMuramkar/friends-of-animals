@@ -1,4 +1,4 @@
-// The guardian request message (81b), sent by the outbox handler
+// The guardian request message (#81), sent by the outbox handler
 // guardians.send_guardian_request after guardian.guardian_requested: an
 // email to the address a teen gave for their parent or guardian. The event
 // carries only the request's id; the address, the names and the link's

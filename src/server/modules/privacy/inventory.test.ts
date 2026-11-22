@@ -186,7 +186,7 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
-  it("lists every personal-data column of a teen's guardian request, kept 30 days after it closes (81b)", () => {
+  it("lists every personal-data column of a teen's guardian request, kept 30 days after it closes (#81)", () => {
     const columns = [
       "invitee_name_ciphertext",
       "relationship",

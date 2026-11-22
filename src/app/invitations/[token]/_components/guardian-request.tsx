@@ -18,7 +18,7 @@ const CARD =
   "rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
 
 /**
- * The guardian-request variant of an invitation's page (81b): a teen named
+ * The guardian-request variant of an invitation's page (#81): a teen named
  * the reader as their parent or guardian. Signed out they're asked to sign
  * in or up with the requested address; signed in with it, they register as
  * a guardian first if they haven't, then confirm how they are related and

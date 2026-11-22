@@ -72,6 +72,7 @@
         "institutions_only": "This competition takes entries through schools and other institutions only.",
         "fee_not_set": "Registration opens once FOA has set the fee. Please come back soon.",
         "dob_invalid": "Enter a real date of birth, in the past.",
+        "dob_mismatch": "That isn't the date of birth you gave when you first registered. Enter that one: a date of birth can't be changed here. If it was wrong, write to us.",
         "outside_age_groups": "This competition has no age group for your age.",
         "already_registered": "You are already registered for this competition.",
         "consent_missing": "Agree to each document to register.",

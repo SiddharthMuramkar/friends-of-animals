@@ -66,7 +66,7 @@ describe("the guardians seed", () => {
     ]);
   });
 
-  it("gives a second, unlinked teen a registration held for the guardian they asked (81b)", async () => {
+  it("gives a second, unlinked teen a registration held for the guardian they asked (#81)", async () => {
     const h = await createHarness();
     await h.seed.preview();
     const { heldTeen } = SEED_GUARDIANS;
