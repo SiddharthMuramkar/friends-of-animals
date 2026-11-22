@@ -27,6 +27,12 @@ export const CMS_POLICY = {
     "super_admin",
     "content_manager"
   ),
+  /** Blog posts and stories (#112): every status, as their editors see them. */
+  "cms.post.read_drafts": role("content_manager"),
+  /** Write drafts and edit posts, and upload their images. */
+  "cms.post.write": role("content_manager"),
+  /** Schedule, publish, unschedule, archive and restore. */
+  "cms.post.publish": role("content_manager"),
 } satisfies Policy<string>;
 
 export type CmsAction = keyof typeof CMS_POLICY;

@@ -16,6 +16,10 @@ export const DERIVATIVE_KINDS = {
   thumb_320: { maxEdge: 320, contentType: "image/webp", quality: 80 },
   /** Staff, verifiers and judges looking at the work. */
   display_1600: { maxEdge: 1600, contentType: "image/webp", quality: 85 },
+  /** A post's cover on the public site, its social card and lists (#112). */
+  post_cover_1200: { maxEdge: 1200, contentType: "image/webp", quality: 82 },
+  /** An image inside a post's body on the public site (#112). */
+  post_inline_960: { maxEdge: 960, contentType: "image/webp", quality: 80 },
 } as const;
 
 export type DerivativeKind = keyof typeof DERIVATIVE_KINDS;

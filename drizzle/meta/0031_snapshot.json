@@ -1,5 +1,5 @@
 {
-  "id": "5fe7e219-de85-4b5b-95e8-15274d8061b4",
+  "id": "c5b9ae81-4f3f-4858-9990-961ba53883ce",
   "prevId": "a2cdeb00-aa4c-4492-85a7-8c0a91949497",
   "version": "7",
   "dialect": "postgresql",
@@ -4592,6 +4592,334 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.cms_post": {
+      "name": "cms_post",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "post_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seo_title": {
+          "name": "seo_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "excerpt": {
+          "name": "excerpt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "easy_read": {
+          "name": "easy_read",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "audience": {
+          "name": "audience",
+          "type": "post_audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'everyone'"
+        },
+        "topics": {
+          "name": "topics",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "featured": {
+          "name": "featured",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "author_name": {
+          "name": "author_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cover_image_id": {
+          "name": "cover_image_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cover_site_image_id": {
+          "name": "cover_site_image_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "post_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "publish_at": {
+          "name": "publish_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "cms_post_status_published_at_idx": {
+          "name": "cms_post_status_published_at_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "published_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cms_post_cover_image_id_cms_post_image_id_fk": {
+          "name": "cms_post_cover_image_id_cms_post_image_id_fk",
+          "tableFrom": "cms_post",
+          "tableTo": "cms_post_image",
+          "columnsFrom": [
+            "cover_image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "cms_post_created_by_user_id_fk": {
+          "name": "cms_post_created_by_user_id_fk",
+          "tableFrom": "cms_post",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "cms_post_updated_by_user_id_fk": {
+          "name": "cms_post_updated_by_user_id_fk",
+          "tableFrom": "cms_post",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "cms_post_slug_unique": {
+          "name": "cms_post_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "cms_post_slug_format": {
+          "name": "cms_post_slug_format",
+          "value": "\"cms_post\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$' AND char_length(\"cms_post\".\"slug\") BETWEEN 3 AND 80"
+        },
+        "cms_post_one_cover": {
+          "name": "cms_post_one_cover",
+          "value": "\"cms_post\".\"cover_image_id\" IS NULL OR \"cms_post\".\"cover_site_image_id\" IS NULL"
+        },
+        "cms_post_publish_at_when_scheduled": {
+          "name": "cms_post_publish_at_when_scheduled",
+          "value": "(\"cms_post\".\"status\" = 'scheduled') = (\"cms_post\".\"publish_at\" IS NOT NULL)"
+        },
+        "cms_post_published_at_when_published": {
+          "name": "cms_post_published_at_when_published",
+          "value": "\"cms_post\".\"status\" <> 'published' OR \"cms_post\".\"published_at\" IS NOT NULL"
+        },
+        "cms_post_archived_at_when_archived": {
+          "name": "cms_post_archived_at_when_archived",
+          "value": "(\"cms_post\".\"status\" = 'archived') = (\"cms_post\".\"archived_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.cms_post_image": {
+      "name": "cms_post_image",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "post_id": {
+          "name": "post_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_asset_id": {
+          "name": "file_asset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alt": {
+          "name": "alt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "public_at": {
+          "name": "public_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "cms_post_image_post_id_cms_post_id_fk": {
+          "name": "cms_post_image_post_id_cms_post_id_fk",
+          "tableFrom": "cms_post_image",
+          "tableTo": "cms_post",
+          "columnsFrom": [
+            "post_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cms_post_image_file_asset_id_file_asset_id_fk": {
+          "name": "cms_post_image_file_asset_id_file_asset_id_fk",
+          "tableFrom": "cms_post_image",
+          "tableTo": "file_asset",
+          "columnsFrom": [
+            "file_asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "cms_post_image_file_asset_id_unique": {
+          "name": "cms_post_image_file_asset_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "file_asset_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -4695,8 +5023,7 @@
       "values": [
         "privacy_notice",
         "terms",
-        "messages",
-        "competition_terms"
+        "messages"
       ]
     },
     "public.consent_subject_type": {
@@ -4727,7 +5054,8 @@
       "name": "file_asset_purpose",
       "schema": "public",
       "values": [
-        "test_upload"
+        "test_upload",
+        "cms_image"
       ]
     },
     "public.file_asset_status": {
@@ -4921,6 +5249,33 @@
         "sms_disabled",
         "sms_unregistered",
         "no_contact"
+      ]
+    },
+    "public.post_audience": {
+      "name": "post_audience",
+      "schema": "public",
+      "values": [
+        "kids",
+        "families",
+        "everyone"
+      ]
+    },
+    "public.post_kind": {
+      "name": "post_kind",
+      "schema": "public",
+      "values": [
+        "blog",
+        "story"
+      ]
+    },
+    "public.post_status": {
+      "name": "post_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "scheduled",
+        "published",
+        "archived"
       ]
     }
   },

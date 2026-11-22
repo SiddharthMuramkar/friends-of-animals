@@ -37,6 +37,7 @@ import {
   checkStoredObject,
   checkUploadRequest,
   normaliseContentType,
+  PURPOSE_RULES,
   type FilePurpose,
   type UploadRefusal,
 } from "../domain/purposes";
@@ -75,18 +76,37 @@ export type RequestUploadResult =
 
 /**
  * Records a pending file and presigns its upload. Nothing is written when
- * the purpose's rules refuse the declaration.
+ * the purpose's rules refuse the declaration, or when the purpose is one
+ * only its own module presigns (`directUpload: false`).
  */
 export async function requestUpload(
   ctx: FilesContext,
   input: RequestUploadInput
 ): Promise<RequestUploadResult> {
   await authorize(ctx, "file.upload");
-  if (ctx.actor.kind !== "user") throw new Error("unreachable");
   const parsed = requestUploadInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const { purpose, sizeBytes } = parsed.data;
-  const contentType = normaliseContentType(parsed.data.contentType);
+  if (!PURPOSE_RULES[parsed.data.purpose].directUpload) {
+    return { ok: false, error: "purpose_unavailable" };
+  }
+  return presignUpload(ctx, ctx.db, parsed.data);
+}
+
+/**
+ * Presigns an upload for the signed-in actor, who becomes the file's
+ * owner, and records the pending file in `db` (a module passes its own
+ * transaction). For a module's use case that authorized the actor itself;
+ * everyone else calls `requestUpload`. Nothing is written when the
+ * purpose's rules refuse the declaration.
+ */
+export async function presignUpload(
+  ctx: Pick<FilesContext, "clock" | "actor" | "storage" | "files">,
+  db: AppDb,
+  request: RequestUploadInput
+): Promise<RequestUploadResult> {
+  if (ctx.actor.kind !== "user") throw new Error("unreachable");
+  const { purpose, sizeBytes } = request;
+  const contentType = normaliseContentType(request.contentType);
   const check = checkUploadRequest(
     { purpose, contentType, sizeBytes },
     ctx.files.appEnv
@@ -104,7 +124,7 @@ export async function requestUpload(
     contentLength: sizeBytes,
     expiresInSeconds: UPLOAD_URL_TTL_SECONDS,
   });
-  await ctx.db.insert(fileAsset).values({
+  await db.insert(fileAsset).values({
     id: fileId,
     ownerUserId: ctx.actor.userId,
     purpose,
