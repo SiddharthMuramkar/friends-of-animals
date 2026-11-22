@@ -23,3 +23,7 @@ modules, converge on one path instead of several.
   path that 69, 73, 88 and 89a already carry.
 - When a branch syncs with main, main's version of a module is canonical:
   delete the carried copy and import main's.
+- The one rich-text sanitiser, `src/server/rich-text/` (M2 F4, M5 F12),
+  isn't a domain module: it's a pure helper that the CMS (#111), essays
+  (#86b) and later posts all call. It stays at that path, beside the
+  foundations, rather than under `src/server/modules/`.
