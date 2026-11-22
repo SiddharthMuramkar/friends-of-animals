@@ -320,7 +320,10 @@ describe("a worker's messages by SMS", () => {
     await worker.tick();
 
     const captured = await h.db.select().from(capturedMessage);
-    expect(captured.map((m) => [m.channel, m.toAddress]).sort()).toEqual([
+    const byChannel = captured
+      .map((m) => [m.channel, m.toAddress])
+      .sort(([a], [b]) => String(a).localeCompare(String(b)));
+    expect(byChannel).toEqual([
       ["email", member.email],
       ["sms", PHONE],
     ]);
