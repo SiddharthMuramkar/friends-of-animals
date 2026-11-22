@@ -5,17 +5,17 @@
 # label them with a database comment:
 #   'foa-preview pr=<n>'         dropped once GitHub reports the PR closed
 #   'foa-preview branch=<ref>'   dropped once the branch no longer exists
-# The comment alone says which PR or branch a database belongs to; names are
-# never parsed or recomputed here, only checked to look like a preview's.
+# The comment identifies the PR or branch and must match the name's
+# storage prefix.
 # Anything uncertain (API error, rate limit, unexpected name or comment) is
 # kept. foa_seed, foa_staging, postgres and the templates are never touched.
 #
 # Optional /etc/foa/sweeper.env: GITHUB_TOKEN=... (read-only token; raises the
 # API rate limit and is needed if the repository becomes private).
 #
-# After each drop it runs the hooks in preview-dropped.d with the dropped
-# name (run-preview-dropped-hooks.sh): 50-purge-files.sh deletes that
-# preview's files. A failing hook is logged and the sweep goes on.
+# Records each drop before it happens. Hooks run for inactive previews
+# after all databases sharing their storage prefix are gone. Failed hooks
+# keep their record for a later sweep.
 #
 # Usage: sudo sweep-preview-dbs.sh [--dry-run]
 set -euo pipefail
@@ -24,6 +24,8 @@ REPO=SiddharthMuramkar/friends-of-animals
 CONTAINER=foa-pg-nonprod
 DRY_RUN=0
 HOOKS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/run-preview-dropped-hooks.sh"
+SWEEPER_ENV="${FOA_SWEEPER_ENV:-/etc/foa/sweeper.env}"
+PURGE_STATE="${FOA_PREVIEW_PURGE_STATE:-/var/lib/foa/preview-purge}"
 
 case "${1:-}" in
   "") ;;
@@ -31,12 +33,22 @@ case "${1:-}" in
   *) echo "usage: $0 [--dry-run]" >&2; exit 2 ;;
 esac
 
-if [ -z "${GITHUB_TOKEN:-}" ] && [ -r /etc/foa/sweeper.env ]; then
+if [ -z "${GITHUB_TOKEN:-}" ] && [ -r "$SWEEPER_ENV" ]; then
   # shellcheck disable=SC1091
-  . /etc/foa/sweeper.env
+  . "$SWEEPER_ENV"
 fi
 
 say() { echo "sweep: $*"; }
+
+if [ "$DRY_RUN" -eq 0 ]; then
+  umask 077
+  mkdir -p "$PURGE_STATE"
+  exec 9>"$PURGE_STATE/lock"
+  if ! flock -n 9; then
+    say "another sweep is running"
+    exit 0
+  fi
+fi
 
 psql_nonprod() {
   docker exec -i -u postgres "$CONTAINER" \
@@ -87,17 +99,82 @@ branch_state() {
   esac
 }
 
+# Keep in step with storagePrefixForDatabase in the Files module.
+preview_prefix() {
+  if [[ "$1" =~ ^foa_pr_([1-9][0-9]*)_[0-9a-f]{8}$ ]]; then
+    printf 'pr-%s\n' "${BASH_REMATCH[1]}"
+  elif [[ "$1" =~ ^foa_br_([a-z0-9_]+_)?([0-9a-f]{8})_[0-9a-f]{8}$ ]]; then
+    printf 'br-%s\n' "${BASH_REMATCH[2]}"
+  else
+    return 1
+  fi
+}
+
+preview_state() {
+  local prefix="$1" label="$2" ref hash
+  if [[ "$label" =~ ^pr=([1-9][0-9]{0,8})$ && "$prefix" = "pr-${BASH_REMATCH[1]}" ]]; then
+    pr_state "${label#pr=}"
+  elif [[ "$prefix" = br-* && "$label" =~ ^branch=([A-Za-z0-9][A-Za-z0-9._/+@-]{0,200})$ ]]; then
+    ref="${label#branch=}"
+    hash="$(printf '%s' "$ref" | sha256sum)"
+    if [ "$prefix" = "br-${hash:0:8}" ]; then
+      branch_state "$ref"
+    else
+      echo unknown
+    fi
+  else
+    echo unknown
+  fi
+}
+
 drop_db() {
   if [ "$DRY_RUN" -eq 1 ]; then
-    say "would drop $1 ($2)"
+    say "would drop $1 (preview inactive)"
     return
   fi
-  # Name already validated against ^foa_(pr|br)_[a-z0-9_]+$; quoted anyway.
+  local record
+  record="$(mktemp "$PURGE_STATE/.pending.XXXXXX")"
+  printf '%s\n' "$2" > "$record"
+  sync "$record"
+  mv -f -- "$record" "$PURGE_STATE/$1.pending"
+  sync "$PURGE_STATE"
+  # The name has already been validated by preview_prefix.
   printf 'DROP DATABASE IF EXISTS "%s" WITH (FORCE);\n' "$1" | psql_nonprod
-  say "dropped $1 ($2)"
-  if ! "$HOOKS" "$1"; then
-    say "hooks failed for $1 (kept going; see above)"
-  fi
+  say "dropped $1 (preview inactive)"
+}
+
+replay_purges() {
+  local record db label prefix state live
+  # Include unlabelled databases: a surviving fingerprint or another
+  # branch with the same short hash makes the prefix unsafe to purge.
+  local -A occupied=()
+  live="$(psql_nonprod -c "SELECT datname FROM pg_database WHERE datname ~ '^foa_(pr|br)_'")"
+  while IFS= read -r db; do
+    if prefix="$(preview_prefix "$db")"; then occupied["$prefix"]=1; fi
+  done <<< "$live"
+  for record in "$PURGE_STATE"/*.pending; do
+    [ -f "$record" ] || continue
+    db="${record##*/}"
+    db="${db%.pending}"
+    if ! prefix="$(preview_prefix "$db")" || ! IFS= read -r label < "$record"; then
+      say "kept an invalid purge record"
+      continue
+    fi
+    if [ -n "${occupied[$prefix]:-}" ]; then
+      say "keep purge for $db: a database still uses the prefix"
+      continue
+    fi
+    state="$(preview_state "$prefix" "$label")"
+    if [[ "$state" != closed && "$state" != gone ]]; then
+      say "keep purge for $db: preview $state"
+      continue
+    fi
+    if "$HOOKS" "$db" 9>&-; then
+      rm -- "$record"
+    else
+      say "hooks failed for $db (will retry on a later sweep)"
+    fi
+  done
 }
 
 rows="$(psql_nonprod -F $'\t' -c "
@@ -114,30 +191,18 @@ while IFS=$'\t' read -r db comment; do
     foa_seed | foa_staging | postgres | template0 | template1)
       say "skip $db: protected"; kept=$((kept + 1)); continue ;;
   esac
-  if ! [[ "$db" =~ ^foa_(pr|br)_[a-z0-9_]{1,56}$ ]]; then
+  if ! prefix="$(preview_prefix "$db")"; then
     say "skip $db: not a preview database name"; kept=$((kept + 1)); continue
   fi
   label="${comment#foa-preview }"
-  if [[ "$label" =~ ^pr=([0-9]{1,9})$ ]]; then
-    n="${BASH_REMATCH[1]}"
-    state="$(pr_state "$n")"
-    if [ "$state" = closed ]; then
-      drop_db "$db" "PR #$n closed"; dropped=$((dropped + 1))
-    else
-      say "keep $db: PR #$n $state"; kept=$((kept + 1))
-    fi
-  elif [[ "$label" =~ ^branch=([A-Za-z0-9][A-Za-z0-9._/+@-]{0,200})$ ]]; then
-    ref="${BASH_REMATCH[1]}"
-    state="$(branch_state "$ref")"
-    if [ "$state" = gone ]; then
-      drop_db "$db" "branch $ref gone"; dropped=$((dropped + 1))
-    else
-      say "keep $db: branch $ref $state"; kept=$((kept + 1))
-    fi
+  state="$(preview_state "$prefix" "$label")"
+  if [[ "$state" = closed || "$state" = gone ]]; then
+    drop_db "$db" "$label"; dropped=$((dropped + 1))
   else
-    say "skip $db: unrecognised comment"; kept=$((kept + 1))
+    say "keep $db: preview $state"; kept=$((kept + 1))
   fi
 done <<<"$rows"
 
+if [ "$DRY_RUN" -eq 0 ]; then replay_purges; fi
 mode=""; [ "$DRY_RUN" -eq 1 ] && mode=" (dry run)"
 say "checked $checked, $( [ "$DRY_RUN" -eq 1 ] && echo "would drop" || echo dropped ) $dropped, kept $kept$mode"
