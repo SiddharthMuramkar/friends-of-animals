@@ -141,6 +141,20 @@
       "when": 1795335782583,
       "tag": "0019_69_notification_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1795338272044,
+      "tag": "0020_73_institution_registration_and_verification_institution",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1795338272700,
+      "tag": "0021_73_institution_messages",
+      "breakpoints": true
     }
   ]
 }

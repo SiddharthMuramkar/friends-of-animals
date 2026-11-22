@@ -15,6 +15,16 @@ import {
 } from "../modules/consent/domain/purposes";
 import { FILE_PROCESSING_ERROR_CODES } from "../ports/media";
 
+/**
+ * FOA staff decided about an institution (#73). `userId` is its authorised
+ * person, who registered it.
+ */
+type InstitutionDecided<T extends `institution.${string}`> = {
+  type: T;
+  aggregate: { type: "institution"; id: string };
+  payload: { institutionId: string; userId: string };
+};
+
 export type DomainEvent =
   | {
       type: "identity.user_signed_up";
@@ -59,11 +69,24 @@ export type DomainEvent =
         fileId: string;
         code: (typeof FILE_PROCESSING_ERROR_CODES)[number];
       };
-    };
+    }
+  /** Verified for the first time: it has its Institution ID. */
+  | InstitutionDecided<"institution.verified">
+  /** Its registration wasn't accepted; the person may register again. */
+  | InstitutionDecided<"institution.rejected">
+  /** Suspended for now; it keeps its Institution ID and its admin. */
+  | InstitutionDecided<"institution.suspended">
+  /** Verified again after a suspension, with the Institution ID it had. */
+  | InstitutionDecided<"institution.reinstated">;
 
 export type EventType = DomainEvent["type"];
 
 export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
+
+const INSTITUTION_DECIDED = z.object({
+  institutionId: z.uuid(),
+  userId: z.uuid(),
+});
 
 /**
  * Each event's payload: ids only, never an address, a name or a phone
@@ -87,6 +110,10 @@ export const EVENT_PAYLOADS = {
     fileId: z.uuid(),
     code: z.enum(FILE_PROCESSING_ERROR_CODES),
   }),
+  "institution.verified": INSTITUTION_DECIDED,
+  "institution.rejected": INSTITUTION_DECIDED,
+  "institution.suspended": INSTITUTION_DECIDED,
+  "institution.reinstated": INSTITUTION_DECIDED,
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -106,6 +133,10 @@ export const SUBSCRIBERS = {
   // #85's Entries unit subscribes to these two.
   "files.file_processed": [],
   "files.file_processing_failed": [],
+  "institution.verified": ["notifications.dispatch"],
+  "institution.rejected": ["notifications.dispatch"],
+  "institution.suspended": ["notifications.dispatch"],
+  "institution.reinstated": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];
