@@ -2,5 +2,6 @@
 // Labels and messages come in as props, from messages/en-IN like every other
 // visible string.
 export { FormAlert } from "./form-alert";
+export { OutcomeNotice } from "./outcome-notice";
 export { SubmitButton } from "./submit-button";
 export { inputStyles, TextField } from "./text-field";

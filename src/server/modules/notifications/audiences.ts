@@ -61,6 +61,10 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The invitee may have no account yet: the invitation goes to the
       // invited address by its own handler (#74), not by a route row.
       return null;
+    case "registration.institution_registered":
+      // The principal isn't a user: their message goes by its own handler
+      // (#75), not by a route row.
+      return null;
   }
 }
 
@@ -147,6 +151,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: CONTACT_MESSAGE_VARIABLES,
     load: async (db, delivery) =>
       (await contactMessageValues(db, delivery.payload.messageId)) ?? {},
+  },
+  "registration.institution_registered": {
+    names: [],
+    load: async () => ({}),
   },
 };
 

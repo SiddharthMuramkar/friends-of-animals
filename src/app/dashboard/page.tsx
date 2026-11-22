@@ -8,7 +8,7 @@ import { Chip } from "@/components/site/chip";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { APP_ROUTES, institutionCompetitionsPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
@@ -95,15 +95,24 @@ async function Areas() {
             />
             <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
           </div>
-          <AreaBody area={link.area} />
+          <AreaBody area={link.area} id={link.id} />
         </section>
       ))}
     </div>
   );
 }
 
-async function AreaBody({ area }: { area: DashboardLink["area"] }) {
-  const t = await getTranslations("dashboard");
+async function AreaBody({
+  area,
+  id,
+}: {
+  area: DashboardLink["area"];
+  id?: string;
+}) {
+  const [t, registration] = await Promise.all([
+    getTranslations("dashboard"),
+    getTranslations("institutionRegistration.competitions"),
+  ]);
   const links = (items: { href: string; label: string }[]): ReactNode => (
     <ul className="mt-3 flex flex-col">
       {items.map((item) => (
@@ -121,6 +130,14 @@ async function AreaBody({ area }: { area: DashboardLink["area"] }) {
       {area === "member"
         ? links([
             { href: APP_ROUTES.accountSessions, label: t("member.sessions") },
+          ])
+        : null}
+      {area === "institution" && id
+        ? links([
+            {
+              href: institutionCompetitionsPath(id),
+              label: registration("entry"),
+            },
           ])
         : null}
       {area === "admin"

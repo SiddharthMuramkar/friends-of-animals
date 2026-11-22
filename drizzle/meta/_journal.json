@@ -190,6 +190,13 @@
       "when": 1795346527065,
       "tag": "0026_113_contact_notification_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1795347123624,
+      "tag": "0027_75_institution_registration",
+      "breakpoints": true
     }
   ]
 }

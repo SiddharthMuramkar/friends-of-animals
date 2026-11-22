@@ -103,6 +103,12 @@ export type DomainEvent =
       type: "contact_message.received";
       aggregate: { type: "contact_message"; id: string };
       payload: { messageId: string };
+    }
+  | {
+      /** An institution registered for a competition (#75). */
+      type: "registration.institution_registered";
+      aggregate: { type: "institution_registration"; id: string };
+      payload: { institutionRegistrationId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -147,6 +153,9 @@ export const EVENT_PAYLOADS = {
   }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
   "contact_message.received": z.object({ messageId: z.uuid() }),
+  "registration.institution_registered": z.object({
+    institutionRegistrationId: z.uuid(),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -182,6 +191,9 @@ export const SUBSCRIBERS = {
     "notifications.dispatch",
     "contact.send_acknowledgement",
   ],
+  // The principal is a contact on the institution, not a user, so no
+  // route row can name them: the message goes by its own handler (#75).
+  "registration.institution_registered": ["registration.notify_principal"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

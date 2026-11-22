@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { SubmitButton } from "@/components/form";
+import { OutcomeNotice, SubmitButton } from "@/components/form";
 import { Chip } from "@/components/site/chip";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
@@ -15,7 +15,6 @@ import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
 import { InviteForm } from "./_components/invite-form";
-import { OutcomeNotice } from "./_components/outcome-notice";
 import {
   removeCoordinatorAction,
   revokeInvitationAction,

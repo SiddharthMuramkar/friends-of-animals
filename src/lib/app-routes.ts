@@ -31,11 +31,21 @@ export const APP_ROUTES = {
   adminInstitutions: "/admin/institutions",
   institutionCoordinators: "/institution/coordinators",
   adminInbox: "/admin/inbox",
+  institutionCompetitions: "/institution/competitions",
 } as const;
 
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
+}
+
+/**
+ * The competitions one institution can register for (#75), for its
+ * coordinators and its authorised person.
+ */
+export function institutionCompetitionsPath(institutionId: string): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `${APP_ROUTES.institutionCompetitions}?${query.toString()}`;
 }
 
 /**
