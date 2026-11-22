@@ -331,3 +331,24 @@ describe("payForMyRegistration", () => {
     });
   });
 });
+
+describe("payForMyRegistration while a payment is in review (#79)", () => {
+  it("opens no second order for a registration staff are deciding about", async () => {
+    const h = await createHarness();
+    const ravi = await registered(h);
+    const { batchId, orderId } = await openOrder(h, ravi);
+    h.gateway.capture(orderId, {
+      amount: { amountMinor: 1n, currency: "INR" },
+    });
+    await capturedWebhook(h, orderId);
+    const [batch] = await h.db
+      .select({ status: paymentBatch.status })
+      .from(paymentBatch)
+      .where(eq(paymentBatch.id, batchId));
+    expect(batch?.status).toBe("needs_review");
+    const orders = h.gateway.orders.length;
+
+    expect(await ravi.pay()).toEqual({ ok: false, error: "nothing_to_pay" });
+    expect(h.gateway.orders).toHaveLength(orders);
+  });
+});

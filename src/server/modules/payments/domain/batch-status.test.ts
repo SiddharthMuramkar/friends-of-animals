@@ -18,6 +18,18 @@ const ALLOWED: ReadonlyArray<
   ["created", "superseded", "cancelled"],
   ["order_created", "captured", "captured"],
   ["order_created", "superseded", "cancelled"],
+  // Offline payments and the review of captures that can't be accepted
+  // (#79). A created batch has no order yet, so no capture can reach it.
+  ["created", "offline_recorded", "captured"],
+  ["order_created", "offline_recorded", "captured"],
+  ["order_created", "review_opened", "needs_review"],
+  ["captured", "review_opened", "needs_review"],
+  ["failed", "review_opened", "needs_review"],
+  ["cancelled", "review_opened", "needs_review"],
+  ["needs_review", "review_opened", "needs_review"],
+  ["needs_review", "review_confirmed", "captured"],
+  ["needs_review", "review_cleared", "captured"],
+  ["needs_review", "review_dismissed", "cancelled"],
 ];
 
 const allowedTo = (from: PaymentBatchStatus, event: PaymentBatchEvent) =>
@@ -52,10 +64,38 @@ describe("nextPaymentBatchStatus()", () => {
     );
   });
 
-  it("never leaves a captured batch: refunds belong to the refunds ticket", () => {
+  it("leaves a captured batch only for review: refunds belong to the refunds ticket", () => {
     for (const event of PAYMENT_BATCH_EVENTS) {
-      expect(nextPaymentBatchStatus("captured", event).ok).toBe(false);
+      expect(nextPaymentBatchStatus("captured", event)).toEqual(
+        event === "review_opened"
+          ? { ok: true, to: "needs_review" }
+          : {
+              ok: false,
+              reason: "forbidden_transition",
+              from: "captured",
+              event,
+            }
+      );
     }
+  });
+
+  it("records an offline payment only on a batch nobody has paid yet", () => {
+    const recordable = PAYMENT_BATCH_STATUSES.filter(
+      (from) => nextPaymentBatchStatus(from, "offline_recorded").ok
+    );
+    expect(recordable).toEqual(["created", "order_created"]);
+  });
+
+  it("leaves review only by resolving its case", () => {
+    const leaving = PAYMENT_BATCH_EVENTS.filter((event) => {
+      const next = nextPaymentBatchStatus("needs_review", event);
+      return next.ok && next.to !== "needs_review";
+    });
+    expect(leaving).toEqual([
+      "review_confirmed",
+      "review_cleared",
+      "review_dismissed",
+    ]);
   });
 });
 
@@ -64,6 +104,10 @@ describe("holdsRegistrations()", () => {
     expect(holdsRegistrations("created")).toBe(true);
     expect(holdsRegistrations("order_created")).toBe(true);
     expect(holdsRegistrations("captured")).toBe(true);
+  });
+
+  it("keeps them while a capture on the batch is in review, so nobody pays for them twice", () => {
+    expect(holdsRegistrations("needs_review")).toBe(true);
   });
 
   it("lets go of them once the batch failed or was cancelled", () => {

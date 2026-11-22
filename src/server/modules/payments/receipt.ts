@@ -1,6 +1,8 @@
 // What the payment receipt (#77) says, read when the message goes: the
 // competition, the institution, its registration's reference, the amount
-// in rupees, how many students it paid for and the gateway's payment id.
+// in rupees, how many students it paid for and the gateway's payment id,
+// or for a batch paid offline (#79), the cheque, transfer or receipt
+// reference finance recorded.
 // The receipt goes by #69's route rows to whoever started the payment
 // (`subject_user`, from payment.batch_captured's payerUserId). It is not a
 // numbered tax receipt: FY-sequential receipt numbers belong to donations
@@ -22,6 +24,7 @@ import {
   competition,
   institution,
   institutionRegistration,
+  offlinePayment,
   participantProfile,
   paymentBatch,
   paymentBatchItem,
@@ -58,6 +61,7 @@ export async function receiptValues(
       route: paymentBatch.route,
       amountMinor: paymentBatch.amountMinor,
       gatewayPaymentId: paymentBatch.gatewayPaymentId,
+      offlineReference: offlinePayment.reference,
       competitionName: competition.name,
       institutionName: institution.name,
       reference: institutionRegistration.reference,
@@ -69,6 +73,7 @@ export async function receiptValues(
       institutionRegistration,
       eq(institutionRegistration.id, paymentBatch.institutionRegistrationId)
     )
+    .leftJoin(offlinePayment, eq(offlinePayment.batchId, paymentBatch.id))
     .where(eq(paymentBatch.id, batchId));
   if (!row) return {};
   const held = await db
@@ -98,7 +103,7 @@ export async function receiptValues(
     "registration.reference": row.reference ?? "",
     "payment.amount": formatPaise(row.amountMinor),
     "payment.students": t("studentCount", { count: held.length }),
-    "payment.reference": row.gatewayPaymentId ?? "",
+    "payment.reference": row.gatewayPaymentId ?? row.offlineReference ?? "",
     "registration.number": own?.registrationNumber ?? "",
     "participant.code": own?.participantCode ?? "",
   };

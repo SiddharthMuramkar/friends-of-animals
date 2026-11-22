@@ -17,6 +17,7 @@ const batch = (
   orderId: ORDER,
   amountMinor: 45_000n,
   currency: "INR",
+  knownPaymentIds: [],
   ...overrides,
 });
 
@@ -57,11 +58,13 @@ describe("decideCapture()", () => {
   });
 
   it("changes nothing for a batch that is already captured, however often it is told", () => {
+    // A captured batch knows the payment it was captured with.
+    const captured = batch("captured", { knownPaymentIds: ["pay_2"] });
     const payments = [payment("pay_2", "captured")];
-    expect(decideCapture(batch("captured"), payments)).toEqual({
+    expect(decideCapture(captured, payments)).toEqual({
       kind: "already_captured",
     });
-    expect(decideCapture(batch("captured"), payments)).toEqual({
+    expect(decideCapture(captured, payments)).toEqual({
       kind: "already_captured",
     });
   });
@@ -124,5 +127,75 @@ describe("decideCapture()", () => {
     expect(
       decideCapture(batch("order_created"), [payment("pay_1", "refunded")])
     ).toEqual({ kind: "awaiting_payment" });
+  });
+});
+
+describe("decideCapture() after a batch is settled (#79)", () => {
+  it("sends a second payment on a captured batch's order to review", () => {
+    expect(
+      decideCapture(batch("captured", { knownPaymentIds: ["pay_1"] }), [
+        payment("pay_1", "captured"),
+        payment("pay_2", "captured"),
+      ])
+    ).toEqual({ kind: "extra_captures", paymentIds: ["pay_2"] });
+  });
+
+  it("sends a gateway capture on a batch paid offline to review", () => {
+    // Paid by cheque: the batch accounts for no gateway payment.
+    expect(
+      decideCapture(batch("captured"), [payment("pay_1", "captured")])
+    ).toEqual({ kind: "extra_captures", paymentIds: ["pay_1"] });
+  });
+
+  it("sends each new captured payment on a batch in review to review", () => {
+    expect(
+      decideCapture(batch("needs_review", { knownPaymentIds: ["pay_1"] }), [
+        payment("pay_1", "captured"),
+        payment("pay_2", "captured", { amountMinor: 1n }),
+        payment("pay_3", "failed"),
+        payment("pay_4", "captured"),
+      ])
+    ).toEqual({ kind: "extra_captures", paymentIds: ["pay_2", "pay_4"] });
+  });
+
+  it("never captures a batch in review, even with a payment for the full amount", () => {
+    expect(
+      decideCapture(batch("needs_review"), [payment("pay_1", "captured")])
+    ).toEqual({ kind: "extra_captures", paymentIds: ["pay_1"] });
+  });
+
+  it("opens nothing twice: a payment with a review case is known, however often it is told", () => {
+    const inReview = batch("needs_review", { knownPaymentIds: ["pay_1"] });
+    const payments = [payment("pay_1", "captured")];
+    expect(decideCapture(inReview, payments)).toEqual({ kind: "in_review" });
+    expect(decideCapture(inReview, payments)).toEqual({ kind: "in_review" });
+  });
+
+  it("leaves alone a batch whose review cancelled it, for the payment it reviewed", () => {
+    expect(
+      decideCapture(batch("cancelled", { knownPaymentIds: ["pay_1"] }), [
+        payment("pay_1", "captured"),
+      ])
+    ).toEqual({ kind: "awaiting_payment" });
+  });
+
+  it("ignores payments the batch already accounts for when it captures", () => {
+    expect(
+      decideCapture(batch("order_created", { knownPaymentIds: ["pay_1"] }), [
+        payment("pay_1", "captured"),
+        payment("pay_2", "captured"),
+        payment("pay_3", "captured"),
+      ])
+    ).toEqual({
+      kind: "capture",
+      paymentId: "pay_2",
+      otherCapturedIds: ["pay_3"],
+    });
+  });
+
+  it("still flags money on a superseded batch as not payable", () => {
+    expect(
+      decideCapture(batch("cancelled"), [payment("pay_7", "captured")])
+    ).toEqual({ kind: "not_payable", paymentId: "pay_7" });
   });
 });

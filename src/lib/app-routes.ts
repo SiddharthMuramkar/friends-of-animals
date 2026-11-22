@@ -53,6 +53,24 @@ export function judgingGuidePath(competitionCode: string): string {
   return `/institution/competitions/${encodeURIComponent(competitionCode)}/judging-guide`;
 }
 
+/**
+ * Payments needing review (#79): finance, staff admins, super admins.
+ * Listed with APP_ROUTE_TEMPLATES rather than in APP_ROUTES: the header
+ * ships APP_ROUTES to every page, and /contact sits at the JS budget
+ * (SPEC §13.2).
+ */
+export const ADMIN_PAYMENTS_REVIEW = "/admin/payments/review";
+
+/** One payment batch in the admin area (#79): record an offline payment. */
+export function adminPaymentBatchPath(batchId: string): string {
+  return `/admin/payments/batches/${encodeURIComponent(batchId)}`;
+}
+
+/** One payment needing review in the admin area (#79). */
+export function adminPaymentReviewCasePath(caseId: string): string {
+  return `${ADMIN_PAYMENTS_REVIEW}/${encodeURIComponent(caseId)}`;
+}
+
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
@@ -184,6 +202,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/blog/[id]",
   "/admin/competitions/[id]/rubrics",
   "/admin/competitions/[id]/rubrics/[discipline]",
+  ADMIN_PAYMENTS_REVIEW,
+  "/admin/payments/batches/[id]",
+  "/admin/payments/review/[id]",
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/students/new",

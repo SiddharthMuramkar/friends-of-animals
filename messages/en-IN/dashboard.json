@@ -27,7 +27,8 @@
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
       "roles": "Roles",
       "audit": "Audit log",
-      "safeguarding": "Safeguarding reports"
+      "safeguarding": "Safeguarding reports",
+      "payments": "Payments needing review"
     },
     "institution": {
       "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."
