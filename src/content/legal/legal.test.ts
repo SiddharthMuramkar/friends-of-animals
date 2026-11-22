@@ -45,6 +45,26 @@ describe.each(Object.entries(LEGAL_DOCS))("%s", (name, doc) => {
     for (const re of [/80G/, /12A/, /FCRA/, /voiceless/i, /empower/i, /!/])
       expect(text).not.toMatch(re);
   });
+
+  it("keeps every fact inside a clause, so production can leave it out", () => {
+    const bare: string[] = [];
+    const walk = (text: LegalInline[], inClause: boolean) => {
+      for (const i of text) {
+        if (typeof i === "string") continue;
+        if ("fact" in i && !inClause) bare.push(i.fact);
+        if ("clause" in i) {
+          walk(i.clause, true);
+          walk(i.otherwise ?? [], false);
+        }
+      }
+    };
+    for (const point of doc.short) walk(point, false);
+    for (const section of doc.sections)
+      for (const block of section.blocks)
+        for (const text of "p" in block ? [block.p] : block.list)
+          walk(text, false);
+    expect(bare).toEqual([]);
+  });
 });
 
 describe("child-friendly short versions", () => {

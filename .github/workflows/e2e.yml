@@ -1,67 +1,39 @@
-name: E2E
+name: Production smoke
 
-# Seam 2 (spec #55): the Playwright journeys and axe, run against a PR's own
-# Vercel preview once it is ready, never against staging.
-#
-# Vercel sends a repository_dispatch event when a deployment is ready ("Git"
-# settings of the Vercel project: repository dispatch events must be on).
-# GitHub runs repository_dispatch workflows from the default branch only, so
-# this file takes effect once it is on main; it then checks out the commit
-# Vercel deployed and reports the result as a commit status on that commit,
-# where the PR shows it.
-#
-# The job runs the deployed commit's code with the bypass secret, so it
-# trusts whatever Vercel deployed: the project's Git Fork Protection must stay
-# on, so that Vercel builds a fork's PR only after a team member authorises it.
+# The read-only production smoke suite (tests/e2e/prod-smoke.spec.ts), run by
+# hand against a live deployment: gh workflow run e2e.yml -f url=https://friendsofanimals.dev
+# It creates no data, needs no secret, and never runs against a PR: the full
+# journeys run in ci.yml against `next start`.
 
 on:
-  repository_dispatch:
-    types: [vercel.deployment.success]
-  # By hand, against any preview: gh workflow run e2e.yml -f url=… -f ref=…
   workflow_dispatch:
     inputs:
       url:
-        description: Preview deployment URL (https://….vercel.app)
+        description: Deployment to check, e.g. https://friendsofanimals.dev
         required: true
       ref:
         description: Branch or commit whose tests to run
         required: true
+        default: main
 
-run-name: >-
-  E2E on ${{ github.event.client_payload.git.ref || inputs.ref }}
-  (${{ github.event.client_payload.environment || 'by hand' }})
+run-name: Production smoke on ${{ inputs.url }} (tests from ${{ inputs.ref }})
 
 concurrency:
-  group: e2e-${{ github.event.client_payload.environment || 'by-hand' }}-${{ github.event.client_payload.git.ref || inputs.ref }}
-  cancel-in-progress: true
+  group: prod-smoke
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  playwright:
-    name: Playwright and axe on the preview
-    # Vercel sends the same event for staging and production deployments.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.client_payload.environment == 'preview'
+  prod-smoke:
+    name: Production smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      actions: read # the status action reads this run's job
-      statuses: write # to report on the deployed commit
+    timeout-minutes: 15
     steps:
-      # Sets a pending status now and the job's result when it ends.
-      - name: Report on the deployed commit
-        if: github.event_name == 'repository_dispatch'
-        uses: vercel/repository-dispatch/actions/status@30f760c6640485cd92f8c785ef361382555fb712 # v1
-        with:
-          name: "E2E: Playwright and axe on the preview"
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.client_payload.git.sha || inputs.ref }}
+          ref: ${{ inputs.ref }}
           persist-credentials: false
 
       - uses: ./.github/actions/setup
@@ -71,24 +43,16 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      # GitHub masks the secret in logs. Global setup trades it for Vercel's
-      # bypass cookie, so traces and screenshots never carry it.
-      - name: Run Playwright
+      - name: Run the smoke suite
         env:
-          PLAYWRIGHT_BASE_URL: ${{ github.event.client_payload.url || inputs.url }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-          CAPTURE_MAILBOX_TOKEN: ${{ secrets.CAPTURE_MAILBOX_TOKEN }}
-        run: pnpm test:e2e
+          PLAYWRIGHT_BASE_URL: ${{ inputs.url }}
+        run: pnpm test:e2e --project=prod-smoke
 
-      - name: Redact the bypass cookie from the traces
-        if: failure()
-        run: python3 .github/scripts/redact-bypass-cookie.py
-
-      - name: Upload traces and screenshots
+      - name: Upload the report and traces
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-${{ github.run_id }}-${{ github.run_attempt }}
+          name: prod-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             playwright-report/
             test-results/

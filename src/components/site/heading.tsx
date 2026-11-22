@@ -22,7 +22,7 @@ export function Eyebrow({
       )}
     >
       <TileMarker hue={tile} />
-      {children}
+      <span className="min-w-0">{children}</span>
     </p>
   );
 }
