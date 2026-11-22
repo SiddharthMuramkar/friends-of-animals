@@ -11,6 +11,11 @@ import {
   listPosts,
   updatePost,
 } from "./posts/drafts";
+import {
+  describePostImage,
+  uploadPostImage,
+  type UploadPostImageInput,
+} from "./posts/images";
 import type { PostInput } from "./posts/input";
 import {
   listCmsDocuments,
@@ -47,6 +52,11 @@ export type {
   UpdatePostResult,
 } from "./posts/drafts";
 export type {
+  DescribePostImageResult,
+  UploadPostImageInput,
+  UploadPostImageResult,
+} from "./posts/images";
+export type {
   PostInput,
   PostInputField,
   PostInputRefusal,
@@ -71,4 +81,7 @@ export const cmsUseCases = (ctx: UseCaseContext) => ({
   updatePost: (input: PostInput & { postId: string }) => updatePost(ctx, input),
   getPostForEdit: (input: { postId: string }) => getPostForEdit(ctx, input),
   listPosts: () => listPosts(ctx),
+  uploadPostImage: (input: UploadPostImageInput) => uploadPostImage(ctx, input),
+  describePostImage: (input: { postImageId: string; alt: string }) =>
+    describePostImage(ctx, input),
 });

@@ -1,6 +1,7 @@
 CREATE TYPE "public"."post_audience" AS ENUM('kids', 'families', 'everyone');--> statement-breakpoint
 CREATE TYPE "public"."post_kind" AS ENUM('blog', 'story');--> statement-breakpoint
 CREATE TYPE "public"."post_status" AS ENUM('draft', 'scheduled', 'published', 'archived');--> statement-breakpoint
+ALTER TYPE "public"."file_asset_purpose" ADD VALUE 'cms_image';--> statement-breakpoint
 CREATE TABLE "cms_post" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"slug" text NOT NULL,

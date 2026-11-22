@@ -149,8 +149,9 @@ export const SUBSCRIBERS = {
   "consent.withdrawn": ["notifications.dispatch"],
   // Runs in worker-media only: the media queue (./queues.ts).
   "files.processing_requested": ["files.process_image"],
-  // #85's Entries unit subscribes to these two.
-  "files.file_processed": [],
+  // #85's Entries unit subscribes to these two. A post image's public
+  // copies follow its derivatives (#112).
+  "files.file_processed": ["cms.publish_post_image"],
   "files.file_processing_failed": [],
   "institution.verified": ["notifications.dispatch"],
   "institution.rejected": ["notifications.dispatch"],

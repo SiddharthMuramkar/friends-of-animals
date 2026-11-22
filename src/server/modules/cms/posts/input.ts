@@ -58,12 +58,15 @@ export type PostInput = z.input<typeof postInputSchema>;
 /** A field the editor can be told about. */
 export type PostInputField = keyof PostInput | "coverAlt";
 
-/** Input that can't be saved: every field at fault, and why. */
+/**
+ * Input that can't be saved: every field at fault (a PostInputField, or
+ * another use case's own field), and why.
+ */
 export type PostInputRefusal = {
   ok: false;
   error: "invalid_input";
   fields: string[];
-  errors: Partial<Record<PostInputField, string>>;
+  errors: Partial<Record<string, string>>;
 };
 
 /** The columns a post's input sets, cleaned. */
@@ -84,7 +87,7 @@ export type PostValues = {
 };
 
 export function refusal(
-  errors: Partial<Record<PostInputField, string>>
+  errors: Partial<Record<string, string>>
 ): PostInputRefusal {
   return {
     ok: false,

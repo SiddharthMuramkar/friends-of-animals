@@ -17,7 +17,9 @@ import { eq } from "drizzle-orm";
 import { authorize } from "../../../access/can";
 import { cmsPost, type CmsPost } from "../../../db/schema";
 import { uuidv7 } from "../../../ids";
+import type { AppDb } from "../../../db/app-db";
 import {
+  postImageIdsIn,
   sanitizePostBody,
   type PostBody,
   type PostImageRef,
@@ -32,7 +34,7 @@ import {
   type PostInputRefusal,
   type PostValues,
 } from "./input";
-import { allPosts, imagesOf, loadPost, slugTaken } from "./store";
+import { allPosts, imagesOf, loadPost, postImagesIn, slugTaken } from "./store";
 
 export type PostsContext = Pick<UseCaseContext, "db" | "clock" | "actor">;
 
@@ -80,14 +82,19 @@ export type PostSummary = Pick<
   | "updatedAt"
 >;
 
+/** The body or the cover names an image that isn't this post's. */
+export type UnknownImage = { ok: false; error: "unknown_image" };
+
 export type CreatePostResult =
   | { ok: true; postId: string; slug: string }
-  | PostInputRefusal;
+  | PostInputRefusal
+  | UnknownImage;
 
 export type UpdatePostResult =
   /** `tags`: the public cache tags the Server Action refreshes. */
   | { ok: true; tags: string[] }
   | PostInputRefusal
+  | UnknownImage
   | { ok: false; error: "not_found" };
 
 export type GetPostForEditResult =
@@ -125,6 +132,25 @@ function columns(values: PostValues) {
   };
 }
 
+/** Every uploaded image the post's values name: its cover and its body's. */
+function namedImages(values: PostValues): string[] {
+  const ids = postImageIdsIn(values.body);
+  if (values.coverImageId) ids.push(values.coverImageId);
+  return [...new Set(ids)];
+}
+
+/** Whether every image the values name is one of the post's own. */
+async function imagesBelong(
+  db: AppDb,
+  postId: string | null,
+  values: PostValues
+): Promise<boolean> {
+  const named = namedImages(values);
+  if (named.length === 0) return true;
+  if (postId === null) return false;
+  return (await postImagesIn(db, postId, named)).length === named.length;
+}
+
 /** Saves a new draft. */
 export async function createPost(
   ctx: PostsContext,
@@ -134,6 +160,10 @@ export async function createPost(
   const read = readPostInput(input, { draft: true });
   if (!read.ok) return read;
   const { values } = read;
+  // A new post has no images of its own yet.
+  if (!(await imagesBelong(ctx.db, null, values))) {
+    return { ok: false, error: "unknown_image" };
+  }
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
@@ -169,6 +199,9 @@ export async function updatePost(
     const { values } = read;
     if (await slugTaken(tx, values.slug, post.id)) {
       return refusal({ slug: "taken" });
+    }
+    if (!(await imagesBelong(tx, post.id, values))) {
+      return { ok: false, error: "unknown_image" };
     }
     await tx
       .update(cmsPost)

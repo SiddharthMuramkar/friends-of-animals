@@ -1,5 +1,5 @@
 {
-  "id": "eecd8534-705f-469b-87bd-26ea8f4fb6c4",
+  "id": "ece55bc2-d4f8-4f7d-9ffb-d4a79fb352ad",
   "prevId": "e9127b6b-fb22-4109-b6b1-8456b7304368",
   "version": "7",
   "dialect": "postgresql",
@@ -4031,7 +4031,8 @@
       "name": "file_asset_purpose",
       "schema": "public",
       "values": [
-        "test_upload"
+        "test_upload",
+        "cms_image"
       ]
     },
     "public.file_asset_status": {
