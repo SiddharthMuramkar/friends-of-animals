@@ -5,6 +5,8 @@ import { fileAsset } from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 
 const PNG = new Uint8Array(68).fill(9);
+/** A file id no file has. */
+const MISSING = "01938a00-0000-7000-8000-00000000ffff";
 
 /** A pending PNG upload, its owner, and everyone who might ask about it. */
 async function world() {
@@ -74,15 +76,24 @@ describe("getFileStatus", () => {
     }
   );
 
-  it("says a file that doesn't exist was not found", async () => {
+  it("tells staff, who may read any file, that a missing one was not found", async () => {
     const { h, actors } = await world();
 
     expect(
-      await h.as(actors.owner).getFileStatus({
-        fileId: "01938a00-0000-7000-8000-00000000ffff",
-      })
+      await h.as(actors.staffAdmin).getFileStatus({ fileId: MISSING })
     ).toEqual({ ok: false, error: "not_found" });
   });
+
+  it.each(["owner", "otherMember", "visitor"] as const)(
+    "refuses %s a missing file as it refuses one they may not read",
+    async (actor) => {
+      const { h, actors } = await world();
+
+      await expect(
+        h.as(actors[actor]).getFileStatus({ fileId: MISSING })
+      ).rejects.toMatchObject({ code: "forbidden" });
+    }
+  );
 
   it("refuses an id that isn't a UUID", async () => {
     const { h, actors } = await world();

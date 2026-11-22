@@ -45,6 +45,9 @@ async function setStatus(h: Harness, fileId: string, status: FileStatus) {
   await h.db.update(fileAsset).set({ status }).where(eq(fileAsset.id, fileId));
 }
 
+/** A file id no file has. */
+const MISSING = "01938a00-0000-7000-8000-000000000000";
+
 async function fileReads(h: Harness) {
   return h.db.select().from(auditLog).where(eq(auditLog.action, "file.read"));
 }
@@ -219,16 +222,31 @@ describe("getFileDownloadUrl", () => {
     });
   });
 
-  it("says when there is no such file, or the id isn't one", async () => {
+  it("tells staff, who may read any file, when there is no such file", async () => {
     const { h, actors } = await world();
 
     expect(
-      await h.as(actors.owner).getFileDownloadUrl({
-        fileId: "01938a00-0000-7000-8000-000000000000",
-      })
+      await h.as(actors.staffAdmin).getFileDownloadUrl({ fileId: MISSING })
     ).toEqual({ ok: false, error: "not_found" });
     expect(
       await h.as(actors.owner).getFileDownloadUrl({ fileId: "x" })
     ).toMatchObject({ ok: false, error: "invalid_input", fields: ["fileId"] });
+  });
+
+  it("asks the policy before looking: a caller can't tell a missing file from one they may not read", async () => {
+    const { h, fileId, actors } = await world();
+    await setStatus(h, fileId, "clean");
+
+    for (const caller of [actors.otherMember, actors.visitor] as Actor[]) {
+      for (const id of [fileId, MISSING]) {
+        await expect(
+          h.as(caller).getFileDownloadUrl({ fileId: id })
+        ).rejects.toMatchObject({ code: "forbidden" });
+      }
+    }
+    // The owner, too, may only find files of their own.
+    await expect(
+      h.as(actors.owner).getFileDownloadUrl({ fileId: MISSING })
+    ).rejects.toMatchObject({ code: "forbidden" });
   });
 });

@@ -230,6 +230,18 @@ describe("downloadRequest", () => {
       body: { error: "forbidden" },
     });
   });
+
+  it("answers a member 403 alike for another's file and for no file", async () => {
+    const { h, fileId } = await uploaded();
+    const other = await h.signIn(await h.seed.member());
+
+    for (const id of [fileId, "01938a00-0000-7000-8000-000000000000"]) {
+      expect(await downloadRequest(h.as(other), id)).toEqual({
+        status: 403,
+        body: { error: "forbidden" },
+      });
+    }
+  });
 });
 
 describe("toResponse", () => {
