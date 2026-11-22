@@ -108,6 +108,22 @@ describe("parseConcern", () => {
     ).toBe(true);
   });
 
+  it("reads null in an optional text field as not given", () => {
+    expect(
+      ok({
+        ...valid,
+        subjectDetails: null,
+        reporterName: null,
+        reporterContact: null,
+      })
+    ).toMatchObject({
+      subjectDetails: null,
+      anonymous: true,
+      reporterName: null,
+      reporterContact: null,
+    });
+  });
+
   it("takes the child's age only as a whole number under 18", () => {
     for (const subjectAge of [0, 17, null, undefined]) {
       expect(parseConcern({ ...valid, subjectAge }).ok, `${subjectAge}`).toBe(

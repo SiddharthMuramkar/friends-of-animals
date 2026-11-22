@@ -12,6 +12,8 @@
 
 import { z } from "zod";
 
+import { MIN_FILL_MS } from "../../../../lib/form-fill-time";
+
 /** What the concern is about. Stored as text; labels live in messages. */
 export const CONCERN_CATEGORIES = [
   "child_safety",
@@ -32,13 +34,13 @@ export const REPORTER_CONTACT_MAX = 200;
 /** The child the concern is about is under 18. */
 export const SUBJECT_AGE_MAX = 17;
 
-/** Blank and missing both mean "not given". */
+/** Blank, null and missing all mean "not given". */
 const optionalText = (max: number) =>
   z
     .string()
     .trim()
     .max(max)
-    .optional()
+    .nullish()
     .transform((text) => (text ? text : null));
 
 const concernInputSchema = z.strictObject({
@@ -108,4 +110,22 @@ export function parseConcern(input: unknown): ConcernParse {
       reporterContact: anonymous ? null : value.reporterContact,
     },
   };
+}
+
+/**
+ * Whether a form looks like a person sent it. A bot that fills the hidden
+ * `website` field, or sends the form within MIN_FILL_MS of its human check
+ * being issued (`startedAt`, which the server signed), is dropped: the use
+ * case answers as if it worked and keeps nothing. The same screen as
+ * #113's contact form.
+ */
+export function screenConcern(input: {
+  honeypot: unknown;
+  startedAt: Date;
+  now: Date;
+}): "accept" | "drop" {
+  const { honeypot, startedAt, now } = input;
+  if (typeof honeypot === "string" && honeypot.trim() !== "") return "drop";
+  if (now.getTime() - startedAt.getTime() < MIN_FILL_MS) return "drop";
+  return "accept";
 }

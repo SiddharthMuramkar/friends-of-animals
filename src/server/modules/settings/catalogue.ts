@@ -45,6 +45,14 @@ export const SETTINGS = {
   // under FCRA; they gate tax receipts and foreign donations (M5).
   "org.has80G": booleanSetting({ default: false }),
   "org.fcraEnabled": booleanSetting({ default: false }),
+  // Safeguarding (#116): concern reports one IP may send in an hour before
+  // the form refuses and shows the helplines instead (HR-48).
+  "safeguarding.reportsPerIpPerHour": integerSetting({
+    default: 10,
+    min: 1,
+    max: 100,
+    unit: "reports",
+  }),
 } satisfies Record<string, SettingDefinition<unknown>>;
 
 export type SettingKey = keyof typeof SETTINGS;

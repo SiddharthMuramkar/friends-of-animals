@@ -135,6 +135,7 @@ describe("resolveAllSettings", () => {
       ["sms.maxPerDay", 1000, "default"],
       ["org.has80G", true, "stored"],
       ["org.fcraEnabled", false, "default"],
+      ["safeguarding.reportsPerIpPerHour", 10, "default"],
     ]);
   });
 });

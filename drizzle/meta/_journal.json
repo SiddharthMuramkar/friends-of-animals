@@ -169,6 +169,13 @@
       "when": 1795336723537,
       "tag": "0023_116_incident_log_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795337264955,
+      "tag": "0024_116_safeguarding_alert_defaults",
+      "breakpoints": true
     }
   ]
 }

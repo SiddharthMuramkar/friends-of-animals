@@ -17,7 +17,11 @@ export type {
   SafeguardingReportView,
   ViewSafeguardingReportResult,
 } from "./queue";
-export type { ConcernCategory } from "./domain/concern";
+export type {
+  SubmitSafeguardingReportInput,
+  SubmitSafeguardingReportResult,
+} from "./submit";
+export type { ConcernCategory, ConcernField } from "./domain/concern";
 export type {
   ReportAction,
   ReportEvent,

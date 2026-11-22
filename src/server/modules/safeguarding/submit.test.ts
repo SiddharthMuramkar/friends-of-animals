@@ -100,9 +100,11 @@ describe("submitSafeguardingReport", () => {
     const columns = Object.values(getTableColumns(safeguardingReport)).map(
       (column) => column.name
     );
-    expect(columns).not.toEqual(
-      expect.arrayContaining([expect.stringMatching(/ip|user_id|agent/)])
-    );
+    // No IP, user agent or sender column: the only user is the lead the
+    // report is assigned to.
+    expect(
+      columns.filter((name) => /(^|_)ip(_|$)|agent|user/.test(name))
+    ).toEqual(["assigned_to_user_id"]);
     const audits = await safeguardingAuditRows(h);
     expect(audits).toHaveLength(1);
     expect(audits[0]).toMatchObject({
@@ -134,7 +136,7 @@ describe("submitSafeguardingReport", () => {
     const dump = await dumpTable(h, "safeguarding_report");
     const [row] = await h.db.select().from(safeguardingReport);
     expect(row).toMatchObject({ reporterName: null, reporterContact: null });
-    expect(dump).not.toContain("reporter_name\":\"v");
+    expect(dump).not.toContain('reporter_name":"v');
   });
 
   it("names the fields to fix, and spends no proof on a form sent back", async () => {
@@ -179,16 +181,22 @@ describe("the form's abuse controls", () => {
     const stale = await solvedHumanCheck(h, visitor);
     h.clock.advance({ hours: 3 });
     expect(
-      await h.as(visitor).submitSafeguardingReport({ ...FORM, humanCheck: stale })
+      await h
+        .as(visitor)
+        .submitSafeguardingReport({ ...FORM, humanCheck: stale })
     ).toStrictEqual(refused);
     expect(await counts(h)).toEqual(NOTHING);
 
     const once = await solvedHumanCheck(h, visitor);
     expect(
-      await h.as(visitor).submitSafeguardingReport({ ...FORM, humanCheck: once })
+      await h
+        .as(visitor)
+        .submitSafeguardingReport({ ...FORM, humanCheck: once })
     ).toStrictEqual({ ok: true });
     expect(
-      await h.as(visitor).submitSafeguardingReport({ ...FORM, humanCheck: once })
+      await h
+        .as(visitor)
+        .submitSafeguardingReport({ ...FORM, humanCheck: once })
     ).toStrictEqual(refused);
     expect((await counts(h)).reports).toBe(1);
   });
@@ -199,9 +207,9 @@ describe("the form's abuse controls", () => {
     expect(
       await send(h, h.visitor(), { website: "https://spam.example" })
     ).toStrictEqual({ ok: true });
-    expect(
-      await send(h, h.visitor(), {}, { fillSeconds: 2 })
-    ).toStrictEqual({ ok: true });
+    expect(await send(h, h.visitor(), {}, { fillSeconds: 2 })).toStrictEqual({
+      ok: true,
+    });
     await h.drain();
 
     expect(await counts(h)).toEqual(NOTHING);
@@ -227,14 +235,12 @@ describe("the form's abuse controls", () => {
       retryAfterSeconds: expect.any(Number),
     });
     expect((await counts(h)).reports).toBe(10);
-    expect(
-      await send(h, h.visitor({ ip: "198.51.100.99" }))
-    ).toStrictEqual({ ok: true });
+    expect(await send(h, h.visitor({ ip: "198.51.100.99" }))).toStrictEqual({
+      ok: true,
+    });
     h.clock.set(new Date("2026-03-02T05:00:10Z"));
     expect(await send(h, visitor)).toStrictEqual({ ok: true });
-    expect(await dumpTable(h, "form_rate_limit")).not.toContain(
-      "198.51.100"
-    );
+    expect(await dumpTable(h, "form_rate_limit")).not.toContain("198.51.100");
   });
 });
 

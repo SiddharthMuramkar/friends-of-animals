@@ -15,6 +15,7 @@
 
 import type { AppDb } from "../../db/app-db";
 import type { Delivery, EventType } from "../../outbox";
+import { safeguardingLeads } from "../safeguarding/alert";
 
 /** The variables every message has about the person receiving it. */
 export const RECIPIENT_VARIABLES = ["recipient.name"] as const;
@@ -36,6 +37,9 @@ function subjectUserOf(delivery: Delivery): string | null {
       // A file's own pipeline (#63, #85), not a message route: no route
       // row names these events.
       return null;
+    case "safeguarding.report_submitted":
+      // About a child, never about a user: only the leads hear of it.
+      return null;
   }
 }
 
@@ -48,6 +52,8 @@ export const AUDIENCES = {
     const userId = subjectUserOf(delivery);
     return userId ? [userId] : [];
   },
+  /** Every safeguarding lead (#116), whatever the event. */
+  safeguarding_leads: async (db) => safeguardingLeads(db),
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -70,6 +76,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "files.processing_requested": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },
   "files.file_processing_failed": { names: [], load: async () => ({}) },
+  // Nothing of the report: the alert says only that one came in (#116).
+  "safeguarding.report_submitted": { names: [], load: async () => ({}) },
 };
 
 /** The variables a template on a route for `eventType` may use. */

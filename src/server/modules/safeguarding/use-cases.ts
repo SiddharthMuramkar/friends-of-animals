@@ -12,8 +12,14 @@ import {
   viewSafeguardingReport,
   type QueueView,
 } from "./queue";
+import {
+  submitSafeguardingReport,
+  type SubmitSafeguardingReportInput,
+} from "./submit";
 
 export const safeguardingUseCases = (ctx: UseCaseContext) => ({
+  submitSafeguardingReport: (input: SubmitSafeguardingReportInput) =>
+    submitSafeguardingReport(ctx, input),
   listSafeguardingReports: (input?: { view?: QueueView }) =>
     listSafeguardingReports(ctx, input),
   viewSafeguardingReport: (input: { reportId: string }) =>

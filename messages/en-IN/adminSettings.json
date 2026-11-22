@@ -25,12 +25,12 @@
     "values": {
       "on": "On",
       "off": "Off",
-      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} other {{count, plural, one {# text} other {# texts}}}}"
+      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} other {{count, plural, one {# text} other {# texts}}}}"
     },
     "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
     "form": {
       "newValue": "New value",
-      "newAmount": "New value, in {unit, select, hours {hours} other {texts}}",
+      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} other {texts}}",
       "range": "A whole number from {min} to {max}.",
       "save": "Save",
       "saving": "Saving…"
@@ -81,6 +81,12 @@
         "fcraEnabled": {
           "label": "Foreign donations (FCRA)",
           "description": "Turn on once FOA is registered under FCRA and may accept donations from abroad."
+        }
+      },
+      "safeguarding": {
+        "reportsPerIpPerHour": {
+          "label": "Safeguarding reports per hour from one connection",
+          "description": "The most concerns the report form takes from one internet connection in an hour. Past it, the form shows Childline 1098, 112 and FOA's safeguarding email instead, so nobody is left without help."
         }
       }
     }

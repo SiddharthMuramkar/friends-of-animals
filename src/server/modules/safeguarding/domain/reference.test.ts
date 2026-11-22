@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { isReportReference, reportReferenceFormat } from "./reference";
+import {
+  isReportReference,
+  newReportReference,
+  reportReferenceFormat,
+} from "./reference";
 
 describe("reportReferenceFormat", () => {
   it("prefixes the two-digit year the report was filed in", () => {
@@ -39,6 +43,34 @@ describe("isReportReference", () => {
       "",
     ]) {
       expect(isReportReference(text), text).toBe(false);
+    }
+  });
+});
+
+describe("newReportReference", () => {
+  it("draws six Crockford symbols after the filing year's prefix", () => {
+    // 0, 9, 10 and 31 are the first and last digits and letters; 32 and
+    // 255 wrap round to 0 and 31.
+    const bytes = new Uint8Array([0, 9, 10, 31, 32, 255]);
+
+    const reference = newReportReference(
+      new Date("2027-06-01T00:00:00.000Z"),
+      () => bytes
+    );
+
+    expect(reference).toBe("SG-27-09AZ0Z");
+    expect(isReportReference(reference)).toBe(true);
+  });
+
+  it("gives a fresh reference each time by default", () => {
+    const at = new Date("2027-06-01T00:00:00.000Z");
+    const references = new Set(
+      Array.from({ length: 20 }, () => newReportReference(at))
+    );
+
+    expect(references.size).toBe(20);
+    for (const reference of references) {
+      expect(isReportReference(reference)).toBe(true);
     }
   });
 });
