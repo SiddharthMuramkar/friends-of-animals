@@ -82,14 +82,17 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm format:check
 
+  # The slowest shard sets the wall time of every PR run, so eight: about
+  # 70 s a shard, against 100-120 s with four. Change the name, the matrix
+  # and the --shard total together.
   vitest:
-    name: Vitest (shard ${{ matrix.shard }}/4)
+    name: Vitest (shard ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -97,7 +100,7 @@ jobs:
       - uses: ./.github/actions/setup
       - env:
           SHARD: ${{ matrix.shard }}
-        run: pnpm exec vitest run --shard="$SHARD/4"
+        run: pnpm exec vitest run --shard="$SHARD/8"
 
   integrity:
     name: Test integrity
@@ -142,6 +145,20 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+
+      # Turbopack's build cache (.next/cache) from main's latest build with
+      # this lockfile, so the compile starts warm. Only pushes to main save
+      # it (below): a PR's cache would serve that PR alone, and the
+      # repository's 10 GB of cache is shared. A new lockfile starts a fresh
+      # cache, which keeps it from growing. The e2e job restores the same key.
+      - id: next-cache
+        name: Restore the Next.js build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: next-build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('next.config.ts', 'postcss.config.mjs', 'tsconfig.json', 'package.json', 'src/**', 'messages/**') }}
+          restore-keys: next-build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
       # Pages must prerender with no database at all; check:build then checks
       # the output. The variables are set to empty, not left unset.
       - name: Build
@@ -150,6 +167,13 @@ jobs:
           DIRECT_URL: ""
           APP_ENV: local
         run: pnpm build && pnpm check:build
+
+      - name: Save the Next.js build cache
+        if: github.event_name == 'push' && steps.next-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: ${{ steps.next-cache.outputs.cache-primary-key }}
 
   migrations:
     name: Migrations
@@ -261,6 +285,39 @@ jobs:
           echo "::add-mask::$token"
           echo "CAPTURE_MAILBOX_TOKEN=$token" >> "$GITHUB_ENV"
 
+      # Chromium is cached per Playwright version. It and its system packages
+      # (fonts included, every run) install in the background while the app
+      # builds; "Wait for Chromium" collects the result before the tests.
+      - id: playwright
+        name: Find the Playwright version
+        run: |
+          version="$(pnpm exec playwright --version | awk '{print $2}')"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # The subshell writes only to its log, so the step ends at once.
+      - name: Install Chromium in the background
+        run: |
+          (
+            status=0
+            pnpm exec playwright install --with-deps chromium || status=$?
+            echo "$status" > "$RUNNER_TEMP/chromium-install.status.tmp"
+            mv "$RUNNER_TEMP/chromium-install.status.tmp" "$RUNNER_TEMP/chromium-install.status"
+          ) > "$RUNNER_TEMP/chromium-install.log" 2>&1 < /dev/null &
+
+      # The build job's Turbopack cache from main; this job only reads it.
+      - name: Restore the Next.js build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: next-build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('next.config.ts', 'postcss.config.mjs', 'tsconfig.json', 'package.json', 'src/**', 'messages/**') }}
+          restore-keys: next-build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
       - name: Migrate, seed and build
         run: pnpm db:migrate && pnpm db:seed && pnpm build && pnpm check:build
 
@@ -278,13 +335,20 @@ jobs:
           cat "$RUNNER_TEMP/next-start.log"
           exit 1
 
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ms-playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Wait for Chromium
+        run: |
+          for _ in $(seq 1 300); do
+            if [ -f "$RUNNER_TEMP/chromium-install.status" ]; then break; fi
+            sleep 1
+          done
+          echo "::group::playwright install --with-deps chromium"
+          cat "$RUNNER_TEMP/chromium-install.log"
+          echo "::endgroup::"
+          status="$(cat "$RUNNER_TEMP/chromium-install.status" 2> /dev/null || echo "none after 5 minutes")"
+          if [ "$status" != 0 ]; then
+            echo "::error::Installing Chromium failed (exit status: $status)."
+            exit 1
+          fi
 
       - name: Run Playwright
         env:
