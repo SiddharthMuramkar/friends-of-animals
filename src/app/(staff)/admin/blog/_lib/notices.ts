@@ -59,6 +59,14 @@ type Refused = {
   errors?: Partial<Record<string, string>>;
 };
 
+/**
+ * A use case's refusal code as the editor's notice names it. A code the
+ * notice doesn't know reads as "failed", never as done.
+ */
+export function refusalCode(error: string): RefusalCode {
+  return REFUSAL_CODES.find((code) => code === error) ?? "failed";
+}
+
 /** Why an image's alt text wasn't saved, as the editor's notice names it. */
 export function altRefusal(refused: Refused): RefusalCode {
   if (refused.error === "invalid_input") {
@@ -66,7 +74,7 @@ export function altRefusal(refused: Refused): RefusalCode {
     if (refused.errors?.coverAlt === "required") return "cover_alt_required";
     return "invalid_input";
   }
-  return REFUSAL_CODES.find((code) => code === refused.error) ?? "failed";
+  return refusalCode(refused.error);
 }
 
 type Params = Record<string, string | string[] | undefined>;

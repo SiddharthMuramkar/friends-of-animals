@@ -183,6 +183,31 @@ describe("schedulePost", () => {
     expect(await auditOf(h, postId)).toEqual([]);
   });
 
+  it("refuses an instant it can't read, and changes nothing", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const postId = await draft(h, actor);
+
+    for (const publishAt of [new Date(Number.NaN), "next Tuesday"]) {
+      expect(await h.as(actor).schedulePost({ postId, publishAt })).toEqual({
+        ok: false,
+        error: "invalid_instant",
+      });
+    }
+    expect(await postRow(h, postId)).toMatchObject({ status: "draft" });
+    expect(await auditOf(h, postId)).toEqual([]);
+  });
+
+  it("asks who is scheduling before it reads the instant", async () => {
+    const h = await createHarness();
+    const postId = await draft(h, await contentManager(h));
+    const member = await h.signIn(await h.seed.member());
+
+    await expect(
+      h.as(member).schedulePost({ postId, publishAt: new Date(Number.NaN) })
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+
   it("publishes once, at the last instant, after two reschedules", async () => {
     const h = await createHarness();
     const actor = await contentManager(h);

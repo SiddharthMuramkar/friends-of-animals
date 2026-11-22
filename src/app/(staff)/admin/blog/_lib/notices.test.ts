@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { altRefusal, noticeOf, noticeQuery } from "./notices";
+import { altRefusal, noticeOf, noticeQuery, refusalCode } from "./notices";
 
 describe("the editor's notices", () => {
   it("round-trips what was done, with a fresh key each time", () => {
@@ -38,6 +38,22 @@ describe("the editor's notices", () => {
   });
 });
 
+describe("why a move wasn't made", () => {
+  it("names a refusal it knows, and any other as failed, never as done", () => {
+    expect(refusalCode("not_in_future")).toBe("not_in_future");
+    expect(refusalCode("image_not_ready")).toBe("image_not_ready");
+
+    const query = new URLSearchParams(
+      noticeQuery("scheduled", refusalCode("a_code_added_later"))
+    );
+
+    expect(noticeOf(Object.fromEntries(query))).toMatchObject({
+      kind: "scheduled",
+      refused: "failed",
+    });
+  });
+});
+
 describe("why alt text wasn't saved", () => {
   it("names a cover a live post needs described apart from text that is too long", () => {
     expect(
@@ -72,5 +88,8 @@ describe("why alt text wasn't saved", () => {
       "image_not_ready"
     );
     expect(altRefusal({ ok: false, error: "not_found" })).toBe("not_found");
+    expect(altRefusal({ ok: false, error: "a_code_added_later" })).toBe(
+      "failed"
+    );
   });
 });

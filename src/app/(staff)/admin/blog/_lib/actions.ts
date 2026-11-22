@@ -20,6 +20,7 @@ import { StorageNotConfiguredError } from "@/server/ports/storage";
 import {
   altRefusal,
   noticeQuery,
+  refusalCode,
   type NoticeKind,
   type RefusalCode,
 } from "./notices";
@@ -118,7 +119,7 @@ async function lifecycle(
     console.error(`Post editor: ${kind} failed: ${errorSummaryForLogs(error)}`);
     back(postId, kind, "failed");
   }
-  if (!result.ok) back(postId, kind, result.error as RefusalCode);
+  if (!result.ok) back(postId, kind, refusalCode(result.error));
   for (const tag of result.tags ?? []) updateTag(tag);
   back(postId, kind);
 }
@@ -127,9 +128,11 @@ export async function schedulePostAction(formData: FormData) {
   const actor = await signedInActor();
   const postId = field(formData, "postId");
   const local = istLocalToInstant(field(formData, "publishAt"));
-  if (!local.ok) back(postId, "scheduled", "invalid_instant");
+  // An unreadable instant goes on as an invalid Date, so the use case asks
+  // who is scheduling before it refuses the instant (invalid_instant).
+  const publishAt = local.ok ? local.at : new Date(Number.NaN);
   await lifecycle(postId, "scheduled", () =>
-    as(actor).schedulePost({ postId, publishAt: local.at })
+    as(actor).schedulePost({ postId, publishAt })
   );
 }
 
