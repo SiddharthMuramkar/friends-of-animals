@@ -23,7 +23,7 @@ import {
 // add up to 100, and publishes it. A coordinator of a registered school
 // finds the judging guide on their dashboard and reads FOA's framework and
 // the published rubrics. People without the role are refused. Each run
-// starts a new version of NEIGH27's painting rubric, so a preview database
+// starts a new version of one of NEIGH27's rubrics, so a preview database
 // takes any number of runs.
 //
 // Each test seeds its own accounts (and the manager its own authenticator),
@@ -66,7 +66,7 @@ test("a competition manager sees what blocks school judging, then revises and pu
   page,
   request,
   seedAccount,
-}) => {
+}, testInfo) => {
   // WATER27's essay rubric is only a draft: the list says so.
   const water = `/admin/competitions/${WATER27}/rubrics`;
   await signInManager(page, request, seedAccount, water);
@@ -88,28 +88,35 @@ test("a competition manager sees what blocks school judging, then revises and pu
     new RegExp(`/admin/competitions/${NEIGH27}/rubrics$`)
   );
 
-  // NEIGH27's painting rubric is published; start its next version.
-  const painting = `/admin/competitions/${NEIGH27}/rubrics/painting`;
-  await expectRendersAccessibly(page, painting);
-  await expectAccessibleInDark(page, painting);
+  // NEIGH27's painting and photography rubrics are published; each
+  // project starts the next version of its own one, so the two projects
+  // never race for one draft on a shared database.
+  const discipline =
+    testInfo.project.name === "mobile" ? "photography" : "painting";
+  const rubricPage = `/admin/competitions/${NEIGH27}/rubrics/${discipline}`;
+  await expectRendersAccessibly(page, rubricPage);
+  await expectAccessibleInDark(page, rubricPage);
   await page.getByRole("button", { name: /^Start version \d+$/ }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "A new version is ready" })
   ).toBeVisible();
-  await expectAccessible(page, `${painting} with a draft`);
-  await expectAccessibleInDark(page, `${painting} with a draft`);
-  await expectNoSidewaysScrollAt320(page, `${painting} with a draft`);
+  await expectAccessible(page, `${rubricPage} with a draft`);
+  await expectAccessibleInDark(page, `${rubricPage} with a draft`);
+  await expectNoSidewaysScrollAt320(page, `${rubricPage} with a draft`);
 
   // Weights that don't add up to 100 are refused, and what was typed stays.
   const first = page.getByRole("group", { name: "Criterion 1" });
   const weight = first.getByRole("textbox", { name: "Weight, in percent" });
   await weight.fill("20");
   await page.getByRole("button", { name: "Save and publish" }).click();
-  await expect(page.getByRole("alert")).toContainText(
+  // The form's own alert, not Next's route announcer.
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Something needs fixing" })
+  ).toContainText(
     "The weights add up to 90. They must add up to 100 before publishing."
   );
   await expect(weight).toHaveValue("20");
-  await expectAccessible(page, `${painting}, refused`);
+  await expectAccessible(page, `${rubricPage}, refused`);
 
   // Put it back and publish: the old version is replaced.
   await weight.fill("30");
