@@ -16,10 +16,13 @@ describe("the register form's state", () => {
     form.append("consents", "doc-1");
     form.append("consents", "doc-2");
 
+    form.set("guardianEmail", "mum@example.test");
+
     expect(valuesFrom(form)).toEqual({
       ...START.values,
       fullName: "Asha Rao",
       country: "IN",
+      guardianEmail: "mum@example.test",
       consents: ["doc-1", "doc-2"],
     });
   });
@@ -37,17 +40,47 @@ describe("the register form's state", () => {
       errors: ["fullName", "pinCode", "consents"],
       refusal: null,
       unexpected: false,
+      askGuardian: false,
       destination: null,
     });
   });
 
-  it("points a minor at the date of birth with the come-back message", () => {
+  it("points a child under 13 at the date of birth", () => {
     expect(
-      afterResult(START, typed, { ok: false, error: "minor" })
+      afterResult(START, typed, { ok: false, error: "under_13_needs_guardian" })
     ).toMatchObject({
-      refusal: "minor",
+      refusal: "under_13_needs_guardian",
       errors: ["dateOfBirth"],
+      askGuardian: false,
     });
+  });
+
+  it("asks a teen on their own for their guardian, and keeps asking", () => {
+    const asked = afterResult(START, typed, {
+      ok: false,
+      error: "guardian_details_required",
+    });
+    expect(asked).toMatchObject({
+      refusal: "guardian_details_required",
+      errors: [],
+      askGuardian: true,
+    });
+    expect(
+      afterResult(asked, typed, {
+        ok: false,
+        error: "invalid_input",
+        fields: ["guardianEmail", "guardianName"],
+      })
+    ).toMatchObject({
+      errors: ["guardianName", "guardianEmail"],
+      askGuardian: true,
+    });
+    expect(
+      afterResult(asked, typed, {
+        ok: false,
+        error: "guardian_contact_is_self",
+      })
+    ).toMatchObject({ errors: ["guardianEmail"], askGuardian: true });
   });
 
   it("shows a competition's own refusal above the form, marking no field", () => {
@@ -82,6 +115,7 @@ describe("the register form's state", () => {
       errors: [],
       refusal: null,
       unexpected: false,
+      askGuardian: false,
       destination: pay,
     });
   });

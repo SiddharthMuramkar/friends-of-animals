@@ -16,8 +16,16 @@ describe("the 'enter through your school' note", () => {
 });
 
 describe("the individual register form", () => {
-  it("tells a minor to come back when entry with a guardian opens", () => {
-    expect(en.participant.register.minor).toMatch(/come back/i);
-    expect(en.participant.register.minor).toMatch(/guardian/);
+  it("tells a minor on their own that a parent or guardian confirms (#81)", () => {
+    const { refusal, guardian } = en.participant.register;
+    expect(refusal.guardian_details_required).toMatch(/under 18/);
+    expect(refusal.guardian_details_required).toMatch(/parent or guardian/);
+    expect(guardian.lead).toMatch(/email them a link/);
+  });
+
+  it("tells a child under 13 that a parent or guardian registers them (#81)", () => {
+    expect(en.participant.register.refusal.under_13_needs_guardian).toMatch(
+      /under 13 are registered by a parent or guardian/
+    );
   });
 });

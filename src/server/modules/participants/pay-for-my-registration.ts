@@ -1,5 +1,6 @@
 // payForMyRegistration({ registrationId }) (#78): an adult pays the fee for
-// their own registration as a payment batch of one, on the payments
+// their own registration, or a guardian for their child's (#81), as a
+// payment batch of one, on the payments
 // module's machinery (#77): one batch holds the registration at the
 // competition's individual fee (bigint paise), the gateway gets one order
 // for it, and only the gateway's own record confirms it
@@ -7,6 +8,8 @@
 //
 // - A free competition (fee 0) confirms the registration at once, with no
 //   batch and no order.
+// - A minor's registration held until a guardian verifies (#81) can't be
+//   paid for or confirmed, free or not: `awaiting_guardian`.
 // - Paying again while the order is open returns the same order. Before
 //   reusing or replacing an open order it is synced with the gateway first,
 //   since it may have been paid with neither the Checkout return nor the
@@ -43,7 +46,7 @@ import { endUnpaidBatch, heldInReview, lockBatch } from "../payments/batches";
 import { nextPaymentBatchStatus } from "../payments/domain/batch-status";
 import { syncBatch } from "../payments/sync-batch";
 import { confirmRegistrations } from "../registration/confirm";
-import { registrationOwner } from "./owner";
+import { paysFor } from "./owner";
 
 export type PayForMyRegistrationInput = { registrationId: string };
 
@@ -59,6 +62,7 @@ export type PayForMyRegistrationResult =
       ok: false;
       error:
         | "nothing_to_pay"
+        | "awaiting_guardian"
         | "fee_not_set"
         | "gateway_unavailable"
         | "superseded";
@@ -72,16 +76,21 @@ const t = createTranslator({
   namespace: "participant.payment",
 });
 
-/** Authorizes the actor as the owner of the registration's profile. */
+/**
+ * Authorizes the actor as whoever pays for the registration: its adult
+ * owner, or the child's verified guardian (./owner.ts).
+ */
 export async function authorizeOwner(
   ctx: UseCaseContext,
   registrationId: string
 ): Promise<Role | null> {
-  const ownerId = await registrationOwner(ctx.db, registrationId);
+  const payer =
+    ctx.actor.kind === "user" &&
+    (await paysFor(ctx.db, registrationId, ctx.actor.userId));
   const { role } = await authorize(
     ctx,
     "registration.self.pay",
-    ownerId === undefined ? {} : { ownerId }
+    payer && ctx.actor.kind === "user" ? { ownerId: ctx.actor.userId } : {}
   );
   return role;
 }
@@ -187,6 +196,9 @@ async function planPayment(
         kind: "confirmed",
         registrationNumber: mine.registrationNumber,
       });
+    }
+    if (mine.status === "pending_guardian") {
+      return done({ ok: false, error: "awaiting_guardian" });
     }
     if (mine.status !== "pending_payment") {
       return done({ ok: false, error: "nothing_to_pay" });

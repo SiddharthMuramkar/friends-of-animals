@@ -24,6 +24,7 @@ export type DeclareValues = {
 /** Refusals no field can fix, shown above the form. */
 const DECLARE_PROBLEMS = [
   "linked_child",
+  "registered_as_minor",
   "no_verified_email",
   "rate_limited",
   "unexpected",

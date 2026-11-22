@@ -4,15 +4,18 @@
 //
 // Pure: no imports beyond types.
 
-import type { IndividualRegistrationRefusal } from "@/server/modules/participants";
+import type { RegisterAsIndividualResult } from "@/server/modules/participants";
 
-export type Refusal = IndividualRegistrationRefusal | "not_found";
+export type Refusal = Exclude<
+  Extract<RegisterAsIndividualResult, { ok: false }>["error"],
+  "invalid_input"
+>;
 
 export type RefusalView = {
   /** A key under `participant.`. */
   message: string;
   /** The field to mark, if the person can fix it there. */
-  field?: "dateOfBirth" | "consents";
+  field?: "dateOfBirth" | "consents" | "guardianEmail";
 };
 
 const VIEWS: Record<Refusal, RefusalView> = {
@@ -23,8 +26,17 @@ const VIEWS: Record<Refusal, RefusalView> = {
     message: "register.refusal.dob_invalid",
     field: "dateOfBirth",
   },
-  // The come-back pointer, until the guardian route opens (#81).
-  minor: { message: "register.minor", field: "dateOfBirth" },
+  // A profile's date of birth stays the one first given (#81).
+  dob_mismatch: {
+    message: "register.refusal.dob_mismatch",
+    field: "dateOfBirth",
+  },
+  // A guardian registers a child under 13 (#81).
+  under_13_needs_guardian: {
+    message: "register.refusal.under_13_needs_guardian",
+    field: "dateOfBirth",
+  },
+  adult_registers_self: { message: "register.refusal.adult_registers_self" },
   outside_age_groups: {
     message: "register.refusal.outside_age_groups",
     field: "dateOfBirth",
@@ -35,11 +47,25 @@ const VIEWS: Record<Refusal, RefusalView> = {
     field: "consents",
   },
   not_found: { message: "register.refusal.not_found" },
+  // A teen on their own names a parent or guardian (#81).
+  guardian_details_required: {
+    message: "register.refusal.guardian_details_required",
+  },
+  guardian_contact_is_self: {
+    message: "register.refusal.guardian_contact_is_self",
+    field: "guardianEmail",
+  },
+  // A guardian's, staff, school or judge account never registers as a teen.
+  requester_has_role: { message: "register.refusal.requester_has_role" },
+  rate_limited: { message: "register.refusal.rate_limited" },
 };
 
 export function refusalView(refusal: Refusal): RefusalView {
   return VIEWS[refusal];
 }
+
+/** Every refusal the form may show, so the page words each one. */
+export const REFUSALS = Object.keys(VIEWS) as readonly Refusal[];
 
 /**
  * A refusal the page can show in place of the form, from what it already

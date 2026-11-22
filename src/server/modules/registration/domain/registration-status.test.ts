@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canStartIn,
   canTransition,
   initialRegistrationStatus,
   REGISTRATION_STATUSES,
@@ -18,12 +19,16 @@ const ALLOWED: Record<string, RegistrationCause> = {
   "pending_payment->confirmed": "payment",
   // A paid registration whose fee went back (#80): only the refund moves it.
   "confirmed->refunded": "payment",
+  // A minor's registration, once their guardian has verified and accepted
+  // them (#81): then it waits for its fee like an adult's.
+  "pending_guardian->pending_payment": "guardian",
 };
 
 const CAUSES: readonly RegistrationCause[] = [
   "coordinator",
   "participant",
   "payment",
+  "guardian",
 ];
 
 const PAIRS = REGISTRATION_STATUSES.flatMap((from) =>
@@ -38,6 +43,7 @@ describe("the registration status machine", () => {
       "withdrawn",
       "pending_payment",
       "refunded",
+      "pending_guardian",
     ]);
   });
 
@@ -56,10 +62,40 @@ describe("the registration status machine", () => {
     });
   });
 
+  it.each(REGISTRATION_STATUSES)(
+    "starts an individual registration only waiting for its fee or a guardian: %s",
+    (status) => {
+      expect(canStartIn("individual", status)).toBe(
+        status === "pending_payment" || status === "pending_guardian"
+      );
+    }
+  );
+
+  it.each(REGISTRATION_STATUSES)(
+    "starts a student only as enrolled: %s",
+    (status) => {
+      expect(canStartIn("institution", status)).toBe(status === "enrolled");
+    }
+  );
+
   it("lets no participant confirm their own registration", () => {
     expect(canTransition("pending_payment", "confirmed", "participant")).toBe(
       false
     );
+  });
+
+  it("never confirms a minor's registration before their guardian has verified", () => {
+    for (const cause of CAUSES) {
+      expect(canTransition("pending_guardian", "confirmed", cause)).toBe(false);
+    }
+  });
+
+  it("never moves a registration back to waiting for a guardian", () => {
+    for (const from of REGISTRATION_STATUSES) {
+      for (const cause of CAUSES) {
+        expect(canTransition(from, "pending_guardian", cause)).toBe(false);
+      }
+    }
   });
 
   it("starts a student enrolled by a coordinator as enrolled", () => {

@@ -1,6 +1,9 @@
 // Guardians seed data (#81): a verified guardian with an under-13 child
 // they manage and a teen whose own login is linked to them, under fixed
-// ids so links and journeys can name them. Dates of birth are counted back
+// ids so links and journeys can name them; and a second teen with no
+// guardian on the platform (#81), registered for Neighbours on My Street
+// (NEIGH27) on a profile of their own, held until the guardian they named
+// accepts their request. Dates of birth are counted back
 // from the clock the first time the seed runs, so the children are 8 and 15
 // then and stay those people afterwards. Seed data sends nothing and writes
 // no audit entry. Idempotent: rows already there are left alone.
@@ -13,20 +16,38 @@
 
 import { and, eq } from "drizzle-orm";
 
-import { guardian, guardianLink, participantProfile } from "../db/schema";
+import { createLinkToken } from "../crypto/link-token";
+import {
+  competition,
+  guardian,
+  guardianInvitation,
+  guardianLink,
+  participantProfile,
+  registration,
+} from "../db/schema";
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import { uuidv7 } from "../ids";
 import { storedGuardianDetails } from "../modules/guardians/guardian-record";
 import {
+  REQUESTED_GUARDIAN_NAME,
+  storedTeenContact,
+  TEEN_INVITATION_TOKEN,
+} from "../modules/guardians/teen-contact";
+import { invitationExpiresAt } from "../modules/institutions/domain/invitation";
+import { ageGroupFor } from "../modules/registration/domain/age-group";
+import {
   formatIsoDate,
   indianDateAt,
+  parseIsoDate,
   type CalendarDate,
 } from "../modules/registration/domain/calendar-date";
 import { identityKeyInput } from "../modules/registration/domain/identity-key";
 import { IDENTITY_HASH_PURPOSE } from "../modules/registration/domain/prepare-student";
 import type { GuardianRelationship } from "../modules/registration/domain/student-details";
+import { ageGroupsOf } from "../modules/registration/enrolment-facts";
 import { PROFILE_PURPOSE } from "../modules/registration/student-profile";
 import { ensureGrant } from "./access";
+import { SEED_TERMS_COMPETITIONS } from "./competition-terms";
 import type { SeedDeps } from "./types";
 
 export const SEED_GUARDIANS = {
@@ -53,6 +74,22 @@ export const SEED_GUARDIANS = {
       linkId: "01938a00-0000-7000-8000-000000008132",
       fullName: "Rohan Desai",
       age: 15,
+    },
+  },
+  /** A teen with no guardian on the platform, held for the one they asked. */
+  heldTeen: {
+    id: "01938a00-0000-7000-8000-000000008103",
+    name: "Anika Shah",
+    email: "teen2@example.test",
+    profileId: "01938a00-0000-7000-8000-000000008123",
+    participantCode: "FOA-P-265EED81",
+    age: 15,
+    registrationId: "01938a00-0000-7000-8000-000000008141",
+    requestId: "01938a00-0000-7000-8000-000000008151",
+    guardian: {
+      name: "Neha Shah",
+      email: "guardian2@example.test",
+      relationship: "parent",
     },
   },
 } as const;
@@ -180,7 +217,115 @@ async function ensureGuardianFamily(
   return record.id;
 }
 
-/** The guardian, their under-13 child and their linked teen. */
+/**
+ * The second teen's own profile, their NEIGH27 registration held for a
+ * guardian, and their pending request to the guardian they named. Skipped
+ * on a preview whose NEIGH27 has no group for them.
+ */
+async function ensureHeldTeen(deps: SeedDeps): Promise<void> {
+  const now = deps.clock.now();
+  const seed = SEED_GUARDIANS.heldTeen;
+  const competitionId = SEED_TERMS_COMPETITIONS.paid;
+  const [target] = await deps.db
+    .select({ ageCutoffDate: competition.ageCutoffDate })
+    .from(competition)
+    .where(eq(competition.id, competitionId));
+  const cutoff = target?.ageCutoffDate && parseIsoDate(target.ageCutoffDate);
+  if (!cutoff) return;
+  const account = await ensureVerifiedAccount(deps, seed);
+  const dateOfBirth = bornYearsAgo(now, seed.age, 60);
+  const placed = ageGroupFor(
+    dateOfBirth,
+    cutoff,
+    await ageGroupsOf(deps.db, competitionId)
+  );
+  if (!placed.ok) return;
+
+  await deps.db
+    .insert(participantProfile)
+    .values({
+      id: seed.profileId,
+      ownerKind: "self",
+      ownerUserId: account.id,
+      participantCode: seed.participantCode,
+      fullName: seed.name,
+      dobCiphertext: deps.cipher.encrypt(
+        PROFILE_PURPOSE.dob,
+        formatIsoDate(dateOfBirth)
+      ),
+      phoneCiphertext: deps.cipher.encrypt(
+        PROFILE_PURPOSE.phone,
+        "+919000000181"
+      ),
+      pinCode: "400001",
+      city: "Mumbai",
+      state: "Maharashtra",
+      country: "IN",
+      identityHash: deps.blindIndex.of(
+        IDENTITY_HASH_PURPOSE,
+        identityKeyInput(seed.name, dateOfBirth)
+      ),
+      createdBy: account.id,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing();
+  // Theirs, unless the teen's account was given another profile since.
+  const [profile] = await deps.db
+    .select({ id: participantProfile.id })
+    .from(participantProfile)
+    .where(
+      and(
+        eq(participantProfile.id, seed.profileId),
+        eq(participantProfile.ownerUserId, account.id),
+        eq(participantProfile.ownerKind, "self")
+      )
+    );
+  if (!profile) return;
+  await deps.db
+    .insert(registration)
+    .values({
+      id: seed.registrationId,
+      participantProfileId: profile.id,
+      competitionId,
+      route: "individual",
+      ageGroupId: placed.group.id,
+      status: "pending_guardian",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing();
+  const { token, tokenHash } = createLinkToken();
+  await deps.db
+    .insert(guardianInvitation)
+    .values({
+      id: seed.requestId,
+      kind: "guardian_request",
+      guardianId: null,
+      requestedByUserId: account.id,
+      inviteeNameCiphertext: deps.cipher.encrypt(
+        REQUESTED_GUARDIAN_NAME,
+        seed.guardian.name
+      ),
+      relationship: seed.guardian.relationship,
+      participantProfileId: profile.id,
+      ...storedTeenContact(deps, {
+        channel: "email",
+        address: seed.guardian.email,
+      }),
+      tokenHash,
+      tokenCiphertext: deps.cipher.encrypt(TEEN_INVITATION_TOKEN, token),
+      expiresAt: invitationExpiresAt(now),
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing();
+}
+
+/**
+ * The guardian, their under-13 child and their linked teen; then the
+ * second teen held for the guardian they asked.
+ */
 export async function seedGuardians(deps: SeedDeps): Promise<void> {
   const now = deps.clock.now();
   const { guardian: parent, teen, children } = SEED_GUARDIANS;
@@ -209,6 +354,7 @@ export async function seedGuardians(deps: SeedDeps): Promise<void> {
       },
     ],
   });
+  await ensureHeldTeen(deps);
 }
 
 export type SeedGuardianChild = {

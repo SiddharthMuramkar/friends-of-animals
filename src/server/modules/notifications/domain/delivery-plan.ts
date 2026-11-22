@@ -30,6 +30,11 @@ export const SUPPRESSION_REASONS = [
   "sms_unregistered",
   /** No email address, or no verified phone number. */
   "no_contact",
+  /**
+   * About a minor who has no verified guardian (#81): nobody may be told,
+   * so not the minor alone either. Set by the audience, not this plan.
+   */
+  "no_guardian",
 ] as const;
 
 export type SuppressionReason = (typeof SUPPRESSION_REASONS)[number];
