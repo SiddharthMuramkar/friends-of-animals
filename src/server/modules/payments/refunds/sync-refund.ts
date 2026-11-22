@@ -23,7 +23,7 @@
 // Not a use case: the outbox handler, the webhook and the retry call it.
 // Loads under plain Node (the worker): relative imports only.
 
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 
 import type { Role } from "../../../access/domain/roles";
 import type { Actor } from "../../../actor";
@@ -250,6 +250,35 @@ export async function settleRefunded(
     aggregate: { type: "refund", id: row.id },
     payload: { refundId: row.id, payerUserId: batch?.payerUserId ?? null },
   });
+}
+
+/**
+ * A refund webhook (#80): syncs each of our refunds it can be about, the
+ * one the gateway named or any still open on that payment, as the
+ * webhook's caller. Returns how many it synced.
+ */
+export async function syncRefundsOfPayment(
+  ctx: Omit<RefundSyncDeps, "actor"> & { actor: Actor },
+  named: { refundId: string; paymentId: string }
+): Promise<number> {
+  const rows = await ctx.db
+    .select({ id: refund.id })
+    .from(refund)
+    .where(
+      or(
+        eq(refund.gatewayRefundId, named.refundId),
+        and(
+          eq(refund.gatewayPaymentId, named.paymentId),
+          eq(refund.method, "gateway"),
+          inArray(refund.status, ["approved", "processing"])
+        )
+      )
+    )
+    .orderBy(refund.id);
+  for (const row of rows) {
+    await syncRefund(ctx, row.id);
+  }
+  return rows.length;
 }
 
 /**

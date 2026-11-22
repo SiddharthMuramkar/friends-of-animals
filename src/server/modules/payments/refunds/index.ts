@@ -17,6 +17,12 @@ import {
   requestRefund,
   type RequestRefundInput,
 } from "./request-refund";
+import {
+  recordManualRefund,
+  retryRefund,
+  type RecordManualRefundInput,
+  type RetryRefundInput,
+} from "./retry-refund";
 
 export type {
   ApproveRefundInput,
@@ -24,6 +30,12 @@ export type {
   RejectRefundInput,
   RejectRefundResult,
 } from "./decide-refund";
+export type {
+  RecordManualRefundInput,
+  RecordManualRefundResult,
+  RetryRefundInput,
+  RetryRefundResult,
+} from "./retry-refund";
 export type {
   RequestRefundInput,
   RequestRefundResult,
@@ -33,4 +45,7 @@ export const refundsUseCases = (ctx: UseCaseContext) => ({
   requestRefund: (input: RequestRefundInput) => requestRefund(ctx, input),
   approveRefund: (input: ApproveRefundInput) => approveRefund(ctx, input),
   rejectRefund: (input: RejectRefundInput) => rejectRefund(ctx, input),
+  retryRefund: (input: RetryRefundInput) => retryRefund(ctx, input),
+  recordManualRefund: (input: RecordManualRefundInput) =>
+    recordManualRefund(ctx, input),
 });

@@ -1,6 +1,6 @@
 {
-  "id": "69847431-b777-4c93-927e-514547457e0a",
-  "prevId": "cb0eebb1-c8b8-431f-8a28-d09ff7b2199d",
+  "id": "4e40fcd8-8b57-4dcc-822d-bac568e606d1",
+  "prevId": "d150ea97-5478-4abd-9816-a6c71b33c49e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8006,7 +8006,7 @@
         },
         "refund_failed_at_when_failed": {
           "name": "refund_failed_at_when_failed",
-          "value": "(\"refund\".\"status\" = 'failed') = (\"refund\".\"failed_at\" IS NOT NULL)"
+          "value": "\"refund\".\"status\" <> 'failed' OR \"refund\".\"failed_at\" IS NOT NULL"
         },
         "refund_refunded_at_when_refunded": {
           "name": "refund_refunded_at_when_refunded",

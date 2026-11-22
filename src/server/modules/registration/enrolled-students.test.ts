@@ -68,7 +68,13 @@ describe("listEnrolledStudents", () => {
       },
       reference: school.reference,
       enrolment: "open",
-      counts: { enrolled: 2, confirmed: 0, withdrawn: 1, pending_payment: 0 },
+      counts: {
+        enrolled: 2,
+        confirmed: 0,
+        withdrawn: 1,
+        pending_payment: 0,
+        refunded: 0,
+      },
       students: [
         {
           registrationId: aanya,
@@ -112,7 +118,13 @@ describe("listEnrolledStudents", () => {
     expect(before).toMatchObject({
       ok: true,
       enrolment: "open",
-      counts: { enrolled: 0, confirmed: 0, withdrawn: 0, pending_payment: 0 },
+      counts: {
+        enrolled: 0,
+        confirmed: 0,
+        withdrawn: 0,
+        pending_payment: 0,
+        refunded: 0,
+      },
       students: [],
     });
     expect(after).toMatchObject({ ok: true, enrolment: "closed" });

@@ -147,7 +147,7 @@ export const refund = pgTable(
     ),
     check(
       "refund_failed_at_when_failed",
-      sql`(${table.status} = 'failed') = (${table.failedAt} IS NOT NULL)`
+      sql`${table.status} <> 'failed' OR ${table.failedAt} IS NOT NULL`
     ),
     check(
       "refund_refunded_at_when_refunded",
