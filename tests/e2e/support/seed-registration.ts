@@ -39,8 +39,8 @@ export type SeedVerifiedInstitution = (details: {
  * (src/server/seed/institutions.ts). The seeded institution is already
  * registered for the seeded open competition, so a journey that registers
  * needs one of its own. Local app servers only, like `seedAccount`; its
- * students, its registrations and then the institution are removed after
- * the test, before its account.
+ * payment batches, students, registrations and then the institution are
+ * removed after the test, before its account.
  */
 export const test = base.extend<{
   seedVerifiedInstitution: SeedVerifiedInstitution;
@@ -125,6 +125,37 @@ export const test = base.extend<{
               )
             );
           if (registrations.length > 0) {
+            // Their payment batches (#77) hold the registrations, and the
+            // fallback gateway's test orders back the batches' orders.
+            const batches = await db
+              .select({
+                id: schema.paymentBatch.id,
+                orderId: schema.paymentBatch.gatewayOrderId,
+              })
+              .from(schema.paymentBatch)
+              .where(
+                inArray(
+                  schema.paymentBatch.institutionRegistrationId,
+                  registrations.map((each) => each.id)
+                )
+              );
+            if (batches.length > 0) {
+              const batchIds = batches.map((each) => each.id);
+              await db
+                .delete(schema.paymentBatchItem)
+                .where(inArray(schema.paymentBatchItem.batchId, batchIds));
+              await db
+                .delete(schema.paymentBatch)
+                .where(inArray(schema.paymentBatch.id, batchIds));
+              const orderIds = batches.flatMap((each) =>
+                each.orderId ? [each.orderId] : []
+              );
+              if (orderIds.length > 0) {
+                await db
+                  .delete(schema.gatewayTestOrder)
+                  .where(inArray(schema.gatewayTestOrder.id, orderIds));
+              }
+            }
             await db.delete(schema.registration).where(
               inArray(
                 schema.registration.institutionRegistrationId,

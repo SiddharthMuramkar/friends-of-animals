@@ -47,6 +47,23 @@ async function MyCompetitionsLink({ label }: { label: string }) {
   );
 }
 
+/**
+ * "My children", for a signed-in user who holds the guardian role (#81):
+ * their children's page. Reads the session, so it renders under
+ * <Suspense>; everyone else gets nothing.
+ */
+async function MyChildrenLink({ label }: { label: string }) {
+  const actor = await currentActor();
+  if (actor.kind !== "user") return null;
+  const { grants } = await as(actor).myAccess();
+  if (!grants.some((grant) => grant.role === "guardian")) return null;
+  return (
+    <ButtonLink href={APP_ROUTES.guardian} variant="secondary">
+      {label}
+    </ButtonLink>
+  );
+}
+
 export async function SiteHeader() {
   const t = await getTranslations("nav");
   const tc = await getTranslations("common");
@@ -114,6 +131,9 @@ export async function SiteHeader() {
           </Suspense>
           <Suspense fallback={null}>
             <MyCompetitionsLink label={t("links.myCompetitions")} />
+          </Suspense>
+          <Suspense fallback={null}>
+            <MyChildrenLink label={t("links.myChildren")} />
           </Suspense>
           <ButtonLink href={ROUTES.donate.path} className="max-sm:hidden">
             {t("donate")}

@@ -155,6 +155,34 @@ describe("the data inventory", () => {
     }
   });
 
+  it("lists every personal-data column of a guardian, their links and invitations (#81)", () => {
+    expect(
+      [
+        "guardian.user_id",
+        "guardian.full_name_ciphertext",
+        "guardian.phone_ciphertext",
+        "guardian.phone_hash",
+        "guardian.adult_declared_at",
+        "guardian.verified_at",
+        "guardian_link.relationship",
+        "guardian_invitation.contact_ciphertext",
+        "guardian_invitation.contact_hash",
+        "guardian_invitation.token_ciphertext",
+        "guardian_invitation.accepted_by_user_id",
+        "participant_profile.login_user_id",
+      ].filter((column) => !listed.has(column))
+    ).toEqual([]);
+  });
+
+  it("says a profile's shared columns are kept for a guardian's child too (#81)", () => {
+    for (const column of ["full_name", "dob_ciphertext", "owner_user_id"]) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === "participant_profile" && each.column === column
+      );
+      expect(entry?.purpose, column).toMatch(/guardian/i);
+    }
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>

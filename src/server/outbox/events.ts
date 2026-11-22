@@ -191,6 +191,12 @@ export type DomainEvent =
       type: "payment.batch_captured";
       aggregate: { type: "payment_batch"; id: string };
       payload: { batchId: string; payerUserId: string | null };
+    }
+  | {
+      /** A guardian invited their 13- to 17-year-old to an own login (#81). */
+      type: "guardian.teen_invited";
+      aggregate: { type: "guardian_invitation"; id: string };
+      payload: { invitationId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -260,6 +266,7 @@ export const EVENT_PAYLOADS = {
     batchId: z.uuid(),
     payerUserId: z.uuid().nullable(),
   }),
+  "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -317,6 +324,9 @@ export const SUBSCRIBERS = {
   ],
   // The payer's receipt goes by route row (#77).
   "payment.batch_captured": ["notifications.dispatch"],
+  // The teen may have no account yet, so no route row can name them: the
+  // invitation goes to the invited address by its own handler (#81).
+  "guardian.teen_invited": ["guardians.send_teen_invitation"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

@@ -37,8 +37,9 @@ export default async function Page() {
         title={t("title")}
         lead={t("lead")}
       />
-      {/* The session is read per request, so it streams in behind this
-          boundary while the heading above is prerendered. */}
+      {/* The account layout leaves the whole document to request time, so
+          every script carries the request's CSP nonce. The heading streams
+          first, and the session list streams in behind this boundary. */}
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >

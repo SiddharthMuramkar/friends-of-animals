@@ -4,6 +4,7 @@ import {
   adminCmsDocumentPath,
   adminInstitutionPath,
   APP_ROUTES,
+  guardianChildPath,
   institutionCompetitionsPath,
   institutionRegistrationPath,
   isNonProductionPath,
@@ -214,6 +215,25 @@ describe("isSignedInPath", () => {
     expect(isSignedInPath(APP_ROUTES.adminCompetitions)).toBe(true);
     expect(isSignedInPath(APP_ROUTES.adminNewCompetition)).toBe(true);
     expect(isSignedInPath("/administrators")).toBe(false);
+  });
+
+  it("puts the guardian pages behind sign-in, one child's page per id (#81)", () => {
+    const child = guardianChildPath("01938a00-0000-7000-8000-000000008121");
+
+    expect(child).toBe(
+      "/guardian/children/01938a00-0000-7000-8000-000000008121"
+    );
+    for (const path of [
+      APP_ROUTES.guardian,
+      APP_ROUTES.guardianRegister,
+      APP_ROUTES.guardianNewChild,
+      child,
+    ]) {
+      expect(isSignedInPath(path), path).toBe(true);
+      expect(isSignedInPage(path), path).toBe(true);
+    }
+    expect(isSignedInPath("/guardians")).toBe(false);
+    expect(isSignedInPage("/guardian/children")).toBe(false);
   });
 
   it("covers the institution pages and the admin area", () => {

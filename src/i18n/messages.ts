@@ -36,6 +36,7 @@ import donate from "../../messages/en-IN/donate.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
+import guardian from "../../messages/en-IN/guardian.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
 import inbox from "../../messages/en-IN/inbox.json";
@@ -47,6 +48,7 @@ import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
 import notificationSettings from "../../messages/en-IN/notificationSettings.json";
 import participant from "../../messages/en-IN/participant.json";
+import payments from "../../messages/en-IN/payments.json";
 import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import safeguardingReport from "../../messages/en-IN/safeguardingReport.json";
@@ -94,6 +96,7 @@ export const NAMESPACES = [
   "error",
   "files",
   "footer",
+  "guardian",
   "home",
   "impact",
   "inbox",
@@ -105,6 +108,7 @@ export const NAMESPACES = [
   "notFound",
   "notificationSettings",
   "participant",
+  "payments",
   "pricing",
   "refunds",
   "safeguardingReport",
@@ -156,6 +160,7 @@ export const messages = {
   ...error,
   ...files,
   ...footer,
+  ...guardian,
   ...home,
   ...impact,
   ...inbox,
@@ -167,6 +172,7 @@ export const messages = {
   ...notFound,
   ...notificationSettings,
   ...participant,
+  ...payments,
   ...pricing,
   ...refunds,
   ...safeguardingReport,
