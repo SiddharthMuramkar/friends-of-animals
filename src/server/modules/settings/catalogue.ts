@@ -14,6 +14,7 @@ import {
   booleanSetting,
   integerSetting,
   type SettingDefinition,
+  textSetting,
 } from "./definition";
 
 export const SETTINGS = {
@@ -45,6 +46,13 @@ export const SETTINGS = {
   // under FCRA; they gate tax receipts and foreign donations (M5).
   "org.has80G": booleanSetting({ default: false }),
   "org.fcraEnabled": booleanSetting({ default: false }),
+  // FOA's tax and registration facts (#111): they go on receipts, so a
+  // super admin sets them. Empty until FOA confirms each one (HR-21); the
+  // site shows "To be confirmed" until then, and production leaves it out.
+  "org.legalName": textSetting({ default: "", maxLength: 200 }),
+  "org.registrationType": textSetting({ default: "", maxLength: 100 }),
+  "org.registrationNumber": textSetting({ default: "", maxLength: 50 }),
+  "org.pan": textSetting({ default: "", maxLength: 10 }),
 } satisfies Record<string, SettingDefinition<unknown>>;
 
 export type SettingKey = keyof typeof SETTINGS;

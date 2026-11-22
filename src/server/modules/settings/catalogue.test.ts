@@ -19,6 +19,10 @@ describe("the settings catalogue", () => {
       "sms.maxPerDay": 1000,
       "org.has80G": false,
       "org.fcraEnabled": false,
+      "org.legalName": "",
+      "org.registrationType": "",
+      "org.registrationNumber": "",
+      "org.pan": "",
     });
   });
 

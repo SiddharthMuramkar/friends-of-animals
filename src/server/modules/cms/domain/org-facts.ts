@@ -39,6 +39,14 @@ export type TaxFacts = {
   pan: string;
 };
 
+/** The runtime settings (#62) that hold the tax facts. */
+export const ORG_FACT_SETTINGS: ReadonlySet<string> = new Set([
+  "org.legalName",
+  "org.registrationType",
+  "org.registrationNumber",
+  "org.pan",
+]);
+
 export const EMPTY_TAX_FACTS: TaxFacts = {
   legalName: "",
   registrationType: "",

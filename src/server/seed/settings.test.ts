@@ -20,6 +20,11 @@ describe("the settings seed", () => {
       { key: "auth.staffSessionHours", value: 12 },
       { key: "org.fcraEnabled", value: false },
       { key: "org.has80G", value: false },
+      // FOA's tax facts stay empty: previews show "To be confirmed" (#111).
+      { key: "org.legalName", value: "" },
+      { key: "org.pan", value: "" },
+      { key: "org.registrationNumber", value: "" },
+      { key: "org.registrationType", value: "" },
       { key: "sms.enabled", value: true },
       { key: "sms.maxPerDay", value: 1000 },
       { key: "sms.maxPerHour", value: 200 },

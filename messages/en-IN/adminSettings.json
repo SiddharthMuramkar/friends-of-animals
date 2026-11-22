@@ -25,7 +25,8 @@
     "values": {
       "on": "On",
       "off": "Off",
-      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} other {{count, plural, one {# text} other {# texts}}}}"
+      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} other {{count, plural, one {# text} other {# texts}}}}",
+      "notSet": "Not set yet"
     },
     "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
     "form": {
@@ -33,7 +34,8 @@
       "newAmount": "New value, in {unit, select, hours {hours} other {texts}}",
       "range": "A whole number from {min} to {max}.",
       "save": "Save",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "length": "Up to {maxLength} characters. Leave it empty while FOA hasn't confirmed it."
     },
     "result": {
       "done": "Done",
@@ -42,7 +44,7 @@
       "unchanged": "That is already the value, so nothing changed."
     },
     "errors": {
-      "wrong_type": "{kind, select, boolean {Choose On or Off.} other {Enter a whole number, with no decimals.}}",
+      "wrong_type": "{kind, select, boolean {Choose On or Off.} text {Enter some text.} other {Enter a whole number, with no decimals.}}",
       "too_small": "Enter {min} or more.",
       "too_big": "Enter {max} or less.",
       "unknown_setting": "This setting no longer exists. Reload the page to see the current list.",
@@ -50,7 +52,8 @@
       "step_up_required": "For safety, a change needs a recent check with your authenticator app or passkey. Confirm it's you again, then save.",
       "second_factor_required": "Enter a code from your authenticator app for this session first, then save again.",
       "enrolment_required": "Set up an authenticator app or a passkey first, then save again.",
-      "failed": "Something went wrong and nothing was saved. Try again."
+      "failed": "Something went wrong and nothing was saved. Try again.",
+      "too_long": "Use {maxLength} characters or fewer."
     },
     "settings": {
       "auth": {
@@ -81,6 +84,22 @@
         "fcraEnabled": {
           "label": "Foreign donations (FCRA)",
           "description": "Turn on once FOA is registered under FCRA and may accept donations from abroad."
+        },
+        "legalName": {
+          "label": "Registered name",
+          "description": "FOA's legal name as registered. It shows on receipts, the donate and about pages and the policies. Production leaves it out while it is empty."
+        },
+        "registrationType": {
+          "label": "Registration type",
+          "description": "How FOA is registered, for example \"Section 8 company\" or \"Public charitable trust\"."
+        },
+        "registrationNumber": {
+          "label": "Registration number",
+          "description": "FOA's registration number, as on its certificate of registration."
+        },
+        "pan": {
+          "label": "PAN",
+          "description": "FOA's Permanent Account Number, 10 characters. It goes on donation receipts."
         }
       }
     }

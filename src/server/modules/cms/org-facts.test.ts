@@ -76,6 +76,55 @@ describe("organisation facts from the site facts document", () => {
     ]);
   });
 
+  it("merges a super admin's tax settings with the published site facts", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const saved = await h
+      .as(actor)
+      .saveDraft({ key: "site_facts", body: SITE_FACTS });
+    if (!saved.ok) throw new Error(JSON.stringify(saved));
+    await h.as(actor).publishRevision({ revisionId: saved.revisionId });
+    const admin = await h.signIn(await h.seed.superAdmin());
+    h.clock.advance({ minutes: 1 });
+    for (const [key, value] of [
+      ["org.legalName", "  Friends of Animals Foundation "],
+      ["org.registrationType", "Section 8 company"],
+    ] as const) {
+      expect(await h.as(admin).changeSetting({ key, value })).toMatchObject({
+        ok: true,
+      });
+    }
+
+    const facts = await h.as(h.visitor()).getOrgFacts();
+
+    expect(facts).toMatchObject({
+      legalName: "Friends of Animals Foundation",
+      registration: { type: "Section 8 company" },
+      email: SITE_FACTS.email,
+      grievanceOfficer: SITE_FACTS.grievanceOfficer,
+    });
+    expect(missingOrgFacts(facts)).toEqual(["registrationNumber", "pan"]);
+  });
+
+  it("reads every fact as a placeholder on a fresh database", async () => {
+    const h = await createHarness();
+
+    const facts = await h.as(h.visitor()).getOrgFacts();
+
+    expect(missingOrgFacts(facts)).toEqual([
+      "legalName",
+      "email",
+      "phone",
+      "address",
+      "registrationType",
+      "registrationNumber",
+      "pan",
+      "grievanceOfficerName",
+      "grievanceOfficerEmail",
+      "socials",
+    ]);
+  });
+
   it("shows every fact as a placeholder before anything is published", async () => {
     const h = await createHarness();
 
