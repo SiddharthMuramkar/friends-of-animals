@@ -34,8 +34,10 @@ import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
 import { FakeErrorReporter } from "./fakes/errors";
+import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakeSms } from "./fakes/sms";
-import { TEST_AUTH } from "./harness";
+import { FakeStorage } from "./fakes/storage";
+import { TEST_AUTH, TEST_FILES } from "./harness";
 import { TestSettings } from "./settings";
 
 /** The test database's URL; refuses one that isn't on this machine. */
@@ -80,6 +82,9 @@ export function createPgWorld() {
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
     settings: new TestSettings({ db, clock }),
     errors: new FakeErrorReporter(),
+    storage: new FakeStorage(clock),
+    files: TEST_FILES,
+    scanner: new FakeMalwareScanner(),
   };
   const app = createApp(deps);
   const seed: SeedBuilders = createSeedBuilders(deps);
