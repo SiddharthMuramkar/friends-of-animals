@@ -22,6 +22,7 @@ export const REFUSAL_CODES = [
   "invalid_transition",
   "image_not_ready",
   "invalid_input",
+  "cover_alt_required",
   "too_long",
   "archived",
   "not_found",
@@ -48,6 +49,24 @@ export function noticeQuery(kind: NoticeKind, refused?: RefusalCode): string {
   const query = new URLSearchParams({ notice: `${kind}-${token()}` });
   if (refused) query.set("refused", refused);
   return query.toString();
+}
+
+/** A use case's refusal: its code, and for invalid input, why by field. */
+type Refused = {
+  ok: false;
+  error: string;
+  fields?: string[];
+  errors?: Partial<Record<string, string>>;
+};
+
+/** Why an image's alt text wasn't saved, as the editor's notice names it. */
+export function altRefusal(refused: Refused): RefusalCode {
+  if (refused.error === "invalid_input") {
+    if (refused.errors?.alt === "too_long") return "too_long";
+    if (refused.errors?.coverAlt === "required") return "cover_alt_required";
+    return "invalid_input";
+  }
+  return REFUSAL_CODES.find((code) => code === refused.error) ?? "failed";
 }
 
 type Params = Record<string, string | string[] | undefined>;

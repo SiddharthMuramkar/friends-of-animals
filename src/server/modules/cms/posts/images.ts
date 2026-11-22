@@ -37,6 +37,8 @@ import {
 import { presignUpload } from "../../files/use-cases/upload";
 import { POST_FIELD_MAX } from "../domain/post-fields";
 import { canEditPost } from "../domain/post-status";
+import { postTags } from "./cache-tags";
+import { goingLiveRefusal, type ImageNotReady } from "./gates";
 import { refusal, type PostInputRefusal } from "./input";
 import { isRowId, loadPost } from "./store";
 
@@ -73,8 +75,10 @@ export type UploadPostImageResult =
   | { ok: false; error: "not_found" | "archived" | UploadRefusal };
 
 export type DescribePostImageResult =
-  | { ok: true }
+  /** `tags`: the public cache tags the Server Action refreshes. */
+  | { ok: true; tags: string[] }
   | PostInputRefusal
+  | ImageNotReady
   | { ok: false; error: "not_found" | "archived" };
 
 const uploadInput = z.object({
@@ -150,7 +154,10 @@ export async function uploadPostImage(
   });
 }
 
-/** Changes what an image's alt text says. */
+/**
+ * Changes what an image's alt text says. A scheduled or published post
+ * stays ready to go live (./gates.ts), so its cover can't lose its alt text.
+ */
 export async function describePostImage(
   ctx: PostImagesContext,
   input: { postImageId: string; alt: string }
@@ -173,11 +180,19 @@ export async function describePostImage(
       : null;
     if (!post) return { ok: false, error: "not_found" };
     if (!canEditPost(post.status)) return { ok: false, error: "archived" };
+    const live = post.status !== "draft";
+    if (live) {
+      const refused = await goingLiveRefusal(tx, post.id, post, {
+        postImageId,
+        alt,
+      });
+      if (refused) return refused;
+    }
     await tx
       .update(cmsPostImage)
       .set({ alt })
       .where(eq(cmsPostImage.id, postImageId));
-    return { ok: true };
+    return { ok: true, tags: live ? postTags(post.slug) : [] };
   });
 }
 

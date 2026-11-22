@@ -14,7 +14,9 @@
 // instant (`availableAt`); the job locks the post and asks
 // `decideScheduledPublish` what to do, so a delivery made stale by an
 // unschedule, a reschedule or "publish now" does nothing, and nothing ever
-// needs cancelling. Going live emits cms.post_published.
+// needs cancelling. The job checks what going live needs again (./gates.ts)
+// and takes a post that fails it back to a draft. Going live emits
+// cms.post_published.
 //
 // Hand moves that change the public site return the cache tags their
 // Server Action refreshes; the job can't, so 112b's cached reads live only
@@ -38,6 +40,7 @@ import {
   decideScheduledPublish,
 } from "../domain/post-schedule";
 import {
+  isPostPublic,
   nextPostStatus,
   type PostStatus,
   type PostTrigger,
@@ -241,7 +244,13 @@ export async function publishPost(
     async (tx, post, to): Promise<PublishPostResult> => {
       const refused = await goingLiveRefusal(tx, post.id, post);
       if (refused) return refused;
-      const publishedAt = ctx.clock.now();
+      const now = ctx.clock.now();
+      // A scheduled post already due has been public since its instant
+      // (publicPostFilter), so it keeps that date.
+      const publishedAt =
+        post.status === "scheduled" && post.publishAt && isPostPublic(post, now)
+          ? post.publishAt
+          : now;
       await move(
         tx,
         ctx,
@@ -311,7 +320,9 @@ const WORKER: Actor = { kind: "system", process: "worker" };
  * The cms.post_scheduled handler: puts the post live if it is still
  * scheduled for the instant this delivery carries, dated to that instant.
  * A stale delivery does nothing; one that arrives early is saved again
- * for the instant.
+ * for the instant. A post that no longer meets what going live needs (a
+ * row changed behind the use cases' back) goes back to a draft instead,
+ * which also takes it out of publicPostFilter.
  */
 export async function publishScheduledPost(
   deps: { db: AppDb; clock: Clock },
@@ -334,6 +345,22 @@ export async function publishScheduledPost(
           payload: { postId: post.id, publishAt: payload.publishAt },
         },
         { availableAt: decision.until }
+      );
+      return;
+    }
+    if (await goingLiveRefusal(tx, post.id, post)) {
+      await move(
+        tx,
+        ctx,
+        post,
+        "unscheduled",
+        {
+          status: "draft",
+          publishAt: null,
+          publishedAt: post.publishedAt,
+          archivedAt: null,
+        },
+        null
       );
       return;
     }

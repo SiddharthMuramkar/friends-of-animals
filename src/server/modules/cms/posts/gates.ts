@@ -1,9 +1,10 @@
 // What a post needs before it may go live, or stay live while it is
 // edited (#112): every field going live needs (checkPostFields, not as a
 // draft), alt text for an uploaded cover, and a public copy of every
-// uploaded image it shows. Checked when it is scheduled or published, and
-// on every edit of a scheduled or published post, so the publish job never
-// puts up a post that would fail them.
+// uploaded image it shows. Checked when it is scheduled or published, on
+// every edit of a scheduled or published post (its fields in updatePost,
+// an image's alt text in describePostImage), and again by the publish job,
+// which takes a post that fails them back to a draft instead.
 //
 // Loads under plain Node: relative imports only.
 
@@ -25,15 +26,25 @@ export type GoingLiveFields = {
 
 export type ImageNotReady = { ok: false; error: "image_not_ready" };
 
-/** Why the post can't go live as it is, or null when it can. */
+/** An image's alt text as an edit would leave it, not yet saved. */
+export type AltEdit = { postImageId: string; alt: string };
+
+/**
+ * Why the post can't go live as it is (with `edit` applied, if given), or
+ * null when it can.
+ */
 export async function goingLiveRefusal(
   db: AppDb,
   postId: string,
-  post: GoingLiveFields
+  post: GoingLiveFields,
+  edit?: AltEdit
 ): Promise<PostInputRefusal | ImageNotReady | null> {
   const named = postImageIdsIn(post.body);
   if (post.coverImageId) named.push(post.coverImageId);
-  const images = await postImagesIn(db, postId, [...new Set(named)]);
+  const images = (await postImagesIn(db, postId, [...new Set(named)])).map(
+    (image) =>
+      image.id === edit?.postImageId ? { ...image, alt: edit.alt } : image
+  );
   const cover = images.find((image) => image.id === post.coverImageId);
 
   const fields = checkPostFields({

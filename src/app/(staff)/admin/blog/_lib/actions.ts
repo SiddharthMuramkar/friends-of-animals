@@ -17,7 +17,12 @@ import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import { istLocalToInstant } from "@/server/modules/competitions/domain/ist";
 import { StorageNotConfiguredError } from "@/server/ports/storage";
 
-import { noticeQuery, type NoticeKind, type RefusalCode } from "./notices";
+import {
+  altRefusal,
+  noticeQuery,
+  type NoticeKind,
+  type RefusalCode,
+} from "./notices";
 import {
   afterSave,
   postInputOf,
@@ -179,9 +184,7 @@ export async function describePostImageAction(formData: FormData) {
       postImageId: field(formData, "postImageId"),
       alt: field(formData, "alt"),
     });
-    return result.ok || result.error !== "invalid_input"
-      ? result
-      : { ok: false, error: "too_long" };
+    return result.ok ? result : { ok: false, error: altRefusal(result) };
   });
 }
 
