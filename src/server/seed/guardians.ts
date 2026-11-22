@@ -206,7 +206,40 @@ export type SeedGuardianChild = {
   age: number;
   /** Defaults to parent. */
   relationship?: GuardianRelationship;
+  /** A 13- to 17-year-old's own account, already linked; none by default. */
+  loginUserId?: string | null;
 };
+
+/**
+ * Makes `userId` a verified guardian (with the guardian role) of new
+ * children of the given ages, in the order given: for the builder below
+ * and the E2E fixture. No code, no audit entry.
+ */
+export async function addGuardianFamily(
+  deps: SeedDeps,
+  family: {
+    userId: string;
+    fullName: string;
+    children: readonly SeedGuardianChild[];
+  }
+): Promise<{ guardianId: string; childIds: string[] }> {
+  const now = deps.clock.now();
+  const children = family.children.map((child, at) => ({
+    profileId: uuidv7(new Date(now.getTime() + at)),
+    linkId: uuidv7(now),
+    fullName: child.fullName,
+    dateOfBirth: bornYearsAgo(now, child.age, 30),
+    relationship: child.relationship ?? ("parent" as const),
+    loginUserId: child.loginUserId ?? null,
+  }));
+  const guardianId = await ensureGuardianFamily(deps, {
+    userId: family.userId,
+    guardianId: uuidv7(now),
+    fullName: family.fullName,
+    children,
+  });
+  return { guardianId, childIds: children.map((child) => child.profileId) };
+}
 
 /** Builds verified guardians with children, for tests. */
 export function guardianBuilder(deps: SeedDeps) {
@@ -217,30 +250,16 @@ export function guardianBuilder(deps: SeedDeps) {
     children: readonly SeedGuardianChild[];
   }) {
     guardians += 1;
-    const now = deps.clock.now();
     const name = options.name ?? `Test Guardian ${guardians}`;
     const account = await ensureVerifiedAccount(deps, {
       name,
       email: options.email ?? `test-guardian-${guardians}@example.test`,
     });
-    const children = options.children.map((child, at) => ({
-      profileId: uuidv7(new Date(now.getTime() + at)),
-      linkId: uuidv7(now),
-      fullName: child.fullName,
-      dateOfBirth: bornYearsAgo(now, child.age, 30),
-      relationship: child.relationship ?? ("parent" as const),
-      loginUserId: null,
-    }));
-    const guardianId = await ensureGuardianFamily(deps, {
+    const family = await addGuardianFamily(deps, {
       userId: account.id,
-      guardianId: uuidv7(now),
       fullName: name,
-      children,
+      children: options.children,
     });
-    return {
-      account,
-      guardianId,
-      childIds: children.map((child) => child.profileId),
-    };
+    return { account, ...family };
   };
 }
