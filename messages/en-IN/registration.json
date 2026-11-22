@@ -1,0 +1,8 @@
+{
+  "registration": {
+    "status": {
+      "enrolled": "Enrolled",
+      "withdrawn": "Withdrawn"
+    }
+  }
+}

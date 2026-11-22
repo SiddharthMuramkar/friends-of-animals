@@ -49,6 +49,27 @@ export function institutionCompetitionsPath(institutionId: string): string {
 }
 
 /**
+ * One institution registration's students (#75): the coordinator
+ * dashboard, for the institution the user acts for.
+ */
+export function institutionRegistrationPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}?${query.toString()}`;
+}
+
+/** Where a coordinator adds a student to a registration (#75). */
+export function newStudentPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/students/new?${query.toString()}`;
+}
+
+/**
  * Pages behind sign-in whose path has a dynamic segment, written as in the
  * app directory: each `[name]` stands for one path segment.
  */
@@ -58,6 +79,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/templates/[key]",
   "/admin/institutions/[id]",
   "/admin/inbox/[id]",
+  "/institution/registrations/[ref]",
+  "/institution/registrations/[ref]/students/new",
 ] as const;
 
 /**

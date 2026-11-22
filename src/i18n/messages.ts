@@ -42,6 +42,7 @@ import notFound from "../../messages/en-IN/notFound.json";
 import notificationSettings from "../../messages/en-IN/notificationSettings.json";
 import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
+import registration from "../../messages/en-IN/registration.json";
 import sample from "../../messages/en-IN/sample.json";
 import schools from "../../messages/en-IN/schools.json";
 import security from "../../messages/en-IN/security.json";
@@ -90,6 +91,7 @@ export const NAMESPACES = [
   "notificationSettings",
   "pricing",
   "refunds",
+  "registration",
   "sample",
   "schools",
   "security",
@@ -142,6 +144,7 @@ export const messages = {
   ...notificationSettings,
   ...pricing,
   ...refunds,
+  ...registration,
   ...sample,
   ...schools,
   ...security,

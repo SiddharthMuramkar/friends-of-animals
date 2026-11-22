@@ -118,6 +118,24 @@ describe("listEnrolledStudents", () => {
     expect(after).toMatchObject({ ok: true, enrolment: "closed" });
   });
 
+  it("reads the reference as a URL or a person may carry it: any case, O for 0", async () => {
+    const h = await createHarness();
+    const school = await registeredSchool(h);
+    await enrol(h, school);
+    const typed = ` ${school.reference.toLowerCase().replace(/0/g, "o")} `;
+
+    const result = await h.as(school.coordinator.actor).listEnrolledStudents({
+      institutionId: school.institutionId,
+      reference: typed,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      reference: school.reference,
+      counts: { enrolled: 1 },
+    });
+  });
+
   it("finds no registration under an unknown reference, or another institution's", async () => {
     const h = await createHarness();
     const x = await registeredSchool(h, { name: "X" });

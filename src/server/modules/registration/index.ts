@@ -35,7 +35,11 @@ export type {
   WithdrawStudentInput,
   WithdrawStudentResult,
 } from "./withdraw-student";
-export type { StudentField, StudentInput } from "./domain/student-details";
+export type {
+  StudentField,
+  StudentFieldError,
+  StudentInput,
+} from "./domain/student-details";
 export type {
   RegisterInstitutionForCompetitionInput,
   RegisterInstitutionForCompetitionResult,

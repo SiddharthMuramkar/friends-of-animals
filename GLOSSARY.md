@@ -276,6 +276,21 @@ closed. The competition's status says when it opened; its closing instant
 closes it even if a Status job runs late.
 _Avoid_: Registration period, deadline
 
+**Participant profile**:
+One person who takes part, as whoever keeps their details knows them. For now
+a student an institution keeps: one per child per institution, recognised
+again by their name and date of birth, or the institution's roll number.
+Adults keep their own later, and guardians a child's.
+_Avoid_: Student record, participant (for the stored details)
+
+**Enrolment**:
+A coordinator adding a student to their institution's registration for a
+competition while its Registration window is open. It gives the student a
+participant's registration in the age group their date of birth puts them in
+on the competition's cut-off date. Withdrawing ends it; enrolling again makes
+a new one.
+_Avoid_: Entry, sign-up, registering a student
+
 ## Files
 
 **File**:

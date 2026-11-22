@@ -3,8 +3,10 @@
 // its reference within the institution the actor acts for, its
 // institution and competition, and whether students can be enrolled now.
 //
-// A reference from another institution finds nothing, exactly like one
-// that doesn't exist, so a coordinator learns nothing about other schools.
+// The reference is read as a URL or a person may carry it (any case, the
+// look-alikes O, I and L). A reference from another institution finds
+// nothing, exactly like one that doesn't exist, so a coordinator learns
+// nothing about other schools.
 
 import { and, asc, eq } from "drizzle-orm";
 
@@ -17,6 +19,7 @@ import {
   institutionRegistration,
 } from "../../db/schema";
 import type { AgeGroup } from "./domain/age-group";
+import { parseInstitutionRegistrationReference } from "./domain/institution-registration-reference";
 import { enrolmentState, type EnrolmentState } from "./domain/enrolment-state";
 import { registrationWindow } from "./domain/registration-window";
 
@@ -55,6 +58,8 @@ export async function loadEnrolmentFacts(
   now: Date,
   { lock }: { lock: boolean }
 ): Promise<EnrolmentFacts | null> {
+  const typed = parseInstitutionRegistrationReference(input.reference);
+  if (!typed) return null;
   const registrationQuery = db
     .select({
       id: institutionRegistration.id,
@@ -65,7 +70,7 @@ export async function loadEnrolmentFacts(
     .from(institutionRegistration)
     .where(
       and(
-        eq(institutionRegistration.reference, input.reference),
+        eq(institutionRegistration.reference, typed.reference),
         eq(institutionRegistration.institutionId, input.institutionId)
       )
     );
