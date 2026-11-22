@@ -38,7 +38,11 @@ export function TotpEnrol({
   const [view, formAction] = useActionState(totpEnrolAction, START);
 
   return (
-    <form action={formAction} noValidate className="flex flex-col gap-6">
+    <form
+      action={formAction}
+      noValidate
+      className="@container/totp-enrol flex flex-col gap-6"
+    >
       <input type="hidden" name="next" value={next} />
       {view.step === "label" ? (
         <>
@@ -71,19 +75,19 @@ export function TotpEnrol({
         </>
       ) : (
         <>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="flex flex-col items-start gap-4 @min-[28rem]/totp-enrol:flex-row">
             <svg
               role="img"
               aria-label={labels.qrLabel}
               viewBox={`0 0 ${view.qr.size} ${view.qr.size}`}
               shapeRendering="crispEdges"
-              className="size-48 shrink-0 rounded-2xl border-2 border-border"
+              className="aspect-square h-auto w-48 max-w-full shrink-0 rounded-2xl border-2 border-border"
             >
               {/* Dark on light in both themes, as scanners expect. */}
               <rect width={view.qr.size} height={view.qr.size} fill="#fff" />
               <path d={view.qr.path} fill="#000" />
             </svg>
-            <div className="flex flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-2">
               <p className="text-ink">{labels.scan}</p>
               <p className="text-ink">{labels.manual}</p>
               <p className="text-sm font-semibold text-ink-muted">

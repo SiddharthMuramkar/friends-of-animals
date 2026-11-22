@@ -14,6 +14,7 @@ import { buttonStyles } from "@/components/site/button-link";
 import { isSignedInPath } from "@/lib/app-routes";
 import { cn } from "@/lib/utils";
 
+import styles from "./header-nav.module.css";
 import { NavLink } from "./nav-link";
 import { ThemeSwitch } from "./theme-toggle";
 
@@ -41,7 +42,7 @@ const DESKTOP_LINK =
   "min-h-11 rounded-full px-3.5 font-semibold text-ink-muted decoration-section-blue-heading decoration-3 underline-offset-6 hover:bg-surface-muted hover:text-ink aria-[current=page]:bg-section-blue aria-[current=page]:text-ink aria-[current=page]:underline";
 
 const MENU_LINK =
-  "relative flex min-h-12 w-full rounded-2xl px-4 text-lead font-semibold hover:bg-surface-muted aria-[current=page]:bg-section-blue aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-3 aria-[current=page]:before:start-1.5 aria-[current=page]:before:w-1 aria-[current=page]:before:rounded-full aria-[current=page]:before:bg-section-blue-heading";
+  "relative flex min-h-12 w-full rounded-2xl px-4 text-lead font-semibold wrap-anywhere hover:bg-surface-muted aria-[current=page]:bg-section-blue aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-3 aria-[current=page]:before:start-1.5 aria-[current=page]:before:w-1 aria-[current=page]:before:rounded-full aria-[current=page]:before:bg-section-blue-heading";
 
 /** Desktop navigation (lg and up). */
 export function DesktopNavView({
@@ -56,7 +57,7 @@ export function DesktopNavView({
   pathname: string | null;
 }) {
   return (
-    <nav aria-label={label} className="hidden lg:block">
+    <nav aria-label={label} data-desktop-nav className="hidden lg:block">
       <ul className="flex items-center gap-1">
         {withDashboard(items, dashboard, pathname).map((item) => (
           <li key={item.href}>
@@ -93,6 +94,8 @@ type MenuLabels = {
 
 /** Ties the Menu and Close buttons to the dialog through invoker commands. */
 const MENU_ID = "mobile-menu";
+// Match the lg utilities that swap the menu trigger and desktop navigation.
+const DESKTOP_MEDIA = "(min-width: 64rem)";
 
 type MenuLinksProps = {
   items: Item[];
@@ -202,6 +205,25 @@ export function MobileMenu({
   const close = useCallback(() => dialog.current?.close(), []);
   const links = { items, dashboard, donateHref, close };
 
+  useEffect(() => {
+    const desktop = window.matchMedia(DESKTOP_MEDIA);
+    const closeOnDesktop = () => {
+      const menu = dialog.current;
+      if (!desktop.matches || !menu?.open) return;
+
+      menu.close();
+      // The native invoker is now hidden. Move focus into the visible nav.
+      const nav = menu.closest("header")?.querySelector("[data-desktop-nav]");
+      const link =
+        nav?.querySelector<HTMLAnchorElement>('a[aria-current="page"]') ??
+        nav?.querySelector<HTMLAnchorElement>("a");
+      link?.focus({ preventScroll: true });
+    };
+    closeOnDesktop();
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+
   return (
     <>
       {/* The invoker command opens the menu before hydration (Chrome 135+,
@@ -231,33 +253,39 @@ export function MobileMenu({
         // Light dismiss (backdrop click) where supported; Escape and the
         // Close button work everywhere.
         closedby="any"
-        className="m-0 ml-auto h-dvh max-h-dvh w-[min(24rem,100vw)] max-w-none overscroll-contain border-s border-border bg-background p-0 text-ink backdrop:overflow-hidden backdrop:overscroll-contain backdrop:bg-[rgb(23_21_17/0.5)] open:flex open:flex-col"
+        className={cn(
+          styles.dialog,
+          "m-0 ms-auto h-dvh max-h-dvh w-[min(24rem,100%)] max-w-none overflow-y-auto overscroll-contain border-s border-border bg-background p-0 text-ink backdrop:overflow-hidden backdrop:overscroll-contain backdrop:bg-[rgb(23_21_17/0.5)] open:flex open:flex-col"
+        )}
       >
-        <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
-          <p id="mobile-menu-title" className="font-display text-h4 font-bold">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border px-3 py-3 sm:px-5">
+          <p
+            id="mobile-menu-title"
+            className="font-display text-h4 font-bold wrap-anywhere"
+          >
             {labels.title}
           </p>
           <button
             type="button"
             {...({ command: "close", commandfor: MENU_ID } as object)}
             onClick={close}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 font-semibold hover:bg-surface-muted"
+            className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full px-3 text-start font-semibold hover:bg-surface-muted sm:px-4"
           >
-            <X aria-hidden="true" className="size-5" />
-            {labels.close}
+            <X aria-hidden="true" className="size-5 shrink-0" />
+            <span className="min-w-0 wrap-anywhere">{labels.close}</span>
           </button>
         </div>
-        <nav
-          aria-label={labels.nav}
-          className="flex-1 overflow-y-auto overscroll-contain px-3 py-4"
-        >
+        <nav aria-label={labels.nav} className={cn(styles.nav, "px-3 py-4")}>
           <Suspense fallback={<MenuLinksView {...links} pathname={null} />}>
             <MenuLinks {...links} />
           </Suspense>
         </nav>
-        <div className="border-t border-border p-5">
+        <div className="shrink-0 border-t border-border p-3 sm:p-5">
           {/* From sm up the header shows its own theme button. */}
-          <ThemeSwitch label={labels.theme} className="mb-3 sm:hidden" />
+          <ThemeSwitch
+            label={labels.theme}
+            className="mb-3 max-[22rem]:gap-2 max-[22rem]:px-2 max-[22rem]:[&_svg]:hidden sm:hidden"
+          />
           <Suspense
             fallback={
               <DonateLinkView {...links} pathname={null}>

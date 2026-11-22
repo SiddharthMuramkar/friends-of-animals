@@ -121,7 +121,7 @@ export default async function Page() {
       <Section
         labelledBy={details.length > 0 ? "details-title" : "topics-title"}
       >
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           {details.length > 0 ? (
             <div>
               <SectionHeading id="details-title" title={t("details.title")} />
@@ -167,7 +167,7 @@ export default async function Page() {
               {t("topics.title")}
             </h2>
             <p className="mt-3 text-ink-muted">{t("topics.lead")}</p>
-            <ul className="mt-6 grid gap-3">
+            <ul className="mt-6 grid grid-cols-1 gap-3">
               {TOPICS.map((k) => (
                 <li
                   key={k}
@@ -175,7 +175,9 @@ export default async function Page() {
                 >
                   <h3 className="flex items-center gap-2 font-sans text-body font-bold">
                     <TileMarker hue="blue" size="sm" />
-                    {t(`topics.items.${k}.title`)}
+                    <span className="min-w-0">
+                      {t(`topics.items.${k}.title`)}
+                    </span>
                   </h3>
                   <p className="mt-1.5 text-ink-muted">
                     {t(`topics.items.${k}.body`)}
@@ -186,9 +188,11 @@ export default async function Page() {
                 <h3 className="flex items-center gap-2 font-sans text-body font-bold">
                   <ShieldAlert
                     aria-hidden="true"
-                    className="size-4 text-danger"
+                    className="size-4 shrink-0 text-danger"
                   />
-                  {t("topics.safeguarding.title")}
+                  <span className="min-w-0">
+                    {t("topics.safeguarding.title")}
+                  </span>
                 </h3>
                 <p className="mt-1.5 text-ink">
                   {t("topics.safeguarding.body")}
