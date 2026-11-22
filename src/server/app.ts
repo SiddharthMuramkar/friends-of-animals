@@ -15,14 +15,50 @@ import { headers } from "next/headers";
 import { accessUseCases } from "./access";
 import type { Actor } from "./actor";
 import { auditUseCases } from "./audit";
+import { cmsUseCases } from "./modules/cms";
+import { consentUseCases } from "./modules/consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
+import { competitionsUseCases } from "./modules/competitions";
+import { notificationsUseCases } from "./modules/notifications";
+import { secondFactorUseCases } from "./modules/second-factor";
+import { filesUseCases } from "./modules/files";
+import { settingsUseCases } from "./modules/settings";
+import { institutionUseCases } from "./modules/institutions";
+import { coordinatorsUseCases } from "./modules/institutions/coordinators";
+import { contactUseCases } from "./modules/contact";
+import { publicFormUseCases } from "./modules/public-forms";
+import { safeguardingUseCases } from "./modules/safeguarding";
+import { judgingUseCases } from "./modules/judging";
+import { competitionTermsUseCases } from "./modules/competitions/terms";
+import { registrationUseCases } from "./modules/registration";
+import { paymentsUseCases } from "./modules/payments";
+import { participantsUseCases } from "./modules/participants";
+import { guardiansUseCases } from "./modules/guardians";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
   identityUseCases,
   accessUseCases,
-  auditUseCases
+  auditUseCases,
+  secondFactorUseCases,
+  filesUseCases,
+  settingsUseCases,
+  consentUseCases,
+  competitionsUseCases,
+  cmsUseCases,
+  notificationsUseCases,
+  institutionUseCases,
+  coordinatorsUseCases,
+  publicFormUseCases,
+  contactUseCases,
+  safeguardingUseCases,
+  judgingUseCases,
+  competitionTermsUseCases,
+  registrationUseCases,
+  paymentsUseCases,
+  participantsUseCases,
+  guardiansUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

@@ -3,7 +3,11 @@ import { Resvg } from "@resvg/resvg-js";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   type Artwork,
+  canvasSvg,
+  FAVICON_GRIDS,
   fullLogo,
+  hintedTiles,
+  type PixelGrid,
   parseMaster,
   singleColour,
   standaloneSvg,
@@ -161,4 +165,60 @@ describe("singleColour", () => {
         expect(count).toBeGreaterThan(1000);
     }
   );
+});
+
+describe("hintedTiles", () => {
+  /** RGBA pixels of a hinted icon, rendered at its own size. */
+  const renderIcon = (grid: PixelGrid) =>
+    new Resvg(
+      canvasSvg(
+        hintedTiles(master, grid),
+        { width: grid.size, height: grid.size, logoWidth: grid.size },
+        "test"
+      ),
+      { font: { loadSystemFonts: false } }
+    ).render().pixels;
+
+  it.each(FAVICON_GRIDS.map((grid) => [grid.size, grid] as const))(
+    "puts every edge on a whole pixel at %i px",
+    (_, grid) => {
+      const pixels = renderIcon(grid);
+      const alphas = new Set<number>();
+      for (let i = 3; i < pixels.length; i += 4) alphas.add(pixels[i]);
+      // Nothing half-covered: each pixel is a tile, a letter or the tab.
+      expect([...alphas].sort((a, b) => a - b)).toEqual([0, 255]);
+    }
+  );
+
+  it.each(
+    FAVICON_GRIDS.filter((grid) => grid.letters).map(
+      (grid) => [grid.size, grid] as const
+    )
+  )("draws the hand-placed letters pixel for pixel at %i px", (_, grid) => {
+    const { size, tileWidth, tileHeight, gap, letters } = grid;
+    const pixels = renderIcon(grid);
+    const left = Math.floor((size - (3 * tileWidth + 2 * gap)) / 2);
+    const top = Math.floor((size - tileHeight) / 2);
+    letters?.bitmaps.forEach((bitmap, tile) => {
+      const x0 =
+        left +
+        tile * (tileWidth + gap) +
+        Math.floor((tileWidth - bitmap[0].length) / 2);
+      bitmap.forEach((row, y) =>
+        row.split("").forEach((cell, x) => {
+          const i = ((top + letters.top + y) * size + x0 + x) * 4;
+          const white = [0, 1, 2, 3].every((c) => pixels[i + c] === 255);
+          expect(white, `tile ${tile}, row ${y}, column ${x}`).toBe(
+            cell === "X"
+          );
+        })
+      );
+    });
+  });
+
+  it("refuses tiles that don't fit the icon", () => {
+    expect(() =>
+      hintedTiles(master, { size: 16, tileWidth: 6, tileHeight: 7, gap: 0 })
+    ).toThrow(/fit/);
+  });
 });

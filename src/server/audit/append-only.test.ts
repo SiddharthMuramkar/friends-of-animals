@@ -1,12 +1,8 @@
-import { PGlite } from "@electric-sql/pglite";
-import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { count, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it, onTestFinished } from "vitest";
 
 import { auditLog } from "@/server/db/schema";
+import { createMigratedClient } from "@/test/db";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { recordAudit } from "./record";
@@ -138,21 +134,18 @@ describe("the audit log", () => {
 
 describe("an app role on a deployed database", () => {
   it("can add and read audit entries but holds no right to update, delete or truncate them", async () => {
-    const client = await PGlite.create({ extensions: { pg_trgm } });
-    onTestFinished(() => client.close());
     // How a deployed database hands its app role rights on every new
     // table: default privileges, set up before the migrations run.
-    await client.exec(`
-      create role foa_app_test;
-      grant usage on schema public to foa_app_test;
-      alter default privileges in schema public
-        grant select, insert, update, delete, truncate on tables to foa_app_test;
-    `);
-    await migrate(drizzle({ client }), {
-      migrationsFolder: fileURLToPath(
-        new URL("../../../drizzle", import.meta.url)
-      ),
+    const client = await createMigratedClient({
+      before: (empty) =>
+        empty.exec(`
+          create role foa_app_test;
+          grant usage on schema public to foa_app_test;
+          alter default privileges in schema public
+            grant select, insert, update, delete, truncate on tables to foa_app_test;
+        `),
     });
+    onTestFinished(() => client.close());
 
     await client.exec("set role foa_app_test");
     await client.query(`

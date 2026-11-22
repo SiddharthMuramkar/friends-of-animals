@@ -3,7 +3,10 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { EmailOffCallout } from "@/app/(auth)/_components/email-off-callout";
+import { SmsOffCallout } from "@/app/(auth)/_components/sms-off-callout";
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
+import { fromSample } from "@/components/competitions/model";
 import { CompetitionCard } from "@/components/showcase/competition-card";
 import { ImpactCounters } from "@/components/showcase/impact-counters";
 import { JudgingPath } from "@/components/showcase/judging-path";
@@ -24,11 +27,12 @@ import { Section } from "@/components/site/section";
 import { type TileHue, TileDivider, TileMarker } from "@/components/site/tile";
 import { getSampleCompetitions, getSampleImpact } from "@/content/sample";
 import { COMPETITION_STATUSES } from "@/content/sample/model";
-import { STORIES } from "@/content/stories";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isSampleContentEnabled, SITE } from "@/lib/site";
+import { isSampleContentEnabled } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { cn } from "@/lib/utils";
+import { repoStoryCards } from "@/server/modules/cms/posts/repo-stories";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("styleguide.meta");
@@ -418,6 +422,14 @@ export default async function Page() {
             ))}
           </div>
         </Sub>
+        <Sub title={t("primitives.calloutWithLink")}>
+          {/* What staging and production show on the phone pages until
+              DLT approval; here, axe checks it in every E2E run. */}
+          <SmsOffCallout intent="sign-in" className="max-w-xl" />
+          {/* What production's sign-in pages show until SES can send to
+              anyone (DECISIONS R-27). */}
+          <EmailOffCallout intent="sign-in" className="mt-4 max-w-xl" />
+        </Sub>
         <Sub title={t("primitives.disclosure")}>
           <Disclosure
             summary={t("primitives.disclosureSummary")}
@@ -427,7 +439,9 @@ export default async function Page() {
           </Disclosure>
         </Sub>
         <Sub title={t("primitives.placeholder")}>
-          <Placeholder fact={SITE.org.email} />
+          <WithOrgFacts>
+            {(facts) => <Placeholder fact={facts.email} />}
+          </WithOrgFacts>
         </Sub>
         <Sub title={t("primitives.headings")}>
           <SectionHeading
@@ -455,7 +469,7 @@ export default async function Page() {
         />
         <Sub title={t("cards.stories")}>
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {STORIES.map((story) => (
+            {repoStoryCards().map((story) => (
               <li key={story.slug} className="flex">
                 <StoryCard story={story} headingLevel={4} className="w-full" />
               </li>
@@ -467,7 +481,7 @@ export default async function Page() {
             {competitions.map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
-                  competition={c}
+                  competition={fromSample(c)}
                   headingLevel={4}
                   className="w-full"
                 />
@@ -544,7 +558,7 @@ export default async function Page() {
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <li className="flex">
               <StoryCard
-                story={STORIES[1]!}
+                story={repoStoryCards()[1]!}
                 headingLevel={3}
                 className="w-full"
               />
@@ -552,7 +566,7 @@ export default async function Page() {
             {competitions.slice(0, 2).map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
-                  competition={c}
+                  competition={fromSample(c)}
                   headingLevel={3}
                   className="w-full"
                 />
