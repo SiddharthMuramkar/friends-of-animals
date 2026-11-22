@@ -37,7 +37,11 @@ import {
   sesConfigOf,
   type SesVariables,
 } from "./ports/email-sender-for";
-import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
+import {
+  CODE_REQUEST_LIMITS,
+  type CodeRequestLimits,
+  DEVELOPMENT_AUTH_SECRET,
+} from "./identity/settings";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 import {
   diskStorage,
@@ -90,6 +94,8 @@ export interface Deps extends DbWithClock {
   humanCheck: HumanCheck;
   /** The contact form's limits per IP and per address. */
   contactLimits: ContactRateLimits;
+  /** The sign-in code limits per address or phone, and per IP. */
+  codeRequestLimits: CodeRequestLimits;
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
@@ -247,6 +253,20 @@ export function contactLimitsFor(appEnv: Env["APP_ENV"]): ContactRateLimits {
     : CONTACT_RATE_LIMITS;
 }
 
+/**
+ * The sign-in code limits (HR-19). Local runs and previews let one IP ask
+ * for many more codes: every E2E run asks from the CI runner's one
+ * address, and a shard signs in more than 20 times in 15 minutes.
+ * Staging and production keep FOA's 20.
+ */
+export function codeRequestLimitsFor(
+  appEnv: Env["APP_ENV"]
+): CodeRequestLimits {
+  return appEnv === "local" || appEnv === "preview"
+    ? { ...CODE_REQUEST_LIMITS, perIp: 200 }
+    : CODE_REQUEST_LIMITS;
+}
+
 let production: Deps | undefined;
 
 /** The app's deps, built on first use from `env()`. */
@@ -286,6 +306,7 @@ export function productionDeps(): Deps {
         difficulty: HUMAN_CHECK_DIFFICULTY,
       }),
       contactLimits: contactLimitsFor(config.APP_ENV),
+      codeRequestLimits: codeRequestLimitsFor(config.APP_ENV),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
       scanner: scannerFor(config),

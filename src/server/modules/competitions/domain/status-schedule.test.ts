@@ -144,10 +144,22 @@ describe("dueTransitions", () => {
     expect(dueTransitions("draft", DATES, after(CLOSE))).toEqual([]);
   });
 
+  it("moves into school judging once submissions close (#88)", () => {
+    expect(
+      dueTransitions("registration_closed", DATES, before(SUBMIT))
+    ).toEqual([]);
+    expect(dueTransitions("registration_closed", DATES, SUBMIT)).toEqual([
+      {
+        from: "registration_closed",
+        to: "school_judging",
+        keyDate: "submissions_close",
+        at: SUBMIT,
+      },
+    ]);
+  });
+
   it("moves nothing past the last status this machine knows", () => {
-    expect(dueTransitions("registration_closed", DATES, after(SUBMIT))).toEqual(
-      []
-    );
+    expect(dueTransitions("school_judging", DATES, after(SUBMIT))).toEqual([]);
   });
 });
 
@@ -214,11 +226,15 @@ describe("planStatusJob", () => {
   });
 
   it("advances nothing for a date no status change hangs on yet", () => {
+    const ROUND = new Date("2027-03-25T12:30:00.000Z");
     expect(
       planStatusJob(
-        { kind: "submissions_close", dueAt: SUBMIT },
-        { status: "registration_closed", keyDates: DATES },
-        after(SUBMIT)
+        { kind: "school_round_closes", dueAt: ROUND },
+        {
+          status: "school_judging",
+          keyDates: { ...DATES, school_round_closes: ROUND },
+        },
+        after(ROUND)
       )
     ).toEqual({ kind: "advance", transitions: [] });
   });
@@ -249,10 +265,16 @@ describe("upcomingChange", () => {
     });
   });
 
-  it("has nothing ahead after registration closes", () => {
-    expect(
-      upcomingChange("registration_closed", DATES, after(CLOSE))
-    ).toBeNull();
+  it("counts down to school judging once registration closes", () => {
+    expect(upcomingChange("registration_closed", DATES, after(CLOSE))).toEqual({
+      kind: "scheduled",
+      to: "school_judging",
+      at: SUBMIT,
+    });
+  });
+
+  it("has nothing ahead once school judging starts", () => {
+    expect(upcomingChange("school_judging", DATES, after(SUBMIT))).toBeNull();
   });
 
   it("has nothing ahead for a draft or a missing date", () => {

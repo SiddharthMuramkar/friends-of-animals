@@ -2,6 +2,7 @@ import {
   CalendarClock,
   DoorClosed,
   DoorOpen,
+  Gavel,
   type LucideIcon,
   PencilLine,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const LOOK: Record<
   published: { icon: CalendarClock, tone: "blue" },
   registration_open: { icon: DoorOpen, tone: "green" },
   registration_closed: { icon: DoorClosed, tone: "pink" },
+  school_judging: { icon: Gavel, tone: "blue" },
 };
 
 /** A competition's stored status, as icon plus word. */

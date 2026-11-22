@@ -4,13 +4,26 @@
       "draft": "Draft",
       "published": "Published",
       "registration_open": "Registration open",
-      "registration_closed": "Registration closed"
+      "registration_closed": "Registration closed",
+      "school_judging": "School judging"
+    },
+    "inSentence": {
+      "draft": "draft",
+      "published": "published",
+      "registration_open": "registration open",
+      "registration_closed": "registration closed",
+      "school_judging": "school judging"
     },
     "countdown": {
       "opens": "Registration opens {at} ({relative})",
       "opensDue": "Registration opening shortly",
       "closes": "Registration closes {at} ({relative})",
-      "closesDue": "Registration closing shortly"
+      "closesDue": "Registration closing shortly",
+      "entriesClose": "Entries close {at} ({relative})",
+      "entriesCloseDue": "Entries have closed; judging starts shortly"
+    },
+    "blockReason": {
+      "rubrics_missing": "These disciplines have no published rubric yet: {disciplines}."
     }
   }
 }
