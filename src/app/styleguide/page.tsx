@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { EmailOffCallout } from "@/app/(auth)/_components/email-off-callout";
 import { SmsOffCallout } from "@/app/(auth)/_components/sms-off-callout";
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
 import { fromSample } from "@/components/competitions/model";
@@ -424,6 +425,9 @@ export default async function Page() {
           {/* What staging and production show on the phone pages until
               DLT approval; here, axe checks it in every E2E run. */}
           <SmsOffCallout intent="sign-in" className="max-w-xl" />
+          {/* What production's sign-in pages show until SES can send to
+              anyone (DECISIONS R-27). */}
+          <EmailOffCallout intent="sign-in" className="mt-4 max-w-xl" />
         </Sub>
         <Sub title={t("primitives.disclosure")}>
           <Disclosure
