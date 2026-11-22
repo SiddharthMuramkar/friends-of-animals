@@ -233,6 +233,18 @@ the settings screen without a release. Each has a default that applies until a
 value is stored, and every change needs Step-up and goes in the Audit log.
 _Avoid_: Config, feature flag, environment variable
 
+**Off-site copy**:
+The nightly copy of production's Files from Cloudflare R2 to a Backblaze B2
+bucket, because R2 keeps no old versions. A copy outlives its File by the
+retention window, so a File deleted by mistake can still be restored one at a
+time.
+_Avoid_: Backup (that is the database's pgBackRest backup), sync, mirror
+
+**Retention window**:
+How long the off-site copy keeps a File after it has gone from R2 (30 days
+unless set), counted from the first night the copy found it gone.
+_Avoid_: Grace period, TTL
+
 ## Engineering
 
 **Seed builder**:
