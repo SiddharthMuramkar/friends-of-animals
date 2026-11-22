@@ -1,5 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, type Page } from "@playwright/test";
 
+import {
+  generateTotpSecret,
+  TOTP,
+  totpCode,
+} from "../../src/server/modules/second-factor/domain/totp";
 import { SEED_ACCOUNTS } from "../../src/server/seed/accounts";
 import { SEED_SCOPES } from "../../src/server/seed/scopes";
 import {
@@ -7,32 +12,88 @@ import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
-import { freshEmail } from "./support/mailbox";
+import { freshEmail, freshPhone } from "./support/mailbox";
+import { type SeedAccount, test } from "./support/seed-account";
 import {
   expectNoSidewaysScrollAt320,
   newDevice,
   signInByCode,
+  signUpByPhone,
 } from "./support/sign-in";
 
 // #59: a super admin gives a member a scoped role and takes it away, the
-// audit log shows the change, a member with several roles switches areas,
-// and people without the role are refused or sent to sign in.
+// audit log shows the change, a member who signed up by phone (#58) is
+// found and given a role too, a member with several roles switches areas,
+// and people without the role are refused or sent to sign in. Staff are
+// sent to enrol or pass their second factor first (#60), and step up
+// before a change.
 //
-// Sign-in codes: each project asks for three (a fresh member, the seeded
-// super admin, the seeded multi-role member). Seeded addresses allow 5
-// codes in 15 minutes and 20 a day, so one preview database takes two
-// runs in 15 minutes, ten a day. With #57's journeys, a run asks for 18
-// codes from one IP, under its limit of 20 in 15 minutes. #60 adds the
-// staff second factor to the grant and revoke steps.
+// Each test seeds its own staff accounts and authenticators, so the
+// desktop and mobile projects can share one app and database: a TOTP code
+// works once. Search text is personal data, so it never appears in a URL.
 
 const SCHOOL = SEED_SCOPES.institution.id;
 const COORDINATOR = `Institution coordinator for institution ${SCHOOL}`;
 const DENIED = "This page is for staff who manage access";
+const NO_EMAIL = "No email address: signs in with a mobile number";
+async function verifyStaffCode(page: Page, secret: Uint8Array, stepsAhead = 0) {
+  const at = new Date(Date.now() + stepsAhead * TOTP.periodSeconds * 1000);
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(secret, at));
+  await page.getByRole("button", { name: "Continue" }).click();
+}
+
+type RolesRequest = { method: string; hasSearchText: boolean };
+
+/**
+ * Every request to the roles page from now on, and whether it carried
+ * search text in its URL, which would put personal data in browser
+ * history and request logs.
+ */
+function watchRolesRequests(page: Page): RolesRequest[] {
+  const requests: RolesRequest[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/admin/roles") {
+      requests.push({
+        method: request.method(),
+        hasSearchText: url.searchParams.has("q"),
+      });
+    }
+  });
+  return requests;
+}
+
+/**
+ * A super admin of this test's own (its own authenticator too, so the
+ * desktop and mobile projects never share a one-use code), signed in and
+ * past the second factor on the roles page. Returns the authenticator.
+ */
+async function signInSuperAdmin(
+  page: Page,
+  request: APIRequestContext,
+  seedAccount: SeedAccount
+): Promise<Uint8Array> {
+  const secret = generateTotpSecret();
+  const email = await seedAccount({
+    name: SEED_ACCOUNTS.superAdmin.name,
+    grants: [{ role: "super_admin", scope: { type: "global" } }],
+    totpSecret: secret,
+  });
+  await signInByCode(page, request, email);
+  await page.goto("/admin/roles");
+  await expect(page).toHaveURL(/\/auth\/second-factor\?next=%2Fadmin%2Froles$/);
+  await verifyStaffCode(page, secret);
+  await expect(page).toHaveURL(/\/admin\/roles$/);
+  return secret;
+}
 
 test("a super admin gives a member a scoped role, sees it in the audit log, then takes it away", async ({
   browser,
   page,
   request,
+  seedAccount,
 }, testInfo) => {
   // The member: a fresh account, on a second device.
   const memberEmail = freshEmail(testInfo.project.name);
@@ -50,22 +111,44 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
     await expectAccessible(member, `${path}, refused`);
   }
 
-  // The super admin finds the member.
-  await signInByCode(page, request, SEED_ACCOUNTS.superAdmin.email);
+  // The super admin passes the second factor, then finds the member.
+  const secret = await signInSuperAdmin(page, request, seedAccount);
   await expectRendersAccessibly(page, "/admin/roles");
   await expectAccessibleInDark(page, "/admin/roles");
+  const rolesRequests = watchRolesRequests(page);
   await page
     .getByRole("searchbox", { name: "Name or email address" })
     .fill(memberEmail);
   await page.getByRole("button", { name: "Search" }).click();
-  await page
+  const match = page
     .getByRole("region", { name: "People found" })
-    .getByRole("link", { name: memberEmail })
-    .click();
+    .getByRole("link", { name: memberEmail });
+  await expect(match).toBeVisible();
+  expect(rolesRequests.some(({ hasSearchText }) => hasSearchText)).toBe(false);
+  expect(rolesRequests.some(({ method }) => method === "POST")).toBe(true);
+  await expect(page).toHaveURL(/\/admin\/roles$/);
+  await expect(match).toHaveAttribute(
+    "href",
+    /^\/admin\/roles\?user=[0-9a-f-]{36}$/
+  );
+  await match.click();
   const roles = page.getByRole("region", { name: `Roles of ${memberName}` });
   await expect(roles.getByText(`${memberName} has no roles.`)).toBeVisible();
   const memberId = new URL(page.url()).searchParams.get("user");
-  expect(memberId, "the chosen user's id in the URL").toBeTruthy();
+  await expect(page).toHaveURL(`/admin/roles?user=${memberId}`);
+
+  // Confirm a fresh factor and return to the chosen person's roles.
+  const chosenRolesUrl = page.url();
+  const { pathname, search } = new URL(chosenRolesUrl);
+  await page.goto(
+    `/auth/step-up?next=${encodeURIComponent(pathname + search)}`
+  );
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Confirm it's you"
+  );
+  // The first factor used the current step, so submit the next code.
+  await verifyStaffCode(page, secret, 1);
+  await expect(page).toHaveURL(chosenRolesUrl);
 
   // A role at a scope it can't have is refused with a message, no code.
   const grantForm = page.getByRole("region", { name: "Give a role" });
@@ -101,6 +184,9 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   await expect(
     page.getByRole("status").filter({ hasText: "Role given." })
   ).toBeVisible();
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/roles\\?user=${memberId}&done=granted&at=[0-9a-z]+$`)
+  );
   const coordinator = roles
     .getByRole("listitem")
     .filter({ hasText: COORDINATOR });
@@ -141,7 +227,7 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   );
   await expect(granted).toContainText("BeforeNo roles");
   await expect(granted).toContainText(`After${COORDINATOR}`);
-  await expectAccessible(page, "/admin/audit");
+  await expectRendersAccessibly(page, `/admin/audit?person=${memberId}`);
   await expectAccessibleInDark(page, "/admin/audit");
   await expectNoSidewaysScrollAt320(page, "/admin/audit");
 
@@ -151,6 +237,9 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   await expect(
     page.getByRole("status").filter({ hasText: "Role removed." })
   ).toBeVisible();
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/roles\\?user=${memberId}&done=revoked&at=[0-9a-z]+$`)
+  );
   await expect(coordinator).toHaveCount(0);
   await expect(page.locator(":focus")).toContainText("Role removed.");
 
@@ -172,13 +261,86 @@ test("a super admin gives a member a scoped role, sees it in the audit log, then
   ).toBeVisible();
 
   await member.context().close();
+  expect(rolesRequests.some(({ hasSearchText }) => hasSearchText)).toBe(false);
+});
+
+test("a super admin gives a role to a member who signed up by phone", async ({
+  browser,
+  page,
+  request,
+  seedAccount,
+}, testInfo) => {
+  // The member: a fresh account made by SMS code, so it has no email
+  // address. Search finds it by name, so the number's last digits make the
+  // name this test's own.
+  const phone = freshPhone();
+  const memberName = `Ravi Iyer ${phone.slice(-5)}`;
+  const member = await newDevice(browser, testInfo);
+  await signUpByPhone(member, request, phone, memberName);
+  await member.context().close();
+
+  // The second factor just passed is fresh enough for a grant.
+  await signInSuperAdmin(page, request, seedAccount);
+  const rolesRequests = watchRolesRequests(page);
+  await page
+    .getByRole("searchbox", { name: "Name or email address" })
+    .fill(memberName);
+  await page.getByRole("button", { name: "Search" }).click();
+  // Where an email address would be, a note says there isn't one.
+  const found = page
+    .getByRole("region", { name: "People found" })
+    .getByRole("link", { name: memberName });
+  await expect(found).toContainText(NO_EMAIL);
+  await expect(page).toHaveURL(/\/admin\/roles$/);
+  await found.click();
+  const roles = page.getByRole("region", { name: `Roles of ${memberName}` });
+  await expect(roles.getByText(NO_EMAIL)).toBeVisible();
+  await expect(roles.getByText(`${memberName} has no roles.`)).toBeVisible();
+  await expectAccessible(page, "/admin/roles, a member with no email address");
+
+  // Their roles are managed like anyone's.
+  const grantForm = page.getByRole("region", { name: "Give a role" });
+  await grantForm
+    .getByRole("combobox", { name: "Role" })
+    .selectOption("institution_coordinator");
+  await grantForm
+    .getByRole("combobox", { name: "Where it applies" })
+    .selectOption("institution");
+  await grantForm
+    .getByRole("textbox", {
+      name: "Institution, competition or organisation id",
+    })
+    .fill(SCHOOL);
+  await grantForm.getByRole("button", { name: "Give role" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Role given." })
+  ).toBeVisible();
+  await expect(
+    roles.getByRole("listitem").filter({ hasText: COORDINATOR })
+  ).toContainText("by Seed Super Admin");
+  expect(rolesRequests.some(({ hasSearchText }) => hasSearchText)).toBe(false);
 });
 
 test("a member with several roles switches between their areas", async ({
   page,
   request,
+  seedAccount,
 }) => {
-  await signInByCode(page, request, SEED_ACCOUNTS.members[0].email);
+  const memberEmail = await seedAccount({
+    name: SEED_ACCOUNTS.members[0].name,
+    grants: [
+      { role: "content_manager", scope: { type: "global" } },
+      {
+        role: "institution_coordinator",
+        scope: { type: "institution", id: SCHOOL },
+      },
+      {
+        role: "judge",
+        scope: { type: "competition", id: SEED_SCOPES.competition.id },
+      },
+    ],
+  });
+  await signInByCode(page, request, memberEmail);
   await expectRendersAccessibly(page, "/dashboard");
   await expectAccessibleInDark(page, "/dashboard");
   await expectNoSidewaysScrollAt320(page, "/dashboard");
@@ -215,6 +377,29 @@ test("a member with several roles switches between their areas", async ({
         .getByRole("heading", { name, exact: true })
     ).toBeInViewport();
   }
+});
+
+test("staff without a second factor are sent to add one before an admin page", async ({
+  page,
+  request,
+  seedAccount,
+}) => {
+  // #60's staff gate, on the first staff pages: no authenticator yet, so
+  // enrol first, then come back. (Not having passed it in this session is
+  // the first journey's /auth/second-factor redirect.)
+  const staffEmail = await seedAccount({
+    name: "Seed Staff Admin",
+    grants: [{ role: "staff_admin", scope: { type: "global" } }],
+  });
+  await signInByCode(page, request, staffEmail);
+  for (const path of ["/admin/roles", "/admin/audit"]) {
+    await page.goto(path);
+    await expect(page, path).toHaveURL(
+      `/account/security?next=${encodeURIComponent(path)}`
+    );
+    await expect(page.getByRole("search")).toHaveCount(0);
+  }
+  await expectAccessible(page, "/account/security, staff sent to enrol");
 });
 
 test("a visitor who opens an admin page or the dashboard is sent to sign in", async ({

@@ -27,6 +27,7 @@ describe("the competition status machine", () => {
       "published",
       "registration_open",
       "registration_closed",
+      "school_judging",
     ]);
   });
 

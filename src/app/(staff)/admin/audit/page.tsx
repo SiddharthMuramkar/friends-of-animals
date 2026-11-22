@@ -4,6 +4,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import { FormAlert, TextField } from "@/components/form";
 import { ButtonLink, buttonStyles } from "@/components/site/button-link";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
@@ -79,7 +80,10 @@ async function search(
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   try {
-    return await as(actor).searchAuditLog(searchInput(filters));
+    return await orSecondFactor(
+      () => as(actor).searchAuditLog(searchInput(filters)),
+      auditHref(filters)
+    );
   } catch (error) {
     if (isRefusal(error)) return undefined;
     throw error;

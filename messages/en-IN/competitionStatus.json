@@ -2,15 +2,18 @@
   "competitionStatus": {
     "label": {
       "draft": "Draft",
-      "published": "Upcoming",
+      "published": "Published",
       "registration_open": "Registration open",
-      "registration_closed": "Registration closed"
+      "registration_closed": "Registration closed",
+      "school_judging": "School judging"
     },
     "countdown": {
       "opens": "Registration opens {at} ({relative})",
       "opensDue": "Registration opening shortly",
       "closes": "Registration closes {at} ({relative})",
-      "closesDue": "Registration closing shortly"
+      "closesDue": "Registration closing shortly",
+      "entriesClose": "Entries close {at} ({relative})",
+      "entriesCloseDue": "Entries have closed; judging starts shortly"
     }
   }
 }

@@ -38,16 +38,16 @@ export function auditHref(filters: AuditFilters): string {
   return search ? `${APP_ROUTES.adminAudit}?${search}` : APP_ROUTES.adminAudit;
 }
 
-/**
- * The form fields an invalid search names, and whether the page link (the
- * cursor or size, which only links write) was broken.
- */
 /** The filters as the search takes them; it checks every value. */
 export function searchInput(filters: AuditFilters): SearchAuditLogInput {
   const { limit, ...rest } = filters;
   return limit === undefined ? rest : { ...rest, limit: Number(limit) };
 }
 
+/**
+ * The form fields an invalid search names, and whether the page link (the
+ * cursor or size, which only links write) was broken.
+ */
 export function fieldsAtFault(fields: readonly string[]): {
   fields: AuditField[];
   badPage: boolean;

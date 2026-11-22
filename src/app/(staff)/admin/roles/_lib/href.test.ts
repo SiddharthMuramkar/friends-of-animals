@@ -9,10 +9,13 @@ describe("rolesHref", () => {
     expect(rolesHref({})).toBe("/admin/roles");
   });
 
-  it("keeps the search and the chosen user, encoded", () => {
-    expect(rolesHref({ q: "asha rao&co", user: USER })).toBe(
-      `/admin/roles?q=asha+rao%26co&user=${USER}`
-    );
+  it("names the chosen user by id only", () => {
+    expect(rolesHref({ user: USER })).toBe(`/admin/roles?user=${USER}`);
+  });
+
+  it("never carries search text, which is personal data", () => {
+    const params = { q: "asha@example.test", user: USER } as never;
+    expect(rolesHref(params)).toBe(`/admin/roles?user=${USER}`);
   });
 
   it("adds what just happened, with a token so a repeat is announced", () => {
@@ -23,21 +26,20 @@ describe("rolesHref", () => {
 });
 
 describe("readRolesParams", () => {
-  it("reads the search, the user and what happened", () => {
+  it("reads the user and what happened, and ignores search text", () => {
     expect(
       readRolesParams({ q: "asha", user: USER, done: "revoked", at: "k3x" })
-    ).toEqual({ q: "asha", user: USER, done: "revoked", at: "k3x" });
+    ).toEqual({ user: USER, done: "revoked", at: "k3x" });
   });
 
   it("takes the first of repeated params and drops unknown outcomes", () => {
     expect(
-      readRolesParams({ q: ["asha", "ravi"], done: "deleted", user: [] })
-    ).toEqual({ q: "asha" });
+      readRolesParams({ user: [USER, "x"], done: "deleted", at: [] })
+    ).toEqual({ user: USER });
   });
 
   it("round-trips through rolesHref", () => {
     const params = {
-      q: "ravi",
       user: USER,
       done: "unchanged",
       at: "1",

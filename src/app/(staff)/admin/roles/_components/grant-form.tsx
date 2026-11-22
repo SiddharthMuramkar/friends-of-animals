@@ -29,14 +29,11 @@ export type GrantFormLabels = {
  */
 export function GrantForm({
   userId,
-  query,
   roles,
   scopes,
   labels,
 }: {
   userId: string;
-  /** The search, kept in the URL after the grant. */
-  query: string;
   roles: Option[];
   scopes: Option[];
   labels: GrantFormLabels;
@@ -45,13 +42,17 @@ export function GrantForm({
   return (
     <form action={formAction} noValidate className="flex flex-col gap-5">
       <input type="hidden" name="userId" value={userId} />
-      <input type="hidden" name="q" value={query} />
       {view.alert ? (
         <FormAlert tone="danger" label={labels.problem}>
           <p>{view.alert}</p>
         </FormAlert>
       ) : null}
+      {/* React resets the form once the action returns, and a select goes
+          back to the option it mounted with (a text field takes its new
+          defaultValue). Keyed on what was entered, a select mounts again
+          with it, so a refusal keeps the choice. */}
       <SelectField
+        key={`role:${view.values.role}`}
         id="grant-role"
         name="role"
         required
@@ -62,6 +63,7 @@ export function GrantForm({
         error={view.errors.role}
       />
       <SelectField
+        key={`scopeType:${view.values.scopeType}`}
         id="grant-scope-type"
         name="scopeType"
         required

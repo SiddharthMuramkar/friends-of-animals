@@ -13,12 +13,10 @@ import { EMPTY_ROLE_FORM } from "../_lib/form-view";
  */
 export function RevokeForm({
   userId,
-  query,
   grant,
   labels,
 }: {
   userId: string;
-  query: string;
   grant: { role: string; scopeType: string; scopeId: string };
   labels: {
     submit: string;
@@ -32,7 +30,6 @@ export function RevokeForm({
   return (
     <form action={formAction} className="flex flex-col gap-3">
       <input type="hidden" name="userId" value={userId} />
-      <input type="hidden" name="q" value={query} />
       <input type="hidden" name="role" value={grant.role} />
       <input type="hidden" name="scopeType" value={grant.scopeType} />
       <input type="hidden" name="scopeId" value={grant.scopeId} />

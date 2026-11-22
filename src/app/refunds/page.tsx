@@ -8,7 +8,7 @@ import { ContactFact } from "@/components/site/contact-fact";
 import { Section } from "@/components/site/section";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { isFactShown, showsPlaceholders, SITE } from "@/lib/site";
 
 import { PolicyBlock, PolicyTop, Tbc } from "../pricing/_components/policy";
 
@@ -43,16 +43,16 @@ export default async function Page() {
         items={SHORT.map((k) => t(`short.items.${k}`))}
       />
       <Section innerClassName="[&>*]:max-w-3xl">
-        <div className="grid gap-12">
+        <div className="grid grid-cols-1 gap-12">
           <PolicyBlock id="automatic" title={t("automatic.title")}>
-            <ul className="grid gap-3">
+            <ul className="grid grid-cols-1 gap-3">
               {AUTO.map((k) => (
                 <li key={k} className="flex items-start gap-3">
                   <CircleCheck
                     aria-hidden="true"
                     className="mt-0.5 size-5 shrink-0 text-green-700 dark:text-green-300"
                   />
-                  <span>{t(`automatic.items.${k}`)}</span>
+                  <span className="min-w-0">{t(`automatic.items.${k}`)}</span>
                 </li>
               ))}
             </ul>
@@ -62,14 +62,14 @@ export default async function Page() {
             <p className="text-ink-muted">{t("discretionary.late")}</p>
           </PolicyBlock>
           <PolicyBlock id="not-refunded" title={t("never.title")}>
-            <ul className="grid gap-3">
+            <ul className="grid grid-cols-1 gap-3">
               {NEVER.map((k) => (
                 <li key={k} className="flex items-start gap-3">
                   <CircleX
                     aria-hidden="true"
                     className="mt-0.5 size-5 shrink-0 text-red-700 dark:text-red-300"
                   />
-                  <span>{t(`never.items.${k}`)}</span>
+                  <span className="min-w-0">{t(`never.items.${k}`)}</span>
                 </li>
               ))}
             </ul>
@@ -80,22 +80,26 @@ export default async function Page() {
           </PolicyBlock>
           <PolicyBlock id="timing" title={t("timing.title")}>
             <p>{t("timing.body")}</p>
-            <p>
-              <Tbc label={t("timing.time")} />
-            </p>
+            {showsPlaceholders() ? (
+              <p>
+                <Tbc label={t("timing.time")} />
+              </p>
+            ) : null}
           </PolicyBlock>
           <section
             aria-labelledby="ask"
-            className="rounded-3xl border-2 border-border bg-surface p-6 shadow-warm sm:p-8"
+            className="rounded-3xl border-2 border-border bg-surface px-4 py-6 shadow-warm sm:p-8"
           >
             <h2 id="ask" className="text-h3">
               {t("ask.title")}
             </h2>
             <p className="mt-3">{t("ask.body")}</p>
-            <p className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="font-semibold">{t("ask.email")}</span>
-              <ContactFact kind="email" fact={SITE.org.email} />
-            </p>
+            {isFactShown(SITE.org.email) ? (
+              <p className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="font-semibold">{t("ask.email")}</span>
+                <ContactFact kind="email" fact={SITE.org.email} />
+              </p>
+            ) : null}
             <ButtonLink href={ROUTES.contact.path} className="mt-6">
               {t("ask.link")}
             </ButtonLink>

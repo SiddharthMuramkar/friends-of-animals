@@ -13,6 +13,7 @@ export const COMPETITION_STATUSES = [
   "published",
   "registration_open",
   "registration_closed",
+  "school_judging",
 ] as const;
 
 export type CompetitionStatus = (typeof COMPETITION_STATUSES)[number];
@@ -36,6 +37,7 @@ const TRANSITIONS: {
   published: { registration_open: "schedule" },
   registration_open: { registration_closed: "schedule" },
   registration_closed: {},
+  school_judging: {},
 };
 
 /** Who may move a competition from `from` to `to`, or null if nobody may. */

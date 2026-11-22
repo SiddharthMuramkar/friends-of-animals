@@ -12,13 +12,16 @@
       "label": "Name or email address",
       "hint": "Part of their name, or the start of their email address: at least 2 letters.",
       "submit": "Search",
+      "pending": "Searching…",
       "tooShort": "Type at least 2 letters.",
       "results": "People found",
       "none": "Nobody's name or email address matches “{query}”.",
-      "selected": "Chosen"
+      "selected": "Chosen",
+      "forbidden": "Only staff who manage access can search for people."
     },
     "user": {
       "title": "Roles of {name}",
+      "noEmail": "No email address: signs in with a mobile number",
       "notFound": "We couldn't find that person. Their account may have been deleted. Search again.",
       "none": "{name} has no roles. Everyone who is signed in can use the member pages.",
       "grantedAt": "Given {date}",

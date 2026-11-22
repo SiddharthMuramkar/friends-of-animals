@@ -63,6 +63,11 @@ describe("grantRole", () => {
       scope: { type: "global" },
     });
 
+    // A staff role needs a second factor before it acts (#60).
+    await expect(grantJudge()).rejects.toMatchObject({
+      code: "enrolment_required",
+    });
+    await h.passSecondFactor(memberActor);
     expect(await grantJudge()).toMatchObject({ ok: true, changed: true });
   });
 

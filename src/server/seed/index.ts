@@ -10,8 +10,15 @@
 import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
 import { seedCompetitions } from "./competitions";
+import { seedCms } from "./cms";
+import { seedConsent } from "./consent";
+import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
+import { seedInstitutions } from "./institutions";
+import { seedNotifications } from "./notifications";
+import { seedSecondFactor } from "./second-factor";
+import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
 
 export type { SeedDeps, Seeder } from "./types";
@@ -26,6 +33,13 @@ const seeders: readonly Seeder[] = [
   seedAccess,
   seedCompetitions,
   seedJudging,
+  seedConsent,
+  seedFiles,
+  seedSecondFactor,
+  seedSettings,
+  seedInstitutions,
+  seedNotifications,
+  seedCms,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);

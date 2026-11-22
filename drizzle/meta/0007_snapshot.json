@@ -1,6 +1,6 @@
 {
-  "id": "5b214bd0-70b3-441a-95df-a96f2f596b6a",
-  "prevId": "9053cd04-1431-45fd-9986-a549322c911c",
+  "id": "94e474b5-fe74-496b-a88c-4d0ac55d7589",
+  "prevId": "d2395a81-9e2f-4a5c-966e-453801958553",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -306,10 +306,29 @@
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "email_verified": {
           "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "phone_ciphertext": {
+          "name": "phone_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_hash": {
+          "name": "phone_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_verified": {
+          "name": "phone_verified",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
@@ -344,6 +363,13 @@
           "columns": [
             "email"
           ]
+        },
+        "user_phone_hash_unique": {
+          "name": "user_phone_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "phone_hash"
+          ]
         }
       },
       "policies": {},
@@ -351,6 +377,14 @@
         "user_email_normalised": {
           "name": "user_email_normalised",
           "value": "\"user\".\"email\" = lower(\"user\".\"email\") AND \"user\".\"email\" !~ '[[:space:][:cntrl:]\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]'"
+        },
+        "user_email_or_phone": {
+          "name": "user_email_or_phone",
+          "value": "\"user\".\"email\" IS NOT NULL OR \"user\".\"phone_hash\" IS NOT NULL"
+        },
+        "user_phone_complete": {
+          "name": "user_phone_complete",
+          "value": "(\"user\".\"phone_ciphertext\" IS NULL) = (\"user\".\"phone_hash\" IS NULL)"
         }
       },
       "isRLSEnabled": false
@@ -496,167 +530,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.outbox": {
-      "name": "outbox",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "event_type": {
-          "name": "event_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "aggregate_type": {
-          "name": "aggregate_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "aggregate_id": {
-          "name": "aggregate_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "handler": {
-          "name": "handler",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "available_at": {
-          "name": "available_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "locked_until": {
-          "name": "locked_until",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "outbox_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "dispatched_at": {
-          "name": "dispatched_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "failed_at": {
-          "name": "failed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "outbox_pending_available_at_idx": {
-          "name": "outbox_pending_available_at_idx",
-          "columns": [
-            {
-              "expression": "available_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"outbox\".\"status\" = 'pending'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "outbox_failed_failed_at_idx": {
-          "name": "outbox_failed_failed_at_idx",
-          "columns": [
-            {
-              "expression": "failed_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"outbox\".\"status\" = 'failed'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "outbox_event_id_handler_key": {
-          "name": "outbox_event_id_handler_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "event_id",
-            "handler"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "outbox_attempts_not_negative": {
-          "name": "outbox_attempts_not_negative",
-          "value": "\"outbox\".\"attempts\" >= 0"
-        },
-        "outbox_dispatched_at_when_dispatched": {
-          "name": "outbox_dispatched_at_when_dispatched",
-          "value": "(\"outbox\".\"status\" = 'dispatched') = (\"outbox\".\"dispatched_at\" IS NOT NULL)"
-        },
-        "outbox_failed_at_when_failed": {
-          "name": "outbox_failed_at_when_failed",
-          "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.user_role": {
@@ -962,8 +835,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.competition": {
-      "name": "competition",
+    "public.outbox": {
+      "name": "outbox",
       "schema": "",
       "columns": {
         "id": {
@@ -972,803 +845,195 @@
           "primaryKey": true,
           "notNull": true
         },
-        "code": {
-          "name": "code",
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_type": {
+          "name": "event_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "slug": {
-          "name": "slug",
+        "aggregate_type": {
+          "name": "aggregate_type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
+        "aggregate_id": {
+          "name": "aggregate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "handler": {
+          "name": "handler",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "theme": {
-          "name": "theme",
-          "type": "text",
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "available_at": {
+          "name": "available_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "welfare_message": {
-          "name": "welfare_message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rules": {
-          "name": "rules",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "permitted_materials": {
-          "name": "permitted_materials",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "duration": {
-          "name": "duration",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "participation": {
-          "name": "participation",
-          "type": "competition_participation",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "disciplines": {
-          "name": "disciplines",
-          "type": "competition_discipline[]",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'"
-        },
-        "age_cutoff_date": {
-          "name": "age_cutoff_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "digital_scope": {
-          "name": "digital_scope",
-          "type": "competition_digital_scope",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'all_participants'"
-        },
-        "shortlist_per_category": {
-          "name": "shortlist_per_category",
+        "attempts": {
+          "name": "attempts",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 5
+          "default": 0
         },
-        "school_positions": {
-          "name": "school_positions",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 3
-        },
-        "physical_artwork": {
-          "name": "physical_artwork",
-          "type": "competition_physical_artwork",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'all_shortlisted'"
-        },
-        "physical_artwork_top_n": {
-          "name": "physical_artwork_top_n",
-          "type": "integer",
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "public_display": {
-          "name": "public_display",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "auction_permitted": {
-          "name": "auction_permitted",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "status": {
           "name": "status",
-          "type": "competition_status",
+          "type": "outbox_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'draft'"
+          "default": "'pending'"
         },
-        "published_at": {
-          "name": "published_at",
+        "dispatched_at": {
+          "name": "dispatched_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
+        "failed_at": {
+          "name": "failed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
         }
       },
       "indexes": {
-        "competition_status_idx": {
-          "name": "competition_status_idx",
+        "outbox_pending_available_at_idx": {
+          "name": "outbox_pending_available_at_idx",
           "columns": [
             {
-              "expression": "status",
+              "expression": "available_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
+          "where": "\"outbox\".\"status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "competition_created_by_user_id_idx": {
-          "name": "competition_created_by_user_id_idx",
+        "outbox_failed_failed_at_idx": {
+          "name": "outbox_failed_failed_at_idx",
           "columns": [
             {
-              "expression": "created_by_user_id",
+              "expression": "failed_at",
               "isExpression": false,
-              "asc": true,
+              "asc": false,
               "nulls": "last"
             }
           ],
           "isUnique": false,
+          "where": "\"outbox\".\"status\" = 'failed'",
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
-      "foreignKeys": {
-        "competition_created_by_user_id_user_id_fk": {
-          "name": "competition_created_by_user_id_user_id_fk",
-          "tableFrom": "competition",
-          "tableTo": "user",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "competition_code_unique": {
-          "name": "competition_code_unique",
+        "outbox_event_id_handler_key": {
+          "name": "outbox_event_id_handler_key",
           "nullsNotDistinct": false,
           "columns": [
-            "code"
-          ]
-        },
-        "competition_slug_unique": {
-          "name": "competition_slug_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "slug"
+            "event_id",
+            "handler"
           ]
         }
       },
       "policies": {},
       "checkConstraints": {
-        "competition_code_format": {
-          "name": "competition_code_format",
-          "value": "\"competition\".\"code\" ~ '^[A-Z]{3,6}[0-9]{2}$'"
+        "outbox_attempts_not_negative": {
+          "name": "outbox_attempts_not_negative",
+          "value": "\"outbox\".\"attempts\" >= 0"
         },
-        "competition_slug_format": {
-          "name": "competition_slug_format",
-          "value": "\"competition\".\"slug\" ~ '^[a-z0-9-]{3,80}$'"
+        "outbox_dispatched_at_when_dispatched": {
+          "name": "outbox_dispatched_at_when_dispatched",
+          "value": "(\"outbox\".\"status\" = 'dispatched') = (\"outbox\".\"dispatched_at\" IS NOT NULL)"
         },
-        "competition_physical_artwork_top_n": {
-          "name": "competition_physical_artwork_top_n",
-          "value": "(\"competition\".\"physical_artwork\" = 'top_n') = (\"competition\".\"physical_artwork_top_n\" IS NOT NULL)"
-        },
-        "competition_counts_not_negative": {
-          "name": "competition_counts_not_negative",
-          "value": "\"competition\".\"shortlist_per_category\" >= 0 AND \"competition\".\"school_positions\" >= 0"
-        },
-        "competition_published_at_matches_status": {
-          "name": "competition_published_at_matches_status",
-          "value": "(\"competition\".\"status\" = 'draft') = (\"competition\".\"published_at\" IS NULL)"
+        "outbox_failed_at_when_failed": {
+          "name": "outbox_failed_at_when_failed",
+          "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
     },
-    "public.competition_age_group": {
-      "name": "competition_age_group",
+    "public.worker_heartbeat": {
+      "name": "worker_heartbeat",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
+        "worker": {
+          "name": "worker",
+          "type": "text",
           "primaryKey": true,
           "notNull": true
         },
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
+        "environment": {
+          "name": "environment",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "min_age": {
-          "name": "min_age",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "max_age": {
-          "name": "max_age",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "competition_age_group_label_unique": {
-          "name": "competition_age_group_label_unique",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "lower(\"label\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "competition_age_group_competition_id_competition_id_fk": {
-          "name": "competition_age_group_competition_id_competition_id_fk",
-          "tableFrom": "competition_age_group",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "competition_age_group_position_unique": {
-          "name": "competition_age_group_position_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "competition_id",
-            "position"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "competition_age_group_ages_not_negative": {
-          "name": "competition_age_group_ages_not_negative",
-          "value": "\"competition_age_group\".\"min_age\" >= 0 AND \"competition_age_group\".\"max_age\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.competition_category": {
-      "name": "competition_category",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "discipline": {
-          "name": "discipline",
-          "type": "competition_discipline",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "age_group_id": {
-          "name": "age_group_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "competition_category_age_group_id_idx": {
-          "name": "competition_category_age_group_id_idx",
-          "columns": [
-            {
-              "expression": "age_group_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "competition_category_competition_id_competition_id_fk": {
-          "name": "competition_category_competition_id_competition_id_fk",
-          "tableFrom": "competition_category",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "competition_category_age_group_id_competition_age_group_id_fk": {
-          "name": "competition_category_age_group_id_competition_age_group_id_fk",
-          "tableFrom": "competition_category",
-          "tableTo": "competition_age_group",
-          "columnsFrom": [
-            "age_group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "competition_category_unique": {
-          "name": "competition_category_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "competition_id",
-            "discipline",
-            "age_group_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.competition_key_date": {
-      "name": "competition_key_date",
-      "schema": "",
-      "columns": {
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "competition_key_date_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "at": {
-          "name": "at",
+        "last_seen_at": {
+          "name": "last_seen_at",
           "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "competition_key_date_competition_id_competition_id_fk": {
-          "name": "competition_key_date_competition_id_competition_id_fk",
-          "tableFrom": "competition_key_date",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "competition_key_date_competition_id_kind_pk": {
-          "name": "competition_key_date_competition_id_kind_pk",
-          "columns": [
-            "competition_id",
-            "kind"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.rubric": {
-      "name": "rubric",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "discipline": {
-          "name": "discipline",
-          "type": "competition_discipline",
-          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
         "version": {
           "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "rubric_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "published_by_user_id": {
-          "name": "published_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "rubric_one_draft_per_discipline": {
-          "name": "rubric_one_draft_per_discipline",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "discipline",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"rubric\".\"status\" = 'draft'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "rubric_one_published_per_discipline": {
-          "name": "rubric_one_published_per_discipline",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "discipline",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"rubric\".\"status\" = 'published'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "rubric_created_by_user_id_idx": {
-          "name": "rubric_created_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "created_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "rubric_published_by_user_id_idx": {
-          "name": "rubric_published_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "published_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "rubric_competition_id_competition_id_fk": {
-          "name": "rubric_competition_id_competition_id_fk",
-          "tableFrom": "rubric",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "rubric_created_by_user_id_user_id_fk": {
-          "name": "rubric_created_by_user_id_user_id_fk",
-          "tableFrom": "rubric",
-          "tableTo": "user",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "rubric_published_by_user_id_user_id_fk": {
-          "name": "rubric_published_by_user_id_user_id_fk",
-          "tableFrom": "rubric",
-          "tableTo": "user",
-          "columnsFrom": [
-            "published_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "rubric_version_unique": {
-          "name": "rubric_version_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "competition_id",
-            "discipline",
-            "version"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "rubric_version_positive": {
-          "name": "rubric_version_positive",
-          "value": "\"rubric\".\"version\" >= 1"
-        },
-        "rubric_published_at_matches_status": {
-          "name": "rubric_published_at_matches_status",
-          "value": "(\"rubric\".\"status\" = 'draft') = (\"rubric\".\"published_at\" IS NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.rubric_criterion": {
-      "name": "rubric_criterion",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "rubric_id": {
-          "name": "rubric_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
           "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "weight": {
-          "name": "weight",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "min_score": {
-          "name": "min_score",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "max_score": {
-          "name": "max_score",
-          "type": "integer",
           "primaryKey": false,
           "notNull": true
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "rubric_criterion_rubric_id_rubric_id_fk": {
-          "name": "rubric_criterion_rubric_id_rubric_id_fk",
-          "tableFrom": "rubric_criterion",
-          "tableTo": "rubric",
-          "columnsFrom": [
-            "rubric_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "rubric_criterion_position_unique": {
-          "name": "rubric_criterion_position_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "rubric_id",
-            "position"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "rubric_criterion_position": {
-          "name": "rubric_criterion_position",
-          "value": "\"rubric_criterion\".\"position\" >= 0"
-        },
-        "rubric_criterion_label": {
-          "name": "rubric_criterion_label",
-          "value": "char_length(\"rubric_criterion\".\"label\") BETWEEN 1 AND 120"
-        },
-        "rubric_criterion_description": {
-          "name": "rubric_criterion_description",
-          "value": "char_length(\"rubric_criterion\".\"description\") <= 600"
-        },
-        "rubric_criterion_weight": {
-          "name": "rubric_criterion_weight",
-          "value": "\"rubric_criterion\".\"weight\" BETWEEN 1 AND 100"
-        },
-        "rubric_criterion_scores": {
-          "name": "rubric_criterion_scores",
-          "value": "\"rubric_criterion\".\"min_score\" >= 0 AND \"rubric_criterion\".\"max_score\" <= 100 AND \"rubric_criterion\".\"min_score\" < \"rubric_criterion\".\"max_score\""
+        "worker_heartbeat_environment_known": {
+          "name": "worker_heartbeat_environment_known",
+          "value": "\"worker_heartbeat\".\"environment\" IN ('local', 'preview', 'staging', 'production')"
         }
       },
       "isRLSEnabled": false
@@ -1781,15 +1046,6 @@
       "values": [
         "email",
         "sms"
-      ]
-    },
-    "public.outbox_status": {
-      "name": "outbox_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "dispatched",
-        "failed"
       ]
     },
     "public.role": {
@@ -1833,71 +1089,13 @@
         "system"
       ]
     },
-    "public.competition_digital_scope": {
-      "name": "competition_digital_scope",
+    "public.outbox_status": {
+      "name": "outbox_status",
       "schema": "public",
       "values": [
-        "all_participants",
-        "shortlist_only"
-      ]
-    },
-    "public.competition_discipline": {
-      "name": "competition_discipline",
-      "schema": "public",
-      "values": [
-        "drawing",
-        "painting",
-        "art",
-        "craft",
-        "essay",
-        "photography",
-        "videography"
-      ]
-    },
-    "public.competition_key_date_kind": {
-      "name": "competition_key_date_kind",
-      "schema": "public",
-      "values": [
-        "registration_opens",
-        "registration_closes",
-        "submissions_close",
-        "school_round_closes"
-      ]
-    },
-    "public.competition_participation": {
-      "name": "competition_participation",
-      "schema": "public",
-      "values": [
-        "individuals",
-        "institutions",
-        "both"
-      ]
-    },
-    "public.competition_physical_artwork": {
-      "name": "competition_physical_artwork",
-      "schema": "public",
-      "values": [
-        "not_required",
-        "all_shortlisted",
-        "top_n"
-      ]
-    },
-    "public.competition_status": {
-      "name": "competition_status",
-      "schema": "public",
-      "values": [
-        "draft",
-        "published",
-        "school_judging"
-      ]
-    },
-    "public.rubric_status": {
-      "name": "rubric_status",
-      "schema": "public",
-      "values": [
-        "draft",
-        "published",
-        "superseded"
+        "pending",
+        "dispatched",
+        "failed"
       ]
     }
   },
