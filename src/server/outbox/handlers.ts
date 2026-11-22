@@ -14,10 +14,13 @@
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
 import { dispatchEvent } from "../modules/notifications/dispatch";
+import { scanUploadedFile } from "../modules/files/scan-handler";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
+import type { MalwareScanner } from "../ports/malware-scanner";
 import type { Settings } from "../ports/settings";
 import type { SmsSender } from "../ports/sms";
+import type { ObjectStorage } from "../ports/storage";
 import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
@@ -30,6 +33,8 @@ export type OutboxDeps = {
   settings: Settings;
   /** Reads a recipient's stored phone number. */
   cipher: FieldCipher;
+  storage: ObjectStorage;
+  scanner: MalwareScanner;
 };
 
 /** The event a handler listens to, from SUBSCRIBERS. */
@@ -61,6 +66,7 @@ type Handlers = {
 export const HANDLERS: Handlers = {
   // Sends the messages the event's route rows name (#69).
   "notifications.dispatch": dispatchEvent,
+  "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

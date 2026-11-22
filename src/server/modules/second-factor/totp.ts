@@ -7,7 +7,7 @@
 //
 // Loads under plain Node: relative imports only.
 
-import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, gte, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -17,7 +17,7 @@ import { recordAudit } from "../../audit/record";
 import { secondFactor, user, type SecondFactorKind } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
-import type { UseCaseContext } from "../../use-cases";
+import { accountName } from "./account-name";
 import { guardedAttempt, type Locked } from "./attempts";
 import { base32Encode } from "./domain/base32";
 import {
@@ -26,48 +26,29 @@ import {
   TOTP,
   verifyTotp,
 } from "./domain/totp";
-import { openTotpSecret, sealTotpSecret } from "./secret-box";
-import { DomainError } from "../../errors";
-import { secondFactorRefusal } from "./requirement";
 import {
-  isEnrolled,
+  authorizeEnrolment,
+  dropPendingAuthenticators,
+  factorLabel,
+  type SecondFactorContext,
+} from "./enrolment";
+import { openTotpSecret, sealTotpSecret } from "./secret-box";
+import {
+  lockFactorSession,
   secondFactorStatus,
   signedInUser,
   stampSession,
-  type SignedInUser,
 } from "./session-factor";
 import { SECOND_FACTOR_SETTINGS } from "./settings";
 
-export type SecondFactorContext = Pick<
-  UseCaseContext,
-  "db" | "clock" | "actor" | "auth"
->;
-
-const label = z.string().trim().min(1).max(60);
 const code = z
   .string()
   .transform((typed) => typed.replace(/\s+/g, ""))
   .pipe(z.string().regex(new RegExp(`^\\d{${TOTP.digits}}$`)));
 
-const startInput = z.object({ label });
+const startInput = z.object({ label: factorLabel });
 const confirmInput = z.object({ factorId: z.uuid(), code });
 const verifyInput = z.object({ code });
-
-/**
- * A first factor needs only a signed-in session. Once one exists, adding
- * another needs a fresh second factor: otherwise anyone who got into the
- * mailbox could sign in with an email code and add their own.
- */
-export async function requireStepUpOnceEnrolled(
-  ctx: SecondFactorContext,
-  actor: SignedInUser
-): Promise<void> {
-  if (!(await isEnrolled(ctx.db, actor.userId))) return;
-  const refusal = await secondFactorRefusal(ctx, actor, "step-up", []);
-  if (refusal) {
-    throw new DomainError(refusal, "Adding a factor needs a fresh one");
-  }
-}
 
 export type StartTotpEnrolmentResult =
   | {
@@ -82,7 +63,8 @@ export type StartTotpEnrolmentResult =
 
 /**
  * Makes a new authenticator secret for the signed-in user, pending until
- * its first code confirms it. Starting again replaces a pending one.
+ * its first code confirms it, for 10 minutes at most. Starting again
+ * replaces a pending one.
  */
 export async function startTotpEnrolment(
   ctx: SecondFactorContext,
@@ -92,21 +74,13 @@ export async function startTotpEnrolment(
   const actor = signedInUser(ctx.actor);
   const parsed = startInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  await requireStepUpOnceEnrolled(ctx, actor);
 
-  const now = ctx.clock.now();
-  const factorId = uuidv7(now);
-  const secret = generateTotpSecret();
-  const account = await ctx.db.transaction(async (tx) => {
-    await tx
-      .delete(secondFactor)
-      .where(
-        and(
-          eq(secondFactor.userId, actor.userId),
-          eq(secondFactor.kind, "totp"),
-          isNull(secondFactor.confirmedAt)
-        )
-      );
+  return ctx.db.transaction(async (tx) => {
+    await authorizeEnrolment(tx, ctx, actor);
+    const now = ctx.clock.now();
+    const factorId = uuidv7(now);
+    const secret = generateTotpSecret();
+    await dropPendingAuthenticators(tx, actor.userId);
     await tx.insert(secondFactor).values({
       id: factorId,
       userId: actor.userId,
@@ -115,25 +89,22 @@ export async function startTotpEnrolment(
       totpSecretSealed: sealTotpSecret(ctx.auth.secret, factorId, secret),
       createdAt: now,
     });
-    const [row] = await tx
-      .select({ email: user.email, name: user.name })
+    const [account] = await tx
+      .select({ email: user.email, phoneCiphertext: user.phoneCiphertext })
       .from(user)
       .where(eq(user.id, actor.userId));
-    return row;
+    if (!account) throw new Error("The signed-in user has no account row");
+    return {
+      ok: true,
+      factorId,
+      secret: base32Encode(secret),
+      uri: otpauthUri({
+        issuer: SECOND_FACTOR_SETTINGS.issuer,
+        account: accountName(ctx, account),
+        secret,
+      }),
+    } as const;
   });
-  if (!account) throw new Error("The signed-in user has no account row");
-
-  return {
-    ok: true,
-    factorId,
-    secret: base32Encode(secret),
-    uri: otpauthUri({
-      issuer: SECOND_FACTOR_SETTINGS.issuer,
-      // An account made by phone has no address (#58): its name instead.
-      account: account.email ?? account.name,
-      secret,
-    }),
-  };
 }
 
 export type ConfirmTotpEnrolmentResult =
@@ -143,7 +114,8 @@ export type ConfirmTotpEnrolmentResult =
 
 /**
  * Confirms a pending authenticator with its first code. It then counts as
- * a factor, and this session has passed it.
+ * a factor, and this session has passed it. If the user holds another
+ * factor by now, this needs step-up, however adding started.
  */
 export async function confirmTotpEnrolment(
   ctx: SecondFactorContext,
@@ -153,9 +125,14 @@ export async function confirmTotpEnrolment(
   const actor = signedInUser(ctx.actor);
   const parsed = confirmInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const now = ctx.clock.now();
-
   return ctx.db.transaction(async (tx) => {
+    await authorizeEnrolment(tx, ctx, actor);
+    const now = ctx.clock.now();
+    const startedSince = new Date(
+      now.getTime() - SECOND_FACTOR_SETTINGS.totpEnrolmentMs
+    );
+    // A pending factor lapses 10 minutes after it was started, and then
+    // reads as "not found", as if replaced.
     const [pending] = await tx
       .select({
         id: secondFactor.id,
@@ -168,7 +145,8 @@ export async function confirmTotpEnrolment(
           eq(secondFactor.id, parsed.data.factorId),
           eq(secondFactor.userId, actor.userId),
           eq(secondFactor.kind, "totp"),
-          isNull(secondFactor.confirmedAt)
+          isNull(secondFactor.confirmedAt),
+          gte(secondFactor.createdAt, startedSince)
         )
       )
       .for("update");
@@ -186,6 +164,7 @@ export async function confirmTotpEnrolment(
       .update(secondFactor)
       .set({ confirmedAt: now, totpLastUsedStep: check.step })
       .where(eq(secondFactor.id, pending.id));
+    await dropPendingAuthenticators(tx, actor.userId);
     await stampSession(tx, actor.sessionId, now, "totp");
     await recordAudit(tx, ctx, {
       action: "second_factor.enrolled",
@@ -217,9 +196,9 @@ export async function verifySecondFactor(
   const actor = signedInUser(ctx.actor);
   const parsed = verifyInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const now = ctx.clock.now();
-
   return ctx.db.transaction(async (tx) => {
+    await lockFactorSession(tx, actor, ctx.clock);
+    const now = ctx.clock.now();
     const factors = await tx
       .select({
         id: secondFactor.id,

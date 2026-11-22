@@ -178,7 +178,7 @@ describe("afterVerify", () => {
   });
 });
 
-describe("the messages consent box (#64)", () => {
+describe("the messages consent box", () => {
   const ticked = {
     ...asha,
     messagesConsent: "01938a00-0000-7000-8000-000000000c01",

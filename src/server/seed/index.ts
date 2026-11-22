@@ -10,10 +10,11 @@
 import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
 import { seedConsent } from "./consent";
+import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
 import { seedNotifications } from "./notifications";
-import { seedSettings } from "./settings";
 import { seedSecondFactor } from "./second-factor";
+import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
 
 export type { SeedDeps, Seeder } from "./types";
@@ -26,9 +27,10 @@ const seeders: readonly Seeder[] = [
   seedIdentity,
   seedAccess,
   seedConsent,
+  seedFiles,
+  seedSecondFactor,
   seedSettings,
   seedNotifications,
-  seedSecondFactor,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);

@@ -1,6 +1,6 @@
 // Puts the worker together for its mode, over injected I/O (./main.ts
-// supplies postgres.js, pg-boss, the system clock and the heartbeat file;
-// tests supply PGlite and fakes).
+// supplies postgres.js, pg-boss, the system clock, the heartbeat file, R2
+// and clamd; tests supply PGlite and fakes).
 //
 // - single (production, staging, local): one database, drained every poll;
 //   the SCHEDULES registry runs on pg-boss in the same database.
@@ -13,11 +13,14 @@ import type { FieldCipher } from "../server/crypto/field-cipher";
 import { fieldCryptoFor } from "../server/crypto/keys";
 import type { AppDb } from "../server/db/app-db";
 import { withDatabase } from "../server/db/database-url";
-import { storedSettings } from "../server/modules/settings/stored";
+import { databaseSettings } from "../server/modules/settings/read";
 import { SCHEDULES, type OutboxDeps } from "../server/outbox";
 import type { Clock } from "../server/ports/clock";
 import { emailSenderFor } from "../server/ports/email-sender-for";
+import type { ErrorReporter } from "../server/ports/errors";
+import type { MalwareScanner } from "../server/ports/malware-scanner";
 import { smsSenderFor } from "../server/ports/sms-sender-for";
+import type { ObjectStorage } from "../server/ports/storage";
 import type { WorkerConfig } from "./config";
 import type { WorkerLog } from "./log";
 import {
@@ -50,6 +53,12 @@ export type WorkerIo = {
   beat: (at: Date) => Promise<void>;
   /** A tenant's tick failed: Sentry (#66, ./errors.ts). */
   onTenantError: (error: unknown, where: { tenant: string }) => void;
+  /** Where a scheduled run reports its failures: Sentry (./errors.ts). */
+  errors: ErrorReporter;
+  /** Where the malware scan reads uploads (#63): R2, or storage that refuses. */
+  storage: ObjectStorage;
+  /** What the malware scan asks (#63): clamd, or a scanner that passes nothing. */
+  scanner: MalwareScanner;
 };
 
 export type Worker = {
@@ -92,8 +101,10 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     clock: io.clock,
     email: emailSenderFor(config.appEnv, { db, clock: io.clock }),
     sms: smsSenderFor(config.appEnv, { db, clock: io.clock }, {}),
-    settings: storedSettings(db),
+    settings: databaseSettings(db),
     cipher,
+    storage: io.storage,
+    scanner: io.scanner,
   });
 
   async function startSingle(
@@ -108,7 +119,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     const deps = depsFor(opened.db);
     const boss = await io.startBoss(single.databaseUrl);
     cleanups.unshift(() => boss.stop());
-    await registerSchedules(boss, SCHEDULES, deps);
+    await registerSchedules(boss, SCHEDULES, { ...deps, errors: io.errors });
     return createSupervisor({
       clock: io.clock,
       discoveryIntervalMs: 0,

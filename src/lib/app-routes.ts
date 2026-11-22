@@ -8,13 +8,18 @@ export const APP_ROUTES = {
   accountSessions: "/account/sessions",
   accountInbox: "/account/inbox",
   accountNotifications: "/account/notifications",
+  accountSecurity: "/account/security",
+  dashboard: "/dashboard",
+  adminRoles: "/admin/roles",
+  adminAudit: "/admin/audit",
+  secondFactor: "/auth/second-factor",
+  stepUp: "/auth/step-up",
+  /** The file upload demo (#63): every environment but production. */
+  accountFiles: "/account/files",
+  adminSettings: "/admin/settings",
   accountConsents: "/account/consents",
   adminConsentDocuments: "/admin/consent-documents",
   adminTemplates: "/admin/templates",
-  accountSecurity: "/account/security",
-  secondFactor: "/auth/second-factor",
-  stepUp: "/auth/step-up",
-  adminSettings: "/admin/settings",
 } as const;
 
 /**
@@ -24,7 +29,12 @@ export const APP_ROUTES = {
  * waits for the request (src/app/account/layout.tsx), so it has no static
  * shell.
  */
-export const SIGNED_IN_PREFIXES = ["/account", "/admin", "/auth"] as const;
+export const SIGNED_IN_PREFIXES = [
+  "/account",
+  "/admin",
+  "/auth",
+  "/dashboard",
+] as const;
 
 export function isSignedInPath(pathname: string): boolean {
   return isUnderPrefix(pathname, SIGNED_IN_PREFIXES);
@@ -66,5 +76,17 @@ export function isSignedInPage(pathname: string): boolean {
   return (
     (Object.values(APP_ROUTES) as string[]).includes(pathname) ||
     DYNAMIC_APP_ROUTES.some((route) => fillsRoute(route, pathname))
+  );
+}
+
+/**
+ * Pages that exist everywhere but production: src/proxy.ts answers 404
+ * for them there, before anything renders.
+ */
+export const NON_PRODUCTION_PREFIXES = [APP_ROUTES.accountFiles] as const;
+
+export function isNonProductionPath(pathname: string): boolean {
+  return NON_PRODUCTION_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }

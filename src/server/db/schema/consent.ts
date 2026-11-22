@@ -120,6 +120,9 @@ export const consentEvent = pgTable(
       table.id.desc()
     ),
     index("consent_event_document_id_idx").on(table.documentId),
+    // Deleting a user sets this to null; the index keeps that from
+    // scanning the whole log.
+    index("consent_event_giver_user_id_idx").on(table.giverUserId),
   ]
 );
 

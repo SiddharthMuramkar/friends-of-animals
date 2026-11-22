@@ -1,11 +1,12 @@
 import { and, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { E164Phone } from "@/lib/phone";
 import { fieldCryptoFor } from "@/server/crypto/keys";
 import type { AppDb } from "@/server/db/app-db";
 import {
   capturedMessage,
+  fileAsset,
   inboxItem,
   messageRoute,
   messageTemplate,
@@ -14,14 +15,19 @@ import {
   workerHeartbeat,
 } from "@/server/db/schema";
 import { storedPhone } from "@/server/identity/stored-phone";
+import { OffsiteCopyNotConfiguredError } from "@/server/modules/offsite-copy/errors";
 import { emitUserSignedUp } from "@/server/outbox/testing";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
+import { FakeErrorReporter } from "@/test/fakes/errors";
+import { FakeMalwareScanner } from "@/test/fakes/malware-scanner";
+import { FakeStorage } from "@/test/fakes/storage";
 import { createHarness, type Harness } from "@/test/harness";
 
 import type { WorkerConfig } from "./config";
 import type { WorkerLogEntry } from "./log";
 import type { ListedDatabase } from "./preview-databases";
+import type { ScheduleBossJob } from "./schedules";
 import { createWorker, type WorkerIo } from "./worker";
 
 const DB_URL = "postgres://foa_worker:pw@10.112.12.10:5432/foa";
@@ -33,6 +39,8 @@ const COMMON = {
   heartbeatFile: "/tmp/foa-worker-heartbeat",
   passwordFile: undefined,
   sentryDsn: undefined,
+  r2: undefined,
+  clamd: { CLAMD_PORT: 3310 },
 } as const;
 
 function singleConfig(
@@ -75,17 +83,24 @@ async function brokenDb(): Promise<AppDb> {
 
 /**
  * Fake I/O: `databases` maps a URL's database name to a test database;
- * `catalog` is what pg-nonprod lists. Records what the worker opened.
+ * `catalog` is what pg-nonprod lists; `overrides` replace any of the rest.
+ * Records what the worker opened.
  */
 function fakeIo(
   databases: Record<string, AppDb>,
-  catalog: ListedDatabase[] = []
+  catalog: ListedDatabase[] = [],
+  overrides: Partial<WorkerIo> = {}
 ) {
+  const clock = new FakeClock();
   const record = {
     opened: [] as { url: string; connections: number }[],
     ended: [] as string[],
     bossStartedOn: [] as string[],
     bossCalls: [] as string[],
+    bossHandlers: new Map<
+      string,
+      (jobs: ScheduleBossJob[]) => Promise<unknown>
+    >(),
     bossStopped: 0,
     catalogEnded: 0,
     beats: [] as Date[],
@@ -93,7 +108,7 @@ function fakeIo(
     errors: [] as { error: unknown; tenant: string }[],
   };
   const io: WorkerIo = {
-    clock: new FakeClock(),
+    clock,
     log: (entry) => record.log.push(entry),
     onTenantError: (error, { tenant }) => record.errors.push({ error, tenant }),
     openDatabase(url, connections) {
@@ -127,7 +142,10 @@ function fakeIo(
         unschedule: async () => {},
         createQueue: async () => {},
         schedule: async () => {},
-        work: async () => "",
+        work: async (name, _options, handler) => {
+          record.bossHandlers.set(name, handler);
+          return "";
+        },
         stop: async () => {
           record.bossStopped += 1;
         },
@@ -136,11 +154,48 @@ function fakeIo(
     async beat(at) {
       record.beats.push(at);
     },
+    storage: new FakeStorage(clock),
+    scanner: new FakeMalwareScanner(),
+    errors: new FakeErrorReporter(),
+    ...overrides,
   };
   return { io, record };
 }
 
 describe("a single-database worker", () => {
+  it("scans an upload in its database with its storage and scanner", async () => {
+    const h = await createHarness();
+    const owner = await h.signIn(await h.seed.member());
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ]);
+    const requested = await h.as(owner).requestUpload({
+      purpose: "test_upload",
+      contentType: "image/png",
+      sizeBytes: png.length,
+    });
+    if (!requested.ok) throw new Error(`refused: ${requested.error}`);
+    await h.storage.put(requested.uploadUrl, png, requested.headers);
+    await h.as(owner).completeUpload({ fileId: requested.fileId });
+    const { io } = fakeIo({ foa: h.db }, [], {
+      clock: h.clock,
+      storage: h.storage,
+      scanner: h.scanner,
+    });
+
+    const worker = createWorker(singleConfig("local"), io);
+    await worker.start();
+    await worker.tick();
+
+    expect(h.scanner.scans).toBe(1);
+    expect(
+      await h.db
+        .select({ status: fileAsset.status })
+        .from(fileAsset)
+        .where(eq(fileAsset.id, requested.fileId))
+    ).toEqual([{ status: "clean" }]);
+  });
+
   it("drains its database, captures the email and beats", async () => {
     const h = await createHarness();
     const member = await h.seed.member();
@@ -174,6 +229,33 @@ describe("a single-database worker", () => {
     expect(record.bossCalls).toEqual(["getSchedules"]);
     expect(record.bossStopped).toBe(1);
     expect(record.ended.length).toBeGreaterThan(0);
+  });
+
+  it("reports a scheduled run's final failure through its error reporter", async () => {
+    vi.stubEnv("APP_ENV", "production");
+    try {
+      const h = await createHarness();
+      const errors = new FakeErrorReporter();
+      const { io, record } = fakeIo({ foa: h.db }, [], { errors });
+
+      const worker = createWorker(singleConfig("production"), io);
+      await worker.start();
+      // The off-site copy has no buckets set here, so its run fails.
+      const run = record.bossHandlers.get("offsite_copy");
+      await expect(run?.([{ retryCount: 3, retryLimit: 3 }])).rejects.toThrow(
+        OffsiteCopyNotConfiguredError
+      );
+      await worker.stop();
+
+      expect(errors.reported).toEqual([
+        expect.objectContaining({
+          type: "OffsiteCopyNotConfiguredError",
+          tags: expect.objectContaining({ job: "offsite_copy" }),
+        }),
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("refuses to send in production while no provider is set up", async () => {

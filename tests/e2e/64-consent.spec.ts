@@ -1,6 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { SEED_ACCOUNTS } from "../../src/server/seed/accounts";
+import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
+import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
+import { SEED_CONSENT_PUBLISHERS } from "../../src/server/seed/accounts";
+import { SEED_TOTP_SECRET } from "../../src/server/seed/second-factor";
 import {
   expectAccessible,
   expectAccessibleInDark,
@@ -41,13 +44,15 @@ async function shownVersion(page: Page): Promise<number> {
 test("the privacy and terms pages show the published version and its text", async ({
   page,
 }) => {
-  await page.goto("/privacy");
+  await expectRendersAccessibly(page, "/privacy");
+  await expectAccessibleInDark(page, "/privacy");
   expect(await shownVersion(page)).toBeGreaterThanOrEqual(1);
   await expect(
     page.getByRole("heading", { name: "Who we are", level: 2 })
   ).toBeVisible();
 
-  await page.goto("/terms");
+  await expectRendersAccessibly(page, "/terms");
+  await expectAccessibleInDark(page, "/terms");
   expect(await shownVersion(page)).toBeGreaterThanOrEqual(1);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Terms of use"
@@ -133,8 +138,8 @@ test("a staff admin publishes a new version, which the legal page shows", async 
   // the two never race for the same version number or code limit.
   const [admin, documentName, path] =
     testInfo.project.name === "desktop"
-      ? [SEED_ACCOUNTS.members[1], "Privacy policy", "/privacy"]
-      : [SEED_ACCOUNTS.superAdmin, "Terms of use", "/terms"];
+      ? [SEED_CONSENT_PUBLISHERS.desktop, "Privacy policy", "/privacy"]
+      : [SEED_CONSENT_PUBLISHERS.mobile, "Terms of use", "/terms"];
   const violations = await recordCspViolations(page);
 
   await page.goto(path);
@@ -143,6 +148,16 @@ test("a staff admin publishes a new version, which the legal page shows", async 
   await page.goto("/sign-in");
   await finishWithCode(page, request, admin.email);
   await expect(page).toHaveURL(/\/account\/sessions$/);
+
+  await page.goto("/admin/consent-documents");
+  await expect(page).toHaveURL(
+    /\/auth\/second-factor\?next=%2Fadmin%2Fconsent-documents$/
+  );
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(base32Decode(SEED_TOTP_SECRET), new Date()));
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(/\/admin\/consent-documents$/);
 
   // Staff pages render per request under the strict nonce policy (#65).
   const policy = await onlyPolicy(

@@ -8,24 +8,24 @@ import { ButtonLink } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
 import { SkipLink } from "@/components/site/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { APP_ROUTES } from "@/lib/app-routes";
 import { PRIMARY_NAV, ROUTES } from "@/lib/routes";
 
-import {
-  DesktopNav,
-  DesktopNavView,
-  MobileMenu,
-  MobileMenuView,
-} from "./header-nav";
+import { DesktopNav, DesktopNavView, MobileMenu } from "./header-nav";
 
 export async function SiteHeader() {
   const t = await getTranslations("nav");
   const tc = await getTranslations("common");
+  const td = await getTranslations("dashboard");
   const items = PRIMARY_NAV.map((r) => ({
     href: r.path,
     label: t(`links.${r.id}`),
   }));
+  // Shown on pages behind sign-in only (header-nav.tsx).
+  const dashboard = { href: APP_ROUTES.dashboard, label: td("headerLink") };
   const menu = {
     items,
+    dashboard,
     donateHref: ROUTES.donate.path,
     labels: {
       menu: t("menu"),
@@ -66,7 +66,7 @@ export async function SiteHeader() {
             <DesktopNavView items={items} label={t("label")} pathname={null} />
           }
         >
-          <DesktopNav items={items} label={t("label")} />
+          <DesktopNav items={items} dashboard={dashboard} label={t("label")} />
         </Suspense>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           {/* Signed-in only: the session streams in after the shell. */}
@@ -86,9 +86,8 @@ export async function SiteHeader() {
               light: tc("theme.light"),
             }}
           />
-          <Suspense fallback={<MobileMenuView {...menu} pathname={null} />}>
-            <MobileMenu {...menu} />
-          </Suspense>
+          {/* Not in a Suspense boundary: see MobileMenu. */}
+          <MobileMenu {...menu} />
         </div>
       </div>
     </header>

@@ -16,8 +16,10 @@ import {
 import type { ConsentPurpose } from "../modules/consent/domain/purposes";
 import { consentDocument } from "../db/schema";
 import { uuidv7 } from "../ids";
-import { SEED_ACCOUNTS } from "./accounts";
 import { ensureVerifiedAccount } from "../identity/verified-account";
+import { ensureGrant } from "./access";
+import { SEED_ACCOUNTS, SEED_CONSENT_PUBLISHERS } from "./accounts";
+import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps } from "./types";
 
 const SEED_DOCUMENTS: ReadonlyArray<{
@@ -46,8 +48,8 @@ const SEED_DOCUMENTS: ReadonlyArray<{
 ];
 
 /**
- * Version 1 of each seeded document, unless that purpose already has one.
- * Seed data, not a staff action: it writes no audit entry.
+ * Version 1 of each seeded document and publishers for the consent
+ * journeys. Seed data writes no audit entry.
  */
 export async function seedConsent(deps: SeedDeps): Promise<void> {
   const { db, clock } = deps;
@@ -72,5 +74,11 @@ export async function seedConsent(deps: SeedDeps): Promise<void> {
         publishedByUserId: publisher.id,
       })
       .onConflictDoNothing();
+  }
+
+  for (const { role, ...account } of Object.values(SEED_CONSENT_PUBLISHERS)) {
+    const { id } = await ensureVerifiedAccount(deps, account);
+    await ensureGrant(deps, id, { role, scope: { type: "global" } });
+    await ensureSeedAuthenticator(deps, id);
   }
 }

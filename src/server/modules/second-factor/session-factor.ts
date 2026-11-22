@@ -1,19 +1,23 @@
 // Reading and recording where a user and their session stand with the
 // second factor. Loads under plain Node: relative imports only.
 
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 
 import type { Actor } from "../../actor";
 import type { AppDb } from "../../db/app-db";
 import {
   secondFactor,
   secondFactorLockout,
+  session,
   sessionSecondFactor,
+  user,
   type SecondFactorKind,
 } from "../../db/schema";
 import { DomainError } from "../../errors";
+import type { Clock } from "../../ports/clock";
 import type { SecondFactorStatus } from "./domain/gate";
 import { NO_FAILURES, type LockoutState } from "./domain/lockout";
+import { isLiveSession } from "./session-lifetimes";
 
 export type SignedInUser = Extract<Actor, { kind: "user" }>;
 
@@ -76,6 +80,68 @@ export async function stampSession(
       target: sessionSecondFactor.sessionId,
       set: { verifiedAt: at, method },
     });
+}
+
+/**
+ * Serializes factor changes for the user. This lock also makes a new
+ * primary session's foreign key check wait for a reset or removal.
+ */
+export async function lockUser(tx: AppDb, userId: string): Promise<boolean> {
+  return (await lockUsers(tx, [userId])).has(userId.toLowerCase());
+}
+
+/**
+ * Locks several accounts as `lockUser` does, in id order in one statement,
+ * so transactions locking the same accounts queue rather than deadlock
+ * (role changes lock in the same order). Returns the ids found.
+ */
+export async function lockUsers(
+  tx: AppDb,
+  userIds: readonly string[]
+): Promise<Set<string>> {
+  const rows = await tx
+    .select({ id: user.id })
+    .from(user)
+    .where(inArray(user.id, [...new Set(userIds)]))
+    .orderBy(asc(user.id))
+    .for("update");
+  return new Set(rows.map((row) => row.id));
+}
+
+/**
+ * Locks the actor's primary session until the transaction ends, so signing
+ * it out waits for the transaction, and refuses one that ended since the
+ * request resolved its actor. Lock the account first.
+ */
+export async function lockLiveSession(
+  tx: AppDb,
+  actor: SignedInUser,
+  clock: Clock
+): Promise<void> {
+  const [primary] = await tx
+    .select({
+      userId: session.userId,
+      createdAt: session.createdAt,
+      expiresAt: session.expiresAt,
+    })
+    .from(session)
+    .where(
+      and(eq(session.id, actor.sessionId), eq(session.userId, actor.userId))
+    )
+    .for("key share");
+  if (!primary || !(await isLiveSession(tx, primary, clock.now()))) {
+    throw new DomainError("forbidden", "The primary session has ended");
+  }
+}
+
+/** Locks the account first and checks for revocation since the request resolved its actor. */
+export async function lockFactorSession(
+  tx: AppDb,
+  actor: SignedInUser,
+  clock: Clock
+): Promise<void> {
+  await lockUser(tx, actor.userId);
+  await lockLiveSession(tx, actor, clock);
 }
 
 /**

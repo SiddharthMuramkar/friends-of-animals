@@ -1,48 +1,43 @@
-import type { DbWithClock } from "@/server/db/app-db";
 import { setting } from "@/server/db/schema";
-import { isSettingKey, storedSettings } from "@/server/modules/settings";
+import type { AppDb, DbWithClock } from "@/server/db/app-db";
+import type { Clock } from "@/server/ports/clock";
 import {
-  FIXED_SETTINGS,
-  type FixedSettingKey,
-  type FixedSettingValues,
+  databaseSettings,
   type SettingKey,
-  type Settings,
-  type SettingValues,
-} from "@/server/ports/settings";
+  type SettingValue,
+} from "@/server/modules/settings";
+import type { Settings } from "@/server/ports/settings";
 
 /**
- * Runtime settings for Seam 1 tests, read the way the app reads them: from
- * this harness's settings table (storedSettings), so a super admin's
- * changeSetting counts. Every setting starts at its default (SMS off).
- * `await h.settings.set("sms.enabled", true)` stores a value as seed data
- * would: no user, no audit entry. A fixed setting, not on the settings
- * screen yet, changes for this harness only.
+ * Runtime settings for Seam 1 tests, over the test database's settings
+ * table, as in production: every setting reads its default until a test
+ * stores one with `set` (or a super admin changes it with changeSetting).
  */
 export class TestSettings implements Settings {
-  readonly #deps: DbWithClock;
-  readonly #fixed: FixedSettingValues = { ...FIXED_SETTINGS };
-  readonly #stored: Settings;
+  readonly #db: AppDb;
+  readonly #clock: Clock;
+  readonly #settings: Settings;
 
-  constructor(deps: DbWithClock) {
-    this.#deps = deps;
-    this.#stored = storedSettings(deps.db, this.#fixed);
+  constructor({ db, clock }: DbWithClock) {
+    this.#db = db;
+    this.#clock = clock;
+    this.#settings = databaseSettings(db);
   }
 
-  get<K extends SettingKey>(key: K): Promise<SettingValues[K]> {
-    return this.#stored.get(key);
+  get<K extends SettingKey>(key: K): Promise<SettingValue<K>> {
+    return this.#settings.get(key);
   }
 
+  /**
+   * Stores `value` for `key`, as a seed would: no admin, no step-up, no
+   * audit entry. Tests of the settings screen use changeSetting instead.
+   */
   async set<K extends SettingKey>(
     key: K,
-    value: SettingValues[K]
+    value: SettingValue<K>
   ): Promise<void> {
-    if (!isSettingKey(key)) {
-      const fixed = key as FixedSettingKey;
-      this.#fixed[fixed] = value as FixedSettingValues[typeof fixed];
-      return;
-    }
-    const updatedAt = this.#deps.clock.now();
-    await this.#deps.db
+    const updatedAt = this.#clock.now();
+    await this.#db
       .insert(setting)
       .values({ key, value, updatedAt })
       .onConflictDoUpdate({

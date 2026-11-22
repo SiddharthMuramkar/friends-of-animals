@@ -82,6 +82,67 @@ describe("giveConsent and withdrawConsent", () => {
       }),
     });
   });
+
+  it("changes only the signed-in member's consent, and shows each member only their own", async () => {
+    const h = await createHarness();
+    const document = await publishMessages(h);
+    const asha = await h.signIn(await h.seed.member({ name: "Asha Rao" }));
+    const ravi = await h.signIn(await h.seed.member({ name: "Ravi Kumar" }));
+
+    await h
+      .as(asha)
+      .giveConsent({ purpose: "messages", documentId: document.id });
+
+    const ashas = await h.as(asha).myConsents();
+    expect(ashas[0]?.state).toMatchObject({ status: "given" });
+    expect(ashas[0]?.history).toHaveLength(1);
+    const [ravis] = await h.as(ravi).myConsents();
+    expect(ravis?.state).toEqual({ status: "never" });
+    expect(ravis?.history).toEqual([]);
+
+    // Ravi withdrawing touches nothing of Asha's.
+    expect(await h.as(ravi).withdrawConsent({ purpose: "messages" })).toEqual({
+      ok: true,
+      changed: false,
+    });
+    expect(await h.as(asha).myConsents()).toEqual(ashas);
+  });
+
+  it("orders each event after the subject's last, even when the clock reads earlier", async () => {
+    const h = await createHarness();
+    const document = await publishMessages(h);
+    const member = await h.signIn(await h.seed.member());
+    const givenAt = h.clock.now();
+    await h
+      .as(member)
+      .giveConsent({ purpose: "messages", documentId: document.id });
+
+    // Another server whose clock runs 50 ms behind takes the withdrawal.
+    h.clock.set(new Date(givenAt.getTime() - 50));
+    expect(await h.as(member).withdrawConsent({ purpose: "messages" })).toEqual(
+      { ok: true, changed: true }
+    );
+
+    const [messages] = await h.as(member).myConsents();
+    expect(messages?.state).toMatchObject({ status: "withdrawn" });
+    expect(messages?.history.map((event) => event.action)).toEqual([
+      "withdrawn",
+      "given",
+    ]);
+    const [withdrawn, given] = messages?.history ?? [];
+    expect(withdrawn?.occurredAt.getTime()).toBeGreaterThan(
+      given?.occurredAt.getTime() ?? Infinity
+    );
+
+    // Giving again from the slow clock still lands last.
+    expect(
+      await h
+        .as(member)
+        .giveConsent({ purpose: "messages", documentId: document.id })
+    ).toEqual({ ok: true, changed: true });
+    const [again] = await h.as(member).myConsents();
+    expect(again?.state).toMatchObject({ status: "given" });
+  });
 });
 
 describe("the audit log", () => {
@@ -313,5 +374,30 @@ describe("calls that change nothing", () => {
     await expect(h.as(visitor).myConsents()).rejects.toMatchObject({
       code: "forbidden",
     });
+  });
+});
+
+describe("the consent tables", () => {
+  it("index every foreign key, so deleting a user or a document never reads the whole log", async () => {
+    const h = await createHarness();
+
+    // Deleting a referenced row looks up the rows that point at it. With
+    // no index led by the key's columns, that lookup scans the table.
+    const unindexed = await h.db.execute<{ foreignKey: string }>(sql`
+      select c.conname as "foreignKey"
+      from pg_constraint c
+      where c.contype = 'f'
+        and c.conrelid in ('consent_document'::regclass, 'consent_event'::regclass)
+        and not exists (
+          select 1
+          from pg_index i
+          where i.indrelid = c.conrelid
+            and i.indpred is null
+            and (i.indkey::int2[])[0:cardinality(c.conkey) - 1] @> c.conkey
+        )
+      order by c.conname
+    `);
+
+    expect(unindexed.rows).toEqual([]);
   });
 });

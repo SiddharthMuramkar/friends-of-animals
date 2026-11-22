@@ -1,58 +1,36 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-
-const read = (path: string) =>
-  readFileSync(new URL(path, import.meta.url), "utf8");
+import {
+  LOGGING_ANCHOR,
+  block,
+  indent,
+  lines,
+  oneLine,
+  serviceBlock,
+  serviceNames as listServices,
+  readDocker as read,
+} from "./compose-test-helpers";
 
 const compose = read("./analytics.yml");
 const pgHba = read("./postgres/pg_hba.prod.conf");
 
-/** Lines without comments and blank lines. */
-const lines = (text: string) =>
-  text
-    .split("\n")
-    .map((line) => line.replace(/\s+#.*$/, ""))
-    .filter((line) => line.trim() !== "" && !line.trim().startsWith("#"));
-
-const indent = (line: string) => line.length - line.trimStart().length;
-
-/** The lines nested under the first line matching `key` (by indentation). */
-function block(text: string[], key: RegExp): string[] {
-  const start = text.findIndex((line) => key.test(line));
-  if (start === -1) return [];
-  const depth = indent(text[start] ?? "");
-  const end = text.findIndex((line, i) => i > start && indent(line) <= depth);
-  return text.slice(start + 1, end === -1 ? undefined : end);
-}
-
 const top = lines(compose);
-const services = block(top, /^services:$/);
-const service = (name: string) =>
-  block(services, new RegExp(`^ {2}${name}:$`)).join("\n");
-/** `text` on one line, with flow sequences as `["a", "b"]` however wrapped. */
-const oneLine = (text: string) =>
-  text.replace(/\s+/g, " ").replace(/\[ /g, "[").replace(/,? \]/g, "]");
-const serviceNames = services
-  .filter((line) => indent(line) === 2)
-  .map((line) => line.trim().replace(/:$/, ""));
+const service = (name: string) => serviceBlock(top, name);
+const serviceNames = listServices(top);
 
 describe("docker/analytics.yml", () => {
-  it("is its own Compose project with Umami and the tunnel only", () => {
+  it("is its own Compose project with Umami only", () => {
     expect(top).toContain("name: foa-analytics");
-    expect(serviceNames.sort()).toEqual(["cloudflared", "umami"]);
+    expect(serviceNames.sort()).toEqual(["umami"]);
   });
 
   it("pins every image to an exact version", () => {
     const images = top.filter((line) => /^\s+image:/.test(line));
-    expect(images).toHaveLength(2);
+    expect(images).toHaveLength(1);
     for (const image of images) {
       expect(image).toMatch(/:\d+(?:\.\d+){2}$/);
     }
     expect(service("umami")).toMatch(
       /image: ghcr\.io\/umami-software\/umami:\d+\.\d+\.\d+$/m
-    );
-    expect(service("cloudflared")).toMatch(
-      /image: cloudflare\/cloudflared:\d{4}\.\d+\.\d+$/m
     );
   });
 
@@ -64,17 +42,18 @@ describe("docker/analytics.yml", () => {
     expect(umami).toMatch(/^ {4}restart: unless-stopped$/m);
   });
 
-  it("checks the tunnel's edge connection and restarts it", () => {
-    const tunnel = service("cloudflared");
-    expect(oneLine(tunnel)).toMatch(
-      /test: \["CMD", "cloudflared", "tunnel", "--metrics", "127\.0\.0\.1:\d+", "ready"\]/
-    );
-    expect(tunnel).toMatch(/^ {4}restart: unless-stopped$/m);
-  });
-
-  it.each(["umami", "cloudflared"])("limits %s's CPU and memory", (name) => {
+  it.each(["umami"])("limits %s's CPU and memory", (name) => {
     expect(service(name)).toMatch(/^ {4}cpus: [\d.]+$/m);
     expect(service(name)).toMatch(/^ {4}mem_limit: \d+[mg]$/m);
+  });
+
+  it("caps Umami's swap too, and the kernel kills it before the databases", () => {
+    // Sidecars get oom_score_adj 500, like foa-caddy and
+    // foa-glitchtip, so pg-prod and PgBouncer survive memory pressure.
+    const umami = service("umami");
+    expect(umami).toMatch(/^ {4}mem_limit: 1g$/m);
+    expect(umami).toMatch(/^ {4}memswap_limit: 1g$/m);
+    expect(umami).toMatch(/^ {4}oom_score_adj: 500$/m);
   });
 
   it("publishes no port beyond 127.0.0.1", () => {
@@ -84,6 +63,10 @@ describe("docker/analytics.yml", () => {
     for (const port of published) {
       expect(port).toMatch(/^\s+- "127\.0\.0\.1:/);
     }
+  });
+
+  it("publishes no port at all: Caddy on the host reaches Umami on db", () => {
+    expect(top.some((line) => /^\s+(ports|expose):/.test(line))).toBe(false);
   });
 
   it("keeps its data in pg-prod: no database and no volume of its own", () => {
@@ -106,18 +89,40 @@ describe("docker/analytics.yml", () => {
     expect(
       block(block(lines(service("umami")), /^ {4}networks:$/), /db:$/)
     ).toEqual(["        ipv4_address: 10.112.12.30"]);
-    expect(service("cloudflared")).not.toMatch(/^ {6}db:/m);
+    // db only: Caddy (edge.yml) proxies stats.friendsofanimals.dev there.
+    expect(
+      block(top, /^networks:$/).filter((line) => indent(line) === 2)
+    ).toEqual(["  db:"]);
+    expect(
+      block(lines(service("umami")), /^ {4}networks:$/).filter(
+        (line) => indent(line) === 6
+      )
+    ).toEqual(["      db:"]);
   });
 
-  it("reads the tunnel token from a secret file, never the environment", () => {
-    const tunnel = service("cloudflared");
-    expect(oneLine(tunnel)).toMatch(
-      /"--token-file", "\/run\/secrets\/cloudflared_tunnel_token"/
+  it("logs through the shared journald anchor, like edge.yml and errors.yml", () => {
+    // #66: every Compose file here logs to journald through one anchor.
+    expect(["x-logging: &logging", ...block(top, /^x-logging:/)]).toEqual(
+      LOGGING_ANCHOR
     );
-    expect(compose).not.toMatch(/TUNNEL_TOKEN[^_]|"--token"/);
+    expect(service("umami")).toMatch(/^ {4}logging: \*logging$/m);
+    expect(compose).not.toMatch(/json-file|max-size|max-file/);
+  });
+
+  it("sets CLIENT_IP_HEADER explicitly to the header Vercel's rewrite sets", () => {
+    // HR-52: Vercel replaces X-Real-IP with the visitor's address; Caddy
+    // passes it through (caddy/Caddyfile, edge.test.ts). Set here, not in
+    // the env file, so it is reviewed with the Caddyfile.
     expect(
-      block(block(top, /^secrets:$/), /^ {2}cloudflared_tunnel_token:$/)
-    ).toEqual(["    file: /etc/foa/secrets/cloudflared_tunnel_token"]);
+      block(lines(service("umami")), /^ {4}environment:$/).map((line) =>
+        line.trim()
+      )
+    ).toContain("CLIENT_IP_HEADER: x-real-ip");
+  });
+
+  it("has no Cloudflare Tunnel: no cloudflared service, network or secret", () => {
+    expect(top.join("\n")).not.toMatch(/cloudflare|tunnel/i);
+    expect(top.some((line) => line.startsWith("secrets:"))).toBe(false);
   });
 });
 

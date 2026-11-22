@@ -3,8 +3,9 @@
 // an action defined twice fails type-checking. Each rule names its roles;
 // super admin is not a wildcard.
 
-import { CONSENT_POLICY } from "../modules/consent/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
+import { FILES_POLICY } from "../modules/files/policy";
+import { CONSENT_POLICY } from "../modules/consent/policy";
 import { NOTIFICATIONS_POLICY } from "../modules/notifications/policy";
 import { SECOND_FACTOR_POLICY } from "../modules/second-factor/policy";
 import { SETTINGS_POLICY } from "../modules/settings/policy";
@@ -14,10 +15,11 @@ import { composePolicies } from "./domain/policy";
 export const POLICY = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
-  CONSENT_POLICY,
+  SECOND_FACTOR_POLICY,
+  FILES_POLICY,
   SETTINGS_POLICY,
-  NOTIFICATIONS_POLICY,
-  SECOND_FACTOR_POLICY
+  CONSENT_POLICY,
+  NOTIFICATIONS_POLICY
 );
 
 export type Action = keyof typeof POLICY;

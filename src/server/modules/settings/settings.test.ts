@@ -36,6 +36,8 @@ describe("readSetting", () => {
 
     expect(await readSetting(h.db, "auth.staffSessionHours")).toBe(12);
     expect(await readSetting(h.db, "sms.enabled")).toBe(false);
+    expect(await readSetting(h.db, "sms.maxPerHour")).toBe(200);
+    expect(await readSetting(h.db, "sms.maxPerDay")).toBe(1000);
     expect(await readSetting(h.db, "org.has80G")).toBe(false);
     expect(await readSetting(h.db, "org.fcraEnabled")).toBe(false);
   });
@@ -64,6 +66,26 @@ describe("listSettings", () => {
         source: "default",
         storedInvalid: false,
         input: { kind: "boolean" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
+        key: "sms.maxPerHour",
+        value: 200,
+        defaultValue: 200,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "integer", min: 1, max: 1000, unit: "texts" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
+        key: "sms.maxPerDay",
+        value: 1000,
+        defaultValue: 1000,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "integer", min: 1, max: 5000, unit: "texts" },
         updatedAt: null,
         updatedBy: null,
       },
@@ -365,5 +387,54 @@ describe("the staff session lifetime setting", () => {
     expect(await storedExpiry(h, actor)).toEqual(expiry);
     h.clock.advance({ hours: 12 });
     expect(await seenAs(h, browser)).toBe("visitor");
+  });
+});
+
+describe("the SMS settings", () => {
+  const PHONE = "+91 98765 43210";
+
+  it("switch #58's sign-in by text on and off at once", async () => {
+    const h = await createHarness();
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const visitor = h.visitor({ ip: "203.0.113.77" });
+
+    await h.as(admin).changeSetting({ key: "sms.enabled", value: true });
+
+    expect(await h.as(visitor).signInMethods()).toEqual({
+      email: true,
+      phone: true,
+    });
+    expect(await h.as(visitor).requestPhoneCode({ phone: PHONE })).toEqual({
+      ok: true,
+    });
+    expect(h.sms.codeFor(PHONE)).toMatch(/^\d{6}$/);
+
+    await h.as(admin).changeSetting({ key: "sms.enabled", value: false });
+
+    expect(await h.as(visitor).signInMethods()).toEqual({
+      email: true,
+      phone: false,
+    });
+    expect(await h.as(visitor).requestPhoneCode({ phone: PHONE })).toEqual({
+      ok: false,
+      error: "sms_disabled",
+    });
+  });
+
+  it("set #58's ceiling on sign-in texts at once", async () => {
+    const h = await createHarness();
+    const admin = await h.signIn(await h.seed.superAdmin());
+    await h.as(admin).changeSetting({ key: "sms.enabled", value: true });
+
+    await h.as(admin).changeSetting({ key: "sms.maxPerHour", value: 1 });
+
+    const from = (n: number) => h.as(h.visitor({ ip: `198.51.100.${n}` }));
+    expect(await from(1).requestPhoneCode({ phone: PHONE })).toEqual({
+      ok: true,
+    });
+    expect(
+      await from(2).requestPhoneCode({ phone: "+91 98765 43211" })
+    ).toMatchObject({ ok: false, error: "rate_limited" });
+    expect(h.sms.sent).toHaveLength(1);
   });
 });

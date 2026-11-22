@@ -7,17 +7,22 @@ import {
 } from "@/components/legal/legal-text";
 import { Disclosure } from "@/components/site/disclosure";
 import { cachedConsentDocument } from "@/server/modules/consent/cached";
+import { nullIfUnreadable } from "@/server/modules/consent/unreadable";
 
 /**
  * The sign-up form's optional box for news and updates by email (#64).
  * Never ticked to begin with. Its value is the id of the messages consent
  * version shown here, so the consent recorded is to this exact text.
- * Renders nothing while no version is published. Reads the database, so
- * it sits inside <Suspense>.
+ * Renders nothing while no version is published, or if the database can't
+ * be read: the box is optional, so the form stays usable without it. Reads
+ * the database, so it sits inside <Suspense>.
  */
 export async function MessagesConsentField() {
   await connection();
-  const document = await cachedConsentDocument("messages");
+  const document = await nullIfUnreadable(
+    "Sign-up form: could not read the messages consent",
+    () => cachedConsentDocument("messages")
+  );
   if (!document) return null;
   const t = await getTranslations("auth.form.messagesConsent");
 

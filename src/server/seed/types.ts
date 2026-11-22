@@ -6,7 +6,7 @@ import type { DbWithClock } from "../db/app-db";
  * What seeders and builders write with: the database, the clock, the
  * field cipher and blind index for personal data (a seeded phone), and
  * `auth.secret`, which seals the seeded staff's authenticator secret
- * (#60) as the app's own secret would.
+ * (#60), as the app's own secret would.
  */
 export type SeedDeps = DbWithClock & {
   cipher: FieldCipher;

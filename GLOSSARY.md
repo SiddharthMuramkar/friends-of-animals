@@ -85,10 +85,6 @@ The record of every change to who may do what, and later to other records:
 who made it, with which Role, to what, before and after, from where and when.
 Nobody can edit or delete an entry.
 _Avoid_: Activity log, history, event log
-**Sign-in method**:
-A way to receive sign-in codes: email, always on, or SMS, which stays off
-until FOA's SMS sender registration is approved.
-_Avoid_: Login type, provider
 
 ## Personal data
 
@@ -193,6 +189,41 @@ such as a reminder sweep, a status flip at a deadline or a retention purge.
 Previews never run them.
 _Avoid_: Cron job, recurring task
 
+## Files
+
+**File**:
+Something a User uploaded, such as a photo or a scanned form, kept privately
+and only ever opened through a signed URL. The platform records what it is for,
+what the uploader declared and how far it has got, never the uploader's own
+file name.
+_Avoid_: Attachment, asset, document, upload (for the stored thing)
+
+**Purpose**:
+What a File was uploaded for, which sets the types and size it may have and
+where it may be uploaded at all; each module that takes uploads has its own.
+_Avoid_: Category, kind, file type
+
+**Signed URL**:
+A short-lived link that lets one browser put or fetch one File directly in
+storage; it is only issued to someone allowed to have it, and stops working
+after a few minutes.
+_Avoid_: Public URL, download link, presigned link
+
+**Scan**:
+The malware check every File passes before anyone but its uploader may open it.
+_Avoid_: Virus check, antivirus
+
+**Quarantined**:
+Said of a File the Scan flagged: it is never delivered again, to anyone, its
+uploader and staff included.
+_Avoid_: Blocked, infected, deleted
+
+**Storage prefix**:
+The folder an environment keeps its Files under in the shared non-production
+storage, such as `staging/` or `pr-12/`; production has its own storage and
+none. A preview's prefix is emptied when its database is dropped.
+_Avoid_: Bucket, namespace, path
+
 ## Running the platform
 
 **Runtime setting**:
@@ -201,6 +232,18 @@ in or whether sign-in codes go by text message, which a super admin changes on
 the settings screen without a release. Each has a default that applies until a
 value is stored, and every change needs Step-up and goes in the Audit log.
 _Avoid_: Config, feature flag, environment variable
+
+**Off-site copy**:
+The nightly copy of production's Files from Cloudflare R2 to a Backblaze B2
+bucket, because R2 keeps no old versions. A copy outlives its File by the
+retention window, so a File deleted by mistake can still be restored one at a
+time.
+_Avoid_: Backup (that is the database's pgBackRest backup), sync, mirror
+
+**Retention window**:
+How long the off-site copy keeps a File after it has gone from R2 (30 days
+unless set), counted from the first night the copy found it gone.
+_Avoid_: Grace period, TTL
 
 ## Engineering
 
