@@ -115,3 +115,105 @@ describe("the public read of posts", () => {
     }
   });
 });
+
+const REPO_STORIES = [
+  "rukmini-devi-and-indias-animal-law",
+  "a-drawing-that-feeds-tiny-guests",
+  "the-stork-that-gets-a-baby-shower",
+  "two-pilots-two-puppies",
+  "kinder-skies-in-kite-season",
+];
+
+describe("the repo stories", () => {
+  it("stay on the site until the CMS has a post at their address", async () => {
+    const h = await createHarness();
+    const visitor = h.as(h.visitor());
+
+    expect((await visitor.publishedPostSlugs()).toSorted()).toEqual(
+      REPO_STORIES.toSorted()
+    );
+    expect(
+      (await visitor.getPublishedPostBySlug({ slug: "two-pilots-two-puppies" }))
+        ?.title
+    ).toBe("Two pilots, two puppies and the start of Blue Cross");
+
+    // A draft at a story's address takes it down until it is published.
+    const editor = await contentManager(h);
+    const postId = await draft(h, editor, "two-pilots-two-puppies", {
+      title: "Two pilots, as the CMS tells it",
+    });
+    expect(await visitor.publishedPostSlugs()).not.toContain(
+      "two-pilots-two-puppies"
+    );
+    expect(
+      await visitor.getPublishedPostBySlug({ slug: "two-pilots-two-puppies" })
+    ).toBeNull();
+
+    expect(await h.as(editor).publishPost({ postId })).toMatchObject({
+      ok: true,
+    });
+    expect(
+      (await visitor.getPublishedPostBySlug({ slug: "two-pilots-two-puppies" }))
+        ?.title
+    ).toBe("Two pilots, as the CMS tells it");
+    expect(
+      slugsOf(await visitor.listPublishedPosts()).filter(
+        (slug) => slug === "two-pilots-two-puppies"
+      )
+    ).toHaveLength(1);
+  });
+
+  it("are stories, not blog posts", async () => {
+    const h = await createHarness();
+    const visitor = h.as(h.visitor());
+
+    expect(await visitor.listPublishedPosts({ kind: "blog" })).toEqual([]);
+    expect(
+      slugsOf(await visitor.listPublishedPosts({ kind: "story" })).toSorted()
+    ).toEqual(REPO_STORIES.toSorted());
+  });
+});
+
+describe("latestPublishedPosts", () => {
+  it("lists featured posts first, then the newest", async () => {
+    const h = await createHarness();
+    const editor = await contentManager(h);
+    await published(h, editor, "older-but-featured", { featured: true });
+    h.clock.advance({ hours: 1 });
+    await published(h, editor, "in-between");
+    h.clock.advance({ hours: 1 });
+    await published(h, editor, "the-newest");
+
+    const latest = await h.as(h.visitor()).latestPublishedPosts({ limit: 3 });
+
+    // The featured repo story (18 Nov 2026) is older than every CMS post.
+    expect(slugsOf(latest)).toEqual([
+      "older-but-featured",
+      "rukmini-devi-and-indias-animal-law",
+      "the-newest",
+    ]);
+  });
+});
+
+describe("who may read public posts", () => {
+  it("is everyone: a visitor, a member and a content manager", async () => {
+    const h = await createHarness();
+    const editor = await contentManager(h);
+    await published(h, editor, "for-everyone");
+    const member = await h.signIn(await h.seed.member());
+
+    for (const actor of [h.visitor(), member, editor]) {
+      const reads = h.as(actor);
+      expect(await reads.publishedPostSlugs()).toContain("for-everyone");
+      expect(slugsOf(await reads.listPublishedPosts())).toContain(
+        "for-everyone"
+      );
+      expect(slugsOf(await reads.latestPublishedPosts({ limit: 3 }))).toContain(
+        "for-everyone"
+      );
+      expect(
+        (await reads.getPublishedPostBySlug({ slug: "for-everyone" }))?.slug
+      ).toBe("for-everyone");
+    }
+  });
+});
