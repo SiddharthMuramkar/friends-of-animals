@@ -172,6 +172,25 @@ export type DomainEvent =
       type: "registration.institution_registered";
       aggregate: { type: "institution_registration"; id: string };
       payload: { institutionRegistrationId: string };
+    }
+  | {
+      /**
+       * A registration was confirmed, paid or free, and has its number
+       * (#77). Its family contact is told.
+       */
+      type: "registration.confirmed";
+      aggregate: { type: "registration"; id: string };
+      payload: { registrationId: string };
+    }
+  | {
+      /**
+       * The gateway captured a batch's payment in full (#77). `payerUserId`
+       * started the payment and gets the receipt; null once their account
+       * is gone.
+       */
+      type: "payment.batch_captured";
+      aggregate: { type: "payment_batch"; id: string };
+      payload: { batchId: string; payerUserId: string | null };
     };
 
 export type EventType = DomainEvent["type"];
@@ -236,6 +255,11 @@ export const EVENT_PAYLOADS = {
   "registration.institution_registered": z.object({
     institutionRegistrationId: z.uuid(),
   }),
+  "registration.confirmed": z.object({ registrationId: z.uuid() }),
+  "payment.batch_captured": z.object({
+    batchId: z.uuid(),
+    payerUserId: z.uuid().nullable(),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -284,6 +308,8 @@ export const SUBSCRIBERS = {
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],
+  "registration.confirmed": [],
+  "payment.batch_captured": [],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

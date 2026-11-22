@@ -3,7 +3,7 @@
 // (#78).
 //
 // - payment_batch: the order, its total in paise and its status
-//   (src/server/payments/domain/batch-status.ts). Never deleted: payment
+//   (src/server/modules/payments/domain/batch-status.ts). Never deleted: payment
 //   records outlive accounts (HR-31), so the payer goes to null instead.
 // - payment_batch_item: one row per registration, with the fee it was
 //   charged. While `released_at` is null the batch holds the registration,
@@ -13,10 +13,6 @@
 // - gateway_webhook_event: one row per webhook whose signature checked out,
 //   to drop replays and keep what each led to. Never the raw payload: it
 //   carries the payer's email and phone.
-//
-// The registration and institution columns get their foreign keys once
-// 75a's institution_registration, 75b's registration and #73's institution
-// tables are on this branch.
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
@@ -37,12 +33,14 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { PAYMENT_BATCH_STATUSES } from "../../payments/domain/batch-status";
-import { WEBHOOK_OUTCOMES } from "../../payments/domain/outcomes";
+import { PAYMENT_BATCH_STATUSES } from "../../modules/payments/domain/batch-status";
+import { WEBHOOK_OUTCOMES } from "../../modules/payments/domain/outcomes";
 import { GATEWAY_NAMES } from "../../ports/payment-gateway";
 import { competition } from "./competitions";
 import { participationRouteEnum } from "./competition-terms";
 import { user } from "./identity";
+import { institution } from "./institutions";
+import { institutionRegistration, registration } from "./registration";
 
 /** #79 and #80 add their statuses, each in its own migration. */
 export const paymentBatchStatusEnum = pgEnum(
@@ -63,9 +61,14 @@ export const paymentBatch = pgTable(
       .notNull()
       .references(() => competition.id, { onDelete: "restrict" }),
     /** The paying institution; null on the individual route (#78). */
-    institutionId: uuid("institution_id"),
+    institutionId: uuid("institution_id").references(() => institution.id, {
+      onDelete: "restrict",
+    }),
     /** What the institution paid for; null on the individual route. */
-    institutionRegistrationId: uuid("institution_registration_id"),
+    institutionRegistrationId: uuid("institution_registration_id").references(
+      () => institutionRegistration.id,
+      { onDelete: "restrict" }
+    ),
     /** Who started the payment; null once their account is gone. */
     payerUserId: uuid("payer_user_id").references(() => user.id, {
       onDelete: "set null",
@@ -109,6 +112,7 @@ export const paymentBatch = pgTable(
       table.institutionRegistrationId
     ),
     index("payment_batch_competition_id_idx").on(table.competitionId),
+    index("payment_batch_institution_id_idx").on(table.institutionId),
     // Deleting a user sets this to null; the index keeps that from scanning.
     index("payment_batch_payer_user_id_idx").on(table.payerUserId),
   ]
@@ -116,13 +120,19 @@ export const paymentBatch = pgTable(
 
 export type PaymentBatchRow = typeof paymentBatch.$inferSelect;
 
+/** The index a second batch holding the same registration runs into. */
+export const PAYMENT_BATCH_ITEM_HOLDING_UNIQUE =
+  "payment_batch_item_holding_unique";
+
 export const paymentBatchItem = pgTable(
   "payment_batch_item",
   {
     batchId: uuid("batch_id")
       .notNull()
       .references(() => paymentBatch.id, { onDelete: "restrict" }),
-    registrationId: uuid("registration_id").notNull(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "restrict" }),
     /** The fee charged for this registration, in paise. */
     amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
     /** When the batch let the registration go; null while it holds it. */
@@ -132,13 +142,16 @@ export const paymentBatchItem = pgTable(
     primaryKey({ columns: [table.batchId, table.registrationId] }),
     // One batch at a time holds a registration, so two payers can't both
     // open an order for it.
-    uniqueIndex("payment_batch_item_holding_unique")
+    uniqueIndex(PAYMENT_BATCH_ITEM_HOLDING_UNIQUE)
       .on(table.registrationId)
       .where(sql`${table.releasedAt} IS NULL`),
     index("payment_batch_item_registration_id_idx").on(table.registrationId),
     check("payment_batch_item_amount_positive", sql`${table.amountMinor} > 0`),
   ]
 );
+
+/** The constraint a replayed webhook runs into. */
+export const GATEWAY_WEBHOOK_EVENT_UNIQUE = "gateway_webhook_event_unique";
 
 export const gatewayWebhookEvent = pgTable(
   "gateway_webhook_event",
@@ -155,7 +168,7 @@ export const gatewayWebhookEvent = pgTable(
     processedAt: timestamptz("processed_at"),
   },
   (table) => [
-    unique("gateway_webhook_event_unique").on(table.gateway, table.eventId),
+    unique(GATEWAY_WEBHOOK_EVENT_UNIQUE).on(table.gateway, table.eventId),
     check(
       "gateway_webhook_event_outcome_when_processed",
       sql`(${table.outcome} IS NULL) = (${table.processedAt} IS NULL)`

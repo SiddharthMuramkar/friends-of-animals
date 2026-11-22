@@ -10,12 +10,12 @@
 //
 // The gateway's record is the truth: a Checkout return or a webhook only
 // names an order, and the use case then reads the order's payments back
-// through `fetchOrderPayments` (src/server/payments/sync-batch.ts).
+// through `fetchOrderPayments` (src/server/modules/payments/sync-batch.ts).
 //
 // Loads under plain Node: relative type imports only.
 
-import type { Money } from "../payments/domain/batch-amount";
-import type { GatewayPayment } from "../payments/domain/capture-decision";
+import type { Money } from "../modules/payments/domain/batch-amount";
+import type { GatewayPayment } from "../modules/payments/domain/capture-decision";
 
 export type { GatewayPayment, Money };
 

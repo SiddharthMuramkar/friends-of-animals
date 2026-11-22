@@ -93,6 +93,13 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The principal isn't a user: their message goes by its own handler
       // (#75), not by a route row.
       return null;
+    case "registration.confirmed":
+      // The family contact isn't a user: their message goes by its own
+      // handler (#77), not by a route row.
+      return null;
+    case "payment.batch_captured":
+      // Whoever started the payment gets the receipt (#77).
+      return delivery.payload.payerUserId;
   }
 }
 
@@ -306,6 +313,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: [],
     load: async () => ({}),
   },
+  "registration.confirmed": { names: [], load: async () => ({}) },
+  "payment.batch_captured": { names: [], load: async () => ({}) },
 };
 
 /** The variables a template on a route for `eventType` may use. */

@@ -1,20 +1,28 @@
 // The registration status machine (#75): the statuses a participant's
 // registration for a competition can have, and who may move it between
-// them. This ticket brings the school route's first two; later tickets
-// append theirs (pending payment and confirmed with #77, refunded with
-// #80, waiting for a guardian with #81) and their rows here, each new
-// enum value in its own migration.
+// them. #75 brought the school route's enrolled and withdrawn; #77 adds
+// confirmed, once its fee is paid (or it is free). Later tickets append
+// theirs (refunded with #80, waiting for a guardian with #81) and their
+// rows here, each new enum value in its own migration.
 //
 // Plain TypeScript with no imports, so the schema file and the seed
 // script can load it under plain Node.
 
 /** Every status, in the order a registration passes through them. */
-export const REGISTRATION_STATUSES = ["enrolled", "withdrawn"] as const;
+export const REGISTRATION_STATUSES = [
+  "enrolled",
+  /** Paid in full, or free; it has its registration number (#77). */
+  "confirmed",
+  "withdrawn",
+] as const;
 
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 
-/** Who makes a move: the institution's coordinator or authorised person. */
-export type RegistrationCause = "coordinator";
+/**
+ * Who makes a move: the institution's coordinator or authorised person,
+ * or the payments module once the fee is captured or found to be zero.
+ */
+export type RegistrationCause = "coordinator" | "payment";
 
 /** How a registration enters the machine on each route. */
 const ENTRY: {
@@ -35,7 +43,9 @@ const TRANSITIONS: {
     Record<RegistrationStatus, RegistrationCause>
   >;
 } = {
-  enrolled: { withdrawn: "coordinator" },
+  enrolled: { withdrawn: "coordinator", confirmed: "payment" },
+  // Withdrawing a paid student waits for refunds (#80).
+  confirmed: {},
   withdrawn: {},
 };
 
