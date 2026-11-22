@@ -53,6 +53,16 @@ describe("the judging seed", () => {
       ],
     });
 
+    // Its submissions closed with every rubric published: school judging.
+    const skiesList = await app.listRubrics({
+      competitionId: await competitionId(h, "SKIES26"),
+    });
+    expect(skiesList).toMatchObject({
+      ok: true,
+      competition: { status: "school_judging" },
+      schoolJudgingBlock: null,
+    });
+
     // Drawing has been revised twice: v1 replaced, v2 in force, v3 a draft.
     const skies = await app.getDisciplineRubrics({
       competitionId: await competitionId(h, "SKIES26"),
