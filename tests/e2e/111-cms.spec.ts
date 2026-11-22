@@ -216,6 +216,28 @@ test.describe("a content manager edits the site", () => {
     await expect(
       page.getByRole("status").filter({ hasText: "Draft saved." })
     ).toBeVisible();
+    // The home page renders its published copy ahead of any request; Draft
+    // Mode still shows her the draft, and leaving it never keeps the draft.
+    await page
+      .getByRole("region", { name: "The draft", exact: true })
+      .getByRole("button", { name: "Preview on the site" })
+      .click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(
+      page.getByRole("status").filter({ hasText: "Draft preview" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: HEADING })
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Exit preview" }).click();
+    await expect(shownText(page, "Draft preview")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: HEADING })
+    ).toHaveCount(0);
+
+    await page.goto("/admin/cms/home");
     await page
       .getByRole("button", { name: /^Publish as version \d+$/ })
       .click();
