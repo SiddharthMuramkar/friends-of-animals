@@ -264,10 +264,13 @@ export async function publishRevision(
       },
       actorRole: role,
     });
+    // Mirror the sanitised body: the stored row may predate this sanitiser
+    // or have reached the table some other way (see reading.ts).
     const consentTags = await mirrorIntoConsent(tx, ctx, {
       key,
       revisionId: target.id,
-      body: target.body,
+      body: kindOf(key)?.sanitize(target.body) ?? target.body,
+      publishedAt: now,
       actorRole: role,
     });
     return {

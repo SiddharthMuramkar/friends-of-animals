@@ -167,6 +167,39 @@ describe("publishing a legal page", () => {
     expect(documents?.n).toBe(0);
   });
 
+  it("strips unsafe markup from a stored draft before it becomes the privacy notice", async () => {
+    const h = await createHarness();
+    const { actor } = await contentManager(h);
+    const now = h.clock.now();
+    // Written straight to the table, as a bad import or an old row would be.
+    await h.db.insert(cmsDocument).values({
+      id: "01938a00-0000-7000-8000-000000000d11",
+      key: "legal_privacy",
+      kind: "legal",
+      createdAt: now,
+    });
+    await h.db.insert(cmsRevision).values({
+      id: "01938a00-0000-7000-8000-000000000e11",
+      documentId: "01938a00-0000-7000-8000-000000000d11",
+      body: legalBody("Hello <script>alert(1)</script>world"),
+      status: "draft",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const published = await h.as(actor).publishRevision({
+      revisionId: "01938a00-0000-7000-8000-000000000e11",
+    });
+
+    expect(published.ok).toBe(true);
+    const [notice] = await consentVersions(h, "privacy_notice");
+    expect(notice?.legalRevisionId).toBe(
+      "01938a00-0000-7000-8000-000000000e11"
+    );
+    expect(JSON.stringify(notice?.body)).not.toMatch(/<script|<\/script/);
+    expect(JSON.stringify(notice?.body)).toMatch(/Hello/);
+  });
+
   it("has no current version before the first publish", async () => {
     const h = await createHarness();
 

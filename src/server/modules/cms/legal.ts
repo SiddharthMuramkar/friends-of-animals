@@ -55,6 +55,8 @@ export async function currentLegalVersion(
 /**
  * When `key` is the privacy or terms page, publishes the consent document
  * it mirrors, in the caller's transaction, with its own audit entry.
+ * `body` must already be sanitised; it is checked again as a consent
+ * document body.
  * Returns the cache tags that publish adds.
  */
 export async function mirrorIntoConsent(
@@ -64,6 +66,7 @@ export async function mirrorIntoConsent(
     key: CmsDocumentKey;
     revisionId: string;
     body: unknown;
+    publishedAt: Date;
     actorRole: Role | null;
   }
 ): Promise<string[]> {
@@ -79,7 +82,7 @@ export async function mirrorIntoConsent(
   const { id, version, previous } = await insertConsentDocumentVersion(
     tx,
     {
-      now: ctx.clock.now(),
+      now: published.publishedAt,
       publishedByUserId: ctx.actor.kind === "user" ? ctx.actor.userId : null,
     },
     {

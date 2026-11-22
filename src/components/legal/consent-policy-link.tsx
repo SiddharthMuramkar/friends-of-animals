@@ -13,7 +13,7 @@ const LINK =
   "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";
 
 /**
- * The policy page a consent document rests on (#111, F11), linked, with
+ * The policy page a consent document rests on (#111), linked, with
  * the version the page shows now: the privacy policy, for the messages
  * consent. The consent document records the page revision it was
  * published against; people read the page as it is today.

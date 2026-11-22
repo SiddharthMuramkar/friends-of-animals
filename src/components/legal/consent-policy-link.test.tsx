@@ -9,7 +9,7 @@ vi.mock("next-intl/server", () => import("@/test/next-intl-server"));
 const PUBLISHED_AT = new Date("2026-11-20T10:00:00Z");
 
 // The consent screens link a consent document to the policy page it rests
-// on, at the version that page shows now (#111, F11).
+// on, at the version that page shows now (#111).
 describe("<ConsentPolicyLink>", () => {
   it("links the messages consent to the privacy policy, with its current version", async () => {
     const html = await renderHtml(
