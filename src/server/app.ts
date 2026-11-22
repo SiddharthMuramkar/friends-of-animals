@@ -24,9 +24,9 @@ import { notificationsUseCases } from "./modules/notifications";
 import { secondFactorUseCases } from "./modules/second-factor";
 import { filesUseCases } from "./modules/files";
 import { settingsUseCases } from "./modules/settings";
-import { safeguardingUseCases } from "./modules/safeguarding";
 import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
+import { safeguardingUseCases } from "./modules/safeguarding";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(

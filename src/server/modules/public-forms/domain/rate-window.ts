@@ -2,8 +2,11 @@
 // counts within a window that starts on a multiple of its length since
 // the Unix epoch, so every instance agrees on the window without
 // coordinating. Day windows therefore turn over at midnight UTC, which is
-// 05:30 in India. Shared by the contact form and the later public forms
-// (#116 safeguarding reports, #106 receipt links, #125, #134).
+// 05:30 in India. The cost, as with #57's sign-in limiter: a sender who
+// times it can get up to twice a limit through across a boundary (5 at
+// 10:59:59 and 5 more at 11:00:01). A sliding window would close that, at
+// the price of a row per attempt. Shared by the contact form and the later
+// public forms (#116 safeguarding reports, #106 receipt links, #125, #134).
 //
 // Loads under plain Node, so no "server-only" here.
 

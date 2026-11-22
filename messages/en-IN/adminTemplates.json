@@ -20,6 +20,9 @@
     "events": {
       "identity": { "user_signed_up": "someone creates an account" },
       "consent": { "withdrawn": "someone withdraws their consent to messages" },
+      "contact_message": {
+        "received": "someone sends a message through the contact form"
+      },
       "safeguarding": {
         "report_submitted": "someone reports a safeguarding concern"
       }
@@ -27,6 +30,10 @@
     "keys": {
       "identity": { "welcome": "Welcome" },
       "consent": { "withdrawal_receipt": "Receipt for withdrawn consent" },
+      "contact": {
+        "acknowledgement": "Contact form acknowledgement",
+        "new_message": "New contact message"
+      },
       "safeguarding": { "report_alert": "Safeguarding report alert" }
     },
     "channels": { "email": "Email", "sms": "SMS", "in_app": "Inbox" },
@@ -71,7 +78,10 @@
         "not_allowed": "This channel doesn't use this field.",
         "invalid": "Use the digits of the DLT template id."
       },
-      "samples": { "recipient": { "name": "Asha Rao" } }
+      "samples": {
+        "recipient": { "name": "Asha Rao" },
+        "contact": { "reference": "CM-26-7KQ2MX", "topic": "Schools" }
+      }
     }
   }
 }

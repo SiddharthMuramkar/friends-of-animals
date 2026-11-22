@@ -32,7 +32,10 @@ import {
   CONTACT_CLOSE_REASONS,
   CONTACT_MESSAGE_STATUSES,
 } from "../../modules/contact/domain/status";
-import { CONTACT_FIELD_LIMITS } from "../../modules/contact/domain/submission";
+import {
+  CONTACT_FIELD_LIMITS,
+  CONTACT_NOTE_MAX,
+} from "../../modules/contact/domain/limits";
 import { user } from "./identity";
 
 const timestamptz = (name: string) =>
@@ -81,6 +84,8 @@ export const contactMessage = pgTable(
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
     closedAt: timestamptz("closed_at"),
+    /** When the sender's acknowledgement went out; null until then. */
+    acknowledgedAt: timestamptz("acknowledged_at"),
   },
   (table) => [
     unique("contact_message_reference_unique").on(table.reference),
@@ -140,10 +145,7 @@ export const contactNote = pgTable(
       table.messageId,
       table.createdAt
     ),
-    check(
-      "contact_note_body_length",
-      sql`char_length(${table.body}) BETWEEN 1 AND 5000`
-    ),
+    check("contact_note_body_length", within(table.body, CONTACT_NOTE_MAX)),
   ]
 );
 

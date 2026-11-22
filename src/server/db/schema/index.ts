@@ -22,3 +22,5 @@ export * from "./safeguarding";
 export * from "./contact";
 export * from "./public-forms";
 export * from "./notifications";
+export * from "./contact";
+export * from "./public-forms";

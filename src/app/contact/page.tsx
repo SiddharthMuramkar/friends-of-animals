@@ -11,6 +11,7 @@ import { Photo } from "@/components/site/photo";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
+import { CONTACT_FIELD_LIMITS } from "@/server/modules/contact/domain/limits";
 import { CONTACT_TOPICS } from "@/server/modules/contact/domain/routing";
 import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
@@ -211,6 +212,7 @@ export default async function Page() {
           <p className="mt-2 text-ink-muted">{tf("lead")}</p>
           <div className="mt-8 rounded-3xl border-2 border-border bg-surface p-5 sm:p-8">
             <ContactForm
+              limits={CONTACT_FIELD_LIMITS}
               topics={TOPICS.map((value) => ({
                 value,
                 label: t(`topics.items.${value}.title`),

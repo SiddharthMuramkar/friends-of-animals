@@ -12,6 +12,7 @@ import { seedFunctions } from "./builders";
 import { seedCompetitions } from "./competitions";
 import { seedCms } from "./cms";
 import { seedConsent } from "./consent";
+import { seedContact } from "./contact";
 import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
 import { seedSafeguarding } from "./safeguarding";
@@ -37,6 +38,7 @@ const seeders: readonly Seeder[] = [
   seedSettings,
   seedSafeguarding,
   seedNotifications,
+  seedContact,
   seedCms,
 ];
 

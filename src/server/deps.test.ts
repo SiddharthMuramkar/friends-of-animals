@@ -151,6 +151,25 @@ describe("storageFor", () => {
   );
 });
 
+describe("contactLimitsFor", () => {
+  it.each(["staging", "production"] as const)(
+    "keeps FOA's contact form limits on %s",
+    (appEnv) => {
+      expect(contactLimitsFor(appEnv)).toEqual(CONTACT_RATE_LIMITS);
+    }
+  );
+
+  it.each(["local", "preview"] as const)(
+    "lets one IP send many more on %s, where every E2E run shares the CI's address",
+    (appEnv) => {
+      expect(contactLimitsFor(appEnv)).toEqual({
+        perIpPerHour: 100,
+        perEmailPerDay: CONTACT_RATE_LIMITS.perEmailPerDay,
+      });
+    }
+  );
+});
+
 describe("localDiskStorageFor", () => {
   it("is only for a local run without R2", () => {
     expect(localDiskStorageFor(LOCAL)).not.toBeNull();
@@ -323,23 +342,4 @@ describe("filesConfigFor", () => {
       appEnv: "local",
     });
   });
-});
-
-describe("contactLimitsFor", () => {
-  it.each(["staging", "production"] as const)(
-    "keeps FOA's contact form limits on %s",
-    (appEnv) => {
-      expect(contactLimitsFor(appEnv)).toEqual(CONTACT_RATE_LIMITS);
-    }
-  );
-
-  it.each(["local", "preview"] as const)(
-    "lets one IP send many more on %s, where every E2E run shares the CI's address",
-    (appEnv) => {
-      expect(contactLimitsFor(appEnv)).toEqual({
-        perIpPerHour: 100,
-        perEmailPerDay: CONTACT_RATE_LIMITS.perEmailPerDay,
-      });
-    }
-  );
 });

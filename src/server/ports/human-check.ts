@@ -16,6 +16,8 @@ export type HumanCheckChallenge = {
   salt: string;
   /** Leading zero bits the proof's hash needs. */
   difficulty: number;
+  /** When it was issued: a form's bot screen counts its fill time from here. */
+  issuedAt: Date;
   /** After this, the proof is refused and the form asks for a new one. */
   expiresAt: Date;
 };

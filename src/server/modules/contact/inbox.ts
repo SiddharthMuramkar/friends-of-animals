@@ -40,6 +40,7 @@ import {
 } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import type { UseCaseContext } from "../../use-cases";
+import { CONTACT_NOTE_MAX } from "./domain/limits";
 import {
   CONTACT_TEAMS,
   CONTACT_TOPICS,
@@ -132,9 +133,6 @@ export type ChangeContactMessageStatusResult =
 export type AddContactNoteResult =
   | { ok: true; noteId: string }
   | { ok: false; error: "not_found" | "invalid_input" };
-
-/** Longest note, after trimming. */
-export const CONTACT_NOTE_MAX = 5000;
 
 /** The newest this many messages; older ones are found by filtering. */
 const LIST_LIMIT = 200;

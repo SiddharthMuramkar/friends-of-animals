@@ -26,6 +26,7 @@ export const APP_ROUTES = {
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
   adminTemplates: "/admin/templates",
+  adminInbox: "/admin/inbox",
   adminSafeguarding: "/admin/safeguarding",
 } as const;
 
@@ -37,6 +38,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
   "/admin/templates/[key]",
+  "/admin/inbox/[id]",
   "/admin/safeguarding/[id]",
 ] as const;
 

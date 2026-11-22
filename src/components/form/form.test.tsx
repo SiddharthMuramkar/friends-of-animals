@@ -131,6 +131,18 @@ describe("<SubmitButton>", () => {
     expect(html).toMatch(/<button[^>]* name="step"/);
     expect(html).toMatch(/<button[^>]* value="resend"/);
   });
+
+  it("shows the pending state it is given, for a form sent from onSubmit", () => {
+    const html = renderToStaticMarkup(
+      <SubmitButton pending pendingLabel="Sending…">
+        Send
+      </SubmitButton>
+    );
+    expect(html).toMatch(/ disabled=""/);
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain("Sending…");
+    expect(html).not.toContain(">Send<");
+  });
 });
 
 describe("<TextAreaField>", () => {

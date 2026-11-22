@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
 
+import { challengeView } from "./challenge-view";
 import {
   afterFailure,
   afterSubmit,
@@ -13,21 +14,12 @@ import {
   type ContactFormState,
   type ContactFormView,
 } from "./form-state";
-
-/** A human-check challenge as the island receives it. */
-export type ChallengeView = {
-  token: string;
-  salt: string;
-  difficulty: number;
-  /** ISO 8601. */
-  expiresAt: string;
-};
+import type { ChallengeView } from "./proof-keeper";
 
 /** A challenge for the form island to solve while the visitor types. */
 export async function issueChallengeAction(): Promise<ChallengeView> {
   const actor = await currentActor();
-  const challenge = await as(actor).issueHumanCheckChallenge();
-  return { ...challenge, expiresAt: challenge.expiresAt.toISOString() };
+  return challengeView(await as(actor).issueHumanCheckChallenge());
 }
 
 async function withText(state: ContactFormState): Promise<ContactFormView> {

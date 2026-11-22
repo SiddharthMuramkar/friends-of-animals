@@ -11,9 +11,9 @@ import { COMPETITIONS_POLICY } from "../modules/competitions/policy";
 import { NOTIFICATIONS_POLICY } from "../modules/notifications/policy";
 import { SECOND_FACTOR_POLICY } from "../modules/second-factor/policy";
 import { SETTINGS_POLICY } from "../modules/settings/policy";
-import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
 import { CONTACT_POLICY } from "../modules/contact/access-policy";
 import { PUBLIC_FORMS_POLICY } from "../modules/public-forms/access-policy";
+import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 

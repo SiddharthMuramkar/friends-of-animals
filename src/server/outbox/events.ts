@@ -61,6 +61,12 @@ export type DomainEvent =
       };
     }
   | {
+      /** A message arrived through the contact form (#113). */
+      type: "contact_message.received";
+      aggregate: { type: "contact_message"; id: string };
+      payload: { messageId: string };
+    }
+  | {
       /**
        * Someone reported a safeguarding concern (#116). The leads' alert
        * says only that one came in: nothing of the report travels here.
@@ -96,6 +102,7 @@ export const EVENT_PAYLOADS = {
     fileId: z.uuid(),
     code: z.enum(FILE_PROCESSING_ERROR_CODES),
   }),
+  "contact_message.received": z.object({ messageId: z.uuid() }),
   "safeguarding.report_submitted": z.object({ reportId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
@@ -116,6 +123,12 @@ export const SUBSCRIBERS = {
   // #85's Entries unit subscribes to these two.
   "files.file_processed": [],
   "files.file_processing_failed": [],
+  // The team's in-app note goes by route row; the sender, who has no
+  // account, gets the acknowledgement from the contact module.
+  "contact_message.received": [
+    "notifications.dispatch",
+    "contact.send_acknowledgement",
+  ],
   // The safeguarding leads' alert (#116).
   "safeguarding.report_submitted": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };

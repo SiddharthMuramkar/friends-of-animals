@@ -26,9 +26,9 @@ import { createFieldCipher } from "@/server/crypto/field-cipher";
 import * as schema from "@/server/db/schema";
 import { session } from "@/server/db/schema";
 import type { Deps } from "@/server/deps";
-import { stampSession } from "@/server/modules/second-factor/session-factor";
 import { CONTACT_RATE_LIMITS } from "@/server/modules/contact/domain/submission";
 import { proofOfWorkHumanCheck } from "@/server/modules/public-forms/proof-of-work-check";
+import { stampSession } from "@/server/modules/second-factor/session-factor";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 import { notLocal } from "@/server/seed/target";
 

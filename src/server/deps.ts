@@ -237,15 +237,15 @@ export function productionDeps(): Deps {
       files: filesConfigFor(config),
       // The settings table, read on every call (#62).
       settings: databaseSettings(db),
-      // Started by src/instrumentation.ts; silent without a DSN.
-      errors: serverErrorReporter,
-      scanner: scannerFor(config),
-      media: unconfiguredMedia,
       humanCheck: proofOfWorkHumanCheck({
         secret,
         difficulty: HUMAN_CHECK_DIFFICULTY,
       }),
       contactLimits: contactLimitsFor(config.APP_ENV),
+      // Started by src/instrumentation.ts; silent without a DSN.
+      errors: serverErrorReporter,
+      scanner: scannerFor(config),
+      media: unconfiguredMedia,
     };
   }
   return production;

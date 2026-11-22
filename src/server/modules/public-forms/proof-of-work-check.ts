@@ -46,6 +46,7 @@ export function proofOfWorkHumanCheck(options: {
         token: encodeChallengeToken({ salt, issuedAt: now, difficulty }, mac),
         salt,
         difficulty,
+        issuedAt: now,
         expiresAt: new Date(now.getTime() + CHALLENGE_LIFETIME_MS),
       };
     },

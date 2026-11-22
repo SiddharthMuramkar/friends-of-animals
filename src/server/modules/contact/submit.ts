@@ -23,6 +23,7 @@ import { contactMessage, type ContactMessage } from "../../db/schema";
 import type { AppDb } from "../../db/app-db";
 import { sqlState } from "../../errors";
 import { uuidv7 } from "../../ids";
+import { emit } from "../../outbox";
 import type { UseCaseContext } from "../../use-cases";
 import {
   formKeyedHash,
@@ -129,6 +130,13 @@ export async function submitContactMessage(
         submission,
         ipHash: hash.of("contact_message.ip_hash", network),
         now,
+      });
+      // The sender's acknowledgement and the team's note (./acknowledge.ts,
+      // the contact_team route row).
+      await emit(tx, ctx.clock, {
+        type: "contact_message.received",
+        aggregate: { type: "contact_message", id: message.id },
+        payload: { messageId: message.id },
       });
       return { ok: true, reference: message.reference };
     });

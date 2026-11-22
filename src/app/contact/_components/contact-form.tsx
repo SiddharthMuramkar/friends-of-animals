@@ -1,7 +1,14 @@
 "use client";
 
 import { OctagonAlert, ShieldAlert } from "lucide-react";
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  type FormEvent,
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   FormAlert,
@@ -16,9 +23,16 @@ import { ROUTES } from "@/lib/routes";
 
 import { issueChallengeAction, submitContactAction } from "../_lib/actions";
 import { START_VIEW, type ContactFormView } from "../_lib/form-state";
+import { proofKeeper } from "../_lib/proof-keeper";
 
 /** Picking it shows where to go instead; the form never sends it. */
 const SAFEGUARDING = "SAFEGUARDING";
+
+/** Longest value each field takes (the use case's limits). */
+export type ContactFormLimits = Record<
+  "name" | "email" | "organisation" | "subject" | "message",
+  number
+>;
 
 export type ContactFormLabels = {
   topic: { legend: string };
@@ -42,17 +56,16 @@ export type ContactFormLabels = {
 const LINK =
   "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
 
-type Proof = { token: string; nonce: number; expiresAt: number };
-
 /**
  * The contact form island on the prerendered /contact page. When the form
  * first gets focus it fetches a human-check challenge and solves it in the
- * background (src/lib/proof-of-work.ts), so the proof is usually ready by
+ * background (../_lib/proof-keeper.ts), so the proof is usually ready by
  * the time the visitor presses Send. Every message comes translated from
  * the action; static words come in `labels`.
  */
 export function ContactForm(props: {
   labels: ContactFormLabels;
+  limits: ContactFormLimits;
   topics: readonly { value: string; label: string }[];
 }) {
   // A new key starts a blank form after "Send another message".
@@ -68,66 +81,62 @@ export function ContactForm(props: {
 
 function ContactFormRound({
   labels,
+  limits,
   topics,
   onSendAnother,
 }: {
   labels: ContactFormLabels;
+  limits: ContactFormLimits;
   topics: readonly { value: string; label: string }[];
   onSendAnother: () => void;
 }) {
-  const proof = useRef<Promise<Proof> | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
-
-  /** The proof for the next send, started once and reused until spent. */
-  function humanCheck(): Promise<Proof> {
-    const current = proof.current;
-    if (current) return current;
-    const next = (async () => {
-      const challenge = await issueChallengeAction();
-      const nonce = await solveProofOfWork(challenge);
-      return {
-        token: challenge.token,
-        nonce,
-        expiresAt: Date.parse(challenge.expiresAt),
-      };
-    })();
-    proof.current = next;
-    // A failed fetch is tried again on the next focus or send.
-    next.catch(() => {
-      if (proof.current === next) proof.current = null;
-    });
-    return next;
-  }
+  const [keeper] = useState(() =>
+    proofKeeper({
+      fetchChallenge: issueChallengeAction,
+      solve: solveProofOfWork,
+      now: () => performance.now(),
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    })
+  );
 
   async function send(previous: ContactFormView, formData: FormData) {
     try {
-      let ready = await humanCheck();
-      if (ready.expiresAt <= Date.now()) {
-        proof.current = null;
-        ready = await humanCheck();
-      }
-      formData.set("humanCheckToken", ready.token);
-      formData.set("humanCheckNonce", String(ready.nonce));
+      const proof = await keeper.forSend();
+      formData.set("humanCheckToken", proof.token);
+      formData.set("humanCheckNonce", String(proof.nonce));
     } catch {
       // Sent without a proof, the server answers "human check failed",
       // which asks the visitor to press Send again.
     }
-    // Each proof works once: the next send solves a new one.
-    proof.current = null;
-    return submitContactAction(previous, formData);
+    const next = await submitContactAction(previous, formData);
+    keeper.afterSend(next);
+    return next;
   }
 
-  const [view, formAction] = useActionState(send, START_VIEW);
+  const [view, formAction, sending] = useActionState(send, START_VIEW);
+
+  // Sent from the submit event, not a form `action`: React prerenders a
+  // client action as a javascript: URL, which the CSP blocks
+  // (scripts/csp-output.ts). The form status only follows `action`, so
+  // the button gets the action's own pending state.
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (sending) return;
+    const formData = new FormData(event.currentTarget);
+    startTransition(() => formAction(formData));
+  }
 
   // Start solving when the visitor first reaches the form, not on every
-  // page view: most visitors never write.
+  // page view: most visitors never write. Later focus finds the proof
+  // ready, or tries again after a failed fetch.
   useEffect(() => {
     const form = formRef.current;
     if (!form) return;
-    const start = () => void humanCheck().catch(() => undefined);
-    form.addEventListener("focusin", start, { once: true });
-    return () => form.removeEventListener("focusin", start);
-  });
+    const warm = () => void keeper.warm();
+    form.addEventListener("focusin", warm);
+    return () => form.removeEventListener("focusin", warm);
+  }, [keeper]);
   const { text } = view;
   const [topic, setTopic] = useState(view.entered.topic);
 
@@ -151,8 +160,11 @@ function ContactFormRound({
   const safeguarding = topic === SAFEGUARDING;
 
   return (
+    // Pressed before the island hydrates, it posts to this page and sends
+    // nothing; a POST keeps what was typed out of the address and logs.
     <form
-      action={formAction}
+      method="post"
+      onSubmit={onSubmit}
       noValidate
       ref={formRef}
       className="flex flex-col gap-6"
@@ -224,7 +236,7 @@ function ContactFormRound({
               name="name"
               autoComplete="name"
               required
-              maxLength={100}
+              maxLength={limits.name}
               defaultValue={view.entered.name}
               label={labels.name.label}
               error={text.errors.name}
@@ -236,7 +248,7 @@ function ContactFormRound({
               autoComplete="email"
               spellCheck={false}
               required
-              maxLength={254}
+              maxLength={limits.email}
               defaultValue={view.entered.email}
               label={labels.email.label}
               hint={labels.email.hint}
@@ -247,7 +259,7 @@ function ContactFormRound({
             id="contact-organisation"
             name="organisation"
             autoComplete="organization"
-            maxLength={150}
+            maxLength={limits.organisation}
             defaultValue={view.entered.organisation}
             label={labels.organisation.label}
             error={text.errors.organisation}
@@ -256,12 +268,13 @@ function ContactFormRound({
             id="contact-subject"
             name="subject"
             required
-            maxLength={150}
+            maxLength={limits.subject}
             defaultValue={view.entered.subject}
             label={labels.subject.label}
             error={text.errors.subject}
           />
           <MessageField
+            maxLength={limits.message}
             label={labels.message.label}
             hint={labels.message.hint}
             error={text.errors.message}
@@ -292,7 +305,7 @@ function ContactFormRound({
             </SiteLink>
           </p>
           <div>
-            <SubmitButton pendingLabel={labels.sending}>
+            <SubmitButton pending={sending} pendingLabel={labels.sending}>
               {labels.send}
             </SubmitButton>
           </div>
@@ -304,11 +317,13 @@ function ContactFormRound({
 
 /** A labelled textarea, wired like TextField. */
 function MessageField({
+  maxLength,
   label,
   hint,
   error,
   defaultValue,
 }: {
+  maxLength: number;
   label: string;
   hint: string;
   error: string | undefined;
@@ -338,7 +353,7 @@ function MessageField({
         id="contact-message"
         name="message"
         required
-        maxLength={5000}
+        maxLength={maxLength}
         rows={7}
         defaultValue={defaultValue}
         aria-describedby={describedBy}

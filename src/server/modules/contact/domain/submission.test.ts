@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { CONTACT_FIELD_LIMITS, MIN_FILL_MS } from "./limits";
 import {
-  CONTACT_FIELD_LIMITS,
   CONTACT_RATE_LIMITS,
   CONTACT_REFERENCE_PATTERN,
   contactRateRules,
   contactReferenceFormat,
-  MIN_FILL_MS,
   parseContactSubmission,
   screenSubmission,
 } from "./submission";
@@ -171,6 +170,14 @@ describe("limits per IP and per email address", () => {
         windowMs: 86_400_000,
       },
     ]);
+  });
+
+  it("counts an address by its mailbox, without any +tag", () => {
+    const [, perAddress] = contactRateRules({
+      ip: "203.0.113.10",
+      email: "asha.rao+camp+2027@example.test",
+    });
+    expect(perAddress?.key).toBe("asha.rao@example.test");
   });
 
   it("follows other limits when given them", () => {

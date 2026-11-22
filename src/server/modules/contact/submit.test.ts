@@ -161,6 +161,7 @@ describe("the human check", () => {
       token: expect.any(String),
       salt: expect.stringMatching(/^[A-Za-z0-9_-]{22}$/),
       difficulty: expect.any(Number),
+      issuedAt: h.clock.now(),
       expiresAt: new Date(h.clock.now().getTime() + 2 * 60 * 60 * 1000),
     });
     expect(await counts(h)).toEqual(NOTHING);
@@ -314,6 +315,23 @@ describe("the limits", () => {
       error: "rate_limited",
       retryAfter: new Date("2027-01-16T00:00:00.000Z"),
     });
+    expect(await h.db.$count(contactMessage)).toBe(5);
+  });
+
+  it("counts an address's +tag forms as that address, so one inbox gets 5 a day", async () => {
+    const h = await createHarness();
+    for (let index = 0; index < 5; index++) {
+      const result = await send(h, h.visitor({ ip: `192.0.2.${index + 1}` }), {
+        email: `asha.rao+${index}@example.test`,
+      });
+      expect(result.ok).toBe(true);
+    }
+
+    const sixth = await send(h, h.visitor({ ip: "192.0.2.99" }), {
+      email: "asha.rao@example.test",
+    });
+
+    expect(sixth).toMatchObject({ ok: false, error: "rate_limited" });
     expect(await h.db.$count(contactMessage)).toBe(5);
   });
 

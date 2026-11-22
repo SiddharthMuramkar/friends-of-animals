@@ -18,6 +18,7 @@ CREATE TABLE "contact_message" (
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
 	"closed_at" timestamp with time zone,
+	"acknowledged_at" timestamp with time zone,
 	CONSTRAINT "contact_message_reference_unique" UNIQUE("reference"),
 	CONSTRAINT "contact_message_team_known" CHECK ("contact_message"."team" IN ('staff_admin', 'competition_manager', 'community_manager', 'adoption_coordinator', 'finance', 'content_manager')),
 	CONSTRAINT "contact_message_closed_with_reason" CHECK (("contact_message"."status" = 'closed') = ("contact_message"."close_reason" IS NOT NULL AND "contact_message"."closed_at" IS NOT NULL)),
