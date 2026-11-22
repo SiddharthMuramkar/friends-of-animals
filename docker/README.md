@@ -84,6 +84,7 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/pg_nonprod_nonprod_worker_password`   | 1000, 0400      | `nonprod_worker` (worker-preview)     |
 | `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for every worker        |
 | `/etc/foa/secrets/worker_prod_r2.env` (optional, HR-08) | root, 0600      | Prod bucket `R2_*`, worker-prod only  |
+| `/etc/foa/secrets/worker_media_r2.env` (optional)       | root, 0600      | Prod bucket `R2_*`, worker-media only |
 | `/etc/foa/preview-files.env` (optional)                 | root, 0600      | Non-prod `R2_*`: staging, previews    |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
@@ -1035,10 +1036,11 @@ database worker scans only with all four `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
 and uploads wait unscanned. Each worker lists its own optional env file;
 none goes through the shared `x-worker` anchor, which every worker merges:
 
-| Worker                             | R2 file (root, 0600)                  | Bucket                                 |
-| ---------------------------------- | ------------------------------------- | -------------------------------------- |
-| `worker-prod`                      | `/etc/foa/secrets/worker_prod_r2.env` | production                             |
-| `worker-staging`, `worker-preview` | `/etc/foa/preview-files.env`          | non-production (also the purge hook's) |
+| Worker                             | R2 file (root, 0600)                   | Bucket                                 |
+| ---------------------------------- | -------------------------------------- | -------------------------------------- |
+| `worker-prod`                      | `/etc/foa/secrets/worker_prod_r2.env`  | production                             |
+| `worker-media` (derivatives)       | `/etc/foa/secrets/worker_media_r2.env` | production                             |
+| `worker-staging`, `worker-preview` | `/etc/foa/preview-files.env`           | non-production (also the purge hook's) |
 
 Write the production file with the R2 token scoped to the production
 bucket, without printing it, then recreate worker-prod:
@@ -1066,9 +1068,19 @@ docker compose -f workers.yml up -d --force-recreate --wait --wait-timeout 660 \
 docker compose -f workers.yml ps foa-clamav foa-gotenberg
 ```
 
-The `media` profile is opt-in. Enable it once #85 ships the media entry
-point, media queue connection, and heartbeat. The PDF adapter in #100
-uses the Gotenberg endpoint.
+The `media` profile is opt-in. After the Files migrations are applied,
+write `/etc/foa/secrets/worker_media_r2.env` (root, mode 0600) with the four
+`R2_*` variables for the private production bucket, as for worker-prod's file
+above. Only `worker-media` reads it. Its token must allow reads and writes in
+that bucket, because the media worker stores the derivatives there.
+
+The default worker scans uploads and queues image derivatives. The media worker
+connects directly to the same database (on `db`, which also routes to R2) and
+drains only those deliveries, one image at a time. `MEDIA_TIMEOUT_SECONDS`
+defaults to 60 seconds for image processing. It uses the container heartbeat
+file for health checks. The database heartbeat read by `/api/health/worker`
+continues to track the default worker. The PDF adapter in #100 uses the
+Gotenberg endpoint.
 
 ```sh
 WORKER_VERSION=$(git -C /srv/foa rev-parse --short HEAD) \

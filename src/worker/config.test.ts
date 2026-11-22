@@ -29,6 +29,7 @@ describe("workerConfig", () => {
       connectionsPerDatabase: 1,
       heartbeatFile: "/tmp/foa-worker-heartbeat",
       passwordFile: undefined,
+      queue: { name: "default" },
       r2: undefined,
       clamd: { CLAMD_HOST: undefined, CLAMD_PORT: 3310 },
     });
@@ -61,6 +62,7 @@ describe("workerConfig", () => {
       connectionsPerDatabase: 2,
       heartbeatFile: "/run/worker/heartbeat",
       passwordFile: "/run/secrets/db_password",
+      queue: { name: "default" },
       r2: undefined,
       clamd: { CLAMD_HOST: undefined, CLAMD_PORT: 3310 },
     });
@@ -76,6 +78,62 @@ describe("workerConfig", () => {
 
     expect(name("staging")).toBe("worker-staging");
     expect(name("local")).toBe("worker-local");
+  });
+
+  it("runs worker-media on the media queue, with a time limit per job", () => {
+    expect(
+      workerConfig({
+        WORKER_MODE: "single",
+        APP_ENV: "production",
+        WORKER_DATABASE_URL: PROD_URL,
+        WORKER_QUEUE: "media",
+        MEDIA_TIMEOUT_SECONDS: "90",
+      })
+    ).toMatchObject({
+      mode: "single",
+      queue: { name: "media", timeoutSeconds: 90 },
+      identity: { worker: "worker-media", environment: "production" },
+    });
+  });
+
+  it("gives a media job 60 seconds unless told otherwise", () => {
+    const media = (APP_ENV: string) =>
+      workerConfig({
+        WORKER_MODE: "single",
+        APP_ENV,
+        WORKER_DATABASE_URL: PROD_URL,
+        WORKER_QUEUE: "media",
+      });
+
+    expect(media("staging")).toMatchObject({
+      queue: { name: "media", timeoutSeconds: 60 },
+      identity: { worker: "worker-media-staging" },
+    });
+    expect(media("local").identity.worker).toBe("worker-media-local");
+  });
+
+  it("refuses a media job time limit its outbox lease can't cover", () => {
+    // The relay's lease is 5 minutes; the job also reads and writes
+    // storage inside it.
+    for (const MEDIA_TIMEOUT_SECONDS of ["0", "241", "soon"]) {
+      expect(() =>
+        workerConfig({
+          WORKER_MODE: "single",
+          APP_ENV: "production",
+          WORKER_DATABASE_URL: PROD_URL,
+          WORKER_QUEUE: "media",
+          MEDIA_TIMEOUT_SECONDS,
+        })
+      ).toThrow(/MEDIA_TIMEOUT_SECONDS/);
+    }
+    expect(() =>
+      workerConfig({
+        WORKER_MODE: "single",
+        APP_ENV: "production",
+        WORKER_DATABASE_URL: PROD_URL,
+        WORKER_QUEUE: "scans",
+      })
+    ).toThrow(/WORKER_QUEUE/);
   });
 
   it("runs locally against DIRECT_URL by default", () => {
@@ -209,6 +267,36 @@ describe("the worker's error tracking setting", () => {
   });
 });
 
+describe("withPassword", () => {
+  it("puts the password from the secret file into the database URL", () => {
+    const config = workerConfig({
+      WORKER_MODE: "single",
+      APP_ENV: "staging",
+      WORKER_DATABASE_URL:
+        "postgres://staging_worker@10.112.12.11:5432/foa_staging",
+    });
+
+    expect(withPassword(config, "0a1b2c\n")).toMatchObject({
+      databaseUrl:
+        "postgres://staging_worker:0a1b2c@10.112.12.11:5432/foa_staging",
+      database: "foa_staging",
+    });
+  });
+
+  it("puts it into the preview worker's admin URL", () => {
+    const config = workerConfig({
+      WORKER_MODE: "preview",
+      APP_ENV: "preview",
+      WORKER_ADMIN_URL: "postgres://nonprod_worker@10.112.12.11:5432/postgres",
+    });
+
+    expect(withPassword(config, "p@ss/word")).toMatchObject({
+      adminUrl:
+        "postgres://nonprod_worker:p%40ss%2Fword@10.112.12.11:5432/postgres",
+    });
+  });
+});
+
 describe("the worker's malware scan settings", () => {
   const production = {
     APP_ENV: "production",
@@ -270,35 +358,5 @@ describe("the worker's malware scan settings", () => {
 
     expect(message).toMatch(/WORKER_DATABASE_URL/);
     expect(message).toMatch(/CLAMD_PORT/);
-  });
-});
-
-describe("withPassword", () => {
-  it("puts the password from the secret file into the database URL", () => {
-    const config = workerConfig({
-      WORKER_MODE: "single",
-      APP_ENV: "staging",
-      WORKER_DATABASE_URL:
-        "postgres://staging_worker@10.112.12.11:5432/foa_staging",
-    });
-
-    expect(withPassword(config, "0a1b2c\n")).toMatchObject({
-      databaseUrl:
-        "postgres://staging_worker:0a1b2c@10.112.12.11:5432/foa_staging",
-      database: "foa_staging",
-    });
-  });
-
-  it("puts it into the preview worker's admin URL", () => {
-    const config = workerConfig({
-      WORKER_MODE: "preview",
-      APP_ENV: "preview",
-      WORKER_ADMIN_URL: "postgres://nonprod_worker@10.112.12.11:5432/postgres",
-    });
-
-    expect(withPassword(config, "p@ss/word")).toMatchObject({
-      adminUrl:
-        "postgres://nonprod_worker:p%40ss%2Fword@10.112.12.11:5432/postgres",
-    });
   });
 });

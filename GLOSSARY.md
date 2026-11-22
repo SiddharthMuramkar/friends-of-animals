@@ -171,6 +171,18 @@ email after a sign-up. It is retried with growing waits and ends either
 dispatched or failed, and a failed delivery stays visible to staff.
 _Avoid_: Job, task, message
 
+**Derivative**:
+A copy the platform makes of an uploaded picture, such as a thumbnail or a
+display copy: upright, resized and stripped of location and camera details.
+Whoever may see the original may see its derivatives, once its scan passes.
+_Avoid_: Rendition, variant, thumbnail (one kind of derivative)
+
+**Media queue**:
+The deliveries only worker-media carries out, such as making an image's
+derivatives, so heavy picture work never runs on the website or holds up the
+other follow-up work.
+_Avoid_: Media jobs table, pg-boss queue
+
 **Drain**:
 One round of carrying out every delivery that is due: the worker does it all
 the time, a preview does it on request, and a Seam 1 test does it in process.

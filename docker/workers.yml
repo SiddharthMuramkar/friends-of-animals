@@ -31,7 +31,7 @@ x-logging: &logging
     tag: "{{.Name}}"
 
 x-worker: &worker
-  build:
+  build: &worker-build
     context: ..
     dockerfile: Dockerfile
     target: worker
@@ -219,22 +219,39 @@ services:
 
   worker-media:
     <<: *worker
-    # Enable when #85 ships src/worker-media/main.ts. On `pdf` alone it has
-    # no route to R2, Postgres or pg-boss: #85 adds the networks (db, and
-    # egress for R2) and the queue connection along with the entry point.
+    # Drains only the image derivative (media) queue that worker-prod fills
+    # after each clean scan. Start it explicitly after the Files migrations
+    # and its R2 file: `db` reaches Postgres (pg-boss, directly) and R2,
+    # `pdf` reaches Gotenberg. It needs no scanner, so no `scan`.
     profiles:
       - media
+    build:
+      <<: *worker-build
+      target: worker-media
     image: foa-workers/worker-media
     container_name: foa-worker-media
-    # #85 adds the R2 file the media jobs need with their entry point.
     env_file:
       - path: /etc/foa/secrets/worker_sentry.env
         required: false
+      # The production bucket's R2_* for the derivatives (root, 0600): its
+      # own file, so worker-prod's key stays with worker-prod.
+      - path: /etc/foa/secrets/worker_media_r2.env
+        required: false
     command: ["node", "--import", "tsx", "src/worker-media/main.ts"]
+    stop_grace_period: 75s
     environment:
       APP_ENV: production
+      WORKER_MODE: single
+      WORKER_QUEUE: media
+      WORKER_DATABASE_URL: postgres://foa_worker@10.112.12.10:5432/foa
+      WORKER_PASSWORD_FILE: /run/secrets/db_password
+      MEDIA_TIMEOUT_SECONDS: "60"
       GOTENBERG_URL: http://foa-gotenberg:3000
+    secrets:
+      - source: pg_prod_foa_worker_password
+        target: db_password
     networks:
+      - db
       - pdf
     cpus: 1
     pids_limit: 128

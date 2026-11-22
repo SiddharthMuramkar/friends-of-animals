@@ -100,6 +100,14 @@ export class FakeStorage implements ObjectStorage {
     return new Blob([object.bytes.slice()]).stream();
   }
 
+  async write({
+    body,
+    contentType,
+    ...ref
+  }: ObjectRef & { body: Uint8Array; contentType: string }): Promise<void> {
+    this.#objects.set(id(ref), { bytes: body.slice(), contentType });
+  }
+
   async move({
     bucket,
     from,

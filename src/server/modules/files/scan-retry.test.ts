@@ -64,6 +64,7 @@ function withStorage(
     presignGet: (input) => storage.presignGet(input),
     head: (ref) => storage.head(ref),
     read: (ref) => storage.read(ref),
+    write: (input) => storage.write(input),
     move: (input) => storage.move(input),
     delete: (ref) => storage.delete(ref),
     deletePrefix: (input) => storage.deletePrefix(input),
@@ -107,7 +108,8 @@ describe("a scanner outage", () => {
     });
 
     h.clock.advance({ seconds: 30 });
-    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 1 });
+    // The scan, then the clean image's media job (#85).
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 2 });
 
     expect(await fileRow(h, fileId)).toMatchObject({
       status: "clean",
