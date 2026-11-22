@@ -68,7 +68,13 @@ describe("listEnrolledStudents", () => {
       },
       reference: school.reference,
       enrolment: "open",
-      counts: { enrolled: 2, confirmed: 0, withdrawn: 1, pending_payment: 0 },
+      counts: {
+        enrolled: 2,
+        confirmed: 0,
+        withdrawn: 1,
+        pending_payment: 0,
+        pending_guardian: 0,
+      },
       students: [
         {
           registrationId: aanya,

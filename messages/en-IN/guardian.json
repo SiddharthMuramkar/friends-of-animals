@@ -8,6 +8,10 @@
       "subject": "Your own login on Friends of Animals",
       "email": "Hello {child},\n\n{guardian} has invited you to your own login on Friends of Animals, linked to them as your parent or guardian. With it you can take part in FOA's competitions yourself.\n\nTo accept, open this link, then sign in or create an account with this email address:\n{link}\n\nThe link works until {expiresAt}. If you weren't expecting this, you can ignore this email.\n\nFriends of Animals"
     },
+    "requestMessage": {
+      "subject": "Please confirm you are a parent or guardian on Friends of Animals",
+      "email": "Hello {guardian},\n\n{teen} has registered for a Friends of Animals competition and named you as their parent or guardian. Children under 18 take part with a parent or guardian, so their registration waits until you confirm.\n\nTo confirm, open this link, then sign in or create an account with this email address:\n{link}\n\nYou'll be asked to confirm that you are their parent or lawful guardian with a code we email you. The link works until {expiresAt}. If you don't know {teen}, you can ignore this email: nothing happens without you.\n\nFriends of Animals"
+    },
     "home": {
       "meta": {
         "title": "Your children"

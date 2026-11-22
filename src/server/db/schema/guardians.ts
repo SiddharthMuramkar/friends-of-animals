@@ -9,15 +9,22 @@
 // kind teen_login), which the teen accepts signed in with the invited
 // address, setting the profile's `login_user_id`.
 //
+// A teen of 13 to 17 with no guardian on the platform who registers for a
+// competition (81b) names one instead: a `guardian_invitation` of kind
+// guardian_request, from the teen (`requested_by_user_id`) to the address
+// they gave, with the guardian's name and relationship as the teen gave
+// them. It has no guardian record yet: `guardian_id` is set when a
+// verified guardian accepts it, which links the teen's profile to them.
+//
 // Stored invitation statuses are pending, accepted and revoked; "expired"
 // is read from `expires_at` against the clock, as for coordinator
 // invitations (#74). The token is kept as a SHA-256 hash to find the row
 // by, plus an encrypted copy for the outbox handler to build the link at
 // send time, cleared once the invitation stops being pending.
 //
-// Personal data: the guardian's full name and phone, and an invitation's
-// address, encrypted with the field cipher (blind indexes beside the phone
-// and the address). The data inventory lists every column
+// Personal data: the guardian's full name and phone, an invitation's
+// address and a requested guardian's name, encrypted with the field cipher
+// (blind indexes beside the phone and the address). The data inventory lists every column
 // (src/server/modules/privacy/inventory.ts).
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
@@ -156,9 +163,25 @@ export const guardianInvitation = pgTable(
   {
     id: uuid().primaryKey(),
     kind: guardianInvitationKindEnum().notNull(),
-    guardianId: uuid("guardian_id")
-      .notNull()
-      .references(() => guardian.id, { onDelete: "cascade" }),
+    /**
+     * The guardian who invited their teen; for a guardian request, the
+     * guardian who accepted it, null until then.
+     */
+    guardianId: uuid("guardian_id").references(() => guardian.id, {
+      onDelete: "cascade",
+    }),
+    /** The teen who asked a guardian (guardian_request only). */
+    requestedByUserId: uuid("requested_by_user_id").references(
+      () => user.id,
+      { onDelete: "cascade" }
+    ),
+    /**
+     * The guardian's name as the teen gave it, encrypted for purpose
+     * "guardian_invitation.invitee_name" (guardian_request only).
+     */
+    inviteeNameCiphertext: encryptedText("invitee_name_ciphertext"),
+    /** How the teen says they are related (guardian_request only). */
+    relationship: guardianRelationshipEnum(),
     participantProfileId: uuid("participant_profile_id")
       .notNull()
       .references(() => participantProfile.id, { onDelete: "cascade" }),
@@ -188,6 +211,23 @@ export const guardianInvitation = pgTable(
       .on(table.participantProfileId, table.kind)
       .where(sql`${table.status} = 'pending'`),
     index("guardian_invitation_guardian_id_idx").on(table.guardianId),
+    // Deleting the teen's account deletes their requests.
+    index("guardian_invitation_requested_by_user_id_idx").on(
+      table.requestedByUserId
+    ),
+    // A guardian invites a teen; a teen asks a guardian, by name.
+    check(
+      "guardian_invitation_teen_login_has_guardian",
+      sql`${table.kind} <> 'teen_login' OR ${table.guardianId} IS NOT NULL`
+    ),
+    check(
+      "guardian_invitation_request_complete",
+      sql`${table.kind} <> 'guardian_request' OR (${table.requestedByUserId} IS NOT NULL AND ${table.inviteeNameCiphertext} IS NOT NULL AND ${table.relationship} IS NOT NULL)`
+    ),
+    check(
+      "guardian_invitation_request_fields_only_on_requests",
+      sql`${table.kind} = 'guardian_request' OR (${table.requestedByUserId} IS NULL AND ${table.inviteeNameCiphertext} IS NULL AND ${table.relationship} IS NULL)`
+    ),
     // Deleting a user sets this to null; the index keeps that from scanning.
     index("guardian_invitation_accepted_by_user_id_idx").on(
       table.acceptedByUserId

@@ -49,4 +49,9 @@ export const GUARDIANS_POLICY = {
   "guardian.invitation.accept": signedIn,
   // A teen's own guardians.
   "guardian.mine.list": signedIn,
+  // A teen's guardian request (81b): the link is the credential for
+  // reading what it asks; accepting needs an account, which the use case
+  // then checks is the verified guardian asked.
+  "guardian.request.view": anyOf(signedOut, signedIn),
+  "guardian.request.accept": signedIn,
 } satisfies Policy<string>;

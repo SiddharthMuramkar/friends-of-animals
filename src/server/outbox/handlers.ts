@@ -26,6 +26,7 @@ import {
 } from "../modules/competitions/advance-status";
 import { notifyPrincipal } from "../modules/registration/principal-message";
 import { sendRegistrationConfirmation } from "../modules/registration/confirmation-message";
+import { sendGuardianRequest } from "../modules/guardians/guardian-request-message";
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
@@ -111,6 +112,9 @@ export const HANDLERS: Handlers = {
   // Emails a guardian's invitation to their teen's own login (#81).
   "guardians.send_teen_invitation": (deps, { payload }) =>
     sendTeenInvitation(deps, payload),
+  // Emails a teen's request to the guardian they named (81b).
+  "guardians.send_guardian_request": (deps, { payload }) =>
+    sendGuardianRequest(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

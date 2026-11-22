@@ -16,12 +16,16 @@ const ALLOWED: Record<string, RegistrationCause> = {
   "enrolled->confirmed": "payment",
   // An adult's own registration, once its fee is paid or found free (#78).
   "pending_payment->confirmed": "payment",
+  // A minor's registration, once their guardian has verified and accepted
+  // them (#81): then it waits for its fee like an adult's.
+  "pending_guardian->pending_payment": "guardian",
 };
 
 const CAUSES: readonly RegistrationCause[] = [
   "coordinator",
   "participant",
   "payment",
+  "guardian",
 ];
 
 const PAIRS = REGISTRATION_STATUSES.flatMap((from) =>
@@ -35,6 +39,7 @@ describe("the registration status machine", () => {
       "confirmed",
       "withdrawn",
       "pending_payment",
+      "pending_guardian",
     ]);
   });
 
@@ -49,6 +54,20 @@ describe("the registration status machine", () => {
     expect(canTransition("pending_payment", "confirmed", "participant")).toBe(
       false
     );
+  });
+
+  it("never confirms a minor's registration before their guardian has verified", () => {
+    for (const cause of CAUSES) {
+      expect(canTransition("pending_guardian", "confirmed", cause)).toBe(false);
+    }
+  });
+
+  it("never moves a registration back to waiting for a guardian", () => {
+    for (const from of REGISTRATION_STATUSES) {
+      for (const cause of CAUSES) {
+        expect(canTransition(from, "pending_guardian", cause)).toBe(false);
+      }
+    }
   });
 
   it("starts a student enrolled by a coordinator as enrolled", () => {

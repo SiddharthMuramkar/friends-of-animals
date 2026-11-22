@@ -1,0 +1,11 @@
+ALTER TYPE "public"."message_suppression_reason" ADD VALUE 'no_guardian';--> statement-breakpoint
+ALTER TYPE "public"."registration_status" ADD VALUE 'pending_guardian';--> statement-breakpoint
+ALTER TABLE "guardian_invitation" ALTER COLUMN "guardian_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "guardian_invitation" ADD COLUMN "requested_by_user_id" uuid;--> statement-breakpoint
+ALTER TABLE "guardian_invitation" ADD COLUMN "invitee_name_ciphertext" text;--> statement-breakpoint
+ALTER TABLE "guardian_invitation" ADD COLUMN "relationship" "guardian_relationship";--> statement-breakpoint
+ALTER TABLE "guardian_invitation" ADD CONSTRAINT "guardian_invitation_requested_by_user_id_user_id_fk" FOREIGN KEY ("requested_by_user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "guardian_invitation_requested_by_user_id_idx" ON "guardian_invitation" USING btree ("requested_by_user_id");--> statement-breakpoint
+ALTER TABLE "guardian_invitation" ADD CONSTRAINT "guardian_invitation_teen_login_has_guardian" CHECK ("guardian_invitation"."kind" <> 'teen_login' OR "guardian_invitation"."guardian_id" IS NOT NULL);--> statement-breakpoint
+ALTER TABLE "guardian_invitation" ADD CONSTRAINT "guardian_invitation_request_complete" CHECK ("guardian_invitation"."kind" <> 'guardian_request' OR ("guardian_invitation"."requested_by_user_id" IS NOT NULL AND "guardian_invitation"."invitee_name_ciphertext" IS NOT NULL AND "guardian_invitation"."relationship" IS NOT NULL));--> statement-breakpoint
+ALTER TABLE "guardian_invitation" ADD CONSTRAINT "guardian_invitation_request_fields_only_on_requests" CHECK ("guardian_invitation"."kind" = 'guardian_request' OR ("guardian_invitation"."requested_by_user_id" IS NULL AND "guardian_invitation"."invitee_name_ciphertext" IS NULL AND "guardian_invitation"."relationship" IS NULL));

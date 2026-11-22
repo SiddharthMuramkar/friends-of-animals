@@ -2,9 +2,9 @@
 // registration for a competition can have, and who may move it between
 // them. #75 brought the school route's enrolled and withdrawn; #77 adds
 // confirmed, once its fee is paid (or it is free); #78 adds an adult's own
-// registration waiting for its fee. Later tickets append theirs (refunded
-// with #80, waiting for a guardian with #81) and their rows here, each new
-// enum value in its own migration.
+// registration waiting for its fee; #81 a minor's, waiting for their
+// guardian. Later tickets append theirs (refunded with #80) and their rows
+// here, each new enum value in its own migration.
 //
 // Plain TypeScript with no imports, so the schema file and the seed
 // script can load it under plain Node.
@@ -17,16 +17,26 @@ export const REGISTRATION_STATUSES = [
   "withdrawn",
   /** An adult registered themselves and has not paid yet (#78). */
   "pending_payment",
+  /**
+   * A minor's registration, held until a guardian has verified and
+   * accepted them (#81): it can't be paid for or confirmed until then.
+   */
+  "pending_guardian",
 ] as const;
 
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 
 /**
  * Who makes a move: the institution's coordinator or authorised person,
- * the adult registering themselves, or the payments module once the fee
- * is captured or found to be zero.
+ * the adult registering themselves, the payments module once the fee is
+ * captured or found to be zero, or a verified guardian accepting the
+ * minor (#81).
  */
-export type RegistrationCause = "coordinator" | "participant" | "payment";
+export type RegistrationCause =
+  | "coordinator"
+  | "participant"
+  | "payment"
+  | "guardian";
 
 /** How a registration enters the machine on each route. */
 const ENTRY: {
@@ -55,6 +65,9 @@ const TRANSITIONS: {
   // Withdrawing an unpaid registration of one's own waits for a later
   // ticket; only the payment moves it.
   pending_payment: { confirmed: "payment" },
+  // Only a verified guardian's acceptance releases it; nothing confirms it
+  // directly, and nothing moves a registration back here.
+  pending_guardian: { pending_payment: "guardian" },
 };
 
 /** The status a new registration starts in, and who creates it. */

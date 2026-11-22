@@ -1,7 +1,10 @@
-// May this person register themselves for this competition? The one place
-// that answers it for the individual route, so the register use case, its
-// form and the guardian route that follows (which changes only what a
-// `minor` refusal leads to) give the same answer for the same facts.
+// May this person be registered for this competition on the individual
+// route, and how does the registration start? The one place that answers
+// it, so the register use case and its form give the same answer for the
+// same facts. An adult registers themselves (#78); a minor takes part with
+// a guardian (#81): a verified guardian registers their child, a teen of
+// 13 to 17 may register themselves, and a minor's registration is held
+// until a guardian has verified (./minor-registration.ts).
 //
 // Two different dates count. Whether someone is an adult is their age on
 // India's calendar at the registration instant; which age group they enter
@@ -18,7 +21,12 @@ import {
   parseIsoDate,
   type CalendarDate,
 } from "../../registration/domain/calendar-date";
-import { isAdultAt, parseDateOfBirth } from "./age";
+import { ADULT_AGE, ageAt, parseDateOfBirth } from "./age";
+import {
+  decideMinorRegistration,
+  type MinorRegistrant,
+  type MinorRegistrationRefusal,
+} from "./minor-registration";
 
 export type IndividualRegistrationRequest = {
   competition: {
@@ -33,8 +41,13 @@ export type IndividualRegistrationRequest = {
     /** In the order its manager listed them. */
     ageGroups: readonly AgeGroup[];
   };
-  /** As typed: `YYYY-MM-DD`. */
+  /** As typed, or as the child's profile keeps it: `YYYY-MM-DD`. */
   dateOfBirth: string;
+  /**
+   * Who registers: the person themselves (with their guardian's state, if
+   * they turn out to be a minor), or a guardian for their own child.
+   */
+  registrant: MinorRegistrant;
   /** This person already has a registration for this competition. */
   alreadyRegistered: boolean;
   /** Document versions, by id: the competition's required ones, and the ones ticked. */
@@ -53,19 +66,27 @@ export type IndividualRegistrationRefusal =
   | "institutions_only"
   | "fee_not_set"
   | "dob_invalid"
-  | "minor"
+  | Exclude<MinorRegistrationRefusal, "not_a_minor">
   | "outside_age_groups"
   | "already_registered"
   | "consent_missing";
 
 export type IndividualRegistrationDecision =
-  | { ok: true; dateOfBirth: CalendarDate; ageGroup: AgeGroup }
+  | {
+      ok: true;
+      dateOfBirth: CalendarDate;
+      ageGroup: AgeGroup;
+      /** Waiting for its fee, or held until a guardian has verified. */
+      status: "pending_payment" | "pending_guardian";
+      /** A teen with no guardian yet: a guardian they name must be asked. */
+      askGuardian: boolean;
+    }
   | { ok: false; reason: IndividualRegistrationRefusal };
 
 /**
  * Decides an individual registration. Under 18 on India's calendar at the
- * registration instant is refused until the guardian route exists. On
- * success returns the parsed date of birth to store and the age group.
+ * registration instant takes the guardian rules. On success returns the
+ * parsed date of birth to store, the age group and the starting status.
  */
 export function decideIndividualRegistration(
   request: IndividualRegistrationRequest
@@ -79,7 +100,15 @@ export function decideIndividualRegistration(
   if (!competition.feeSet) return refuse("fee_not_set");
   const dateOfBirth = parseDateOfBirth(request.dateOfBirth, request.at);
   if (!dateOfBirth) return refuse("dob_invalid");
-  if (!isAdultAt(dateOfBirth, request.at)) return refuse("minor");
+  const ageYears = ageAt(dateOfBirth, request.at);
+  const start =
+    ageYears >= ADULT_AGE && request.registrant.kind === "self"
+      ? ({ ok: true, status: "pending_payment", askGuardian: false } as const)
+      : decideMinorRegistration({ ageYears, registrant: request.registrant });
+  if (!start.ok) {
+    if (start.reason === "not_a_minor") throw new Error("unreachable");
+    return refuse(start.reason);
+  }
   const cutoff = parseIsoDate(competition.ageCutoffDate);
   if (!cutoff) throw new Error("A competition's age cut-off is not a date");
   const placed = ageGroupFor(dateOfBirth, cutoff, competition.ageGroups);
@@ -89,5 +118,11 @@ export function decideIndividualRegistration(
   if (!request.consents.required.every((id) => given.has(id))) {
     return refuse("consent_missing");
   }
-  return { ok: true, dateOfBirth, ageGroup: placed.group };
+  return {
+    ok: true,
+    dateOfBirth,
+    ageGroup: placed.group,
+    status: start.status,
+    askGuardian: start.askGuardian,
+  };
 }

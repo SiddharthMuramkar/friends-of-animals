@@ -110,6 +110,10 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The teen may have no account yet: the invitation goes to the
       // invited address by its own handler (#81), not by a route row.
       return null;
+    case "guardian.guardian_requested":
+      // The guardian a teen names may have no account yet: the request
+      // goes to the address the teen gave by its own handler (81b).
+      return null;
   }
 }
 
@@ -356,6 +360,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => receiptValues(db, payload.batchId),
   },
   "guardian.teen_invited": { names: [], load: async () => ({}) },
+  "guardian.guardian_requested": { names: [], load: async () => ({}) },
 };
 
 /** The variables a template on a route for `eventType` may use. */

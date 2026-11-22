@@ -197,6 +197,12 @@ export type DomainEvent =
       type: "guardian.teen_invited";
       aggregate: { type: "guardian_invitation"; id: string };
       payload: { invitationId: string };
+    }
+  | {
+      /** A teen with no guardian yet asked one to verify and accept (81b). */
+      type: "guardian.guardian_requested";
+      aggregate: { type: "guardian_invitation"; id: string };
+      payload: { requestId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -267,6 +273,7 @@ export const EVENT_PAYLOADS = {
     payerUserId: z.uuid().nullable(),
   }),
   "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
+  "guardian.guardian_requested": z.object({ requestId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -327,6 +334,9 @@ export const SUBSCRIBERS = {
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).
   "guardian.teen_invited": ["guardians.send_teen_invitation"],
+  // The guardian a teen names may have no account yet: the request goes to
+  // the address the teen gave by its own handler (81b).
+  "guardian.guardian_requested": ["guardians.send_guardian_request"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

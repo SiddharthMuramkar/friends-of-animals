@@ -2,8 +2,9 @@
 // parent or lawful guardian and verifies by a one-time code; a verified
 // guardian adds children (under 13: a profile they manage, with no login;
 // 13 to 17: invited to an own login, linked to them). Its use cases join
-// `as(actor)` through `guardiansUseCases`. 81b adds a minor's individual
-// registration, held until the guardian has verified.
+// `as(actor)` through `guardiansUseCases`. 81b adds a teen's request to a
+// guardian they name, whose acceptance releases the teen's registrations
+// held until a guardian has verified.
 
 import type { UseCaseContext } from "../../use-cases";
 import {
@@ -12,6 +13,10 @@ import {
   listChildren,
   type AddChildInput,
 } from "./children";
+import {
+  acceptGuardianRequest,
+  viewGuardianRequest,
+} from "./guardian-request";
 import {
   acceptTeenInvitation,
   inviteTeenLogin,
@@ -37,6 +42,11 @@ export type {
   PendingTeenInvitation,
 } from "./child-view";
 export type { AddChildInput, AddChildResult, GetChildResult } from "./children";
+export type {
+  AcceptGuardianRequestResult,
+  GuardianRequestView,
+  ViewGuardianRequestResult,
+} from "./guardian-request";
 export type {
   MyGuardianProfile,
   RegisterAsGuardianInput,
@@ -74,4 +84,8 @@ export const guardiansUseCases = (ctx: UseCaseContext) => ({
   acceptTeenInvitation: (input: { token: string }) =>
     acceptTeenInvitation(ctx, input),
   myGuardians: () => myGuardians(ctx),
+  viewGuardianRequest: (input: { token: string }) =>
+    viewGuardianRequest(ctx, input),
+  acceptGuardianRequest: (input: { token: string; relationship: string }) =>
+    acceptGuardianRequest(ctx, input),
 });

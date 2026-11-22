@@ -10,6 +10,7 @@ const AT = new Date("2027-01-15T04:30:00.000Z");
 
 const OPEN = { registrationOpen: true, acceptsIndividuals: true, feeSet: true };
 
+const CHILDREN = { id: "children", label: "6–12", minAge: 6, maxAge: 12 };
 const TEENS = { id: "teens", label: "13–17", minAge: 13, maxAge: 17 };
 const ADULTS = { id: "adults", label: "Adults", minAge: 18, maxAge: 99 };
 
@@ -20,6 +21,7 @@ const welcome: IndividualRegistrationRequest = {
     ageGroups: [TEENS, ADULTS],
   },
   dateOfBirth: "1995-08-20",
+  registrant: { kind: "self", guardian: "none" },
   alreadyRegistered: false,
   consents: {
     required: ["terms-v2", "privacy-v3"],
@@ -37,6 +39,8 @@ describe("decideIndividualRegistration", () => {
       ok: true,
       dateOfBirth: { year: 1995, month: 8, day: 20 },
       ageGroup: ADULTS,
+      status: "pending_payment",
+      askGuardian: false,
     });
   });
 
@@ -94,7 +98,19 @@ describe("decideIndividualRegistration", () => {
       { dateOfBirth: "2027-01-16" },
       "dob_invalid",
     ],
-    ["the person is under 18", { dateOfBirth: "2009-01-16" }, "minor"],
+    [
+      "a child under 13 registers themselves",
+      { dateOfBirth: "2014-01-16" },
+      "under_13_needs_guardian",
+    ],
+    [
+      "a guardian registers someone who is 18",
+      {
+        dateOfBirth: "2009-01-15",
+        registrant: { kind: "guardian", verified: true },
+      },
+      "adult_registers_self",
+    ],
     [
       "the person is already registered",
       { alreadyRegistered: true },
@@ -111,8 +127,65 @@ describe("decideIndividualRegistration", () => {
     expect(decide(change)).toEqual({ ok: false, reason });
   });
 
+  it("treats someone a day short of 18 as a minor", () => {
+    expect(decide({ dateOfBirth: "2009-01-16" })).toMatchObject({
+      ok: true,
+      status: "pending_guardian",
+    });
+  });
+
   it("lets someone register on their 18th birthday in India", () => {
-    expect(decide({ dateOfBirth: "2009-01-15" }).ok).toBe(true);
+    expect(decide({ dateOfBirth: "2009-01-15" })).toMatchObject({
+      ok: true,
+      status: "pending_payment",
+    });
+  });
+
+  it("holds a 16-year-old registering alone for a guardian to be asked", () => {
+    expect(
+      decide({
+        competition: { ...welcome.competition, ageGroups: [TEENS] },
+        dateOfBirth: "2010-03-01",
+      })
+    ).toEqual({
+      ok: true,
+      dateOfBirth: { year: 2010, month: 3, day: 1 },
+      ageGroup: TEENS,
+      status: "pending_guardian",
+      askGuardian: true,
+    });
+  });
+
+  it("lets a teen whose guardian has verified go straight to payment", () => {
+    expect(
+      decide({
+        dateOfBirth: "2011-06-01",
+        registrant: { kind: "self", guardian: "verified" },
+      })
+    ).toMatchObject({
+      ok: true,
+      ageGroup: TEENS,
+      status: "pending_payment",
+      askGuardian: false,
+    });
+  });
+
+  it("lets a verified guardian register their 9-year-old, waiting for payment", () => {
+    expect(
+      decide({
+        competition: {
+          ...welcome.competition,
+          ageGroups: [CHILDREN, TEENS, ADULTS],
+        },
+        dateOfBirth: "2017-09-01",
+        registrant: { kind: "guardian", verified: true },
+      })
+    ).toMatchObject({
+      ok: true,
+      ageGroup: CHILDREN,
+      status: "pending_payment",
+      askGuardian: false,
+    });
   });
 
   it("gives the competition's reason before anything about the person", () => {
@@ -157,15 +230,15 @@ describe("decideIndividualRegistration", () => {
     ).toEqual({ ok: false, reason: "outside_age_groups" });
   });
 
-  it("tells a minor to come back before asking for anything they could fix", () => {
+  it("tells a child under 13 a guardian registers them before anything they could fix", () => {
     expect(
       decide({
         competition: { ...welcome.competition, ageGroups: [TEENS] },
-        dateOfBirth: "2012-03-03",
+        dateOfBirth: "2016-03-03",
         alreadyRegistered: true,
         consents: { required: ["terms-v2"], given: [] },
       })
-    ).toEqual({ ok: false, reason: "minor" });
+    ).toEqual({ ok: false, reason: "under_13_needs_guardian" });
   });
 
   it("reports a duplicate before missing consents", () => {
