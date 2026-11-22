@@ -8,12 +8,9 @@
     "title": "Fees, prizes and terms",
     "lead": "Saved changes show on the public page straight away.",
     "forCompetition": "For {name} ({code}).",
+    "back": "Back to the competition",
+    "open": "Fees, prizes and terms",
     "loading": "Loading the competition…",
-    "denied": {
-      "title": "Only competition managers can open this page",
-      "body": "Ask a super admin for the competition manager role, for all competitions or for this one.",
-      "back": "Back to your account"
-    },
     "saved": "Saved.",
     "unchanged": "Nothing changed: that is what was already set.",
     "failed": "That didn't save. Reload the page and try again.",
@@ -64,14 +61,18 @@
         "newer_available": "Version {version} attached. Version {latest} is newer."
       },
       "noVersion": "Nothing published yet. Staff admins publish it on the consent documents page.",
-      "attach": "Attach version {version}",
-      "move": "Move to version {version}",
-      "detach": "Detach",
+      "attach": "Attach the {name}, version {version}",
+      "move": "Move the {name} to version {version}",
+      "detach": "Detach the {name}",
       "working": "Saving…",
-      "view": "Read version {version}",
+      "view": "Read the {name}, version {version}",
       "purpose": {
         "competition_terms": "Competition terms",
         "privacy_notice": "Privacy policy"
+      },
+      "name": {
+        "competition_terms": "competition terms",
+        "privacy_notice": "privacy policy"
       }
     }
   }

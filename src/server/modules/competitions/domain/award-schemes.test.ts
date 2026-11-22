@@ -187,13 +187,25 @@ describe("decideRoundAwards", () => {
 });
 
 describe("awardsChange", () => {
-  const ranked = { roundKey: "school", scheme: "ranked_123", prizes: {} } as const;
+  const ranked = {
+    roundKey: "school",
+    scheme: "ranked_123",
+    prizes: {},
+  } as const;
 
   it("is null when the scheme and prizes stay the same", () => {
     expect(
       awardsChange(
-        { roundKey: "school", scheme: "medals_gsb", prizes: { gold: "Cup", silver: "Medal" } },
-        { roundKey: "school", scheme: "medals_gsb", prizes: { silver: "Medal", gold: "Cup" } }
+        {
+          roundKey: "school",
+          scheme: "medals_gsb",
+          prizes: { gold: "Cup", silver: "Medal" },
+        },
+        {
+          roundKey: "school",
+          scheme: "medals_gsb",
+          prizes: { silver: "Medal", gold: "Cup" },
+        }
       )
     ).toBeNull();
   });

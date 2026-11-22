@@ -54,7 +54,10 @@ describe("afterSetFees", () => {
     [{ ok: false, error: "fees_locked" }, "locked"],
     [{ ok: false, error: "participation_not_set" }, "noParticipation"],
     [{ ok: false, error: "not_found" }, "failed"],
-    [{ ok: false, error: "invalid_input", fields: ["competitionId"] }, "failed"],
+    [
+      { ok: false, error: "invalid_input", fields: ["competitionId"] },
+      "failed",
+    ],
     [
       {
         ok: false,
@@ -90,9 +93,9 @@ describe("afterSetRoundAwards", () => {
     expect(
       afterSetRoundAwards({ ok: false, error: "prize_too_long" }, awards)
     ).toEqual({ entered: awards, error: "prize_too_long" });
-    expect(afterSetRoundAwards({ ok: false, error: "not_found" }, awards)).toEqual(
-      { entered: awards, error: "failed" }
-    );
+    expect(
+      afterSetRoundAwards({ ok: false, error: "not_found" }, awards)
+    ).toEqual({ entered: awards, error: "failed" });
   });
 });
 

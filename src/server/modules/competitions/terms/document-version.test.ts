@@ -10,12 +10,10 @@ describe("getCompetitionDocumentVersion", () => {
     const v1 = await publishDocument(h, "competition_terms", "the first text");
     await publishDocument(h, "competition_terms", "the second text");
 
-    const read = await h
-      .as(h.visitor())
-      .getCompetitionDocumentVersion({
-        purpose: "competition_terms",
-        version: 1,
-      });
+    const read = await h.as(h.visitor()).getCompetitionDocumentVersion({
+      purpose: "competition_terms",
+      version: 1,
+    });
 
     expect(read).toMatchObject({
       id: v1.id,
@@ -33,12 +31,10 @@ describe("getCompetitionDocumentVersion", () => {
     await publishDocument(h, "privacy_notice");
 
     expect(
-      await h
-        .as(h.visitor())
-        .getCompetitionDocumentVersion({
-          purpose: "privacy_notice",
-          version: 2,
-        })
+      await h.as(h.visitor()).getCompetitionDocumentVersion({
+        purpose: "privacy_notice",
+        version: 2,
+      })
     ).toBeNull();
   });
 
