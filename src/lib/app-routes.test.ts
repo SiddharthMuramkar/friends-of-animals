@@ -29,7 +29,9 @@ describe("isSignedInPage", () => {
 
   it("knows an institution's review page, whatever its id", () => {
     expect(
-      isSignedInPage(adminInstitutionPath("01938a00-0000-7000-8000-000000001001"))
+      isSignedInPage(
+        adminInstitutionPath("01938a00-0000-7000-8000-000000001001")
+      )
     ).toBe(true);
   });
 

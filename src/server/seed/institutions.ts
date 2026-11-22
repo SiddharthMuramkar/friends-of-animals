@@ -24,7 +24,8 @@ export const SEED_INSTITUTIONS = {
     institutionCode: "FOA-I-5EED1",
     /** Its authorised person, and so its admin. */
     admin: {
-      id: "01938a00-0000-7000-8000-000000000201",
+      // 02xx are the competitions seeder's managers.
+      id: "01938a00-0000-7000-8000-000000000301",
       name: "Kavita Joshi",
       email: "institution-admin@example.test",
     },
@@ -34,7 +35,7 @@ export const SEED_INSTITUTIONS = {
     id: "01938a00-0000-7000-8000-000000001002",
     name: "Seed Valley College",
     applicant: {
-      id: "01938a00-0000-7000-8000-000000000202",
+      id: "01938a00-0000-7000-8000-000000000302",
       name: "Sanjay Patil",
       email: "institution-applicant@example.test",
     },
