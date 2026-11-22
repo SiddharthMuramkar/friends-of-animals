@@ -17,8 +17,14 @@
       "noInstitution": {
         "title": "No institution to manage here",
         "body": "Only the authorised person of a verified institution can invite coordinators. If you registered an institution, it shows here once FOA has verified it.",
-        "back": "Go to your account"
+        "back": "Go to your institution"
       },
+      "notVerified": {
+        "title": "Your institution isn't verified at the moment",
+        "body": "While FOA has your institution suspended, you can't invite, list or remove coordinators, and they can't act for it. Your institution page shows why.",
+        "back": "Go to your institution"
+      },
+      "entry": "Manage coordinators",
       "otherInstitutions": "You also manage:",
       "manageOther": "Manage coordinators for {institution}",
       "for": "For {institution}",

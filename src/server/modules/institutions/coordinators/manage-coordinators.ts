@@ -10,6 +10,10 @@
 // transaction, so an authorised person who just lost the role can't finish.
 // The role is read fresh on every use case (#59), so a removed coordinator's
 // next call is refused even with their session still open.
+//
+// Each also needs the institution verified: #73 keeps the authorised
+// person's grant through a suspension, so the status is what stops them
+// (institution_not_verified) until staff reinstate it.
 
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -19,6 +23,7 @@ import type { Grant } from "../../../access/domain/roles";
 import { grantKey } from "../../../access/domain/roles";
 import { grantRow, grantsOf } from "../../../access/grants";
 import { recordAudit } from "../../../audit/record";
+import type { AppDb } from "../../../db/app-db";
 import {
   institution,
   institutionInvitation,
@@ -33,6 +38,7 @@ import {
   type InvitationRefusal,
 } from "../domain/invitation";
 import { maskIdentifier, type InviteeChannel } from "../domain/mask-identifier";
+import type { InstitutionStatus } from "../domain/status";
 import { institutionResource } from "./invite-coordinator";
 import { readInvitee } from "./invitee";
 
@@ -56,17 +62,20 @@ export type ListCoordinatorsResult =
       invitations: WaitingInvitation[];
     }
   | InvalidInput
-  | { ok: false; error: "not_found" };
+  | { ok: false; error: "not_found" | "institution_not_verified" };
 
 export type RemoveCoordinatorResult =
   | { ok: true }
   | InvalidInput
-  | { ok: false; error: "not_found" };
+  | { ok: false; error: "not_found" | "institution_not_verified" };
 
 export type RevokeInvitationResult =
   | { ok: true }
   | InvalidInput
-  | { ok: false; error: "not_found" | InvitationRefusal };
+  | {
+      ok: false;
+      error: "not_found" | "institution_not_verified" | InvitationRefusal;
+    };
 
 const institutionInput = z.object({ institutionId: z.uuid() });
 const removeInput = z.object({ institutionId: z.uuid(), userId: z.uuid() });
@@ -74,6 +83,22 @@ const revokeInput = z.object({
   institutionId: z.uuid(),
   invitationId: z.uuid(),
 });
+
+/**
+ * The institution's status, share-locked as inviting locks it, so a staff
+ * decision waits for this change or this change sees the decision.
+ */
+async function lockedStatus(
+  tx: AppDb,
+  institutionId: string
+): Promise<InstitutionStatus | undefined> {
+  const [row] = await tx
+    .select({ status: institution.status })
+    .from(institution)
+    .where(eq(institution.id, institutionId))
+    .for("share");
+  return row?.status;
+}
 
 function coordinatorGrant(institutionId: string): Grant {
   return {
@@ -96,10 +121,17 @@ export async function listCoordinators(
   const { institutionId } = parsed.data;
 
   const [found] = await ctx.db
-    .select({ id: institution.id, name: institution.name })
+    .select({
+      id: institution.id,
+      name: institution.name,
+      status: institution.status,
+    })
     .from(institution)
     .where(eq(institution.id, institutionId));
   if (!found) return { ok: false, error: "not_found" };
+  if (found.status !== "verified") {
+    return { ok: false, error: "institution_not_verified" };
+  }
 
   const coordinators = await ctx.db
     .select({ userId: user.id, name: user.name, since: userRole.grantedAt })
@@ -147,7 +179,12 @@ export async function listCoordinators(
     };
   });
 
-  return { ok: true, institution: found, coordinators, invitations };
+  return {
+    ok: true,
+    institution: { id: found.id, name: found.name },
+    coordinators,
+    invitations,
+  };
 }
 
 export async function removeCoordinator(
@@ -162,6 +199,7 @@ export async function removeCoordinator(
   const grant = coordinatorGrant(institutionId);
 
   return ctx.db.transaction(async (tx) => {
+    const status = await lockedStatus(tx, institutionId);
     // Lock both users' rows in id order, as #59's role changes do, so a
     // change to either one's roles queues behind this.
     const ids = [userId];
@@ -177,6 +215,9 @@ export async function removeCoordinator(
       "institution.coordinators.manage",
       resource
     );
+    if (status !== "verified") {
+      return { ok: false, error: "institution_not_verified" } as const;
+    }
 
     const before = await grantsOf(tx, userId);
     const removed = await tx
@@ -216,6 +257,7 @@ export async function revokeInvitation(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
+    const institutionStatus = await lockedStatus(tx, institutionId);
     const [row] = await tx
       .select({
         status: institutionInvitation.status,
@@ -235,6 +277,9 @@ export async function revokeInvitation(
       resource
     );
     if (!row) return { ok: false, error: "not_found" } as const;
+    if (institutionStatus !== "verified") {
+      return { ok: false, error: "institution_not_verified" } as const;
+    }
     const decision = decideInvitation("revoke", row, now);
     if (!decision.ok) return { ok: false, error: decision.reason } as const;
 

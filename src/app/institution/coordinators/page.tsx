@@ -93,13 +93,29 @@ async function Coordinators({ searchParams }: { searchParams: SearchParams }) {
   const list = institutionId
     ? await as(actor).listCoordinators({ institutionId })
     : undefined;
+  if (list && !list.ok && list.error === "institution_not_verified") {
+    // Suspended since: the authorised person keeps their role (#73), but
+    // the institution's coordinators wait until FOA reinstates it.
+    return (
+      <ExplainState
+        className="mt-8"
+        title={t("notVerified.title")}
+        back={{
+          href: APP_ROUTES.myInstitution,
+          label: t("notVerified.back"),
+        }}
+      >
+        <p>{t("notVerified.body")}</p>
+      </ExplainState>
+    );
+  }
   if (!institutionId || !list?.ok) {
     return (
       <ExplainState
         className="mt-8"
         title={t("noInstitution.title")}
         back={{
-          href: APP_ROUTES.accountSessions,
+          href: APP_ROUTES.myInstitution,
           label: t("noInstitution.back"),
         }}
       >
