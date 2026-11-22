@@ -12,7 +12,13 @@
 import type { CompetitionStatus } from "@/server/modules/competitions/domain/status-machine";
 import type { UpcomingChange } from "@/server/modules/competitions/domain/status-schedule";
 
-type CountdownKey = "opens" | "opensDue" | "closes" | "closesDue";
+type CountdownKey =
+  | "opens"
+  | "opensDue"
+  | "closes"
+  | "closesDue"
+  | "entriesClose"
+  | "entriesCloseDue";
 
 export type CountdownIntl = {
   t: (key: CountdownKey, values?: { at: string; relative: string }) => string;
@@ -29,6 +35,7 @@ const KEYS: Record<
 > = {
   registration_open: { scheduled: "opens", due: "opensDue" },
   registration_closed: { scheduled: "closes", due: "closesDue" },
+  school_judging: { scheduled: "entriesClose", due: "entriesCloseDue" },
 };
 
 /** The countdown sentence for `change`, or null when nothing is ahead. */

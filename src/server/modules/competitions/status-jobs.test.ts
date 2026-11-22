@@ -290,7 +290,11 @@ describe("the next status change, as the admin page counts down to it", () => {
 
     h.clock.set(CLOSES);
     await h.drain();
-    expect(await nextChange(h, manager, competitionId)).toBeNull();
+    expect(await nextChange(h, manager, competitionId)).toEqual({
+      kind: "scheduled",
+      to: "school_judging",
+      at: new Date("2027-02-28T18:29:00.000Z"),
+    });
   });
 
   it("has none for a draft: publishing comes first", async () => {

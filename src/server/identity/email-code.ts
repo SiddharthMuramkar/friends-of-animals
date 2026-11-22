@@ -110,6 +110,7 @@ export async function requestEmailCode(
     ip: meta.ip,
     now: ctx.clock.now(),
     secret: ctx.auth.secret,
+    limits: ctx.codeRequestLimits,
   });
   if (!allowance.ok) {
     return {
