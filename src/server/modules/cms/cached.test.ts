@@ -1,18 +1,17 @@
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
-  PHASE_PRODUCTION_SERVER,
 } from "next/constants";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { canReadWhilePrerendering } from "./cached";
+import { isNextBuild } from "./cached";
 
 // The home page's static shell renders the published documents when it can
-// (Live's `published`). `next build` has no runtime config and must pass
-// without a database (spec §1.7 trap 15), so the shell must never read
-// while the build prerenders it, even when the build happens to have
-// database settings (CI's E2E build, or a checkout's .env). The server
-// reads them when it regenerates the page.
+// (Live's `published`), but never in `next build`: the build has no runtime
+// config and must pass with DATABASE_URL unset, so the shell must not read
+// even when the build happens to have database settings (CI's E2E build,
+// or a checkout's .env). The server reads them when it regenerates the
+// page.
 
 /** Settings with which the app's runtime config parses, as in CI's build. */
 function stubDatabaseSettings() {
@@ -26,29 +25,30 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("the static shell's read of published documents", () => {
-  it("never runs while `next build` prerenders, even with database settings", () => {
+describe("telling `next build` from the running server", () => {
+  it("knows `next build`, even with database settings", () => {
     stubDatabaseSettings();
     vi.stubEnv("NEXT_PHASE", PHASE_PRODUCTION_BUILD);
-    expect(canReadWhilePrerendering()).toBe(false);
+    expect(isNextBuild()).toBe(true);
   });
 
-  it("never runs while `next build` prerenders without database settings", () => {
+  it("knows `next build` without database settings", () => {
     vi.stubEnv("NEXT_PHASE", PHASE_PRODUCTION_BUILD);
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("DIRECT_URL", "");
-    expect(canReadWhilePrerendering()).toBe(false);
+    expect(isNextBuild()).toBe(true);
   });
 
-  it("runs when the server regenerates the page", () => {
+  it("lets the server read when it regenerates the page", () => {
     stubDatabaseSettings();
-    vi.stubEnv("NEXT_PHASE", PHASE_PRODUCTION_SERVER);
-    expect(canReadWhilePrerendering()).toBe(true);
+    // `next start` leaves NEXT_PHASE unset; only `next build` sets it.
+    vi.stubEnv("NEXT_PHASE", undefined);
+    expect(isNextBuild()).toBe(false);
   });
 
-  it("runs under next dev", () => {
+  it("lets next dev read", () => {
     stubDatabaseSettings();
     vi.stubEnv("NEXT_PHASE", PHASE_DEVELOPMENT_SERVER);
-    expect(canReadWhilePrerendering()).toBe(true);
+    expect(isNextBuild()).toBe(false);
   });
 });

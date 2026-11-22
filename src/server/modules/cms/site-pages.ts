@@ -17,9 +17,10 @@ import { isSampleContentEnabled } from "@/lib/site";
 
 import { errorSummaryForLogs } from "../../errors";
 import {
-  canReadWhilePrerendering,
+  BUILD_SHELL_LIFE,
+  FAILED_READ_SHELL_LIFE,
+  isNextBuild,
   loadPublishedDocument,
-  UNREAD_SHELL_LIFE,
 } from "./cached";
 import { cmsPublicPath, cmsTag, type CmsDocumentKey } from "./domain/documents";
 import { type OrgFacts, unconfirmedOrgFacts } from "./domain/org-facts";
@@ -56,9 +57,12 @@ function unpublishedImpact(): ImpactBody | null {
   return isSampleContentEnabled() ? impactKind.seedBody() : null;
 }
 
-/** The body shown, or `fallback` while there is none (the repo's copy). */
+/**
+ * The body of a shown or published document, or `fallback` while there is
+ * none (the repo's copy).
+ */
 function bodyOf<Body>(
-  shown: ShownCmsDocument | null,
+  shown: { body: unknown } | null,
   kind: CmsKind<Body>,
   fallback: () => Body
 ): Body {
@@ -101,7 +105,8 @@ export async function loadHomePage(): Promise<HomePage> {
  * the hero and its buttons are painted once and never streamed over. Null
  * while `next build` prerenders the page, or when the read fails: the page
  * then keeps the seed in its shell and streams loadHomePage over it, and
- * the server regenerates the shell with this read on its next request.
+ * the server regenerates the shell with this read on its next request
+ * (after a failed read, its next request 15 seconds later).
  *
  * Cached, so each request that resumes a shell gets the answer that shell
  * was rendered with (Next keeps a shell's cached values with it): a
@@ -110,8 +115,8 @@ export async function loadHomePage(): Promise<HomePage> {
  */
 export async function loadPublishedHomePage(): Promise<HomePage | null> {
   "use cache";
-  if (!canReadWhilePrerendering()) {
-    cacheLife(UNREAD_SHELL_LIFE);
+  if (isNextBuild()) {
+    cacheLife(BUILD_SHELL_LIFE);
     return null;
   }
   try {
@@ -122,8 +127,8 @@ export async function loadPublishedHomePage(): Promise<HomePage | null> {
     cacheTag(cmsTag("home"), cmsTag("impact"));
     cacheLife("hours");
     return {
-      home: home ? homeKind.sanitize(home.body) : homeKind.seedBody(),
-      impact: impact ? impactKind.sanitize(impact.body) : unpublishedImpact(),
+      home: bodyOf(home, homeKind, homeKind.seedBody),
+      impact: bodyOf(impact, impactKind, unpublishedImpact),
       preview: null,
     };
   } catch (error) {
@@ -131,7 +136,7 @@ export async function loadPublishedHomePage(): Promise<HomePage | null> {
     console.error(
       `CMS home page: the static shell could not read the published copy: ${errorSummaryForLogs(error)}`
     );
-    cacheLife(UNREAD_SHELL_LIFE);
+    cacheLife(FAILED_READ_SHELL_LIFE);
     return null;
   }
 }

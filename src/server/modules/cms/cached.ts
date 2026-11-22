@@ -6,7 +6,7 @@
 // Call it after `await connection()`, inside <Suspense>: the build has no
 // database. The page's fallback is the repo's copy, which is also what the
 // seed publishes as version 1. A static shell may read it too (the home
-// page's), but only after canReadWhilePrerendering(), so only when the
+// page's), but never in `next build` (isNextBuild()), so only when the
 // server regenerates the page.
 
 import "server-only";
@@ -46,25 +46,40 @@ export async function loadPublishedDocument(
 }
 
 /**
- * Whether a static shell can read published documents now: never while
- * `next build` prerenders it, which has no runtime config and must pass
- * without a database (spec §1.7 trap 15), even when the build happens to
- * have database settings. The server reads them when it regenerates the
- * page.
+ * Whether this is `next build`. A static shell never reads published
+ * documents then: the build has no runtime config and must pass with
+ * `DATABASE_URL` unset, even when it happens to have database settings.
+ * The server reads them when it regenerates the page (and `next dev` on
+ * each request).
+ *
+ * Next sets NEXT_PHASE in the build's own process and reads it there the
+ * same way; it never inlines it into the bundle, so the running server
+ * sees its own environment, without it.
  */
-export function canReadWhilePrerendering(): boolean {
-  return process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD;
+export function isNextBuild(): boolean {
+  return process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 }
 
 /**
- * The cache life of a shell's read that couldn't read the published
- * documents (always while `next build` prerenders it): revalidated after a
- * second, so the server regenerates the page with them on its first
- * request after the build, or after a failed read, rather than in 5
+ * The cache life of the shell `next build` leaves without the published
+ * documents: revalidated after a second, so the server regenerates the
+ * page with them on its first request after the build, rather than in 5
  * minutes. `stale` and `expire` keep the shell prerendered and in the App
  * Shell (see the cacheLife docs).
  */
-export const UNREAD_SHELL_LIFE = { stale: 300, revalidate: 1, expire: 3600 };
+export const BUILD_SHELL_LIFE = { stale: 300, revalidate: 1, expire: 3600 };
+
+/**
+ * The cache life of a shell whose read of the published documents failed:
+ * like BUILD_SHELL_LIFE, but retried after 15 seconds, so a database
+ * outage costs each server one read attempt and one logged error per 15
+ * seconds, not one a second.
+ */
+export const FAILED_READ_SHELL_LIFE = {
+  stale: 300,
+  revalidate: 15,
+  expire: 3600,
+};
 
 /**
  * The version and date a policy page shows now, or null before version 1:
