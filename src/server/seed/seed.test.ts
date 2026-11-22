@@ -26,7 +26,7 @@ async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {
 }
 
 describe("seedPreview", () => {
-  it("creates the preview accounts, two competition managers, dedicated consent publishers and template editors", async () => {
+  it("creates the preview accounts, two competition managers, dedicated consent publishers, template editors and two institutions' people", async () => {
     const deps = await seedDeps();
     await seedPreview(deps);
 
@@ -35,6 +35,8 @@ describe("seedPreview", () => {
       "competition-manager@example.test",
       "consent-publisher-desktop@example.test",
       "consent-publisher-mobile@example.test",
+      "institution-admin@example.test",
+      "institution-applicant@example.test",
       "member1@example.test",
       "member2@example.test",
       "member3@example.test",

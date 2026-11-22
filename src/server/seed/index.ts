@@ -15,6 +15,7 @@ import { seedCms } from "./cms";
 import { seedConsent } from "./consent";
 import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
+import { seedInstitutions } from "./institutions";
 import { seedNotifications } from "./notifications";
 import { seedSecondFactor } from "./second-factor";
 import { seedSettings } from "./settings";
@@ -36,6 +37,7 @@ const seeders: readonly Seeder[] = [
   seedFiles,
   seedSecondFactor,
   seedSettings,
+  seedInstitutions,
   seedNotifications,
   seedCms,
 ];
