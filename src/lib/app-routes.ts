@@ -1,3 +1,5 @@
+import { CMS_DOCUMENT_KEYS } from "../server/modules/cms/domain/documents";
+
 /**
  * Pages behind sign-in. They are never in navigation for visitors, the
  * sitemap or search results (each sets robots noindex), and they render at
@@ -23,6 +25,7 @@ export const APP_ROUTES = {
   adminTemplates: "/admin/templates",
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
+  adminCms: "/admin/cms",
 } as const;
 
 /**
@@ -30,6 +33,7 @@ export const APP_ROUTES = {
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  "/admin/templates/[key]",
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
 ] as const;
@@ -65,25 +69,7 @@ export function isUnderPrefix(
   );
 }
 
-/**
- * Pages behind sign-in with a dynamic segment, written as their routes
- * are: `[name]` stands for any one non-empty path segment.
- */
-export const DYNAMIC_APP_ROUTES = ["/admin/templates/[key]"] as const;
-
-/** Whether `pathname` fills in `route`, segment by segment. */
-function fillsRoute(route: string, pathname: string): boolean {
-  const want = route.split("/");
-  const got = pathname.split("/");
-  return (
-    want.length === got.length &&
-    want.every((segment, i) =>
-      /^\[[^\]/]+\]$/.test(segment) ? got[i] !== "" : segment === got[i]
-    )
-  );
-}
-
-/** Whether `pathname` is one of the pages in APP_ROUTES or DYNAMIC_APP_ROUTES. */
+/** Whether `pathname` fills in `template`, segment by segment. */
 function fitsTemplate(pathname: string, template: string): boolean {
   const segments = pathname.split("/");
   const parts = template.split("/");
@@ -95,16 +81,26 @@ function fitsTemplate(pathname: string, template: string): boolean {
   );
 }
 
-/** Whether `pathname` is a page in APP_ROUTES or APP_ROUTE_TEMPLATES. */
+/**
+ * Whether `pathname` is a page in APP_ROUTES, APP_ROUTE_TEMPLATES or one
+ * CMS document's editor.
+ */
 export function isSignedInPage(pathname: string): boolean {
   return (
     (Object.values(APP_ROUTES) as string[]).includes(pathname) ||
-    DYNAMIC_APP_ROUTES.some((route) => fillsRoute(route, pathname))
+    APP_ROUTE_TEMPLATES.some((template) => fitsTemplate(pathname, template)) ||
+    CMS_EDITOR_PATHS.has(pathname)
   );
-  return (
-    (Object.values(APP_ROUTES) as string[]).includes(pathname) ||
-    APP_ROUTE_TEMPLATES.some((template) => fitsTemplate(pathname, template))
-  );
+}
+
+/** One editor page per CMS document (#111), and no other path below it. */
+const CMS_EDITOR_PATHS: ReadonlySet<string> = new Set(
+  CMS_DOCUMENT_KEYS.map((key) => adminCmsDocumentPath(key))
+);
+
+/** The editor page of one CMS document (#111). */
+export function adminCmsDocumentPath(key: string): `/admin/cms/${string}` {
+  return `/admin/cms/${key}`;
 }
 
 /**

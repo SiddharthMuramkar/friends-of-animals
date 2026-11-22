@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { SubmitButton } from "@/components/form";
+import { ConsentPolicyLink } from "@/components/legal/consent-policy-link";
 import {
   LegalSectionsText,
   LegalShortList,
@@ -15,6 +16,8 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { loadLegalVersion } from "@/server/modules/cms/cached";
+import { legalKeyForConsentPurpose } from "@/server/modules/cms/domain/documents";
 import type { MyConsent } from "@/server/modules/consent";
 
 import { ChangeNotice } from "./_components/change-notice";
@@ -68,11 +71,13 @@ function doneOf(done: string | string[] | undefined) {
 async function Consents({ searchParams }: { searchParams: SearchParams }) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, callout, format, consents, { done }] = await Promise.all([
+  const [t, callout, format, consents, policy, { done }] = await Promise.all([
     getTranslations("consent"),
     getTranslations("common.callout"),
     getFormatter(),
     as(actor).myConsents(),
+    // The messages consent rests on the privacy policy (#111).
+    loadLegalVersion(legalKeyForConsentPurpose("messages")),
     searchParams,
   ]);
   const messages = consents.find((each) => each.purpose === "messages");
@@ -164,6 +169,11 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
               level="h3"
             />
           </Disclosure>
+          <ConsentPolicyLink
+            purpose="messages"
+            current={policy}
+            className="mt-4 text-ink"
+          />
         </section>
       ) : null}
 

@@ -27,6 +27,12 @@ describe("afterPreview", () => {
       )
     ).toEqual({ ...entered, sourceErrors: errors });
   });
+
+  it("says the privacy policy and the terms are published from Site content", () => {
+    expect(
+      afterPreview({ ok: false, error: "published_by_cms" }, entered)
+    ).toEqual({ ...entered, alert: "publishedByCms" });
+  });
 });
 
 describe("afterPublishRefused", () => {
@@ -47,6 +53,12 @@ describe("afterPublishRefused", () => {
         entered
       )
     ).toEqual({ ...entered, sourceErrors: errors });
+  });
+
+  it("says the privacy policy and the terms are published from Site content", () => {
+    expect(
+      afterPublishRefused({ ok: false, error: "published_by_cms" }, entered)
+    ).toEqual({ ...entered, alert: "publishedByCms" });
   });
 
   it("says it failed for anything else the form can't point at", () => {

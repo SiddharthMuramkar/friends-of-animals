@@ -33,6 +33,7 @@ import {
   CONSENT_PURPOSES,
   CONSENT_SUBJECT_TYPES,
 } from "../../modules/consent/domain/purposes";
+import { cmsRevision } from "./cms";
 import { user } from "./identity";
 
 /** #82 adds the guardian purposes, each in its own migration. */
@@ -69,6 +70,13 @@ export const consentDocument = pgTable(
      * account is deleted.
      */
     publishedByUserId: uuid("published_by_user_id"),
+    /**
+     * The published revision of the policy page this version rests on
+     * (#111): the privacy page for the privacy notice and messages, the
+     * terms page for the terms. Null for versions published before the
+     * CMS, and for seed data.
+     */
+    legalRevisionId: uuid("legal_revision_id").references(() => cmsRevision.id),
   },
   (table) => [
     // Also the index for "the latest version of a purpose".
@@ -77,6 +85,8 @@ export const consentDocument = pgTable(
       table.version
     ),
     check("consent_document_version_positive", sql`${table.version} > 0`),
+    // A CMS revision's consent documents, without scanning the table.
+    index("consent_document_legal_revision_id_idx").on(table.legalRevisionId),
   ]
 );
 

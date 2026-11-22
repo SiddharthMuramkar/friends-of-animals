@@ -127,6 +127,20 @@
       "when": 1795332908857,
       "tag": "0017_70_module_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795332970641,
+      "tag": "0018_111_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795332971291,
+      "tag": "0019_111_cms_revision_guard",
+      "breakpoints": true
     }
   ]
 }
