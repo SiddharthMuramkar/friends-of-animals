@@ -5,13 +5,16 @@
 //
 // Pure: the use cases load the facts, work out the child's age with the
 // participants module's `ageAt` (completed years on India's calendar at the
-// clock's instant) and pass it in. Loads under plain Node.
+// clock's instant) and pass it in. Loads under plain Node: relative
+// imports only.
+
+import { ADULT_AGE } from "../../participants/domain/age";
+
+/** The age from which a person is an adult and registers themselves (#78). */
+export { ADULT_AGE };
 
 /** The age from which a child may have an own login. */
 export const MINOR_LOGIN_MIN_AGE = 13;
-
-/** The age from which a person is an adult and registers themselves. */
-export const ADULT_AGE = 18;
 
 /** A guardian-managed profile with no login, or one with a linked login. */
 export type ChildKind = "managed" | "linked";

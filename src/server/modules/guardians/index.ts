@@ -7,6 +7,12 @@
 
 import type { UseCaseContext } from "../../use-cases";
 import {
+  addChild,
+  getChild,
+  listChildren,
+  type AddChildInput,
+} from "./children";
+import {
   myGuardianProfile,
   registerAsGuardian,
   type RegisterAsGuardianInput,
@@ -16,6 +22,13 @@ import {
   startGuardianVerification,
 } from "./verify-guardian";
 
+export type {
+  ChildDetail,
+  ChildLogin,
+  ChildSummary,
+  PendingTeenInvitation,
+} from "./child-view";
+export type { AddChildInput, AddChildResult, GetChildResult } from "./children";
 export type {
   MyGuardianProfile,
   RegisterAsGuardianInput,
@@ -33,4 +46,7 @@ export const guardiansUseCases = (ctx: UseCaseContext) => ({
   startGuardianVerification: () => startGuardianVerification(ctx),
   confirmGuardianVerification: (input: { code: string }) =>
     confirmGuardianVerification(ctx, input),
+  addChild: (input: AddChildInput) => addChild(ctx, input),
+  listChildren: () => listChildren(ctx),
+  getChild: (input: { childId: string }) => getChild(ctx, input),
 });
