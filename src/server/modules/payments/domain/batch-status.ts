@@ -82,8 +82,10 @@ const TRANSITIONS: Readonly<
     offline_recorded: "captured",
     review_opened: "needs_review",
   },
-  // Refunds (#80) add their moves here.
-  captured: { review_opened: "needs_review" },
+  // A paid batch stays paid. A second payment opens a case beside it
+  // (#80, from #79's review), and refunds are rows of their own, so a
+  // batch's refunded part is read from them, not from its status.
+  captured: {},
   failed: { review_opened: "needs_review" },
   cancelled: { review_opened: "needs_review" },
   needs_review: {

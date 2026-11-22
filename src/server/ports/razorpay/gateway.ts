@@ -5,14 +5,22 @@
 //     id as receipt.
 //   - fetchOrderPayments: GET /v1/orders/{id}/payments, each attempt's
 //     status, amount (bigint paise) and currency.
+//   - refund (#80): POST /v1/payments/{id}/refund at normal speed with the
+//     amount in whole paise and our notes, and the idempotency key in
+//     X-Refund-Idempotency, so a retry after a lost answer returns the
+//     refund the first call made.
+//   - fetchRefunds: GET /v1/payments/{id}/refunds (up to 100: a payment of
+//     ours is refunded a handful of times at most).
 //   - verifyCheckout and readWebhook: ./signature.ts and ./webhook.ts.
 // The key id's prefix says which mode it is: rzp_live_ is "razorpay",
 // rzp_test_ "razorpay-test". Which keys an environment may use is decided
 // in ../payment-gateway-select.ts.
 // Errors name Razorpay's HTTP status and error code, never the request,
 // so no credential reaches a log.
-// Sources: razorpay.com/docs/api/orders/create and
-// razorpay.com/docs/api/orders/fetch-payments.
+// Sources: razorpay.com/docs/api/orders/create,
+// razorpay.com/docs/api/orders/fetch-payments,
+// razorpay.com/docs/api/refunds/create-normal (and its idempotent request)
+// and razorpay.com/docs/api/refunds/fetch-multiple-refund-payment.
 //
 // Loads under plain Node: relative imports only.
 
@@ -21,6 +29,7 @@ import { z } from "zod";
 import type {
   CheckoutParams,
   GatewayPayment,
+  GatewayRefund,
   GatewayWebhook,
   Money,
   PaymentGateway,
@@ -60,6 +69,31 @@ const paymentEntity = z.object({
 
 const paymentCollection = z.object({ items: z.array(paymentEntity) });
 
+const refundEntity = z.object({
+  id: z.string().min(1),
+  payment_id: z.string().min(1),
+  amount: z.number().int().nonnegative(),
+  currency: z.string().min(1),
+  status: z.enum(["pending", "processed", "failed"]),
+  // Razorpay sends an empty list for a refund made without notes.
+  notes: z
+    .union([z.record(z.string(), z.string()), z.array(z.never())])
+    .optional(),
+});
+
+const refundCollection = z.object({ items: z.array(refundEntity) });
+
+function refundFrom(entity: z.infer<typeof refundEntity>): GatewayRefund {
+  return {
+    id: entity.id,
+    paymentId: entity.payment_id,
+    amountMinor: BigInt(entity.amount),
+    currency: entity.currency,
+    status: entity.status,
+    notes: Array.isArray(entity.notes) ? {} : { ...entity.notes },
+  };
+}
+
 const errorBody = z.object({
   error: z.object({ code: z.string().optional() }).optional(),
 });
@@ -73,7 +107,7 @@ function modeOf(keyId: string): "razorpay" | "razorpay-test" {
 /** Paise as Razorpay's JSON takes them: a whole number, exactly. */
 function paiseForJson(amount: Money): number {
   if (amount.amountMinor <= 0n) {
-    throw new RangeError("A Razorpay order must be for more than nothing");
+    throw new RangeError("A Razorpay amount must be more than nothing");
   }
   if (amount.amountMinor > BigInt(Number.MAX_SAFE_INTEGER)) {
     throw new RangeError("The amount is too large to send to Razorpay");
@@ -96,13 +130,15 @@ export function razorpayGateway({
   async function call(
     method: "GET" | "POST",
     path: string,
-    body?: unknown
+    body?: unknown,
+    extraHeaders: Record<string, string> = {}
   ): Promise<unknown> {
     const response = await fetchImpl(`${API}${path}`, {
       method,
       headers: {
         authorization,
         ...(body === undefined ? {} : { "content-type": "application/json" }),
+        ...extraHeaders,
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -169,6 +205,39 @@ export function razorpayGateway({
         amountMinor: BigInt(payment.amount),
         currency: payment.currency,
       }));
+    },
+
+    async refund({ paymentId, amount, idempotencyKey, notes }) {
+      const paise = paiseForJson(amount);
+      const answer = refundEntity.safeParse(
+        await call(
+          "POST",
+          `/payments/${encodeURIComponent(paymentId)}/refund`,
+          {
+            amount: paise,
+            speed: "normal",
+            ...(Object.keys(notes).length > 0 ? { notes } : {}),
+          },
+          { "x-refund-idempotency": idempotencyKey }
+        )
+      );
+      if (!answer.success) {
+        throw new RazorpayError("Razorpay's refund answer can't be read");
+      }
+      return refundFrom(answer.data);
+    },
+
+    async fetchRefunds(paymentId): Promise<GatewayRefund[]> {
+      const answer = refundCollection.safeParse(
+        await call(
+          "GET",
+          `/payments/${encodeURIComponent(paymentId)}/refunds?count=100`
+        )
+      );
+      if (!answer.success) {
+        throw new RazorpayError("Razorpay's refunds answer can't be read");
+      }
+      return answer.data.items.map(refundFrom);
     },
   };
 }

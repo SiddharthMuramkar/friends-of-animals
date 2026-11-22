@@ -23,7 +23,6 @@ const ALLOWED: ReadonlyArray<
   ["created", "offline_recorded", "captured"],
   ["order_created", "offline_recorded", "captured"],
   ["order_created", "review_opened", "needs_review"],
-  ["captured", "review_opened", "needs_review"],
   ["failed", "review_opened", "needs_review"],
   ["cancelled", "review_opened", "needs_review"],
   ["needs_review", "review_opened", "needs_review"],
@@ -64,18 +63,14 @@ describe("nextPaymentBatchStatus()", () => {
     );
   });
 
-  it("leaves a captured batch only for review: refunds belong to the refunds ticket", () => {
+  it("never moves a captured batch: a second payment's case opens beside it, and refunds are rows of their own (#80)", () => {
     for (const event of PAYMENT_BATCH_EVENTS) {
-      expect(nextPaymentBatchStatus("captured", event)).toEqual(
-        event === "review_opened"
-          ? { ok: true, to: "needs_review" }
-          : {
-              ok: false,
-              reason: "forbidden_transition",
-              from: "captured",
-              event,
-            }
-      );
+      expect(nextPaymentBatchStatus("captured", event)).toEqual({
+        ok: false,
+        reason: "forbidden_transition",
+        from: "captured",
+        event,
+      });
     }
   });
 

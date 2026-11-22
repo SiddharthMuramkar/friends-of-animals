@@ -10,6 +10,7 @@ import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
   ADMIN_PAYMENTS_REVIEW,
+  ADMIN_REFUNDS,
   APP_ROUTES,
   institutionCompetitionsPath,
   judgingGuidePath,
@@ -178,6 +179,8 @@ async function AreaBody({
                     href: ADMIN_PAYMENTS_REVIEW,
                     label: t("admin.payments"),
                   },
+                  // The refunds queue (#80).
+                  { href: ADMIN_REFUNDS, label: t("admin.refunds") },
                 ]
               : []),
           ])

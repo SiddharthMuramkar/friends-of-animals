@@ -13,6 +13,7 @@ import { SiteLink } from "@/components/site/site-link";
 import { TableScroller } from "@/components/site/table-scroller";
 import {
   ADMIN_PAYMENTS_REVIEW,
+  adminBatchRefundPath,
   adminPaymentBatchPath,
   adminPaymentReviewCasePath,
 } from "@/lib/app-routes";
@@ -141,6 +142,14 @@ async function Batch({
         </FormAlert>
       ) : null}
       <Details batch={batch} />
+      {batch.status === "captured" ? (
+        // Refunds (#80): asking for one, and its progress, on its own page.
+        <p>
+          <SiteLink href={adminBatchRefundPath(batch.id)} className={LINK}>
+            {t("batch.refundLink")}
+          </SiteLink>
+        </p>
+      ) : null}
       {batch.offlinePayment ? <OfflinePayment batch={batch} /> : null}
       {batch.reviewCases.length > 0 ? <ReviewCases batch={batch} /> : null}
       <Students batch={batch} />

@@ -2,7 +2,8 @@
 // made and the payments a tester made on them through its test checkout
 // (src/server/ports/payment-gateway-fallback.ts). It stands where
 // Razorpay's servers stand, so the payments module reads it only through
-// the gateway port, never by joining these tables. Previews run serverless,
+// the gateway port, never by joining these tables. Refunds (#80) are
+// processed the moment they are made, as Razorpay's test mode does. Previews run serverless,
 // so this state lives in the database to survive between requests.
 // Production never builds the fallback, so these stay empty there. No
 // personal data: amounts, ids and times only.
@@ -16,6 +17,7 @@ import {
   char,
   check,
   index,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -58,4 +60,36 @@ export const gatewayTestPayment = pgTable(
     createdAt: timestamptz("created_at").notNull(),
   },
   (table) => [index("gateway_test_payment_order_id_idx").on(table.orderId)]
+);
+
+/** What a test refund ended as. The fallback processes each at once. */
+export const GATEWAY_TEST_REFUND_STATUSES = [
+  "pending",
+  "processed",
+  "failed",
+] as const;
+
+export const gatewayTestRefund = pgTable(
+  "gateway_test_refund",
+  {
+    id: text().primaryKey(),
+    paymentId: text("payment_id")
+      .notNull()
+      .references(() => gatewayTestPayment.id, { onDelete: "cascade" }),
+    status: text({ enum: GATEWAY_TEST_REFUND_STATUSES }).notNull(),
+    /** Paise. */
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    currency: char({ length: 3 }).notNull().default("INR"),
+    /** What the payments module sent with it: ids only. */
+    notes: jsonb().$type<Record<string, string>>().notNull(),
+    /** A second request with the same key returns the same refund. */
+    idempotencyKey: text("idempotency_key")
+      .notNull()
+      .unique("gateway_test_refund_idempotency_key"),
+    createdAt: timestamptz("created_at").notNull(),
+  },
+  (table) => [
+    check("gateway_test_refund_amount_positive", sql`${table.amountMinor} > 0`),
+    index("gateway_test_refund_payment_id_idx").on(table.paymentId),
+  ]
 );

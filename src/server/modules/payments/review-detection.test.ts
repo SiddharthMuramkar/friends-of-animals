@@ -199,8 +199,10 @@ describe("a capture the batch can't accept", () => {
       gatewayPaymentId: paymentId,
       batchStatusBefore: "captured",
     });
+    // A paid batch stays paid while its second payment is reviewed (#80,
+    // from #79's review): its students are confirmed.
     expect(await batchRow(h, batchId)).toMatchObject({
-      status: "needs_review",
+      status: "captured",
       captureMethod: "offline",
     });
     expect(await registrationsOf(h, school.registrationIds)).toEqual(confirmed);
@@ -219,8 +221,9 @@ describe("a capture the batch can't accept", () => {
       outcome: "captured",
     });
 
+    // Paid by the first payment, and it stays paid (#80, from #79's review).
     expect(await batchRow(h, batchId)).toMatchObject({
-      status: "needs_review",
+      status: "captured",
       gatewayPaymentId: firstPayment,
       captureMethod: "gateway",
     });
@@ -358,7 +361,7 @@ describe("a payment in review", () => {
     expect(h.gateway.orders).toHaveLength(orders);
   });
 
-  it("takes a second payment as another case, copying where the batch stood", async () => {
+  it("takes a second, full payment as another case staff may accept later, copying where the batch stood", async () => {
     const h = await createHarness();
     const school: School = await schoolWithStudents(h, { students: 2 });
     const { batchId, orderId } = await openOrder(school);
@@ -376,7 +379,9 @@ describe("a payment in review", () => {
     const cases = await reviewCasesOf(h, batchId);
     expect(cases.map((each) => [each.reason, each.batchStatusBefore])).toEqual([
       ["amount_mismatch", "order_created"],
-      ["already_paid", "order_created"],
+      // Nothing rules the full payment out (#80, from #79's review): it is
+      // not "already paid", which could never be accepted.
+      ["paid_while_in_review", "order_created"],
     ]);
     expect(cases[1]?.gatewayPaymentId).toBe(paymentId);
     expect((await batchRow(h, batchId)).status).toBe("needs_review");

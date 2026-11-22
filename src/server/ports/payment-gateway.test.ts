@@ -20,6 +20,20 @@ describe("unconfiguredPaymentGateway", () => {
     );
   });
 
+  it("refunds nothing and reads no refunds (#80)", async () => {
+    await expect(
+      gateway.refund({
+        paymentId: "pay",
+        amount: FEES,
+        idempotencyKey: "0193a8f0-0000-7000-8000-000000000001-1",
+        notes: {},
+      })
+    ).rejects.toThrow(PaymentGatewayNotConfiguredError);
+    await expect(gateway.fetchRefunds("pay")).rejects.toThrow(
+      PaymentGatewayNotConfiguredError
+    );
+  });
+
   it("trusts no Checkout signature and no webhook", () => {
     expect(
       gateway.verifyCheckout({
