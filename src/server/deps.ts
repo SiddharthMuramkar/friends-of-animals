@@ -33,6 +33,7 @@ import { msg91SmsSender } from "./ports/sms-msg91";
 import { fixedSettings, type Settings } from "./ports/settings";
 import type { EmailSender } from "./ports/email";
 import { emailSenderFor } from "./ports/email-sender-for";
+import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 import {
   diskStorage,
@@ -68,6 +69,7 @@ export interface Deps extends DbWithClock {
   scanner: MalwareScanner;
 }
 
+export { DEVELOPMENT_AUTH_SECRET };
 /** Where the Files module keeps objects, and for which environment. */
 export type FilesConfig = {
   bucket: string;
@@ -76,14 +78,6 @@ export type FilesConfig = {
   /** Some purposes (test uploads) are refused in production. */
   appEnv: Env["APP_ENV"];
 };
-
-/**
- * A local run or a preview without BETTER_AUTH_SECRET signs with this. It is
- * public, so it protects nothing; staging and production must set their own
- * (src/env.schema.ts refuses to start without it).
- */
-export const DEVELOPMENT_AUTH_SECRET =
-  "foa-development-secret-not-for-staging-or-production";
 
 /**
  * Production sends real SMS through MSG91 once its keys are set (after
