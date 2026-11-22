@@ -22,7 +22,7 @@ import type { PublishedCmsDocument } from "./reading";
  * read the request, and the read is public and writes nothing, so it
  * needs no address or user agent.
  */
-const PUBLIC_READER: Actor = {
+export const PUBLIC_READER: Actor = {
   kind: "visitor",
   meta: { ip: "", userAgent: "" },
 };

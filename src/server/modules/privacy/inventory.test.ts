@@ -39,6 +39,19 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
+  it("lists every personal-data column of a coordinator invitation", () => {
+    expect(
+      [
+        "identifier_ciphertext",
+        "identifier_hash",
+        "token_ciphertext",
+        "invited_by_user_id",
+        "accepted_by_user_id",
+        "revoked_by_user_id",
+      ].filter((column) => !listed.has(`institution_invitation.${column}`))
+    ).toEqual([]);
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>

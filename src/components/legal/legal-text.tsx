@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ContactFact } from "@/components/site/contact-fact";
 import { Placeholder } from "@/components/site/placeholder";
 import { SiteLink } from "@/components/site/site-link";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 import {
   type LegalBlock,
   type LegalDoc,
@@ -10,7 +11,12 @@ import {
   resolveLegalDoc,
   type ShownInline,
 } from "@/content/legal";
-import { isFactShown, type OrgFact, SITE } from "@/lib/site";
+import { isFactShown } from "@/lib/site";
+import {
+  legalFactValue,
+  type OrgFacts,
+  unconfirmedOrgFacts,
+} from "@/server/modules/cms/domain/org-facts";
 import { linkRel } from "@/server/rich-text/href";
 
 // The typed blocks of a policy or consent document as HTML: the policy
@@ -23,31 +29,34 @@ import { linkRel } from "@/server/rich-text/href";
 const LINK =
   "text-link wrap-anywhere underline decoration-1 underline-offset-2 hover:text-link-hover";
 
-const FACT_VALUE: Record<LegalFact, unknown> = {
-  legalName: SITE.org.legalName,
-  email: SITE.org.email,
-  phone: SITE.org.phone,
-  address: SITE.org.address,
-  grievanceOfficerName: SITE.org.grievanceOfficer.name,
-  grievanceOfficerEmail: SITE.org.grievanceOfficer.email,
-};
-
 /**
  * A repo policy as this deployment shows it: in production, clauses about
- * unconfirmed facts give way to their production wording, and emptied
- * sections go (resolveLegalDoc).
+ * facts FOA hasn't confirmed give way to their production wording, and
+ * emptied sections go (resolveLegalDoc). `facts` defaults to none
+ * confirmed: what the static shell, built without a database, knows.
  */
-export function shownLegalDoc(doc: LegalDoc): LegalDoc<ShownInline> {
-  return resolveLegalDoc(doc, (fact) => isFactShown(FACT_VALUE[fact]));
+export function shownLegalDoc(
+  doc: LegalDoc,
+  facts: OrgFacts = unconfirmedOrgFacts()
+): LegalDoc<ShownInline> {
+  return resolveLegalDoc(doc, (fact) =>
+    isFactShown(legalFactValue(facts, fact))
+  );
 }
 
 /** A confirmed fact as text (or a mailto/tel link); else a visible placeholder. */
 function Fact({ fact }: { fact: LegalFact }) {
-  const value = FACT_VALUE[fact] as OrgFact;
-  if (fact === "phone") return <ContactFact kind="phone" fact={value} />;
-  if (fact.toLowerCase().includes("email"))
-    return <ContactFact kind="email" fact={value} />;
-  return <Placeholder fact={value} />;
+  return (
+    <WithOrgFacts>
+      {(facts) => {
+        const value = legalFactValue(facts, fact);
+        if (fact === "phone") return <ContactFact kind="phone" fact={value} />;
+        if (fact.toLowerCase().includes("email"))
+          return <ContactFact kind="email" fact={value} />;
+        return <Placeholder fact={value} />;
+      }}
+    </WithOrgFacts>
+  );
 }
 
 /**

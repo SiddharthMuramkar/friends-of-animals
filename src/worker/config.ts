@@ -27,6 +27,18 @@
 //   MEDIA_TIMEOUT_SECONDS            60 (at most 240): media only, the time one
 //                                    image's processing may take before the
 //                                    job fails as media_timeout
+//   APP_URL                          the site's base URL, for links in messages
+//                                    (#74's invitations); a local run falls back
+//                                    to http://localhost:3000
+//   FIELD_ENCRYPTION_KEYS            the app's field cipher key ring and blind
+//   FIELD_HMAC_KEY                   index key (#58), to read what a message
+//                                    sends to (an invitee's address, a stored
+//                                    phone); without them staging and
+//                                    production can't, and such a delivery
+//                                    fails until they are set. worker-prod
+//                                    reads the production app's from its own
+//                                    env file (docker/README.md, "Links and
+//                                    field keys")
 //
 //   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, the bucket the malware scan reads uploads
 //   R2_SECRET_ACCESS_KEY, R2_BUCKET  from (#63): all four or none; without
@@ -38,9 +50,17 @@
 
 import { z } from "zod";
 
-import { parseEnv, scanJobEnvSchema, type ScannerEnv } from "../env.schema";
+import {
+  fieldKey,
+  LOCAL_APP_URL,
+  parseEnv,
+  scanJobEnvSchema,
+  type ScannerEnv,
+} from "../env.schema";
 import { parseDsn } from "../lib/observability/config";
 import type { R2Config } from "../server/ports/storage-r2";
+import { parseBlindIndexKey } from "../server/crypto/blind-index";
+import { parseKeyRing } from "../server/crypto/field-cipher";
 import type { WorkerIdentity } from "./tenant";
 
 type Common = {
@@ -62,6 +82,11 @@ type Common = {
   /** clamd, which the malware scan asks; without a host every scan fails. */
   clamd: ScannerEnv;
   queue: WorkerQueue;
+  /** The site's base URL, for links in messages; unset, none. */
+  siteUrl: string | undefined;
+  /** The app's field keys (FIELD_ENCRYPTION_KEYS, FIELD_HMAC_KEY). */
+  fieldEncryptionKeys: string | undefined;
+  fieldHmacKey: string | undefined;
 };
 
 /**
@@ -143,6 +168,11 @@ const schema = z
           "Client Keys page, or leave it empty to turn error tracking off.",
       })
       .optional(),
+    APP_URL: z
+      .url({ protocol: /^https?$/, error: "must be an http(s) URL" })
+      .optional(),
+    FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
+    FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
   })
   .superRefine((env, ctx) => {
     if (env.WORKER_MODE === "preview") {
@@ -214,6 +244,10 @@ export function workerConfig(
           }
         : undefined,
     clamd: { CLAMD_HOST: env.CLAMD_HOST, CLAMD_PORT: env.CLAMD_PORT },
+    siteUrl:
+      env.APP_URL ?? (env.APP_ENV === "local" ? LOCAL_APP_URL : undefined),
+    fieldEncryptionKeys: env.FIELD_ENCRYPTION_KEYS,
+    fieldHmacKey: env.FIELD_HMAC_KEY,
   };
   if (env.WORKER_MODE === "preview") {
     // The refinement above guarantees it.

@@ -166,22 +166,29 @@
     {
       "idx": 23,
       "version": "7",
-      "when": 1795343393394,
-      "tag": "0023_113_contact_inbox",
+      "when": 1795344975453,
+      "tag": "0023_74_institution_coordinators",
       "breakpoints": true
     },
     {
       "idx": 24,
       "version": "7",
-      "when": 1795343394315,
-      "tag": "0024_113_contact_note_append_only",
+      "when": 1795345154821,
+      "tag": "0024_113_contact_inbox",
       "breakpoints": true
     },
     {
       "idx": 25,
       "version": "7",
-      "when": 1795343395201,
-      "tag": "0025_113_contact_notification_defaults",
+      "when": 1795345155505,
+      "tag": "0025_113_contact_note_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795345156215,
+      "tag": "0026_113_contact_notification_defaults",
       "breakpoints": true
     }
   ]

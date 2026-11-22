@@ -30,7 +30,8 @@ import { COMPETITION_STATUSES } from "@/content/sample/model";
 import { STORIES } from "@/content/stories";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isSampleContentEnabled, SITE } from "@/lib/site";
+import { isSampleContentEnabled } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -438,7 +439,9 @@ export default async function Page() {
           </Disclosure>
         </Sub>
         <Sub title={t("primitives.placeholder")}>
-          <Placeholder fact={SITE.org.email} />
+          <WithOrgFacts>
+            {(facts) => <Placeholder fact={facts.email} />}
+          </WithOrgFacts>
         </Sub>
         <Sub title={t("primitives.headings")}>
           <SectionHeading
