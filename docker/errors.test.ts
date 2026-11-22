@@ -2,47 +2,21 @@
 // https://errors.friendsofanimals.dev, in its own Compose project with its
 // own small Postgres. Docker can't run here, so these tests read errors.yml.
 
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  LOGGING_ANCHOR,
+  block,
+  lines,
+  serviceBlock,
+  serviceNames as listServices,
+  readDocker,
+} from "./compose-test-helpers";
 
-const composeText = readFileSync(
-  new URL("./errors.yml", import.meta.url),
-  "utf8"
-);
-
-/** Lines without comments and blank lines. */
-const lines = (text: string) =>
-  text
-    .split("\n")
-    .map((line) => line.replace(/\s+#.*$/, ""))
-    .filter((line) => line.trim() !== "" && !line.trim().startsWith("#"));
-
-const indent = (line: string) => line.length - line.trimStart().length;
-
-/** The lines nested under the first line matching `key` (by indentation). */
-function block(text: string[], key: RegExp): string[] {
-  const start = text.findIndex((line) => key.test(line));
-  if (start === -1) return [];
-  const depth = indent(text[start] ?? "");
-  const end = text.findIndex((line, i) => i > start && indent(line) <= depth);
-  return text.slice(start + 1, end === -1 ? undefined : end);
-}
-
-/** The anchor every Compose file here defines, word for word (#66). */
-const LOGGING_ANCHOR = [
-  "x-logging: &logging",
-  "  driver: journald",
-  "  options:",
-  '    tag: "{{.Name}}"',
-];
+const composeText = readDocker("./errors.yml");
 
 const compose = lines(composeText);
-const services = block(compose, /^services:$/);
-const serviceNames = services
-  .filter((line) => indent(line) === 2)
-  .map((line) => line.trim().replace(/:$/, ""));
-const service = (name: string) =>
-  block(services, new RegExp(`^ {2}${name}:$`)).join("\n");
+const serviceNames = listServices(compose);
+const service = (name: string) => serviceBlock(compose, name);
 const glitchtip = service("glitchtip");
 const postgres = service("glitchtip-pg");
 

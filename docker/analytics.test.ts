@@ -1,40 +1,21 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-
-const read = (path: string) =>
-  readFileSync(new URL(path, import.meta.url), "utf8");
+import {
+  LOGGING_ANCHOR,
+  block,
+  indent,
+  lines,
+  oneLine,
+  serviceBlock,
+  serviceNames as listServices,
+  readDocker as read,
+} from "./compose-test-helpers";
 
 const compose = read("./analytics.yml");
 const pgHba = read("./postgres/pg_hba.prod.conf");
 
-/** Lines without comments and blank lines. */
-const lines = (text: string) =>
-  text
-    .split("\n")
-    .map((line) => line.replace(/\s+#.*$/, ""))
-    .filter((line) => line.trim() !== "" && !line.trim().startsWith("#"));
-
-const indent = (line: string) => line.length - line.trimStart().length;
-
-/** The lines nested under the first line matching `key` (by indentation). */
-function block(text: string[], key: RegExp): string[] {
-  const start = text.findIndex((line) => key.test(line));
-  if (start === -1) return [];
-  const depth = indent(text[start] ?? "");
-  const end = text.findIndex((line, i) => i > start && indent(line) <= depth);
-  return text.slice(start + 1, end === -1 ? undefined : end);
-}
-
 const top = lines(compose);
-const services = block(top, /^services:$/);
-const service = (name: string) =>
-  block(services, new RegExp(`^ {2}${name}:$`)).join("\n");
-/** `text` on one line, with flow sequences as `["a", "b"]` however wrapped. */
-const oneLine = (text: string) =>
-  text.replace(/\s+/g, " ").replace(/\[ /g, "[").replace(/,? \]/g, "]");
-const serviceNames = services
-  .filter((line) => indent(line) === 2)
-  .map((line) => line.trim().replace(/:$/, ""));
+const service = (name: string) => serviceBlock(top, name);
+const serviceNames = listServices(top);
 
 describe("docker/analytics.yml", () => {
   it("is its own Compose project with Umami only", () => {
@@ -112,12 +93,9 @@ describe("docker/analytics.yml", () => {
 
   it("logs through the shared journald anchor, like edge.yml and errors.yml", () => {
     // #66: every Compose file here logs to journald through one anchor.
-    expect(["x-logging: &logging", ...block(top, /^x-logging:/)]).toEqual([
-      "x-logging: &logging",
-      "  driver: journald",
-      "  options:",
-      '    tag: "{{.Name}}"',
-    ]);
+    expect(["x-logging: &logging", ...block(top, /^x-logging:/)]).toEqual(
+      LOGGING_ANCHOR
+    );
     expect(service("umami")).toMatch(/^ {4}logging: \*logging$/m);
     expect(compose).not.toMatch(/json-file|max-size|max-file/);
   });

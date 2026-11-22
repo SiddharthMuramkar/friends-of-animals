@@ -3,48 +3,20 @@
 // PgBouncer certificate renewals. Docker can't run here, so these tests
 // read edge.yml and caddy/Caddyfile.
 
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-
-const read = (path: string) =>
-  readFileSync(new URL(path, import.meta.url), "utf8");
-
-/** Lines without comments and blank lines. */
-const lines = (text: string) =>
-  text
-    .split("\n")
-    .map((line) => line.replace(/\s+#.*$/, ""))
-    .filter((line) => line.trim() !== "" && !line.trim().startsWith("#"));
-
-const indent = (line: string) => line.length - line.trimStart().length;
-
-/** The lines nested under the first line matching `key` (by indentation). */
-function block(text: string[], key: RegExp): string[] {
-  const start = text.findIndex((line) => key.test(line));
-  if (start === -1) return [];
-  const depth = indent(text[start] ?? "");
-  const end = text.findIndex((line, i) => i > start && indent(line) <= depth);
-  return text.slice(start + 1, end === -1 ? undefined : end);
-}
-
-/** `text` on one line, with flow sequences as `["a", "b"]` however wrapped. */
-const oneLine = (text: string) =>
-  text.replace(/\s+/g, " ").replace(/\[ /g, "[").replace(/,? \]/g, "]");
-
-/** The anchor every Compose file here defines, word for word (#66). */
-const LOGGING_ANCHOR = [
-  "x-logging: &logging",
-  "  driver: journald",
-  "  options:",
-  '    tag: "{{.Name}}"',
-];
+import {
+  LOGGING_ANCHOR,
+  block,
+  lines,
+  oneLine,
+  serviceNames as listServices,
+  readDocker as read,
+} from "./compose-test-helpers";
 
 const composeText = read("./edge.yml");
 const compose = lines(composeText);
 const services = block(compose, /^services:$/);
-const serviceNames = services
-  .filter((line) => indent(line) === 2)
-  .map((line) => line.trim().replace(/:$/, ""));
+const serviceNames = listServices(compose);
 const caddy = block(services, /^ {2}caddy:$/);
 const caddyText = caddy.join("\n");
 const volumes = block(caddy, /^ {4}volumes:$/).map((line) =>
