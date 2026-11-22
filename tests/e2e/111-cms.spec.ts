@@ -160,7 +160,9 @@ test("a content manager publishes a policy page, then a new home heading", async
   ).toBeVisible();
   await page.getByRole("button", { name: /^Publish as version \d+$/ }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: /^Published version \d+\./ })
+    page
+      .getByRole("status")
+      .filter({ hasText: /Published version \d+\. The page shows it now\./ })
   ).toBeVisible();
 
   await expectRendersAccessibly(page, "/");
