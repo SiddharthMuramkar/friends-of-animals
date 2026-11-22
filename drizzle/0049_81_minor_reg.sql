@@ -1,5 +1,3 @@
-ALTER TYPE "public"."message_suppression_reason" ADD VALUE 'no_guardian';--> statement-breakpoint
-ALTER TYPE "public"."registration_status" ADD VALUE 'pending_guardian';--> statement-breakpoint
 ALTER TABLE "guardian_invitation" ALTER COLUMN "guardian_id" DROP NOT NULL;--> statement-breakpoint
 ALTER TABLE "guardian_invitation" ADD COLUMN "requested_by_user_id" uuid;--> statement-breakpoint
 ALTER TABLE "guardian_invitation" ADD COLUMN "invitee_name_ciphertext" text;--> statement-breakpoint
