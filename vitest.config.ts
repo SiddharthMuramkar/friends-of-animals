@@ -24,12 +24,12 @@ export default defineConfig({
       "docker/**/*.test.ts",
       "tests/e2e/**/*.test.ts",
     ],
-    // Contracts against real providers: `pnpm test:live` (vitest.live.config.ts).
     // Real-Postgres races run apart, in `pnpm test:pg` (vitest.pg.config.ts).
+    // Contracts against real providers: `pnpm test:live` (vitest.live.config.ts).
     exclude: [
       ...configDefaults.exclude,
-      "**/*.live.test.ts",
       "**/*.pg.test.ts",
+      "**/*.live.test.ts",
     ],
     environment: "node",
     // Migrates the PGlite template once per run, before any test file.
