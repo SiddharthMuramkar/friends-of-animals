@@ -1411,7 +1411,7 @@ Upgrade: bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
    branch". The API refused the change for lack of permission. Meanwhile the
    migration's advisory lock keeps concurrent builds of one branch from
    applying the same migration twice.
-8. **Edge rate limit** (deferred, #118): CrowdSec's HTTP scenarios are the
+9. **Edge rate limit** (deferred, #118): CrowdSec's HTTP scenarios are the
    edge's abuse control today (Edge, "Abuse control"). If Umami's
    `/api/send` or GlitchTip's envelopes are ever flooded, build Caddy with
    a pinned `caddy-ratelimit` (an image built and pinned here, not
