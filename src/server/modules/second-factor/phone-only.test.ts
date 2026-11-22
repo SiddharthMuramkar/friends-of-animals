@@ -16,7 +16,7 @@ const PHONE = "+91 98765 43210";
  * through the real SMS-code flow.
  */
 async function phoneOnlyStaff(h: Harness) {
-  h.settings.set("sms.enabled", true);
+  await h.settings.set("sms.enabled", true);
   await h
     .as(h.visitor())
     .requestPhoneCode({ intent: "sign-up", name: "Asha Rao", phone: PHONE });

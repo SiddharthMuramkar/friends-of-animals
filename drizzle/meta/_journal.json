@@ -71,6 +71,34 @@
       "when": 1795327013133,
       "tag": "0009_63_prefixes_seam2",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795329682761,
+      "tag": "0010_62_runtime_settings_screen",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795329688488,
+      "tag": "0011_64_consent_documents_and_consent_to",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795329689105,
+      "tag": "0012_64_consent_document_immutable",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795329719681,
+      "tag": "0013_68_nightly_copy_of_r2_files",
+      "breakpoints": true
     }
   ]
 }

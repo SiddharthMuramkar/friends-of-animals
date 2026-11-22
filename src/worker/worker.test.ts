@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AppDb } from "@/server/db/app-db";
 import {
@@ -8,9 +8,11 @@ import {
   outbox,
   workerHeartbeat,
 } from "@/server/db/schema";
+import { OffsiteCopyNotConfiguredError } from "@/server/modules/offsite-copy/errors";
 import { emitUserSignedUp } from "@/server/outbox/testing";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
+import { FakeErrorReporter } from "@/test/fakes/errors";
 import { FakeMalwareScanner } from "@/test/fakes/malware-scanner";
 import { FakeStorage } from "@/test/fakes/storage";
 import { createHarness } from "@/test/harness";
@@ -18,6 +20,7 @@ import { createHarness } from "@/test/harness";
 import type { WorkerConfig } from "./config";
 import type { WorkerLogEntry } from "./log";
 import type { ListedDatabase } from "./preview-databases";
+import type { ScheduleBossJob } from "./schedules";
 import { createWorker, type WorkerIo } from "./worker";
 
 const DB_URL = "postgres://foa_worker:pw@10.112.12.10:5432/foa";
@@ -87,6 +90,10 @@ function fakeIo(
     ended: [] as string[],
     bossStartedOn: [] as string[],
     bossCalls: [] as string[],
+    bossHandlers: new Map<
+      string,
+      (jobs: ScheduleBossJob[]) => Promise<unknown>
+    >(),
     bossStopped: 0,
     catalogEnded: 0,
     beats: [] as Date[],
@@ -128,7 +135,10 @@ function fakeIo(
         unschedule: async () => {},
         createQueue: async () => {},
         schedule: async () => {},
-        work: async () => "",
+        work: async (name, _options, handler) => {
+          record.bossHandlers.set(name, handler);
+          return "";
+        },
         stop: async () => {
           record.bossStopped += 1;
         },
@@ -139,6 +149,7 @@ function fakeIo(
     },
     storage: new FakeStorage(clock),
     scanner: new FakeMalwareScanner(),
+    errors: new FakeErrorReporter(),
     ...overrides,
   };
   return { io, record };
@@ -211,6 +222,33 @@ describe("a single-database worker", () => {
     expect(record.bossCalls).toEqual(["getSchedules"]);
     expect(record.bossStopped).toBe(1);
     expect(record.ended.length).toBeGreaterThan(0);
+  });
+
+  it("reports a scheduled run's final failure through its error reporter", async () => {
+    vi.stubEnv("APP_ENV", "production");
+    try {
+      const h = await createHarness();
+      const errors = new FakeErrorReporter();
+      const { io, record } = fakeIo({ foa: h.db }, [], { errors });
+
+      const worker = createWorker(singleConfig("production"), io);
+      await worker.start();
+      // The off-site copy has no buckets set here, so its run fails.
+      const run = record.bossHandlers.get("offsite_copy");
+      await expect(run?.([{ retryCount: 3, retryLimit: 3 }])).rejects.toThrow(
+        OffsiteCopyNotConfiguredError
+      );
+      await worker.stop();
+
+      expect(errors.reported).toEqual([
+        expect.objectContaining({
+          type: "OffsiteCopyNotConfiguredError",
+          tags: expect.objectContaining({ job: "offsite_copy" }),
+        }),
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("refuses to send in production while no provider is set up", async () => {

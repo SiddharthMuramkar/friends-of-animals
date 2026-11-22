@@ -7,17 +7,31 @@
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
   accountSecurity: "/account/security",
+  dashboard: "/dashboard",
+  adminRoles: "/admin/roles",
+  adminAudit: "/admin/audit",
   secondFactor: "/auth/second-factor",
   stepUp: "/auth/step-up",
   /** The file upload demo (#63): every environment but production. */
   accountFiles: "/account/files",
+  adminSettings: "/admin/settings",
+  accountConsents: "/account/consents",
+  adminConsentDocuments: "/admin/consent-documents",
 } as const;
 
 /**
  * Path prefixes that need a signed-in user. src/proxy.ts sends visitors
  * without a session cookie to sign in; #65's CSP gives these a nonce.
+ * Each tree also needs the proxy's matcher to list it, and a layout that
+ * waits for the request (src/app/account/layout.tsx), so it has no static
+ * shell.
  */
-export const SIGNED_IN_PREFIXES = ["/account", "/admin", "/auth"] as const;
+export const SIGNED_IN_PREFIXES = [
+  "/account",
+  "/admin",
+  "/auth",
+  "/dashboard",
+] as const;
 
 export function isSignedInPath(pathname: string): boolean {
   return isUnderPrefix(pathname, SIGNED_IN_PREFIXES);

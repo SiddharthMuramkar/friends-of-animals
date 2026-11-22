@@ -38,10 +38,18 @@ export function hostInDoubt(url: string): string | undefined {
     );
   }
   // postgres-js connects to a host named in the query over the URL's own.
+  const parsed = new URL(url);
   for (const param of ["host", "hostaddr"]) {
-    if (new URL(url).searchParams.has(param)) {
+    if (parsed.searchParams.has(param)) {
       return `DIRECT_URL names a host in ?${param}=: the host must come from the URL alone.`;
     }
+  }
+  // And to PGHOST, else localhost, when the URL names no host at all.
+  if (parsed.hostname === "") {
+    return (
+      `DIRECT_URL names no host, so the database client would pick one ` +
+      `itself (PGHOST, else localhost): put the host in the URL.`
+    );
   }
   return undefined;
 }
