@@ -3,9 +3,18 @@ import { expect, test } from "@playwright/test";
 import { expectRendersAccessibly } from "./support/a11y";
 
 // M0 smoke journey (#56): the existing public pages render, and axe finds
-// nothing on any of them.
+// nothing on any of them, the illustrated ones included.
 
-for (const path of ["/", "/donate", "/safeguarding"]) {
+for (const path of [
+  "/",
+  "/donate",
+  "/safeguarding",
+  "/awareness",
+  "/about",
+  "/credits",
+  "/blog",
+  "/blog/the-stork-that-gets-a-baby-shower",
+]) {
   test(`${path} renders with no axe violations`, async ({ page }) => {
     await expectRendersAccessibly(page, path);
   });

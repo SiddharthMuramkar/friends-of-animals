@@ -60,6 +60,7 @@ async function OpenCompetitions() {
       <ExplainState
         title={t("empty.title")}
         back={{ href: ROUTES.contact.path, label: t("empty.back") }}
+        art="wait-mailbox-cat"
         className="mt-8 max-w-2xl"
       >
         <p>{t("empty.body")}</p>

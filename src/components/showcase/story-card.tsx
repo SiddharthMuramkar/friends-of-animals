@@ -8,7 +8,7 @@ import type { Story } from "@/content/stories";
 import { slugHref } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-import { CardCover, CardCredit, TileCover } from "./card-cover";
+import { ArtCover, CardCover, CardCredit, TileCover } from "./card-cover";
 import { H, type HeadingLevel } from "./heading";
 
 const AUDIENCE_TONE = {
@@ -39,6 +39,8 @@ export async function StoryCard({
     >
       {story.coverImageId ? (
         <CardCover id={story.coverImageId} sizes={sizes} />
+      ) : story.coverArtId ? (
+        <ArtCover id={story.coverArtId} sizes={sizes} />
       ) : (
         <TileCover seed={story.slug} />
       )}

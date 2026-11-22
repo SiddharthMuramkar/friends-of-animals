@@ -11,12 +11,22 @@ import { cn } from "@/lib/utils";
  * faces simply swap.
  */
 export function FlipCard({
+  id,
+  labelledBy,
   front,
   back,
   label,
   buttonText,
   className,
 }: {
+  /**
+   * The card's in-page link target. It goes on the outer box, a group named
+   * by `labelledBy`, which is never inert: a jump focuses it whichever face
+   * shows.
+   */
+  id: string;
+  /** id of the card's title. */
+  labelledBy: string;
   front: ReactNode;
   back: ReactNode;
   /** Accessible name of the toggle, e.g. "How to be a good neighbour to the cow". */
@@ -26,7 +36,14 @@ export function FlipCard({
 }) {
   const [flipped, setFlipped] = useState(false);
   return (
-    <div className={cn("flex flex-col perspective-distant", className)}>
+    <div
+      id={id}
+      tabIndex={-1}
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a card, not a form or contact details: none of the suggested tags fits
+      role="group"
+      aria-labelledby={labelledBy}
+      className={cn("flex flex-col perspective-distant", className)}
+    >
       <div
         className={cn(
           "grid flex-1 grid-cols-1 transition-transform duration-500 ease-out transform-3d motion-reduce:transition-none",

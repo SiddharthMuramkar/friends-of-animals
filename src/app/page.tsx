@@ -4,6 +4,9 @@ import { SiteLink } from "@/components/site/site-link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { AiMark } from "@/components/art/ai-mark";
+import { LivingIllustration } from "@/components/art/living-illustration";
+import { type Sticker, StickerScatter } from "@/components/art/sticker-scatter";
 import { BadgeConstellation } from "@/components/showcase/badge-constellation";
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
 import { cachedNow } from "@/components/showcase/clock";
@@ -30,6 +33,7 @@ import { latestStories } from "@/content/stories";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { cn } from "@/lib/utils";
 
 import {
   activeAnnouncement,
@@ -96,6 +100,12 @@ async function Announcement() {
   );
 }
 
+// The hero's columns and its photo's column. The sleeping dog's layer uses
+// them too, so the dog keeps to the photo's lower-left corner.
+const HERO_COLUMNS =
+  "mx-auto max-w-7xl px-4 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16";
+const HERO_PHOTO_COLUMN = "mx-auto w-full max-w-xl lg:mr-3 lg:max-w-none";
+
 async function Hero() {
   const t = await getTranslations("home");
   const { hero } = HOME_LAYOUT;
@@ -109,8 +119,37 @@ async function Hero() {
       >
         <span className="absolute bottom-16 left-[4%] hidden size-5 -rotate-6 rounded-[22%] bg-teal-400 sm:block" />
         <span className="absolute right-[6%] bottom-8 hidden size-4 rotate-6 rounded-[22%] bg-pink-400 sm:block" />
+        {/* An Indie dog naps on the band's floor, its tail tucked under the
+            photo's lower-left corner and its head clear of the caption and
+            the buttons (any wider and an ear runs into the caption). It
+            wakes over the first 40% of a screen of scroll. Only from xl:
+            narrower, it would cover the teal tile, crowd the buttons or
+            float below the caption, and on tablets it would lie below the
+            fold. It sits right under "Children's art…", so it carries the
+            visible AI mark: no one should take it for a child's drawing
+            (ADR 0003). Screen readers skip this whole layer. */}
+        <div className={cn(HERO_COLUMNS, "hidden h-full xl:grid")}>
+          <div
+            className={cn(HERO_PHOTO_COLUMN, "relative h-full lg:col-start-2")}
+          >
+            <span className="absolute bottom-0 -left-28 w-30">
+              <LivingIllustration
+                id="living-dog"
+                trigger="page"
+                decorative
+                className="w-full"
+              />
+              <AiMark className="absolute bottom-3 left-full ms-1" />
+            </span>
+          </div>
+        </div>
       </div>
-      <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-7 px-4 py-5 sm:gap-12 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
+      <div
+        className={cn(
+          "relative grid grid-cols-[minmax(0,1fr)] items-center gap-7 py-5 sm:gap-12 sm:py-16 lg:py-16",
+          HERO_COLUMNS
+        )}
+      >
         <div>
           <Eyebrow tile="green">{t("hero.eyebrow")}</Eyebrow>
           <h1
@@ -142,7 +181,7 @@ async function Hero() {
             ) : null}
           </div>
         </div>
-        <div className="relative mx-auto w-full max-w-xl lg:mr-3 lg:max-w-none">
+        <div className={cn("relative", HERO_PHOTO_COLUMN)}>
           <Photo
             id={hero.imageAssetId}
             sizes="(min-width: 1280px) 560px, (min-width: 1024px) 44vw, min(92vw, 576px)"
@@ -222,6 +261,7 @@ async function Competitions() {
           title={t("emptyTitle")}
           headingLevel="h3"
           back={{ href: ROUTES.schools.path, label: t("emptyBack") }}
+          art="wait-horizon-myna"
           className="mt-10 max-w-3xl"
         >
           <p>{t("emptyBody")}</p>
@@ -317,17 +357,42 @@ async function Impact() {
   );
 }
 
+// Doodles by the Stories heading: on phones and tablets one sits in the band's
+// top padding, above the heading's right end; from lg, where the heading
+// leaves the right side of the row empty, three sit there.
+const STORY_STICKERS = [
+  {
+    id: "sticker-puppy",
+    className:
+      "-top-10 right-1 w-10 sm:-top-14 sm:w-12 lg:top-1 lg:right-6 lg:w-16",
+    tilt: -8,
+  },
+  {
+    id: "sticker-kitten",
+    className: "hidden lg:top-22 lg:right-26 lg:block lg:w-14",
+    tilt: 10,
+  },
+  {
+    id: "sticker-sparrow-bowl",
+    className: "hidden lg:-top-6 lg:right-40 lg:block lg:w-14",
+    tilt: -12,
+  },
+] as const satisfies readonly Sticker[];
+
 async function Stories() {
   const t = await getTranslations("home.stories");
   return (
     <Section labelledBy="home-stories" width="wide" tone="tint" hue="yellow">
-      <SectionHeading
-        id="home-stories"
-        eyebrow={t("eyebrow")}
-        tile="yellow"
-        title={t("title")}
-        lead={t("lead")}
-      />
+      <div className="relative">
+        <StickerScatter stickers={STORY_STICKERS} />
+        <SectionHeading
+          id="home-stories"
+          eyebrow={t("eyebrow")}
+          tile="yellow"
+          title={t("title")}
+          lead={t("lead")}
+        />
+      </div>
       <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {latestStories(3).map((story) => (
           <li key={story.slug} className="flex">
@@ -403,6 +468,26 @@ const JOY_PHOTOS = [
   ["puppy-white-running", "running"],
 ] as const satisfies readonly (readonly [SiteImageId, string])[];
 
+// Doodles round the joy heading, never on the prints: two in the band's top
+// padding; from lg a sketchbook in the empty top of the right-hand column.
+const JOY_STICKERS = [
+  {
+    id: "sticker-diya",
+    className: "-top-9 right-2 w-12 sm:-top-13 sm:w-14",
+    tilt: 12,
+  },
+  {
+    id: "sticker-marigold",
+    className: "-top-10 right-20 hidden w-10 sm:-top-14 sm:right-24 sm:block",
+    tilt: -10,
+  },
+  {
+    id: "sticker-sketchbook",
+    className: "hidden lg:top-0 lg:-right-24 lg:block lg:w-14",
+    tilt: 6,
+  },
+] as const satisfies readonly Sticker[];
+
 async function Joy() {
   const t = await getTranslations("home.joy");
   return (
@@ -414,12 +499,15 @@ async function Joy() {
           caption: t(`photos.${key}`),
         }))}
       >
-        <SectionHeading
-          id="home-joy"
-          eyebrow={t("eyebrow")}
-          tile="yellow"
-          title={t("title")}
-        />
+        <div className="relative">
+          <StickerScatter stickers={JOY_STICKERS} />
+          <SectionHeading
+            id="home-joy"
+            eyebrow={t("eyebrow")}
+            tile="yellow"
+            title={t("title")}
+          />
+        </div>
         <QuoteFigure id="Q36" hue="yellow" size="md" className="mt-8" />
       </HappyMosaic>
     </Section>

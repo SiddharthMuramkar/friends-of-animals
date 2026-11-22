@@ -1,8 +1,37 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, SyntheticEvent } from "react";
 
 import { hashTarget, isModifiedClick } from "@/lib/in-page";
+
+/**
+ * Escape marks the hovered or focused dismissible link `data-dismissed`. On
+ * the document: a hovered link isn't the focused one, so its own keydown
+ * never fires.
+ */
+function dismiss(e: KeyboardEvent) {
+  if (e.key !== "Escape") return;
+  for (const link of document.querySelectorAll<HTMLElement>(
+    "[data-dismissible]:is(:hover, :focus)"
+  )) {
+    link.dataset.dismissed = "";
+  }
+}
+
+/**
+ * Hovering or focusing the link again shows it again. Adds the listener on
+ * first use (adding the same one twice does nothing).
+ */
+function show(e: SyntheticEvent<HTMLElement>) {
+  document.addEventListener("keydown", dismiss);
+  delete e.currentTarget.dataset.dismissed;
+}
+
+const DISMISSIBLE = {
+  "data-dismissible": "",
+  onPointerEnter: show,
+  onFocus: show,
+};
 
 /**
  * Scrolls to an in-page target and moves keyboard focus there. `scroll`
@@ -35,11 +64,22 @@ export function jumpTo(target: HTMLElement, { scroll = true } = {}) {
 export function InPageLink({
   href,
   onClick,
+  dismissible,
   children,
   ...props
-}: Omit<ComponentProps<"a">, "href"> & { href: `#${string}` }) {
+}: Omit<ComponentProps<"a">, "href"> & {
+  href: `#${string}`;
+  /**
+   * For a link that shows more on hover or focus (a name beside a ring):
+   * Escape sets `data-dismissed` on it, for CSS to hide that, until the
+   * pointer comes back or it's focused again (WCAG 1.4.13). Uses
+   * onPointerEnter and onFocus: don't pass your own.
+   */
+  dismissible?: boolean;
+}) {
   return (
     <a
+      {...(dismissible ? DISMISSIBLE : {})}
       {...props}
       href={href}
       onClick={(e) => {

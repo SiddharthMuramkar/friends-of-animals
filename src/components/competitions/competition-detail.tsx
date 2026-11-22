@@ -19,6 +19,7 @@ import { SiteLink } from "@/components/site/site-link";
 import { TableScroller } from "@/components/site/table-scroller";
 import { TileMarker } from "@/components/site/tile";
 import { feeDisplay } from "@/content/sample/selectors";
+import type { SiteArtId } from "@/lib/art";
 import { ROUTES } from "@/lib/routes";
 import { placeholder } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ import {
   fileRules,
   nextKeyDate,
   paragraphs,
+  type PrimaryAction,
   primaryAction,
   timeline,
 } from "./model";
@@ -37,6 +39,15 @@ import {
 const HUE = ROUTES.competition.hue;
 const LINK =
   "font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
+
+// An animal waiting for what comes next. None on a cancelled competition:
+// a cheerful drawing doesn't belong beside that news.
+const WAIT_ART: Partial<Record<PrimaryAction, SiteArtId>> = {
+  register: "wait-horizon-myna",
+  opensSoon: "wait-calendar-pup",
+  underway: "wait-mailbox-cat",
+  results: "wait-mailbox-cat",
+};
 
 async function Fee({ fee }: { fee: CompetitionView["routes"][number]["fee"] }) {
   const t = await getTranslations("competitions.detail");
@@ -379,6 +390,7 @@ export async function CompetitionDetail({
                 ? t("consent.refunds")
                 : t("action.contact"),
           }}
+          art={WAIT_ART[action]}
           className="mt-8"
         >
           <p>{t(`action.${action}.body`)}</p>

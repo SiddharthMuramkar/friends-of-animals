@@ -39,6 +39,11 @@
     "how": {
       "eyebrow": "How FOA works",
       "title": "From a child’s drawing to a kinder street",
+      "chain": {
+        "create": "Watch, then draw",
+        "wall": "On the school wall",
+        "street": "A kinder street"
+      },
       "steps": {
         "create": {
           "title": "Children create",

@@ -1,0 +1,254 @@
+/* "Spot the neighbour" pins over the street illustration. A pin is a ring
+   around an animal, so the animal shows through it; its name appears on
+   keyboard focus, and on hover too once the picture is wide enough for names
+   beside the rings (screen readers always get it). Escape hides a shown name
+   (WCAG 1.4.13; InPageLink `dismissible` sets data-dismissed). */
+
+/* The list over the picture. A size container: names lay out by the
+   picture's width, and a name can sit against its edge (cqh). Above the
+   caption's AI mark, which its transform paints over earlier boxes. */
+.scene {
+  container-type: size;
+  z-index: 1;
+}
+
+.spot {
+  --ring: clamp(1.5rem, 4.2vw, 2.75rem);
+  position: absolute;
+  translate: -50% -50%;
+}
+
+/* The pin in use paints over its neighbours. */
+.spot:hover,
+.spot:focus-within {
+  z-index: 1;
+}
+
+.pin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: var(--ring);
+  block-size: var(--ring);
+  border: 3px solid #fff;
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 2px rgb(23 21 17 / 0.55),
+    inset 0 0 0 2px rgb(23 21 17 / 0.35);
+}
+
+.pin:hover,
+.pin:focus-visible {
+  border-color: var(--color-yellow-300);
+}
+
+/* Two tones, near-black ringed in white, so the focus ring shows on the
+   light and the dark parts of the picture, in either theme. */
+.pin:focus-visible {
+  outline: 3px solid #171511;
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px rgb(23 21 17 / 0.55),
+    inset 0 0 0 2px rgb(23 21 17 / 0.35),
+    0 0 0 7px #fff;
+}
+
+.label {
+  position: absolute;
+  inset-inline-start: 50%;
+  translate: var(--label-x, -50%) var(--label-y, 0%);
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-warm);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Pins near a side edge line their name up with that side of the ring, so
+   it runs into the picture instead of off it. --ring-at: where the ring
+   starts along the name, for the hover bridge below. */
+.start,
+.end {
+  --label-x: 0%;
+}
+
+.start {
+  --ring-at: 0%;
+}
+
+.end {
+  --ring-at: calc(100% - var(--ring));
+}
+
+.start .label {
+  inset-inline-start: 0;
+}
+
+.end .label {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
+/* A small picture has no room for names beside the rings: one would cover
+   other rings. There the name shows on keyboard focus only, in line with
+   its ring but clear of all of them: for a ring in the top half, just above
+   the picture; otherwise across its bottom edge, over the road and clear of
+   the caption. Hover lights the ring alone. */
+@container (width < 32rem) {
+  .top .label {
+    inset-block-end: calc(var(--y) * 1cqh + 50% + 0.25rem);
+  }
+
+  .bottom .label {
+    --label-y: -50%;
+    inset-block-start: calc((100 - var(--y)) * 1cqh + 50%);
+  }
+
+  .pin:focus-visible .label {
+    opacity: 1;
+  }
+}
+
+/* A larger picture: the name shows next to its ring on hover and on focus,
+   on the side street-scene.ts gives it, 0.5rem out so it clears the focus
+   ring (offsets count from inside the 3px ring). The name is part of the
+   link, so the pointer can move onto it without it going (WCAG 1.4.13). */
+@container (width >= 32rem) {
+  .above .label {
+    inset-block-end: calc(100% + 3px + 0.5rem);
+  }
+
+  .below .label {
+    inset-block-start: calc(100% + 3px + 0.5rem);
+  }
+
+  .beside .label {
+    --label-x: 0%;
+    --label-y: -50%;
+    inset-block-start: 50%;
+    inset-inline: calc(100% + 3px + 0.5rem) auto;
+  }
+
+  .pin:is(:hover, :focus-visible) .label {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* The bridge over the gap, from the ring's middle to the name: tapered
+     from the ring's width to the name's, so a straight move from ring to
+     name never leaves the link. */
+  .label::before {
+    --at: var(--ring-at, calc(50% - var(--ring) / 2));
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    block-size: calc(0.5rem + var(--ring) / 2);
+  }
+
+  .above .label::before {
+    inset-block-start: 100%;
+    clip-path: polygon(
+      0 0,
+      100% 0,
+      calc(var(--at) + var(--ring)) 100%,
+      var(--at) 100%
+    );
+  }
+
+  .below .label::before {
+    inset-block-end: 100%;
+    clip-path: polygon(
+      var(--at) 0,
+      calc(var(--at) + var(--ring)) 0,
+      100% 100%,
+      0 100%
+    );
+  }
+
+  /* Beside: as tall as the ring or the name, whichever is taller. */
+  .beside .label::before {
+    inset-block: min(0px, 50% - var(--ring) / 2);
+    inset-inline: auto 100%;
+    inline-size: calc(0.5rem + var(--ring) / 2);
+    block-size: auto;
+  }
+}
+
+/* Motion only: the ring grows and its name slides in. Screen only, so
+   print gets the finished state. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  .pin {
+    transition:
+      scale 160ms ease-out,
+      border-color 160ms ease-out;
+  }
+
+  .label {
+    translate: var(--label-x, -50%) calc(var(--label-y, 0%) + 0.25rem);
+    transition:
+      opacity 160ms ease-out,
+      translate 160ms ease-out;
+  }
+
+  .pin:is(:hover, :focus-visible) .label {
+    translate: var(--label-x, -50%) var(--label-y, 0%);
+  }
+
+  /* Not in a small picture, where it would push the name off its line. */
+  @container (width >= 32rem) {
+    .pin:is(:hover, :focus-visible) {
+      scale: 1.12;
+    }
+  }
+
+  /* As the picture scrolls in, each pin rings out twice, then rests. Grown,
+     the ring would take the pointer from its neighbours: it takes none. */
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .pin::after {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border: 3px solid #fff;
+      border-radius: inherit;
+      opacity: 0;
+      pointer-events: none;
+      animation: ring linear both;
+      animation-duration: 1ms;
+      animation-timeline: view();
+      animation-range: entry 60% cover 50%;
+    }
+  }
+}
+
+/* After the rules that show it. */
+.pin[data-dismissed] .label {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes ring {
+  0%,
+  50% {
+    opacity: 0;
+    scale: 1;
+  }
+  20%,
+  70% {
+    opacity: 0.9;
+    scale: 1;
+  }
+  45%,
+  95% {
+    opacity: 0;
+    scale: 1.8;
+  }
+  100% {
+    opacity: 0;
+  }
+}

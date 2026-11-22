@@ -162,7 +162,11 @@ export default async function Page() {
             <ImpactCounters impact={impact} />
           </>
         ) : (
-          <ExplainState title={t("counters.empty.title")} className="max-w-2xl">
+          <ExplainState
+            title={t("counters.empty.title")}
+            art="wait-mailbox-cat"
+            className="max-w-2xl"
+          >
             <p>{t("counters.empty.body")}</p>
           </ExplainState>
         )}

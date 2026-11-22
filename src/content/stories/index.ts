@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { SITE_ART_IDS } from "@/lib/art/ids";
 import { SITE_IMAGE_IDS } from "@/lib/images/credits";
 
 import { type ArticleBody, articleBodySchema } from "./model";
@@ -23,27 +24,40 @@ export type StorySlug = (typeof STORY_SLUGS)[number];
 export const AUDIENCES = ["kids", "families", "everyone"] as const;
 export type Audience = (typeof AUDIENCES)[number];
 
-const storySchema = z.strictObject({
-  slug: z.enum(STORY_SLUGS),
-  title: z.string().min(1).max(80),
-  /**
-   * A shorter title for search results and the browser tab, when the title
-   * plus " · Friends of Animals" would pass 60 characters.
-   */
-  seoTitle: z.string().min(1).max(39).optional(),
-  /** The excerpt (≤ 300 characters). */
-  dek: z.string().min(1).max(300),
-  /** One or two short sentences at grade 6 or below: the "Easy read" layer. */
-  easyRead: z.string().min(1).max(200),
-  audience: z.enum(AUDIENCES),
-  /** Absent: the card shows a tile-pattern cover (no licensed photo exists). */
-  coverImageId: z.enum(SITE_IMAGE_IDS).optional(),
-  topics: z.array(z.string().regex(/^[a-z-]+$/)).min(1),
-  readingMinutes: z.int().min(1).max(30),
-  /** Fixed, so prerendering never reads the clock. */
-  publishedOn: z.iso.date(),
-  featured: z.boolean(),
-});
+export const storySchema = z
+  .strictObject({
+    slug: z.enum(STORY_SLUGS),
+    title: z.string().min(1).max(80),
+    /**
+     * A shorter title for search results and the browser tab, when the title
+     * plus " · Friends of Animals" would pass 60 characters.
+     */
+    seoTitle: z.string().min(1).max(39).optional(),
+    /** The excerpt (≤ 300 characters). */
+    dek: z.string().min(1).max(300),
+    /** One or two short sentences at grade 6 or below: the "Easy read" layer. */
+    easyRead: z.string().min(1).max(200),
+    audience: z.enum(AUDIENCES),
+    /**
+     * Absent: the card shows the illustrated cover below, or else a
+     * tile-pattern cover (no licensed photo exists).
+     */
+    coverImageId: z.enum(SITE_IMAGE_IDS).optional(),
+    /**
+     * An AI illustration (labelled) for a story with no licensed photo. A photo
+     * always wins: a story never has both.
+     */
+    coverArtId: z.enum(SITE_ART_IDS).optional(),
+    topics: z.array(z.string().regex(/^[a-z-]+$/)).min(1),
+    readingMinutes: z.int().min(1).max(30),
+    /** Fixed, so prerendering never reads the clock. */
+    publishedOn: z.iso.date(),
+    featured: z.boolean(),
+  })
+  .refine((s) => !(s.coverImageId && s.coverArtId), {
+    message: "a story has a photo or an illustration, never both",
+    path: ["coverArtId"],
+  });
 export type Story = z.infer<typeof storySchema>;
 
 export const STORIES: readonly Story[] = z
@@ -58,6 +72,7 @@ export const STORIES: readonly Story[] = z
       easyRead:
         "A dancer named Rukmini Devi asked India’s Parliament to protect animals. Her work helped make a law in 1960. It still keeps animals safe.",
       audience: "everyone",
+      coverArtId: "cover-rukmini-devi",
       topics: ["history", "law"],
       readingMinutes: 4,
       publishedOn: "2026-11-18",
@@ -84,6 +99,7 @@ export const STORIES: readonly Story[] = z
       easyRead:
         "A giant stork in Assam was called bad luck. Now women sing for it, guard its nests and throw parties for its chicks.",
       audience: "kids",
+      coverArtId: "cover-stork",
       topics: ["birds", "community"],
       readingMinutes: 5,
       publishedOn: "2026-11-18",

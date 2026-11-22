@@ -170,6 +170,42 @@ published Revision, under a "Draft preview" status, until they leave it.
 Everyone else sees the published Revision.
 _Avoid_: Staging, preview deployment (a preview deployment is a whole site)
 
+**Photo**:
+A real photograph on the public site, from a free licence, credited on the
+credits page with its author, licence and the real place. Never made by AI.
+_Avoid_: Image (it may be an Illustration), picture
+
+**Illustration**:
+A drawing FOA shows on the public site to explain or decorate a page. Until
+commissioned artwork arrives, Illustrations are made with AI; each one is
+then labelled as an AI illustration and credited with its provenance. An
+Illustration never stands in for an Entry or for a real animal's photo.
+_Avoid_: Artwork (that word suggests a child's work), image, AI art
+
+**Entry**:
+A child's own drawing, painting, photo or craft sent to a competition. The
+site shows an Entry only with the permission recorded for it, and never shows
+a made-up one.
+_Avoid_: Submission (in copy), artwork
+
+**Neighbour**:
+One of the ten street animals /awareness introduces: the dog, cat, cow, crow,
+myna, pigeon, sparrow, black kite, palm squirrel and koel.
+_Avoid_: Stray, pet
+
+**Living illustration**:
+An Illustration of a Neighbour that moves as the page scrolls (a sleeping dog
+wakes up), taken frame by frame from a short AI video. It rests on its last
+frame, so it is a still drawing wherever motion is reduced or unsupported.
+_Avoid_: Animation, GIF, video
+
+**AI mark**:
+The small hand-lettered "AI illustration" tag beside an Illustration that
+carries meaning, or beside a decorative one that could be taken for a child's
+drawing. The footer says that the drawings decorating the site are AI
+illustrations, not children's work.
+_Avoid_: Watermark, badge
+
 ## Messages
 
 **Capture mailbox**:

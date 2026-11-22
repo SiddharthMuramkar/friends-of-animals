@@ -4,7 +4,11 @@ import { getTranslations } from "next-intl/server";
 
 import { PendingDot } from "@/components/nav-link";
 import { SiteLink } from "@/components/site/site-link";
-import { CardCover, TileCover } from "@/components/showcase/card-cover";
+import {
+  ArtCover,
+  CardCover,
+  TileCover,
+} from "@/components/showcase/card-cover";
 import { StoryCard } from "@/components/showcase/story-card";
 import { Chip } from "@/components/site/chip";
 import { PageHeader } from "@/components/site/heading";
@@ -43,6 +47,12 @@ async function FeaturedStory({ story }: { story: Story }) {
       {story.coverImageId ? (
         <CardCover
           id={story.coverImageId}
+          sizes="(min-width: 768px) 560px, 92vw"
+          className="md:aspect-auto md:min-h-80"
+        />
+      ) : story.coverArtId ? (
+        <ArtCover
+          id={story.coverArtId}
           sizes="(min-width: 768px) 560px, 92vw"
           className="md:aspect-auto md:min-h-80"
         />

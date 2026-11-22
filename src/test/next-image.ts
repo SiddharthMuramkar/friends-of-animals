@@ -5,3 +5,8 @@
 export default function Image() {
   return null;
 }
+
+/** For the art components' server-built <img>: its alt text, no file. */
+export function getImageProps({ alt }: { alt: string }) {
+  return { props: { alt } };
+}

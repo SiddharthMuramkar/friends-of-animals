@@ -2,8 +2,10 @@ import { Brush, Eye, Sprout } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { StickerScatter } from "@/components/art/sticker-scatter";
 import { BadgeConstellation } from "@/components/showcase/badge-constellation";
 import { HappyMosaic } from "@/components/showcase/happy-mosaic";
+import { KindnessChain } from "@/components/showcase/kindness-chain";
 import { NotAShelter } from "@/components/showcase/not-a-shelter";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { ButtonLink } from "@/components/site/button-link";
@@ -202,14 +204,37 @@ export default async function Page() {
         </div>
       </Section>
 
-      {/* How FOA works: creativity → awareness → compassion. */}
-      <Section labelledBy="about-how" width="wide" hue="blue">
+      {/* How FOA works: creativity → awareness → compassion, drawn as a
+          chain first. A sketchbook in the top corner, clear of the eyebrow
+          and the heading; from lg, where the heading wraps and leaves the
+          corner free, a marigold beside it. */}
+      <Section
+        labelledBy="about-how"
+        width="wide"
+        hue="blue"
+        innerClassName="relative"
+      >
+        <StickerScatter
+          stickers={[
+            {
+              id: "sticker-sketchbook",
+              className: "-top-12 right-[5%] w-12 sm:-top-14 sm:w-16",
+              tilt: -10,
+            },
+            {
+              id: "sticker-marigold",
+              className: "-top-5 right-[17%] hidden w-16 lg:block",
+              tilt: 12,
+            },
+          ]}
+        />
         <SectionHeading
           id="about-how"
           eyebrow={t("how.eyebrow")}
           tile="blue"
           title={t("how.title")}
         />
+        <KindnessChain className="mt-10" />
         <ol className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
           {HOW.map(({ key, Icon, tile }) => (
             <li
