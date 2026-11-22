@@ -51,7 +51,10 @@ function isPurpose(value: string): value is ConsentPurpose {
  * The publish form's one action. `intent` (from the pressed button) says
  * what to do: preview the source, or publish it as the next version.
  * Publishing refreshes the cached current version, then goes back to the
- * page, which lists the new version and says so.
+ * page, which lists the new version and says so. The privacy notice and
+ * the terms are their policy pages' text: only publishing the page in the
+ * CMS publishes them (#111), so the page offers no form for them and the
+ * use cases refuse them.
  */
 export async function publishFormAction(
   _previous: PublishFormView | null,
@@ -70,6 +73,7 @@ export async function publishFormAction(
   try {
     if (field(formData, "intent") !== "publish") {
       const preview = await as(actor).previewConsentDocument({
+        purpose,
         source: entered.source,
       });
       return withText(afterPreview(preview, entered));

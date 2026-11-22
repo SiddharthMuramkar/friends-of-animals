@@ -1,3 +1,5 @@
+import { CMS_DOCUMENT_KEYS } from "../server/modules/cms/domain/documents";
+
 /**
  * Pages behind sign-in. They are never in navigation for visitors, the
  * sitemap or search results (each sets robots noindex), and they render at
@@ -20,6 +22,7 @@ export const APP_ROUTES = {
   adminConsentDocuments: "/admin/consent-documents",
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
+  adminCms: "/admin/cms",
 } as const;
 
 /**
@@ -73,12 +76,23 @@ function fitsTemplate(pathname: string, template: string): boolean {
   );
 }
 
-/** Whether `pathname` is a page in APP_ROUTES or APP_ROUTE_TEMPLATES. */
+/** Whether `pathname` is a page in APP_ROUTES, APP_ROUTE_TEMPLATES or one CMS editor. */
 export function isSignedInPage(pathname: string): boolean {
   return (
     (Object.values(APP_ROUTES) as string[]).includes(pathname) ||
-    APP_ROUTE_TEMPLATES.some((template) => fitsTemplate(pathname, template))
+    APP_ROUTE_TEMPLATES.some((template) => fitsTemplate(pathname, template)) ||
+    CMS_EDITOR_PATHS.has(pathname)
   );
+}
+
+/** One editor page per CMS document (#111), and no other path below it. */
+const CMS_EDITOR_PATHS: ReadonlySet<string> = new Set(
+  CMS_DOCUMENT_KEYS.map((key) => adminCmsDocumentPath(key))
+);
+
+/** The editor page of one CMS document (#111). */
+export function adminCmsDocumentPath(key: string): `/admin/cms/${string}` {
+  return `/admin/cms/${key}`;
 }
 
 /**
