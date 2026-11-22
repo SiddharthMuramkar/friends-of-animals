@@ -1,6 +1,6 @@
 {
-  "id": "a92ac85c-e099-4201-8129-c320969065db",
-  "prevId": "6f357db1-cd1b-45af-97a4-50095148e107",
+  "id": "69847431-b777-4c93-927e-514547457e0a",
+  "prevId": "cb0eebb1-c8b8-431f-8a28-d09ff7b2199d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7984,6 +7984,14 @@
           "name": "refund_attempt_positive",
           "value": "\"refund\".\"attempt\" >= 1"
         },
+        "refund_reason_present": {
+          "name": "refund_reason_present",
+          "value": "length(trim(\"refund\".\"reason\")) > 0"
+        },
+        "refund_decider_not_requester": {
+          "name": "refund_decider_not_requester",
+          "value": "\"refund\".\"requested_by\" IS NULL OR \"refund\".\"decided_by\" IS NULL OR \"refund\".\"requested_by\" <> \"refund\".\"decided_by\""
+        },
         "refund_gateway_has_payment": {
           "name": "refund_gateway_has_payment",
           "value": "\"refund\".\"method\" <> 'gateway' OR \"refund\".\"gateway_payment_id\" IS NOT NULL"
@@ -7991,6 +7999,14 @@
         "refund_manual_recorded_when_refunded": {
           "name": "refund_manual_recorded_when_refunded",
           "value": "\"refund\".\"method\" <> 'manual' OR \"refund\".\"status\" <> 'refunded' OR (\"refund\".\"manual_method\" IS NOT NULL AND \"refund\".\"manual_reference\" IS NOT NULL)"
+        },
+        "refund_manual_has_no_gateway_refund": {
+          "name": "refund_manual_has_no_gateway_refund",
+          "value": "\"refund\".\"method\" <> 'manual' OR \"refund\".\"gateway_refund_id\" IS NULL"
+        },
+        "refund_failed_at_when_failed": {
+          "name": "refund_failed_at_when_failed",
+          "value": "(\"refund\".\"status\" = 'failed') = (\"refund\".\"failed_at\" IS NOT NULL)"
         },
         "refund_refunded_at_when_refunded": {
           "name": "refund_refunded_at_when_refunded",

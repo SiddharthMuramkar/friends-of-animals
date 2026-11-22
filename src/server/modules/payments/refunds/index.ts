@@ -8,10 +8,22 @@
 
 import type { UseCaseContext } from "../../../use-cases";
 import {
+  approveRefund,
+  rejectRefund,
+  type ApproveRefundInput,
+  type RejectRefundInput,
+} from "./decide-refund";
+import {
   requestRefund,
   type RequestRefundInput,
 } from "./request-refund";
 
+export type {
+  ApproveRefundInput,
+  ApproveRefundResult,
+  RejectRefundInput,
+  RejectRefundResult,
+} from "./decide-refund";
 export type {
   RequestRefundInput,
   RequestRefundResult,
@@ -19,4 +31,6 @@ export type {
 
 export const refundsUseCases = (ctx: UseCaseContext) => ({
   requestRefund: (input: RequestRefundInput) => requestRefund(ctx, input),
+  approveRefund: (input: ApproveRefundInput) => approveRefund(ctx, input),
+  rejectRefund: (input: RejectRefundInput) => rejectRefund(ctx, input),
 });

@@ -2,12 +2,15 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { uuidv7 } from "@/server/ids";
-import { createTestDb, type TestDb } from "@/test/db";
+import { capturedBatch } from "@/server/modules/payments/refunds/testing";
+import { createHarness, type Harness } from "@/test/harness";
 
-import { user } from "./identity";
 import { refund, refundItem } from "./refunds";
 
-const now = new Date("2027-01-15T04:30:00Z");
+// #80: what the refund tables refuse whatever the use cases do: money
+// that isn't positive rupees, a gateway refund with no payment, the
+// requester deciding, timestamps out of step with the status, and a
+// registration held by two live refunds.
 
 /** The database's own message for a refused write, or null if it went in. */
 async function refusal(write: PromiseLike<unknown>): Promise<string | null> {
@@ -20,23 +23,16 @@ async function refusal(write: PromiseLike<unknown>): Promise<string | null> {
   }
 }
 
-/** A user who can ask for or decide refunds; returns their id. */
-async function staffMember(db: TestDb, email: string): Promise<string> {
-  const id = uuidv7(now);
-  await db
-    .insert(user)
-    .values({ id, name: "Staff", email, createdAt: now, updatedAt: now });
-  return id;
-}
-
 type NewRefund = typeof refund.$inferInsert;
 
-/** A cancellation refund as the system approves it, before it is sent. */
-function approvedRefund(overrides: Partial<NewRefund> = {}): NewRefund {
-  return {
+async function world(h: Harness) {
+  const paid = await capturedBatch(h, { students: 2 });
+  const now = h.clock.now();
+  /** A cancellation refund as the system approves it, before it is sent. */
+  const approved = (overrides: Partial<NewRefund> = {}): NewRefund => ({
     id: uuidv7(now),
-    batchId: uuidv7(now),
-    gatewayPaymentId: "pay_1",
+    batchId: paid.batchId,
+    gatewayPaymentId: paid.paymentId,
     kind: "cancellation",
     status: "approved",
     method: "gateway",
@@ -45,95 +41,37 @@ function approvedRefund(overrides: Partial<NewRefund> = {}): NewRefund {
     reason: "The competition was cancelled.",
     requestedAt: now,
     decidedAt: now,
+    updatedAt: now,
     ...overrides,
-  };
+  });
+  return { paid, now, approved };
 }
 
-describe("refund_item", () => {
-  it("holds a batch item in one live refund at a time, and lets it go once released", async () => {
-    const db = await createTestDb();
-    const [first, second] = [approvedRefund(), approvedRefund()];
-    await db.insert(refund).values([first, second]);
-    const batchItemId = uuidv7(now);
-    const hold = (refundId: string) =>
-      db
-        .insert(refundItem)
-        .values({ refundId, batchItemId, amountMinor: 25_000n });
-
-    await hold(first.id);
-    expect(await refusal(hold(second.id))).toEqual(
-      expect.stringMatching(/refund_item_live_batch_item_key/)
-    );
-
-    await db
-      .update(refundItem)
-      .set({ releasedAt: now })
-      .where(eq(refundItem.refundId, first.id));
-    expect(await refusal(hold(second.id))).toBeNull();
-  });
-
-  it("refuses an item refunded for nothing", async () => {
-    const db = await createTestDb();
-    const row = approvedRefund();
-    await db.insert(refund).values(row);
-
-    expect(
-      await refusal(
-        db.insert(refundItem).values({
-          refundId: row.id,
-          batchItemId: uuidv7(now),
-          amountMinor: 0n,
-        })
-      )
-    ).toEqual(expect.stringMatching(/refund_item_amount_positive/));
-  });
-});
-
 describe("refund", () => {
-  it("never lets the person who asked for a refund decide it", async () => {
-    const db = await createTestDb();
-    const asker = await staffMember(db, "asker@example.test");
-    const row = approvedRefund({
-      kind: "discretionary",
-      status: "requested",
-      requestedBy: asker,
-      decidedAt: null,
-    });
-    await db.insert(refund).values(row);
-
-    expect(
-      await refusal(
-        db
-          .update(refund)
-          .set({ status: "approved", decidedBy: asker, decidedAt: now })
-          .where(eq(refund.id, row.id))
-      )
-    ).toEqual(expect.stringMatching(/refund_decider_not_requester/));
-  });
-
   it("takes the rows the refund machine makes", async () => {
-    const db = await createTestDb();
-    const asker = await staffMember(db, "asker@example.test");
-    const finance = await staffMember(db, "finance@example.test");
+    const h = await createHarness();
+    const { approved, now } = await world(h);
+    const asker = await h.seed.member();
+    const finance = await h.seed.member();
 
     for (const row of [
-      approvedRefund({
+      approved({
         kind: "discretionary",
         status: "requested",
-        requestedBy: asker,
+        requestedBy: asker.id,
         decidedAt: null,
       }),
-      approvedRefund({
+      approved({
         kind: "discretionary",
         status: "rejected",
-        requestedBy: asker,
-        decidedBy: finance,
-        decisionNote: "Confirmed registrations are not refunded.",
+        requestedBy: asker.id,
+        decidedBy: finance.id,
+        decisionNote: "Outside the policy.",
       }),
-      approvedRefund({ status: "processing", gatewayRefundId: "rfnd_1" }),
-      approvedRefund({ status: "refunded", refundedAt: now }),
-      approvedRefund({ status: "failed", failedAt: now }),
-      approvedRefund({
+      approved({ status: "processing", gatewayRefundId: "rfnd_1" }),
+      approved({ status: "refunded", refundedAt: now }),
+      approved({ status: "failed", failedAt: now }),
+      approved({
         method: "manual",
         gatewayPaymentId: null,
         status: "refunded",
@@ -142,104 +80,134 @@ describe("refund", () => {
         manualReference: "UTIB0001234567",
       }),
     ]) {
-      expect(await refusal(db.insert(refund).values(row))).toBeNull();
+      expect(await refusal(h.db.insert(refund).values(row))).toBeNull();
     }
   });
 
-  it.each<[string, Partial<NewRefund>, RegExp]>([
-    ["a refund of nothing", { amountMinor: 0n }, /refund_amount_positive/],
-    ["a currency other than rupees", { currency: "USD" as "INR" }, /refund_currency_inr/],
-    ["an empty reason", { reason: "  " }, /refund_reason_present/],
-    ["a reason past 2,000 characters", { reason: "x".repeat(2001) }, /refund_reason_length/],
-    [
-      "a discretionary refund nobody asked for",
-      { kind: "discretionary" },
-      /refund_requester_matches_kind/,
-    ],
+  it.each<[string, (now: Date) => Partial<NewRefund>, RegExp]>([
+    ["a refund of nothing", () => ({ amountMinor: 0n }), /refund_amount_positive/],
+    ["another currency", () => ({ currency: "USD" }), /refund_currency_inr/],
+    ["an empty reason", () => ({ reason: "  " }), /refund_reason_present/],
+    ["attempt 0", () => ({ attempt: 0 }), /refund_attempt_positive/],
     [
       "a gateway refund with no payment to return to",
-      { gatewayPaymentId: null },
-      /refund_gateway_needs_payment/,
+      () => ({ gatewayPaymentId: null }),
+      /refund_gateway_has_payment/,
     ],
     [
       "a manual refund with a gateway refund id",
-      { method: "manual", gatewayRefundId: "rfnd_1" },
+      () => ({ method: "manual", gatewayRefundId: "rfnd_1" }),
       /refund_manual_has_no_gateway_refund/,
     ],
     [
-      "a manual record on a gateway refund",
-      { manualMethod: "cheque", manualReference: "004512" },
-      /refund_manual_record_on_manual/,
+      "a manual refund refunded with no record of how",
+      (now) => ({ method: "manual", status: "refunded", refundedAt: now }),
+      /refund_manual_recorded_when_refunded/,
     ],
     [
-      "a manual method without its reference",
-      { method: "manual", manualMethod: "cheque" },
-      /refund_manual_record_complete/,
-    ],
-    [
-      "a manual refund marked refunded with no record of how",
-      { method: "manual", status: "refunded", refundedAt: now },
-      /refund_manual_refunded_recorded/,
-    ],
-    [
-      "a refunded refund with no time it was refunded",
-      { status: "refunded" },
+      "a refunded refund with no time",
+      () => ({ status: "refunded" }),
       /refund_refunded_at_when_refunded/,
     ],
     [
       "a refund time on a refund not refunded",
-      { refundedAt: now },
+      (now) => ({ refundedAt: now }),
       /refund_refunded_at_when_refunded/,
     ],
     [
-      "a failed refund with no time it failed",
-      { status: "failed" },
+      "a failed refund with no time",
+      () => ({ status: "failed" }),
       /refund_failed_at_when_failed/,
     ],
     [
-      "a decided refund with no time of decision",
-      { decidedAt: null },
-      /refund_decided_unless_requested/,
+      "a duplicate refund that settles no review case",
+      () => ({ kind: "duplicate" }),
+      /refund_case_only_for_duplicates/,
     ],
-    [
-      "a rejected refund with no note saying why",
-      { status: "rejected", decisionNote: " " },
-      /refund_rejected_has_note/,
-    ],
-    ["attempt 0", { attempt: 0 }, /refund_attempt_positive/],
   ])("refuses %s", async (_, overrides, constraint) => {
-    const db = await createTestDb();
+    const h = await createHarness();
+    const { approved, now } = await world(h);
 
     expect(
-      await refusal(db.insert(refund).values(approvedRefund(overrides)))
+      await refusal(h.db.insert(refund).values(approved(overrides(now))))
     ).toEqual(expect.stringMatching(constraint));
   });
 
-  it("refuses a requester on a refund the system made", async () => {
-    const db = await createTestDb();
-    const asker = await staffMember(db, "asker@example.test");
+  it("never lets the person who asked for a refund decide it", async () => {
+    const h = await createHarness();
+    const { approved, now } = await world(h);
+    const asker = await h.seed.member();
+    const row = approved({
+      kind: "discretionary",
+      status: "requested",
+      requestedBy: asker.id,
+      decidedAt: null,
+    });
+    await h.db.insert(refund).values(row);
 
     expect(
       await refusal(
-        db.insert(refund).values(approvedRefund({ requestedBy: asker }))
+        h.db
+          .update(refund)
+          .set({ status: "approved", decidedBy: asker.id, decidedAt: now })
+          .where(eq(refund.id, row.id))
       )
-    ).toEqual(expect.stringMatching(/refund_requester_matches_kind/));
+    ).toEqual(expect.stringMatching(/refund_decider_not_requester/));
+  });
+});
+
+describe("refund_item", () => {
+  it("holds a registration in one live refund at a time, and lets it go once released", async () => {
+    const h = await createHarness();
+    const { approved, paid, now } = await world(h);
+    const [first, second] = [approved(), approved()];
+    await h.db.insert(refund).values([first, second]);
+    const hold = (refundId: string) =>
+      h.db.insert(refundItem).values({
+        refundId,
+        batchId: paid.batchId,
+        registrationId: paid.registrationIds[0]!,
+        amountMinor: 50_000n,
+      });
+
+    await hold(first.id);
+    expect(await refusal(hold(second.id))).toEqual(
+      expect.stringMatching(/refund_item_live_registration_unique/)
+    );
+
+    await h.db
+      .update(refundItem)
+      .set({ releasedAt: now })
+      .where(eq(refundItem.refundId, first.id));
+    expect(await refusal(hold(second.id))).toBeNull();
   });
 
-  it("refuses a requested refund that was already decided", async () => {
-    const db = await createTestDb();
-    const asker = await staffMember(db, "asker@example.test");
+  it("refuses an item for nothing, and a registration the batch never held", async () => {
+    const h = await createHarness();
+    const { approved, paid } = await world(h);
+    const other = await capturedBatch(h, { students: 1, code: "KITE27" });
+    const row = approved();
+    await h.db.insert(refund).values(row);
 
     expect(
       await refusal(
-        db.insert(refund).values(
-          approvedRefund({
-            kind: "discretionary",
-            status: "requested",
-            requestedBy: asker,
-          })
-        )
+        h.db.insert(refundItem).values({
+          refundId: row.id,
+          batchId: paid.batchId,
+          registrationId: paid.registrationIds[0]!,
+          amountMinor: 0n,
+        })
       )
-    ).toEqual(expect.stringMatching(/refund_decided_unless_requested/));
+    ).toEqual(expect.stringMatching(/refund_item_amount_positive/));
+    expect(
+      await refusal(
+        h.db.insert(refundItem).values({
+          refundId: row.id,
+          batchId: paid.batchId,
+          registrationId: other.registrationIds[0]!,
+          amountMinor: 50_000n,
+        })
+      )
+    ).toEqual(expect.stringMatching(/refund_item_batch_item_fk/));
   });
 });

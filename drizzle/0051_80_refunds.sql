@@ -46,8 +46,12 @@ CREATE TABLE "refund" (
 	CONSTRAINT "refund_amount_positive" CHECK ("refund"."amount_minor" > 0),
 	CONSTRAINT "refund_currency_inr" CHECK ("refund"."currency" = 'INR'),
 	CONSTRAINT "refund_attempt_positive" CHECK ("refund"."attempt" >= 1),
+	CONSTRAINT "refund_reason_present" CHECK (length(trim("refund"."reason")) > 0),
+	CONSTRAINT "refund_decider_not_requester" CHECK ("refund"."requested_by" IS NULL OR "refund"."decided_by" IS NULL OR "refund"."requested_by" <> "refund"."decided_by"),
 	CONSTRAINT "refund_gateway_has_payment" CHECK ("refund"."method" <> 'gateway' OR "refund"."gateway_payment_id" IS NOT NULL),
 	CONSTRAINT "refund_manual_recorded_when_refunded" CHECK ("refund"."method" <> 'manual' OR "refund"."status" <> 'refunded' OR ("refund"."manual_method" IS NOT NULL AND "refund"."manual_reference" IS NOT NULL)),
+	CONSTRAINT "refund_manual_has_no_gateway_refund" CHECK ("refund"."method" <> 'manual' OR "refund"."gateway_refund_id" IS NULL),
+	CONSTRAINT "refund_failed_at_when_failed" CHECK (("refund"."status" = 'failed') = ("refund"."failed_at" IS NOT NULL)),
 	CONSTRAINT "refund_refunded_at_when_refunded" CHECK (("refund"."status" = 'refunded') = ("refund"."refunded_at" IS NOT NULL)),
 	CONSTRAINT "refund_case_only_for_duplicates" CHECK (("refund"."kind" = 'duplicate') = ("refund"."review_case_id" IS NOT NULL))
 );

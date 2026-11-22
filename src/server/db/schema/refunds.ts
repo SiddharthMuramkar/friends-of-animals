@@ -124,6 +124,13 @@ export const refund = pgTable(
     // FOA takes and refunds domestic INR only (#55).
     check("refund_currency_inr", sql`${table.currency} = 'INR'`),
     check("refund_attempt_positive", sql`${table.attempt} >= 1`),
+    check("refund_reason_present", sql`length(trim(${table.reason})) > 0`),
+    // Separation of duties, below the use cases too: nobody decides the
+    // refund they asked for.
+    check(
+      "refund_decider_not_requester",
+      sql`${table.requestedBy} IS NULL OR ${table.decidedBy} IS NULL OR ${table.requestedBy} <> ${table.decidedBy}`
+    ),
     // A gateway refund goes back to a captured payment; a manual one is
     // paid out by finance.
     check(
@@ -133,6 +140,14 @@ export const refund = pgTable(
     check(
       "refund_manual_recorded_when_refunded",
       sql`${table.method} <> 'manual' OR ${table.status} <> 'refunded' OR (${table.manualMethod} IS NOT NULL AND ${table.manualReference} IS NOT NULL)`
+    ),
+    check(
+      "refund_manual_has_no_gateway_refund",
+      sql`${table.method} <> 'manual' OR ${table.gatewayRefundId} IS NULL`
+    ),
+    check(
+      "refund_failed_at_when_failed",
+      sql`(${table.status} = 'failed') = (${table.failedAt} IS NOT NULL)`
     ),
     check(
       "refund_refunded_at_when_refunded",
