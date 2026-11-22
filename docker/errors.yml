@@ -12,6 +12,8 @@
 #   store.
 # - No published ports. foa-caddy (edge.yml, host network) proxies
 #   https://errors.friendsofanimals.dev to 10.112.13.10:8000.
+# - Hardened: no new privileges in either container; GlitchTip has no
+#   capabilities, its Postgres only the five its entrypoint needs.
 # - Secrets, never in git: /etc/foa/secrets/glitchtip.env (SECRET_KEY,
 #   DATABASE_URL; 0600 root) and glitchtip_pg_password (0400 uid 70).
 name: foa-errors
@@ -50,6 +52,19 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+    # The entrypoint starts as root: it chowns and chmods the data
+    # directory, reads the 0400 password file (uid 70), then drops to
+    # postgres. Nothing else.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
     shm_size: 128m
     mem_limit: 512m
     memswap_limit: 512m
@@ -95,6 +110,11 @@ services:
       timeout: 6s
       retries: 20
       start_period: 120s
+    # The image runs as its own user (app, uid 5000): no capability needed.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     mem_limit: 1g
     memswap_limit: 1g
     oom_score_adj: 500
