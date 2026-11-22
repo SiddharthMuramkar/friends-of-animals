@@ -19,11 +19,13 @@ import { user, userRole } from "../db/schema";
 import { uuidv7 } from "../ids";
 import { invalidInput, type InvalidInput } from "../input";
 import { recordAudit } from "../audit/record";
+import { capSessionsAtStaffLifetime } from "../modules/second-factor/session-lifetimes";
 import type { UseCaseContext } from "../use-cases";
 import { authorize } from "./can";
 import {
   grantKey,
   grantSchema,
+  isStaffRole,
   ROLES,
   scopeSchema,
   sortGrants,
@@ -98,7 +100,7 @@ async function authorizeIn(
   ctx: AccessContext,
   action: "role.grant" | "role.revoke"
 ) {
-  return authorize({ db: tx, actor: ctx.actor }, action);
+  return authorize({ db: tx, clock: ctx.clock, actor: ctx.actor }, action);
 }
 
 /**
@@ -134,6 +136,8 @@ export async function grantRole(
       .onConflictDoNothing()
       .returning({ id: userRole.id });
     if (!inserted) return { ok: true, changed: false, grant } as const;
+    // Staff sessions are shorter (#60): the grantee's open ones too.
+    if (isStaffRole(grant.role)) await capSessionsAtStaffLifetime(tx, userId);
 
     await recordAudit(tx, ctx, {
       action: "role.granted",
@@ -221,6 +225,7 @@ export type UserGrant = Grant & {
 export type ListUserRolesResult =
   | {
       ok: true;
+      // `email` is null for an account made by phone (#58).
       user: { id: string; name: string; email: string | null };
       grants: UserGrant[];
     }

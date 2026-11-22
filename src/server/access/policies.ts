@@ -3,11 +3,15 @@
 // an action defined twice fails type-checking. Each rule names its roles;
 // super admin is not a wildcard.
 
-import { CONSENT_POLICY } from "../consent/policy";
+import { CMS_POLICY } from "../modules/cms/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
+import { FILES_POLICY } from "../modules/files/policy";
+import { CONSENT_POLICY } from "../modules/consent/policy";
+import { COMPETITIONS_POLICY } from "../modules/competitions/policy";
+import { NOTIFICATIONS_POLICY } from "../modules/notifications/policy";
+import { SECOND_FACTOR_POLICY } from "../modules/second-factor/policy";
+import { SETTINGS_POLICY } from "../modules/settings/policy";
 import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
-import { NOTIFICATIONS_POLICY } from "../notifications/policy";
-import { SETTINGS_POLICY } from "../settings/policy";
 import { CONTACT_POLICY } from "../modules/contact/access-policy";
 import { PUBLIC_FORMS_POLICY } from "../modules/public-forms/access-policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
@@ -16,11 +20,15 @@ import { composePolicies } from "./domain/policy";
 export const POLICY = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
-  CONSENT_POLICY,
+  SECOND_FACTOR_POLICY,
+  FILES_POLICY,
   SETTINGS_POLICY,
+  CONSENT_POLICY,
+  COMPETITIONS_POLICY,
+  CMS_POLICY,
+  NOTIFICATIONS_POLICY,
   PUBLIC_FORMS_POLICY,
   CONTACT_POLICY,
-  NOTIFICATIONS_POLICY,
   SAFEGUARDING_POLICY
 );
 

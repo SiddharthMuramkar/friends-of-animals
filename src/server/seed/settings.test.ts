@@ -2,11 +2,11 @@ import { asc } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { setting } from "@/server/db/schema";
-import { readSetting } from "@/server/settings";
+import { readSetting } from "@/server/modules/settings";
 import { createHarness } from "@/test/harness";
 
 describe("the settings seed", () => {
-  it("stores the first four settings at their defaults, once however often it runs", async () => {
+  it("stores every setting once, however often it runs: the defaults, with SMS on", async () => {
     const h = await createHarness();
     const rows = () => h.db.select().from(setting).orderBy(asc(setting.key));
 
@@ -20,8 +20,20 @@ describe("the settings seed", () => {
       { key: "auth.staffSessionHours", value: 12 },
       { key: "org.fcraEnabled", value: false },
       { key: "org.has80G", value: false },
-      { key: "sms.enabled", value: false },
+      { key: "sms.enabled", value: true },
+      { key: "sms.maxPerDay", value: 1000 },
+      { key: "sms.maxPerHour", value: 200 },
     ]);
+  });
+
+  it("turns sign-in by text on where it seeds: local runs and previews capture texts", async () => {
+    const h = await createHarness();
+    const visitor = h.visitor();
+    expect((await h.as(visitor).signInMethods()).phone).toBe(false);
+
+    await h.seed.preview();
+
+    expect((await h.as(visitor).signInMethods()).phone).toBe(true);
   });
 
   it("keeps a value someone changed on the preview", async () => {

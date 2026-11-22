@@ -1,11 +1,9 @@
 import { getTranslations } from "next-intl/server";
 
+import { inlineLink } from "@/components/site/link-styles";
 import { SiteLink } from "@/components/site/site-link";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-
-const LINK =
-  "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
 
 /**
  * The way to the phone form, under the email form, while SMS is on; while
@@ -25,7 +23,7 @@ export async function PhoneOption({
   const phone = intent === "sign-up" ? ROUTES.signUpPhone : ROUTES.signInPhone;
   return (
     <p className="mt-6">
-      <SiteLink href={phone.path} className={LINK}>
+      <SiteLink href={phone.path} className={inlineLink}>
         {intent === "sign-up" ? t("signUp") : t("signIn")}
       </SiteLink>
     </p>

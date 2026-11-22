@@ -12,8 +12,9 @@
 //     });
 //   });
 //
-// Something to do later for one record (a reminder, a deadline) is an
-// event with `availableAt`: the relay leaves it until then.
+// The outbox carries work that follows one change; when that work must
+// wait, pass `availableAt` and the relay leaves it until then. Reminders,
+// status flips and other recurring sweeps are SCHEDULES (./schedules.ts).
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 

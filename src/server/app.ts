@@ -15,11 +15,15 @@ import { headers } from "next/headers";
 import { accessUseCases } from "./access";
 import type { Actor } from "./actor";
 import { auditUseCases } from "./audit";
-import { consentUseCases } from "./consent";
+import { cmsUseCases } from "./modules/cms";
+import { consentUseCases } from "./modules/consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
-import { notificationsUseCases } from "./notifications";
-import { settingsUseCases } from "./settings";
+import { competitionsUseCases } from "./modules/competitions";
+import { notificationsUseCases } from "./modules/notifications";
+import { secondFactorUseCases } from "./modules/second-factor";
+import { filesUseCases } from "./modules/files";
+import { settingsUseCases } from "./modules/settings";
 import { safeguardingUseCases } from "./modules/safeguarding";
 import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
@@ -29,11 +33,15 @@ const useCases = composeUseCases(
   identityUseCases,
   accessUseCases,
   auditUseCases,
-  consentUseCases,
+  secondFactorUseCases,
+  filesUseCases,
   settingsUseCases,
+  consentUseCases,
+  competitionsUseCases,
+  cmsUseCases,
+  notificationsUseCases,
   publicFormUseCases,
   contactUseCases,
-  notificationsUseCases,
   safeguardingUseCases
 );
 

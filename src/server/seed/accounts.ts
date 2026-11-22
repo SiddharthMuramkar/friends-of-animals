@@ -33,3 +33,32 @@ export const SEED_ACCOUNTS = {
     },
   ],
 } as const;
+
+// Dedicated publishers keep the consent journeys from sharing a one-use
+// staff code with the roles and second-factor journeys.
+export const SEED_CONSENT_PUBLISHERS = {
+  desktop: {
+    name: "Consent Staff Admin",
+    email: "consent-publisher-desktop@example.test",
+    role: "staff_admin",
+  },
+  mobile: {
+    name: "Consent Super Admin",
+    email: "consent-publisher-mobile@example.test",
+    role: "super_admin",
+  },
+} as const;
+
+// Content managers for the message template journey (#69), one per
+// journey project, so it shares no one-use staff code with #111's CMS
+// journey, which signs in Asha, the seeded content manager.
+export const SEED_TEMPLATE_EDITORS = {
+  desktop: {
+    name: "Template Editor Desktop",
+    email: "template-editor-desktop@example.test",
+  },
+  mobile: {
+    name: "Template Editor Mobile",
+    email: "template-editor-mobile@example.test",
+  },
+} as const;

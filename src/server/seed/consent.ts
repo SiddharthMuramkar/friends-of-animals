@@ -1,19 +1,25 @@
 // Consent seed data (#64): version 1 of the privacy notice, the terms and
 // the messages consent, published by the seeded super admin, so previews
 // show versioned legal pages and ask for consent at sign-up. The privacy
-// and terms bodies are the repo's policy text; the messages consent is a
+// and terms bodies are the repo's policy text, every clause kept (a
+// preview shows unconfirmed facts as tiles); the messages consent is a
 // draft (HR-20). Production gets no seed: staff publish version 1 there
 // once counsel approves the words. Loads under plain Node (the seed
 // script): relative imports only, no "server-only".
 
 import { LEGAL_DOCS } from "../../content/legal";
 import { MESSAGES_CONSENT_DRAFT } from "../../content/legal/messages-consent";
-import { parseConsentDocumentBody } from "../consent/domain/document-body";
-import type { ConsentPurpose } from "../consent/domain/purposes";
+import {
+  parseConsentDocumentBody,
+  toConsentDocumentBody,
+} from "../modules/consent/domain/document-body";
+import type { ConsentPurpose } from "../modules/consent/domain/purposes";
 import { consentDocument } from "../db/schema";
 import { uuidv7 } from "../ids";
-import { SEED_ACCOUNTS } from "./accounts";
 import { ensureVerifiedAccount } from "../identity/verified-account";
+import { ensureGrant } from "./access";
+import { SEED_ACCOUNTS, SEED_CONSENT_PUBLISHERS } from "./accounts";
+import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps } from "./types";
 
 const SEED_DOCUMENTS: ReadonlyArray<{
@@ -24,18 +30,12 @@ const SEED_DOCUMENTS: ReadonlyArray<{
   {
     purpose: "privacy_notice",
     title: "Privacy policy",
-    body: {
-      short: LEGAL_DOCS.privacy.short,
-      sections: LEGAL_DOCS.privacy.sections,
-    },
+    body: toConsentDocumentBody(LEGAL_DOCS.privacy),
   },
   {
     purpose: "terms",
     title: "Terms of use",
-    body: {
-      short: LEGAL_DOCS.terms.short,
-      sections: LEGAL_DOCS.terms.sections,
-    },
+    body: toConsentDocumentBody(LEGAL_DOCS.terms),
   },
   {
     purpose: "messages",
@@ -48,8 +48,8 @@ const SEED_DOCUMENTS: ReadonlyArray<{
 ];
 
 /**
- * Version 1 of each seeded document, unless that purpose already has one.
- * Seed data, not a staff action: it writes no audit entry.
+ * Version 1 of each seeded document and publishers for the consent
+ * journeys. Seed data writes no audit entry.
  */
 export async function seedConsent(deps: SeedDeps): Promise<void> {
   const { db, clock } = deps;
@@ -74,5 +74,11 @@ export async function seedConsent(deps: SeedDeps): Promise<void> {
         publishedByUserId: publisher.id,
       })
       .onConflictDoNothing();
+  }
+
+  for (const { role, ...account } of Object.values(SEED_CONSENT_PUBLISHERS)) {
+    const { id } = await ensureVerifiedAccount(deps, account);
+    await ensureGrant(deps, id, { role, scope: { type: "global" } });
+    await ensureSeedAuthenticator(deps, id);
   }
 }

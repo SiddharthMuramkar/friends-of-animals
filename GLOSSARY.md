@@ -35,6 +35,11 @@ A short-lived number emailed or texted to a User to prove they hold that
 address or phone; it is how people sign up and sign in, with no password.
 _Avoid_: OTP (in copy), password, token
 
+**Sign-in method**:
+A way to receive sign-in codes: email, always on, or SMS, which stays off
+until FOA's SMS sender registration is approved.
+_Avoid_: Login type, provider
+
 **Role**:
 What a User is to the platform, such as a judge, an institution coordinator or
 a super admin, which decides what they may do. A User may hold several.
@@ -54,6 +59,17 @@ The Users holding one of FOA's own Roles: the admins, managers and finance.
 Judges, coordinators and volunteers are not Staff.
 _Avoid_: Admins, employees, team
 
+**Second factor**:
+A second proof that a User is who they say, after the Sign-in code: a code from
+an authenticator app or a passkey on their device. Staff must add one and pass
+it once in each Session before any staff page or staff action.
+_Avoid_: 2FA (in copy), MFA, OTP
+
+**Step-up**:
+Passing the Second factor again, within the last 10 minutes, before a sensitive
+action such as granting a Role, publishing results or moving money.
+_Avoid_: Re-authentication, sudo mode
+
 **Policy**:
 The rules that decide whether an Actor may take an action, from the Actor's
 Grants and the Scopes and owner of what they act on.
@@ -69,10 +85,6 @@ The record of every change to who may do what, and later to other records:
 who made it, with which Role, to what, before and after, from where and when.
 Nobody can edit or delete an entry.
 _Avoid_: Activity log, history, event log
-**Sign-in method**:
-A way to receive sign-in codes: email, always on, or SMS, which stays off
-until FOA's SMS sender registration is approved.
-_Avoid_: Login type, provider
 
 ## Personal data
 
@@ -93,12 +105,99 @@ A switch or value staff can change on a running site without a deploy, such
 as whether sign-in codes may go by SMS.
 _Avoid_: Feature flag, config, environment variable
 
+## Consent
+
+**Consent document**:
+A text FOA publishes for one Purpose, such as the privacy notice or the
+agreement to News and updates. Each change is a new Version; a published
+Version never changes.
+_Avoid_: Policy (a Policy decides what an Actor may do), legal page, agreement
+
+**Version**:
+One published text of a Consent document, numbered 1, 2, 3 within its Purpose.
+_Avoid_: Revision, draft, edition
+
+**Purpose**:
+What a Consent document is for: the privacy notice, the terms, or News and
+updates; the purposes a guardian decides for a child come later.
+_Avoid_: Category, type, scope (a Scope is where a Role applies)
+
+**Notice**:
+A Consent document people read but don't give or withdraw: the privacy notice
+and the terms.
+_Avoid_: Policy page
+
+**Consent**:
+A person's yes to one Purpose, given on one Version, by someone (themselves
+or, later, a guardian), at a time and by a method, until a Withdrawal. Every
+give and Withdrawal stays in its history.
+_Avoid_: Opt-in, subscription, permission
+
+**Withdrawal**:
+A person taking back their Consent to a Purpose. It counts at once, and the
+parts of the platform that relied on it stop.
+_Avoid_: Opt-out, unsubscribe, revoke (a super admin revokes a Grant)
+
+**News and updates**:
+The optional emails a User receives only with Consent: competitions, results,
+stories and tips. Sign-in codes, receipts and notices the law requires are not
+News and updates and never depend on it.
+_Avoid_: Marketing, newsletter, messages (alone)
+
+## Site content
+
+**Content document**:
+One fixed page or block of the site's words that content managers change
+without a deploy: the home page's sections, the about page, the impact
+counters, the site facts, or one of the four policy pages. Its words live in
+Revisions.
+_Avoid_: Page (a page is what visitors open), post, entry
+
+**Revision**:
+One text of a Content document. A document has at most one Draft and at most
+one published Revision; publishing a Draft gives it the next version number
+and replaces the published one, which stays in the history unchanged.
+_Avoid_: Edit, copy
+
+**Draft**:
+The Revision content managers are still editing. Nobody else sees it, except
+through a Draft preview, until it is published.
+_Avoid_: Pending changes, unpublished version
+
+**Draft preview**:
+A content manager seeing a public page with its Draft in place of the
+published Revision, under a "Draft preview" status, until they leave it.
+Everyone else sees the published Revision.
+_Avoid_: Staging, preview deployment (a preview deployment is a whole site)
+
 ## Messages
 
 **Capture mailbox**:
 Where every message the platform would send outside production is kept instead,
 so staff and automated journeys can read it and no real person receives it.
 _Avoid_: Dev inbox, outbox (the outbox is a different thing)
+
+**Message template**:
+The wording of one message on one channel (email, SMS or in-app), with
+placeholders such as `{{recipient.name}}`, which content managers edit without a
+deploy. Each save is a new version; an SMS template also needs a DLT template id
+before it can be sent.
+_Avoid_: Email template (alone), copy
+
+**Message route**:
+A row saying which Domain event sends which Message template, to whom, on which
+channels, and whether the law requires it. An event with no route sends nothing.
+_Avoid_: Trigger, notification rule
+
+**Inbox**:
+The in-app messages a User has received, each read or unread, shown on their
+account with an unread count in the header.
+_Avoid_: Notifications, mailbox (the capture mailbox is a different thing)
+
+**Channel choice**:
+Whether a User wants messages by email, SMS or both. A message the law requires
+goes out whatever the choice; SMS goes only while the SMS Runtime setting is on.
+_Avoid_: Notification preferences, opt-out
 
 ## Events and background work
 
@@ -120,10 +219,91 @@ email after a sign-up. It is retried with growing waits and ends either
 dispatched or failed, and a failed delivery stays visible to staff.
 _Avoid_: Job, task, message
 
+**Derivative**:
+A copy the platform makes of an uploaded picture, such as a thumbnail or a
+display copy: upright, resized and stripped of location and camera details.
+Whoever may see the original may see its derivatives, once its scan passes.
+_Avoid_: Rendition, variant, thumbnail (one kind of derivative)
+
+**Media queue**:
+The deliveries only worker-media carries out, such as making an image's
+derivatives, so heavy picture work never runs on the website or holds up the
+other follow-up work.
+_Avoid_: Media jobs table, pg-boss queue
+
 **Drain**:
 One round of carrying out every delivery that is due: the worker does it all
 the time, a preview does it on request, and a Seam 1 test does it in process.
 _Avoid_: Flush, process the queue
+
+**Worker**:
+The platform's always-on background process, which keeps draining and runs
+scheduled jobs. Production and staging each have their own; one shared
+preview worker serves every live preview and lets go of a preview once it is
+removed.
+_Avoid_: Cron, daemon, job runner
+
+**Scheduled job**:
+Work the platform does on a timetable rather than in answer to one change,
+such as a reminder sweep, a status flip at a deadline or a retention purge.
+Previews never run them.
+_Avoid_: Cron job, recurring task
+
+## Files
+
+**File**:
+Something a User uploaded, such as a photo or a scanned form, kept privately
+and only ever opened through a signed URL. The platform records what it is for,
+what the uploader declared and how far it has got, never the uploader's own
+file name.
+_Avoid_: Attachment, asset, document, upload (for the stored thing)
+
+**Purpose**:
+What a File was uploaded for, which sets the types and size it may have and
+where it may be uploaded at all; each module that takes uploads has its own.
+_Avoid_: Category, kind, file type
+
+**Signed URL**:
+A short-lived link that lets one browser put or fetch one File directly in
+storage; it is only issued to someone allowed to have it, and stops working
+after a few minutes.
+_Avoid_: Public URL, download link, presigned link
+
+**Scan**:
+The malware check every File passes before anyone but its uploader may open it.
+_Avoid_: Virus check, antivirus
+
+**Quarantined**:
+Said of a File the Scan flagged: it is never delivered again, to anyone, its
+uploader and staff included.
+_Avoid_: Blocked, infected, deleted
+
+**Storage prefix**:
+The folder an environment keeps its Files under in the shared non-production
+storage, such as `staging/` or `pr-12/`; production has its own storage and
+none. A preview's prefix is emptied when its database is dropped.
+_Avoid_: Bucket, namespace, path
+
+## Running the platform
+
+**Runtime setting**:
+A value that changes how the platform works, such as how long Staff stay signed
+in or whether sign-in codes go by text message, which a super admin changes on
+the settings screen without a release. Each has a default that applies until a
+value is stored, and every change needs Step-up and goes in the Audit log.
+_Avoid_: Config, feature flag, environment variable
+
+**Off-site copy**:
+The nightly copy of production's Files from Cloudflare R2 to a Backblaze B2
+bucket, because R2 keeps no old versions. A copy outlives its File by the
+retention window, so a File deleted by mistake can still be restored one at a
+time.
+_Avoid_: Backup (that is the database's pgBackRest backup), sync, mirror
+
+**Retention window**:
+How long the off-site copy keeps a File after it has gone from R2 (30 days
+unless set), counted from the first night the copy found it gone.
+_Avoid_: Grace period, TTL
 
 ## Engineering
 
