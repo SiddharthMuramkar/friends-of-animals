@@ -30,6 +30,16 @@ const LINK = /\/invitations\/[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/;
 // person in, and two at once would read each other's sign-in codes.
 test.describe.configure({ mode: "default" });
 
+/**
+ * Opens `path` and checks it answers below 400 (spec 1.8), as
+ * expectRendersAccessibly does; axe runs once the state the test waits
+ * for has streamed in.
+ */
+async function visit(page: Page, path: string) {
+  const response = await page.goto(path);
+  expect(response?.status(), `HTTP status of ${path}`).toBeLessThan(400);
+}
+
 async function checkBothThemes(page: Page, label: string) {
   await expectAccessible(page, label);
   await expectAccessibleInDark(page, label);
@@ -62,7 +72,7 @@ async function invite(
 /** Signs the authorised person in and opens their coordinators page. */
 async function openCoordinators(page: Page, request: APIRequestContext) {
   await signInByCode(page, request, ADMIN);
-  await page.goto("/institution");
+  await visit(page, "/institution");
   await page.getByRole("link", { name: "Manage coordinators" }).click();
   await expect(page).toHaveURL(/\/institution\/coordinators$/);
   await expect(
@@ -109,7 +119,7 @@ test("an authorised person invites a teacher, who accepts and is then removed", 
 
   // The teacher opens the link signed out.
   const invitee = await newDevice(browser, testInfo);
-  await invitee.goto(link);
+  await visit(invitee, link);
   await expect(
     invitee.getByText(
       `You're invited to be a teacher coordinator for ${INSTITUTION}.`
@@ -122,7 +132,7 @@ test("an authorised person invites a teacher, who accepts and is then removed", 
 
   // The teacher creates an account with the invited address and accepts.
   await signInByCode(invitee, request, teacher, teacherName);
-  await invitee.goto(link);
+  await visit(invitee, link);
   await checkBothThemes(invitee, "/invitations/[token] ready to accept");
   await invitee.getByRole("button", { name: "Accept invitation" }).click();
   await expect(
@@ -133,14 +143,14 @@ test("an authorised person invites a teacher, who accepts and is then removed", 
   await invitee.context().close();
 
   // The link works once: anyone else opening it now sees it used.
-  await page.goto(link);
+  await visit(page, link);
   await expect(
     page.getByText("This invitation was already accepted")
   ).toBeVisible();
   await checkBothThemes(page, "/invitations/[token] already used");
 
   // The authorised person sees the new coordinator, and removes them.
-  await page.goto("/institution/coordinators");
+  await visit(page, "/institution/coordinators");
   await expect(page.getByText(teacherName, { exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: `Remove ${teacherName} as a coordinator` })
@@ -162,20 +172,20 @@ test("an authorised person withdraws an invitation, and its link stops working",
   const link = await invite(page, request, `withdraw@${domain}`);
 
   // Signed in with another address, the link is for someone else.
-  await page.goto(link);
+  await visit(page, link);
   await expect(
     page.getByText("This invitation is for someone else")
   ).toBeVisible();
   await checkBothThemes(page, "/invitations/[token] for someone else");
 
-  await page.goto("/institution/coordinators");
+  await visit(page, "/institution/coordinators");
   await page
     .getByRole("button", { name: `Withdraw the invitation to w***@${domain}` })
     .click();
   await expect(page.getByRole("status")).toContainText("Invitation withdrawn.");
 
   const invitee = await newDevice(browser, testInfo);
-  await invitee.goto(link);
+  await visit(invitee, link);
   await expect(
     invitee.getByText("This invitation was withdrawn")
   ).toBeVisible();
@@ -186,7 +196,7 @@ test("an authorised person withdraws an invitation, and its link stops working",
 test("a link that matches no invitation shows that it doesn't work", async ({
   page,
 }) => {
-  await page.goto("/invitations/not-a-real-invitation-token");
+  await visit(page, "/invitations/not-a-real-invitation-token");
   await expect(page.getByText("This link doesn't work")).toBeVisible();
   await checkBothThemes(page, "/invitations/[token] not found");
 });
