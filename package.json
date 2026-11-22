@@ -26,9 +26,13 @@
     "brand:assets": "tsx scripts/brand-assets.ts",
     "check:build": "tsx scripts/check-build.ts",
     "vercel-build": "pnpm db:migrate && pnpm db:seed && next build && pnpm check:build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "files:purge-preview": "tsx scripts/purge-preview-files.ts",
+    "test:live": "vitest run --config vitest.live.config.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1173.0",
+    "@aws-sdk/s3-request-presigner": "3.1173.0",
     "@sentry/nextjs": "11.15.0",
     "@sentry/node": "11.15.0",
     "@simplewebauthn/browser": "14.0.0",
