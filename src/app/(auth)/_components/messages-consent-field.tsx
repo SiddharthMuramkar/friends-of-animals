@@ -1,5 +1,4 @@
 import { getTranslations } from "next-intl/server";
-import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 
 import {
@@ -7,9 +6,8 @@ import {
   LegalShortList,
 } from "@/components/legal/legal-text";
 import { Disclosure } from "@/components/site/disclosure";
-import { errorSummaryForLogs } from "@/server/errors";
-import type { PublishedConsentDocument } from "@/server/modules/consent";
 import { cachedConsentDocument } from "@/server/modules/consent/cached";
+import { nullIfUnreadable } from "@/server/modules/consent/unreadable";
 
 /**
  * The sign-up form's optional box for news and updates by email (#64).
@@ -21,16 +19,10 @@ import { cachedConsentDocument } from "@/server/modules/consent/cached";
  */
 export async function MessagesConsentField() {
   await connection();
-  let document: PublishedConsentDocument | null;
-  try {
-    document = await cachedConsentDocument("messages");
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error(
-      `Sign-up form: could not read the messages consent: ${errorSummaryForLogs(error)}`
-    );
-    return null;
-  }
+  const document = await nullIfUnreadable(
+    "Sign-up form: could not read the messages consent",
+    () => cachedConsentDocument("messages")
+  );
   if (!document) return null;
   const t = await getTranslations("auth.form.messagesConsent");
 

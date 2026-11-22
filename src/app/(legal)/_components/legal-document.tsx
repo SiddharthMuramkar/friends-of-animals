@@ -1,5 +1,4 @@
 import { getFormatter, getTranslations } from "next-intl/server";
-import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 
@@ -23,7 +22,7 @@ import type {
   PublishedConsentDocument,
 } from "@/server/modules/consent";
 import { cachedConsentDocument } from "@/server/modules/consent/cached";
-import { errorSummaryForLogs } from "@/server/errors";
+import { nullIfUnreadable } from "@/server/modules/consent/unreadable";
 
 const NS = {
   privacy: "legal.privacy",
@@ -137,16 +136,10 @@ async function Published({
   children: (published: PublishedConsentDocument) => ReactNode;
 }) {
   await connection();
-  let published: PublishedConsentDocument | null;
-  try {
-    published = await cachedConsentDocument(purpose);
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error(
-      `Legal page: could not read the published ${purpose}: ${errorSummaryForLogs(error)}`
-    );
-    return fallback;
-  }
+  const published = await nullIfUnreadable(
+    `Legal page: could not read the published ${purpose}`,
+    () => cachedConsentDocument(purpose)
+  );
   return published ? children(published) : fallback;
 }
 
