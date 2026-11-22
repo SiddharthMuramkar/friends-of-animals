@@ -142,11 +142,16 @@ export const TEST_AUTH = {
   baseUrl: "http://localhost:3000",
 };
 
-/** A local run's files config: test uploads allowed, under `local/`. */
+/**
+ * A local run's files config: test uploads allowed, under `local/`, and a
+ * public bucket served from its own host.
+ */
 export const TEST_FILES = {
   bucket: "foa-files-test",
   keyPrefix: "local/",
   appEnv: "local",
+  /** Where the public bucket's objects are served (#112b). */
+  publicBaseUrl: "https://assets.foa.example.test/",
 } as const;
 
 /** Leading zero bits the harness's human check asks for: about 16 hashes. */

@@ -20,6 +20,8 @@ function proxyOverDatabase() {
       if (db.fail) throw new Error("database unavailable");
       return db.published.has(slug);
     },
+    // The public posts: src/proxy.blog.test.ts covers their check.
+    isPublicPostSlug: async (slug) => slug === "kinder-skies-in-kite-season",
   });
   return { db, proxy };
 }
@@ -84,7 +86,7 @@ describe("proxy: competition pages", () => {
     );
   });
 
-  it("never asks the database about a blog story", async () => {
+  it("never asks the competition check about a blog story", async () => {
     const { db, proxy } = proxyOverDatabase();
     const known = await proxy(request("/blog/kinder-skies-in-kite-season"));
     const unknown = await proxy(request("/blog/no-such-story"));
