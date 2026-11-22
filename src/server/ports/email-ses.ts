@@ -16,7 +16,11 @@ import {
   type SESv2ClientConfig,
 } from "@aws-sdk/client-sesv2";
 
-import { normaliseEmailAddress, type EmailSender } from "./email";
+import {
+  normaliseEmailAddress,
+  subjectHasBreak,
+  type EmailSender,
+} from "./email";
 
 export type SesConfig = {
   region: string;
@@ -78,9 +82,12 @@ function sesFailure(error: unknown): SesEmailError {
   return new SesEmailError(`could not reach SES (${detail})`);
 }
 
+/** SESv2Client's request handler: a fake SES in tests. */
+export type SesTransport = SESv2ClientConfig["requestHandler"];
+
 export function sesEmailSender(
   config: SesConfig,
-  transport?: SESv2ClientConfig["requestHandler"]
+  transport?: SesTransport
 ): EmailSender {
   const client = new SESv2Client({
     region: config.region,
@@ -92,6 +99,13 @@ export function sesEmailSender(
   });
   return {
     async send(message) {
+      // Refused before SES sees it: SES would take it, and a subject is
+      // one header line.
+      if (subjectHasBreak(message.subject)) {
+        throw new SesEmailError(
+          "the subject has a line break or control character"
+        );
+      }
       const command = new SendEmailCommand({
         FromEmailAddress: config.from,
         Destination: { ToAddresses: [normaliseEmailAddress(message.to)] },
@@ -108,13 +122,17 @@ export function sesEmailSender(
           ? { ConfigurationSetName: config.configurationSet }
           : {}),
       });
+      let messageId: string | undefined;
       try {
-        await client.send(command, {
+        ({ MessageId: messageId } = await client.send(command, {
           abortSignal: AbortSignal.timeout(TIMEOUT_MS),
-        });
+        }));
       } catch (error) {
         throw sesFailure(error);
       }
+      // Only SES's id, to follow a bounce or a complaint: never the
+      // address, the subject or the text, which can hold a code.
+      console.info(`SES accepted an email: message ${messageId ?? "?"}`);
     },
   };
 }

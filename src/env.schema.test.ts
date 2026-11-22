@@ -430,8 +430,8 @@ describe("envSchema: malware scanner", () => {
 
 describe("envSchema: SES email", () => {
   const SES = {
-    SES_ACCESS_KEY_ID: "AKIAFOATESTKEY000001",
-    SES_SECRET_ACCESS_KEY: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    SES_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE",
+    SES_SECRET_ACCESS_KEY: "test-ses-secret-access-key",
     SES_FROM: "Friends of Animals <no-reply@friendsofanimals.dev>",
   };
 
@@ -480,15 +480,18 @@ describe("envSchema: SES email", () => {
       })
     ).toThrow(
       expect.objectContaining({
-        message: expect.not.stringContaining("wJalrXUtnFEMI"),
+        message: expect.not.stringContaining("test-ses-secret-access-key"),
       })
     );
   });
 
   it('reads SES_PRODUCTION_ACCESS as "true" or "false", nothing else', () => {
     const read = (value: string) =>
-      parseEnv(envSchema, { DATABASE_URL, ...SES, SES_PRODUCTION_ACCESS: value })
-        .SES_PRODUCTION_ACCESS;
+      parseEnv(envSchema, {
+        DATABASE_URL,
+        ...SES,
+        SES_PRODUCTION_ACCESS: value,
+      }).SES_PRODUCTION_ACCESS;
     expect(read("true")).toBe(true);
     expect(read("false")).toBe(false);
     expect(() => read("yes")).toThrow(/SES_PRODUCTION_ACCESS/);
@@ -500,7 +503,7 @@ describe("envSchema: SES email", () => {
         DATABASE_URL,
         ...SES,
         SES_FROM: "Friends of Animals",
-        SES_ACCESS_KEY_ID: "AKIAFOATESTKEY000001 ",
+        SES_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE ",
         SES_REGION: "mumbai",
       })
     ).toThrow(/at SES_REGION[\s\S]*at SES_ACCESS_KEY_ID[\s\S]*at SES_FROM/);

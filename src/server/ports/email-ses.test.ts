@@ -9,8 +9,8 @@ import { sesEmailSender, type SesConfig } from "./email-ses";
 
 const SES: SesConfig = {
   region: "ap-south-1",
-  accessKeyId: "AKIAFOATESTKEY000001",
-  secretAccessKey: "ses-secret-for-tests-0123456789abcdefghij",
+  accessKeyId: "AKIAIOSFODNN7EXAMPLE",
+  secretAccessKey: "test-ses-secret-access-key",
   from: "Friends of Animals <no-reply@friendsofanimals.dev>",
 };
 
@@ -48,7 +48,7 @@ describe("sesEmailSender", () => {
     expect(request.hostname).toBe("email.ap-south-1.amazonaws.com");
     expect(request.path).toBe("/v2/email/outbound-emails");
     expect(request.authorization).toMatch(
-      /^AWS4-HMAC-SHA256 Credential=AKIAFOATESTKEY000001\/\d{8}\/ap-south-1\/ses\/aws4_request,/
+      /^AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE\/\d{8}\/ap-south-1\/ses\/aws4_request,/
     );
     expect(JSON.stringify(request)).not.toContain(SES.secretAccessKey);
   });
@@ -149,6 +149,36 @@ describe("sesEmailSender's failures", () => {
   });
 });
 
+describe("sesEmailSender's subjects", () => {
+  it.each([
+    ["a line feed", "Your code\nBcc: ravi@example.test"],
+    ["a carriage return", "Your code\r\nBcc: ravi@example.test"],
+    ["a tab", "Your\tcode"],
+    ["a NUL", "Your code\u0000"],
+    ["a line separator", "Your code\u2028Bcc: ravi@example.test"],
+  ])("refuses a subject with %s and never calls SES", async (_, subject) => {
+    const { ses, sender } = setup();
+
+    const error = await failure(sender.send({ ...message, subject }));
+
+    expect(error).toBeInstanceOf(Error);
+    expect(String(error)).toMatch(
+      /the subject has a line break or control character/
+    );
+    expect(ses.requests).toEqual([]);
+    expect(leaks(error)).toEqual([]);
+  });
+
+  it("sends a subject in any script, with its punctuation", async () => {
+    const { ses, sender } = setup();
+    const subject = "आशा, your ₹500 receipt — thank you…";
+
+    await sender.send({ ...message, subject });
+
+    expect(ses.inbox(message.to)[0]?.subject).toBe(subject);
+  });
+});
+
 describe("sesEmailSender's logs", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -168,6 +198,8 @@ describe("sesEmailSender's logs", () => {
     await failure(sender.send(message));
 
     const logged = inspect(lines, { depth: 10 });
+    // SES's message id, to follow a bounce or a complaint, and nothing else.
+    expect(logged).toContain("fake-message-1");
     expect(logged).not.toContain("asha@example.test");
     expect(logged).not.toContain("482913");
   });
