@@ -3,8 +3,15 @@
 
 import { secondFactorPath } from "@/lib/second-factor-routes";
 import { DomainError } from "@/server/errors";
-import type { RoundAwardsError } from "@/server/modules/competitions/domain/award-schemes";
-import type { ParticipationRoute } from "@/server/modules/competitions/domain/fees";
+import type {
+  RoundAwardPlan,
+  RoundAwardsError,
+} from "@/server/modules/competitions/domain/award-schemes";
+import {
+  formatPaiseForInput,
+  type FeeLine,
+  type ParticipationRoute,
+} from "@/server/modules/competitions/domain/fees";
 import type {
   SetCompetitionFeesResult,
   SetRoundAwardsResult,
@@ -16,6 +23,24 @@ export type FeesEntered = {
   mode: "free" | "paid";
   fees: Partial<Record<ParticipationRoute, string>>;
 };
+
+/**
+ * The fees form as stored: rupees per offered route (0 for free, empty
+ * while not set), and "free" when every offered route is.
+ */
+export function feesEnteredFrom(lines: readonly FeeLine[]): FeesEntered {
+  const fees: FeesEntered["fees"] = {};
+  for (const line of lines) {
+    fees[line.route] =
+      line.kind === "amount"
+        ? formatPaiseForInput(line.paise)
+        : line.kind === "free"
+          ? "0"
+          : "";
+  }
+  const free = lines.length > 0 && lines.every((line) => line.kind === "free");
+  return { mode: free ? "free" : "paid", fees };
+}
 
 export type FeeFieldError =
   | "missing_fee"
@@ -68,6 +93,16 @@ export type AwardsEntered = {
   scheme: string;
   prizes: Partial<Record<string, string>>;
 };
+
+/** One round's form as stored: its scheme and each band's prize. */
+export function awardsEnteredFrom(round: RoundAwardPlan): AwardsEntered {
+  return {
+    scheme: round.scheme,
+    prizes: Object.fromEntries(
+      round.bands.map(({ band, prize }) => [band, prize ?? ""])
+    ),
+  };
+}
 
 export type AwardsFormState = {
   entered: AwardsEntered;

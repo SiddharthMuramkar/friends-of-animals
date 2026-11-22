@@ -43,6 +43,7 @@ export function adminInstitutionPath(institutionId: string): string {
 export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
+  "/admin/competitions/[id]/terms",
   "/admin/templates/[key]",
   "/admin/institutions/[id]",
 ] as const;

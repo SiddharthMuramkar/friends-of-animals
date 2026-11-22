@@ -6,6 +6,8 @@ import type { SetCompetitionFeesResult } from "@/server/modules/competitions/ter
 import {
   afterSetFees,
   afterSetRoundAwards,
+  awardsEnteredFrom,
+  feesEnteredFrom,
   secondFactorRedirect,
   type FeesFormState,
 } from "./form-state";
@@ -115,5 +117,56 @@ describe("secondFactorRedirect", () => {
       secondFactorRedirect(new DomainError("forbidden", "refused"), id)
     ).toBeNull();
     expect(secondFactorRedirect(new Error("boom"), id)).toBeNull();
+  });
+});
+
+describe("feesEnteredFrom", () => {
+  it("fills the form with the stored fees in rupees, empty where none is set", () => {
+    expect(
+      feesEnteredFrom([
+        { route: "individual", kind: "amount", paise: 2147483649n },
+        { route: "institution", kind: "not_set" },
+      ])
+    ).toEqual({
+      mode: "paid",
+      fees: { individual: "21474836.49", institution: "" },
+    });
+    expect(
+      feesEnteredFrom([
+        { route: "individual", kind: "free" },
+        { route: "institution", kind: "amount", paise: 100000n },
+      ])
+    ).toEqual({ mode: "paid", fees: { individual: "0", institution: "1000" } });
+  });
+
+  it("chooses free when every offered route is free", () => {
+    expect(
+      feesEnteredFrom([
+        { route: "individual", kind: "free" },
+        { route: "institution", kind: "free" },
+      ])
+    ).toEqual({ mode: "free", fees: { individual: "0", institution: "0" } });
+  });
+
+  it("starts paid and empty with no route offered yet", () => {
+    expect(feesEnteredFrom([])).toEqual({ mode: "paid", fees: {} });
+  });
+});
+
+describe("awardsEnteredFrom", () => {
+  it("fills a round's form with its scheme and each band's prize, empty for none", () => {
+    expect(
+      awardsEnteredFrom({
+        roundKey: "school",
+        scheme: "grades_ab",
+        bands: [
+          { band: "grade_a", prize: "Trophy" },
+          { band: "grade_b", prize: null },
+        ],
+      })
+    ).toEqual({
+      scheme: "grades_ab",
+      prizes: { grade_a: "Trophy", grade_b: "" },
+    });
   });
 });
