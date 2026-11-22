@@ -125,7 +125,7 @@ test("a content manager drafts a post, previews it, schedules it and publishes i
 
   // Then put it live now instead.
   await page.getByRole("button", { name: "Publish now", exact: true }).click();
-  await expect(notice(page, "Published. The blog shows it now.")).toBeVisible();
+  await expect(notice(page, "Post published.")).toBeVisible();
   await expect(shownText(page, "Status: Published.")).toBeVisible();
   await expectAccessible(page, "/admin/blog/[id] published");
   await expectAccessibleInDark(page, "/admin/blog/[id] published");
