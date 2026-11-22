@@ -47,7 +47,11 @@ import {
 } from "./domain/rubric-criteria";
 import { isRubricFrozenError } from "./domain/rubric-freeze";
 import { rubricsLocked } from "./domain/rubric-lock";
-import { isRubricEditable, type RubricStatus } from "./domain/rubric-status";
+import {
+  canMoveRubric,
+  isRubricEditable,
+  type RubricStatus,
+} from "./domain/rubric-status";
 
 /** What the rubric use cases use: the database, the clock and the actor. */
 export type RubricContext = Pick<UseCaseContext, "db" | "clock" | "actor">;
@@ -443,7 +447,7 @@ export async function publishRubric(
       if (found && rubricsLocked(found.status)) {
         return { ok: false, error: "rubric_locked_by_judging" } as const;
       }
-      if (!isRubricEditable(row.status)) {
+      if (!canMoveRubric(row.status, "published")) {
         return { ok: false, error: "rubric_not_editable" } as const;
       }
       if (typed) await replaceCriteria(tx, rubricId, typed, now);
