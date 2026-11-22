@@ -15,6 +15,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { fieldCryptoFor } from "../src/server/crypto/keys";
+import { workerConfig } from "../src/worker/config";
+
 const TEXT = readFileSync(new URL("./workers.yml", import.meta.url), "utf8");
 const SERVICES = ["worker-prod", "worker-staging", "worker-preview"];
 
@@ -64,6 +67,20 @@ function envFiles(own: string): { path: string; required: boolean }[] {
   return [
     ...list.matchAll(/^ {6}- path: (\S+)\n {8}required: (true|false)$/gm),
   ].map((m) => ({ path: m[1]!, required: m[2] === "true" }));
+}
+
+/**
+ * A service's own `environment:` settings, quotes dropped; merged anchors
+ * (`<<: *clamd`) are left out.
+ */
+function environment(own: string): Record<string, string> {
+  const list = /^ {4}environment:\n((?: {6}.*\n?)+)/m.exec(own)?.[1] ?? "";
+  return Object.fromEntries(
+    [...list.matchAll(/^ {6}([A-Z0-9_]+): (.+)$/gm)].map((m) => [
+      m[1]!,
+      m[2]!.replace(/^"(.*)"$/, "$1"),
+    ])
+  );
 }
 
 /** A health check's shell command, as Compose passes it to sh -c. */
@@ -146,6 +163,52 @@ describe("docker/workers.yml", () => {
       ]);
     }
   );
+
+  describe("worker-prod's links and field keys (#74)", () => {
+    // The production app's canonical URL (LAUNCH B8) and keys (B7): the
+    // worker builds an invitation's link from the one and reads the
+    // invitee's address and the link's token with the other.
+    const FIELD_KEYS_FILE = "/etc/foa/secrets/worker_prod_field_keys.env";
+    const prod = () => service("worker-prod");
+
+    it("gives worker-prod the site's URL, for the links in its messages", () => {
+      expect(environment(prod())).toMatchObject({
+        APP_URL: "https://friendsofanimals.dev",
+      });
+    });
+
+    it("reads the app's field keys from worker-prod's own optional file", () => {
+      expect(envFiles(prod())).toContainEqual({
+        path: FIELD_KEYS_FILE,
+        required: false,
+      });
+      // Only worker-prod reads production's keys.
+      expect(TEXT.split(FIELD_KEYS_FILE)).toHaveLength(2);
+      // The keys themselves never sit in git.
+      expect(TEXT).not.toMatch(/FIELD_(ENCRYPTION_KEYS|HMAC_KEY):/);
+    });
+
+    it("hands worker-prod a configuration that can link and address an invitation", () => {
+      // What Compose gives the worker: its environment, plus the key file's
+      // two lines (stand-ins here).
+      const config = workerConfig({
+        ...environment(prod()),
+        FIELD_ENCRYPTION_KEYS: `1:${Buffer.alloc(32, 7).toString("base64")}`,
+        FIELD_HMAC_KEY: Buffer.alloc(32, 9).toString("base64"),
+      });
+
+      expect(config.appEnv).toBe("production");
+      expect(config.siteUrl).toBe("https://friendsofanimals.dev");
+      // Production refuses to make a cipher without its keys.
+      expect(() =>
+        fieldCryptoFor({
+          APP_ENV: config.appEnv,
+          FIELD_ENCRYPTION_KEYS: config.fieldEncryptionKeys,
+          FIELD_HMAC_KEY: config.fieldHmacKey,
+        })
+      ).not.toThrow();
+    });
+  });
 
   it("shares no env file through the worker anchor, so production's R2 key stays with worker-prod", () => {
     // Every worker merges x-worker, preview and staging included: a file
