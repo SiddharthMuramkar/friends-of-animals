@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
+import type { AppDb } from "../../db/app-db";
 import { isSettingKey, SETTING_KEYS, SETTINGS } from "./catalogue";
+import { readSetting } from "./read";
 
 describe("the settings catalogue", () => {
   it("holds the first settings with their documented defaults", () => {
-    // #62 and HR-19: SMS off, 80G off, FCRA off, staff sessions 12 hours.
+    // #62 and HR-19: SMS off, 80G off, FCRA off, staff sessions 12 hours,
+    // and #58's ceiling on sign-in texts: 200 an hour, 1,000 a day.
     expect(
       Object.fromEntries(
         SETTING_KEYS.map((key) => [key, SETTINGS[key].default])
@@ -12,6 +15,8 @@ describe("the settings catalogue", () => {
     ).toEqual({
       "auth.staffSessionHours": 12,
       "sms.enabled": false,
+      "sms.maxPerHour": 200,
+      "sms.maxPerDay": 1000,
       "org.has80G": false,
       "org.fcraEnabled": false,
     });
@@ -35,5 +40,19 @@ describe("the settings catalogue", () => {
     expect(isSettingKey("sms.disabled")).toBe(false);
     expect(isSettingKey("toString")).toBe(false);
     expect(isSettingKey("__proto__")).toBe(false);
+  });
+
+  it("types app code's reads: catalogue keys only, each with its own value type", () => {
+    // pnpm typecheck is the assertion: nothing here reads a database.
+    expectTypeOf(
+      readSetting<"auth.staffSessionHours">
+    ).returns.resolves.toEqualTypeOf<number>();
+    expectTypeOf(
+      readSetting<"sms.enabled">
+    ).returns.resolves.toEqualTypeOf<boolean>();
+    const readUnknown = (db: AppDb) =>
+      // @ts-expect-error "org.unknown" isn't in the catalogue
+      readSetting(db, "org.unknown");
+    expectTypeOf(readUnknown).toBeFunction();
   });
 });

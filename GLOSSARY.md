@@ -85,10 +85,6 @@ The record of every change to who may do what, and later to other records:
 who made it, with which Role, to what, before and after, from where and when.
 Nobody can edit or delete an entry.
 _Avoid_: Activity log, history, event log
-**Sign-in method**:
-A way to receive sign-in codes: email, always on, or SMS, which stays off
-until FOA's SMS sender registration is approved.
-_Avoid_: Login type, provider
 
 ## Personal data
 
@@ -148,12 +144,60 @@ stories and tips. Sign-in codes, receipts and notices the law requires are not
 News and updates and never depend on it.
 _Avoid_: Marketing, newsletter, messages (alone)
 
+## Site content
+
+**Content document**:
+One fixed page or block of the site's words that content managers change
+without a deploy: the home page's sections, the about page, the impact
+counters, the site facts, or one of the four policy pages. Its words live in
+Revisions.
+_Avoid_: Page (a page is what visitors open), post, entry
+
+**Revision**:
+One text of a Content document. A document has at most one Draft and at most
+one published Revision; publishing a Draft gives it the next version number
+and replaces the published one, which stays in the history unchanged.
+_Avoid_: Edit, copy
+
+**Draft**:
+The Revision content managers are still editing. Nobody else sees it, except
+through a Draft preview, until it is published.
+_Avoid_: Pending changes, unpublished version
+
+**Draft preview**:
+A content manager seeing a public page with its Draft in place of the
+published Revision, under a "Draft preview" status, until they leave it.
+Everyone else sees the published Revision.
+_Avoid_: Staging, preview deployment (a preview deployment is a whole site)
+
 ## Messages
 
 **Capture mailbox**:
 Where every message the platform would send outside production is kept instead,
 so staff and automated journeys can read it and no real person receives it.
 _Avoid_: Dev inbox, outbox (the outbox is a different thing)
+
+**Message template**:
+The wording of one message on one channel (email, SMS or in-app), with
+placeholders such as `{{recipient.name}}`, which content managers edit without a
+deploy. Each save is a new version; an SMS template also needs a DLT template id
+before it can be sent.
+_Avoid_: Email template (alone), copy
+
+**Message route**:
+A row saying which Domain event sends which Message template, to whom, on which
+channels, and whether the law requires it. An event with no route sends nothing.
+_Avoid_: Trigger, notification rule
+
+**Inbox**:
+The in-app messages a User has received, each read or unread, shown on their
+account with an unread count in the header.
+_Avoid_: Notifications, mailbox (the capture mailbox is a different thing)
+
+**Channel choice**:
+Whether a User wants messages by email, SMS or both. A message the law requires
+goes out whatever the choice; SMS goes only while the SMS Runtime setting is on.
+_Avoid_: Notification preferences, opt-out
 
 ## Events and background work
 
@@ -175,6 +219,18 @@ email after a sign-up. It is retried with growing waits and ends either
 dispatched or failed, and a failed delivery stays visible to staff.
 _Avoid_: Job, task, message
 
+**Derivative**:
+A copy the platform makes of an uploaded picture, such as a thumbnail or a
+display copy: upright, resized and stripped of location and camera details.
+Whoever may see the original may see its derivatives, once its scan passes.
+_Avoid_: Rendition, variant, thumbnail (one kind of derivative)
+
+**Media queue**:
+The deliveries only worker-media carries out, such as making an image's
+derivatives, so heavy picture work never runs on the website or holds up the
+other follow-up work.
+_Avoid_: Media jobs table, pg-boss queue
+
 **Drain**:
 One round of carrying out every delivery that is due: the worker does it all
 the time, a preview does it on request, and a Seam 1 test does it in process.
@@ -192,6 +248,62 @@ Work the platform does on a timetable rather than in answer to one change,
 such as a reminder sweep, a status flip at a deadline or a retention purge.
 Previews never run them.
 _Avoid_: Cron job, recurring task
+
+## Files
+
+**File**:
+Something a User uploaded, such as a photo or a scanned form, kept privately
+and only ever opened through a signed URL. The platform records what it is for,
+what the uploader declared and how far it has got, never the uploader's own
+file name.
+_Avoid_: Attachment, asset, document, upload (for the stored thing)
+
+**Purpose**:
+What a File was uploaded for, which sets the types and size it may have and
+where it may be uploaded at all; each module that takes uploads has its own.
+_Avoid_: Category, kind, file type
+
+**Signed URL**:
+A short-lived link that lets one browser put or fetch one File directly in
+storage; it is only issued to someone allowed to have it, and stops working
+after a few minutes.
+_Avoid_: Public URL, download link, presigned link
+
+**Scan**:
+The malware check every File passes before anyone but its uploader may open it.
+_Avoid_: Virus check, antivirus
+
+**Quarantined**:
+Said of a File the Scan flagged: it is never delivered again, to anyone, its
+uploader and staff included.
+_Avoid_: Blocked, infected, deleted
+
+**Storage prefix**:
+The folder an environment keeps its Files under in the shared non-production
+storage, such as `staging/` or `pr-12/`; production has its own storage and
+none. A preview's prefix is emptied when its database is dropped.
+_Avoid_: Bucket, namespace, path
+
+## Running the platform
+
+**Runtime setting**:
+A value that changes how the platform works, such as how long Staff stay signed
+in or whether sign-in codes go by text message, which a super admin changes on
+the settings screen without a release. Each has a default that applies until a
+value is stored, and every change needs Step-up and goes in the Audit log.
+_Avoid_: Config, feature flag, environment variable
+
+**Off-site copy**:
+The nightly copy of production's Files from Cloudflare R2 to a Backblaze B2
+bucket, because R2 keeps no old versions. A copy outlives its File by the
+retention window, so a File deleted by mistake can still be restored one at a
+time.
+_Avoid_: Backup (that is the database's pgBackRest backup), sync, mirror
+
+**Retention window**:
+How long the off-site copy keeps a File after it has gone from R2 (30 days
+unless set), counted from the first night the copy found it gone.
+_Avoid_: Grace period, TTL
 
 ## Engineering
 

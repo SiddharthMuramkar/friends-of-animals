@@ -14,36 +14,38 @@
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
 import { dispatchEvent } from "../modules/notifications/dispatch";
+import { processImageAsset } from "../modules/files/process-image";
+import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
+import type { MalwareScanner } from "../ports/malware-scanner";
+import type { MediaProcessor } from "../ports/media";
 import type { Settings } from "../ports/settings";
 import type { SmsSender } from "../ports/sms";
-import {
-  LEGACY_WELCOME_HANDLER,
-  type EventOf,
-  type EventType,
-  type HandlerName,
-  type SUBSCRIBERS,
-} from "./events";
+import type { ObjectStorage } from "../ports/storage";
+import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
 export type OutboxDeps = {
   db: AppDb;
   clock: Clock;
   email: EmailSender;
-  /** SMS requires a sender, its runtime settings, and the phone cipher. */
-  sms?: SmsSender;
-  settings?: Settings;
-  cipher?: FieldCipher;
+  sms: SmsSender;
+  /** Runtime settings, such as whether messages may go by SMS. */
+  settings: Settings;
+  /** Reads a recipient's stored phone number. */
+  cipher: FieldCipher;
+  storage: ObjectStorage;
+  scanner: MalwareScanner;
+  /** Used only by the media queue's handlers, in worker-media. */
+  media: MediaProcessor;
 };
 
 /** The event a handler listens to, from SUBSCRIBERS. */
-type EventFor<H extends HandlerName> = H extends typeof LEGACY_WELCOME_HANDLER
-  ? "identity.user_signed_up"
-  : {
-      [T in EventType]: H extends (typeof SUBSCRIBERS)[T][number] ? T : never;
-    }[EventType];
+type EventFor<H extends HandlerName> = {
+  [T in EventType]: H extends (typeof SUBSCRIBERS)[T][number] ? T : never;
+}[EventType];
 
 /** One delivery, as its handler receives it: one per event type in `T`. */
 export type Delivery<T extends EventType = EventType> = T extends EventType
@@ -69,7 +71,8 @@ type Handlers = {
 export const HANDLERS: Handlers = {
   // Sends the messages the event's route rows name (#69).
   "notifications.dispatch": dispatchEvent,
-  [LEGACY_WELCOME_HANDLER]: dispatchEvent,
+  "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
+  "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
   // Emails a contact message's sender their reference (#113).
   "contact.send_acknowledgement": sendContactAcknowledgement,
 };

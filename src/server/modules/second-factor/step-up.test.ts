@@ -7,10 +7,14 @@ import {
   secondFactorLockout,
   sessionSecondFactor,
   userRole,
+  webauthnChallenge,
 } from "@/server/db/schema";
+import { sqlState } from "@/server/errors";
 import { createHarness, type Harness } from "@/test/harness";
 
 import type { Actor } from "../../actor";
+import { base32Decode } from "./domain/base32";
+import { totpCode } from "./domain/totp";
 
 const judge = { role: "judge", scope: { type: "global" } } as const;
 
@@ -156,16 +160,79 @@ describe("removeSecondFactor", () => {
     expect(JSON.stringify(entries)).not.toMatch(/v1\./);
   });
 
-  it("forgets every session's second factor once the last factor is gone", async () => {
+  it("keeps only the stepped-up session when the last factor is removed", async () => {
     const h = await createHarness();
     const { member, actor, factor } = await enrolledMember(h);
+    const actingBrowser = h.cookies.header();
     const otherDevice = await h.signIn(member);
+    const verifiedBrowser = h.cookies.header();
     h.clock.advance({ seconds: 30 });
     await h.passSecondFactor(otherDevice);
+    await h.signIn(member);
+    const primaryBrowser = h.cookies.header();
+    await h.as(actor).startPasskeyRegistration();
+    await h.as(actor).startTotpEnrolment({ label: "Pending authenticator" });
 
-    await h.as(actor).removeSecondFactor({ factorId: factor.id });
+    expect(
+      await h.as(actor).removeSecondFactor({ factorId: factor.id })
+    ).toEqual({
+      ok: true,
+    });
 
     expect(await h.db.select().from(sessionSecondFactor)).toEqual([]);
+    expect((await h.currentActor(undefined, verifiedBrowser)).kind).toBe(
+      "visitor"
+    );
+    expect((await h.currentActor(undefined, primaryBrowser)).kind).toBe(
+      "visitor"
+    );
+    expect(
+      await h.db
+        .select({ purpose: webauthnChallenge.purpose })
+        .from(webauthnChallenge)
+    ).toEqual([]);
+    expect(
+      await h.db.select({ id: secondFactor.id }).from(secondFactor)
+    ).toEqual([]);
+
+    const current = await h.currentActor(undefined, actingBrowser);
+    expect(current).toMatchObject({
+      kind: "user",
+      sessionId: sessionOf(actor),
+    });
+    const replacement = await h
+      .as(current)
+      .startTotpEnrolment({ label: "Replacement" });
+    expect(replacement.ok).toBe(true);
+  });
+
+  it("makes the user's other sessions pass a second factor again, in case one passed with it", async () => {
+    const h = await createHarness();
+    const { member, actor } = await enrolledMember(h);
+    const started = await h.as(actor).startTotpEnrolment({ label: "Old" });
+    if (!started.ok) throw new Error("Could not start");
+    const oldPhone = base32Decode(started.secret);
+    await h.as(actor).confirmTotpEnrolment({
+      factorId: started.factorId,
+      code: totpCode(oldPhone, h.clock.now()),
+    });
+    const otherDevice = await h.signIn(member);
+    h.clock.advance({ seconds: 30 });
+    expect(
+      await h
+        .as(otherDevice)
+        .verifySecondFactor({ code: totpCode(oldPhone, h.clock.now()) })
+    ).toEqual({ ok: true });
+
+    // The old phone is lost, so the user removes it.
+    expect(
+      await h.as(actor).removeSecondFactor({ factorId: started.factorId })
+    ).toEqual({ ok: true });
+
+    expect(await h.as(otherDevice).mySecondFactors()).toMatchObject({
+      verifiedAt: null,
+    });
+    expect((await h.as(actor).mySecondFactors()).verifiedAt).not.toBeNull();
   });
 
   it("needs step-up", async () => {
@@ -199,6 +266,19 @@ describe("removeSecondFactor", () => {
 });
 
 describe("adding another factor", () => {
+  it("refuses enrolment when the request's primary session has already ended", async () => {
+    const h = await createHarness();
+    const actor = await h.signIn(await h.seed.member());
+    await h.as(actor).signOutEverywhere();
+
+    await expect(
+      h.as(actor).startTotpEnrolment({ label: "Authenticator" })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    await expect(h.as(actor).startPasskeyRegistration()).rejects.toMatchObject({
+      code: "forbidden",
+    });
+  });
+
   it("needs step-up once a factor exists", async () => {
     const h = await createHarness();
     const member = await h.seed.member();
@@ -226,6 +306,34 @@ describe("adding another factor", () => {
       h.as(intruder).startTotpEnrolment({ label: "Mine now" })
     ).rejects.toMatchObject({ code: "step_up_required" });
   });
+
+  it("asks for step-up again at the code if the second factor went stale since adding started", async () => {
+    const h = await createHarness();
+    const member = await h.seed.member();
+    const actor = await h.signIn(member);
+    await h.passSecondFactor(actor);
+    h.clock.advance({ minutes: 9 });
+    const started = await h
+      .as(actor)
+      .startTotpEnrolment({ label: "Backup phone" });
+    if (!started.ok) throw new Error("Could not start");
+    const confirm = () =>
+      h.as(actor).confirmTotpEnrolment({
+        factorId: started.factorId,
+        code: totpCode(base32Decode(started.secret), h.clock.now()),
+      });
+
+    h.clock.advance({ minutes: 1, seconds: 1 });
+    await expect(confirm()).rejects.toMatchObject({
+      code: "step_up_required",
+    });
+    expect((await h.as(actor).mySecondFactors()).factors).toHaveLength(1);
+
+    // The step-up screen asks for the factor again; then the code counts.
+    await h.passSecondFactor(actor);
+    expect(await confirm()).toEqual({ ok: true });
+    expect((await h.as(actor).mySecondFactors()).factors).toHaveLength(2);
+  });
 });
 
 describe("resetSecondFactors", () => {
@@ -236,10 +344,14 @@ describe("resetSecondFactors", () => {
     return { staff, staffActor };
   }
 
-  it("lets a super admin with a fresh second factor clear a user's factors, and audits it", async () => {
+  it("revokes the target's sessions and pending challenges so recovery starts with a fresh sign-in", async () => {
     const h = await createHarness();
     const { admin, actor } = await freshSuperAdmin(h);
     const { staff, staffActor } = await staffWithFactor(h);
+    const verifiedBrowser = h.cookies.header();
+    await h.as(staffActor).startPasskeyRegistration();
+    await h.signIn(staff, undefined, { secondFactor: false });
+    const primaryBrowser = h.cookies.header();
     const [factor] = await h.db
       .select({ id: secondFactor.id, label: secondFactor.label })
       .from(secondFactor)
@@ -250,10 +362,17 @@ describe("resetSecondFactors", () => {
       removed: 1,
     });
 
-    expect(await h.as(staffActor).staffAccess()).toEqual({
-      ok: false,
-      code: "enrolment_required",
-    });
+    expect((await h.currentActor(undefined, verifiedBrowser)).kind).toBe(
+      "visitor"
+    );
+    expect((await h.currentActor(undefined, primaryBrowser)).kind).toBe(
+      "visitor"
+    );
+    expect(
+      await h.db
+        .select({ purpose: webauthnChallenge.purpose })
+        .from(webauthnChallenge)
+    ).toEqual([]);
     expect(
       await h.db
         .select()
@@ -269,6 +388,26 @@ describe("resetSecondFactors", () => {
         factors: [{ factorId: factor?.id, kind: "totp", label: factor?.label }],
       },
       after: null,
+    });
+
+    const recovered = await h.signIn(staff, undefined, { secondFactor: false });
+    expect(await h.as(recovered).staffAccess()).toEqual({
+      ok: false,
+      code: "enrolment_required",
+    });
+    const started = await h
+      .as(recovered)
+      .startTotpEnrolment({ label: "Replacement" });
+    if (!started.ok) throw new Error("Recovery enrolment did not start");
+    expect(
+      await h.as(recovered).confirmTotpEnrolment({
+        factorId: started.factorId,
+        code: totpCode(base32Decode(started.secret), h.clock.now()),
+      })
+    ).toEqual({ ok: true });
+    expect(await h.as(recovered).staffAccess()).toEqual({
+      ok: true,
+      staff: true,
     });
   });
 
@@ -315,6 +454,45 @@ describe("resetSecondFactors", () => {
     ).toHaveLength(1);
   });
 
+  it("refuses when the initiating session ended after the request resolved it, even with a fresh step-up", async () => {
+    const h = await createHarness();
+    const { actor } = await freshSuperAdmin(h);
+    const { staff } = await staffWithFactor(h);
+    // Staff sessions last 12 hours from sign-in. Step up near the end,
+    // then let the session run out before the reset runs.
+    h.clock.advance({ hours: 11, minutes: 55 });
+    await h.passSecondFactor(actor);
+    h.clock.advance({ minutes: 6 });
+
+    await expect(
+      h.as(actor).resetSecondFactors({ userId: staff.id })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(
+      await h.db
+        .select()
+        .from(secondFactor)
+        .where(eq(secondFactor.userId, staff.id))
+    ).toHaveLength(1);
+  });
+
+  it("refuses when the initiating session was signed out after the request resolved it", async () => {
+    const h = await createHarness();
+    const { actor } = await freshSuperAdmin(h);
+    const { staff } = await staffWithFactor(h);
+    await h.as(actor).signOutEverywhere();
+
+    // The session's step-up stamp ended with it.
+    await expect(
+      h.as(actor).resetSecondFactors({ userId: staff.id })
+    ).rejects.toMatchObject({ code: "step_up_required" });
+    expect(
+      await h.db
+        .select()
+        .from(secondFactor)
+        .where(eq(secondFactor.userId, staff.id))
+    ).toHaveLength(1);
+  });
+
   it("is for super admins only", async () => {
     const h = await createHarness();
     const { staff } = await staffWithFactor(h);
@@ -334,6 +512,49 @@ describe("resetSecondFactors", () => {
       ).rejects.toMatchObject({ code: "forbidden" });
     }
   });
+});
+
+describe("factor recovery atomicity", () => {
+  it.each(["reset", "removal"] as const)(
+    "preserves sessions, factors and pending challenges if the %s audit fails",
+    async (operation) => {
+      const h = await createHarness();
+      const { actor: admin } = await freshSuperAdmin(h);
+      const member = await h.seed.member();
+      const actor = await h.signIn(member);
+      await h.passSecondFactor(actor);
+      const verifiedBrowser = h.cookies.header();
+      await h.as(actor).startPasskeyRegistration();
+      const before = await h.as(actor).mySecondFactors();
+      const factor = before.factors[0];
+      if (!factor) throw new Error("No factor");
+      await h.signIn(member);
+      const primaryBrowser = h.cookies.header();
+      await h.db.$client.exec(`
+        ALTER TABLE "audit_log" ADD CONSTRAINT "test_refuse_factor_change"
+        CHECK (action NOT IN ('second_factor.removed', 'second_factor.reset'))
+      `);
+
+      const attempt =
+        operation === "reset"
+          ? h.as(admin).resetSecondFactors({ userId: member.id })
+          : h.as(actor).removeSecondFactor({ factorId: factor.id });
+      expect(await attempt.then(() => undefined, sqlState)).toBe("23514");
+
+      expect((await h.currentActor(undefined, verifiedBrowser)).kind).toBe(
+        "user"
+      );
+      expect((await h.currentActor(undefined, primaryBrowser)).kind).toBe(
+        "user"
+      );
+      expect(await h.as(actor).mySecondFactors()).toEqual(before);
+      expect(
+        await h.db
+          .select({ purpose: webauthnChallenge.purpose })
+          .from(webauthnChallenge)
+      ).toEqual([{ purpose: "register" }]);
+    }
+  );
 });
 
 function sessionOf(actor: Actor): string {

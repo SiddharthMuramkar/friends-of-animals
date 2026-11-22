@@ -153,6 +153,61 @@ const secretVariables = {
 };
 
 /**
+ * Private file storage (#63): Cloudflare R2 through its S3 API. All four,
+ * or none: without them storage refuses every call (src/server/deps.ts),
+ * which is where production stays until FOA's buckets exist. Staging and
+ * previews share the non-production bucket, each under its own prefix.
+ */
+const storageVariables = {
+  /** 32 hex characters; it names the endpoint's host. */
+  R2_ACCOUNT_ID: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/, { error: "must be 32 lower-case hex characters" })
+    .optional(),
+  /** An R2 API token's key pair, scoped to R2_BUCKET. */
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, {
+      error: "must be an R2 bucket name: 3-63 of a-z, 0-9 and -",
+    })
+    .optional(),
+};
+
+const STORAGE_VARIABLES = [
+  "R2_ACCOUNT_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+] as const;
+
+type StorageVariables = Partial<
+  Record<(typeof STORAGE_VARIABLES)[number], string>
+>;
+
+/** Storage is configured whole or not at all. */
+function requireWholeStorageConfig(
+  values: StorageVariables,
+  ctx: z.RefinementCtx<StorageVariables>
+) {
+  const missing = STORAGE_VARIABLES.filter(
+    (name) => values[name] === undefined
+  );
+  if (missing.length === 0 || missing.length === STORAGE_VARIABLES.length) {
+    return;
+  }
+  ctx.issues.push({
+    code: "custom",
+    path: [missing[0]!],
+    input: undefined,
+    message:
+      `R2 is half configured. Set ${missing.join(", ")} too, or unset ` +
+      "every R2_ variable to run without storage.",
+  });
+}
+
+/**
  * Error tracking (#66). Read by the server at runtime; the browser gets
  * NEXT_PUBLIC_SENTRY_DSN baked in at build time.
  */
@@ -172,6 +227,27 @@ const errorTrackingVariables = {
   /** Set by Vercel: the commit the deployment was built from. */
   VERCEL_GIT_COMMIT_SHA: z.string().optional(),
 };
+
+/**
+ * The malware scanner (#63): clamd in the `foa-clamav` sidecar, which only
+ * the VPS workers can reach (docker/workers.yml). Without CLAMD_HOST every
+ * scan is an error and uploads wait unscanned, as they do on Vercel, which
+ * never reaches clamd; the workers set it (HR-08).
+ */
+const scannerVariables = {
+  CLAMD_HOST: z.string().optional(),
+  CLAMD_PORT: z.coerce
+    .number({ error: "must be a TCP port, 1 to 65535" })
+    .int({ error: "must be a TCP port, 1 to 65535" })
+    .min(1, { error: "must be a TCP port, 1 to 65535" })
+    .max(65_535, { error: "must be a TCP port, 1 to 65535" })
+    .default(3310),
+};
+
+/** Where the scan job finds clamd; the worker parses it too. */
+export const scannerEnvSchema = z.object(scannerVariables);
+
+export type ScannerEnv = z.output<typeof scannerEnvSchema>;
 
 type AppEnv = (typeof APP_ENVS)[number];
 
@@ -418,13 +494,16 @@ export const envSchema = z
         "postgres://foa:foa@localhost:5432/foa (see .env.example)."
     ),
     ...secretVariables,
+    ...storageVariables,
     ...errorTrackingVariables,
+    ...scannerVariables,
   })
   .superRefine(requireAppEnvOnVercel, always)
   .superRefine(requireAppUrl, always)
   .superRefine(requirePreviewDatabase, always)
   .superRefine(requireAuthSecret, always)
   .superRefine(requireFieldKeys, always)
+  .superRefine(requireWholeStorageConfig, always)
   .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 
@@ -469,6 +548,31 @@ export const fieldKeyEnvSchema = z
     ...keys,
     APP_ENV: APP_ENV ?? "local",
   }));
+
+/**
+ * What `pnpm files:purge-preview` reads (scripts/purge-preview-files.ts):
+ * APP_ENV and all four R2 variables, the non-production bucket's. Purging
+ * without storage can't do anything, so none of them is optional here.
+ */
+export const purgeEnvSchema = z
+  .object({ APP_ENV: appEnv, ...storageVariables })
+  .required({
+    R2_ACCOUNT_ID: true,
+    R2_ACCESS_KEY_ID: true,
+    R2_SECRET_ACCESS_KEY: true,
+    R2_BUCKET: true,
+  });
+
+/**
+ * What the worker's scan job reads besides its database
+ * (src/worker/config.ts): the R2 variables, all four or none, and where
+ * clamd is. Without R2 or CLAMD_HOST every scan fails and uploads wait.
+ */
+export const scanJobEnvSchema = z
+  .object({ ...storageVariables, ...scannerVariables })
+  .superRefine(requireWholeStorageConfig);
+
+export type ScanJobEnv = z.output<typeof scanJobEnvSchema>;
 
 /**
  * Parses an env-like object, usually process.env, against `schema`. Empty

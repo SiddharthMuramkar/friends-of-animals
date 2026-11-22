@@ -99,7 +99,8 @@ async function authorizeIn(tx: AppDb, ctx: SettingsContext) {
 /**
  * Sets `key` to `value`, checked against the setting's schema, and records
  * the change in the audit log. Submitting the value that already applies
- * stores and records nothing.
+ * stores and records nothing, unless the stored value no longer passes the
+ * schema: then the submitted value replaces it.
  */
 export async function changeSetting(
   ctx: SettingsContext,

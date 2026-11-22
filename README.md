@@ -238,6 +238,10 @@ PLAYWRIGHT_BASE_URL=https://friendsofanimals.dev pnpm test:e2e --project=prod-sm
 PLAYWRIGHT_BASE_URL=http://localhost:3100 pnpm test:e2e
 ```
 
+For the roles and staff second-factor journeys, run the server with `APP_ENV=local`.
+Playwright uses `DIRECT_URL` to seed accounts in the same local database, with
+the same `BETTER_AUTH_SECRET` as the server if you set one.
+
 Add `--ui` to watch the tests run, or `--project=desktop` for one viewport. A failed test leaves a trace and a screenshot in `test-results/`; open a trace with `pnpm exec playwright show-trace <path>/trace.zip`.
 
 The secret goes only to this project's own deployments (`https://friends-of-animals-…-bitacu1.vercel.app`), so a run pointed at localhost, staging or a mistyped URL never sends it. Global setup (`tests/e2e/global-setup.ts`) trades it once for Vercel's bypass cookie, saved in `playwright/.auth/` (git-ignored), and the tests use the cookie, so the secret never appears in a trace. The cookie does (it opens that one preview for a week), so CI strips it from traces before uploading them.

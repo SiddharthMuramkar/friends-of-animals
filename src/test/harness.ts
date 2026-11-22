@@ -41,9 +41,12 @@ import { createTestDb, type TestDb } from "./db";
 import { FakeClock } from "./fakes/clock";
 import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
-import { FakeErrorReporter } from "./fakes/errors";
-import { FakeSettings } from "./fakes/settings";
 import { FakeSms } from "./fakes/sms";
+import { FakeErrorReporter } from "./fakes/errors";
+import { FakeMalwareScanner } from "./fakes/malware-scanner";
+import { FakeMediaProcessor } from "./fakes/media";
+import { FakeStorage } from "./fakes/storage";
+import { TestSettings } from "./settings";
 
 export interface Harness {
   /** This test's database. Assert on rows through it. */
@@ -58,10 +61,12 @@ export interface Harness {
   /** Every SMS use cases sent. */
   sms: FakeSms;
   /**
-   * Runtime settings, at their defaults (SMS off) until a test sets one:
-   * `h.settings.set("sms.enabled", true)`.
+   * Runtime settings, over this database's settings table: at their
+   * defaults (SMS off) until a test stores one,
+   * `await h.settings.set("sms.enabled", true)`, or a super admin changes
+   * one with changeSetting. Use cases read the same rows.
    */
-  settings: FakeSettings;
+  settings: TestSettings;
   /** The browser's cookie store: what use cases set on responses. */
   cookies: FakeCookieJar;
   /** Every error use cases reported, scrubbed as Sentry would get it. */
@@ -108,6 +113,21 @@ export interface Harness {
    * finds nothing due. Retries wait for `clock.advance()`.
    */
   drain(): Promise<DrainReport>;
+  /**
+   * The private buckets. `put(url, bytes, headers)` and `get(url)` use a
+   * presigned URL as the browser does, checked against the fake clock.
+   */
+  storage: FakeStorage;
+  /**
+   * Flags the EICAR test file (src/test/eicar.ts); counts scans and fails
+   * the next ones with `failNext(n)`.
+   */
+  scanner: FakeMalwareScanner;
+  /**
+   * Makes derivatives from image headers without decoding pixels; records
+   * its inputs and fails the next ones with `failNext(n, code)`.
+   */
+  media: FakeMediaProcessor;
 }
 
 /** Documentation addresses (RFC 5737) and an obvious user agent. */
@@ -120,6 +140,13 @@ export const TEST_AUTH = {
   secret: "seam-1-test-secret-0123456789abcdef",
   baseUrl: "http://localhost:3000",
 };
+
+/** A local run's files config: test uploads allowed, under `local/`. */
+export const TEST_FILES = {
+  bucket: "foa-files-test",
+  keyPrefix: "local/",
+  appEnv: "local",
+} as const;
 
 /** Leading zero bits the harness's human check asks for: about 16 hashes. */
 export const TEST_HUMAN_CHECK_DIFFICULTY = 4;
@@ -139,9 +166,12 @@ export async function createHarness(
   });
   const email = new FakeEmail(clock);
   const sms = new FakeSms(clock);
-  const settings = new FakeSettings();
+  const settings = new TestSettings({ db, clock });
   const cookies = new FakeCookieJar(clock);
   const errors = new FakeErrorReporter();
+  const storage = new FakeStorage(clock);
+  const scanner = new FakeMalwareScanner();
+  const media = new FakeMediaProcessor();
   const deps: Deps = {
     db,
     clock,
@@ -149,7 +179,6 @@ export async function createHarness(
     sms,
     cookies,
     auth: TEST_AUTH,
-    errors,
     // Fresh keys per harness, as a deployment has its own.
     cipher: createFieldCipher({
       primary: 1,
@@ -157,6 +186,11 @@ export async function createHarness(
     }),
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
     settings,
+    errors,
+    storage,
+    files: TEST_FILES,
+    scanner,
+    media,
     // The real check, made easy: a few hashes to solve (src/test/human-check.ts).
     humanCheck: proofOfWorkHumanCheck({
       secret: TEST_AUTH.secret,
@@ -240,7 +274,11 @@ export async function createHarness(
     totpCode: (at = clock.now()) =>
       totpCode(base32Decode(SEED_TOTP_SECRET), at),
     seed: createSeedBuilders(deps),
-    drain: () => drainUntilIdle(deps),
+    // Every queue, worker-media's included.
+    drain: () => drainUntilIdle(deps, { queue: "all" }),
+    storage,
+    scanner,
+    media,
   };
   return harness;
 }

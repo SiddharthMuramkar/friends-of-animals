@@ -31,7 +31,11 @@ export type CodeFormState = {
   /** The email address or phone number, as typed. */
   contact: string;
   name: string;
-  /** The messages consent document the visitor accepted during sign-up. */
+  /**
+   * Sign-up by email only: the messages consent document whose box was
+   * ticked, so the code step can send it on. Absent when the box wasn't
+   * ticked.
+   */
   messagesConsent?: string;
   /** A code was just sent to `contact`. */
   sent?: boolean;
@@ -56,7 +60,7 @@ export type CodeFormView = CodeFormState & {
 
 export const START_VIEW: CodeFormView = { ...START, text: { errors: {} } };
 
-type Entered = Pick<CodeFormState, "contact" | "name" | "messagesConsent">;
+type Entered = { contact: string; name: string; messagesConsent?: string };
 type Step = CodeFormState["step"];
 
 function fieldErrors(

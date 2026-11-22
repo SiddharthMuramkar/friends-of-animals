@@ -7,8 +7,11 @@ import { redirect } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
-import { isSettingKey, SETTINGS } from "@/server/modules/settings/catalogue";
-import { settingValueFromForm } from "@/server/modules/settings/form";
+import {
+  isSettingKey,
+  SETTINGS,
+  settingValueFromForm,
+} from "@/server/modules/settings";
 
 import {
   afterChange,

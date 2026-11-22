@@ -6,8 +6,13 @@ import a11y from "../../messages/en-IN/a11y.json";
 import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
 import adminInbox from "../../messages/en-IN/adminInbox.json";
-import adminTemplates from "../../messages/en-IN/adminTemplates.json";
 import adminSettings from "../../messages/en-IN/adminSettings.json";
+import admin from "../../messages/en-IN/admin.json";
+import adminAudit from "../../messages/en-IN/adminAudit.json";
+import adminTemplates from "../../messages/en-IN/adminTemplates.json";
+import adminRoles from "../../messages/en-IN/adminRoles.json";
+import adminCompetitions from "../../messages/en-IN/adminCompetitions.json";
+import adminCms from "../../messages/en-IN/adminCms.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -18,12 +23,14 @@ import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import contact from "../../messages/en-IN/contact.json";
 import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
+import dashboard from "../../messages/en-IN/dashboard.json";
 import donate from "../../messages/en-IN/donate.json";
 import error from "../../messages/en-IN/error.json";
+import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
-import inbox from "../../messages/en-IN/inbox.json";
 import impact from "../../messages/en-IN/impact.json";
+import inbox from "../../messages/en-IN/inbox.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
@@ -42,8 +49,13 @@ export const NAMESPACES = [
   "about",
   "account",
   "adminInbox",
-  "adminTemplates",
   "adminSettings",
+  "admin",
+  "adminAudit",
+  "adminTemplates",
+  "adminRoles",
+  "adminCompetitions",
+  "adminCms",
   "auth",
   "authPhone",
   "awareness",
@@ -54,12 +66,14 @@ export const NAMESPACES = [
   "contact",
   "contactForm",
   "credits",
+  "dashboard",
   "donate",
   "error",
+  "files",
   "footer",
   "home",
-  "inbox",
   "impact",
+  "inbox",
   "legal",
   "nav",
   "notFound",
@@ -82,8 +96,13 @@ export const messages = {
   ...about,
   ...account,
   ...adminInbox,
-  ...adminTemplates,
   ...adminSettings,
+  ...admin,
+  ...adminAudit,
+  ...adminTemplates,
+  ...adminRoles,
+  ...adminCompetitions,
+  ...adminCms,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -94,12 +113,14 @@ export const messages = {
   ...contact,
   ...contactForm,
   ...credits,
+  ...dashboard,
   ...donate,
   ...error,
+  ...files,
   ...footer,
   ...home,
-  ...inbox,
   ...impact,
+  ...inbox,
   ...legal,
   ...nav,
   ...notFound,

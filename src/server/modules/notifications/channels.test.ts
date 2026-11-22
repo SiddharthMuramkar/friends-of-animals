@@ -135,7 +135,7 @@ describe("getNotificationPreferences and updateNotificationPreferences", () => {
 describe("a user who turns SMS off", () => {
   it("gets the email but no SMS for an ordinary message", async () => {
     const h = await createHarness();
-    h.settings.set("sms.enabled", true);
+    await h.settings.set("sms.enabled", true);
     await registerWelcomeSms(h);
     await welcomeRoute(h, { channels: ["email", "sms"], requiredByLaw: false });
     const { account, actor } = await memberWithPhone(h);
@@ -156,7 +156,7 @@ describe("a user who turns SMS off", () => {
 
   it("still gets the SMS for a message the law requires", async () => {
     const h = await createHarness();
-    h.settings.set("sms.enabled", true);
+    await h.settings.set("sms.enabled", true);
     await registerWelcomeSms(h);
     await welcomeRoute(h, { channels: ["email", "sms"], requiredByLaw: true });
     const { account, actor } = await memberWithPhone(h);
@@ -212,10 +212,55 @@ describe("with the SMS switch off", () => {
   });
 });
 
+// The switch staff flip is #62's runtime setting sms.enabled on
+// /admin/settings: the dispatcher reads that row, so a change applies to
+// the next message, with no deploy.
+describe("the SMS switch on the settings screen", () => {
+  it("stops SMS once a super admin switches it off, though it was on", async () => {
+    const h = await createHarness();
+    // On, as the preview seed stores it for previews and local runs.
+    await h.settings.set("sms.enabled", true);
+    await registerWelcomeSms(h);
+    await welcomeRoute(h, { channels: ["email", "sms"], requiredByLaw: false });
+    const { account } = await memberWithPhone(h);
+    const admin = await h.signIn(await h.seed.superAdmin());
+
+    expect(
+      await h.as(admin).changeSetting({ key: "sms.enabled", value: false })
+    ).toMatchObject({ ok: true });
+    await welcome(h, account.id);
+
+    expect(h.sms.sent).toEqual([]);
+    expect(welcomeEmailsTo(h, account.email)).toHaveLength(1);
+    expect(await deliveries(h, account.id)).toContainEqual({
+      channel: "sms",
+      status: "suppressed",
+      reason: "sms_disabled",
+    });
+  });
+
+  it("lets a registered SMS go once a super admin switches it on, though it starts off", async () => {
+    const h = await createHarness();
+    await registerWelcomeSms(h);
+    await welcomeRoute(h, { channels: ["email", "sms"], requiredByLaw: false });
+    const { account } = await memberWithPhone(h);
+    const admin = await h.signIn(await h.seed.superAdmin());
+
+    expect(
+      await h.as(admin).changeSetting({ key: "sms.enabled", value: true })
+    ).toEqual({ ok: true, changed: true });
+    await welcome(h, account.id);
+
+    expect(h.sms.sent).toEqual([
+      expect.objectContaining({ to: PHONE, dltTemplateId: DLT_ID }),
+    ]);
+  });
+});
+
 describe("an SMS template without a DLT id", () => {
   it("is held back as unregistered, and email covers for it", async () => {
     const h = await createHarness();
-    h.settings.set("sms.enabled", true);
+    await h.settings.set("sms.enabled", true);
     await welcomeRoute(h, { channels: ["sms"], requiredByLaw: true });
     const { account } = await memberWithPhone(h);
 

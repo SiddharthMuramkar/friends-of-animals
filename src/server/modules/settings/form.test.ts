@@ -15,6 +15,21 @@ describe("settingValueFromForm", () => {
   });
 
   it.each([
+    ["99999999999999999999", { reason: "too_big", max: 24 }],
+    ["-99999999999999999999", { reason: "too_small", min: 1 }],
+  ] as const)(
+    "refuses %j hours, too long to hold exactly, by the setting's own bound",
+    (entry, problem) => {
+      const key = "auth.staffSessionHours";
+      expect(parseSettingValue(key, settingValueFromForm(key, entry))).toEqual({
+        ok: false,
+        error: "invalid_value",
+        problem,
+      });
+    }
+  );
+
+  it.each([
     ["sms.enabled", null],
     ["sms.enabled", "on"],
     ["auth.staffSessionHours", ""],

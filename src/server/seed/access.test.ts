@@ -70,7 +70,10 @@ describe("the access seed", () => {
     await h.seed.preview();
 
     expect(await rows()).toEqual(first);
-    expect(first).toHaveLength(5);
+    // Five from this seeder, two from the competitions seeder's managers,
+    // two from the consent seeder's publishers and two from the
+    // notifications seeder's template editors.
+    expect(first).toHaveLength(11);
   });
 
   it("keeps fixed scope ids that links and journeys can name", () => {

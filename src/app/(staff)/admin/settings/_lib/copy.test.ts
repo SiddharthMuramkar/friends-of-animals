@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { messages } from "@/i18n/messages";
-import { SETTING_KEYS } from "@/server/modules/settings/catalogue";
+import { SETTING_KEYS } from "@/server/modules/settings";
 
 /** The copy at `path` (dot-separated) in the merged messages. */
 function copyAt(path: string): unknown {

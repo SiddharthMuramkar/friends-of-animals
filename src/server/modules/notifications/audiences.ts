@@ -35,6 +35,14 @@ function subjectUserOf(delivery: Delivery): string | null {
         ? delivery.payload.subjectId
         : null;
     case "contact_message.received":
+      // A visitor's message (#113): its sender has no account.
+      return null;
+    case "files.file_uploaded":
+    case "files.processing_requested":
+    case "files.file_processed":
+    case "files.file_processing_failed":
+      // A file's own pipeline (#63, #85), not a message route: no route
+      // row names these events.
       return null;
   }
 }
@@ -77,6 +85,10 @@ type EventVariables<T extends EventType> = {
 export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "identity.user_signed_up": { names: [], load: async () => ({}) },
   "consent.withdrawn": { names: [], load: async () => ({}) },
+  "files.file_uploaded": { names: [], load: async () => ({}) },
+  "files.processing_requested": { names: [], load: async () => ({}) },
+  "files.file_processed": { names: [], load: async () => ({}) },
+  "files.file_processing_failed": { names: [], load: async () => ({}) },
   "contact_message.received": {
     names: CONTACT_MESSAGE_VARIABLES,
     load: async (db, delivery) =>

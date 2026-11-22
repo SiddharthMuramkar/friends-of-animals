@@ -22,6 +22,7 @@ export type SettingFormState =
   | { status: "invalid"; problem: SettingValueProblem; entered: string }
   | { status: "refused"; reason: SettingRefusal };
 
+/** What a setting's form starts with, before its first save. */
 export const IDLE: SettingFormState = { status: "idle" };
 
 /** After changeSetting returned; `entered` is the submitted field. */

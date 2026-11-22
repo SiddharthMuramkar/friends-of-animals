@@ -9,6 +9,7 @@
 // Loads under plain Node (the seed script): no "server-only", no "@/"
 // imports.
 
+import { CODE_REQUEST_LIMITS } from "../../identity/settings";
 import {
   booleanSetting,
   integerSetting,
@@ -24,7 +25,22 @@ export const SETTINGS = {
     unit: "hours",
   }),
   // Messages (#58): off until DLT registration through MSG91 (HR-14).
+  // Seeded on for local runs and previews, which capture every text.
   "sms.enabled": booleanSetting({ default: false }),
+  // Ceilings on sign-in texts to everyone together, so a pool of networks
+  // can't text thousands of numbers on FOA's bill (#58, HR-19).
+  "sms.maxPerHour": integerSetting({
+    default: CODE_REQUEST_LIMITS.smsPerHour,
+    min: 1,
+    max: 1000,
+    unit: "texts",
+  }),
+  "sms.maxPerDay": integerSetting({
+    default: CODE_REQUEST_LIMITS.smsPerDay,
+    min: 1,
+    max: 5000,
+    unit: "texts",
+  }),
   // Organisation facts. Off until FOA holds 80G (HR-16) and is registered
   // under FCRA; they gate tax receipts and foreign donations (M5).
   "org.has80G": booleanSetting({ default: false }),

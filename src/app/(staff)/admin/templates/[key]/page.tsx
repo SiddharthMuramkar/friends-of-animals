@@ -21,6 +21,7 @@ import { lookupName, nameOr, type NameTree } from "../_lib/labels";
 import { unlessRefused } from "../_lib/refusal";
 import { TemplateForm } from "./_components/template-form";
 import { secondStepRedirect } from "./_lib/form-state";
+import { templateKeyOf } from "./_lib/template-key";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("adminTemplates.editor.meta");
@@ -54,7 +55,7 @@ async function Editor({ params }: { params: Params }) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const { key: raw } = await params;
-  const key = decodeURIComponent(raw);
+  const key = templateKeyOf(raw);
   const [t, tc, format, result] = await Promise.all([
     getTranslations("adminTemplates"),
     getTranslations("common.callout"),

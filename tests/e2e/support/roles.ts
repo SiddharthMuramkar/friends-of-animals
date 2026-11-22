@@ -2,16 +2,10 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import {
-  fieldKeyEnvSchema,
-  migrationEnvSchema,
-  parseEnv,
-} from "../../../src/env.schema";
+import { migrationEnvSchema, parseEnv } from "../../../src/env.schema";
 import type { Role } from "../../../src/server/access/domain/roles";
-import { fieldCryptoFor } from "../../../src/server/crypto/keys";
 import { directTls } from "../../../src/server/db/database-url";
 import * as schema from "../../../src/server/db/schema";
-import { DEVELOPMENT_AUTH_SECRET } from "../../../src/server/identity/settings";
 import { systemClock } from "../../../src/server/ports/clock";
 import { ensureGrant } from "../../../src/server/seed/access";
 import { seedTarget } from "../../../src/server/seed/target";
@@ -45,19 +39,10 @@ export async function grantGlobalRole(
       .from(schema.user)
       .where(eq(schema.user.email, email));
     if (!account) throw new Error(`No account to grant ${role} to.`);
-    await ensureGrant(
-      {
-        db,
-        clock: systemClock,
-        // As the seed script picks them; granting a role uses none.
-        auth: {
-          secret: process.env.BETTER_AUTH_SECRET || DEVELOPMENT_AUTH_SECRET,
-        },
-        ...fieldCryptoFor(parseEnv(fieldKeyEnvSchema, process.env)),
-      },
-      account.id,
-      { role, scope: { type: "global" } }
-    );
+    await ensureGrant({ db, clock: systemClock }, account.id, {
+      role,
+      scope: { type: "global" },
+    });
   } finally {
     await client.end({ timeout: 5 });
   }

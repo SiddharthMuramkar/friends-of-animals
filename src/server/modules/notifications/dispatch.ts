@@ -24,10 +24,8 @@
 
 import { and, asc, eq, sql } from "drizzle-orm";
 
-import type { E164Phone } from "../../../lib/phone";
 import { currentConsent } from "../consent/domain/consent-state";
 import { subjectEvents } from "../consent/repository";
-import type { FieldCipher } from "../../crypto/field-cipher";
 import type { AppDb } from "../../db/app-db";
 import {
   inboxItem,
@@ -39,10 +37,10 @@ import {
   type MessageRouteRow,
   type MessageTemplateRow,
 } from "../../db/schema";
+import type { Ciphertext } from "../../crypto/field-cipher";
 import { readStoredPhone } from "../../identity/stored-phone";
 import { uuidv7 } from "../../ids";
 import type { Delivery, OutboxDeps } from "../../outbox";
-import { unconfiguredSmsSender } from "../../ports/sms";
 import { AUDIENCES, EVENT_VARIABLES, isAudienceKey } from "./audiences";
 import type { MessageChannel } from "./domain/channels";
 import { planDelivery, type SuppressionReason } from "./domain/delivery-plan";
@@ -58,7 +56,11 @@ type Recipient = {
   id: string;
   name: string;
   email: string | null;
-  phone: E164Phone | null;
+  /**
+   * The verified phone, still encrypted: it is decrypted only to send an
+   * SMS, so a worker without field keys still sends email and in-app.
+   */
+  storedPhone: Ciphertext | null;
 };
 
 type Message = {
@@ -85,10 +87,7 @@ export async function dispatchEvent(
     .orderBy(asc(messageRoute.templateKey), asc(messageRoute.audience));
   if (routes.length === 0) return;
 
-  const smsEnabled =
-    Boolean(deps.sms && deps.cipher) &&
-    routes.some((route) => route.channels.includes("sms")) &&
-    (await deps.settings?.get("sms.enabled")) === true;
+  const smsEnabled = await deps.settings.get("sms.enabled");
   const eventValues = await (
     EVENT_VARIABLES[delivery.eventType].load as (
       db: AppDb,
@@ -106,16 +105,8 @@ export async function dispatchEvent(
       throw new Error(`Template ${route.templateKey} lacks email or in-app`);
     }
     const userIds = await AUDIENCES[route.audience](deps.db, delivery);
-    const canSendSms =
-      smsEnabled &&
-      route.channels.includes("sms") &&
-      Boolean(templates.sms?.dltTemplateId);
     for (const userId of userIds) {
-      const recipient = await recipientOf(
-        deps.db,
-        userId,
-        canSendSms ? deps.cipher : undefined
-      );
+      const recipient = await recipientOf(deps, userId);
       // An account erased since the event gets nothing.
       if (!recipient) continue;
       const message: Message = {
@@ -147,11 +138,10 @@ async function templatesFor(db: AppDb, key: string): Promise<Templates> {
 }
 
 async function recipientOf(
-  db: AppDb,
-  userId: string,
-  cipher: FieldCipher | undefined
+  deps: OutboxDeps,
+  userId: string
 ): Promise<Recipient | null> {
-  const [row] = await db
+  const [row] = await deps.db
     .select({
       id: user.id,
       name: user.name,
@@ -162,11 +152,12 @@ async function recipientOf(
     .from(user)
     .where(eq(user.id, userId));
   if (!row) return null;
-  const phone =
-    cipher && row.phoneVerified && row.phoneCiphertext
-      ? readStoredPhone({ cipher }, row.phoneCiphertext)
-      : null;
-  return { id: row.id, name: row.name, email: row.email, phone };
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    storedPhone: row.phoneVerified ? row.phoneCiphertext : null,
+  };
 }
 
 /** The user's channel choices, or the defaults while they made none. */
@@ -212,7 +203,7 @@ async function sendMessage(
     smsTemplateRegistered: Boolean(templates.sms?.dltTemplateId),
     contact: {
       email: recipient.email !== null,
-      verifiedPhone: recipient.phone !== null,
+      verifiedPhone: recipient.storedPhone !== null,
     },
   });
 
@@ -375,8 +366,8 @@ async function deliverByPort(
         html: renderEmailHtml(content.body),
       });
     } else {
-      await (deps.sms ?? unconfiguredSmsSender).send({
-        to: message.recipient.phone!,
+      await deps.sms.send({
+        to: readStoredPhone(deps, message.recipient.storedPhone!),
         template: "message",
         dltTemplateId: content.dltTemplateId!,
         vars: message.values,

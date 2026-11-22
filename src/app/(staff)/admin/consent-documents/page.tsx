@@ -3,6 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import {
   LegalSectionsText,
   LegalShortList,
@@ -15,6 +16,7 @@ import { LEGAL_FACTS, type LegalFact } from "@/content/legal";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { isMirroredConsentPurpose } from "@/server/modules/cms/domain/documents";
 import type {
   ConsentDocumentVersion,
   ConsentPurpose,
@@ -35,13 +37,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type SearchParams = Promise<{ published?: string | string[] }>;
+type SearchParams = PageProps<"/admin/consent-documents">["searchParams"];
 
 export default async function Page({
   searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+}: PageProps<"/admin/consent-documents">) {
   const t = await getTranslations("consentAdmin");
   return (
     <Section hue="neutral" tone="tint" className="pt-10 sm:pt-14">
@@ -51,8 +51,9 @@ export default async function Page({
         title={t("title")}
         lead={t("lead")}
       />
-      {/* Who is asking, and the documents, are read per request, so they
-          stream in behind this boundary while the heading is prerendered. */}
+      {/* The staff layout renders this page per request. Who is
+          asking, and the documents, stream in behind this boundary after
+          the heading. */}
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
@@ -102,7 +103,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
     getTranslations("consentAdmin.form"),
     getTranslations("common.callout"),
     getFormatter(),
-    versionsFor(actor),
+    orSecondFactor(() => versionsFor(actor), APP_ROUTES.adminConsentDocuments),
     searchParams,
   ]);
 
@@ -129,7 +130,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
           date: date(version.publishedAt),
           name: version.publishedBy.name,
         })
-      : t("versionSeeded", { date: date(version.publishedAt) });
+      : t("versionPublisherGone", { date: date(version.publishedAt) });
 
   return (
     <div className="mt-8 flex flex-col gap-8">
@@ -154,7 +155,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
                       date: date(current.publishedAt),
                       name: current.publishedBy.name,
                     })
-                  : t("currentSeeded", {
+                  : t("currentPublisherGone", {
                       version: current.version,
                       date: date(current.publishedAt),
                     })
@@ -171,34 +172,39 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
               </div>
             ) : null}
 
-            <div className="mt-6">
-              <PublishForm
-                // A new current version resets the form to its text.
-                key={current?.id ?? "none"}
-                purpose={purpose}
-                defaults={{
-                  title: current?.title ?? t(`purposes.${purpose}`),
-                  source: current
-                    ? formatConsentDocumentSource(current.body)
-                    : "",
-                }}
-                labels={{
-                  title: tf("title.label"),
-                  source: {
-                    label: tf("source.label"),
-                    hint: tf("source.hint"),
-                  },
-                  preview: tf("preview"),
-                  previewing: tf("previewing"),
-                  publish: tf("publish", { version: nextVersion }),
-                  publishing: tf("publishing"),
-                  previewTitle: tf("previewTitle", { version: nextVersion }),
-                  fixErrors: tf("fixErrors"),
-                  problem: callout("danger"),
-                }}
-                factLabels={factLabels}
-              />
-            </div>
+            {isMirroredConsentPurpose(purpose) ? (
+              // Its policy page's text: the CMS publishes it (#111).
+              <p className="mt-4 max-w-prose">{t("fromCms")}</p>
+            ) : (
+              <div className="mt-6">
+                <PublishForm
+                  // A new current version resets the form to its text.
+                  key={current?.id ?? "none"}
+                  purpose={purpose}
+                  defaults={{
+                    title: current?.title ?? t(`purposes.${purpose}`),
+                    source: current
+                      ? formatConsentDocumentSource(current.body)
+                      : "",
+                  }}
+                  labels={{
+                    title: tf("title.label"),
+                    source: {
+                      label: tf("source.label"),
+                      hint: tf("source.hint"),
+                    },
+                    preview: tf("preview"),
+                    previewing: tf("previewing"),
+                    publish: tf("publish", { version: nextVersion }),
+                    publishing: tf("publishing"),
+                    previewTitle: tf("previewTitle", { version: nextVersion }),
+                    fixErrors: tf("fixErrors"),
+                    problem: callout("danger"),
+                  }}
+                  factLabels={factLabels}
+                />
+              </div>
+            )}
 
             {current ? (
               <div className="mt-8">

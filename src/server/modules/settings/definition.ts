@@ -8,6 +8,9 @@
 
 import { z } from "zod";
 
+/** What a whole-number setting counts. */
+export type SettingUnit = "hours" | "texts";
+
 /** How the settings screen asks for a value. */
 export type SettingInput =
   | { kind: "boolean" }
@@ -15,7 +18,7 @@ export type SettingInput =
       kind: "integer";
       min: number;
       max: number;
-      unit: "minutes" | "hours" | "days";
+      unit: SettingUnit;
     };
 
 export type SettingDefinition<T> = {
@@ -42,7 +45,7 @@ export function integerSetting(options: {
   default: number;
   min: number;
   max: number;
-  unit: "minutes" | "hours" | "days";
+  unit: SettingUnit;
 }): SettingDefinition<number> {
   const { min, max, unit } = options;
   return {

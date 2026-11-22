@@ -104,6 +104,10 @@ describe("parseConsentDocumentBody", () => {
   it.each([
     "javascript:alert(1)",
     "//evil.example/path",
+    // Browsers read a backslash in an http(s) URL as a slash, so this is
+    // //evil.example/path too.
+    "/\\evil.example/path",
+    "/privacy\\terms",
     "http://example.test",
     "mailto:someone@example.test",
     "privacy",

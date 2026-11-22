@@ -9,7 +9,7 @@ import {
 } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
-import { SEED_ACCOUNTS } from "./accounts";
+import { SEED_ACCOUNTS, SEED_TEMPLATE_EDITORS } from "./accounts";
 
 async function snapshot(h: Harness) {
   return {
@@ -70,6 +70,31 @@ describe("the notifications seed", () => {
       expect(
         await countItems(h, member.id, "read"),
         member.name
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it("gives each journey project its own template editor with the seed authenticator", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+
+    expect(
+      Object.values(SEED_TEMPLATE_EDITORS).map((account) => account.email)
+    ).toEqual([
+      "template-editor-desktop@example.test",
+      "template-editor-mobile@example.test",
+    ]);
+    for (const account of Object.values(SEED_TEMPLATE_EDITORS)) {
+      const editor = await h.signIn(account, undefined, {
+        secondFactor: false,
+      });
+      expect(
+        await h.as(editor).verifySecondFactor({ code: h.totpCode() }),
+        account.email
+      ).toEqual({ ok: true });
+      expect(
+        (await h.as(editor).listMessageTemplates()).length,
+        account.email
       ).toBeGreaterThan(0);
     }
   });

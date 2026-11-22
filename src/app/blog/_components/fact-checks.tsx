@@ -35,7 +35,7 @@ export async function FactChecks({ className }: { className?: string }) {
               aria-hidden="true"
               className="mt-2 size-2.5 shrink-0 rounded-[22%] bg-yellow-500"
             />
-            <span>{t(`points.${p}`)}</span>
+            <span className="min-w-0">{t(`points.${p}`)}</span>
           </li>
         ))}
       </ul>

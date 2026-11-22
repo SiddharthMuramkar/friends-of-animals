@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
 import { setting } from "../../db/schema";
+import type { Settings } from "../../ports/settings";
 import type { SettingKey, SettingValue } from "./catalogue";
 import { resolveSetting } from "./values";
 
@@ -23,4 +24,12 @@ export async function readSetting<K extends SettingKey>(
     .from(setting)
     .where(eq(setting.key, key));
   return resolveSetting(key, row).value;
+}
+
+/**
+ * The deps' `Settings` over the settings table: every read goes to `db`,
+ * so what a super admin saves applies on the next call.
+ */
+export function databaseSettings(db: AppDb): Settings {
+  return { get: (key) => readSetting(db, key) };
 }
