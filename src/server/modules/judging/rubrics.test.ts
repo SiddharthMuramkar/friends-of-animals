@@ -228,6 +228,83 @@ describe("writing and publishing a rubric", () => {
   });
 });
 
+describe("saving and publishing in one go", () => {
+  it("publishes the criteria it's given, saved over whatever the draft held", async () => {
+    const { h, competition, manager } = await setUp();
+    const other = await signedInWith(h, globalManager);
+    const created = await h.as(manager).createRubricDraft({
+      competitionId: competition.id,
+      discipline: "drawing",
+    });
+    if (!created.ok) throw new Error(created.error);
+    const rubricId = created.rubric.id;
+    // Another manager's save, which the publishing manager never saw.
+    await h.as(other).updateRubricDraft({
+      rubricId,
+      criteria: [{ ...CRITERIA[0]!, label: "Someone else's", weight: 100 }],
+    });
+
+    expect(
+      await h.as(manager).publishRubric({ rubricId, criteria: CRITERIA })
+    ).toMatchObject({
+      ok: true,
+      rubric: { id: rubricId, status: "published", criteria: CRITERIA },
+    });
+    expect(await criteriaRows(h, rubricId)).toEqual(CRITERIA);
+    expect(await rubricAudit(h)).toEqual([
+      expect.objectContaining({
+        action: "rubric.published",
+        entityId: rubricId,
+      }),
+    ]);
+  });
+
+  it("keeps the criteria saved as the draft when their problems stop the publishing", async () => {
+    const { h, competition, manager } = await setUp();
+    const created = await h.as(manager).createRubricDraft({
+      competitionId: competition.id,
+      discipline: "drawing",
+    });
+    if (!created.ok) throw new Error(created.error);
+    const rubricId = created.rubric.id;
+    const unfinished = [CRITERIA[0]!, CRITERIA[1]!];
+
+    expect(
+      await h.as(manager).publishRubric({ rubricId, criteria: unfinished })
+    ).toEqual({
+      ok: false,
+      error: "not_publishable",
+      problems: [{ code: "weights_total", total: 70 }],
+    });
+    expect(await criteriaRows(h, rubricId)).toEqual(unfinished);
+    const [row] = await h.db
+      .select()
+      .from(rubric)
+      .where(eq(rubric.id, rubricId));
+    expect(row).toMatchObject({ status: "draft", publishedAt: null });
+    expect(await rubricAudit(h)).toEqual([]);
+  });
+
+  it("refuses criteria that break the rules, and saves and publishes nothing", async () => {
+    const { h, competition, manager } = await setUp();
+    const created = await h.as(manager).createRubricDraft({
+      competitionId: competition.id,
+      discipline: "drawing",
+    });
+    if (!created.ok) throw new Error(created.error);
+    const rubricId = created.rubric.id;
+
+    expect(
+      await h.as(manager).publishRubric({
+        rubricId,
+        criteria: [{ ...CRITERIA[0]!, minScore: 10, maxScore: 10 }],
+      })
+    ).toEqual({ ok: false, error: "invalid_input", fields: ["criteria"] });
+    expect(await criteriaRows(h, rubricId)).toEqual(defaultRubricCriteria());
+    expect(await rubricAudit(h)).toEqual([]);
+  });
+});
+
 describe("a published rubric is read-only", () => {
   it("refuses edits through the use case and keeps its criteria", async () => {
     const { h, competition, manager } = await setUp();
@@ -241,6 +318,12 @@ describe("a published rubric is read-only", () => {
     ).toEqual({ ok: false, error: "rubric_not_editable" });
     expect(
       await h.as(manager).publishRubric({ rubricId: published.id })
+    ).toEqual({ ok: false, error: "rubric_not_editable" });
+    expect(
+      await h.as(manager).publishRubric({
+        rubricId: published.id,
+        criteria: [{ ...CRITERIA[0]!, weight: 100 }],
+      })
     ).toEqual({ ok: false, error: "rubric_not_editable" });
     expect(await criteriaRows(h, published.id)).toEqual(CRITERIA);
   });
@@ -382,7 +465,7 @@ describe("revising a published rubric", () => {
     ).toEqual({ ok: false, error: "not_published" });
   });
 
-  it("can't start, revise or publish a rubric once the competition is in school judging", async () => {
+  it("can't start, edit, revise or publish a rubric once the competition is in school judging", async () => {
     const h = await createHarness();
     const competition = await seedCompetition(h, {
       disciplines: ["drawing", "painting", "essay"],
@@ -404,8 +487,21 @@ describe("revising a published rubric", () => {
     const auditBefore = await rubricAudit(h);
 
     expect(
+      await h.as(manager).updateRubricDraft({
+        rubricId: essay.rubric.id,
+        criteria: [{ ...CRITERIA[0]!, weight: 100 }],
+      })
+    ).toEqual({ ok: false, error: "rubric_locked_by_judging" });
+    expect(
       await h.as(manager).publishRubric({ rubricId: essay.rubric.id })
     ).toEqual({ ok: false, error: "rubric_locked_by_judging" });
+    expect(
+      await h.as(manager).publishRubric({
+        rubricId: essay.rubric.id,
+        criteria: [{ ...CRITERIA[0]!, weight: 100 }],
+      })
+    ).toEqual({ ok: false, error: "rubric_locked_by_judging" });
+    expect(await criteriaRows(h, essay.rubric.id)).toEqual(CRITERIA);
     expect(
       await h.as(manager).startRubricRevision({ rubricId: drawing.id })
     ).toEqual({ ok: false, error: "rubric_locked_by_judging" });
@@ -538,6 +634,8 @@ describe("who may manage rubrics", () => {
         .updateRubricDraft({ rubricId: ids.draftId, criteria: CRITERIA }),
     publishRubric: (h: Harness, actor: Actor, ids: Ids) =>
       h.as(actor).publishRubric({ rubricId: ids.draftId }),
+    "publishRubric, saving criteria": (h: Harness, actor: Actor, ids: Ids) =>
+      h.as(actor).publishRubric({ rubricId: ids.draftId, criteria: CRITERIA }),
     startRubricRevision: (h: Harness, actor: Actor, ids: Ids) =>
       h.as(actor).startRubricRevision({ rubricId: ids.publishedId }),
   };

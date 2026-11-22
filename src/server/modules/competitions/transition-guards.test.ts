@@ -1,5 +1,10 @@
 import { asc, eq } from "drizzle-orm";
+import { createFormatter, createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
+
+import adminRubrics from "../../../../messages/en-IN/adminRubrics.json";
+import competitionStatus from "../../../../messages/en-IN/competitionStatus.json";
+import { formats, LOCALE } from "@/i18n/formats";
 
 import type { Actor } from "@/server/actor";
 import { auditLog } from "@/server/db/schema";
@@ -200,6 +205,46 @@ describe("the school-judging guard on the scheduled move", () => {
     }
     expect(noticesTo(h, elsewhere.email)).toEqual([]);
     expect(await h.as(elsewhere.actor).listInbox()).toEqual([]);
+  });
+
+  it("words the notice from messages/en-IN, naming disciplines as the rubrics page does", async () => {
+    const { h, global, competitionId } = await setUp({}, [
+      "drawing",
+      "painting",
+      "essay",
+    ]);
+    await publishRubric(h, global.actor, competitionId, "painting");
+
+    h.clock.set(SUBMISSIONS_CLOSE);
+    await h.drain();
+
+    // FOA reviews this copy and staff can change it: it lives with the
+    // rest of the copy, not in server code.
+    const status = createTranslator({
+      locale: LOCALE,
+      messages: competitionStatus,
+      namespace: "competitionStatus",
+    });
+    const discipline = createTranslator({
+      locale: LOCALE,
+      messages: adminRubrics,
+      namespace: "adminRubrics.disciplines",
+    });
+    const format = createFormatter({ locale: LOCALE, formats });
+    const missing = format.list(
+      [discipline("drawing"), discipline("essay")],
+      "and"
+    );
+    const [email] = noticesTo(h, global.email);
+    expect(email?.subject).toContain(
+      `can't move to ${status("inSentence.school_judging")} yet`
+    );
+    expect(email?.text).toContain(
+      status("blockReason.rubrics_missing", { disciplines: missing })
+    );
+    expect(email?.text).toContain(
+      "These disciplines have no published rubric yet: Drawing and Essay."
+    );
   });
 
   it("guards an individuals-only competition the same way", async () => {
