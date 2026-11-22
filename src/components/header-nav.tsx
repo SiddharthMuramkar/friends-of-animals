@@ -83,9 +83,13 @@ export function MobileMenuView({
   pathname: string | null;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const previousPathname = useRef(pathname);
   const close = () => dialog.current?.close();
 
   useEffect(() => {
+    // The native command can open the dialog before this effect first runs.
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
     dialog.current?.close();
   }, [pathname]);
 
