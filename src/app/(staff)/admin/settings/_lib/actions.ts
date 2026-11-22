@@ -1,14 +1,16 @@
 "use server";
 
 import { getTranslations } from "next-intl/server";
-import { refresh } from "next/cache";
+import { refresh, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
+import { tagsToRefreshForSetting } from "@/server/modules/cms/domain/org-facts";
 import {
   isSettingKey,
+  type SettingInput,
   SETTINGS,
   settingValueFromForm,
 } from "@/server/modules/settings";
@@ -25,7 +27,7 @@ export type SettingFormView = SettingFormState & { message?: string };
 
 async function withMessage(
   state: SettingFormState,
-  kind: "boolean" | "integer"
+  kind: SettingInput["kind"]
 ): Promise<SettingFormView> {
   const t = await getTranslations("adminSettings");
   switch (state.status) {
@@ -41,7 +43,9 @@ async function withMessage(
           ? t("errors.too_small", { min: problem.min })
           : problem.reason === "too_big"
             ? t("errors.too_big", { max: problem.max })
-            : t("errors.wrong_type", { kind });
+            : problem.reason === "too_long"
+              ? t("errors.too_long", { maxLength: problem.maxLength })
+              : t("errors.wrong_type", { kind });
       return { ...state, message };
     }
     case "refused":
@@ -85,6 +89,10 @@ export async function changeSettingAction(
       console.error("changeSettingAction:", errorSummaryForLogs(error));
     }
   }
-  if (state.status === "saved") refresh();
+  if (state.status === "saved") {
+    // The tax facts show on public pages through one cached read (#111).
+    if (known) for (const tag of tagsToRefreshForSetting(known)) updateTag(tag);
+    refresh();
+  }
   return withMessage(state, kind);
 }

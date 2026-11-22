@@ -26,7 +26,7 @@ const DEPLOYED_APP_ENVS = ["preview", "staging", "production"] as const;
 const APP_ENVS = ["local", ...DEPLOYED_APP_ENVS] as const;
 
 /** What APP_URL is when it is unset on a local run. */
-const LOCAL_APP_URL = "http://localhost:3000";
+export const LOCAL_APP_URL = "http://localhost:3000";
 
 /** Set to "1" by Vercel, at build time and at runtime. */
 const vercel = z.string().optional();
@@ -102,7 +102,7 @@ function secret() {
  * A field-encryption key variable, checked with its own parser. The parser's
  * message names the problem, never the key.
  */
-function fieldKey(parse: (value: string) => unknown) {
+export function fieldKey(parse: (value: string) => unknown) {
   return z
     .string()
     .superRefine((value, ctx) => {
@@ -150,6 +150,12 @@ const secretVariables = {
    */
   MSG91_AUTH_KEY: z.string().optional(),
   MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+  /**
+   * The MSG91 id of the DLT-approved coordinator invitation template (#74,
+   * HR-14). Optional: without it, phone invitations fail to send in
+   * production; they stay refused there anyway while `sms.enabled` is off.
+   */
+  MSG91_COORDINATOR_INVITATION_TEMPLATE_ID: z.string().optional(),
 };
 
 /**
@@ -205,6 +211,86 @@ function requireWholeStorageConfig(
       `R2 is half configured. Set ${missing.join(", ")} too, or unset ` +
       "every R2_ variable to run without storage.",
   });
+}
+
+/**
+ * Amazon SES, production's email provider (#57, HR-12): the region, an IAM
+ * key pair allowed to send, the sender, and an optional configuration set.
+ * Key id, secret and sender come together or not at all: without them
+ * production refuses to send email (src/server/ports/email-sender-for.ts),
+ * and other environments never call SES whatever is set. Messages never
+ * repeat a value, since the secret is among them.
+ */
+const sesVariables = {
+  /** An AWS region name; FOA sends from Mumbai. */
+  SES_REGION: z
+    .string()
+    .regex(/^[a-z]{2}(-[a-z]+)+-\d$/, {
+      error: "must be an AWS region name, like ap-south-1",
+    })
+    .default("ap-south-1"),
+  SES_ACCESS_KEY_ID: z
+    .string()
+    .regex(/^[A-Z0-9]{16,128}$/, {
+      error: "must be an AWS access key id: 16 or more of A-Z and 0-9",
+    })
+    .optional(),
+  SES_SECRET_ACCESS_KEY: z.string().optional(),
+  /** "Friends of Animals <no-reply@friendsofanimals.dev>", or just the address. */
+  SES_FROM: z
+    .string()
+    .regex(
+      /^(?:[^<>@]*<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/,
+      {
+        error:
+          "must be an email address, or a name and <address>, like " +
+          "Friends of Animals <no-reply@friendsofanimals.dev>",
+      }
+    )
+    .optional(),
+  /** SES's configuration set for event publishing; optional. */
+  SES_CONFIGURATION_SET: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,64}$/, {
+      error: "must be an SES configuration set name: 1-64 of A-Z, 0-9, _ and -",
+    })
+    .optional(),
+  /**
+   * "true" once AWS has moved FOA's SES account out of the sandbox, so it
+   * may send to any address. Until then email sign-in stays off in
+   * production even with the keys set (DECISIONS R-27).
+   */
+  SES_PRODUCTION_ACCESS: z
+    .enum(["true", "false"], { error: 'must be "true" or "false"' })
+    .default("false")
+    .transform((value) => value === "true"),
+};
+
+const SES_VARIABLES = [
+  "SES_ACCESS_KEY_ID",
+  "SES_SECRET_ACCESS_KEY",
+  "SES_FROM",
+] as const;
+
+type SesKeyVariables = Partial<Record<(typeof SES_VARIABLES)[number], string>>;
+
+/** SES's key id, secret and sender come together or not at all. */
+function requireWholeSesConfig(
+  values: SesKeyVariables,
+  ctx: z.RefinementCtx<SesKeyVariables>
+) {
+  const missing = SES_VARIABLES.filter((name) => values[name] === undefined);
+  if (missing.length === 0 || missing.length === SES_VARIABLES.length) return;
+  for (const name of missing) {
+    ctx.issues.push({
+      code: "custom",
+      path: [name],
+      input: undefined,
+      message:
+        `${name} is not set. SES needs ${SES_VARIABLES.join(", ")}: ` +
+        "all three or none (none: production sends no email).",
+    });
+  }
 }
 
 /**
@@ -495,6 +581,7 @@ export const envSchema = z
     ),
     ...secretVariables,
     ...storageVariables,
+    ...sesVariables,
     ...errorTrackingVariables,
     ...scannerVariables,
   })
@@ -504,6 +591,7 @@ export const envSchema = z
   .superRefine(requireAuthSecret, always)
   .superRefine(requireFieldKeys, always)
   .superRefine(requireWholeStorageConfig, always)
+  .superRefine(requireWholeSesConfig, always)
   .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 

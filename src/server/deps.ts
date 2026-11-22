@@ -29,11 +29,19 @@ import type { CookieJar } from "./ports/cookies";
 import { nextCookieJar } from "./ports/cookies-next";
 import type { SmsSender } from "./ports/sms";
 import { smsSenderFor } from "./ports/sms-sender-for";
-import type { Settings } from "./ports/settings";
+import type { SettingKey, SettingValue, Settings } from "./ports/settings";
 import { databaseSettings } from "./modules/settings/read";
 import type { EmailSender } from "./ports/email";
-import { emailSenderFor } from "./ports/email-sender-for";
-import { DEVELOPMENT_AUTH_SECRET } from "./identity/settings";
+import {
+  emailSenderFor,
+  sesConfigOf,
+  type SesVariables,
+} from "./ports/email-sender-for";
+import {
+  CODE_REQUEST_LIMITS,
+  type CodeRequestLimits,
+  DEVELOPMENT_AUTH_SECRET,
+} from "./identity/settings";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
 import {
   diskStorage,
@@ -47,6 +55,15 @@ import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { localScanner } from "./ports/malware-scanner-local";
 import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
 import { serverErrorReporter } from "./observability/server-reporter";
+import type { HumanCheck } from "./ports/human-check";
+import {
+  HUMAN_CHECK_DIFFICULTY,
+  proofOfWorkHumanCheck,
+} from "./modules/public-forms/proof-of-work-check";
+import {
+  CONTACT_RATE_LIMITS,
+  type ContactRateLimits,
+} from "./modules/contact/domain/submission";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -73,6 +90,12 @@ export interface Deps extends DbWithClock {
   scanner: MalwareScanner;
   /** Processes derivatives on the media queue in worker-media. */
   media: MediaProcessor;
+  /** The human check on public forms (proof of work, signed by the secret). */
+  humanCheck: HumanCheck;
+  /** The contact form's limits per IP and per address. */
+  contactLimits: ContactRateLimits;
+  /** The sign-in code limits per address or phone, and per IP. */
+  codeRequestLimits: CodeRequestLimits;
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
@@ -184,34 +207,106 @@ export function scannerFor(
   return malwareScannerFor(env);
 }
 
+/**
+ * Whether sign-in by emailed code can work here. Every environment but
+ * production captures email, so it can. Production needs SES configured
+ * and out of its sandbox (SES_PRODUCTION_ACCESS, set by infra once AWS
+ * approves): in the sandbox SES only sends to verified addresses, so a
+ * new visitor's code would never arrive (DECISIONS R-27, HR-12).
+ */
+export function emailSignInReady(
+  env: SesVariables & {
+    APP_ENV: Env["APP_ENV"];
+    SES_PRODUCTION_ACCESS: boolean;
+  }
+): boolean {
+  if (env.APP_ENV !== "production") return true;
+  return sesConfigOf(env) !== null && env.SES_PRODUCTION_ACCESS;
+}
+
+/**
+ * The runtime settings use cases read: `settings`, except that email
+ * sign-in (`auth.emailSignIn`) stays off while it can't work here, however
+ * it is switched. Switching it off works everywhere.
+ */
+export function settingsFor(
+  settings: Settings,
+  { emailSignInReady: ready }: { emailSignInReady: boolean }
+): Settings {
+  if (ready) return settings;
+  return {
+    async get<K extends SettingKey>(key: K): Promise<SettingValue<K>> {
+      if (key === "auth.emailSignIn") return false as SettingValue<K>;
+      return settings.get(key);
+    },
+  };
+}
+
+/**
+ * The contact form's limits until #62's settings hold them (HR-51). Local
+ * runs and previews let one IP send many more: every E2E run reaches a
+ * preview from the CI runner's one address.
+ */
+export function contactLimitsFor(appEnv: Env["APP_ENV"]): ContactRateLimits {
+  return appEnv === "local" || appEnv === "preview"
+    ? { ...CONTACT_RATE_LIMITS, perIpPerHour: 100 }
+    : CONTACT_RATE_LIMITS;
+}
+
+/**
+ * The sign-in code limits (HR-19). Local runs and previews let one IP ask
+ * for many more codes: every E2E run asks from the CI runner's one
+ * address, and a shard signs in more than 20 times in 15 minutes.
+ * Staging and production keep FOA's 20.
+ */
+export function codeRequestLimitsFor(
+  appEnv: Env["APP_ENV"]
+): CodeRequestLimits {
+  return appEnv === "local" || appEnv === "preview"
+    ? { ...CODE_REQUEST_LIMITS, perIp: 200 }
+    : CODE_REQUEST_LIMITS;
+}
+
 let production: Deps | undefined;
 
 /** The app's deps, built on first use from `env()`. */
 export function productionDeps(): Deps {
   if (!production) {
     const config = env();
+    const secret = config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET;
     production = {
       db,
       clock: systemClock,
-      email: emailSenderFor(config.APP_ENV, { db, clock: systemClock }),
+      email: emailSenderFor(config.APP_ENV, { db, clock: systemClock }, config),
       sms: smsSenderFor(
         config.APP_ENV,
         { db, clock: systemClock },
         {
           authKey: config.MSG91_AUTH_KEY,
           otpTemplateId: config.MSG91_OTP_TEMPLATE_ID,
+          coordinatorInvitationTemplateId:
+            config.MSG91_COORDINATOR_INVITATION_TEMPLATE_ID,
         }
       ),
       cookies: nextCookieJar,
       auth: {
-        secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
+        secret,
         baseUrl: config.APP_URL,
       },
       ...fieldCryptoFor(config),
       storage: storageFor(config),
       files: filesConfigFor(config),
-      // The settings table, read on every call (#62).
-      settings: databaseSettings(db),
+      // The settings table, read on every call (#62), with email sign-in
+      // held off until SES can send it (R-27).
+      settings: settingsFor(databaseSettings(db), {
+        emailSignInReady: emailSignInReady(config),
+      }),
+      humanCheck: proofOfWorkHumanCheck({
+        secret,
+        difficulty: HUMAN_CHECK_DIFFICULTY,
+      }),
+      contactLimits: contactLimitsFor(config.APP_ENV),
+      codeRequestLimits: codeRequestLimitsFor(config.APP_ENV),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
       scanner: scannerFor(config),

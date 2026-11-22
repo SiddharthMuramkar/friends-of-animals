@@ -26,7 +26,30 @@ export const APP_ROUTES = {
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
   adminTemplates: "/admin/templates",
+  institutionRegister: "/institutions/register",
+  myInstitution: "/institution",
+  adminInstitutions: "/admin/institutions",
+  institutionCoordinators: "/institution/coordinators",
+  adminInbox: "/admin/inbox",
+  adminSafeguarding: "/admin/safeguarding",
+  adminBlog: "/admin/blog",
+  adminNewBlogPost: "/admin/blog/new",
 } as const;
+
+/** A competition's judging guide, for the institutions taking part (#88). */
+export function judgingGuidePath(competitionCode: string): string {
+  return `/institution/competitions/${encodeURIComponent(competitionCode)}/judging-guide`;
+}
+
+/** One institution's page in the admin area. */
+export function adminInstitutionPath(institutionId: string): string {
+  return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
+}
+
+/** One post's editor in the admin area (#112). */
+export function adminBlogPostPath(postId: string): string {
+  return `${APP_ROUTES.adminBlog}/${encodeURIComponent(postId)}`;
+}
 
 /**
  * Pages behind sign-in whose path has a dynamic segment, written as in the
@@ -36,7 +59,29 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
   "/admin/templates/[key]",
+  "/admin/institutions/[id]",
+  "/admin/inbox/[id]",
+  "/admin/safeguarding/[id]",
+  "/admin/blog/[id]",
+  "/admin/competitions/[id]/rubrics",
+  "/admin/competitions/[id]/rubrics/[discipline]",
+  "/institution/competitions/[code]/judging-guide",
 ] as const;
+
+/**
+ * Where coordinator invitations' pages live (#74). Each path carries its
+ * link token, the bearer credential, so analytics leaves the whole prefix
+ * out (src/lib/analytics/umami.ts).
+ */
+export const INVITATIONS_PREFIX = "/invitations";
+
+/**
+ * A coordinator invitation's page. Anyone holding the link can open it
+ * (it is the bearer of the invitation), so it is not behind sign-in.
+ */
+export function invitationPath(token: string): string {
+  return `${INVITATIONS_PREFIX}/${encodeURIComponent(token)}`;
+}
 
 /**
  * Path prefixes that need a signed-in user. src/proxy.ts sends visitors
@@ -50,6 +95,8 @@ export const SIGNED_IN_PREFIXES = [
   "/admin",
   "/auth",
   "/dashboard",
+  "/institution",
+  "/institutions/register",
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

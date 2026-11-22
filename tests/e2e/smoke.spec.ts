@@ -3,14 +3,16 @@ import { expect, test } from "@playwright/test";
 import { expectRendersAccessibly } from "./support/a11y";
 
 // M0 smoke journey (#56): the existing public pages render, and axe finds
-// nothing on any of them, the illustrated ones included.
+// nothing on any of them, the illustrated ones included. /, /about and
+// /impact show CMS documents (#111).
 
 for (const path of [
   "/",
+  "/about",
+  "/impact",
   "/donate",
   "/safeguarding",
   "/awareness",
-  "/about",
   "/credits",
   "/blog",
   "/blog/the-stork-that-gets-a-baby-shower",

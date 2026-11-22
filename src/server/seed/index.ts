@@ -9,12 +9,18 @@
 
 import { seedAccess } from "./access";
 import { seedFunctions } from "./builders";
+import { seedCoordinators } from "./coordinators";
 import { seedCompetitions } from "./competitions";
 import { seedCms } from "./cms";
 import { seedConsent } from "./consent";
+import { seedContact } from "./contact";
 import { seedFiles } from "./files";
 import { seedIdentity } from "./identity";
+import { seedJudging } from "./judging";
+import { seedSafeguarding } from "./safeguarding";
+import { seedInstitutions } from "./institutions";
 import { seedNotifications } from "./notifications";
+import { seedPosts } from "./posts";
 import { seedSecondFactor } from "./second-factor";
 import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
@@ -30,12 +36,19 @@ const seeders: readonly Seeder[] = [
   seedIdentity,
   seedAccess,
   seedCompetitions,
+  seedJudging,
   seedConsent,
   seedFiles,
   seedSecondFactor,
   seedSettings,
+  seedSafeguarding,
+  seedInstitutions,
+  // After the institutions seed: it needs the verified institution.
+  seedCoordinators,
   seedNotifications,
+  seedContact,
   seedCms,
+  seedPosts,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);

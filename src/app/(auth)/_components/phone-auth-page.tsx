@@ -10,13 +10,15 @@ import { as, currentActor } from "@/server/app";
 
 import { phoneCodeAction } from "../_lib/phone-actions";
 import { CodeForm } from "./code-form";
+import { EmailOffCallout } from "./email-off-callout";
 import { SmsOffCallout } from "./sms-off-callout";
 
 type Intent = "sign-up" | "sign-in";
 
 /**
  * The phone sign-up and sign-in pages: a heading, then the phone form, or
- * while SMS is switched off a note that codes come by email. Whether SMS
+ * while SMS is switched off a note that codes come by email (or that
+ * sign-in opens soon, while email is off too). Whether SMS
  * is on is read per request, so that part streams in behind a boundary
  * while the heading is prerendered.
  */
@@ -59,6 +61,10 @@ async function PhoneMethod({ intent }: { intent: Intent }) {
   ]);
   const email = intent === "sign-up" ? ROUTES.signUp : ROUTES.signIn;
 
+  // With email off too, there is no way in yet: sign-in opens soon.
+  if (!methods.phone && !methods.email) {
+    return <EmailOffCallout intent={intent} className="mt-8 max-w-xl" />;
+  }
   if (!methods.phone) {
     return <SmsOffCallout intent={intent} className="mt-8 max-w-xl" />;
   }

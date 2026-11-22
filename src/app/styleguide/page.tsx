@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { EmailOffCallout } from "@/app/(auth)/_components/email-off-callout";
 import { SmsOffCallout } from "@/app/(auth)/_components/sms-off-callout";
 import { AiMark } from "@/components/art/ai-mark";
 import { ArtFigure } from "@/components/art/art-figure";
@@ -36,7 +37,8 @@ import { COMPETITION_STATUSES } from "@/content/sample/model";
 import { STORIES } from "@/content/stories";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isSampleContentEnabled, SITE } from "@/lib/site";
+import { isSampleContentEnabled } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -447,6 +449,9 @@ export default async function Page() {
           {/* What staging and production show on the phone pages until
               DLT approval; here, axe checks it in every E2E run. */}
           <SmsOffCallout intent="sign-in" className="max-w-xl" />
+          {/* What production's sign-in pages show until SES can send to
+              anyone (DECISIONS R-27). */}
+          <EmailOffCallout intent="sign-in" className="mt-4 max-w-xl" />
         </Sub>
         <Sub title={t("primitives.disclosure")}>
           <Disclosure
@@ -457,7 +462,9 @@ export default async function Page() {
           </Disclosure>
         </Sub>
         <Sub title={t("primitives.placeholder")}>
-          <Placeholder fact={SITE.org.email} />
+          <WithOrgFacts>
+            {(facts) => <Placeholder fact={facts.email} />}
+          </WithOrgFacts>
         </Sub>
         <Sub title={t("primitives.headings")}>
           <SectionHeading

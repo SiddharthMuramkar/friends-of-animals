@@ -51,6 +51,17 @@ describe("parseSettingValue", () => {
     });
   });
 
+  it("trims a text setting, and takes empty as not set yet", () => {
+    expect(parseSettingValue("org.pan", " AAAAA0000A ")).toEqual({
+      ok: true,
+      value: "AAAAA0000A",
+    });
+    expect(parseSettingValue("org.legalName", "")).toEqual({
+      ok: true,
+      value: "",
+    });
+  });
+
   it.each([
     ["sms.enabled", "yes", { reason: "wrong_type" }],
     ["sms.enabled", null, { reason: "wrong_type" }],
@@ -58,6 +69,8 @@ describe("parseSettingValue", () => {
     ["auth.staffSessionHours", 1.5, { reason: "wrong_type" }],
     ["auth.staffSessionHours", 0, { reason: "too_small", min: 1 }],
     ["auth.staffSessionHours", 25, { reason: "too_big", max: 24 }],
+    ["org.pan", "AAAAA0000AB", { reason: "too_long", maxLength: 10 }],
+    ["org.legalName", 42, { reason: "wrong_type" }],
   ] as const)("refuses %s = %j with %j", (key, raw, problem) => {
     expect(parseSettingValue(key, raw)).toEqual({
       ok: false,
@@ -130,11 +143,17 @@ describe("resolveAllSettings", () => {
       resolved.map(({ key, value, source }) => [key, value, source])
     ).toEqual([
       ["auth.staffSessionHours", 12, "default"],
+      ["auth.emailSignIn", true, "default"],
       ["sms.enabled", false, "default"],
       ["sms.maxPerHour", 200, "default"],
       ["sms.maxPerDay", 1000, "default"],
       ["org.has80G", true, "stored"],
       ["org.fcraEnabled", false, "default"],
+      ["org.legalName", "", "default"],
+      ["org.registrationType", "", "default"],
+      ["org.registrationNumber", "", "default"],
+      ["org.pan", "", "default"],
+      ["safeguarding.reportsPerIpPerHour", 10, "default"],
     ]);
   });
 });

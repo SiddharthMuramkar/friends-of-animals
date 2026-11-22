@@ -25,5 +25,9 @@ export const config = {
     "/auth/:path*",
     "/dashboard",
     "/dashboard/:path*",
+    "/institution",
+    "/institution/:path*",
+    "/institutions/register",
+    "/institutions/register/:path*",
   ],
 };

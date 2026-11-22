@@ -18,6 +18,7 @@ import { type TileHue, TileMarker } from "@/components/site/tile";
 import { siteUrl } from "@/env";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { isFactShown, SITE } from "@/lib/site";
 
 import { EasyRead } from "@/components/site/easy-read";
@@ -47,17 +48,6 @@ const CANT = ["tax", "foreign", "minors", "rescue"] as const;
 export default async function Page() {
   const t = await getTranslations("donate");
   const tc = await getTranslations("competitions");
-  const { legalName, registration, email } = SITE.org;
-  // Production leaves out unconfirmed facts with their labels, and the
-  // card once none is left.
-  const legit = (
-    [
-      ["registeredName", legalName],
-      ["registration", registration.type],
-      ["registrationNumber", registration.number],
-      ["pan", registration.pan],
-    ] as const
-  ).filter(([, fact]) => isFactShown(fact));
   const base = siteUrl();
 
   return (
@@ -200,28 +190,42 @@ export default async function Page() {
               ))}
             </ul>
           </div>
-          {legit.length > 0 ? (
-            <div>
-              <h2 className="text-(--section-heading,var(--ink))">
-                {t("legit.title")}
-              </h2>
-              <p className="mt-4 text-ink-muted">{t("legit.lead")}</p>
-              <dl className="mt-6 grid grid-cols-1 items-center gap-x-5 gap-y-1 rounded-3xl sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-y-3 border-2 border-border bg-surface p-5 sm:p-6">
-                {legit.map(([label, fact]) => (
-                  <Fragment key={label}>
-                    <dt className="font-semibold">{t(`legit.${label}`)}</dt>
-                    <dd className="mb-2 sm:mb-0">
-                      <Placeholder fact={fact} />
-                    </dd>
-                  </Fragment>
-                ))}
-              </dl>
-              <Callout tone="warning" className="mt-6">
-                <p>{t("legit.honest")}</p>
-              </Callout>
-              <p className="mt-4 text-ink-muted">{t("legit.publish")}</p>
-            </div>
-          ) : null}
+          <WithOrgFacts>
+            {(facts) => {
+              // Production leaves out unconfirmed facts with their labels,
+              // and the card once none is left.
+              const legit = (
+                [
+                  ["registeredName", facts.legalName],
+                  ["registration", facts.registration.type],
+                  ["registrationNumber", facts.registration.number],
+                  ["pan", facts.registration.pan],
+                ] as const
+              ).filter(([, fact]) => isFactShown(fact));
+              return legit.length > 0 ? (
+                <div>
+                  <h2 className="text-(--section-heading,var(--ink))">
+                    {t("legit.title")}
+                  </h2>
+                  <p className="mt-4 text-ink-muted">{t("legit.lead")}</p>
+                  <dl className="mt-6 grid grid-cols-1 items-center gap-x-5 gap-y-1 rounded-3xl sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-y-3 border-2 border-border bg-surface p-5 sm:p-6">
+                    {legit.map(([label, fact]) => (
+                      <Fragment key={label}>
+                        <dt className="font-semibold">{t(`legit.${label}`)}</dt>
+                        <dd className="mb-2 sm:mb-0">
+                          <Placeholder fact={fact} />
+                        </dd>
+                      </Fragment>
+                    ))}
+                  </dl>
+                  <Callout tone="warning" className="mt-6">
+                    <p>{t("legit.honest")}</p>
+                  </Callout>
+                  <p className="mt-4 text-ink-muted">{t("legit.publish")}</p>
+                </div>
+              ) : null;
+            }}
+          </WithOrgFacts>
         </div>
       </Section>
 
@@ -238,12 +242,16 @@ export default async function Page() {
               {t("csr.title")}
             </h2>
             <p className="mt-3 text-ink-muted">{t("csr.body")}</p>
-            {isFactShown(email) ? (
-              <p className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="font-semibold">{t("csr.email")}</span>
-                <ContactFact kind="email" fact={email} />
-              </p>
-            ) : null}
+            <WithOrgFacts>
+              {({ email }) =>
+                isFactShown(email) ? (
+                  <p className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">{t("csr.email")}</span>
+                    <ContactFact kind="email" fact={email} />
+                  </p>
+                ) : null
+              }
+            </WithOrgFacts>
             <ButtonLink
               href={ROUTES.contact.path}
               variant="secondary"

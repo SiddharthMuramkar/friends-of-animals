@@ -21,7 +21,9 @@ export type Msg91Config = {
    * MSG91's template id for each configured FOA template. A `message`
    * brings its own (SmsMessage.dltTemplateId).
    */
-  templates: Record<Exclude<SmsTemplate, "message">, string>;
+  templates: Partial<
+    Record<Exclude<SmsTemplate, "message">, string | undefined>
+  >;
 };
 
 /**

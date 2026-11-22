@@ -98,6 +98,26 @@ A keyed fingerprint kept beside an Encrypted field, so the platform can find a
 record by that value (a User by phone at sign-in) without storing it readably.
 _Avoid_: Phone hash, lookup hash
 
+## Safeguarding
+
+**Safeguarding report**:
+A concern about a child's safety that anyone sends through the public report
+form, with or without an account and with or without their name. What it says
+is held in Encrypted fields, and only a Safeguarding lead can read it.
+_Avoid_: Ticket, complaint, case
+
+**Safeguarding lead**:
+The Role held by FOA's designated safeguarding lead and their deputy: the only
+people who can read and handle Safeguarding reports. No other Role can, super
+admins included.
+_Avoid_: DSL (in code), safeguarding admin
+
+**Incident log**:
+Everything done on one Safeguarding report, in order: each move through its
+statuses and each note a Safeguarding lead adds. Nobody can edit or delete an
+entry.
+_Avoid_: Case notes, report history
+
 ## Operations
 
 **Setting**:
@@ -169,6 +189,18 @@ A content manager seeing a public page with its Draft in place of the
 published Revision, under a "Draft preview" status, until they leave it.
 Everyone else sees the published Revision.
 _Avoid_: Staging, preview deployment (a preview deployment is a whole site)
+
+**Post**:
+A blog post or a story: an article a content manager writes, with its own
+web address, cover and images. It is a Draft until it is published, now or
+at a scheduled instant, and leaves the public site only by being archived.
+_Avoid_: Article (alone), entry, page
+
+**Public copy**:
+A resized Derivative of a Post's image, copied to the public bucket so the
+public site can show it without signing. The original upload is never
+copied there.
+_Avoid_: Public URL, CDN image, original
 
 **Photo**:
 A real photograph on the public site, from a free licence, credited on the
@@ -284,6 +316,40 @@ Work the platform does on a timetable rather than in answer to one change,
 such as a reminder sweep, a status flip at a deadline or a retention purge.
 Previews never run them.
 _Avoid_: Cron job, recurring task
+
+**Status job**:
+An event held back until one of a published competition's key dates, which
+then moves the competition's status on (registration open, then closed, then
+school judging) and records the move as done by the system. Editing the date
+saves a new one; the old one finds its date has moved and does nothing. Unlike
+a Scheduled job, it is tied to one competition and one instant.
+_Avoid_: Status cron, status tick
+
+**Guard**:
+A condition on one move of a competition's status, such as "every enabled
+discipline has a published Rubric" before school judging. A Status job makes
+the move only while its guards pass.
+_Avoid_: Precondition, check, gate
+
+**Refused move**:
+A scheduled move a Guard held back: the competition stays where it is, its
+competition managers are told once, and the move is tried again after the
+events the Guard names. It is resolved when a later attempt makes the move.
+_Avoid_: Blocked flip, failed transition
+
+## Judging
+
+**Rubric**:
+The criteria judges score one discipline of a competition by, each with its
+weight and score range. It is a draft until a competition manager publishes
+it; a published one never changes, and a revision is a new version that
+replaces it when published.
+_Avoid_: Scorecard, marking scheme
+
+**Judging guide**:
+What a coordinator of a registered institution reads before their school
+round: FOA's judging framework and the published Rubric of each discipline.
+_Avoid_: Judging kit, rules
 
 ## Files
 

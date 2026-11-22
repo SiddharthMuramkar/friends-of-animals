@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import type { E164Phone } from "@/lib/phone";
+import { createApp } from "@/server/app";
 import { fieldCryptoFor } from "@/server/crypto/keys";
 import type { AppDb } from "@/server/db/app-db";
 import {
@@ -33,6 +34,7 @@ import { FakeMediaProcessor } from "@/test/fakes/media";
 import { FakeStorage } from "@/test/fakes/storage";
 import { createHarness, type Harness } from "@/test/harness";
 import { readMediaFixture } from "@/test/media-fixtures";
+import { seedInstitution } from "@/test/institutions";
 
 import type { WorkerConfig } from "./config";
 import type { WorkerLogEntry } from "./log";
@@ -51,6 +53,9 @@ const COMMON = {
   sentryDsn: undefined,
   r2: undefined,
   clamd: { CLAMD_PORT: 3310 },
+  siteUrl: undefined,
+  fieldEncryptionKeys: undefined,
+  fieldHmacKey: undefined,
 } as const;
 
 function singleConfig(
@@ -247,6 +252,25 @@ describe("a single-database worker", () => {
     ]);
     expect(record.opened).toEqual([{ url: DB_URL, connections: 1 }]);
     expect(record.beats).toEqual([io.clock.now()]);
+  });
+
+  it("sends to a member without a phone though it holds no field keys", async () => {
+    // #69's dispatcher reads phone numbers with the field cipher. A staging
+    // worker has no keys of its own yet, so its cipher refuses, but only
+    // when a delivery needs a phone; the welcome email still goes.
+    const h = await createHarness();
+    const member = await h.seed.member();
+    await emitUserSignedUp(h, member.id);
+    const { io } = fakeIo({ foa: h.db });
+
+    const worker = createWorker(singleConfig("staging"), io);
+    await worker.start();
+    await worker.tick();
+
+    const captured = await h.db.select().from(capturedMessage);
+    expect(captured.map((m) => [m.toAddress, m.subject])).toEqual([
+      [member.email, "Welcome to Friends of Animals"],
+    ]);
   });
 
   it("registers the schedules with pg-boss on its database", async () => {
@@ -600,5 +624,85 @@ describe("worker-media", () => {
     expect(await statuses()).toEqual(["done", "done"]);
     expect(record.beats).toHaveLength(2);
     await worker.stop();
+  });
+});
+
+describe("a worker delivering a coordinator invitation (#74)", () => {
+  const TEACHER = "t@school.test";
+  const KEYS = {
+    fieldEncryptionKeys: `1:${Buffer.alloc(32, 7).toString("base64")}`,
+    fieldHmacKey: Buffer.alloc(32, 9).toString("base64"),
+  };
+
+  /** An invitation stored under the worker's keys, as its app stores it. */
+  async function invite(h: Harness) {
+    const { institution, admin } = await seedInstitution(h, {
+      name: "Green Valley School",
+    });
+    const actor = await h.signIn(admin);
+    const app = createApp({
+      ...h.deps,
+      ...fieldCryptoFor({
+        APP_ENV: "staging",
+        FIELD_ENCRYPTION_KEYS: KEYS.fieldEncryptionKeys,
+        FIELD_HMAC_KEY: KEYS.fieldHmacKey,
+      }),
+    });
+    const result = await app.as(actor).inviteCoordinator({
+      institutionId: institution.id,
+      identifier: TEACHER,
+    });
+    expect(result.ok).toBe(true);
+  }
+
+  async function capturedFor(h: Harness, address: string) {
+    return h.db
+      .select()
+      .from(capturedMessage)
+      .where(eq(capturedMessage.toAddress, address));
+  }
+
+  it("sends its link under APP_URL, read with the worker's field keys", async () => {
+    const h = await createHarness();
+    await invite(h);
+    const { io } = fakeIo({ foa: h.db });
+
+    const worker = createWorker(
+      {
+        ...singleConfig("staging"),
+        ...KEYS,
+        siteUrl: "https://staging.foa.test",
+      },
+      io
+    );
+    await worker.start();
+    await worker.tick();
+
+    const [message, ...more] = await capturedFor(h, TEACHER);
+    expect(more).toEqual([]);
+    expect(message?.subject).toBe(
+      "Join Green Valley School as a coordinator on Friends of Animals"
+    );
+    expect(message?.bodyText).toMatch(
+      /\nhttps:\/\/staging\.foa\.test\/invitations\/[A-Za-z0-9_-]{43}\n/
+    );
+  });
+
+  it("keeps it waiting, to retry, while the worker has no APP_URL or keys", async () => {
+    const h = await createHarness();
+    await invite(h);
+    const { io } = fakeIo({ foa: h.db });
+
+    const worker = createWorker(singleConfig("staging"), io);
+    await worker.start();
+    await worker.tick();
+
+    expect(await capturedFor(h, TEACHER)).toEqual([]);
+    const [delivery] = await h.db
+      .select()
+      .from(outbox)
+      .where(eq(outbox.handler, "institutions.send_coordinator_invitation"));
+    expect(delivery).toMatchObject({ status: "pending", attempts: 1 });
+    expect(delivery?.lastError).not.toContain(TEACHER);
   });
 });

@@ -13,6 +13,7 @@ import PricingPage from "@/app/pricing/page";
 import RefundsPage from "@/app/refunds/page";
 import SchoolsPage from "@/app/schools/page";
 import { messages } from "@/i18n/messages";
+import { pageKind } from "@/server/modules/cms/kinds/page";
 import { renderHtml, visibleText } from "@/test/render";
 
 // The owner's decision of 2026-11-21: production ships without the
@@ -171,14 +172,15 @@ describe("policy pages in production", () => {
     );
   });
 
-  it("/safeguarding drops the email and phone clause and the line pointing at them", async () => {
+  it("/safeguarding drops the email and phone clause and points at the report form", async () => {
     const text = visibleText(await render(SafeguardingPage, "production"));
     expect(text).toContain(
-      "If a child is in danger now, call 112 first. Then tell us.You don’t have to give your name"
+      "If a child is in danger now, call 112 first. Then tell us through our report form. It works without an account, and you can stay anonymous.You don’t have to give your name"
     );
     expect(text).toContain(
-      "We are building a form that works without an account and lets you stay anonymous.Child protection policy"
+      "Only our safeguarding lead reads what you send.Report a concern"
     );
+    expect(text).not.toContain("You can also write to");
     expect(text).not.toContain("email or phone above");
   });
 
@@ -211,7 +213,7 @@ describe("other pages in production", () => {
     expect(html).not.toMatch(
       wholeText(messages.about.transparency.registration)
     );
-    expect(visibleText(html)).toContain(messages.about.transparency.title);
+    expect(visibleText(html)).toContain(pageKind.seedBody().transparency.title);
   });
 
   it("/pricing leaves out the fee column but keeps who pays on each route", async () => {

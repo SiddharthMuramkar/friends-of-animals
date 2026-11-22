@@ -26,6 +26,9 @@ import { createFieldCipher } from "@/server/crypto/field-cipher";
 import * as schema from "@/server/db/schema";
 import { session } from "@/server/db/schema";
 import type { Deps } from "@/server/deps";
+import { CONTACT_RATE_LIMITS } from "@/server/modules/contact/domain/submission";
+import { CODE_REQUEST_LIMITS } from "@/server/identity/settings";
+import { proofOfWorkHumanCheck } from "@/server/modules/public-forms/proof-of-work-check";
 import { stampSession } from "@/server/modules/second-factor/session-factor";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 import { notLocal } from "@/server/seed/target";
@@ -38,7 +41,7 @@ import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakeMediaProcessor } from "./fakes/media";
 import { FakeSms } from "./fakes/sms";
 import { FakeStorage } from "./fakes/storage";
-import { TEST_AUTH, TEST_FILES } from "./harness";
+import { TEST_AUTH, TEST_FILES, TEST_HUMAN_CHECK_DIFFICULTY } from "./harness";
 import { TestSettings } from "./settings";
 
 /** The test database's URL; refuses one that isn't on this machine. */
@@ -87,6 +90,12 @@ export function createPgWorld() {
     errors: new FakeErrorReporter(),
     scanner: new FakeMalwareScanner(),
     media: new FakeMediaProcessor(),
+    humanCheck: proofOfWorkHumanCheck({
+      secret: TEST_AUTH.secret,
+      difficulty: TEST_HUMAN_CHECK_DIFFICULTY,
+    }),
+    contactLimits: CONTACT_RATE_LIMITS,
+    codeRequestLimits: CODE_REQUEST_LIMITS,
   };
   const app = createApp(deps);
   const seed: SeedBuilders = createSeedBuilders(deps);

@@ -24,6 +24,7 @@ import {
   type CmsDocumentKey,
 } from "@/server/modules/cms/domain/documents";
 import { legalKind } from "@/server/modules/cms/kinds/legal";
+import { loadShownOrgFacts } from "@/server/modules/cms/org-facts";
 import {
   loadShownDocument,
   type ShownCmsDocument,
@@ -119,16 +120,34 @@ export async function LegalDocument({
       </Section>
 
       <Suspense fallback={repoText}>
-        <Shown cmsKey={key} fallback={repoText}>
-          {(shown) =>
-            shown.body === null
-              ? repoText
-              : body(legalKind.sanitize(shown.body))
-          }
-        </Shown>
+        <ShownText cmsKey={key} doc={doc} render={body} />
       </Suspense>
     </>
   );
+}
+
+/**
+ * The policy text shown now: the published (or, in Draft Mode, the draft)
+ * revision; else the repo's text, its clauses resolved against FOA's
+ * confirmed facts.
+ */
+async function ShownText({
+  cmsKey,
+  doc,
+  render,
+}: {
+  cmsKey: CmsDocumentKey;
+  doc: LegalDoc;
+  render: (text: LegalText) => ReactNode;
+}) {
+  await connection();
+  const [shown, { facts }] = await Promise.all([
+    loadShownDocument(cmsKey),
+    loadShownOrgFacts(),
+  ]);
+  return shown && shown.body !== null
+    ? render(legalKind.sanitize(shown.body))
+    : render(shownLegalDoc(doc, facts));
 }
 
 /**

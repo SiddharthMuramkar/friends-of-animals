@@ -14,6 +14,7 @@ import {
   booleanSetting,
   integerSetting,
   type SettingDefinition,
+  textSetting,
 } from "./definition";
 
 export const SETTINGS = {
@@ -24,6 +25,10 @@ export const SETTINGS = {
     max: 24,
     unit: "hours",
   }),
+  // Sign-in by emailed code (#57). On by default, but production also
+  // needs SES configured and out of its sandbox (src/server/deps.ts,
+  // DECISIONS R-27); until then sign-in says it opens soon.
+  "auth.emailSignIn": booleanSetting({ default: true }),
   // Messages (#58): off until DLT registration through MSG91 (HR-14).
   // Seeded on for local runs and previews, which capture every text.
   "sms.enabled": booleanSetting({ default: false }),
@@ -45,6 +50,21 @@ export const SETTINGS = {
   // under FCRA; they gate tax receipts and foreign donations (M5).
   "org.has80G": booleanSetting({ default: false }),
   "org.fcraEnabled": booleanSetting({ default: false }),
+  // FOA's tax and registration facts (#111): they go on receipts, so a
+  // super admin sets them. Empty until FOA confirms each one (HR-21); the
+  // site shows "To be confirmed" until then, and production leaves it out.
+  "org.legalName": textSetting({ default: "", maxLength: 200 }),
+  "org.registrationType": textSetting({ default: "", maxLength: 100 }),
+  "org.registrationNumber": textSetting({ default: "", maxLength: 50 }),
+  "org.pan": textSetting({ default: "", maxLength: 10 }),
+  // Safeguarding (#116): concern reports one IP may send in an hour before
+  // the form refuses and shows the helplines instead (HR-48).
+  "safeguarding.reportsPerIpPerHour": integerSetting({
+    default: 10,
+    min: 1,
+    max: 100,
+    unit: "reports",
+  }),
 } satisfies Record<string, SettingDefinition<unknown>>;
 
 export type SettingKey = keyof typeof SETTINGS;

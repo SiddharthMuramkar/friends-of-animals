@@ -4,18 +4,27 @@ import { getTranslations } from "next-intl/server";
 import { SiteLink } from "@/components/site/site-link";
 import type { ReactNode } from "react";
 
+import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
 import { Illustration } from "@/components/art/illustration";
 import { ButtonLink } from "@/components/site/button-link";
 import { CONTACT_LINK, ContactFact } from "@/components/site/contact-fact";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
+import { Live } from "@/components/site/live";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
+import { CONTACT_FIELD_LIMITS } from "@/server/modules/contact/domain/limits";
+import { CONTACT_TOPICS } from "@/server/modules/contact/domain/routing";
 import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isFactShown, SITE } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
+import { isFactShown } from "@/lib/site";
+import type { OrgFacts } from "@/server/modules/cms/domain/org-facts";
+import { loadFactsPreview } from "@/server/modules/cms/site-pages";
+
+import { ContactForm } from "./_components/contact-form";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("contact.meta");
@@ -27,15 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** ContactTopic values, in the form's order. */
-const TOPICS = [
-  "GENERAL",
-  "SCHOOLS",
-  "NGOS",
-  "ADOPTION",
-  "VOLUNTEERING",
-  "DONATIONS",
-  "MEDIA",
-] as const;
+const TOPICS = CONTACT_TOPICS;
 
 const LINK =
   "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
@@ -50,75 +51,20 @@ const call = (number: string) => (chunks: ReactNode) => (
 
 export default async function Page() {
   const t = await getTranslations("contact");
-  const { email, phone, address } = SITE.org;
+  const tf = await getTranslations("contactForm");
+  const tc = await getTranslations("common.callout");
   // Production leaves out unconfirmed details with their labels, and the
   // whole "How to reach us" column once none is left.
-  const details = (
-    [
-      { key: "email", icon: Mail, fact: email },
-      { key: "phone", icon: Phone, fact: phone },
-      { key: "address", icon: MapPin, fact: address },
-    ] as const
-  ).filter(({ fact }) => isFactShown(fact));
-
-  return (
-    <>
-      <Section hue="neutral" tone="tint" className="pt-10 sm:pt-14">
-        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
-          <div>
-            <PageHeader
-              eyebrow={t("hero.eyebrow")}
-              tile="blue"
-              title={t("hero.title")}
-              lead={t("hero.lead")}
-            />
-            <aside
-              aria-labelledby="safety-title"
-              className="mt-8 max-w-xl rounded-3xl border-2 border-danger-border bg-danger-bg p-5 sm:p-6"
-            >
-              <h2
-                id="safety-title"
-                className="flex items-center gap-2 font-sans text-lead font-bold text-danger"
-              >
-                <ShieldAlert aria-hidden="true" className="size-6 shrink-0" />
-                {t("safety.title")}
-              </h2>
-              <p className="mt-2 text-ink">
-                {t.rich("safety.body", {
-                  emergency: call("112"),
-                  childline: call("1098"),
-                  cyberLine: call("1930"),
-                  cyberSite: (chunks) => (
-                    <a
-                      href="https://cybercrime.gov.in"
-                      rel="noreferrer"
-                      className={SAFETY_LINE}
-                    >
-                      {chunks}
-                    </a>
-                  ),
-                })}
-              </p>
-              <SiteLink href={ROUTES.safeguarding.path} className={LINK}>
-                {t("safety.link")}
-              </SiteLink>
-            </aside>
-          </div>
-          {/* On phones a half-width print, smaller than the safety note's
-              text, so text stays the LCP element (see /donate). */}
-          <Photo
-            id="dog-thrissur-happy-white"
-            sizes="(min-width: 1024px) min(40vw, 512px), (min-width: 640px) min(92vw, 512px), 46vw"
-            preload
-            frame="blue"
-            frameCorner="top-right"
-            caption={t("hero.photoCaption")}
-            className="aspect-4/3"
-            figureClassName="ml-auto mr-2 w-1/2 rotate-2 sm:mx-auto sm:w-full sm:max-w-lg sm:rotate-0"
-          />
-        </div>
-      </Section>
-
+  const contactSection = (facts: OrgFacts) => {
+    const { email, phone, address } = facts;
+    const details = (
+      [
+        { key: "email", icon: Mail, fact: email },
+        { key: "phone", icon: Phone, fact: phone },
+        { key: "address", icon: MapPin, fact: address },
+      ] as const
+    ).filter(({ fact }) => isFactShown(fact));
+    return (
       <Section
         labelledBy={details.length > 0 ? "details-title" : "topics-title"}
       >
@@ -217,8 +163,116 @@ export default async function Page() {
           </div>
         </div>
       </Section>
+    );
+  };
 
-      <Section hue="neutral" tone="tint" labelledBy="before-title">
+  return (
+    <>
+      <Section hue="neutral" tone="tint" className="pt-10 sm:pt-14">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14">
+          <div>
+            <PageHeader
+              eyebrow={t("hero.eyebrow")}
+              tile="blue"
+              title={t("hero.title")}
+              lead={t("hero.lead")}
+            />
+            {/* Site facts preview here (#111): in Draft Mode, say so. */}
+            <Live fallback={null} load={loadFactsPreview}>
+              {(preview) => (preview ? <CmsDraftPreview {...preview} /> : null)}
+            </Live>
+            <aside
+              aria-labelledby="safety-title"
+              className="mt-8 max-w-xl rounded-3xl border-2 border-danger-border bg-danger-bg p-5 sm:p-6"
+            >
+              <h2
+                id="safety-title"
+                className="flex items-center gap-2 font-sans text-lead font-bold text-danger"
+              >
+                <ShieldAlert aria-hidden="true" className="size-6 shrink-0" />
+                {t("safety.title")}
+              </h2>
+              <p className="mt-2 text-ink">
+                {t.rich("safety.body", {
+                  emergency: call("112"),
+                  childline: call("1098"),
+                  cyberLine: call("1930"),
+                  cyberSite: (chunks) => (
+                    <a
+                      href="https://cybercrime.gov.in"
+                      rel="noreferrer"
+                      className={SAFETY_LINE}
+                    >
+                      {chunks}
+                    </a>
+                  ),
+                })}
+              </p>
+              <SiteLink href={ROUTES.safeguarding.path} className={LINK}>
+                {t("safety.link")}
+              </SiteLink>
+            </aside>
+          </div>
+          {/* On phones a half-width print, smaller than the safety note's
+              text, so text stays the LCP element (see /donate). */}
+          <Photo
+            id="dog-thrissur-happy-white"
+            sizes="(min-width: 1024px) min(40vw, 512px), (min-width: 640px) min(92vw, 512px), 46vw"
+            preload
+            frame="blue"
+            frameCorner="top-right"
+            caption={t("hero.photoCaption")}
+            className="aspect-4/3"
+            figureClassName="ml-auto mr-2 w-1/2 rotate-2 sm:mx-auto sm:w-full sm:max-w-lg sm:rotate-0"
+          />
+        </div>
+      </Section>
+
+      <WithOrgFacts>{(facts) => contactSection(facts)}</WithOrgFacts>
+
+      <Section hue="neutral" tone="tint" labelledBy="form-title">
+        <div className="mx-auto max-w-3xl">
+          <h2 id="form-title" className="text-h3">
+            {tf("title")}
+          </h2>
+          <p className="mt-2 text-ink-muted">{tf("lead")}</p>
+          <div className="mt-8 rounded-3xl border-2 border-border bg-surface p-5 sm:p-8">
+            <ContactForm
+              limits={CONTACT_FIELD_LIMITS}
+              topics={TOPICS.map((value) => ({
+                value,
+                label: t(`topics.items.${value}.title`),
+              }))}
+              labels={{
+                topic: { legend: tf("topic.legend") },
+                safeguarding: {
+                  label: tf("safeguarding.label"),
+                  body: tf("safeguarding.body"),
+                  link: tf("safeguarding.link"),
+                },
+                name: { label: tf("name.label") },
+                email: { label: tf("email.label"), hint: tf("email.hint") },
+                organisation: { label: tf("organisation.label") },
+                subject: { label: tf("subject.label") },
+                message: {
+                  label: tf("message.label"),
+                  hint: tf("message.hint"),
+                },
+                honeypot: tf("honeypot"),
+                privacy: tf("privacy"),
+                privacyLink: tf("privacyLink"),
+                send: tf("send"),
+                sending: tf("sending"),
+                sendAnother: tf("sendAnother"),
+                problem: tc("danger"),
+                done: tc("success"),
+              }}
+            />
+          </div>
+        </div>
+      </Section>
+
+      <Section labelledBy="before-title">
         <h2 id="before-title" className="text-h3">
           {t("policies.title")}
         </h2>

@@ -46,13 +46,13 @@ describe("the competitions seed", () => {
         code: "SKIES26",
         slug: "kinder-skies",
         participation: "institutions",
-        status: "published",
+        status: "school_judging",
       },
       {
         code: "NEIGH27",
         slug: "neighbours-on-my-street",
         participation: "both",
-        status: "published",
+        status: "registration_open",
       },
       {
         code: "WATER27",
@@ -92,14 +92,98 @@ describe("the competitions seed", () => {
     expect(listed.map((c) => c.status).sort()).toEqual([
       "draft",
       "published",
-      "published",
-      "published",
+      "registration_open",
+      "school_judging",
     ]);
     expect(
       await h
         .as(manager)
         .previewCompetition({ competitionId: SEED_SCOPES.competition.id })
     ).toMatchObject({ ok: true, status: "draft", competition: null });
+  });
+
+  it.each(["2026-09-01", "2027-01-15", "2028-04-01"])(
+    "sets key dates that agree with the stored statuses on %s",
+    async (day) => {
+      const now = new Date(`${day}T04:30:00.000Z`);
+      const h = await createHarness({ now });
+      await h.seed.preview();
+      const reader = h.as(h.visitor());
+      const seeded = await reader.listPublishedCompetitions();
+
+      expect(
+        seeded.map(({ status, keyDates }) => ({
+          status,
+          openingPassed: keyDates[0]!.at <= now,
+          closingPassed: keyDates[1]!.at <= now,
+          submissionsClosed: keyDates[2]!.at <= now,
+        }))
+      ).toEqual([
+        {
+          status: "school_judging",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
+        {
+          status: "registration_open",
+          openingPassed: true,
+          closingPassed: false,
+          submissionsClosed: false,
+        },
+        {
+          status: "published",
+          openingPassed: false,
+          closingPassed: false,
+          submissionsClosed: false,
+        },
+      ]);
+
+      await h.drain();
+      await h.seed.preview();
+      expect(await reader.listPublishedCompetitions()).toEqual(seeded);
+    }
+  );
+
+  it("schedules each seeded competition's next move, so a preview's status moves on its own", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    const reader = h.as(h.visitor());
+    const statusOf = async (slug: string) =>
+      (await reader.getPublishedCompetition({ slug }))?.status;
+    const opensOf = async (slug: string, kind: string) =>
+      (await reader.getPublishedCompetition({ slug }))?.keyDates.find(
+        (date) => date.kind === kind
+      )?.at;
+
+    const waterOpens = await opensOf("a-bowl-of-water", "registration_opens");
+    const neighbourCloses = await opensOf(
+      "neighbours-on-my-street",
+      "registration_closes"
+    );
+    if (!waterOpens || !neighbourCloses) throw new Error("dates missing");
+
+    h.clock.set(neighbourCloses);
+    await h.drain();
+    expect(await statusOf("neighbours-on-my-street")).toBe(
+      "registration_closed"
+    );
+    expect(await statusOf("a-bowl-of-water")).toBe("published");
+
+    h.clock.set(waterOpens);
+    await h.drain();
+    expect(await statusOf("a-bowl-of-water")).toBe("registration_open");
+    expect(await statusOf("kinder-skies")).toBe("school_judging");
+
+    // Every one of its rubrics is published (the judging seed, #88).
+    const neighbourSubmissions = await opensOf(
+      "neighbours-on-my-street",
+      "submissions_close"
+    );
+    if (!neighbourSubmissions) throw new Error("dates missing");
+    h.clock.set(neighbourSubmissions);
+    await h.drain();
+    expect(await statusOf("neighbours-on-my-street")).toBe("school_judging");
   });
 
   it("gives two global managers the seed authenticator, so each journey project passes the second factor as its own manager", async () => {

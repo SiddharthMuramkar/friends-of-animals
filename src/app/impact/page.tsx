@@ -10,9 +10,15 @@ import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
 import { TableScroller } from "@/components/site/table-scroller";
 import { type TileHue, TileMarker } from "@/components/site/tile";
-import { getSampleImpact } from "@/content/sample";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { isSampleContentEnabled } from "@/lib/site";
+import { Live } from "@/components/site/live";
+import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
+import {
+  loadImpactPage,
+  seedImpactPage,
+} from "@/server/modules/cms/site-pages";
 
 import { EasyRead } from "@/components/site/easy-read";
 
@@ -46,7 +52,7 @@ const PUBLISH = [
 export default async function Page() {
   const t = await getTranslations("impact");
   const tc = await getTranslations("competitions");
-  const impact = getSampleImpact();
+  const sample = isSampleContentEnabled();
 
   return (
     <>
@@ -153,23 +159,37 @@ export default async function Page() {
       </Section>
 
       <Section hue={HUE} tone="tint">
-        {impact ? (
-          <>
-            <p className="mb-6 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-              <SampleTag />
-              {t("counters.sampleNote")}
-            </p>
-            <ImpactCounters impact={impact} />
-          </>
-        ) : (
-          <ExplainState
-            title={t("counters.empty.title")}
-            art="wait-mailbox-cat"
-            className="max-w-2xl"
-          >
-            <p>{t("counters.empty.body")}</p>
-          </ExplainState>
-        )}
+        {/* The published counters, read at request time. */}
+        <Live fallback={seedImpactPage()} load={loadImpactPage}>
+          {({ impact, preview }) => (
+            <>
+              {preview ? (
+                <div className="mb-6">
+                  <CmsDraftPreview {...preview} />
+                </div>
+              ) : null}
+              {impact?.counters.length ? (
+                <>
+                  {sample ? (
+                    <p className="mb-6 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
+                      <SampleTag />
+                      {t("counters.sampleNote")}
+                    </p>
+                  ) : null}
+                  <ImpactCounters impact={impact} sample={sample} />
+                </>
+              ) : (
+                <ExplainState
+                  title={t("counters.empty.title")}
+                  art="wait-mailbox-cat"
+                  className="max-w-2xl"
+                >
+                  <p>{t("counters.empty.body")}</p>
+                </ExplainState>
+              )}
+            </>
+          )}
+        </Live>
       </Section>
 
       <Section labelledBy="publish-title" hue={HUE}>

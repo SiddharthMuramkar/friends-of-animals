@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   adminCmsDocumentPath,
+  adminInstitutionPath,
   APP_ROUTES,
   isNonProductionPath,
   isSignedInPage,
   isSignedInPath,
+  judgingGuidePath,
 } from "./app-routes";
 
 const COMPETITION_ID = "01938a00-0000-7000-8000-000000002001";
@@ -26,6 +28,30 @@ describe("isSignedInPage", () => {
     ).toBe(true);
   });
 
+  it("knows a competition's rubric pages, whatever its id (#88)", () => {
+    expect(
+      isSignedInPage(`/admin/competitions/${COMPETITION_ID}/rubrics`)
+    ).toBe(true);
+    expect(
+      isSignedInPage(`/admin/competitions/${COMPETITION_ID}/rubrics/essay`)
+    ).toBe(true);
+  });
+
+  it("knows a competition's judging guide for institutions, whatever its code (#88)", () => {
+    expect(isSignedInPage(judgingGuidePath("NEIGH27"))).toBe(true);
+    expect(judgingGuidePath("NEIGH27")).toBe(
+      "/institution/competitions/NEIGH27/judging-guide"
+    );
+  });
+
+  it("knows an institution's review page, whatever its id", () => {
+    expect(
+      isSignedInPage(
+        adminInstitutionPath("01938a00-0000-7000-8000-000000001001")
+      )
+    ).toBe(true);
+  });
+
   it("knows no other path, so the proxy answers it with the 404", () => {
     for (const path of [
       "/account",
@@ -35,9 +61,25 @@ describe("isSignedInPage", () => {
       `/admin/competitions/${COMPETITION_ID}/edit/more`,
       "/admin/competitions//edit",
       "/admin/institutions/x/edit",
+      `/admin/competitions/${COMPETITION_ID}/rubrics/essay/edit`,
+      "/institution/competitions/NEIGH27",
+      "/institution/competitions",
     ]) {
       expect(isSignedInPage(path), path).toBe(false);
     }
+  });
+
+  it("knows the contact inbox and each message in it", () => {
+    expect(isSignedInPage(APP_ROUTES.adminInbox)).toBe(true);
+    expect(
+      isSignedInPage("/admin/inbox/01938a00-0000-7000-8113-000000000001")
+    ).toBe(true);
+  });
+
+  it("knows no other path under the inbox", () => {
+    expect(isSignedInPage("/admin/inbox/")).toBe(false);
+    expect(isSignedInPage("/admin/inbox/a/b")).toBe(false);
+    expect(isSignedInPage("/admin/inboxes/a")).toBe(false);
   });
 });
 
@@ -78,6 +120,21 @@ describe("isSignedInPath", () => {
     expect(isSignedInPath(APP_ROUTES.adminCompetitions)).toBe(true);
     expect(isSignedInPath(APP_ROUTES.adminNewCompetition)).toBe(true);
     expect(isSignedInPath("/administrators")).toBe(false);
+  });
+
+  it("covers the institution pages and the admin area", () => {
+    expect(isSignedInPath(APP_ROUTES.institutionRegister)).toBe(true);
+    expect(isSignedInPath(APP_ROUTES.myInstitution)).toBe(true);
+    expect(
+      isSignedInPath(
+        adminInstitutionPath("01938a00-0000-7000-8000-000000001001")
+      )
+    ).toBe(true);
+  });
+
+  it("leaves a public list of institutions open, should one come", () => {
+    expect(isSignedInPath("/institutions")).toBe(false);
+    expect(isSignedInPath("/institutional-partners")).toBe(false);
   });
 
   it("leaves public pages alone, even ones that start alike", () => {

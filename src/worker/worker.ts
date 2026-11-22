@@ -10,7 +10,7 @@
 // Loads under plain Node: relative imports only, no "server-only".
 
 import type { FieldCipher } from "../server/crypto/field-cipher";
-import { fieldCryptoFor } from "../server/crypto/keys";
+import { fieldCryptoFor, type FieldKeyEnv } from "../server/crypto/keys";
 import type { AppDb } from "../server/db/app-db";
 import { withDatabase } from "../server/db/database-url";
 import { databaseSettings } from "../server/modules/settings/read";
@@ -84,16 +84,16 @@ export type Worker = {
 
 /**
  * The field cipher, made at its first use: the worker decrypts a stored
- * phone only to send an SMS (src/server/modules/notifications/dispatch.ts).
- * It reads no field keys yet, so a local or preview worker uses the public
- * development keys, and a staging or production one refuses each SMS to a
- * stored phone with fieldCryptoFor's reason, kept on the outbox row for
- * staff, while email and in-app messages go. Give it its keys before SMS
- * is switched on there (HR-14).
+ * phone to send an SMS (src/server/modules/notifications/dispatch.ts), and
+ * an invitation's address and link to send it (#74). A local or preview
+ * worker without FIELD_ENCRYPTION_KEYS and FIELD_HMAC_KEY uses the public
+ * development keys; a staging or production one without them refuses each
+ * such delivery with fieldCryptoFor's reason, kept on the outbox row for
+ * staff, while every other message goes.
  */
-function cipherOnFirstUse(appEnv: WorkerConfig["appEnv"]): FieldCipher {
+function cipherOnFirstUse(env: FieldKeyEnv): FieldCipher {
   let cipher: FieldCipher | undefined;
-  const made = () => (cipher ??= fieldCryptoFor({ APP_ENV: appEnv }).cipher);
+  const made = () => (cipher ??= fieldCryptoFor(env).cipher);
   return {
     encrypt: (purpose, plaintext) => made().encrypt(purpose, plaintext),
     decrypt: (purpose, stored) => made().decrypt(purpose, stored),
@@ -103,22 +103,28 @@ function cipherOnFirstUse(appEnv: WorkerConfig["appEnv"]): FieldCipher {
 export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   let supervisor: Supervisor | undefined;
   const cleanups: (() => Promise<void>)[] = [];
-  const cipher = cipherOnFirstUse(config.appEnv);
+  const cipher = cipherOnFirstUse({
+    APP_ENV: config.appEnv,
+    FIELD_ENCRYPTION_KEYS: config.fieldEncryptionKeys,
+    FIELD_HMAC_KEY: config.fieldHmacKey,
+  });
   /** The default workers never process media: their queue has no media job. */
   let media: MediaProcessor = unconfiguredMedia;
   const isMedia = config.queue.name === "media";
   const drain: DrainOptions = { queue: config.queue.name };
 
   // The same adapters as the app's deps (src/server/deps.ts). No MSG91
-  // keys yet, so production refuses SMS, as it does while sms.enabled is
-  // off; the runtime settings are the database's own.
+  // or SES keys yet, so production refuses SMS, as it does while
+  // sms.enabled is off, and email, until AWS grants SES production access
+  // (DECISIONS R-27); the runtime settings are the database's own.
   const depsFor = (db: AppDb): OutboxDeps => ({
     db,
     clock: io.clock,
-    email: emailSenderFor(config.appEnv, { db, clock: io.clock }),
+    email: emailSenderFor(config.appEnv, { db, clock: io.clock }, {}),
     sms: smsSenderFor(config.appEnv, { db, clock: io.clock }, {}),
     settings: databaseSettings(db),
     cipher,
+    auth: { baseUrl: config.siteUrl },
     storage: io.storage,
     scanner: io.scanner,
     media,

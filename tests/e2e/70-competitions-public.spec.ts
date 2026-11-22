@@ -11,11 +11,40 @@ import { recordCspViolations } from "./support/csp";
 // from the database. Runs against a seeded database (pnpm db:seed, as
 // every preview does): the preview seed publishes this competition and
 // keeps one draft.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+
+/** The IST calendar day of `at`, as the page writes it: "1 November 2026". */
+function istDay(at: number): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(at);
+}
+
+/**
+ * The seed dates its competitions from the day it runs (#71): this one's
+ * registration opened at 09:00 IST, 20 days before. The seed ran within
+ * the hour before this test, so the day is one of two only when that hour
+ * spans IST midnight. Each space matches any space character, since a
+ * regex skips toHaveText's whitespace normalising and ICU may write a
+ * narrow no-break space.
+ */
+function opensText(): RegExp {
+  const now = Date.now();
+  const days = new Set([
+    istDay(now - 20 * DAY_MS),
+    istDay(now - 20 * DAY_MS - HOUR_MS),
+  ]);
+  const text = `(${[...days].join("|")}) at 9:00 am IST`;
+  return new RegExp(`^${text.replace(/\s+/g, "\\s")}$`);
+}
+
 const PUBLISHED = {
   slug: "neighbours-on-my-street",
   name: "Neighbours on My Street",
-  // Its registration opens 2026-11-01T09:00 IST, as the manager typed it.
-  opens: "1 November 2026 at 9:00 am IST",
 };
 const DRAFT_SLUG = "seed-drawing-competition";
 
@@ -85,7 +114,7 @@ test("a competition page shows its theme, categories, rules, scope and IST key d
   const dates = main
     .getByRole("region", { name: "Dates to remember" })
     .locator("time");
-  await expect(dates.first()).toHaveText(PUBLISHED.opens);
+  await expect(dates.first()).toHaveText(opensText());
 
   await expectAccessibleInDark(page, path);
   await hasNoSidewaysScroll(page, path);

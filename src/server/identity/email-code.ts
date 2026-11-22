@@ -7,6 +7,10 @@
 // Codes are only ever emailed, whatever the address, so a request never
 // reveals whether an account exists; verifying needs the code, so saying
 // "no account" there reveals nothing to someone without the mailbox.
+//
+// Both refuse while email sign-in is off (the `auth.emailSignIn` setting;
+// production also keeps it off until SES can send to anyone, DECISIONS
+// R-27), and the pages say sign-in opens soon.
 
 import { isAPIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
@@ -57,9 +61,15 @@ export type RequestEmailCodeInput =
   | { intent: "sign-up"; name: string; email: string };
 export type VerifyEmailCodeInput = z.input<typeof verifyEmailCodeInput>;
 
+/** Email sign-in is off (`auth.emailSignIn`): sign-in opens soon. */
+type EmailDisabled = { ok: false; error: "email_disabled" };
+
+const EMAIL_DISABLED: EmailDisabled = { ok: false, error: "email_disabled" };
+
 export type RequestEmailCodeResult =
   | { ok: true }
   | InvalidInput
+  | EmailDisabled
   | { ok: false; error: "rate_limited"; retryAfterSeconds: number };
 
 export type VerifyEmailCodeResult =
@@ -71,6 +81,7 @@ export type VerifyEmailCodeResult =
       messagesConsent?: SignUpConsentOutcome;
     }
   | InvalidInput
+  | EmailDisabled
   | {
       ok: false;
       error:
@@ -86,6 +97,8 @@ export async function requestEmailCode(
 ): Promise<RequestEmailCodeResult> {
   await authorize(ctx, "requestEmailCode");
   const meta = visitorMeta(ctx);
+  // Off means off: no email, no stored code, nothing counted.
+  if (!(await ctx.settings.get("auth.emailSignIn"))) return EMAIL_DISABLED;
   const parsed = requestEmailCodeInput.safeParse({
     intent: "sign-in",
     ...input,
@@ -97,6 +110,7 @@ export async function requestEmailCode(
     ip: meta.ip,
     now: ctx.clock.now(),
     secret: ctx.auth.secret,
+    limits: ctx.codeRequestLimits,
   });
   if (!allowance.ok) {
     return {
@@ -142,6 +156,8 @@ export async function verifyEmailCode(
 ): Promise<VerifyEmailCodeResult> {
   await authorize(ctx, "verifyEmailCode");
   const meta = visitorMeta(ctx);
+  // Switching email sign-in off also stops codes already emailed working.
+  if (!(await ctx.settings.get("auth.emailSignIn"))) return EMAIL_DISABLED;
   const parsed = verifyEmailCodeInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { data } = parsed;

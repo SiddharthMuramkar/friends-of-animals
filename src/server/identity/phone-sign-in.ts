@@ -1,6 +1,6 @@
 // Sign-up and sign-in by SMS one-time code, beside email.
 //
-//   signInMethods()                                  → is SMS on?
+//   signInMethods()                                  → are email and SMS on?
 //   requestPhoneCode({ intent?, phone, name? })      → a code by SMS
 //   verifyPhoneCode({ intent, phone, code, name? })  → signed in
 //
@@ -99,14 +99,21 @@ function fromAnotherCountry(error: z.ZodError): boolean {
   );
 }
 
-/** The ways in that work right now: email always, phone while SMS is on. */
-export type SignInMethods = { email: true; phone: boolean };
+/**
+ * The ways in that work right now: email while email sign-in is on (in
+ * production, once SES can send to anyone), phone while SMS is on.
+ */
+export type SignInMethods = { email: boolean; phone: boolean };
 
 export async function signInMethods(
   ctx: UseCaseContext
 ): Promise<SignInMethods> {
   await authorize(ctx, "signInMethods");
-  return { email: true, phone: await ctx.settings.get("sms.enabled") };
+  const [email, phone] = await Promise.all([
+    ctx.settings.get("auth.emailSignIn"),
+    ctx.settings.get("sms.enabled"),
+  ]);
+  return { email, phone };
 }
 
 const SMS_DISABLED: SmsDisabled = { ok: false, error: "sms_disabled" };
@@ -139,6 +146,7 @@ export async function requestPhoneCode(
     ip: meta.ip,
     now: ctx.clock.now(),
     secret: ctx.auth.secret,
+    limits: ctx.codeRequestLimits,
   });
   if (!allowance.ok) {
     return {

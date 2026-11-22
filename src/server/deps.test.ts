@@ -12,16 +12,24 @@ import { FakeClock } from "@/test/fakes/clock";
 import type { E164Phone } from "@/lib/phone";
 
 import {
+  codeRequestLimitsFor,
+  contactLimitsFor,
   DEVELOPMENT_AUTH_SECRET,
+  emailSignInReady,
   filesConfigFor,
   localDiskStorageFor,
   scannerFor,
+  settingsFor,
   smsSenderFor,
   storageFor,
 } from "./deps";
+import { CONTACT_RATE_LIMITS } from "./modules/contact/domain/submission";
+import { CODE_REQUEST_LIMITS } from "./identity/settings";
 import { SmsNotConfiguredError } from "./ports/sms";
 import { readCapturedSms } from "./ports/sms-capture";
 import { systemClock } from "./ports/clock";
+import { databaseSettings } from "./modules/settings";
+import { setting } from "./db/schema";
 import { StorageNotConfiguredError } from "./ports/storage";
 import { diskStorage, type DiskStorage } from "./ports/storage-disk";
 
@@ -145,6 +153,44 @@ describe("storageFor", () => {
       expect(new URL(url).origin).toBe(
         `https://${R2.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
       );
+    }
+  );
+});
+
+describe("contactLimitsFor", () => {
+  it.each(["staging", "production"] as const)(
+    "keeps FOA's contact form limits on %s",
+    (appEnv) => {
+      expect(contactLimitsFor(appEnv)).toEqual(CONTACT_RATE_LIMITS);
+    }
+  );
+
+  it.each(["local", "preview"] as const)(
+    "lets one IP send many more on %s, where every E2E run shares the CI's address",
+    (appEnv) => {
+      expect(contactLimitsFor(appEnv)).toEqual({
+        perIpPerHour: 100,
+        perEmailPerDay: CONTACT_RATE_LIMITS.perEmailPerDay,
+      });
+    }
+  );
+});
+
+describe("codeRequestLimitsFor", () => {
+  it.each(["staging", "production"] as const)(
+    "keeps FOA's sign-in code limits on %s",
+    (appEnv) => {
+      expect(codeRequestLimitsFor(appEnv)).toEqual(CODE_REQUEST_LIMITS);
+    }
+  );
+
+  it.each(["local", "preview"] as const)(
+    "lets one IP ask for many more codes on %s, where every E2E run shares the CI's address",
+    (appEnv) => {
+      expect(codeRequestLimitsFor(appEnv)).toEqual({
+        ...CODE_REQUEST_LIMITS,
+        perIp: 200,
+      });
     }
   );
 });
@@ -320,5 +366,95 @@ describe("filesConfigFor", () => {
       keyPrefix: "local/",
       appEnv: "local",
     });
+  });
+});
+
+/** SES's variables as production sets them (src/env.schema.ts). */
+const SES = {
+  SES_REGION: "ap-south-1",
+  SES_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE",
+  SES_SECRET_ACCESS_KEY: "test-ses-secret-access-key",
+  SES_FROM: "Friends of Animals <no-reply@friendsofanimals.dev>",
+};
+
+describe("emailSignInReady", () => {
+  it.each(["local", "preview", "staging"] as const)(
+    "is ready on %s, which captures every email, with or without SES",
+    (appEnv) => {
+      expect(
+        emailSignInReady({ APP_ENV: appEnv, SES_PRODUCTION_ACCESS: false })
+      ).toBe(true);
+      expect(
+        emailSignInReady({
+          APP_ENV: appEnv,
+          ...SES,
+          SES_PRODUCTION_ACCESS: true,
+        })
+      ).toBe(true);
+    }
+  );
+
+  it("is not ready in production without SES, so sign-in shows it's opening soon", () => {
+    expect(
+      emailSignInReady({ APP_ENV: "production", SES_PRODUCTION_ACCESS: false })
+    ).toBe(false);
+    // Production access alone sends nothing.
+    expect(
+      emailSignInReady({ APP_ENV: "production", SES_PRODUCTION_ACCESS: true })
+    ).toBe(false);
+  });
+
+  it("waits in production for SES to leave the sandbox, even with its keys", () => {
+    expect(
+      emailSignInReady({
+        APP_ENV: "production",
+        ...SES,
+        SES_PRODUCTION_ACCESS: false,
+      })
+    ).toBe(false);
+  });
+
+  it("is ready in production once SES is configured and out of the sandbox", () => {
+    expect(
+      emailSignInReady({
+        APP_ENV: "production",
+        ...SES,
+        SES_PRODUCTION_ACCESS: true,
+      })
+    ).toBe(true);
+  });
+});
+
+describe("settingsFor", () => {
+  async function storedSettings(values: Record<string, unknown>) {
+    const db = await createTestDb();
+    const updatedAt = new Date("2026-11-22T00:00:00Z");
+    for (const [key, value] of Object.entries(values)) {
+      await db.insert(setting).values({ key, value, updatedAt });
+    }
+    return databaseSettings(db);
+  }
+
+  it("keeps email sign-in off while it isn't ready, even when switched on", async () => {
+    const settings = settingsFor(
+      await storedSettings({ "auth.emailSignIn": true, "sms.enabled": true }),
+      { emailSignInReady: false }
+    );
+
+    expect(await settings.get("auth.emailSignIn")).toBe(false);
+    expect(await settings.get("sms.enabled")).toBe(true);
+  });
+
+  it("reads email sign-in from the settings once it is ready: on by default, off when switched off", async () => {
+    const byDefault = settingsFor(await storedSettings({}), {
+      emailSignInReady: true,
+    });
+    const switchedOff = settingsFor(
+      await storedSettings({ "auth.emailSignIn": false }),
+      { emailSignInReady: true }
+    );
+
+    expect(await byDefault.get("auth.emailSignIn")).toBe(true);
+    expect(await switchedOff.get("auth.emailSignIn")).toBe(false);
   });
 });

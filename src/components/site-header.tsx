@@ -10,8 +10,26 @@ import { SkipLink } from "@/components/site/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { PRIMARY_NAV, ROUTES } from "@/lib/routes";
+import { as, currentActor } from "@/server/app";
 
 import { DesktopNav, DesktopNavView, MobileMenu } from "./header-nav";
+
+/**
+ * "My institution", for a signed-in user who holds the institution-admin
+ * role (#73). Reads the session, so the header renders it under
+ * <Suspense>; everyone else gets nothing.
+ */
+async function MyInstitutionLink({ label }: { label: string }) {
+  const actor = await currentActor();
+  if (actor.kind !== "user") return null;
+  const { grants } = await as(actor).myAccess();
+  if (!grants.some((grant) => grant.role === "institution_admin")) return null;
+  return (
+    <ButtonLink href={APP_ROUTES.myInstitution} variant="secondary">
+      {label}
+    </ButtonLink>
+  );
+}
 
 export async function SiteHeader() {
   const t = await getTranslations("nav");
@@ -74,6 +92,9 @@ export async function SiteHeader() {
           {/* Signed-in only: the session streams in after the shell. */}
           <Suspense fallback={null}>
             <InboxBadge />
+          </Suspense>
+          <Suspense fallback={null}>
+            <MyInstitutionLink label={t("links.myInstitution")} />
           </Suspense>
           <ButtonLink href={ROUTES.donate.path} className="max-sm:hidden">
             {t("donate")}
