@@ -166,15 +166,22 @@
     {
       "idx": 23,
       "version": "7",
-      "when": 1795339404074,
+      "when": 1795340153118,
       "tag": "0023_88_rubrics",
       "breakpoints": true
     },
     {
       "idx": 24,
       "version": "7",
-      "when": 1795339404805,
+      "when": 1795340154209,
       "tag": "0024_88_rubric_immutability",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795340155098,
+      "tag": "0025_88_transition_blocked_message",
       "breakpoints": true
     }
   ]

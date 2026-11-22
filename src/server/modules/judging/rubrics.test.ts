@@ -141,6 +141,7 @@ describe("writing and publishing a rubric", () => {
         },
         { discipline: "essay", published: null, draft: null },
       ],
+      schoolJudgingBlock: null,
     });
   });
 

@@ -20,6 +20,7 @@ export type {
   DisciplineRubricState,
   GetDisciplineRubricsResult,
   ListRubricsResult,
+  SchoolJudgingBlock,
   PublishRubricResult,
   RubricView,
   StartRubricRevisionResult,

@@ -36,7 +36,9 @@ const TRANSITIONS: {
   draft: { published: "manager" },
   published: { registration_open: "schedule" },
   registration_open: { registration_closed: "schedule" },
-  registration_closed: {},
+  // Guarded (#88): every enabled discipline needs a published rubric
+  // first. The guards run where the move is made (../transition-guards.ts).
+  registration_closed: { school_judging: "schedule" },
   school_judging: {},
 };
 

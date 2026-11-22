@@ -14,6 +14,9 @@ const ALLOWED: Record<string, TransitionCause> = {
   "draft->published": "manager",
   "published->registration_open": "schedule",
   "registration_open->registration_closed": "schedule",
+  // Only once every enabled discipline has a published rubric (#88): the
+  // guard runs where the move is made (../transition-guards.ts).
+  "registration_closed->school_judging": "schedule",
 };
 
 const PAIRS = COMPETITION_STATUSES.flatMap((from) =>

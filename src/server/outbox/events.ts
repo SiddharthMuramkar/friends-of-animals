@@ -91,6 +91,16 @@ export type DomainEvent =
       type: "competitions.key_date_scheduled";
       aggregate: { type: "competition"; id: string };
       payload: { competitionId: string; kind: KeyDateKind; dueAt: string };
+    }
+  | {
+      /**
+       * A guard refused a scheduled move of the competition (#88): the
+       * open competition_transition_block row `blockId` says why. Emitted
+       * once per refused move, so its managers are told once.
+       */
+      type: "competition.transition_blocked";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string; blockId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -133,6 +143,10 @@ export const EVENT_PAYLOADS = {
     kind: z.enum(KEY_DATE_KINDS),
     dueAt: z.iso.datetime(),
   }),
+  "competition.transition_blocked": z.object({
+    competitionId: z.uuid(),
+    blockId: z.uuid(),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -157,6 +171,7 @@ export const SUBSCRIBERS = {
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
   "competitions.key_date_scheduled": ["competitions.advance_status"],
+  "competition.transition_blocked": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

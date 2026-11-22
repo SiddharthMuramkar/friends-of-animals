@@ -36,6 +36,13 @@ const RULES: readonly {
     to: "registration_closed",
     keyDate: "registration_closes",
   },
+  // Every competition, individuals-only too, passes through school
+  // judging; a guard holds the move until the rubrics are published (#88).
+  {
+    from: "registration_closed",
+    to: "school_judging",
+    keyDate: "submissions_close",
+  },
 ];
 
 for (const rule of RULES) {

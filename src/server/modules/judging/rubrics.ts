@@ -8,24 +8,30 @@
 //   updateRubricDraft({ rubricId, criteria })         → replaces a draft's criteria
 //   publishRubric({ rubricId })                       → supersedes the old version
 //   startRubricRevision({ rubricId })                 → a published rubric's next draft
-//   listRubrics({ competitionId })                    → each discipline's state
+//   listRubrics({ competitionId })                    → each discipline's state, any refused move
 //   getDisciplineRubrics({ competitionId, discipline }) → every version, newest first
 //
 // The database refuses changes to a rubric that has left draft
 // (drizzle/*_88_rubric_immutability.sql); a write that still reaches the
 // trigger, by a race, fails as `rubric_not_editable` all the same.
 
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
 import type { Resource } from "../../access/domain/policy";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
-import { competition, rubric, rubricCriterion } from "../../db/schema";
+import {
+  competition,
+  competitionTransitionBlock,
+  rubric,
+  rubricCriterion,
+} from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
+import { TRANSITION_BLOCK } from "../competitions/domain/transition-block";
 import {
   DISCIPLINES,
   type CompetitionStatus,
@@ -102,12 +108,19 @@ export type DisciplineRubricState = {
   draft: { id: string; version: number } | null;
 };
 
+export type SchoolJudgingBlock = { blockedAt: Date; missing: Discipline[] };
+
 export type ListRubricsResult =
   | {
       ok: true;
       competition: CompetitionSummary;
       /** One entry per discipline the competition runs, in its order. */
       disciplines: DisciplineRubricState[];
+      /**
+       * Set while the schedule's move into school judging is refused: since
+       * when, and the disciplines that lacked a published rubric then.
+       */
+      schoolJudgingBlock: SchoolJudgingBlock | null;
     }
   | InvalidInput
   | NotFound;
@@ -494,6 +507,30 @@ export async function startRubricRevision(
   });
 }
 
+/** The refused move into school judging, if one is open. */
+async function schoolJudgingBlockOf(
+  db: AppDb,
+  competitionId: string
+): Promise<SchoolJudgingBlock | null> {
+  const [row] = await db
+    .select({
+      blockedAt: competitionTransitionBlock.blockedAt,
+      reason: competitionTransitionBlock.reason,
+      details: competitionTransitionBlock.details,
+    })
+    .from(competitionTransitionBlock)
+    .where(
+      and(
+        eq(competitionTransitionBlock.competitionId, competitionId),
+        eq(competitionTransitionBlock.toStatus, "school_judging"),
+        isNull(competitionTransitionBlock.resolvedAt)
+      )
+    );
+  if (!row) return null;
+  const block = TRANSITION_BLOCK.parse({ ...row.details, reason: row.reason });
+  return { blockedAt: row.blockedAt, missing: block.missingDisciplines };
+}
+
 /** For the rubrics page: each discipline's published version and draft. */
 export async function listRubrics(
   ctx: RubricContext,
@@ -523,6 +560,7 @@ export async function listRubrics(
   return {
     ok: true,
     competition: summary(found),
+    schoolJudgingBlock: await schoolJudgingBlockOf(ctx.db, found.id),
     disciplines: found.disciplines.map((discipline) => {
       const ofDiscipline = rows.filter((row) => row.discipline === discipline);
       const published = ofDiscipline.find((row) => row.status === "published");

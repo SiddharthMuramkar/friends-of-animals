@@ -4,18 +4,17 @@
 //
 // The job names the key date it was saved for and the instant that date
 // held then. The use case locks the competition and asks planStatusJob
-// what to do with it as it is now, then does that: each move it makes
-// gets one audit entry by the system, naming the key date that made it.
+// what to do with it as it is now, then does that through the guards
+// (./transition-guards.ts): each move it makes gets one audit entry by
+// the system, naming the key date that made it, and a guarded move that
+// can't be made yet is recorded as refused.
 // Loads under plain Node (the worker): relative imports only.
 
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
 import type { Actor } from "../../actor";
-import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
-import { competition } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { Clock } from "../../ports/clock";
 import { KEY_DATE_KINDS, type KeyDateKind } from "./domain/key-dates";
@@ -28,6 +27,7 @@ import {
 } from "./manage";
 import { saveStatusJobs } from "./status-jobs";
 import { loadCompetition } from "./store";
+import { makeScheduledMoves } from "./transition-guards";
 
 const inputSchema = z.object({
   competitionId: z.string(),
@@ -48,7 +48,8 @@ export type AdvanceCompetitionStatusResult =
       /**
        * `stale`: its date moved or went, so nothing happened. `early`: it
        * ran before its instant, so it was saved again for that instant.
-       * `advanced`: every move due by now was made (perhaps none).
+       * `advanced`: every move due by now was made, as far as its guards
+       * allow (perhaps none).
        */
       outcome: "stale" | "early" | "advanced";
       /** The competition's status once the job is done. */
@@ -94,26 +95,13 @@ export async function advanceCompetitionStatus(
       ]);
       return { ok: true, outcome: "early", status } as const;
     }
-    const last = plan.transitions.at(-1);
-    if (!last) return { ok: true, outcome: "advanced", status } as const;
-    await tx
-      .update(competition)
-      .set({ status: last.to, updatedAt: now })
-      .where(eq(competition.id, competitionId));
-    for (const move of plan.transitions) {
-      await recordAudit(tx, ctx, {
-        action: "competition.status_changed",
-        entity: { type: "competition", id: competitionId },
-        before: { status: move.from },
-        after: {
-          status: move.to,
-          keyDate: move.keyDate,
-          at: move.at.toISOString(),
-        },
-        actorRole: null,
-      });
-    }
-    return { ok: true, outcome: "advanced", status: last.to } as const;
+    const moved = await makeScheduledMoves(
+      tx,
+      ctx,
+      { id: competitionId, status, disciplines: stored.values.disciplines },
+      plan.transitions
+    );
+    return { ok: true, outcome: "advanced", status: moved } as const;
   });
 }
 
