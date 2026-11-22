@@ -81,6 +81,14 @@ const WHILE_REGISTRATION_KEPT = {
   toConfirm: true,
 } as const;
 
+const WHILE_STUDENT_TAKES_PART = {
+  period:
+    "Until 3 years after the last competition the student was enrolled in (HR-31)",
+  basis:
+    "FOA and the school run the competition with it, and answer queries about entries, results and certificates",
+  toConfirm: true,
+} as const;
+
 export const DATA_INVENTORY: readonly InventoryEntry[] = [
   // Accounts (#57, #58)
   {
@@ -282,5 +290,107 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     purpose:
       "Records which coordinator or authorised person registered the institution for the competition",
     retention: WHILE_REGISTRATION_KEPT,
+  },
+  // Students an institution enrols (#75)
+  {
+    table: "participant_profile",
+    column: "full_name",
+    purpose: "Names the student on the school's list, entries and certificates",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "dob_ciphertext",
+    purpose:
+      "Places the student in an age group on the competition's cut-off date (encrypted)",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "grade",
+    purpose: "Shows the student's class or year on the school's list",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "student_ref",
+    purpose:
+      "The school's own roll number, so the school recognises the student and FOA spots the same student entered twice",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "phone_ciphertext",
+    purpose: "Reaches an adult student about their entry (encrypted)",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "email_ciphertext",
+    purpose: "Reaches an adult student about their entry (encrypted)",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "guardian_name_ciphertext",
+    purpose: "Names a minor's parent or guardian to contact (encrypted)",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "guardian_relationship",
+    purpose: "Says whether the contact is the minor's parent or legal guardian",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "guardian_phone_ciphertext",
+    purpose: "Reaches a minor's parent or guardian about the entry (encrypted)",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "guardian_email_ciphertext",
+    purpose: "Reaches a minor's parent or guardian about the entry (encrypted)",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "address_ciphertext",
+    purpose:
+      "Where certificates or artwork go back to, when it differs from the school (encrypted)",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "pin_code",
+    purpose: "Locates the student for regional rounds and reports",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "city",
+    purpose: "Locates the student for regional rounds and reports",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "state",
+    purpose: "Locates the student for regional rounds and reports",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "identity_hash",
+    purpose:
+      "A keyed hash of the name and date of birth that spots the same student entered twice, without reading either",
+    retention: WHILE_STUDENT_TAKES_PART,
+  },
+  {
+    table: "participant_profile",
+    column: "created_by",
+    purpose:
+      "Records which coordinator or authorised person first entered the student",
+    retention: WHILE_STUDENT_TAKES_PART,
   },
 ];

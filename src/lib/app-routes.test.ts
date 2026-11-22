@@ -5,7 +5,9 @@ import {
   adminInstitutionPath,
   APP_ROUTES,
   institutionCompetitionsPath,
+  institutionRegistrationPath,
   isNonProductionPath,
+  newStudentPath,
   isSignedInPage,
   isSignedInPath,
   judgingGuidePath,
@@ -76,6 +78,28 @@ describe("isSignedInPage", () => {
     ]) {
       expect(isSignedInPage(path), path).toBe(false);
     }
+  });
+
+  it("knows a registration's students page and its add-a-student page, for the institution acting", () => {
+    const institutionId = "01938a00-0000-7000-8000-000000001001";
+    const students = institutionRegistrationPath(
+      "NEIGH27-I-5EED1",
+      institutionId
+    );
+    const add = newStudentPath("NEIGH27-I-5EED1", institutionId);
+
+    expect(students).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1?institution=${institutionId}`
+    );
+    expect(add).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1/students/new?institution=${institutionId}`
+    );
+    for (const path of [students, add]) {
+      expect(isSignedInPage(path.split("?")[0]!), path).toBe(true);
+    }
+    expect(
+      isSignedInPage("/institution/registrations/NEIGH27-I-5EED1/students")
+    ).toBe(false);
   });
 
   it("knows the contact inbox and each message in it", () => {

@@ -39,8 +39,8 @@ export type SeedVerifiedInstitution = (details: {
  * (src/server/seed/institutions.ts). The seeded institution is already
  * registered for the seeded open competition, so a journey that registers
  * needs one of its own. Local app servers only, like `seedAccount`; its
- * registrations and then the institution are removed after the test,
- * before its account.
+ * students, its registrations and then the institution are removed after
+ * the test, before its account.
  */
 export const test = base.extend<{
   seedVerifiedInstitution: SeedVerifiedInstitution;
@@ -114,6 +114,32 @@ export const test = base.extend<{
     } finally {
       try {
         if (institutionIds.length > 0) {
+          // Students enrolled under its registrations (#75) first.
+          const registrations = await db
+            .select({ id: schema.institutionRegistration.id })
+            .from(schema.institutionRegistration)
+            .where(
+              inArray(
+                schema.institutionRegistration.institutionId,
+                institutionIds
+              )
+            );
+          if (registrations.length > 0) {
+            await db.delete(schema.registration).where(
+              inArray(
+                schema.registration.institutionRegistrationId,
+                registrations.map((each) => each.id)
+              )
+            );
+          }
+          await db
+            .delete(schema.participantProfile)
+            .where(
+              inArray(
+                schema.participantProfile.managingInstitutionId,
+                institutionIds
+              )
+            );
           await db
             .delete(schema.institutionRegistration)
             .where(
