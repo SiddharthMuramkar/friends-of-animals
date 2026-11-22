@@ -114,6 +114,21 @@ export type DomainEvent =
       payload: { reportId: string };
     }
   | {
+      /**
+       * A post was scheduled for `publishAt` (#112). Saved with
+       * `availableAt: publishAt`, so its publish job runs at the instant.
+       */
+      type: "cms.post_scheduled";
+      aggregate: { type: "cms_post"; id: string };
+      payload: { postId: string; publishAt: string };
+    }
+  | {
+      /** A post went live, by hand or at its scheduled instant (#112). */
+      type: "cms.post_published";
+      aggregate: { type: "cms_post"; id: string };
+      payload: { postId: string };
+    }
+  | {
       /** An institution registered for a competition (#75). */
       type: "registration.institution_registered";
       aggregate: { type: "institution_registration"; id: string };
@@ -163,6 +178,11 @@ export const EVENT_PAYLOADS = {
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
   "contact_message.received": z.object({ messageId: z.uuid() }),
   "safeguarding.report_submitted": z.object({ reportId: z.uuid() }),
+  "cms.post_scheduled": z.object({
+    postId: z.uuid(),
+    publishAt: z.iso.datetime(),
+  }),
+  "cms.post_published": z.object({ postId: z.uuid() }),
   "registration.institution_registered": z.object({
     institutionRegistrationId: z.uuid(),
   }),
@@ -182,8 +202,9 @@ export const SUBSCRIBERS = {
   "consent.withdrawn": ["notifications.dispatch"],
   // Runs in worker-media only: the media queue (./queues.ts).
   "files.processing_requested": ["files.process_image"],
-  // #85's Entries unit subscribes to these two.
-  "files.file_processed": [],
+  // #85's Entries unit subscribes to these two. A post image's public
+  // copies follow its derivatives (#112).
+  "files.file_processed": ["cms.publish_post_image"],
   "files.file_processing_failed": [],
   "institution.verified": ["notifications.dispatch"],
   "institution.rejected": ["notifications.dispatch"],
@@ -203,6 +224,9 @@ export const SUBSCRIBERS = {
   ],
   // The safeguarding leads' alert (#116).
   "safeguarding.report_submitted": ["notifications.dispatch"],
+  "cms.post_scheduled": ["cms.publish_scheduled_post"],
+  // No route sends anything for it yet; a "new story" message can follow it.
+  "cms.post_published": ["notifications.dispatch"],
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],

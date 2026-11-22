@@ -19,6 +19,8 @@ import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { runStatusJob } from "../modules/competitions/advance-status";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
+import { publishPostImage } from "../modules/cms/posts/images";
+import { publishScheduledPost } from "../modules/cms/posts/publishing";
 import { notifyPrincipal } from "../modules/registration/principal-message";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
@@ -90,6 +92,10 @@ export const HANDLERS: Handlers = {
     sendCoordinatorInvitation(deps, payload),
   // Emails a contact message's sender their reference (#113).
   "contact.send_acknowledgement": sendContactAcknowledgement,
+  "cms.publish_post_image": (deps, { payload }) =>
+    publishPostImage(deps, payload),
+  "cms.publish_scheduled_post": (deps, { payload }) =>
+    publishScheduledPost(deps, payload),
   "registration.notify_principal": (deps, { payload }) =>
     notifyPrincipal(deps, payload),
 };

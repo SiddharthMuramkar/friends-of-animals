@@ -13,6 +13,7 @@ import adminTemplates from "../../messages/en-IN/adminTemplates.json";
 import adminRoles from "../../messages/en-IN/adminRoles.json";
 import adminCompetitions from "../../messages/en-IN/adminCompetitions.json";
 import adminCms from "../../messages/en-IN/adminCms.json";
+import adminBlog from "../../messages/en-IN/adminBlog.json";
 import adminInstitutions from "../../messages/en-IN/adminInstitutions.json";
 import adminSafeguarding from "../../messages/en-IN/adminSafeguarding.json";
 import auth from "../../messages/en-IN/auth.json";
@@ -65,6 +66,7 @@ export const NAMESPACES = [
   "adminCms",
   "adminInstitutions",
   "adminSafeguarding",
+  "adminBlog",
   "auth",
   "authPhone",
   "awareness",
@@ -119,6 +121,7 @@ export const messages = {
   ...adminCms,
   ...adminInstitutions,
   ...adminSafeguarding,
+  ...adminBlog,
   ...auth,
   ...authPhone,
   ...awareness,
