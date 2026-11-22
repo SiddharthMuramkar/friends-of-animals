@@ -5,3 +5,37 @@
 export default function Image() {
   return null;
 }
+
+/**
+ * getImageProps's stand-in (LcpPhoto): the props it passes through, with
+ * no srcset, since that needs the image's width.
+ */
+export function getImageProps({
+  src,
+  alt,
+  sizes,
+  loading,
+  fetchPriority,
+  className,
+  style,
+}: {
+  src: unknown;
+  alt: string;
+  sizes?: string;
+  loading?: "eager" | "lazy";
+  fetchPriority?: "high" | "low" | "auto";
+  className?: string;
+  style?: Record<string, string>;
+}) {
+  return {
+    props: {
+      alt,
+      loading,
+      fetchPriority,
+      className,
+      style,
+      sizes,
+      src: typeof src === "string" ? src : undefined,
+    },
+  };
+}
