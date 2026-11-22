@@ -51,6 +51,15 @@ import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { localScanner } from "./ports/malware-scanner-local";
 import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
 import { serverErrorReporter } from "./observability/server-reporter";
+import type { HumanCheck } from "./ports/human-check";
+import {
+  HUMAN_CHECK_DIFFICULTY,
+  proofOfWorkHumanCheck,
+} from "./modules/public-forms/proof-of-work-check";
+import {
+  CONTACT_RATE_LIMITS,
+  type ContactRateLimits,
+} from "./modules/contact/domain/submission";
 
 export interface Deps extends DbWithClock {
   email: EmailSender;
@@ -77,6 +86,10 @@ export interface Deps extends DbWithClock {
   scanner: MalwareScanner;
   /** Processes derivatives on the media queue in worker-media. */
   media: MediaProcessor;
+  /** The human check on public forms (proof of work, signed by the secret). */
+  humanCheck: HumanCheck;
+  /** The contact form's limits per IP and per address. */
+  contactLimits: ContactRateLimits;
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
@@ -223,12 +236,24 @@ export function settingsFor(
   };
 }
 
+/**
+ * The contact form's limits until #62's settings hold them (HR-51). Local
+ * runs and previews let one IP send many more: every E2E run reaches a
+ * preview from the CI runner's one address.
+ */
+export function contactLimitsFor(appEnv: Env["APP_ENV"]): ContactRateLimits {
+  return appEnv === "local" || appEnv === "preview"
+    ? { ...CONTACT_RATE_LIMITS, perIpPerHour: 100 }
+    : CONTACT_RATE_LIMITS;
+}
+
 let production: Deps | undefined;
 
 /** The app's deps, built on first use from `env()`. */
 export function productionDeps(): Deps {
   if (!production) {
     const config = env();
+    const secret = config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET;
     production = {
       db,
       clock: systemClock,
@@ -239,11 +264,13 @@ export function productionDeps(): Deps {
         {
           authKey: config.MSG91_AUTH_KEY,
           otpTemplateId: config.MSG91_OTP_TEMPLATE_ID,
+          coordinatorInvitationTemplateId:
+            config.MSG91_COORDINATOR_INVITATION_TEMPLATE_ID,
         }
       ),
       cookies: nextCookieJar,
       auth: {
-        secret: config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
+        secret,
         baseUrl: config.APP_URL,
       },
       ...fieldCryptoFor(config),
@@ -254,6 +281,11 @@ export function productionDeps(): Deps {
       settings: settingsFor(databaseSettings(db), {
         emailSignInReady: emailSignInReady(config),
       }),
+      humanCheck: proofOfWorkHumanCheck({
+        secret,
+        difficulty: HUMAN_CHECK_DIFFICULTY,
+      }),
+      contactLimits: contactLimitsFor(config.APP_ENV),
       // Started by src/instrumentation.ts; silent without a DSN.
       errors: serverErrorReporter,
       scanner: scannerFor(config),

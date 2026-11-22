@@ -8,7 +8,8 @@ import { ContactFact } from "@/components/site/contact-fact";
 import { Section } from "@/components/site/section";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isFactShown, showsPlaceholders, SITE } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
+import { isFactShown, showsPlaceholders } from "@/lib/site";
 
 import { PolicyBlock, PolicyTop, Tbc } from "../pricing/_components/policy";
 
@@ -94,12 +95,16 @@ export default async function Page() {
               {t("ask.title")}
             </h2>
             <p className="mt-3">{t("ask.body")}</p>
-            {isFactShown(SITE.org.email) ? (
-              <p className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="font-semibold">{t("ask.email")}</span>
-                <ContactFact kind="email" fact={SITE.org.email} />
-              </p>
-            ) : null}
+            <WithOrgFacts>
+              {({ email }) =>
+                isFactShown(email) ? (
+                  <p className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">{t("ask.email")}</span>
+                    <ContactFact kind="email" fact={email} />
+                  </p>
+                ) : null
+              }
+            </WithOrgFacts>
             <ButtonLink href={ROUTES.contact.path} className="mt-6">
               {t("ask.link")}
             </ButtonLink>

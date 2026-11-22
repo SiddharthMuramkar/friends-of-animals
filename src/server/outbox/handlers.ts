@@ -13,10 +13,12 @@
 
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
+import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { runStatusJob } from "../modules/competitions/advance-status";
+import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -34,8 +36,16 @@ export type OutboxDeps = {
   sms: SmsSender;
   /** Runtime settings, such as whether messages may go by SMS. */
   settings: Settings;
-  /** Reads a recipient's stored phone number. */
+  /**
+   * Reads a recipient's stored phone number, and an invitation's address
+   * and link (#74).
+   */
   cipher: FieldCipher;
+  /**
+   * The site's base URL, for links in messages. A worker started without
+   * APP_URL has none, and a message that needs a link fails until it does.
+   */
+  auth: { baseUrl?: string | undefined };
   storage: ObjectStorage;
   scanner: MalwareScanner;
   /** Used only by the media queue's handlers, in worker-media. */
@@ -75,6 +85,10 @@ export const HANDLERS: Handlers = {
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>
     runStatusJob(deps, payload),
+  "institutions.send_coordinator_invitation": (deps, { payload }) =>
+    sendCoordinatorInvitation(deps, payload),
+  // Emails a contact message's sender their reference (#113).
+  "contact.send_acknowledgement": sendContactAcknowledgement,
 };
 
 /** Whether this code has a handler by that name. */

@@ -1,4 +1,4 @@
-import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
+import { getTableConfig, PgTable, type PgColumn } from "drizzle-orm/pg-core";
 import { is } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
@@ -14,16 +14,41 @@ const listed = new Set(
   DATA_INVENTORY.map((entry) => `${entry.table}.${entry.column}`)
 );
 
+/**
+ * A column built with encryptedText() (src/server/db/types/encrypted-text.ts):
+ * the schema's only custom column type stored as plain text. Found by its
+ * type, so a column that is encrypted but misnamed is still caught.
+ */
+const builtEncrypted = (column: PgColumn) =>
+  column.columnType === "PgCustomColumn" && column.getSQLType() === "text";
+
 describe("the data inventory", () => {
   it("lists every encrypted column in the schema", () => {
     const encrypted = tables.flatMap((table) =>
       table.columns
-        .filter((column) => column.name.endsWith("_ciphertext"))
+        .filter(
+          (column) =>
+            column.name.endsWith("_ciphertext") || builtEncrypted(column)
+        )
         .map((column) => `${table.name}.${column.name}`)
     );
 
     expect(encrypted).toContain("institution.principal_email_ciphertext");
+    expect(encrypted).toContain("user.phone_ciphertext");
     expect(encrypted.filter((column) => !listed.has(column))).toEqual([]);
+  });
+
+  it("finds each encrypted column by its name, which ends in _ciphertext", () => {
+    const misnamed = tables.flatMap((table) =>
+      table.columns
+        .filter(
+          (column) =>
+            builtEncrypted(column) && !column.name.endsWith("_ciphertext")
+        )
+        .map((column) => `${table.name}.${column.name}`)
+    );
+
+    expect(misnamed).toEqual([]);
   });
 
   it("lists every personal-data column of an institution", () => {
@@ -36,6 +61,36 @@ describe("the data inventory", () => {
         "contact_phone",
         "created_by",
       ].filter((column) => !listed.has(`institution.${column}`))
+    ).toEqual([]);
+  });
+
+  it("lists every personal-data column of a coordinator invitation", () => {
+    expect(
+      [
+        "identifier_ciphertext",
+        "identifier_hash",
+        "token_ciphertext",
+        "invited_by_user_id",
+        "accepted_by_user_id",
+        "revoked_by_user_id",
+      ].filter((column) => !listed.has(`institution_invitation.${column}`))
+    ).toEqual([]);
+  });
+
+  it("lists every personal-data column of a safeguarding report and its log", () => {
+    expect(
+      [
+        "safeguarding_report.description_ciphertext",
+        "safeguarding_report.subject_details_ciphertext",
+        "safeguarding_report.subject_age",
+        "safeguarding_report.reporter_name_ciphertext",
+        "safeguarding_report.reporter_contact_ciphertext",
+        "safeguarding_report.escalation_reference_ciphertext",
+        "safeguarding_report.outcome_ciphertext",
+        "safeguarding_report.assigned_to_user_id",
+        "safeguarding_incident_log.body_ciphertext",
+        "safeguarding_incident_log.author_user_id",
+      ].filter((column) => !listed.has(column))
     ).toEqual([]);
   });
 

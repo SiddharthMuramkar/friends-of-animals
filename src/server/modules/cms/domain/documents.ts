@@ -2,8 +2,8 @@
 // one refreshes the public pages. Each document has one cache tag; the
 // public read caches under it and publishing calls `updateTag` on it, so a
 // published change shows on the next request without a deploy. Site facts
-// also feed the footer, contact details and JSON-LD through one shared
-// facts read, which has a tag of its own.
+// also feed the contact details, policy pages and JSON-LD through one
+// shared facts read, which has a tag of its own.
 //
 // The kinds' body schemas live in one file per kind next to this one.
 // Later CMS tickets (blog #112, events #125) add their own documents.
@@ -99,13 +99,13 @@ export function isLinkedConsentPurpose(
 
 /**
  * The public page that shows a document, where previewing its draft
- * starts. Site facts show in the footer of every page, so on the home page.
+ * starts. Site facts preview on the contact page, which shows them all.
  */
 const PUBLIC_PATH: Record<CmsDocumentKey, `/${string}`> = {
   home: ROUTES.home.path,
   about: ROUTES.about.path,
   impact: ROUTES.impact.path,
-  site_facts: ROUTES.home.path,
+  site_facts: ROUTES.contact.path,
   legal_privacy: ROUTES.privacy.path,
   legal_terms: ROUTES.terms.path,
   legal_safeguarding: ROUTES.safeguarding.path,

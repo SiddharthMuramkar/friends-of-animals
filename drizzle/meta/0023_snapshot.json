@@ -1,5 +1,5 @@
 {
-  "id": "d32ead87-d40e-4995-a1df-99e3b8bfb63a",
+  "id": "b949db00-f0b0-4830-b2bf-a1d4ea0a06ff",
   "prevId": "e9127b6b-fb22-4109-b6b1-8456b7304368",
   "version": "7",
   "dialect": "postgresql",
@@ -992,6 +992,273 @@
         "outbox_failed_at_when_failed": {
           "name": "outbox_failed_at_when_failed",
           "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.institution_invitation": {
+      "name": "institution_invitation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "institution_id": {
+          "name": "institution_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "institution_invitation_channel",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "identifier_ciphertext": {
+          "name": "identifier_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "identifier_hash": {
+          "name": "identifier_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_ciphertext": {
+          "name": "token_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "institution_invitation_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "invited_by_user_id": {
+          "name": "invited_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accepted_at": {
+          "name": "accepted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accepted_by_user_id": {
+          "name": "accepted_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_by_user_id": {
+          "name": "revoked_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "institution_invitation_one_pending_per_identifier": {
+          "name": "institution_invitation_one_pending_per_identifier",
+          "columns": [
+            {
+              "expression": "institution_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "identifier_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"institution_invitation\".\"status\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "institution_invitation_institution_id_idx": {
+          "name": "institution_invitation_institution_id_idx",
+          "columns": [
+            {
+              "expression": "institution_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "institution_invitation_invited_by_user_id_idx": {
+          "name": "institution_invitation_invited_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "invited_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "institution_invitation_accepted_by_user_id_idx": {
+          "name": "institution_invitation_accepted_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "accepted_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "institution_invitation_revoked_by_user_id_idx": {
+          "name": "institution_invitation_revoked_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "revoked_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "institution_invitation_institution_id_institution_id_fk": {
+          "name": "institution_invitation_institution_id_institution_id_fk",
+          "tableFrom": "institution_invitation",
+          "tableTo": "institution",
+          "columnsFrom": [
+            "institution_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "institution_invitation_invited_by_user_id_user_id_fk": {
+          "name": "institution_invitation_invited_by_user_id_user_id_fk",
+          "tableFrom": "institution_invitation",
+          "tableTo": "user",
+          "columnsFrom": [
+            "invited_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "institution_invitation_accepted_by_user_id_user_id_fk": {
+          "name": "institution_invitation_accepted_by_user_id_user_id_fk",
+          "tableFrom": "institution_invitation",
+          "tableTo": "user",
+          "columnsFrom": [
+            "accepted_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "institution_invitation_revoked_by_user_id_user_id_fk": {
+          "name": "institution_invitation_revoked_by_user_id_user_id_fk",
+          "tableFrom": "institution_invitation",
+          "tableTo": "user",
+          "columnsFrom": [
+            "revoked_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "institution_invitation_token_hash_unique": {
+          "name": "institution_invitation_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "institution_invitation_token_only_while_pending": {
+          "name": "institution_invitation_token_only_while_pending",
+          "value": "\"institution_invitation\".\"status\" = 'pending' OR \"institution_invitation\".\"token_ciphertext\" IS NULL"
+        },
+        "institution_invitation_accepted_at_matches_status": {
+          "name": "institution_invitation_accepted_at_matches_status",
+          "value": "(\"institution_invitation\".\"status\" = 'accepted') = (\"institution_invitation\".\"accepted_at\" IS NOT NULL)"
+        },
+        "institution_invitation_revoked_at_matches_status": {
+          "name": "institution_invitation_revoked_at_matches_status",
+          "value": "(\"institution_invitation\".\"status\" = 'revoked') = (\"institution_invitation\".\"revoked_at\" IS NOT NULL)"
+        },
+        "institution_invitation_expires_after_creation": {
+          "name": "institution_invitation_expires_after_creation",
+          "value": "\"institution_invitation\".\"expires_at\" > \"institution_invitation\".\"created_at\""
         }
       },
       "isRLSEnabled": false
@@ -2723,349 +2990,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.competition_award_scheme": {
-      "name": "competition_award_scheme",
-      "schema": "",
-      "columns": {
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "round": {
-          "name": "round",
-          "type": "award_round",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scheme": {
-          "name": "scheme",
-          "type": "award_scheme",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ranked_123'"
-        },
-        "prizes": {
-          "name": "prizes",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "competition_award_scheme_updated_by_user_id_idx": {
-          "name": "competition_award_scheme_updated_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "updated_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "competition_award_scheme_competition_id_competition_id_fk": {
-          "name": "competition_award_scheme_competition_id_competition_id_fk",
-          "tableFrom": "competition_award_scheme",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "competition_award_scheme_updated_by_user_id_user_id_fk": {
-          "name": "competition_award_scheme_updated_by_user_id_user_id_fk",
-          "tableFrom": "competition_award_scheme",
-          "tableTo": "user",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "competition_award_scheme_competition_id_round_pk": {
-          "name": "competition_award_scheme_competition_id_round_pk",
-          "columns": [
-            "competition_id",
-            "round"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "competition_award_scheme_prizes_object": {
-          "name": "competition_award_scheme_prizes_object",
-          "value": "jsonb_typeof(\"competition_award_scheme\".\"prizes\") = 'object'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.competition_consent_document": {
-      "name": "competition_consent_document",
-      "schema": "",
-      "columns": {
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "purpose": {
-          "name": "purpose",
-          "type": "consent_purpose",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "consent_document_id": {
-          "name": "consent_document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attached_by_user_id": {
-          "name": "attached_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attached_at": {
-          "name": "attached_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "competition_consent_document_consent_document_id_idx": {
-          "name": "competition_consent_document_consent_document_id_idx",
-          "columns": [
-            {
-              "expression": "consent_document_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "competition_consent_document_attached_by_user_id_idx": {
-          "name": "competition_consent_document_attached_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "attached_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "competition_consent_document_competition_id_competition_id_fk": {
-          "name": "competition_consent_document_competition_id_competition_id_fk",
-          "tableFrom": "competition_consent_document",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "competition_consent_document_consent_document_id_consent_document_id_fk": {
-          "name": "competition_consent_document_consent_document_id_consent_document_id_fk",
-          "tableFrom": "competition_consent_document",
-          "tableTo": "consent_document",
-          "columnsFrom": [
-            "consent_document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "competition_consent_document_attached_by_user_id_user_id_fk": {
-          "name": "competition_consent_document_attached_by_user_id_user_id_fk",
-          "tableFrom": "competition_consent_document",
-          "tableTo": "user",
-          "columnsFrom": [
-            "attached_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "competition_consent_document_competition_id_purpose_pk": {
-          "name": "competition_consent_document_competition_id_purpose_pk",
-          "columns": [
-            "competition_id",
-            "purpose"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.competition_fee": {
-      "name": "competition_fee",
-      "schema": "",
-      "columns": {
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "route": {
-          "name": "route",
-          "type": "participation_route",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_minor": {
-          "name": "amount_minor",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'INR'"
-        },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "competition_fee_updated_by_user_id_idx": {
-          "name": "competition_fee_updated_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "updated_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "competition_fee_competition_id_competition_id_fk": {
-          "name": "competition_fee_competition_id_competition_id_fk",
-          "tableFrom": "competition_fee",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "competition_fee_updated_by_user_id_user_id_fk": {
-          "name": "competition_fee_updated_by_user_id_user_id_fk",
-          "tableFrom": "competition_fee",
-          "tableTo": "user",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "competition_fee_competition_id_route_pk": {
-          "name": "competition_fee_competition_id_route_pk",
-          "columns": [
-            "competition_id",
-            "route"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "competition_fee_amount_not_negative": {
-          "name": "competition_fee_amount_not_negative",
-          "value": "\"competition_fee\".\"amount_minor\" >= 0"
-        },
-        "competition_fee_currency_inr": {
-          "name": "competition_fee_currency_inr",
-          "value": "\"competition_fee\".\"currency\" = 'INR'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.setting": {
       "name": "setting",
       "schema": "",
@@ -3991,6 +3915,23 @@
         "failed"
       ]
     },
+    "public.institution_invitation_channel": {
+      "name": "institution_invitation_channel",
+      "schema": "public",
+      "values": [
+        "email",
+        "phone"
+      ]
+    },
+    "public.institution_invitation_status": {
+      "name": "institution_invitation_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "accepted",
+        "revoked"
+      ]
+    },
     "public.consent_event_action": {
       "name": "consent_event_action",
       "schema": "public",
@@ -4015,8 +3956,7 @@
       "values": [
         "privacy_notice",
         "terms",
-        "messages",
-        "competition_terms"
+        "messages"
       ]
     },
     "public.consent_subject_type": {
@@ -4129,31 +4069,6 @@
         "published",
         "registration_open",
         "registration_closed"
-      ]
-    },
-    "public.award_round": {
-      "name": "award_round",
-      "schema": "public",
-      "values": [
-        "school",
-        "foa_final"
-      ]
-    },
-    "public.award_scheme": {
-      "name": "award_scheme",
-      "schema": "public",
-      "values": [
-        "ranked_123",
-        "medals_gsb",
-        "grades_ab"
-      ]
-    },
-    "public.participation_route": {
-      "name": "participation_route",
-      "schema": "public",
-      "values": [
-        "individual",
-        "institution"
       ]
     },
     "public.institution_status": {

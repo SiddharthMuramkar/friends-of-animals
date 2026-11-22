@@ -85,6 +85,7 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 | `/etc/foa/secrets/worker_sentry.env` (optional, HR-22)  | root, 0600      | `SENTRY_DSN=` for every worker        |
 | `/etc/foa/secrets/worker_prod_r2.env` (optional, HR-08) | root, 0600      | Prod bucket `R2_*`, worker-prod only  |
 | `/etc/foa/secrets/worker_media_r2.env` (optional)       | root, 0600      | Prod bucket `R2_*`, worker-media only |
+| `/etc/foa/secrets/worker_prod_field_keys.env`           | root, 0600      | App `FIELD_*` keys, worker-prod only  |
 | `/etc/foa/preview-files.env` (optional)                 | root, 0600      | Non-prod `R2_*`: staging, previews    |
 | `/etc/foa/secrets/pgbouncer_userlist.txt`               | 6432, 0400      | PgBouncer `auth_file` (derived)       |
 | `/etc/foa/secrets/pgbackrest_repo1_cipher_pass`         | root, 0400      | pgBackRest repo1 passphrase           |
@@ -97,7 +98,7 @@ under `/etc/foa` (0700 root) and never overwrites an existing secret:
 1000 is `node` in the worker image. The worker secrets come from
 `scripts/worker-roles.sh` (Workers, below), not `bootstrap-secrets.sh`;
 the optional `.env` files are written by hand (Workers, "Scan, PDF and
-media sidecars").
+media sidecars" and "Links and field keys").
 Passwords are 32 random bytes as hex (URL-safe). Containers get them as
 Compose secrets (`/run/secrets/...`), never as environment values.
 
@@ -1014,6 +1015,39 @@ heartbeat rows; leave it out and they say `unknown`.
 - A local run needs none of this: `pnpm worker:dev` drains the local
   database (`DIRECT_URL`) in single mode with `APP_ENV=local`, capturing
   email, and restarts on code changes.
+
+### Links and field keys (worker-prod)
+
+Some messages need more than the database. A coordinator invitation (#74)
+carries a link to `/invitations/<token>` on the site, and the worker reads
+the invitee's address and the link's token from their encrypted columns;
+an SMS to a stored phone decrypts the phone the same way. So worker-prod
+has `APP_URL: https://friendsofanimals.dev` in `workers.yml`, and reads
+`FIELD_ENCRYPTION_KEYS` and `FIELD_HMAC_KEY` from
+`/etc/foa/secrets/worker_prod_field_keys.env` (optional, root 0600, HR-05).
+They must be the production app's own values (Vercel Production, kept in
+`/etc/foa/secrets/app/`): with other keys the worker can't read what the
+app stored. Without the file each such delivery fails, stays on the
+outbox and retries, with a reason that names no address; every other
+message still goes.
+
+Write the file from the app's key files without printing them, then
+recreate worker-prod:
+
+```sh
+install -m 0600 -o root -g root /dev/null /etc/foa/secrets/worker_prod_field_keys.env
+{
+  printf 'FIELD_ENCRYPTION_KEYS=%s\n' "$(cat /etc/foa/secrets/app/field_encryption_keys)"
+  printf 'FIELD_HMAC_KEY=%s\n' "$(cat /etc/foa/secrets/app/field_hmac_key)"
+} > /etc/foa/secrets/worker_prod_field_keys.env
+docker compose -f workers.yml up -d --wait worker-prod
+```
+
+When the app's keys change (a new key ring version), rewrite this file and
+recreate worker-prod together with the app's change. `worker-staging` and
+`worker-preview` get neither setting: there is no staging or preview site
+today (`docs/adr/0001-ci-e2e-and-prebuilt-deploys.md`). Give them their
+site's `APP_URL`, and staging its keys, if one comes back.
 
 ### Scan, PDF and media sidecars
 

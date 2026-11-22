@@ -12,7 +12,7 @@ const notEnrolled = { enrolled: false, verifiedAt: null };
 const enrolledNotVerified = { enrolled: true, verifiedAt: null };
 
 describe("staff roles", () => {
-  it("are the eight FOA staff roles from the ticket", () => {
+  it("are the eight FOA staff roles from the ticket, and the safeguarding lead (#116)", () => {
     expect([...STAFF_ROLES].sort()).toEqual([
       "adoption_coordinator",
       "auction_manager",
@@ -20,6 +20,7 @@ describe("staff roles", () => {
       "competition_manager",
       "content_manager",
       "finance",
+      "safeguarding_lead",
       "staff_admin",
       "super_admin",
     ]);

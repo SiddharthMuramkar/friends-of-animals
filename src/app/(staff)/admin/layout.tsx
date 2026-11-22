@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { APP_ROUTES } from "@/lib/app-routes";
 
 import { AdminNav, AdminNavView } from "./_components/admin-nav";
+import { FactsReadiness } from "./_components/facts-readiness";
 
 // Signed-in pages carry a per-request CSP nonce (src/proxy.ts, #65), which
 // a static shell's build-time scripts can't have. Waiting for the request
@@ -13,8 +14,9 @@ import { AdminNav, AdminNavView } from "./_components/admin-nav";
 export const instant = false;
 
 /**
- * The admin area's shell: its navigation over each page. It reads no
- * session; the parent (staff) layout holds #60's second-factor gate, and
+ * The admin area's shell: its navigation over each page, and for staff
+ * who look after them, which of FOA's organisation facts are still
+ * missing. The parent (staff) layout holds #60's second-factor gate, and
  * each page checks the actor's permission itself, inside <Suspense>.
  */
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
@@ -36,6 +38,9 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           </Suspense>
         </div>
       </div>
+      <Suspense fallback={null}>
+        <FactsReadiness />
+      </Suspense>
       {children}
     </>
   );

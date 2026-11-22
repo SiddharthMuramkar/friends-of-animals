@@ -57,6 +57,19 @@ describe("isSignedInPage", () => {
       expect(isSignedInPage(path), path).toBe(false);
     }
   });
+
+  it("knows the contact inbox and each message in it", () => {
+    expect(isSignedInPage(APP_ROUTES.adminInbox)).toBe(true);
+    expect(
+      isSignedInPage("/admin/inbox/01938a00-0000-7000-8113-000000000001")
+    ).toBe(true);
+  });
+
+  it("knows no other path under the inbox", () => {
+    expect(isSignedInPage("/admin/inbox/")).toBe(false);
+    expect(isSignedInPage("/admin/inbox/a/b")).toBe(false);
+    expect(isSignedInPage("/admin/inboxes/a")).toBe(false);
+  });
 });
 
 describe("isSignedInPath", () => {

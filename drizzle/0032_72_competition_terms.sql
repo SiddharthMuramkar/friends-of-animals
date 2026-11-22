@@ -1,7 +1,6 @@
 CREATE TYPE "public"."award_round" AS ENUM('school', 'foa_final');--> statement-breakpoint
 CREATE TYPE "public"."award_scheme" AS ENUM('ranked_123', 'medals_gsb', 'grades_ab');--> statement-breakpoint
 CREATE TYPE "public"."participation_route" AS ENUM('individual', 'institution');--> statement-breakpoint
-ALTER TYPE "public"."consent_purpose" ADD VALUE 'competition_terms';--> statement-breakpoint
 CREATE TABLE "competition_award_scheme" (
 	"competition_id" uuid NOT NULL,
 	"round" "award_round" NOT NULL,

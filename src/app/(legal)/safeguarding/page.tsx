@@ -1,11 +1,10 @@
-import { Globe, Phone } from "lucide-react";
+import { Globe, MessageSquareWarning, Phone } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { ExplainState } from "@/components/site/explain-state";
+import { ButtonLink } from "@/components/site/button-link";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isFactShown, SITE } from "@/lib/site";
 
 import { LegalDocument } from "../_components/legal-document";
 
@@ -98,22 +97,19 @@ export default async function Page() {
       top={<Helplines />}
       after={{
         "how-to-report": (
-          <ExplainState
-            title={t("form.title")}
-            headingLevel="h3"
-            className="px-4 sm:px-8 [&_a]:max-w-full"
-            back={{
-              href: ROUTES.childProtection.path,
-              label: t("form.back"),
-            }}
+          <section
+            aria-labelledby="report-form-title"
+            className="rounded-3xl border-2 border-border bg-surface px-4 py-6 shadow-warm sm:p-8"
           >
-            <p>
-              {t("form.body")}
-              {/* Points at the email and phone in the text above, which
-                  production leaves out while they're unconfirmed. */}
-              {isFactShown(SITE.org.email) ? <> {t("form.until")}</> : null}
-            </p>
-          </ExplainState>
+            <h3 id="report-form-title" className="text-h3">
+              {t("form.title")}
+            </h3>
+            <p className="mt-3 max-w-prose text-ink-muted">{t("form.body")}</p>
+            <ButtonLink href={ROUTES.safeguardingReport.path} className="mt-6">
+              <MessageSquareWarning aria-hidden="true" />
+              {t("form.link")}
+            </ButtonLink>
+          </section>
         ),
       }}
     />

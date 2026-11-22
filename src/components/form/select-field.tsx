@@ -1,8 +1,9 @@
 import { ChevronDown, OctagonAlert } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 
-import { inputStyles } from "@/components/form";
 import { cn } from "@/lib/utils";
+
+import { inputStyles } from "./text-field";
 
 type SelectFieldProps = Omit<
   ComponentProps<"select">,
@@ -21,8 +22,7 @@ type SelectFieldProps = Omit<
 
 /**
  * A labelled native select, styled like the form kit's TextField, with an
- * optional error tied to it with aria-describedby. Route-local: the form
- * kit has no select yet.
+ * optional error tied to it with aria-describedby.
  */
 export function SelectField({
   id,

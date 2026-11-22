@@ -23,5 +23,7 @@ export function settingValueFromForm(
       return text;
     case "integer":
       return WHOLE_NUMBER.test(text) ? Number(text) : text;
+    case "text":
+      return text;
   }
 }
