@@ -65,8 +65,9 @@ type SeedStudent = Required<
   };
 
 /**
- * NEIGH27's students. Its age groups are 5–8, 9–12 and 13–17 on 1 January
- * 2027; these are in the two youngest, so they stay minors for years.
+ * NEIGH27's students. Its children's age groups are 5–8, 9–12 and 13–17 on
+ * 1 January 2027 (and Adults, for #78); these are in the two youngest, so
+ * they stay minors for years.
  */
 export const SEED_STUDENTS: readonly SeedStudent[] = [
   ["Aarav Kulkarni", "2019-03-14", "Class 2", "Sneha Kulkarni", "parent", "01"],

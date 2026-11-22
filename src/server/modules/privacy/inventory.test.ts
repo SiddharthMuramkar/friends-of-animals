@@ -129,6 +129,32 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
+  it("lists every personal-data column an adult's own profile adds (#78)", () => {
+    expect(
+      [
+        "owner_user_id",
+        "participant_code",
+        "country",
+        "school_name",
+        "dob_ciphertext",
+        "phone_ciphertext",
+        "pin_code",
+        "city",
+        "state",
+      ].filter((column) => !listed.has(`participant_profile.${column}`))
+    ).toEqual([]);
+  });
+
+  it("says each shared participant column is kept for adults on their own too (#78)", () => {
+    for (const column of ["full_name", "dob_ciphertext", "phone_ciphertext"]) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === "participant_profile" && each.column === column
+      );
+      expect(entry?.purpose, column).toMatch(/adult/i);
+      expect(entry?.retention.period, column).toMatch(/adult|participant/i);
+    }
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>

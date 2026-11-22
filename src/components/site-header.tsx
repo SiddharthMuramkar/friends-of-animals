@@ -31,6 +31,22 @@ async function MyInstitutionLink({ label }: { label: string }) {
   );
 }
 
+/**
+ * "My competitions", for a signed-in adult who has registered themselves
+ * for a competition (#78): their participant dashboard. Reads the
+ * session, so it renders under <Suspense>; everyone else gets nothing.
+ */
+async function MyCompetitionsLink({ label }: { label: string }) {
+  const actor = await currentActor();
+  if (actor.kind !== "user") return null;
+  if (!(await as(actor).hasMyRegistrations())) return null;
+  return (
+    <ButtonLink href={APP_ROUTES.participant} variant="secondary">
+      {label}
+    </ButtonLink>
+  );
+}
+
 export async function SiteHeader() {
   const t = await getTranslations("nav");
   const tc = await getTranslations("common");
@@ -95,6 +111,9 @@ export async function SiteHeader() {
           </Suspense>
           <Suspense fallback={null}>
             <MyInstitutionLink label={t("links.myInstitution")} />
+          </Suspense>
+          <Suspense fallback={null}>
+            <MyCompetitionsLink label={t("links.myCompetitions")} />
           </Suspense>
           <ButtonLink href={ROUTES.donate.path} className="max-sm:hidden">
             {t("donate")}

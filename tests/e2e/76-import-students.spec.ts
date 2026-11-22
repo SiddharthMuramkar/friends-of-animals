@@ -81,7 +81,8 @@ test("an authorised person imports students from a spreadsheet, fixes the rows t
     page.getByRole("heading", { level: 1, name: "Import students" })
   ).toBeVisible();
   await expect(
-    page.getByText("This competition is for ages 5–17 on 1 January 2027.")
+    // Its children's groups and, for adults on their own (#78), Adults.
+    page.getByText("This competition is for ages 5–99 on 1 January 2027.")
   ).toBeVisible();
   await expect(
     page.getByRole("table", { name: "What goes in each column" })
@@ -136,7 +137,7 @@ test("an authorised person imports students from a spreadsheet, fixes the rows t
   await expect(
     problems.getByRole("row", { name: /^9 Zoya Sheikh/ })
   ).toContainText(
-    "this competition is for ages 5–17 on 1 January 2027; this student is 4."
+    "this competition is for ages 5–99 on 1 January 2027; this student is 4."
   );
   await expect(problems.getByRole("row", { name: /^10 vihaan/ })).toContainText(
     "The same student as row 3"

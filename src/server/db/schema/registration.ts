@@ -4,10 +4,12 @@
 // coordinators and FOA quote. Its coordinators then enrol students: each
 // student is a participant profile the institution manages, with one
 // registration per competition in the age group their date of birth puts
-// them in. Paying confirms it with a registration number (#77); the
-// individual route (#78) adds its own here.
+// them in. Paying confirms it with a registration number (#77). On the
+// individual route (#78) an adult registers themselves: their own profile
+// (`owner_kind` self, one per user) carries their FOA Participant ID, and
+// each registration waits for its fee as `pending_payment`.
 //
-// Personal data: `registered_by`, and a student's details on
+// Personal data: `registered_by`, a student's details and an adult's own on
 // `participant_profile`. The date of birth, phones, emails, the guardian's
 // name and the address are encrypted with the field cipher; the data
 // inventory lists every column (src/server/modules/privacy/inventory.ts).
@@ -111,6 +113,10 @@ export const participantOwnerKindEnum = pgEnum(
   PARTICIPANT_OWNER_KINDS
 );
 
+/** The constraint `withUniqueCode` retries on when a Participant ID is taken. */
+export const PARTICIPANT_CODE_UNIQUE =
+  "participant_profile_participant_code_unique";
+
 export const guardianRelationshipEnum = pgEnum(
   "guardian_relationship",
   GUARDIAN_RELATIONSHIPS
@@ -120,7 +126,9 @@ export const guardianRelationshipEnum = pgEnum(
  * One person taking part, as whoever keeps their details knows them. A
  * school's student is one profile per institution, found again by
  * `identity_hash` when they are enrolled in another competition: the
- * latest details the school gives replace the old ones.
+ * latest details the school gives replace the old ones. An adult keeps
+ * one profile of their own (#78), found by `owner_user_id`; the details
+ * they give on a later registration replace the old ones too.
  */
 export const participantProfile = pgTable(
   "participant_profile",
@@ -131,6 +139,18 @@ export const participantProfile = pgTable(
     managingInstitutionId: uuid("managing_institution_id").references(
       () => institution.id
     ),
+    /**
+     * The account of an adult who keeps their own profile (#78); null for
+     * a school's student, or once that account is gone.
+     */
+    ownerUserId: uuid("owner_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    /**
+     * The FOA Participant ID of an adult's own profile, e.g. FOA-P-277K3M9Q
+     * (#78): never a sign-in credential.
+     */
+    participantCode: text("participant_code"),
     /** Plain: the dashboard sorts and shows it. */
     fullName: text("full_name").notNull(),
     /** `YYYY-MM-DD`, encrypted for purpose "participant_profile.dob". */
@@ -152,6 +172,13 @@ export const participantProfile = pgTable(
     pinCode: text("pin_code"),
     city: text(),
     state: text(),
+    /**
+     * ISO 3166-1 alpha-2, as an adult gives it (#78); null for a school's
+     * student, who is in India.
+     */
+    country: text(),
+    /** The school an adult names, if any (#78); free text. */
+    schoolName: text("school_name"),
     /**
      * Blind index of the student's normalised name and date of birth
      * (src/server/modules/registration/domain/identity-key.ts): how the
@@ -175,10 +202,33 @@ export const participantProfile = pgTable(
       "participant_profile_guardian_complete",
       sql`(${table.guardianNameCiphertext} IS NULL) = (${table.guardianRelationship} IS NULL) AND (${table.guardianNameCiphertext} IS NULL) = (${table.guardianPhoneCiphertext} IS NULL)`
     ),
+    // An Indian PIN code is six digits, none starting with 0; an adult
+    // abroad (#78) gives their own country's postal code.
     check(
       "participant_profile_pin_code_format",
-      sql`${table.pinCode} ~ '^[1-9][0-9]{5}$'`
+      sql`${table.pinCode} ~ '^[1-9][0-9]{5}$' OR (${table.country} IS NOT NULL AND ${table.country} <> 'IN' AND ${table.pinCode} ~ '^[A-Za-z0-9][A-Za-z0-9 -]{1,9}$')`
     ),
+    check(
+      "participant_profile_country_format",
+      sql`${table.country} ~ '^[A-Z]{2}$'`
+    ),
+    // Only a person's own profile (or, later, a guardian's) has an owner
+    // account, and only their own has a Participant ID.
+    check(
+      "participant_profile_owner_user",
+      sql`${table.ownerUserId} IS NULL OR ${table.ownerKind} <> 'institution'`
+    ),
+    check(
+      "participant_profile_participant_code_format",
+      sql`${table.participantCode} ~ '^FOA-P-[0-9]{2}[0-9A-HJKMNP-TV-Z]{6}$'`
+    ),
+    unique(PARTICIPANT_CODE_UNIQUE).on(table.participantCode),
+    // One profile of their own per adult.
+    uniqueIndex("participant_profile_self_owner_unique")
+      .on(table.ownerUserId)
+      .where(sql`${table.ownerKind} = 'self'`),
+    // Deleting a user sets this to null; the index keeps that from scanning.
+    index("participant_profile_owner_user_id_idx").on(table.ownerUserId),
     // One profile per child at a school.
     uniqueIndex("participant_profile_institution_identity_unique")
       .on(table.managingInstitutionId, table.identityHash)
