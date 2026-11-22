@@ -5,7 +5,12 @@ import { describe, expect, it } from "vitest";
 
 import type { FileStatus } from "@/server/modules/files";
 
-import { runUpload, type UploadSteps, type UploadView } from "./run-upload";
+import {
+  runUpload,
+  wait,
+  type UploadSteps,
+  type UploadView,
+} from "./run-upload";
 
 const FILE_ID = "01938a00-0000-7000-8000-000000000201";
 const UPLOAD_URL = "https://storage.example.test/foa-files/local/incoming/x";
@@ -154,5 +159,45 @@ describe("runUpload", () => {
       { step: "checking" },
     ]);
     expect(asked).toBe(0);
+  });
+});
+
+describe("wait", () => {
+  /** A signal that counts the abort listeners attached to it. */
+  function countingSignal(controller = new AbortController()) {
+    let listeners = 0;
+    const signal = controller.signal;
+    const add = signal.addEventListener.bind(signal);
+    const remove = signal.removeEventListener.bind(signal);
+    signal.addEventListener = ((...args: Parameters<typeof add>) => {
+      listeners += 1;
+      add(...args);
+    }) as typeof add;
+    signal.removeEventListener = ((...args: Parameters<typeof remove>) => {
+      listeners -= 1;
+      remove(...args);
+    }) as typeof remove;
+    return { signal, controller, listeners: () => listeners };
+  }
+
+  it("leaves no abort listener behind once its time is up", async () => {
+    const { signal, listeners } = countingSignal();
+
+    for (let poll = 0; poll < 3; poll += 1) await wait(1, signal);
+
+    expect(listeners()).toBe(0);
+  });
+
+  it("resolves at once for a signal that has already aborted", async () => {
+    const { signal, controller, listeners } = countingSignal();
+    controller.abort();
+
+    const outcome = await Promise.race([
+      wait(60_000, signal).then(() => "resolved"),
+      new Promise((resolve) => setTimeout(() => resolve("waiting"), 50)),
+    ]);
+
+    expect(outcome).toBe("resolved");
+    expect(listeners()).toBe(0);
   });
 });
