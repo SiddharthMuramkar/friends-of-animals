@@ -69,7 +69,9 @@ export type PublishPostResult =
   | PostInputRefusal
   | ImageNotReady;
 
-export type UnschedulePostResult = { ok: true } | NotFound | InvalidTransition;
+export type UnschedulePostResult =
+  /** `tags`: the public pages to refresh, if the post was already due. */
+  { ok: true; tags: string[] } | NotFound | InvalidTransition;
 
 export type ArchivePostResult =
   | { ok: true; tags: string[] }
@@ -214,6 +216,8 @@ export async function unschedulePost(
 ): Promise<UnschedulePostResult> {
   const { role } = await authorize(ctx, "cms.post.publish");
   return withMove(ctx, input.postId, "unschedule", async (tx, post, to) => {
+    // A post already due is public before its job runs (publicPostFilter).
+    const wasPublic = isPostPublic(post, ctx.clock.now());
     await move(
       tx,
       ctx,
@@ -227,7 +231,8 @@ export async function unschedulePost(
       },
       role
     );
-    return { ok: true } as const;
+    const tags: string[] = wasPublic ? postTags(post.slug) : [];
+    return { ok: true, tags } as const;
   });
 }
 
