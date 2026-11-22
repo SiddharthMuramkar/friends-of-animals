@@ -25,11 +25,23 @@ import {
   receiveGatewayWebhook,
   type ReceiveGatewayWebhookInput,
 } from "./receive-gateway-webhook";
+import {
+  recordOfflinePayment,
+  requestOfflinePaymentProofUpload,
+  type RecordOfflinePaymentInput,
+  type RequestOfflinePaymentProofUploadInput,
+} from "./record-offline-payment";
 
 export type {
   ReceiveGatewayWebhookInput,
   ReceiveGatewayWebhookResult,
 } from "./receive-gateway-webhook";
+export type {
+  RecordOfflinePaymentInput,
+  RecordOfflinePaymentResult,
+  RequestOfflinePaymentProofUploadInput,
+  RequestOfflinePaymentProofUploadResult,
+} from "./record-offline-payment";
 export type { SyncOutcome, WebhookOutcome } from "./domain/outcomes";
 export type {
   ConfirmCheckoutInput,
@@ -65,4 +77,10 @@ export const paymentsUseCases = (ctx: UseCaseContext) => ({
   getPaymentBatch: (input: GetPaymentBatchInput) => getPaymentBatch(ctx, input),
   getFeesToPay: (input: GetFeesToPayInput) => getFeesToPay(ctx, input),
   payTestCheckout: (input: PayTestCheckoutInput) => payTestCheckout(ctx, input),
+  // #79: offline payments and payments needing review.
+  requestOfflinePaymentProofUpload: (
+    input: RequestOfflinePaymentProofUploadInput
+  ) => requestOfflinePaymentProofUpload(ctx, input),
+  recordOfflinePayment: (input: RecordOfflinePaymentInput) =>
+    recordOfflinePayment(ctx, input),
 });

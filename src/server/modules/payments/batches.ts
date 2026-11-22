@@ -6,7 +6,7 @@
 // Loads under plain Node (the seed script): relative imports only, no
 // "server-only".
 
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, notExists } from "drizzle-orm";
 
 import type { Role } from "../../access/domain/roles";
 import type { Actor } from "../../actor";
@@ -28,7 +28,9 @@ type AuditContext = { clock: Clock; actor: Actor };
 
 /**
  * The registrations of an institution registration that still wait for
- * their fee: enrolled, not yet confirmed, in id order.
+ * their fee: enrolled, not yet confirmed, in id order. One held by a batch
+ * whose payment is in review (#79) waits for staff instead, so nobody pays
+ * for it twice.
  */
 export async function payableRegistrations(
   db: AppDb,
@@ -40,11 +42,30 @@ export async function payableRegistrations(
     .where(
       and(
         eq(registration.institutionRegistrationId, institutionRegistrationId),
-        eq(registration.status, "enrolled")
+        eq(registration.status, "enrolled"),
+        notExists(heldInReview(db, registration.id))
       )
     )
     .orderBy(asc(registration.id));
   return rows.map((row) => row.id);
+}
+
+/** A batch in review holding the registration `registrationId` names. */
+export function heldInReview(
+  db: AppDb,
+  registrationId: typeof registration.id | string
+) {
+  return db
+    .select({ batchId: paymentBatchItem.batchId })
+    .from(paymentBatchItem)
+    .innerJoin(paymentBatch, eq(paymentBatch.id, paymentBatchItem.batchId))
+    .where(
+      and(
+        eq(paymentBatchItem.registrationId, registrationId),
+        isNull(paymentBatchItem.releasedAt),
+        eq(paymentBatch.status, "needs_review")
+      )
+    );
 }
 
 /**

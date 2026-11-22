@@ -13,6 +13,11 @@
 // - gateway_webhook_event: one row per webhook whose signature checked out,
 //   to drop replays and keep what each led to. Never the raw payload: it
 //   carries the payer's email and phone.
+// - offline_payment (#79): the cheque, bank transfer or cash finance
+//   recorded a batch as paid with, and its proof file. One per batch.
+// - payment_review_case (#79): a captured payment the batch couldn't
+//   accept, kept for staff to resolve with an outcome and a reason. One
+//   per payment, so a replayed signal opens nothing twice.
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
@@ -20,8 +25,10 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   char,
   check,
+  date,
   index,
   pgEnum,
   pgTable,
@@ -33,11 +40,20 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { PAYMENT_BATCH_STATUSES } from "../../modules/payments/domain/batch-status";
+import {
+  PAYMENT_BATCH_STATUSES,
+  PAYMENT_CAPTURE_METHODS,
+} from "../../modules/payments/domain/batch-status";
+import { OFFLINE_PAYMENT_METHODS } from "../../modules/payments/domain/offline-payment";
 import { WEBHOOK_OUTCOMES } from "../../modules/payments/domain/outcomes";
+import {
+  PAYMENT_REVIEW_OUTCOMES,
+  PAYMENT_REVIEW_REASONS,
+} from "../../modules/payments/domain/review-case";
 import { GATEWAY_NAMES } from "../../ports/payment-gateway";
 import { competition } from "./competitions";
 import { participationRouteEnum } from "./competition-terms";
+import { fileAsset } from "./files";
 import { user } from "./identity";
 import { institution } from "./institutions";
 import { institutionRegistration, registration } from "./registration";
@@ -46,6 +62,12 @@ import { institutionRegistration, registration } from "./registration";
 export const paymentBatchStatusEnum = pgEnum(
   "payment_batch_status",
   PAYMENT_BATCH_STATUSES
+);
+
+/** #79: how a captured batch was paid. */
+export const paymentCaptureMethodEnum = pgEnum(
+  "payment_capture_method",
+  PAYMENT_CAPTURE_METHODS
 );
 
 const timestamptz = (name: string) =>
@@ -81,8 +103,12 @@ export const paymentBatch = pgTable(
     gateway: text({ enum: GATEWAY_NAMES }).notNull(),
     /** Null until the gateway has made the order. */
     gatewayOrderId: text("gateway_order_id"),
-    /** The captured payment; null until the batch is captured. */
+    /** The captured payment; null until the batch is captured, and on a
+     * batch paid offline. */
     gatewayPaymentId: text("gateway_payment_id"),
+    /** How it was paid (#79); null until captured. Batches captured before
+     * #79 were all paid through the gateway. */
+    captureMethod: paymentCaptureMethodEnum("capture_method"),
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
     capturedAt: timestamptz("captured_at"),
@@ -100,13 +126,14 @@ export const paymentBatch = pgTable(
       "payment_batch_institution_matches_route",
       sql`(${table.route} = 'institution') = (${table.institutionId} IS NOT NULL AND ${table.institutionRegistrationId} IS NOT NULL)`
     ),
+    // A batch paid offline may never have had an order (#79).
     check(
       "payment_batch_order_when_opened",
-      sql`${table.status} NOT IN ('order_created', 'captured') OR ${table.gatewayOrderId} IS NOT NULL`
+      sql`${table.gatewayOrderId} IS NOT NULL OR ${table.status} NOT IN ('order_created', 'captured') OR (${table.status} = 'captured' AND ${table.captureMethod} = 'offline')`
     ),
     check(
       "payment_batch_payment_when_captured",
-      sql`${table.status} <> 'captured' OR (${table.capturedAt} IS NOT NULL AND ${table.gatewayPaymentId} IS NOT NULL)`
+      sql`${table.status} <> 'captured' OR (${table.capturedAt} IS NOT NULL AND (${table.gatewayPaymentId} IS NOT NULL OR ${table.captureMethod} = 'offline'))`
     ),
     index("payment_batch_institution_registration_id_idx").on(
       table.institutionRegistrationId
@@ -176,3 +203,110 @@ export const gatewayWebhookEvent = pgTable(
     index("gateway_webhook_event_order_id_idx").on(table.orderId),
   ]
 );
+
+/** #79: how money reached FOA outside the gateway. */
+export const offlinePaymentMethodEnum = pgEnum(
+  "offline_payment_method",
+  OFFLINE_PAYMENT_METHODS
+);
+
+export const offlinePayment = pgTable(
+  "offline_payment",
+  {
+    id: uuid().primaryKey(),
+    /** The batch it paid; one offline payment per batch. */
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => paymentBatch.id, { onDelete: "restrict" }),
+    method: offlinePaymentMethodEnum().notNull(),
+    /** Cheque number, transfer reference (UTR) or FOA cash receipt,
+     * normalised (./modules/payments/domain/offline-payment.ts). */
+    reference: text().notNull(),
+    /** Paise; always the batch's amount. */
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    /** The calendar date in India the money arrived. */
+    receivedOn: date("received_on", { mode: "string" }).notNull(),
+    /** The private proof file (a cheque image shows an account number and
+     * a signature). Kept as long as the payment record. */
+    proofFileAssetId: uuid("proof_file_asset_id")
+      .notNull()
+      .references(() => fileAsset.id, { onDelete: "restrict" }),
+    /** The finance user who recorded it; null once their account is gone. */
+    recordedByUserId: uuid("recorded_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    recordedAt: timestamptz("recorded_at").notNull(),
+  },
+  (table) => [
+    unique("offline_payment_batch_unique").on(table.batchId),
+    check("offline_payment_amount_positive", sql`${table.amountMinor} > 0`),
+    index("offline_payment_proof_file_asset_id_idx").on(table.proofFileAssetId),
+    index("offline_payment_recorded_by_user_id_idx").on(table.recordedByUserId),
+  ]
+);
+
+export type OfflinePaymentRow = typeof offlinePayment.$inferSelect;
+
+/** #79: why a captured payment went to review. */
+export const paymentReviewReasonEnum = pgEnum(
+  "payment_review_reason",
+  PAYMENT_REVIEW_REASONS
+);
+
+/** #79: how staff resolved a review case. */
+export const paymentReviewOutcomeEnum = pgEnum(
+  "payment_review_outcome",
+  PAYMENT_REVIEW_OUTCOMES
+);
+
+export const paymentReviewCase = pgTable(
+  "payment_review_case",
+  {
+    id: uuid().primaryKey(),
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => paymentBatch.id, { onDelete: "restrict" }),
+    reason: paymentReviewReasonEnum().notNull(),
+    /** The captured payment under review. */
+    gatewayPaymentId: text("gateway_payment_id"),
+    /** What the gateway captured, in paise, and in what currency. */
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    currency: char({ length: 3 }).notNull(),
+    /** Where the batch stood before review, so resolving knows where it
+     * goes back to. Never needs_review: a second case copies the first's. */
+    batchStatusBefore: paymentBatchStatusEnum("batch_status_before").notNull(),
+    openedAt: timestamptz("opened_at").notNull(),
+    resolvedAt: timestamptz("resolved_at"),
+    /** Who resolved it; null while open, or once their account is gone. */
+    resolvedByUserId: uuid("resolved_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    outcome: paymentReviewOutcomeEnum(),
+    /** Why staff chose the outcome: free text, required to resolve. */
+    resolutionReason: text("resolution_reason"),
+    /** The refunds ticket (#80) owes the payer this payment back. */
+    refundDue: boolean("refund_due").notNull().default(false),
+  },
+  (table) => [
+    // A payment is reviewed once, however often its signals arrive.
+    unique("payment_review_case_payment_unique").on(
+      table.batchId,
+      table.gatewayPaymentId
+    ),
+    check(
+      "payment_review_case_resolved_together",
+      sql`(${table.resolvedAt} IS NULL) = (${table.outcome} IS NULL) AND (${table.outcome} IS NULL) = (${table.resolutionReason} IS NULL)`
+    ),
+    check(
+      "payment_review_case_refund_only_on_refund",
+      sql`NOT ${table.refundDue} OR ${table.outcome} = 'refund'`
+    ),
+    index("payment_review_case_batch_id_idx").on(table.batchId),
+    index("payment_review_case_opened_at_idx").on(table.openedAt),
+    index("payment_review_case_resolved_by_user_id_idx").on(
+      table.resolvedByUserId
+    ),
+  ]
+);
+
+export type PaymentReviewCaseRow = typeof paymentReviewCase.$inferSelect;

@@ -26,6 +26,12 @@ export const PAYMENT_BATCH_STATUSES = [
 
 export type PaymentBatchStatus = (typeof PAYMENT_BATCH_STATUSES)[number];
 
+/** How a captured batch was paid (#79): through the gateway's order, or by
+ * an offline payment finance recorded. Null on a batch never captured. */
+export const PAYMENT_CAPTURE_METHODS = ["gateway", "offline"] as const;
+
+export type PaymentCaptureMethod = (typeof PAYMENT_CAPTURE_METHODS)[number];
+
 export const PAYMENT_BATCH_EVENTS = [
   /** The gateway returned an order id. */
   "order_opened",
