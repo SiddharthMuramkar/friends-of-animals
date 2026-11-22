@@ -103,7 +103,10 @@ test("finance reads a payment in review and the batches, and each form says what
     page.getByRole("heading", { level: 1, name: "Payment of ₹1,000.00" })
   ).toBeVisible();
   await expect(page).toHaveTitle(/^Payment needing review ·/);
-  await expect(page.getByText("Kinder Skies", { exact: true })).toBeVisible();
+  // By role: Next keeps the list page in the document, hidden, for Back.
+  await expect(
+    page.getByRole("region", { name: "What arrived", exact: true })
+  ).toContainText("Kinder Skies");
   await checkBothThemes(page, "/admin/payments/review/[id]");
   await page.getByRole("button", { name: "Accept the money" }).click();
   await expect(
