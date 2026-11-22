@@ -99,3 +99,28 @@ test("a slug that isn't a public post answers 404", async ({ page }) => {
   const response = await page.goto("/blog/no-such-post-here");
   expect(response?.status()).toBe(404);
 });
+
+// The preview seed (src/server/seed/posts.ts): a published sample post that
+// isn't a repo story, a draft, and a post scheduled a week after seeding.
+test("a post published in the CMS has its page, read from the database", async ({
+  page,
+}) => {
+  const response = await page.goto("/blog/kinder-skies-results");
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Kinder Skies: what the children drew"
+  );
+  await expectNoOriginals(page);
+});
+
+test("a draft, and a post scheduled for next week, answer 404", async ({
+  page,
+}) => {
+  for (const path of [
+    "/blog/volunteer-week-draft",
+    "/blog/a-bowl-of-water-this-summer",
+  ]) {
+    const response = await page.goto(path);
+    expect(response?.status(), path).toBe(404);
+  }
+});
