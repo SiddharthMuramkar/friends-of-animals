@@ -10,6 +10,7 @@ import {
   consentDocument,
 } from "@/server/db/schema";
 import { toConsentDocumentBody } from "@/server/modules/consent/domain/document-body";
+import type { ConsentPurpose } from "@/server/modules/consent/domain/purposes";
 import { createHarness, type Harness } from "@/test/harness";
 
 import type { CmsDocumentKey } from "./domain/documents";
@@ -50,10 +51,7 @@ async function publish(
   return { revisionId: saved.revisionId, ...published };
 }
 
-async function consentVersions(
-  h: Harness,
-  purpose: "privacy_notice" | "terms" | "messages"
-) {
+async function consentVersions(h: Harness, purpose: ConsentPurpose) {
   return h.db
     .select({
       version: consentDocument.version,
@@ -289,6 +287,33 @@ describe("publishing the messages consent", () => {
 
     expect(await consentVersions(h, "messages")).toEqual([
       expect.objectContaining({ legalRevisionId: null }),
+    ]);
+  });
+});
+
+describe("publishing a competition's terms", () => {
+  it("records no page revision: they rest on no policy page, not even the terms of use", async () => {
+    const h = await createHarness();
+    const { actor: manager } = await contentManager(h);
+    await publish(h, manager, "legal_terms", legalBody("T."));
+    await publish(h, manager, "legal_privacy", legalBody("P."));
+    const admin = await h.seed.member({ name: "Sunita Staff" });
+    await h.seed.grant(admin, { role: "staff_admin", scope: global });
+    const staff = await h.signIn(admin);
+
+    const published = await h.as(staff).publishConsentDocument({
+      purpose: "competition_terms",
+      title: "Competition terms",
+      source: "## Entering\n\nOne artwork per child.",
+    });
+
+    expect(published).toMatchObject({ ok: true, version: 1 });
+    expect(await consentVersions(h, "competition_terms")).toEqual([
+      expect.objectContaining({
+        version: 1,
+        title: "Competition terms",
+        legalRevisionId: null,
+      }),
     ]);
   });
 });
