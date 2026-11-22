@@ -4,6 +4,7 @@ import {
   adminCmsDocumentPath,
   adminInstitutionPath,
   APP_ROUTES,
+  institutionCompetitionsPath,
   isNonProductionPath,
   isSignedInPage,
   isSignedInPath,
@@ -72,7 +73,6 @@ describe("isSignedInPage", () => {
       "/admin/institutions/x/edit",
       `/admin/competitions/${COMPETITION_ID}/rubrics/essay/edit`,
       "/institution/competitions/NEIGH27",
-      "/institution/competitions",
     ]) {
       expect(isSignedInPage(path), path).toBe(false);
     }
@@ -139,6 +139,18 @@ describe("isSignedInPath", () => {
         adminInstitutionPath("01938a00-0000-7000-8000-000000001001")
       )
     ).toBe(true);
+  });
+
+  it("puts the competitions an institution registers for behind sign-in, for one institution at a time", () => {
+    const path = institutionCompetitionsPath(
+      "01938a00-0000-7000-8000-000000001001"
+    );
+
+    expect(path).toBe(
+      "/institution/competitions?institution=01938a00-0000-7000-8000-000000001001"
+    );
+    expect(isSignedInPage(new URL(path, "http://x").pathname)).toBe(true);
+    expect(isSignedInPath(path)).toBe(true);
   });
 
   it("leaves a public list of institutions open, should one come", () => {
