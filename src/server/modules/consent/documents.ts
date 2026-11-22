@@ -20,6 +20,7 @@ import { recordAudit } from "../../audit/record";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import {
+  isLinkedConsentPurpose,
   isMirroredConsentPurpose,
   legalKeyForConsentPurpose,
 } from "../cms/domain/documents";
@@ -148,11 +149,11 @@ export async function publishConsentDocument(
         title,
         body: parsed.body,
         // The messages consent rests on the privacy page (#111): it
-        // records the page's published revision, once there is one.
-        legalRevisionId: await publishedRevisionId(
-          tx,
-          legalKeyForConsentPurpose(purpose)
-        ),
+        // records the page's published revision, once there is one. A
+        // competition's terms (#72) rest on no page.
+        legalRevisionId: isLinkedConsentPurpose(purpose)
+          ? await publishedRevisionId(tx, legalKeyForConsentPurpose(purpose))
+          : null,
       }
     );
     await recordAudit(tx, ctx, {

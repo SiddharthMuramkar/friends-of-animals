@@ -69,9 +69,49 @@ test("public content reflows on a compact phone with enlarged text", async ({
   }
 });
 
+/**
+ * Ends the failure message of each check that reads React's streaming
+ * markers, which a React upgrade can change without breaking the page.
+ */
+const READS_REACT_MARKERS =
+  '(this check reads React\'s streaming markers: <template id="B:n">, $RC("B:n"), <div hidden id="S:n"> and their timed reveal; after a React upgrade, check the HTML still has them)';
+
+/**
+ * The home page's HTML, as a visitor's browser gets it, after checking that
+ * the response fills every Suspense hole its static shell leaves
+ * (`<template id="B:n">`, filled by `$RC("B:n", …)`). A shell the request
+ * can't resume leaves one open, and its visitor with the fallback.
+ */
+async function homeHtml(page: Page): Promise<string> {
+  const html = await (await page.request.get("/")).text();
+  const holes = [...html.matchAll(/<template id="(B:\d+)"/g)].map(
+    ([, id]) => id
+  );
+  const filled = new Set(
+    [...html.matchAll(/\$RC\("(B:\d+)"/g)].map(([, id]) => id)
+  );
+  expect(
+    holes.filter((id) => !filled.has(id)),
+    `Suspense holes left open ${READS_REACT_MARKERS}`
+  ).toEqual([]);
+  return html;
+}
+
+/** How many copies of the hero `html` holds: 2 while one streams over it. */
+const heroCopies = (html: string) => html.split('id="home-title"').length - 1;
+
 test("the homepage competition action fits on a compact phone", async ({
   page,
 }) => {
+  // The build has no database, so the server's first answer for / is the
+  // build's shell: the repo's copy, with the published one streamed over
+  // it. That request makes the server regenerate the shell with the
+  // published copy in it, which every later visitor gets (see Live in
+  // src/components/site/live.tsx). Both answers must be whole; measure
+  // the one every later visitor gets.
+  await homeHtml(page);
+  await expect.poll(async () => heroCopies(await homeHtml(page))).toBe(1);
+
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/");
   await page.evaluate(async () => {
@@ -105,6 +145,39 @@ test("the homepage competition action fits on a compact phone", async ({
   });
   expect(clientWidth).toBe(320);
   expect(scrollWidth).toBe(clientWidth);
+
+  // And it is painted once. React reveals the streamed parts of the page on
+  // a timer after the first paint; a paused clock holds them back, so the
+  // action first painted can be held before any of them replace what the
+  // static shell showed.
+  await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 60_000);
+  const streamed = page.locator('div[hidden][id^="S:"]');
+  try {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    // The header's parts are streamed, so some wait to be revealed: the
+    // clock really is holding them back.
+    expect(
+      await streamed.count(),
+      `no streamed part is held back ${READS_REACT_MARKERS}`
+    ).toBeGreaterThan(0);
+    const painted = await action.elementHandle();
+    await page.clock.runFor(1_000);
+    await expect(
+      streamed,
+      `streamed parts are still held back ${READS_REACT_MARKERS}`
+    ).toHaveCount(0);
+    // A visitor tapping the action as the page settles must hit the same
+    // link, still full size: never one torn out for a copy streamed later.
+    expect(
+      await action.evaluate((link, first) => link === first, painted)
+    ).toBe(true);
+    expect(
+      await painted!.evaluate((link) => link.getBoundingClientRect().height)
+    ).toBeGreaterThanOrEqual(44);
+  } finally {
+    await page.clock.resume();
+  }
 });
 
 test("the landscape menu stays open through hydration, scrolls, and closes", async ({

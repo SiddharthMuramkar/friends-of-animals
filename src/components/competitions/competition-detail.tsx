@@ -24,8 +24,11 @@ import { ROUTES } from "@/lib/routes";
 import { placeholder } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
+import { CompetitionTerms } from "./competition-terms";
+import { feeText } from "./fee-text";
 import {
   ageRange,
+  type CompetitionTermsView,
   type CompetitionView,
   type Discipline,
   fileRules,
@@ -49,8 +52,29 @@ const WAIT_ART: Partial<Record<PrimaryAction, SiteArtId>> = {
   results: "wait-mailbox-cat",
 };
 
-async function Fee({ fee }: { fee: CompetitionView["routes"][number]["fee"] }) {
+/**
+ * A route's fee: the competition's own (#72) when its terms are read, else
+ * the card's (a sample's amount, or a placeholder).
+ */
+async function Fee({
+  fee,
+  line,
+}: {
+  fee: CompetitionView["routes"][number]["fee"];
+  line: CompetitionTermsView["fees"][number] | undefined;
+}) {
   const t = await getTranslations("competitions.detail");
+  if (line) {
+    const [tFees, format] = await Promise.all([
+      getTranslations("competitionTerms.fees"),
+      getFormatter(),
+    ]);
+    return (
+      <span className="font-display font-semibold text-ink">
+        {feeText(line, { t: tFees, format })}
+      </span>
+    );
+  }
   const shown = feeDisplay(fee);
   if (shown.kind === "placeholder")
     return <Placeholder fact={placeholder(shown.key)} />;
@@ -90,6 +114,7 @@ export async function CompetitionDetail({
   titleAs?: "h1" | "h2";
 }) {
   const t = await getTranslations("competitions.detail");
+  const tTerms = await getTranslations("competitionTerms");
   const ts = await getTranslations("sample");
   const format = await getFormatter();
   const now = new Date(await cachedNow());
@@ -113,6 +138,8 @@ export async function CompetitionDetail({
     c.routes.find((x) => x.route === r);
   const school = route("INSTITUTION");
   const self = route("INDIVIDUAL");
+  const termsFee = (r: "institution" | "individual") =>
+    c.terms?.fees.find((line) => line.route === r);
   const isOpen = (d: Discipline, group: string) =>
     c.categories.some((x) => x.discipline === d && x.ageGroup === group);
   const artwork = c.physicalArtwork;
@@ -358,7 +385,7 @@ export async function CompetitionDetail({
               <p className="mt-2 text-ink-muted">{t("routes.school.body")}</p>
               <p className="mt-4 flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-semibold">{t("routes.fee")}</span>
-                <Fee fee={school.fee} />
+                <Fee fee={school.fee} line={termsFee("institution")} />
               </p>
             </article>
           ) : null}
@@ -373,7 +400,7 @@ export async function CompetitionDetail({
               <p className="mt-2 text-ink-muted">{t("routes.self.body")}</p>
               <p className="mt-4 flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-semibold">{t("routes.fee")}</span>
-                <Fee fee={self.fee} />
+                <Fee fee={self.fee} line={termsFee("individual")} />
               </p>
             </article>
           ) : null}
@@ -395,6 +422,13 @@ export async function CompetitionDetail({
         >
           <p>{t(`action.${action}.body`)}</p>
         </ExplainState>
+        {c.terms ? (
+          <CompetitionTerms
+            terms={c.terms}
+            headingLevel="h3"
+            className="mt-8"
+          />
+        ) : null}
       </Section>
 
       <Section hue={HUE}>
@@ -433,7 +467,9 @@ export async function CompetitionDetail({
           </div>
           <div className="rounded-3xl border-2 border-dashed border-border-strong bg-surface p-6">
             <h3 className="text-h4">{t("recognition.prizes")}</h3>
-            <p className="mt-3 text-ink-muted">{t("recognition.prizesBody")}</p>
+            <p className="mt-3 text-ink-muted">
+              {c.terms ? tTerms("prizesAbove") : t("recognition.prizesBody")}
+            </p>
           </div>
         </div>
       </Section>

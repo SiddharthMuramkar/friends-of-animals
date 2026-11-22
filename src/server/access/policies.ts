@@ -17,6 +17,7 @@ import { CONTACT_POLICY } from "../modules/contact/access-policy";
 import { PUBLIC_FORMS_POLICY } from "../modules/public-forms/access-policy";
 import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
 import { JUDGING_POLICY } from "../modules/judging/policy";
+import { COMPETITION_TERMS_POLICY } from "../modules/competitions/terms/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
@@ -35,7 +36,8 @@ export const POLICY = composePolicies(
   PUBLIC_FORMS_POLICY,
   CONTACT_POLICY,
   SAFEGUARDING_POLICY,
-  JUDGING_POLICY
+  JUDGING_POLICY,
+  COMPETITION_TERMS_POLICY
 );
 
 export type Action = keyof typeof POLICY;

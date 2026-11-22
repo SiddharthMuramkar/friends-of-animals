@@ -4,13 +4,25 @@
 // loadShownDocument); the contact page shows the facts' preview status.
 // Call the loaders at request time, inside <Suspense>
 // (the Live component), with the matching seed as the static shell's
-// fallback: the build has no database.
+// fallback: the build has no database. The home page also gives Live its
+// published read for the shell (loadPublishedHomePage), which the server
+// makes when it regenerates the page.
 
 import "server-only";
 
+import { cacheLife, cacheTag } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
+
 import { isSampleContentEnabled } from "@/lib/site";
 
-import { cmsPublicPath, type CmsDocumentKey } from "./domain/documents";
+import { errorSummaryForLogs } from "../../errors";
+import {
+  BUILD_SHELL_LIFE,
+  FAILED_READ_SHELL_LIFE,
+  isNextBuild,
+  loadPublishedDocument,
+} from "./cached";
+import { cmsPublicPath, cmsTag, type CmsDocumentKey } from "./domain/documents";
 import { type OrgFacts, unconfirmedOrgFacts } from "./domain/org-facts";
 import type { CmsKind } from "./kinds";
 import { homeKind, type HomeBody } from "./kinds/home";
@@ -45,9 +57,12 @@ function unpublishedImpact(): ImpactBody | null {
   return isSampleContentEnabled() ? impactKind.seedBody() : null;
 }
 
-/** The body shown, or `fallback` while there is none (the repo's copy). */
+/**
+ * The body of a shown or published document, or `fallback` while there is
+ * none (the repo's copy).
+ */
 function bodyOf<Body>(
-  shown: ShownCmsDocument | null,
+  shown: { body: unknown } | null,
   kind: CmsKind<Body>,
   fallback: () => Body
 ): Body {
@@ -83,6 +98,47 @@ export async function loadHomePage(): Promise<HomePage> {
     impact: bodyOf(impact, impactKind, unpublishedImpact),
     preview: previewOf("home", home),
   };
+}
+
+/**
+ * The published home page for the static shell (Live's `published`), so
+ * the hero and its buttons are painted once and never streamed over. Null
+ * while `next build` prerenders the page, or when the read fails: the page
+ * then keeps the seed in its shell and streams loadHomePage over it, and
+ * the server regenerates the shell with this read on its next request
+ * (after a failed read, its next request 15 seconds later).
+ *
+ * Cached, so each request that resumes a shell gets the answer that shell
+ * was rendered with (Next keeps a shell's cached values with it): a
+ * request after the build must take the seed-and-stream branch the build
+ * took, not read the database and leave the build's hole unfilled.
+ */
+export async function loadPublishedHomePage(): Promise<HomePage | null> {
+  "use cache";
+  if (isNextBuild()) {
+    cacheLife(BUILD_SHELL_LIFE);
+    return null;
+  }
+  try {
+    const [home, impact] = await Promise.all([
+      loadPublishedDocument("home"),
+      loadPublishedDocument("impact"),
+    ]);
+    cacheTag(cmsTag("home"), cmsTag("impact"));
+    cacheLife("hours");
+    return {
+      home: bodyOf(home, homeKind, homeKind.seedBody),
+      impact: bodyOf(impact, impactKind, unpublishedImpact),
+      preview: null,
+    };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error(
+      `CMS home page: the static shell could not read the published copy: ${errorSummaryForLogs(error)}`
+    );
+    cacheLife(FAILED_READ_SHELL_LIFE);
+    return null;
+  }
 }
 
 export function seedAboutPage(): AboutPage {
