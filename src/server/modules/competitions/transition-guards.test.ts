@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest";
 import type { Actor } from "@/server/actor";
 import { auditLog } from "@/server/db/schema";
 import type { Discipline } from "@/server/modules/competitions/domain/vocabulary";
+import { SUBSCRIBERS } from "@/server/outbox/events";
 import { createHarness, type Harness } from "@/test/harness";
 
 import type { CompetitionFields } from ".";
 import { completeFields } from "./testing";
+import { TRANSITION_GUARDS } from "./transition-guards";
 
 // The schedule moves a competition into school judging when submissions
 // close, but only once every discipline it runs has a published rubric
@@ -252,5 +254,26 @@ describe("the school-judging guard on the scheduled move", () => {
       })
     );
     expect(noticesTo(h, global.email)).toEqual([]);
+  });
+});
+
+describe("the guard list", () => {
+  it("guards the move into school judging", () => {
+    expect(TRANSITION_GUARDS.map((g) => `${g.from} -> ${g.to}`)).toContain(
+      "registration_closed -> school_judging"
+    );
+  });
+
+  it("tries a refused move again after each event its guard names", () => {
+    for (const guard of TRANSITION_GUARDS) {
+      const where = `${guard.from} -> ${guard.to}`;
+      expect(guard.retryOn.length, where).toBeGreaterThan(0);
+      for (const event of guard.retryOn) {
+        const handlers: readonly string[] = SUBSCRIBERS[event];
+        expect(handlers, `${where}: ${event}`).toContain(
+          "competitions.retry_blocked_moves"
+        );
+      }
+    }
   });
 });
