@@ -66,6 +66,9 @@ export function isManageOutcome(value: unknown): value is ManageOutcome {
 }
 
 export function removeOutcome(result: RemoveCoordinatorResult): ManageOutcome {
+  // Only not_found is ever shown: an institution no longer verified gets
+  // the page's notVerified state instead of the list and any outcome, and
+  // bad input never comes from the page's own buttons.
   return result.ok ? "removed" : "not_found";
 }
 

@@ -9,18 +9,21 @@ import {
   institutionInvitation,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { INVITATION_TTL_MS } from "@/server/modules/institutions/domain/invitation";
 import { createHarness, type Harness } from "@/test/harness";
-import { makeCoordinator, seedInstitution } from "@/test/institutions";
+import {
+  INVITATION_LINK,
+  makeCoordinator,
+  seedInstitution,
+} from "@/test/institutions";
 
 const TEACHER = "t@school.test";
 const TEACHER_PHONE = "+919876543210";
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-const LINK = /\/invitations\/([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
 
 /** The token in the newest invitation sent to `to`, by email or SMS. */
 function tokenSentTo(h: Harness, to: string): string {
   const message = to.includes("@") ? h.email.lastTo(to) : h.sms.lastTo(to);
-  const token = LINK.exec(message?.text ?? "")?.[1];
+  const token = INVITATION_LINK.exec(message?.text ?? "")?.[1];
   if (!token) throw new Error(`No invitation link was sent to ${to}`);
   return token;
 }
@@ -190,7 +193,7 @@ describe("acceptInvitation", () => {
     const { token } = await invited(h);
     const actor = await h.signIn(await h.seed.member({ email: TEACHER }));
 
-    h.clock.advance({ milliseconds: SEVEN_DAYS_MS - 1 });
+    h.clock.advance({ milliseconds: INVITATION_TTL_MS - 1 });
 
     expect(await h.as(actor).acceptInvitation({ token })).toMatchObject({
       ok: true,
@@ -202,7 +205,7 @@ describe("acceptInvitation", () => {
     const { token } = await invited(h);
     const actor = await h.signIn(await h.seed.member({ email: TEACHER }));
 
-    h.clock.advance({ milliseconds: SEVEN_DAYS_MS });
+    h.clock.advance({ milliseconds: INVITATION_TTL_MS });
 
     expect(await h.as(actor).acceptInvitation({ token })).toEqual({
       ok: false,
@@ -335,7 +338,7 @@ describe("viewInvitation", () => {
   it("shows anyone holding the link the institution and a masked address", async () => {
     const h = await createHarness();
     const { token } = await invited(h);
-    const expiresAt = new Date(h.clock.now().getTime() + SEVEN_DAYS_MS);
+    const expiresAt = new Date(h.clock.now().getTime() + INVITATION_TTL_MS);
     const invitation = {
       institutionName: "Green Valley School",
       status: "pending",
@@ -386,5 +389,18 @@ describe("viewInvitation", () => {
         error: "not_found",
       });
     }
+  });
+
+  describe("authorization", () => {
+    // The link is the credential for people; no background process reads
+    // an invitation through it.
+    it("refuses a system process, even with a good link", async () => {
+      const h = await createHarness();
+      const { token } = await invited(h);
+
+      await expect(
+        h.as({ kind: "system", process: "seed" }).viewInvitation({ token })
+      ).rejects.toThrow(DomainError);
+    });
   });
 });

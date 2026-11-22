@@ -7,11 +7,14 @@ import { redirect, RedirectType } from "next/navigation";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { errorSummaryForLogs } from "@/server/errors";
+import type { InviteCoordinatorResult } from "@/server/modules/institutions/coordinators";
 
 import {
   inviteFormState,
   removeOutcome,
   withdrawOutcome,
+  type InviteFormState,
   type InviteFormView,
   type ManageOutcome,
 } from "./invite-state";
@@ -23,7 +26,9 @@ function field(formData: FormData, name: string): string {
 
 /**
  * Sends one invitation and returns what the form shows next, translated
- * here so the client island ships no message catalogue.
+ * here so the client island ships no message catalogue. Anything
+ * unexpected (the database, or the same address invited twice at once)
+ * keeps what was typed beside "Something went wrong".
  */
 export async function inviteCoordinatorAction(
   _previous: InviteFormView,
@@ -32,13 +37,20 @@ export async function inviteCoordinatorAction(
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const identifier = field(formData, "identifier");
-  const result = await as(actor).inviteCoordinator({
-    institutionId: field(formData, "institutionId"),
-    identifier,
-  });
-  const state = inviteFormState(identifier, result);
+  let result: InviteCoordinatorResult | undefined;
+  try {
+    result = await as(actor).inviteCoordinator({
+      institutionId: field(formData, "institutionId"),
+      identifier,
+    });
+  } catch (error) {
+    console.error(`inviteCoordinator failed: ${errorSummaryForLogs(error)}`);
+  }
+  const state: InviteFormState = result
+    ? inviteFormState(identifier, result)
+    : { identifier, problem: "failed" };
   // The list of waiting invitations shows the new one at once.
-  if (result.ok) refresh();
+  if (result?.ok) refresh();
   const t = await getTranslations("coordinators.manage");
   return {
     ...state,

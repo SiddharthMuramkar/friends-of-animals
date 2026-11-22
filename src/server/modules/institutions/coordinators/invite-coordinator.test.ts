@@ -3,13 +3,16 @@ import { describe, expect, it } from "vitest";
 
 import { auditLog, institutionInvitation } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { INVITATION_TTL_MS } from "@/server/modules/institutions/domain/invitation";
 import { createHarness, type Harness } from "@/test/harness";
-import { makeCoordinator, seedInstitution } from "@/test/institutions";
+import {
+  INVITATION_LINK,
+  makeCoordinator,
+  seedInstitution,
+} from "@/test/institutions";
 
 const TEACHER = "t@school.test";
 const TEACHER_PHONE = "+91 98765 43210";
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-const LINK = /\/invitations\/([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
 
 async function invitationsOf(h: Harness, institutionId: string) {
   return h.db
@@ -34,14 +37,14 @@ describe("inviteCoordinator", () => {
     expect(result).toEqual({
       ok: true,
       invitationId: expect.any(String),
-      expiresAt: new Date(h.clock.now().getTime() + SEVEN_DAYS_MS),
+      expiresAt: new Date(h.clock.now().getTime() + INVITATION_TTL_MS),
     });
     await h.drain();
     const sent = h.email.sent.filter((email) => email.to === TEACHER);
     expect(sent).toHaveLength(1);
     expect(sent[0]!.subject).toContain("Green Valley School");
     expect(sent[0]!.text).toContain(admin.name);
-    expect(sent[0]!.text).toMatch(LINK);
+    expect(sent[0]!.text).toMatch(INVITATION_LINK);
     expect(sent[0]!.text).toContain("http://localhost:3000/invitations/");
 
     const audit = await h.db
@@ -71,7 +74,7 @@ describe("inviteCoordinator", () => {
     });
     await h.drain();
 
-    const token = LINK.exec(h.email.lastTo(TEACHER)!.text)![1]!;
+    const token = INVITATION_LINK.exec(h.email.lastTo(TEACHER)!.text)![1]!;
     const rows = await h.db.$client.query(
       "select * from institution_invitation"
     );
@@ -99,7 +102,7 @@ describe("inviteCoordinator", () => {
     expect(result).toMatchObject({ ok: true });
     await h.drain();
     const sms = h.sms.lastTo("+919876543210");
-    expect(sms?.text).toMatch(LINK);
+    expect(sms?.text).toMatch(INVITATION_LINK);
     expect(sms?.text).toContain("Hill View School");
     expect(sms?.template).toBe("coordinator-invitation");
     const [row] = await invitationsOf(h, institution.id);

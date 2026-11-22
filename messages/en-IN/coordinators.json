@@ -25,8 +25,6 @@
         "back": "Go to your institution"
       },
       "entry": "Manage coordinators",
-      "otherInstitutions": "You also manage:",
-      "manageOther": "Manage coordinators for {institution}",
       "for": "For {institution}",
       "listTitle": "Coordinators",
       "empty": "No coordinators yet. Invite a teacher below.",

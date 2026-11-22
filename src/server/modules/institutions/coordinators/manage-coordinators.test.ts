@@ -5,12 +5,14 @@ import { can } from "@/server/access";
 import type { Actor } from "@/server/actor";
 import { auditLog, userRole } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { INVITATION_TTL_MS } from "@/server/modules/institutions/domain/invitation";
 import { signedInStaff } from "@/server/modules/institutions/testing";
 import { createHarness, type Harness } from "@/test/harness";
-import { makeCoordinator, seedInstitution } from "@/test/institutions";
-
-const LINK = /\/invitations\/([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+import {
+  INVITATION_LINK,
+  makeCoordinator,
+  seedInstitution,
+} from "@/test/institutions";
 
 async function invite(
   h: Harness,
@@ -24,7 +26,7 @@ async function invite(
   if (!result.ok) throw new Error(`Could not invite: ${result.error}`);
   await h.drain();
   const message = to.includes("@") ? h.email.lastTo(to) : h.sms.lastTo(to);
-  const token = LINK.exec(message?.text ?? "")?.[1];
+  const token = INVITATION_LINK.exec(message?.text ?? "")?.[1];
   if (!token) throw new Error(`No link reached ${to}`);
   return { invitationId: result.invitationId, token };
 }
@@ -81,7 +83,7 @@ describe("listCoordinators", () => {
           maskedIdentifier: "r***@school.test",
           status: "pending",
           sentAt,
-          expiresAt: new Date(sentAt.getTime() + SEVEN_DAYS_MS),
+          expiresAt: new Date(sentAt.getTime() + INVITATION_TTL_MS),
         },
       ],
     });

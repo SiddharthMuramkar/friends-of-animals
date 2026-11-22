@@ -10,6 +10,13 @@ import {
 
 import type { Harness } from "./harness";
 
+/**
+ * An invitation's link in a message (#74), its 43-character token in the
+ * first group.
+ */
+export const INVITATION_LINK =
+  /\/invitations\/([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
+
 export async function seedInstitution(
   h: Harness,
   options: { status?: InstitutionStatus; name?: string } = {}
