@@ -42,8 +42,9 @@ export interface ObjectStorage {
 
   /**
    * A URL that GETs the object before `expiresInSeconds` pass, served with
-   * `contentType` and a Content-Disposition of `disposition` with
-   * `filename`, whatever the object was stored with.
+   * `contentType`, a Content-Disposition of `disposition` with `filename`
+   * and a Cache-Control of `FILE_CACHE_CONTROL`, whatever the object was
+   * stored with: no cache may keep a private file past the URL's expiry.
    */
   presignGet(input: {
     bucket: string;
@@ -85,6 +86,9 @@ export interface ObjectStorage {
     prefix: string;
   }): Promise<{ deleted: number }>;
 }
+
+/** The Cache-Control every presigned GET is served with. */
+export const FILE_CACHE_CONTROL = "private, no-store";
 
 /** One or more lower-case folders, each ending in "/": `pr-12/`. */
 const PURGEABLE_PREFIX = /^(?:[a-z0-9_-]+\/)+$/;

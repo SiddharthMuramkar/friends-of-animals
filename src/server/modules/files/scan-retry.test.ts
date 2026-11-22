@@ -1,7 +1,9 @@
-// The malware scan when the scanner or storage fails (#63): the file stays
-// `scanning`, which only its uploader may open, the relay retries with
-// backoff, and a scanner that never comes back ends in the failed list.
-// It never fails open.
+// The malware scan when the scanner or storage fails (#63). Without a
+// verdict the file stays `scanning`, which only its uploader may open, the
+// relay retries with backoff, and a scanner that never comes back ends in
+// the failed list. A verdict that denies the file is recorded before the
+// object moves or goes, so a storage failure never leaves it deliverable,
+// and a retry finishes the storage work. It never fails open.
 
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
@@ -9,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import { auditLog, fileAsset } from "@/server/db/schema";
 import { listFailedDeliveries } from "@/server/outbox";
 import type { ObjectStorage } from "@/server/ports/storage";
-import { EICAR_TEST_BYTES } from "@/test/eicar";
+import { EICAR_SIGNATURE, EICAR_TEST_BYTES } from "@/test/eicar";
 import { createHarness, type Harness } from "@/test/harness";
 
 const NOTHING = { dispatched: 0, retried: 0, failed: 0, skipped: 0 };
@@ -52,18 +54,36 @@ async function staffAdmin(h: Harness) {
   return h.signIn(staff);
 }
 
-/** `storage`, except that every move fails. */
-function withFailingMove(storage: ObjectStorage): ObjectStorage {
+/** `storage` with some of its verbs replaced. */
+function withStorage(
+  storage: ObjectStorage,
+  overrides: Partial<ObjectStorage>
+): ObjectStorage {
   return {
     presignPut: (input) => storage.presignPut(input),
     presignGet: (input) => storage.presignGet(input),
     head: (ref) => storage.head(ref),
     read: (ref) => storage.read(ref),
     write: (input) => storage.write(input),
-    move: () => Promise.reject(new Error("storage move failed")),
+    move: (input) => storage.move(input),
     delete: (ref) => storage.delete(ref),
     deletePrefix: (input) => storage.deletePrefix(input),
+    ...overrides,
   };
+}
+
+/** `storage`, except that every move fails. */
+function withFailingMove(storage: ObjectStorage): ObjectStorage {
+  return withStorage(storage, {
+    move: () => Promise.reject(new Error("storage move failed")),
+  });
+}
+
+async function quarantineAudits(h: Harness) {
+  return h.db
+    .select()
+    .from(auditLog)
+    .where(eq(auditLog.action, "file.quarantined"));
 }
 
 describe("a scanner outage", () => {
@@ -154,32 +174,125 @@ describe("storage failing during the scan", () => {
     expect((await fileRow(h, fileId)).status).toBe("scanning");
   });
 
-  it("keeps an infected file scanning until its quarantine move succeeds", async () => {
+  it("denies an infected file at once and finishes its quarantine on a retry", async () => {
     const h = await createHarness();
-    const { fileId } = await upload(h, "application/pdf", EICAR_TEST_BYTES);
-    const { storageKey } = await fileRow(h, fileId);
+    const { owner, fileId } = await upload(
+      h,
+      "application/pdf",
+      EICAR_TEST_BYTES
+    );
+    const { bucket, storageKey } = await fileRow(h, fileId);
+    const staff = await staffAdmin(h);
     const storage = h.deps.storage;
     h.deps.storage = withFailingMove(storage);
 
     expect(await h.drain()).toEqual({ ...NOTHING, retried: 1 });
     expect(await fileRow(h, fileId)).toMatchObject({
-      status: "scanning",
-      storageKey,
+      status: "quarantined",
+      scanResult: EICAR_SIGNATURE,
     });
-    expect(
-      await h.db
-        .select()
-        .from(auditLog)
-        .where(eq(auditLog.action, "file.quarantined"))
-    ).toEqual([]);
+    expect(await quarantineAudits(h)).toHaveLength(1);
+    for (const actor of [owner, staff]) {
+      expect(await h.as(actor).getFileDownloadUrl({ fileId })).toEqual({
+        ok: false,
+        error: "file_unavailable",
+      });
+    }
 
     h.deps.storage = storage;
     h.clock.advance({ seconds: 30 });
     expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 1 });
 
+    const quarantined = `local/quarantine/${fileId}`;
     expect(await fileRow(h, fileId)).toMatchObject({
       status: "quarantined",
-      storageKey: `local/quarantine/${fileId}`,
+      storageKey: quarantined,
     });
+    expect(await h.storage.head({ bucket, key: storageKey })).toBeNull();
+    expect(await h.storage.head({ bucket, key: quarantined })).not.toBeNull();
+    expect(await quarantineAudits(h)).toHaveLength(1);
+    expect(h.scanner.scans).toBe(1);
+  });
+
+  it("finishes a quarantine whose move happened but reported a failure", async () => {
+    const h = await createHarness();
+    const { fileId } = await upload(h, "application/pdf", EICAR_TEST_BYTES);
+    const { bucket, storageKey } = await fileRow(h, fileId);
+    const storage = h.deps.storage;
+    h.deps.storage = withStorage(storage, {
+      move: async (input) => {
+        await storage.move(input);
+        throw new Error("the connection dropped after the move");
+      },
+    });
+
+    expect(await h.drain()).toEqual({ ...NOTHING, retried: 1 });
+    expect((await fileRow(h, fileId)).status).toBe("quarantined");
+
+    h.deps.storage = storage;
+    h.clock.advance({ seconds: 30 });
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 1 });
+
+    const quarantined = `local/quarantine/${fileId}`;
+    expect((await fileRow(h, fileId)).storageKey).toBe(quarantined);
+    expect(await h.storage.head({ bucket, key: storageKey })).toBeNull();
+    expect(await h.storage.head({ bucket, key: quarantined })).not.toBeNull();
+  });
+
+  it("finishes a quarantine whose copy landed but whose source survived", async () => {
+    const h = await createHarness();
+    const { fileId } = await upload(h, "application/pdf", EICAR_TEST_BYTES);
+    const { bucket, storageKey } = await fileRow(h, fileId);
+    const storage = h.deps.storage;
+    h.deps.storage = withStorage(storage, {
+      move: async ({ bucket, from, to }) => {
+        const bytes = await new Response(
+          await storage.read({ bucket, key: from })
+        ).bytes();
+        h.storage.plant({
+          bucket,
+          key: to,
+          bytes,
+          contentType: "application/pdf",
+        });
+        throw new Error("deleting the source failed");
+      },
+    });
+
+    expect(await h.drain()).toEqual({ ...NOTHING, retried: 1 });
+
+    h.deps.storage = storage;
+    h.clock.advance({ seconds: 30 });
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 1 });
+
+    const quarantined = `local/quarantine/${fileId}`;
+    expect((await fileRow(h, fileId)).storageKey).toBe(quarantined);
+    expect(await h.storage.head({ bucket, key: storageKey })).toBeNull();
+    expect(await h.storage.head({ bucket, key: quarantined })).not.toBeNull();
+  });
+
+  it("rejects a mistyped file at once and deletes its object on a retry", async () => {
+    const h = await createHarness();
+    const { owner, fileId } = await upload(h, "application/pdf", PNG);
+    const { bucket, storageKey } = await fileRow(h, fileId);
+    const storage = h.deps.storage;
+    h.deps.storage = withStorage(storage, {
+      delete: () => Promise.reject(new Error("storage delete failed")),
+    });
+
+    expect(await h.drain()).toEqual({ ...NOTHING, retried: 1 });
+    expect((await fileRow(h, fileId)).status).toBe("rejected");
+    expect(await h.as(owner).getFileDownloadUrl({ fileId })).toEqual({
+      ok: false,
+      error: "file_unavailable",
+    });
+
+    h.deps.storage = storage;
+    h.clock.advance({ seconds: 30 });
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 1 });
+
+    expect((await fileRow(h, fileId)).status).toBe("rejected");
+    expect(await h.storage.head({ bucket, key: storageKey })).toBeNull();
+    expect(h.scanner.scans).toBe(1);
   });
 });

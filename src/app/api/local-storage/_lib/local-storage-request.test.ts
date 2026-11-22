@@ -94,7 +94,7 @@ describe("the local storage route", () => {
       "content-type": "image/png",
       "content-disposition": 'inline; filename="test_upload-01938a00.png"',
       "content-length": String(PNG.length),
-      "cache-control": "no-store",
+      "cache-control": "private, no-store",
     });
   });
 

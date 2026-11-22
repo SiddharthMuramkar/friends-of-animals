@@ -15,7 +15,19 @@
 //
 // Loads under plain Node: no "server-only", no Next imports.
 
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  createHmac,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from "node:crypto";
+import {
+  chmodSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import {
   mkdir,
   open,
@@ -31,6 +43,7 @@ import { join } from "node:path";
 import type { Clock } from "./clock";
 import {
   contentDispositionFor,
+  FILE_CACHE_CONTROL,
   isPurgeablePrefix,
   ObjectMissingError,
   UnsafePrefixError,
@@ -65,6 +78,7 @@ export type DiskDelivery =
       sizeBytes: number;
       contentType: string | null;
       contentDisposition: string | null;
+      cacheControl: string | null;
     }
   | { ok: false; error: DiskRefusal };
 
@@ -184,6 +198,49 @@ async function streamFile(path: string): Promise<ReadableStream<Uint8Array>> {
       await handle.close();
     },
   });
+}
+
+/** The signing key's file in a store's root. */
+const SIGNING_KEY_FILE = ".signing-key";
+const SIGNING_KEY = /^[0-9a-f]{64}$/;
+const signingKeys = new Map<string, string>();
+
+/**
+ * The key a store at `root` signs its URLs with: random, made on first use
+ * and kept in `root` (0600, in a 0700 folder), so every handler of this
+ * installation shares it, no other installation or user has it, and nobody
+ * can sign a URL for it from a key in the source.
+ */
+export function signingKeyFor(root: string): string {
+  const known = signingKeys.get(root);
+  if (known) return known;
+  mkdirSync(/* turbopackIgnore: true */ root, PRIVATE_FOLDER);
+  const folder = statSync(/* turbopackIgnore: true */ root);
+  if (typeof process.getuid === "function" && folder.uid !== process.getuid()) {
+    throw new Error(`The local storage folder ${root} belongs to another user`);
+  }
+  // Folders made before the key existed may be wider.
+  if ((folder.mode & 0o077) !== 0)
+    chmodSync(/* turbopackIgnore: true */ root, 0o700);
+  const path = join(root, SIGNING_KEY_FILE);
+  try {
+    writeFileSync(
+      /* turbopackIgnore: true */ path,
+      randomBytes(32).toString("hex"),
+      {
+        ...PRIVATE_FILE,
+        flag: "wx",
+      }
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  }
+  const key = readFileSync(/* turbopackIgnore: true */ path, "utf8");
+  if (!SIGNING_KEY.test(key)) {
+    throw new Error(`${path} isn't a signing key; delete it to make a new one`);
+  }
+  signingKeys.set(root, key);
+  return key;
 }
 
 export function diskStorage(
@@ -331,6 +388,7 @@ export function diskStorage(
           input.disposition,
           input.filename
         ),
+        "response-cache-control": FILE_CACHE_CONTROL,
       });
       return { url };
     },
@@ -427,6 +485,7 @@ export function diskStorage(
         sizeBytes: stored.sizeBytes,
         contentType: params.get("response-content-type") ?? stored.contentType,
         contentDisposition: params.get("response-content-disposition"),
+        cacheControl: params.get("response-cache-control"),
       };
     },
   };

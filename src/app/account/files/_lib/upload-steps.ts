@@ -8,11 +8,13 @@
 // storage this deployment hasn't got. Anything else is a bug and
 // propagates, so it is reported.
 
-import { z } from "zod";
-
 import type { UseCases } from "@/server/app";
 import { DomainError } from "@/server/errors";
-import type { FileStatus } from "@/server/modules/files";
+import {
+  fileIdInput,
+  requestUploadInput,
+  type FileStatus,
+} from "@/server/modules/files";
 import { StorageNotConfiguredError } from "@/server/ports/storage";
 
 /** Why an upload step failed, as the island words it (files.errors). */
@@ -43,11 +45,9 @@ export type FileStatusView = { ok: true; status: FileStatus } | Refused;
 
 export const SIGNED_OUT = { ok: false, error: "signed_out" } as const;
 
-const uploadRequest = z.object({
-  contentType: z.string().max(255),
-  sizeBytes: z.int().nonnegative(),
-});
-const fileId = z.uuid();
+// The island always asks for a test upload, so it sends no purpose.
+const uploadRequest = requestUploadInput.omit({ purpose: true });
+const fileId = fileIdInput.shape.fileId;
 
 /** Runs a use case call and answers what it throws on purpose. */
 async function answering<View>(

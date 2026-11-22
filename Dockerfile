@@ -72,7 +72,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 # database-url.ts reads the migrations journal; the welcome email its words.
 COPY drizzle ./drizzle
 COPY messages ./messages
-COPY scripts/load-env.ts ./scripts/load-env.ts
+COPY scripts/load-env.ts scripts/purge-preview-files.ts scripts/purge-preview-files-cli.ts ./scripts/
 COPY src ./src
 USER node
 CMD ["node", "--import", "tsx", "src/worker/main.ts"]

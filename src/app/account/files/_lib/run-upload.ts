@@ -47,11 +47,15 @@ export type UploadSteps = {
 /** Resolves after `ms`, or at once if `signal` aborts. */
 export function wait(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener("abort", () => {
+    if (signal.aborted) return resolve();
+    // Whichever comes first, the timer or the abort, removes the other.
+    const done = () => {
       clearTimeout(timer);
+      signal.removeEventListener("abort", done);
       resolve();
-    });
+    };
+    const timer = setTimeout(done, ms);
+    signal.addEventListener("abort", done);
   });
 }
 

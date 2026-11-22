@@ -27,6 +27,7 @@ import { r2Origin } from "../../lib/r2-origin";
 import type { Clock } from "./clock";
 import {
   contentDispositionFor,
+  FILE_CACHE_CONTROL,
   isPurgeablePrefix,
   ObjectMissingError,
   UnsafePrefixError,
@@ -113,6 +114,8 @@ export function r2Storage(
             disposition,
             filename
           ),
+          // Overrides any Cache-Control the object carries (copies keep it).
+          ResponseCacheControl: FILE_CACHE_CONTROL,
         }),
         { expiresIn: expiresInSeconds, signingDate: clock.now() }
       );

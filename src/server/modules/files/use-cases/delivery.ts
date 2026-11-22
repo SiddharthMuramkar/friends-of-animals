@@ -10,20 +10,18 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { eq } from "drizzle-orm";
-import { z } from "zod";
-
 import { can } from "../../../access/can";
 import { recordAudit } from "../../../audit/record";
-import { fileAsset } from "../../../db/schema";
 import { DomainError } from "../../../errors";
 import { invalidInput, type InvalidInput } from "../../../input";
+import { fileIdInput } from "../inputs";
 import {
   deliveryDecision,
   dispositionFor,
   downloadFilenameFor,
   type DeliveryRefusal,
 } from "../domain/delivery";
+import { findReadableFile } from "./readable-file";
 import type { FilesContext } from "./upload";
 
 /** How long a download URL works. */
@@ -42,28 +40,25 @@ export type GetFileDownloadUrlResult =
         | Exclude<DeliveryRefusal, "forbidden">;
     };
 
-const getFileDownloadUrlInput = z.object({ fileId: z.uuid() });
-
 /**
  * A signed URL for the file, if the policy and its status allow it.
- * Throws forbidden for a caller the policy refuses. A read by staff who
- * don't own the file is recorded in the audit log.
+ * Throws forbidden for a caller the policy refuses, before the file is
+ * looked up (./readable-file.ts): only staff who may read every file are
+ * told there is none. A read by staff who don't own the file is recorded
+ * in the audit log.
  */
 export async function getFileDownloadUrl(
   ctx: FilesContext,
   input: GetFileDownloadUrlInput
 ): Promise<GetFileDownloadUrlResult> {
-  const parsed = getFileDownloadUrlInput.safeParse(input);
+  const parsed = fileIdInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { fileId } = parsed.data;
-  const [file] = await ctx.db
-    .select()
-    .from(fileAsset)
-    .where(eq(fileAsset.id, fileId));
+  const file = await findReadableFile(ctx, fileId);
   if (!file) return { ok: false, error: "not_found" };
 
-  // The policy needs the owner, so it is asked once the file is found;
-  // a caller it refuses learns nothing of the file's status.
+  // Asked again with the owner, for the role that allows it (the audit) and
+  // the status gate, so a caller it refuses learns nothing of the status.
   const policy = await can(ctx, "file.read", { ownerId: file.ownerUserId });
   const decision = deliveryDecision({
     status: file.status,

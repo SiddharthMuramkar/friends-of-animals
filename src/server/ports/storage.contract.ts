@@ -16,6 +16,8 @@ export type Download = {
   bytes: Uint8Array;
   contentType: string | null;
   contentDisposition: string | null;
+  /** The response's Cache-Control: never "public" or a freshness. */
+  cacheControl: string | null;
 };
 
 export type StorageContractSetup = () => Promise<{
@@ -158,6 +160,7 @@ export function objectStorageContract(
         bytes: PNG_BYTES,
         contentType: "image/png",
         contentDisposition: 'attachment; filename="test_upload-01938a00.png"',
+        cacheControl: "private, no-store",
       });
     });
 
