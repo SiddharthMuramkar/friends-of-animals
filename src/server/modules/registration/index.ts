@@ -6,6 +6,8 @@
 
 import type { UseCaseContext } from "../../use-cases";
 import { enrolStudent, type EnrolStudentInput } from "./enrol-student";
+import { listEnrolledStudents } from "./list-enrolled-students";
+import { withdrawStudent, type WithdrawStudentInput } from "./withdraw-student";
 import { listCompetitionsForInstitution } from "./list-competitions-for-institution";
 import {
   registerInstitutionForCompetition,
@@ -23,6 +25,16 @@ export type {
   EnrolStudentResult,
 } from "./enrol-student";
 export type { StudentProblem } from "./domain/prepare-student";
+export type { EnrolmentState } from "./domain/enrolment-state";
+export type { RegistrationStatus } from "./domain/registration-status";
+export type {
+  EnrolledStudent,
+  ListEnrolledStudentsResult,
+} from "./list-enrolled-students";
+export type {
+  WithdrawStudentInput,
+  WithdrawStudentResult,
+} from "./withdraw-student";
 export type { StudentField, StudentInput } from "./domain/student-details";
 export type {
   RegisterInstitutionForCompetitionInput,
@@ -36,4 +48,7 @@ export const registrationUseCases = (ctx: UseCaseContext) => ({
   listCompetitionsForInstitution: (input: { institutionId: string }) =>
     listCompetitionsForInstitution(ctx, input),
   enrolStudent: (input: EnrolStudentInput) => enrolStudent(ctx, input),
+  listEnrolledStudents: (input: { institutionId: string; reference: string }) =>
+    listEnrolledStudents(ctx, input),
+  withdrawStudent: (input: WithdrawStudentInput) => withdrawStudent(ctx, input),
 });
