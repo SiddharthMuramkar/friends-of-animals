@@ -30,7 +30,11 @@ export type SeedAccount = (details: {
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-function localSeedUrl(baseURL: string | undefined): string {
+/**
+ * The database a local app server at `baseURL` runs on, for fixtures that
+ * seed it; throws for any other server or APP_ENV.
+ */
+export function localSeedUrl(baseURL: string | undefined): string {
   if (!baseURL || !LOOPBACK_HOSTS.has(new URL(baseURL).hostname)) {
     throw new Error("Playwright account fixtures require a local app server.");
   }
