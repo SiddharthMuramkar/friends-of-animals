@@ -7,13 +7,19 @@
 //   POST /api/files/[id]/complete  → 200 { fileId, status }
 //   GET  /api/files/[id]           → 302 to a 5-minute signed URL
 //
+// Each request is parsed with the module's input schemas before a use case
+// runs: a wrong shape is 400 invalid_input, whoever sends it.
 // Every refusal is JSON `{ error }` with the status below. Nothing is ever
 // cached or indexed. The presign body must be JSON: a cross-site form can't
 // send that type without a CORS preflight, which this API never grants, and
 // the session cookie is SameSite=Lax besides.
 
+import type { z } from "zod";
+
 import type { UseCases } from "@/server/app";
 import { DomainError } from "@/server/errors";
+import { invalidInput } from "@/server/input";
+import { fileIdInput, requestUploadInput } from "@/server/modules/files";
 import { StorageNotConfiguredError } from "@/server/ports/storage";
 
 export type FileAnswer = { status: number; body?: unknown; location?: string };
@@ -67,6 +73,17 @@ export async function readJson(request: Request): Promise<JsonBody> {
   }
 }
 
+/** `value` parsed by `schema`, or the 400 that answers it. */
+function parse<T>(
+  schema: z.ZodType<T>,
+  value: unknown
+): { ok: true; data: T } | { ok: false; response: FileAnswer } {
+  const parsed = schema.safeParse(value);
+  return parsed.success
+    ? { ok: true, data: parsed.data }
+    : { ok: false, response: refused(invalidInput(parsed.error)) };
+}
+
 /**
  * Runs a use case call and answers what it throws on purpose: forbidden
  * (403) and storage that isn't configured (503). Anything else is a bug
@@ -91,9 +108,10 @@ export async function presignRequest(
   body: JsonBody
 ): Promise<FileAnswer> {
   if (!body.ok) return body.response;
+  const input = parse(requestUploadInput, body.value);
+  if (!input.ok) return input.response;
   return answering(async () => {
-    // The use case parses the input; a wrong shape is its invalid_input.
-    const result = await useCases.requestUpload(body.value as never);
+    const result = await useCases.requestUpload(input.data);
     if (!result.ok) return refused(result);
     const { fileId, uploadUrl, headers, expiresAt } = result;
     return {
@@ -107,8 +125,10 @@ export async function completeRequest(
   useCases: UseCases,
   fileId: string
 ): Promise<FileAnswer> {
+  const input = parse(fileIdInput, { fileId });
+  if (!input.ok) return input.response;
   return answering(async () => {
-    const result = await useCases.completeUpload({ fileId });
+    const result = await useCases.completeUpload(input.data);
     if (!result.ok) return refused(result);
     return { status: 200, body: { fileId, status: result.status } };
   });
@@ -118,8 +138,10 @@ export async function downloadRequest(
   useCases: UseCases,
   fileId: string
 ): Promise<FileAnswer> {
+  const input = parse(fileIdInput, { fileId });
+  if (!input.ok) return input.response;
   return answering(async () => {
-    const result = await useCases.getFileDownloadUrl({ fileId });
+    const result = await useCases.getFileDownloadUrl(input.data);
     if (!result.ok) return refused(result);
     return { status: 302, location: result.url };
   });

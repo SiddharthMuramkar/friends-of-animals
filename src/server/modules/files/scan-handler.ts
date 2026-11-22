@@ -14,10 +14,14 @@
 //
 // It fails closed. A scanner that gives no verdict throws, so the relay
 // retries with backoff and then keeps the delivery as failed; meanwhile the
-// file stays `scanning`, which only its uploader may open. Delivery is at
+// file stays `scanning`, which only its uploader may open. A quarantine or
+// rejection is committed (with its audit) before the object moves or goes,
+// so from then on nobody can open the file whatever storage does; if the
+// storage step fails it throws, and the retry finishes it. Delivery is at
 // least once, so it is safe to repeat: only a file still `uploaded` or
-// `scanning` is scanned, and each status change is made only if nobody
-// else made one first.
+// `scanning` is scanned, a quarantined or rejected one only has its storage
+// step finished, and each status change is made only if nobody else made
+// one first.
 //
 // Loads under plain Node (the worker): relative imports only.
 
@@ -30,7 +34,7 @@ import type { AppDb } from "../../db/app-db";
 import { fileAsset, type FileAssetRow } from "../../db/schema";
 import type { Clock } from "../../ports/clock";
 import type { MalwareScanner, ScanVerdict } from "../../ports/malware-scanner";
-import type { ObjectStorage } from "../../ports/storage";
+import { ObjectMissingError, type ObjectStorage } from "../../ports/storage";
 import {
   nextFileStatus,
   type FileEvent,
@@ -74,7 +78,17 @@ export async function scanUploadedFile(
   deps: ScanDeps,
   { fileId }: { fileId: string }
 ): Promise<void> {
-  const file = await startScan(deps, fileId);
+  const [current] = await deps.db
+    .select()
+    .from(fileAsset)
+    .where(eq(fileAsset.id, fileId));
+  if (!current) return;
+  if (current.status === "quarantined" || current.status === "rejected") {
+    // Settled by an earlier attempt whose storage step may not have finished.
+    await finishStorage(deps, current);
+    return;
+  }
+  const file = await startScan(deps, current);
   if (!file) return;
   const read = await readThroughScanner(deps, file);
   const outcome = scanOutcome({
@@ -94,13 +108,9 @@ export async function scanUploadedFile(
  */
 async function startScan(
   { db, clock }: ScanDeps,
-  fileId: string
+  file: FileAssetRow
 ): Promise<FileAssetRow | null> {
-  const [file] = await db
-    .select()
-    .from(fileAsset)
-    .where(eq(fileAsset.id, fileId));
-  if (!file) return null;
+  const fileId = file.id;
   const status = nextFileStatus(file.status, "scan_started");
   if (!status) return null;
   const [started] = await db
@@ -185,13 +195,18 @@ function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
   return joined;
 }
 
-/** Records the verdict, and moves or deletes the object to match. */
+/**
+ * Records the verdict, then moves or deletes the object to match. A file
+ * that may not be delivered is marked so first, in its own transaction with
+ * the audit, so a failed storage step can't leave it deliverable.
+ */
 async function settle(
-  { db, clock, storage }: ScanDeps,
+  deps: ScanDeps,
   file: FileAssetRow,
   outcome: Extract<ScanOutcome, { kind: "settled" }>,
   sha256: string | null
 ): Promise<void> {
+  const { db, clock } = deps;
   const status = nextFileStatus(file.status, EVENT_FOR[outcome.status]);
   if (!status) {
     throw new Error(`A ${file.status} file can't become ${outcome.status}`);
@@ -204,39 +219,76 @@ async function settle(
     scannedAt: now,
     updatedAt: now,
   };
-  const object = { bucket: file.bucket, key: file.storageKey };
 
   if (status === "clean") {
     await recordVerdict(db, file, verdict);
     return;
   }
-  // The object moves or goes inside the transaction: if that fails, the
-  // verdict rolls back, the file stays `scanning` and the scan is retried.
-  await db.transaction(async (tx) => {
-    if (status === "rejected") {
-      if (await recordVerdict(tx, file, verdict)) await storage.delete(object);
-      return;
+  const settled = await db.transaction(async (tx) => {
+    if (!(await recordVerdict(tx, file, verdict))) return false;
+    if (status === "quarantined") {
+      await recordAudit(
+        tx,
+        { clock, actor: WORKER },
+        {
+          action: "file.quarantined",
+          entity: { type: "file_asset", id: file.id },
+          before: { status: file.status, storageKey: file.storageKey },
+          after: {
+            status,
+            storageKey: quarantineKeyOf(file),
+            scanResult: outcome.scanResult,
+          },
+          actorRole: null,
+        }
+      );
     }
-    const to = quarantineKeyFor({
-      prefix: storagePrefixOf(file),
-      fileId: file.id,
-    });
-    if (!(await recordVerdict(tx, file, { ...verdict, storageKey: to }))) {
-      return;
-    }
-    await recordAudit(
-      tx,
-      { clock, actor: WORKER },
-      {
-        action: "file.quarantined",
-        entity: { type: "file_asset", id: file.id },
-        before: { status: file.status, storageKey: file.storageKey },
-        after: { status, storageKey: to, scanResult: outcome.scanResult },
-        actorRole: null,
-      }
-    );
-    await storage.move({ bucket: file.bucket, from: file.storageKey, to });
+    return true;
   });
+  // Someone else settled it first; their attempt does the storage step.
+  if (!settled) return;
+  await finishStorage(deps, { ...file, status });
+}
+
+/**
+ * The storage step of a quarantine or rejection, safe to repeat: the
+ * object moves to the quarantine key (then the row follows it), or is
+ * deleted. Throws if storage fails, so the relay retries.
+ */
+async function finishStorage(
+  { db, clock, storage }: ScanDeps,
+  file: FileAssetRow
+): Promise<void> {
+  if (file.status === "rejected") {
+    await storage.delete({ bucket: file.bucket, key: file.storageKey });
+    return;
+  }
+  const to = quarantineKeyOf(file);
+  if (file.storageKey === to) return;
+  try {
+    await storage.move({ bucket: file.bucket, from: file.storageKey, to });
+  } catch (error) {
+    // An earlier attempt may have moved it and failed before the row
+    // followed: then the object is already where it belongs.
+    const alreadyMoved =
+      error instanceof ObjectMissingError &&
+      (await storage.head({ bucket: file.bucket, key: to })) !== null;
+    if (!alreadyMoved) throw error;
+  }
+  await db
+    .update(fileAsset)
+    .set({ storageKey: to, updatedAt: clock.now() })
+    .where(
+      and(
+        eq(fileAsset.id, file.id),
+        eq(fileAsset.status, "quarantined"),
+        eq(fileAsset.storageKey, file.storageKey)
+      )
+    );
+}
+
+function quarantineKeyOf(file: FileAssetRow): string {
+  return quarantineKeyFor({ prefix: storagePrefixOf(file), fileId: file.id });
 }
 
 /** Writes the verdict if the file is still as read; false if it wasn't. */

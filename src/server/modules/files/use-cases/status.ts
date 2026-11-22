@@ -8,13 +8,10 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { eq } from "drizzle-orm";
-import { z } from "zod";
-
-import { authorize } from "../../../access/can";
-import { fileAsset } from "../../../db/schema";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { FileStatus } from "../domain/file-status";
+import { fileIdInput } from "../inputs";
+import { findReadableFile } from "./readable-file";
 import type { FilesContext } from "./upload";
 
 export type GetFileStatusInput = { fileId: string };
@@ -24,29 +21,20 @@ export type GetFileStatusResult =
   | InvalidInput
   | { ok: false; error: "not_found" };
 
-const getFileStatusInput = z.object({ fileId: z.uuid() });
-
 /**
- * The file's status. Throws forbidden for a caller who may not read it.
- *
- * The row is loaded before the policy is asked, because the policy needs
- * the owner, as in getFileDownloadUrl and completeUpload. So a caller who
- * may not read the file can tell an id that exists (forbidden) from one
- * that doesn't (not_found), and learns nothing more: ids are UUIDv7, about
- * 74 random bits, so they can't be guessed.
+ * The file's status. Throws forbidden for a caller who may not read it,
+ * before the file is looked up (./readable-file.ts): a caller who may only
+ * read their own files can't tell an id that exists from one that doesn't.
+ * Only staff who may read every file are told there is none.
  */
 export async function getFileStatus(
   ctx: FilesContext,
   input: GetFileStatusInput
 ): Promise<GetFileStatusResult> {
-  const parsed = getFileStatusInput.safeParse(input);
+  const parsed = fileIdInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { fileId } = parsed.data;
-  const [file] = await ctx.db
-    .select({ ownerUserId: fileAsset.ownerUserId, status: fileAsset.status })
-    .from(fileAsset)
-    .where(eq(fileAsset.id, fileId));
+  const file = await findReadableFile(ctx, fileId);
   if (!file) return { ok: false, error: "not_found" };
-  await authorize(ctx, "file.read", { ownerId: file.ownerUserId });
   return { ok: true, fileId, status: file.status };
 }

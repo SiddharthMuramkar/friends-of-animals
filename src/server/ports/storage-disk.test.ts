@@ -64,6 +64,7 @@ objectStorageContract("diskStorage", async () => {
         bytes: await bytesOf(served.body),
         contentType: served.contentType,
         contentDisposition: served.contentDisposition,
+        cacheControl: served.cacheControl,
       };
     },
     wait: async (seconds) => {

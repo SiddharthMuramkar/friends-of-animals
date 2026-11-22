@@ -17,8 +17,8 @@ objectStorageContract("FakeStorage", async () => {
     download: async (url) => {
       const result = await storage.get(url);
       if (!result.ok) return null;
-      const { bytes, contentType, contentDisposition } = result;
-      return { bytes, contentType, contentDisposition };
+      const { bytes, contentType, contentDisposition, cacheControl } = result;
+      return { bytes, contentType, contentDisposition, cacheControl };
     },
     wait: async (seconds) => {
       clock.advance({ seconds });

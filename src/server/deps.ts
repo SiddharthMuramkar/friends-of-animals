@@ -34,7 +34,11 @@ import { fixedSettings, type Settings } from "./ports/settings";
 import type { EmailSender } from "./ports/email";
 import { emailSenderFor } from "./ports/email-sender-for";
 import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
-import { diskStorage, type DiskStorage } from "./ports/storage-disk";
+import {
+  diskStorage,
+  signingKeyFor,
+  type DiskStorage,
+} from "./ports/storage-disk";
 import { r2Storage, type R2Config } from "./ports/storage-r2";
 import type { ErrorReporter } from "./ports/errors";
 import type { MalwareScanner } from "./ports/malware-scanner";
@@ -129,7 +133,6 @@ export type LocalStorageEnv = {
   APP_ENV: Env["APP_ENV"];
   /** The app's base URL, where the disk store's signed URLs point. */
   APP_URL: string;
-  BETTER_AUTH_SECRET?: string | undefined;
 };
 
 function r2ConfigOf({
@@ -169,14 +172,16 @@ export const LOCAL_STORAGE_ROOT = join(tmpdir(), "foa-local-storage");
  * every deployment, and for a local run with R2: that route answers 404.
  */
 export function localDiskStorageFor(
-  env: StorageEnv & LocalStorageEnv
+  env: StorageEnv & LocalStorageEnv,
+  root: string = LOCAL_STORAGE_ROOT
 ): DiskStorage | null {
   if (env.APP_ENV !== "local" || r2ConfigOf(env)) return null;
   return diskStorage(
     {
-      root: LOCAL_STORAGE_ROOT,
+      root,
       baseUrl: new URL("/api/local-storage/", env.APP_URL).href,
-      secret: env.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET,
+      // This installation's own random key, never a shared or public one.
+      secret: signingKeyFor(root),
     },
     systemClock
   );

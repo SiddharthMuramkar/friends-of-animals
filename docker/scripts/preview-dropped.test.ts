@@ -1,16 +1,18 @@
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
+  chownSync,
   copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -24,6 +26,8 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const SWEEPER = join(HERE, "sweep-preview-dbs.sh");
 const RUNNER = join(HERE, "run-preview-dropped-hooks.sh");
 const PURGE_HOOK = join(HERE, "preview-dropped.d", "50-purge-files.sh");
+const REPO = join(HERE, "../..");
+const RUN_AS_NOBODY = process.getuid?.() === 0;
 
 const DB = "foa_pr_12_0123abcd";
 const SECRET = "nonprod-secret-must-not-reach-argv";
@@ -35,8 +39,37 @@ afterEach(() => {
 
 function tempDir() {
   const dir = mkdtempSync(join(tmpdir(), "foa-preview-dropped-"));
+  if (RUN_AS_NOBODY) chownSync(dir, 65534, 65534);
   dirs.push(dir);
   return dir;
+}
+
+function fixturePath(dir: string) {
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  for (const tool of [
+    "bash",
+    "basename",
+    "base64",
+    "cat",
+    "dirname",
+    "flock",
+    "grep",
+    "jq",
+    "mkdir",
+    "mktemp",
+    "mv",
+    "rm",
+    "sha256sum",
+    "timeout",
+  ]) {
+    const path = ["/usr/bin", "/bin", "/usr/local/bin", "/opt/homebrew/bin"]
+      .map((prefix) => join(prefix, tool))
+      .find(existsSync);
+    if (!path) throw new Error(`Missing fixture utility: ${tool}`);
+    symlinkSync(path, join(bin, tool));
+  }
+  return bin;
 }
 
 function writeScript(path: string, body: string) {
@@ -53,43 +86,91 @@ function writeScript(path: string, body: string) {
  */
 function fakeBin(rows = "") {
   const dir = tempDir();
-  const bin = join(dir, "bin");
-  mkdirSync(bin);
+  const bin = fixturePath(dir);
   writeFileSync(join(dir, "rows.tsv"), rows);
   writeScript(
     join(bin, "docker"),
-    `printf '%s\\n' "$@" -- >>"${dir}/docker.log"
+    `printf '%s\\n' "$EUID" >"${dir}/uid.log"
+printf '%s\\n' "$@" -- >>"${dir}/docker.log"
 if [ "$1" = exec ]; then
+  query=""
   for arg in "$@"; do
-    if [ "$arg" = -c ]; then cat "${dir}/rows.tsv"; exit 0; fi
+    if [ "$query" = yes ]; then
+      while IFS=$'\t' read -r name comment || [ -n "$name" ]; do
+        if [ -f "${dir}/sql.log" ] && grep -Fq "DROP DATABASE IF EXISTS \\"$name\\"" "${dir}/sql.log"; then
+          continue
+        fi
+        if [[ "$arg" == *shobj_description* ]]; then
+          [[ "$comment" == "foa-preview "* ]] && printf '%s\\t%s\\n' "$name" "$comment"
+        else
+          printf '%s\\n' "$name"
+        fi
+      done <"${dir}/rows.tsv"
+      exit 0
+    fi
+    if [ "$arg" = -c ]; then query=yes; fi
   done
-  cat >>"${dir}/sql.log"
+  sql="$(cat)"
+  printf '%s\n' "$sql" >>"${dir}/sql.log"
+  printf 'sql %s\n' "$sql" >>"${dir}/order.log"
   exit 0
 fi
 exit "\${FAKE_DOCKER_EXIT:-0}"`
   );
   // It reads its config (the token header) from stdin, as curl does; left
   // unread, the sweeper's pipe could fail and the PR read as unknown.
-  writeScript(join(bin, "curl"), `cat >/dev/null\necho '{"state":"closed"}'`);
+  writeScript(
+    join(bin, "curl"),
+    `cat >/dev/null\nprintf '{"state":"%s"}\\n' "\${FAKE_PR_STATE:-closed}"`
+  );
+  writeScript(join(bin, "git"), 'exit "${FAKE_GIT_EXIT:-2}"');
+  // Logged in order with the SQL. Some systems' sync flushes every file
+  // system even when given one file, which takes seconds on a busy disk.
+  writeScript(
+    join(bin, "sync"),
+    `printf 'sync %s\\n' "$*" >>"${dir}/order.log"`
+  );
   const read = (name: string) =>
     existsSync(join(dir, name)) ? readFileSync(join(dir, name), "utf8") : "";
   return {
     dir,
-    path: `${bin}:${process.env.PATH}`,
+    path: bin,
+    uid: () => Number(read("uid.log").trim()),
     dockerCalls: () =>
       read("docker.log")
         .split("--\n")
         .filter(Boolean)
         .map((call) => call.split("\n").filter(Boolean)),
     sql: () => read("sql.log"),
+    /** Each sync and SQL statement, in the order they ran. */
+    order: () => read("order.log").trim().split("\n").filter(Boolean),
   };
 }
 
-function run(script: string, args: string[], env: Record<string, string> = {}) {
-  const result = spawnSync("bash", [script, ...args], {
+function run(
+  script: string,
+  args: string[],
+  env: Record<string, string>,
+  bashOptions: string[] = []
+) {
+  const bash = ["/bin/bash", ...bashOptions, script, ...args];
+  const [command, ...argv] = RUN_AS_NOBODY
+    ? [
+        "/usr/bin/setpriv",
+        "--no-new-privs",
+        "--reuid=65534",
+        "--regid=65534",
+        "--clear-groups",
+        "--",
+        ...bash,
+      ]
+    : bash;
+  const result = spawnSync(command, argv, {
     encoding: "utf8",
-    env: { NODE_ENV: "test", HOME: process.env.HOME ?? "/tmp", ...env },
+    cwd: dirname(script),
+    env: { NODE_ENV: "test", HOME: dirname(script), ...env },
   });
+  if (result.error) throw result.error;
   return {
     status: result.status,
     stdout: result.stdout,
@@ -99,7 +180,10 @@ function run(script: string, args: string[], env: Record<string, string> = {}) {
 
 describe("the scripts' syntax", () => {
   it.each([SWEEPER, RUNNER, PURGE_HOOK])("bash -n passes on %s", (path) => {
-    expect(spawnSync("bash", ["-n", path]).status).toBe(0);
+    const dir = tempDir();
+    const script = join(dir, basename(path));
+    copyFileSync(path, script);
+    expect(run(script, [], { PATH: fixturePath(dir) }, ["-n"]).status).toBe(0);
   });
 });
 
@@ -109,21 +193,30 @@ describe("50-purge-files.sh", () => {
     envFile = `R2_ACCOUNT_ID=0123\nR2_SECRET_ACCESS_KEY=${SECRET}\n`
   ) {
     const bin = fakeBin();
+    const hook = join(bin.dir, basename(PURGE_HOOK));
+    copyFileSync(PURGE_HOOK, hook);
     const credentials = join(bin.dir, "preview-files.env");
     writeFileSync(credentials, envFile);
     const env = {
       PATH: bin.path,
       FOA_PREVIEW_FILES_ENV: credentials,
     };
-    return { bin, credentials, env };
+    return { bin, credentials, env, hook };
   }
 
   it("runs the purge command in the worker image for the database in $1", () => {
-    const { bin, credentials, env } = world();
+    const { bin, credentials, env, hook } = world();
 
-    const result = run(PURGE_HOOK, [DB], env);
+    const result = run(hook, [DB], env);
 
     expect(result.status).toBe(0);
+    expect(bin.uid()).toBeGreaterThan(0);
+    const compose = readFileSync(join(REPO, "docker/workers.yml"), "utf8");
+    const previewImage =
+      /^  worker-preview:\n(?:(?:    .*|)\n)*?    image: (\S+)/m.exec(
+        compose
+      )?.[1];
+    expect(previewImage).toBe("foa-workers/worker-preview");
     expect(bin.dockerCalls()).toEqual([
       [
         "run",
@@ -138,7 +231,7 @@ describe("50-purge-files.sh", () => {
         credentials,
         "--env",
         "APP_ENV=preview",
-        "foa-worker:latest",
+        previewImage,
         "pnpm",
         "files:purge-preview",
         "--database",
@@ -147,26 +240,65 @@ describe("50-purge-files.sh", () => {
     ]);
   });
 
-  it("uses FOA_WORKER_IMAGE when it is set", () => {
-    const { bin, env } = world();
+  it("packs the package command and its CLI modules in the worker stage", () => {
+    const dockerfile = readFileSync(join(REPO, "Dockerfile"), "utf8");
+    const workerStage = dockerfile
+      .split(/^FROM .* AS worker$/m)[1]
+      ?.split(/^FROM /m)[0];
+    expect(workerStage).toBeDefined();
+    const image = tempDir();
+    mkdirSync(join(image, "scripts"));
+    for (const line of workerStage!
+      .split("\n")
+      .filter((line) => line.startsWith("COPY "))) {
+      const [, ...paths] = line.trim().split(/\s+/);
+      const destination = paths.pop()!;
+      for (const source of paths.filter((path) =>
+        /^scripts\/[^/]+\.ts$/.test(path)
+      )) {
+        const target = destination.endsWith("/")
+          ? join(destination, basename(source))
+          : destination;
+        copyFileSync(join(REPO, source), join(image, target));
+      }
+      if (destination === "./" && paths.includes("package.json")) {
+        copyFileSync(join(REPO, "package.json"), join(image, "package.json"));
+      }
+    }
+    const manifest = JSON.parse(
+      readFileSync(join(image, "package.json"), "utf8")
+    );
+    const entry = /^tsx (scripts\/\S+)$/.exec(
+      manifest.scripts["files:purge-preview"]
+    )?.[1];
+    expect(entry).toBe("scripts/purge-preview-files.ts");
+    expect(existsSync(join(image, entry!))).toBe(true);
+    expect(existsSync(join(image, "scripts/purge-preview-files-cli.ts"))).toBe(
+      true
+    );
+    expect(existsSync(join(image, "scripts/load-env.ts"))).toBe(true);
+  });
 
-    run(PURGE_HOOK, [DB], { ...env, FOA_WORKER_IMAGE: "foa-worker:abc123" });
+  it("uses FOA_WORKER_IMAGE when it is set", () => {
+    const { bin, env, hook } = world();
+
+    run(hook, [DB], { ...env, FOA_WORKER_IMAGE: "foa-worker:abc123" });
 
     expect(bin.dockerCalls()[0]).toContain("foa-worker:abc123");
   });
 
   it("never puts a credential on docker's command line", () => {
-    const { bin, env } = world();
+    const { bin, env, hook } = world();
 
-    run(PURGE_HOOK, [DB], env);
+    run(hook, [DB], env);
 
     expect(bin.dockerCalls().flat().join(" ")).not.toContain(SECRET);
   });
 
   it("fails when the purge command fails", () => {
-    const { env } = world();
+    const { env, hook } = world();
 
-    const result = run(PURGE_HOOK, [DB], { ...env, FAKE_DOCKER_EXIT: "1" });
+    const result = run(hook, [DB], { ...env, FAKE_DOCKER_EXIT: "1" });
 
     expect(result.status).not.toBe(0);
   });
@@ -177,12 +309,12 @@ describe("50-purge-files.sh", () => {
     ["the seed template", ["foa_seed"]],
     ["the production database", ["foa"]],
     ["staging's database", ["foa_staging"]],
-    ["a name with a shell command", [`${DB};rm -rf /`]],
+    ["a name with a space", [`${DB} extra`]],
     ["an upper-case name", ["FOA_PR_12_0123ABCD"]],
   ])("refuses %s without running docker", (_, args) => {
-    const { bin, env } = world();
+    const { bin, env, hook } = world();
 
-    const result = run(PURGE_HOOK, args, env);
+    const result = run(hook, args, env);
 
     expect(result.status).toBe(2);
     expect(result.stderr).toMatch(/not a preview database/);
@@ -190,9 +322,9 @@ describe("50-purge-files.sh", () => {
   });
 
   it("fails without the non-production credentials file, naming it", () => {
-    const { bin, env } = world();
+    const { bin, env, hook } = world();
 
-    const result = run(PURGE_HOOK, [DB], {
+    const result = run(hook, [DB], {
       ...env,
       FOA_PREVIEW_FILES_ENV: join(bin.dir, "missing.env"),
     });
@@ -207,9 +339,9 @@ describe("50-purge-files.sh", () => {
     "export APP_ENV=staging",
     "  APP_ENV=preview",
   ])("refuses a credentials file that sets %s", (line) => {
-    const { bin, env } = world(`R2_BUCKET=foa-files-nonprod\n${line}\n`);
+    const { bin, env, hook } = world(`R2_BUCKET=foa-files-nonprod\n${line}\n`);
 
-    const result = run(PURGE_HOOK, [DB], env);
+    const result = run(hook, [DB], env);
 
     expect(result.status).toBe(2);
     expect(result.stderr).toMatch(/APP_ENV/);
@@ -237,7 +369,7 @@ describe("run-preview-dropped-hooks.sh", () => {
     }
     const ran = () =>
       existsSync(log) ? readFileSync(log, "utf8").trim().split("\n") : [];
-    return { runner, ran, env: { PATH: process.env.PATH ?? "" } };
+    return { runner, ran, env: { PATH: fixturePath(dir) } };
   }
 
   it("runs every executable .sh hook in name order with the database", () => {
@@ -300,12 +432,17 @@ describe("sweep-preview-dbs.sh", () => {
     );
     const hooked = () =>
       existsSync(log) ? readFileSync(log, "utf8").trim().split("\n") : [];
-    // A token keeps the sweeper from reading this machine's sweeper.env.
     return {
       bin,
+      dir,
       sweeper,
       hooked,
-      env: { PATH: bin.path, GITHUB_TOKEN: "test-token" },
+      env: {
+        PATH: bin.path,
+        GITHUB_TOKEN: "fixture",
+        FOA_SWEEPER_ENV: join(dir, "sweeper.env"),
+        FOA_PREVIEW_PURGE_STATE: join(dir, "purge-state"),
+      },
     };
   }
 
@@ -326,6 +463,19 @@ describe("sweep-preview-dbs.sh", () => {
     expect(hooked()).toEqual([DB, "foa_pr_12_89abcdef"]);
   });
 
+  it("makes each purge record durable before it drops the database", () => {
+    const { bin, sweeper, env } = world(`${DB}\tfoa-preview pr=12`);
+
+    expect(run(sweeper, [], env).status).toBe(0);
+
+    const state = env.FOA_PREVIEW_PURGE_STATE;
+    expect(bin.order()).toEqual([
+      expect.stringMatching(new RegExp(`^sync ${state}/\\.pending\\.\\w+$`)),
+      `sync ${state}`,
+      `sql DROP DATABASE IF EXISTS "${DB}" WITH (FORCE);`,
+    ]);
+  });
+
   it("keeps sweeping when a hook fails, and says so", () => {
     const { bin, sweeper, hooked, env } = world(ROWS, "exit 1");
 
@@ -335,6 +485,47 @@ describe("sweep-preview-dbs.sh", () => {
     expect(bin.sql()).toContain('DROP DATABASE IF EXISTS "foa_pr_12_89abcdef"');
     expect(hooked()).toEqual([DB, "foa_pr_12_89abcdef"]);
     expect(result.stdout).toMatch(new RegExp(`hook.*failed.*${DB}`));
+  });
+
+  it("replays a failed purge after the database is gone and clears it on success", () => {
+    const { bin, dir, sweeper, env } = world(`${DB}\tfoa-preview pr=12`);
+    const hook = join(dir, "preview-dropped.d", basename(PURGE_HOOK));
+    const credentials = join(dir, "preview-files.env");
+    copyFileSync(PURGE_HOOK, hook);
+    writeFileSync(credentials, "");
+    const config = { ...env, FOA_PREVIEW_FILES_ENV: credentials };
+    const attempts = () =>
+      bin.dockerCalls().filter(([command]) => command === "run");
+
+    expect(run(sweeper, [], { ...config, FAKE_DOCKER_EXIT: "1" }).status).toBe(
+      0
+    );
+    expect(bin.sql()).toContain(`DROP DATABASE IF EXISTS "${DB}"`);
+    expect(attempts()).toHaveLength(1);
+
+    expect(run(sweeper, [], { ...config, FAKE_PR_STATE: "open" }).status).toBe(
+      0
+    );
+    expect(run(sweeper, ["--dry-run"], config).status).toBe(0);
+    expect(attempts()).toHaveLength(1);
+
+    expect(run(sweeper, [], config).status).toBe(0);
+    expect(attempts()).toHaveLength(2);
+    expect(attempts()[1]?.at(-1)).toBe(DB);
+    expect(run(sweeper, [], config).status).toBe(0);
+    expect(attempts()).toHaveLength(2);
+  });
+
+  it("waits for all databases sharing the preview prefix to be gone", () => {
+    const sibling = "foa_pr_12_89abcdef";
+    const { bin, sweeper, hooked, env } = world(
+      `${DB}\tfoa-preview pr=12\n${sibling}\tuntagged`
+    );
+
+    expect(run(sweeper, [], env).status).toBe(0);
+    expect(bin.sql()).toContain(`DROP DATABASE IF EXISTS "${DB}"`);
+    expect(bin.sql()).not.toContain(sibling);
+    expect(hooked()).toEqual([]);
   });
 
   it("runs no hook in a dry run", () => {

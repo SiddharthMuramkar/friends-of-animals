@@ -57,5 +57,6 @@ export async function downloadRequest(
   if (result.contentDisposition) {
     headers["Content-Disposition"] = result.contentDisposition;
   }
+  if (result.cacheControl) headers["Cache-Control"] = result.cacheControl;
   return new Response(result.body, { status: 200, headers });
 }

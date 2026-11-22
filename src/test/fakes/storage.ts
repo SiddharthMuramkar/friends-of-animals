@@ -9,6 +9,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Clock } from "@/server/ports/clock";
 import {
   contentDispositionFor,
+  FILE_CACHE_CONTROL,
   isPurgeablePrefix,
   ObjectMissingError,
   UnsafePrefixError,
@@ -35,6 +36,7 @@ export type FakeGetResult =
       bytes: Uint8Array;
       contentType: string | null;
       contentDisposition: string | null;
+      cacheControl: string | null;
     }
   | { ok: false; error: FakeStorageRefusal };
 
@@ -80,6 +82,7 @@ export class FakeStorage implements ObjectStorage {
         input.disposition,
         input.filename
       ),
+      "response-cache-control": FILE_CACHE_CONTROL,
     });
     return { url };
   }
@@ -162,6 +165,7 @@ export class FakeStorage implements ObjectStorage {
       bytes: object.bytes.slice(),
       contentType: params.get("response-content-type") ?? object.contentType,
       contentDisposition: params.get("response-content-disposition"),
+      cacheControl: params.get("response-cache-control"),
     };
   }
 

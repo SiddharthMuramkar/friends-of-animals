@@ -18,7 +18,6 @@
 // Loads under plain Node: relative imports only, no "server-only".
 
 import { and, eq } from "drizzle-orm";
-import { z } from "zod";
 
 import { authorize } from "../../../access/can";
 import type { AppDb } from "../../../db/app-db";
@@ -28,6 +27,7 @@ import { invalidInput, type InvalidInput } from "../../../input";
 import { emit } from "../../../outbox/emit";
 import { ObjectMissingError, type ObjectStorage } from "../../../ports/storage";
 import type { UseCaseContext } from "../../../use-cases";
+import { fileIdInput, requestUploadInput } from "../inputs";
 import {
   nextFileStatus,
   type FileEvent,
@@ -36,7 +36,6 @@ import {
 import {
   checkStoredObject,
   checkUploadRequest,
-  FILE_PURPOSES,
   normaliseContentType,
   type FilePurpose,
   type UploadRefusal,
@@ -73,12 +72,6 @@ export type RequestUploadResult =
     }
   | InvalidInput
   | { ok: false; error: UploadRefusal };
-
-const requestUploadInput = z.object({
-  purpose: z.enum(FILE_PURPOSES),
-  contentType: z.string().max(255),
-  sizeBytes: z.int().nonnegative(),
-});
 
 /**
  * Records a pending file and presigns its upload. Nothing is written when
@@ -148,8 +141,6 @@ export type CompleteUploadResult =
         | "upload_rejected";
     };
 
-const completeUploadInput = z.object({ fileId: z.uuid() });
-
 /**
  * Takes the upload: moves the object from the upload key to the file's
  * storage key and checks it there against the declaration. A match marks
@@ -162,7 +153,7 @@ export async function completeUpload(
   input: CompleteUploadInput
 ): Promise<CompleteUploadResult> {
   await authorize(ctx, "file.upload");
-  const parsed = completeUploadInput.safeParse(input);
+  const parsed = fileIdInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { fileId } = parsed.data;
   const found = await findFile(ctx.db, fileId);

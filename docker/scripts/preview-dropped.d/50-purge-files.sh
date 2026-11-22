@@ -5,7 +5,7 @@
 # with the database's name as $1.
 #
 # It runs `pnpm files:purge-preview --database <name>` in the worker image
-# (FOA_WORKER_IMAGE, default foa-worker:latest; never pulled, so a
+# (FOA_WORKER_IMAGE, default foa-workers/worker-preview; never pulled, so a
 # look-alike image from a registry can't receive the credentials). The
 # command maps the name to its prefix and refuses anything that isn't a
 # preview database, or APP_ENV=production.
@@ -27,7 +27,7 @@ if ! [[ "$db" =~ ^foa_(pr|br)_[a-z0-9_]{1,56}$ ]]; then
 fi
 
 ENV_FILE="${FOA_PREVIEW_FILES_ENV:-/etc/foa/preview-files.env}"
-IMAGE="${FOA_WORKER_IMAGE:-foa-worker:latest}"
+IMAGE="${FOA_WORKER_IMAGE:-foa-workers/worker-preview}"
 
 if ! [ -r "$ENV_FILE" ]; then
   echo "purge-files: no credentials at $ENV_FILE (owner residue HR-08);" \

@@ -94,7 +94,7 @@ describe("r2Storage presigning", () => {
     expect(requests).toEqual([]);
   });
 
-  it("presigns a GET that overrides the type and disposition", async () => {
+  it("presigns a GET that overrides the type, disposition and caching", async () => {
     const { storage, requests } = adapter(noNetwork);
 
     const { url } = await storage.presignGet({
@@ -113,6 +113,9 @@ describe("r2Storage presigning", () => {
       "response-content-type": "application/pdf",
       "response-content-disposition":
         'attachment; filename="test_upload-01938a00.pdf"',
+      // Whatever Cache-Control the object was stored or copied with, the
+      // response never lets a cache keep it past the URL's expiry.
+      "response-cache-control": "private, no-store",
     });
     expect(requests).toEqual([]);
   });

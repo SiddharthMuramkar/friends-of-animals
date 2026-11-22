@@ -1,4 +1,7 @@
+import { mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -9,6 +12,7 @@ import { FakeClock } from "@/test/fakes/clock";
 import type { E164Phone } from "@/lib/phone";
 
 import {
+  DEVELOPMENT_AUTH_SECRET,
   filesConfigFor,
   localDiskStorageFor,
   scannerFor,
@@ -18,7 +22,9 @@ import {
 } from "./deps";
 import { SmsNotConfiguredError } from "./ports/sms";
 import { readCapturedSms } from "./ports/sms-capture";
+import { systemClock } from "./ports/clock";
 import { StorageNotConfiguredError } from "./ports/storage";
+import { diskStorage, type DiskStorage } from "./ports/storage-disk";
 
 const sms = {
   to: "+919876543210" as E164Phone,
@@ -150,6 +156,85 @@ describe("localDiskStorageFor", () => {
     expect(localDiskStorageFor({ ...LOCAL, ...R2 })).toBeNull();
     for (const appEnv of DEPLOYED) {
       expect(localDiskStorageFor({ ...LOCAL, APP_ENV: appEnv })).toBeNull();
+    }
+  });
+
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+  const OBJECT = { bucket: "local", key: "local/incoming/object" };
+
+  async function uploadUrl(storage: DiskStorage) {
+    return (
+      await storage.presignPut({
+        ...OBJECT,
+        contentType: "image/png",
+        contentLength: PNG.length,
+        expiresInSeconds: 60,
+      })
+    ).url;
+  }
+
+  const putTo = (storage: DiskStorage, url: string) =>
+    storage.receive(
+      url,
+      new Headers({
+        "content-type": "image/png",
+        "content-length": String(PNG.length),
+      }),
+      new Blob([PNG]).stream()
+    );
+
+  function localStore(root: string, env: Record<string, string> = {}) {
+    const storage = localDiskStorageFor({ ...LOCAL, ...env }, root);
+    if (!storage) throw new Error("no disk store");
+    return storage;
+  }
+
+  it("signs with a private key of its own, never a public one", async () => {
+    const root = mkdtempSync(join(tmpdir(), "foa-local-key-"));
+    try {
+      const envs: Record<string, string>[] = [
+        {},
+        { BETTER_AUTH_SECRET: DEVELOPMENT_AUTH_SECRET },
+      ];
+      for (const env of envs) {
+        const forger = diskStorage(
+          {
+            root,
+            baseUrl: "http://localhost:3000/api/local-storage/",
+            secret: DEVELOPMENT_AUTH_SECRET,
+          },
+          systemClock
+        );
+        expect(
+          await putTo(localStore(root, env), await uploadUrl(forger))
+        ).toEqual({
+          ok: false,
+          error: "bad_signature",
+        });
+      }
+      const keyFile = readdirSync(root).filter((name) => name.includes("key"));
+      expect(keyFile).toHaveLength(1);
+      expect(statSync(join(root, keyFile[0]!)).mode & 0o077).toBe(0);
+      expect(statSync(root).mode & 0o077).toBe(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("shares its key across the app's handlers and keeps it per installation", async () => {
+    const one = mkdtempSync(join(tmpdir(), "foa-local-key-"));
+    const other = mkdtempSync(join(tmpdir(), "foa-local-key-"));
+    try {
+      const url = await uploadUrl(localStore(one));
+      expect(await putTo(localStore(other), url)).toEqual({
+        ok: false,
+        error: "bad_signature",
+      });
+      // Another request's handler, built afresh for the same installation.
+      expect(await putTo(localStore(one), url)).toEqual({ ok: true });
+    } finally {
+      rmSync(one, { recursive: true, force: true });
+      rmSync(other, { recursive: true, force: true });
     }
   });
 });
