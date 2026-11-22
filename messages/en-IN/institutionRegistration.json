@@ -4,6 +4,57 @@
       "subject": "{institution} is registered for {competition}",
       "email": "Dear {principal},\n\n{coordinator} has registered {institution} for {competition} on Friends of Animals.\n\nThe registration reference is {reference}. Please quote it when you contact FOA about this competition.\n\nThe institution's coordinators now add the students who take part. You don't need to do anything. If you didn't expect this registration, please contact FOA.\n\nFriends of Animals",
       "someone": "A coordinator"
+    },
+    "competitions": {
+      "meta": {
+        "title": "Competitions for your institution",
+        "description": "Register your institution for Friends of Animals competitions that take schools and colleges."
+      },
+      "eyebrow": "Your institution",
+      "title": "Competitions",
+      "lead": "Register your institution for a competition while its registration is open. Your coordinators then add the students who take part.",
+      "loading": "Loading competitions…",
+      "for": "For {institution}",
+      "noInstitution": {
+        "title": "No institution to register here",
+        "body": "This page is for the coordinators and the authorised person of an institution. Ask your institution's authorised person to invite you as a coordinator.",
+        "back": "Go to your dashboard"
+      },
+      "notVerified": {
+        "title": "Your institution isn't verified at the moment",
+        "body": "Your institution can register for competitions once FOA has verified it. While it waits for verification, or while FOA has it suspended, nobody can register it.",
+        "back": "Go to your dashboard"
+      },
+      "listTitle": "Competitions taking institutions",
+      "empty": "No competitions are taking institutions at the moment. Look again soon.",
+      "window": {
+        "open": "Registration open",
+        "not_open_yet": "Not open yet",
+        "closed": "Registration closed"
+      },
+      "opens": "Registration opens {date}.",
+      "closes": "Registration closes {date}.",
+      "closedOn": "Registration closed {date}.",
+      "registered": "Your institution is registered.",
+      "reference": "Registration reference",
+      "referenceHint": "Quote it when you contact FOA about this competition.",
+      "register": "Register",
+      "registerFor": "Register {institution} for {competition}",
+      "registering": "Registering…",
+      "about": "About this competition",
+      "aboutName": "About {competition}",
+      "outcome": {
+        "registered": "{institution} is registered for {competition}. Its reference is {reference}. We'll let your principal know by email.",
+        "registeredElsewhere": "Your institution is registered. We'll let your principal know by email.",
+        "not_found": "That competition isn't taking registrations.",
+        "institutions_not_accepted": "That competition is for individuals only, so institutions can't register for it.",
+        "institution_not_verified": "Your institution isn't verified at the moment, so it can't register.",
+        "already_registered": "Your institution is already registered for that competition.",
+        "not_open_yet": "Registration for that competition hasn't opened yet.",
+        "closed": "Registration for that competition has closed.",
+        "failed": "Something went wrong, and your institution isn't registered. Please try again."
+      },
+      "entry": "Register for competitions"
     }
   }
 }

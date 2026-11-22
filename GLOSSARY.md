@@ -257,6 +257,25 @@ old one finds its date has moved and does nothing. Unlike a Scheduled job, it
 is tied to one competition and one instant.
 _Avoid_: Status cron, status tick
 
+## Registration
+
+**Institution registration**:
+An institution signing up for one competition, made once by one of its
+coordinators or its authorised person while the competition's registration is
+open and the institution is verified. Its students are enrolled against it.
+_Avoid_: Entry, enrolment (that is a student's), sign-up
+
+**Registration reference**:
+The code an institution registration gets, the competition's code, `I` and
+five random symbols (PAWS27-I-Q2W9R), which the institution and FOA quote.
+_Avoid_: Registration number (that is a participant's), Institution ID
+
+**Registration window**:
+Whether a competition takes registrations right now: not open yet, open or
+closed. The competition's status says when it opened; its closing instant
+closes it even if a Status job runs late.
+_Avoid_: Registration period, deadline
+
 ## Files
 
 **File**:
