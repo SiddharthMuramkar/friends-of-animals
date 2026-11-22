@@ -33,7 +33,6 @@
       "eyebrow": "Register as an individual",
       "title": "Register for {competition}",
       "lead": "Tell us about yourself. You get an FOA Participant ID, then pay the fee online.",
-      "notFound": "We couldn't find that competition.",
       "signIn": {
         "title": "Sign in to register",
         "body": "Sign in, or create an account, to register yourself for this competition.",
@@ -102,8 +101,7 @@
       "pay": "Pay {amount} for {competition}",
       "confirmFree": "Confirm your free place in {competition}",
       "comingSoon": "Entries, results and certificates will show here too.",
-      "loading": "Loading your registrations…",
-      "status": "Status"
+      "loading": "Loading your registrations…"
     },
     "payment": {
       "checkoutDescription": "Registration fee for {competition} ({participantCode})",

@@ -1,6 +1,6 @@
-// The account an adult's own registration belongs to (#78), for the
-// messages that go to them: none for a school's student, whose profile no
-// user owns.
+// The account an adult's own registration belongs to (#78): who may pay
+// for it, and who its messages go to. None for a school's student, whose
+// profile no user owns, or for a registration that doesn't exist.
 //
 // Loads under plain Node (the worker): relative imports only.
 
@@ -9,10 +9,10 @@ import { and, eq } from "drizzle-orm";
 import type { AppDb } from "../../db/app-db";
 import { participantProfile, registration } from "../../db/schema";
 
-export async function ownerOfRegistration(
+export async function registrationOwner(
   db: AppDb,
   registrationId: string
-): Promise<string[]> {
+): Promise<string | undefined> {
   const [row] = await db
     .select({ ownerUserId: participantProfile.ownerUserId })
     .from(registration)
@@ -23,8 +23,18 @@ export async function ownerOfRegistration(
     .where(
       and(
         eq(registration.id, registrationId),
+        eq(registration.route, "individual"),
         eq(participantProfile.ownerKind, "self")
       )
     );
-  return row?.ownerUserId ? [row.ownerUserId] : [];
+  return row?.ownerUserId ?? undefined;
+}
+
+/** The owner as an audience: nobody, or the one account. */
+export async function ownerOfRegistration(
+  db: AppDb,
+  registrationId: string
+): Promise<string[]> {
+  const owner = await registrationOwner(db, registrationId);
+  return owner === undefined ? [] : [owner];
 }

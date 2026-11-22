@@ -43,6 +43,7 @@ import { endUnpaidBatch, lockBatch } from "../payments/batches";
 import { nextPaymentBatchStatus } from "../payments/domain/batch-status";
 import { syncBatch } from "../payments/sync-batch";
 import { confirmRegistrations } from "../registration/confirm";
+import { registrationOwner } from "./owner";
 
 export type PayForMyRegistrationInput = { registrationId: string };
 
@@ -70,28 +71,6 @@ const t = createTranslator({
   messages: participantMessages,
   namespace: "participant.payment",
 });
-
-/** The registration's owner, if it is somebody's own profile's. */
-export async function registrationOwner(
-  db: AppDb,
-  registrationId: string
-): Promise<string | undefined> {
-  const [found] = await db
-    .select({ ownerUserId: participantProfile.ownerUserId })
-    .from(registration)
-    .innerJoin(
-      participantProfile,
-      eq(participantProfile.id, registration.participantProfileId)
-    )
-    .where(
-      and(
-        eq(registration.id, registrationId),
-        eq(registration.route, "individual"),
-        eq(participantProfile.ownerKind, "self")
-      )
-    );
-  return found?.ownerUserId ?? undefined;
-}
 
 /** Authorizes the actor as the owner of the registration's profile. */
 export async function authorizeOwner(
