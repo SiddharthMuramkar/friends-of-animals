@@ -1,5 +1,5 @@
 {
-  "id": "e7ec683e-3b04-49f6-a89f-11c96f039179",
+  "id": "0794fbfa-c813-4470-ada4-069a2da09b22",
   "prevId": "94e474b5-fe74-496b-a88c-4d0ac55d7589",
   "version": "7",
   "dialect": "postgresql",
@@ -835,6 +835,295 @@
       },
       "isRLSEnabled": false
     },
+    "public.second_factor": {
+      "name": "second_factor",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "second_factor_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_secret_sealed": {
+          "name": "totp_secret_sealed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_last_used_step": {
+          "name": "totp_last_used_step",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credential_id": {
+          "name": "credential_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "public_key": {
+          "name": "public_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sign_count": {
+          "name": "sign_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transports": {
+          "name": "transports",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "second_factor_user_id_idx": {
+          "name": "second_factor_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "second_factor_user_id_user_id_fk": {
+          "name": "second_factor_user_id_user_id_fk",
+          "tableFrom": "second_factor",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "second_factor_credential_id_unique": {
+          "name": "second_factor_credential_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "credential_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "second_factor_totp_fields": {
+          "name": "second_factor_totp_fields",
+          "value": "\"second_factor\".\"kind\" <> 'totp' OR (\"second_factor\".\"totp_secret_sealed\" IS NOT NULL AND \"second_factor\".\"credential_id\" IS NULL AND \"second_factor\".\"public_key\" IS NULL)"
+        },
+        "second_factor_passkey_fields": {
+          "name": "second_factor_passkey_fields",
+          "value": "\"second_factor\".\"kind\" <> 'passkey' OR (\"second_factor\".\"credential_id\" IS NOT NULL AND \"second_factor\".\"public_key\" IS NOT NULL AND \"second_factor\".\"sign_count\" IS NOT NULL AND \"second_factor\".\"confirmed_at\" IS NOT NULL AND \"second_factor\".\"totp_secret_sealed\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.second_factor_lockout": {
+      "name": "second_factor_lockout",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "failures": {
+          "name": "failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "window_started_at": {
+          "name": "window_started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "second_factor_lockout_user_id_user_id_fk": {
+          "name": "second_factor_lockout_user_id_user_id_fk",
+          "tableFrom": "second_factor_lockout",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session_second_factor": {
+      "name": "session_second_factor",
+      "schema": "",
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "verified_at": {
+          "name": "verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "method": {
+          "name": "method",
+          "type": "second_factor_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_second_factor_session_id_session_id_fk": {
+          "name": "session_second_factor_session_id_session_id_fk",
+          "tableFrom": "session_second_factor",
+          "tableTo": "session",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.webauthn_challenge": {
+      "name": "webauthn_challenge",
+      "schema": "",
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "challenge": {
+          "name": "challenge",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "webauthn_challenge_session_id_session_id_fk": {
+          "name": "webauthn_challenge_session_id_session_id_fk",
+          "tableFrom": "webauthn_challenge",
+          "tableTo": "session",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "webauthn_challenge_session_id_purpose_pk": {
+          "name": "webauthn_challenge_session_id_purpose_pk",
+          "columns": [
+            "session_id",
+            "purpose"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.outbox": {
       "name": "outbox",
       "schema": "",
@@ -996,155 +1285,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.file_asset": {
-      "name": "file_asset",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "owner_user_id": {
-          "name": "owner_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "purpose": {
-          "name": "purpose",
-          "type": "file_asset_purpose",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content_type": {
-          "name": "content_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bucket": {
-          "name": "bucket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "storage_key": {
-          "name": "storage_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "file_asset_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending_upload'"
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "scan_result": {
-          "name": "scan_result",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "scanned_at": {
-          "name": "scanned_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "uploaded_at": {
-          "name": "uploaded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "file_asset_owner_created_idx": {
-          "name": "file_asset_owner_created_idx",
-          "columns": [
-            {
-              "expression": "owner_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "file_asset_owner_user_id_user_id_fk": {
-          "name": "file_asset_owner_user_id_user_id_fk",
-          "tableFrom": "file_asset",
-          "tableTo": "user",
-          "columnsFrom": [
-            "owner_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "file_asset_storage_key_unique": {
-          "name": "file_asset_storage_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "storage_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "file_asset_size_bytes_positive": {
-          "name": "file_asset_size_bytes_positive",
-          "value": "\"file_asset\".\"size_bytes\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.worker_heartbeat": {
       "name": "worker_heartbeat",
       "schema": "",
@@ -1238,6 +1378,14 @@
         "system"
       ]
     },
+    "public.second_factor_kind": {
+      "name": "second_factor_kind",
+      "schema": "public",
+      "values": [
+        "totp",
+        "passkey"
+      ]
+    },
     "public.outbox_status": {
       "name": "outbox_status",
       "schema": "public",
@@ -1245,26 +1393,6 @@
         "pending",
         "dispatched",
         "failed"
-      ]
-    },
-    "public.file_asset_purpose": {
-      "name": "file_asset_purpose",
-      "schema": "public",
-      "values": [
-        "test_upload"
-      ]
-    },
-    "public.file_asset_status": {
-      "name": "file_asset_status",
-      "schema": "public",
-      "values": [
-        "pending_upload",
-        "uploaded",
-        "scanning",
-        "clean",
-        "quarantined",
-        "rejected",
-        "deleted"
       ]
     }
   },
