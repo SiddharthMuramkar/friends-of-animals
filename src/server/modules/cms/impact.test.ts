@@ -59,4 +59,16 @@ describe("the impact counters document", () => {
       revisions: [],
     });
   });
+
+  it("is seeded once as version 1 with the sample counters", async () => {
+    const h = await createHarness();
+
+    await h.seed.preview();
+    await h.seed.preview();
+
+    const read = await h
+      .as(h.visitor())
+      .getPublishedDocument({ key: "impact" });
+    expect(read).toMatchObject({ version: 1, body: impactKind.seedBody() });
+  });
 });

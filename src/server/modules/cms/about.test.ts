@@ -68,4 +68,14 @@ describe("the about page document", () => {
 
     expect(saved).toMatchObject({ ok: false, error: "invalid_body" });
   });
+
+  it("is seeded once as version 1 with today's about page", async () => {
+    const h = await createHarness();
+
+    await h.seed.preview();
+    await h.seed.preview();
+
+    const read = await h.as(h.visitor()).getPublishedDocument({ key: "about" });
+    expect(read).toMatchObject({ version: 1, body: pageKind.seedBody() });
+  });
 });

@@ -24,7 +24,8 @@ import { freshEmail, readCode } from "./support/mailbox";
 // its own server and database (ci.yml), so her one-time codes and the
 // page's version numbers are this journey's alone. It reads the current
 // version rather than assuming 1, and adds a sentence of its own each run,
-// so it can run again on the same data.
+// so it can run again on the same data. Then she opens the other pages'
+// form editors and publishes a new home page heading (111b).
 
 const [asha] = SEED_ACCOUNTS.members;
 
@@ -70,12 +71,14 @@ async function signInAsContentManager(
   await expect(page).toHaveURL(new RegExp(`${path}$`));
 }
 
-test("a content manager drafts, previews and publishes a policy page", async ({
+test("a content manager publishes a policy page, then a new home heading", async ({
   page,
   request,
 }) => {
   // Not in the terms yet, so it shows only once added (and is new each run).
   const ADDED = `This sentence was added in the content editor (${Date.now().toString(36)}), to check the preview.`;
+  // The home page's new heading, new each run too.
+  const HEADING = `Kindness to animals starts with a drawing (${Date.now().toString(36)})`;
   const violations = await recordCspViolations(page);
   await page.goto("/terms");
   const before = await shownVersion(page);
@@ -135,6 +138,35 @@ test("a content manager drafts, previews and publishes a policy page", async ({
   await expectRendersAccessibly(page, "/terms");
   expect(await shownVersion(page)).toBe(before + 1);
   await expect(shownText(page, ADDED)).toBeVisible();
+
+  // The other pages' editors are forms, one field per piece of text.
+  for (const key of ["about", "impact", "site_facts"]) {
+    await page.goto(`/admin/cms/${key}`);
+    await expect(
+      page.getByRole("button", { name: "Save draft" })
+    ).toBeVisible();
+    await expectAccessible(page, `/admin/cms/${key}`);
+    await expectAccessibleInDark(page, `/admin/cms/${key}`);
+  }
+
+  // The home hero: a new heading, published, shows on the home page.
+  await page.goto("/admin/cms/home");
+  await expectAccessible(page, "/admin/cms/home");
+  await expectAccessibleInDark(page, "/admin/cms/home");
+  await page.getByRole("textbox", { name: "Main heading" }).fill(HEADING);
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Draft saved." })
+  ).toBeVisible();
+  await page.getByRole("button", { name: /^Publish as version \d+$/ }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: /^Published version \d+\./ })
+  ).toBeVisible();
+
+  await expectRendersAccessibly(page, "/");
+  await expect(
+    page.getByRole("heading", { level: 1, name: HEADING })
+  ).toBeVisible();
   expect(violations).toEqual([]);
 });
 
