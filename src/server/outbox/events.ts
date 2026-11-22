@@ -97,6 +97,12 @@ export type DomainEvent =
       type: "institution.coordinator_invited";
       aggregate: { type: "institution_invitation"; id: string };
       payload: { invitationId: string };
+    }
+  | {
+      /** A message arrived through the contact form (#113). */
+      type: "contact_message.received";
+      aggregate: { type: "contact_message"; id: string };
+      payload: { messageId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -140,6 +146,7 @@ export const EVENT_PAYLOADS = {
     dueAt: z.iso.datetime(),
   }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
+  "contact_message.received": z.object({ messageId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -168,6 +175,12 @@ export const SUBSCRIBERS = {
   // invitation goes to the invited address itself (#74).
   "institution.coordinator_invited": [
     "institutions.send_coordinator_invitation",
+  ],
+  // The team's in-app note goes by route row; the sender, who has no
+  // account, gets the acknowledgement from the contact module.
+  "contact_message.received": [
+    "notifications.dispatch",
+    "contact.send_acknowledgement",
   ],
 } as const satisfies { [T in EventType]: readonly string[] };
 

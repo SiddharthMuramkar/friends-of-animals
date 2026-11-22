@@ -21,3 +21,5 @@ export * from "./competitions";
 export * from "./settings";
 export * from "./institutions";
 export * from "./notifications";
+export * from "./contact";
+export * from "./public-forms";

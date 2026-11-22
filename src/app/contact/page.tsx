@@ -13,6 +13,8 @@ import { Live } from "@/components/site/live";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
+import { CONTACT_FIELD_LIMITS } from "@/server/modules/contact/domain/limits";
+import { CONTACT_TOPICS } from "@/server/modules/contact/domain/routing";
 import { contactHref } from "@/lib/contact";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
@@ -20,6 +22,8 @@ import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { isFactShown } from "@/lib/site";
 import type { OrgFacts } from "@/server/modules/cms/domain/org-facts";
 import { loadFactsPreview } from "@/server/modules/cms/site-pages";
+
+import { ContactForm } from "./_components/contact-form";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("contact.meta");
@@ -31,15 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** ContactTopic values, in the form's order. */
-const TOPICS = [
-  "GENERAL",
-  "SCHOOLS",
-  "NGOS",
-  "ADOPTION",
-  "VOLUNTEERING",
-  "DONATIONS",
-  "MEDIA",
-] as const;
+const TOPICS = CONTACT_TOPICS;
 
 const LINK =
   "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
@@ -54,6 +50,8 @@ const call = (number: string) => (chunks: ReactNode) => (
 
 export default async function Page() {
   const t = await getTranslations("contact");
+  const tf = await getTranslations("contactForm");
+  const tc = await getTranslations("common.callout");
   // Production leaves out unconfirmed details with their labels, and the
   // whole "How to reach us" column once none is left.
   const contactSection = (facts: OrgFacts) => {
@@ -220,7 +218,49 @@ export default async function Page() {
 
       <WithOrgFacts>{(facts) => contactSection(facts)}</WithOrgFacts>
 
-      <Section hue="neutral" tone="tint" labelledBy="before-title">
+      <Section hue="neutral" tone="tint" labelledBy="form-title">
+        <div className="mx-auto max-w-3xl">
+          <h2 id="form-title" className="text-h3">
+            {tf("title")}
+          </h2>
+          <p className="mt-2 text-ink-muted">{tf("lead")}</p>
+          <div className="mt-8 rounded-3xl border-2 border-border bg-surface p-5 sm:p-8">
+            <ContactForm
+              limits={CONTACT_FIELD_LIMITS}
+              topics={TOPICS.map((value) => ({
+                value,
+                label: t(`topics.items.${value}.title`),
+              }))}
+              labels={{
+                topic: { legend: tf("topic.legend") },
+                safeguarding: {
+                  label: tf("safeguarding.label"),
+                  body: tf("safeguarding.body"),
+                  link: tf("safeguarding.link"),
+                },
+                name: { label: tf("name.label") },
+                email: { label: tf("email.label"), hint: tf("email.hint") },
+                organisation: { label: tf("organisation.label") },
+                subject: { label: tf("subject.label") },
+                message: {
+                  label: tf("message.label"),
+                  hint: tf("message.hint"),
+                },
+                honeypot: tf("honeypot"),
+                privacy: tf("privacy"),
+                privacyLink: tf("privacyLink"),
+                send: tf("send"),
+                sending: tf("sending"),
+                sendAnother: tf("sendAnother"),
+                problem: tc("danger"),
+                done: tc("success"),
+              }}
+            />
+          </div>
+        </div>
+      </Section>
+
+      <Section labelledBy="before-title">
         <h2 id="before-title" className="text-h3">
           {t("policies.title")}
         </h2>
