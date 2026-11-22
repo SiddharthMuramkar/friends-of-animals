@@ -113,9 +113,11 @@ describe("schedulePost", () => {
     const postId = await draft(h, actor);
     const at = later(h, 60);
 
+    // Not public yet, so no public page has anything to refresh.
     expect(await h.as(actor).schedulePost({ postId, publishAt: at })).toEqual({
       ok: true,
       publishAt: at,
+      tags: [],
     });
     expect(await postRow(h, postId)).toMatchObject({
       status: "scheduled",
@@ -209,6 +211,29 @@ describe("schedulePost", () => {
       "cms_post.scheduled",
       "cms_post.published",
     ]);
+  });
+
+  it("takes a post already due, whose job hasn't run, off the public site when moved later, and returns the tags to refresh", async () => {
+    const h = await createHarness();
+    const actor = await contentManager(h);
+    const postId = await draft(h, actor);
+    await h.as(actor).schedulePost({ postId, publishAt: later(h, 1) });
+    h.clock.advance({ seconds: 61 });
+    expect(await publicSlugs(h)).toEqual(["kite-season"]);
+    const moved = later(h, 60);
+
+    expect(
+      await h.as(actor).schedulePost({ postId, publishAt: moved })
+    ).toEqual({
+      ok: true,
+      publishAt: moved,
+      tags: ["posts", "post:kite-season"],
+    });
+    expect(await publicSlugs(h)).toEqual([]);
+    expect(await postRow(h, postId)).toMatchObject({
+      status: "scheduled",
+      publishAt: moved,
+    });
   });
 });
 
