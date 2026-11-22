@@ -124,11 +124,13 @@ test("an adult registers for a competition on their own and sees it on their das
   await expect(shown(page, "Fee: ₹100.00")).toBeVisible();
   await checkBothThemes(page, "/participant/registrations/[id]/pay");
 
+  // A local run pays through 77b's test checkout fallback, so the order
+  // is made; the Checkout island on this page arrives with 77c.
   await page.getByRole("button", { name: "Pay ₹100.00" }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText(
-    "Online payment isn't available right now."
+  await expect(page.getByRole("main").getByRole("status")).toContainText(
+    "Your order is ready. Online payment opens here soon; we will let you know."
   );
-  await checkBothThemes(page, "/participant/registrations/[id]/pay refused");
+  await checkBothThemes(page, "/participant/registrations/[id]/pay ordered");
 
   await page.getByRole("link", { name: "Back to my competitions" }).click();
   await expect(
