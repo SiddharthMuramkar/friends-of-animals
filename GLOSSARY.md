@@ -193,6 +193,26 @@ The one Version of a Consent document a competition asks registrants to agree
 to. Publishing a newer Version leaves the Pin alone until a manager moves it.
 _Avoid_: Link, attachment (alone), current version
 
+## Payments
+
+**Payment batch**:
+One gateway order for one or more registrations: an institution paying its
+students' Fees at once. It holds its registrations while it waits for the
+money, and lets them go if it is replaced or the gateway refuses the order.
+_Avoid_: Invoice, cart, transaction
+
+**Capture**:
+The gateway taking the payer's money for a Payment batch's order in full. A
+Checkout return or a webhook only says a capture may have happened; the
+gateway's own record of the order decides.
+_Avoid_: Payment success, settlement
+
+**Registration number**:
+What a confirmed registration is known by: the competition's code, "R" and
+six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the
+Route is free.
+_Avoid_: Entry number, roll number, receipt number
+
 ## Site content
 
 **Content document**:

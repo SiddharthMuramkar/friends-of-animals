@@ -80,7 +80,7 @@
         "body": "Your institution has no registration with that reference. Open it from the competitions page instead.",
         "back": "Go to competitions"
       },
-      "counts": "{enrolled, plural, =0 {No students enrolled} one {# student enrolled} other {# students enrolled}}{withdrawn, plural, =0 {} other {, # withdrawn}}",
+      "counts": "{enrolled, plural, =0 {No students enrolled} one {# student enrolled} other {# students enrolled}}{confirmed, plural, =0 {} other {, # confirmed}}{withdrawn, plural, =0 {} other {, # withdrawn}}",
       "add": "Add a student",
       "enrolment": {
         "not_open_yet": "Registration for this competition hasn't opened yet, so students can't be added.",

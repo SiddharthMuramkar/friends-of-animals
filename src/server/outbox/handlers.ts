@@ -25,6 +25,7 @@ import {
   runStatusJob,
 } from "../modules/competitions/advance-status";
 import { notifyPrincipal } from "../modules/registration/principal-message";
+import { sendRegistrationConfirmation } from "../modules/registration/confirmation-message";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -104,6 +105,8 @@ export const HANDLERS: Handlers = {
     retryBlockedMoves(deps, payload),
   "registration.notify_principal": (deps, { payload }) =>
     notifyPrincipal(deps, payload),
+  // Emails a confirmed registration's family its number (#77).
+  "registration.send_confirmation": sendRegistrationConfirmation,
 };
 
 /** Whether this code has a handler by that name. */

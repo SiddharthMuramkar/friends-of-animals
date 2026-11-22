@@ -73,6 +73,14 @@ const WHILE_POST_EXISTS = {
   toConfirm: true,
 } as const;
 
+/** Payment records: an 8-year floor for financial records (HR-31). */
+const PAYMENT_RECORD = {
+  period: "8 years after the end of the financial year of the payment (HR-31)",
+  basis:
+    "Financial records: FOA answers for what was paid, by whom, and what it confirmed, to the payer, its auditors and the tax authorities",
+  toConfirm: true,
+} as const;
+
 const WHILE_REGISTRATION_KEPT = {
   period:
     "While the institution takes part, then 3 years after the competition ends (HR-31)",
@@ -392,5 +400,14 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     purpose:
       "Records which coordinator or authorised person first entered the student",
     retention: WHILE_STUDENT_TAKES_PART,
+  },
+  // Fee payments (#77). Webhook events keep no body: it carries the payer's
+  // email and phone.
+  {
+    table: "payment_batch",
+    column: "payer_user_id",
+    purpose:
+      "Records who paid an institution's fees, so the receipt reaches them and FOA can answer a query about the payment",
+    retention: PAYMENT_RECORD,
   },
 ];
