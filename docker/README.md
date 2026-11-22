@@ -568,7 +568,27 @@ On both it installs the `crowdsecurity/pgsql` collection, the acquisition of
 the `foa-pgbouncer` container's docker logs (`type: pgbouncer`), a local
 parser for PgBouncer's `closing because: no such user` (logins as `postgres`
 or unknown roles, which the hub parser misses), and a whitelist for the VPS's
-own addresses (IPv4 and IPv6) and the compose subnet. systemd drop-ins start
+own addresses (IPv4 and IPv6) and the compose subnet.
+
+It also installs the `crowdsecurity/caddy` collection (the generic HTTP
+scenarios) on foa-caddy's JSON access log. Caddy writes it to stdout for the
+stats and errors sites (`caddy/Caddyfile`), the logging driver puts it in
+journald, and `crowdsec/acquis-foa-caddy.yaml` reads it from there
+(`CONTAINER_NAME=foa-caddy`, `PRIORITY=6`: stdout only, not Caddy's own
+log). It also passes `--output=cat`: CrowdSec runs `journalctl --follow -n 0`
+with the filter entries appended and no output mode of its own, and in
+journalctl's default format each line starts with
+`<date> <host> foa-caddy[<pid>]: `, which the caddy parser can't read.
+Nearly every request reaching the edge comes from Vercel's shared egress
+addresses: the site's `/stats` rewrites and the Sentry envelopes. A ban on
+one of them would cut it off from PgBouncer too, so Caddy doesn't log
+exactly those paths (`/script.js` and `/api/send` on stats,
+`/api/<project>/envelope/` on errors; Edge, below), for every method and
+query string: the rewrites match the path only and forward both, so a
+visitor could otherwise send `PUT /stats/script.js` or a probe query and
+get Vercel's address logged. CrowdSec never sees those paths, so it misses
+a direct scanner on them too (TODO, "Edge rate limit"). Anything else, from
+anyone, still counts. systemd drop-ins start
 crowdsec (its docker acquisition makes it exit if the Docker API is not up
 yet) and the bouncer after Docker. Brute force (5 failures, leaking 1 per
 10 s) bans the source.
@@ -583,20 +603,25 @@ a home IP can change after the allowlist was made; add a new one with
 open the Hostinger browser console and run `cscli decisions delete --ip <ip>`.
 
 ```sh
-cscli metrics show acquisition parsers   # docker:foa-pgbouncer lines read/parsed
+cscli metrics show acquisition parsers   # docker:foa-pgbouncer, journalctl (foa-caddy) lines read/parsed
 cscli alerts list; cscli decisions list
 cscli decisions delete --ip <ip>         # unban
 cscli allowlists inspect foa-admin
 cscli explain --type pgbouncer --log '<log line>'
+journalctl -n 1 -o cat CONTAINER_NAME=foa-caddy PRIORITY=6 > /tmp/caddy.log
+cscli explain --type caddy -f /tmp/caddy.log   # caddy-logs: parser success
 nft list table ip crowdsec               # Fedora: the bouncer's chains and ban sets
 ```
 
-Shared Vercel egress IPs could be banned if the app fails logins repeatedly
-(or land on a community blocklist): whitelist the Static IPs when they exist,
+Shared Vercel egress IPs could be banned if the app fails logins repeatedly,
+if someone scans the edge from their own Vercel functions (the HTTP
+scenarios ban at the host, PgBouncer included), or if they land on a
+community blocklist: whitelist the Static IPs when they exist,
 in `crowdsec/foa-whitelist.yaml` and a LAPI allowlist.
 
-CrowdSec issue #4781: the docker acquisition leaks a stream in dockerd for
-every container log line over 64 KiB. PgBouncer's lines are short, but if
+[CrowdSec issue #4781](https://github.com/crowdsecurity/crowdsec/issues/4781):
+the docker acquisition leaks a stream in dockerd for every container log
+line over 64 KiB. PgBouncer's lines are short, but if
 `ls /proc/$(pidof dockerd)/fd | wc -l` keeps growing, run
 `systemctl restart crowdsec`.
 
@@ -935,7 +960,9 @@ container's lines reach journald through dockerd and share one limit. If
 the cap fills first, the oldest files go early: `journalctl --disk-usage`
 shows how close it is, and the off-box store is the answer, not a bigger
 cap on the database disk. Container logs carry client IP addresses
-(PgBouncer, CrowdSec); keeping them a year waits on counsel (HR-30).
+(PgBouncer, CrowdSec, and Caddy for requests sent straight to the edge, never
+the site's visitors: Edge (Caddy), "Access log"); keeping them a year waits
+on counsel (HR-30).
 
 Install, once (HR-24):
 
@@ -961,9 +988,9 @@ Cookieless page views for the public site (#118). Compose project
 `foa-analytics` (`analytics.yml`), separate from `foa-vps`, so bringing the
 database stack down or up never touches it.
 
-| Container   | Image                                | Address                  | Published | Limits      |
-| ----------- | ------------------------------------ | ------------------------ | --------- | ----------- |
-| `foa-umami` | `ghcr.io/umami-software/umami:3.5.0` | 10.112.12.30:3000 (`db`) | no        | 1 CPU, 1 GB |
+| Container   | Image                                | Address                  | Published | Limits                           |
+| ----------- | ------------------------------------ | ------------------------ | --------- | -------------------------------- |
+| `foa-umami` | `ghcr.io/umami-software/umami:3.5.0` | 10.112.12.30:3000 (`db`) | no        | 1 CPU, 1 GB, `oom_score_adj` 500 |
 
 - **Data**: database `umami` on pg-prod, owned by role `umami`
   (`postgres/bootstrap/umami.sql`, connection limit 10). pgBackRest backs up
@@ -1022,12 +1049,19 @@ SSH instead: `ssh -L 3000:10.112.12.30:3000 <vps>`, then open
 `http://localhost:3000`.
 
 Umami counts unique visitors by IP address. Requests reach it through
-Vercel's rewrite and then Caddy, so check which header carries the
-visitor's address (not Vercel's) and set `CLIENT_IP_HEADER` in
-`analytics.env` to it. Pick one that Vercel sets itself,
-replacing whatever the browser sent: a header visitors can set lets them
-forge the counts. Until then page views are right but unique visitors
-collapse onto Vercel's addresses.
+Vercel's rewrite and then Caddy, so the connecting address is Vercel's.
+Vercel's rewrite sets `X-Real-IP` to the visitor's address, replacing
+whatever the browser sent, and `analytics.yml` sets
+`CLIENT_IP_HEADER=x-real-ip`. Caddy passes `X-Real-IP` through and drops the
+other headers Umami would fall back to (`CF-Connecting-IP`,
+`True-Client-IP`, `X-Client-IP` and the other CDN ones), so a header a
+browser adds can't replace the address Vercel set. That doesn't make the
+address unforgeable: Umami 3.5.0 takes an `ip` field in the `/api/send`
+body before any header, and a request sent straight to
+`stats.friendsofanimals.dev` can carry its own `X-Real-IP` (and the
+headers Caddy doesn't drop, such as `X-Appengine-User-Ip`). Only the
+counts and their countries are at stake: a forged address reaches Umami's
+statistics, never the site.
 
 Upgrade: bump the image tag in `analytics.yml`, `git pull`, then rerun the
 bootstrap. Caddy serves 503 whenever `/var/lib/foa/caddy/gates/stats` is
@@ -1051,9 +1085,9 @@ Caddy terminates TLS on the VPS for the services that need a public HTTPS
 name (#118). Compose project `foa-edge` (`edge.yml`), sites in
 `caddy/Caddyfile`.
 
-| Container   | Image          | Network | Listens            | Limits                      |
-| ----------- | -------------- | ------- | ------------------ | --------------------------- |
-| `foa-caddy` | `caddy:2.11.9` | host    | :80, :443 (h1, h2) | 256 MB, `oom_score_adj` 500 |
+| Container   | Image          | Network | Listens            | Limits                               |
+| ----------- | -------------- | ------- | ------------------ | ------------------------------------ |
+| `foa-caddy` | `caddy:2.11.9` | host    | :80, :443 (h1, h2) | 0.5 CPU, 256 MB, `oom_score_adj` 500 |
 
 | Site                                                         | Serves                                           |
 | ------------------------------------------------------------ | ------------------------------------------------ |
@@ -1065,7 +1099,13 @@ name (#118). Compose project `foa-edge` (`edge.yml`), sites in
   firewalld's `http` and `https` services govern them (Firewall, above);
   Docker makes no rules for it and `FOA-INBOUND` doesn't apply. Umami and
   GlitchTip publish no port: Caddy reaches them across their bridges. The
-  admin API listens on 127.0.0.1:2019 only.
+  admin API is the unix socket `/config/admin.sock` (0600) inside the
+  container, `/var/lib/foa/caddy/config/admin.sock` on the host, not a TCP
+  port: on the host network any local process could reach a port.
+- **Hardened**: Caddy runs as root (the image has no other user) but with
+  every capability dropped except `NET_BIND_SERVICE`, `no-new-privileges`,
+  and a read-only root filesystem. It writes only `/data`, `/config` and a
+  tmpfs `/tmp`.
 - **Certificates**: Caddy gets and renews the stats and errors certificates
   itself from Let's Encrypt; `acme_ca` pins the production CA. Each name
   needs its A record (189.72.156.29, no AAAA) before Caddy loads its site.
@@ -1078,6 +1118,31 @@ name (#118). Compose project `foa-edge` (`edge.yml`), sites in
   and Caddy serves it read-only for the `http://db.*` names. When port 80
   is free, lego answers the challenge on its standalone listener (TLS
   certificate, above).
+- **Access log**: the stats and errors sites write a JSON access log to
+  stdout (the `access_log` snippet in `caddy/Caddyfile`), which goes to
+  journald with the container's other lines (Logs, above) and from there to
+  CrowdSec. It never holds a visitor of the site: Caddy skips the paths
+  the site proxies for them, whatever the method or query (`log_skip`: the
+  tracker script and page views on stats, Sentry envelopes on errors). For
+  every other request it deletes
+  the headers that carry someone's address, location or page (`X-Real-Ip`,
+  `X-Forwarded-For`, `Forwarded`, Vercel's `X-Vercel-Forwarded-For` and
+  `X-Vercel-Ip-*`, `Referer`) and redacts cookies and `Authorization`. What
+  remains is the connecting address (a scanner's, or the owner's on the
+  dashboard), host, method, path with its query string, status and user
+  agent: what CrowdSec's caddy parser reads. Caddy's own log (stderr) goes
+  through the same filter (`log default`): when Umami or GlitchTip is down,
+  each request it couldn't proxy, a skipped one included, lands there with
+  its headers.
+- **Abuse control**: CrowdSec's `crowdsecurity/caddy` collection (the
+  generic HTTP scenarios: probing, crawling, sensitive files, bad user
+  agents, known CVEs) bans abusive sources at the host (CrowdSec, above).
+  There is no Caddy rate limit. The `caddy:2.11.9` image has no rate-limit
+  module, so one needs a custom build with a pinned
+  `github.com/mholt/caddy-ratelimit`. And nearly every request arrives from
+  Vercel's few shared egress addresses: a limit per address would throttle
+  every visitor at once, and one per `X-Real-IP` trusts a header any direct
+  request can set. See TODO, "Edge rate limit".
 - **New host**: point `acme_ca` at Let's Encrypt's staging CA
   (`https://acme-staging-v02.api.letsencrypt.org/directory`) for the first
   start, and back to production once a certificate is issued, so a mistake
@@ -1091,7 +1156,7 @@ firewall-cmd --zone=public --add-service=https             # Firewall, above
 firewall-cmd --permanent --zone=public --add-service=https
 docker compose -f docker/edge.yml up -d --wait
 # After a Caddyfile change:
-docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile
+docker exec foa-caddy caddy reload --config /etc/caddy/Caddyfile --address unix//config/admin.sock
 docker logs --since 10m foa-caddy     # certificate issuance and errors
 ```
 
@@ -1111,6 +1176,11 @@ GlitchTip collects the site's and the workers' errors through the Sentry SDK
 | `foa-glitchtip`    | `glitchtip/glitchtip:7.0.0` | 10.112.13.10:8000 | no        | 1 GB, `oom_score_adj` 500   |
 | `foa-glitchtip-pg` | `postgres:18.7-alpine`      | 10.112.13.11:5432 | no        | 512 MB, `oom_score_adj` 500 |
 
+- **Hardened**: neither container gains new privileges. GlitchTip runs as
+  its image's user (`app`, 5000) with no capabilities; its Postgres keeps
+  only `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID` and `SETUID`, which its
+  entrypoint needs to own the data directory, read the password file and
+  drop to `postgres`.
 - **One container** runs GlitchTip's web server and its workers.
   `VALKEY_URL` is empty, so Postgres is the task queue, cache and session
   store: no Valkey or Redis.
@@ -1136,7 +1206,26 @@ Secrets (never in git, never printed; each value is `openssl rand -hex
 | `/etc/foa/secrets/glitchtip.env`         | 0600 root   | `SECRET_KEY`, and `DATABASE_URL` for role glitchtip at 10.112.13.11:5432         |
 | `/etc/foa/secrets/glitchtip_pg_password` | 0400 70     | The same password, for foa-glitchtip-pg's first start (`POSTGRES_PASSWORD_FILE`) |
 
-Start and recreate, with the edge running:
+**First start on a new host**, or after losing `/var/lib/foa/glitchtip/pg`
+(no backup restores it): GlitchTip lets the first account that signs up
+become superuser, even with sign-up turned off, and Caddy already routes
+`errors.friendsofanimals.dev` with a public certificate. So create the
+owner's account before the web server runs: start only the database, run the
+migrations and `createsuperuser` in one-off containers, then start GlitchTip.
+foa-glitchtip must be stopped meanwhile (after a database loss:
+`docker compose -f docker/errors.yml stop glitchtip`): the one-off
+containers take its fixed address, 10.112.13.10.
+
+```sh
+cd /srv/foa && git pull
+docker compose -f docker/errors.yml stop glitchtip    # if it runs
+docker compose -f docker/errors.yml up -d --wait glitchtip-pg
+docker compose -f docker/errors.yml run --rm glitchtip ./manage.py migrate
+docker compose -f docker/errors.yml run --rm glitchtip ./manage.py createsuperuser
+docker compose -f docker/errors.yml up -d --wait
+```
+
+Start and recreate, with the edge running and the superuser in place:
 
 ```sh
 cd /srv/foa && git pull
@@ -1148,9 +1237,7 @@ docker compose -f docker/errors.yml ps
 The organisation `foa` and its two projects, one for the site and one for
 the workers, live in GlitchTip's database. Their DSNs are Vercel
 Production's `NEXT_PUBLIC_SENTRY_DSN` and `/etc/foa/secrets/worker_sentry.env`.
-On a new host, create the first user straight after the first start, or
-with `docker exec -it foa-glitchtip ./manage.py createsuperuser`. Upgrade:
-bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
+Upgrade: bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
 
 ## TODO and owner actions
 
@@ -1185,3 +1272,9 @@ bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
    branch". The API refused the change for lack of permission. Meanwhile the
    migration's advisory lock keeps concurrent builds of one branch from
    applying the same migration twice.
+8. **Edge rate limit** (deferred, #118): CrowdSec's HTTP scenarios are the
+   edge's abuse control today (Edge, "Abuse control"). If Umami's
+   `/api/send` or GlitchTip's envelopes are ever flooded, build Caddy with
+   a pinned `caddy-ratelimit` (an image built and pinned here, not
+   `caddy:2.11.9`), and limit the paths Vercel doesn't proxy per address
+   and the proxied ones per site.

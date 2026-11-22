@@ -439,6 +439,37 @@ describe("analytics-bootstrap.sh bring-up", () => {
   });
 });
 
+describe("analytics-bootstrap.sh paths and step order", () => {
+  // The bring-up tests point every path at a temporary directory; these are
+  // the paths the real run uses. Sourcing only defines them.
+  const defaults = () =>
+    bootstrapWith(
+      UNPRIVILEGED,
+      'printf "%s\\n" "$ADMIN_FILE" "$GATE_FILE"'
+    ).stdout.split("\n");
+
+  it("keeps Umami's new admin password in /etc/foa/secrets", () => {
+    expect(defaults()[0]).toBe("/etc/foa/secrets/umami_admin_password");
+  });
+
+  it("gates the stats site with the file edge.yml mounts for Caddy", () => {
+    expect(defaults()[1]).toBe("/var/lib/foa/caddy/gates/stats");
+  });
+
+  it("closes the gate first and opens it only after replacing the login", () => {
+    const main = bootstrapWith(UNPRIVILEGED, "declare -f main").stdout;
+    const order = [
+      "close_gate",
+      "start_umami",
+      "write_admin_password",
+      "replace_seeded_login",
+      "open_gate",
+    ].map((step) => main.search(new RegExp(`^\\s+${step}\\b`, "m")));
+    expect(order.every((at) => at > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+});
+
 describe("analytics-bootstrap.sh usage", () => {
   it("prints its usage with --help", () => {
     const run = spawnSync("bash", [SCRIPT, "--help"], {
