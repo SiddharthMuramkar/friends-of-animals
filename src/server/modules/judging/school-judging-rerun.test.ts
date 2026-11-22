@@ -161,6 +161,65 @@ describe("re-running a refused move into school judging", () => {
     expect(page.schoolJudgingBlock).toBeNull();
   });
 
+  it("moves into school judging once the manager drops the discipline without a rubric, without another status job", async () => {
+    const { h, manager, competitionId } = await setUp();
+    await blockedAtSubmissionsClose(h, manager, competitionId, ["drawing"]);
+    h.clock.advance({ hours: 3 });
+    const droppedAt = h.clock.now();
+
+    const updated = await h.as(manager).updateCompetition({
+      competitionId,
+      disciplines: ["drawing"],
+      categories: [{ discipline: "drawing", ageGroup: "Group B" }],
+    });
+    expect(updated).toEqual({ ok: true, changed: true });
+    await h.drain();
+
+    const page = await rubricsPage(h, manager, competitionId);
+    expect(page.competition.status).toBe("school_judging");
+    expect(page.schoolJudgingBlock).toBeNull();
+    expect((await statusChanges(h)).at(-1)).toEqual({
+      actorKind: "system",
+      actorProcess: "worker",
+      before: { status: "registration_closed" },
+      after: {
+        status: "school_judging",
+        keyDate: "submissions_close",
+        at: SUBMISSIONS_CLOSE.toISOString(),
+      },
+      occurredAt: droppedAt,
+    });
+  });
+
+  it("names the discipline now missing when the manager swaps one without a rubric for another, and tells nobody again", async () => {
+    const { h, manager, competitionId } = await setUp({
+      name: "Shade for Street Dogs",
+    });
+    await blockedAtSubmissionsClose(h, manager, competitionId, ["drawing"]);
+    const subject = "Shade for Street Dogs can't move to school judging yet";
+    const told = noticesTo(h, subject).length;
+    expect(told).toBeGreaterThan(0);
+
+    const updated = await h.as(manager).updateCompetition({
+      competitionId,
+      disciplines: ["drawing", "painting"],
+      categories: [
+        { discipline: "drawing", ageGroup: "Group B" },
+        { discipline: "painting", ageGroup: "Group B" },
+      ],
+    });
+    expect(updated).toEqual({ ok: true, changed: true });
+    await h.drain();
+
+    const page = await rubricsPage(h, manager, competitionId);
+    expect(page.competition.status).toBe("registration_closed");
+    expect(page.schoolJudgingBlock).toEqual({
+      blockedAt: SUBMISSIONS_CLOSE,
+      missing: ["painting"],
+    });
+    expect(noticesTo(h, subject)).toHaveLength(told);
+  });
+
   it("doesn't move early when submissions were given more time; the new date's job does", async () => {
     const { h, manager, competitionId } = await setUp();
     await blockedAtSubmissionsClose(h, manager, competitionId, ["drawing"]);
