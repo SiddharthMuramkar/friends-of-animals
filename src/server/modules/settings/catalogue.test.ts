@@ -8,7 +8,8 @@ describe("the settings catalogue", () => {
   it("holds the first settings with their documented defaults", () => {
     // #62 and HR-19: SMS off, 80G off, FCRA off, staff sessions 12 hours,
     // and #58's ceiling on sign-in texts: 200 an hour, 1,000 a day. #57:
-    // email sign-in on (production also waits for SES, R-27).
+    // email sign-in on (production also waits for SES, R-27). #116: 10
+    // safeguarding reports an hour from one IP.
     expect(
       Object.fromEntries(
         SETTING_KEYS.map((key) => [key, SETTINGS[key].default])
@@ -25,6 +26,7 @@ describe("the settings catalogue", () => {
       "org.registrationType": "",
       "org.registrationNumber": "",
       "org.pan": "",
+      "safeguarding.reportsPerIpPerHour": 10,
     });
   });
 

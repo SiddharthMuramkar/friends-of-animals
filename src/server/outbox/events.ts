@@ -103,6 +103,15 @@ export type DomainEvent =
       type: "contact_message.received";
       aggregate: { type: "contact_message"; id: string };
       payload: { messageId: string };
+    }
+  | {
+      /**
+       * Someone reported a safeguarding concern (#116). The leads' alert
+       * says only that one came in: nothing of the report travels here.
+       */
+      type: "safeguarding.report_submitted";
+      aggregate: { type: "safeguarding_report"; id: string };
+      payload: { reportId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -147,6 +156,7 @@ export const EVENT_PAYLOADS = {
   }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
   "contact_message.received": z.object({ messageId: z.uuid() }),
+  "safeguarding.report_submitted": z.object({ reportId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -182,6 +192,8 @@ export const SUBSCRIBERS = {
     "notifications.dispatch",
     "contact.send_acknowledgement",
   ],
+  // The safeguarding leads' alert (#116).
+  "safeguarding.report_submitted": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];
