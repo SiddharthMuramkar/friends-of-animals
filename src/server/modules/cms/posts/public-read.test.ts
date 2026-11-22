@@ -370,3 +370,34 @@ describe("a post's uploaded images, publicly", () => {
     ]);
   });
 });
+
+describe("fresh without a deploy", () => {
+  it("a hand publish hands the Server Action the tags the public reads are cached under", async () => {
+    const h = await createHarness();
+    const editor = await contentManager(h);
+    const postId = await draft(h, editor, "kite-season");
+
+    expect(await h.as(editor).publishPost({ postId })).toMatchObject({
+      ok: true,
+      tags: ["posts", "post:kite-season"],
+    });
+  });
+
+  it("the reads know when the next scheduled post goes live, so they expire then", async () => {
+    const h = await createHarness();
+    const editor = await contentManager(h);
+    const visitor = h.as(h.visitor());
+    expect(await visitor.nextPostGoingLive()).toBeNull();
+
+    const soon = new Date(h.clock.now().getTime() + 60 * MINUTE);
+    const later = new Date(h.clock.now().getTime() + 2 * DAY);
+    await scheduled(h, editor, "later", later);
+    await scheduled(h, editor, "soon", soon);
+    await draft(h, editor, "never");
+    expect(await visitor.nextPostGoingLive()).toEqual(soon);
+
+    h.clock.set(soon);
+    expect(await visitor.publishedPostSlugs()).toContain("soon");
+    expect(await visitor.nextPostGoingLive()).toEqual(later);
+  });
+});
