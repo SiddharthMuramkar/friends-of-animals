@@ -32,6 +32,8 @@ export const APP_ROUTES = {
   institutionCoordinators: "/institution/coordinators",
   adminInbox: "/admin/inbox",
   adminSafeguarding: "/admin/safeguarding",
+  adminBlog: "/admin/blog",
+  adminNewBlogPost: "/admin/blog/new",
 } as const;
 
 /** A competition's judging guide, for the institutions taking part (#88). */
@@ -42,6 +44,11 @@ export function judgingGuidePath(competitionCode: string): string {
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
+}
+
+/** One post's editor in the admin area (#112). */
+export function adminBlogPostPath(postId: string): string {
+  return `${APP_ROUTES.adminBlog}/${encodeURIComponent(postId)}`;
 }
 
 /**
@@ -55,6 +62,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/institutions/[id]",
   "/admin/inbox/[id]",
   "/admin/safeguarding/[id]",
+  "/admin/blog/[id]",
   "/admin/competitions/[id]/rubrics",
   "/admin/competitions/[id]/rubrics/[discipline]",
   "/institution/competitions/[code]/judging-guide",
