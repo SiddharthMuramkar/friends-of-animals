@@ -8,6 +8,7 @@
  * next.config.ts loads it under plain Node.
  */
 
+import { PAY_FEES_ROUTE } from "./app-routes";
 import type { CspContext, CspSources } from "./csp";
 import { r2Origin } from "./r2-origin";
 
@@ -45,6 +46,38 @@ function publicAssetSources(
   ];
 }
 
+/**
+ * Razorpay Checkout (#77), on the pay page alone and only while Razorpay
+ * keys are set (the fallback's test checkout is on our own origin). The
+ * page's nonce'd island loads checkout.js ('strict-dynamic' then trusts
+ * it; the script origin is only for browsers without 'strict-dynamic'),
+ * which frames Razorpay's checkout, calls its API, sends telemetry and
+ * shows its images. Razorpay publishes no CSP list: these are the hosts
+ * Standard Checkout uses, checked against staging's violation reports
+ * once its keys are set (HR-09, HR-27).
+ */
+function razorpayCheckoutSources(
+  env: Record<string, string | undefined>
+): CspSources[] {
+  if (!env.RAZORPAY_KEY_ID) return [];
+  return [
+    {
+      feature: "Razorpay Checkout",
+      areas: ["signedIn"],
+      routes: [PAY_FEES_ROUTE],
+      directives: {
+        "script-src": ["https://checkout.razorpay.com"],
+        "frame-src": ["https://api.razorpay.com"],
+        "connect-src": [
+          "https://api.razorpay.com",
+          "https://lumberjack.razorpay.com",
+        ],
+        "img-src": ["https://cdn.razorpay.com"],
+      },
+    },
+  ];
+}
+
 /** The origin of an https URL, or null for anything else. */
 function httpsOrigin(value: string | undefined): string | null {
   if (!value || !URL.canParse(value)) return null;
@@ -63,6 +96,7 @@ export function cspContext(
       ...CSP_SOURCES,
       ...fileStorageSources(env),
       ...publicAssetSources(env),
+      ...razorpayCheckoutSources(env),
     ],
   };
 }

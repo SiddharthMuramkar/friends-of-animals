@@ -29,6 +29,8 @@ export * from "./institutions";
 export * from "./notifications";
 export * from "./registration";
 export * from "./payments";
+export * from "./guardians";
+export * from "./payment-test-gateway";
 export * from "./posts";
 export * from "./contact";
 export * from "./public-forms";

@@ -8,7 +8,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { createTranslator } from "next-intl";
 import { z } from "zod";
 
-import registrationMessages from "../../../../messages/en-IN/registration.json";
+import paymentMessages from "../../../../messages/en-IN/payments.json";
 import { authorize } from "../../access/can";
 import {
   competition,
@@ -59,8 +59,8 @@ const getInput = z.object({ institutionId: z.uuid(), batchId: z.uuid() });
 
 const t = createTranslator({
   locale: "en-IN",
-  messages: registrationMessages,
-  namespace: "registration.payment",
+  messages: paymentMessages,
+  namespace: "payments.order",
 });
 
 const byName = new Intl.Collator("en-IN", { sensitivity: "base" });

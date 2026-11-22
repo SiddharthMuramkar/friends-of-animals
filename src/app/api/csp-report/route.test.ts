@@ -8,6 +8,8 @@ import {
   type MockInstance,
 } from "vitest";
 
+import { CSP_REPORT_MAX_BYTES } from "@/lib/csp-report";
+
 // The route keeps its report budget per server instance, in module state:
 // each test loads a fresh copy under a fake clock.
 let POST: (request: Request) => Promise<Response>;
@@ -133,7 +135,9 @@ describe("POST /api/csp-report", () => {
   it("refuses other content types, oversize bodies and malformed reports", async () => {
     expect((await post(legacyReport(), "text/plain")).status).toBe(415);
     expect((await post(legacyReport(), "application/json")).status).toBe(415);
-    const oversize = legacyReport(`${PAGE}?pad=${"x".repeat(20_000)}`);
+    const oversize = legacyReport(
+      `${PAGE}?pad=${"x".repeat(CSP_REPORT_MAX_BYTES)}`
+    );
     expect((await post(oversize)).status).toBe(413);
     expect((await post("{not json")).status).toBe(400);
     expect((await post(JSON.stringify({ nope: 1 }))).status).toBe(400);

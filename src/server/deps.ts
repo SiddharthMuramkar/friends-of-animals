@@ -54,10 +54,8 @@ import type { MalwareScanner } from "./ports/malware-scanner";
 import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { localScanner } from "./ports/malware-scanner-local";
 import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
-import {
-  unconfiguredPaymentGateway,
-  type PaymentGateway,
-} from "./ports/payment-gateway";
+import type { PaymentGateway } from "./ports/payment-gateway";
+import { paymentGatewayFor } from "./ports/payment-gateway-select";
 import { serverErrorReporter } from "./observability/server-reporter";
 import type { HumanCheck } from "./ports/human-check";
 import {
@@ -326,8 +324,10 @@ export function productionDeps(): Deps {
       errors: serverErrorReporter,
       scanner: scannerFor(config),
       media: unconfiguredMedia,
-      // Refuses every payment until 77b wires Razorpay.
-      payments: unconfiguredPaymentGateway,
+      // Razorpay where its keys are set (live in production, test
+      // elsewhere), the test checkout's fallback where none are, and a
+      // gateway that refuses every payment in production without live keys.
+      payments: paymentGatewayFor(config, { db, clock: systemClock }),
     };
   }
   return production;

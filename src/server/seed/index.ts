@@ -16,6 +16,7 @@ import { seedCms } from "./cms";
 import { seedConsent } from "./consent";
 import { seedContact } from "./contact";
 import { seedFiles } from "./files";
+import { seedGuardians } from "./guardians";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
@@ -58,6 +59,9 @@ const seeders: readonly Seeder[] = [
   // After the competitions, their terms and the accounts: adults who
   // registered themselves for NEIGH27, one paid.
   seedParticipants,
+  // After the participants seed: a guardian, their under-13 child and a
+  // teen whose own login is linked to them (#81).
+  seedGuardians,
   seedNotifications,
   seedContact,
   seedCms,
