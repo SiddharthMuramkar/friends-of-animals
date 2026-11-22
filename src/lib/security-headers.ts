@@ -9,7 +9,7 @@
  * loads it under plain Node.
  */
 
-import { PAY_FEES_ROUTE } from "./app-routes";
+import { CHECKOUT_ROUTES } from "./app-routes";
 import type { HeaderRule } from "./csp";
 
 export type SecurityHeader = { key: string; value: string };
@@ -29,30 +29,28 @@ export function strictTransportSecurity(appEnv: string | undefined): string {
 const PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=()";
 
 /**
- * The pay page's overrides of two headers above (#77), listed after them
+ * The pay pages' overrides of two headers above (#77), listed after them
  * in next.config.ts so they win there. Razorpay Checkout's frame may use
  * the Payment Request API (wallets), and Checkout opens bank and wallet
  * pages in popups that it watches, which COOP same-origin would cut off.
  * Every other page keeps the stricter values.
  */
 export function checkoutPageHeaders(): HeaderRule[] {
-  return [
-    {
-      // The route the CSP scopes Razorpay's origins to (./csp-sources.ts),
-      // as a headers() source: each [name] segment becomes :name.
-      source: PAY_FEES_ROUTE.replaceAll(/\[(\w+)\]/g, ":$1"),
-      headers: [
-        {
-          key: "Permissions-Policy",
-          value: `${PERMISSIONS_POLICY}, payment=(self "https://checkout.razorpay.com" "https://api.razorpay.com")`,
-        },
-        {
-          key: "Cross-Origin-Opener-Policy",
-          value: "same-origin-allow-popups",
-        },
-      ],
-    },
-  ];
+  return CHECKOUT_ROUTES.map((route) => ({
+    // The routes the CSP scopes Razorpay's origins to (./csp-sources.ts),
+    // as a headers() source: each [name] segment becomes :name.
+    source: route.replaceAll(/\[(\w+)\]/g, ":$1"),
+    headers: [
+      {
+        key: "Permissions-Policy",
+        value: `${PERMISSIONS_POLICY}, payment=(self "https://checkout.razorpay.com" "https://api.razorpay.com")`,
+      },
+      {
+        key: "Cross-Origin-Opener-Policy",
+        value: "same-origin-allow-popups",
+      },
+    ],
+  }));
 }
 
 /** The headers for one deployment, from its APP_ENV. */

@@ -6,6 +6,8 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { feeText } from "@/components/competitions/fee-text";
+import { Checkout } from "@/components/payments/checkout";
+import { checkoutLabels } from "@/components/payments/checkout-labels";
 import { ButtonLink } from "@/components/site/button-link";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
@@ -25,9 +27,10 @@ import {
   chooseInstitution,
 } from "../../../competitions/_lib/register-state";
 import {
-  CheckoutButton,
-  type CheckoutLabels,
-} from "./_components/checkout-button";
+  confirmPaymentAction,
+  payTestCheckoutAction,
+  startPaymentAction,
+} from "./_lib/actions";
 
 // The pay page (#77): what an institution owes for its waiting students,
 // and the button that opens the gateway's checkout. Its CSP (Razorpay's
@@ -91,16 +94,16 @@ async function Pay({
 }: Pick<Props, "params" | "searchParams">) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [{ ref }, query, t, callout, format, access, requestHeaders] =
-    await Promise.all([
+  const [{ ref }, query, t, format, access, requestHeaders] = await Promise.all(
+    [
       params,
       searchParams,
       getTranslations("payments.pay"),
-      getTranslations("common.callout"),
       getFormatter(),
       as(actor).myAccess(),
       headers(),
-    ]);
+    ]
+  );
 
   const institutionId = chooseInstitution(
     actingInstitutions(access.grants),
@@ -198,27 +201,13 @@ async function Pay({
     );
   } else {
     const free = fees.fee.amountMinor === 0n;
-    const labels: CheckoutLabels = {
+    const labels = await checkoutLabels({
       submit: free
         ? t("confirmFree", { count: fees.students })
         : t("pay", { total: rupees(fees.total) }),
       submitting: free ? t("confirmingFree") : t("paying"),
       confirming: t("confirming"),
-      checkoutName: t("checkoutName"),
-      checkoutUnavailable: t("error.checkout_unavailable"),
-      paymentFailed: t("error.payment_failed"),
-      problem: callout("danger"),
-      success: callout("success"),
-      testCheckout: {
-        title: t("testCheckout.title"),
-        body: t("testCheckout.body"),
-        amount: t("testCheckout.amount"),
-        pay: t("testCheckout.pay"),
-        paying: t("testCheckout.paying"),
-        decline: t("testCheckout.decline"),
-        declining: t("testCheckout.declining"),
-      },
-    };
+    });
     body = (
       <>
         <section aria-labelledby="pay-summary" className={CARD}>
@@ -239,9 +228,14 @@ async function Pay({
           </dl>
         </section>
         {free ? <p className="text-ink">{t("freeBody")}</p> : null}
-        <CheckoutButton
-          institutionId={institutionId}
-          reference={fees.reference}
+        <Checkout
+          start={startPaymentAction.bind(null, institutionId, fees.reference)}
+          confirm={confirmPaymentAction.bind(
+            null,
+            institutionId,
+            fees.reference
+          )}
+          answerTestCheckout={payTestCheckoutAction.bind(null, institutionId)}
           nonce={requestHeaders.get("x-nonce")}
           labels={labels}
         />
