@@ -151,6 +151,28 @@ Where every message the platform would send outside production is kept instead,
 so staff and automated journeys can read it and no real person receives it.
 _Avoid_: Dev inbox, outbox (the outbox is a different thing)
 
+**Message template**:
+The wording of one message on one channel (email, SMS or in-app), with
+placeholders such as `{{recipient.name}}`, which content managers edit without a
+deploy. Each save is a new version; an SMS template also needs a DLT template id
+before it can be sent.
+_Avoid_: Email template (alone), copy
+
+**Message route**:
+A row saying which Domain event sends which Message template, to whom, on which
+channels, and whether the law requires it. An event with no route sends nothing.
+_Avoid_: Trigger, notification rule
+
+**Inbox**:
+The in-app messages a User has received, each read or unread, shown on their
+account with an unread count in the header.
+_Avoid_: Notifications, mailbox (the capture mailbox is a different thing)
+
+**Channel choice**:
+Whether a User wants messages by email, SMS or both. A message the law requires
+goes out whatever the choice; SMS goes only while the SMS Runtime setting is on.
+_Avoid_: Notification preferences, opt-out
+
 ## Events and background work
 
 **Domain event**:

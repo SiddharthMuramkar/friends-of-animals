@@ -16,3 +16,4 @@ export * from "./media";
 export * from "./offsite-copy";
 export * from "./worker";
 export * from "./settings";
+export * from "./notifications";

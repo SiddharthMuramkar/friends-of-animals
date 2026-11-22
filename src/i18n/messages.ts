@@ -8,6 +8,7 @@ import account from "../../messages/en-IN/account.json";
 import adminSettings from "../../messages/en-IN/adminSettings.json";
 import admin from "../../messages/en-IN/admin.json";
 import adminAudit from "../../messages/en-IN/adminAudit.json";
+import adminTemplates from "../../messages/en-IN/adminTemplates.json";
 import adminRoles from "../../messages/en-IN/adminRoles.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
@@ -20,15 +21,16 @@ import contact from "../../messages/en-IN/contact.json";
 import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
 import donate from "../../messages/en-IN/donate.json";
-import emails from "../../messages/en-IN/emails.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
+import inbox from "../../messages/en-IN/inbox.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
+import notificationSettings from "../../messages/en-IN/notificationSettings.json";
 import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import sample from "../../messages/en-IN/sample.json";
@@ -45,6 +47,7 @@ export const NAMESPACES = [
   "adminSettings",
   "admin",
   "adminAudit",
+  "adminTemplates",
   "adminRoles",
   "auth",
   "authPhone",
@@ -57,15 +60,16 @@ export const NAMESPACES = [
   "credits",
   "dashboard",
   "donate",
-  "emails",
   "error",
   "files",
   "footer",
   "home",
   "impact",
+  "inbox",
   "legal",
   "nav",
   "notFound",
+  "notificationSettings",
   "pricing",
   "refunds",
   "sample",
@@ -86,6 +90,7 @@ export const messages = {
   ...adminSettings,
   ...admin,
   ...adminAudit,
+  ...adminTemplates,
   ...adminRoles,
   ...auth,
   ...authPhone,
@@ -98,15 +103,16 @@ export const messages = {
   ...credits,
   ...dashboard,
   ...donate,
-  ...emails,
   ...error,
   ...files,
   ...footer,
   ...home,
   ...impact,
+  ...inbox,
   ...legal,
   ...nav,
   ...notFound,
+  ...notificationSettings,
   ...pricing,
   ...refunds,
   ...sample,
