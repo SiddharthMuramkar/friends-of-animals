@@ -134,14 +134,21 @@ export function isSignedInPage(pathname: string): boolean {
   return (
     (Object.values(APP_ROUTES) as string[]).includes(pathname) ||
     APP_ROUTE_TEMPLATES.some((template) => fitsTemplate(pathname, template)) ||
-    CMS_EDITOR_PATHS.has(pathname)
+    isCmsEditorPath(pathname)
   );
 }
 
-/** One editor page per CMS document (#111), and no other path below it. */
-const CMS_EDITOR_PATHS: ReadonlySet<string> = new Set(
-  CMS_DOCUMENT_KEYS.map((key) => adminCmsDocumentPath(key))
-);
+/**
+ * One editor page per CMS document (#111), and no other path below it.
+ * Worked out on each call, not held in a module-level Set: the client
+ * bundles this module for isSignedInPath, and a Set built at load would
+ * ship to every page (the JS budget, SPEC §13.2).
+ */
+function isCmsEditorPath(pathname: string): boolean {
+  return CMS_DOCUMENT_KEYS.some(
+    (key) => adminCmsDocumentPath(key) === pathname
+  );
+}
 
 /** The editor page of one CMS document (#111). */
 export function adminCmsDocumentPath(key: string): `/admin/cms/${string}` {
