@@ -133,10 +133,29 @@ function passkeysOf(db: AppDb, userId: string) {
     .orderBy(asc(secondFactor.id));
 }
 
-/** Transports as WebAuthn names them; unknown strings are dropped. */
+/** Transports as WebAuthn names them. */
 type Transport = NonNullable<
-  PublicKeyCredentialRequestOptionsJSON["allowCredentials"]
->[number]["transports"];
+  NonNullable<
+    PublicKeyCredentialRequestOptionsJSON["allowCredentials"]
+  >[number]["transports"]
+>[number];
+
+const TRANSPORTS: ReadonlySet<string> = new Set<Transport>([
+  "ble",
+  "cable",
+  "hybrid",
+  "internal",
+  "nfc",
+  "smart-card",
+  "usb",
+]);
+
+/** The stored transports WebAuthn names; unknown strings are dropped. */
+function knownTransports(stored: string[] | null): Transport[] {
+  return (stored ?? []).filter((each): each is Transport =>
+    TRANSPORTS.has(each)
+  );
+}
 
 function allowed(
   rows: { credentialId: string | null; transports: string[] | null }[]
@@ -146,7 +165,7 @@ function allowed(
       ? [
           {
             id: row.credentialId,
-            transports: (row.transports ?? []) as Transport,
+            transports: knownTransports(row.transports),
           },
         ]
       : []
@@ -366,7 +385,7 @@ export async function finishPasskeyVerification(
                 Buffer.from(factor.publicKey, "base64url")
               ),
               counter: factor.signCount ?? 0,
-              transports: (factor.transports ?? []) as Transport,
+              transports: knownTransports(factor.transports),
             },
             requireUserVerification: true,
           });

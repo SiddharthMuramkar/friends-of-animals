@@ -51,6 +51,24 @@ describe("passkeys", () => {
     });
   });
 
+  it("offers only the transports WebAuthn names, dropping unknown stored ones", async () => {
+    const h = await createHarness();
+    const member = await h.seed.member();
+    const actor = await h.signIn(member);
+    await registerPasskey(h, actor);
+    await h.db
+      .update(secondFactor)
+      .set({ transports: ["usb", "carrier-pigeon", "internal"] })
+      .where(eq(secondFactor.userId, member.id));
+
+    const started = await h.as(actor).startPasskeyVerification();
+
+    if (!started.ok) throw new Error(`Could not start: ${started.error}`);
+    expect(
+      started.options.allowCredentials?.map((each) => each.transports)
+    ).toEqual([["usb", "internal"]]);
+  });
+
   it("counts a registered passkey as a factor, verifying this session, and audits it", async () => {
     const h = await createHarness();
     const member = await h.seed.member();
