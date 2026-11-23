@@ -34,6 +34,8 @@ import {
   principalNoticeValues,
 } from "../breaches/notice-message";
 import { revalidateNoticeScope } from "../breaches/notice-scope";
+import { recordPrincipalDelivery } from "../breaches/notify";
+import { lockBreach } from "../breaches/record";
 import { currentConsent } from "../consent/domain/consent-state";
 import { subjectEvents } from "../consent/repository";
 import type { AppDb } from "../../db/app-db";
@@ -187,6 +189,8 @@ async function deliverBreachChannel(
 ) {
   const { breachId, recipientUserId } = delivery.payload;
   return deps.db.transaction(async (tx) => {
+    const breach = await lockBreach(tx, breachId);
+    if (!breach) return;
     const [notice] = await tx
       .select()
       .from(breachNotification)
@@ -221,12 +225,16 @@ async function deliverBreachChannel(
       throw new Error(`No breach notice template for ${channel}`);
 
     const channelDeps = { ...deps, db: tx };
-    const recipient = await recipientOf(channelDeps, recipientUserId);
+    // Account writers lock the user before attaching a profile. Hold the
+    // corresponding shared lock from eligibility checking through handoff.
+    const recipient = await recipientOf(channelDeps, recipientUserId, {
+      lock: true,
+    });
     if (!recipient) return;
     const now = deps.clock.now();
     const scope = await revalidateNoticeScope(
       tx,
-      deps.cipher,
+      deps,
       now,
       notice,
       recipientUserId
@@ -264,13 +272,21 @@ async function deliverBreachChannel(
     } else {
       await deliverInApp(channelDeps, message);
     }
+    const sentAt = deps.clock.now();
+    await recordPrincipalDelivery(
+      tx,
+      deps.clock,
+      breach,
+      recipientUserId,
+      sentAt
+    );
     await tx
       .update(breachNotification)
       .set({
         recipientRole: scope.as,
         aboutCount: scope.aboutCount,
         guardianProfileIds: [],
-        sentAt: deps.clock.now(),
+        sentAt,
       })
       .where(eq(breachNotification.id, notice.id));
   });
@@ -291,9 +307,10 @@ async function templatesFor(db: AppDb, key: string): Promise<Templates> {
 
 async function recipientOf(
   deps: OutboxDeps,
-  userId: string
+  userId: string,
+  { lock = false } = {}
 ): Promise<Recipient | null> {
-  const [row] = await deps.db
+  const query = deps.db
     .select({
       id: user.id,
       name: user.name,
@@ -303,6 +320,7 @@ async function recipientOf(
     })
     .from(user)
     .where(eq(user.id, userId));
+  const [row] = await (lock ? query.for("share") : query);
   if (!row) return null;
   return {
     id: row.id,

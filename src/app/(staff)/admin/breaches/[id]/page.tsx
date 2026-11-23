@@ -17,8 +17,9 @@ import type { BreachView } from "@/server/modules/breaches/read";
 import { adminCall } from "../../_lib/boundary";
 import { BreachAccessState } from "../_components/access-state";
 import { BreachActions } from "../_components/breach-actions";
-import { BreachFields } from "../_components/breach-fields";
+import { BreachDetailsForm } from "../_components/breach-fields";
 import { BreachOutcomeNotice } from "../_components/outcome-notice";
+import { breachDetailsLabels } from "../_lib/details-labels";
 import { addBreachNoteAction, updateBreachAction } from "../actions";
 
 const PANEL =
@@ -76,19 +77,18 @@ async function BreachDetail({
           <BreachActions breach={breach} />
           {breach.status === "closed" ? null : (
             <Disclosure summary={t("forms.edit")} className="min-w-0">
-              <form
-                aria-label={t("forms.edit")}
+              <BreachDetailsForm
                 action={updateBreachAction.bind(null, id)}
-                className="flex flex-col gap-4"
-              >
-                <BreachFields breach={breach} />
-                <SubmitButton
-                  className="self-start"
-                  pendingLabel={t("forms.pending")}
-                >
-                  {t("forms.editSubmit")}
-                </SubmitButton>
-              </form>
+                labels={await breachDetailsLabels(true)}
+                initial={{
+                  title: breach.title,
+                  severity: breach.severity,
+                  affectedCount: String(breach.affectedCount),
+                  personalDataInvolved: breach.personalDataInvolved,
+                  minorsAffected: breach.minorsAffected,
+                  impact: breach.impact,
+                }}
+              />
             </Disclosure>
           )}
         </div>
@@ -153,6 +153,11 @@ async function BreachOverview({ breach }: { breach: BreachView }) {
         <Fact label={t("summary.recipients")}>
           {format.number(breach.notices.recipients)}
         </Fact>
+        {breach.notices.pending ? (
+          <Fact label={t("summary.pendingRecipients")}>
+            {format.number(breach.notices.pending)}
+          </Fact>
+        ) : null}
         <Fact label={t("fields.principalsNotifiedAt")}>
           {breach.fanOutPending && !breach.principalsNotifiedAt
             ? t("summary.fanOutPending")

@@ -4,7 +4,11 @@
     "detailTitle": "Breach record",
     "loading": "Loading the breach log…",
     "empty": "There are no breach records yet.",
-    "more": "Showing the {count, number} most recent records, with active breaches first.",
+    "pagination": {
+      "label": "Breach log pages",
+      "first": "First page",
+      "older": "Older records"
+    },
     "back": "Back to breach log",
     "denied": {
       "title": "This breach log is for staff administrators",
@@ -29,11 +33,18 @@
       "count": "Estimated people affected",
       "lead": "Breach lead",
       "containedAt": "Contained",
-      "principalsNotifiedAt": "First notices queued",
+      "principalsNotifiedAt": "First principal notice sent",
       "closedAt": "Closed",
       "none": "—",
       "yes": "Yes",
       "no": "No"
+    },
+    "fieldErrors": {
+      "title": "Enter a breach title of up to 200 characters.",
+      "awareAt": "Enter when FOA became aware of the breach.",
+      "severity": "Choose a severity.",
+      "affectedCount": "Enter the estimated number of people affected.",
+      "impact": "Describe what happened and its impact."
     },
     "statuses": {
       "open": "Open",
@@ -52,7 +63,7 @@
       "recorded": "Breach recorded",
       "updated": "Record corrected",
       "contained": "Breach contained",
-      "principals_notified": "Notices queued for affected people",
+      "principals_notified": "First notice sent to affected people",
       "authority_notified": "Authority notice completed",
       "note": "Note added",
       "closed": "Breach closed"
@@ -62,6 +73,7 @@
       "notices": "Notices and reach",
       "fanOutPending": "All-account notices are pending.",
       "recipients": "Recipients with notices",
+      "pendingRecipients": "Recipients with pending deliveries",
       "unreachable": "People the notice could not reach",
       "noGuardian": "No active guardian",
       "noAccount": "No active account",
@@ -85,6 +97,7 @@
       "subjects": "Affected accounts or profiles",
       "subjectsHint": "Enter one account email per line. You can also enter an account ID as user:ID or a child profile ID as profile:ID. Children’s notices go to their active guardians. Up to {count, number} entries per submission.",
       "queueNotices": "Queue notices",
+      "retryNotices": "Retry failed notices",
       "allUsers": "Notify all active accounts",
       "confirmAll": "The breach affects all active accounts.",
       "authority": "Notify the authority",
@@ -106,6 +119,7 @@
       "notices": "{count, plural, =0 {No new recipient notices were queued.} one {A notice was queued for one recipient.} other {Notices were queued for # recipients.}}",
       "unmatched": "{count, plural, one {One email address had no matching account.} other {# email addresses had no matching account.}}",
       "all_queued": "The notice job for all active accounts was queued.",
+      "notices_retried": "Failed notices were queued for another attempt.",
       "authority_email": "Authority email queued.",
       "authority_manual": "The authority reference was recorded."
     },
@@ -120,6 +134,7 @@
       "not_contained": "Mark the breach as contained before closing it.",
       "reason_required": "Enter the reason no notices were needed.",
       "fan_out_pending": "Wait for the all-account notice job before closing this breach.",
+      "principal_notices_pending": "Resolve the pending notices before closing this breach.",
       "already_notified": "An authority notice has already been recorded.",
       "authority_email_queued": "An authority email is already queued.",
       "authority_email_route_unavailable": "Enable the authority email route before retrying.",

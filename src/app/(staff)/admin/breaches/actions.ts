@@ -9,6 +9,7 @@ import type { NotifySubject } from "@/server/modules/breaches/notify";
 import { istLocalToInstant } from "@/server/modules/competitions/domain/ist";
 
 import { adminCall } from "../_lib/boundary";
+import type { BreachDetailsState, BreachDraft } from "./_lib/details-state";
 import { outcomeHref, type BreachOutcome } from "./_lib/outcome";
 
 function text(formData: FormData, name: string): string {
@@ -16,15 +17,27 @@ function text(formData: FormData, name: string): string {
   return typeof value === "string" ? value : "";
 }
 
-function detailsFrom(formData: FormData) {
-  const count = text(formData, "affectedCount").trim();
+function draftFrom(formData: FormData): BreachDraft {
   return {
     title: text(formData, "title"),
+    awareAt: text(formData, "awareAt"),
     severity: text(formData, "severity"),
     personalDataInvolved: formData.get("personalDataInvolved") === "on",
     minorsAffected: formData.get("minorsAffected") === "on",
-    affectedCount: /^\d+$/.test(count) ? Number(count) : Number.NaN,
+    affectedCount: text(formData, "affectedCount"),
     impact: text(formData, "impact"),
+  };
+}
+
+function detailsFrom({
+  awareAt: _awareAt,
+  affectedCount,
+  ...details
+}: BreachDraft) {
+  const count = affectedCount.trim();
+  return {
+    ...details,
+    affectedCount: /^\d+$/.test(count) ? Number(count) : Number.NaN,
   };
 }
 
@@ -68,33 +81,63 @@ async function changeBreach(
   );
 }
 
-export async function recordBreachAction(formData: FormData): Promise<void> {
+export async function recordBreachAction(
+  previous: BreachDetailsState,
+  formData: FormData
+): Promise<BreachDetailsState> {
   const use = await signedIn();
-  const awareAt = istLocalToInstant(text(formData, "awareAt"));
+  const draft = draftFrom(formData);
+  const awareAt = istLocalToInstant(draft.awareAt);
   const call = await adminCall(
     () =>
       use.recordBreach({
-        ...detailsFrom(formData),
+        ...detailsFrom(draft),
         awareAt: awareAt.ok ? awareAt.at : Number.NaN,
       }),
     ADMIN_BREACHES
   );
   if (!call.ok) redirect(outcomeHref(ADMIN_BREACHES, { error: "forbidden" }));
-  if (!call.value.ok) redirect(outcomeHref(ADMIN_BREACHES, call.value));
-  redirect(adminBreachPath(call.value.id));
+  const result = call.value;
+  if (!result.ok) {
+    const awareInFuture = result.error === "aware_in_future";
+    return {
+      attempt: (previous?.attempt ?? 0) + 1,
+      draft,
+      invalidFields: awareInFuture ? ["awareAt"] : result.fields,
+      awareInFuture,
+    };
+  }
+  redirect(adminBreachPath(result.id));
 }
 
 export async function updateBreachAction(
   breachId: string,
+  previous: BreachDetailsState,
   formData: FormData
-): Promise<void> {
-  await changeBreach(breachId, async (use) => {
-    const result = await use.updateBreach({
-      breachId,
-      ...detailsFrom(formData),
-    });
-    return result.ok ? { done: "updated" } : result;
-  });
+): Promise<BreachDetailsState> {
+  const path = adminBreachPath(breachId);
+  const use = await signedIn();
+  const draft = draftFrom(formData);
+  const call = await adminCall(
+    () =>
+      use.updateBreach({
+        breachId,
+        ...detailsFrom(draft),
+      }),
+    path
+  );
+  if (!call.ok) redirect(outcomeHref(path, { error: "forbidden" }));
+  if (!call.value.ok && call.value.error === "invalid_input") {
+    return {
+      attempt: (previous?.attempt ?? 0) + 1,
+      draft,
+      invalidFields: call.value.fields,
+    };
+  }
+  redirect(
+    outcomeHref(path, call.value.ok ? { done: "updated" } : call.value),
+    RedirectType.replace
+  );
 }
 
 export async function addBreachNoteAction(
@@ -159,6 +202,18 @@ export async function notifyAllAction(
       subjects: "all_users",
     });
     return result.ok ? { done: "all_queued" } : result;
+  });
+}
+
+export async function retryPrincipalNoticesAction(
+  breachId: string
+): Promise<void> {
+  await changeBreach(breachId, async (use) => {
+    const result = await use.notifyAffectedUsers({
+      breachId,
+      subjects: "retry_pending",
+    });
+    return result.ok ? { done: "notices_retried" } : result;
   });
 }
 

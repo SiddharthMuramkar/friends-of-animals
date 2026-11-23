@@ -16,6 +16,44 @@ import {
 
 const IMPACT_WORDS = "Names and schools of three entrants";
 
+it("pages the staff log across tied awareness times and into closed records", async () => {
+  const h = await createHarness();
+  const admin = await staffActor(h, "super_admin");
+  const staff = h.as(admin);
+  const closedId = await recordedBreach(h, admin);
+  await staff.containBreach({ breachId: closedId });
+  await staff.closeBreach({ breachId: closedId, reason: "No notice needed" });
+  const closed = await storedBreach(h, closedId);
+  const open = Array.from({ length: 201 }, (_, i) => ({
+    ...closed,
+    id: `01938a00-0000-7000-8000-${String(i).padStart(12, "0")}`,
+    status: "open" as const,
+    closedAt: null,
+    containedAt: null,
+  }));
+  await h.db.insert(breachRecord).values(open);
+  const first = await staff.listBreaches();
+  expect(first).toMatchObject({ ok: true, nextCursor: expect.any(String) });
+  if (!first.ok) throw new Error("First page failed");
+  expect(first.breaches.map(({ id }) => id)).toEqual(
+    open
+      .slice(1)
+      .reverse()
+      .map(({ id }) => id)
+  );
+  const older = await staff.listBreaches({ cursor: first.nextCursor });
+  expect(older).toMatchObject({
+    ok: true,
+    breaches: [{ id: open[0]!.id }, { id: closedId }],
+    nextCursor: null,
+  });
+  expect(await staff.listBreaches({ cursor: "invalid" })).toEqual({
+    ok: false,
+    error: "invalid_input",
+    fields: ["cursor"],
+  });
+});
+
 describe("recordBreach", () => {
   it("records an open breach and audits it without its title or impact", async () => {
     const h = await createHarness();

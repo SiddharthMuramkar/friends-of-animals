@@ -26,6 +26,7 @@ import {
   breachRecord,
   breachTimelineEvent,
   breachUnreachable,
+  outbox,
   user,
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
@@ -57,18 +58,30 @@ export type BreachListItem = {
   minorsAffected: boolean;
 };
 
-export type ListBreachesResult = {
-  ok: true;
-  breaches: BreachListItem[];
-  /** More breaches exist than the list shows. */
-  more: boolean;
-};
+export type ListBreachesResult =
+  | { ok: true; breaches: BreachListItem[]; nextCursor: string | null }
+  | InvalidInput;
+
+const cursor = z.tuple([z.enum(["0", "1"]), z.iso.datetime(), z.uuid()]);
+const listInput = z.strictObject({
+  cursor: z
+    .string()
+    .max(96)
+    .transform((value) => value.split("|"))
+    .pipe(cursor)
+    .optional(),
+});
 
 /** Every breach, open ones first, then by when FOA became aware, newest first. */
 export async function listBreaches(
-  ctx: BreachContext
+  ctx: BreachContext,
+  input: unknown
 ): Promise<ListBreachesResult> {
   await authorize(ctx, "breach.read");
+  const parsed = listInput.safeParse(input);
+  if (!parsed.success) return invalidInput(parsed.error);
+  const after = parsed.data.cursor;
+  const active = sql<boolean>`${breachRecord.status} <> 'closed'`;
   const rows = await ctx.db
     .select({
       id: breachRecord.id,
@@ -76,23 +89,39 @@ export async function listBreaches(
       status: breachRecord.status,
       severity: breachRecord.severity,
       awareAt: breachRecord.awareAt,
+      cursorAwareAt: sql<string>`to_char(${breachRecord.awareAt} at time zone 'UTC',
+        'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
       affectedCount: breachRecord.affectedCount,
       minorsAffected: breachRecord.minorsAffected,
     })
     .from(breachRecord)
+    .where(
+      after &&
+        sql`(${active}, ${breachRecord.awareAt}, ${breachRecord.id})
+      < (${after[0] === "1"}::boolean, ${after[1]}::timestamptz, ${after[2]}::uuid)`
+    )
     .orderBy(
-      sql`${breachRecord.status} = 'closed'`,
-      desc(breachRecord.awareAt),
-      desc(breachRecord.id)
+      desc(active),
+      sql`${breachRecord.awareAt} desc nulls last`,
+      sql`${breachRecord.id} desc nulls last`
     )
     .limit(BREACH_LIST_LIMIT + 1);
+  const page = rows.slice(0, BREACH_LIST_LIMIT);
+  const last = page.at(-1);
   return {
     ok: true,
-    breaches: rows.slice(0, BREACH_LIST_LIMIT).map((row) => ({
+    breaches: page.map(({ cursorAwareAt: _cursorAwareAt, ...row }) => ({
       ...row,
       title: openBreachText(ctx.cipher, "title", row.title),
     })),
-    more: rows.length > BREACH_LIST_LIMIT,
+    nextCursor:
+      rows.length > page.length && last
+        ? [
+            last.status === "closed" ? "0" : "1",
+            last.cursorAwareAt,
+            last.id,
+          ].join("|")
+        : null,
   };
 }
 
@@ -141,8 +170,10 @@ export type BreachView = {
   notices: {
     /** People told, each once whatever the channels. */
     recipients: number;
+    pending: number;
     byRole: Record<NoticeRecipientRole, number>;
   };
+  canRetryPrincipalNotices: boolean;
   unreachable: { total: number; noGuardian: number; noAccount: number };
   timeline: BreachTimelineEntry[];
   /** The moves the transition table allows next. */
@@ -211,7 +242,7 @@ export async function getBreach(
       and(
         eq(breachNotification.breachId, breachId),
         isNotNull(breachNotification.recipientUserId),
-        isNull(breachNotification.suppressedAt)
+        isNotNull(breachNotification.sentAt)
       )
     )
     .groupBy(breachNotification.recipientUserId)
@@ -229,6 +260,34 @@ export async function getBreach(
     principal_and_guardian: 0,
   };
   for (const count of noticeCounts) byRole[count.role] = count.recipients;
+  const [pending] = await ctx.db
+    .select({
+      recipients: sql<number>`count(distinct ${breachNotification.recipientUserId})::int`,
+    })
+    .from(breachNotification)
+    .where(
+      and(
+        eq(breachNotification.breachId, breachId),
+        isNull(breachNotification.sentAt),
+        isNull(breachNotification.suppressedAt)
+      )
+    );
+  const pendingRecipients = pending?.recipients ?? 0;
+  const [failedPrincipal] = await ctx.db
+    .select({ id: outbox.id })
+    .from(outbox)
+    .where(
+      and(
+        eq(outbox.aggregateType, "breach"),
+        eq(outbox.aggregateId, breachId),
+        eq(outbox.status, "failed"),
+        inArray(outbox.eventType, [
+          "breach.principal_notice",
+          "breach.fan_out_requested",
+        ])
+      )
+    )
+    .limit(1);
 
   const unreachableCounts = await ctx.db
     .select({
@@ -293,10 +352,12 @@ export async function getBreach(
         emailConfigured,
       },
       notices: {
+        pending: pendingRecipients,
         recipients:
           byRole.principal + byRole.guardian + byRole.principal_and_guardian,
         byRole,
       },
+      canRetryPrincipalNotices: failedPrincipal !== undefined,
       unreachable: {
         total: unreachableOf("no_guardian") + unreachableOf("no_account"),
         noGuardian: unreachableOf("no_guardian"),
@@ -309,11 +370,18 @@ export async function getBreach(
         author: personOf(event.authorUserId),
         occurredAt: event.occurredAt,
       })),
-      allowedEvents: allowedBreachEvents(row, fanOutPending),
+      allowedEvents: allowedBreachEvents(
+        row,
+        fanOutPending,
+        pendingRecipients > 0
+      ),
       canNotifyAuthority:
-        row.status !== "closed" &&
         notifiedAt === null &&
-        (emailQueuedAt === null || emailFailedAt !== null || !emailConfigured),
+        (row.status === "closed"
+          ? emailConfigured && emailFailedAt !== null
+          : emailQueuedAt === null ||
+            emailFailedAt !== null ||
+            !emailConfigured),
     },
   };
 }

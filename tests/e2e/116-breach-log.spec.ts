@@ -6,6 +6,7 @@ import {
 } from "../../src/server/modules/second-factor/domain/totp";
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import { test } from "./support/seed-account";
+import { seedBreachReach } from "./support/seed-breach-reach";
 import { expectNoSidewaysScrollAt320, signInByCode } from "./support/sign-in";
 
 const LOG = "/admin/breaches";
@@ -26,6 +27,7 @@ async function checkPage(page: Page, path: string, title: RegExp) {
 test("breach staff open the log and record a breach through the staff pages", async ({
   page,
   request,
+  baseURL,
   seedAccount,
 }, testInfo) => {
   const secret = generateTotpSecret();
@@ -70,7 +72,8 @@ test("breach staff open the log and record a breach through the staff pages", as
   await expect(page.locator("#record-breach")).toBeFocused();
   const title = `Incorrect folder permissions (${testInfo.project.name})`;
   const record = page.getByRole("form", { name: "Record a breach" });
-  await record.getByLabel("Breach title").fill(title);
+  const titleField = record.getByLabel("Breach title");
+  await titleField.fill("   ");
   await record
     .getByLabel("When FOA became aware (IST)")
     .fill("2026-01-15T10:00");
@@ -79,6 +82,17 @@ test("breach staff open the log and record a breach through the staff pages", as
   await record
     .getByLabel("What happened and its impact")
     .fill("One test record was briefly visible.");
+  await record.getByRole("button", { name: "Record breach" }).click();
+  await expect(titleField).toHaveAttribute("aria-invalid", "true");
+  await expect(titleField).toHaveAccessibleDescription(/Enter a breach title/);
+  await expect(titleField).toBeFocused();
+  await expect(record.getByLabel("What happened and its impact")).toHaveValue(
+    "One test record was briefly visible."
+  );
+  await expect(record.getByLabel("When FOA became aware (IST)")).toHaveValue(
+    "2026-01-15T10:00"
+  );
+  await titleField.fill(title);
   await record.getByRole("button", { name: "Record breach" }).click();
   await expect(page).toHaveURL(/\/admin\/breaches\/[\da-f-]+$/);
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
@@ -109,6 +123,21 @@ test("breach staff open the log and record a breach through the staff pages", as
   await expect(
     page.getByRole("button", { name: "Close breach" })
   ).toBeVisible();
+
+  const detailPath = new URL(page.url()).pathname;
+  await seedBreachReach(baseURL, detailPath.slice(LOG.length + 1), email);
+  await checkPage(page, detailPath, /^Breach record ·/);
+  const summary = (label: string) =>
+    page
+      .locator("dl > div")
+      .filter({
+        has: page.getByText(label, { exact: true }),
+      })
+      .locator("dd");
+  await expect(summary("Recipients with notices")).toHaveText("1");
+  await expect(summary("People the notice could not reach")).toContainText(
+    /^1\s*No active guardian \(1\)/
+  );
 });
 
 test("a direct breach detail visit checks staff permissions and second factor", async ({

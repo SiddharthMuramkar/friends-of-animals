@@ -28,6 +28,77 @@ function reports(h: Harness) {
 }
 
 describe("notifyAuthority", () => {
+  it("retries only an existing failed authority email after closure", async () => {
+    const h = await noticeHarness("breach.principal_notice");
+    await setBreachNoticeRoute(h, AUTHORITY_NOTICE, true);
+    await h.settings.set("breach.authorityEmail", AUTHORITY);
+    const admin = await staffActor(h, "super_admin");
+    const staff = h.as(admin);
+    const breachId = await recordedBreach(h, admin);
+    const request = { breachId };
+    const member = await h.seed.member();
+    await staff.notifyAffectedUsers({
+      breachId,
+      subjects: [{ type: "user", id: member.id }],
+    });
+    await h.drain();
+    await staff.containBreach(request);
+    await expect(staff.notifyAuthority(request)).resolves.toEqual({
+      ok: true,
+      channel: "email",
+    });
+    await expect(staff.closeBreach(request)).resolves.toEqual({
+      ok: true,
+      status: "closed",
+    });
+    const jobs = () =>
+      h.db
+        .select()
+        .from(outbox)
+        .where(
+          and(
+            eq(outbox.aggregateId, breachId),
+            eq(outbox.eventType, AUTHORITY_NOTICE)
+          )
+        );
+    const [job] = await jobs();
+    await expect(staff.notifyAuthority(request)).resolves.toEqual({
+      ok: false,
+      error: "breach_closed",
+    });
+    h.email.failNext(5);
+    for (const seconds of [0, 30, 60, 120, 240]) {
+      h.clock.advance({ seconds });
+      await h.drain();
+    }
+    expect(await jobs()).toMatchObject([{ id: job!.id, status: "failed" }]);
+    expect.soft(await staff.getBreach(request)).toMatchObject({
+      ok: true,
+      breach: {
+        status: "closed",
+        canNotifyAuthority: true,
+        authority: { notifiedAt: null, emailFailedAt: h.clock.now() },
+      },
+    });
+    await expect(staff.notifyAuthority(request)).resolves.toEqual({
+      ok: true,
+      channel: "email",
+    });
+    await h.drain();
+    await h.drain();
+    expect(await jobs()).toMatchObject([{ id: job!.id, status: "dispatched" }]);
+    expect(await storedBreach(h, breachId)).toMatchObject({
+      status: "closed",
+      authorityNotifiedAt: h.clock.now(),
+    });
+    expect(
+      (await breachAudit(h, breachId)).filter(
+        ({ action }) => action === "breach.authority_notified"
+      )
+    ).toHaveLength(1);
+    expect(reports(h)).toHaveLength(1);
+  });
+
   it("emails the configured address once, through the outbox", async () => {
     const h = await noticeHarness(AUTHORITY_NOTICE);
     await h.settings.set("breach.authorityEmail", AUTHORITY);
@@ -435,6 +506,12 @@ describe("the breach transition table, through the use cases", () => {
     });
 
     expect(result).toMatchObject({ ok: true, noticesQueued: 1 });
+    expect(await storedBreach(h, breachId)).toMatchObject({
+      status: "notified",
+      principalsNotifiedAt: null,
+    });
+    await setBreachNoticeRoute(h, "breach.principal_notice", true);
+    await h.drain();
     expect(await storedBreach(h, breachId)).toMatchObject({
       status: "notified",
       principalsNotifiedAt: h.clock.now(),

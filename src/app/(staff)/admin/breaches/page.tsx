@@ -3,7 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { SubmitButton } from "@/components/form";
+import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { InPageLink } from "@/components/site/in-page-link";
 import { Section } from "@/components/site/section";
@@ -16,8 +16,9 @@ import type { BreachListItem } from "@/server/modules/breaches/read";
 
 import { adminCall } from "../_lib/boundary";
 import { BreachAccessState } from "./_components/access-state";
-import { BreachFields } from "./_components/breach-fields";
+import { BreachDetailsForm } from "./_components/breach-fields";
 import { BreachOutcomeNotice } from "./_components/outcome-notice";
+import { breachDetailsLabels } from "./_lib/details-labels";
 import { recordBreachAction } from "./actions";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,11 +44,20 @@ async function BreachLog({
 }: Pick<PageProps<"/admin/breaches">, "searchParams">) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const call = await adminCall(() => as(actor).listBreaches(), ADMIN_BREACHES);
+  const search = await searchParams;
+  const call = await adminCall(
+    () => as(actor).listBreaches({ cursor: search.cursor }),
+    ADMIN_BREACHES
+  );
   if (!call.ok) return <BreachAccessState state="denied" />;
 
-  const { breaches, more } = call.value;
-  const t = await getTranslations("adminBreaches");
+  const { breaches, nextCursor } = call.value.ok
+    ? call.value
+    : { breaches: [], nextCursor: null };
+  const [t, labels] = await Promise.all([
+    getTranslations("adminBreaches"),
+    breachDetailsLabels(),
+  ]);
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader title={t("title")} />
@@ -57,35 +67,44 @@ async function BreachLog({
       >
         {t("forms.record")}
       </InPageLink>
-      <BreachOutcomeNotice search={await searchParams} />
+      <BreachOutcomeNotice
+        search={call.value.ok ? search : { done: "invalid_input" }}
+      />
       {breaches.length ? (
         <BreachTable breaches={breaches} />
-      ) : (
+      ) : call.value.ok ? (
         <p>{t("empty")}</p>
-      )}
-      {more ? (
-        <p className="text-sm text-ink-muted">
-          {t("more", { count: breaches.length })}
-        </p>
+      ) : null}
+      {search.cursor !== undefined || nextCursor ? (
+        <nav
+          aria-label={t("pagination.label")}
+          className="flex flex-wrap gap-3"
+        >
+          {search.cursor !== undefined ? (
+            <ButtonLink href={ADMIN_BREACHES} variant="secondary">
+              {t("pagination.first")}
+            </ButtonLink>
+          ) : null}
+          {nextCursor ? (
+            <ButtonLink
+              href={`${ADMIN_BREACHES}?${new URLSearchParams({ cursor: nextCursor })}`}
+              variant="secondary"
+            >
+              {t("pagination.older")}
+            </ButtonLink>
+          ) : null}
+        </nav>
       ) : null}
       <div
         id="record-breach"
         className="max-w-2xl rounded-3xl border-2 border-border bg-surface p-5 sm:p-6"
       >
         <SectionHeading id="record-breach-title" title={t("forms.record")} />
-        <form
-          aria-labelledby="record-breach-title"
+        <BreachDetailsForm
+          headingId="record-breach-title"
           action={recordBreachAction}
-          className="mt-5 flex flex-col gap-4"
-        >
-          <BreachFields />
-          <SubmitButton
-            className="self-start"
-            pendingLabel={t("forms.pending")}
-          >
-            {t("forms.recordSubmit")}
-          </SubmitButton>
-        </form>
+          labels={labels}
+        />
       </div>
     </div>
   );

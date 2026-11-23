@@ -63,7 +63,8 @@ export type BreachTransitionRefusal =
   | "already_contained"
   | "not_contained"
   | "reason_required"
-  | "fan_out_pending";
+  | "fan_out_pending"
+  | "principal_notices_pending";
 
 export type BreachTransition =
   | { ok: true; to: BreachStatus; stampContainedAt: boolean }
@@ -83,7 +84,11 @@ export type BreachState = {
 export function decideBreachTransition(
   breach: BreachState,
   event: BreachEvent,
-  options: { noNoticeReason?: string | undefined; fanOutPending?: boolean } = {}
+  options: {
+    noNoticeReason?: string | undefined;
+    fanOutPending?: boolean;
+    principalNoticesPending?: boolean;
+  } = {}
 ): BreachTransition {
   const { status, containedAt } = breach;
   if (status === "closed") return { ok: false, reason: "breach_closed" };
@@ -102,6 +107,9 @@ export function decideBreachTransition(
     if (status === "contained" && options.fanOutPending) {
       return { ok: false, reason: "fan_out_pending" };
     }
+    if (status === "contained" && options.principalNoticesPending) {
+      return { ok: false, reason: "principal_notices_pending" };
+    }
   }
   return { ok: true, to, stampContainedAt: event === "contain" };
 }
@@ -109,13 +117,15 @@ export function decideBreachTransition(
 /** The events staff may take next, in table order (for the page's buttons). */
 export function allowedBreachEvents(
   breach: BreachState,
-  fanOutPending = false
+  fanOutPending = false,
+  principalNoticesPending = false
 ): BreachEvent[] {
   return BREACH_EVENTS.filter(
     (event) =>
       decideBreachTransition(breach, event, {
         noNoticeReason: "-",
         fanOutPending,
+        principalNoticesPending,
       }).ok
   );
 }

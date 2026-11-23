@@ -113,7 +113,11 @@ export async function notifyAuthority(
 
       const breach = await lockBreach(tx, breachId);
       if (!breach) return { result: NOT_FOUND };
-      if (!decideBreachTransition(breach, "notify").ok)
+      const closed = breach.status === "closed";
+      const failedAt = breach.authorityEmailQueuedAt
+        ? await failedAuthorityEmailAt(tx, breachId)
+        : null;
+      if (closed && (breach.authorityNotifiedAt || !failedAt))
         return { result: CLOSED };
       if (breach.authorityNotifiedAt !== null) {
         return { result: { ok: false, error: "already_notified" } };
@@ -123,6 +127,7 @@ export async function notifyAuthority(
         authorityEmail: await readSetting(tx, "breach.authorityEmail"),
         manualReference,
       });
+      if (closed && plan.kind !== "email") return { result: CLOSED };
       if (plan.kind === "refused") {
         return { result: { ok: false, error: plan.reason } };
       }
@@ -130,7 +135,7 @@ export async function notifyAuthority(
       if (plan.kind === "email") {
         const retry = breach.authorityEmailQueuedAt !== null;
         if (retry) {
-          if (!(await failedAuthorityEmailAt(tx, breachId))) {
+          if (!failedAt) {
             return { result: { ok: false, error: "authority_email_queued" } };
           }
           if (!(await authorityEmailRoute(tx))) {

@@ -79,7 +79,7 @@ ALTER TABLE "breach_record" ADD CONSTRAINT "breach_record_lead_user_id_user_id_f
 ALTER TABLE "breach_timeline_event" ADD CONSTRAINT "breach_timeline_event_breach_id_breach_record_id_fk" FOREIGN KEY ("breach_id") REFERENCES "public"."breach_record"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "breach_unreachable" ADD CONSTRAINT "breach_unreachable_breach_id_breach_record_id_fk" FOREIGN KEY ("breach_id") REFERENCES "public"."breach_record"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "breach_notification_recipient_user_id_idx" ON "breach_notification" USING btree ("recipient_user_id");--> statement-breakpoint
-CREATE INDEX "breach_record_status_aware_at_idx" ON "breach_record" USING btree ("status","aware_at" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "breach_record_log_order_idx" ON "breach_record" USING btree (("status" <> 'closed') desc,"aware_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "breach_record_status_closed_at_idx" ON "breach_record" USING btree ("status","closed_at");--> statement-breakpoint
 CREATE INDEX "breach_record_lead_user_id_idx" ON "breach_record" USING btree ("lead_user_id");--> statement-breakpoint
 CREATE INDEX "breach_timeline_event_breach_id_idx" ON "breach_timeline_event" USING btree ("breach_id","occurred_at");

@@ -1,6 +1,6 @@
 {
-  "id": "c61aba77-71fb-42ec-be17-a7337a452920",
-  "prevId": "1b10517d-8b77-49f9-b74b-e60d909ff18e",
+  "id": "e0333609-1ede-4f12-90d5-7645c76e167e",
+  "prevId": "909f8beb-1fcd-411d-a7b7-4b47f72a28f6",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8848,17 +8848,23 @@
         }
       },
       "indexes": {
-        "breach_record_status_aware_at_idx": {
-          "name": "breach_record_status_aware_at_idx",
+        "breach_record_log_order_idx": {
+          "name": "breach_record_log_order_idx",
           "columns": [
             {
-              "expression": "status",
-              "isExpression": false,
+              "expression": "(\"status\" <> 'closed') desc",
+              "isExpression": true,
               "asc": true,
               "nulls": "last"
             },
             {
               "expression": "aware_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
               "isExpression": false,
               "asc": false,
               "nulls": "last"

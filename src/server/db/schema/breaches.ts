@@ -133,9 +133,10 @@ export const breachRecord = pgTable(
       sql`${table.authorityReference} IS NULL OR ${table.authorityNotifiedAt} IS NOT NULL`
     ),
     // The log: open breaches first, newest awareness first.
-    index("breach_record_status_aware_at_idx").on(
-      table.status,
-      table.awareAt.desc()
+    index("breach_record_log_order_idx").on(
+      sql`(${table.status} <> 'closed') desc`,
+      table.awareAt.desc(),
+      table.id.desc()
     ),
     index("breach_record_status_closed_at_idx").on(
       table.status,

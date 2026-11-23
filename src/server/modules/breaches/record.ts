@@ -18,12 +18,13 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AppDb } from "../../db/app-db";
 import {
   breachFanOut,
+  breachNotification,
   breachRecord,
   breachTimelineEvent,
   type BreachRecordRow,
@@ -388,6 +389,22 @@ export async function closeBreach(
         fanOutPending:
           breach.status === "contained" &&
           (await hasPendingBreachFanOut(tx, breach.id)),
+        principalNoticesPending:
+          breach.status === "contained" &&
+          (
+            await tx
+              .select({ id: breachNotification.id })
+              .from(breachNotification)
+              .where(
+                and(
+                  eq(breachNotification.breachId, breach.id),
+                  isNotNull(breachNotification.recipientUserId),
+                  isNull(breachNotification.sentAt),
+                  isNull(breachNotification.suppressedAt)
+                )
+              )
+              .limit(1)
+          ).length > 0,
       });
       if (!decision.ok) {
         return { result: { ok: false, error: decision.reason } };

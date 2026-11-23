@@ -13,6 +13,7 @@ import {
   notifyAffectedAction,
   notifyAllAction,
   notifyAuthorityAction,
+  retryPrincipalNoticesAction,
 } from "../actions";
 import { BreachCheckbox } from "./breach-fields";
 
@@ -20,7 +21,12 @@ const FORM = "flex flex-col items-start gap-4 border-t border-border pt-5";
 
 export async function BreachActions({ breach }: { breach: BreachView }) {
   const { id, allowedEvents, canNotifyAuthority, authority, status } = breach;
-  if (!allowedEvents.length && !canNotifyAuthority) return null;
+  if (
+    !allowedEvents.length &&
+    !canNotifyAuthority &&
+    !breach.canRetryPrincipalNotices
+  )
+    return null;
   const t = await getTranslations("adminBreaches.forms");
   const pendingLabel = t("pending");
   return (
@@ -75,6 +81,17 @@ export async function BreachActions({ breach }: { breach: BreachView }) {
             </SubmitButton>
           </form>
         </>
+      ) : null}
+      {breach.canRetryPrincipalNotices ? (
+        <form
+          aria-label={t("retryNotices")}
+          action={retryPrincipalNoticesAction.bind(null, id)}
+          className={FORM}
+        >
+          <SubmitButton variant="secondary" pendingLabel={pendingLabel}>
+            {t("retryNotices")}
+          </SubmitButton>
+        </form>
       ) : null}
       {canNotifyAuthority ? (
         <form

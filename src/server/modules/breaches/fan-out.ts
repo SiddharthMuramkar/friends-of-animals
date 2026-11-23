@@ -22,7 +22,7 @@ import type { OutboxDeps } from "../../outbox/handlers";
 import { affectedPeople, minorAccountsOfGuardians } from "./affected";
 import { breachAuditSnapshot } from "./domain/audit";
 import { planBreachNotices } from "./domain/notice-recipients";
-import { queueNotices, reachedRefs, recordPrincipalNotices } from "./notify";
+import { queueNotices, reachedRefs } from "./notify";
 import { lockBreach } from "./record";
 
 export async function fanOutBreachNotices(
@@ -60,7 +60,6 @@ export async function fanOutBreachNotices(
       actor: { kind: "system", process: "worker" },
     } as const;
     const entity = { type: "breach", id: breachId };
-    let currentBreach = breach;
     if (last) {
       const people = await affectedPeople(tx, deps.cipher, now, refs);
       const children = await minorAccountsOfGuardians(
@@ -70,7 +69,7 @@ export async function fanOutBreachNotices(
         accountIds
       );
       const plan = planBreachNotices([...people, ...children]);
-      const { queued } = await queueNotices(
+      await queueNotices(
         tx,
         deps.clock,
         breachId,
@@ -82,23 +81,6 @@ export async function fanOutBreachNotices(
         },
         reachedRefs(refs, plan)
       );
-      if (queued > 0 && breach.principalsNotifiedAt === null) {
-        const { updated, audit } = await recordPrincipalNotices(
-          tx,
-          breach,
-          now,
-          queued,
-          null
-        );
-        await recordAudit(tx, auditContext, {
-          action: audit.action,
-          entity,
-          actorRole: null,
-          before: audit.before,
-          after: audit.after,
-        });
-        currentBreach = updated;
-      }
     }
 
     if (last && accounts.length === pageSize) {
@@ -123,7 +105,7 @@ export async function fanOutBreachNotices(
       entity,
       actorRole: null,
       before: null,
-      after: breachAuditSnapshot(currentBreach),
+      after: breachAuditSnapshot(breach),
     });
   });
 }

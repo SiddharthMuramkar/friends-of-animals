@@ -1,7 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 
 import type { Actor } from "@/server/actor";
+import { createApp } from "@/server/app";
+import * as schema from "@/server/db/schema";
 import {
   guardian,
   guardianLink,
@@ -128,6 +131,127 @@ async function family(h: Harness) {
 }
 
 describe("notifyAffectedUsers", () => {
+  it("batches notice and outbox inserts for a targeted submission", async () => {
+    const h = await createHarness();
+    const admin = await staffActor(h, "super_admin");
+    const breachId = await recordedBreach(h, admin);
+    const accounts = await Promise.all(
+      Array.from({ length: 4 }, () => h.seed.member())
+    );
+    const statements: string[] = [];
+    const db = drizzle({
+      client: h.db.$client,
+      schema,
+      logger: { logQuery: (statement) => statements.push(statement) },
+    });
+    const staff = createApp({ ...h.deps, db }).as(admin);
+    expect(
+      await staff.notifyAffectedUsers({
+        breachId,
+        subjects: accounts.map(({ id }) => ({ type: "user", id })),
+      })
+    ).toMatchObject({ ok: true, noticesQueued: 4 });
+    for (const table of ["breach_notification", "outbox"]) {
+      expect(
+        statements.filter((statement) =>
+          statement.startsWith(`insert into "${table}"`)
+        )
+      ).toHaveLength(1);
+    }
+    expect(await noticeRows(h, breachId)).toHaveLength(8);
+    expect(await breachEvents(h, breachId, PRINCIPAL_NOTICE)).toHaveLength(4);
+  });
+
+  it("routes a queued notice to the affected account after they turn eighteen", async () => {
+    const h = await noticeHarness(PRINCIPAL_NOTICE);
+    const admin = await staffActor(h, "super_admin");
+    const staff = h.as(admin);
+    const breachId = await recordedBreach(h, admin);
+    const teen = await h.seed.member();
+    const parent = await h.seed.guardian({
+      children: [
+        { fullName: "Rohan Desai", age: 17, loginUserId: teen.id },
+        { fullName: "Isha Desai", age: 17 },
+      ],
+    });
+    const input = {
+      breachId,
+      subjects: [
+        { type: "user", id: teen.id },
+        { type: "participant_profile", id: parent.childIds[1]! },
+      ],
+    };
+    await expect(staff.notifyAffectedUsers(input)).resolves.toMatchObject({
+      ok: true,
+      noticesQueued: 1,
+    });
+    h.clock.advance({ days: 370 });
+    await h.drain();
+    await h.drain();
+    expect(notices(h).map(({ to }) => to)).toEqual([teen.email]);
+    expect(await inboxTitles(h, teen.id)).toHaveLength(1);
+    expect(await inboxTitles(h, parent.account.id)).toEqual([]);
+    expect(await staff.getBreach({ breachId })).toMatchObject({
+      ok: true,
+      breach: { unreachable: { total: 1, noAccount: 1 } },
+    });
+  });
+
+  it("retries an existing principal event after closure without starting a new notice", async () => {
+    const h = await createHarness();
+    const admin = await staffActor(h, "super_admin");
+    const staff = h.as(admin);
+    const breachId = await recordedBreach(h, admin);
+    const member = await h.seed.member();
+    await staff.notifyAuthority({
+      breachId,
+      manualReference: "Example filing",
+    });
+    await staff.containBreach({ breachId });
+    const request = { breachId, subjects: [{ type: "user", id: member.id }] };
+    await expect(staff.notifyAffectedUsers(request)).resolves.toMatchObject({
+      ok: true,
+      noticesQueued: 1,
+    });
+    await expect(staff.closeBreach({ breachId })).resolves.toEqual({
+      ok: true,
+      status: "closed",
+    });
+    const [original] = await breachEvents(h, breachId, PRINCIPAL_NOTICE);
+    for (const seconds of [0, 30, 60, 120, 240]) {
+      h.clock.advance({ seconds });
+      await h.drain();
+    }
+    expect(await staff.getBreach({ breachId })).toMatchObject({
+      ok: true,
+      breach: { status: "closed", canRetryPrincipalNotices: true },
+    });
+    await expect(staff.notifyAffectedUsers(request)).resolves.toEqual({
+      ok: false,
+      error: "breach_closed",
+    });
+    await setBreachNoticeRoute(h, PRINCIPAL_NOTICE, true);
+    await expect(
+      staff.notifyAffectedUsers({ breachId, subjects: "retry_pending" })
+    ).resolves.toMatchObject({ ok: true, noticesQueued: 0 });
+    await h.drain();
+    await h.drain();
+    expect(notices(h).map(({ to }) => to)).toEqual([member.email]);
+    expect(await inboxTitles(h, member.id)).toHaveLength(1);
+    expect(await breachEvents(h, breachId, PRINCIPAL_NOTICE)).toMatchObject([
+      { id: original!.id, status: "dispatched" },
+    ]);
+    expect(await staff.getBreach({ breachId })).toMatchObject({
+      ok: true,
+      breach: {
+        status: "closed",
+        canRetryPrincipalNotices: false,
+        principalsNotifiedAt: h.clock.now(),
+        notices: { recipients: 1, pending: 0 },
+      },
+    });
+  });
+
   it("tells the adult and both children's guardians, never the teen, even with optional email off", async () => {
     const h = await noticeHarness(PRINCIPAL_NOTICE);
     const admin = await staffActor(h, "super_admin");
@@ -207,14 +331,31 @@ describe("notifyAffectedUsers", () => {
       "recorded",
       "principals_notified",
     ]);
-    expect((await breachAudit(h, breachId)).at(-1)).toMatchObject({
-      action: "breach.principals_notified",
-      before: { status: "open" },
-      after: {
-        status: "notified",
-        principalsNotifiedAt: h.clock.now().toISOString(),
-        noticesSent: 3,
+    const audit = await breachAudit(h, breachId);
+    expect(
+      audit.filter(({ action }) => action === "breach.principals_notified")
+    ).toMatchObject([
+      {
+        action: "breach.principals_notified",
+        before: { status: "open" },
+        after: {
+          status: "notified",
+          principalsNotifiedAt: h.clock.now().toISOString(),
+          noticesSent: 1,
+        },
       },
+    ]);
+    expect(
+      audit.filter(
+        ({ action }) => action === "breach.principal_notice_delivered"
+      )
+    ).toMatchObject([
+      { after: { noticesSent: 1 } },
+      { after: { noticesSent: 1 } },
+    ]);
+    expect(await h.as(admin).getBreach({ breachId })).toMatchObject({
+      ok: true,
+      breach: { notices: { recipients: 3, pending: 0 } },
     });
   });
 
@@ -289,13 +430,13 @@ describe("notifyAffectedUsers", () => {
         noticesQueued: 1,
       });
       const [original] = await breachEvents(h, breachId, PRINCIPAL_NOTICE);
-      const originalAudit = await breachAudit(h, breachId);
       if (inboxDelivered) {
         h.email.failNext(1);
         await h.drain();
         expect(notices(h)).toEqual([]);
         expect(await inboxTitles(h, parent.account.id)).toHaveLength(1);
       }
+      const originalAudit = await breachAudit(h, breachId);
       await expect(notifyChild(second!)).resolves.toMatchObject({
         ok: true,
         noticesQueued: 0,
@@ -348,6 +489,7 @@ describe("notifyAffectedUsers", () => {
       expect(audit.slice(0, originalAudit.length)).toEqual(originalAudit);
       expect(audit.slice(originalAudit.length)).toMatchObject([
         { action: "breach.principal_notice_scope_updated" },
+        ...(inboxDelivered ? [] : [{ action: "breach.principals_notified" }]),
       ]);
       expect(JSON.stringify(audit)).not.toContain(second);
     }
@@ -512,6 +654,8 @@ describe("notifyAffectedUsers", () => {
     const admin = await staffActor(h, "super_admin");
     const breachId = await recordedBreach(h, admin);
     const member = await h.seed.member();
+    const staff = h.as(admin);
+    await staff.containBreach({ breachId });
     const request = { breachId, subjects: [{ type: "user", id: member.id }] };
     await expect(
       h.as(admin).notifyAffectedUsers(request)
@@ -521,6 +665,24 @@ describe("notifyAffectedUsers", () => {
     await h.drain();
     expect(notices(h)).toEqual([]);
     expect(await inboxTitles(h, member.id)).toEqual([]);
+    expect.soft(await staff.getBreach({ breachId })).toMatchObject({
+      ok: true,
+      breach: {
+        status: "contained",
+        principalsNotifiedAt: null,
+        notices: { recipients: 0, pending: 1 },
+      },
+    });
+    expect
+      .soft((await breachAudit(h, breachId)).map(({ action }) => action))
+      .not.toContain("breach.principals_notified");
+    expect.soft(await staff.closeBreach({ breachId })).toEqual({
+      ok: false,
+      error: "reason_required",
+    });
+    expect
+      .soft(await staff.closeBreach({ breachId, reason: "No notice needed" }))
+      .toEqual({ ok: false, error: "principal_notices_pending" });
     expect(await breachEvents(h, breachId, PRINCIPAL_NOTICE)).toMatchObject([
       { id: event!.id, status: "pending", attempts: 1 },
     ]);
@@ -531,6 +693,10 @@ describe("notifyAffectedUsers", () => {
     expect(await breachEvents(h, breachId, PRINCIPAL_NOTICE)).toMatchObject([
       { id: event!.id, status: "failed", attempts: 5 },
     ]);
+    expect(await staff.getBreach({ breachId })).toMatchObject({
+      ok: true,
+      breach: { canRetryPrincipalNotices: true },
+    });
 
     await setBreachNoticeRoute(h, PRINCIPAL_NOTICE, true);
     await expect(
@@ -546,8 +712,13 @@ describe("notifyAffectedUsers", () => {
     ]);
     expect(await timelineKinds(h, breachId)).toEqual([
       "recorded",
+      "contained",
       "principals_notified",
     ]);
+    expect(await storedBreach(h, breachId)).toMatchObject({
+      status: "notified",
+      principalsNotifiedAt: h.clock.now(),
+    });
   });
 
   it("keeps the principal notice within its own audience when a team route exists", async () => {
@@ -813,7 +984,13 @@ describe("the breach.fanOut job", () => {
     expect(
       await breachEvents(h, breachId, "breach.fan_out_requested")
     ).toMatchObject([{ id: job!.id, status: "failed" }]);
-    expect(await staff.getBreach({ breachId })).toEqual(beforeWorker);
+    expect(await staff.getBreach({ breachId })).toEqual({
+      ...beforeWorker,
+      breach: {
+        ...(beforeWorker.ok && beforeWorker.breach),
+        canRetryPrincipalNotices: true,
+      },
+    });
     expect(await staff.closeBreach({ breachId })).toEqual({
       ok: false,
       error: "reason_required",
@@ -835,6 +1012,7 @@ describe("the breach.fanOut job", () => {
       "principals_notified",
     ]);
     expect((await breachAudit(h, breachId)).slice(audit.length)).toMatchObject([
+      { action: "breach.fan_out_completed" },
       {
         action: "breach.principals_notified",
         before: { status: "contained", principalsNotifiedAt: null },
@@ -844,7 +1022,6 @@ describe("the breach.fanOut job", () => {
           noticesSent: 1,
         },
       },
-      { action: "breach.fan_out_completed" },
     ]);
     await expect(staff.closeBreach({ breachId })).resolves.toEqual({
       ok: true,
@@ -887,8 +1064,9 @@ describe("the breach.fanOut job", () => {
     ).toEqual([
       "breach.recorded",
       "breach.fan_out_requested",
-      "breach.principals_notified",
       "breach.fan_out_completed",
+      "breach.principals_notified",
+      "breach.principal_notice_delivered",
     ]);
     expect(notices(h).filter(({ to }) => to === member.email)).toHaveLength(1);
   });
@@ -907,6 +1085,13 @@ describe("the breach.fanOut job", () => {
     await drainOutbox(h.deps, { limit: 1 });
     expect(await noticeRows(h, breachId)).toHaveLength(2);
     expect(notices(h)).toEqual([]);
+    await expect(staff.closeBreach({ breachId })).resolves.toEqual({
+      ok: false,
+      error: "reason_required",
+    });
+    await expect(
+      staff.notifyAuthority({ breachId, manualReference: "Example filing" })
+    ).resolves.toEqual({ ok: true, channel: "manual" });
     await expect(staff.closeBreach({ breachId })).resolves.toMatchObject({
       ok: true,
     });
@@ -991,7 +1176,14 @@ describe("the breach.fanOut job", () => {
         expect.objectContaining({ id: continuation.id, status: "failed" }),
       ])
     );
-    expect(await breachAudit(h, breachId)).toEqual(audit);
+    const partialAudit = await breachAudit(h, breachId);
+    expect(partialAudit.slice(0, audit.length)).toEqual(audit);
+    expect(
+      partialAudit.slice(audit.length).map(({ action }) => action)
+    ).toEqual([
+      "breach.principals_notified",
+      "breach.principal_notice_delivered",
+    ]);
 
     await expect(
       h.as(admin).notifyAffectedUsers({ breachId, subjects: "all_users" })
@@ -1012,7 +1204,9 @@ describe("the breach.fanOut job", () => {
       "breach.recorded",
       "breach.fan_out_requested",
       "breach.principals_notified",
+      "breach.principal_notice_delivered",
       "breach.fan_out_completed",
+      "breach.principal_notice_delivered",
     ]);
     expect(notices(h)).toHaveLength(3);
   });

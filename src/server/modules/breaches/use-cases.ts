@@ -21,6 +21,6 @@ export const breachesUseCases = (ctx: UseCaseContext) => ({
   closeBreach: (input: unknown) => closeBreach(ctx, input),
   notifyAffectedUsers: (input: unknown) => notifyAffectedUsers(ctx, input),
   notifyAuthority: (input: unknown) => notifyAuthority(ctx, input),
-  listBreaches: () => listBreaches(ctx),
+  listBreaches: (input: unknown = {}) => listBreaches(ctx, input),
   getBreach: (input: unknown) => getBreach(ctx, input),
 });
