@@ -229,6 +229,7 @@ export default async function Page() {
         <ExplainState
           title={t("contact.openTitle")}
           headingLevel="h3"
+          art="wait-calendar-pup"
           className="mt-10"
         >
           <p>{t("contact.openBody")}</p>

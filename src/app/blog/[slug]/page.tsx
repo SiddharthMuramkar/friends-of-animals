@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
+import { ArtFigure } from "@/components/art/art-figure";
 import { TileCover } from "@/components/showcase/card-cover";
 import { PostPhoto } from "@/components/showcase/post-image";
 import { StoryCard } from "@/components/showcase/story-card";
@@ -13,6 +14,7 @@ import { JsonLd } from "@/components/site/json-ld";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import { TileMarker } from "@/components/site/tile";
+import { storyCoverArt } from "@/content/stories";
 import { tableOfContents } from "@/content/stories/text";
 import { siteUrl } from "@/env";
 import { siteImage } from "@/lib/images";
@@ -65,6 +67,7 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
   ]);
   if (!post) notFound();
   const toc = tableOfContents(post.body.blocks);
+  const coverArt = post.cover ? null : storyCoverArt(post.slug);
 
   const [t, tc, tr, format, locale] = await Promise.all([
     getTranslations("stories.article"),
@@ -171,6 +174,21 @@ export default async function Page({ params }: PageProps<"/blog/[slug]">) {
                 frameCorner="bottom-right"
                 sizes="(min-width: 1024px) 520px, 92vw"
                 className="aspect-4/3"
+              />
+            ) : coverArt ? (
+              // On phones a half-width print, smaller than the dek, so text
+              // stays the LCP element (see /blog). A 4/5-width cover still
+              // won LCP on a 440x956 phone. It sits under the words there
+              // (and on tablets), so it is preloaded only from lg, where it
+              // stands beside the headline as the LCP image.
+              <ArtFigure
+                id={coverArt}
+                preload="lg"
+                frame="blue"
+                frameCorner="bottom-right"
+                sizes="(min-width: 1024px) 520px, (min-width: 640px) 92vw, 46vw"
+                className="aspect-4/3"
+                figureClassName="ml-auto mr-2 w-1/2 -rotate-2 sm:mx-0 sm:w-full sm:rotate-0"
               />
             ) : (
               <TileCover
