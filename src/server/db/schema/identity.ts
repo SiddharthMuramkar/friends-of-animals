@@ -147,7 +147,7 @@ export const verification = pgTable(
 );
 
 /**
- * What a sign-in code limit counts by. Text checked against this list, not
+ * What a one-time code limit counts by. Text checked against this list, not
  * a Postgres enum, so a new scope needs no migration.
  */
 export const OTP_RATE_LIMIT_SCOPES = [
@@ -159,6 +159,7 @@ export const OTP_RATE_LIMIT_SCOPES = [
   // Texts to everyone together, under one fixed key.
   "sms_hour",
   "sms_day",
+  "consent_link_contact",
 ] as const;
 
 export type OtpRateLimitScope = (typeof OTP_RATE_LIMIT_SCOPES)[number];

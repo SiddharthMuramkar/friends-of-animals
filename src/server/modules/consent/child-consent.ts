@@ -82,6 +82,7 @@ import {
   subjectEvents,
   type ConsentSubject,
 } from "./repository";
+import { schoolPublicCredit } from "./school-route-use";
 
 /** A document version as the guardian's page shows and links it. */
 export type ChildConsentDocument = {
@@ -220,7 +221,7 @@ function subjectOf(childId: string): ConsentSubject {
 }
 
 /** What the competition says about consent, or null for no competition. */
-async function competitionSetup(
+export async function competitionSetup(
   db: AppDb,
   competitionId: string
 ): Promise<{
@@ -265,7 +266,11 @@ async function liveRegistration(
   competitionId: string
 ) {
   const [found] = await db
-    .select({ id: registration.id, createdAt: registration.createdAt })
+    .select({
+      id: registration.id,
+      createdAt: registration.createdAt,
+      route: registration.route,
+    })
     .from(registration)
     .where(
       and(
@@ -528,6 +533,17 @@ export async function publicUse(
       use,
       new Set([purpose])
     );
+  }
+
+  if (child.ownerKind === "institution") {
+    if (registration.route !== "institution") return null;
+    return schoolPublicCredit(ctx.db, {
+      profileId,
+      competitionId,
+      use,
+      setup: found.setup,
+      person: { ...person, minor: true },
+    });
   }
 
   const events = await childEvents(ctx.db, profileId, competitionId);

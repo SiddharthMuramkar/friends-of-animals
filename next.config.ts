@@ -2,12 +2,13 @@ import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 import { umamiRewrites } from "./src/lib/analytics/umami";
-import { SIGNED_IN_PREFIXES } from "./src/lib/app-routes";
+import { CONSENT_LINK_PREFIX, SIGNED_IN_PREFIXES } from "./src/lib/app-routes";
 import { cspHeaderRules } from "./src/lib/csp";
 import { cspContext } from "./src/lib/csp-sources";
 import { robotsHeaders } from "./src/lib/indexing";
 import {
   checkoutPageHeaders,
+  consentLinkHeaders,
   securityHeaders,
 } from "./src/lib/security-headers";
 import { unconfirmedFactsWarning } from "./src/lib/site";
@@ -25,6 +26,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // No `X-Powered-By: Next.js` (the standalone server sends it by default).
   poweredByHeader: false,
+  // Consent bearer URLs and bound action arguments are private, including
+  // the render-path timing recorded by the development request logger.
+  logging: false,
   cacheComponents: true,
   partialPrefetching: true,
   images: {
@@ -46,7 +50,11 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders(process.env.APP_ENV) },
       ...checkoutPageHeaders(),
-      ...cspHeaderRules(cspContext(), SIGNED_IN_PREFIXES),
+      ...consentLinkHeaders(),
+      ...cspHeaderRules(cspContext(), [
+        ...SIGNED_IN_PREFIXES,
+        CONSENT_LINK_PREFIX,
+      ]),
       ...robotsHeaders(),
     ];
   },

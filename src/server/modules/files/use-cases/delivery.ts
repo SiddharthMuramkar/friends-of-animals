@@ -1,7 +1,10 @@
 // Delivering a file (#63).
 //
 //   getFileDownloadUrl({ fileId }) → the uploader; staff admins and super
-//                                    admins once the file is clean
+//                                    admins once the file is clean.
+//   Entry pictures are delivered by Entries as live derivatives.
+// Consent forms are available only to staff admins and super admins after
+// scanning. Other files also allow uploader access under the status gate.
 //
 // Files are served straight from object storage through a short-lived
 // signed GET URL, never through a Vercel function and never from a public
@@ -10,7 +13,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { can } from "../../../access/can";
+import { authorize, can } from "../../../access/can";
 import { recordAudit } from "../../../audit/record";
 import { DomainError } from "../../../errors";
 import { invalidInput, type InvalidInput } from "../../../input";
@@ -21,6 +24,8 @@ import {
   downloadFilenameFor,
   type DeliveryRefusal,
 } from "../domain/delivery";
+import { isFilePurposeAvailable } from "../domain/purposes";
+import { hasCleanScan } from "./clean-scan";
 import { findReadableFile } from "./readable-file";
 import type { FilesContext } from "./upload";
 
@@ -34,18 +39,14 @@ export type GetFileDownloadUrlResult =
   | InvalidInput
   | {
       ok: false;
-      error:
-        | "not_found"
-        /** Not scanned yet; only its uploader may open it until then. */
-        | Exclude<DeliveryRefusal, "forbidden">;
+      error: "not_found" | Exclude<DeliveryRefusal, "forbidden">;
     };
 
 /**
  * A signed URL for the file, if the policy and its status allow it.
  * Throws forbidden for a caller the policy refuses, before the file is
  * looked up (./readable-file.ts): only staff who may read every file are
- * told there is none. A read by staff who don't own the file is recorded
- * in the audit log.
+ * told there is none. Every read granted by a staff role is audited.
  */
 export async function getFileDownloadUrl(
   ctx: FilesContext,
@@ -57,12 +58,19 @@ export async function getFileDownloadUrl(
   const file = await findReadableFile(ctx, fileId);
   if (!file) return { ok: false, error: "not_found" };
 
-  // Asked again with the owner, for the role that allows it (the audit) and
-  // the status gate, so a caller it refuses learns nothing of the status.
-  const policy = await can(ctx, "file.read", { ownerId: file.ownerUserId });
+  const signedForm = file.purpose === "consent_form";
+  const policy = signedForm
+    ? { allowed: true as const, ...(await authorize(ctx, "consent_form.read")) }
+    : await can(ctx, "file.read", { ownerId: file.ownerUserId });
+  if (signedForm && !isFilePurposeAvailable(file.purpose, ctx.files.appEnv)) {
+    return { ok: false, error: "file_unavailable" };
+  }
   const decision = deliveryDecision({
     status: file.status,
-    isOwner: ctx.actor.kind === "user" && ctx.actor.userId === file.ownerUserId,
+    isOwner:
+      !signedForm &&
+      ctx.actor.kind === "user" &&
+      ctx.actor.userId === file.ownerUserId,
     authorized: policy.allowed,
   });
   if (!decision.allow) {
@@ -70,6 +78,9 @@ export async function getFileDownloadUrl(
       throw new DomainError("forbidden", `${ctx.actor.kind} may not file.read`);
     }
     return { ok: false, error: decision.reason };
+  }
+  if (signedForm && !(await hasCleanScan(ctx.storage, file))) {
+    return { ok: false, error: "file_unavailable" };
   }
 
   const now = ctx.clock.now();
@@ -85,8 +96,6 @@ export async function getFileDownloadUrl(
       contentType: file.contentType,
     }),
   });
-  // A role allowed it, so the reader isn't the owner: staff looking at a
-  // user's file is on the record.
   if (policy.allowed && policy.role !== null) {
     await recordAudit(ctx.db, ctx, {
       action: "file.read",

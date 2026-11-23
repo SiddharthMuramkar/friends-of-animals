@@ -152,6 +152,36 @@ describe("diskStorage", () => {
     ).toBeNull();
   });
 
+  it("discards an upload whose body finishes after expiry and cleanup", async () => {
+    const { clock, storage, open } = await world();
+    const ref = { bucket: BUCKET, key: "local/incoming/picture" };
+    const { url, headers } = await presign(storage, ref.key);
+    const { promise: bodyRead, resolve: reading } =
+      Promise.withResolvers<void>();
+    const { promise: finishBody, resolve: finish } =
+      Promise.withResolvers<void>();
+    const upload = storage.receive(
+      url,
+      new Headers({ ...headers, "Content-Length": String(PNG.length) }),
+      new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          reading();
+          await finishBody;
+          controller.enqueue(PNG);
+          controller.close();
+        },
+      })
+    );
+    await bodyRead;
+
+    clock.advance({ seconds: 61 });
+    await open().delete(ref);
+    finish();
+
+    expect(await upload).toEqual({ ok: false, error: "expired" });
+    expect(await open().head(ref)).toBeNull();
+  });
+
   it("refuses keys with empty, . or .. folders, and bucket names that aren't names", async () => {
     const { storage } = await world();
 
