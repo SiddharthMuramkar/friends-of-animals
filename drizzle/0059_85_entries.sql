@@ -48,6 +48,7 @@ CREATE TABLE "entry_file" (
 CREATE TABLE "entry_transition" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"entry_id" uuid NOT NULL,
+	"sequence" integer NOT NULL,
 	"from_status" "entry_status",
 	"to_status" "entry_status" NOT NULL,
 	"trigger" text NOT NULL,
@@ -55,6 +56,7 @@ CREATE TABLE "entry_transition" (
 	"actor_kind" text NOT NULL,
 	"actor_user_id" uuid,
 	"at" timestamp with time zone NOT NULL,
+	CONSTRAINT "entry_transition_entry_sequence_unique" UNIQUE("entry_id","sequence"),
 	CONSTRAINT "entry_transition_actor_kind" CHECK ("entry_transition"."actor_kind" IN ('user', 'system')),
 	CONSTRAINT "entry_transition_system_has_no_user" CHECK ("entry_transition"."actor_kind" = 'user' OR "entry_transition"."actor_user_id" IS NULL),
 	CONSTRAINT "entry_transition_changes_status" CHECK ("entry_transition"."from_status" IS DISTINCT FROM "entry_transition"."to_status")
@@ -86,7 +88,6 @@ CREATE INDEX "entry_competition_id_status_idx" ON "entry" USING btree ("competit
 CREATE INDEX "entry_created_by_user_id_idx" ON "entry" USING btree ("created_by_user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "entry_file_one_live_per_entry" ON "entry_file" USING btree ("entry_id") WHERE "entry_file"."status" = 'live';--> statement-breakpoint
 CREATE INDEX "entry_file_uploaded_by_user_id_idx" ON "entry_file" USING btree ("uploaded_by_user_id");--> statement-breakpoint
-CREATE INDEX "entry_transition_entry_id_idx" ON "entry_transition" USING btree ("entry_id","id");--> statement-breakpoint
 CREATE INDEX "entry_transition_entry_file_id_idx" ON "entry_transition" USING btree ("entry_file_id");--> statement-breakpoint
 CREATE INDEX "entry_transition_actor_user_id_idx" ON "entry_transition" USING btree ("actor_user_id");--> statement-breakpoint
 CREATE INDEX "entry_upload_grant_registration_expiry_idx" ON "entry_upload_grant" USING btree ("registration_id","expires_at");

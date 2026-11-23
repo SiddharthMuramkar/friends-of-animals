@@ -5,6 +5,11 @@ import { entryUploadGrant, fileAsset } from "../../db/schema";
 import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import type { ObjectStorage } from "../../ports/storage";
+import {
+  quarantineKeyFor,
+  storageKeyFor,
+  uploadKeyFor,
+} from "../files/domain/storage-key";
 
 const MAX_OUTSTANDING_GRANTS = 3;
 const MAX_GRANTS_PER_UPLOAD_WINDOW = 6;
@@ -148,21 +153,51 @@ export function validUploadGrant(
 }
 
 export async function expireUploadGrant(
-  { db, clock, storage }: { db: AppDb; clock: Clock; storage: ObjectStorage },
+  {
+    db,
+    clock,
+    storage,
+    files: { bucket, keyPrefix: prefix },
+  }: {
+    db: AppDb;
+    clock: Clock;
+    storage: ObjectStorage;
+    files: { bucket: string; keyPrefix: string | null };
+  },
   { fileId }: { fileId: string }
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const upload = await lockEntryImage(tx, fileId);
     if (!upload?.grant || upload.grant.expiresAt > clock.now()) return;
     const { file, grant } = upload;
-    await storage.delete({ bucket: file.bucket, key: grant.uploadKey });
+    if (prefix === null) {
+      throw new Error("The database has no entry staging prefix");
+    }
+    const keyFields = { prefix, fileId: file.id };
+    const stagedKey = uploadKeyFor(keyFields);
+    const originalKey = storageKeyFor({ ...keyFields, purpose: "entry_image" });
+    // A scan can already have moved an accepted file by the time its grant expires.
+    const quarantinedInScope =
+      file.uploadedAt !== null &&
+      file.status === "quarantined" &&
+      file.storageKey === quarantineKeyFor(keyFields);
+    if (
+      file.bucket !== bucket ||
+      grant.uploadKey !== stagedKey ||
+      (file.storageKey !== originalKey && !quarantinedInScope)
+    ) {
+      throw new Error(
+        "Entry upload does not match the worker storage namespace"
+      );
+    }
+    await storage.delete({ bucket, key: stagedKey });
     if (file.uploadedAt) {
       await tx
         .delete(entryUploadGrant)
         .where(eq(entryUploadGrant.fileAssetId, fileId));
     } else {
       // Preparation may have moved the object before acceptance was refused.
-      await storage.delete({ bucket: file.bucket, key: file.storageKey });
+      await storage.delete({ bucket, key: originalKey });
       await tx.delete(fileAsset).where(eq(fileAsset.id, fileId));
     }
   });

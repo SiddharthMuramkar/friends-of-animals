@@ -6,7 +6,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 
 import type { Role } from "../../access/domain/roles";
 import type { Actor } from "../../actor";
@@ -28,6 +28,7 @@ import type { Clock } from "../../ports/clock";
 import { outcomesOf } from "./domain/file-outcome";
 import {
   moveEntry,
+  moveEntryFile,
   type EntryFileStatus,
   type EntryStatus,
   type EntryTrigger,
@@ -38,10 +39,7 @@ import {
   type EntrySnapshot,
 } from "./domain/submission";
 
-/**
- * Entry files and history rows made in one millisecond still sort in the
- * order they were made, so an entry's history reads in order.
- */
+/** UUIDv7 identity for entry files and transitions. */
 export const nextEntryRowId = monotonicUuidv7();
 
 /** The platform applying a file's outcome: the worker. */
@@ -98,7 +96,7 @@ const AUDIT_ACTION: Record<EntryTrigger, string> = {
   file_failed: "entry.failed",
 };
 
-/** One status change: its history row and its audit row. */
+/** Records a status change while the entry is locked or newly inserted. */
 export async function recordMove(
   tx: AppDb,
   ctx: { clock: Clock; actor: Actor },
@@ -112,10 +110,17 @@ export async function recordMove(
   }
 ): Promise<void> {
   moveEntry(move.from, move.to);
+  const [previous] = await tx
+    .select({ sequence: entryTransition.sequence })
+    .from(entryTransition)
+    .where(eq(entryTransition.entryId, move.entryId))
+    .orderBy(desc(entryTransition.sequence))
+    .limit(1);
   const now = ctx.clock.now();
   await tx.insert(entryTransition).values({
     id: nextEntryRowId(now),
     entryId: move.entryId,
+    sequence: (previous?.sequence ?? 0) + 1,
     fromStatus: move.from,
     toStatus: move.to,
     trigger: move.trigger,
@@ -145,6 +150,7 @@ export function recordFileMove(
     actorRole: Role | null;
   }
 ): Promise<void> {
+  moveEntryFile(move.from, move.to);
   return recordAudit(tx, ctx, {
     action: "entry_file.status_changed",
     entity: { type: "entry_file", id: move.entryFileId },

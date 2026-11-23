@@ -2,17 +2,20 @@ import { asc, eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Actor } from "@/server/actor";
+import { createApp } from "@/server/app";
 import {
   auditLog,
   entry,
   entryFile,
   entryTransition,
+  entryUploadGrant,
   fileAsset,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import { signInStaff } from "@/server/modules/payments/testing";
 import { drainUntilIdle } from "@/server/outbox";
 import { EICAR_TEST_BYTES } from "@/test/eicar";
+import { FakeClock } from "@/test/fakes/clock";
 import { createHarness, type Harness } from "@/test/harness";
 import { readMediaFixture } from "@/test/media-fixtures";
 
@@ -430,9 +433,11 @@ describe("an entry's file checks", () => {
     if (!file) throw new Error("Missing entry upload");
     expect(file.status).toBe("quarantined");
     expect(file.storageKey).toContain("/quarantine/");
-    expect(
-      await h.storage.head({ bucket: file.bucket, key: file.storageKey })
-    ).toEqual({ contentType: "image/jpeg", sizeBytes: PHOTO.length });
+    const quarantine = { bucket: file.bucket, key: file.storageKey };
+    expect(await h.storage.head(quarantine)).toEqual({
+      contentType: "image/jpeg",
+      sizeBytes: PHOTO.length,
+    });
     const mail = h.email.lastTo(guardian.email);
     expect(mail?.subject).toBe(`We couldn't accept the file for ${code}`);
     expect(mail?.text).not.toMatch(/\bdeleted\b/i);
@@ -440,6 +445,13 @@ describe("an entry's file checks", () => {
       "didn't pass our virus check and was rejected"
     );
     expect(mail?.text).toContain("upload a clean copy");
+
+    h.clock.advance({ minutes: 11 });
+    await h.drain();
+    expect(await h.db.select().from(entryUploadGrant)).toEqual([]);
+    expect(await h.storage.head(quarantine)).toMatchObject({
+      sizeBytes: PHOTO.length,
+    });
   });
 
   it("fails the entry when its picture can't be opened, and tells the participant", async () => {
@@ -560,7 +572,7 @@ describe("an entry's file checks", () => {
       })
       .from(entryTransition)
       .where(eq(entryTransition.entryId, id))
-      .orderBy(asc(entryTransition.id));
+      .orderBy(asc(entryTransition.sequence));
     expect(history).toEqual([
       {
         from: null,
@@ -601,6 +613,65 @@ describe("an entry's file checks", () => {
       "entry.rejected",
       "entry.retried",
       "entry.submitted",
+    ]);
+  });
+
+  it("keeps status history in transition order when the app clock trails the worker", async () => {
+    const h = await createHarness();
+    const asha = await confirmedAdult(h);
+    const code = await submittedImage(h, asha, {
+      bytes: readMediaFixture("corruptJpeg"),
+    });
+    h.clock.advance({ seconds: 2 });
+    await h.drain();
+    const failedAt = h.clock.now();
+
+    const clock = new FakeClock(new Date(failedAt.getTime() - 1_000));
+    const slowerApp = createApp({ ...h.deps, clock });
+    const upload = await putEntryImage(
+      { ...slowerApp, storage: h.storage },
+      asha
+    );
+    await expect(
+      slowerApp.as(asha.actor).completeEntryUpload(upload)
+    ).resolves.toEqual({ ok: true, entryCode: code, status: "processing" });
+    h.clock.advance({ seconds: 1 });
+    await h.drain();
+    const { id, status } = await entryRow(h);
+    expect(status).toBe("submitted");
+
+    const history = await h.db
+      .select()
+      .from(entryTransition)
+      .where(eq(entryTransition.entryId, id))
+      .orderBy(asc(entryTransition.sequence));
+    expect(history).toMatchObject([
+      {
+        sequence: 1,
+        fromStatus: null,
+        toStatus: "processing",
+        trigger: "upload_completed",
+      },
+      {
+        sequence: 2,
+        fromStatus: "processing",
+        toStatus: "failed",
+        trigger: "file_failed",
+        at: failedAt,
+      },
+      {
+        sequence: 3,
+        fromStatus: "failed",
+        toStatus: "processing",
+        trigger: "upload_retried",
+        at: clock.now(),
+      },
+      {
+        sequence: 4,
+        fromStatus: "processing",
+        toStatus: "submitted",
+        trigger: "file_live",
+      },
     ]);
   });
 

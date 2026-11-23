@@ -1,6 +1,6 @@
 {
-  "id": "a968ee16-91bb-4b66-ba70-866e584dac05",
-  "prevId": "90b89498-a5a3-43bc-b3e6-74b336716151",
+  "id": "ee1f7b5d-7173-4cc5-936e-7157812423f8",
+  "prevId": "fc81bdab-999b-4a1b-bb71-469ea85ee851",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -450,6 +450,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "from_status": {
           "name": "from_status",
           "type": "entry_status",
@@ -496,27 +502,6 @@
         }
       },
       "indexes": {
-        "entry_transition_entry_id_idx": {
-          "name": "entry_transition_entry_id_idx",
-          "columns": [
-            {
-              "expression": "entry_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
         "entry_transition_entry_file_id_idx": {
           "name": "entry_transition_entry_file_id_idx",
           "columns": [
@@ -590,7 +575,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "entry_transition_entry_sequence_unique": {
+          "name": "entry_transition_entry_sequence_unique",
+          "columns": [
+            "entry_id",
+            "sequence"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "entry_transition_actor_kind": {

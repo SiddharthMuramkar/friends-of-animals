@@ -225,11 +225,13 @@ export const ENTRY_ACTOR_KINDS = ["user", "system"] as const;
 export const entryTransition = pgTable(
   "entry_transition",
   {
-    /** UUIDv7 from the clock, so an entry's history sorts in order. */
+    /** UUIDv7 identifying this change. */
     id: uuid().primaryKey(),
     entryId: uuid("entry_id")
       .notNull()
       .references(() => entry.id, { onDelete: "cascade" }),
+    /** Order of changes recorded under the entry lock. */
+    sequence: integer().notNull(),
     /** Null when this move created the entry. */
     fromStatus: entryStatus("from_status"),
     toStatus: entryStatus("to_status").notNull(),
@@ -259,7 +261,10 @@ export const entryTransition = pgTable(
       "entry_transition_changes_status",
       sql`${table.fromStatus} IS DISTINCT FROM ${table.toStatus}`
     ),
-    index("entry_transition_entry_id_idx").on(table.entryId, table.id),
+    unique("entry_transition_entry_sequence_unique").on(
+      table.entryId,
+      table.sequence
+    ),
     index("entry_transition_entry_file_id_idx").on(table.entryFileId),
     // Deleting a user sets this to null; the index keeps that from scanning.
     index("entry_transition_actor_user_id_idx").on(table.actorUserId),

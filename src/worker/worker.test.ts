@@ -10,6 +10,7 @@ import { fieldCryptoFor } from "@/server/crypto/keys";
 import type { AppDb } from "@/server/db/app-db";
 import {
   capturedMessage,
+  entryUploadGrant,
   fileAsset,
   fileDerivative,
   fileProcessing,
@@ -556,6 +557,113 @@ describe("the shared preview worker", () => {
         });
         expect(await h.storage.head(otherBucket)).toMatchObject({
           sizeBytes: body.length,
+        });
+      } finally {
+        await worker.stop();
+      }
+    }
+  );
+
+  it.each(["staging key", "original key", "bucket", "unknown prefix"])(
+    "leaves both entry objects alone when primary expiry refuses the storage scope (%s)",
+    async (mismatch) => {
+      const h = await createHarness();
+      const participant = await confirmedAdult(h);
+      const bucket = "preview-files";
+      const prefix = "pr-1/";
+      const app = createApp({
+        ...h.deps,
+        files: {
+          ...h.deps.files,
+          appEnv: "preview",
+          bucket,
+          keyPrefix: prefix,
+        },
+      }).as(participant.actor);
+      const grant = await app.startEntryUpload({
+        registrationId: participant.registrationId,
+        discipline: "photography",
+        file: { name: "fixture.jpg", type: "image/jpeg", size: PHOTO.length },
+      });
+      if (!grant.ok) throw new Error(grant.error);
+
+      const storedBucket = mismatch === "bucket" ? "other-files" : bucket;
+      const stagedPrefix = mismatch === "staging key" ? "pr-2/" : prefix;
+      const originalPrefix = mismatch === "original key" ? "pr-2/" : prefix;
+      const staged = {
+        bucket: storedBucket,
+        key: `${stagedPrefix}incoming/${grant.fileId}`,
+      };
+      const original = {
+        bucket: storedBucket,
+        key: `${originalPrefix}entry_image/${grant.fileId}`,
+      };
+      for (const ref of [staged, original]) {
+        await h.storage.write({
+          ...ref,
+          body: PHOTO,
+          contentType: "image/jpeg",
+        });
+      }
+      // Model inconsistent metadata in the isolated fixture database.
+      await h.db
+        .update(entryUploadGrant)
+        .set({ uploadKey: staged.key })
+        .where(eq(entryUploadGrant.fileAssetId, grant.fileId));
+      await h.db
+        .update(fileAsset)
+        .set({ bucket: storedBucket, storageKey: original.key })
+        .where(eq(fileAsset.id, grant.fileId));
+
+      const database =
+        mismatch === "unknown prefix" ? "foa_pr_1" : "foa_pr_1_0a1b2c3d";
+      const { io } = fakeIo(
+        { [database]: h.db },
+        [{ datname: database, comment: "foa-preview pr=1" }],
+        { clock: h.clock, storage: h.storage }
+      );
+      const worker = createWorker(
+        {
+          ...PREVIEW_CONFIG,
+          r2: {
+            accountId: "unused",
+            accessKeyId: "unused",
+            secretAccessKey: "unused",
+            bucket,
+          },
+        },
+        io
+      );
+      h.clock.set(grant.expiresAt);
+      await worker.start();
+      try {
+        await worker.tick();
+        expect(await h.storage.head(staged)).toMatchObject({
+          sizeBytes: PHOTO.length,
+        });
+        expect(await h.storage.head(original)).toMatchObject({
+          sizeBytes: PHOTO.length,
+        });
+        const [expiry] = await h.db
+          .select({
+            status: outbox.status,
+            attempts: outbox.attempts,
+            lastError: outbox.lastError,
+          })
+          .from(outbox)
+          .where(
+            and(
+              eq(outbox.handler, "entries.expire_upload_grant"),
+              eq(outbox.aggregateId, grant.fileId)
+            )
+          );
+        expect(expiry).toMatchObject({
+          status: "pending",
+          attempts: 1,
+          lastError:
+            mismatch === "unknown prefix"
+              ? "Error: The database has no entry staging prefix"
+              : "Error: Entry upload does not match the worker storage namespace",
         });
       } finally {
         await worker.stop();
