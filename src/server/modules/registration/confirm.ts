@@ -45,6 +45,7 @@ export type ConfirmRegistrationsInput = {
 export type ConfirmRegistrationsResult = {
   confirmed: { registrationId: string; registrationNumber: string }[];
   refused: { registrationId: string; status: RegistrationStatus }[];
+  error?: "participation_consent_required";
 };
 
 export async function confirmRegistrations(
@@ -55,7 +56,7 @@ export async function confirmRegistrations(
   const result: ConfirmRegistrationsResult = { confirmed: [], refused: [] };
   if (input.registrationIds.length === 0) return result;
   const now = ctx.clock.now();
-  // In id order, so two transactions lock them in the same order.
+  // In id order, as a participation withdrawal locks these too.
   const rows = await tx
     .select({ id: registration.id, status: registration.status })
     .from(registration)
@@ -66,12 +67,16 @@ export async function confirmRegistrations(
     tx,
     rows.map((row) => row.id)
   );
+  if (lacking.size > 0) {
+    return {
+      confirmed: [],
+      refused: rows.map(({ id, status }) => ({ registrationId: id, status })),
+      error: "participation_consent_required",
+    };
+  }
 
   for (const row of rows) {
-    if (
-      !canTransition(row.status, "confirmed", "payment") ||
-      lacking.has(row.id)
-    ) {
+    if (!canTransition(row.status, "confirmed", "payment")) {
       result.refused.push({ registrationId: row.id, status: row.status });
       continue;
     }

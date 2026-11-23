@@ -563,15 +563,16 @@ _Avoid_: E2E suite, UI tests
 How someone takes part in a competition on their own, instead of being
 entered by their school: an adult registers and pays for themselves; a minor
 takes part with a guardian, who registers or confirms them and pays. A
-minor's registration is held for a guardian until a verified guardian has
-accepted them.
+minor's registration is held until they have a verified guardian who has given
+participation consent on the competition's attached document version.
 _Avoid_: Route B, self-registration, direct entry
 
 **Guardian request**:
 A teen of 13 to 17 with no guardian on the platform names their parent or
 guardian when they register, and FOA emails that person a link. Accepting it,
 signed in as a verified guardian with that address, makes them the teen's
-guardian and releases the registrations held for a guardian.
+guardian. Each held registration is released when the guardian gives
+participation consent for that competition.
 _Avoid_: Guardian invitation (a guardian inviting a teen to an own login),
 consent request
 

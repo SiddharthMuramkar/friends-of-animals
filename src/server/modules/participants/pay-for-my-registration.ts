@@ -289,12 +289,13 @@ async function planPayment(
     }
 
     if (fee.amountMinor === 0n) {
-      const { confirmed } = await confirmRegistrations(tx, ctx, {
+      const { confirmed, error } = await confirmRegistrations(tx, ctx, {
         registrationIds: [registrationId],
         competitionCode: mine.competitionCode,
         batchId: null,
         actorRole,
       });
+      if (error) return done({ ok: false, error });
       const [number] = confirmed;
       if (!number)
         throw new Error(`Registration ${registrationId} not confirmed`);

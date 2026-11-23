@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { auditLog, paymentBatch } from "@/server/db/schema";
 import { adultForm, signInMember } from "@/server/modules/participants/testing";
+import { signInStaff } from "@/server/modules/payments/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import {
@@ -34,15 +35,6 @@ async function giveParticipation(
     documentId,
   });
 }
-
-const capture = (h: Harness, orderId: string) => {
-  h.gateway.capture(orderId);
-  return h
-    .as(h.visitor())
-    .receiveGatewayWebhook(
-      h.gateway.webhook({ type: "payment.captured", orderId })
-    );
-};
 
 describe("a guardian registering their child", () => {
   it("waits for payment when they give participation on the form, recorded in the same transaction", async () => {
@@ -192,36 +184,80 @@ describe("withdrawing participation before payment", () => {
     expect(await statusOf(h, child.registrationId)).toBe("pending_payment");
   });
 
-  it("leaves a payment captured afterwards unconfirmed, for a refund", async () => {
+  it("holds a capture in review until consent is restored or the payment is refunded", async () => {
     const h = await createHarness();
     const competition = await consentCompetition(h);
     const child = await guardianWithChild(h, competition);
+    const guardian = h.as(child.actor);
     await giveParticipation(h, child, competition);
-    const paid = await h
-      .as(child.actor)
-      .payForMyRegistration({ registrationId: child.registrationId });
+    const registrationInput = { registrationId: child.registrationId };
+    const paid = await guardian.payForMyRegistration(registrationInput);
     if (!paid.ok || paid.kind !== "checkout") throw new Error("No order");
-    await h.as(child.actor).withdrawChildConsent({
+    await guardian.withdrawChildConsent({
       childId: child.childId,
       competitionId: competition.id,
       purpose: "participation",
     });
 
-    expect(await capture(h, paid.checkout.orderId)).toMatchObject({
+    const { orderId } = paid.checkout;
+    const { paymentId } = h.gateway.capture(orderId);
+    const webhook = h.gateway.webhook({ type: "payment.captured", orderId });
+    const payerSignal = h.as(h.visitor());
+    expect(await payerSignal.receiveGatewayWebhook(webhook)).toMatchObject({
       ok: true,
-      outcome: "captured",
+      outcome: "needs_review",
     });
+    await payerSignal.receiveGatewayWebhook(webhook);
     expect(await statusOf(h, child.registrationId)).toBe("pending_payment");
-    const [captured] = await h.db
-      .select()
-      .from(auditLog)
-      .where(eq(auditLog.action, "payment.batch_captured"));
-    expect(captured?.after).toMatchObject({
-      confirmed: 0,
-      notConfirmed: [
-        { registrationId: child.registrationId, status: "pending_payment" },
-      ],
+    expect(
+      await h.db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.action, "payment.batch_captured"))
+    ).toEqual([]);
+
+    const finance = h.as((await signInStaff(h, "finance")).actor);
+    const review = await finance.listPaymentReviewCases({ state: "open" });
+    if (!review.ok) throw new Error("Payment review unavailable");
+    expect(review.cases).toMatchObject([
+      {
+        batchId: paid.batchId,
+        gatewayPaymentId: paymentId,
+        amountMinor: 25_000n,
+        reason: "participation_consent_required",
+      },
+    ]);
+    const resolution = {
+      caseId: review.cases[0]!.id,
+      outcome: "confirm",
+      reason: "Accept the original payment for this registration.",
+    };
+    expect(await finance.resolvePaymentReviewCase(resolution)).toEqual({
+      ok: false,
+      error: "registration_not_payable",
     });
+    await giveParticipation(h, child, competition);
+    await expect(
+      guardian.payForMyRegistration(registrationInput)
+    ).resolves.toEqual({
+      ok: false,
+      error: "nothing_to_pay",
+    });
+    expect(h.gateway.orders).toHaveLength(1);
+    expect(await finance.resolvePaymentReviewCase(resolution)).toEqual({
+      ok: true,
+      batchStatus: "captured",
+    });
+    expect(
+      await guardian.payForMyRegistration(registrationInput)
+    ).toMatchObject({
+      ok: true,
+      kind: "confirmed",
+    });
+    expect(await h.db.select().from(paymentBatch)).toMatchObject([
+      { id: paid.batchId, status: "captured", gatewayPaymentId: paymentId },
+    ]);
+    expect(h.gateway.orders).toHaveLength(1);
   });
 
   it("confirms once participation is given again", async () => {

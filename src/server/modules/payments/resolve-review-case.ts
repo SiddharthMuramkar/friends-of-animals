@@ -137,7 +137,7 @@ export async function resolvePaymentReviewCase(
         let batchStatus: PaymentBatchStatus = batch.status;
         if (plan.confirmsRegistrations) {
           await takeBackRegistrations(tx, ctx, batch, role);
-          await captureBatch(
+          const capture = await captureBatch(
             tx,
             ctx,
             batch,
@@ -148,6 +148,7 @@ export async function resolvePaymentReviewCase(
             },
             role
           );
+          if (!capture.ok) throw new NotPayable();
           batchStatus = "captured";
         } else if (plan.batchEvent && batch.status !== "captured") {
           // A captured batch paid again never left captured (#80).

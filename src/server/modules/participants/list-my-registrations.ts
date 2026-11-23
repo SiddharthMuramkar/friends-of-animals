@@ -23,6 +23,7 @@ import {
 } from "../../db/schema";
 import type { Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
+import { lackingParticipation } from "../consent/participation-gate";
 import { verifiedLink } from "../guardians/child-access";
 import { ownProfileOf } from "../guardians/own-profile";
 import type { RegistrationRoute } from "../registration/domain/participant";
@@ -149,10 +150,22 @@ export async function listMyRegistrations(
   const nowAdult =
     ownsHeld &&
     (await ownProfileOf(ctx.db, ctx, userId, ctx.clock.now())) === "adult";
+  const lacking = await lackingParticipation(
+    ctx.db,
+    rows
+      .filter(
+        (row) =>
+          row.status === "pending_payment" && row.ownerKind === "guardian"
+      )
+      .map((row) => row.registrationId)
+  );
   return rows.map((row) => {
     const { whose, pays } = visible.get(row.profileId)!;
     const canContinue =
       row.status === "pending_guardian" && row.ownerKind === "self" && nowAdult;
+    const held =
+      lacking.has(row.registrationId) ||
+      (row.status === "pending_guardian" && !canContinue);
     return {
       registrationId: row.registrationId,
       whose,
@@ -164,17 +177,17 @@ export async function listMyRegistrations(
       registrationNumber: row.registrationNumber,
       amountDue:
         pays &&
+        !held &&
         (row.status === "pending_payment" || canContinue) &&
         row.fee !== null
           ? { amountMinor: row.fee, currency: "INR" }
           : null,
       childId: whose === "child" ? row.profileId : null,
-      heldFor:
-        row.status !== "pending_guardian" || canContinue
-          ? null
-          : row.ownerKind === "guardian"
-            ? "consent"
-            : "guardian",
+      heldFor: held
+        ? row.ownerKind === "guardian"
+          ? "consent"
+          : "guardian"
+        : null,
       createdAt: row.createdAt,
     };
   });

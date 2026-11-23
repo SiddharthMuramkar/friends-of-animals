@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { DomainError } from "@/server/errors";
+import {
+  consentCompetition,
+  guardianWithChild,
+  publishNextVersion,
+  reattach,
+} from "@/server/modules/consent/testing";
 import { schoolWithStudents } from "@/server/modules/payments/testing";
 import { createHarness } from "@/test/harness";
 
@@ -118,6 +124,52 @@ describe("listMyRegistrations", () => {
 
     expect(await h.as(member.actor).listMyRegistrations()).toEqual([]);
   });
+
+  it.each(["withdrawn", "replaced"] as const)(
+    "holds an unpaid child's registration when participation consent is %s",
+    async (change) => {
+      const h = await createHarness();
+      const competition = await consentCompetition(h);
+      const child = await guardianWithChild(h, competition);
+      const guardian = h.as(child.actor);
+      const consent = {
+        childId: child.childId,
+        competitionId: competition.id,
+        purpose: "participation",
+      } as const;
+      const initialDocument = competition.guardianDocuments.participation!;
+      await guardian.giveChildConsent({
+        ...consent,
+        documentId: initialDocument,
+      });
+      expect(await guardian.listMyRegistrations()).toMatchObject([
+        { heldFor: null, amountDue: { amountMinor: 25_000n, currency: "INR" } },
+      ]);
+
+      let documentId = initialDocument;
+      if (change === "withdrawn") {
+        await guardian.withdrawChildConsent(consent);
+      } else {
+        const next = await publishNextVersion(h, "participation");
+        documentId = next.id;
+        await reattach(h, competition.id, "participation", documentId);
+      }
+
+      expect(await guardian.listMyRegistrations()).toMatchObject([
+        {
+          registrationId: child.registrationId,
+          childId: child.childId,
+          status: "pending_payment",
+          heldFor: "consent",
+          amountDue: null,
+        },
+      ]);
+      await guardian.giveChildConsent({ ...consent, documentId });
+      expect(await guardian.listMyRegistrations()).toMatchObject([
+        { heldFor: null, amountDue: { amountMinor: 25_000n, currency: "INR" } },
+      ]);
+    }
+  );
 
   it("refuses a visitor", async () => {
     const h = await createHarness();

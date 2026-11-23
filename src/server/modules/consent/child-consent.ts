@@ -161,14 +161,16 @@ type ChildAction =
 
 const purposeInput = z.enum(GUARDIAN_PURPOSES);
 
-const giveInput = z.object({
+export const giveChildConsentInput = z.object({
   childId: z.uuid(),
   competitionId: z.uuid().optional(),
   purpose: purposeInput,
   documentId: z.uuid(),
 });
 
-const withdrawInput = giveInput.omit({ documentId: true });
+export const withdrawChildConsentInput = giveChildConsentInput.omit({
+  documentId: true,
+});
 
 const childInput = z.object({ childId: z.uuid() });
 
@@ -285,10 +287,10 @@ export async function giveChildConsent(
   const allowed = await authorizeGuardian(
     ctx,
     "consent.child.give",
-    input.childId
+    input?.childId
   );
   if (!allowed.ok) return allowed;
-  const parsed = giveInput.safeParse(input);
+  const parsed = giveChildConsentInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { childId, purpose, documentId } = parsed.data;
   const competitionId = parsed.data.competitionId ?? null;
@@ -357,10 +359,10 @@ export async function withdrawChildConsent(
   const allowed = await authorizeGuardian(
     ctx,
     "consent.child.withdraw",
-    input.childId
+    input?.childId
   );
   if (!allowed.ok) return allowed;
-  const parsed = withdrawInput.safeParse(input);
+  const parsed = withdrawChildConsentInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { childId, purpose } = parsed.data;
   const competitionId = parsed.data.competitionId ?? null;
@@ -376,6 +378,22 @@ export async function withdrawChildConsent(
       "consent.child.withdraw",
       await childResource(tx, ctx.actor, childId)
     );
+    if (purpose === "participation" && competitionId !== null) {
+      // Confirmation holds these rows while checking consent and updating
+      // status. Give and withdraw both lock the profile first.
+      await tx
+        .select({ id: registration.id })
+        .from(registration)
+        .where(
+          and(
+            eq(registration.participantProfileId, childId),
+            eq(registration.competitionId, competitionId),
+            eq(registration.route, "individual")
+          )
+        )
+        .orderBy(registration.id)
+        .for("update");
+    }
     const subject = subjectOf(childId);
     const state = currentConsent(
       await subjectEvents(tx, subject, purpose, competitionId)

@@ -183,7 +183,7 @@ export async function syncBatch(
       return "needs_review";
     }
 
-    await captureBatch(
+    const capture = await captureBatch(
       tx,
       ctx,
       batch,
@@ -194,6 +194,13 @@ export async function syncBatch(
       },
       actorRole
     );
+    if (!capture.ok) {
+      await review([
+        { paymentId: decision.paymentId, reason: capture.error },
+        ...others,
+      ]);
+      return "needs_review";
+    }
     if (others.length > 0) {
       // Paid twice on one order: the batch is paid, and the rest go to
       // review for staff to refund or keep (#79, #80).

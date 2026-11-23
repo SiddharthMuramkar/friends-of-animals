@@ -44,7 +44,11 @@ export { recordSignUpConsent } from "./consents";
 // Not a use case either: registerAsIndividual (#78) calls it inside the
 // transaction that saves the registration, after authorizing the member.
 export { recordRegistrationConsents } from "./consents";
-export { publicUse } from "./child-consent";
+export {
+  giveChildConsentInput,
+  publicUse,
+  withdrawChildConsentInput,
+} from "./child-consent";
 // Not use cases either (#82): the registration use cases call them inside
 // their transactions, after authorizing their actor.
 export {

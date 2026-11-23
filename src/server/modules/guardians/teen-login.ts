@@ -444,26 +444,30 @@ export async function acceptTeenInvitation(
       .from(user)
       .where(eq(user.id, userId))
       .for("no key update");
-    // The row lock makes one accept win; a second waits, then reads it
-    // accepted.
+    const forToken = and(
+      eq(guardianInvitation.tokenHash, tokenHash),
+      eq(guardianInvitation.kind, "teen_login")
+    );
+    const [target] = await tx
+      .select({ childId: guardianInvitation.participantProfileId })
+      .from(guardianInvitation)
+      .where(forToken);
+    // Inviting and claiming a matching child both lock the profile first.
+    const child = target ? await lockedChild(tx, target.childId) : null;
+    if (!child) return { ok: false, error: "not_found" };
     const [invitation] = await tx
       .select({
         id: guardianInvitation.id,
-        childId: guardianInvitation.participantProfileId,
         contactHash: guardianInvitation.contactHash,
         status: guardianInvitation.status,
         expiresAt: guardianInvitation.expiresAt,
       })
       .from(guardianInvitation)
       .where(
-        and(
-          eq(guardianInvitation.tokenHash, tokenHash),
-          eq(guardianInvitation.kind, "teen_login")
-        )
+        and(forToken, eq(guardianInvitation.participantProfileId, child.id))
       )
       .for("update");
-    const child = invitation ? await lockedChild(tx, invitation.childId) : null;
-    if (!invitation || !child) return { ok: false, error: "not_found" };
+    if (!invitation) return { ok: false, error: "not_found" };
 
     const decision = decideTeenAcceptance({
       invitation,

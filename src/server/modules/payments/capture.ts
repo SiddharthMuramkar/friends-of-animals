@@ -48,7 +48,8 @@ export type CaptureHow = {
 
 /**
  * Captures `batch` (locked by the caller) and confirms every registration
- * it holds. Throws if the machine forbids the move: callers decide first.
+ * it holds. Missing participation consent leaves the batch and registrations
+ * as they were. Callers check the batch transition first.
  */
 export async function captureBatch(
   tx: AppDb,
@@ -56,9 +57,26 @@ export async function captureBatch(
   batch: PaymentBatchRow,
   how: CaptureHow,
   actorRole: Role | null
-): Promise<{ confirmed: number; refused: string[] }> {
+): Promise<
+  | { ok: true; confirmed: number; refused: string[] }
+  | { ok: false; error: "participation_consent_required" }
+> {
   const move = nextPaymentBatchStatus(batch.status, how.event);
   if (!move.ok) throw new Error(`Batch ${batch.id} can't be captured`);
+  const [target] = await tx
+    .select({ code: competition.code })
+    .from(competition)
+    .where(eq(competition.id, batch.competitionId));
+  if (!target) throw new Error(`Batch ${batch.id} has no competition`);
+  const held = await heldItems(tx, batch.id);
+  const { confirmed, refused, error } = await confirmRegistrations(tx, ctx, {
+    registrationIds: held.map((item) => item.registrationId),
+    competitionCode: target.code,
+    batchId: batch.id,
+    actorRole,
+  });
+  if (error) return { ok: false, error };
+
   const now = ctx.clock.now();
   await tx
     .update(paymentBatch)
@@ -70,18 +88,6 @@ export async function captureBatch(
       updatedAt: now,
     })
     .where(eq(paymentBatch.id, batch.id));
-  const [target] = await tx
-    .select({ code: competition.code })
-    .from(competition)
-    .where(eq(competition.id, batch.competitionId));
-  if (!target) throw new Error(`Batch ${batch.id} has no competition`);
-  const held = await heldItems(tx, batch.id);
-  const { confirmed, refused } = await confirmRegistrations(tx, ctx, {
-    registrationIds: held.map((item) => item.registrationId),
-    competitionCode: target.code,
-    batchId: batch.id,
-    actorRole,
-  });
   const entity = { type: "payment_batch" as const, id: batch.id };
   await recordAudit(tx, ctx, {
     action: "payment.batch_captured",
@@ -105,6 +111,7 @@ export async function captureBatch(
     payload: { batchId: batch.id, payerUserId: batch.payerUserId },
   });
   return {
+    ok: true,
     confirmed: confirmed.length,
     refused: refused.map((each) => each.registrationId),
   };

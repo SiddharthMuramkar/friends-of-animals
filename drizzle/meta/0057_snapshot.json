@@ -1,5 +1,5 @@
 {
-  "id": "8ce32854-e228-4959-8596-a4ec062034b1",
+  "id": "68881d68-61a6-424f-ad3b-61adc3296a68",
   "prevId": "d7cb1040-f0d5-4e7d-9b84-d182b67df644",
   "version": "7",
   "dialect": "postgresql",
@@ -9043,7 +9043,8 @@
         "amount_mismatch",
         "registration_closed",
         "batch_superseded",
-        "paid_while_in_review"
+        "paid_while_in_review",
+        "participation_consent_required"
       ]
     },
     "public.guardian_invitation_channel": {
