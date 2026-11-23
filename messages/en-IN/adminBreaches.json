@@ -53,7 +53,7 @@
       "updated": "Record corrected",
       "contained": "Breach contained",
       "principals_notified": "Notices queued for affected people",
-      "authority_notified": "Authority notice recorded or queued",
+      "authority_notified": "Authority notice completed",
       "note": "Note added",
       "closed": "Breach closed"
     },
@@ -117,6 +117,7 @@
       "not_contained": "Mark the breach as contained before closing it.",
       "reason_required": "Enter the reason no notices were needed.",
       "already_notified": "An authority notice has already been recorded.",
+      "authority_email_queued": "An authority email is already queued.",
       "authority_unconfigured": "Enter the reference from your manual notice or configure an authority email address.",
       "authority_email_invalid": "Ask a super admin to correct the authority email address in Settings."
     },

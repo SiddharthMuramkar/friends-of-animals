@@ -90,7 +90,7 @@ export async function seedBreaches(deps: SeedDeps): Promise<void> {
     .insert(breachRecord)
     .values({
       id: open.id,
-      title: open.title,
+      title: sealBreachText(cipher, "title", open.title),
       awareAt: openAware,
       severity: "medium",
       personalDataInvolved: true,
@@ -121,7 +121,7 @@ export async function seedBreaches(deps: SeedDeps): Promise<void> {
     .insert(breachRecord)
     .values({
       id: told.id,
-      title: told.title,
+      title: sealBreachText(cipher, "title", told.title),
       awareAt: aware,
       severity: "high",
       personalDataInvolved: true,

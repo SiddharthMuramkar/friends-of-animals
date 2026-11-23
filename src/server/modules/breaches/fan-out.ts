@@ -1,12 +1,11 @@
 // The outbox handler breaches.fan_out (#116 AC5): tells every account of a
 // breach, one page at a time, in the worker rather than a request.
 //
-// Each delivery plans the next `pageSize` accounts after `afterUserId`, in
-// id order, exactly as a list of subjects is planned (./notify.ts): a child
-// account is routed to its guardians, and a recipient already told is
-// skipped by breach_notification's unique key. A full page saves the event
-// again with the last account as the cursor, in the same transaction as
-// its notices, so the chain resumes where it stopped after a crash.
+// Each delivery handles the next `pageSize` accounts after `afterUserId`.
+// It resolves those subjects and also looks up affected children for any
+// guardian in the page. This lets each recipient's own page queue one
+// complete notice. A full page saves the next cursor in the same
+// transaction as its notices, so the chain resumes after a crash.
 //
 // Once requested, notices finish even if staff close the record. A page
 // run twice queues nothing new; at worst it saves its next page twice,
@@ -19,7 +18,7 @@ import { asc, eq, gt } from "drizzle-orm";
 import { breachRecord, user } from "../../db/schema";
 import { emit } from "../../outbox/emit";
 import type { OutboxDeps } from "../../outbox/handlers";
-import { affectedPeople } from "./affected";
+import { affectedPeople, minorAccountsOfGuardians } from "./affected";
 import { planBreachNotices } from "./domain/notice-recipients";
 import { queueNotices, reachedRefs } from "./notify";
 
@@ -41,21 +40,38 @@ export async function fanOutBreachNotices(
       .where(afterUserId === null ? undefined : gt(user.id, afterUserId))
       .orderBy(asc(user.id))
       .limit(pageSize);
+    const last = accounts.at(-1);
+    if (!last) return;
+
     const refs = accounts.map((account) => ({
       type: "user" as const,
       id: account.id,
     }));
-    const people = await affectedPeople(
+    const accountIds = accounts.map(({ id }) => id);
+    const recipientsOnPage = new Set(accountIds);
+    const now = deps.clock.now();
+    const people = await affectedPeople(tx, deps.cipher, now, refs);
+    const children = await minorAccountsOfGuardians(
       tx,
       deps.cipher,
-      deps.clock.now(),
-      refs
+      now,
+      accountIds
     );
-    const plan = planBreachNotices(people);
-    await queueNotices(tx, deps.clock, breachId, plan, reachedRefs(refs, plan));
+    const plan = planBreachNotices([...people, ...children]);
+    await queueNotices(
+      tx,
+      deps.clock,
+      breachId,
+      {
+        ...plan,
+        recipients: plan.recipients.filter(({ userId }) =>
+          recipientsOnPage.has(userId)
+        ),
+      },
+      reachedRefs(refs, plan)
+    );
 
-    const last = accounts.at(-1);
-    if (accounts.length === pageSize && last) {
+    if (accounts.length === pageSize) {
       await emit(tx, deps.clock, {
         type: "breach.fan_out_requested",
         aggregate: { type: "breach", id: breachId },

@@ -10,9 +10,8 @@
 //   profile reaches its owner (their own profile) or its login (a guardian's
 //   child who has turned 18); a school's adult student has no account.
 //
-// Ages come from the decrypted date of birth on India's calendar at `now`,
-// never from SQL. One query per kind of fact, so a page of 500 accounts in
-// the fan-out costs four queries, not two thousand.
+// Ages come from the decrypted date of birth on India's calendar at `now`.
+// Pages collect account and guardian facts in bulk.
 //
 // Loads under plain Node (the worker): relative imports only.
 
@@ -46,6 +45,24 @@ const PROFILE_FACTS = {
   loginUserId: participantProfile.loginUserId,
   dobCiphertext: participantProfile.dobCiphertext,
 };
+
+const verifiedGuardianLink = and(
+  isNull(guardianLink.revokedAt),
+  isNotNull(guardian.verifiedAt)
+);
+
+const accountOfProfile = (profile: ProfileFacts) =>
+  profile.ownerKind === "self" ? profile.ownerUserId : profile.loginUserId;
+
+function isMinorProfile(cipher: FieldCipher, now: Date, profile: ProfileFacts) {
+  const dateOfBirth = parseIsoDate(
+    cipher.decrypt(PROFILE_PURPOSE.dob, profile.dobCiphertext)
+  );
+  if (!dateOfBirth) {
+    throw new Error(`Profile ${profile.id}'s date of birth isn't a date`);
+  }
+  return !isAdultAt(dateOfBirth, now);
+}
 
 /** The facts the planner needs about each of `refs`, in their order. */
 export async function affectedPeople(
@@ -99,15 +116,7 @@ export async function affectedPeople(
 
   const minorProfileIds = new Set(
     [...accountProfiles, ...namedProfiles]
-      .filter((profile) => {
-        const dateOfBirth = parseIsoDate(
-          cipher.decrypt(PROFILE_PURPOSE.dob, profile.dobCiphertext)
-        );
-        if (!dateOfBirth) {
-          throw new Error(`Profile ${profile.id}'s date of birth isn't a date`);
-        }
-        return !isAdultAt(dateOfBirth, now);
-      })
+      .filter((profile) => isMinorProfile(cipher, now, profile))
       .map((profile) => profile.id)
   );
   const guardiansByProfile = await activeGuardians(db, [...minorProfileIds]);
@@ -124,8 +133,7 @@ export async function affectedPeople(
       const childProfiles = accountProfiles.filter(
         (profile) =>
           minorProfileIds.has(profile.id) &&
-          (profile.loginUserId === ref.id ||
-            (profile.ownerKind === "self" && profile.ownerUserId === ref.id))
+          accountOfProfile(profile) === ref.id
       );
       return childProfiles.length > 0
         ? {
@@ -140,8 +148,7 @@ export async function affectedPeople(
     if (!profile) {
       return { ref, userId: null, minor: false, guardianUserIds: [] };
     }
-    const ownAccount =
-      profile.ownerKind === "self" ? profile.ownerUserId : profile.loginUserId;
+    const ownAccount = accountOfProfile(profile);
     return minorProfileIds.has(profile.id)
       ? {
           ref,
@@ -151,6 +158,51 @@ export async function affectedPeople(
         }
       : { ref, userId: ownAccount, minor: false, guardianUserIds: [] };
   });
+}
+
+/** Minor accounts represented by the given guardians, on any account page. */
+export async function minorAccountsOfGuardians(
+  db: AppDb,
+  cipher: FieldCipher,
+  now: Date,
+  guardianUserIds: string[]
+): Promise<AffectedPerson[]> {
+  const links = await db
+    .select({ ...PROFILE_FACTS, guardianUserId: guardian.userId })
+    .from(guardian)
+    .innerJoin(guardianLink, eq(guardian.id, guardianLink.guardianId))
+    .innerJoin(
+      participantProfile,
+      eq(participantProfile.id, guardianLink.participantProfileId)
+    )
+    .where(
+      and(
+        inArray(guardian.userId, guardianUserIds),
+        verifiedGuardianLink,
+        or(
+          isNotNull(participantProfile.loginUserId),
+          and(
+            eq(participantProfile.ownerKind, "self"),
+            isNotNull(participantProfile.ownerUserId)
+          )
+        )
+      )
+    );
+
+  const guardiansByAccount = new Map<string, string[]>();
+  for (const link of links) {
+    const userId = accountOfProfile(link);
+    if (userId === null || !isMinorProfile(cipher, now, link)) continue;
+    const guardians = guardiansByAccount.get(userId) ?? [];
+    guardians.push(link.guardianUserId);
+    guardiansByAccount.set(userId, guardians);
+  }
+  return [...guardiansByAccount].map(([userId, guardianUserIds]) => ({
+    ref: { type: "user", id: userId },
+    userId,
+    minor: true,
+    guardianUserIds,
+  }));
 }
 
 /** Each profile's verified guardians with an unrevoked link, in link order. */
@@ -170,8 +222,7 @@ async function activeGuardians(
     .where(
       and(
         inArray(guardianLink.participantProfileId, [...profileIds]),
-        isNull(guardianLink.revokedAt),
-        isNotNull(guardian.verifiedAt)
+        verifiedGuardianLink
       )
     )
     .orderBy(asc(guardianLink.createdAt), asc(guardianLink.id));

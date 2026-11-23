@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { breachTimelineEvent } from "@/server/db/schema";
+import { breachRecord, breachTimelineEvent } from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 
 import {
@@ -61,9 +61,12 @@ describe("recordBreach", () => {
       status: "open",
       leadUserId: userIdOf(staff),
       awareAt: details.awareAt,
-      title: details.title,
       containedAt: null,
       closedAt: null,
+    });
+    expect(await h.as(staff).getBreach({ breachId: id })).toMatchObject({
+      ok: true,
+      breach: { title: details.title },
     });
     expect(await timelineKinds(h, id)).toEqual(["recorded"]);
   });
@@ -79,6 +82,28 @@ describe("recordBreach", () => {
     expect(JSON.stringify(raw)).not.toContain(IMPACT_WORDS);
   });
 
+  it("encrypts the title at rest and opens it in authorized staff reads", async () => {
+    const h = await createHarness();
+    const admin = await staffActor(h, "staff_admin");
+    const staff = h.as(admin);
+    const title = "Entry export for Example Student";
+    const breachId = await recordedBreach(h, admin, { title });
+
+    const raw = await h.db.execute(
+      sql`SELECT * FROM breach_record WHERE id = ${breachId}`
+    );
+    expect(raw.rows).toHaveLength(1);
+    expect(JSON.stringify(raw.rows)).not.toContain(title);
+    expect(raw.rows[0]).toHaveProperty("title_ciphertext", expect.any(String));
+    expect(await staff.listBreaches()).toMatchObject({
+      breaches: [{ id: breachId, title }],
+    });
+    expect(await staff.getBreach({ breachId })).toMatchObject({
+      ok: true,
+      breach: { id: breachId, title },
+    });
+  });
+
   it("refuses a time of awareness after now, and writes nothing", async () => {
     const h = await createHarness();
     const admin = await staffActor(h, "super_admin");
@@ -92,6 +117,44 @@ describe("recordBreach", () => {
     expect(result).toEqual({ ok: false, error: "aware_in_future" });
     expect(await breachAudit(h)).toEqual([]);
     expect(await h.db.select().from(breachTimelineEvent)).toEqual([]);
+  });
+
+  it.each([null, false, 0, "2025-01-15", "2025-02-30T04:00:00Z"])(
+    "refuses %j as the awareness time and writes nothing",
+    async (awareAt) => {
+      const h = await createHarness();
+      const admin = await staffActor(h, "staff_admin");
+
+      const result = await h.as(admin).recordBreach({
+        ...breachDetails(h),
+        awareAt,
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: "invalid_input",
+        fields: ["awareAt"],
+      });
+      expect(await h.db.select().from(breachRecord)).toEqual([]);
+      expect(await h.db.select().from(breachTimelineEvent)).toEqual([]);
+      expect(await breachAudit(h)).toEqual([]);
+    }
+  );
+
+  it("records an ISO awareness time with an explicit offset", async () => {
+    const h = await createHarness();
+    const admin = await staffActor(h, "staff_admin");
+
+    const result = await h.as(admin).recordBreach({
+      ...breachDetails(h),
+      awareAt: "2025-01-15T09:30:00+05:30",
+    });
+
+    expect(result).toEqual({ ok: true, id: expect.any(String) });
+    const id = result.ok ? result.id : "";
+    expect((await storedBreach(h, id)).awareAt).toEqual(
+      new Date("2025-01-15T04:00:00Z")
+    );
   });
 
   it("names the fields it can't accept", async () => {
@@ -111,6 +174,33 @@ describe("recordBreach", () => {
   });
 });
 
+it("indexes the user foreign keys in the migrated breach tables", async () => {
+  const h = await createHarness();
+
+  const indexes = await h.db.execute<{
+    table_name: string;
+    column_name: string;
+  }>(
+    sql`
+      SELECT t.relname AS table_name, c.attname AS column_name
+      FROM pg_index i
+      JOIN pg_class t ON t.oid = i.indrelid
+      JOIN pg_attribute c ON c.attrelid = t.oid AND c.attnum = i.indkey[0]
+      WHERE i.indisvalid AND i.indpred IS NULL
+        AND (
+          (t.relname = 'breach_record' AND c.attname = 'lead_user_id')
+          OR (t.relname = 'breach_notification' AND c.attname = 'recipient_user_id')
+        )
+      ORDER BY t.relname
+    `
+  );
+
+  expect(indexes.rows).toEqual([
+    { table_name: "breach_notification", column_name: "recipient_user_id" },
+    { table_name: "breach_record", column_name: "lead_user_id" },
+  ]);
+});
+
 describe("updateBreach", () => {
   it("corrects the record, adds to its timeline and audits the fields that changed", async () => {
     const h = await createHarness();
@@ -126,10 +216,14 @@ describe("updateBreach", () => {
 
     expect(result).toEqual({ ok: true, changed: true });
     expect(await storedBreach(h, id)).toMatchObject({
-      title: "Entry export sent to the wrong school",
       severity: "critical",
       affectedCount: 40,
     });
+    expect(await h.as(admin).getBreach({ breachId: id })).toMatchObject({
+      ok: true,
+      breach: { title: "Entry export sent to the wrong school" },
+    });
+    expect((await storedBreach(h, id)).title).not.toContain("wrong school");
     expect(await timelineKinds(h, id)).toEqual(["recorded", "updated"]);
     const [, updated] = await breachAudit(h, id);
     expect(updated).toMatchObject({
@@ -149,11 +243,15 @@ describe("updateBreach", () => {
     const admin = await staffActor(h, "super_admin");
     const id = await recordedBreach(h, admin);
 
-    const result = await h
-      .as(admin)
-      .updateBreach({ breachId: id, severity: "high" });
+    const before = await storedBreach(h, id);
+    const result = await h.as(admin).updateBreach({
+      breachId: id,
+      title: breachDetails(h).title,
+      severity: "high",
+    });
 
     expect(result).toEqual({ ok: true, changed: false });
+    expect(await storedBreach(h, id)).toEqual(before);
     expect(await timelineKinds(h, id)).toEqual(["recorded"]);
     expect(await breachAudit(h, id)).toHaveLength(1);
   });

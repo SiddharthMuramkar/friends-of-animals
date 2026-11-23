@@ -38,7 +38,6 @@ import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
 import {
   AUTHORITY_NOTICE_VARIABLES,
-  authorityNoticeValues,
   PRINCIPAL_NOTICE_VARIABLES,
   principalNoticeValues,
 } from "../breaches/notice-message";
@@ -439,8 +438,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "breach.fan_out_requested": { names: [], load: async () => ({}) },
   "breach.authority_notice": {
     names: AUTHORITY_NOTICE_VARIABLES,
-    load: async (db, { payload }) =>
-      (await authorityNoticeValues(db, payload.breachId)) ?? {},
+    // The authority handler renders these variables for its configured address.
+    load: async () => ({}),
   },
 };
 

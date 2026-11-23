@@ -6,6 +6,7 @@
 import type { Ciphertext, FieldCipher } from "../../crypto/field-cipher";
 
 export const BREACH_CONTENT_PURPOSES = {
+  title: "breach_record.title",
   impact: "breach_record.impact",
   authorityReference: "breach_record.authority_reference",
   note: "breach_timeline_event.note",
@@ -23,6 +24,16 @@ export function sealBreachText(
 }
 
 /** Reads back a value stored in `field`'s column, keeping null as null. */
+export function openBreachText(
+  cipher: FieldCipher,
+  field: BreachContentField,
+  stored: string
+): string;
+export function openBreachText(
+  cipher: FieldCipher,
+  field: BreachContentField,
+  stored: string | null
+): string | null;
 export function openBreachText(
   cipher: FieldCipher,
   field: BreachContentField,

@@ -18,7 +18,7 @@ CREATE TABLE "breach_notification" (
 --> statement-breakpoint
 CREATE TABLE "breach_record" (
 	"id" uuid PRIMARY KEY NOT NULL,
-	"title" text NOT NULL,
+	"title_ciphertext" text NOT NULL,
 	"aware_at" timestamp with time zone NOT NULL,
 	"severity" "breach_severity" NOT NULL,
 	"personal_data_involved" boolean NOT NULL,
@@ -30,6 +30,7 @@ CREATE TABLE "breach_record" (
 	"principals_notified_at" timestamp with time zone,
 	"authority_notified_at" timestamp with time zone,
 	"authority_reference_ciphertext" text,
+	"authority_email_queued_at" timestamp with time zone,
 	"authority_email_sent_at" timestamp with time zone,
 	"closed_at" timestamp with time zone,
 	"lead_user_id" uuid,
@@ -66,5 +67,7 @@ ALTER TABLE "breach_notification" ADD CONSTRAINT "breach_notification_recipient_
 ALTER TABLE "breach_record" ADD CONSTRAINT "breach_record_lead_user_id_user_id_fk" FOREIGN KEY ("lead_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "breach_timeline_event" ADD CONSTRAINT "breach_timeline_event_breach_id_breach_record_id_fk" FOREIGN KEY ("breach_id") REFERENCES "public"."breach_record"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "breach_unreachable" ADD CONSTRAINT "breach_unreachable_breach_id_breach_record_id_fk" FOREIGN KEY ("breach_id") REFERENCES "public"."breach_record"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "breach_notification_recipient_user_id_idx" ON "breach_notification" USING btree ("recipient_user_id");--> statement-breakpoint
 CREATE INDEX "breach_record_status_aware_at_idx" ON "breach_record" USING btree ("status","aware_at" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "breach_record_lead_user_id_idx" ON "breach_record" USING btree ("lead_user_id");--> statement-breakpoint
 CREATE INDEX "breach_timeline_event_breach_id_idx" ON "breach_timeline_event" USING btree ("breach_id","occurred_at");

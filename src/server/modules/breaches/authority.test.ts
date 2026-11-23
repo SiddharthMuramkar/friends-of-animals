@@ -1,6 +1,7 @@
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { outbox } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
 import {
@@ -34,6 +35,24 @@ describe("notifyAuthority", () => {
 
     expect(result).toEqual({ ok: true, channel: "email" });
     expect(reports(h)).toEqual([]);
+    expect(await h.as(admin).getBreach({ breachId })).toMatchObject({
+      ok: true,
+      breach: {
+        status: "open",
+        authority: {
+          channel: "email",
+          notifiedAt: null,
+          emailQueuedAt: h.clock.now(),
+          emailSentAt: null,
+        },
+        canNotifyAuthority: false,
+      },
+    });
+    expect(await h.as(admin).notifyAuthority({ breachId })).toEqual({
+      ok: false,
+      error: "authority_email_queued",
+    });
+    h.clock.advance({ minutes: 1 });
     await h.drain();
 
     expect(reports(h)).toEqual([
@@ -47,6 +66,7 @@ describe("notifyAuthority", () => {
     expect(await storedBreach(h, breachId)).toMatchObject({
       status: "notified",
       authorityNotifiedAt: h.clock.now(),
+      authorityEmailQueuedAt: null,
       authorityEmailSentAt: h.clock.now(),
       authorityReference: null,
     });
@@ -172,6 +192,88 @@ describe("notifyAuthority", () => {
     await h.drain();
     expect(reports(h)).toHaveLength(1);
   });
+
+  it.each([
+    ["cleared", ""],
+    ["invalid", "the data board"],
+  ])(
+    "records a manual filing when the queued email address is %s",
+    async (_, address) => {
+      const h = await createHarness();
+      const admin = await staffActor(h, "staff_admin");
+      const staff = h.as(admin);
+      const breachId = await recordedBreach(h, admin);
+      const reference = "DPB/2027/00043";
+      await h.settings.set("breach.authorityEmail", AUTHORITY);
+      await expect(staff.notifyAuthority({ breachId })).resolves.toEqual({
+        ok: true,
+        channel: "email",
+      });
+      await h.settings.set("breach.authorityEmail", address);
+      await h.drain();
+      const beforeFiling = await staff.getBreach({ breachId });
+      expect(
+        h.email.sent.filter((message) => message.subject === REPORT_SUBJECT)
+      ).toEqual([]);
+
+      h.clock.advance({ minutes: 1 });
+      await expect(
+        staff.notifyAuthority({ breachId, manualReference: reference })
+      ).resolves.toEqual({ ok: true, channel: "manual" });
+      expect(beforeFiling).toMatchObject({
+        ok: true,
+        breach: {
+          status: "open",
+          authority: { channel: "email", notifiedAt: null, emailSentAt: null },
+          canNotifyAuthority: true,
+        },
+      });
+      expect(await staff.getBreach({ breachId })).toMatchObject({
+        ok: true,
+        breach: {
+          status: "notified",
+          authority: {
+            channel: "manual",
+            reference,
+            notifiedAt: h.clock.now(),
+            emailQueuedAt: null,
+            emailSentAt: null,
+          },
+          canNotifyAuthority: false,
+        },
+      });
+      expect(await timelineKinds(h, breachId)).toEqual([
+        "recorded",
+        "authority_notified",
+      ]);
+      const audit = await breachAudit(h, breachId);
+      expect(
+        audit.filter((row) => row.action === "breach.authority_notified")
+      ).toHaveLength(1);
+      expect(JSON.stringify(audit)).not.toContain(reference);
+
+      await h.settings.set("breach.authorityEmail", AUTHORITY);
+      h.clock.advance({ minutes: 5 });
+      await h.drain();
+      expect(
+        h.email.sent.filter((message) => message.subject === REPORT_SUBJECT)
+      ).toEqual([]);
+      expect(await staff.notifyAuthority({ breachId })).toEqual({
+        ok: false,
+        error: "already_notified",
+      });
+      const deliveries = await h.db
+        .select({ status: outbox.status })
+        .from(outbox)
+        .where(
+          and(
+            eq(outbox.aggregateId, breachId),
+            eq(outbox.eventType, "breach.authority_notice")
+          )
+        );
+      expect(deliveries).toEqual([{ status: "dispatched" }]);
+    }
+  );
 });
 
 describe("the breach transition table, through the use cases", () => {

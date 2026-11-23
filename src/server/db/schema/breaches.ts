@@ -14,11 +14,9 @@
 // Someone a notice can't reach (a child with no guardian, an adult with no
 // account) is a `breach_unreachable` row, so staff see the gap.
 //
-// Free text staff type may hold personal data: the impact, the authority's
-// reference and each timeline note are encrypted by the field cipher (#58),
-// in columns ending in `_ciphertext`. The title stays plain for the list;
-// the form asks staff not to name people in it. Every personal-data column
-// is in the data inventory (src/server/modules/privacy/inventory.ts).
+// Staff-entered titles, impact, authority references and timeline notes may
+// hold personal data and are encrypted by the field cipher (#58). Every
+// personal-data column is in src/server/modules/privacy/inventory.ts.
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
@@ -32,7 +30,6 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
-  text,
   timestamp,
   unique,
   uuid,
@@ -84,7 +81,7 @@ export const breachRecord = pgTable(
   {
     id: uuid().primaryKey(),
     /** A short label for the list; staff are asked not to name people. */
-    title: text().notNull(),
+    title: encryptedText("title_ciphertext").notNull(),
     /** When FOA learnt of it; never after the record was made. */
     awareAt: timestamptz("aware_at").notNull(),
     severity: breachSeverityEnum().notNull(),
@@ -102,11 +99,9 @@ export const breachRecord = pgTable(
     authorityNotifiedAt: timestamptz("authority_notified_at"),
     /** The reference the authority gave a notice filed by hand. */
     authorityReference: encryptedText("authority_reference_ciphertext"),
-    /**
-     * When the authority's email left through the email port: the outbox
-     * handler's mark, so it sends once (src/server/modules/breaches/
-     * authority.ts). Null for a notice filed by hand.
-     */
+    /** The outstanding email request, cleared when the notice is completed. */
+    authorityEmailQueuedAt: timestamptz("authority_email_queued_at"),
+    /** When the email port accepted the notice. Null for manual filings. */
     authorityEmailSentAt: timestamptz("authority_email_sent_at"),
     closedAt: timestamptz("closed_at"),
     /** Who recorded it and leads the response; null once their account is gone. */
@@ -142,6 +137,7 @@ export const breachRecord = pgTable(
       table.status,
       table.awareAt.desc()
     ),
+    index("breach_record_lead_user_id_idx").on(table.leadUserId),
   ]
 );
 
@@ -203,6 +199,9 @@ export const breachNotification = pgTable(
       table.breachId,
       table.recipientUserId,
       table.channel
+    ),
+    index("breach_notification_recipient_user_id_idx").on(
+      table.recipientUserId
     ),
     check("breach_notification_about_someone", sql`${table.aboutCount} >= 1`),
   ]

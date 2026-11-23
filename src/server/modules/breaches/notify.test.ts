@@ -457,6 +457,70 @@ describe("the breach.fanOut job", () => {
     expect(recipients).toHaveLength(accounts.length * 2);
   });
 
+  it.each(["before", "after"] as const)(
+    "combines a guardian's own and child's notices when their account is paged %s the child's",
+    async (order) => {
+      const h = await createHarness();
+      const admin = await staffActor(h, "super_admin");
+      const breachId = await recordedBreach(h, admin);
+      const guardianDetails = {
+        name: "Kavita Desai",
+        email: "kavita@example.test",
+      };
+      h.clock.advance({ seconds: 1 });
+      if (order === "before") await h.seed.member(guardianDetails);
+      h.clock.advance({ seconds: 1 });
+      const child = await h.seed.member({
+        name: "Rohan Desai",
+        email: "rohan@example.test",
+      });
+      h.clock.advance({ seconds: 1 });
+      const parent = await h.seed.guardian({
+        ...guardianDetails,
+        children: [
+          { fullName: "Rohan Desai", age: 15, loginUserId: child.id },
+          { fullName: "Isha Desai", age: 9 },
+        ],
+      });
+      expect(parent.account.id < child.id).toBe(order === "before");
+
+      await h.db.transaction((tx) =>
+        emit(tx, h.clock, {
+          type: "breach.fan_out_requested",
+          aggregate: { type: "breach", id: breachId },
+          payload: { breachId, afterUserId: null, pageSize: 2 },
+        })
+      );
+      await h.drain();
+
+      const about = "your personal data and that of a child you look after";
+      expect(
+        notices(h).filter((message) => message.to === parent.account.email)
+      ).toEqual([
+        expect.objectContaining({ text: expect.stringContaining(about) }),
+      ]);
+      expect(await inboxTitles(h, parent.account.id)).toEqual([
+        expect.objectContaining({ body: expect.stringContaining(about) }),
+      ]);
+      expect(notices(h).some((message) => message.to === child.email)).toBe(
+        false
+      );
+      expect(await inboxTitles(h, child.id)).toEqual([]);
+      expect(
+        (await noticeRows(h, breachId)).filter(
+          (row) => row.recipientUserId === parent.account.id
+        )
+      ).toEqual(
+        ["email", "in_app"].map((channel) => ({
+          recipientUserId: parent.account.id,
+          channel,
+          recipientRole: "principal_and_guardian",
+          aboutCount: 2,
+        }))
+      );
+    }
+  );
+
   it("refuses a page larger than 500 accounts", async () => {
     const h = await createHarness();
     const breachId = uuidv7(h.clock.now());

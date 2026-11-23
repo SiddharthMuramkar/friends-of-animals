@@ -134,7 +134,10 @@ export const BREACH_AFFECTED_COUNT_MAX = 2_147_483_647;
  */
 export const breachRecordSchema = z.strictObject({
   title: z.string().trim().min(1).max(BREACH_TITLE_MAX),
-  awareAt: z.coerce.date(),
+  awareAt: z.union([
+    z.date(),
+    z.iso.datetime({ offset: true }).pipe(z.coerce.date()),
+  ]),
   severity: z.enum(BREACH_SEVERITIES),
   personalDataInvolved: z.boolean(),
   minorsAffected: z.boolean(),

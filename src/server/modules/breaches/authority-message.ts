@@ -7,17 +7,17 @@
 // facts (./notice-message.ts) and sends it to the address in the setting
 // `breach.authorityEmail`, read when it sends.
 //
-// At least once, but one email per breach: authority_email_sent_at is set
-// after the send, and a breach already sent for is skipped. A worker that
-// dies between the two sends it again on the retry. With the setting
-// emptied since the request, it fails (naming the breach by id) and the
-// outbox retries it, so staff see it among failed deliveries.
+// The breach lock serializes email delivery with manual filing. An email
+// waits for a usable address and an enabled route, and a completed notice
+// retires the pending work. Delivery remains at least once if the worker
+// dies between the provider accepting the email and the transaction committing.
 //
 // Loads under plain Node (the worker): relative imports only.
 
 import { and, asc, eq } from "drizzle-orm";
 
-import { breachRecord, messageRoute, messageTemplate } from "../../db/schema";
+import { recordAudit } from "../../audit/record";
+import { messageRoute, messageTemplate } from "../../db/schema";
 import { oneLineSubject } from "../../ports/email";
 import type { OutboxDeps } from "../../outbox/handlers";
 import {
@@ -25,71 +25,91 @@ import {
   renderTemplate,
 } from "../notifications/domain/template";
 import { DEFAULT_LOCALE } from "../notifications/locale";
+import { readSetting } from "../settings/read";
+import { completeAuthorityNotice } from "./authority";
+import { breachAuditSnapshot } from "./domain/audit";
+import { configuredAuthorityEmail } from "./domain/authority-notice";
 import { authorityNoticeValues } from "./notice-message";
+import { lockBreach } from "./record";
 
 /** The audience of the route row that tells the authority. */
 export const AUTHORITY_AUDIENCE = "breach_authority";
 
 export async function sendAuthorityNotice(
-  deps: Pick<OutboxDeps, "db" | "clock" | "email" | "settings">,
-  notice: { breachId: string }
+  deps: Pick<OutboxDeps, "db" | "clock" | "cipher" | "email">,
+  { breachId }: { breachId: string }
 ): Promise<void> {
-  const { breachId } = notice;
-  const [breach] = await deps.db
-    .select({ sentAt: breachRecord.authorityEmailSentAt })
-    .from(breachRecord)
-    .where(eq(breachRecord.id, breachId));
-  // Gone (retention) or already emailed: nothing to send.
-  if (!breach || breach.sentAt) return;
+  await deps.db.transaction(async (tx) => {
+    const breach = await lockBreach(tx, breachId);
+    if (!breach?.authorityEmailQueuedAt || breach.authorityNotifiedAt) return;
 
-  // Switched off, or not by email: the authority isn't emailed.
-  const [route] = await deps.db
-    .select({
-      templateKey: messageRoute.templateKey,
-      channels: messageRoute.channels,
-    })
-    .from(messageRoute)
-    .where(
-      and(
-        eq(messageRoute.eventType, "breach.authority_notice"),
-        eq(messageRoute.audience, AUTHORITY_AUDIENCE),
-        eq(messageRoute.enabled, true)
-      )
-    )
-    .orderBy(asc(messageRoute.createdAt))
-    .limit(1);
-  if (!route?.channels.includes("email")) return;
-
-  const [template] = await deps.db
-    .select({ subject: messageTemplate.subject, body: messageTemplate.body })
-    .from(messageTemplate)
-    .where(
-      and(
-        eq(messageTemplate.key, route.templateKey),
-        eq(messageTemplate.channel, "email"),
-        eq(messageTemplate.locale, DEFAULT_LOCALE)
-      )
+    const to = configuredAuthorityEmail(
+      await readSetting(tx, "breach.authorityEmail")
     );
-  if (!template) throw new Error(`Template ${route.templateKey} has no email`);
+    if (!to) {
+      throw new Error(
+        `breach.authorityEmail is unusable: breach ${breachId}'s notice waits`
+      );
+    }
 
-  const to = (await deps.settings.get("breach.authorityEmail")).trim();
-  if (!to) {
-    throw new Error(
-      `breach.authorityEmail is unset: breach ${breachId}'s notice waits`
+    const [route] = await tx
+      .select({
+        templateKey: messageRoute.templateKey,
+        channels: messageRoute.channels,
+      })
+      .from(messageRoute)
+      .where(
+        and(
+          eq(messageRoute.eventType, "breach.authority_notice"),
+          eq(messageRoute.audience, AUTHORITY_AUDIENCE),
+          eq(messageRoute.enabled, true)
+        )
+      )
+      .orderBy(asc(messageRoute.createdAt))
+      .limit(1);
+    if (!route?.channels.includes("email")) {
+      throw new Error("No enabled authority email route");
+    }
+
+    const [template] = await tx
+      .select({ subject: messageTemplate.subject, body: messageTemplate.body })
+      .from(messageTemplate)
+      .where(
+        and(
+          eq(messageTemplate.key, route.templateKey),
+          eq(messageTemplate.channel, "email"),
+          eq(messageTemplate.locale, DEFAULT_LOCALE)
+        )
+      );
+    if (!template)
+      throw new Error(`Template ${route.templateKey} has no email`);
+
+    const values = authorityNoticeValues(deps.cipher, breach);
+    const text = renderTemplate(template.body, values);
+    await deps.email.send({
+      to,
+      subject: oneLineSubject(renderTemplate(template.subject ?? "", values)),
+      text,
+      html: renderEmailHtml(text),
+    });
+    const updated = await completeAuthorityNotice(
+      tx,
+      breach,
+      deps.clock.now(),
+      {
+        channel: "email",
+      }
     );
-  }
-  const values = await authorityNoticeValues(deps.db, breachId);
-  if (!values) return;
-
-  const text = renderTemplate(template.body, values);
-  await deps.email.send({
-    to,
-    subject: oneLineSubject(renderTemplate(template.subject ?? "", values)),
-    text,
-    html: renderEmailHtml(text),
+    await recordAudit(
+      tx,
+      { clock: deps.clock, actor: { kind: "system", process: "worker" } },
+      {
+        action: "breach.authority_notified",
+        entity: { type: "breach", id: breachId },
+        actorRole: null,
+        before: breachAuditSnapshot(breach),
+        after: breachAuditSnapshot(updated),
+      }
+    );
   });
-  await deps.db
-    .update(breachRecord)
-    .set({ authorityEmailSentAt: deps.clock.now() })
-    .where(eq(breachRecord.id, breachId));
 }

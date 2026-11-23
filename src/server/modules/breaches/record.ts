@@ -103,7 +103,7 @@ export async function recordBreach(
         .insert(breachRecord)
         .values({
           id,
-          title: details.title,
+          title: sealBreachText(ctx.cipher, "title", details.title),
           awareAt: details.awareAt,
           severity: details.severity,
           personalDataInvolved: details.personalDataInvolved,
@@ -186,7 +186,7 @@ export async function updateBreach(
       if (breach.status === "closed") return { result: CLOSED };
 
       const stored: Record<BreachUpdatableField, unknown> = {
-        title: breach.title,
+        title: openBreachText(ctx.cipher, "title", breach.title),
         severity: breach.severity,
         personalDataInvolved: breach.personalDataInvolved,
         minorsAffected: breach.minorsAffected,
@@ -205,7 +205,9 @@ export async function updateBreach(
       const [updated] = await tx
         .update(breachRecord)
         .set({
-          ...(changed.includes("title") ? { title: fields.title } : {}),
+          ...(changed.includes("title") && fields.title !== undefined
+            ? { title: sealBreachText(ctx.cipher, "title", fields.title) }
+            : {}),
           ...(changed.includes("severity")
             ? { severity: fields.severity }
             : {}),

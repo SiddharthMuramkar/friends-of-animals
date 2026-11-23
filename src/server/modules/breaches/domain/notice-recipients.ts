@@ -70,9 +70,6 @@ export type NoticePlan = {
   unreachable: UnreachablePerson[];
 };
 
-const sameRef = (a: AffectedRef, b: AffectedRef) =>
-  a.type === b.type && a.id === b.id;
-
 /** Plans the notices for the people a breach touched. */
 export function planBreachNotices(
   people: readonly AffectedPerson[]
@@ -82,7 +79,7 @@ export function planBreachNotices(
     { principal: boolean; guardian: boolean; about: AffectedRef[] }
   >();
   const unreachable: UnreachablePerson[] = [];
-  const seen: AffectedRef[] = [];
+  const seen = new Set<string>();
 
   const add = (
     userId: string,
@@ -95,14 +92,14 @@ export function planBreachNotices(
       about: [],
     };
     entry[role] = true;
-    if (!entry.about.some((known) => sameRef(known, ref)))
-      entry.about.push(ref);
+    entry.about.push(ref);
     byUser.set(userId, entry);
   };
 
   for (const person of people) {
-    if (seen.some((ref) => sameRef(ref, person.ref))) continue;
-    seen.push(person.ref);
+    const key = `${person.ref.type}:${person.ref.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     if (person.minor) {
       const guardians = [...new Set(person.guardianUserIds)];
       if (guardians.length === 0) {

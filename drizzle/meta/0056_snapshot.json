@@ -1,5 +1,5 @@
 {
-  "id": "7a08c80c-55f2-4ac8-8bd5-f5ed0a9d105c",
+  "id": "6c483352-ceae-42a3-a295-5ba0837d5dc5",
   "prevId": "0f80e29b-f3d7-4c4d-8431-f46e5e2e24b9",
   "version": "7",
   "dialect": "postgresql",
@@ -8591,7 +8591,23 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "breach_notification_recipient_user_id_idx": {
+          "name": "breach_notification_recipient_user_id_idx",
+          "columns": [
+            {
+              "expression": "recipient_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "breach_notification_breach_id_breach_record_id_fk": {
           "name": "breach_notification_breach_id_breach_record_id_fk",
@@ -8651,8 +8667,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "title": {
-          "name": "title",
+        "title_ciphertext": {
+          "name": "title_ciphertext",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -8726,6 +8742,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "authority_email_queued_at": {
+          "name": "authority_email_queued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "authority_email_sent_at": {
           "name": "authority_email_sent_at",
           "type": "timestamp with time zone",
@@ -8771,6 +8793,21 @@
               "expression": "aware_at",
               "isExpression": false,
               "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "breach_record_lead_user_id_idx": {
+          "name": "breach_record_lead_user_id_idx",
+          "columns": [
+            {
+              "expression": "lead_user_id",
+              "isExpression": false,
+              "asc": true,
               "nulls": "last"
             }
           ],

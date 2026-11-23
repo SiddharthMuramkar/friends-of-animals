@@ -38,12 +38,11 @@ const entries = DATA_INVENTORY.filter((entry) =>
 const listed = entries.map((entry) => `${entry.table}.${entry.column}`);
 
 describe("the breach log's entries in the data inventory", () => {
-  it("list every encrypted column, the title, and every column naming a person", () => {
+  it("list every encrypted column and every column naming a person", () => {
     expect([...listed].sort()).toEqual(
       [
         ...encryptedColumns(breachRecord),
         ...encryptedColumns(breachTimelineEvent),
-        "breach_record.title",
         "breach_record.lead_user_id",
         "breach_timeline_event.author_user_id",
         "breach_notification.recipient_user_id",
@@ -51,6 +50,7 @@ describe("the breach log's entries in the data inventory", () => {
       ].sort()
     );
     expect(encryptedColumns(breachRecord)).toEqual([
+      "breach_record.title_ciphertext",
       "breach_record.impact_ciphertext",
       "breach_record.authority_reference_ciphertext",
     ]);

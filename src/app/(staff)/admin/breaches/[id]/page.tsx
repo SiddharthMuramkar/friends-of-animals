@@ -187,7 +187,7 @@ async function BreachOverview({ breach }: { breach: BreachView }) {
                   ? "summary.authoritySent"
                   : "summary.authorityPending"
               )}{" "}
-              · {when(authority.emailSentAt ?? authority.notifiedAt)}
+              · {when(authority.emailSentAt ?? authority.emailQueuedAt)}
             </>
           ) : (
             t("summary.authorityMissing")

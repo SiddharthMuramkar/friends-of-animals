@@ -17,13 +17,13 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { eq } from "drizzle-orm";
 import { createFormatter, createTranslator } from "next-intl";
 
 import adminBreaches from "../../../../messages/en-IN/adminBreaches.json";
 import { formats, LOCALE } from "../../../i18n/formats";
-import type { AppDb } from "../../db/app-db";
-import { breachRecord } from "../../db/schema";
+import type { FieldCipher } from "../../crypto/field-cipher";
+import type { BreachRecordRow } from "../../db/schema";
+import { openBreachText } from "./content";
 import type { NoticeRecipientRole } from "./domain/notice-recipients";
 
 function refuseFallback(error: Error): never {
@@ -67,26 +67,14 @@ export const AUTHORITY_NOTICE_VARIABLES = [
   "breach.personalDataInvolved",
 ] as const;
 
-/** The breach's facts for the authority's email, or none once it is gone. */
-export async function authorityNoticeValues(
-  db: AppDb,
-  breachId: string
-): Promise<Record<string, string> | null> {
-  const [row] = await db
-    .select({
-      title: breachRecord.title,
-      awareAt: breachRecord.awareAt,
-      severity: breachRecord.severity,
-      affectedCount: breachRecord.affectedCount,
-      minorsAffected: breachRecord.minorsAffected,
-      personalDataInvolved: breachRecord.personalDataInvolved,
-    })
-    .from(breachRecord)
-    .where(eq(breachRecord.id, breachId));
-  if (!row) return null;
+/** The breach's facts for the authority's email. */
+export function authorityNoticeValues(
+  cipher: FieldCipher,
+  row: BreachRecordRow
+): Record<string, string> {
   const yesNo = (value: boolean) => words(value ? "notices.yes" : "notices.no");
   return {
-    "breach.title": row.title,
+    "breach.title": openBreachText(cipher, "title", row.title),
     "breach.awareAt": format.dateTime(row.awareAt, "longDateTime"),
     "breach.severity": words(`severities.${row.severity}`),
     "breach.affectedCount": format.number(row.affectedCount),

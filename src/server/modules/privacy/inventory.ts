@@ -314,9 +314,9 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
   // The breach log (#116): breach staff (super and staff admins) read it
   {
     table: "breach_record",
-    column: "title",
+    column: "title_ciphertext",
     purpose:
-      "A short label for the breach in the log; staff are asked not to name people, but it may still identify someone",
+      "A short label for the breach in the log, which may identify someone (encrypted)",
     retention: BREACH_RECORD,
   },
   {

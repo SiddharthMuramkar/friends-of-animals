@@ -10,15 +10,17 @@
 // encrypted. With neither, nothing is recorded. The authority is told once
 // per breach.
 //
-// Either way the breach moves to `notified` (a notice may go before
-// containment), stamps authority_notified_at, and writes one timeline event
-// and one audit row (never the reference). Loads under plain Node: relative
-// imports only, no "server-only".
+// Only an email accepted by the port or a manual filing completes the
+// notice. Completion stamps authority_notified_at and adds its timeline
+// event and audit row. A manual filing retires an outstanding email.
+// Loads under plain Node: relative imports only, no "server-only".
 
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { breachRecord } from "../../db/schema";
+import type { Ciphertext } from "../../crypto/field-cipher";
+import type { AppDb } from "../../db/app-db";
+import { breachRecord, type BreachRecordRow } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import { emit } from "../../outbox/emit";
 import { readSetting } from "../settings/read";
@@ -37,8 +39,6 @@ const notifyAuthorityInput = z.strictObject({
   manualReference: z.string().trim().max(AUTHORITY_REFERENCE_MAX).optional(),
 });
 
-const emailAddress = z.email();
-
 export type NotifyAuthorityResult =
   | { ok: true; channel: "email" | "manual" }
   | InvalidInput
@@ -48,11 +48,12 @@ export type NotifyAuthorityResult =
         | "not_found"
         | "breach_closed"
         | "already_notified"
+        | "authority_email_queued"
         | "authority_unconfigured"
         | "authority_email_invalid";
     };
 
-/** Emails the authority, or records the reference of a notice filed by hand. */
+/** Queues an authority email, or records a notice filed by hand. */
 export async function notifyAuthority(
   ctx: BreachContext,
   input: unknown
@@ -67,8 +68,8 @@ export async function notifyAuthority(
 
       const breach = await lockBreach(tx, breachId);
       if (!breach) return { result: NOT_FOUND };
-      const decision = decideBreachTransition(breach, "notify");
-      if (!decision.ok) return { result: CLOSED };
+      if (!decideBreachTransition(breach, "notify").ok)
+        return { result: CLOSED };
       if (breach.authorityNotifiedAt !== null) {
         return { result: { ok: false, error: "already_notified" } };
       }
@@ -80,45 +81,43 @@ export async function notifyAuthority(
       if (plan.kind === "refused") {
         return { result: { ok: false, error: plan.reason } };
       }
-      if (plan.kind === "email" && !emailAddress.safeParse(plan.to).success) {
-        return { result: { ok: false, error: "authority_email_invalid" } };
-      }
-
       const now = ctx.clock.now();
-      const [updated] = await tx
-        .update(breachRecord)
-        .set({
-          status: decision.to,
-          authorityNotifiedAt: now,
-          ...(plan.kind === "manual"
-            ? {
-                authorityReference: sealBreachText(
-                  ctx.cipher,
-                  "authorityReference",
-                  plan.reference
-                ),
-              }
-            : {}),
-          updatedAt: now,
-        })
-        .where(eq(breachRecord.id, breachId))
-        .returning();
-      if (!updated) throw new Error(`Breach ${breachId} vanished while locked`);
       if (plan.kind === "email") {
+        if (breach.authorityEmailQueuedAt !== null) {
+          return { result: { ok: false, error: "authority_email_queued" } };
+        }
+        await tx
+          .update(breachRecord)
+          .set({ authorityEmailQueuedAt: now, updatedAt: now })
+          .where(eq(breachRecord.id, breachId));
         await emit(tx, ctx.clock, {
           type: "breach.authority_notice",
           aggregate: { type: "breach", id: breachId },
           payload: { breachId },
         });
+        const snapshot = breachAuditSnapshot(breach);
+        return {
+          result: { ok: true, channel: "email" },
+          audit: {
+            action: "breach.authority_email_queued",
+            breachId,
+            before: snapshot,
+            after: snapshot,
+          },
+        };
       }
-      await appendTimeline(tx, {
-        breachId,
-        kind: "authority_notified",
+
+      const updated = await completeAuthorityNotice(tx, breach, now, {
+        channel: "manual",
         authorUserId: staff.userId,
-        at: now,
+        reference: sealBreachText(
+          ctx.cipher,
+          "authorityReference",
+          plan.reference
+        ),
       });
       return {
-        result: { ok: true, channel: plan.kind },
+        result: { ok: true, channel: "manual" },
         audit: {
           action: "breach.authority_notified",
           breachId,
@@ -128,4 +127,40 @@ export async function notifyAuthority(
       };
     }
   );
+}
+
+type AuthorityDelivery =
+  | { channel: "email" }
+  | { channel: "manual"; authorUserId: string; reference: Ciphertext };
+
+/** Records delivery while holding the same breach lock as the sender. */
+export async function completeAuthorityNotice(
+  tx: AppDb,
+  breach: BreachRecordRow,
+  at: Date,
+  delivery: AuthorityDelivery
+): Promise<BreachRecordRow> {
+  const decision = decideBreachTransition(breach, "notify");
+  const [updated] = await tx
+    .update(breachRecord)
+    .set({
+      // An email queued before closure can finish with the breach still closed.
+      status: decision.ok ? decision.to : breach.status,
+      authorityNotifiedAt: at,
+      authorityEmailQueuedAt: null,
+      authorityEmailSentAt: delivery.channel === "email" ? at : null,
+      authorityReference:
+        delivery.channel === "manual" ? delivery.reference : null,
+      updatedAt: at,
+    })
+    .where(eq(breachRecord.id, breach.id))
+    .returning();
+  if (!updated) throw new Error(`Breach ${breach.id} vanished while locked`);
+  await appendTimeline(tx, {
+    breachId: breach.id,
+    kind: "authority_notified",
+    authorUserId: delivery.channel === "manual" ? delivery.authorUserId : null,
+    at,
+  });
+  return updated;
 }

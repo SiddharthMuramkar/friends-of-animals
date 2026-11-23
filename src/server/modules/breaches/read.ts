@@ -22,6 +22,7 @@ import {
 import { invalidInput, type InvalidInput } from "../../input";
 import { readSetting } from "../settings/read";
 import { openBreachText } from "./content";
+import { configuredAuthorityEmail } from "./domain/authority-notice";
 import {
   allowedBreachEvents,
   type BreachEvent,
@@ -76,7 +77,10 @@ export async function listBreaches(
     .limit(BREACH_LIST_LIMIT + 1);
   return {
     ok: true,
-    breaches: rows.slice(0, BREACH_LIST_LIMIT),
+    breaches: rows.slice(0, BREACH_LIST_LIMIT).map((row) => ({
+      ...row,
+      title: openBreachText(ctx.cipher, "title", row.title),
+    })),
     more: rows.length > BREACH_LIST_LIMIT,
   };
 }
@@ -109,13 +113,15 @@ export type BreachView = {
   createdAt: Date;
   authority: {
     notifiedAt: Date | null;
-    /** How it was told: emailed through the route, or filed by hand. */
+    /** How the authority is being notified. */
     channel: "email" | "manual" | null;
     /** The reference of a notice filed by hand. */
     reference: string | null;
-    /** When the email left; null while it waits or for a manual notice. */
+    /** When the outstanding email was requested. */
+    emailQueuedAt: Date | null;
+    /** When the email port accepted the notice. */
     emailSentAt: Date | null;
-    /** Whether `breach.authorityEmail` holds an address. */
+    /** Whether `breach.authorityEmail` holds a usable address. */
     emailConfigured: boolean;
   };
   notices: {
@@ -204,15 +210,21 @@ export async function getBreach(
   const unreachableOf = (reason: "no_guardian" | "no_account") =>
     unreachableCounts.find((count) => count.reason === reason)?.count ?? 0;
 
-  const authorityEmail = (
-    await readSetting(ctx.db, "breach.authorityEmail")
-  ).trim();
+  const emailConfigured =
+    configuredAuthorityEmail(
+      await readSetting(ctx.db, "breach.authorityEmail")
+    ) !== null;
+  const {
+    authorityEmailQueuedAt: emailQueuedAt,
+    authorityEmailSentAt: emailSentAt,
+    authorityNotifiedAt: notifiedAt,
+  } = row;
 
   return {
     ok: true,
     breach: {
       id: row.id,
-      title: row.title,
+      title: openBreachText(ctx.cipher, "title", row.title),
       status: row.status,
       severity: row.severity,
       awareAt: row.awareAt,
@@ -226,20 +238,21 @@ export async function getBreach(
       lead: personOf(row.leadUserId),
       createdAt: row.createdAt,
       authority: {
-        notifiedAt: row.authorityNotifiedAt,
+        notifiedAt,
         channel:
-          row.authorityNotifiedAt === null
-            ? null
-            : row.authorityReference === null
+          row.authorityReference !== null
+            ? "manual"
+            : emailQueuedAt !== null || emailSentAt !== null
               ? "email"
-              : "manual",
+              : null,
         reference: openBreachText(
           ctx.cipher,
           "authorityReference",
           row.authorityReference
         ),
-        emailSentAt: row.authorityEmailSentAt,
-        emailConfigured: authorityEmail !== "",
+        emailQueuedAt,
+        emailSentAt,
+        emailConfigured,
       },
       notices: {
         recipients:
@@ -260,7 +273,9 @@ export async function getBreach(
       })),
       allowedEvents: allowedBreachEvents(row),
       canNotifyAuthority:
-        row.status !== "closed" && row.authorityNotifiedAt === null,
+        row.status !== "closed" &&
+        notifiedAt === null &&
+        (emailQueuedAt === null || !emailConfigured),
     },
   };
 }
