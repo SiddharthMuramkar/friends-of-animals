@@ -8,6 +8,7 @@
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
 import { offsiteCopySchedule } from "../modules/offsite-copy/schedule";
+import { reconcileLedgerSchedule } from "../modules/ledger/backfill";
 import type { ErrorReporter } from "../ports/errors";
 import type { OutboxDeps } from "./handlers";
 
@@ -41,7 +42,10 @@ export type ScheduleDefinition = {
   run(deps: ScheduleDeps, job?: ScheduleJob): Promise<void>;
 };
 
-export const SCHEDULES: readonly ScheduleDefinition[] = [offsiteCopySchedule];
+export const SCHEDULES: readonly ScheduleDefinition[] = [
+  offsiteCopySchedule,
+  reconcileLedgerSchedule,
+];
 
 const NAME = /^[a-z0-9_]+(\.[a-z0-9_]+)*$/;
 

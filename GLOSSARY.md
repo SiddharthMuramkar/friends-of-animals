@@ -243,6 +243,10 @@ the fallback gateway's stand-in for Razorpay's Checkout, on the pay page. It
 moves no money and never runs in production.
 _Avoid_: Mock payment, dummy gateway
 
+**Ledger**:
+FOA's double-entry financial record. Each posting records money in INR with
+equal debits and credits, and corrections are recorded as new postings.
+
 **Registration number**:
 What a confirmed registration is known by: the competition's code, "R" and
 six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the
