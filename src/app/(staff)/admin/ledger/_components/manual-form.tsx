@@ -10,27 +10,43 @@ import { buttonStyles } from "@/components/site/button-link";
 import { MAX_LINES } from "@/server/modules/ledger/domain/posting";
 
 import { createEntryAction } from "../_lib/actions";
-import { copy } from "../_lib/copy";
 import { initialFormState } from "../_lib/form-state";
-import { LedgerFormFeedback } from "./form-feedback";
+import { LedgerFormFeedback, type LedgerFeedbackLabels } from "./form-feedback";
 
 function emptyLine(id: number, side = "") {
   return { id, accountCode: "", side, amount: "", memo: "" };
 }
 
-const sideOptions = [
-  { value: "debit", label: copy.debit },
-  { value: "credit", label: copy.credit },
-];
-
 export function ManualEntryForm({
   today,
   accounts,
+  labels: t,
 }: {
   today: string;
   accounts: { value: string; label: string }[];
+  labels: {
+    date: string;
+    description: string;
+    line: string;
+    account: string;
+    chooseAccount: string;
+    side: string;
+    chooseSide: string;
+    debit: string;
+    credit: string;
+    amount: string;
+    memo: string;
+    add: string;
+    remove: string;
+    submit: string;
+    saving: string;
+    feedback: LedgerFeedbackLabels;
+  };
 }) {
-  const t = copy.manual;
+  const sideOptions = [
+    { value: "debit", label: t.debit },
+    { value: "credit", label: t.credit },
+  ];
   const [state, action, pending] = useActionState(
     createEntryAction,
     initialFormState
@@ -62,7 +78,7 @@ export function ManualEntryForm({
 
   return (
     <form action={action} className="max-w-4xl space-y-5">
-      <LedgerFormFeedback state={state} />
+      <LedgerFormFeedback state={state} labels={t.feedback} />
       <TextField
         id="ledger-entry-date"
         name="date"
@@ -157,7 +173,7 @@ export function ManualEntryForm({
         </fieldset>
       ))}
       <div className="flex flex-wrap gap-3">
-        <SubmitButton pendingLabel={copy.saving}>{t.submit}</SubmitButton>
+        <SubmitButton pendingLabel={t.saving}>{t.submit}</SubmitButton>
         <button
           type="button"
           className={buttonStyles({ variant: "secondary" })}

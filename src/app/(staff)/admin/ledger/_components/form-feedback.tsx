@@ -1,15 +1,26 @@
 import { FormAlert } from "@/components/form/form-alert";
 
-import { copy } from "../_lib/copy";
-import type { LedgerFormState } from "../_lib/form-state";
+import type { LedgerErrorCode, LedgerFormState } from "../_lib/form-state";
 
-export function LedgerFormFeedback({ state }: { state: LedgerFormState }) {
+export type LedgerFeedbackLabels = {
+  problem: string;
+  saved?: string;
+  errors: Partial<Record<LedgerErrorCode, string>>;
+};
+
+export function LedgerFormFeedback({
+  state,
+  labels,
+}: {
+  state: LedgerFormState;
+  labels: LedgerFeedbackLabels;
+}) {
   if (state.error) {
     return (
-      <FormAlert tone="danger" label={copy.problem}>
-        <p>{copy.errors[state.error]}</p>
+      <FormAlert tone="danger" label={labels.problem}>
+        <p>{labels.errors[state.error]}</p>
       </FormAlert>
     );
   }
-  return state.saved ? <output>{copy.saved}</output> : null;
+  return state.saved ? <output>{labels.saved}</output> : null;
 }

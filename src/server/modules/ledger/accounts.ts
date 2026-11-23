@@ -150,7 +150,9 @@ async function changeLedgerAccount(
       before: accountAudit(before),
       after: {
         ...accountAudit(after),
-        changedFields: Object.keys(checked.change),
+        changedFields: (
+          ["name", "publicLabel", "publicGroup", "isActive"] as const
+        ).filter((field) => before[field] !== after[field]),
       },
       actorRole: role,
     });

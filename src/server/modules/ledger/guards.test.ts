@@ -40,9 +40,9 @@ async function insertPosting(
 ): Promise<void> {
   await writer.execute(sql`
     INSERT INTO ledger_posting
-      (id, source_type, source_id, occurred_at, period_month, description, created_at)
+      (id, source_type, source_id, occurred_at, period_month, description, created_at, expected_line_count)
     VALUES
-      (${id}, 'manual', ${id}, '2027-01-15T04:30:00Z', '2027-01', 'Raw test posting', '2027-01-15T04:30:00Z')
+      (${id}, 'manual', ${id}, '2027-01-15T04:30:00Z', '2027-01', 'Raw test posting', '2027-01-15T04:30:00Z', ${Math.max(2, lines.length)})
   `);
   for (const [index, line] of lines.entries()) {
     await insertLine(writer, id, index + 1, line);
@@ -195,6 +195,20 @@ describe("a posting must balance when its transaction commits", () => {
     );
 
     expect(refused.message).toMatch(/unbalanced/);
+    expect(await count("ledger_line")).toBe(2);
+  });
+
+  it("refuses further lines on a committed posting even when they balance", async () => {
+    const id = await commitPosting(BALANCED);
+
+    const refused = await rejection(
+      db.transaction(async (tx) => {
+        await insertLine(tx, id, 3, { code: "1000", debit: 500n, credit: 0n });
+        await insertLine(tx, id, 4, { code: "4100", debit: 0n, credit: 500n });
+      })
+    );
+
+    expect(refused.code).toBe("23514");
     expect(await count("ledger_line")).toBe(2);
   });
 });

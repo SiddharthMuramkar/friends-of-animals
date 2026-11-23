@@ -1,6 +1,6 @@
-import type { copy } from "./copy";
+import type { messages } from "@/i18n/messages";
 
-type ErrorCode = keyof typeof copy.errors;
+export type LedgerErrorCode = keyof typeof messages.adminLedger.errors;
 
-export type LedgerFormState = { error?: ErrorCode; saved?: true };
+export type LedgerFormState = { error?: LedgerErrorCode; saved?: true };
 export const initialFormState: LedgerFormState = {};

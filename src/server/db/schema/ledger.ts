@@ -5,8 +5,9 @@
 // Postings are append-only: a mistake is corrected by a reversal or a new
 // entry, never by an edit. drizzle/*_105_ledger_guards.sql backs that with
 // triggers: UPDATE, DELETE and TRUNCATE on postings and lines fail, and at
-// COMMIT every posting must have at least two lines that balance. The same
-// file inserts the seeded chart of accounts (SEEDED_ACCOUNTS).
+// COMMIT every posting must have exactly the line count in its header and
+// equal debits and credits. The same file inserts the seeded chart of
+// accounts (SEEDED_ACCOUNTS).
 //
 // Amounts are bigint paise in INR (#55). `source_type` is a text registry
 // (LEDGER_SOURCE_TYPES), not an enum, so later sources (donations, auction
@@ -94,6 +95,8 @@ export const ledgerPosting = pgTable(
     periodMonth: text("period_month").notNull(),
     /** May name people (a manual entry's counterparty): never copied to the audit log. */
     description: text().notNull(),
+    /** The number of lines set when the posting is created. */
+    expectedLineCount: smallint("expected_line_count").notNull(),
     /** The competition the money belongs to, when it belongs to one. */
     competitionId: uuid("competition_id"),
     /** The posting this one undoes: a refund's capture, a reversal's manual entry. */
@@ -118,6 +121,10 @@ export const ledgerPosting = pgTable(
     check(
       "ledger_posting_description_length",
       sql`char_length(${table.description}) BETWEEN 1 AND 500`
+    ),
+    check(
+      "ledger_posting_minimum_line_count",
+      sql`${table.expectedLineCount} >= 2`
     ),
     // The postings screen filters by date and lists newest first.
     index("ledger_posting_occurred_at_idx").on(table.occurredAt),

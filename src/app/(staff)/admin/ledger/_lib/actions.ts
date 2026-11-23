@@ -35,6 +35,20 @@ async function signedInLedger() {
   return as(actor);
 }
 
+const singleTextField = z.tuple([z.string()]).transform(([value]) => value);
+const manualEntryForm = z.object({
+  date: singleTextField,
+  description: singleTextField,
+  lines: z.array(
+    z.object({
+      accountCode: z.string(),
+      side: z.enum(["debit", "credit"]),
+      amount: z.string(),
+      memo: z.string(),
+    })
+  ),
+});
+
 export async function createEntryAction(
   _previous: LedgerFormState,
   data: FormData
@@ -51,19 +65,21 @@ export async function createEntryAction(
     memos.length !== accounts.length
   )
     return { error: "invalid_input" };
+
+  const form = manualEntryForm.safeParse({
+    date: data.getAll("date"),
+    description: data.getAll("description"),
+    lines: accounts.map((accountCode, index) => ({
+      accountCode,
+      side: sides[index],
+      amount: amounts[index],
+      memo: memos[index],
+    })),
+  });
+  if (!form.success) return { error: "invalid_input" };
+
   const lines: LineDraft[] = [];
-  for (const [index, accountCode] of accounts.entries()) {
-    const side = sides[index];
-    const amount = amounts[index];
-    const memo = memos[index];
-    if (
-      typeof accountCode !== "string" ||
-      typeof amount !== "string" ||
-      typeof memo !== "string" ||
-      (side !== "debit" && side !== "credit")
-    ) {
-      return { error: "invalid_input" };
-    }
+  for (const { accountCode, side, amount, memo } of form.data.lines) {
     if (amount.length > 32) return { error: "amount_too_large" };
     const parsed = parseRupees(amount);
     if (!parsed.ok) {
@@ -80,8 +96,8 @@ export async function createEntryAction(
   const result = await adminCall(
     () =>
       ledger.createManualEntry({
-        date: text(data, "date"),
-        description: text(data, "description"),
+        date: form.data.date,
+        description: form.data.description,
         lines,
       }),
     ADMIN_NEW_LEDGER_ENTRY

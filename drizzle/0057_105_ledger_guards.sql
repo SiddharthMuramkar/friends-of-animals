@@ -1,3 +1,4 @@
+-- Custom SQL migration file, put your code below! --
 CREATE FUNCTION ledger_reject_mutation() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -45,6 +46,12 @@ BEGIN
   END IF;
   IF debit_total <> credit_total THEN
     RAISE EXCEPTION 'Ledger posting % is unbalanced', entry_id
+      USING ERRCODE = '23514';
+  END IF;
+  IF line_count IS DISTINCT FROM (
+    SELECT expected_line_count FROM public.ledger_posting WHERE id = entry_id
+  ) THEN
+    RAISE EXCEPTION 'Ledger posting % line count does not match its header', entry_id
       USING ERRCODE = '23514';
   END IF;
   RETURN NULL;

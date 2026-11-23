@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { connection } from "next/server";
-import { Suspense } from "react";
+import { Suspense, type ComponentProps } from "react";
 
 import { ADMIN_LEDGER, APP_ROUTES } from "@/lib/app-routes";
 import { as, currentActor } from "@/server/app";
@@ -22,20 +22,12 @@ export const instant = false;
  */
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   await connection();
-  const [t, ledger, actor] = await Promise.all([
-    getTranslations("admin.nav"),
-    getTranslations("adminLedger.list"),
-    currentActor(),
-  ]);
-  const finance =
-    actor.kind === "user" &&
-    (await as(actor).myAccess()).grants.some(({ role }) => role === "finance");
+  const t = await getTranslations("admin.nav");
   const nav = {
     label: t("label"),
     links: [
       { href: APP_ROUTES.adminRoles, label: t("roles") },
       { href: APP_ROUTES.adminAudit, label: t("audit") },
-      ...(finance ? [{ href: ADMIN_LEDGER, label: ledger("title") }] : []),
     ],
   };
   return (
@@ -43,7 +35,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       <div className="border-b border-border bg-surface">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Suspense fallback={<AdminNavView {...nav} pathname={null} />}>
-            <AdminNav {...nav} />
+            <AdminNavWithLedger {...nav} />
           </Suspense>
         </div>
       </div>
@@ -52,5 +44,21 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       </Suspense>
       {children}
     </>
+  );
+}
+
+async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
+  const actor = await currentActor();
+  const finance =
+    actor.kind === "user" &&
+    (await as(actor).myAccess()).grants.some(({ role }) => role === "finance");
+  if (!finance) return <AdminNav {...nav} />;
+
+  const t = await getTranslations("adminLedger.list");
+  return (
+    <AdminNav
+      label={nav.label}
+      links={[...nav.links, { href: ADMIN_LEDGER, label: t("title") }]}
+    />
   );
 }

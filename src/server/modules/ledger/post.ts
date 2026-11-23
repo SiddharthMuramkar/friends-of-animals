@@ -125,6 +125,7 @@ export async function postToLedger(
       occurredAt: entry.occurredAt,
       periodMonth,
       description,
+      expectedLineCount: lines.length,
       competitionId: entry.competitionId,
       reversalOfPostingId: entry.reversalOfPostingId,
       createdByUserId: ctx.actor.kind === "user" ? ctx.actor.userId : null,

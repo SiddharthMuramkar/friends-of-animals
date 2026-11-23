@@ -1,6 +1,6 @@
 {
-  "id": "afc37d28-45c3-46c9-b377-4dc4e2be2549",
-  "prevId": "b5dc5c15-b6df-4d8c-94d8-5025277a9bb3",
+  "id": "693abceb-adf9-4d7e-b9ce-674c83ff1629",
+  "prevId": "ecacf10c-4c87-4dbd-903c-666743a6f239",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1277,6 +1277,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "expected_line_count": {
+          "name": "expected_line_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
         "competition_id": {
           "name": "competition_id",
           "type": "uuid",
@@ -1376,6 +1382,10 @@
         "ledger_posting_description_length": {
           "name": "ledger_posting_description_length",
           "value": "char_length(\"ledger_posting\".\"description\") BETWEEN 1 AND 500"
+        },
+        "ledger_posting_minimum_line_count": {
+          "name": "ledger_posting_minimum_line_count",
+          "value": "\"ledger_posting\".\"expected_line_count\" >= 2"
         }
       },
       "isRLSEnabled": false

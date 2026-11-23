@@ -45,6 +45,7 @@ describe("manual entries", () => {
     expect(posted).toMatchObject({
       sourceType: "manual",
       sourceId: posted!.id,
+      expectedLineCount: 2,
       periodMonth: "2027-01",
       occurredAt: new Date("2026-12-31T18:30:00Z"),
       description: ENTRY.description,
@@ -118,6 +119,27 @@ describe("manual entries", () => {
 });
 
 describe("ledger categories and corrections", () => {
+  it("audits only the category fields that actually changed", async () => {
+    const h = await createHarness();
+    const { actor } = await signInStaff(h);
+    const app = h.as(actor);
+    expect(await app.createLedgerAccount(CATEGORY)).toMatchObject({ ok: true });
+    expect(
+      await app.updateLedgerAccount({
+        code: CATEGORY.code,
+        name: CATEGORY.name,
+        publicLabel: "Competition venues",
+        publicGroup: "programs",
+      })
+    ).toMatchObject({ ok: true });
+
+    const updated = (await audit(h)).find(
+      (row) => row.action === "ledger.account_updated"
+    );
+    expect(updated?.after).toMatchObject({ changedFields: ["publicLabel"] });
+    expect(JSON.stringify(updated)).not.toContain("Competition venues");
+  });
+
   it("creates, labels and deactivates a category, preserving its history and audit", async () => {
     const h = await createHarness();
     const { actor } = await signInStaff(h);

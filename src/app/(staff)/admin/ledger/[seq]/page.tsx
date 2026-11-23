@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 
 import { SiteLink } from "@/components/site/site-link";
@@ -10,12 +11,14 @@ import { isLedgerSourceType } from "@/server/modules/ledger/domain/posting-rules
 import { formatPaise } from "@/server/modules/payments/domain/money-format";
 
 import { adminCall } from "../../_lib/boundary";
+import { LedgerDenied } from "../_components/denied";
 import { LedgerFrame } from "../_components/frame";
 import { ReversePostingForm } from "../_components/reverse-form";
-import { copy, ledgerMetadata } from "../_lib/copy";
+import { ledgerFeedbackLabels, ledgerMetadata } from "../_lib/copy";
 
-const t = copy.detail;
-export const metadata = ledgerMetadata(t.title);
+export function generateMetadata() {
+  return ledgerMetadata("detail");
+}
 const cell = "px-4 py-3 align-top";
 const number = `${cell} text-right whitespace-nowrap tabular-nums`;
 const link = "inline-flex min-h-11 items-center text-link underline";
@@ -23,35 +26,36 @@ const link = "inline-flex min-h-11 items-center text-link underline";
 export default async function Page({
   params,
 }: PageProps<"/admin/ledger/[seq]">) {
-  const actor = await currentActor();
+  const [actor, t] = await Promise.all([
+    currentActor(),
+    getTranslations("adminLedger"),
+  ]);
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const { seq } = await params;
   const result = await adminCall(
     () => as(actor).getPosting(seq),
     adminLedgerPostingPath(seq)
   );
-  if (!result.ok)
-    return (
-      <LedgerFrame title={t.title} back>
-        <p>{copy.denied}</p>
-      </LedgerFrame>
-    );
+  if (!result.ok) return <LedgerDenied title={t("detail.title")} />;
   if (!result.value.ok) notFound();
   const posting = result.value.posting;
   const day = istDateOf(posting.occurredAt);
   const source = isLedgerSourceType(posting.sourceType)
-    ? copy.sources[posting.sourceType]
-    : copy.sources.other;
+    ? posting.sourceType
+    : "other";
 
   return (
-    <LedgerFrame title={`${t.title} #${posting.seq}`} back>
+    <LedgerFrame
+      title={`${t("detail.title")} #${posting.seq}`}
+      back={t("back")}
+    >
       <p className="text-ink-muted">
-        <time dateTime={day}>{day}</time> · {source}
+        <time dateTime={day}>{day}</time> · {t(`sources.${source}`)}
       </p>
       <p className="text-lead wrap-anywhere">{posting.description}</p>
       {posting.reversalOfSeq ? (
         <p>
-          {t.reversalOf}{" "}
+          {t("detail.reversalOf")}{" "}
           <SiteLink
             href={adminLedgerPostingPath(posting.reversalOfSeq)}
             className={link}
@@ -62,7 +66,7 @@ export default async function Page({
       ) : null}
       {posting.reversedBySeq ? (
         <p>
-          {t.reversedBy}{" "}
+          {t("detail.reversedBy")}{" "}
           <SiteLink
             href={adminLedgerPostingPath(posting.reversedBySeq)}
             className={link}
@@ -74,21 +78,21 @@ export default async function Page({
       <TableScroller captionId="ledger-lines-caption">
         <table className="w-full text-left">
           <caption id="ledger-lines-caption" className="sr-only">
-            {t.caption}
+            {t("detail.caption")}
           </caption>
           <thead className="bg-surface-muted text-sm">
             <tr>
               <th scope="col" className={cell}>
-                {t.account}
+                {t("detail.account")}
               </th>
               <th scope="col" className={number}>
-                {copy.debit}
+                {t("debit")}
               </th>
               <th scope="col" className={number}>
-                {copy.credit}
+                {t("credit")}
               </th>
               <th scope="col" className={cell}>
-                {t.memo}
+                {t("detail.memo")}
               </th>
             </tr>
           </thead>
@@ -107,7 +111,19 @@ export default async function Page({
         </table>
       </TableScroller>
       {posting.sourceType === "manual" && !posting.reversedBySeq ? (
-        <ReversePostingForm seq={posting.seq.toString()} />
+        <ReversePostingForm
+          seq={posting.seq.toString()}
+          labels={{
+            saving: t("saving"),
+            submit: t("detail.reverse"),
+            feedback: ledgerFeedbackLabels(t, [
+              "forbidden",
+              "not_found",
+              "not_reversible",
+              "already_reversed",
+            ]),
+          }}
+        />
       ) : null}
     </LedgerFrame>
   );

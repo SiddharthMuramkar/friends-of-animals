@@ -1,5 +1,6 @@
 {
   "adminLedger": {
+    "deniedTitle": "Finance access required",
     "denied": "Only FOA finance staff can open the ledger.",
     "back": "Ledger",
     "saving": "Saving…",

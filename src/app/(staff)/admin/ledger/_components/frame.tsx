@@ -5,15 +5,13 @@ import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import { ADMIN_LEDGER } from "@/lib/app-routes";
 
-import { copy } from "../_lib/copy";
-
 export function LedgerFrame({
   title,
   back,
   children,
 }: {
   title: string;
-  back?: boolean;
+  back?: string;
   children: ReactNode;
 }) {
   return (
@@ -23,7 +21,7 @@ export function LedgerFrame({
           href={ADMIN_LEDGER}
           className="mb-3 inline-flex min-h-11 items-center text-link underline"
         >
-          {copy.back}
+          {back}
         </SiteLink>
       ) : null}
       <PageHeader title={title} />

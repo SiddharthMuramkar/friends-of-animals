@@ -39,6 +39,7 @@ CREATE TABLE "ledger_posting" (
 	"occurred_at" timestamp with time zone NOT NULL,
 	"period_month" text NOT NULL,
 	"description" text NOT NULL,
+	"expected_line_count" smallint NOT NULL,
 	"competition_id" uuid,
 	"reversal_of_posting_id" uuid,
 	"created_by_user_id" uuid,
@@ -46,7 +47,8 @@ CREATE TABLE "ledger_posting" (
 	CONSTRAINT "ledger_posting_seq_key" UNIQUE("seq"),
 	CONSTRAINT "ledger_posting_source_key" UNIQUE("source_type","source_id"),
 	CONSTRAINT "ledger_posting_period_month_format" CHECK ("ledger_posting"."period_month" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
-	CONSTRAINT "ledger_posting_description_length" CHECK (char_length("ledger_posting"."description") BETWEEN 1 AND 500)
+	CONSTRAINT "ledger_posting_description_length" CHECK (char_length("ledger_posting"."description") BETWEEN 1 AND 500),
+	CONSTRAINT "ledger_posting_minimum_line_count" CHECK ("ledger_posting"."expected_line_count" >= 2)
 );
 --> statement-breakpoint
 ALTER TABLE "ledger_line" ADD CONSTRAINT "ledger_line_posting_id_ledger_posting_id_fk" FOREIGN KEY ("posting_id") REFERENCES "public"."ledger_posting"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
