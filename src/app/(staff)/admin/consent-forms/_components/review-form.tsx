@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
 import {
@@ -9,6 +8,7 @@ import {
   SubmitButton,
   TextAreaField,
 } from "@/components/form";
+import type { Messages } from "@/i18n/messages";
 import {
   REJECTION_NOTE_MAX,
   REJECTION_REASONS,
@@ -16,15 +16,29 @@ import {
 
 import { reviewSignedFormAction } from "../actions";
 
+type ReviewLabels = Pick<
+  Messages["adminConsentForms"],
+  | "accept"
+  | "acceptHint"
+  | "reject"
+  | "submitting"
+  | "reason"
+  | "chooseReason"
+  | "reasons"
+  | "note"
+  | "noteHint"
+  | "errors"
+> & { problem: string };
+
 export function ReviewForm({
   formId,
   canAccept,
+  labels,
 }: {
   formId: string;
   canAccept: boolean;
+  labels: ReviewLabels;
 }) {
-  const t = useTranslations("adminConsentForms");
-  const callout = useTranslations("common.callout");
   const [accept, submitAccept] = useActionState(
     reviewSignedFormAction.bind(null, formId, "accept"),
     {}
@@ -46,34 +60,34 @@ export function ReviewForm({
       {canAccept ? (
         <form
           action={submitAccept}
-          aria-label={t("accept")}
+          aria-label={labels.accept}
           className="grid gap-3 justify-items-start"
         >
-          <p>{t("acceptHint")}</p>
+          <p>{labels.acceptHint}</p>
           {accept.error ? (
-            <FormAlert tone="danger" label={callout("danger")}>
-              {t(`errors.${accept.error}`)}
+            <FormAlert tone="danger" label={labels.problem}>
+              {labels.errors[accept.error]}
             </FormAlert>
           ) : null}
-          <SubmitButton pendingLabel={t("submitting")}>
-            {t("accept")}
+          <SubmitButton pendingLabel={labels.submitting}>
+            {labels.accept}
           </SubmitButton>
         </form>
       ) : null}
       <form
         action={submitReject}
-        aria-label={t("reject")}
+        aria-label={labels.reject}
         className="grid gap-4"
       >
         <SelectField
           id="consent-form-reason"
           name="reason"
-          label={t("reason")}
-          placeholder={t("chooseReason")}
+          label={labels.reason}
+          placeholder={labels.chooseReason}
           required
           options={REJECTION_REASONS.map((value) => ({
             value,
-            label: t(`reasons.${value}`),
+            label: labels.reasons[value],
           }))}
           value={reason}
           onChange={(event) => changeReason(event.currentTarget.value)}
@@ -81,11 +95,11 @@ export function ReviewForm({
         <TextAreaField
           id="consent-form-note"
           name="note"
-          label={t("note")}
-          hint={t("noteHint")}
+          label={labels.note}
+          hint={labels.noteHint}
           error={
             noteError ? (
-              <span role="alert">{t(`errors.${noteError}`)}</span>
+              <span role="alert">{labels.errors[noteError]}</span>
             ) : undefined
           }
           maxLength={REJECTION_NOTE_MAX}
@@ -94,13 +108,13 @@ export function ReviewForm({
           onChange={(event) => changeNote(event.currentTarget.value)}
         />
         {reject.error && !noteError ? (
-          <FormAlert tone="danger" label={callout("danger")}>
-            {t(`errors.${reject.error}`)}
+          <FormAlert tone="danger" label={labels.problem}>
+            {labels.errors[reject.error]}
           </FormAlert>
         ) : null}
         <div>
-          <SubmitButton variant="secondary" pendingLabel={t("submitting")}>
-            {t("reject")}
+          <SubmitButton variant="secondary" pendingLabel={labels.submitting}>
+            {labels.reject}
           </SubmitButton>
         </div>
       </form>

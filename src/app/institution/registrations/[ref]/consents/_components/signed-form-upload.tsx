@@ -1,13 +1,12 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useId, useRef, useState, useTransition, type FormEvent } from "react";
 
 import { completeUploadAction } from "@/app/account/files/_lib/actions";
 import { putHeaders } from "@/app/account/files/_lib/upload";
 import { FormAlert, SubmitButton } from "@/components/form";
 import { inputStyles } from "@/components/form/text-field";
-import type { SignedFormsForRegistration } from "@/server/modules/consent-forms/dashboard";
+import type { PublicPurpose } from "@/server/modules/consent/domain/public-use";
 import { PURPOSE_RULES } from "@/server/modules/files/domain/purposes";
 import type { Messages } from "@/i18n/messages";
 
@@ -15,22 +14,33 @@ import {
   requestSignedFormUploadAction,
   submitSignedFormAction,
 } from "../signed-form-actions";
+import type { SignedFormFeedback } from "./signed-form-command";
 
 type UploadError = keyof Messages["adminConsentForms"]["errors"];
 
 export function SignedFormUpload({
   registrationId,
   studentId,
-  studentName,
   offers,
+  labels,
+  feedback,
 }: {
   registrationId: string;
   studentId: string;
-  studentName: string;
-  offers: SignedFormsForRegistration["offers"];
+  offers: {
+    purpose: PublicPurpose;
+    id: string;
+    label: string;
+    versionLabel: string;
+  }[];
+  labels: Pick<
+    Messages["adminConsentForms"]["coordinator"],
+    "file" | "limits" | "uses" | "submit" | "uploading"
+  > & {
+    accessibleName: string;
+  };
+  feedback: SignedFormFeedback;
 }) {
-  const t = useTranslations("adminConsentForms");
-  const callout = useTranslations("common.callout");
   const fieldId = useId();
   const scan = useRef<HTMLInputElement>(null);
   const [pending, startUpload] = useTransition();
@@ -89,15 +99,15 @@ export function SignedFormUpload({
     <form
       onSubmit={onSubmit}
       method="post"
-      aria-label={t("coordinator.uploadFor", { student: studentName })}
+      aria-label={labels.accessibleName}
       className="grid gap-4"
     >
       <div className="grid gap-2">
         <label htmlFor={fieldId} className="font-semibold">
-          {t("coordinator.file")}
+          {labels.file}
         </label>
         <p id={`${fieldId}-limits`} className="text-sm text-ink-muted">
-          {t("coordinator.limits")}
+          {labels.limits}
         </p>
         {/* The scan bytes only travel in the signed PUT. */}
         <input
@@ -111,8 +121,8 @@ export function SignedFormUpload({
         />
       </div>
       <fieldset className="grid gap-1 border-0">
-        <legend className="mb-1 font-semibold">{t("coordinator.uses")}</legend>
-        {offers.map(({ purpose, version, title }) => (
+        <legend className="mb-1 font-semibold">{labels.uses}</legend>
+        {offers.map(({ purpose, label, versionLabel }) => (
           <label key={purpose} className="flex min-h-11 items-start gap-3 py-2">
             <input
               className="mt-1 size-4 shrink-0 accent-link"
@@ -121,25 +131,22 @@ export function SignedFormUpload({
               value={purpose}
             />
             <span>
-              {t(`purposes.${purpose}`)}{" "}
+              {label}{" "}
               <span className="block text-sm text-ink-muted">
-                {t("version", { version, title })}
+                {versionLabel}
               </span>
             </span>
           </label>
         ))}
       </fieldset>
       {error ? (
-        <FormAlert tone="danger" label={callout("danger")}>
-          {t(`errors.${error}`)}
+        <FormAlert tone="danger" label={feedback.problem}>
+          {feedback.errors[error]}
         </FormAlert>
       ) : null}
       <div>
-        <SubmitButton
-          pending={pending}
-          pendingLabel={t("coordinator.uploading")}
-        >
-          {t("coordinator.submit")}
+        <SubmitButton pending={pending} pendingLabel={labels.uploading}>
+          {labels.submit}
         </SubmitButton>
       </div>
     </form>

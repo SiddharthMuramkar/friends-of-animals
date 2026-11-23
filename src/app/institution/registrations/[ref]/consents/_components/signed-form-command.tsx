@@ -1,44 +1,46 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
 import { FormAlert, SubmitButton } from "@/components/form";
+import type { Messages } from "@/i18n/messages";
 
 import { signedFormCommandAction } from "../signed-form-actions";
 
+export type SignedFormFeedback = {
+  errors: Messages["adminConsentForms"]["errors"];
+  problem: string;
+};
+
 export function SignedFormCommand({
   command,
-  studentName,
+  label,
+  accessibleName = label,
+  pendingLabel,
+  feedback,
 }: {
   command: Parameters<typeof signedFormCommandAction>[0];
-  studentName?: string;
+  label: string;
+  accessibleName?: string;
+  pendingLabel: string;
+  feedback: SignedFormFeedback;
 }) {
-  const t = useTranslations("adminConsentForms");
-  const callout = useTranslations("common.callout");
   const [state, action] = useActionState(
     signedFormCommandAction.bind(null, command),
     {}
   );
-  const label = t(
-    command.kind === "declare" ? "coordinator.declare" : "coordinator.withdraw"
-  );
   return (
     <form
       action={action}
-      aria-label={
-        studentName
-          ? t("coordinator.withdrawFor", { student: studentName })
-          : label
-      }
+      aria-label={accessibleName}
       className="grid justify-items-start gap-3"
     >
       {state.error ? (
-        <FormAlert tone="danger" label={callout("danger")}>
-          {t(`errors.${state.error}`)}
+        <FormAlert tone="danger" label={feedback.problem}>
+          {feedback.errors[state.error]}
         </FormAlert>
       ) : null}
-      <SubmitButton variant="secondary" pendingLabel={t("submitting")}>
+      <SubmitButton variant="secondary" pendingLabel={pendingLabel}>
         {label}
       </SubmitButton>
     </form>

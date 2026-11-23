@@ -52,12 +52,13 @@ test("staff can read the signed-form queue and see an accessible rejection error
   await expect(page.getByRole("heading", { name: "Diya N." })).toBeVisible();
   await expect(page.getByText("Pending review", { exact: true })).toBeVisible();
   await expectAccessible(page, "pending signed form");
-  await page.getByLabel("Rejection reason").selectOption("other");
-  await page.getByRole("button", { name: "Reject signed form" }).click();
-  await expect(page.getByRole("alert")).toContainText(
+  const rejection = page.getByRole("form", { name: "Reject signed form" });
+  await rejection.getByLabel("Rejection reason").selectOption("other");
+  await rejection.getByRole("button", { name: "Reject signed form" }).click();
+  await expect(rejection.getByRole("alert")).toContainText(
     "Add a note explaining why you chose Other."
   );
-  await expect(page.getByLabel("Note to the coordinator")).toHaveAttribute(
+  await expect(rejection.getByLabel("Note to the coordinator")).toHaveAttribute(
     "aria-invalid",
     "true"
   );

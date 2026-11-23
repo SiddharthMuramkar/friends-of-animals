@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 
 import { Disclosure } from "@/components/site/disclosure";
 import { SectionHeading } from "@/components/site/heading";
@@ -14,19 +14,25 @@ export async function ParticipationDeclaration({
   registrationId: string;
   declaredAt: Date | null;
 }) {
-  const t = await getTranslations("adminConsentForms.coordinator");
+  const { adminConsentForms: words, common } = await getMessages();
+  const { declaration, declared, declareHint, declare } = words.coordinator;
   return (
     <section
       aria-labelledby="participation-declaration"
       className="grid gap-3 rounded-3xl border-2 border-border bg-surface p-5"
     >
-      <SectionHeading id="participation-declaration" title={t("declaration")} />
+      <SectionHeading id="participation-declaration" title={declaration} />
       {declaredAt ? (
-        <p>{t("declared")}</p>
+        <p>{declared}</p>
       ) : (
         <>
-          <p>{t("declareHint")}</p>
-          <SignedFormCommand command={{ kind: "declare", registrationId }} />
+          <p>{declareHint}</p>
+          <SignedFormCommand
+            command={{ kind: "declare", registrationId }}
+            label={declare}
+            pendingLabel={words.submitting}
+            feedback={{ errors: words.errors, problem: common.callout.danger }}
+          />
         </>
       )}
     </section>
@@ -44,8 +50,13 @@ export async function SignedFormCell({
   studentName: string;
   offers: SignedFormsForRegistration["offers"];
 }) {
-  const t = await getTranslations("adminConsentForms");
+  const [t, { adminConsentForms: words, common }] = await Promise.all([
+    getTranslations("adminConsentForms"),
+    getMessages(),
+  ]);
   const { form, studentId } = student;
+  const feedback = { errors: words.errors, problem: common.callout.danger };
+  const { file, limits, uses, submit, uploading } = words.coordinator;
   return (
     <div className="mt-4 grid gap-2 border-t border-border pt-4">
       <p className="font-semibold">{t("coordinator.heading")}</p>
@@ -59,15 +70,35 @@ export async function SignedFormCell({
       {form?.status === "pending_review" ? (
         <SignedFormCommand
           command={{ kind: "withdraw", formId: form.id }}
-          studentName={studentName}
+          label={words.coordinator.withdraw}
+          accessibleName={t("coordinator.withdrawFor", {
+            student: studentName,
+          })}
+          pendingLabel={words.submitting}
+          feedback={feedback}
         />
       ) : offers.length > 0 ? (
         <Disclosure summary={t("coordinator.upload")}>
           <SignedFormUpload
             registrationId={registrationId}
             studentId={studentId}
-            studentName={studentName}
-            offers={offers}
+            offers={offers.map(({ purpose, id, title, version }) => ({
+              purpose,
+              id,
+              label: t(`purposes.${purpose}`),
+              versionLabel: t("version", { title, version }),
+            }))}
+            labels={{
+              file,
+              limits,
+              uses,
+              submit,
+              uploading,
+              accessibleName: t("coordinator.uploadFor", {
+                student: studentName,
+              }),
+            }}
+            feedback={feedback}
           />
         </Disclosure>
       ) : null}

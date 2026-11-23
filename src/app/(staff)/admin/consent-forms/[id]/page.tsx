@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getFormatter, getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
@@ -51,11 +51,12 @@ export default async function Page({
 }
 
 async function FormDetails({ params }: { params: Params }) {
-  const [{ id }, actor, t, format] = await Promise.all([
+  const [{ id }, actor, t, format, messages] = await Promise.all([
     params,
     currentActor(),
     getTranslations("adminConsentForms"),
     getFormatter(),
+    getMessages(),
   ]);
   const result = await orSecondFactor(async () => {
     try {
@@ -75,6 +76,18 @@ async function FormDetails({ params }: { params: Params }) {
     notFound();
   }
   const { form } = result;
+  const {
+    accept,
+    acceptHint,
+    reject,
+    submitting,
+    reason,
+    chooseReason,
+    reasons,
+    note,
+    noteHint,
+    errors,
+  } = messages.adminConsentForms;
   return (
     <div className="mt-8 grid gap-6 rounded-3xl border-2 border-border bg-surface p-5 text-ink sm:p-6">
       <div>
@@ -135,7 +148,23 @@ async function FormDetails({ params }: { params: Params }) {
         form.ownUpload ? (
           <p>{t("errors.own_upload")}</p>
         ) : (
-          <ReviewForm formId={form.id} canAccept={form.download !== null} />
+          <ReviewForm
+            formId={form.id}
+            canAccept={form.download !== null}
+            labels={{
+              accept,
+              acceptHint,
+              reject,
+              submitting,
+              reason,
+              chooseReason,
+              reasons,
+              note,
+              noteHint,
+              errors,
+              problem: messages.common.callout.danger,
+            }}
+          />
         )
       ) : null}
     </div>
