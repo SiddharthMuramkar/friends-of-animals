@@ -183,7 +183,9 @@ function codeMatchesKind(code: string, kind: AccountKind): boolean {
 
 function cleanName(name: string): string | null {
   const trimmed = name.trim();
-  return trimmed.length > 0 && trimmed.length <= MAX_NAME_LENGTH
+  return trimmed.length > 0 &&
+    trimmed.length <= MAX_NAME_LENGTH &&
+    !trimmed.includes("\u0000")
     ? trimmed
     : null;
 }
@@ -221,7 +223,7 @@ export function checkNewCategory(input: {
 export type AccountChange = {
   name?: string;
   isActive?: boolean;
-  publicLabel?: string;
+  publicLabel?: string | null;
   publicGroup?: PublicGroup;
 };
 
@@ -248,7 +250,9 @@ export function checkAccountChange(
     if (name === null) return { ok: false, error: "invalid_name" };
     clean.name = name;
   }
-  if (change.publicLabel !== undefined) {
+  if (change.publicLabel === null) {
+    clean.publicLabel = null;
+  } else if (change.publicLabel !== undefined) {
     const label = cleanName(change.publicLabel);
     if (label === null) return { ok: false, error: "invalid_public_label" };
     clean.publicLabel = label;

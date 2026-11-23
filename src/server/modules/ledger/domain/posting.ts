@@ -22,6 +22,19 @@ export type LineDraft = {
  */
 export const MAX_LINES = 20;
 
+const MAX_SEQ = 9_223_372_036_854_775_807n;
+
+/** Parses the positive bigint identity used in URLs and pagination. */
+export function parsePostingSeq(value: string | bigint): bigint | undefined {
+  const seq =
+    typeof value === "bigint"
+      ? value
+      : /^[1-9]\d{0,18}$/.test(value)
+        ? BigInt(value)
+        : 0n;
+  return seq > 0n && seq <= MAX_SEQ ? seq : undefined;
+}
+
 export type LinesCheck =
   | { ok: true; totalMinor: bigint }
   | { ok: false; error: "too_few_lines" | "too_many_lines" }

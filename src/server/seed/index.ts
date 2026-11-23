@@ -17,6 +17,7 @@ import { seedConsent } from "./consent";
 import { seedContact } from "./contact";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
+import { seedLedger } from "./ledger";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
@@ -66,6 +67,7 @@ const seeders: readonly Seeder[] = [
   // After the participants seed: a guardian, their under-13 child and a
   // teen whose own login is linked to them (#81).
   seedGuardians,
+  seedLedger,
   seedNotifications,
   seedContact,
   seedCms,

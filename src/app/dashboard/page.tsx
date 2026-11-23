@@ -9,6 +9,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_LEDGER,
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_REFUNDS,
   APP_ROUTES,
@@ -72,6 +73,7 @@ async function Areas() {
       (role) => grant.role === role
     )
   );
+  const finance = grants.some((grant) => grant.role === "finance");
   const links = dashboardLinks(dashboards);
   const name = (link: DashboardLink) =>
     t(`areas.${link.area}`, { id: link.id ?? "" });
@@ -110,7 +112,13 @@ async function Areas() {
             />
             <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
           </div>
-          <AreaBody area={link.area} id={link.id} lead={lead} money={money} />
+          <AreaBody
+            area={link.area}
+            id={link.id}
+            lead={lead}
+            money={money}
+            finance={finance}
+          />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
       ))}
@@ -123,11 +131,13 @@ async function AreaBody({
   id,
   lead,
   money,
+  finance,
 }: {
   area: DashboardLink["area"];
   id?: string;
   lead: boolean;
   money: boolean;
+  finance: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -182,6 +192,9 @@ async function AreaBody({
                   // The refunds queue (#80).
                   { href: ADMIN_REFUNDS, label: t("admin.refunds") },
                 ]
+              : []),
+            ...(finance
+              ? [{ href: ADMIN_LEDGER, label: t("admin.ledger") }]
               : []),
           ])
         : null}

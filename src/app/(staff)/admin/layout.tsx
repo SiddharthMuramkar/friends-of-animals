@@ -2,7 +2,8 @@ import { getTranslations } from "next-intl/server";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { APP_ROUTES } from "@/lib/app-routes";
+import { ADMIN_LEDGER, APP_ROUTES } from "@/lib/app-routes";
+import { as, currentActor } from "@/server/app";
 
 import { AdminNav, AdminNavView } from "./_components/admin-nav";
 import { FactsReadiness } from "./_components/facts-readiness";
@@ -21,12 +22,20 @@ export const instant = false;
  */
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   await connection();
-  const t = await getTranslations("admin.nav");
+  const [t, ledger, actor] = await Promise.all([
+    getTranslations("admin.nav"),
+    getTranslations("adminLedger.list"),
+    currentActor(),
+  ]);
+  const finance =
+    actor.kind === "user" &&
+    (await as(actor).myAccess()).grants.some(({ role }) => role === "finance");
   const nav = {
     label: t("label"),
     links: [
       { href: APP_ROUTES.adminRoles, label: t("roles") },
       { href: APP_ROUTES.adminAudit, label: t("audit") },
+      ...(finance ? [{ href: ADMIN_LEDGER, label: ledger("title") }] : []),
     ],
   };
   return (

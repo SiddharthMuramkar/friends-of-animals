@@ -201,12 +201,21 @@ describe("a posting must balance when its transaction commits", () => {
 
 describe("postings and lines are append-only", () => {
   it.each([
-    ["UPDATE ledger_posting", sql`UPDATE ledger_posting SET description = 'Edited'`],
+    [
+      "UPDATE ledger_posting",
+      sql`UPDATE ledger_posting SET description = 'Edited'`,
+    ],
     ["DELETE FROM ledger_posting", sql`DELETE FROM ledger_posting`],
-    ["UPDATE ledger_line", sql`UPDATE ledger_line SET debit_minor = debit_minor`],
+    [
+      "UPDATE ledger_line",
+      sql`UPDATE ledger_line SET debit_minor = debit_minor`,
+    ],
     ["DELETE FROM ledger_line", sql`DELETE FROM ledger_line`],
     ["TRUNCATE ledger_line", sql`TRUNCATE ledger_line`],
-    ["TRUNCATE ledger_posting, ledger_line", sql`TRUNCATE ledger_posting, ledger_line`],
+    [
+      "TRUNCATE ledger_posting, ledger_line",
+      sql`TRUNCATE ledger_posting, ledger_line`,
+    ],
   ])("refuses %s", async (_statement, statement) => {
     await commitPosting(BALANCED);
 

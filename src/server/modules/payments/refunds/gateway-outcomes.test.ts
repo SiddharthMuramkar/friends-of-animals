@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { outbox, paymentBatch } from "@/server/db/schema";
@@ -60,10 +60,9 @@ function refundWebhook(
 
 async function eventsOf(h: Harness, type: string) {
   return h.db
-    .select()
+    .selectDistinct({ eventId: outbox.eventId })
     .from(outbox)
-    .where(eq(outbox.eventType, type))
-    .orderBy(asc(outbox.id));
+    .where(eq(outbox.eventType, type));
 }
 
 describe("a refund the gateway holds", () => {
@@ -100,6 +99,15 @@ describe("a refund the gateway holds", () => {
       "refunded",
     ]);
     expect(await eventsOf(h, "refund.processed")).toHaveLength(1);
+    const deliveries = await h.db
+      .select({ handler: outbox.handler })
+      .from(outbox)
+      .where(eq(outbox.eventType, "refund.processed"))
+      .orderBy(outbox.handler);
+    expect(deliveries).toEqual([
+      { handler: "ledger.post_refund" },
+      { handler: "notifications.dispatch" },
+    ]);
 
     const settled = await refundRows(h);
     expect(await h.as(h.visitor()).receiveGatewayWebhook(webhook)).toEqual({
