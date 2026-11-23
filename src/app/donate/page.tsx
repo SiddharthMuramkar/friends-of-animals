@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Fragment } from "react";
 
+import { KindnessChain } from "@/components/showcase/kindness-chain";
+import { StickerScatter } from "@/components/art/sticker-scatter";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { Callout } from "@/components/site/callout";
 import { ContactFact } from "@/components/site/contact-fact";
@@ -108,6 +110,7 @@ export default async function Page() {
         <ExplainState
           title={t("notLive.title")}
           back={{ href: ROUTES.contact.path, label: t("notLive.back") }}
+          art="wait-horizon-myna"
           className="mx-auto max-w-3xl"
         >
           <p>{t("notLive.body")}</p>
@@ -123,10 +126,17 @@ export default async function Page() {
       >
         <SectionHeading id="why-title" title={t("why.title")} />
         <p className="mt-5 text-lead text-ink">{t("why.body")}</p>
-        <p className="mt-4 text-ink-muted">{t("why.notShelter")}</p>
+        {/* The three steps the paragraph names, drawn (as on /about). */}
+        <KindnessChain container="prose" className="mt-10" />
+        <p className="mt-10 text-ink-muted">{t("why.notShelter")}</p>
       </Section>
 
-      <Section labelledBy="map-title" hue={HUE} tone="tint">
+      <Section
+        labelledBy="map-title"
+        hue={HUE}
+        tone="tint"
+        innerClassName="relative"
+      >
         <SectionHeading
           id="map-title"
           title={t("map.title")}
@@ -145,6 +155,21 @@ export default async function Page() {
             </li>
           ))}
         </ul>
+        {/* Five cards leave the grid's last cell empty from sm (two
+            columns or three): a sparrow at its water bowl rests in the
+            middle of it, centred on the column's middle (a quarter, then a
+            sixth, in from the right). */}
+        <StickerScatter
+          className="hidden sm:block"
+          stickers={[
+            {
+              id: "sticker-sparrow-bowl",
+              className:
+                "right-1/4 bottom-12 w-20 translate-x-1/2 lg:right-1/6 lg:bottom-18 lg:w-24",
+              tilt: -16,
+            },
+          ]}
+        />
       </Section>
 
       <Section hue={HUE}>

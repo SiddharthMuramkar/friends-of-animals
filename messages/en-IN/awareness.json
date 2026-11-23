@@ -37,7 +37,11 @@
       "grownUps": "For parents and teachers",
       "theStudy": "The study",
       "sources": "Sources",
-      "bondNote": "On house sparrows"
+      "bondNote": "On house sparrows",
+      "street": {
+        "listLabel": "Neighbours in the picture",
+        "caption": "Ten neighbours share this street. Tap or click a ring to meet one."
+      }
     },
     "helps": {
       "eyebrow": "Kindness that helps",

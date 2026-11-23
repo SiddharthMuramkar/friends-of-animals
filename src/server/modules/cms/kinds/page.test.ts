@@ -49,7 +49,8 @@ describe("page kind (about): the seed body", () => {
       "shelter",
       "transparency",
     ]);
-    expect(Object.keys(aboutMessages.about.how)).toEqual(["photos"]);
+    // Captions for the photos and for the kindness chain's drawings.
+    expect(Object.keys(aboutMessages.about.how)).toEqual(["chain", "photos"]);
     expect(Object.keys(aboutMessages.about.transparency).sort()).toEqual([
       "cta",
       "registration",

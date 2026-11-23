@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { cacheLife } from "next/cache";
 
+import { LivingIllustration } from "@/components/art/living-illustration";
 import { Logo } from "@/components/logo";
 import { SiteLink } from "@/components/site/site-link";
 import { TileDivider } from "@/components/site/tile";
@@ -124,10 +125,31 @@ export async function SiteFooter() {
           </nav>
         </div>
 
-        <TileDivider className="mt-12" />
+        {/* The street cat naps on the divider and wakes as the footer comes
+            into view. It sits to the right, where the links leave room; at
+            tablet widths (sm to lg) the link columns fill the row, so it
+            stays away. Sized in px, so enlarged text, which grows the links,
+            never grows it into them; it never takes a click either. The
+            wrapper hides it: a display utility on the drawing itself would
+            lose to its own display: block. It stays away from /safeguarding
+            too (globals.css, data-footer-cat): no play beside the
+            helplines. */}
+        <div className="relative mt-12">
+          <div data-footer-cat className="sm:hidden lg:block">
+            <LivingIllustration
+              id="living-cat"
+              trigger="arrive"
+              className="pointer-events-none absolute right-1 bottom-1/2 w-[80px] translate-y-[3px] sm:right-4 sm:w-[96px]"
+            />
+          </div>
+          <TileDivider />
+        </div>
 
         <div className="mt-6 flex flex-col gap-2 text-sm text-ink-muted sm:flex-row sm:items-start sm:justify-between">
-          <p>{t("copyright", { year })}</p>
+          <div className="space-y-1">
+            <p>{t("copyright", { year })}</p>
+            <p>{t("artNote")}</p>
+          </div>
           {isSampleContentEnabled() ? (
             <p className="max-w-xl sm:text-right">{t("sampleNote")}</p>
           ) : null}

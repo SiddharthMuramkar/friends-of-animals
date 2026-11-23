@@ -49,7 +49,10 @@ export type PostCard = {
   topics: string[];
   featured: boolean;
   readingMinutes: number;
-  /** Null: the card shows a tile-pattern cover. */
+  /**
+   * Null: the card shows the story's AI illustrated cover if it has one
+   * (storyCoverArt), or else a tile-pattern cover.
+   */
   cover: PostImage | null;
   publishedAt: Date;
   updatedAt: Date;

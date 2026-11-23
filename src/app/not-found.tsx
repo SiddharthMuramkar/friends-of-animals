@@ -11,6 +11,7 @@ import { type TileHue, TileMarker } from "@/components/site/tile";
 import { ROUTES } from "@/lib/routes";
 
 import type { DoodleLabels } from "./_not-found/doodle-pad";
+import { NeighbourFaces } from "./_not-found/neighbour-faces";
 import { PawTrail } from "./_not-found/paw-trail";
 
 // Through a server slot so the launcher is its own chunk, loaded only when
@@ -35,8 +36,9 @@ const WAYS_BACK: {
 /**
  * A 404 you can draw on. Unmatched URLs get a real 404. Next.js sends this
  * tree, and loads its client components, with every route, so keep it light:
- * no next/image, and the launcher loads lazily (#45). The pad's own code
- * loads only after the tap.
+ * no next/image, no CSS module (every page would preload its stylesheet,
+ * unused), and the launcher loads lazily (#45). The pad's own code loads
+ * only after the tap.
  */
 export default async function NotFound() {
   const t = await getTranslations("notFound");
@@ -125,6 +127,7 @@ export default async function NotFound() {
           title={t("drawTitle")}
           lead={t("drawLead")}
         />
+        <NeighbourFaces className="mt-6" />
         <div className="mt-8 max-w-3xl">
           <DoodleLauncher
             start={t("start")}

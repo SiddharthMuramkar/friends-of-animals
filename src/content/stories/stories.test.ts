@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { SITE_IMAGE_IDS } from "@/lib/images/credits";
 
-import { STORIES, STORY_SLUGS, latestStories, loadArticle } from ".";
+import {
+  STORIES,
+  STORY_SLUGS,
+  latestStories,
+  loadArticle,
+  storySchema,
+} from ".";
 import { articleBodySchema } from "./model";
 
 describe("story registry", () => {
@@ -19,6 +25,15 @@ describe("story registry", () => {
   it("uses only credited covers", () => {
     for (const s of STORIES)
       if (s.coverImageId) expect(SITE_IMAGE_IDS).toContain(s.coverImageId);
+  });
+
+  it("gives a story a photo cover or an illustrated one, never both", () => {
+    const drawn = STORIES.find((s) => s.coverArtId);
+    const photo = STORIES.find((s) => s.coverImageId);
+    expect(drawn && photo).toBeTruthy();
+    expect(storySchema.safeParse(drawn).success).toBe(true);
+    const both = { ...drawn, coverImageId: photo!.coverImageId };
+    expect(storySchema.safeParse(both).success).toBe(false);
   });
 
   it("orders latest stories featured first, then newest", () => {

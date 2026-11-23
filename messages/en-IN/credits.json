@@ -1,13 +1,14 @@
 {
   "credits": {
     "meta": {
-      "title": "Photo and font credits",
-      "description": "Who took each photo on this site, where, the licence that lets us show it, and what we changed."
+      "title": "Photo, illustration and font credits",
+      "description": "Who took each photo on this site, where, and the licence that lets us show it; how each AI illustration was made; and our fonts."
     },
     "eyebrow": "Credits",
-    "title": "Photo and font credits",
+    "title": "Photo, illustration and font credits",
     "lead": "Every photo here was taken by someone, somewhere real. This page names them, says where, and links the licence that lets us show their work.",
     "adaptations": "We crop and resize photos and remove their location data. A cropped photo under a CC BY-SA licence is an adaptation, shared under the same licence.",
+    "illustrationsNote": "Our decorative drawings are AI illustrations; <link>see how each one was made</link>.",
     "groups": {
       "pages": "Page photos",
       "neighbours": "Street neighbours",
@@ -25,6 +26,29 @@
       "source": "See the original"
     },
     "noPlace": "Studio photo",
+    "illustrations": {
+      "title": "AI illustrations",
+      "lead": "We made these drawings with AI image and video models, used through ElevenLabs (each card names them), to fill the site with life until our commissioned illustrations arrive. Each one was checked against our art rubric and carries an “AI illustration” label wherever it means something. They never stand in for a child’s entry, and no photo on this site is AI.",
+      "count": "{count, plural, one {# drawing} other {# drawings}}",
+      "pieces": "{count} pieces",
+      "more": "+{count} more",
+      "madeWith": "Made with",
+      "madeOn": "Made on",
+      "checked": "Checked",
+      "rules": "Our art rubric scores each drawing on meaning, style, craft, Indian authenticity, composition, legibility, delight and clean edges. It turns down any drawing with children, people or hands; feeding by hand, milk, bread or sweets; cages, leashes or nose ropes; a distressed animal; or text or logos.",
+      "checkedValue": "By {judges} AI judges against our art rubric: {mean} out of 5.",
+      "checkedSheet": "By {judges} AI judges against our art rubric: {mean} out of 5 on average, {min} at the lowest.",
+      "notReviewed": "{count, plural, one {No person has reviewed it yet.} other {No person has reviewed them yet.}}",
+      "reviewedBy": "Reviewed by {names}.",
+      "reviewedSome": "Reviewed by {names}; {count, plural, one {# piece} other {# pieces}} not yet.",
+      "asked": "What we asked for",
+      "askedNote": "The subject part of the prompt. Every prompt also gave the same house style and the rubric’s limits.",
+      "sheets": {
+        "stickers": "Doodle stickers",
+        "portraits": "Neighbour portraits",
+        "waiting": "Animals waiting"
+      }
+    },
     "fonts": {
       "title": "Fonts",
       "lead": "All three typefaces are free to use under the SIL Open Font License 1.1, and we serve them from this site.",
