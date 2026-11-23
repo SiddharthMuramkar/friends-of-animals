@@ -4,10 +4,10 @@ import {
   decideSchoolRouteUse,
   isPublicPurpose,
   PUBLIC_PURPOSES,
-  type ConsentMethod,
   type CurrentConsent,
   type Use,
 } from "./public-use";
+import type { ConsentMethod } from "./purposes";
 
 const never: CurrentConsent = { status: "never" };
 const given = (method: ConsentMethod): CurrentConsent => ({

@@ -31,7 +31,13 @@ import {
   REJECTION_REASONS,
 } from "../../modules/consent-forms/domain/review";
 import { fileAsset } from "./files";
+import { competition } from "./competitions";
 import { user } from "./identity";
+import {
+  institutionRegistration,
+  participantProfile,
+  registration,
+} from "./registration";
 
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" });
@@ -56,19 +62,37 @@ const KNOWN_USES = sql.raw(
   `ARRAY[${PUBLIC_PURPOSES.map((purpose) => `'${purpose}'`).join(", ")}]::text[]`
 );
 
+/** Binds a Files upload to the exact school enrolment it was requested for. */
+export const consentFormUpload = pgTable(
+  "consent_form_upload",
+  {
+    fileAssetId: uuid("file_asset_id")
+      .primaryKey()
+      .references(() => fileAsset.id, { onDelete: "cascade" }),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registration.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("consent_form_upload_registration_id_idx").on(table.registrationId),
+  ]
+);
+
 export const consentForm = pgTable(
   "consent_form",
   {
     /** UUIDv7 from the clock. */
     id: uuid().primaryKey(),
-    /**
-     * The student: #75's participant profile. The three ids below get
-     * their foreign keys when #75 and #70 land on this branch.
-     */
-    participantProfileId: uuid("participant_profile_id").notNull(),
-    competitionId: uuid("competition_id").notNull(),
+    participantProfileId: uuid("participant_profile_id")
+      .notNull()
+      .references(() => participantProfile.id),
+    competitionId: uuid("competition_id")
+      .notNull()
+      .references(() => competition.id),
     /** The institution's registration the student is enrolled through. */
-    institutionRegistrationId: uuid("institution_registration_id").notNull(),
+    institutionRegistrationId: uuid("institution_registration_id")
+      .notNull()
+      .references(() => institutionRegistration.id),
     /**
      * The scan. One form per file, so a rejected form's scan can't be
      * submitted again; restricted, like the file's owner, so the scan

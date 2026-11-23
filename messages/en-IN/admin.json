@@ -3,7 +3,8 @@
     "nav": {
       "label": "Admin",
       "roles": "Roles",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "consentForms": "Signed forms"
     },
     "loading": "Loading…",
     "denied": {

@@ -14,6 +14,7 @@ import { seedCoordinators } from "./coordinators";
 import { seedCompetitions } from "./competitions";
 import { seedCms } from "./cms";
 import { seedChildConsents, seedConsent } from "./consent";
+import { seedConsentForms } from "./consent-forms";
 import { seedContact } from "./contact";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
@@ -55,6 +56,7 @@ const seeders: readonly Seeder[] = [
   seedCoordinators,
   // After the institutions and competitions seeds: it needs both.
   seedRegistrations,
+  seedConsentForms,
   // After the registration seed: its batches hold those students.
   seedPayments,
   // After the payments seed: a refund waiting for finance on its paid

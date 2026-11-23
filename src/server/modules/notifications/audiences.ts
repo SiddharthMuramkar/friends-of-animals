@@ -59,6 +59,8 @@ export const RECIPIENT_VARIABLES = ["recipient.name"] as const;
 /** The user an event is about, if it is about a user. */
 function subjectUserOf(delivery: Delivery): string | null {
   switch (delivery.eventType) {
+    case "consent.form_reviewed":
+      return delivery.payload.uploaderUserId;
     case "identity.user_signed_up":
       return delivery.payload.userId;
     case "consent.withdrawn":
@@ -340,6 +342,7 @@ function reasonSentence(block: TransitionBlock): string {
 
 /** What each event lets a template say. */
 export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
+  "consent.form_reviewed": { names: [], load: async () => ({}) },
   "identity.user_signed_up": { names: [], load: async () => ({}) },
   "consent.withdrawn": { names: [], load: async () => ({}) },
   "files.file_uploaded": { names: [], load: async () => ({}) },

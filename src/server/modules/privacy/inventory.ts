@@ -96,6 +96,13 @@ const CONSENT_RECORD = {
   toConfirm: true,
 } as const;
 
+const SIGNED_FORM_RECORD = {
+  period:
+    "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure (HR-31)",
+  basis: "Lets FOA check the signed evidence and account for its review",
+  toConfirm: true,
+} as const;
+
 /** A guardian's own record and links: as long as a child of theirs is kept. */
 const WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD = {
   period:
@@ -132,6 +139,65 @@ const WHILE_STUDENT_TAKES_PART = {
 } as const;
 
 export const DATA_INVENTORY: readonly InventoryEntry[] = [
+  {
+    table: "consent_form",
+    column: "file_asset_id",
+    purpose:
+      "Locates the private scan bearing the guardian's name and signature",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "participant_profile_id",
+    purpose: "Identifies the enrolled student whose signed form FOA reviewed",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "uploaded_by_user_id",
+    purpose: "Identifies the coordinator who submitted the form",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "reviewed_by_user_id",
+    purpose: "Identifies the authorised reviewer who made the decision",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "rejection_note",
+    purpose:
+      "Explains how the coordinator can correct the submission. Staff are asked to leave out personal details",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form_upload",
+    column: "registration_id",
+    purpose:
+      "Restricts a signed-form upload to the enrolled student it was requested for",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "consent_form_id",
+    purpose:
+      "Links a consent decision to the signed evidence of what the guardian agreed to",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "reviewer_user_id",
+    purpose: "Identifies who verified the signed evidence for this consent",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "institution_registration",
+    column: "participation_declared_by_user_id",
+    purpose:
+      "Identifies who declared that the institution authorises participation and judging",
+    retention: WHILE_REGISTRATION_KEPT,
+  },
   // Accounts (#57, #58)
   {
     table: "user",

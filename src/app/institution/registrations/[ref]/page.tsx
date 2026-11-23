@@ -33,6 +33,10 @@ import {
 import { withdrawStudentAction } from "./_lib/actions";
 import { feeSummary, type FeeSummary } from "./_lib/fee-summary";
 import { isStudentsOutcome } from "./_lib/student-form-state";
+import {
+  ParticipationDeclaration,
+  SignedFormCell,
+} from "./consents/_components/signed-form";
 
 // Render the document on each request so its scripts carry the CSP nonce
 // (#65): `instant = false` lets it build with an empty static shell.
@@ -163,6 +167,14 @@ async function Students({
     done === "enrolled" || done === "enrolledIgnored" || done === "withdrawn";
   const { enrolment } = list;
   const open = enrolment === "open";
+  const forms = await as(actor).listSignedFormsForRegistration({
+    registrationId: list.registrationId,
+  });
+  const formsByStudent = new Map(
+    forms.ok
+      ? forms.students.map((student) => [student.enrolmentId, student])
+      : []
+  );
 
   return (
     <div className="mt-8 flex flex-col gap-8">
@@ -216,6 +228,12 @@ async function Students({
         summary={feeSummary(list.counts)}
         payHref={payFeesPath(list.reference, institutionId)}
       />
+      {forms.ok ? (
+        <ParticipationDeclaration
+          registrationId={list.registrationId}
+          declaredAt={forms.participationDeclaredAt}
+        />
+      ) : null}
 
       <section aria-labelledby="students-list">
         <SectionHeading id="students-list" title={t("listTitle")} />
@@ -223,18 +241,29 @@ async function Students({
           <p className="mt-4 text-ink-muted">{t("empty")}</p>
         ) : (
           <ul className="mt-5 flex flex-col gap-4">
-            {list.students.map((student) => (
-              <li key={student.registrationId} className={CARD}>
-                <StudentCard
-                  student={student}
-                  withdraw={
-                    open && student.status === "enrolled"
-                      ? { institutionId, reference: list.reference }
-                      : undefined
-                  }
-                />
-              </li>
-            ))}
+            {list.students.map((student) => {
+              const signedForm = formsByStudent.get(student.registrationId);
+              return (
+                <li key={student.registrationId} className={CARD}>
+                  <StudentCard
+                    student={student}
+                    withdraw={
+                      open && student.status === "enrolled"
+                        ? { institutionId, reference: list.reference }
+                        : undefined
+                    }
+                  />
+                  {forms.ok && signedForm ? (
+                    <SignedFormCell
+                      registrationId={list.registrationId}
+                      student={signedForm}
+                      studentName={student.fullName}
+                      offers={forms.offers}
+                    />
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

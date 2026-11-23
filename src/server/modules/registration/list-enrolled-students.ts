@@ -37,6 +37,7 @@ export type EnrolledStudent = {
 export type ListEnrolledStudentsResult =
   | {
       ok: true;
+      registrationId: string;
       institution: { id: string; name: string };
       competition: {
         code: string;
@@ -123,6 +124,7 @@ export async function listEnrolledStudents(
 
   return {
     ok: true,
+    registrationId: institutionRegistrationId,
     institution: { id: institutionId, name: facts.institution.name },
     competition: { ...facts.competition, ageGroups },
     reference: facts.institutionRegistration.reference,

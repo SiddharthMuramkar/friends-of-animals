@@ -9,6 +9,7 @@
 // competition and pass it in. Loads under plain Node: relative imports only.
 
 import type { GuardianPurpose } from "./guardian-purposes";
+import type { ConsentMethod } from "./purposes";
 
 /**
  * The guardian purposes that make a minor's work or name public: all but
@@ -26,13 +27,6 @@ export type PublicPurpose = (typeof PUBLIC_PURPOSES)[number];
 
 /** Everything a school-route student's work can be used for. */
 export type Use = "participation" | "judging" | PublicPurpose;
-
-/** How consent was given, as #64's `consent_method` enum names it. */
-export type ConsentMethod =
-  | "web_form"
-  | "otp_link"
-  | "paper_form"
-  | "staff_recorded";
 
 /**
  * The subject's current consent to the purpose behind a use: participation
