@@ -2,11 +2,10 @@
 // derivatives. Driven through `h.drain()` after a real upload, with the
 // scanner, storage and media fakes.
 //
-// The job's outcome events (files.file_processed, files.file_processing_
-// failed) have no subscriber until #85's Entries unit adds one, and emit()
-// stores nothing for an event nobody listens to. So these tests check the
-// outcome the events announce, the file_processing row, and the Entries
-// unit's tests check the events once it listens.
+// Entries consumes files.file_processed and files.file_processing_failed to
+// settle the entry's upload. CMS also consumes files.file_processed for post
+// images. These tests check the file_processing row. The entry-outcomes and
+// replace-entry-file tests check entry settlement through the outbox.
 
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
@@ -223,7 +222,8 @@ describe("the media job", () => {
       await h.drain();
 
       await requestAgain(h, fileId);
-      expect(await h.drain()).toMatchObject({ dispatched: 1, failed: 0 });
+      // The media job, and the entries handler, which finds no entry (#85).
+      expect(await h.drain()).toMatchObject({ dispatched: 2, failed: 0 });
 
       expect(h.media.processed).toEqual([]);
       expect(await derivatives(h, fileId)).toEqual([]);

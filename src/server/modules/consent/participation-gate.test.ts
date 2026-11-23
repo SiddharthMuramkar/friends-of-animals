@@ -1,9 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
-import { auditLog, paymentBatch } from "@/server/db/schema";
+import { createApp } from "@/server/app";
+import { auditLog, outbox, paymentBatch } from "@/server/db/schema";
 import { adultForm, signInMember } from "@/server/modules/participants/testing";
 import { signInStaff } from "@/server/modules/payments/testing";
+import { drainUntilIdle } from "@/server/outbox";
 import { createHarness, type Harness } from "@/test/harness";
 
 import {
@@ -35,6 +37,118 @@ async function giveParticipation(
     documentId,
   });
 }
+
+describe("minor participation in production", () => {
+  it.each([0n, 25_000n])(
+    "refuses activation at a fee of %s with current consent after the entrant turns 18",
+    async (fee) => {
+      const h = await createHarness();
+      const competition = await consentCompetition(h, { fee });
+      const child = await guardianWithChild(h, competition, { age: 17 });
+      expect(await giveParticipation(h, child, competition)).toEqual({
+        ok: true,
+        changed: true,
+      });
+      h.clock.set("2027-12-15T18:30:00.000Z");
+      const production = createApp({ ...h.deps, appEnv: "production" }).as(
+        child.actor
+      );
+      const deliveries = await h.db.select().from(outbox);
+
+      expect(
+        await production.payForMyRegistration({
+          registrationId: child.registrationId,
+        })
+      ).toEqual({ ok: false, error: "unavailable" });
+      expect(await statusOf(h, child.registrationId)).toBe("pending_payment");
+      expect(await h.db.select().from(paymentBatch)).toEqual([]);
+      expect(h.gateway.orders).toEqual([]);
+      expect(await h.db.select().from(outbox)).toEqual(deliveries);
+      expect(await production.listMyRegistrations()).toMatchObject([
+        {
+          registrationId: child.registrationId,
+          heldFor: "unavailable",
+          amountDue: null,
+        },
+      ]);
+    }
+  );
+
+  it("routes a captured minor payment to review once and preserves the refund path", async () => {
+    const h = await createHarness();
+    const competition = await consentCompetition(h);
+    const child = await guardianWithChild(h, competition);
+    expect(await giveParticipation(h, child, competition)).toEqual({
+      ok: true,
+      changed: true,
+    });
+    const registration = { registrationId: child.registrationId };
+    const paid = await h.as(child.actor).payForMyRegistration(registration);
+    if (!paid.ok || paid.kind !== "checkout")
+      throw new Error("No fixture order");
+    const { orderId } = paid.checkout;
+    const captured = h.gateway.capture(orderId);
+    const webhook = h.gateway.webhook({ type: "payment.captured", orderId });
+    const production = createApp({ ...h.deps, appEnv: "production" });
+
+    expect(
+      await production.as(h.visitor()).receiveGatewayWebhook(webhook)
+    ).toMatchObject({
+      ok: true,
+      outcome: "needs_review",
+    });
+    expect(
+      await production
+        .as(child.actor)
+        .confirmMyPayment({ ...registration, ...captured })
+    ).toEqual({ ok: true, outcome: "needs_review" });
+    await production.as(h.visitor()).receiveGatewayWebhook(webhook);
+    expect(await statusOf(h, child.registrationId)).toBe("pending_payment");
+    expect(
+      await h.db
+        .select()
+        .from(outbox)
+        .where(eq(outbox.eventType, "registration.confirmed"))
+    ).toEqual([]);
+    expect(
+      await h.db
+        .select()
+        .from(outbox)
+        .where(eq(outbox.eventType, "payment.batch_captured"))
+    ).toEqual([]);
+
+    const finance = production.as((await signInStaff(h, "finance")).actor);
+    const review = await finance.listPaymentReviewCases({ state: "open" });
+    if (!review.ok) throw new Error("Payment review unavailable");
+    expect(review.cases).toMatchObject([
+      {
+        batchId: paid.batchId,
+        gatewayPaymentId: captured.paymentId,
+        amountMinor: 25_000n,
+        reason: "participation_consent_required",
+      },
+    ]);
+    const resolution = {
+      caseId: review.cases[0]!.id,
+      reason: "Resolve the original captured payment.",
+    };
+    expect(
+      await finance.resolvePaymentReviewCase({
+        ...resolution,
+        outcome: "confirm",
+      })
+    ).toEqual({ ok: false, error: "registration_not_payable" });
+    expect(
+      await finance.resolvePaymentReviewCase({
+        ...resolution,
+        outcome: "refund",
+      })
+    ).toMatchObject({ ok: true });
+    await drainUntilIdle({ ...h.deps, appEnv: "production" });
+    expect(await h.gateway.fetchRefunds(captured.paymentId)).toHaveLength(1);
+    expect(await statusOf(h, child.registrationId)).toBe("pending_payment");
+  });
+});
 
 describe("a guardian registering their child", () => {
   it("waits for payment when they give participation on the form, recorded in the same transaction", async () => {

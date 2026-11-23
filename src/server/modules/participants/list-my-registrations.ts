@@ -23,7 +23,8 @@ import {
 } from "../../db/schema";
 import type { Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
-import { lackingParticipation } from "../consent/participation-gate";
+import { participationRefusals } from "../consent/participation-gate";
+import { guardianFlowsActive } from "../guardians/availability";
 import { verifiedLink } from "../guardians/child-access";
 import { ownProfileOf } from "../guardians/own-profile";
 import type { RegistrationRoute } from "../registration/domain/participant";
@@ -40,6 +41,8 @@ export type MyRegistration = {
   participantCode: string;
   /** Given once the registration is confirmed. */
   registrationNumber: string | null;
+  /** The confirmed individual or their guardian meets the participation conditions to submit work. */
+  maySubmitEntry: boolean;
   /**
    * The individual fee still owed, to the member who pays it; null once
    * nothing is owed, or when someone else (a teen's guardian) pays.
@@ -50,16 +53,19 @@ export type MyRegistration = {
   /**
    * What a held registration waits for: a guardian to confirm the teen
    * who registered alone (#81), or the guardian's participation consent
-   * (#82); null when it isn't held.
+   * (#82), or launch approval; null when it isn't held.
    */
-  heldFor: "guardian" | "consent" | null;
+  heldFor: "guardian" | "consent" | "unavailable" | null;
   createdAt: Date;
 };
 
 type Visible = { whose: "mine" | "child"; pays: boolean };
 
-/** The profiles whose registrations `userId` sees, and how. */
-async function visibleProfiles(
+/**
+ * The profiles whose registrations (and entries, #85) `userId` sees, and
+ * how.
+ */
+export async function visibleProfiles(
   db: AppDb,
   userId: string
 ): Promise<Map<string, Visible>> {
@@ -150,13 +156,19 @@ export async function listMyRegistrations(
   const nowAdult =
     ownsHeld &&
     (await ownProfileOf(ctx.db, ctx, userId, ctx.clock.now())) === "adult";
-  const lacking = await lackingParticipation(
+  const guardianHold = guardianFlowsActive(ctx.appEnv)
+    ? "guardian"
+    : "unavailable";
+  const refusals = await participationRefusals(
     ctx.db,
     ctx,
     rows
       .filter(
         (row) =>
-          row.status === "pending_payment" && row.ownerKind === "guardian"
+          row.ownerKind === "guardian" &&
+          (row.status === "pending_payment" ||
+            row.status === "pending_guardian" ||
+            row.status === "confirmed")
       )
       .map((row) => row.registrationId)
   );
@@ -164,9 +176,16 @@ export async function listMyRegistrations(
     const { whose, pays } = visible.get(row.profileId)!;
     const canContinue =
       row.status === "pending_guardian" && row.ownerKind === "self" && nowAdult;
-    const held =
-      lacking.has(row.registrationId) ||
-      (row.status === "pending_guardian" && !canContinue);
+    const hasParticipation = !refusals.has(row.registrationId);
+    // A confirmed row's refusal only gates entry submission (#85).
+    const refusal =
+      row.status === "confirmed" ? undefined : refusals.get(row.registrationId);
+    let heldFor: MyRegistration["heldFor"] = null;
+    if (refusal === "unavailable") {
+      heldFor = refusal;
+    } else if (refusal || (row.status === "pending_guardian" && !canContinue)) {
+      heldFor = row.ownerKind === "guardian" ? "consent" : guardianHold;
+    }
     return {
       registrationId: row.registrationId,
       whose,
@@ -176,19 +195,16 @@ export async function listMyRegistrations(
       status: row.status,
       participantCode: row.participantCode ?? "",
       registrationNumber: row.registrationNumber,
+      maySubmitEntry: row.status === "confirmed" && hasParticipation,
       amountDue:
         pays &&
-        !held &&
+        heldFor === null &&
         (row.status === "pending_payment" || canContinue) &&
         row.fee !== null
           ? { amountMinor: row.fee, currency: "INR" }
           : null,
       childId: whose === "child" ? row.profileId : null,
-      heldFor: held
-        ? row.ownerKind === "guardian"
-          ? "consent"
-          : "guardian"
-        : null,
+      heldFor,
       createdAt: row.createdAt,
     };
   });

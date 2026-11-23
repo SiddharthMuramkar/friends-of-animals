@@ -108,8 +108,9 @@ describe("a scanner outage", () => {
     });
 
     h.clock.advance({ seconds: 30 });
-    // The scan, then the clean image's media job (#85).
-    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 2 });
+    // The scan, then the clean image's media job (#85), and the entries
+    // handler hearing of the job's request and of its outcome (#85).
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 4 });
 
     expect(await fileRow(h, fileId)).toMatchObject({
       status: "clean",
@@ -186,7 +187,8 @@ describe("storage failing during the scan", () => {
     const storage = h.deps.storage;
     h.deps.storage = withFailingMove(storage);
 
-    expect(await h.drain()).toEqual({ ...NOTHING, retried: 1 });
+    // The verdict is committed, so the entries handler hears of it (#85).
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 1, retried: 1 });
     expect(await fileRow(h, fileId)).toMatchObject({
       status: "quarantined",
       scanResult: EICAR_SIGNATURE,
@@ -226,7 +228,8 @@ describe("storage failing during the scan", () => {
       },
     });
 
-    expect(await h.drain()).toEqual({ ...NOTHING, retried: 1 });
+    // The verdict is committed, so the entries handler hears of it (#85).
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 1, retried: 1 });
     expect((await fileRow(h, fileId)).status).toBe("quarantined");
 
     h.deps.storage = storage;
@@ -259,7 +262,8 @@ describe("storage failing during the scan", () => {
       },
     });
 
-    expect(await h.drain()).toEqual({ ...NOTHING, retried: 1 });
+    // The verdict is committed, so the entries handler hears of it (#85).
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 1, retried: 1 });
 
     h.deps.storage = storage;
     h.clock.advance({ seconds: 30 });
@@ -280,7 +284,8 @@ describe("storage failing during the scan", () => {
       delete: () => Promise.reject(new Error("storage delete failed")),
     });
 
-    expect(await h.drain()).toEqual({ ...NOTHING, retried: 1 });
+    // The verdict is committed, so the entries handler hears of it (#85).
+    expect(await h.drain()).toEqual({ ...NOTHING, dispatched: 1, retried: 1 });
     expect((await fileRow(h, fileId)).status).toBe("rejected");
     expect(await h.as(owner).getFileDownloadUrl({ fileId })).toEqual({
       ok: false,

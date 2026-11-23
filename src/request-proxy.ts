@@ -3,10 +3,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
 import {
+  CONSENT_LINK_PREFIX,
   individualRegisterSlug,
+  isConsentLinkPage,
   isNonProductionPath,
   isSignedInPage,
   isSignedInPath,
+  isUnderPrefix,
 } from "@/lib/app-routes";
 import { createNonce, publicCsp, signedInCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
@@ -33,7 +36,7 @@ function decodedSlug(raw: string): string {
 }
 
 /**
- * Lets a signed-in request through under a fresh nonce policy (#65). Next
+ * Lets a request through under a fresh nonce policy (#65). Next
  * reads the nonce from the policy on the page's request headers and puts
  * it on every script it renders; the browser gets the same policy. Public
  * pages get theirs from next.config.ts headers().
@@ -50,7 +53,10 @@ function withNonceCsp(request: NextRequest): NextResponse {
   headers.set("x-nonce", nonce);
   // The page's path, so the staff gate (#60) can send the user back to it;
   // set here, so one the browser sent never reaches the page.
-  headers.set(PATH_HEADER, request.nextUrl.pathname + request.nextUrl.search);
+  headers.delete(PATH_HEADER);
+  if (isSignedInPath(request.nextUrl.pathname)) {
+    headers.set(PATH_HEADER, request.nextUrl.pathname + request.nextUrl.search);
+  }
   const response = NextResponse.next({ request: { headers } });
   response.headers.set(policy.key, policy.value);
   return response;
@@ -135,6 +141,12 @@ export function createProxy({
     // included, before the sign-in check.
     if (appEnv() === "production" && isNonProductionPath(pathname)) {
       return missingSignedInPage(request);
+    }
+    // Bearer links use the nonce policy and render without sign-in.
+    if (isUnderPrefix(pathname, [CONSENT_LINK_PREFIX])) {
+      return isConsentLinkPage(pathname)
+        ? withNonceCsp(request)
+        : missingSignedInPage(request);
     }
     // Pages behind sign-in: a request without a session cookie goes
     // straight to sign in. With one, the page checks the session itself.

@@ -140,8 +140,46 @@ export async function takeCodeAllowance(
     limits: CodeRequestLimits;
   }
 ): Promise<Allowance> {
-  const counters = countersFor(to, ip, limits);
+  return takeAllowance(db, countersFor(to, ip, limits), now, secret);
+}
 
+/** Consent codes share hourly allowances per guardian contact and per IP. */
+export function takeConsentLinkCodeAllowance(
+  db: AppDb,
+  {
+    contactHash,
+    ip,
+    now,
+    secret,
+  }: { contactHash: string; ip: string; now: Date; secret: string }
+): Promise<Allowance> {
+  return takeAllowance(
+    db,
+    [
+      {
+        scope: "consent_link_contact",
+        key: contactHash,
+        limit: 5,
+        windowMs: HOUR_MS,
+      },
+      {
+        scope: "ip",
+        key: `consent-link:${ipNetwork(ip)}`,
+        limit: 10,
+        windowMs: HOUR_MS,
+      },
+    ],
+    now,
+    secret
+  );
+}
+
+async function takeAllowance(
+  db: AppDb,
+  counters: readonly Counter[],
+  now: Date,
+  secret: string
+): Promise<Allowance> {
   try {
     await db.transaction(async (tx) => {
       // Check every counter: with two full, the visitor must wait for the

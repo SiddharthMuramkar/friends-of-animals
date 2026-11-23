@@ -14,6 +14,9 @@ import { seedCoordinators } from "./coordinators";
 import { seedCompetitions } from "./competitions";
 import { seedCms } from "./cms";
 import { seedChildConsents, seedConsent } from "./consent";
+import { seedConsentForms } from "./consent-forms";
+import { seedConsentLinks } from "./consent-links";
+import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
@@ -46,6 +49,7 @@ const seeders: readonly Seeder[] = [
   seedCompetitions,
   seedJudging,
   seedConsent,
+  seedConsentLinkTemplates,
   seedCompetitionTerms,
   seedFiles,
   seedSecondFactor,
@@ -56,6 +60,7 @@ const seeders: readonly Seeder[] = [
   seedCoordinators,
   // After the institutions and competitions seeds: it needs both.
   seedRegistrations,
+  seedConsentForms,
   // After the registration seed: its batches hold those students.
   seedPayments,
   // After the payments seed: a refund waiting for finance on its paid
@@ -71,6 +76,7 @@ const seeders: readonly Seeder[] = [
   // After the guardians seed: their children's consents, registered for
   // NEIGH27 (#82).
   seedChildConsents,
+  seedConsentLinks,
   seedNotifications,
   seedContact,
   seedCms,

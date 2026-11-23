@@ -4,11 +4,17 @@ import { describe, expect, it } from "vitest";
 import type { Actor } from "@/server/actor";
 import {
   competitionAgeGroup,
+  consentEvent,
   guardianInvitation,
+  outbox,
   participantProfile,
   registration,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import {
+  childForm as consentFormForChild,
+  consentCompetition,
+} from "@/server/modules/consent/testing";
 import {
   bornYearsAgo,
   verifiedGuardian,
@@ -88,6 +94,56 @@ function childForm(competition: OpenCompetition, childId: string) {
 }
 
 describe("registerAsIndividual for a minor", () => {
+  it("leaves guardian, linked teen and unlinked teen registrations unavailable in production", async () => {
+    const h = await createHarness({ appEnv: "production" });
+    const competition = await consentCompetition(h);
+    const teen = await h.seed.member({ name: "Rohan Desai" });
+    const family = await h.seed.guardian({
+      children: [{ fullName: "Rohan Desai", age: 15, loginUserId: teen.id }],
+    });
+    const childId = family.childIds[0]!;
+    const parent = h.as(await h.signIn(family.account));
+    const linked = h.as(await h.signIn(teen));
+    const alone = h.as(await h.signIn(await h.seed.member()));
+    const profiles = (await participantRows(h)).profiles;
+    const deliveries = await h.db.select().from(outbox);
+    const consents = await h.db.select().from(consentEvent);
+    const unavailable = { ok: false, error: "unavailable" };
+
+    expect(
+      await parent.registerAsIndividual(
+        consentFormForChild(competition, childId, { participation: true })
+      )
+    ).toEqual(unavailable);
+    expect(await linked.registerAsIndividual(adultForm(competition))).toEqual(
+      unavailable
+    );
+    expect(
+      await alone.registerAsIndividual(teenForm(h, competition, MOTHER))
+    ).toEqual(unavailable);
+
+    expect((await participantRows(h)).profiles).toEqual(profiles);
+    expect(await h.db.select().from(registration)).toEqual([]);
+    expect(await h.db.select().from(guardianInvitation)).toEqual([]);
+    expect(await h.db.select().from(consentEvent)).toEqual(consents);
+    expect(await h.db.select().from(outbox)).toEqual(deliveries);
+
+    const adult = await alone.registerAsIndividual(adultForm(competition));
+    expect(adult).toMatchObject({
+      ok: true,
+      status: "pending_payment",
+    });
+    if (!adult.ok) throw new Error("Adult registration failed");
+    const registrationInput = { registrationId: adult.registrationId };
+    const order = await alone.payForMyRegistration(registrationInput);
+    if (!order.ok || order.kind !== "checkout")
+      throw new Error("Adult checkout failed");
+    const captured = h.gateway.capture(order.checkout.orderId);
+    expect(
+      await alone.confirmMyPayment({ ...registrationInput, ...captured })
+    ).toEqual({ ok: true, outcome: "captured" });
+  });
+
   it("lets a verified guardian register their 9-year-old, waiting for payment", async () => {
     const h = await createHarness();
     const competition = await openToAllAges(h);
@@ -173,22 +229,28 @@ describe("registerAsIndividual for a minor", () => {
     ]);
   });
 
-  it("never lets a child under 13 register alone, and writes nothing", async () => {
-    const h = await createHarness();
-    const competition = await openToAllAges(h);
-    const child = await h.seed.member({ name: "Isha" });
-    const isha = await h.signIn(child);
-    const before = await participantRows(h);
+  it.each([
+    { appEnv: "local", error: "under_13_needs_guardian" },
+    { appEnv: "production", error: "unavailable" },
+  ] as const)(
+    "refuses an independent applicant under 13 in $appEnv with $error and writes nothing",
+    async ({ appEnv, error }) => {
+      const h = await createHarness({ appEnv });
+      const competition = await openToAllAges(h);
+      const child = await h.seed.member({ name: "Isha" });
+      const isha = await h.signIn(child);
+      const before = await participantRows(h);
 
-    const result = await h
-      .as(isha)
-      .registerAsIndividual(
-        adultForm(competition, { dateOfBirth: bornYearsAgo(h, 12, 300) })
-      );
+      const result = await h
+        .as(isha)
+        .registerAsIndividual(
+          adultForm(competition, { dateOfBirth: bornYearsAgo(h, 12, 300) })
+        );
 
-    expect(result).toEqual({ ok: false, error: "under_13_needs_guardian" });
-    expect(await participantRows(h)).toEqual(before);
-  });
+      expect(result).toEqual({ ok: false, error });
+      expect(await participantRows(h)).toEqual(before);
+    }
+  );
 
   it("refuses a guardian registering a child who has turned 18", async () => {
     const h = await createHarness();

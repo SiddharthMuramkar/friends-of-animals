@@ -1,5 +1,5 @@
 {
-  "id": "5eda5f78-b0fe-4e26-8a30-d9caebd3908c",
+  "id": "df4010ea-e093-4f12-8738-b7a819eaebd3",
   "prevId": "4bb9b9a0-1e6f-479c-80c1-9cd448a7a683",
   "version": "7",
   "dialect": "postgresql",
@@ -1792,6 +1792,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "giver_contact_hash": {
+          "name": "giver_contact_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "consent_link_id": {
+          "name": "consent_link_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "purpose": {
           "name": "purpose",
           "type": "consent_purpose",
@@ -1932,6 +1944,19 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
+        "consent_event_consent_link_id_consent_link_id_fk": {
+          "name": "consent_event_consent_link_id_consent_link_id_fk",
+          "tableFrom": "consent_event",
+          "tableTo": "consent_link",
+          "columnsFrom": [
+            "consent_link_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "consent_event_competition_id_competition_id_fk": {
           "name": "consent_event_competition_id_competition_id_fk",
           "tableFrom": "consent_event",
@@ -1960,9 +1985,374 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "consent_event_link_purpose_unique": {
+          "name": "consent_event_link_purpose_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "consent_link_id",
+            "purpose"
+          ]
+        }
+      },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "consent_event_link_evidence": {
+          "name": "consent_event_link_evidence",
+          "value": "(\"consent_event\".\"method\" = 'otp_link') = (\"consent_event\".\"consent_link_id\" IS NOT NULL)\n        AND (\"consent_event\".\"method\" <> 'otp_link' OR (\n          \"consent_event\".\"giver_user_id\" IS NULL AND \"consent_event\".\"giver_contact_hash\" IS NOT NULL\n          AND \"consent_event\".\"subject_type\" = 'participant_profile'\n          AND \"consent_event\".\"competition_id\" IS NOT NULL\n        ))"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.consent_link": {
+      "name": "consent_link",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "participant_profile_id": {
+          "name": "participant_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "competition_id": {
+          "name": "competition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "institution_registration_id": {
+          "name": "institution_registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "student_registration_id": {
+          "name": "student_registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "consent_link_channel",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_ciphertext": {
+          "name": "contact_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_hash": {
+          "name": "contact_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_ciphertext": {
+          "name": "token_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "consent_link_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "offered_uses": {
+          "name": "offered_uses",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sent_by_user_id": {
+          "name": "sent_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "codes_sent": {
+          "name": "codes_sent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_code_sent_at": {
+          "name": "last_code_sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_hash": {
+          "name": "code_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_expires_at": {
+          "name": "code_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_attempts": {
+          "name": "code_attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "verified_at": {
+          "name": "verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "session_token_hash": {
+          "name": "session_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "answers": {
+          "name": "answers",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "consent_link_pending_student_competition": {
+          "name": "consent_link_pending_student_competition",
+          "columns": [
+            {
+              "expression": "participant_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "competition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"consent_link\".\"status\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "consent_link_school_registration_idx": {
+          "name": "consent_link_school_registration_idx",
+          "columns": [
+            {
+              "expression": "institution_registration_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "consent_link_competition_idx": {
+          "name": "consent_link_competition_idx",
+          "columns": [
+            {
+              "expression": "competition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "consent_link_profile_idx": {
+          "name": "consent_link_profile_idx",
+          "columns": [
+            {
+              "expression": "participant_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "consent_link_student_registration_idx": {
+          "name": "consent_link_student_registration_idx",
+          "columns": [
+            {
+              "expression": "student_registration_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "consent_link_sender_idx": {
+          "name": "consent_link_sender_idx",
+          "columns": [
+            {
+              "expression": "sent_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "consent_link_participant_profile_id_participant_profile_id_fk": {
+          "name": "consent_link_participant_profile_id_participant_profile_id_fk",
+          "tableFrom": "consent_link",
+          "tableTo": "participant_profile",
+          "columnsFrom": [
+            "participant_profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "consent_link_competition_id_competition_id_fk": {
+          "name": "consent_link_competition_id_competition_id_fk",
+          "tableFrom": "consent_link",
+          "tableTo": "competition",
+          "columnsFrom": [
+            "competition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "consent_link_institution_registration_id_institution_registration_id_fk": {
+          "name": "consent_link_institution_registration_id_institution_registration_id_fk",
+          "tableFrom": "consent_link",
+          "tableTo": "institution_registration",
+          "columnsFrom": [
+            "institution_registration_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "consent_link_student_registration_id_registration_id_fk": {
+          "name": "consent_link_student_registration_id_registration_id_fk",
+          "tableFrom": "consent_link",
+          "tableTo": "registration",
+          "columnsFrom": [
+            "student_registration_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "consent_link_sent_by_user_id_user_id_fk": {
+          "name": "consent_link_sent_by_user_id_user_id_fk",
+          "tableFrom": "consent_link",
+          "tableTo": "user",
+          "columnsFrom": [
+            "sent_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "consent_link_token_hash_unique": {
+          "name": "consent_link_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "consent_link_closed_state": {
+          "name": "consent_link_closed_state",
+          "value": "(\"consent_link\".\"status\" = 'used') = (\"consent_link\".\"used_at\" IS NOT NULL)\n          AND (\"consent_link\".\"status\" = 'used') = (\"consent_link\".\"answers\" IS NOT NULL)\n          AND (\"consent_link\".\"status\" = 'revoked') = (\"consent_link\".\"revoked_at\" IS NOT NULL)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.second_factor": {
@@ -7224,12 +7614,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "dashboard_refund_reference": {
-          "name": "dashboard_refund_reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -7309,13 +7693,6 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "payment_review_case_dashboard_refund_reference_unique": {
-          "name": "payment_review_case_dashboard_refund_reference_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "dashboard_refund_reference"
-          ]
-        },
         "payment_review_case_payment_unique": {
           "name": "payment_review_case_payment_unique",
           "nullsNotDistinct": false,
@@ -7331,13 +7708,9 @@
           "name": "payment_review_case_resolved_together",
           "value": "(\"payment_review_case\".\"resolved_at\" IS NULL) = (\"payment_review_case\".\"outcome\" IS NULL) AND (\"payment_review_case\".\"outcome\" IS NULL) = (\"payment_review_case\".\"resolution_reason\" IS NULL)"
         },
-        "payment_review_case_refund_due_matches_outcome": {
-          "name": "payment_review_case_refund_due_matches_outcome",
-          "value": "NOT \"payment_review_case\".\"refund_due\" OR (\"payment_review_case\".\"outcome\" IS NOT NULL AND (\"payment_review_case\".\"outcome\" = 'refund' OR (\"payment_review_case\".\"outcome\" = 'confirm' AND \"payment_review_case\".\"currency\" <> 'INR' AND \"payment_review_case\".\"gateway_payment_id\" IS NOT NULL AND \"payment_review_case\".\"amount_minor\" > 0)))"
-        },
-        "payment_review_case_dashboard_refund_settled": {
-          "name": "payment_review_case_dashboard_refund_settled",
-          "value": "\"payment_review_case\".\"dashboard_refund_reference\" IS NULL OR (NOT \"payment_review_case\".\"refund_due\" AND \"payment_review_case\".\"resolved_at\" IS NOT NULL AND \"payment_review_case\".\"outcome\" IN ('refund', 'confirm') AND \"payment_review_case\".\"currency\" <> 'INR' AND \"payment_review_case\".\"gateway_payment_id\" IS NOT NULL AND \"payment_review_case\".\"amount_minor\" > 0)"
+        "payment_review_case_refund_only_on_refund": {
+          "name": "payment_review_case_refund_only_on_refund",
+          "value": "NOT \"payment_review_case\".\"refund_due\" OR \"payment_review_case\".\"outcome\" = 'refund'"
         }
       },
       "isRLSEnabled": false
@@ -8156,13 +8529,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "zero_share_registration_ids": {
-          "name": "zero_share_registration_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::uuid[]"
-        },
         "currency": {
           "name": "currency",
           "type": "char(3)",
@@ -8281,44 +8647,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "refund_committed_capture_idx": {
-          "name": "refund_committed_capture_idx",
-          "columns": [
-            {
-              "expression": "batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "gateway_payment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"refund\".\"status\" <> 'rejected'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "refund_live_zero_share_batch_idx": {
-          "name": "refund_live_zero_share_batch_idx",
-          "columns": [
-            {
-              "expression": "batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"refund\".\"status\" <> 'rejected' AND cardinality(\"refund\".\"zero_share_registration_ids\") > 0",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8637,22 +8965,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "refund_item_live_batch_idx": {
-          "name": "refund_item_live_batch_idx",
-          "columns": [
-            {
-              "expression": "batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"refund_item\".\"released_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9178,6 +9490,23 @@
       "values": [
         "user",
         "participant_profile"
+      ]
+    },
+    "public.consent_link_channel": {
+      "name": "consent_link_channel",
+      "schema": "public",
+      "values": [
+        "email",
+        "sms"
+      ]
+    },
+    "public.consent_link_status": {
+      "name": "consent_link_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "used",
+        "revoked"
       ]
     },
     "public.second_factor_kind": {

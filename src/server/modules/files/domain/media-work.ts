@@ -18,6 +18,11 @@ export const IMAGE_DERIVATIVES: {
   test_upload: ["thumb_320", "display_1600"],
   /** A post's images: only these copies are ever public (#112). */
   cms_image: ["post_cover_1200", "post_inline_960"],
+  /**
+   * An entry's picture (#85): the thumbnail on the participant's own
+   * pages, the large copy for staff, verifiers and judges.
+   */
+  entry_image: ["thumb_320", "display_1600"],
 };
 
 /** The stored types the media processor decodes. */

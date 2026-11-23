@@ -1,15 +1,20 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import type { E164Phone } from "@/lib/phone";
 import { createApp } from "@/server/app";
-import { fieldCryptoFor } from "@/server/crypto/keys";
+import { DEVELOPMENT_FIELD_KEYS, fieldCryptoFor } from "@/server/crypto/keys";
 import type { AppDb } from "@/server/db/app-db";
 import {
   capturedMessage,
+  entryUploadGrant,
   fileAsset,
   fileDerivative,
   fileProcessing,
+  guardianInvitation,
   inboxItem,
   messageRoute,
   messageTemplate,
@@ -18,14 +23,23 @@ import {
   workerHeartbeat,
 } from "@/server/db/schema";
 import { storedPhone } from "@/server/identity/stored-phone";
+import { uuidv7 } from "@/server/ids";
+import { confirmedAdult, PHOTO } from "@/server/modules/entries/testing";
 import { OffsiteCopyNotConfiguredError } from "@/server/modules/offsite-copy/errors";
-import { drainUntilIdle } from "@/server/outbox";
+import {
+  adultForm,
+  openToIndividuals,
+} from "@/server/modules/participants/testing";
+import { drainUntilIdle, emit } from "@/server/outbox";
 import { emitUserSignedUp } from "@/server/outbox/testing";
 import type { Clock } from "@/server/ports/clock";
 import type { ErrorReporter } from "@/server/ports/errors";
 import type { MalwareScanner } from "@/server/ports/malware-scanner";
 import type { MediaProcessor } from "@/server/ports/media";
 import type { ObjectStorage } from "@/server/ports/storage";
+import { bornYearsAgo, guardianBuilder } from "@/server/seed/guardians";
+import { formatIsoDate } from "@/server/modules/registration/domain/calendar-date";
+import { localDiskStorageFor } from "@/server/ports/storage-for";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
 import { FakeErrorReporter } from "@/test/fakes/errors";
@@ -39,6 +53,7 @@ import { seedInstitution } from "@/test/institutions";
 import type { WorkerConfig } from "./config";
 import type { WorkerLogEntry } from "./log";
 import type { ListedDatabase } from "./preview-databases";
+import { workerStorage } from "./runtime";
 import type { ScheduleBossJob } from "./schedules";
 import { createWorker, type WorkerIo } from "./worker";
 
@@ -253,6 +268,90 @@ describe("a single-database worker", () => {
     expect(record.opened).toEqual([{ url: DB_URL, connections: 1 }]);
     expect(record.beats).toEqual([io.clock.now()]);
   });
+
+  it.each(["local", "staging", "production"] as const)(
+    "settles queued guardian setup deliveries in %s with the configured capability",
+    async (appEnv) => {
+      const h = await createHarness();
+      const deps = {
+        ...h.deps,
+        ...fieldCryptoFor({ APP_ENV: "local", ...DEVELOPMENT_FIELD_KEYS }),
+      };
+      const app = createApp(deps);
+      const teenEmail = "invited-teen@example.test";
+      const guardianEmail = "named-guardian@example.test";
+      const { account, childIds } = await guardianBuilder(deps)({
+        children: [{ fullName: "Invited Teen", age: 15 }],
+      });
+      const parent = await h.signIn(account);
+      expect(
+        await app
+          .as(parent)
+          .inviteTeenLogin({ childId: childIds[0]!, email: teenEmail })
+      ).toMatchObject({ ok: true });
+
+      const teen = await h.signIn(await h.seed.member());
+      const competition = await openToIndividuals(h);
+      expect(
+        await app.as(teen).registerAsIndividual({
+          ...adultForm(competition, {
+            fullName: "Independent Teen",
+            dateOfBirth: formatIsoDate(bornYearsAgo(h.clock.now(), 15, 30)),
+          }),
+          guardian: {
+            fullName: "Named Guardian",
+            relationship: "parent",
+            email: guardianEmail,
+          },
+        })
+      ).toMatchObject({ ok: true, status: "pending_guardian" });
+
+      const events = ["guardian.guardian_requested", "guardian.teen_invited"];
+      const setupDeliveries = () =>
+        h.db
+          .select({ eventType: outbox.eventType, status: outbox.status })
+          .from(outbox)
+          .where(inArray(outbox.eventType, events))
+          .orderBy(outbox.eventType);
+      expect(await setupDeliveries()).toEqual(
+        events.map((eventType) => ({ eventType, status: "pending" }))
+      );
+
+      const { io } = fakeIo({ foa: h.db }, [], { clock: h.clock });
+      const worker = createWorker(
+        {
+          ...singleConfig(appEnv),
+          siteUrl: deps.auth.baseUrl,
+          fieldEncryptionKeys: DEVELOPMENT_FIELD_KEYS.FIELD_ENCRYPTION_KEYS,
+          fieldHmacKey: DEVELOPMENT_FIELD_KEYS.FIELD_HMAC_KEY,
+        },
+        io
+      );
+      await worker.start();
+      try {
+        await worker.tick();
+      } finally {
+        await worker.stop();
+      }
+
+      expect(await setupDeliveries()).toEqual(
+        events.map((eventType) => ({ eventType, status: "dispatched" }))
+      );
+      const setupMessages = await h.db
+        .select({ address: capturedMessage.toAddress })
+        .from(capturedMessage)
+        .where(inArray(capturedMessage.toAddress, [teenEmail, guardianEmail]))
+        .orderBy(capturedMessage.toAddress);
+      expect(setupMessages.map(({ address }) => address)).toEqual(
+        appEnv === "local" ? [teenEmail, guardianEmail] : []
+      );
+      expect(
+        await h.db
+          .select({ status: guardianInvitation.status })
+          .from(guardianInvitation)
+      ).toEqual([{ status: "pending" }, { status: "pending" }]);
+    }
+  );
 
   it("sends to a member without a phone though it holds no field keys", async () => {
     // #69's dispatcher reads phone numbers with the field cipher. A staging
@@ -487,6 +586,229 @@ describe("the shared preview worker", () => {
     }
   });
 
+  it.each([
+    {
+      database: "foa_pr_1_0a1b2c3d",
+      comment: "foa-preview pr=1",
+      prefix: "pr-1/",
+      otherPrefix: "pr-2/",
+    },
+    {
+      database: "foa_br_example_1a2b3c4d_0a1b2c3d",
+      comment: "foa-preview branch=example",
+      prefix: "br-1a2b3c4d/",
+      otherPrefix: "br-4d3c2b1a/",
+    },
+  ])(
+    "clears staged entry bytes only under $prefix in the configured bucket",
+    async ({ database, comment, prefix, otherPrefix }) => {
+      const h = await createHarness();
+      const fileId = uuidv7(h.clock.now());
+      const staged = {
+        bucket: "preview-files",
+        key: `${prefix}incoming/${fileId}`,
+      };
+      const other = {
+        bucket: staged.bucket,
+        key: `${otherPrefix}incoming/${fileId}`,
+      };
+      const otherBucket = { bucket: "other-files", key: staged.key };
+      const body = readMediaFixture("gpsJpeg");
+      for (const ref of [staged, other, otherBucket]) {
+        await h.storage.write({ ...ref, body, contentType: "image/jpeg" });
+      }
+      await emit(h.db, h.clock, {
+        type: "entry.sweep_staged_upload",
+        aggregate: { type: "file_asset", id: fileId },
+        payload: { fileId },
+      });
+      const { io } = fakeIo(
+        { [database]: h.db },
+        [{ datname: database, comment }],
+        { clock: h.clock, storage: h.storage }
+      );
+      const worker = createWorker(
+        {
+          ...PREVIEW_CONFIG,
+          r2: {
+            accountId: "unused",
+            accessKeyId: "unused",
+            secretAccessKey: "unused",
+            bucket: staged.bucket,
+          },
+        },
+        io
+      );
+      await worker.start();
+      try {
+        await worker.tick();
+        expect(await h.storage.head(staged)).toBeNull();
+        expect(await h.storage.head(other)).toMatchObject({
+          sizeBytes: body.length,
+        });
+        expect(await h.storage.head(otherBucket)).toMatchObject({
+          sizeBytes: body.length,
+        });
+      } finally {
+        await worker.stop();
+      }
+    }
+  );
+
+  it("refuses a delayed staging sweep before deleting anything for an unmapped preview database", async () => {
+    const h = await createHarness();
+    const database = "foa_pr_1";
+    const bucket = "preview-files";
+    const fileId = uuidv7(h.clock.now());
+    const deleteObject = vi.spyOn(h.storage, "delete");
+    await emit(h.db, h.clock, {
+      type: "entry.sweep_staged_upload",
+      aggregate: { type: "file_asset", id: fileId },
+      payload: { fileId },
+    });
+    const { io } = fakeIo(
+      { [database]: h.db },
+      [{ datname: database, comment: "foa-preview pr=1" }],
+      { clock: h.clock, storage: h.storage }
+    );
+    const worker = createWorker(
+      {
+        ...PREVIEW_CONFIG,
+        r2: {
+          accountId: "unused",
+          accessKeyId: "unused",
+          secretAccessKey: "unused",
+          bucket,
+        },
+      },
+      io
+    );
+    await worker.start();
+    try {
+      await worker.tick();
+      expect(deleteObject).not.toHaveBeenCalled();
+      const [sweep] = await h.db
+        .select()
+        .from(outbox)
+        .where(eq(outbox.aggregateId, fileId));
+      expect(sweep).toMatchObject({
+        handler: "entries.sweep_staged_upload",
+        status: "pending",
+        attempts: 1,
+        lastError: "Error: The database has no entry staging prefix",
+      });
+    } finally {
+      await worker.stop();
+    }
+  });
+
+  it.each(["staging key", "original key", "bucket", "unknown prefix"])(
+    "leaves both entry objects alone when primary expiry refuses the storage scope (%s)",
+    async (mismatch) => {
+      const h = await createHarness();
+      const participant = await confirmedAdult(h);
+      const bucket = "preview-files";
+      const prefix = "pr-1/";
+      const app = createApp({
+        ...h.deps,
+        files: {
+          ...h.deps.files,
+          appEnv: "preview",
+          bucket,
+          keyPrefix: prefix,
+        },
+      }).as(participant.actor);
+      const grant = await app.startEntryUpload({
+        registrationId: participant.registrationId,
+        discipline: "photography",
+        file: { name: "fixture.jpg", type: "image/jpeg", size: PHOTO.length },
+      });
+      if (!grant.ok) throw new Error(grant.error);
+
+      const storedBucket = mismatch === "bucket" ? "other-files" : bucket;
+      const stagedPrefix = mismatch === "staging key" ? "pr-2/" : prefix;
+      const originalPrefix = mismatch === "original key" ? "pr-2/" : prefix;
+      const staged = {
+        bucket: storedBucket,
+        key: `${stagedPrefix}incoming/${grant.fileId}`,
+      };
+      const original = {
+        bucket: storedBucket,
+        key: `${originalPrefix}entry_image/${grant.fileId}`,
+      };
+      for (const ref of [staged, original]) {
+        await h.storage.write({
+          ...ref,
+          body: PHOTO,
+          contentType: "image/jpeg",
+        });
+      }
+      // Model inconsistent metadata in the isolated fixture database.
+      await h.db
+        .update(entryUploadGrant)
+        .set({ uploadKey: staged.key })
+        .where(eq(entryUploadGrant.fileAssetId, grant.fileId));
+      await h.db
+        .update(fileAsset)
+        .set({ bucket: storedBucket, storageKey: original.key })
+        .where(eq(fileAsset.id, grant.fileId));
+
+      const database =
+        mismatch === "unknown prefix" ? "foa_pr_1" : "foa_pr_1_0a1b2c3d";
+      const { io } = fakeIo(
+        { [database]: h.db },
+        [{ datname: database, comment: "foa-preview pr=1" }],
+        { clock: h.clock, storage: h.storage }
+      );
+      const worker = createWorker(
+        {
+          ...PREVIEW_CONFIG,
+          r2: {
+            accountId: "unused",
+            accessKeyId: "unused",
+            secretAccessKey: "unused",
+            bucket,
+          },
+        },
+        io
+      );
+      h.clock.set(grant.expiresAt);
+      await worker.start();
+      try {
+        await worker.tick();
+        expect(await h.storage.head(staged)).toMatchObject({
+          sizeBytes: PHOTO.length,
+        });
+        expect(await h.storage.head(original)).toMatchObject({
+          sizeBytes: PHOTO.length,
+        });
+        const [expiry] = await h.db
+          .select({
+            status: outbox.status,
+            attempts: outbox.attempts,
+            lastError: outbox.lastError,
+          })
+          .from(outbox)
+          .where(
+            and(
+              eq(outbox.handler, "entries.expire_upload_grant"),
+              eq(outbox.aggregateId, grant.fileId)
+            )
+          );
+        expect(expiry).toMatchObject({
+          status: "pending",
+          attempts: 1,
+          lastError:
+            mismatch === "unknown prefix"
+              ? "Error: The database has no entry staging prefix"
+              : "Error: Entry upload does not match the worker storage namespace",
+        });
+      } finally {
+        await worker.stop();
+      }
+    }
+  );
+
   it("never starts pg-boss", async () => {
     const pr1 = await createHarness();
     const { io, record } = fakeIo({ foa_pr_1_0a1b2c3d: pr1.db }, [
@@ -505,6 +827,58 @@ describe("the shared preview worker", () => {
 });
 
 const JPEG = readMediaFixture("gpsJpeg");
+
+it("expires entry uploads from the same local disk store as the app", async () => {
+  const h = await createHarness();
+  const participant = await confirmedAdult(h);
+  const root = await mkdtemp(join(tmpdir(), "entry-worker-storage-"));
+  const siteUrl = "http://localhost:3000";
+  const config = { ...singleConfig(), siteUrl };
+  const disk = localDiskStorageFor(
+    { APP_ENV: "local", APP_URL: siteUrl },
+    root
+  )!;
+  const bucket = "local";
+  const app = createApp({
+    ...h.deps,
+    storage: disk,
+    files: { ...h.deps.files, bucket },
+  }).as(participant.actor);
+  const { io } = fakeIo({ foa: h.db }, [], {
+    clock: h.clock,
+    storage: workerStorage(config, root),
+  });
+  const worker = createWorker(config, io);
+  try {
+    const grant = await app.startEntryUpload({
+      registrationId: participant.registrationId,
+      discipline: "photography",
+      file: { name: "fixture.jpg", type: "image/jpeg", size: PHOTO.length },
+    });
+    if (!grant.ok) throw new Error(grant.error);
+    const staged = { bucket, key: `local/incoming/${grant.fileId}` };
+    expect(
+      await disk.receive(
+        grant.uploadUrl,
+        new Headers({
+          ...grant.headers,
+          "Content-Length": String(PHOTO.length),
+        }),
+        new Blob([Uint8Array.from(PHOTO)]).stream()
+      )
+    ).toEqual({ ok: true });
+    expect(await disk.head(staged)).toMatchObject({ sizeBytes: PHOTO.length });
+
+    h.clock.set(grant.expiresAt);
+    await worker.start();
+    await worker.tick();
+
+    expect(await disk.head(staged)).toBeNull();
+  } finally {
+    await worker.stop();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 /**
  * `count` JPEGs one member uploads, scanned clean by the default queue (as

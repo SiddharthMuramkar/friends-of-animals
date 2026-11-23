@@ -9,7 +9,7 @@
  * loads it under plain Node.
  */
 
-import { CHECKOUT_ROUTES } from "./app-routes";
+import { CHECKOUT_ROUTES, CONSENT_LINK_PREFIX } from "./app-routes";
 import type { HeaderRule } from "./csp";
 
 export type SecurityHeader = { key: string; value: string };
@@ -51,6 +51,20 @@ export function checkoutPageHeaders(): HeaderRule[] {
       },
     ],
   }));
+}
+
+/** Bearer paths are never cached, indexed or sent as a referrer. */
+export function consentLinkHeaders(): HeaderRule[] {
+  return [
+    {
+      source: `${CONSENT_LINK_PREFIX}/:path*`,
+      headers: [
+        { key: "Referrer-Policy", value: "no-referrer" },
+        { key: "Cache-Control", value: "private, no-store" },
+        { key: "X-Robots-Tag", value: "noindex, nofollow" },
+      ],
+    },
+  ];
 }
 
 /** The headers for one deployment, from its APP_ENV. */

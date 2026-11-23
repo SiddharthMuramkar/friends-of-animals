@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { Actor } from "@/server/actor";
 import { createApp, type App } from "@/server/app";
 import { DomainError } from "@/server/errors";
+import {
+  childForm,
+  consentCompetition,
+} from "@/server/modules/consent/testing";
 import { fallbackPaymentGateway } from "@/server/ports/payment-gateway-fallback";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -58,6 +62,34 @@ function answer(
 }
 
 describe("payMyTestCheckout", () => {
+  it("leaves an existing minor's test order unpaid in staging", async () => {
+    const { h, gateway, app } = await fallbackWorld();
+    const competition = await consentCompetition(h);
+    const family = await h.seed.guardian({
+      children: [{ fullName: "Asha Rao", age: 15 }],
+    });
+    const actor = await h.signIn(family.account);
+    const made = await app
+      .as(actor)
+      .registerAsIndividual(
+        childForm(competition, family.childIds[0]!, { participation: true })
+      );
+    if (!made.ok) throw new Error("Registration fixture failed");
+    const child = { actor, registrationId: made.registrationId };
+    const { orderId } = await openOrder(app, child);
+    const staging = createApp({
+      ...h.deps,
+      payments: gateway,
+      appEnv: "staging",
+    });
+
+    const result = await answer(staging, child, "pay");
+
+    expect(result.ok).toBe(false);
+    expect(result).toEqual({ ok: false, error: "unavailable" });
+    expect(await gateway.fetchOrderPayments(orderId)).toEqual([]);
+  });
+
   it("pays the order of the batch holding the adult's registration, and what it hands back confirms it", async () => {
     const { h, gateway, app } = await fallbackWorld();
     const ravi = await registered(h, app);

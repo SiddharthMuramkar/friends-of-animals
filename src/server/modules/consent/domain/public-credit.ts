@@ -90,7 +90,10 @@ function initialOf(lastName: string): string | undefined {
   return undefined;
 }
 
-function firstNameAndInitial(firstName: string, lastName: string): string {
+export function firstNameAndInitial(
+  firstName: string,
+  lastName: string
+): string {
   const initial = initialOf(lastName);
   return [tidy(firstName), initial && `${initial}.`].filter(Boolean).join(" ");
 }

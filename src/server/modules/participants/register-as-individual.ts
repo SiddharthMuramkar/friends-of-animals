@@ -49,6 +49,7 @@ import { uuidv7 } from "../../ids";
 import type { InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import { withUniqueCode } from "../codes/codes";
+import { guardianFlowsActive } from "../guardians/availability";
 import { childResource } from "../guardians/child-access";
 import {
   askGuardianFor,
@@ -112,6 +113,7 @@ export type RegisterAsIndividualResult =
       ok: false;
       error:
         | "not_found"
+        | "unavailable"
         | IndividualRegistrationRefusal
         | GuardianRequestRefusal
         | "rate_limited";
@@ -330,6 +332,12 @@ async function registerOnce(
             (await participationGiven(tx, profile.id, target.id))),
         at: now,
       });
+      const needsGuardian = decision.ok
+        ? !isAdultAt(decision.dateOfBirth, now)
+        : decision.reason === "under_13_needs_guardian";
+      if (needsGuardian && !guardianFlowsActive(ctx.appEnv)) {
+        return { ok: false, error: "unavailable" };
+      }
       if (!decision.ok) return { ok: false, error: decision.reason };
 
       let askGuardian: ((profileId: string) => Promise<void>) | null = null;
