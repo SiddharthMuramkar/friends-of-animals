@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { outbox, paymentBatch } from "@/server/db/schema";
@@ -59,12 +59,15 @@ function refundWebhook(
   );
 }
 
-async function eventsOf(h: Harness, type: string) {
+async function deliveriesOf(
+  h: Harness,
+  type: "refund.processed" | "refund.failed"
+) {
   return h.db
-    .select()
+    .select({ eventId: outbox.eventId, handler: outbox.handler })
     .from(outbox)
     .where(eq(outbox.eventType, type))
-    .orderBy(asc(outbox.id));
+    .orderBy(outbox.handler);
 }
 
 describe("a refund the gateway holds", () => {
@@ -100,7 +103,12 @@ describe("a refund the gateway holds", () => {
       "refunded",
       "refunded",
     ]);
-    expect(await eventsOf(h, "refund.processed")).toHaveLength(1);
+    const deliveries = await deliveriesOf(h, "refund.processed");
+    expect(new Set(deliveries.map(({ eventId }) => eventId)).size).toBe(1);
+    expect(deliveries.map(({ handler }) => handler)).toEqual([
+      "ledger.post_refund",
+      "notifications.dispatch",
+    ]);
 
     const settled = await refundRows(h);
     expect(await h.as(h.visitor()).receiveGatewayWebhook(webhook)).toEqual({
@@ -170,7 +178,10 @@ describe("a refund the gateway fails", () => {
       status: "failed",
       failedAt: h.clock.now(),
     });
-    expect(await eventsOf(h, "refund.failed")).toHaveLength(1);
+    const deliveries = await deliveriesOf(h, "refund.failed");
+    expect(deliveries.map(({ handler }) => handler)).toEqual([
+      "notifications.dispatch",
+    ]);
     expect(await statusesOf(h, paid.registrationIds)).toEqual([
       "confirmed",
       "confirmed",
@@ -334,7 +345,9 @@ describe("a refund the gateway refuses for good", () => {
       gatewayRefundId: null,
     });
     expect(h.gateway.refunds).toHaveLength(1);
-    expect(await eventsOf(h, "refund.failed")).toHaveLength(1);
+    expect(await deliveriesOf(h, "refund.failed")).toEqual([
+      expect.objectContaining({ handler: "notifications.dispatch" }),
+    ]);
     expect(await listFailedDeliveries(h.db)).toEqual([]);
     expect((await refundAudit(h)).at(-1)).toMatchObject({
       action: "refund.failed",
@@ -390,7 +403,7 @@ describe("a refund the gateway refuses for good", () => {
       refuse.resolve();
       await delivery;
       expect(await refundRow(h, refundId)).toEqual(acknowledged);
-      expect(await eventsOf(h, "refund.failed")).toEqual([]);
+      expect(await deliveriesOf(h, "refund.failed")).toEqual([]);
     } finally {
       refuse.resolve();
       await delivery;

@@ -1,5 +1,5 @@
 {
-  "id": "ac08a222-73d3-48ce-934c-208dc8bfba92",
+  "id": "9d2b8295-2340-4a43-94cd-1e174af3c12f",
   "prevId": "68881d68-61a6-424f-ad3b-61adc3296a68",
   "version": "7",
   "dialect": "postgresql",
@@ -992,6 +992,400 @@
         "outbox_failed_at_when_failed": {
           "name": "outbox_failed_at_when_failed",
           "value": "(\"outbox\".\"status\" = 'failed') = (\"outbox\".\"failed_at\" IS NOT NULL AND \"outbox\".\"last_error\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ledger_account": {
+      "name": "ledger_account",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "ledger_account_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_system": {
+          "name": "is_system",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "public_label": {
+          "name": "public_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "public_group": {
+          "name": "public_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "ledger_account_code_key": {
+          "name": "ledger_account_code_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "ledger_account_code_matches_kind": {
+          "name": "ledger_account_code_matches_kind",
+          "value": "\"ledger_account\".\"code\" ~ '^[0-9]{4}$' AND left(\"ledger_account\".\"code\", 1) = CASE \"ledger_account\".\"kind\" WHEN 'asset' THEN '1' WHEN 'liability' THEN '2' WHEN 'equity' THEN '3' WHEN 'income' THEN '4' WHEN 'expense' THEN '5' END"
+        },
+        "ledger_account_public_group_for_categories": {
+          "name": "ledger_account_public_group_for_categories",
+          "value": "(\"ledger_account\".\"kind\" IN ('income', 'expense')) = (\"ledger_account\".\"public_group\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ledger_line": {
+      "name": "ledger_line",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "posting_id": {
+          "name": "posting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_no": {
+          "name": "line_no",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "debit_minor": {
+          "name": "debit_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credit_minor": {
+          "name": "credit_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'INR'"
+        },
+        "memo": {
+          "name": "memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "ledger_line_account_id_idx": {
+          "name": "ledger_line_account_id_idx",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ledger_line_posting_id_ledger_posting_id_fk": {
+          "name": "ledger_line_posting_id_ledger_posting_id_fk",
+          "tableFrom": "ledger_line",
+          "tableTo": "ledger_posting",
+          "columnsFrom": [
+            "posting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "ledger_line_account_id_ledger_account_id_fk": {
+          "name": "ledger_line_account_id_ledger_account_id_fk",
+          "tableFrom": "ledger_line",
+          "tableTo": "ledger_account",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "ledger_line_posting_id_line_no_key": {
+          "name": "ledger_line_posting_id_line_no_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "posting_id",
+            "line_no"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "ledger_line_line_no_positive": {
+          "name": "ledger_line_line_no_positive",
+          "value": "\"ledger_line\".\"line_no\" >= 1"
+        },
+        "ledger_line_one_side": {
+          "name": "ledger_line_one_side",
+          "value": "(\"ledger_line\".\"debit_minor\" > 0 AND \"ledger_line\".\"credit_minor\" = 0) OR (\"ledger_line\".\"credit_minor\" > 0 AND \"ledger_line\".\"debit_minor\" = 0)"
+        },
+        "ledger_line_currency_inr": {
+          "name": "ledger_line_currency_inr",
+          "value": "\"ledger_line\".\"currency\" = 'INR'"
+        },
+        "ledger_line_memo_length": {
+          "name": "ledger_line_memo_length",
+          "value": "char_length(\"ledger_line\".\"memo\") BETWEEN 1 AND 200"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ledger_posting": {
+      "name": "ledger_posting",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "ledger_posting_seq_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "source_type": {
+          "name": "source_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_month": {
+          "name": "period_month",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expected_line_count": {
+          "name": "expected_line_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "competition_id": {
+          "name": "competition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reversal_of_posting_id": {
+          "name": "reversal_of_posting_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "ledger_posting_occurred_at_idx": {
+          "name": "ledger_posting_occurred_at_idx",
+          "columns": [
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ledger_posting_reversal_of_posting_id_idx": {
+          "name": "ledger_posting_reversal_of_posting_id_idx",
+          "columns": [
+            {
+              "expression": "reversal_of_posting_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ledger_posting_reversal_of_posting_id_ledger_posting_id_fk": {
+          "name": "ledger_posting_reversal_of_posting_id_ledger_posting_id_fk",
+          "tableFrom": "ledger_posting",
+          "tableTo": "ledger_posting",
+          "columnsFrom": [
+            "reversal_of_posting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "ledger_posting_seq_key": {
+          "name": "ledger_posting_seq_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "seq"
+          ]
+        },
+        "ledger_posting_source_key": {
+          "name": "ledger_posting_source_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source_type",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "ledger_posting_period_month_format": {
+          "name": "ledger_posting_period_month_format",
+          "value": "\"ledger_posting\".\"period_month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
+        },
+        "ledger_posting_description_length": {
+          "name": "ledger_posting_description_length",
+          "value": "char_length(\"ledger_posting\".\"description\") BETWEEN 1 AND 500"
+        },
+        "ledger_posting_minimum_line_count": {
+          "name": "ledger_posting_minimum_line_count",
+          "value": "\"ledger_posting\".\"expected_line_count\" >= 2"
         }
       },
       "isRLSEnabled": false
@@ -6830,12 +7224,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "dashboard_refund_reference": {
-          "name": "dashboard_refund_reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -6915,13 +7303,6 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "payment_review_case_dashboard_refund_reference_unique": {
-          "name": "payment_review_case_dashboard_refund_reference_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "dashboard_refund_reference"
-          ]
-        },
         "payment_review_case_payment_unique": {
           "name": "payment_review_case_payment_unique",
           "nullsNotDistinct": false,
@@ -6937,13 +7318,9 @@
           "name": "payment_review_case_resolved_together",
           "value": "(\"payment_review_case\".\"resolved_at\" IS NULL) = (\"payment_review_case\".\"outcome\" IS NULL) AND (\"payment_review_case\".\"outcome\" IS NULL) = (\"payment_review_case\".\"resolution_reason\" IS NULL)"
         },
-        "payment_review_case_refund_due_matches_outcome": {
-          "name": "payment_review_case_refund_due_matches_outcome",
-          "value": "NOT \"payment_review_case\".\"refund_due\" OR (\"payment_review_case\".\"outcome\" IS NOT NULL AND (\"payment_review_case\".\"outcome\" = 'refund' OR (\"payment_review_case\".\"outcome\" = 'confirm' AND \"payment_review_case\".\"currency\" <> 'INR' AND \"payment_review_case\".\"gateway_payment_id\" IS NOT NULL AND \"payment_review_case\".\"amount_minor\" > 0)))"
-        },
-        "payment_review_case_dashboard_refund_settled": {
-          "name": "payment_review_case_dashboard_refund_settled",
-          "value": "\"payment_review_case\".\"dashboard_refund_reference\" IS NULL OR (NOT \"payment_review_case\".\"refund_due\" AND \"payment_review_case\".\"resolved_at\" IS NOT NULL AND \"payment_review_case\".\"outcome\" IN ('refund', 'confirm') AND \"payment_review_case\".\"currency\" <> 'INR' AND \"payment_review_case\".\"gateway_payment_id\" IS NOT NULL AND \"payment_review_case\".\"amount_minor\" > 0)"
+        "payment_review_case_refund_only_on_refund": {
+          "name": "payment_review_case_refund_only_on_refund",
+          "value": "NOT \"payment_review_case\".\"refund_due\" OR \"payment_review_case\".\"outcome\" = 'refund'"
         }
       },
       "isRLSEnabled": false
@@ -7762,13 +8139,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "zero_share_registration_ids": {
-          "name": "zero_share_registration_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::uuid[]"
-        },
         "currency": {
           "name": "currency",
           "type": "char(3)",
@@ -7887,44 +8257,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "refund_committed_capture_idx": {
-          "name": "refund_committed_capture_idx",
-          "columns": [
-            {
-              "expression": "batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "gateway_payment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"refund\".\"status\" <> 'rejected'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "refund_live_zero_share_batch_idx": {
-          "name": "refund_live_zero_share_batch_idx",
-          "columns": [
-            {
-              "expression": "batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"refund\".\"status\" <> 'rejected' AND cardinality(\"refund\".\"zero_share_registration_ids\") > 0",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8243,22 +8575,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "refund_item_live_batch_idx": {
-          "name": "refund_item_live_batch_idx",
-          "columns": [
-            {
-              "expression": "batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"refund_item\".\"released_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8713,6 +9029,17 @@
         "pending",
         "dispatched",
         "failed"
+      ]
+    },
+    "public.ledger_account_kind": {
+      "name": "ledger_account_kind",
+      "schema": "public",
+      "values": [
+        "asset",
+        "liability",
+        "equity",
+        "income",
+        "expense"
       ]
     },
     "public.institution_invitation_channel": {
