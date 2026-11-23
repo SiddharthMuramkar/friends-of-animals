@@ -265,6 +265,12 @@ describe("postings and lines are append-only", () => {
       "SELECT id FROM ledger_posting FOR NO KEY UPDATE"
     );
     expect(locked.rows).toEqual([{ id }]);
+    await expect(
+      client.query("UPDATE ledger_posting SET description = 'Edited'")
+    ).rejects.toThrow("ledger_posting is append-only");
+    expect(
+      (await client.query("SELECT description FROM ledger_posting")).rows
+    ).toEqual([{ description: "Raw test posting" }]);
 
     for (const [table, statement] of [
       ["ledger_line", "UPDATE ledger_line SET debit_minor = debit_minor"],

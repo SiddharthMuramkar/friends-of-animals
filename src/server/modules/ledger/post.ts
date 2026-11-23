@@ -53,6 +53,17 @@ export class LedgerPostingError extends Error {
 
 const postingIdentity = { postingId: ledgerPosting.id, seq: ledgerPosting.seq };
 
+function exceedsCharacterLimit(text: string, limit: number): boolean {
+  // PostgreSQL's char_length and JavaScript's string iterator count code points.
+  if (text.length <= limit) return false;
+  let characters = 0;
+  for (const _ of text) {
+    characters += 1;
+    if (characters > limit) return true;
+  }
+  return false;
+}
+
 export async function findSourcePosting(db: AppDb, source: Source) {
   const [posting] = await db
     .select(postingIdentity)
@@ -81,7 +92,7 @@ export async function postToLedger(
   const description = entry.description.trim();
   if (
     !description ||
-    description.length > 500 ||
+    exceedsCharacterLimit(description, 500) ||
     description.includes("\u0000")
   ) {
     throw new LedgerPostingError("invalid_description");
@@ -110,7 +121,7 @@ export async function postToLedger(
       throw new LedgerPostingError("inactive_account");
     }
     const memo = line.memo?.trim() || null;
-    if (memo && (memo.length > 200 || memo.includes("\u0000"))) {
+    if (memo && (exceedsCharacterLimit(memo, 200) || memo.includes("\u0000"))) {
       throw new LedgerPostingError("invalid_memo");
     }
     return {

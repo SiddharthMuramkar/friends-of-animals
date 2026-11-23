@@ -12,6 +12,7 @@ import type { ErrorReporter } from "../../ports/errors";
 
 import { ledgerWorker, postPaymentCapture, postRefund } from "./consumers";
 import {
+  captureSource,
   eligibleCapture,
   UnsupportedCaptureCurrencyError,
 } from "./sources/payments";
@@ -52,7 +53,6 @@ export async function backfillLedgerFromPayments(
 ) {
   await authorize(ctx, "ledger.post_payment");
   const { db, errors } = ctx;
-  const isOffline = sql`${paymentBatch.captureMethod} = 'offline'`;
   const capturesPosted = await postMissing(
     errors,
     "payment_batch",
@@ -71,14 +71,8 @@ export async function backfillLedgerFromPayments(
                 .from(ledgerPosting)
                 .where(
                   and(
-                    eq(
-                      ledgerPosting.sourceType,
-                      sql`CASE WHEN ${isOffline} THEN 'offline_payment' ELSE 'payment_capture' END`
-                    ),
-                    eq(
-                      ledgerPosting.sourceId,
-                      sql`CASE WHEN ${isOffline} THEN ${offlinePayment.id}::text ELSE ${paymentBatch.gatewayPaymentId} END`
-                    )
+                    eq(ledgerPosting.sourceType, captureSource.type),
+                    eq(ledgerPosting.sourceId, captureSource.id)
                   )
                 )
             )

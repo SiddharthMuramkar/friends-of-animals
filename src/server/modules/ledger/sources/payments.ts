@@ -1,4 +1,4 @@
-import { and, eq, exists, isNotNull, isNull, or } from "drizzle-orm";
+import { and, eq, exists, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import type { AppDb } from "../../../db/app-db";
 import {
@@ -17,6 +17,16 @@ export type CaptureFact = {
   occurredAt: Date;
   amountMinor: bigint;
   method: MoneyMethod;
+};
+
+const isOffline = sql`${paymentBatch.captureMethod} = 'offline'`;
+export const captureSource = {
+  type: sql<
+    CaptureFact["source"]["type"]
+  >`CASE WHEN ${isOffline} THEN 'offline_payment' ELSE 'payment_capture' END`,
+  id: sql<
+    string | null
+  >`CASE WHEN ${isOffline} THEN ${offlinePayment.id}::text ELSE ${paymentBatch.gatewayPaymentId} END`,
 };
 
 export class UnsupportedCaptureCurrencyError extends Error {
@@ -63,13 +73,12 @@ export async function readCapture(
   const [row] = await db
     .select({
       competitionId: paymentBatch.competitionId,
-      gatewayPaymentId: paymentBatch.gatewayPaymentId,
-      captureMethod: paymentBatch.captureMethod,
+      sourceType: captureSource.type,
+      sourceId: captureSource.id,
       capturedAt: paymentBatch.capturedAt,
       amountMinor: paymentBatch.amountMinor,
       currency: paymentBatch.currency,
       offline: {
-        id: offlinePayment.id,
         method: offlinePayment.method,
         receivedOn: offlinePayment.receivedOn,
         amountMinor: offlinePayment.amountMinor,
@@ -93,15 +102,16 @@ export async function readCapture(
   if (!row) return undefined;
   if (row.currency !== "INR") throw new UnsupportedCaptureCurrencyError();
 
-  if (row.captureMethod === "offline") {
-    if (!row.offline) throw new Error("Captured batch has no offline payment");
+  if (row.sourceType === "offline_payment") {
+    if (!row.sourceId || !row.offline)
+      throw new Error("Captured batch has no offline payment");
     const received = parseIstDate(row.offline.receivedOn);
     if (!received.ok)
       throw new Error("Offline payment has an invalid receipt date");
     if (row.offline.amountMinor !== row.amountMinor)
       throw new Error("Offline payment differs from the captured batch");
     return {
-      source: { type: "offline_payment", id: row.offline.id },
+      source: { type: row.sourceType, id: row.sourceId },
       competitionId: row.competitionId,
       occurredAt: received.start,
       amountMinor: row.offline.amountMinor,
@@ -110,13 +120,13 @@ export async function readCapture(
   }
 
   // Captures made before #79 have no capture method and used the gateway.
-  if (!row.gatewayPaymentId || !row.capturedAt)
+  if (!row.sourceId || !row.capturedAt)
     throw new Error("Captured batch has no gateway capture");
   // Payments keeps the order total when finance confirms a different receipt.
   if (row.acceptedReceipt && row.acceptedReceipt.currency !== "INR")
     throw new UnsupportedCaptureCurrencyError();
   return {
-    source: { type: "payment_capture", id: row.gatewayPaymentId },
+    source: { type: row.sourceType, id: row.sourceId },
     competitionId: row.competitionId,
     occurredAt: row.capturedAt,
     amountMinor: row.acceptedReceipt?.amountMinor ?? row.amountMinor,

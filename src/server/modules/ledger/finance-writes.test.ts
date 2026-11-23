@@ -110,6 +110,49 @@ describe("manual entries", () => {
     expect(JSON.stringify(logged)).not.toMatch(/Private test/);
   });
 
+  it.each([
+    { field: "description", limit: 500, error: "invalid_description" },
+    { field: "memo", limit: 200, error: "invalid_memo" },
+  ] as const)(
+    "checks the Unicode character limit for a $field",
+    async ({ field, limit, error }) => {
+      const h = await createHarness();
+      const { actor } = await signInStaff(h);
+      const app = h.as(actor);
+      const atLimit = `${"a".repeat(limit - 1)}🐾`;
+      const entryWith = (text: string) =>
+        field === "description"
+          ? { ...ENTRY, description: text }
+          : { ...ENTRY, lines: [{ ...LINES[0], memo: text }, LINES[1]] };
+
+      expect(await app.createManualEntry(entryWith(` ${atLimit} `))).toEqual({
+        ok: true,
+        postingId: expect.any(String),
+        seq: 1n,
+      });
+      expect(await app.getPosting(1n)).toMatchObject({
+        ok: true,
+        posting: {
+          description: field === "description" ? atLimit : ENTRY.description,
+          lines: [
+            { memo: field === "memo" ? atLimit : LINES[0].memo },
+            { memo: null },
+          ],
+        },
+      });
+
+      expect(await app.createManualEntry(entryWith(`${atLimit}a`))).toEqual({
+        ok: false,
+        error,
+      });
+      expect(await app.getPosting(2n)).toEqual({
+        ok: false,
+        error: "not_found",
+      });
+      expect(await audit(h)).toHaveLength(1);
+    }
+  );
+
   it("refuses invalid entries without writing a header, line or audit", async () => {
     const h = await createHarness();
     const { actor } = await signInStaff(h);
@@ -139,6 +182,11 @@ describe("manual entries", () => {
       [{ ...ENTRY, date: "2027-01-16" }, "future_date"],
       [{ ...ENTRY, date: "2027-02-30" }, "invalid_date"],
       [{ ...ENTRY, description: " " }, "invalid_description"],
+      [{ ...ENTRY, description: "a\u0000b" }, "invalid_description"],
+      [
+        { ...ENTRY, lines: [{ ...debit, memo: "a\u0000b" }, credit] },
+        "invalid_memo",
+      ],
     ] as const;
     for (const [input, error] of cases) {
       expect(await create(input)).toEqual({ ok: false, error });
