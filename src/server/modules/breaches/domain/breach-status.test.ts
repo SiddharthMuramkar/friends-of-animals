@@ -30,7 +30,7 @@ function at(
   status: BreachStatus,
   containedAt: Date | null = null
 ): BreachState {
-  return { status, containedAt };
+  return { status, containedAt, authorityEmailQueuedAt: null };
 }
 
 describe("the breach transition table", () => {

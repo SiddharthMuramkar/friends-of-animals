@@ -292,7 +292,7 @@ describe("notifyAuthority", () => {
       await h.settings.set("breach.authorityEmail", AUTHORITY);
       if (outage === "mail outage") {
         await setBreachNoticeRoute(h, AUTHORITY_NOTICE, true);
-        h.email.failNext(5);
+        h.email.failNext(5, new Error(REPORT_SUBJECT));
       }
       await expect(staff.notifyAuthority({ breachId })).resolves.toEqual({
         ok: true,
@@ -307,6 +307,17 @@ describe("notifyAuthority", () => {
         { id: original!.id, status: "failed", attempts: 5 },
       ]);
       expect(reports(h)).toEqual([]);
+      if (outage === "mail outage") {
+        const [diagnostic] = await h.db
+          .select({ lastError: outbox.lastError })
+          .from(outbox)
+          .where(eq(outbox.id, original!.id));
+        expect
+          .soft(
+            diagnostic?.lastError === "Error: authority_email_handoff_failed"
+          )
+          .toBe(true);
+      }
 
       const failedAt = h.clock.now();
       if (outage === "disabled route") {
@@ -446,6 +457,35 @@ describe("notifyAuthority", () => {
 });
 
 describe("the breach transition table, through the use cases", () => {
+  it("waits for a first authority notice before closing a contained breach", async () => {
+    const h = await noticeHarness(AUTHORITY_NOTICE);
+    await h.settings.set("breach.authorityEmail", AUTHORITY);
+    const admin = await staffActor(h, "staff_admin");
+    const staff = h.as(admin);
+    const breachId = await recordedBreach(h, admin);
+    await staff.containBreach({ breachId });
+    await expect(staff.notifyAuthority({ breachId })).resolves.toEqual({
+      ok: true,
+      channel: "email",
+    });
+    const audit = await breachAudit(h, breachId);
+    const view = await staff.getBreach({ breachId });
+    expect.soft(view.ok && view.breach.allowedEvents).not.toContain("close");
+    await expect(
+      staff.closeBreach({ breachId, reason: "No notice needed." })
+    ).resolves.toEqual({ ok: false, error: "authority_notice_pending" });
+    expect(await breachAudit(h, breachId)).toEqual(audit);
+    expect(await timelineKinds(h, breachId)).toEqual(["recorded", "contained"]);
+    await h.drain();
+    expect(reports(h)).toHaveLength(1);
+    const completed = await staff.getBreach({ breachId });
+    expect(completed.ok && completed.breach.allowedEvents).toContain("close");
+    await expect(staff.closeBreach({ breachId })).resolves.toEqual({
+      ok: true,
+      status: "closed",
+    });
+  });
+
   it("lets a notice go before containment, then stamps containment without moving", async () => {
     const h = await createHarness();
     const admin = await staffActor(h, "super_admin");

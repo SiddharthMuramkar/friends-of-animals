@@ -30,6 +30,7 @@ export const BREACH_AUDIT_ACTIONS = [
   "breach.principals_notified",
   "breach.principal_notice_delivered",
   "breach.principal_notice_scope_updated",
+  "breach.principal_notice_reach_updated",
   "breach.fan_out_completed",
   "breach.authority_email_queued",
   "breach.authority_email_requeued",
@@ -40,6 +41,11 @@ export const BREACH_AUDIT_ACTIONS = [
 export type BreachAuditAction = (typeof BREACH_AUDIT_ACTIONS)[number];
 
 const instant = z.iso.datetime().nullable();
+const reachGapCounts = z.strictObject({
+  no_guardian: z.int().min(0),
+  no_account: z.int().min(0),
+});
+export type ReachGapCounts = z.infer<typeof reachGapCounts>;
 
 export const breachAuditSchema = z.strictObject({
   status: z.enum(BREACH_STATUSES),
@@ -52,6 +58,10 @@ export const breachAuditSchema = z.strictObject({
   authorityNotifiedAt: instant,
   /** How many notices went out in this change; never to whom. */
   noticesSent: z.int().min(0).optional(),
+  noticesQueued: z.int().min(0).optional(),
+  eventsRequeued: z.int().min(0).optional(),
+  reachGapsAdded: reachGapCounts.optional(),
+  reachGapsCleared: reachGapCounts.optional(),
   /** The names of the fields a correction changed; never their values. */
   changedFields: z.array(z.enum(BREACH_UPDATABLE_FIELDS)).optional(),
 });
@@ -75,8 +85,14 @@ const iso = (at: Date | null) => (at === null ? null : at.toISOString());
 /** A breach as its audit rows may show it. */
 export function breachAuditSnapshot(
   breach: AuditableBreach,
-  extra: {
-    noticesSent?: number;
+  extra: Pick<
+    BreachAudit,
+    | "noticesSent"
+    | "noticesQueued"
+    | "eventsRequeued"
+    | "reachGapsAdded"
+    | "reachGapsCleared"
+  > & {
     changedFields?: readonly BreachUpdatableField[];
   } = {}
 ): BreachAudit {
@@ -92,6 +108,18 @@ export function breachAuditSnapshot(
     ...(extra.noticesSent === undefined
       ? {}
       : { noticesSent: extra.noticesSent }),
+    ...(extra.noticesQueued === undefined
+      ? {}
+      : { noticesQueued: extra.noticesQueued }),
+    ...(extra.eventsRequeued === undefined
+      ? {}
+      : { eventsRequeued: extra.eventsRequeued }),
+    ...(extra.reachGapsAdded === undefined
+      ? {}
+      : { reachGapsAdded: extra.reachGapsAdded }),
+    ...(extra.reachGapsCleared === undefined
+      ? {}
+      : { reachGapsCleared: extra.reachGapsCleared }),
     ...(extra.changedFields === undefined
       ? {}
       : { changedFields: [...extra.changedFields] }),

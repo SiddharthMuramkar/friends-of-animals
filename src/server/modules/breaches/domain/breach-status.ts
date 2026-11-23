@@ -64,7 +64,8 @@ export type BreachTransitionRefusal =
   | "not_contained"
   | "reason_required"
   | "fan_out_pending"
-  | "principal_notices_pending";
+  | "principal_notices_pending"
+  | "authority_notice_pending";
 
 export type BreachTransition =
   | { ok: true; to: BreachStatus; stampContainedAt: boolean }
@@ -74,11 +75,12 @@ export type BreachTransition =
 export type BreachState = {
   status: BreachStatus;
   containedAt: Date | null;
+  authorityEmailQueuedAt: Date | null;
 };
 
 /**
  * Where `event` takes `breach`, if anywhere. Closing from `contained`
- * needs `noNoticeReason` and no outstanding fan-out; closing from
+ * needs `noNoticeReason` and no outstanding notices; closing from
  * `notified` needs the breach to be contained first.
  */
 export function decideBreachTransition(
@@ -109,6 +111,9 @@ export function decideBreachTransition(
     }
     if (status === "contained" && options.principalNoticesPending) {
       return { ok: false, reason: "principal_notices_pending" };
+    }
+    if (status === "contained" && breach.authorityEmailQueuedAt !== null) {
+      return { ok: false, reason: "authority_notice_pending" };
     }
   }
   return { ok: true, to, stampContainedAt: event === "contain" };

@@ -6,7 +6,7 @@ import {
   planBreachNotices,
   type AffectedRef,
 } from "./domain/notice-recipients";
-import { queueNotices, reachedRefs, recordUnreachable } from "./notify";
+import { queueNotices, recordUnreachable } from "./notify";
 
 /** Resolves only the scope staff queued, under locks held through delivery. */
 export async function revalidateNoticeScope(
@@ -26,29 +26,20 @@ export async function revalidateNoticeScope(
   const people = await affectedPeople(tx, deps.cipher, now, refs, {
     lock: true,
   });
-  const nowAdults = people.filter(
-    ({ ref, minor }) => ref.type === "participant_profile" && !minor
-  );
-  if (nowAdults.length > 0) {
-    const replanned = planBreachNotices(nowAdults);
+  const stillInScope = ({ ref, minor }: (typeof people)[number]) =>
+    ref.type === "participant_profile" ? minor : !minor;
+  const changed = people.filter((person) => !stillInScope(person));
+  if (changed.length > 0) {
     await queueNotices(
       tx,
       deps.clock,
       notice.breachId,
-      replanned,
-      reachedRefs(
-        nowAdults.map(({ ref }) => ref),
-        replanned
-      )
+      planBreachNotices(changed),
+      changed
     );
   }
-  // An affected adult gets their own notice. A previously affected child
-  // can contribute to this recipient's notice only through a live link.
-  const plan = planBreachNotices(
-    people.filter(({ ref, minor }) =>
-      ref.type === "participant_profile" ? minor : !minor
-    )
-  );
+  // Retain only the part of this recipient's scope they can still receive.
+  const plan = planBreachNotices(people.filter(stillInScope));
   await recordUnreachable(tx, notice.breachId, now, plan.unreachable);
   const scope = plan.recipients.find(
     ({ userId }) => userId === recipientUserId

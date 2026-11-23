@@ -25,7 +25,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, notExists, sql } from "drizzle-orm";
 
 import {
   PRINCIPAL_NOTICE,
@@ -191,6 +191,20 @@ async function deliverBreachChannel(
   return deps.db.transaction(async (tx) => {
     const breach = await lockBreach(tx, breachId);
     if (!breach) return;
+    // An explicit resubmission opens a fresh event for a suppressed channel.
+    // An older event can still run, but its own suppression stays final.
+    const suppressedByEvent = tx
+      .select({ id: messageDelivery.id })
+      .from(messageDelivery)
+      .where(
+        and(
+          eq(messageDelivery.eventId, delivery.eventId),
+          eq(messageDelivery.templateKey, PRINCIPAL_NOTICE),
+          eq(messageDelivery.userId, recipientUserId),
+          eq(messageDelivery.channel, channel),
+          eq(messageDelivery.status, "suppressed")
+        )
+      );
     const [notice] = await tx
       .select()
       .from(breachNotification)
@@ -198,7 +212,8 @@ async function deliverBreachChannel(
         and(
           eq(breachNotification.breachId, breachId),
           eq(breachNotification.recipientUserId, recipientUserId),
-          eq(breachNotification.channel, channel)
+          eq(breachNotification.channel, channel),
+          notExists(suppressedByEvent)
         )
       )
       .for("update");

@@ -13,6 +13,7 @@ import {
   messageRoute,
   notificationPreference,
   outbox,
+  participantProfile,
   user,
 } from "@/server/db/schema";
 import { uuidv7 } from "@/server/ids";
@@ -196,6 +197,56 @@ describe("notifyAffectedUsers", () => {
       breach: { unreachable: { total: 1, noAccount: 1 } },
     });
   });
+
+  it.each([true, false])(
+    "replans a queued account after a teen profile is linked (verified guardian: %s)",
+    async (verified) => {
+      const h = await noticeHarness(PRINCIPAL_NOTICE);
+      const admin = await staffActor(h, "staff_admin");
+      const staff = h.as(admin);
+      const breachId = await recordedBreach(h, admin);
+      const teen = await h.seed.member();
+      const parent = await h.seed.guardian({
+        children: [{ fullName: "Rohan Desai", age: 15 }],
+      });
+      await expect(
+        staff.notifyAffectedUsers({
+          breachId,
+          subjects: [{ type: "user", id: teen.id }],
+        })
+      ).resolves.toMatchObject({ ok: true, noticesQueued: 1 });
+      if (!verified) {
+        await h.db
+          .update(guardian)
+          .set({ verifiedAt: null, verificationMethod: null })
+          .where(eq(guardian.userId, parent.account.id));
+      }
+      await h.db
+        .update(participantProfile)
+        .set({ loginUserId: teen.id })
+        .where(eq(participantProfile.id, parent.childIds[0]!));
+
+      await h.drain();
+      await h.drain();
+      expect(notices(h).map(({ to }) => to)).toEqual(
+        verified ? [parent.account.email] : []
+      );
+      expect(await inboxTitles(h, teen.id)).toEqual([]);
+      expect(await inboxTitles(h, parent.account.id)).toHaveLength(
+        verified ? 1 : 0
+      );
+      expect(await staff.getBreach({ breachId })).toMatchObject({
+        ok: true,
+        breach: {
+          notices: { recipients: verified ? 1 : 0, pending: 0 },
+          unreachable: {
+            total: verified ? 0 : 1,
+            noGuardian: verified ? 0 : 1,
+          },
+        },
+      });
+    }
+  );
 
   it("retries an existing principal event after closure without starting a new notice", async () => {
     const h = await createHarness();
@@ -699,9 +750,22 @@ describe("notifyAffectedUsers", () => {
     });
 
     await setBreachNoticeRoute(h, PRINCIPAL_NOTICE, true);
+    const auditBeforeRetry = await breachAudit(h, breachId);
     await expect(
       h.as(admin).notifyAffectedUsers(request)
     ).resolves.toMatchObject({ ok: true, noticesQueued: 0 });
+    const auditAfterRetry = await breachAudit(h, breachId);
+    expect.soft(auditAfterRetry.slice(auditBeforeRetry.length)).toMatchObject([
+      {
+        action: "breach.principal_notices_requeued",
+        after: { eventsRequeued: 1 },
+      },
+    ]);
+    await expect(staff.notifyAffectedUsers(request)).resolves.toMatchObject({
+      ok: true,
+      noticesQueued: 0,
+    });
+    expect(await breachAudit(h, breachId)).toEqual(auditAfterRetry);
     await h.drain();
     await h.drain();
 
@@ -814,10 +878,12 @@ describe("notifyAffectedUsers", () => {
       .set({ revokedAt: h.clock.now() })
       .where(eq(guardianLink.participantProfileId, childId));
 
-    const result = await h.as(admin).notifyAffectedUsers({
+    const staff = h.as(admin);
+    const request = {
       breachId,
       subjects: [{ type: "participant_profile", id: childId }],
-    });
+    };
+    const result = await staff.notifyAffectedUsers(request);
     await h.drain();
 
     expect(result).toEqual({
@@ -839,6 +905,128 @@ describe("notifyAffectedUsers", () => {
       ok: true,
       breach: { unreachable: { total: 1, noGuardian: 1, noAccount: 0 } },
     });
+    const audit = await breachAudit(h, breachId);
+    expect.soft(audit.at(-1)).toMatchObject({
+      action: "breach.principal_notice_reach_updated",
+      after: { reachGapsAdded: { no_guardian: 1, no_account: 0 } },
+    });
+    expect(JSON.stringify(audit)).not.toContain(childId);
+    h.clock.advance({ minutes: 1 });
+    await expect(staff.notifyAffectedUsers(request)).resolves.toEqual(result);
+    expect(await breachAudit(h, breachId)).toEqual(audit);
+  });
+
+  it.each([false, true])(
+    "resumes suppressed channels after guardian verification (inbox already delivered: %s)",
+    async (inboxDelivered) => {
+      const h = await noticeHarness(PRINCIPAL_NOTICE);
+      const admin = await staffActor(h, "staff_admin");
+      const staff = h.as(admin);
+      const breachId = await recordedBreach(h, admin);
+      const parent = await h.seed.guardian({
+        children: [{ fullName: "Isha Desai", age: 8 }],
+      });
+      const childId = parent.childIds[0]!;
+      const request = {
+        breachId,
+        subjects: [{ type: "participant_profile", id: childId }],
+      };
+      await expect(staff.notifyAffectedUsers(request)).resolves.toMatchObject({
+        ok: true,
+        noticesQueued: 1,
+      });
+      if (inboxDelivered) {
+        h.email.failNext(1);
+        await h.drain();
+      }
+      await h.db
+        .update(guardian)
+        .set({ verifiedAt: null, verificationMethod: null })
+        .where(eq(guardian.userId, parent.account.id));
+      h.clock.advance({ seconds: 30 });
+      await h.drain();
+      expect(notices(h)).toEqual([]);
+      expect(await inboxTitles(h, parent.account.id)).toHaveLength(
+        inboxDelivered ? 1 : 0
+      );
+      expect(await staff.getBreach({ breachId })).toMatchObject({
+        ok: true,
+        breach: { unreachable: { total: 1, noGuardian: 1 } },
+      });
+      const [original] = await breachEvents(h, breachId, PRINCIPAL_NOTICE);
+
+      const guardianActor = await h.signIn(parent.account);
+      await h.as(guardianActor).startGuardianVerification();
+      await expect(
+        h.as(guardianActor).confirmGuardianVerification({
+          code: h.email.codeFor(parent.account.email)!,
+        })
+      ).resolves.toEqual({ ok: true });
+      await expect(staff.notifyAffectedUsers(request)).resolves.toMatchObject({
+        ok: true,
+        unreachable: [],
+      });
+      const audit = await breachAudit(h, breachId);
+      expect.soft(audit.at(-1)?.after).toMatchObject({
+        reachGapsCleared: { no_guardian: 1, no_account: 0 },
+      });
+      expect(JSON.stringify(audit)).not.toContain(childId);
+      await expect(staff.notifyAffectedUsers(request)).resolves.toMatchObject({
+        ok: true,
+        noticesQueued: 0,
+      });
+      expect(await breachAudit(h, breachId)).toEqual(audit);
+
+      // The earlier worker may have saved suppression before losing its claim.
+      await h.db
+        .update(outbox)
+        .set({
+          status: "pending",
+          dispatchedAt: null,
+          availableAt: new Date(h.clock.now().getTime() - 1),
+        })
+        .where(eq(outbox.id, original!.id));
+      await h.drain();
+      await h.drain();
+      expect(notices(h).map(({ to }) => to)).toEqual([parent.account.email]);
+      expect(await inboxTitles(h, parent.account.id)).toHaveLength(1);
+      expect(await staff.getBreach({ breachId })).toMatchObject({
+        ok: true,
+        breach: {
+          status: "notified",
+          notices: { recipients: 1, pending: 0 },
+          unreachable: { total: 0 },
+        },
+      });
+    }
+  );
+
+  it("keeps a suppressed email quiet when the account still has no email address", async () => {
+    const h = await noticeHarness(PRINCIPAL_NOTICE);
+    const admin = await staffActor(h, "staff_admin");
+    const staff = h.as(admin);
+    const breachId = await recordedBreach(h, admin);
+    const member = await h.seed.member({ phone: "+919876543210" });
+    await h.db
+      .update(user)
+      .set({ email: null, emailVerified: false })
+      .where(eq(user.id, member.id));
+    const request = { breachId, subjects: [{ type: "user", id: member.id }] };
+    await expect(staff.notifyAffectedUsers(request)).resolves.toMatchObject({
+      ok: true,
+      noticesQueued: 1,
+    });
+    await h.drain();
+    expect(notices(h)).toEqual([]);
+    expect(await inboxTitles(h, member.id)).toHaveLength(1);
+
+    const audit = await breachAudit(h, breachId);
+    await expect(staff.notifyAffectedUsers(request)).resolves.toMatchObject({
+      ok: true,
+      noticesQueued: 0,
+    });
+    expect(await breachAudit(h, breachId)).toEqual(audit);
+    expect(await breachEvents(h, breachId, PRINCIPAL_NOTICE)).toHaveLength(1);
   });
 
   it("finds people by their account's email address, and lists addresses with no account", async () => {
@@ -1001,7 +1189,18 @@ describe("the breach.fanOut job", () => {
       ok: true,
       fanOut: true,
     });
-    expect(await breachAudit(h, breachId)).toEqual(audit);
+    const afterRetry = await breachAudit(h, breachId);
+    expect.soft(afterRetry.slice(audit.length)).toMatchObject([
+      {
+        action: "breach.principal_notices_requeued",
+        after: { eventsRequeued: 1 },
+      },
+    ]);
+    await expect(staff.notifyAffectedUsers(input)).resolves.toMatchObject({
+      ok: true,
+      fanOut: true,
+    });
+    expect(await breachAudit(h, breachId)).toEqual(afterRetry);
     await h.drain();
     expect(
       await breachEvents(h, breachId, "breach.fan_out_requested")
@@ -1011,7 +1210,9 @@ describe("the breach.fanOut job", () => {
       "contained",
       "principals_notified",
     ]);
-    expect((await breachAudit(h, breachId)).slice(audit.length)).toMatchObject([
+    expect(
+      (await breachAudit(h, breachId)).slice(afterRetry.length)
+    ).toMatchObject([
       { action: "breach.fan_out_completed" },
       {
         action: "breach.principals_notified",
@@ -1205,6 +1406,7 @@ describe("the breach.fanOut job", () => {
       "breach.fan_out_requested",
       "breach.principals_notified",
       "breach.principal_notice_delivered",
+      "breach.principal_notices_requeued",
       "breach.fan_out_completed",
       "breach.principal_notice_delivered",
     ]);

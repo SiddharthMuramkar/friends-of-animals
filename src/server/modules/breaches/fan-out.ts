@@ -22,7 +22,7 @@ import type { OutboxDeps } from "../../outbox/handlers";
 import { affectedPeople, minorAccountsOfGuardians } from "./affected";
 import { breachAuditSnapshot } from "./domain/audit";
 import { planBreachNotices } from "./domain/notice-recipients";
-import { queueNotices, reachedRefs } from "./notify";
+import { queueNotices } from "./notify";
 import { lockBreach } from "./record";
 
 export async function fanOutBreachNotices(
@@ -79,7 +79,7 @@ export async function fanOutBreachNotices(
             recipientsOnPage.has(userId)
           ),
         },
-        reachedRefs(refs, plan)
+        [...people, ...children]
       );
     }
 

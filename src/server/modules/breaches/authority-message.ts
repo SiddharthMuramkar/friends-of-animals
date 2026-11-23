@@ -69,12 +69,18 @@ export async function sendAuthorityNotice(
 
     const values = authorityNoticeValues(deps.cipher, breach);
     const text = renderTemplate(template.body, values);
-    await deps.email.send({
+    const message = {
       to,
       subject: oneLineSubject(renderTemplate(template.subject ?? "", values)),
       text,
       html: renderEmailHtml(text),
-    });
+    };
+    try {
+      await deps.email.send(message);
+    } catch {
+      // A provider error may repeat confidential content from the email.
+      throw new Error("authority_email_handoff_failed");
+    }
     const updated = await completeAuthorityNotice(
       tx,
       breach,

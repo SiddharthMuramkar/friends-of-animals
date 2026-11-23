@@ -29,5 +29,5 @@ export async function retryBreachEvents(
       )
     )
     .returning({ id: outbox.id });
-  return retried.length > 0;
+  return retried.length;
 }

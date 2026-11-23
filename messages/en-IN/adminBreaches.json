@@ -135,6 +135,7 @@
       "reason_required": "Enter the reason no notices were needed.",
       "fan_out_pending": "Wait for the all-account notice job before closing this breach.",
       "principal_notices_pending": "Resolve the pending notices before closing this breach.",
+      "authority_notice_pending": "Complete the pending authority notice before closing this breach.",
       "already_notified": "An authority notice has already been recorded.",
       "authority_email_queued": "An authority email is already queued.",
       "authority_email_route_unavailable": "Enable the authority email route before retrying.",

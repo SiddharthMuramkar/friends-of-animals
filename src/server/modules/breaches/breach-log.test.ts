@@ -478,9 +478,14 @@ describe("the timeline", () => {
 
     await expect(
       h.db.execute(
-        sql`UPDATE breach_timeline_event SET kind = 'note' WHERE breach_id = ${id}`
+        sql`UPDATE breach_timeline_event SET occurred_at = occurred_at + interval '1 second' WHERE breach_id = ${id}`
       )
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      cause: {
+        code: "42501",
+        message: "breach_timeline_event is append-only: UPDATE is not allowed",
+      },
+    });
     await expect(
       h.db.execute(
         sql`DELETE FROM breach_timeline_event WHERE breach_id = ${id}`
