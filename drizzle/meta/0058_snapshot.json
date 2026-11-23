@@ -1,5 +1,5 @@
 {
-  "id": "b71193e1-5a9d-48ab-b87b-cc5840dfd359",
+  "id": "ac08a222-73d3-48ce-934c-208dc8bfba92",
   "prevId": "68881d68-61a6-424f-ad3b-61adc3296a68",
   "version": "7",
   "dialect": "postgresql",
@@ -7762,6 +7762,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "zero_share_registration_ids": {
+          "name": "zero_share_registration_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::uuid[]"
+        },
         "currency": {
           "name": "currency",
           "type": "char(3)",
@@ -7880,6 +7887,44 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_committed_capture_idx": {
+          "name": "refund_committed_capture_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "gateway_payment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"refund\".\"status\" <> 'rejected'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_live_zero_share_batch_idx": {
+          "name": "refund_live_zero_share_batch_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"refund\".\"status\" <> 'rejected' AND cardinality(\"refund\".\"zero_share_registration_ids\") > 0",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8198,6 +8243,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "refund_item_live_batch_idx": {
+          "name": "refund_item_live_batch_idx",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"refund_item\".\"released_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}

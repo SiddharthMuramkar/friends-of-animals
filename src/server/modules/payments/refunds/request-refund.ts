@@ -142,20 +142,18 @@ export async function requestRefund(
         );
         if (!plan.ok) return refusalOf(plan);
 
-        // A captured batch keeps its registrations. Under its lock, hold
-        // zero-share registrations for the whole-batch request as well.
-        const zeroShareRegistrationIds =
-          registrationIds === undefined
-            ? available.items
-                .filter(
-                  (item) => item.refund === "none" && item.amountMinor === 0n
-                )
-                .map((item) => item.id)
-            : [];
-        const coveredRegistrationIds =
-          zeroShareRegistrationIds.length === 0
-            ? plan.registrationIds
-            : [...plan.registrationIds, ...zeroShareRegistrationIds].sort();
+        const allocated = new Map(
+          available.items.map((item) => [item.id, item.amountMinor])
+        );
+        const payableItems: { registrationId: string; amountMinor: bigint }[] =
+          [];
+        const zeroShareRegistrationIds: string[] = [];
+        for (const registrationId of plan.registrationIds) {
+          const amountMinor = allocated.get(registrationId)!;
+          if (amountMinor > 0n)
+            payableItems.push({ registrationId, amountMinor });
+          else zeroShareRegistrationIds.push(registrationId);
+        }
 
         const now = ctx.clock.now();
         const refundId = uuidv7(now);
@@ -176,17 +174,13 @@ export async function requestRefund(
           requestedAt: now,
           updatedAt: now,
         });
-        const allocated = new Map(
-          available.items.map((item) => [item.id, item.amountMinor])
-        );
         const inserted = await tx
           .insert(refundItem)
           .values(
-            plan.registrationIds.map((registrationId) => ({
+            payableItems.map((item) => ({
+              ...item,
               refundId,
               batchId: batch.id,
-              registrationId,
-              amountMinor: allocated.get(registrationId)!,
             }))
           )
           .onConflictDoNothing({
@@ -197,10 +191,10 @@ export async function requestRefund(
         // The unique index skips any item another live refund holds. Roll
         // back the entire request and name a student it actually skipped.
         const held = new Set(inserted.map((item) => item.registrationId));
-        const taken = plan.registrationIds.find(
-          (registrationId) => !held.has(registrationId)
+        const taken = payableItems.find(
+          ({ registrationId }) => !held.has(registrationId)
         );
-        if (taken) throw new RefundItemTaken(taken);
+        if (taken) throw new RefundItemTaken(taken.registrationId);
         await auditRefund(
           tx,
           ctx,
@@ -214,7 +208,7 @@ export async function requestRefund(
               status,
               method: manual ? "manual" : "gateway",
               amountMinor: plan.amountMinor.toString(),
-              registrationIds: coveredRegistrationIds,
+              registrationIds: plan.registrationIds,
             },
           },
           role
@@ -223,7 +217,7 @@ export async function requestRefund(
           ok: true,
           refundId,
           amountMinor: plan.amountMinor,
-          registrationIds: coveredRegistrationIds,
+          registrationIds: plan.registrationIds,
         };
       }
     );

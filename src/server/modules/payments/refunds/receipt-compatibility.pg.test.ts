@@ -16,6 +16,7 @@ import {
 import { SEED_PAYMENTS } from "@/server/seed/payments";
 import { createPgWorld, type PgWorld } from "@/test/pg";
 
+import { sendApprovedRefund } from "./sync-refund";
 import { REASON } from "./testing";
 
 let world: PgWorld;
@@ -48,7 +49,14 @@ async function reviewedBatch(
   const schoolId = randomUUID();
   const batchId = randomUUID();
   const caseId = randomUUID();
-  const paymentId = `pay_${batchId}`;
+  const { orderId } = await world.gateway.createOrder({
+    amount: { amountMinor: 100_000n, currency: "INR" },
+    receipt: batchId,
+    notes: {},
+  });
+  const { paymentId } = world.gateway.capture(orderId, {
+    amount: { amountMinor, currency },
+  });
   const seed = SEED_PAYMENTS.paid;
   const [school] = await world.db
     .select()
@@ -72,7 +80,7 @@ async function reviewedBatch(
     institutionRegistrationId: schoolId,
     institutionId: school.institutionId,
     gateway: "fake" as const,
-    gatewayOrderId: `order_${batchId}`,
+    gatewayOrderId: orderId,
     gatewayPaymentId: paymentId,
     captureMethod: "gateway" as const,
     route: "institution" as const,
@@ -274,45 +282,151 @@ it("lets concurrent recordings claim the same settled provider refund only once"
   });
 });
 
-it("holds and releases both registrations of a one-paise whole-batch request", async () => {
-  const { batch, studentIds } = await reviewedBatch("FXCOVR26", "INR", 1n);
+it.each([false, true])(
+  "holds and releases both registrations of a one-paise whole-batch request (explicit: %s)",
+  async (explicit) => {
+    const { batch, studentIds } = await reviewedBatch(
+      explicit ? "FXLIST26" : "FXCOVR26",
+      "INR",
+      1n
+    );
+    const admin = await staff("staff_admin");
+    const finance = await staff("finance");
+    const ask = () =>
+      admin.requestRefund({
+        batchId: batch.id,
+        reason: REASON,
+        ...(explicit ? { registrationIds: studentIds } : {}),
+      });
+    const [zeroShare] = studentIds;
+
+    const { requests } = await world.sql.begin(async (blocker) => {
+      await blocker`select id from payment_batch where id = ${batch.id} for update`;
+      const requests = Promise.all([ask(), ask()]);
+      requests.catch(() => {});
+      await world.waitForLockWaiters(2);
+      return { requests };
+    });
+    const outcomes = await requests;
+    expect(outcomes).toHaveLength(2);
+    expect(outcomes).toContainEqual(
+      explicit
+        ? { ok: false, error: "item_in_live_refund", registrationId: zeroShare }
+        : { ok: false, error: "nothing_to_refund" }
+    );
+    const held = outcomes.find((result) => result.ok);
+    if (!held) throw new Error("Refund request was refused");
+    expect(held).toMatchObject({
+      amountMinor: 1n,
+      registrationIds: studentIds,
+    });
+    expect(
+      await admin.requestRefund({
+        batchId: batch.id,
+        registrationIds: [zeroShare!],
+        reason: REASON,
+      })
+    ).toEqual({
+      ok: false,
+      error: "item_in_live_refund",
+      registrationId: zeroShare,
+    });
+    expect(
+      await finance.rejectRefund({ refundId: held.refundId, note: REASON })
+    ).toEqual({ ok: true, status: "rejected" });
+    expect(await ask()).toMatchObject({
+      ok: true,
+      amountMinor: 1n,
+      registrationIds: studentIds,
+    });
+  }
+);
+
+it("revalidates an unsent whole approval under the batch lock and preserves the settled balance", async () => {
+  const { batch, caseId, paymentId, studentIds } = await reviewedBatch(
+    "FXAMT26",
+    "INR",
+    160_000n
+  );
   const admin = await staff("staff_admin");
   const finance = await staff("finance");
-  const ask = () => admin.requestRefund({ batchId: batch.id, reason: REASON });
-  const [zeroShare] = studentIds;
-
-  const { requests } = await world.sql.begin(async (blocker) => {
-    await blocker`select id from payment_batch where id = ${batch.id} for update`;
-    const requests = Promise.all([ask(), ask()]);
-    requests.catch(() => {});
-    await world.waitForLockWaiters(2);
-    return { requests };
+  await world.db
+    .update(paymentReviewCase)
+    .set({ amountMinor: 140_000n })
+    .where(eq(paymentReviewCase.id, caseId));
+  const send = (refundId: string) =>
+    sendApprovedRefund(
+      {
+        db: world.db,
+        clock: world.clock,
+        payments: world.gateway,
+      },
+      { refundId }
+    );
+  const first = await admin.requestRefund({
+    batchId: batch.id,
+    registrationIds: [studentIds[0]!],
+    reason: REASON,
   });
-  const outcomes = await requests;
-  expect(outcomes).toHaveLength(2);
-  expect(outcomes).toContainEqual({ ok: false, error: "nothing_to_refund" });
-  const held = outcomes.find((result) => result.ok);
-  if (!held) throw new Error("Refund request was refused");
-  expect(held).toMatchObject({ amountMinor: 1n, registrationIds: studentIds });
-  expect(
-    await admin.requestRefund({
-      batchId: batch.id,
-      registrationIds: [zeroShare!],
-      reason: REASON,
-    })
-  ).toEqual({
-    ok: false,
-    error: "item_in_live_refund",
-    registrationId: zeroShare,
-  });
-  expect(
-    await finance.rejectRefund({ refundId: held.refundId, note: REASON })
-  ).toEqual({ ok: true, status: "rejected" });
-  expect(await ask()).toMatchObject({
+  expect(first).toMatchObject({ ok: true, amountMinor: 70_000n });
+  if (!first.ok) throw new Error("Missing partial refund");
+  expect(await finance.approveRefund({ refundId: first.refundId })).toEqual({
     ok: true,
-    amountMinor: 1n,
-    registrationIds: studentIds,
+    status: "approved",
   });
+  await send(first.refundId);
+  expect(await finance.getRefund({ refundId: first.refundId })).toMatchObject({
+    ok: true,
+    refund: { status: "refunded", amountMinor: 70_000n },
+  });
+
+  const ask = () => admin.requestRefund({ batchId: batch.id, reason: REASON });
+  const stale = await ask();
+  expect(stale).toMatchObject({ ok: true, amountMinor: 70_000n });
+  if (!stale.ok) throw new Error("Missing whole refund");
+  expect(await finance.approveRefund({ refundId: stale.refundId })).toEqual({
+    ok: true,
+    status: "approved",
+  });
+  const { pending } = await world.sql.begin(async (blocker) => {
+    await blocker`select id from payment_batch where id = ${batch.id} for update`;
+    const pending = send(stale.refundId);
+    pending.catch(() => {});
+    await world.waitForLockWaiters(1);
+    await blocker`update payment_review_case set amount_minor = 160000 where id = ${caseId}`;
+    return { pending };
+  });
+  await pending;
+  expect(await finance.getRefund({ refundId: stale.refundId })).toMatchObject({
+    ok: true,
+    refund: { status: "failed", amountMinor: 70_000n, gatewayRefundId: null },
+  });
+  expect(
+    world.gateway.refunds.filter((row) => row.paymentId === paymentId)
+  ).toEqual([expect.objectContaining({ amountMinor: 70_000n })]);
+  expect(
+    await finance.rejectRefund({ refundId: stale.refundId, note: REASON })
+  ).toEqual({ ok: true, status: "rejected" });
+  const replacement = await ask();
+  expect(replacement).toMatchObject({
+    ok: true,
+    amountMinor: 90_000n,
+    registrationIds: [studentIds[1]],
+  });
+  if (!replacement.ok) throw new Error("Missing replacement refund");
+  expect(
+    await finance.approveRefund({ refundId: replacement.refundId })
+  ).toEqual({
+    ok: true,
+    status: "approved",
+  });
+  await send(replacement.refundId);
+  expect(
+    world.gateway.refunds.filter((row) => row.paymentId === paymentId)
+  ).toEqual([
+    expect.objectContaining({ amountMinor: 70_000n }),
+    expect.objectContaining({ amountMinor: 90_000n }),
+  ]);
 });
 
 it("rolls back the whole request and names the student claimed by another transaction", async () => {

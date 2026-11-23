@@ -1,8 +1,9 @@
 import { asc, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { outbox, paymentBatch } from "@/server/db/schema";
 import { listFailedDeliveries } from "@/server/outbox";
+import { RefundRefusedError } from "@/server/ports/payment-gateway";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { signInStaff } from "../testing";
@@ -358,6 +359,42 @@ describe("a refund the gateway refuses for good", () => {
         note: "Refunded from the gateway's dashboard already.",
       })
     ).toEqual({ ok: true, status: "rejected" });
+  });
+
+  it("ignores a delayed refusal after the gateway has acknowledged the attempt", async () => {
+    const h = await createHarness();
+    const { paid, refundId } = await approved(h);
+    const started = Promise.withResolvers<void>();
+    const refuse = Promise.withResolvers<void>();
+    vi.spyOn(h.gateway, "refund").mockImplementationOnce(async () => {
+      started.resolve();
+      await refuse.promise;
+      throw new RefundRefusedError("Delayed definitive refusal");
+    });
+    const delivery = h.drain();
+    try {
+      await started.promise;
+      h.gateway.answerNextRefund("pending");
+      expect(
+        await h
+          .as(h.visitor())
+          .receiveGatewayWebhook(
+            refundWebhook(h, "refund.processed", paid, "rfnd_unknown")
+          )
+      ).toEqual({ ok: true, outcome: "refund_updated" });
+      const acknowledged = await refundRow(h, refundId);
+      expect(acknowledged).toMatchObject({
+        status: "processing",
+        gatewayRefundId: h.gateway.refunds[0]!.id,
+      });
+      refuse.resolve();
+      await delivery;
+      expect(await refundRow(h, refundId)).toEqual(acknowledged);
+      expect(await eventsOf(h, "refund.failed")).toEqual([]);
+    } finally {
+      refuse.resolve();
+      await delivery;
+    }
   });
 });
 

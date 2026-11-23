@@ -1,4 +1,0 @@
-ALTER TABLE "refund" ADD COLUMN "zero_share_registration_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL;--> statement-breakpoint
-CREATE INDEX "refund_committed_capture_idx" ON "refund" USING btree ("batch_id","gateway_payment_id") WHERE "refund"."status" <> 'rejected';--> statement-breakpoint
-CREATE INDEX "refund_live_zero_share_batch_idx" ON "refund" USING btree ("batch_id") WHERE "refund"."status" <> 'rejected' AND cardinality("refund"."zero_share_registration_ids") > 0;--> statement-breakpoint
-CREATE INDEX "refund_item_live_batch_idx" ON "refund_item" USING btree ("batch_id") WHERE "refund_item"."released_at" IS NULL;

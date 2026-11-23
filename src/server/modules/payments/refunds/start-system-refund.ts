@@ -86,10 +86,12 @@ export async function startSystemRefund(
     const allocated = new Map(
       available.items.map((item) => [item.id, item.amountMinor])
     );
-    items = plan.registrationIds.map((registrationId) => ({
-      registrationId,
-      amountMinor: allocated.get(registrationId)!,
-    }));
+    items = plan.registrationIds
+      .map((registrationId) => ({
+        registrationId,
+        amountMinor: allocated.get(registrationId)!,
+      }))
+      .filter(({ amountMinor }) => amountMinor > 0n);
     amountMinor = plan.amountMinor;
     gatewayPaymentId =
       batch.captureMethod === "offline" ? null : batch.gatewayPaymentId;

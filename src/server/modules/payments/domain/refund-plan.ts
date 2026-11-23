@@ -56,7 +56,7 @@ export function allocateRefundItems(
 export type RefundPlan =
   | {
       ok: true;
-      /** In the order asked for; batch order for a whole-batch refund. */
+      /** Every covered item, including zero shares, in selection order. */
       registrationIds: string[];
       amountMinor: bigint;
       currency: "INR";
@@ -122,7 +122,7 @@ export function planRefund(
 
   return {
     ok: true,
-    registrationIds: payable.map((item) => item.id),
+    registrationIds: chosen.map((item) => item.id),
     amountMinor,
     currency: batch.currency,
   };

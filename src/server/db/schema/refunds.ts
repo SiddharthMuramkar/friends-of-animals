@@ -79,7 +79,7 @@ export const refund = pgTable(
     method: refundMethodEnum().notNull(),
     /** Paise, a bigint end to end (#55). */
     amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
-    /** Registrations covered by a whole-batch refund with no paise allocated. */
+    /** Registrations covered by this refund with no paise allocated. */
     zeroShareRegistrationIds: uuid("zero_share_registration_ids")
       .array()
       .notNull()
