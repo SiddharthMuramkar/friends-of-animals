@@ -3,7 +3,8 @@
     "nav": {
       "label": "Admin",
       "roles": "Roles",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "breaches": "Breach log"
     },
     "loading": "Loading…",
     "denied": {

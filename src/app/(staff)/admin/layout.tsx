@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { APP_ROUTES } from "@/lib/app-routes";
+import { ADMIN_BREACHES, APP_ROUTES } from "@/lib/app-routes";
 
 import { AdminNav, AdminNavView } from "./_components/admin-nav";
 import { FactsReadiness } from "./_components/facts-readiness";
@@ -27,6 +27,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     links: [
       { href: APP_ROUTES.adminRoles, label: t("roles") },
       { href: APP_ROUTES.adminAudit, label: t("audit") },
+      { href: ADMIN_BREACHES, label: t("breaches") },
     ],
   };
   return (

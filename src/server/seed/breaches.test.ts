@@ -75,7 +75,10 @@ describe("the breach log's preview seed", () => {
     await h.seed.preview();
 
     expect(
-      await h.db.select().from(auditLog).where(eq(auditLog.entityType, "breach"))
+      await h.db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.entityType, "breach"))
     ).toEqual([]);
     expect(
       await h.db.select().from(outbox).where(eq(outbox.aggregateType, "breach"))

@@ -53,6 +53,19 @@ describe("isSignedInPage", () => {
     );
   });
 
+  it("serves the breach log and its detail page in the signed-in tree (#116)", () => {
+    for (const path of [
+      "/admin/breaches",
+      `/admin/breaches/${COMPETITION_ID}`,
+    ]) {
+      expect(isSignedInPage(path), path).toBe(true);
+      expect(isSignedInPath(path), path).toBe(true);
+    }
+    expect(isSignedInPage(`/admin/breaches/${COMPETITION_ID}/extra`)).toBe(
+      false
+    );
+  });
+
   it("knows a competition's edit and preview pages, whatever its id", () => {
     expect(isSignedInPage(`/admin/competitions/${COMPETITION_ID}/edit`)).toBe(
       true

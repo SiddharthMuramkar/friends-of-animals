@@ -382,11 +382,8 @@ describe("notifyAffectedUsers", () => {
     const told = new Set(
       (await noticeRows(h, breachId)).map((row) => row.recipientUserId)
     );
-    expect([...told].sort()).toEqual(
-      accounts
-        .map((account) => account.id)
-        .filter((id) => id !== people.teen.id)
-        .sort()
+    expect(told).toEqual(
+      new Set(accounts.map((account) => account.id).filter((id) => id !== people.teen.id))
     );
     expect(
       notices(h).some((message) => message.to === "rohan@example.test")
@@ -395,6 +392,29 @@ describe("notifyAffectedUsers", () => {
 });
 
 describe("the breach.fanOut job", () => {
+  it("finishes notices already queued when staff close the breach", async () => {
+    const h = await createHarness();
+    const actor = await staffActor(h, "staff_admin");
+    const staff = h.as(actor);
+    const member = await h.seed.member();
+    const breachId = await recordedBreach(h, actor);
+
+    await expect(
+      staff.notifyAffectedUsers({ breachId, subjects: "all_users" })
+    ).resolves.toMatchObject({ ok: true, fanOut: true });
+    await expect(staff.containBreach({ breachId })).resolves.toMatchObject({
+      ok: true,
+    });
+    await expect(staff.closeBreach({ breachId })).resolves.toMatchObject({
+      ok: true,
+    });
+    await h.drain();
+
+    expect(
+      notices(h).filter((message) => message.to === member.email)
+    ).toHaveLength(1);
+  });
+
   it("pages through accounts from the cursor on its payload, telling each once", async () => {
     const h = await createHarness();
     const admin = await staffActor(h, "super_admin");

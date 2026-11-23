@@ -12,7 +12,6 @@ import {
   breachTimelineEvent,
 } from "../db/schema";
 import { sealBreachText } from "../modules/breaches/content";
-import type { BreachTimelineKind } from "../modules/breaches/domain/breach-status";
 import { SEED_ACCOUNTS } from "./accounts";
 import type { SeedDeps } from "./types";
 
@@ -25,7 +24,9 @@ export const SEED_BREACHES = {
     impact:
       "A spreadsheet of volunteer names and phone numbers was posted in a public chat group for about an hour before it was taken down.",
     hoursAgo: 6,
-    timeline: [{ id: "01938a00-0000-7000-8000-00000000b171", kind: "recorded" }],
+    timeline: [
+      { id: "01938a00-0000-7000-8000-00000000b171", kind: "recorded" },
+    ],
   },
   notified: {
     id: "01938a00-0000-7000-8000-00000000b162",
@@ -37,7 +38,10 @@ export const SEED_BREACHES = {
     timeline: [
       { id: "01938a00-0000-7000-8000-00000000b172", kind: "recorded" },
       { id: "01938a00-0000-7000-8000-00000000b173", kind: "contained" },
-      { id: "01938a00-0000-7000-8000-00000000b174", kind: "principals_notified" },
+      {
+        id: "01938a00-0000-7000-8000-00000000b174",
+        kind: "principals_notified",
+      },
       { id: "01938a00-0000-7000-8000-00000000b175", kind: "note" },
     ],
     notices: [
@@ -57,10 +61,7 @@ export const SEED_BREACHES = {
       },
     ],
   },
-} as const satisfies Record<
-  string,
-  { timeline: readonly { id: string; kind: BreachTimelineKind }[] }
->;
+} as const;
 
 /** The open breach and the notified one, unless they exist already. */
 export async function seedBreaches(deps: SeedDeps): Promise<void> {
@@ -91,9 +92,8 @@ export async function seedBreaches(deps: SeedDeps): Promise<void> {
     .returning({ id: breachRecord.id });
   if (openCreated) {
     await db.insert(breachTimelineEvent).values({
-      id: open.timeline[0].id,
+      ...open.timeline[0],
       breachId: open.id,
-      kind: "recorded",
       authorUserId: lead,
       occurredAt: openAware,
     });

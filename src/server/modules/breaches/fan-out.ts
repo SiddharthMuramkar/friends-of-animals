@@ -8,9 +8,9 @@
 // again with the last account as the cursor, in the same transaction as
 // its notices, so the chain resumes where it stopped after a crash.
 //
-// A breach closed meanwhile stops the chain. Safe to repeat: a page run
-// twice queues nothing new; at worst it saves its next page twice, and that
-// page then queues nothing new either.
+// Once requested, notices finish even if staff close the record. A page
+// run twice queues nothing new; at worst it saves its next page twice,
+// and that page then queues nothing new either.
 //
 // Loads under plain Node (the worker): relative imports only.
 
@@ -30,10 +30,10 @@ export async function fanOutBreachNotices(
   const { breachId, afterUserId, pageSize } = page;
   await deps.db.transaction(async (tx) => {
     const [breach] = await tx
-      .select({ status: breachRecord.status })
+      .select({ id: breachRecord.id })
       .from(breachRecord)
       .where(eq(breachRecord.id, breachId));
-    if (!breach || breach.status === "closed") return;
+    if (!breach) return;
 
     const accounts = await tx
       .select({ id: user.id })

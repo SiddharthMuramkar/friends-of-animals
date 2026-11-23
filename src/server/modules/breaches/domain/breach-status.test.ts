@@ -193,6 +193,7 @@ describe("breachRecordSchema", () => {
       { severity: "catastrophic" },
       { affectedCount: -1 },
       { affectedCount: 2.5 },
+      { affectedCount: 2_147_483_648 },
       { awareAt: "yesterday" },
       { extra: "field" },
     ]) {

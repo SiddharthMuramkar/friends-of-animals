@@ -22,7 +22,10 @@ import {
 type UseCases = ReturnType<Harness["as"]>;
 
 /** Each breach use case, called on `breachId` with valid input. */
-const CALLS: Record<string, (use: UseCases, h: Harness, breachId: string) => Promise<unknown>> = {
+const CALLS: Record<
+  string,
+  (use: UseCases, h: Harness, breachId: string) => Promise<unknown>
+> = {
   recordBreach: (use, h) => use.recordBreach(breachDetails(h)),
   updateBreach: (use, _h, breachId) =>
     use.updateBreach({ breachId, severity: "low" }),
@@ -48,7 +51,8 @@ const DENIED_ROLES: Role[] = [
 
 async function deniedActors(h: Harness): Promise<[string, Actor][]> {
   const actors: [string, Actor][] = [];
-  for (const role of DENIED_ROLES) actors.push([role, await staffActor(h, role)]);
+  for (const role of DENIED_ROLES)
+    actors.push([role, await staffActor(h, role)]);
   actors.push(["member", await h.signIn(await h.seed.member())]);
   actors.push(["visitor", h.visitor()]);
   return actors;
@@ -64,9 +68,15 @@ describe("who may keep the breach log", () => {
 
       for (const [name, call] of Object.entries(CALLS)) {
         const breachId = await recordedBreach(h, owner);
-        await expect(call(h.as(staff), h, breachId), name).resolves.toEqual(
-          expect.objectContaining({ ok: expect.any(Boolean) })
-        );
+        if (name === "closeBreach") {
+          await expect(
+            h.as(owner).containBreach({ breachId })
+          ).resolves.toMatchObject({ ok: true });
+        }
+        await expect(
+          call(h.as(staff), h, breachId),
+          name
+        ).resolves.toMatchObject({ ok: true });
       }
     }
   );
@@ -122,7 +132,11 @@ describe("who may keep the breach log", () => {
     const breachId = await recordedBreach(h, admin);
     h.clock.advance({ minutes: 11 });
 
-    for (const call of [CALLS.notifyAffectedUsers!, CALLS.notifyAuthority!, CALLS.closeBreach!]) {
+    for (const call of [
+      CALLS.notifyAffectedUsers!,
+      CALLS.notifyAuthority!,
+      CALLS.closeBreach!,
+    ]) {
       await expect(call(h.as(admin), h, breachId)).rejects.toMatchObject({
         name: "DomainError",
         code: "step_up_required",

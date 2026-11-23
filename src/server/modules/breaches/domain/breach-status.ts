@@ -125,6 +125,7 @@ export const BREACH_TITLE_MAX = 200;
 export const BREACH_IMPACT_MAX = 4000;
 export const BREACH_NOTE_MAX = 4000;
 export const NO_NOTICE_REASON_MAX = 1000;
+export const BREACH_AFFECTED_COUNT_MAX = 2_147_483_647;
 
 /**
  * What staff enter to record a breach. `awareAt` is when FOA learnt of it,
@@ -138,7 +139,7 @@ export const breachRecordSchema = z.strictObject({
   personalDataInvolved: z.boolean(),
   minorsAffected: z.boolean(),
   /** A best estimate; refined as the investigation goes on. */
-  affectedCount: z.int().min(0),
+  affectedCount: z.int().min(0).max(BREACH_AFFECTED_COUNT_MAX),
   impact: z.string().trim().min(1).max(BREACH_IMPACT_MAX),
 });
 
