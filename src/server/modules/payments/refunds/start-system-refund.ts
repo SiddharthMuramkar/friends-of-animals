@@ -25,7 +25,7 @@ import { refund, refundItem } from "../../../db/schema";
 import { uuidv7 } from "../../../ids";
 import type { Clock } from "../../../ports/clock";
 import { lockBatch } from "../batches";
-import { planRefund } from "../domain/refund-plan";
+import { planRefund, splitRefundCoverage } from "../domain/refund-plan";
 import { initialRefundStatus } from "../domain/refund-status";
 import { queueSend, rejectLocked } from "./decide-refund";
 import { auditRefund, lockRefund, refundableBatch } from "./rows";
@@ -74,7 +74,11 @@ export async function startSystemRefund(
 
   let amountMinor: bigint;
   let gatewayPaymentId: string | null;
-  let items: { registrationId: string; amountMinor: bigint }[] = [];
+  let registrationIds: string[] = [];
+  let coverage: ReturnType<typeof splitRefundCoverage> = {
+    payableItems: [],
+    zeroShareRegistrationIds: [],
+  };
   if (request.kind === "duplicate") {
     amountMinor = request.amountMinor;
     gatewayPaymentId = request.gatewayPaymentId;
@@ -83,15 +87,8 @@ export async function startSystemRefund(
     if (available.kind === "dashboard") return { skipped: "nothing_to_refund" };
     const plan = planRefund(available, request);
     if (!plan.ok) return { skipped: "nothing_to_refund" };
-    const allocated = new Map(
-      available.items.map((item) => [item.id, item.amountMinor])
-    );
-    items = plan.registrationIds
-      .map((registrationId) => ({
-        registrationId,
-        amountMinor: allocated.get(registrationId)!,
-      }))
-      .filter(({ amountMinor }) => amountMinor > 0n);
+    registrationIds = plan.registrationIds;
+    coverage = splitRefundCoverage(available.items, registrationIds);
     amountMinor = plan.amountMinor;
     gatewayPaymentId =
       batch.captureMethod === "offline" ? null : batch.gatewayPaymentId;
@@ -109,6 +106,7 @@ export async function startSystemRefund(
       status,
       method,
       amountMinor,
+      zeroShareRegistrationIds: coverage.zeroShareRegistrationIds,
       currency: "INR",
       reason: request.reason.trim(),
       requestedAt: now,
@@ -126,10 +124,13 @@ export async function startSystemRefund(
     if (!raced) throw new Error("A system refund vanished");
     return { refundId: raced.id };
   }
+  const items = coverage.payableItems.map((item) => ({
+    ...item,
+    refundId,
+    batchId: batch.id,
+  }));
   if (items.length > 0) {
-    await tx
-      .insert(refundItem)
-      .values(items.map((item) => ({ ...item, refundId, batchId: batch.id })));
+    await tx.insert(refundItem).values(items);
   }
   await auditRefund(
     tx,
@@ -144,7 +145,7 @@ export async function startSystemRefund(
         status,
         method,
         amountMinor: amountMinor.toString(),
-        registrationIds: items.map((item) => item.registrationId),
+        registrationIds,
         ...(request.kind === "duplicate"
           ? { reviewCaseId: request.reviewCaseId }
           : {}),

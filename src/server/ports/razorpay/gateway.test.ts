@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { paymentGatewayContract } from "../payment-gateway.contract";
+import { RefundRefusedError } from "../payment-gateway";
 import { RazorpayError, razorpayGateway } from "./gateway";
 import { fakeRazorpayApi, razorpayWebhook } from "./testing";
 
@@ -228,6 +229,32 @@ describe("razorpayGateway", () => {
         notes: {},
       })
     ).rejects.toBeInstanceOf(RazorpayError);
+  });
+
+  it.each([
+    ["The amount must be at least INR 1.00", "definitive"],
+    ["Refund is currently not supported for this payment method", "definitive"],
+    [
+      "Partial refund is currently not supported for this payment method",
+      "full_refund_only",
+    ],
+  ])("reports the definitive refusal %s as %s", async (description, reason) => {
+    const gateway = razorpayGateway({
+      ...TEST_KEYS,
+      fetch: async () =>
+        Response.json(
+          { error: { code: "BAD_REQUEST_ERROR", description } },
+          { status: 400 }
+        ),
+    });
+    const payout = gateway.refund({
+      paymentId: "pay_X",
+      amount: FEES,
+      idempotencyKey: `${BATCH}-1`,
+      notes: {},
+    });
+    await expect(payout).rejects.toBeInstanceOf(RefundRefusedError);
+    await expect(payout).rejects.toMatchObject({ reason });
   });
 
   it("refuses a refund amount JSON can't carry exactly, without calling Razorpay", async () => {

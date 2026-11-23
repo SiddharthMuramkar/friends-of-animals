@@ -18,6 +18,7 @@ import {
   refundRow,
 } from "@/server/modules/payments/refunds/testing";
 import {
+  confirmReviewedReceipt,
   offlinePaymentOf,
   openOrder,
   reviewCasesOf,
@@ -201,8 +202,7 @@ describe("automatic capture postings", () => {
       await schoolWithStudents(h, { students: 1 })
     );
     h.gateway.capture(orderId, {
-      // The gateway can report a currency outside the fake's order type.
-      amount: { amountMinor: 50_000n, currency: "USD" as "INR" },
+      amount: { amountMinor: 50_000n, currency: "USD" },
     });
     expect(
       await h
@@ -214,11 +214,12 @@ describe("automatic capture postings", () => {
     const [opened] = await reviewCasesOf(h, batchId);
     const { actor } = await signInStaff(h);
     expect(
-      await h.as(actor).resolvePaymentReviewCase({
-        caseId: opened!.id,
-        outcome: "confirm",
-        reason: "Accept the payment after reviewing the receipt",
-      })
+      await confirmReviewedReceipt(
+        h,
+        h.as(actor),
+        opened!,
+        "Accept the payment after reviewing the receipt"
+      )
     ).toEqual({ ok: true, batchStatus: "captured" });
 
     await expect(

@@ -23,7 +23,11 @@ import { uuidv7 } from "../../../ids";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import { lockBatch } from "../batches";
-import { planRefund, type RefundPlan } from "../domain/refund-plan";
+import {
+  planRefund,
+  splitRefundCoverage,
+  type RefundPlan,
+} from "../domain/refund-plan";
 import { initialRefundStatus } from "../domain/refund-status";
 import { auditRefund, checkRefundText, refundableBatch } from "./rows";
 
@@ -142,18 +146,10 @@ export async function requestRefund(
         );
         if (!plan.ok) return refusalOf(plan);
 
-        const allocated = new Map(
-          available.items.map((item) => [item.id, item.amountMinor])
+        const { payableItems, zeroShareRegistrationIds } = splitRefundCoverage(
+          available.items,
+          plan.registrationIds
         );
-        const payableItems: { registrationId: string; amountMinor: bigint }[] =
-          [];
-        const zeroShareRegistrationIds: string[] = [];
-        for (const registrationId of plan.registrationIds) {
-          const amountMinor = allocated.get(registrationId)!;
-          if (amountMinor > 0n)
-            payableItems.push({ registrationId, amountMinor });
-          else zeroShareRegistrationIds.push(registrationId);
-        }
 
         const now = ctx.clock.now();
         const refundId = uuidv7(now);

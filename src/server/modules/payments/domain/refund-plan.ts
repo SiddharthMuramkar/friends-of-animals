@@ -27,6 +27,22 @@ export type RefundableBatch = {
 /** No `registrationIds` means every item that is left. */
 export type RefundRequest = { registrationIds?: readonly string[] };
 
+/** Keep zero-share coverage separately from the positive refund item rows. */
+export function splitRefundCoverage(
+  items: RefundableBatch["items"],
+  registrationIds: readonly string[]
+) {
+  const allocated = new Map(items.map((item) => [item.id, item.amountMinor]));
+  const payableItems: { registrationId: string; amountMinor: bigint }[] = [];
+  const zeroShareRegistrationIds: string[] = [];
+  for (const registrationId of registrationIds) {
+    const amountMinor = allocated.get(registrationId)!;
+    if (amountMinor > 0n) payableItems.push({ registrationId, amountMinor });
+    else zeroShareRegistrationIds.push(registrationId);
+  }
+  return { payableItems, zeroShareRegistrationIds };
+}
+
 /** Split the balance by item charge, keeping existing allocations. */
 export function allocateRefundItems(
   balanceMinor: bigint,

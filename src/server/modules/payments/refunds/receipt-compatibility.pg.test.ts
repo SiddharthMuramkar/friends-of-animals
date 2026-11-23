@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { and, eq, getTableName } from "drizzle-orm";
+import { Cache } from "drizzle-orm/cache/core";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
+import * as schema from "@/server/db/schema";
 import {
   auditLog,
   competition,
   competitionAgeGroup,
+  gatewayTestPayment,
   institutionRegistration,
   paymentBatch,
   paymentBatchItem,
@@ -13,6 +17,7 @@ import {
   refund,
   registration,
 } from "@/server/db/schema";
+import { fallbackPaymentGateway } from "@/server/ports/payment-gateway-fallback";
 import { SEED_PAYMENTS } from "@/server/seed/payments";
 import { createPgWorld, type PgWorld } from "@/test/pg";
 
@@ -228,6 +233,182 @@ it("rechecks a historical receipt after taking the batch lock and records a matc
     },
   ]);
   expect(world.gateway.refunds).toEqual([]);
+});
+
+it("offers and records proof for a historical confirmation whose stored refund flag is false", async () => {
+  const { batch, caseId, paymentId, studentIds } = await reviewedBatch(
+    "FXHIST26",
+    "USD",
+    1200n
+  );
+  const finance = await staff("finance");
+  const [before] = await world.db
+    .select({ refundDue: paymentReviewCase.refundDue })
+    .from(paymentReviewCase)
+    .where(eq(paymentReviewCase.id, caseId));
+  expect(before).toEqual({ refundDue: false });
+  expect(await finance.getPaymentReviewCase({ caseId })).toMatchObject({
+    ok: true,
+    reviewCase: {
+      resolution: { refundDue: false, manualRefund: "recordable" },
+    },
+  });
+  const proof = {
+    id: `rfnd_${caseId}`,
+    paymentId,
+    amountMinor: 1200n,
+    currency: "USD",
+    status: "processed" as const,
+    notes: {},
+  };
+  world.gateway.addDashboardRefund(proof);
+  const record = () =>
+    finance.recordDashboardRefund({ caseId, reference: proof.id });
+
+  expect(await record()).toEqual({ ok: true });
+  expect(await record()).toEqual({ ok: false, error: "not_pending" });
+  expect(await finance.getPaymentReviewCase({ caseId })).toMatchObject({
+    ok: true,
+    reviewCase: { resolution: { refundDue: false, manualRefund: "recorded" } },
+  });
+  expect(
+    await world.db
+      .select({ before: auditLog.before, after: auditLog.after })
+      .from(auditLog)
+      .where(eq(auditLog.entityId, caseId))
+  ).toMatchObject([
+    {
+      before: { refundDue: false },
+      after: {
+        batchId: batch.id,
+        paymentId,
+        reference: proof.id,
+        registrationsRefunded: expect.arrayContaining(studentIds),
+      },
+    },
+  ]);
+  expect(world.gateway.refunds).toEqual([]);
+});
+
+it("settles overlapping fallback deliveries against the same payout and local refund", async () => {
+  const { batch, caseId, studentIds } = await reviewedBatch(
+    "FXOVER26",
+    "INR",
+    1200n
+  );
+  const primary = fallbackPaymentGateway({
+    db: world.db,
+    clock: world.clock,
+    appEnv: "local",
+  });
+  const { orderId } = await primary.createOrder({
+    amount: { amountMinor: 1200n, currency: "INR" },
+    receipt: batch.id,
+    notes: {},
+  });
+  const capture = await primary.capture(orderId);
+  if (!capture) throw new Error("Missing fallback capture");
+  const { paymentId } = capture;
+  await world.db.transaction(async (tx) => {
+    await tx
+      .update(paymentBatch)
+      .set({
+        gateway: "fallback",
+        gatewayOrderId: orderId,
+        gatewayPaymentId: paymentId,
+      })
+      .where(eq(paymentBatch.id, batch.id));
+    await tx
+      .update(paymentReviewCase)
+      .set({ gatewayPaymentId: paymentId })
+      .where(eq(paymentReviewCase.id, caseId));
+  });
+  const admin = await staff("staff_admin");
+  const finance = await staff("finance");
+  const asked = await admin.requestRefund({
+    batchId: batch.id,
+    reason: REASON,
+  });
+  if (!asked.ok) throw new Error("Refund request was refused");
+  const { refundId } = asked;
+  expect(await finance.approveRefund({ refundId })).toEqual({
+    ok: true,
+    status: "approved",
+  });
+
+  const readingPayment = Promise.withResolvers<void>();
+  const payoutCommitted = Promise.withResolvers<void>();
+  const secondDeliveryFinished = Promise.withResolvers<void>();
+  // Delay the second connection just before its payment read. With the
+  // old order of queries, it has already missed the first payout's key.
+  const pauseAtPaymentRead = new (class extends Cache {
+    override strategy() {
+      return "all" as const;
+    }
+    override async get(_key: string, tables: string[]) {
+      if (tables.includes(getTableName(gatewayTestPayment))) {
+        readingPayment.resolve();
+        await payoutCommitted.promise;
+      }
+      return undefined;
+    }
+    override async put() {}
+    override async onMutate() {}
+  })();
+  const secondary = fallbackPaymentGateway({
+    db: drizzle(world.db.$client, { schema, cache: pauseAtPaymentRead }),
+    clock: world.clock,
+    appEnv: "local",
+  });
+  const issuePayout = primary.refund.bind(primary);
+  vi.spyOn(primary, "refund").mockImplementation(async (input) => {
+    await readingPayment.promise;
+    try {
+      const payout = await issuePayout(input);
+      payoutCommitted.resolve();
+      await secondDeliveryFinished.promise;
+      return payout;
+    } finally {
+      payoutCommitted.resolve();
+    }
+  });
+  const send = (payments: typeof primary) =>
+    sendApprovedRefund(
+      { db: world.db, clock: world.clock, payments },
+      { refundId }
+    );
+  await Promise.all([
+    send(primary),
+    send(secondary).finally(secondDeliveryFinished.resolve),
+  ]);
+
+  const payouts = await primary.fetchRefunds(paymentId);
+  expect(payouts).toEqual([
+    expect.objectContaining({
+      paymentId,
+      amountMinor: 1200n,
+      status: "processed",
+      notes: { refundId, attempt: "1" },
+    }),
+  ]);
+  const gatewayRefundId = payouts[0]!.id;
+  expect(await finance.getRefund({ refundId })).toMatchObject({
+    ok: true,
+    refund: { id: refundId, gatewayRefundId, status: "refunded" },
+  });
+  expect(
+    await world.db
+      .select({ after: auditLog.after })
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.entityId, refundId),
+          eq(auditLog.action, "refund.refunded")
+        )
+      )
+  ).toEqual([
+    { after: { status: "refunded", registrationsRefunded: studentIds } },
+  ]);
 });
 
 it("lets concurrent recordings claim the same settled provider refund only once", async () => {

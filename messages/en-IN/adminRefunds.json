@@ -228,7 +228,7 @@
         },
         "alerts": {
           "batch_not_captured": "This payment isn't paid, so nothing can be refunded.",
-          "nothing_to_refund": "Every student of this payment is refunded or in a refund already.",
+          "nothing_to_refund": "Choose at least one student with an amount left to refund.",
           "item_in_live_refund": "A student you chose is in another refund already. The page now shows who is left.",
           "item_already_refunded": "A student you chose is refunded already. The page now shows who is left.",
           "exceeds_paid": "That's more than this payment has left to refund.",

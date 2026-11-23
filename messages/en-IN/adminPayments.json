@@ -38,8 +38,10 @@
     },
     "manualRefund": {
       "required": "Dashboard refund required",
+      "recordable": "Dashboard proof can be recorded",
       "recorded": "Dashboard refund recorded",
       "instructions": "Refund this payment in {currency} from the payment gateway dashboard.",
+      "recordableInstructions": "If this payment was refunded in the payment gateway dashboard, record its reference.",
       "reference": "Gateway refund reference",
       "hint": "Enter the reference after the gateway confirms the refund.",
       "record": "Record dashboard refund",

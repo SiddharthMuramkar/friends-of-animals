@@ -273,6 +273,24 @@ describe("resolving a payment in review with a refund", () => {
         },
       }
     );
+    const wrongPayment = {
+      ...providerRefund,
+      paymentId: "pay_another_receipt",
+    };
+    const lookup = vi
+      .spyOn(h.gateway, "fetchRefunds")
+      .mockResolvedValueOnce([wrongPayment]);
+    expect(await h.as(finance.actor).recordDashboardRefund(recording)).toEqual({
+      ok: false,
+      error: "refund_unverified",
+    });
+    expect(lookup).toHaveBeenCalledWith(paymentId);
+    expect(
+      await h.as(finance.actor).getPaymentReviewCase({ caseId })
+    ).toMatchObject({
+      reviewCase: { resolution: { refundDue: true, manualRefund: "required" } },
+    });
+    lookup.mockRestore();
     for (const unverified of [
       { id: "rfnd_other_payment", paymentId: "pay_another_receipt" },
       { id: "rfnd_partial", amountMinor: 600n },

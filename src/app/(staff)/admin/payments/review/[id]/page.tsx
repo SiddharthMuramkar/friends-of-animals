@@ -349,10 +349,15 @@ async function Resolved({
           </dd>
         </div>
       </dl>
-      {resolution.manualRefund === "required" ? (
+      {resolution.manualRefund === "required" ||
+      resolution.manualRefund === "recordable" ? (
         <>
           <p className="mt-4 font-semibold text-ink">
-            {t("manualRefund.instructions", { currency: reviewCase.currency })}
+            {resolution.manualRefund === "recordable"
+              ? t("manualRefund.recordableInstructions")
+              : t("manualRefund.instructions", {
+                  currency: reviewCase.currency,
+                })}
           </p>
           <form
             className="mt-4 flex max-w-md flex-col gap-4"

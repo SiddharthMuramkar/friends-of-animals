@@ -186,9 +186,8 @@ async function Ask({ batch }: { batch: RefundableBatch }) {
       </section>
     );
   }
-  const free = batch.items.filter(
-    (item) => item.refund === "none" && item.amountMinor > 0n
-  );
+  const free = batch.items.filter((item) => item.refund === "none");
+  const canRefund = free.some((item) => item.amountMinor > 0n);
   const taken = batch.items.filter((item) => item.refund !== "none");
   const numberOf = (item: RefundableBatch["items"][number]) =>
     item.registrationNumber ?? t("detail.studentsTable.noNumber");
@@ -198,7 +197,7 @@ async function Ask({ batch }: { batch: RefundableBatch }) {
       <SectionHeading id="request-ask" title={t("request.form.title")} />
       {batch.status !== "captured" ? (
         <p className="mt-3 text-ink">{t("request.notCaptured")}</p>
-      ) : free.length === 0 ? (
+      ) : !canRefund ? (
         <p className="mt-3 text-ink">{t("request.form.noneLeft")}</p>
       ) : (
         <div className="mt-5">

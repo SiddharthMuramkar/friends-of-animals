@@ -206,66 +206,70 @@ export class FallbackPaymentGateway implements PaymentGateway {
     idempotencyKey: string;
     notes: Record<string, string>;
   }): Promise<GatewayRefund> {
-    const [earlier] = await this.#db
-      .select()
-      .from(gatewayTestRefund)
-      .where(eq(gatewayTestRefund.idempotencyKey, idempotencyKey));
-    if (earlier) return refundView(earlier);
-    const [payment] = await this.#db
-      .select()
-      .from(gatewayTestPayment)
-      .where(
-        and(
-          eq(gatewayTestPayment.id, paymentId),
-          eq(gatewayTestPayment.status, "captured")
+    return this.#db.transaction(async (tx) => {
+      // Serialize both retries and balance checks on this capture.
+      const [payment] = await tx
+        .select()
+        .from(gatewayTestPayment)
+        .where(
+          and(
+            eq(gatewayTestPayment.id, paymentId),
+            eq(gatewayTestPayment.status, "captured")
+          )
         )
-      );
-    if (!payment) {
-      throw new RefundRefusedError(
-        "The fallback has no captured payment to refund"
-      );
-    }
-    const [refunded] = await this.#db
-      .select({ total: sum(gatewayTestRefund.amountMinor) })
-      .from(gatewayTestRefund)
-      .where(
-        and(
-          eq(gatewayTestRefund.paymentId, paymentId),
-          ne(gatewayTestRefund.status, "failed")
-        )
-      );
-    const out = BigInt(refunded?.total ?? "0");
-    if (
-      amount.amountMinor <= 0n ||
-      out + amount.amountMinor > payment.amountMinor
-    ) {
-      throw new RefundRefusedError(
-        "A fallback refund can't be more than is left"
-      );
-    }
-    const now = this.#clock.now();
-    const [made] = await this.#db
-      .insert(gatewayTestRefund)
-      .values({
-        id: `rfnd_fallback_${uuidv7(now).replaceAll("-", "")}`,
-        paymentId,
-        status: "processed",
-        amountMinor: amount.amountMinor,
-        currency: amount.currency,
-        notes,
-        idempotencyKey,
-        createdAt: now,
-      })
-      .onConflictDoNothing()
-      .returning();
-    if (made) return refundView(made);
-    // A concurrent request with the same key made it first.
-    const [raced] = await this.#db
-      .select()
-      .from(gatewayTestRefund)
-      .where(eq(gatewayTestRefund.idempotencyKey, idempotencyKey));
-    if (!raced) throw new Error("The fallback refund vanished");
-    return refundView(raced);
+        .for("update");
+      if (!payment) {
+        throw new RefundRefusedError(
+          "The fallback has no captured payment to refund"
+        );
+      }
+      const [earlier] = await tx
+        .select()
+        .from(gatewayTestRefund)
+        .where(eq(gatewayTestRefund.idempotencyKey, idempotencyKey));
+      if (earlier) return refundView(earlier);
+      const [refunded] = await tx
+        .select({ total: sum(gatewayTestRefund.amountMinor) })
+        .from(gatewayTestRefund)
+        .where(
+          and(
+            eq(gatewayTestRefund.paymentId, paymentId),
+            ne(gatewayTestRefund.status, "failed")
+          )
+        );
+      const out = BigInt(refunded?.total ?? "0");
+      if (
+        amount.amountMinor <= 0n ||
+        out + amount.amountMinor > payment.amountMinor
+      ) {
+        throw new RefundRefusedError(
+          "A fallback refund can't be more than is left"
+        );
+      }
+      const now = this.#clock.now();
+      const [made] = await tx
+        .insert(gatewayTestRefund)
+        .values({
+          id: `rfnd_fallback_${uuidv7(now).replaceAll("-", "")}`,
+          paymentId,
+          status: "processed",
+          amountMinor: amount.amountMinor,
+          currency: amount.currency,
+          notes,
+          idempotencyKey,
+          createdAt: now,
+        })
+        .onConflictDoNothing({ target: gatewayTestRefund.idempotencyKey })
+        .returning();
+      if (made) return refundView(made);
+      // The globally unique key may also have been used on another payment.
+      const [raced] = await tx
+        .select()
+        .from(gatewayTestRefund)
+        .where(eq(gatewayTestRefund.idempotencyKey, idempotencyKey));
+      if (!raced) throw new Error("The fallback refund vanished");
+      return refundView(raced);
+    });
   }
 
   async fetchRefunds(paymentId: string): Promise<GatewayRefund[]> {

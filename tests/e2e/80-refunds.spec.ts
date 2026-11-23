@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { expect, type Page } from "@playwright/test";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -230,7 +230,6 @@ test("staff reads a historical receipt and records its verified dashboard refund
         outcome: "confirm",
         resolvedAt: now,
         resolutionReason: "Finance accepted the historical receipt.",
-        refundDue: true,
       });
     });
     const totpSecret = generateTotpSecret();
@@ -267,6 +266,7 @@ test("staff reads a historical receipt and records its verified dashboard refund
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Payment of USD 12.00"
     );
+    await expect(page.getByText(/If this payment was refunded/)).toBeVisible();
     const reference = page.getByRole("textbox", {
       name: "Gateway refund reference",
     });
@@ -313,6 +313,209 @@ test("staff reads a historical receipt and records its verified dashboard refund
       await db
         .delete(schema.gatewayTestOrder)
         .where(eq(schema.gatewayTestOrder.id, orderId));
+    } finally {
+      await client.end({ timeout: 5 });
+    }
+  }
+});
+
+test("staff can select a zero-share student with a paid share for a partial refund", async ({
+  page,
+  request,
+  seedAccount,
+  baseURL,
+}) => {
+  const client = postgres(localSeedUrl(baseURL), { max: 1, prepare: false });
+  const db = drizzle(client, { schema });
+  const competitionId = randomUUID();
+  const ageGroupId = randomUUID();
+  const schoolId = randomUUID();
+  const batchId = randomUUID();
+  const letters = Array.from(randomBytes(6), (byte) =>
+    String.fromCharCode(65 + (byte % 26))
+  ).join("");
+  const code = `${letters}26`;
+  const path = `/admin/payments/batches/${batchId}/refund`;
+  const now = new Date();
+  const ids = Array.from({ length: 3 }, () => randomUUID()).sort();
+  const numbers = ids.map((_, i) => `${code}-R-5EED0${i + 1}`);
+  try {
+    await db.transaction(async (tx) => {
+      const [seeded] = await tx
+        .select()
+        .from(schema.paymentBatch)
+        .where(eq(schema.paymentBatch.id, SEEDED.paidBatch));
+      if (!seeded?.institutionId)
+        throw new Error("Missing seeded school batch");
+      const students = await tx
+        .select({ profileId: schema.registration.participantProfileId })
+        .from(schema.registration)
+        .innerJoin(
+          schema.paymentBatchItem,
+          eq(schema.paymentBatchItem.registrationId, schema.registration.id)
+        )
+        .where(eq(schema.paymentBatchItem.batchId, seeded.id));
+      if (students.length !== 3)
+        throw new Error("Expected three seeded students");
+      await tx.insert(schema.competition).values({
+        id: competitionId,
+        code,
+        slug: code.toLowerCase(),
+        name: "Reviewed refund",
+        status: "registration_closed",
+        publishedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await tx.insert(schema.competitionAgeGroup).values({
+        id: ageGroupId,
+        competitionId,
+        label: "Students",
+        minAge: 5,
+        maxAge: 18,
+        position: 0,
+      });
+      await tx.insert(schema.institutionRegistration).values({
+        id: schoolId,
+        competitionId,
+        institutionId: seeded.institutionId,
+        reference: `${code}-I-5EED1`,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await tx.insert(schema.registration).values(
+        students.map(({ profileId }, i) => ({
+          id: ids[i]!,
+          participantProfileId: profileId,
+          competitionId,
+          ageGroupId,
+          route: "institution" as const,
+          institutionRegistrationId: schoolId,
+          status: "confirmed" as const,
+          registrationNumber: numbers[i],
+          createdAt: now,
+          updatedAt: now,
+        }))
+      );
+      const paymentId = `pay_fallback_${batchId}`;
+      await tx.insert(schema.paymentBatch).values({
+        ...seeded,
+        id: batchId,
+        competitionId,
+        institutionRegistrationId: schoolId,
+        gateway: "fallback",
+        gatewayOrderId: `order_fallback_${batchId}`,
+        gatewayPaymentId: paymentId,
+        amountMinor: 150_000n,
+      });
+      await tx.insert(schema.paymentBatchItem).values(
+        ids.map((registrationId) => ({
+          batchId,
+          registrationId,
+          amountMinor: 50_000n,
+        }))
+      );
+      await tx.insert(schema.paymentReviewCase).values({
+        id: randomUUID(),
+        batchId,
+        reason: "amount_mismatch",
+        gatewayPaymentId: paymentId,
+        amountMinor: 2n,
+        currency: "INR",
+        batchStatusBefore: "order_created",
+        openedAt: now,
+        outcome: "confirm",
+        resolvedAt: now,
+        resolutionReason: "Finance accepted the historical receipt.",
+      });
+    });
+    const totpSecret = generateTotpSecret();
+    const email = await seedAccount({
+      name: "FOA Staff",
+      grants: [{ role: "staff_admin", scope: { type: "global" } }],
+      totpSecret,
+    });
+    await signInByCode(page, request, email);
+    await visit(page, path);
+    await expect(page).toHaveURL(
+      `/auth/second-factor?next=${encodeURIComponent(path)}`
+    );
+    await page
+      .getByRole("textbox", { name: "6-digit code" })
+      .fill(totpCode(totpSecret, new Date()));
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page).toHaveURL(path);
+
+    const picker = page.getByRole("group", { name: "Students to refund" });
+    await expect(picker.getByRole("checkbox")).toHaveCount(3);
+    await picker
+      .getByRole("checkbox", { name: new RegExp(numbers[0]!) })
+      .check();
+    await page
+      .getByRole("textbox", { name: "Reason" })
+      .fill("The school asked to refund these two students.");
+    await page.getByRole("button", { name: "Ask finance to refund" }).click();
+    await expect(
+      page.getByText(
+        "Choose at least one student with an amount left to refund."
+      )
+    ).toBeVisible();
+    await picker
+      .getByRole("checkbox", { name: new RegExp(numbers[2]!) })
+      .check();
+    await page.getByRole("button", { name: "Ask finance to refund" }).click();
+    await expect(page).toHaveURL(`${path}?sent=1`);
+    const rows = await db
+      .select()
+      .from(schema.refund)
+      .where(eq(schema.refund.batchId, batchId));
+    expect(rows).toEqual([
+      expect.objectContaining({
+        amountMinor: 1n,
+        status: "requested",
+        zeroShareRegistrationIds: [ids[0]],
+      }),
+    ]);
+    expect(
+      await db
+        .select({
+          id: schema.refundItem.registrationId,
+          amountMinor: schema.refundItem.amountMinor,
+        })
+        .from(schema.refundItem)
+        .where(eq(schema.refundItem.refundId, rows[0]!.id))
+    ).toEqual([{ id: ids[2], amountMinor: 1n }]);
+  } finally {
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(schema.refundItem)
+          .where(eq(schema.refundItem.batchId, batchId));
+        await tx
+          .delete(schema.refund)
+          .where(eq(schema.refund.batchId, batchId));
+        await tx
+          .delete(schema.paymentReviewCase)
+          .where(eq(schema.paymentReviewCase.batchId, batchId));
+        await tx
+          .delete(schema.paymentBatchItem)
+          .where(eq(schema.paymentBatchItem.batchId, batchId));
+        await tx
+          .delete(schema.paymentBatch)
+          .where(eq(schema.paymentBatch.id, batchId));
+        await tx
+          .delete(schema.registration)
+          .where(eq(schema.registration.competitionId, competitionId));
+        await tx
+          .delete(schema.institutionRegistration)
+          .where(eq(schema.institutionRegistration.id, schoolId));
+        await tx
+          .delete(schema.competitionAgeGroup)
+          .where(eq(schema.competitionAgeGroup.id, ageGroupId));
+        await tx
+          .delete(schema.competition)
+          .where(eq(schema.competition.id, competitionId));
+      });
     } finally {
       await client.end({ timeout: 5 });
     }

@@ -8,7 +8,7 @@
 // captured and, once resolved, how and when. The resolution's free-text
 // reason and who resolved it are on the case's own page only.
 
-import { and, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -30,6 +30,7 @@ import {
   type PaymentReviewOutcome,
   type PaymentReviewReason,
 } from "./domain/review-case";
+import { acceptedReviewOfBatch } from "./refunds/rows";
 
 /** How many cases one list shows; the oldest beyond it wait their turn. */
 export const REVIEW_LIST_LIMIT = 100;
@@ -55,7 +56,7 @@ export type PaymentReviewCaseItem = {
     outcome: PaymentReviewOutcome;
     resolvedAt: Date;
     refundDue: boolean;
-    manualRefund?: "required" | "recorded";
+    manualRefund?: "required" | "recordable" | "recorded";
   } | null;
 };
 
@@ -66,6 +67,22 @@ export type ListPaymentReviewCasesResult =
   | InvalidInput;
 
 const payerUser = alias(user, "payer_user");
+
+/** Historical confirmations can need proof even without a stored refund flag. */
+export const dashboardRefundPending = and(
+  isNotNull(paymentReviewCase.resolvedAt),
+  isNull(paymentReviewCase.dashboardRefundReference),
+  ne(paymentReviewCase.currency, "INR"),
+  isNotNull(paymentReviewCase.gatewayPaymentId),
+  gt(paymentReviewCase.amountMinor, 0n),
+  or(
+    and(
+      eq(paymentReviewCase.outcome, "refund"),
+      eq(paymentReviewCase.refundDue, true)
+    ),
+    acceptedReviewOfBatch
+  )
+);
 
 const ITEM_COLUMNS = {
   id: paymentReviewCase.id,
@@ -79,22 +96,21 @@ const ITEM_COLUMNS = {
   resolvedAt: paymentReviewCase.resolvedAt,
   refundDue: paymentReviewCase.refundDue,
   dashboardRefundReference: paymentReviewCase.dashboardRefundReference,
+  dashboardRefundPending: sql<boolean>`coalesce(${dashboardRefundPending}, false)`,
   institutionName: institution.name,
   payerName: payerUser.name,
   competitionName: competition.name,
 };
 
-type ItemRow = {
-  [K in keyof typeof ITEM_COLUMNS]:
-    | (typeof ITEM_COLUMNS)[K]["_"]["data"]
-    | null;
-};
+type ItemRow = Awaited<ReturnType<typeof caseQuery>>[number];
 
 function itemOf(row: ItemRow): PaymentReviewCaseItem {
   const manualRefund = row.dashboardRefundReference
     ? "recorded"
-    : row.currency !== "INR" && row.refundDue
-      ? "required"
+    : row.dashboardRefundPending
+      ? row.refundDue
+        ? "required"
+        : "recordable"
       : undefined;
   const payer: PaymentReviewPayer =
     row.institutionName !== null
@@ -103,21 +119,21 @@ function itemOf(row: ItemRow): PaymentReviewCaseItem {
         ? { kind: "person", name: row.payerName }
         : null;
   return {
-    id: row.id!,
-    batchId: row.batchId!,
-    reason: row.reason!,
+    id: row.id,
+    batchId: row.batchId,
+    reason: row.reason,
     gatewayPaymentId: row.gatewayPaymentId,
-    amountMinor: row.amountMinor!,
-    currency: row.currency!,
-    openedAt: row.openedAt!,
+    amountMinor: row.amountMinor,
+    currency: row.currency,
+    openedAt: row.openedAt,
     payer,
-    competitionName: row.competitionName!,
+    competitionName: row.competitionName,
     resolution:
       row.outcome !== null && row.resolvedAt !== null
         ? {
             outcome: row.outcome,
             resolvedAt: row.resolvedAt,
-            refundDue: row.refundDue ?? false,
+            refundDue: row.refundDue,
             ...(manualRefund ? { manualRefund } : {}),
           }
         : null,
@@ -151,7 +167,7 @@ export async function listPaymentReviewCases(
     )
     .orderBy(
       desc(
-        sql`${paymentReviewCase.refundDue} AND ${paymentReviewCase.currency} <> 'INR'`
+        sql`${paymentReviewCase.refundDue} AND ${ITEM_COLUMNS.dashboardRefundPending}`
       ),
       desc(paymentReviewCase.openedAt),
       desc(paymentReviewCase.id)

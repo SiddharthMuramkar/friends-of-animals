@@ -15,6 +15,7 @@ import {
   refundRow,
 } from "@/server/modules/payments/refunds/testing";
 import {
+  confirmReviewedReceipt,
   openOrder,
   reviewCasesOf,
   schoolWithStudents,
@@ -98,8 +99,7 @@ describe("backfillLedgerFromPayments", () => {
       await schoolWithStudents(h, { students: 1 })
     );
     h.gateway.capture(orderId, {
-      // A gateway receipt can carry a currency outside the fake's order type.
-      amount: { amountMinor: 50_000n, currency: "USD" as "INR" },
+      amount: { amountMinor: 50_000n, currency: "USD" },
     });
     const visitor = h.as(h.visitor());
     expect(
@@ -110,11 +110,12 @@ describe("backfillLedgerFromPayments", () => {
     const [review] = await reviewCasesOf(h, batchId);
     const finance = h.as((await signInStaff(h)).actor);
     expect(
-      await finance.resolvePaymentReviewCase({
-        caseId: review!.id,
-        outcome: "confirm",
-        reason: "Accept the payment after reviewing the receipt",
-      })
+      await confirmReviewedReceipt(
+        h,
+        finance,
+        review!,
+        "Accept the payment after reviewing the receipt"
+      )
     ).toEqual({ ok: true, batchStatus: "captured" });
 
     // The unsupported batch sorts before the INR batch in the capture scan.

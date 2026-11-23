@@ -7,11 +7,13 @@ import * as schema from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
 import {
+  confirmReviewedReceipt,
   openOrder,
   reviewCasesOf,
   schoolWithStudents,
   signInStaff,
 } from "../testing";
+import { startSystemRefund } from "./start-system-refund";
 import {
   REASON,
   refundAudit,
@@ -48,21 +50,14 @@ async function acceptedReceipt(
   const staffActor = (await signInStaff(h, "staff_admin")).actor;
   const staff = h.as(staffActor);
 
-  // Reproduce a capture that finance could confirm before the INR guard.
-  const setReceiptCurrency = (currency: string) =>
-    h.db
-      .update(schema.paymentReviewCase)
-      .set({ currency })
-      .where(eq(schema.paymentReviewCase.id, receipt.id));
-  if (currency !== "INR") await setReceiptCurrency("INR");
   expect(
-    await finance.resolvePaymentReviewCase({
-      caseId: receipt.id,
-      outcome: "confirm",
-      reason: "The school confirmed the amount on their receipt.",
-    })
+    await confirmReviewedReceipt(
+      h,
+      finance,
+      receipt,
+      "The school confirmed the amount on their receipt."
+    )
   ).toEqual({ ok: true, batchStatus: "captured" });
-  if (currency !== "INR") await setReceiptCurrency(currency);
   return {
     batchId,
     orderId,
@@ -295,6 +290,44 @@ it("holds and settles the zero-share registration in an explicit partial request
     amountMinor: 1n,
     registrationIds: [unselected],
   });
+});
+
+it("settles every registration covered by a full system refund of a one-paise receipt", async () => {
+  const h = await createHarness();
+  const { batchId, paymentId, school } = await acceptedReceipt(h, 1n, "INR");
+  const made = await h.db.transaction((tx) =>
+    startSystemRefund(
+      tx,
+      { clock: h.clock, actor: { kind: "system", process: "worker" } },
+      {
+        kind: "cancellation",
+        batchId,
+        reason: "The competition was cancelled.",
+        idempotencyKey: `cancel:${batchId}`,
+      }
+    )
+  );
+  expect(made).toEqual({ refundId: expect.any(String) });
+  await h.drain();
+  expect(h.gateway.refunds).toEqual([
+    expect.objectContaining({
+      paymentId,
+      amountMinor: 1n,
+      status: "processed",
+    }),
+  ]);
+  expect(await statusesOf(h, school.registrationIds)).toEqual([
+    "refunded",
+    "refunded",
+  ]);
+  expect(await refundAudit(h)).toContainEqual(
+    expect.objectContaining({
+      action: "refund.approved",
+      after: expect.objectContaining({
+        registrationIds: [...school.registrationIds].sort(),
+      }),
+    })
+  );
 });
 
 it("reads only live holds and the committed total when requesting a refund with rejected history", async () => {

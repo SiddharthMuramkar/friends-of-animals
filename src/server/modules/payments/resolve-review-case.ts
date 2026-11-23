@@ -20,7 +20,7 @@
 // start again. Each resolution is written to the audit log, before and
 // after, in the same transaction.
 
-import { and, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -45,6 +45,7 @@ import {
 import { captureBatch, registrationsAtCapture } from "./capture";
 import { refundRegistrations } from "./refunds/rows";
 import { startSystemRefund } from "./refunds/start-system-refund";
+import { dashboardRefundPending } from "./review-cases";
 import {
   nextPaymentBatchStatus,
   type PaymentBatchStatus,
@@ -295,13 +296,7 @@ export async function recordDashboardRefund(
   const parsed = dashboardRefundInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { caseId, reference } = parsed.data;
-  const pending = and(
-    eq(paymentReviewCase.id, caseId),
-    isNotNull(paymentReviewCase.resolvedAt),
-    inArray(paymentReviewCase.outcome, ["refund", "confirm"]),
-    eq(paymentReviewCase.refundDue, true),
-    ne(paymentReviewCase.currency, "INR")
-  );
+  const pending = and(eq(paymentReviewCase.id, caseId), dashboardRefundPending);
   const [subject] = await ctx.db
     .select({
       batchId: paymentReviewCase.batchId,
@@ -316,11 +311,7 @@ export async function recordDashboardRefund(
     .where(pending);
   if (!subject?.outcome) return { ok: false, error: "not_pending" };
   const { paymentId, amountMinor, currency, outcome, batchId } = subject;
-  if (
-    !paymentId ||
-    amountMinor <= 0n ||
-    subject.gateway !== ctx.payments.name
-  ) {
+  if (!paymentId || subject.gateway !== ctx.payments.name) {
     return { ok: false, error: "refund_unverified" };
   }
   // Provider I/O stays outside the transaction. Recheck the receipt when
@@ -343,17 +334,13 @@ export async function recordDashboardRefund(
       const batch = await (outcome === "confirm"
         ? lockBatchAndParticipation(tx, batchId)
         : lockBatch(tx, batchId));
-      if (
-        !batch ||
-        batch.gateway !== subject.gateway ||
-        (outcome === "confirm" &&
-          (batch.status !== "captured" || batch.gatewayPaymentId !== paymentId))
-      ) {
+      if (batch?.gateway !== subject.gateway) {
         return { ok: false, error: "not_pending" };
       }
-      const [recorded] = await tx
-        .update(paymentReviewCase)
-        .set({ refundDue: false, dashboardRefundReference: reference })
+      const [current] = await tx
+        .select({ refundDue: paymentReviewCase.refundDue })
+        .from(paymentReviewCase)
+        .innerJoin(paymentBatch, eq(paymentBatch.id, paymentReviewCase.batchId))
         .where(
           and(
             pending,
@@ -364,8 +351,12 @@ export async function recordDashboardRefund(
             eq(paymentReviewCase.outcome, outcome)
           )
         )
-        .returning({ id: paymentReviewCase.id });
-      if (!recorded) return { ok: false, error: "not_pending" };
+        .for("update", { of: paymentReviewCase });
+      if (!current) return { ok: false, error: "not_pending" };
+      await tx
+        .update(paymentReviewCase)
+        .set({ refundDue: false, dashboardRefundReference: reference })
+        .where(eq(paymentReviewCase.id, caseId));
 
       const registrationsRefunded =
         outcome === "confirm"
@@ -374,7 +365,7 @@ export async function recordDashboardRefund(
       await recordAudit(tx, ctx, {
         action: "payment.dashboard_refund_recorded",
         entity: { type: "payment_review_case", id: caseId },
-        before: { refundDue: true },
+        before: { refundDue: current.refundDue },
         after: {
           refundDue: false,
           reference,
