@@ -2,13 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { parsePhoneNumber } from "@/lib/phone";
-import {
-  guardianLink,
-  notificationPreference,
-  registration,
-  user,
-} from "@/server/db/schema";
-import { uuidv7 } from "@/server/ids";
+import { notificationPreference, registration } from "@/server/db/schema";
 import { planDelivery } from "@/server/modules/notifications/domain/delivery-plan";
 import {
   adultForm,
@@ -77,13 +71,16 @@ async function schoolRoster(h: Harness, name = "Audience School") {
   };
 }
 
-async function sharedMailboxRoster(h: Harness) {
+async function sharedMailboxRoster(
+  h: Harness,
+  secondGuardianName = "Second Guardian"
+) {
   const school = await schoolRoster(h);
   await school.enrol(sibling("First Pupil", FAMILY_EMAIL));
   await school.confirm();
   const second = await school.enrol({
     ...sibling("Second Pupil", FAMILY_EMAIL),
-    guardianName: "Second Guardian",
+    guardianName: secondGuardianName,
     guardianPhone: SECOND_GUARDIAN_PHONE,
   });
   return { competitionId: school.competition.id, second };
@@ -163,6 +160,126 @@ describe("loadAnnouncementAudience", () => {
       `sms:${SHARED_PHONE}`,
     ]);
     expect([h.email.sent.length, h.sms.sent.length]).toEqual(messagesBefore);
+  });
+
+  it("keeps late-enrolled adults distinct when one verifies their shared mailbox", async () => {
+    const h = await createHarness();
+    const school = await schoolRoster(h);
+    await school.enrol({
+      fullName: "First Adult",
+      dateOfBirth: "2000-01-01",
+      email: FAMILY_EMAIL,
+      phone: SHARED_PHONE,
+    });
+    await school.confirm();
+    const second = await school.enrol({
+      fullName: "Second Adult",
+      dateOfBirth: "2002-01-01",
+      email: FAMILY_EMAIL,
+      phone: SECOND_GUARDIAN_PHONE,
+    });
+
+    async function read(registrationIds?: ReadonlySet<string>) {
+      const { counts, deliveries, unreachable } = await audience(
+        h,
+        school.competition.id,
+        { smsEnabled: true, registrationIds }
+      );
+      return {
+        counts,
+        unreachable,
+        participantDeliveries: deliveries
+          .filter(({ recipient }) => recipient.roles.includes("participant"))
+          .map(({ channel, address }) => `${channel}:${address}`)
+          .sort(),
+      };
+    }
+
+    const full = {
+      counts: {
+        recipients: 3,
+        participants: 2,
+        guardians: 0,
+        coordinators: 1,
+        unreachable: 0,
+      },
+      unreachable: [],
+      participantDeliveries: [
+        `email:${FAMILY_EMAIL}`,
+        `sms:${SHARED_PHONE}`,
+        `sms:${SECOND_GUARDIAN_PHONE}`,
+      ],
+    };
+    const subset = {
+      counts: {
+        recipients: 2,
+        participants: 1,
+        guardians: 0,
+        coordinators: 1,
+        unreachable: 0,
+      },
+      unreachable: [],
+      participantDeliveries: [
+        `email:${FAMILY_EMAIL}`,
+        `sms:${SECOND_GUARDIAN_PHONE}`,
+      ],
+    };
+    const selected = new Set([second]);
+    expect(await read()).toEqual(full);
+    expect(await read(selected)).toEqual(subset);
+
+    const first = await h.seed.member({
+      name: "First Adult",
+      email: FAMILY_EMAIL,
+      phone: SHARED_PHONE,
+    });
+
+    expect([await read(), await read(selected)]).toEqual([
+      {
+        ...full,
+        participantDeliveries: [
+          `email:${FAMILY_EMAIL}`,
+          `in_app:${first.id}`,
+          `sms:${SHARED_PHONE}`,
+          `sms:${SECOND_GUARDIAN_PHONE}`,
+        ],
+      },
+      subset,
+    ]);
+  });
+
+  it("keeps two adult profiles on direct channels when both listed addresses are shared", async () => {
+    const h = await createHarness();
+    const school = await schoolRoster(h);
+    await h.seed.member({ email: FAMILY_EMAIL, phone: SHARED_PHONE });
+    const household = { email: FAMILY_EMAIL, phone: SHARED_PHONE };
+    await school.enrol({
+      ...household,
+      fullName: "First Adult",
+      dateOfBirth: "2000-01-01",
+    });
+    await school.enrol({
+      ...household,
+      fullName: "Second Adult",
+      dateOfBirth: "2002-01-01",
+    });
+    await school.confirm();
+
+    const plan = await audience(h, school.competition.id, { smsEnabled: true });
+
+    expect(plan.counts).toEqual({
+      recipients: 3,
+      participants: 2,
+      guardians: 0,
+      coordinators: 1,
+      unreachable: 0,
+    });
+    expect(
+      plan.deliveries
+        .filter(({ recipient }) => recipient.roles.includes("participant"))
+        .map(({ channel, address }) => `${channel}:${address}`)
+        .sort()
+    ).toEqual([`email:${FAMILY_EMAIL}`, `sms:${SHARED_PHONE}`]);
   });
 
   it("counts distinct roster guardians who share a mailbox and keeps both SMS destinations", async () => {
@@ -298,6 +415,54 @@ describe("loadAnnouncementAudience", () => {
     ]);
   });
 
+  it("keeps same-named guardians with different phones distinct on a verified shared mailbox", async () => {
+    const h = await createHarness();
+    const { competitionId, second } = await sharedMailboxRoster(
+      h,
+      "listed guardian"
+    );
+    await h.seed.member({ name: "Listed Guardian", email: FAMILY_EMAIL });
+
+    const full = await audience(h, competitionId, { smsEnabled: true });
+    const subset = await audience(h, competitionId, {
+      smsEnabled: true,
+      registrationIds: new Set([second]),
+    });
+
+    expect(
+      [full, subset].map(({ counts, unreachable }) => ({ counts, unreachable }))
+    ).toEqual([
+      {
+        counts: {
+          recipients: 3,
+          participants: 0,
+          guardians: 2,
+          coordinators: 1,
+          unreachable: 0,
+        },
+        unreachable: [],
+      },
+      {
+        counts: {
+          recipients: 2,
+          participants: 0,
+          guardians: 1,
+          coordinators: 1,
+          unreachable: 0,
+        },
+        unreachable: [],
+      },
+    ]);
+    expect([guardianDestinations(full), guardianDestinations(subset)]).toEqual([
+      [
+        `email:${FAMILY_EMAIL}`,
+        `sms:${SHARED_PHONE}`,
+        `sms:${SECOND_GUARDIAN_PHONE}`,
+      ],
+      [`email:${FAMILY_EMAIL}`, `sms:${SECOND_GUARDIAN_PHONE}`],
+    ]);
+  });
+
   it("keeps a listed guardian phone on SMS when another account owns the number", async () => {
     const h = await createHarness();
     await h.seed.member({
@@ -344,15 +509,9 @@ describe("loadAnnouncementAudience", () => {
   it("keeps a matching email awaiting verification on direct contact channels", async () => {
     const h = await createHarness();
     const school = await schoolRoster(h);
-    const email = "pending-guardian@example.test";
-    const now = h.clock.now();
-    await h.db.insert(user).values({
-      id: uuidv7(now),
+    const { email } = await h.seed.pendingEmailAccount({
       name: "Pending Guardian",
-      email,
-      emailVerified: false,
-      createdAt: now,
-      updatedAt: now,
+      email: "pending-guardian@example.test",
     });
     await school.enrol(sibling("School Pupil", email));
     await school.confirm();
@@ -464,25 +623,64 @@ describe("loadAnnouncementAudience", () => {
     ]);
   });
 
+  it("keeps a phone-only guardian unresolved when an eligible row outside the subset conflicts", async () => {
+    const h = await createHarness();
+    const guardian = await h.seed.member({
+      email: "selected-guardian@example.test",
+      phone: SHARED_PHONE,
+    });
+    const school = await schoolRoster(h);
+    const selected = await school.enrol(
+      sibling("Selected Pupil", guardian.email)
+    );
+    await school.confirm();
+    const outside = await school.enrol(
+      sibling("Other Pupil", "other-guardian@example.test")
+    );
+    const phoneOnly = await school.enrol(sibling("Phone-only Pupil"));
+    const [row] = await h.db
+      .select({ participantProfileId: registration.participantProfileId })
+      .from(registration)
+      .where(eq(registration.id, phoneOnly));
+    if (!row) throw new Error("Expected the enrolled pupil's profile");
+    const options = { registrationIds: new Set([selected, phoneOnly]) };
+
+    const subset = await audience(h, school.competition.id, options);
+
+    expect(subset.counts).toEqual({
+      recipients: 2,
+      participants: 0,
+      guardians: 1,
+      coordinators: 1,
+      unreachable: 1,
+    });
+    expect(subset.unreachable).toEqual([
+      { ...row, reason: "minor_without_guardian" },
+    ]);
+    expect(guardianDestinations(subset)).toEqual([
+      `email:${guardian.email}`,
+      `in_app:${guardian.id}`,
+    ]);
+
+    await school.withdraw(outside);
+    const withoutConflict = await audience(h, school.competition.id, options);
+    expect(withoutConflict.counts).toEqual({
+      ...subset.counts,
+      unreachable: 0,
+    });
+    expect(withoutConflict.unreachable).toEqual([]);
+    expect(guardianDestinations(withoutConflict)).toEqual(
+      guardianDestinations(subset)
+    );
+  });
+
   it("selects an active verified guardian link and uses roster channels after revocation", async () => {
     const h = await createHarness();
     const family = await h.seed.guardian({ children: [] });
     const school = await schoolRoster(h);
     const registrationId = await school.enrol(sibling("Linked Pupil"));
     await school.confirm();
-    const [row] = await h.db
-      .select({ profileId: registration.participantProfileId })
-      .from(registration)
-      .where(eq(registration.id, registrationId));
-    const now = h.clock.now();
-    const id = uuidv7(now);
-    await h.db.insert(guardianLink).values({
-      id,
-      guardianId: family.guardianId,
-      participantProfileId: row!.profileId,
-      relationship: "parent",
-      createdAt: now,
-    });
+    const link = await family.linkInstitutionRegistration(registrationId);
 
     const linked = await audience(h, school.competition.id);
     expect(linked.counts).toMatchObject({ guardians: 1, unreachable: 0 });
@@ -492,10 +690,7 @@ describe("loadAnnouncementAudience", () => {
         .map(({ channel, address }) => `${channel}:${address}`)
     ).toEqual([`email:${family.account.email}`, `in_app:${family.account.id}`]);
 
-    await h.db
-      .update(guardianLink)
-      .set({ revokedAt: now })
-      .where(eq(guardianLink.id, id));
+    await link.revoke();
     const revoked = await audience(h, school.competition.id, {
       smsEnabled: true,
     });
