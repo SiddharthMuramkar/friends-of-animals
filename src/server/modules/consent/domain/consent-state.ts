@@ -40,13 +40,19 @@ function isLater(a: ConsentEventRecord, b: ConsentEventRecord): boolean {
   return byTime === 0 ? a.id > b.id : byTime > 0;
 }
 
-/** The state the latest event leaves, by time and then by id. */
+/** The state the latest event leaves. Profile event IDs encode append order. */
 export function currentConsent(
-  events: readonly ConsentEventRecord[]
+  events: readonly ConsentEventRecord[],
+  orderBy: "occurredAt" | "id" = "occurredAt"
 ): ConsentState {
   let latest: ConsentEventRecord | undefined;
   for (const event of events) {
-    if (!latest || isLater(event, latest)) latest = event;
+    if (
+      !latest ||
+      (orderBy === "id" ? event.id > latest.id : isLater(event, latest))
+    ) {
+      latest = event;
+    }
   }
   if (!latest) return { status: "never" };
   return {

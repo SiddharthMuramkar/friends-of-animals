@@ -106,6 +106,34 @@ describe("a registration held for a guardian", () => {
     ).toEqual({ ok: false, error: "awaiting_guardian" });
     expect(await meera.status()).toBe("pending_guardian");
   });
+
+  it("lets the participant continue the same registration after turning 18", async () => {
+    const h = await createHarness();
+    const meera = await heldTeen(h, {
+      fee: 0n,
+      dateOfBirth: bornYearsAgo(h, 18, -3),
+    });
+    const mine = h.as(meera.actor);
+    h.clock.advance({ days: 4 });
+
+    expect(await mine.listMyRegistrations()).toEqual([
+      expect.objectContaining({
+        registrationId: meera.registrationId,
+        amountDue: { amountMinor: 0n, currency: "INR" },
+        heldFor: null,
+      }),
+    ]);
+
+    const confirmed = await mine.payForMyRegistration({
+      registrationId: meera.registrationId,
+    });
+    expect(confirmed).toMatchObject({ ok: true, kind: "confirmed_free" });
+    expect(await meera.status()).toBe("confirmed");
+    expect(h.gateway.orders).toEqual([]);
+    expect(
+      await h.as(h.visitor()).viewGuardianRequest({ token: meera.token })
+    ).toMatchObject({ ok: true, request: { status: "revoked", teen: null } });
+  });
 });
 
 describe("registerAsGuardian, after registering alone", () => {
@@ -255,7 +283,7 @@ describe("a date of birth already on a profile of one's own", () => {
 });
 
 describe("acceptGuardianRequest", () => {
-  it("links the teen to the verified guardian asked, and releases the registration for the guardian to pay", async () => {
+  it("links the teen to the verified guardian asked, whose participation consent releases the registration for them to pay", async () => {
     const h = await createHarness();
     const meera = await heldTeen(h);
     const lakshmi = await verifiedGuardian(h, {
@@ -267,11 +295,21 @@ describe("acceptGuardianRequest", () => {
       .as(lakshmi.actor)
       .acceptGuardianRequest({ token: meera.token, relationship: "parent" });
 
+    // Held still: the guardian hasn't given participation yet (#82).
     expect(result).toEqual({
       ok: true,
       childId: meera.profileId,
-      released: [meera.registrationId],
+      released: [],
     });
+    expect(await meera.status()).toBe("pending_guardian");
+    expect(
+      await h.as(lakshmi.actor).giveChildConsent({
+        childId: meera.profileId,
+        competitionId: meera.competition.id,
+        purpose: "participation",
+        documentId: meera.competition.guardianDocuments.participation!,
+      })
+    ).toEqual({ ok: true, changed: true });
     const [profile] = await h.db
       .select()
       .from(participantProfile)
@@ -364,6 +402,110 @@ describe("acceptGuardianRequest", () => {
     ).toEqual([{ id: meera.profileId }]);
   });
 
+  it.each([false, true])(
+    "recovers the held place through the teen's verified invitation (already registered: %s)",
+    async (hasRegistration) => {
+      const h = await createHarness();
+      const meera = await heldTeen(h);
+      const lakshmi = await verifiedGuardian(h, {
+        name: "Lakshmi Iyer",
+        email: MOTHER_EMAIL,
+      });
+      const [teen] = await h.db
+        .select({ dobCiphertext: participantProfile.dobCiphertext })
+        .from(participantProfile)
+        .where(eq(participantProfile.id, meera.profileId));
+      const added = await h.as(lakshmi.actor).addChild({
+        fullName: "Meera Iyer",
+        dateOfBirth: h.deps.cipher.decrypt(
+          "participant_profile.dob",
+          teen!.dobCiphertext
+        ),
+        relationship: "parent",
+      });
+      if (!added.ok) throw new Error(JSON.stringify(added));
+      const { childId } = added;
+      const parent = h.as(lakshmi.actor);
+      let liveId = meera.registrationId;
+      if (hasRegistration) {
+        const prior = await parent.registerAsIndividual({
+          ...adultForm(meera.competition, {
+            consents: meera.competition.documents.filter(
+              (id) => id !== meera.competition.guardianDocuments.participation
+            ),
+          }),
+          forChildId: childId,
+        });
+        expect(prior).toMatchObject({ ok: true, status: "pending_guardian" });
+        if (!prior.ok) throw new Error(JSON.stringify(prior));
+        liveId = prior.registrationId;
+      }
+
+      expect(
+        await parent.inviteTeenLogin({ childId, email: meera.account.email })
+      ).toMatchObject({ ok: true });
+      await h.drain();
+      const invitationToken = LINK.exec(
+        h.email.lastTo(meera.account.email)?.text ?? ""
+      )?.[1];
+      if (!invitationToken) throw new Error("No teen invitation was emailed");
+      expect(
+        await h.as(meera.actor).acceptTeenInvitation({ token: invitationToken })
+      ).toEqual({ ok: true, childId });
+      expect(
+        await h.as(meera.actor).viewTeenInvitation({ token: invitationToken })
+      ).toMatchObject({ ok: true, invitation: { status: "accepted" } });
+      expect(
+        await parent.acceptGuardianRequest({
+          token: meera.token,
+          relationship: "parent",
+        })
+      ).toEqual({ ok: false, error: "already_used" });
+      expect(
+        (await parent.listMyRegistrations()).filter(
+          ({ status }) => status !== "withdrawn"
+        )
+      ).toEqual([
+        expect.objectContaining({
+          registrationId: liveId,
+          childId,
+          status: "pending_guardian",
+          heldFor: "consent",
+        }),
+      ]);
+      expect(
+        (await h.as(meera.actor).listMyRegistrations()).filter(
+          ({ status }) => status !== "withdrawn"
+        )
+      ).toEqual([
+        expect.objectContaining({
+          registrationId: liveId,
+          whose: "mine",
+          heldFor: "consent",
+          amountDue: null,
+        }),
+      ]);
+      expect(
+        await parent.giveChildConsent({
+          childId,
+          competitionId: meera.competition.id,
+          purpose: "participation",
+          documentId: meera.competition.guardianDocuments.participation!,
+        })
+      ).toEqual({ ok: true, changed: true });
+      expect(await meera.status()).toBe(
+        hasRegistration ? "withdrawn" : "pending_payment"
+      );
+      expect(await parent.listMyRegistrations()).toContainEqual(
+        expect.objectContaining({
+          registrationId: liveId,
+          childId,
+          status: "pending_payment",
+        })
+      );
+    }
+  );
+
   describe("refuses, changing nothing,", () => {
     async function unchanged(h: Harness) {
       return {
@@ -372,6 +514,39 @@ describe("acceptGuardianRequest", () => {
         links: await h.db.select().from(guardianLink),
       };
     }
+
+    it.each([undefined, "meera@example.test", "previous@example.test"])(
+      "keeps both profiles and a pending teen invitation intact before teen confirmation (%s)",
+      async (invitedEmail) => {
+        const h = await createHarness();
+        const meera = await heldTeen(h);
+        const family = await h.seed.guardian({
+          email: MOTHER_EMAIL,
+          children: [{ fullName: "Meera Iyer", age: 15 }],
+        });
+        const childId = family.childIds[0]!;
+        const parent = h.as(await h.signIn(family.account));
+        if (invitedEmail) {
+          expect(
+            await parent.inviteTeenLogin({ childId, email: invitedEmail })
+          ).toMatchObject({
+            ok: true,
+          });
+        }
+        const before = await unchanged(h);
+        const places = await h.as(meera.actor).listMyRegistrations();
+
+        expect(
+          await parent.acceptGuardianRequest({
+            token: meera.token,
+            relationship: "parent",
+          })
+        ).toEqual({ ok: false, error: "child_already_added" });
+        expect(await unchanged(h)).toEqual(before);
+        expect(await h.as(meera.actor).listMyRegistrations()).toEqual(places);
+        expect(await meera.status()).toBe("pending_guardian");
+      }
+    );
 
     it("someone signed in with another address", async () => {
       const h = await createHarness();
@@ -406,32 +581,21 @@ describe("acceptGuardianRequest", () => {
       expect(await unchanged(h)).toEqual(before);
     });
 
-    it("a guardian who already added the same child, rather than failing", async () => {
+    it("a matching child's profile already linked to a different login", async () => {
       const h = await createHarness();
       const meera = await heldTeen(h);
-      const lakshmi = await verifiedGuardian(h, {
-        name: "Lakshmi Iyer",
+      const login = await h.seed.member();
+      const family = await h.seed.guardian({
         email: MOTHER_EMAIL,
+        children: [{ fullName: "Meera Iyer", age: 15, loginUserId: login.id }],
       });
-      const [teen] = await h.db
-        .select({ dobCiphertext: participantProfile.dobCiphertext })
-        .from(participantProfile)
-        .where(eq(participantProfile.id, meera.profileId));
-      const added = await h.as(lakshmi.actor).addChild({
-        fullName: "Meera Iyer",
-        dateOfBirth: h.deps.cipher.decrypt(
-          "participant_profile.dob",
-          teen!.dobCiphertext
-        ),
-        relationship: "parent",
-      });
-      expect(added).toMatchObject({ ok: true });
+      const parent = h.as(await h.signIn(family.account));
       const before = await unchanged(h);
-
       expect(
-        await h
-          .as(lakshmi.actor)
-          .acceptGuardianRequest({ token: meera.token, relationship: "parent" })
+        await parent.acceptGuardianRequest({
+          token: meera.token,
+          relationship: "parent",
+        })
       ).toEqual({ ok: false, error: "child_already_added" });
       expect(await unchanged(h)).toEqual(before);
     });
@@ -708,7 +872,19 @@ describe("paying for a guardian's child", () => {
     await expect(pay(await h.signIn(await h.seed.member()))).rejects.toThrow(
       DomainError
     );
-    expect(await pay(await h.signIn(family.account))).toMatchObject({
+    const guardianActor = await h.signIn(family.account);
+    // Held for the guardian's participation consent first (#82).
+    expect(await pay(guardianActor)).toEqual({
+      ok: false,
+      error: "awaiting_guardian",
+    });
+    await h.as(guardianActor).giveChildConsent({
+      childId: family.childIds[0]!,
+      competitionId: competition.id,
+      purpose: "participation",
+      documentId: competition.guardianDocuments.participation!,
+    });
+    expect(await pay(guardianActor)).toMatchObject({
       ok: true,
       kind: "checkout",
     });

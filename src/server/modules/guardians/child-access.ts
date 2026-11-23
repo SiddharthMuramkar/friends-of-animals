@@ -33,6 +33,22 @@ export function verifiedLink() {
   return and(isNull(guardianLink.revokedAt), isNotNull(guardian.verifiedAt));
 }
 
+/** Whether an active link joins the profile to a verified guardian. */
+export async function hasVerifiedGuardian(
+  db: AppDb,
+  profileId: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: guardianLink.id })
+    .from(guardianLink)
+    .innerJoin(guardian, eq(guardian.id, guardianLink.guardianId))
+    .where(
+      and(eq(guardianLink.participantProfileId, profileId), verifiedLink())
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
 /**
  * A child as the resource of the per-child rule: owned by the acting user
  * when an active link joins them, by nobody otherwise. A child that

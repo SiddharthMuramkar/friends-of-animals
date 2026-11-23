@@ -106,7 +106,8 @@ export type TeenInvitationState = {
  * is checked first (an unknown token says nothing more), then who is
  * accepting: only the invited contact, signed in with it, who is no
  * guardian at all, holds no other role (staff, a school's or a judge's),
- * keeps no profile of their own and is not already another child's login.
+ * keeps no profile of their own (unless recovering a held minor profile)
+ * and is not already another child's login.
  * A minor's login never holds the guardian role, so it can't add or manage
  * children; registering as a guardian refuses a linked login the other way
  * round. Last, the child must still be 13 to 17 and without a login at
@@ -116,6 +117,8 @@ export function decideTeenAcceptance(input: {
   /** Null when no invitation has this token. */
   invitation: TeenInvitationState | null;
   now: Date;
+  /** The caller will require both sides of a held-profile recovery. */
+  allowHeldProfileRecovery?: boolean;
   accepter: {
     /** The signed-in user's verified address is the invited one. */
     isTheInvitedContact: boolean;
@@ -126,8 +129,7 @@ export function decideTeenAcceptance(input: {
     holdsOtherRole: boolean;
     /**
      * A profile of their own: an adult's (#78), so the login can't be a
-     * child's; or a teen's held for a guardian they asked (#81), whom
-     * that request links instead.
+     * child's; or a teen's held for a guardian they asked (#81).
      */
     ownProfile: "none" | "adult" | "minor";
     linkedToAnotherChild: boolean;
@@ -149,7 +151,7 @@ export function decideTeenAcceptance(input: {
   if (accepter.isAGuardian) return refuse("accepter_is_guardian");
   if (accepter.holdsOtherRole) return refuse("accepter_has_role");
   if (accepter.ownProfile === "adult") return refuse("accepter_is_adult");
-  if (accepter.ownProfile === "minor") {
+  if (accepter.ownProfile === "minor" && !input.allowHeldProfileRecovery) {
     return refuse("accepter_has_own_profile");
   }
   if (accepter.linkedToAnotherChild) return refuse("already_linked");

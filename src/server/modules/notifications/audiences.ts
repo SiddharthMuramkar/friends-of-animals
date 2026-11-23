@@ -62,8 +62,11 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "identity.user_signed_up":
       return delivery.payload.userId;
     case "consent.withdrawn":
-      // A participant profile's consent (#82) is not a user's.
-      return delivery.payload.subjectType === "user"
+      // The withdrawal receipt answers a person's own messages consent
+      // only: a child's consents (#82) are no user's, and the receipt
+      // speaks of messages, not of any other purpose.
+      return delivery.payload.subjectType === "user" &&
+        delivery.payload.purpose === "messages"
         ? delivery.payload.subjectId
         : null;
     case "contact_message.received":
@@ -178,6 +181,8 @@ export const AUDIENCES = {
    * a minor go to them, and a teen with an own login gets an inbox copy. A
    * minor with no verified guardian is told nothing. An adult's own
    * registration has none here: `registration_owner` tells them.
+   * Later events about a registration can add their own route here.
+   * Financial receipts and refunds go to the payer's account.
    */
   guardian_of_participant: async (db, delivery) =>
     delivery.eventType === "registration.confirmed"

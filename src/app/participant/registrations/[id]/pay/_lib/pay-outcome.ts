@@ -8,6 +8,7 @@ export const PAY_OUTCOMES = [
   "checkout",
   "nothing_to_pay",
   "awaiting_guardian",
+  "participation_consent_required",
   "fee_not_set",
   "gateway_unavailable",
   "superseded",

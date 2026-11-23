@@ -11,7 +11,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { APP_ROUTES, guardianChildConsentsPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -182,6 +182,15 @@ async function Child({
             )}
           </section>
         )}
+
+        <div>
+          <ButtonLink
+            href={guardianChildConsentsPath(child.id)}
+            variant="secondary"
+          >
+            {t("consents")}
+          </ButtonLink>
+        </div>
 
         {child.kind === "adult" ? null : (
           <section aria-labelledby="child-register" className={CARD}>

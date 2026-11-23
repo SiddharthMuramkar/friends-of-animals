@@ -105,6 +105,7 @@ describe("reviewReasonFor()", () => {
       "registration_closed",
       "batch_superseded",
       "paid_while_in_review",
+      "participation_consent_required",
     ]);
   });
 
@@ -122,6 +123,7 @@ describe("allowedOutcomes()", () => {
     "batch_superseded",
     // #80, from #79's review: a full payment while another was in review.
     "paid_while_in_review",
+    "participation_consent_required",
   ];
 
   it.each(

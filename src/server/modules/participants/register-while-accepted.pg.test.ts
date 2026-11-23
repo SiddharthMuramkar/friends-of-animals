@@ -100,14 +100,13 @@ describe("a teen registering while their guardian accepts", () => {
     }
 
     const [accepted, registered] = results;
-    expect(accepted).toMatchObject({
-      ok: true,
-      released: [held.registrationId],
-    });
-    // A linked teen whose guardian has verified: the guardian pays.
+    // Both stay held for the guardian's participation consent (#82).
+    expect(accepted).toMatchObject({ ok: true, released: [] });
+    // A linked teen whose guardian has verified: held for that consent,
+    // and then the guardian pays.
     expect(registered).toMatchObject({
       ok: true,
-      status: "pending_payment",
+      status: "pending_guardian",
       payNow: false,
     });
     const profiles = await world.db
@@ -140,8 +139,8 @@ describe("a teen registering while their guardian accepts", () => {
       .where(eq(registration.participantProfileId, profiles[0]!.id));
     expect(registrations).toHaveLength(2);
     expect(registrations.map((row) => row.status)).toEqual([
-      "pending_payment",
-      "pending_payment",
+      "pending_guardian",
+      "pending_guardian",
     ]);
     expect(
       await world.db

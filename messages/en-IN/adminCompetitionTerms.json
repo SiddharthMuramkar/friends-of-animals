@@ -68,11 +68,19 @@
       "view": "Read the {name}, version {version}",
       "purpose": {
         "competition_terms": "Competition terms",
-        "privacy_notice": "Privacy policy"
+        "privacy_notice": "Privacy policy",
+        "participation": "Consent to take part (guardians)",
+        "public_display": "Consent to public display (guardians)",
+        "social_media": "Consent to social media (guardians)",
+        "auction": "Consent to auction (guardians)"
       },
       "name": {
         "competition_terms": "competition terms",
-        "privacy_notice": "privacy policy"
+        "privacy_notice": "privacy policy",
+        "participation": "consent to take part",
+        "public_display": "consent to public display",
+        "social_media": "consent to social media",
+        "auction": "consent to auction"
       }
     }
   }

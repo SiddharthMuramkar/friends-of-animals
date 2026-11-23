@@ -49,6 +49,12 @@
         "consents": "What you agree to"
       },
       "consent": "I agree to the {title}",
+      "publicationConsent": {
+        "public_display": "I'm 18 or older and allow FOA to show my work and full name in the gallery and results.",
+        "social_media": "I'm 18 or older and allow FOA to share my work and full name on social media.",
+        "auction": "I'm 18 or older and allow FOA to auction my artwork and credit me by my full name."
+      },
+      "participationConsent": "I give permission for my child to take part (optional)",
       "consentLink": "Read the {title}",
       "submit": "Register",
       "problems": "Some details need another look.",
@@ -135,7 +141,10 @@
       "loading": "Loading your registrations…",
       "forChild": "For {name}",
       "childParticipantId": "{name}'s FOA Participant ID: {code}",
-      "held": "Waiting for your parent or guardian to confirm. We emailed them a link. Once they confirm, they can pay the fee.",
+      "held": "Waiting for your parent or guardian to confirm. We emailed them a link. Once they confirm and give consent to take part, they can pay the fee.",
+      "heldForConsent": "This place is waiting for a parent or guardian's consent to take part.",
+      "heldForConsentStatus": "Waiting for consent",
+      "giveConsent": "Manage consents for {name}",
       "guardianPays": "Your parent or guardian pays the fee for this place."
     },
     "payment": {
@@ -153,13 +162,15 @@
       "writeNumber": "Write this number on the back of your artwork, and quote it if you contact us.",
       "checkoutReady": "This place now has a fee. Pay it with the button below.",
       "back": "Back to my competitions",
+      "manageConsents": "Manage consents",
       "error": {
         "nothing_to_pay": "There is nothing to pay for this registration.",
         "fee_not_set": "FOA hasn't set the fee yet. Please come back soon.",
         "gateway_unavailable": "Online payment isn't available right now. Please try again later.",
         "superseded": "Someone changed this payment while you were paying. Please try again.",
         "invalid_input": "Something went wrong. Please try again.",
-        "awaiting_guardian": "This registration waits for a parent or guardian to confirm it. It can be paid for after that."
+        "awaiting_guardian": "This registration waits for a parent or guardian to confirm it. It can be paid for after that.",
+        "participation_consent_required": "This place needs a parent or guardian's consent to take part. A parent or guardian can give it on the child's consents page."
       },
       "paying": "Opening payment…",
       "confirming": "Confirming…",

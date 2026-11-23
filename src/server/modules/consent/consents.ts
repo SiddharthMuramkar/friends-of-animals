@@ -12,6 +12,7 @@
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
+import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import { consentEvent } from "../../db/schema";
@@ -29,12 +30,15 @@ import {
 } from "./domain/consent-state";
 import {
   GIVABLE_PURPOSES,
+  WITHDRAWABLE_PURPOSES,
   type ConsentMethod,
   type ConsentPurpose,
   type GivablePurpose,
+  type WithdrawablePurpose,
 } from "./domain/purposes";
 import {
   latestDocument,
+  latestProfileEventId,
   lockUserSubject,
   subjectEvents,
   type ConsentSubject,
@@ -84,8 +88,8 @@ const giveInput = z.object({
 
 const withdrawInput = z.object({ purpose: z.enum(GIVABLE_PURPOSES) });
 
-function givable(purpose: ConsentPurpose): GivablePurpose {
-  const found = GIVABLE_PURPOSES.find((each) => each === purpose);
+function withdrawable(purpose: ConsentPurpose): WithdrawablePurpose {
+  const found = WITHDRAWABLE_PURPOSES.find((each) => each === purpose);
   if (!found) throw new Error(`Consent to ${purpose} can't be withdrawn`);
   return found;
 }
@@ -98,28 +102,48 @@ function signedInUser(ctx: ConsentContext): string {
   return ctx.actor.userId;
 }
 
+/** One event to append to a subject's log. */
+export type ConsentEventToAppend = {
+  subject: ConsentSubject;
+  giverUserId: string;
+  purpose: ConsentPurpose;
+  action: ConsentEventAction;
+  documentId: string;
+  method: ConsentMethod;
+  /** Set for a guardian's change or an adult's publication consent in a competition. */
+  competitionId?: string | null;
+  /** The role that allowed it, for the audit log: a guardian's (#82). */
+  actorRole?: Role | null;
+};
+
 /**
  * Appends one event for the subject, after `state` (what its log says
  * now, read under the subject's lock), with its audit entry; a withdrawal
  * also emits consent.withdrawn, so all three commit or none do. The entry
  * and the event hold ids only: a consent record says nothing more about
- * the person.
+ * the person. Callers have authorized the giver and locked the subject.
  */
-async function appendEvent(
+export async function appendConsentEvent(
   tx: AppDb,
   ctx: ConsentContext,
   state: ConsentState,
-  event: {
-    subject: ConsentSubject;
-    giverUserId: string;
-    purpose: ConsentPurpose;
-    action: ConsentEventAction;
-    documentId: string;
-    method: ConsentMethod;
-  }
+  event: ConsentEventToAppend
 ): Promise<string> {
-  const now = nextEventTime(state, ctx.clock.now());
-  const id = nextEventId(now);
+  const now = ctx.clock.now();
+  let occurredAt = now;
+  let id: string;
+  if (event.subject.type === "participant_profile") {
+    // Under the profile lock, use the UUIDv7 timestamp as the append order
+    // across purposes, while preserving the actual occurrence time.
+    const lastId = await latestProfileEventId(tx, event.subject.id);
+    const lastMs = lastId
+      ? Number.parseInt(lastId.replaceAll("-", "").slice(0, 12), 16)
+      : -1;
+    id = nextEventId(new Date(Math.max(now.getTime(), lastMs + 1)));
+  } else {
+    occurredAt = nextEventTime(state, now);
+    id = nextEventId(occurredAt);
+  }
   await tx.insert(consentEvent).values({
     id,
     subjectType: event.subject.type,
@@ -129,7 +153,8 @@ async function appendEvent(
     documentId: event.documentId,
     action: event.action,
     method: event.method,
-    occurredAt: now,
+    competitionId: event.competitionId ?? null,
+    occurredAt,
   });
   const ids = {
     consentEventId: id,
@@ -137,10 +162,11 @@ async function appendEvent(
     subjectId: event.subject.id,
     purpose: event.purpose,
     documentId: event.documentId,
+    competitionId: event.competitionId ?? null,
   };
   if (event.action === "withdrawn") {
-    // Only a purpose a person gives can be withdrawn.
-    const purpose = givable(event.purpose);
+    // Only a purpose someone gives can be withdrawn.
+    const purpose = withdrawable(event.purpose);
     await emit(tx, ctx.clock, {
       type: "consent.withdrawn",
       aggregate: { type: "consent_event", id },
@@ -152,8 +178,9 @@ async function appendEvent(
     entity: { type: "consent_event", id },
     before: null,
     after: ids,
-    // Giving and withdrawing one's own consent needs no role.
-    actorRole: null,
+    // Giving and withdrawing one's own consent needs no role; a
+    // guardian's for a child is allowed by their guardian role.
+    actorRole: event.actorRole ?? null,
   });
   return id;
 }
@@ -181,7 +208,7 @@ export async function recordSignUpConsent(
   const decision = decideGive({ status: "never" }, latest, documentId);
   if (decision.kind === "reject") return decision.code;
   if (decision.kind === "unchanged") return "given";
-  await appendEvent(
+  await appendConsentEvent(
     tx,
     ctx,
     { status: "never" },
@@ -211,20 +238,26 @@ export async function recordRegistrationConsents(
   input: {
     userId: string;
     documents: readonly { purpose: ConsentPurpose; documentId: string }[];
+    competitionId?: string;
   }
 ): Promise<void> {
+  if (input.documents.length === 0) return;
   const subject: ConsentSubject = { type: "user", id: input.userId };
+  const competitionId = input.competitionId ?? null;
   await lockUserSubject(tx, input.userId);
   for (const { purpose, documentId } of input.documents) {
-    const state = currentConsent(await subjectEvents(tx, subject, purpose));
+    const state = currentConsent(
+      await subjectEvents(tx, subject, purpose, competitionId, input.userId)
+    );
     if (state.status === "given" && state.documentId === documentId) continue;
-    await appendEvent(tx, ctx, state, {
+    await appendConsentEvent(tx, ctx, state, {
       subject,
       giverUserId: input.userId,
       purpose,
       action: "given",
       documentId,
       method: "web_form",
+      competitionId,
     });
   }
 }
@@ -250,7 +283,7 @@ export async function giveConsent(
       return { ok: false, error: decision.code } as const;
     }
     if (decision.kind === "unchanged") return { ok: true, changed: false };
-    await appendEvent(tx, ctx, state, {
+    await appendConsentEvent(tx, ctx, state, {
       subject,
       giverUserId: userId,
       purpose,
@@ -279,7 +312,7 @@ export async function withdrawConsent(
     const state = currentConsent(await subjectEvents(tx, subject, purpose));
     const decision = decideWithdraw(state);
     if (decision.kind !== "record") return { ok: true, changed: false };
-    await appendEvent(tx, ctx, state, {
+    await appendConsentEvent(tx, ctx, state, {
       subject,
       giverUserId: userId,
       purpose,

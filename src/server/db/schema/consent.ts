@@ -34,9 +34,13 @@ import {
   CONSENT_SUBJECT_TYPES,
 } from "../../modules/consent/domain/purposes";
 import { cmsRevision } from "./cms";
+import { competition } from "./competitions";
 import { user } from "./identity";
 
-/** #82 adds the guardian purposes, each in its own migration. */
+/**
+ * #82 added the guardian purposes ahead of its DDL
+ * (drizzle/*_82_pre_enum_consent.sql, rule F2); no DDL names them.
+ */
 export const consentPurposeEnum = pgEnum("consent_purpose", CONSENT_PURPOSES);
 
 export const consentMethodEnum = pgEnum("consent_method", CONSENT_METHODS);
@@ -97,7 +101,7 @@ export const consentEvent = pgTable(
   {
     /** UUIDv7 from the clock, made in order within one millisecond. */
     id: uuid().primaryKey(),
-    /** Whose consent it is: a user now, a participant profile later (#82). */
+    /** Whose consent it is: a user's own, or a child's profile (#82). */
     subjectType: consentSubjectTypeEnum("subject_type").notNull(),
     /**
      * No foreign key: it points at a different table per subject type, and
@@ -112,6 +116,11 @@ export const consentEvent = pgTable(
       onDelete: "set null",
     }),
     purpose: consentPurposeEnum().notNull(),
+    /**
+     * The competition a consent is about (#82), or null for a consent that
+     * holds everywhere. Each competition keeps its own log per purpose.
+     */
+    competitionId: uuid("competition_id").references(() => competition.id),
     /** The version given, or the one whose consent was withdrawn. */
     documentId: uuid("document_id")
       .notNull()
@@ -130,6 +139,8 @@ export const consentEvent = pgTable(
       table.id.desc()
     ),
     index("consent_event_document_id_idx").on(table.documentId),
+    // A competition's consents, without scanning the log.
+    index("consent_event_competition_id_idx").on(table.competitionId),
     // Deleting a user sets this to null; the index keeps that from
     // scanning the whole log.
     index("consent_event_giver_user_id_idx").on(table.giverUserId),

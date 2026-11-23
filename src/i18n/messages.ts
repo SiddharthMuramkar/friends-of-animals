@@ -24,6 +24,7 @@ import art from "../../messages/en-IN/art.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
+import childConsents from "../../messages/en-IN/childConsents.json";
 import common from "../../messages/en-IN/common.json";
 import competitions from "../../messages/en-IN/competitions.json";
 import competitionTerms from "../../messages/en-IN/competitionTerms.json";
@@ -87,6 +88,7 @@ export const NAMESPACES = [
   "auth",
   "authPhone",
   "awareness",
+  "childConsents",
   "common",
   "competitions",
   "competitionTerms",
@@ -154,6 +156,7 @@ export const messages = {
   ...auth,
   ...authPhone,
   ...awareness,
+  ...childConsents,
   ...common,
   ...competitions,
   ...competitionTerms,
