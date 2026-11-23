@@ -30,11 +30,18 @@ import type {
 export type { InventoryEntry };
 
 const policyPeriods = inventoryMessages.adminPrivacy.inventory.periods;
-const { consentRecords, guardianInvitations, ...simplePeriods } = policyPeriods;
+const {
+  consentRecords,
+  financialRecords,
+  guardianInvitations,
+  ...simplePeriods
+} = policyPeriods;
 const PERIOD_TEXT = {
   ...simplePeriods,
   "consentRecords.general": consentRecords.general,
   "consentRecords.competition": consentRecords.competition,
+  "financialRecords.payments": financialRecords.payments,
+  "financialRecords.ledger": financialRecords.ledger,
   "guardianInvitations.invitation": guardianInvitations.invitation,
   "guardianInvitations.request": guardianInvitations.request,
 };
@@ -155,9 +162,24 @@ const WHILE_POST_EXISTS = {
 /** Payment records: an 8-year floor for financial records (HR-31). */
 const PAYMENT_RECORD = {
   policy: "financialRecords",
-  periodKey: "financialRecords",
+  periodKey: "financialRecords.payments",
   basis:
     "Financial records: FOA answers for what was paid, by whom, and what it confirmed, to the payer, its auditors and the tax authorities",
+  toConfirm: true,
+} as const;
+
+const LEDGER_RECORD = {
+  policy: "financialRecords",
+  periodKey: "financialRecords.ledger",
+  basis:
+    "FOA keeps the journal and its attribution for accounting and tax records",
+  toConfirm: true,
+} as const;
+
+const LEDGER_CATEGORY = {
+  policy: "ledgerCategories",
+  periodKey: "ledgerCategories",
+  basis: "FOA can identify the categories used in its financial records",
   toConfirm: true,
 } as const;
 
@@ -745,6 +767,23 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     onExpiry: "tombstone",
   }),
   actorColumn("refund", "manual_recorded_by", PAYMENT_RECORD),
+  // The ledger keeps finance authorship and text that may name people (#105).
+  actorColumn("ledger_posting", "created_by_user_id", LEDGER_RECORD, "retain"),
+  ...(
+    [
+      ["ledger_account", "name", LEDGER_CATEGORY],
+      ["ledger_account", "public_label", LEDGER_CATEGORY],
+      ["ledger_posting", "description", LEDGER_RECORD],
+      ["ledger_line", "memo", LEDGER_RECORD],
+    ] as const
+  ).map(([table, column, retention]): InventoryField => ({
+    table,
+    column,
+    category: "content",
+    subject: { kind: "content_subject", via: column },
+    retention,
+    onExpiry: "retain",
+  })),
   // Guardians and their children (#81). A child's profile is a
   // participant_profile row (owner_kind guardian), listed above.
   guardian("user_id", "identity"),

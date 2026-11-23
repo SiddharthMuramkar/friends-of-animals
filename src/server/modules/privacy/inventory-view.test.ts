@@ -64,6 +64,97 @@ describe("getInventory", () => {
     expect(entries.length).toBeGreaterThan(0);
   });
 
+  it("catalogues ledger content and authorship while withholding stored values", async () => {
+    const h = await createHarness();
+    const author = await seedStaff(h, "finance");
+    const finance = h.as(await h.signIn(author));
+    const category = {
+      code: "5110",
+      kind: "expense",
+      name: "Mira Example memorial prizes",
+      publicLabel: "Mira Example awards",
+    } as const;
+    expect(await finance.createLedgerAccount(category)).toMatchObject({
+      ok: true,
+    });
+    const description = "Reimburse Leela Example for judging";
+    const memo = "Leela Example travel";
+    const posted = await finance.createManualEntry({
+      date: "2027-01-01",
+      description,
+      lines: [
+        {
+          accountCode: category.code,
+          side: "debit",
+          amountMinor: 5_000n,
+          memo,
+        },
+        { accountCode: "1000", side: "credit", amountMinor: 5_000n },
+      ],
+    });
+    if (!posted.ok) throw new Error("Expected a ledger posting");
+    expect(
+      await finance.deactivateLedgerAccount({ code: category.code })
+    ).toMatchObject({ ok: true });
+    expect(await finance.listLedgerAccounts()).toContainEqual(
+      expect.objectContaining({ ...category, isActive: false })
+    );
+    await h.db.delete(user).where(eq(user.id, author.id));
+
+    const reader = h.as(await h.signIn(await seedStaff(h, "finance")));
+    expect(await reader.getPosting(posted.seq)).toMatchObject({
+      ok: true,
+      posting: {
+        description,
+        createdByUserId: author.id,
+        lines: [{ memo }, { memo: null }],
+      },
+    });
+    const staff = h.as(await h.signIn(await h.seed.superAdmin()));
+    const { entries } = await staff.getInventory();
+    const ledgerEntries = entries.filter(({ table }) =>
+      table.startsWith("ledger_")
+    );
+    expect(ledgerEntries).toEqual(
+      expect.arrayContaining([
+        ...(
+          [
+            ["ledger_account", "name", "ledgerCategories"],
+            ["ledger_account", "public_label", "ledgerCategories"],
+            ["ledger_line", "memo", "financialRecords"],
+            ["ledger_posting", "description", "financialRecords"],
+          ] as const
+        ).map(([table, column, policy]) =>
+          expect.objectContaining({
+            table,
+            column,
+            category: "content",
+            subject: { kind: "content_subject", via: column },
+            retention: expect.objectContaining({ policy, toConfirm: true }),
+            onExpiry: "retain",
+          })
+        ),
+        expect.objectContaining({
+          table: "ledger_posting",
+          column: "created_by_user_id",
+          category: "identity",
+          subject: { kind: "user", via: "created_by_user_id" },
+          retention: expect.objectContaining({
+            policy: "financialRecords",
+            period:
+              "Kept in the append-only ledger for at least 8 years after the end of the financial year",
+            toConfirm: true,
+          }),
+          onExpiry: "retain",
+        }),
+      ])
+    );
+    const metadata = JSON.stringify(entries);
+    expect(metadata).not.toContain("Mira Example");
+    expect(metadata).not.toContain("Leela Example");
+    expect(metadata.includes(author.id)).toBe(false);
+  });
+
   it("catalogues story content and headings that can name someone", async () => {
     const h = await createHarness();
     const editor = h.as(await h.signIn(await seedStaff(h, "content_manager")));

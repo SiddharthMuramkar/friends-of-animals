@@ -46,7 +46,11 @@
         "coordinatorInvitationLinks": "Until the invitation is accepted, withdrawn or expires",
         "safeguardingReports": "While the report is open, then 7 years after it is resolved or until the child concerned turns 25, whichever is later",
         "posts": "While the post exists. Deleted with it",
-        "financialRecords": "8 years after the end of the financial year of the payment",
+        "financialRecords": {
+          "payments": "8 years after the end of the financial year of the payment",
+          "ledger": "Kept in the append-only ledger for at least 8 years after the end of the financial year"
+        },
+        "ledgerCategories": "Kept with the ledger category, including after it is deactivated",
         "paymentProofs": "Kept with the payment record",
         "registrations": "While the institution takes part, then 3 years after the competition ends",
         "guardians": "While a linked child's profile exists, then 1 year. A guardian with no child is deleted with their account",
@@ -207,6 +211,17 @@
         },
         "institution_registration": {
           "registered_by": "Records which coordinator or authorised person registered the institution for the competition"
+        },
+        "ledger_account": {
+          "name": "The finance category name, which may name a person",
+          "public_label": "The public label for the category, which may name a person"
+        },
+        "ledger_line": {
+          "memo": "Explains a journal line and may name a counterparty"
+        },
+        "ledger_posting": {
+          "created_by_user_id": "Identifies the finance user who entered or reversed a posting",
+          "description": "Describes the entry and may name a counterparty"
         },
         "message_delivery": {
           "user_id": "Says who a message was sent to"

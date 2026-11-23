@@ -37,6 +37,10 @@ Staff-written reasons for institution decisions and payment reviews, as well as 
 decision notes, belong in the catalogue. An assigned participant age group and
 the safeguarding reporter's child indicator are demographic data.
 
+Ledger descriptions and line memos may name counterparties. Finance authorship
+stays with the append-only journal. Ledger category names and public labels may
+also name people.
+
 Encrypt a column with `encryptedText()` when it identifies a person directly,
 such as a phone number, personal email address or date of birth. An institution's
 own office contact details are stored plain and listed in the catalogue.
