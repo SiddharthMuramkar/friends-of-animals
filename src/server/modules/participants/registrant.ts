@@ -20,7 +20,7 @@ import {
 import type { UseCaseContext } from "../../use-cases";
 import { withUniqueCode } from "../codes/codes";
 import { childResource, verifiedLink } from "../guardians/child-access";
-import { hasVerifiedGuardian } from "../guardians/guardian-request";
+import { hasVerifiedGuardian } from "../guardians/child-access";
 import { guardianOfUser } from "../guardians/guardian-record";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
 import type { MinorRegistrant } from "./domain/minor-registration";

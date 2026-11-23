@@ -12,6 +12,7 @@ import { individualRegisterPath } from "@/lib/app-routes";
 import { ROUTES, slugHref } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
+import { isPublicationPurpose } from "@/server/modules/consent/domain/guardian-purposes";
 import type { IndividualRegistrationForm } from "@/server/modules/participants";
 import { parseIsoDate } from "@/server/modules/registration/domain/calendar-date";
 import { GUARDIAN_RELATIONSHIPS } from "@/server/modules/registration/domain/student-details";
@@ -195,7 +196,12 @@ async function Register({
     ) as Record<Refusal, string>,
     documents: form.documents.map((document) => ({
       documentId: document.documentId,
-      label: t("consent", { title: document.title }),
+      label:
+        document.purpose === "participation"
+          ? t("participationConsent")
+          : isPublicationPurpose(document.purpose)
+            ? t(`publicationConsent.${document.purpose}`)
+            : t("consent", { title: document.title }),
       link: t("consentLink", { title: document.title }),
       href: document.href,
     })),

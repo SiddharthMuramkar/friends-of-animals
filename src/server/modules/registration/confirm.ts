@@ -6,23 +6,27 @@
 // or not at all.
 //
 // Only a registration the machine lets the payment confirm is confirmed
-// (enrolled, not withdrawn or already confirmed); the others come back as
+// (enrolled, not withdrawn or already confirmed), and a minor's only with
+// their guardian's participation consent (#82); the others come back as
 // refused, unchanged. Each number is drawn in a savepoint, so a number
 // that is already taken draws another without aborting the capture.
 //
 // Loads under plain Node (the seed script): relative imports only, no
 // "server-only".
 
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { Role } from "../../access/domain/roles";
-import type { Actor } from "../../actor";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import { registration, REGISTRATION_NUMBER_UNIQUE } from "../../db/schema";
 import { emit } from "../../outbox/emit";
-import type { Clock } from "../../ports/clock";
+import type { UseCaseContext } from "../../use-cases";
 import { withUniqueCode, type RandomBytes } from "../codes/codes";
+import {
+  lackingParticipation,
+  lockRegistrationsForPayment,
+} from "../consent/participation-gate";
 import { registrationNumberFormat } from "./domain/registration-number";
 import {
   canTransition,
@@ -43,23 +47,30 @@ export type ConfirmRegistrationsInput = {
 export type ConfirmRegistrationsResult = {
   confirmed: { registrationId: string; registrationNumber: string }[];
   refused: { registrationId: string; status: RegistrationStatus }[];
+  error?: "participation_consent_required";
 };
 
 export async function confirmRegistrations(
   tx: AppDb,
-  ctx: { clock: Clock; actor: Actor },
+  ctx: Pick<UseCaseContext, "clock" | "actor" | "cipher">,
   input: ConfirmRegistrationsInput
 ): Promise<ConfirmRegistrationsResult> {
   const result: ConfirmRegistrationsResult = { confirmed: [], refused: [] };
   if (input.registrationIds.length === 0) return result;
   const now = ctx.clock.now();
-  // In id order, so two transactions lock them in the same order.
-  const rows = await tx
-    .select({ id: registration.id, status: registration.status })
-    .from(registration)
-    .where(inArray(registration.id, [...input.registrationIds]))
-    .orderBy(registration.id)
-    .for("update");
+  const rows = await lockRegistrationsForPayment(tx, input.registrationIds);
+  const lacking = await lackingParticipation(
+    tx,
+    ctx,
+    rows.map((row) => row.id)
+  );
+  if (lacking.size > 0) {
+    return {
+      confirmed: [],
+      refused: rows.map(({ id, status }) => ({ registrationId: id, status })),
+      error: "participation_consent_required",
+    };
+  }
 
   for (const row of rows) {
     if (!canTransition(row.status, "confirmed", "payment")) {

@@ -28,6 +28,7 @@ const welcome: IndividualRegistrationRequest = {
     required: ["terms-v2", "privacy-v3"],
     given: ["terms-v2", "privacy-v3"],
   },
+  participationGiven: false,
   at: AT,
 };
 
@@ -162,11 +163,12 @@ describe("decideIndividualRegistration", () => {
     });
   });
 
-  it("lets a teen whose guardian has verified go straight to payment", () => {
+  it("lets a teen whose guardian has verified and given participation go straight to payment", () => {
     expect(
       decide({
         dateOfBirth: "2011-06-01",
         registrant: { kind: "self", guardian: "verified" },
+        participationGiven: true,
       })
     ).toMatchObject({
       ok: true,
@@ -176,7 +178,26 @@ describe("decideIndividualRegistration", () => {
     });
   });
 
-  it("lets a verified guardian register their 9-year-old, waiting for payment", () => {
+  it("lets a verified guardian register their 9-year-old with participation consent, waiting for payment", () => {
+    expect(
+      decide({
+        competition: {
+          ...welcome.competition,
+          ageGroups: [CHILDREN, TEENS, ADULTS],
+        },
+        dateOfBirth: "2017-09-01",
+        registrant: { kind: "guardian", verified: true },
+        participationGiven: true,
+      })
+    ).toMatchObject({
+      ok: true,
+      ageGroup: CHILDREN,
+      status: "pending_payment",
+      askGuardian: false,
+    });
+  });
+
+  it("holds a minor's registration for their guardian's participation consent (#82)", () => {
     expect(
       decide({
         competition: {
@@ -188,9 +209,25 @@ describe("decideIndividualRegistration", () => {
       })
     ).toMatchObject({
       ok: true,
-      ageGroup: CHILDREN,
-      status: "pending_payment",
+      status: "pending_guardian",
       askGuardian: false,
+    });
+    expect(
+      decide({
+        dateOfBirth: "2011-06-01",
+        registrant: { kind: "self", guardian: "verified" },
+      })
+    ).toMatchObject({
+      ok: true,
+      status: "pending_guardian",
+      askGuardian: false,
+    });
+  });
+
+  it("asks nothing of an adult about participation consent", () => {
+    expect(decide({ participationGiven: false })).toMatchObject({
+      ok: true,
+      status: "pending_payment",
     });
   });
 

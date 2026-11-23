@@ -82,7 +82,15 @@ export function documentSource(marker: string): string {
  */
 export async function publishDocument(
   h: Harness,
-  purpose: "competition_terms" | "privacy_notice" | "messages",
+  purpose:
+    | "competition_terms"
+    | "privacy_notice"
+    | "messages"
+    | "participation"
+    | "public_display"
+    | "social_media"
+    | "auction"
+    | "communications",
   marker = "version"
 ): Promise<{ id: string; version: number }> {
   if (purpose === "privacy_notice") return publishPrivacyPage(h, marker);

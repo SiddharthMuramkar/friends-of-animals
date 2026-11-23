@@ -21,6 +21,7 @@ import { documentVersionPath } from "../competitions/domain/consent-attachments"
 import { offeredRoutes } from "../competitions/domain/fees";
 import { getRegistrationTerms } from "../competitions/terms/read";
 import { pinnedDocuments } from "../competitions/terms/repository";
+import { isAdultAt, parseDateOfBirth } from "./domain/age";
 import { COMPETITION_SLUG_PATTERN } from "./register-input";
 import { childrenOf, keptDetailsOf, subjectOf } from "./registrant";
 
@@ -85,6 +86,22 @@ export async function individualRegistrationForm(
     ])
   );
   const kept = await keptDetailsOf(ctx, subject);
+  const documents = [...terms.documents];
+  if (subject.kind === "child" && terms.participationDocument) {
+    documents.push({
+      ...terms.participationDocument,
+      purpose: "participation",
+      required: false,
+    });
+  }
+  if (subject.kind === "own") {
+    documents.push(...terms.publicationDocuments);
+  } else if (subject.kind === "linked" && kept) {
+    const now = ctx.clock.now();
+    const dob = parseDateOfBirth(kept.dateOfBirth, now);
+    if (dob && isAdultAt(dob, now))
+      documents.push(...terms.publicationDocuments);
+  }
   return {
     competition: { name: found.name, slug: found.slug },
     acceptsIndividuals: offeredRoutes(found.participation).includes(
@@ -100,7 +117,7 @@ export async function individualRegistrationForm(
         : subject.kind === "linked"
           ? { kind: "linked", ...kept! }
           : { kind: "child", childId: subject.profileId, ...kept! },
-    documents: terms.documents.map((document) => ({
+    documents: documents.map((document) => ({
       documentId: document.documentId,
       purpose: document.purpose,
       title: titles.get(document.documentId) ?? "",

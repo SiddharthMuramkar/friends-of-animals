@@ -30,7 +30,7 @@ import {
   parseConsentDocumentSource,
   type SourceError,
 } from "./domain/document-source";
-import { CONSENT_PURPOSES, type ConsentPurpose } from "./domain/purposes";
+import { DOCUMENT_PURPOSES, type ConsentPurpose } from "./domain/purposes";
 import { insertConsentDocumentVersion } from "./insert-version";
 import { documentVersions, latestDocument } from "./repository";
 
@@ -79,17 +79,14 @@ export type PreviewConsentDocumentResult =
   | PublishedByCms
   | { ok: false; error: "invalid_source"; errors: SourceError[] };
 
-const previewInput = z.object({
-  purpose: z.enum(CONSENT_PURPOSES),
+const purposeInput = z.object({ purpose: z.enum(DOCUMENT_PURPOSES) });
+
+const previewInput = purposeInput.extend({
   source: z.string().max(100_000),
 });
 
-const purposeInput = z.object({ purpose: z.enum(CONSENT_PURPOSES) });
-
-const publishInput = z.object({
-  purpose: z.enum(CONSENT_PURPOSES),
+const publishInput = previewInput.extend({
   title: z.string().trim().min(1).max(200),
-  source: z.string().max(100_000),
 });
 
 /**

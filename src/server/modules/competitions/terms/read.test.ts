@@ -173,7 +173,55 @@ describe("getRegistrationTerms", () => {
           required: true,
         },
       ],
+      participationDocument: null,
+      publicationDocuments: [],
     });
+  });
+
+  it("keeps the required terms, guardian participation and adult publication choices separate", async () => {
+    const h = await createHarness();
+    const manager = await signInManager(h);
+    const { id } = await h.seed.competition({
+      status: "published",
+      participation: "individuals",
+      publicDisplay: true,
+    });
+    const terms = await publishDocument(h, "competition_terms");
+    const participation = await publishDocument(h, "participation");
+    const publicDisplay = await publishDocument(h, "public_display");
+    for (const purpose of [
+      "competition_terms",
+      "participation",
+      "public_display",
+    ]) {
+      const attached = await h
+        .as(manager)
+        .attachConsentDocument({ competitionId: id, purpose });
+      expect(attached).toMatchObject({ ok: true, changed: true });
+    }
+
+    const found = await getRegistrationTerms(h.db, id);
+
+    expect(found?.documents).toEqual([
+      {
+        purpose: "competition_terms",
+        documentId: terms.id,
+        version: 1,
+        required: true,
+      },
+    ]);
+    expect(found?.participationDocument).toEqual({
+      documentId: participation.id,
+      version: 1,
+    });
+    expect(found?.publicationDocuments).toEqual([
+      {
+        purpose: "public_display",
+        documentId: publicDisplay.id,
+        version: 1,
+        required: false,
+      },
+    ]);
   });
 
   it("gives null for a fee not set yet, so registration refuses", async () => {

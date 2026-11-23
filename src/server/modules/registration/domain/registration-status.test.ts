@@ -5,23 +5,23 @@ import {
   canTransition,
   initialRegistrationStatus,
   REGISTRATION_STATUSES,
-  transitionCause,
+  transitionCauses,
   type RegistrationCause,
 } from "./registration-status";
 
 // Every ordered pair of statuses, with who may make the move. A pair that
 // is not listed here is forbidden for everyone.
-const ALLOWED: Record<string, RegistrationCause> = {
-  "enrolled->withdrawn": "coordinator",
+const ALLOWED: Record<string, readonly RegistrationCause[]> = {
+  "enrolled->withdrawn": ["coordinator"],
   // Paid in full, or free (#77).
-  "enrolled->confirmed": "payment",
+  "enrolled->confirmed": ["payment"],
   // An adult's own registration, once its fee is paid or found free (#78).
-  "pending_payment->confirmed": "payment",
+  "pending_payment->confirmed": ["payment"],
   // A paid registration whose fee went back (#80): only the refund moves it.
-  "confirmed->refunded": "payment",
-  // A minor's registration, once their guardian has verified and accepted
-  // them (#81): then it waits for its fee like an adult's.
-  "pending_guardian->pending_payment": "guardian",
+  "confirmed->refunded": ["payment"],
+  // Guardian consent releases the hold. The participant can also continue as an adult.
+  "pending_guardian->pending_payment": ["guardian", "participant"],
+  "pending_guardian->withdrawn": ["guardian"],
 };
 
 const CAUSES: readonly RegistrationCause[] = [
@@ -105,14 +105,14 @@ describe("the registration status machine", () => {
     });
   });
 
-  it.each(PAIRS)("%s -> %s has the cause the table gives", (from, to) => {
-    expect(transitionCause(from, to)).toBe(ALLOWED[`${from}->${to}`] ?? null);
+  it.each(PAIRS)("%s -> %s has exactly the allowed causes", (from, to) => {
+    expect(transitionCauses(from, to)).toEqual(ALLOWED[`${from}->${to}`] ?? []);
   });
 
-  it.each(PAIRS)("%s -> %s is allowed only for its own cause", (from, to) => {
+  it.each(PAIRS)("%s -> %s is allowed only for its own causes", (from, to) => {
     for (const cause of CAUSES) {
       expect(canTransition(from, to, cause)).toBe(
-        ALLOWED[`${from}->${to}`] === cause
+        ALLOWED[`${from}->${to}`]?.includes(cause) ?? false
       );
     }
   });

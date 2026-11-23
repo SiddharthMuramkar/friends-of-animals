@@ -103,9 +103,9 @@ export type GuardianRequestAcceptanceRefusal =
  * checked first (an unknown token says nothing more), then who is
  * accepting: never the teen who asked, only the person asked, signed in
  * with that address, whose own profile (if any) isn't a minor's, who has
- * verified as a guardian (81a) and hasn't already added the same child
- * (by name and date of birth) themselves. A minor asked is told so before
- * being told to verify, which they can't.
+ * verified as a guardian (#81). If they already keep a matching profile,
+ * recovery goes through the teen's login invitation. A minor asked is told
+ * so before being told to verify, which they can't.
  * Last, the teen: their login must not have been linked to another
  * child's profile since they asked, they must still be under 18, and their
  * account must hold no role a child's login can't (guardian, staff, school
@@ -130,7 +130,7 @@ export function decideGuardianRequestAcceptance(input: {
      */
     ownProfile: "none" | "adult" | "minor";
   };
-  /** The accepter already keeps a child profile with the teen's identity. */
+  /** A matching profile exists and cannot be safely claimed. */
   childAlreadyAdded: boolean;
   /** The teen who asked, as they are now. */
   requester: RequesterRoles & {

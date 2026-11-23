@@ -31,6 +31,8 @@ export type CompetitionForTerms = {
   status: string;
   /** Null in a draft until the manager chooses it. */
   participation: Participation | null;
+  publicDisplay: boolean;
+  auctionPermitted: boolean;
 };
 
 const competitionColumns = {
@@ -40,6 +42,8 @@ const competitionColumns = {
   name: competition.name,
   status: competition.status,
   participation: competition.participation,
+  publicDisplay: competition.publicDisplay,
+  auctionPermitted: competition.auctionPermitted,
 };
 
 /** The competition, or null. */

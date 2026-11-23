@@ -1,0 +1,3 @@
+ALTER TABLE "consent_event" ADD COLUMN "competition_id" uuid;--> statement-breakpoint
+ALTER TABLE "consent_event" ADD CONSTRAINT "consent_event_competition_id_competition_id_fk" FOREIGN KEY ("competition_id") REFERENCES "public"."competition"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "consent_event_competition_id_idx" ON "consent_event" USING btree ("competition_id");
