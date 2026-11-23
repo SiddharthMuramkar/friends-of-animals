@@ -10,6 +10,7 @@ import {
   registration,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { teenContactHash } from "@/server/modules/guardians/teen-contact";
 import { addGuardianFamily } from "@/server/seed/guardians";
 import { paymentRows } from "@/server/modules/payments/testing";
 import {
@@ -80,6 +81,39 @@ async function heldTeen(
 }
 
 describe("a registration held for a guardian", () => {
+  it("catalogues the requested guardian independently of the teen before the guardian joins", async () => {
+    const h = await createHarness();
+    const meera = await heldTeen(h);
+    const [request] = await h.db.select().from(guardianInvitation);
+    expect(request).toMatchObject({
+      kind: "guardian_request",
+      guardianId: null,
+      requestedByUserId: meera.account.id,
+      participantProfileId: meera.profileId,
+      contactHash: teenContactHash(h.deps, MOTHER_EMAIL),
+    });
+    expect(h.email.lastTo(MOTHER_EMAIL)?.text).toContain("Lakshmi Iyer");
+
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const { entries } = await h.as(admin).getInventory();
+    const subjects = Object.fromEntries(
+      entries
+        .filter(({ table }) => table === "guardian_invitation")
+        .map(({ column, subject }) => [column, subject])
+    );
+    const invitee = { kind: "invitee", via: "kind + contact_hash" };
+    expect(subjects).toMatchObject({
+      contact_ciphertext: invitee,
+      contact_hash: invitee,
+      invitee_name_ciphertext: invitee,
+      participant_profile_id: {
+        kind: "participant_profile",
+        via: "participant_profile_id",
+      },
+      requested_by_user_id: { kind: "user", via: "requested_by_user_id" },
+    });
+  });
+
   it("can't be paid for: no batch and no gateway order", async () => {
     const h = await createHarness();
     const meera = await heldTeen(h);

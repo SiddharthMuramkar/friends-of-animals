@@ -40,12 +40,10 @@ export const NON_PERSONAL: NonPersonalColumns = {
   cms_post: [
     "archived_at",
     "audience",
-    "body",
     "cover_image_id",
     "cover_site_image_id",
     "created_at",
     "easy_read",
-    "excerpt",
     "featured",
     "id",
     "kind",

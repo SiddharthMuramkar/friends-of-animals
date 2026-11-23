@@ -13,6 +13,21 @@
       "kind": "Category",
       "subject": "Data subject",
       "subjectPath": "{kind} via {via}",
+      "subjectKinds": {
+        "audit_target": "Target of the audit action",
+        "author": "Post author",
+        "consent_subject": "Person the consent is for",
+        "contact_sender": "Contact sender",
+        "content_subject": "Person described in the post",
+        "institution": "Institution",
+        "invitee": "Person invited",
+        "participant_profile": "Participant profile",
+        "payer": "Payer",
+        "recipient": "Recipient",
+        "safeguarding_report": "Person in the safeguarding report",
+        "user": "Account holder",
+        "visitor": "Visitor"
+      },
       "kept": "Default retention",
       "categories": {
         "identity": "Who they are",
@@ -52,6 +67,7 @@
           "competition": "While the consent applies, then 3 years"
         },
         "staffRecords": "While the record exists. Cleared when the staff member's account is deleted",
+        "cmsRevisionAuthorship": "Kept with the revision, including after the staff account is deleted",
         "files": "While the file is kept: as long as the record it belongs to (an entry, a proof, a post)",
         "contactMessages": "While the message is open, then {months} months after it is closed",
         "guardianInvitationLinks": "Until the invitation is accepted, withdrawn or expires"
@@ -81,7 +97,9 @@
         },
         "cms_post": {
           "author_name": "The byline a post shows, as its editor typed it (optional)",
+          "body": "The text of the post, which may name or describe a person",
           "created_by": "Records which content manager started the post",
+          "excerpt": "The summary of the post, which may name or describe a person",
           "updated_by": "Records which content manager last changed the post"
         },
         "cms_revision": {
@@ -138,7 +156,7 @@
         "guardian_invitation": {
           "accepted_by_user_id": "Records which account accepted the invitation as the teen's own, or a teen's guardian request as their guardian (#81)",
           "contact_ciphertext": "The email a guardian invited their teen to an own login at, or a teen gave for the guardian they asked (#81), to send the link (encrypted)",
-          "contact_hash": "A keyed hash of the invited email, to check the teen accepting signed in with it",
+          "contact_hash": "A keyed hash of the invited email, to check that the teen or guardian accepting signed in with it",
           "guardian_id": "Says which guardian sent the invitation, or accepted a teen's request",
           "invitee_name_ciphertext": "The name a teen gave for the parent or guardian they asked FOA to contact, to greet them in the request (encrypted)",
           "participant_profile_id": "Says which child the invitation or request is about",
@@ -293,8 +311,8 @@
           "user_id": "Says which account holds the role"
         },
         "verification": {
-          "identifier": "The email address or phone a sign-in code was sent to, to check the code against",
-          "value": "The sign-in code or link secret sent to the person"
+          "identifier": "A hash of the email sign-in identifier, or a namespaced keyed hash of the phone number, to find the recipient's verification even before they have an account",
+          "value": "The hashed email code or keyed SMS code digest, stored with the count of failed attempts"
         }
       }
     }

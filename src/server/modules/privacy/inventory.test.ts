@@ -39,15 +39,31 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
-  it("has staff-facing purpose copy for every listed field", () => {
+  it("uses the same purpose copy in the catalogue and staff messages", () => {
     const translated = Object.entries(
       messages.adminPrivacy.inventory.purposes
     ).flatMap(([table, columns]) =>
       Object.entries(columns)
         .filter(([, purpose]) => purpose.trim())
-        .map(([column]) => `${table}.${column}`)
+        .map(([column, purpose]) => [`${table}.${column}`, purpose] as const)
     );
-    expect(new Set(translated)).toEqual(listed);
+    expect(new Map(translated)).toEqual(
+      new Map(
+        DATA_INVENTORY.map(({ table, column, purpose }) => [
+          `${table}.${column}`,
+          purpose,
+        ])
+      )
+    );
+  });
+
+  it("has a staff-facing label for every data subject kind", () => {
+    const kinds = new Set(DATA_INVENTORY.map(({ subject }) => subject.kind));
+    expect(messages.adminPrivacy.inventory).toMatchObject({
+      subjectKinds: Object.fromEntries(
+        [...kinds].map((kind) => [kind, expect.stringMatching(/\S/)])
+      ),
+    });
   });
 
   it("includes the contact module's entries for messages and staff notes", () => {

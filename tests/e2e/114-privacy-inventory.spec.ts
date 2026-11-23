@@ -52,7 +52,39 @@ test("a staff admin reads the data inventory after signing in and passing their 
     notes.getByText("What staff noted while handling the message")
   ).toBeVisible();
   await expect(
+    notes.getByText("Contact sender via message_id", { exact: true })
+  ).toBeVisible();
+  await expect(
     notes.getByText(/24 months after it is closed/).first()
   ).toBeVisible();
   await expectAccessibleInDark(page, PRIVACY);
+});
+
+test("a signed-in finance user sees a refusal and no inventory rows", async ({
+  page,
+  request,
+  seedAccount,
+}) => {
+  const secret = generateTotpSecret();
+  const email = await seedAccount({
+    name: "Inventory finance user",
+    grants: [{ role: "finance", scope: { type: "global" } }],
+    totpSecret: secret,
+  });
+  await signInByCode(page, request, email);
+  await page.goto(PRIVACY);
+  await expect(page).toHaveURL(
+    `/auth/second-factor?next=${encodeURIComponent(PRIVACY)}`
+  );
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(secret, new Date()));
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(PRIVACY);
+  await expect(
+    page.getByRole("heading", {
+      name: "This page is for staff who manage access",
+    })
+  ).toBeVisible();
+  await expect(page.locator("summary code")).toHaveCount(0);
 });

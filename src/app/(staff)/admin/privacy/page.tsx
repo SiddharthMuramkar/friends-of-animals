@@ -40,9 +40,10 @@ async function Inventory() {
   const result = await adminCall(() => as(actor).getInventory(), ADMIN_PRIVACY);
   if (!result.ok) return <AdminDenied />;
 
-  const [t, purposes] = await Promise.all([
+  const [t, purposes, subjectKinds] = await Promise.all([
     getTranslations("adminPrivacy.inventory"),
     getTranslations("adminPrivacy.inventory.purposes"),
+    getTranslations("adminPrivacy.inventory.subjectKinds"),
   ]);
   const byTable = Map.groupBy(result.value.entries, (entry) => entry.table);
   return (
@@ -82,7 +83,14 @@ async function Inventory() {
                     <dd>{t(`categories.${entry.category}`)}</dd>
                     <dt>{t("subject")}</dt>
                     <dd className="wrap-anywhere">
-                      {t("subjectPath", entry.subject)}
+                      {t("subjectPath", {
+                        kind: subjectKinds(
+                          entry.subject.kind as Parameters<
+                            typeof subjectKinds
+                          >[0]
+                        ),
+                        via: entry.subject.via,
+                      })}
                     </dd>
                     <dt>{t("kept")}</dt>
                     <dd>

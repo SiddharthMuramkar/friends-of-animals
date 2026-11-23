@@ -100,6 +100,26 @@ describe("grantRole", () => {
         userAgent: "Admin browser",
       },
     ]);
+
+    const { entries } = await h.as(adminActor).getInventory();
+    const fields = entries.filter(({ table }) => table === "audit_log");
+    const actor = { kind: "user", via: "actor_user_id" };
+    const target = { kind: "audit_target", via: "entity_type + entity_id" };
+    expect(fields).toMatchObject(
+      [
+        ["actor_user_id", actor],
+        ["after", target],
+        ["before", target],
+        ["entity_id", target],
+        ["ip", actor],
+        ["user_agent", actor],
+      ].map(([column, subject]) => ({
+        column,
+        subject,
+        retention: { policy: "auditLog" },
+        onExpiry: "retain",
+      }))
+    );
   });
 
   it("changes nothing and records nothing for a grant the user already holds", async () => {

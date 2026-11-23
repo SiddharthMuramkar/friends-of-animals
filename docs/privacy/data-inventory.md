@@ -22,6 +22,9 @@ A ticket that adds a column holding personal data adds one entry to
 - `table` and `column` give the names as Postgres has them.
 - `category` and `purpose` describe what the field holds and what FOA uses it for.
 - `subject.kind` and `subject.via` describe whose data it is and how the field links to them.
+  Add a staff-facing label in `subjectKinds` for a new kind. In a compound path,
+  `entity_type` selects the record that `entity_id` identifies, and the invitation `kind`
+  distinguishes an invited teen from a requested guardian found by `contact_hash`.
 - `retention.policy`, `retention.period` and `retention.basis` identify the policy key,
   the default period and why FOA keeps the field that long.
 - `retention.toConfirm` is `true` while the period awaits counsel confirmation (HR-31).

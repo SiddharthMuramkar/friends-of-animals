@@ -130,7 +130,7 @@ const WHILE_POST_EXISTS = {
   policy: "posts",
   period: PERIODS.posts,
   basis:
-    "A published post names its author, and FOA answers for who wrote and changed what it publishes",
+    "FOA keeps the post's content and byline together and answers for who wrote and changed it",
   toConfirm: true,
 } as const;
 
@@ -272,6 +272,13 @@ const STAFF_RECORD = {
   toConfirm: true,
 } as const;
 
+/** Authorship stays with immutable CMS revisions after account deletion. */
+const CMS_REVISION_AUTHORSHIP = {
+  ...STAFF_RECORD,
+  policy: "cmsRevisionAuthorship",
+  period: PERIODS.cmsRevisionAuthorship,
+} as const;
+
 const WHILE_FILE_KEPT = {
   policy: "files",
   period: PERIODS.files,
@@ -299,6 +306,12 @@ const secondFactor = accountRows("second_factor");
 const session = rowsOf("session", {
   subject: { kind: "user", via: "user_id" },
   retention: WHILE_SESSION_LASTS,
+  onExpiry: "delete_row",
+});
+
+const verification = rowsOf("verification", {
+  subject: { kind: "recipient", via: "identifier" },
+  retention: UNTIL_CODE_EXPIRES,
   onExpiry: "delete_row",
 });
 
@@ -356,6 +369,12 @@ const guardianInvitation = rowsOf("guardian_invitation", {
   onExpiry: "delete_row",
 });
 
+// The kind distinguishes an invited teen from a requested guardian.
+const GUARDIAN_INVITATION_RECIPIENT = {
+  kind: "invitee",
+  via: "kind + contact_hash",
+} as const;
+
 /** A payment record: anonymised once the financial floor has passed. */
 const payment = (table: string, via: string) =>
   rowsOf(table, {
@@ -369,6 +388,9 @@ const auditLog = rowsOf("audit_log", {
   retention: AUDIT_RECORD,
   onExpiry: "retain",
 });
+
+// The entity type selects what the entity id refers to.
+const AUDIT_TARGET = { kind: "audit_target", via: "entity_type + entity_id" };
 
 const capturedMessage = rowsOf("captured_message", {
   subject: { kind: "recipient", via: "to_address" },
@@ -445,23 +467,15 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     "technical",
     "The browser and device the person signed in with, shown so they recognise their sessions"
   ),
-  rowsOf("verification", {
-    subject: { kind: "user", via: "identifier" },
-    retention: UNTIL_CODE_EXPIRES,
-    onExpiry: "delete_row",
-  })(
+  verification(
     "identifier",
     "contact",
-    "The email address or phone a sign-in code was sent to, to check the code against"
+    "A hash of the email sign-in identifier, or a namespaced keyed hash of the phone number, to find the recipient's verification even before they have an account"
   ),
-  rowsOf("verification", {
-    subject: { kind: "user", via: "identifier" },
-    retention: UNTIL_CODE_EXPIRES,
-    onExpiry: "delete_row",
-  })(
+  verification(
     "value",
     "technical",
-    "The sign-in code or link secret sent to the person"
+    "The hashed email code or keyed SMS code digest, stored with the count of failed attempts"
   ),
   rowsOf("otp_rate_limit", {
     subject: { kind: "visitor", via: "key_hash" },
@@ -501,17 +515,20 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
   auditLog(
     "entity_id",
     "identity",
-    "Names the record acted on, which is a person's account or profile for some actions"
+    "Names the record acted on, which is a person's account or profile for some actions",
+    { subject: AUDIT_TARGET }
   ),
   auditLog(
     "before",
     "content",
-    "The changed fields before the action: ids and values, never a whole row"
+    "The changed fields before the action: ids and values, never a whole row",
+    { subject: AUDIT_TARGET }
   ),
   auditLog(
     "after",
     "content",
-    "The changed fields after the action: ids and values, never a whole row"
+    "The changed fields after the action: ids and values, never a whole row",
+    { subject: AUDIT_TARGET }
   ),
   auditLog(
     "ip",
@@ -705,18 +722,22 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     actorColumn(table, column, purpose, STAFF_RECORD)
   ),
   // Frozen once published (#88, #111): the row can't change, so the id stays.
+  actorColumn(
+    "cms_revision",
+    "created_by_user_id",
+    "Records who wrote a page revision",
+    CMS_REVISION_AUTHORSHIP,
+    "retain"
+  ),
+  actorColumn(
+    "cms_revision",
+    "published_by_user_id",
+    "Records who published a page revision",
+    CMS_REVISION_AUTHORSHIP,
+    "retain"
+  ),
   ...(
     [
-      [
-        "cms_revision",
-        "created_by_user_id",
-        "Records who wrote a page revision",
-      ],
-      [
-        "cms_revision",
-        "published_by_user_id",
-        "Records who published a page revision",
-      ],
       ["rubric", "created_by_user_id", "Records who wrote a judging rubric"],
       [
         "rubric",
@@ -863,6 +884,18 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     "Records which safeguarding lead wrote each log entry"
   ),
   // Blog posts and stories (#112)
+  ...Object.entries({
+    body: "The text of the post, which may name or describe a person",
+    excerpt: "The summary of the post, which may name or describe a person",
+  }).map(([column, purpose]): InventoryEntry => ({
+    table: "cms_post",
+    column,
+    category: "content",
+    purpose,
+    subject: { kind: "content_subject", via: column },
+    retention: WHILE_POST_EXISTS,
+    onExpiry: "delete_row",
+  })),
   {
     table: "cms_post",
     column: "author_name",
@@ -1130,12 +1163,14 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
   guardianInvitation(
     "contact_ciphertext",
     "contact",
-    "The email a guardian invited their teen to an own login at, or a teen gave for the guardian they asked (#81), to send the link (encrypted)"
+    "The email a guardian invited their teen to an own login at, or a teen gave for the guardian they asked (#81), to send the link (encrypted)",
+    { subject: GUARDIAN_INVITATION_RECIPIENT }
   ),
   guardianInvitation(
     "contact_hash",
     "technical",
-    "A keyed hash of the invited email, to check the teen accepting signed in with it"
+    "A keyed hash of the invited email, to check that the teen or guardian accepting signed in with it",
+    { subject: GUARDIAN_INVITATION_RECIPIENT }
   ),
   {
     table: "guardian_invitation",
@@ -1167,7 +1202,7 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     "Says which child the invitation or request is about"
   ),
   rowsOf("guardian_invitation", {
-    subject: { kind: "user", via: "requested_by_user_id" },
+    subject: GUARDIAN_INVITATION_RECIPIENT,
     retention: AFTER_GUARDIAN_REQUEST_CLOSES,
     onExpiry: "delete_row",
   })(
