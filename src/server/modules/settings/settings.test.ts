@@ -169,6 +169,16 @@ describe("listSettings", () => {
         updatedAt: null,
         updatedBy: null,
       },
+      {
+        key: "breach.authorityEmail",
+        value: "",
+        defaultValue: "",
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "text", maxLength: 254 },
+        updatedAt: null,
+        updatedBy: null,
+      },
     ]);
   });
 

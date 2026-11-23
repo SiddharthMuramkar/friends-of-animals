@@ -1,0 +1,19 @@
+{
+  "adminBreaches": {
+    "severities": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "notices": {
+      "about": {
+        "principal": "your personal data",
+        "guardian": "{count, plural, one {the personal data of a child you look after} other {the personal data of # children you look after}}",
+        "principal_and_guardian": "your personal data and that of {count, plural, one {a child} other {# children}} you look after"
+      },
+      "yes": "Yes",
+      "no": "No"
+    }
+  }
+}

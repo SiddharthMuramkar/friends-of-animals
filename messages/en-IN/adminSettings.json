@@ -111,6 +111,12 @@
           "label": "Safeguarding reports per hour from one connection",
           "description": "The most concerns the report form takes from one internet connection in an hour. Past it, the form shows Childline 1098, 112 and FOA's safeguarding email instead, so nobody is left without help."
         }
+      },
+      "breach": {
+        "authorityEmail": {
+          "label": "Authority's address for breach notices",
+          "description": "Where the breach log emails a notice to the authority, such as the Data Protection Board. Leave it empty until FOA's lawyer confirms the address: staff then file the notice by hand and record the reference they get."
+        }
       }
     }
   }

@@ -65,6 +65,10 @@ export const SETTINGS = {
     max: 100,
     unit: "reports",
   }),
+  // Breaches (#116): where a breach notice to the authority is emailed.
+  // Empty until FOA's counsel names the channel (HR-49); staff then file
+  // the notice by hand and record the authority's reference.
+  "breach.authorityEmail": textSetting({ default: "", maxLength: 254 }),
 } satisfies Record<string, SettingDefinition<unknown>>;
 
 export type SettingKey = keyof typeof SETTINGS;

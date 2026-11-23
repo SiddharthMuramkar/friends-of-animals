@@ -27,6 +27,7 @@ describe("the settings catalogue", () => {
       "org.registrationNumber": "",
       "org.pan": "",
       "safeguarding.reportsPerIpPerHour": 10,
+      "breach.authorityEmail": "",
     });
   });
 

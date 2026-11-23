@@ -22,6 +22,11 @@ import {
   type GivablePurpose,
 } from "../modules/consent/domain/purposes";
 import { FILE_PROCESSING_ERROR_CODES } from "../ports/media";
+import {
+  BREACH_FAN_OUT_PAGE_SIZE,
+  NOTICE_RECIPIENT_ROLES,
+  type NoticeRecipientRole,
+} from "../modules/breaches/domain/notice-recipients";
 
 /**
  * FOA staff decided about an institution (#73). `userId` is its authorised
@@ -228,6 +233,41 @@ export type DomainEvent =
       type: "guardian.guardian_requested";
       aggregate: { type: "guardian_invitation"; id: string };
       payload: { requestId: string };
+    }
+  | {
+      /**
+       * One person is to be told of a breach that touched them or a child
+       * they look after (#116): `as` says which, `aboutCount` how many
+       * people it concerns. Required by law; nothing of the breach travels.
+       */
+      type: "breach.principal_notice";
+      aggregate: { type: "breach"; id: string };
+      payload: {
+        breachId: string;
+        recipientUserId: string;
+        as: NoticeRecipientRole;
+        aboutCount: number;
+      };
+    }
+  | {
+      /**
+       * Every account is to be told of a breach (#116): the fan-out job
+       * plans the next `pageSize` accounts after `afterUserId` (null: from
+       * the first), then saves itself again for the page after.
+       */
+      type: "breach.fan_out_requested";
+      aggregate: { type: "breach"; id: string };
+      payload: {
+        breachId: string;
+        afterUserId: string | null;
+        pageSize: number;
+      };
+    }
+  | {
+      /** The authority is to be emailed about a breach (#116). */
+      type: "breach.authority_notice";
+      aggregate: { type: "breach"; id: string };
+      payload: { breachId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -305,6 +345,18 @@ export const EVENT_PAYLOADS = {
   }),
   "refund.failed": z.object({ refundId: z.uuid() }),
   "guardian.guardian_requested": z.object({ requestId: z.uuid() }),
+  "breach.principal_notice": z.object({
+    breachId: z.uuid(),
+    recipientUserId: z.uuid(),
+    as: z.enum(NOTICE_RECIPIENT_ROLES),
+    aboutCount: z.int().min(1),
+  }),
+  "breach.fan_out_requested": z.object({
+    breachId: z.uuid(),
+    afterUserId: z.uuid().nullable(),
+    pageSize: z.int().min(1).max(BREACH_FAN_OUT_PAGE_SIZE),
+  }),
+  "breach.authority_notice": z.object({ breachId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -373,6 +425,13 @@ export const SUBSCRIBERS = {
   // The guardian a teen names may have no account yet: the request goes to
   // the address the teen gave by its own handler (#81).
   "guardian.guardian_requested": ["guardians.send_guardian_request"],
+  // A breach notice goes by route row (audience `breach_recipient`, #116).
+  "breach.principal_notice": ["notifications.dispatch"],
+  // Plans one page of a breach's notices to every account, in the worker.
+  "breach.fan_out_requested": ["breaches.fan_out"],
+  // The authority is an address, not a user, so no route row can name it:
+  // the email goes by its own handler, with its route's template (#116).
+  "breach.authority_notice": ["breaches.send_authority_notice"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

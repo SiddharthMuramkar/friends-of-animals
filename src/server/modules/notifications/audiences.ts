@@ -36,6 +36,12 @@ import {
 } from "../contact/notify";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
+import {
+  AUTHORITY_NOTICE_VARIABLES,
+  authorityNoticeValues,
+  PRINCIPAL_NOTICE_VARIABLES,
+  principalNoticeValues,
+} from "../breaches/notice-message";
 import { ownerOfRegistration } from "../participants/owner";
 import { payerOn, RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
 import {
@@ -131,6 +137,15 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "guardian.guardian_requested":
       // The guardian a teen names may have no account yet: the request
       // goes to the address the teen gave by its own handler (#81).
+      return null;
+    case "breach.principal_notice":
+      // Possibly a guardian, told about a child: `breach_recipient` names
+      // whoever the breaches module planned (#116).
+      return null;
+    case "breach.fan_out_requested":
+    case "breach.authority_notice":
+      // The fan-out job and the authority's own email (#116); no route row
+      // sends to a user for either.
       return null;
   }
 }
@@ -231,6 +246,20 @@ export const AUDIENCES = {
   },
   /** Everyone holding the finance role (#80): a refund needs them. */
   finance_team: async (db) => financeTeam(db),
+  /**
+   * The one person a breach notice is for (#116): an affected adult, or the
+   * guardian of an affected child, as the breaches module planned it.
+   */
+  breach_recipient: async (_db, delivery) =>
+    delivery.eventType === "breach.principal_notice"
+      ? [delivery.payload.recipientUserId]
+      : [],
+  /**
+   * The authority a breach is reported to (#116). It is an address, not a
+   * user, so no user receives it here: the breaches module emails the
+   * configured address with this route's template while it is enabled.
+   */
+  breach_authority: async () => [],
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -402,6 +431,17 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => refundValues(db, payload.refundId),
   },
   "guardian.guardian_requested": { names: [], load: async () => ({}) },
+  // Whose data it involved, never what happened (#116).
+  "breach.principal_notice": {
+    names: PRINCIPAL_NOTICE_VARIABLES,
+    load: async (_db, { payload }) => principalNoticeValues(payload),
+  },
+  "breach.fan_out_requested": { names: [], load: async () => ({}) },
+  "breach.authority_notice": {
+    names: AUTHORITY_NOTICE_VARIABLES,
+    load: async (db, { payload }) =>
+      (await authorityNoticeValues(db, payload.breachId)) ?? {},
+  },
 };
 
 /** The variables a template on a route for `eventType` may use. */

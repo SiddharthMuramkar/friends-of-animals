@@ -154,6 +154,7 @@ describe("resolveAllSettings", () => {
       ["org.registrationNumber", "", "default"],
       ["org.pan", "", "default"],
       ["safeguarding.reportsPerIpPerHour", 10, "default"],
+      ["breach.authorityEmail", "", "default"],
     ]);
   });
 });

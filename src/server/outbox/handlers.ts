@@ -29,6 +29,8 @@ import { sendRegistrationConfirmation } from "../modules/registration/confirmati
 import { sendGuardianRequest } from "../modules/guardians/guardian-request-message";
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
 import { sendApprovedRefund } from "../modules/payments/refunds/sync-refund";
+import { fanOutBreachNotices } from "../modules/breaches/fan-out";
+import { sendAuthorityNotice } from "../modules/breaches/authority-message";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -122,6 +124,12 @@ export const HANDLERS: Handlers = {
   // Emails a teen's request to the guardian they named (#81).
   "guardians.send_guardian_request": (deps, { payload }) =>
     sendGuardianRequest(deps, payload),
+  // Plans one page of a breach's notices to every account, and saves the
+  // next page (#116). Safe to repeat: a notice already queued is skipped.
+  "breaches.fan_out": (deps, { payload }) => fanOutBreachNotices(deps, payload),
+  // Emails the authority about a breach, once (#116).
+  "breaches.send_authority_notice": (deps, { payload }) =>
+    sendAuthorityNotice(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

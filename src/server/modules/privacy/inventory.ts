@@ -66,6 +66,18 @@ const SAFEGUARDING_RECORD = {
   toConfirm: true,
 } as const;
 
+/**
+ * src/server/modules/breaches/retention-policy.ts picks the breaches past
+ * it for #114's sweep, which deletes each with its timeline and notices.
+ */
+const BREACH_RECORD = {
+  period:
+    "While the breach is open, then 5 years after the breach is closed (HR-31)",
+  basis:
+    "Legal obligation: FOA shows the Data Protection Board what it knew, did and told whom about a personal data breach (legal basis to confirm)",
+  toConfirm: true,
+} as const;
+
 const WHILE_POST_EXISTS = {
   period: "While the post exists; deleted with it",
   basis:
@@ -298,6 +310,61 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     column: "author_user_id",
     purpose: "Records which safeguarding lead wrote each log entry",
     retention: SAFEGUARDING_RECORD,
+  },
+  // The breach log (#116): breach staff (super and staff admins) read it
+  {
+    table: "breach_record",
+    column: "title",
+    purpose:
+      "A short label for the breach in the log; staff are asked not to name people, but it may still identify someone",
+    retention: BREACH_RECORD,
+  },
+  {
+    table: "breach_record",
+    column: "impact_ciphertext",
+    purpose:
+      "What happened and what it means for the people affected, which may name them (encrypted)",
+    retention: BREACH_RECORD,
+  },
+  {
+    table: "breach_record",
+    column: "authority_reference_ciphertext",
+    purpose:
+      "The reference the authority gave a breach notice filed by hand, to follow it up with them (encrypted)",
+    retention: BREACH_RECORD,
+  },
+  {
+    table: "breach_record",
+    column: "lead_user_id",
+    purpose: "Records which member of staff recorded and leads the response",
+    retention: BREACH_RECORD,
+  },
+  {
+    table: "breach_timeline_event",
+    column: "note_ciphertext",
+    purpose:
+      "Staff notes over the breach's life, and why it closed without a notice, which may name people (encrypted)",
+    retention: BREACH_RECORD,
+  },
+  {
+    table: "breach_timeline_event",
+    column: "author_user_id",
+    purpose: "Records which member of staff made each change to the breach",
+    retention: BREACH_RECORD,
+  },
+  {
+    table: "breach_notification",
+    column: "recipient_user_id",
+    purpose:
+      "Shows who was told of the breach, about themselves or a child they look after, so each person is told once",
+    retention: BREACH_RECORD,
+  },
+  {
+    table: "breach_unreachable",
+    column: "subject_id",
+    purpose:
+      "Lists the accounts and child profiles a notice couldn't reach (no account, or a child with no guardian), so staff can reach them another way",
+    retention: BREACH_RECORD,
   },
   // Blog posts and stories (#112)
   {

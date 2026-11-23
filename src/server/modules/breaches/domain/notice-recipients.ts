@@ -30,6 +30,14 @@ export const NOTICE_RECIPIENT_ROLES = [
   "principal_and_guardian",
 ] as const;
 
+export type NoticeRecipientRole = (typeof NOTICE_RECIPIENT_ROLES)[number];
+
+/**
+ * The most people one plan covers: a list staff give at once, or one page
+ * of the fan-out to every account, which runs in the worker.
+ */
+export const BREACH_FAN_OUT_PAGE_SIZE = 500;
+
 /** Why a notice can't reach someone a breach touched. */
 export const UNREACHABLE_REASONS = ["no_guardian", "no_account"] as const;
 
@@ -46,7 +54,7 @@ export type AffectedPerson = {
 export type NoticeRecipient = {
   userId: string;
   /** Told about themselves, as a guardian, or both. */
-  as: (typeof NOTICE_RECIPIENT_ROLES)[number];
+  as: NoticeRecipientRole;
   /** The people this notice is about, in input order. */
   about: AffectedRef[];
 };

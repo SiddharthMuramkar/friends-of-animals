@@ -1,6 +1,8 @@
 // The breach log's use cases, as `as(actor)` exposes them (#116).
 
 import type { UseCaseContext } from "../../use-cases";
+import { notifyAffectedUsers } from "./notify";
+import { getBreach, listBreaches } from "./read";
 import {
   addBreachTimelineEvent,
   closeBreach,
@@ -16,4 +18,7 @@ export const breachesUseCases = (ctx: UseCaseContext) => ({
     addBreachTimelineEvent(ctx, input),
   containBreach: (input: unknown) => containBreach(ctx, input),
   closeBreach: (input: unknown) => closeBreach(ctx, input),
+  notifyAffectedUsers: (input: unknown) => notifyAffectedUsers(ctx, input),
+  listBreaches: () => listBreaches(ctx),
+  getBreach: (input: unknown) => getBreach(ctx, input),
 });
