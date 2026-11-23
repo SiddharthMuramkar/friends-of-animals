@@ -181,6 +181,7 @@ export default async function Page() {
               ) : (
                 <ExplainState
                   title={t("counters.empty.title")}
+                  art="wait-mailbox-cat"
                   className="max-w-2xl"
                 >
                   <p>{t("counters.empty.body")}</p>

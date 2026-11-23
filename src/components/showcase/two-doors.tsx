@@ -1,7 +1,9 @@
 import { getTranslations } from "next-intl/server";
 
+import { Illustration } from "@/components/art/illustration";
 import { Chip } from "@/components/site/chip";
 import { TileMarker } from "@/components/site/tile";
+import type { SiteArtId } from "@/lib/art";
 import { cn } from "@/lib/utils";
 
 import { H, type HeadingLevel } from "./heading";
@@ -12,6 +14,12 @@ const STEPS = {
   school: ["1", "2", "3", "4"],
   self: ["1", "2", "3"],
 } as const;
+
+// Decorative: the door's title already says which way in it is.
+const DOOR_ART: Record<Door, SiteArtId> = {
+  school: "door-school",
+  self: "door-home",
+};
 
 // Static class strings so Tailwind sees them. The checked radio (marked by
 // .door-school / .door-self) lights its own path through :has(); no JS.
@@ -57,10 +65,12 @@ export async function TwoDoors({
       <fieldset className="mt-8 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
         <legend className="sr-only">{t("legend")}</legend>
         {DOORS.map((door) => (
+          // A size container: its door picture sits beside the words on a
+          // wide card and is left out of a narrow one.
           <div
             key={door}
             className={cn(
-              "relative flex gap-4 rounded-3xl border-2 border-border bg-surface p-5 transition-[border-color,background-color,translate,box-shadow] duration-200 ease-out hover:border-border-strong motion-safe:hover:-translate-y-0.5 has-[:checked]:shadow-warm sm:p-6",
+              "group/door @container relative flex gap-4 rounded-3xl border-2 border-border bg-surface p-5 transition-[border-color,background-color,translate,box-shadow] duration-200 ease-out hover:border-border-strong motion-safe:hover:-translate-y-0.5 has-[:checked]:shadow-warm sm:p-6",
               DOOR_CARD[door]
             )}
           >
@@ -76,7 +86,7 @@ export async function TwoDoors({
                 "relative z-10 mt-1.5 size-6 shrink-0 cursor-pointer accent-blue-700 dark:accent-blue-400"
               )}
             />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 {/* The label's ::after stretches over the card: click anywhere. */}
                 <label
@@ -99,6 +109,16 @@ export async function TwoDoors({
                 {t(`doors.${door}.note`)}
               </p>
             </div>
+            {/* Clicks pass through to the label. The chosen door lifts a
+                little, where motion is allowed. Small enough that the
+                school title and its chip share a line on a desktop card. */}
+            <Illustration
+              id={DOOR_ART[door]}
+              sizes="72px"
+              decorative
+              className="pointer-events-none hidden self-end motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out motion-safe:group-has-[:checked]/door:-translate-y-1 @sm:block"
+              imgClassName="w-18"
+            />
           </div>
         ))}
       </fieldset>

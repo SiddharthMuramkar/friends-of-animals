@@ -5,6 +5,7 @@ import { SiteLink } from "@/components/site/site-link";
 import type { ReactNode } from "react";
 
 import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
+import { Illustration } from "@/components/art/illustration";
 import { ButtonLink } from "@/components/site/button-link";
 import { CONTACT_LINK, ContactFact } from "@/components/site/contact-fact";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
@@ -109,9 +110,20 @@ export default async function Page() {
           ) : null}
 
           <div>
-            <h2 id="topics-title" className="text-h3">
-              {t("topics.title")}
-            </h2>
+            {/* The crow who carries your message, in the heading row's free
+                end. Here, not by the details: production can leave those out. */}
+            <div className="relative">
+              <h2 id="topics-title" className="text-h3">
+                {t("topics.title")}
+              </h2>
+              <Illustration
+                id="crow-envelope"
+                sizes="64px"
+                decorative
+                pop
+                className="absolute end-0 bottom-0 hidden w-16 sm:block"
+              />
+            </div>
             <p className="mt-3 text-ink-muted">{t("topics.lead")}</p>
             <ul className="mt-6 grid grid-cols-1 gap-3">
               {TOPICS.map((k) => (

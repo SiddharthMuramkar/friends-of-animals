@@ -39,6 +39,9 @@ test("finance reads a payment in review and the batches, and each form says what
   page,
   request,
 }, testInfo) => {
+  // A long staff journey: 23 to 27 s on CI, and 30 s as a shard's first
+  // test on a cold server, at the 30 s default.
+  test.setTimeout(60_000);
   const email = freshEmail(testInfo.project.name);
   await signInByCode(page, request, email, "Nisha Finance");
 
