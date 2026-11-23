@@ -213,6 +213,39 @@ describe("the data inventory", () => {
     }
   });
 
+  it("lists entry text, participant links and stored images with provisional retention (#85)", () => {
+    const columns = [
+      "entry.code",
+      "entry.registration_id",
+      "entry.participant_profile_id",
+      "entry.title",
+      "entry.description",
+      "entry.statement",
+      "entry.created_by_user_id",
+      "entry_file.id",
+      "entry_file.entry_id",
+      "entry_file.file_asset_id",
+      "entry_file.uploaded_by_user_id",
+      "entry_file.pending_text",
+      "entry_file.receipt_title",
+      "entry_upload_grant.file_asset_id",
+      "entry_upload_grant.registration_id",
+      "entry_upload_grant.upload_key",
+      "entry_transition.entry_id",
+      "entry_transition.entry_file_id",
+      "entry_transition.actor_user_id",
+      "file_asset.owner_user_id",
+      "file_asset.storage_key",
+      "file_derivative.file_asset_id",
+      "file_derivative.storage_key",
+    ];
+    expect(columns.filter((column) => !listed.has(column))).toEqual([]);
+    const entryData = DATA_INVENTORY.filter((item) =>
+      columns.includes(`${item.table}.${item.column}`)
+    );
+    expect(entryData.every(({ retention }) => retention.toConfirm)).toBe(true);
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>

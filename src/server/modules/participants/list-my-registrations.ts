@@ -40,6 +40,8 @@ export type MyRegistration = {
   participantCode: string;
   /** Given once the registration is confirmed. */
   registrationNumber: string | null;
+  /** The confirmed individual or their guardian can submit work. */
+  maySubmitEntry: boolean;
   /**
    * The individual fee still owed, to the member who pays it; null once
    * nothing is owed, or when someone else (a teen's guardian) pays.
@@ -58,8 +60,11 @@ export type MyRegistration = {
 
 type Visible = { whose: "mine" | "child"; pays: boolean };
 
-/** The profiles whose registrations `userId` sees, and how. */
-async function visibleProfiles(
+/**
+ * The profiles whose registrations (and entries, #85) `userId` sees, and
+ * how.
+ */
+export async function visibleProfiles(
   db: AppDb,
   userId: string
 ): Promise<Map<string, Visible>> {
@@ -176,6 +181,7 @@ export async function listMyRegistrations(
       status: row.status,
       participantCode: row.participantCode ?? "",
       registrationNumber: row.registrationNumber,
+      maySubmitEntry: row.status === "confirmed",
       amountDue:
         pays &&
         !held &&

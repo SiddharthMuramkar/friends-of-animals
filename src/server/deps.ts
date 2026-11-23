@@ -8,9 +8,6 @@
 
 import "server-only";
 
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import { env } from "@/env";
 import type { Env, ScannerEnv } from "@/env.schema";
 import type { DatabaseEnv } from "@/server/db/database-url";
@@ -42,13 +39,8 @@ import {
   type CodeRequestLimits,
   DEVELOPMENT_AUTH_SECRET,
 } from "./identity/settings";
-import { unconfiguredStorage, type ObjectStorage } from "./ports/storage";
-import {
-  diskStorage,
-  signingKeyFor,
-  type DiskStorage,
-} from "./ports/storage-disk";
-import { r2Storage, type R2Config } from "./ports/storage-r2";
+import type { ObjectStorage } from "./ports/storage";
+import { r2ConfigOf, storageFor, type StorageEnv } from "./ports/storage-for";
 import type { ErrorReporter } from "./ports/errors";
 import type { MalwareScanner } from "./ports/malware-scanner";
 import { malwareScannerFor } from "./ports/malware-scanner-clamav";
@@ -119,75 +111,13 @@ export type FilesConfig = {
 
 // Which SMS adapter an environment uses: shared with the VPS worker,
 // which sends messages the same way (#69).
-export { smsSenderFor };
-
-/** The R2 variables (src/env.schema.ts): all of them, or none. */
-export type StorageEnv = {
-  R2_ACCOUNT_ID?: string | undefined;
-  R2_ACCESS_KEY_ID?: string | undefined;
-  R2_SECRET_ACCESS_KEY?: string | undefined;
-  R2_BUCKET?: string | undefined;
-  PUBLIC_ASSET_BASE_URL?: string | undefined;
-};
-
-/** What a local run's disk store needs as well: the run and the app. */
-export type LocalStorageEnv = {
-  APP_ENV: Env["APP_ENV"];
-  /** The app's base URL, where the disk store's signed URLs point. */
-  APP_URL: string;
-};
-
-function r2ConfigOf({
-  R2_ACCOUNT_ID,
-  R2_ACCESS_KEY_ID,
-  R2_SECRET_ACCESS_KEY,
-}: StorageEnv): R2Config | null {
-  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-    return null;
-  }
-  return {
-    accountId: R2_ACCOUNT_ID,
-    accessKeyId: R2_ACCESS_KEY_ID,
-    secretAccessKey: R2_SECRET_ACCESS_KEY,
-  };
-}
-
-/**
- * R2 when the variables are set (the schema allows all or none). Without
- * them a local run keeps its files on this machine (`localDiskStorageFor`),
- * and a deployment gets storage that refuses every call, so no upload is
- * accepted that couldn't be stored.
- */
-export function storageFor(env: StorageEnv & LocalStorageEnv): ObjectStorage {
-  const r2 = r2ConfigOf(env);
-  if (r2) return r2Storage(r2, systemClock);
-  return localDiskStorageFor(env) ?? unconfiguredStorage;
-}
-
-/** Where a local run's disk store keeps files: outside any worktree. */
-export const LOCAL_STORAGE_ROOT = join(tmpdir(), "foa-local-storage");
-
-/**
- * A local run's storage while R2 isn't configured, as on a laptop and in
- * CI's E2E job: files on this machine's disk, uploaded and fetched through
- * signed URLs on the app's own route (src/app/api/local-storage). Null for
- * every deployment, and for a local run with R2: that route answers 404.
- */
-export function localDiskStorageFor(
-  env: StorageEnv & LocalStorageEnv,
-  root: string = LOCAL_STORAGE_ROOT
-): DiskStorage | null {
-  if (env.APP_ENV !== "local" || r2ConfigOf(env)) return null;
-  return diskStorage(
-    {
-      root,
-      baseUrl: new URL("/api/local-storage/", env.APP_URL).href,
-      // This installation's own random key, never a shared or public one.
-      secret: signingKeyFor(root),
-    },
-    systemClock
-  );
-}
+export { smsSenderFor, storageFor };
+export {
+  LOCAL_STORAGE_ROOT,
+  localDiskStorageFor,
+  type LocalStorageEnv,
+  type StorageEnv,
+} from "./ports/storage-for";
 
 /** The bucket, this environment's key prefix, and the environment. */
 export function filesConfigFor(

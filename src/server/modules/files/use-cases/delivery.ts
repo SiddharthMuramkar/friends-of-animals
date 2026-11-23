@@ -1,7 +1,8 @@
 // Delivering a file (#63).
 //
 //   getFileDownloadUrl({ fileId }) → the uploader; staff admins and super
-//                                    admins once the file is clean
+//                                    admins once the file is clean.
+//   Entry pictures are delivered by Entries as live derivatives.
 //
 // Files are served straight from object storage through a short-lived
 // signed GET URL, never through a Vercel function and never from a public
@@ -56,6 +57,9 @@ export async function getFileDownloadUrl(
   const { fileId } = parsed.data;
   const file = await findReadableFile(ctx, fileId);
   if (!file) return { ok: false, error: "not_found" };
+  if (file.purpose === "entry_image") {
+    throw new DomainError("forbidden", `${ctx.actor.kind} may not file.read`);
+  }
 
   // Asked again with the owner, for the role that allows it (the audit) and
   // the status gate, so a caller it refuses learns nothing of the status.

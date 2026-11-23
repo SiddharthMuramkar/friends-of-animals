@@ -15,6 +15,7 @@ import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
 import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
 import { dispatchEvent } from "../modules/notifications/dispatch";
+import { uploadKeyFor } from "../modules/files/domain/storage-key";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
@@ -29,6 +30,8 @@ import { sendRegistrationConfirmation } from "../modules/registration/confirmati
 import { sendGuardianRequest } from "../modules/guardians/guardian-request-message";
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
 import { sendApprovedRefund } from "../modules/payments/refunds/sync-refund";
+import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
+import { expireUploadGrant } from "../modules/entries/upload-grants";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -58,6 +61,8 @@ export type OutboxDeps = {
    */
   auth: { baseUrl?: string | undefined };
   storage: ObjectStorage;
+  /** Null prefix for a legacy preview database with no storage namespace. */
+  files: { bucket: string; keyPrefix: string | null };
   scanner: MalwareScanner;
   /** Used only by the media queue's handlers, in worker-media. */
   media: MediaProcessor;
@@ -122,6 +127,23 @@ export const HANDLERS: Handlers = {
   // Emails a teen's request to the guardian they named (#81).
   "guardians.send_guardian_request": (deps, { payload }) =>
     sendGuardianRequest(deps, payload),
+  // Brings an entry's file up to date with its scan and derivatives (#85).
+  "entries.apply_file_outcome": (deps, { payload }) =>
+    applyEntryFileOutcome(deps, payload),
+  "entries.expire_upload_grant": (deps, { payload }) =>
+    expireUploadGrant(deps, payload),
+  "entries.sweep_staged_upload": (
+    { storage, files },
+    { payload: { fileId } }
+  ) => {
+    if (files.keyPrefix === null) {
+      throw new Error("The database has no entry staging prefix");
+    }
+    return storage.delete({
+      bucket: files.bucket,
+      key: uploadKeyFor({ prefix: files.keyPrefix, fileId }),
+    });
+  },
 };
 
 /** Whether this code has a handler by that name. */

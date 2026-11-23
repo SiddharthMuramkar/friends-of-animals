@@ -54,3 +54,30 @@ picks the reports past that date for #114's sweep.
 Sessions, the audit log's IP addresses and the other early tables are listed
 by the data inventory and retention ticket (#114), which also enforces
 retention with scheduled jobs.
+
+## Competition entry data
+
+| Table                            | Columns                                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `entry`                          | `code`, `registration_id`, `participant_profile_id`, `title`, `description`, `statement`, `created_by_user_id` |
+| `entry_file`                     | `id`, `entry_id`, `file_asset_id`, `uploaded_by_user_id`, `pending_text`, `receipt_title`                      |
+| `entry_upload_grant`             | `file_asset_id`, `registration_id`, `upload_key`                                                               |
+| `entry_transition`               | `entry_id`, `entry_file_id`, `actor_user_id`                                                                   |
+| `file_asset` (entry images)      | `owner_user_id`, `storage_key`                                                                                 |
+| `file_derivative` (entry images) | `file_asset_id`, `storage_key`                                                                                 |
+
+The proposed entry retention periods are three years after the competition
+ends for entry text, participant references and upload history, and 90 days
+after it ends for the private originals and their metadata-stripped copies.
+This gives FOA time to process and review the work, handle appeals, and answer
+later questions about the entry. Counsel confirms these defaults under HR-31.
+
+Notices reference an upload attempt by its ID. The submitted attempt stores
+the adult participant's original title so receipt retries still describe
+the work that was submitted. Failure notices use the Entry ID and upload
+reference.
+
+Pending replacement text is cleared when the image passes, fails or is
+superseded. Upload grants and unused staged objects are cleared by the worker
+after the 10-minute upload URL expires. A separate worker delivery checks the
+same staging key again an hour after expiry to clear bytes from in-flight PUTs.

@@ -84,6 +84,68 @@ export type DomainEvent =
         code: (typeof FILE_PROCESSING_ERROR_CODES)[number];
       };
     }
+  | {
+      /** The malware scan flagged the file: it is never delivered (#85). */
+      type: "files.file_quarantined";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
+      /** Its bytes aren't the type it was declared as: deleted (#85). */
+      type: "files.file_rejected";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
+      /** The upload grant and any staged bytes are cleared when it expires. */
+      type: "entry.upload_grant_issued";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
+      /** Clears staging bytes from PUTs still in flight at grant expiry. */
+      type: "entry.sweep_staged_upload";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
+      /**
+       * An entry's first file passed its checks (#85): the entry is
+       * submitted and its participant, or their guardian, is told.
+       */
+      type: "entry.submitted";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; entryFileId: string; registrationId: string };
+    }
+  | {
+      /**
+       * An entry's upload was flagged by the malware scan (#85). The first
+       * file's rejects the entry; a replacement's leaves it as it was.
+       */
+      type: "entry.file_rejected";
+      aggregate: { type: "entry"; id: string };
+      payload: {
+        entryId: string;
+        entryFileId: string;
+        registrationId: string;
+        replacement: boolean;
+      };
+    }
+  | {
+      /**
+       * An entry's upload couldn't be processed (#85): corrupt, or not
+       * really a picture. The first file's fails the entry; a
+       * replacement's leaves it as it was.
+       */
+      type: "entry.file_failed";
+      aggregate: { type: "entry"; id: string };
+      payload: {
+        entryId: string;
+        entryFileId: string;
+        registrationId: string;
+        replacement: boolean;
+      };
+    }
   /** Verified for the first time: it has its Institution ID. */
   | InstitutionDecided<"institution.verified">
   /** Its registration wasn't accepted; the person may register again. */
@@ -268,6 +330,27 @@ export const EVENT_PAYLOADS = {
     fileId: z.uuid(),
     code: z.enum(FILE_PROCESSING_ERROR_CODES),
   }),
+  "files.file_quarantined": z.object({ fileId: z.uuid() }),
+  "files.file_rejected": z.object({ fileId: z.uuid() }),
+  "entry.upload_grant_issued": z.object({ fileId: z.uuid() }),
+  "entry.sweep_staged_upload": z.object({ fileId: z.uuid() }),
+  "entry.submitted": z.object({
+    entryId: z.uuid(),
+    entryFileId: z.uuid(),
+    registrationId: z.uuid(),
+  }),
+  "entry.file_rejected": z.object({
+    entryId: z.uuid(),
+    entryFileId: z.uuid(),
+    registrationId: z.uuid(),
+    replacement: z.boolean(),
+  }),
+  "entry.file_failed": z.object({
+    entryId: z.uuid(),
+    entryFileId: z.uuid(),
+    registrationId: z.uuid(),
+    replacement: z.boolean(),
+  }),
   "institution.verified": INSTITUTION_DECIDED,
   "institution.rejected": INSTITUTION_DECIDED,
   "institution.suspended": INSTITUTION_DECIDED,
@@ -326,12 +409,28 @@ export const SUBSCRIBERS = {
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
   "consent.withdrawn": ["notifications.dispatch"],
-  // Runs in worker-media only: the media queue (./queues.ts).
-  "files.processing_requested": ["files.process_image"],
-  // #85's Entries unit subscribes to these two. A post image's public
-  // copies follow its derivatives (#112).
-  "files.file_processed": ["cms.publish_post_image"],
-  "files.file_processing_failed": [],
+  // files.process_image runs in worker-media only: the media queue
+  // (./queues.ts). An entry's file follows each step of its own (#85):
+  // entries.apply_file_outcome reads where the file stands, so the order
+  // these arrive in doesn't matter.
+  "files.processing_requested": [
+    "files.process_image",
+    "entries.apply_file_outcome",
+  ],
+  // A post image's public copies follow its derivatives (#112).
+  "files.file_processed": [
+    "cms.publish_post_image",
+    "entries.apply_file_outcome",
+  ],
+  "files.file_processing_failed": ["entries.apply_file_outcome"],
+  "files.file_quarantined": ["entries.apply_file_outcome"],
+  "files.file_rejected": ["entries.apply_file_outcome"],
+  "entry.upload_grant_issued": ["entries.expire_upload_grant"],
+  "entry.sweep_staged_upload": ["entries.sweep_staged_upload"],
+  // The participant's, or their guardian's, messages go by route row (#85).
+  "entry.submitted": ["notifications.dispatch"],
+  "entry.file_rejected": ["notifications.dispatch"],
+  "entry.file_failed": ["notifications.dispatch"],
   "institution.verified": ["notifications.dispatch"],
   "institution.rejected": ["notifications.dispatch"],
   "institution.suspended": ["notifications.dispatch"],

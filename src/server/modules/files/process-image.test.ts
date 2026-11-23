@@ -223,7 +223,8 @@ describe("the media job", () => {
       await h.drain();
 
       await requestAgain(h, fileId);
-      expect(await h.drain()).toMatchObject({ dispatched: 1, failed: 0 });
+      // The media job, and the entries handler, which finds no entry (#85).
+      expect(await h.drain()).toMatchObject({ dispatched: 2, failed: 0 });
 
       expect(h.media.processed).toEqual([]);
       expect(await derivatives(h, fileId)).toEqual([]);

@@ -19,7 +19,11 @@ import { directTls } from "../server/db/database-url";
 import * as schema from "../server/db/schema";
 import { systemClock } from "../server/ports/clock";
 import { malwareScannerFor } from "../server/ports/malware-scanner-clamav";
-import { unconfiguredStorage } from "../server/ports/storage";
+import {
+  unconfiguredStorage,
+  type ObjectStorage,
+} from "../server/ports/storage";
+import { localDiskStorageFor } from "../server/ports/storage-for";
 import { r2Storage } from "../server/ports/storage-r2";
 import {
   withPassword,
@@ -56,17 +60,29 @@ function client(url: string, max: number) {
   });
 }
 
+export function workerStorage(
+  config: Pick<WorkerConfig, "appEnv" | "r2" | "siteUrl">,
+  root?: string
+): ObjectStorage {
+  if (config.r2) return r2Storage(config.r2, systemClock);
+  return (
+    (config.siteUrl &&
+      localDiskStorageFor(
+        { APP_ENV: config.appEnv, APP_URL: config.siteUrl },
+        root
+      )) ||
+    unconfiguredStorage
+  );
+}
+
 function realIo(config: WorkerConfig, errors: WorkerErrors): WorkerIo {
   return {
     onTenantError: errors.tenantFailed,
     errors: errors.reporter,
     clock: systemClock,
     log,
-    // Never the app's local scanner or disk store: without R2 or clamd
-    // every scan fails, and files wait unscanned for a worker that has them.
-    storage: config.r2
-      ? r2Storage(config.r2, systemClock)
-      : unconfiguredStorage,
+    storage: workerStorage(config),
+    // Without clamd, files wait unscanned for a worker that has it.
     scanner: malwareScannerFor(config.clamd),
     async makeMediaProcessor({ timeoutSeconds }) {
       if (!config.r2) {

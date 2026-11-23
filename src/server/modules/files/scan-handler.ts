@@ -8,9 +8,10 @@
 // file becomes is scanOutcome's call (domain/scan-outcome.ts):
 //   - clean        deliverable to anyone `can()` allows;
 //   - quarantined  moved to `<prefix>quarantine/<id>`, audited, never
-//                  delivered to anyone;
+//                  delivered to anyone (files.file_quarantined);
 //   - rejected     its bytes aren't the declared type; the object is
-//                  deleted and the file is never delivered.
+//                  deleted and the file is never delivered
+//                  (files.file_rejected).
 //
 // It fails closed. A scanner that gives no verdict throws, so the relay
 // retries with backoff and then keeps the delivery as failed; meanwhile the
@@ -32,6 +33,7 @@ import { and, eq } from "drizzle-orm";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import { fileAsset, type FileAssetRow } from "../../db/schema";
+import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import type { MalwareScanner, ScanVerdict } from "../../ports/malware-scanner";
 import { ObjectMissingError, type ObjectStorage } from "../../ports/storage";
@@ -250,6 +252,15 @@ async function settle(
         }
       );
     }
+    // A module whose upload this was hears of it with the verdict (#85).
+    await emit(tx, clock, {
+      type:
+        status === "quarantined"
+          ? "files.file_quarantined"
+          : "files.file_rejected",
+      aggregate: { type: "file_asset", id: file.id },
+      payload: { fileId: file.id },
+    });
     return true;
   });
   // Someone else settled it first; their attempt does the storage step.
