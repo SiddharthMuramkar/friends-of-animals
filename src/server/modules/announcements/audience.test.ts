@@ -1,7 +1,13 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { guardianLink, registration } from "@/server/db/schema";
+import { parsePhoneNumber } from "@/lib/phone";
+import {
+  guardianLink,
+  notificationPreference,
+  registration,
+  user,
+} from "@/server/db/schema";
 import { uuidv7 } from "@/server/ids";
 import { planDelivery } from "@/server/modules/notifications/domain/delivery-plan";
 import {
@@ -13,6 +19,11 @@ import type { StudentInput } from "@/server/modules/registration/domain/student-
 import { registeredSchool } from "@/server/modules/registration/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
+import {
+  planAnnouncementAudience,
+  rosterGuardianPhoneAlias,
+  type Candidate,
+} from "./domain/audience";
 import { loadAnnouncementAudience } from "./load-audience";
 
 const SHARED_PHONE = "+919000000401";
@@ -132,6 +143,43 @@ describe("loadAnnouncementAudience", () => {
     expect([h.email.sent.length, h.sms.sent.length]).toEqual(messagesBefore);
   });
 
+  it("counts distinct roster guardians who share a mailbox and keeps both SMS destinations", async () => {
+    const h = await createHarness();
+    const school = await schoolRoster(h);
+    const sharedEmail = "family@example.test";
+    const secondPhone = "+919000000402";
+    await school.enrol(sibling("First Pupil", sharedEmail));
+    await school.confirm();
+    await school.enrol({
+      ...sibling("Second Pupil", sharedEmail),
+      guardianName: "Second Guardian",
+      guardianPhone: secondPhone,
+    });
+
+    const plan = await audience(h, school.competition.id, { smsEnabled: true });
+
+    expect({
+      counts: plan.counts,
+      guardianDeliveries: plan.deliveries
+        .filter(({ recipient }) => recipient.roles.includes("guardian"))
+        .map(({ channel, address }) => `${channel}:${address}`)
+        .sort(),
+    }).toEqual({
+      counts: {
+        recipients: 3,
+        participants: 0,
+        guardians: 2,
+        coordinators: 1,
+        unreachable: 0,
+      },
+      guardianDeliveries: [
+        `email:${sharedEmail}`,
+        `sms:${SHARED_PHONE}`,
+        `sms:${secondPhone}`,
+      ],
+    });
+  });
+
   it("keeps a listed guardian phone on SMS when another account owns the number", async () => {
     const h = await createHarness();
     await h.seed.member({
@@ -173,6 +221,55 @@ describe("loadAnnouncementAudience", () => {
     expect(withSmsOff.unreachable.map(({ reason }) => reason)).toEqual([
       "minor_without_guardian",
     ]);
+  });
+
+  it("keeps a matching email awaiting verification on direct contact channels", async () => {
+    const h = await createHarness();
+    const school = await schoolRoster(h);
+    const email = "pending-guardian@example.test";
+    const now = h.clock.now();
+    await h.db.insert(user).values({
+      id: uuidv7(now),
+      name: "Pending Guardian",
+      email,
+      emailVerified: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await school.enrol(sibling("School Pupil", email));
+    await school.confirm();
+
+    const plan = await audience(h, school.competition.id, { smsEnabled: true });
+
+    expect(
+      plan.deliveries
+        .filter(({ recipient }) => recipient.roles.includes("guardian"))
+        .map(({ channel, address, recipient }) => [
+          channel,
+          address,
+          recipient.contact.kind,
+        ])
+    ).toEqual([
+      ["email", email, "details"],
+      ["sms", SHARED_PHONE, "details"],
+    ]);
+  });
+
+  it("reports only the stable marker and SQLSTATE when a roster lookup fails", async () => {
+    const h = await createHarness();
+    const school = await schoolRoster(h);
+    await school.enrol(sibling("School Pupil", "guardian@example.test"));
+    await school.confirm();
+    await h.db.execute(
+      sql`alter table ${notificationPreference} rename column email to unavailable_email`
+    );
+
+    const plan = audience(h, school.competition.id);
+
+    await expect(plan).rejects.toMatchObject({
+      message: "announcement_roster_account_lookup_failed (42703)",
+    });
+    await expect(plan).rejects.not.toHaveProperty("cause");
   });
 
   it("resolves both siblings to the verified roster email account before counting with SMS off", async () => {
@@ -431,5 +528,49 @@ describe("loadAnnouncementAudience", () => {
       coordinators: 0,
       unreachable: 0,
     });
+  });
+});
+
+describe("planAnnouncementAudience", () => {
+  it("resolves a sibling's guardian alias after the contact is copied", () => {
+    const phone = parsePhoneNumber(SHARED_PHONE);
+    if (!phone.ok) throw new Error("Expected a valid fixture phone");
+    const phoneOnly = {
+      kind: "details",
+      name: "Listed Guardian",
+      email: null,
+      phone: phone.e164,
+    } as const;
+    const alias = rosterGuardianPhoneAlias(phoneOnly);
+    if (alias === null) throw new Error("Expected a fixture guardian alias");
+    const verified = {
+      kind: "account",
+      userId: "verified-guardian",
+      name: "Listed Guardian",
+      email: "guardian@example.test",
+      phone: null,
+      preferences: { email: true, sms: true },
+    } as const;
+    const candidates: Candidate[] = [
+      {
+        role: "guardian",
+        participantProfileId: "first-sibling",
+        contacts: [verified],
+        roster: { alias, listedEmail: verified.email, contactIndex: 0 },
+      },
+      {
+        role: "guardian",
+        participantProfileId: "second-sibling",
+        contacts: [{ ...phoneOnly }],
+        roster: { alias, listedEmail: null, contactIndex: 0 },
+      },
+    ];
+
+    const plan = planAnnouncementAudience(candidates, () => [
+      "email",
+      "in_app",
+    ]);
+
+    expect(plan.counts).toMatchObject({ guardians: 1, unreachable: 0 });
   });
 });

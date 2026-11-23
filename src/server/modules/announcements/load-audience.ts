@@ -383,14 +383,14 @@ export async function loadAnnouncementAudience(
       const alias = minorPhone ? null : rosterGuardianPhoneAlias(roster);
       // A verified link identifies a guardian for this profile. Assign its
       // account to a shared roster alias only with corroborating address evidence.
-      const aliasContact =
+      const contactIndex =
         linked.length === 0
-          ? contact
-          : (linked.find((account) =>
+          ? 0
+          : linked.findIndex((account) =>
               roster.email !== null
                 ? account.email === roster.email
                 : account.phone === roster.phone
-            ) ?? null);
+            );
       return {
         participantProfileId,
         role: "guardian",
@@ -400,7 +400,7 @@ export async function loadAnnouncementAudience(
               roster: {
                 alias,
                 listedEmail: roster.email,
-                contact: aliasContact,
+                contactIndex: contactIndex === -1 ? null : contactIndex,
               },
             }
           : {}),

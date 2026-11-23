@@ -33,7 +33,8 @@ export type Candidate =
       roster?: {
         alias: string;
         listedEmail: string | null;
-        contact: Contact | null;
+        /** Position in contacts, or null if no contact corroborates the alias. */
+        contactIndex: number | null;
       };
     };
 
@@ -101,7 +102,9 @@ function rosterGuardianMatches(candidates: readonly Candidate[]) {
   >();
   for (const candidate of candidates) {
     if (candidate.role !== "guardian" || !candidate.roster) continue;
-    const { alias, listedEmail, contact } = candidate.roster;
+    const { alias, listedEmail, contactIndex } = candidate.roster;
+    const contact =
+      contactIndex === null ? null : (candidate.contacts[contactIndex] ?? null);
     let group = evidence.get(alias);
     if (!group) {
       group = {
@@ -139,14 +142,49 @@ function rosterGuardianMatches(candidates: readonly Candidate[]) {
   return matches;
 }
 
+function sharedGuardianEmails(candidates: readonly Candidate[]): Set<string> {
+  const byEmail = new Map<
+    string,
+    { names: Set<string>; phones: Set<E164Phone> }
+  >();
+  for (const candidate of candidates) {
+    if (candidate.role !== "guardian") continue;
+    for (const { kind, name, email, phone } of candidate.contacts) {
+      const normalizedName = name?.trim().toLowerCase();
+      if (kind !== "details" || !email || !phone || !normalizedName) continue;
+      const evidence = byEmail.get(email) ?? {
+        names: new Set<string>(),
+        phones: new Set<E164Phone>(),
+      };
+      evidence.names.add(normalizedName);
+      evidence.phones.add(phone);
+      byEmail.set(email, evidence);
+    }
+  }
+  const shared = new Set<string>();
+  for (const [email, { names, phones }] of byEmail) {
+    if (names.size > 1 && phones.size > 1) shared.add(email);
+  }
+  return shared;
+}
+
 function recipientKey(
   candidate: Candidate,
   contact: Contact,
-  alias: string | undefined
+  alias: string | undefined,
+  sharedEmails: ReadonlySet<string>
 ): string {
   if (contact.kind === "account") return `user:${contact.userId}`;
   if (candidate.role === "guardian") {
-    if (contact.email) return `email:${contact.email}`;
+    if (contact.email) {
+      // A mailbox used by distinct named contacts remains one email destination.
+      const phoneAlias = sharedEmails.has(contact.email)
+        ? rosterGuardianPhoneAlias(contact)
+        : null;
+      return phoneAlias
+        ? `guardian-email:${JSON.stringify([contact.email, phoneAlias])}`
+        : `email:${contact.email}`;
+    }
     if (alias) return alias;
   }
   if (candidate.role === "coordinator")
@@ -161,20 +199,21 @@ export function planAnnouncementAudience(
 ): AudiencePlan {
   const byKey = new Map<string, Recipient>();
   const guardianMatches = rosterGuardianMatches(candidates);
+  const sharedEmails = sharedGuardianEmails(candidates);
   const keysByCandidate = candidates.map((candidate) =>
-    candidate.contacts.map((listed) => {
+    candidate.contacts.map((listed, index) => {
       const roster =
-        candidate.role === "guardian" ? candidate.roster : undefined;
-      const match =
-        roster?.contact === listed
-          ? guardianMatches.get(roster.alias)
+        candidate.role === "guardian" &&
+        candidate.roster?.contactIndex === index
+          ? candidate.roster
           : undefined;
+      const match = roster ? guardianMatches.get(roster.alias) : undefined;
       const alias = match ? roster?.alias : undefined;
       const contact =
         listed.kind === "details" && !roster?.listedEmail
           ? (match?.contact ?? listed)
           : listed;
-      const key = recipientKey(candidate, contact, alias);
+      const key = recipientKey(candidate, contact, alias, sharedEmails);
       let recipient = byKey.get(key);
       if (!recipient) {
         recipient = { key, contact, roles: [], aliases: [] };
