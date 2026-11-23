@@ -1,6 +1,6 @@
 {
-  "id": "5261963c-dbd9-406a-9b87-4391828b2dae",
-  "prevId": "e92915f3-c937-4f1c-b7aa-488b1a7a5f60",
+  "id": "a968ee16-91bb-4b66-ba70-866e584dac05",
+  "prevId": "90b89498-a5a3-43bc-b3e6-74b336716151",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -260,6 +260,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "attempt_number": {
+          "name": "attempt_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "kind": {
           "name": "kind",
           "type": "entry_file_kind",
@@ -340,21 +346,6 @@
           "where": "\"entry_file\".\"status\" = 'live'",
           "concurrently": false
         },
-        "entry_file_entry_id_idx": {
-          "name": "entry_file_entry_id_idx",
-          "columns": [
-            {
-              "expression": "entry_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
         "entry_file_uploaded_by_user_id_idx": {
           "name": "entry_file_uploaded_by_user_id_idx",
           "columns": [
@@ -418,6 +409,14 @@
           "name": "entry_file_file_asset_id_unique",
           "columns": [
             "file_asset_id"
+          ],
+          "nullsNotDistinct": false
+        },
+        "entry_file_entry_id_attempt_number_unique": {
+          "name": "entry_file_entry_id_attempt_number_unique",
+          "columns": [
+            "entry_id",
+            "attempt_number"
           ],
           "nullsNotDistinct": false
         }

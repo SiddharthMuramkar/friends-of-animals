@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Actor } from "@/server/actor";
 import { entry, entryFile, guardianLink } from "@/server/db/schema";
@@ -205,6 +205,38 @@ describe("entries for a guardian's ward", () => {
     await expect(app.getEntry({ code })).rejects.toMatchObject({
       code: "forbidden",
     });
+  });
+
+  it("attaches nothing and dispatches no scan when the guardian link is revoked during storage preparation", async () => {
+    const h = await createHarness();
+    const guardian = await confirmedChild(h);
+    const upload = await putEntryImage(h, guardian);
+    const head = h.storage.head.bind(h.storage);
+    let revocation: Promise<unknown> | undefined;
+    const storageHead = vi
+      .spyOn(h.storage, "head")
+      .mockImplementationOnce((ref) => {
+        // Queue the write during preparation. PGlite runs it as soon as the
+        // preparation transaction releases its connection.
+        revocation = h.db
+          .update(guardianLink)
+          .set({ revokedAt: h.clock.now() })
+          .where(eq(guardianLink.participantProfileId, guardian.childId))
+          .execute();
+        return head(ref);
+      });
+
+    const completion = h.as(guardian.actor).completeEntryUpload(upload);
+    try {
+      await expect(completion).rejects.toMatchObject({ code: "forbidden" });
+    } finally {
+      await revocation;
+    }
+
+    expect(storageHead).toHaveBeenCalledOnce();
+    expect(await h.db.select().from(entryFile)).toEqual([]);
+    await h.drain();
+    expect(h.scanner.scans).toBe(0);
   });
 
   it("refuses an unrelated entry before reading its private columns or files", async () => {

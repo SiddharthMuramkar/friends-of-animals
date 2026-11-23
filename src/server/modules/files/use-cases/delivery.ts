@@ -57,9 +57,6 @@ export async function getFileDownloadUrl(
   const { fileId } = parsed.data;
   const file = await findReadableFile(ctx, fileId);
   if (!file) return { ok: false, error: "not_found" };
-  if (file.purpose === "entry_image") {
-    throw new DomainError("forbidden", `${ctx.actor.kind} may not file.read`);
-  }
 
   // Asked again with the owner, for the role that allows it (the audit) and
   // the status gate, so a caller it refuses learns nothing of the status.

@@ -107,7 +107,7 @@ export async function getEntry(
     .select({ status: entryFile.status })
     .from(entryFile)
     .where(eq(entryFile.entryId, entry.id))
-    .orderBy(desc(entryFile.id))
+    .orderBy(desc(entryFile.attemptNumber))
     .limit(1)
     .as("newest");
   const [row] = await ctx.db

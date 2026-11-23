@@ -26,10 +26,11 @@ import { monotonicUuidv7 } from "../../ids";
 import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import { outcomesOf } from "./domain/file-outcome";
-import type {
-  EntryFileStatus,
-  EntryStatus,
-  EntryTrigger,
+import {
+  moveEntry,
+  type EntryFileStatus,
+  type EntryStatus,
+  type EntryTrigger,
 } from "./domain/status";
 import {
   decideFileOutcome,
@@ -53,7 +54,7 @@ async function filesOf(tx: AppDb, entryId: string): Promise<EntryFileRow[]> {
     .select()
     .from(entryFile)
     .where(eq(entryFile.entryId, entryId))
-    .orderBy(asc(entryFile.id));
+    .orderBy(asc(entryFile.attemptNumber));
 }
 
 /** The registration's entry and its files, locked until the transaction ends. */
@@ -110,6 +111,7 @@ export async function recordMove(
     actorRole: Role | null;
   }
 ): Promise<void> {
+  moveEntry(move.from, move.to);
   const now = ctx.clock.now();
   await tx.insert(entryTransition).values({
     id: nextEntryRowId(now),

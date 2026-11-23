@@ -14,6 +14,7 @@ import {
   boolean,
   check,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -138,11 +139,13 @@ export type EntryRow = typeof entry.$inferSelect;
 export const entryFile = pgTable(
   "entry_file",
   {
-    /** UUIDv7 from the clock, so an entry's files sort oldest first. */
+    /** Stable reference for this upload attempt. */
     id: uuid().primaryKey(),
     entryId: uuid("entry_id")
       .notNull()
       .references(() => entry.id, { onDelete: "cascade" }),
+    /** Acceptance order within the entry, assigned under its lock. */
+    attemptNumber: integer("attempt_number").notNull(),
     kind: entryFileKind().notNull(),
     /** The uploaded file (#63); null only for a typed essay (#86). */
     fileAssetId: uuid("file_asset_id").references(() => fileAsset.id),
@@ -179,7 +182,10 @@ export const entryFile = pgTable(
       "entry_file_became_live_at_matches_status",
       sql`(${table.status} <> 'live' OR ${table.becameLiveAt} IS NOT NULL) AND (${table.status} NOT IN ('pending', 'processing', 'rejected', 'failed') OR ${table.becameLiveAt} IS NULL)`
     ),
-    index("entry_file_entry_id_idx").on(table.entryId),
+    unique("entry_file_entry_id_attempt_number_unique").on(
+      table.entryId,
+      table.attemptNumber
+    ),
     // Deleting a user sets this to null; the index keeps that from scanning.
     index("entry_file_uploaded_by_user_id_idx").on(table.uploadedByUserId),
   ]

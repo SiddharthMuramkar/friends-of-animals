@@ -10,6 +10,7 @@ import {
   fileAsset,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { signInStaff } from "@/server/modules/payments/testing";
 import { drainUntilIdle } from "@/server/outbox";
 import { EICAR_TEST_BYTES } from "@/test/eicar";
 import { createHarness, type Harness } from "@/test/harness";
@@ -319,6 +320,31 @@ describe("an entry's file checks", () => {
     expect(await h.storage.get(detail.entry.picture.url)).toMatchObject({
       ok: true,
       contentType: "image/webp",
+    });
+  });
+
+  it("keeps an entry image's scan status out of the generic Files lookup", async () => {
+    const h = await createHarness();
+    const asha = await confirmedAdult(h);
+    const staff = await signInStaff(h, "staff_admin");
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const upload = await putEntryImage(h, asha);
+    const input = { fileId: upload.fileId };
+    await expect(
+      h.as(asha.actor).completeEntryUpload(upload)
+    ).resolves.toMatchObject({
+      ok: true,
+      status: "processing",
+    });
+
+    for (const actor of [staff.actor, admin, asha.actor]) {
+      await expect(h.as(actor).getFileStatus(input)).rejects.toMatchObject({
+        code: "forbidden",
+      });
+    }
+    await h.drain();
+    await expect(h.as(staff.actor).getFileStatus(input)).rejects.toMatchObject({
+      code: "forbidden",
     });
   });
 

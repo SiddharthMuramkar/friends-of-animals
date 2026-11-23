@@ -1,8 +1,10 @@
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { createApp } from "@/server/app";
 import { auditLog, entry, entryFile, fileAsset } from "@/server/db/schema";
 import { EICAR_TEST_BYTES } from "@/test/eicar";
+import { FakeClock } from "@/test/fakes/clock";
 import { createHarness, type Harness } from "@/test/harness";
 import { readMediaFixture } from "@/test/media-fixtures";
 
@@ -10,6 +12,7 @@ import {
   confirmedAdult,
   ENTRY_TEXT,
   PHOTO,
+  putEntryImage,
   submitImage,
   submittedImage,
   type Participant,
@@ -147,6 +150,40 @@ describe("replacing an entry's picture", () => {
     ]);
   });
 
+  it("shows a pending replacement accepted on an app with a slower clock", async () => {
+    const h = await createHarness();
+    const asha = await confirmedAdult(h);
+    const code = await submittedImage(h, asha, { text: ORIGINAL_TEXT });
+    await h.drain();
+
+    const clock = new FakeClock(new Date(h.clock.now().getTime() - 1_000));
+    const slowerApp = createApp({ ...h.deps, clock });
+    const upload = await putEntryImage(
+      { ...slowerApp, storage: h.storage },
+      asha,
+      {
+        bytes: PORTRAIT,
+        text: REPLACEMENT_TEXT,
+      }
+    );
+    await expect(
+      slowerApp.as(asha.actor).completeEntryUpload(upload)
+    ).resolves.toEqual({
+      ok: true,
+      entryCode: code,
+      status: "submitted",
+    });
+
+    await expect(h.as(asha.actor).getEntry({ code })).resolves.toMatchObject({
+      ok: true,
+      entry: {
+        ...ORIGINAL_TEXT,
+        latestUpload: "pending",
+        picture: { width: 1600, height: 1200 },
+      },
+    });
+  });
+
   it("keeps the current picture when the replacement is infected, and says so", async () => {
     const h = await createHarness();
     const asha = await confirmedAdult(h);
@@ -215,6 +252,52 @@ describe("replacing an entry's picture", () => {
         ...ORIGINAL_TEXT,
         latestUpload: "failed",
         picture: { width: 1600 },
+      },
+    });
+  });
+
+  it("clears an earlier failure when a replacement accepted on a slower clock goes live", async () => {
+    const h = await createHarness();
+    const asha = await confirmedAdult(h);
+    const code = await submittedImage(h, asha, { text: ORIGINAL_TEXT });
+    await h.drain();
+    await submittedImage(h, asha, { bytes: readMediaFixture("corruptJpeg") });
+    await h.drain();
+    const app = h.as(asha.actor);
+    expect(await app.getEntry({ code })).toMatchObject({
+      ok: true,
+      entry: { latestUpload: "failed" },
+    });
+
+    const clock = new FakeClock(new Date(h.clock.now().getTime() - 10));
+    const slowerApp = createApp({ ...h.deps, clock });
+    const upload = await putEntryImage(
+      { ...slowerApp, storage: h.storage },
+      asha,
+      {
+        bytes: PORTRAIT,
+        text: REPLACEMENT_TEXT,
+      }
+    );
+    await expect(
+      slowerApp.as(asha.actor).completeEntryUpload(upload)
+    ).resolves.toEqual({
+      ok: true,
+      entryCode: code,
+      status: "submitted",
+    });
+    await h.drain();
+
+    expect(await app.listMyEntries()).toMatchObject([
+      { code, checking: false },
+    ]);
+    expect(await app.getEntry({ code })).toMatchObject({
+      ok: true,
+      entry: {
+        ...REPLACEMENT_TEXT,
+        status: "submitted",
+        picture: { width: 400, height: 600 },
+        latestUpload: null,
       },
     });
   });

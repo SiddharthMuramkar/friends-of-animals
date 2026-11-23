@@ -246,6 +246,7 @@ async function record(
   await tx.insert(entryFile).values({
     id: entryFileId,
     entryId: row.id,
+    attemptNumber: (current?.files.at(-1)?.attemptNumber ?? 0) + 1,
     kind: "image",
     fileAssetId: file.id,
     status: "pending",

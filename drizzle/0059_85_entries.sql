@@ -28,6 +28,7 @@ CREATE TABLE "entry" (
 CREATE TABLE "entry_file" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"entry_id" uuid NOT NULL,
+	"attempt_number" integer NOT NULL,
 	"kind" "entry_file_kind" NOT NULL,
 	"file_asset_id" uuid,
 	"status" "entry_file_status" NOT NULL,
@@ -39,6 +40,7 @@ CREATE TABLE "entry_file" (
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "entry_file_file_asset_id_unique" UNIQUE("file_asset_id"),
+	CONSTRAINT "entry_file_entry_id_attempt_number_unique" UNIQUE("entry_id","attempt_number"),
 	CONSTRAINT "entry_file_asset_matches_kind" CHECK (("entry_file"."kind" = 'text') = ("entry_file"."file_asset_id" IS NULL)),
 	CONSTRAINT "entry_file_became_live_at_matches_status" CHECK (("entry_file"."status" <> 'live' OR "entry_file"."became_live_at" IS NOT NULL) AND ("entry_file"."status" NOT IN ('pending', 'processing', 'rejected', 'failed') OR "entry_file"."became_live_at" IS NULL))
 );
@@ -83,7 +85,6 @@ CREATE INDEX "entry_participant_profile_id_idx" ON "entry" USING btree ("partici
 CREATE INDEX "entry_competition_id_status_idx" ON "entry" USING btree ("competition_id","status");--> statement-breakpoint
 CREATE INDEX "entry_created_by_user_id_idx" ON "entry" USING btree ("created_by_user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "entry_file_one_live_per_entry" ON "entry_file" USING btree ("entry_id") WHERE "entry_file"."status" = 'live';--> statement-breakpoint
-CREATE INDEX "entry_file_entry_id_idx" ON "entry_file" USING btree ("entry_id");--> statement-breakpoint
 CREATE INDEX "entry_file_uploaded_by_user_id_idx" ON "entry_file" USING btree ("uploaded_by_user_id");--> statement-breakpoint
 CREATE INDEX "entry_transition_entry_id_idx" ON "entry_transition" USING btree ("entry_id","id");--> statement-breakpoint
 CREATE INDEX "entry_transition_entry_file_id_idx" ON "entry_transition" USING btree ("entry_file_id");--> statement-breakpoint
