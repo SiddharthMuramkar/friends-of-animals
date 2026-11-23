@@ -1,7 +1,14 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
-import { expectAccessible } from "./support/a11y";
+import {
+  generateTotpSecret,
+  totpCode,
+} from "../../src/server/modules/second-factor/domain/totp";
+import { SEED_CONTACT_MESSAGE_IDS } from "../../src/server/seed/contact";
+import { SEED_SCOPES } from "../../src/server/seed/scopes";
+import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import { freshEmail } from "./support/mailbox";
+import { test } from "./support/seed-account";
 import { signInByCode } from "./support/sign-in";
 
 // The axe helper against the way Next 16.4 changes a page's <title> on a
@@ -56,6 +63,19 @@ test("a page without a <title> still fails the check", async ({ page }) => {
   );
 });
 
+async function expectInitialTitle(page: Page, path: string, title: string) {
+  const response = await page.goto(path);
+  expect(response?.status(), `HTTP status of ${path}`).toBe(200);
+  await expect(page).toHaveURL(path);
+
+  const html = await response!.text();
+  const head = html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/)?.[1];
+  expect(
+    head?.match(/<title>([^<]*)<\/title>/)?.[1],
+    `the initial <head> title of ${path}`
+  ).toBe(title);
+}
+
 test("a signed-in page sends its <title> in the <head> of its HTML", async ({
   page,
   request,
@@ -67,11 +87,51 @@ test("a signed-in page sends its <title> in the <head> of its HTML", async ({
     "Asha Rao"
   );
 
-  // A request-time page under the nonce policy (#65), as staff pages are.
-  const html = await (await page.request.get("/account/sessions")).text();
-  const headEnd = html.indexOf("</head>");
-  expect(headEnd, "the end of the <head>").toBeGreaterThan(0);
-  expect(html.slice(0, headEnd)).toContain(
-    "<title>Your sessions · Friends of Animals</title>"
+  await expectInitialTitle(
+    page,
+    "/account/sessions",
+    "Your sessions · Friends of Animals"
   );
+});
+
+test("the competition editor and closed contact message send their titles in the initial HTML", async ({
+  page,
+  request,
+  seedAccount,
+}) => {
+  const secret = generateTotpSecret();
+  const email = await seedAccount({
+    name: "Leela Das",
+    grants: [
+      { role: "staff_admin", scope: { type: "global" } },
+      { role: "competition_manager", scope: { type: "global" } },
+    ],
+    totpSecret: secret,
+  });
+  await signInByCode(page, request, email);
+  await page.goto("/admin/inbox");
+  await expect(page).toHaveURL(/\/auth\/second-factor\?next=%2Fadmin%2Finbox$/);
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(secret, new Date()));
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL("/admin/inbox");
+
+  const competition = SEED_SCOPES.competition;
+  const edit = `/admin/competitions/${competition.id}/edit`;
+  await expectInitialTitle(page, edit, "Edit competition · Friends of Animals");
+  await expect(
+    page.getByRole("heading", { name: `Edit ${competition.name}` })
+  ).toBeVisible();
+  await expectAccessible(page, edit);
+
+  const message = `/admin/inbox/${SEED_CONTACT_MESSAGE_IDS.resolved}`;
+  await expectInitialTitle(
+    page,
+    message,
+    "Contact message · Friends of Animals"
+  );
+  await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
+  await expectAccessible(page, message);
+  await expectAccessibleInDark(page, message);
 });
