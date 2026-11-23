@@ -83,6 +83,12 @@ describe("the breach transition table", () => {
     });
   });
 
+  it("says a contained breach is already contained", () => {
+    expect(
+      decideBreachTransition(at("contained", CONTAINED_AT), "contain")
+    ).toEqual({ ok: false, reason: "already_contained" });
+  });
+
   it("refuses containing a breach twice", () => {
     expect(
       decideBreachTransition(at("notified", CONTAINED_AT), "contain")

@@ -12,8 +12,10 @@ import { z } from "zod";
 import {
   BREACH_SEVERITIES,
   BREACH_STATUSES,
+  BREACH_UPDATABLE_FIELDS,
   type BreachSeverity,
   type BreachStatus,
+  type BreachUpdatableField,
 } from "./breach-status";
 
 /** The audit `action` of each breach use case. */
@@ -42,6 +44,8 @@ export const breachAuditSchema = z.strictObject({
   authorityNotifiedAt: instant,
   /** How many notices went out in this change; never to whom. */
   noticesSent: z.int().min(0).optional(),
+  /** The names of the fields a correction changed; never their values. */
+  changedFields: z.array(z.enum(BREACH_UPDATABLE_FIELDS)).optional(),
 });
 
 export type BreachAudit = z.infer<typeof breachAuditSchema>;
@@ -63,7 +67,10 @@ const iso = (at: Date | null) => (at === null ? null : at.toISOString());
 /** A breach as its audit rows may show it. */
 export function breachAuditSnapshot(
   breach: AuditableBreach,
-  extra: { noticesSent?: number } = {}
+  extra: {
+    noticesSent?: number;
+    changedFields?: readonly BreachUpdatableField[];
+  } = {}
 ): BreachAudit {
   return breachAuditSchema.parse({
     status: breach.status,
@@ -77,5 +84,8 @@ export function breachAuditSnapshot(
     ...(extra.noticesSent === undefined
       ? {}
       : { noticesSent: extra.noticesSent }),
+    ...(extra.changedFields === undefined
+      ? {}
+      : { changedFields: [...extra.changedFields] }),
   });
 }

@@ -86,11 +86,11 @@ export function decideBreachTransition(
 ): BreachTransition {
   const { status, containedAt } = breach;
   if (status === "closed") return { ok: false, reason: "breach_closed" };
-  const to = BREACH_TRANSITIONS[status][event];
-  if (!to) return { ok: false, reason: "transition_not_allowed" };
   if (event === "contain" && containedAt !== null) {
     return { ok: false, reason: "already_contained" };
   }
+  const to = BREACH_TRANSITIONS[status][event];
+  if (!to) return { ok: false, reason: "transition_not_allowed" };
   if (event === "close") {
     if (status === "notified" && containedAt === null) {
       return { ok: false, reason: "not_contained" };
@@ -143,3 +143,15 @@ export const breachRecordSchema = z.strictObject({
 });
 
 export type BreachRecordInput = z.infer<typeof breachRecordSchema>;
+
+/** The fields staff may correct after recording; `awareAt` stays as recorded. */
+export const BREACH_UPDATABLE_FIELDS = [
+  "title",
+  "severity",
+  "personalDataInvolved",
+  "minorsAffected",
+  "affectedCount",
+  "impact",
+] as const;
+
+export type BreachUpdatableField = (typeof BREACH_UPDATABLE_FIELDS)[number];

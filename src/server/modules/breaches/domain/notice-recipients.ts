@@ -14,11 +14,24 @@
 // Pure, and loads under plain Node. The use case loads ages (decrypting
 // the date of birth, never in SQL) and guardians (81a) into this shape.
 
+/** What an affected person is on the platform: an account or a profile. */
+export const AFFECTED_REF_TYPES = ["user", "participant_profile"] as const;
+
 /** A user account, or a child's profile that a guardian manages. */
 export type AffectedRef = {
-  type: "user" | "participant_profile";
+  type: (typeof AFFECTED_REF_TYPES)[number];
   id: string;
 };
+
+/** How a recipient is told: about themselves, as a guardian, or both. */
+export const NOTICE_RECIPIENT_ROLES = [
+  "principal",
+  "guardian",
+  "principal_and_guardian",
+] as const;
+
+/** Why a notice can't reach someone a breach touched. */
+export const UNREACHABLE_REASONS = ["no_guardian", "no_account"] as const;
 
 export type AffectedPerson = {
   ref: AffectedRef;
@@ -33,14 +46,14 @@ export type AffectedPerson = {
 export type NoticeRecipient = {
   userId: string;
   /** Told about themselves, as a guardian, or both. */
-  as: "principal" | "guardian" | "principal_and_guardian";
+  as: (typeof NOTICE_RECIPIENT_ROLES)[number];
   /** The people this notice is about, in input order. */
   about: AffectedRef[];
 };
 
 export type UnreachablePerson = {
   ref: AffectedRef;
-  reason: "no_guardian" | "no_account";
+  reason: (typeof UNREACHABLE_REASONS)[number];
 };
 
 export type NoticePlan = {
