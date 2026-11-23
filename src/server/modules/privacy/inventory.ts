@@ -671,6 +671,24 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     purpose: "Who in finance recorded paying a refund back by hand",
     retention: PAYMENT_RECORD,
   },
+  {
+    table: "ledger_posting",
+    column: "description",
+    purpose: "Describes the entry and may name a counterparty",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "ledger_posting",
+    column: "created_by_user_id",
+    purpose: "Identifies the finance user who entered or reversed a posting",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "ledger_line",
+    column: "memo",
+    purpose: "Explains a journal line and may name a counterparty",
+    retention: PAYMENT_RECORD,
+  },
   // Guardians and their children (#81). A child's profile is a
   // participant_profile row (owner_kind guardian), listed above.
   {

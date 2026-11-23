@@ -22,6 +22,7 @@ import { COMPETITION_TERMS_POLICY } from "../modules/competitions/terms/policy";
 import { PAYMENTS_POLICY } from "../modules/payments/policy";
 import { PARTICIPANTS_POLICY } from "../modules/participants/policy";
 import { GUARDIANS_POLICY } from "../modules/guardians/policy";
+import { LEDGER_POLICY } from "../modules/ledger/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
@@ -45,7 +46,8 @@ export const POLICY = composePolicies(
   COMPETITION_TERMS_POLICY,
   PAYMENTS_POLICY,
   PARTICIPANTS_POLICY,
-  GUARDIANS_POLICY
+  GUARDIANS_POLICY,
+  LEDGER_POLICY
 );
 
 export type Action = keyof typeof POLICY;

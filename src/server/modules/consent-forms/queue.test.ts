@@ -91,7 +91,7 @@ describe("signed-form queue and dashboard", () => {
       { purpose: "auction", version: 1 },
     ]);
     const response = await downloadRequest(reviewer, fileId);
-  if (response.status !== 302 || !response.location) {
+    if (response.status !== 302 || !response.location) {
       throw new Error("Scan not available");
     }
     expect(await h.storage.get(response.location)).toMatchObject({
