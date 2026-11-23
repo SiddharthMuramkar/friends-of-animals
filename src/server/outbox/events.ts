@@ -260,8 +260,7 @@ export const EVENT_PAYLOADS = {
     subjectId: z.uuid(),
     purpose: z.enum(WITHDRAWABLE_PURPOSES),
     documentId: z.uuid(),
-    // Rows emitted before #82 have none: they were a person's own.
-    competitionId: z.uuid().nullable().default(null),
+    competitionId: z.uuid().nullable(),
   }),
   "files.processing_requested": z.object({ fileId: z.uuid() }),
   "files.file_processed": z.object({ fileId: z.uuid() }),

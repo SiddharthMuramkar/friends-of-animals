@@ -4,6 +4,7 @@
 // purposes, which the receipt must not answer.
 import { describe, expect, it } from "vitest";
 
+import { outbox } from "@/server/db/schema";
 import { uuidv7 } from "@/server/ids";
 import {
   consentCompetition,
@@ -59,6 +60,37 @@ describe("the messages withdrawal receipt", () => {
     await withdrawnByUser(h, member.id, "communications");
 
     expect(receiptsTo(h, member.email)).toEqual([]);
+  });
+
+  it("still dispatches a messages withdrawal recorded before competition scope existed", async () => {
+    const h = await createHarness();
+    const member = await h.seed.member();
+    const now = h.clock.now();
+    const consentEventId = uuidv7(now);
+    await h.db.insert(outbox).values({
+      id: uuidv7(now),
+      eventId: uuidv7(now),
+      eventType: "consent.withdrawn",
+      aggregateType: "consent_event",
+      aggregateId: consentEventId,
+      handler: "notifications.dispatch",
+      payload: {
+        consentEventId,
+        subjectType: "user",
+        subjectId: member.id,
+        purpose: "messages",
+        documentId: uuidv7(now),
+      },
+      occurredAt: now,
+      availableAt: now,
+    });
+
+    await h.drain();
+
+    expect(receiptsTo(h, member.email)).toHaveLength(1);
+    expect(
+      await h.db.select({ status: outbox.status }).from(outbox)
+    ).toContainEqual({ status: "dispatched" });
   });
 
   it("isn't sent when a guardian withdraws a child's consent", async () => {
