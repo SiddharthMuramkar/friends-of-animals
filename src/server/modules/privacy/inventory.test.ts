@@ -39,15 +39,17 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
-  it("uses the same purpose copy in the catalogue and staff messages", () => {
-    const translated = Object.entries(
+  it("has one non-empty purpose message for every catalogue field", () => {
+    const purposes = Object.entries(
       messages.adminPrivacy.inventory.purposes
     ).flatMap(([table, columns]) =>
-      Object.entries(columns)
-        .filter(([, purpose]) => purpose.trim())
-        .map(([column, purpose]) => [`${table}.${column}`, purpose] as const)
+      Object.entries(columns).map(
+        ([column, purpose]) => [`${table}.${column}`, purpose] as const
+      )
     );
-    expect(new Map(translated)).toEqual(
+    expect(new Set(purposes.map(([key]) => key))).toEqual(listed);
+    expect(purposes.filter(([, purpose]) => !purpose.trim())).toEqual([]);
+    expect(new Map(purposes)).toEqual(
       new Map(
         DATA_INVENTORY.map(({ table, column, purpose }) => [
           `${table}.${column}`,

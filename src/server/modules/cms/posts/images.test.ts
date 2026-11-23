@@ -267,7 +267,7 @@ describe("describePostImage", () => {
     expect(
       await h.as(actor).describePostImage({
         postImageId,
-        alt: "Volunteers <b>untangle</b> a kite",
+        alt: "Meera Example <b>untangles</b> a kite",
       })
     ).toEqual({ ok: true, tags: [] });
     expect(
@@ -287,9 +287,24 @@ describe("describePostImage", () => {
 
     expect(await h.as(actor).getPostForEdit({ postId })).toMatchObject({
       post: {
-        images: [{ id: postImageId, alt: "Volunteers untangle a kite" }],
+        images: [{ id: postImageId, alt: "Meera Example untangles a kite" }],
       },
     });
+
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const { entries } = await h.as(admin).getInventory();
+    expect(
+      entries.find(
+        ({ table, column }) => table === "cms_post_image" && column === "alt"
+      )
+    ).toMatchObject({
+      category: "content",
+      purpose: expect.stringMatching(/image description.*person/i),
+      subject: { kind: "content_subject", via: "alt" },
+      retention: { policy: "posts" },
+      onExpiry: "delete_row",
+    });
+    expect(JSON.stringify(entries)).not.toContain("Meera Example");
   });
 
   it("keeps a published post's cover described, and returns the tags to refresh", async () => {

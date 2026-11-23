@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { can } from "@/server/access";
 import type { Actor } from "@/server/actor";
-import { auditLog, userRole } from "@/server/db/schema";
+import { auditLog, institutionInvitation, userRole } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import { INVITATION_TTL_MS } from "@/server/modules/institutions/domain/invitation";
 import { signedInStaff } from "@/server/modules/institutions/testing";
@@ -255,22 +255,17 @@ describe("revokeInvitation", () => {
     const h = await createHarness();
     const { institution: x, admin } = await seedInstitution(h);
     const actor = await h.signIn(admin);
-    const { invitationId, token } = await invite(
-      h,
-      actor,
-      x.id,
-      "ravi@school.test"
-    );
+    const ravi = await h.seed.member({ email: "ravi@school.test" });
+    const { invitationId, token } = await invite(h, actor, x.id, ravi.email);
 
     const result = await h
       .as(actor)
       .revokeInvitation({ institutionId: x.id, invitationId });
 
     expect(result).toEqual({ ok: true });
-    const ravi = await h.signIn(
-      await h.seed.member({ email: "ravi@school.test" })
-    );
-    expect(await h.as(ravi).acceptInvitation({ token })).toEqual({
+    expect(
+      await h.as(await h.signIn(ravi)).acceptInvitation({ token })
+    ).toEqual({
       ok: false,
       error: "revoked",
     });
@@ -281,6 +276,30 @@ describe("revokeInvitation", () => {
     expect(entries).toEqual([
       { after: { invitationId, status: "revoked", reason: "withdrawn" } },
     ]);
+
+    const [withdrawn] = await h.db
+      .select()
+      .from(institutionInvitation)
+      .where(eq(institutionInvitation.id, invitationId));
+    expect(withdrawn).toMatchObject({
+      invitedByUserId: admin.id,
+      revokedByUserId: admin.id,
+    });
+    const staff = await signedInStaff(h);
+    const catalogue = (await h.as(staff).getInventory()).entries;
+    expect(
+      catalogue.filter(
+        ({ table, column }) =>
+          table === "institution_invitation" &&
+          (column === "invited_by_user_id" || column === "revoked_by_user_id")
+      )
+    ).toMatchObject(
+      ["invited_by_user_id", "revoked_by_user_id"].map((column) => ({
+        column,
+        subject: { kind: "user", via: column },
+        retention: { policy: "coordinatorInvitations" },
+      }))
+    );
   });
 
   it("refuses an accepted or already withdrawn invitation, and finds none elsewhere", async () => {

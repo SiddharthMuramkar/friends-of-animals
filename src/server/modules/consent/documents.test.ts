@@ -1,9 +1,9 @@
-import { count, sql } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { LEGAL_DOCS } from "@/content/legal";
 import { MESSAGES_CONSENT_DRAFT } from "@/content/legal/messages-consent";
-import { auditLog, consentDocument } from "@/server/db/schema";
+import { auditLog, consentDocument, user } from "@/server/db/schema";
 import { SEED_ACCOUNTS } from "@/server/seed";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -51,6 +51,41 @@ async function staffAdmin(h: Harness) {
 }
 
 describe("publishConsentDocument", () => {
+  it("catalogues a publisher's reference that stays with the immutable version after account deletion", async () => {
+    const h = await createHarness();
+    const { account, actor } = await staffAdmin(h);
+    const published = await h.as(actor).publishConsentDocument({
+      purpose: "messages",
+      title: "News and updates",
+      source: SOURCE_V1,
+    });
+    if (!published.ok) throw new Error("Expected a published document");
+    await h.db.delete(user).where(eq(user.id, account.id));
+    expect(
+      await h.db
+        .select()
+        .from(consentDocument)
+        .where(eq(consentDocument.id, published.id))
+    ).toMatchObject([{ publishedByUserId: account.id, version: 1 }]);
+
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const { entries } = await h.as(admin).getInventory();
+    expect(
+      entries.find(
+        ({ table, column }) =>
+          table === "consent_document" && column === "published_by_user_id"
+      )
+    ).toMatchObject({
+      subject: { kind: "user", via: "published_by_user_id" },
+      retention: {
+        policy: "consentDocumentAuthorship",
+        period:
+          "Kept with the published consent version, including after the staff account is deleted",
+      },
+      onExpiry: "retain",
+    });
+  });
+
   it("publishes public display and refuses documents for its individual credit fields", async () => {
     const h = await createHarness();
     const { actor } = await staffAdmin(h);

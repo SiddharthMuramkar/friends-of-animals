@@ -47,10 +47,13 @@ describe("getInventory", () => {
     expect(entries.length).toBeGreaterThan(0);
   });
 
-  it("catalogues story content that can name someone", async () => {
+  it("catalogues story content and headings that can name someone", async () => {
     const h = await createHarness();
     const editor = h.as(await h.signIn(await seedStaff(h, "content_manager")));
     const name = "Asha Example";
+    const title = `${name} cares for rescued birds`;
+    const seoTitle = `How ${name} helps birds`;
+    const easyRead = `${name} helps birds.`;
     const excerpt = `${name} helped care for rescued birds.`;
     const body = {
       blocks: [{ type: "paragraph", text: [`${name} fed the birds.`] }],
@@ -58,7 +61,9 @@ describe("getInventory", () => {
     };
     const saved = await editor.createPost({
       kind: "story",
-      title: "Caring for rescued birds",
+      title,
+      seoTitle,
+      easyRead,
       excerpt,
       body,
     });
@@ -66,7 +71,14 @@ describe("getInventory", () => {
     expect(await editor.getPostForEdit({ postId: saved.postId })).toMatchObject(
       {
         ok: true,
-        post: { body, excerpt },
+        post: {
+          body,
+          excerpt,
+          title,
+          seoTitle,
+          easyRead,
+          slug: "asha-example-cares-for-rescued-birds",
+        },
       }
     );
 
@@ -74,18 +86,20 @@ describe("getInventory", () => {
     const { entries } = await h.as(admin).getInventory();
     expect(entries.filter(({ table }) => table === "cms_post")).toEqual(
       expect.arrayContaining(
-        ["body", "excerpt"].map((column) =>
-          expect.objectContaining({
-            column,
-            category: "content",
-            subject: { kind: "content_subject", via: column },
-            retention: expect.objectContaining({ policy: "posts" }),
-            onExpiry: "delete_row",
-          })
+        ["body", "easy_read", "excerpt", "seo_title", "slug", "title"].map(
+          (column) =>
+            expect.objectContaining({
+              column,
+              category: "content",
+              subject: { kind: "content_subject", via: column },
+              retention: expect.objectContaining({ policy: "posts" }),
+              onExpiry: "delete_row",
+            })
         )
       )
     );
     expect(JSON.stringify(entries)).not.toContain(name);
+    expect(JSON.stringify(entries)).not.toContain(saved.slug);
   });
 
   it("describes revision authorship that survives deletion of the fixture editor's account", async () => {
@@ -126,7 +140,11 @@ describe("getInventory", () => {
     const admin = await h.signIn(await h.seed.superAdmin());
     const { entries } = await h.as(admin).getInventory();
     expect(
-      entries.filter(({ table }) => table === "cms_revision")
+      entries.filter(
+        ({ table, column }) =>
+          table === "cms_revision" &&
+          (column === "created_by_user_id" || column === "published_by_user_id")
+      )
     ).toMatchObject(
       ["created_by_user_id", "published_by_user_id"].map((column) => ({
         column,

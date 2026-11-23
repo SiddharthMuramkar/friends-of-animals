@@ -12,6 +12,8 @@
 
 import { and, asc, eq, lte } from "drizzle-orm";
 
+import inventoryMessages from "../../../../messages/en-IN/adminPrivacy.json";
+
 import type { AppDb } from "../../db/app-db";
 import { contactMessage } from "../../db/schema";
 import type {
@@ -39,26 +41,25 @@ const RETENTION: ContactInventoryEntry["retention"] = {
 
 /** Whoever wrote the message, found again by the address they gave. */
 const SENDER = { kind: "contact_sender", via: "email" } as const;
+const PURPOSES = inventoryMessages.adminPrivacy.inventory.purposes;
 
 const message = (
-  column: string,
+  column: keyof typeof PURPOSES.contact_message,
   category: PersonalDataCategory,
-  purpose: string,
   subject: InventoryEntry["subject"] = SENDER
 ): ContactInventoryEntry => ({
   table: "contact_message",
   column,
   category,
-  purpose,
+  purpose: PURPOSES.contact_message[column],
   subject,
   retention: RETENTION,
   onExpiry: "delete_row",
 });
 
 const note = (
-  column: string,
+  column: keyof typeof PURPOSES.contact_note,
   category: PersonalDataCategory,
-  purpose: string,
   subject: InventoryEntry["subject"] = {
     kind: "contact_sender",
     via: "message_id",
@@ -67,53 +68,25 @@ const note = (
   table: "contact_note",
   column,
   category,
-  purpose,
+  purpose: PURPOSES.contact_note[column],
   subject,
   retention: RETENTION,
   onExpiry: "delete_row",
 });
 
 export const CONTACT_INVENTORY: readonly ContactInventoryEntry[] = [
-  message("name", "identity", "Lets staff address the sender when they reply"),
-  message(
-    "email",
-    "contact",
-    "Where staff reply, and where the acknowledgement goes"
-  ),
-  message(
-    "organisation",
-    "identity",
-    "Tells staff which school or organisation wrote, when the sender gave one"
-  ),
-  message(
-    "subject",
-    "content",
-    "Tells staff at a glance what the message is about"
-  ),
-  message(
-    "message",
-    "content",
-    "What the sender asked or told FOA, so staff can answer"
-  ),
-  message(
-    "ip_hash",
-    "technical",
-    "A keyed hash of the sender's network, never the address, to spot " +
-      "repeated abuse of the form"
-  ),
-  message(
-    "assigned_to_user_id",
-    "identity",
-    "Records which member of staff is handling the message",
-    { kind: "user", via: "assigned_to_user_id" }
-  ),
-  note("body", "content", "What staff noted while handling the message"),
-  note(
-    "author_user_id",
-    "identity",
-    "Records which member of staff wrote the note",
-    { kind: "user", via: "author_user_id" }
-  ),
+  message("name", "identity"),
+  message("email", "contact"),
+  message("organisation", "identity"),
+  message("subject", "content"),
+  message("message", "content"),
+  message("ip_hash", "technical"),
+  message("assigned_to_user_id", "identity", {
+    kind: "user",
+    via: "assigned_to_user_id",
+  }),
+  note("body", "content"),
+  note("author_user_id", "identity", { kind: "user", via: "author_user_id" }),
 ];
 
 /** The policy #114's engine registers: delete closed messages, notes and all. */

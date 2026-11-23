@@ -18,7 +18,8 @@
         "author": "Post author",
         "consent_subject": "Person the consent is for",
         "contact_sender": "Contact sender",
-        "content_subject": "Person described in the post",
+        "content_subject": "Person described in the content",
+        "guardian_contact": "Guardian contact recorded for the participant",
         "institution": "Institution",
         "invitee": "Person invited",
         "participant_profile": "Participant profile",
@@ -68,6 +69,8 @@
         },
         "staffRecords": "While the record exists. Cleared when the staff member's account is deleted",
         "cmsRevisionAuthorship": "Kept with the revision, including after the staff account is deleted",
+        "cmsRevisionContent": "Kept with the revision. Published revisions are immutable",
+        "consentDocumentAuthorship": "Kept with the published consent version, including after the staff account is deleted",
         "files": "While the file is kept: as long as the record it belongs to (an entry, a proof, a post)",
         "contactMessages": "While the message is open, then {months} months after it is closed",
         "guardianInvitationLinks": "Until the invitation is accepted, withdrawn or expires"
@@ -99,10 +102,18 @@
           "author_name": "The byline a post shows, as its editor typed it (optional)",
           "body": "The text of the post, which may name or describe a person",
           "created_by": "Records which content manager started the post",
+          "easy_read": "The easy-read summary, which may name or describe a person",
           "excerpt": "The summary of the post, which may name or describe a person",
+          "seo_title": "The title shown in search results, which may name a person",
+          "slug": "The post's URL segment, which may include a person's name from the title",
+          "title": "The post's title, which may name a person",
           "updated_by": "Records which content manager last changed the post"
         },
+        "cms_post_image": {
+          "alt": "The image description, which may name or describe a person"
+        },
         "cms_revision": {
+          "body": "The page's text and facts, including the grievance officer's name and email in Site facts",
           "created_by_user_id": "Records who wrote a page revision",
           "published_by_user_id": "Records who published a page revision"
         },

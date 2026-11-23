@@ -16,8 +16,9 @@ listed and named with the `_ciphertext` suffix.
 ## Adding a column
 
 A ticket that adds a column holding personal data adds one entry to
-`DATA_INVENTORY` and the matching staff-facing purpose in
+the catalogue and a purpose message keyed by table and column in
 [`adminPrivacy.json`](../../messages/en-IN/adminPrivacy.json) in the same pull request.
+The catalogue and staff page both read the purpose from that message.
 
 - `table` and `column` give the names as Postgres has them.
 - `category` and `purpose` describe what the field holds and what FOA uses it for.
@@ -25,6 +26,8 @@ A ticket that adds a column holding personal data adds one entry to
   Add a staff-facing label in `subjectKinds` for a new kind. In a compound path,
   `entity_type` selects the record that `entity_id` identifies, and the invitation `kind`
   distinguishes an invited teen from a requested guardian found by `contact_hash`.
+  A guardian contact recorded during school enrolment is identified by the
+  contact fields on the participant's profile.
 - `retention.policy`, `retention.period` and `retention.basis` identify the policy key,
   the default period and why FOA keeps the field that long.
 - `retention.toConfirm` is `true` while the period awaits counsel confirmation (HR-31).

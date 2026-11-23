@@ -57,6 +57,32 @@ test("a staff admin reads the data inventory after signing in and passing their 
   await expect(
     notes.getByText(/24 months after it is closed/).first()
   ).toBeVisible();
+
+  const posts = page.locator("details").filter({
+    has: page.locator("summary").getByText("cms_post", { exact: true }),
+  });
+  await posts.locator("summary").press("Enter");
+  await expect(posts.getByText("easy_read", { exact: true })).toBeVisible();
+  await expect(
+    posts.getByText(
+      "The easy-read summary, which may name or describe a person"
+    )
+  ).toBeVisible();
+
+  const profiles = page.locator("details").filter({
+    has: page
+      .locator("summary")
+      .getByText("participant_profile", { exact: true }),
+  });
+  await profiles.locator("summary").press("Enter");
+  const guardianEmail = profiles.getByRole("listitem").filter({
+    has: page.getByText("guardian_email_ciphertext", { exact: true }),
+  });
+  await expect(
+    guardianEmail.getByText(
+      /^Guardian contact recorded for the participant via /
+    )
+  ).toBeVisible();
   await expectAccessibleInDark(page, PRIVACY);
 });
 
@@ -87,4 +113,12 @@ test("a signed-in finance user sees a refusal and no inventory rows", async ({
     })
   ).toBeVisible();
   await expect(page.locator("summary code")).toHaveCount(0);
+  await expect(
+    page.getByText("guardian_email_ciphertext", { exact: true })
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("What staff noted while handling the message", {
+      exact: true,
+    })
+  ).toHaveCount(0);
 });
