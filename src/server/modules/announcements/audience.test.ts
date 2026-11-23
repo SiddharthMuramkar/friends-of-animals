@@ -22,11 +22,14 @@ import { createHarness, type Harness } from "@/test/harness";
 import {
   planAnnouncementAudience,
   rosterGuardianPhoneAlias,
+  type AudiencePlan,
   type Candidate,
 } from "./domain/audience";
 import { loadAnnouncementAudience } from "./load-audience";
 
 const SHARED_PHONE = "+919000000401";
+const FAMILY_EMAIL = "family@example.test";
+const SECOND_GUARDIAN_PHONE = "+919000000402";
 const AGE_GROUPS = [{ label: "Everyone", minAge: 5, maxAge: 99 }];
 
 function sibling(fullName: string, guardianEmail?: string): StudentInput {
@@ -72,6 +75,25 @@ async function schoolRoster(h: Harness, name = "Audience School") {
       if (!result.ok) throw new Error(`Could not withdraw: ${result.error}`);
     },
   };
+}
+
+async function sharedMailboxRoster(h: Harness) {
+  const school = await schoolRoster(h);
+  await school.enrol(sibling("First Pupil", FAMILY_EMAIL));
+  await school.confirm();
+  const second = await school.enrol({
+    ...sibling("Second Pupil", FAMILY_EMAIL),
+    guardianName: "Second Guardian",
+    guardianPhone: SECOND_GUARDIAN_PHONE,
+  });
+  return { competitionId: school.competition.id, second };
+}
+
+function guardianDestinations(plan: AudiencePlan) {
+  return plan.deliveries
+    .filter(({ recipient }) => recipient.roles.includes("guardian"))
+    .map(({ channel, address }) => `${channel}:${address}`)
+    .sort();
 }
 
 function audience(
@@ -145,25 +167,13 @@ describe("loadAnnouncementAudience", () => {
 
   it("counts distinct roster guardians who share a mailbox and keeps both SMS destinations", async () => {
     const h = await createHarness();
-    const school = await schoolRoster(h);
-    const sharedEmail = "family@example.test";
-    const secondPhone = "+919000000402";
-    await school.enrol(sibling("First Pupil", sharedEmail));
-    await school.confirm();
-    await school.enrol({
-      ...sibling("Second Pupil", sharedEmail),
-      guardianName: "Second Guardian",
-      guardianPhone: secondPhone,
-    });
+    const { competitionId } = await sharedMailboxRoster(h);
 
-    const plan = await audience(h, school.competition.id, { smsEnabled: true });
+    const plan = await audience(h, competitionId, { smsEnabled: true });
 
     expect({
       counts: plan.counts,
-      guardianDeliveries: plan.deliveries
-        .filter(({ recipient }) => recipient.roles.includes("guardian"))
-        .map(({ channel, address }) => `${channel}:${address}`)
-        .sort(),
+      guardianDeliveries: guardianDestinations(plan),
     }).toEqual({
       counts: {
         recipients: 3,
@@ -173,11 +183,119 @@ describe("loadAnnouncementAudience", () => {
         unreachable: 0,
       },
       guardianDeliveries: [
-        `email:${sharedEmail}`,
+        `email:${FAMILY_EMAIL}`,
         `sms:${SHARED_PHONE}`,
-        `sms:${secondPhone}`,
+        `sms:${SECOND_GUARDIAN_PHONE}`,
       ],
     });
+  });
+
+  it("preserves both guardians' direct channels after signup with their shared mailbox", async () => {
+    const h = await createHarness();
+    const { competitionId, second } = await sharedMailboxRoster(h);
+    async function plans() {
+      const full = await audience(h, competitionId, { smsEnabled: true });
+      const subset = await audience(h, competitionId, {
+        smsEnabled: true,
+        registrationIds: new Set([second]),
+      });
+      return [full, subset].map((plan) => ({
+        counts: plan.counts,
+        guardianDeliveries: guardianDestinations(plan),
+      }));
+    }
+
+    const before = await plans();
+    expect(before).toEqual([
+      {
+        counts: {
+          recipients: 3,
+          participants: 0,
+          guardians: 2,
+          coordinators: 1,
+          unreachable: 0,
+        },
+        guardianDeliveries: [
+          `email:${FAMILY_EMAIL}`,
+          `sms:${SHARED_PHONE}`,
+          `sms:${SECOND_GUARDIAN_PHONE}`,
+        ],
+      },
+      {
+        counts: {
+          recipients: 2,
+          participants: 0,
+          guardians: 1,
+          coordinators: 1,
+          unreachable: 0,
+        },
+        guardianDeliveries: [
+          `email:${FAMILY_EMAIL}`,
+          `sms:${SECOND_GUARDIAN_PHONE}`,
+        ],
+      },
+    ]);
+
+    const visitor = h.as(h.visitor());
+    const signup = {
+      intent: "sign-up",
+      name: "Listed Guardian",
+      email: FAMILY_EMAIL,
+    } as const;
+    await visitor.requestEmailCode(signup);
+    const code = h.email.codeFor(FAMILY_EMAIL);
+    if (!code) throw new Error("Expected a signup code in the email fake");
+    await expect(
+      visitor.verifyEmailCode({ ...signup, code })
+    ).resolves.toMatchObject({
+      ok: true,
+      isNewAccount: true,
+    });
+
+    expect(await plans()).toEqual(before);
+  });
+
+  it("uses the shared mailbox account only for the guardian with its verified phone", async () => {
+    const h = await createHarness();
+    const { competitionId, second } = await sharedMailboxRoster(h);
+    const first = await h.seed.member({
+      name: "Listed Guardian",
+      email: FAMILY_EMAIL,
+      phone: SHARED_PHONE,
+    });
+
+    const full = await audience(h, competitionId, { smsEnabled: true });
+    const subset = await audience(h, competitionId, {
+      smsEnabled: true,
+      registrationIds: new Set([second]),
+    });
+
+    expect(
+      [full, subset].map((plan) => ({
+        recipients: plan.counts.recipients,
+        guardians: plan.counts.guardians,
+        guardianDeliveries: guardianDestinations(plan),
+      }))
+    ).toEqual([
+      {
+        recipients: 3,
+        guardians: 2,
+        guardianDeliveries: [
+          `email:${FAMILY_EMAIL}`,
+          `in_app:${first.id}`,
+          `sms:${SHARED_PHONE}`,
+          `sms:${SECOND_GUARDIAN_PHONE}`,
+        ],
+      },
+      {
+        recipients: 2,
+        guardians: 1,
+        guardianDeliveries: [
+          `email:${FAMILY_EMAIL}`,
+          `sms:${SECOND_GUARDIAN_PHONE}`,
+        ],
+      },
+    ]);
   });
 
   it("keeps a listed guardian phone on SMS when another account owns the number", async () => {
@@ -475,6 +593,24 @@ describe("loadAnnouncementAudience", () => {
         .filter(({ recipient }) => recipient.roles.includes("guardian"))
         .map(({ channel, address }) => `${channel}:${address}`)
     ).toEqual(["email:roster-guardian@example.test"]);
+  });
+
+  it("uses the independently listed guardian phone when a known minor owns the roster email", async () => {
+    const h = await createHarness();
+    const teen = await h.seed.member({ email: "teen@example.test" });
+    await h.seed.guardian({
+      children: [
+        { fullName: "Teen Participant", age: 15, loginUserId: teen.id },
+      ],
+    });
+    const school = await schoolRoster(h);
+    await school.enrol(sibling("School Pupil", teen.email));
+    await school.confirm();
+
+    const plan = await audience(h, school.competition.id, { smsEnabled: true });
+
+    expect(plan.counts).toMatchObject({ guardians: 1, unreachable: 0 });
+    expect(guardianDestinations(plan)).toEqual([`sms:${SHARED_PHONE}`]);
   });
 
   it("selects only eligible roster rows and their coordinators for a registration subset", async () => {

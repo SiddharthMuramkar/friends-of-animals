@@ -142,24 +142,24 @@ function rosterGuardianMatches(candidates: readonly Candidate[]) {
   return matches;
 }
 
-function sharedGuardianEmails(candidates: readonly Candidate[]): Set<string> {
+/** Mailboxes listed for guardians with distinct names and phones. */
+export function sharedGuardianEmails(
+  roster: readonly DetailsContact[]
+): Set<string> {
   const byEmail = new Map<
     string,
     { names: Set<string>; phones: Set<E164Phone> }
   >();
-  for (const candidate of candidates) {
-    if (candidate.role !== "guardian") continue;
-    for (const { kind, name, email, phone } of candidate.contacts) {
-      const normalizedName = name?.trim().toLowerCase();
-      if (kind !== "details" || !email || !phone || !normalizedName) continue;
-      const evidence = byEmail.get(email) ?? {
-        names: new Set<string>(),
-        phones: new Set<E164Phone>(),
-      };
-      evidence.names.add(normalizedName);
-      evidence.phones.add(phone);
-      byEmail.set(email, evidence);
-    }
+  for (const { name, email, phone } of roster) {
+    const normalizedName = name?.trim().toLowerCase();
+    if (!email || !phone || !normalizedName) continue;
+    const evidence = byEmail.get(email) ?? {
+      names: new Set<string>(),
+      phones: new Set<E164Phone>(),
+    };
+    evidence.names.add(normalizedName);
+    evidence.phones.add(phone);
+    byEmail.set(email, evidence);
   }
   const shared = new Set<string>();
   for (const [email, { names, phones }] of byEmail) {
@@ -178,12 +178,10 @@ function recipientKey(
   if (candidate.role === "guardian") {
     if (contact.email) {
       // A mailbox used by distinct named contacts remains one email destination.
-      const phoneAlias = sharedEmails.has(contact.email)
-        ? rosterGuardianPhoneAlias(contact)
-        : null;
-      return phoneAlias
-        ? `guardian-email:${JSON.stringify([contact.email, phoneAlias])}`
-        : `email:${contact.email}`;
+      if (!sharedEmails.has(contact.email)) return `email:${contact.email}`;
+      const phoneAlias = rosterGuardianPhoneAlias(contact);
+      if (phoneAlias)
+        return `guardian-email:${JSON.stringify([contact.email, phoneAlias])}`;
     }
     if (alias) return alias;
   }
@@ -195,11 +193,11 @@ function recipientKey(
 /** Counts people from their eligible channels and deduplicates addresses separately. */
 export function planAnnouncementAudience(
   candidates: readonly Candidate[],
-  channelsForContact: ChannelsForContact
+  channelsForContact: ChannelsForContact,
+  sharedEmails: ReadonlySet<string> = new Set<string>()
 ): AudiencePlan {
   const byKey = new Map<string, Recipient>();
   const guardianMatches = rosterGuardianMatches(candidates);
-  const sharedEmails = sharedGuardianEmails(candidates);
   const keysByCandidate = candidates.map((candidate) =>
     candidate.contacts.map((listed, index) => {
       const roster =

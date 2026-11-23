@@ -27,6 +27,7 @@ import { isUnder18On } from "./domain/age";
 import {
   planAnnouncementAudience,
   rosterGuardianPhoneAlias,
+  sharedGuardianEmails,
   type AccountContact,
   type AudiencePlan,
   type Candidate,
@@ -174,16 +175,14 @@ type AudienceRow = Awaited<ReturnType<typeof audienceRows>>[number];
 function readRosterContact(
   cipher: FieldCipher,
   row: AudienceRow,
-  minor: boolean
+  minor: boolean,
+  email = readRosterEmail(cipher, row, minor)
 ): DetailsContact {
   const read = (
     purpose: keyof typeof PROFILE_PURPOSE,
     stored: Ciphertext | null
   ) =>
     stored === null ? null : cipher.decrypt(PROFILE_PURPOSE[purpose], stored);
-  const email = minor
-    ? read("guardianEmail", row.guardianEmail)
-    : read("email", row.email);
   const rawPhone = minor
     ? read("guardianPhone", row.guardianPhone)
     : read("phone", row.phone);
@@ -191,9 +190,48 @@ function readRosterContact(
   return {
     kind: "details",
     name: minor ? read("guardianName", row.guardianName) : row.name,
-    email: email ? normaliseEmailAddress(email) || null : null,
+    email,
     phone: phone.ok ? phone.e164 : null,
   };
+}
+
+function readRosterEmail(
+  cipher: FieldCipher,
+  row: AudienceRow,
+  minor: boolean
+) {
+  const stored = minor ? row.guardianEmail : row.email;
+  if (stored === null) return null;
+  const purpose = PROFILE_PURPOSE[minor ? "guardianEmail" : "email"];
+  return normaliseEmailAddress(cipher.decrypt(purpose, stored)) || null;
+}
+
+async function sharedRosterGuardianEmails(
+  { db, cipher }: Deps,
+  input: AudienceInput,
+  selected: DetailsContact[]
+) {
+  if (!input.registrationIds) return sharedGuardianEmails(selected);
+  const selectedEmails = new Set(
+    selected.flatMap(({ email }) => (email ? [email] : []))
+  );
+  if (selectedEmails.size === 0) return new Set<string>();
+
+  // Mailbox conflicts elsewhere on the eligible roster still constrain account promotion.
+  const rows = await audienceRows(db, { ...input, registrationIds: undefined });
+  return sharedGuardianEmails(
+    rows.flatMap((row) => {
+      if (row.route !== "institution" || row.guardianEmail === null) return [];
+      const email = readRosterEmail(cipher, row, true);
+      if (
+        !email ||
+        !selectedEmails.has(email) ||
+        !isUnder18On(cipher.decrypt(PROFILE_PURPOSE.dob, row.dob), input.at)
+      )
+        return [];
+      return [readRosterContact(cipher, row, true, email)];
+    })
+  );
 }
 
 async function minorAccountsAt(deps: Deps, userIds: string[], at: Date) {
@@ -283,22 +321,25 @@ async function loadContacts(
     forGuardians(ids: readonly string[]) {
       return forUsers(ids.filter((id) => !minors.has(id)));
     },
-    forRoster(listed: DetailsContact) {
+    forRoster(listed: DetailsContact, sharedGuardianEmail = false) {
       const emailOwner = listed.email ? byEmail.get(listed.email) : undefined;
       const hash = listed.phone ? phoneHashes.get(listed.phone) : undefined;
       const phoneOwner = hash ? byPhoneHash.get(hash) : undefined;
       const minorEmail = emailOwner && minors.has(emailOwner.id);
       const minorPhone = phoneOwner && minors.has(phoneOwner.id);
-      // A roster phone can be a direct destination. Account channels
-      // require a verified email match or a verified guardian link.
-      const contact =
-        emailOwner?.emailVerified && !minorEmail
-          ? accountContact(deps, emailOwner)
-          : {
-              ...listed,
-              email: minorEmail ? null : listed.email,
-              phone: minorPhone ? null : listed.phone,
-            };
+      // A shared verified mailbox needs independent phone evidence for this guardian.
+      const verifiedEmailMatch =
+        emailOwner?.emailVerified &&
+        !minorEmail &&
+        (!sharedGuardianEmail ||
+          (phoneOwner?.phoneVerified && phoneOwner.id === emailOwner.id));
+      const contact = verifiedEmailMatch
+        ? accountContact(deps, emailOwner)
+        : {
+            ...listed,
+            email: minorEmail ? null : listed.email,
+            phone: minorPhone ? null : listed.phone,
+          };
       return { contact, minorPhone };
     },
   };
@@ -355,12 +396,21 @@ export async function loadAnnouncementAudience(
       ...[...guardiansByProfile.values()].flat(),
     ]),
   ];
-  const contacts = await loadContacts(
-    deps,
-    userIds,
-    participants.flatMap(({ roster }) => (roster ? [roster] : [])),
-    input.at
-  );
+  const [contacts, sharedEmails] = await Promise.all([
+    loadContacts(
+      deps,
+      userIds,
+      participants.flatMap(({ roster }) => (roster ? [roster] : [])),
+      input.at
+    ),
+    sharedRosterGuardianEmails(
+      deps,
+      input,
+      participants.flatMap(({ minor, roster }) =>
+        minor && roster ? [roster] : []
+      )
+    ),
+  ]);
 
   const candidates: Candidate[] = participants.map(
     ({ row, minor, userId, roster }) => {
@@ -379,7 +429,10 @@ export async function loadAnnouncementAudience(
       );
       if (!roster)
         return { participantProfileId, role: "guardian", contacts: linked };
-      const { contact, minorPhone } = contacts.forRoster(roster);
+      const { contact, minorPhone } = contacts.forRoster(
+        roster,
+        roster.email !== null && sharedEmails.has(roster.email)
+      );
       const alias = minorPhone ? null : rosterGuardianPhoneAlias(roster);
       // A verified link identifies a guardian for this profile. Assign its
       // account to a shared roster alias only with corroborating address evidence.
@@ -411,5 +464,9 @@ export async function loadAnnouncementAudience(
     role: "coordinator",
     contacts: contacts.forUsers(coordinators),
   });
-  return planAnnouncementAudience(candidates, input.channelsForContact);
+  return planAnnouncementAudience(
+    candidates,
+    input.channelsForContact,
+    sharedEmails
+  );
 }
