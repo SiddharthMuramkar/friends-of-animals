@@ -31,6 +31,11 @@ import { sendRegistrationConfirmation } from "../modules/registration/confirmati
 import { sendGuardianRequest } from "../modules/guardians/guardian-request-message";
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
 import { sendApprovedRefund } from "../modules/payments/refunds/sync-refund";
+import {
+  ledgerWorker,
+  postPaymentCapture,
+  postRefund,
+} from "../modules/ledger/consumers";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -95,6 +100,12 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
+  "ledger.post_capture": async (deps, { payload }) => {
+    await postPaymentCapture({ ...deps, actor: ledgerWorker }, payload);
+  },
+  "ledger.post_refund": async (deps, { payload }) => {
+    await postRefund({ ...deps, actor: ledgerWorker }, payload);
+  },
   // Sends the messages the event's route rows name (#69).
   "notifications.dispatch": dispatchEvent,
   "consent_links.deliver": (deps, { payload }) =>

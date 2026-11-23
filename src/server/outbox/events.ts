@@ -375,14 +375,14 @@ export const SUBSCRIBERS = {
     "notifications.dispatch",
   ],
   // The payer's receipt goes by route row (#77).
-  "payment.batch_captured": ["notifications.dispatch"],
+  "payment.batch_captured": ["notifications.dispatch", "ledger.post_capture"],
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).
   "guardian.teen_invited": ["guardians.send_teen_invitation"],
   // The one funnel to the gateway (#80): approval, system refunds, retries.
   "refund.approved": ["refunds.send"],
   // The payer's notice and finance's alert go by route row (#80).
-  "refund.processed": ["notifications.dispatch"],
+  "refund.processed": ["notifications.dispatch", "ledger.post_refund"],
   "refund.failed": ["notifications.dispatch"],
   // The guardian a teen names may have no account yet: the request goes to
   // the address the teen gave by its own handler (#81).
