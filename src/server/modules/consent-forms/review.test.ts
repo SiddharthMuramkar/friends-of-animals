@@ -89,7 +89,7 @@ describe("signed-form review", () => {
 
   it("rejects with a reason, sends one private inbox notice, and leaves consent unchanged", async () => {
     const w = await formWorld();
-    const { h, coordinator, school, target } = w;
+    const { h, coordinator, school, formScope } = w;
     const { formId } = await submitScan(w);
     const staff = h.as(await h.signIn(await h.seed.superAdmin()));
     expect(
@@ -133,9 +133,7 @@ describe("signed-form review", () => {
       title
     );
     expect(
-      await authorisedPerson.listSignedFormsForRegistration({
-        registrationId: target.registrationId,
-      })
+      await authorisedPerson.listSignedFormsForRegistration(formScope)
     ).toMatchObject({
       ok: true,
       students: [
@@ -187,12 +185,14 @@ describe("signed-form review", () => {
 
   it("rejects incomplete review metadata in the database for undecided forms", async () => {
     const w = await formWorld();
-    const { h, coordinator } = w;
+    const { h, formScope, coordinator } = w;
     const { formId } = await submitScan(w);
     const { userId } = await signInReviewer(h);
     for (const status of ["pending_review", "withdrawn"]) {
       if (status === "withdrawn") {
-        expect(await coordinator.withdrawConsentForm({ formId })).toEqual({
+        expect(
+          await coordinator.withdrawConsentForm({ ...formScope, formId })
+        ).toEqual({
           ok: true,
           status: "withdrawn",
         });

@@ -3,6 +3,7 @@ import { getFormatter, getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { downloadPathFor } from "@/app/account/files/_lib/upload";
 import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import {
   LegalSectionsText,
@@ -17,7 +18,6 @@ import { Section } from "@/components/site/section";
 import { adminConsentFormPath, APP_ROUTES } from "@/lib/app-routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
-import { StorageNotConfiguredError } from "@/server/ports/storage";
 
 import { ReviewForm } from "../_components/review-form";
 
@@ -65,8 +65,6 @@ async function FormDetails({ params }: { params: Params }) {
     } catch (error) {
       if (error instanceof DomainError && error.code === "forbidden")
         return null;
-      if (error instanceof StorageNotConfiguredError)
-        return { ok: false, error: "unavailable" } as const;
       throw error;
     }
   }, adminConsentFormPath(id));
@@ -108,6 +106,10 @@ async function FormDetails({ params }: { params: Params }) {
           <p className="mt-1 wrap-anywhere">
             {t("studentRef", { number: form.studentRef })}
           </p>
+        ) : form.enrolmentRef ? (
+          <p className="mt-1 wrap-anywhere">
+            {t("enrolmentRef", { reference: form.enrolmentRef })}
+          </p>
         ) : null}
         <p className="mt-3">
           <Chip tone="neutral">{t(`status.${form.status}`)}</Chip>
@@ -129,9 +131,9 @@ async function FormDetails({ params }: { params: Params }) {
       </div>
       <div>
         <p className="mb-2">{t(`scans.${form.scanStatus}`)}</p>
-        {form.download ? (
+        {form.scanAvailable ? (
           <a
-            href={form.download.url}
+            href={downloadPathFor(form.fileId)}
             rel="noopener noreferrer"
             target="_blank"
             className={buttonStyles({ variant: "secondary" })}
@@ -164,7 +166,7 @@ async function FormDetails({ params }: { params: Params }) {
         ) : (
           <ReviewForm
             formId={form.id}
-            canAccept={form.download !== null}
+            canAccept={form.scanAvailable}
             labels={{
               accept,
               acceptHint,

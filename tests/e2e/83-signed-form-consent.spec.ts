@@ -4,7 +4,10 @@ import {
   generateTotpSecret,
   totpCode,
 } from "../../src/server/modules/second-factor/domain/totp";
-import { SEED_REGISTRATIONS } from "../../src/server/seed/registration";
+import {
+  SEED_REGISTRATIONS,
+  SEED_STUDENTS,
+} from "../../src/server/seed/registration";
 import {
   expectAccessible,
   expectAccessibleInDark,
@@ -42,13 +45,13 @@ async function signInAsReviewer(
   await expect(page).toHaveURL(QUEUE);
 }
 
-async function openSignedForm(page: Page, student: string) {
+async function openSignedForm(page: Page, shortName: string, fullName: string) {
   await page
-    .getByRole("link", { name: `Review form for ${student}`, exact: true })
+    .getByRole("link", { name: `Review form for ${shortName}`, exact: true })
     .click();
-  const record = page.getByRole("article", { name: student, exact: true });
+  const record = page.getByRole("article", { name: fullName, exact: true });
   await expect(
-    record.getByRole("heading", { name: student, exact: true })
+    record.getByRole("heading", { name: fullName, exact: true })
   ).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: "Filter by review status" })
@@ -66,7 +69,10 @@ test("staff can read the signed-form queue and see an accessible rejection error
   await expectRendersAccessibly(page, QUEUE);
   await expectAccessibleInDark(page, "signed forms queue");
   const beforeReview = await transitions();
-  const record = await openSignedForm(page, "Diya N.");
+  const record = await openSignedForm(page, "Diya N.", "Diya Nair");
+  await expect(
+    record.getByText(`Enrolment reference ${SEED_STUDENTS[1]!.registrationId}`)
+  ).toBeVisible();
   await expect
     .poll(transitions, { message: "view transition when opening the review" })
     .toBeGreaterThan(beforeReview);
@@ -104,7 +110,7 @@ test("staff can read accepted, rejected and empty review states", async ({
   await expect
     .poll(transitions, { message: "view transition when filtering the queue" })
     .toBeGreaterThan(beforeFilter);
-  const accepted = await openSignedForm(page, "Aarav K.");
+  const accepted = await openSignedForm(page, "Aarav K.", "Aarav Kulkarni");
   await expectRendersAccessibly(page, new URL(page.url()).pathname);
   await expect(accepted.getByText("Accepted", { exact: true })).toBeVisible();
   await expect(
@@ -113,7 +119,7 @@ test("staff can read accepted, rejected and empty review states", async ({
   await expectAccessibleInDark(page, "accepted signed form");
 
   await page.goto(`${QUEUE}?status=rejected`);
-  const rejected = await openSignedForm(page, "Kabir J.");
+  const rejected = await openSignedForm(page, "Kabir J.", "Kabir Joshi");
   await expect(
     rejected.getByText("The form is missing a signature.")
   ).toBeVisible();
@@ -150,6 +156,12 @@ test("a coordinator can find signed-form status and open the upload control", as
   await expect(row("Diya Nair").getByText("Pending review")).toBeVisible();
   await expect(
     row("Kabir Joshi").getByText("The form is missing a signature.")
+  ).toBeVisible();
+  const granted = row("Aarav Kulkarni");
+  await expect(granted.getByText("Current public-use consent")).toBeVisible();
+  await expect(granted.getByText("Granted", { exact: true })).toBeVisible();
+  await expect(
+    row("Diya Nair").getByText("No current consent").first()
   ).toBeVisible();
   const student = row("Meher Iyer");
   await student.getByText("Upload a signed form", { exact: true }).click();

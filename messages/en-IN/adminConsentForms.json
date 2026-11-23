@@ -11,6 +11,7 @@
     "back": "Back to signed consent forms",
     "openForm": "Review form for {student}",
     "studentRef": "School roll number {number}",
+    "enrolmentRef": "Enrolment reference {reference}",
     "submitted": "Submitted {date}",
     "reviewed": "Reviewed by {reviewer} on {date}",
     "openScan": "Open private scan (new tab)",
@@ -58,6 +59,12 @@
     "coordinator": {
       "heading": "Signed form",
       "none": "No signed form submitted.",
+      "effectiveConsent": "Current public-use consent",
+      "consentStatus": {
+        "given": "Granted",
+        "withdrawn": "Withdrawn by guardian",
+        "not_granted": "No current consent"
+      },
       "upload": "Upload a signed form",
       "uploadFor": "Upload a signed form for {student}",
       "file": "Choose a scan",

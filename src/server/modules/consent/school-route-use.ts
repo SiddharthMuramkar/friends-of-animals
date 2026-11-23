@@ -17,6 +17,7 @@ import {
 import { resolvePublicCredit, type CreditPerson } from "./domain/public-credit";
 import {
   decideSchoolRouteUse,
+  isPublicPurpose,
   type CurrentConsent,
   type PublicPurpose,
   type UseDecision,
@@ -74,31 +75,28 @@ export async function schoolParticipationUse(
   });
 }
 
-/** Public credit from current evidence, using the same field limits as #82. */
-export async function schoolPublicCredit(
+type PublicConsentState = {
+  purpose: PublicPurpose;
+  status: "given" | "withdrawn" | "not_granted";
+};
+
+/** Resolve current evidence for the offered purposes of scoped school-route students. */
+export async function schoolPublicConsents(
   db: AppDb,
   {
-    profileId,
+    profileIds,
     competitionId,
-    use,
-    setup,
-    person,
-  }: Target & {
-    use: PublicUse;
-    setup: CompetitionConsentSetup;
-    person: CreditPerson;
+    offers,
+  }: {
+    profileIds: readonly string[];
+    competitionId: string;
+    offers: readonly { purpose: PublicPurpose; id: string }[];
   }
-) {
-  const purposes: PublicPurpose[] = [
-    publicationPurposeFor(use),
-    "display_school",
-    "display_city",
-  ];
-  const offers = offeredPurposes(setup).filter(({ purpose }) =>
-    purposes.some((needed) => needed === purpose)
-  );
+): Promise<Map<string, PublicConsentState[]>> {
+  if (profileIds.length === 0 || offers.length === 0) return new Map();
   const events = await db
-    .selectDistinctOn([consentEvent.purpose], {
+    .selectDistinctOn([consentEvent.subjectId, consentEvent.purpose], {
+      profileId: consentEvent.subjectId,
       purpose: consentEvent.purpose,
       action: consentEvent.action,
       method: consentEvent.method,
@@ -120,33 +118,88 @@ export async function schoolPublicCredit(
     .where(
       and(
         eq(consentEvent.subjectType, "participant_profile"),
-        eq(consentEvent.subjectId, profileId),
+        inArray(consentEvent.subjectId, profileIds),
         eq(consentEvent.competitionId, competitionId),
-        inArray(consentEvent.purpose, purposes)
+        inArray(
+          consentEvent.purpose,
+          offers.map(({ purpose }) => purpose)
+        )
       )
     )
-    .orderBy(consentEvent.purpose, desc(consentEvent.id));
+    .orderBy(
+      consentEvent.subjectId,
+      consentEvent.purpose,
+      desc(consentEvent.id)
+    );
 
+  const latestByPurpose = new Map(
+    events.map((event) => [`${event.profileId}/${event.purpose}`, event])
+  );
+  return new Map(
+    profileIds.map((profileId) => [
+      profileId,
+      offers.map(({ purpose, id }): PublicConsentState => {
+        const latest = latestByPurpose.get(`${profileId}/${purpose}`);
+        const consent: CurrentConsent =
+          !latest ||
+          latest.documentId !== id ||
+          (latest.method === "paper_form" &&
+            (latest.formStatus !== "accepted" ||
+              !latest.formUses?.includes(purpose) ||
+              latest.formDocuments?.[purpose]?.documentId !== id))
+            ? { status: "never" }
+            : { status: latest.action, method: latest.method };
+        const decision = decideSchoolRouteUse({
+          use: purpose,
+          institutionDeclared: false,
+          consent,
+        });
+        const status = decision.allowed
+          ? "given"
+          : decision.reason === "withdrawn"
+            ? "withdrawn"
+            : "not_granted";
+        return { purpose, status };
+      }),
+    ])
+  );
+}
+
+/** Public credit from current evidence, using the same field limits as #82. */
+export async function schoolPublicCredit(
+  db: AppDb,
+  {
+    profileId,
+    competitionId,
+    use,
+    setup,
+    person,
+  }: Target & {
+    use: PublicUse;
+    setup: CompetitionConsentSetup;
+    person: CreditPerson;
+  }
+) {
+  const purposes: PublicPurpose[] = [
+    publicationPurposeFor(use),
+    "display_school",
+    "display_city",
+  ];
+  const offers = offeredPurposes(setup).flatMap(({ purpose, document }) =>
+    isPublicPurpose(purpose) && purposes.includes(purpose)
+      ? [{ purpose, id: document.id }]
+      : []
+  );
+  const consents = await schoolPublicConsents(db, {
+    profileIds: [profileId],
+    competitionId,
+    offers,
+  });
   const given = new Set(
-    purposes.filter((purpose) => {
-      const attached = offers.find((offer) => offer.purpose === purpose)
-        ?.document.id;
-      const latest = events.find((event) => event.purpose === purpose);
-      const consent: CurrentConsent =
-        !latest ||
-        latest.documentId !== attached ||
-        (latest.method === "paper_form" &&
-          (latest.formStatus !== "accepted" ||
-            !latest.formUses?.includes(purpose) ||
-            latest.formDocuments?.[purpose]?.documentId !== attached))
-          ? { status: "never" }
-          : { status: latest.action, method: latest.method };
-      return decideSchoolRouteUse({
-        use: purpose,
-        institutionDeclared: false,
-        consent,
-      }).allowed;
-    })
+    consents
+      .get(profileId)
+      ?.filter(({ status }) => status === "given")
+      .map(({ purpose }) => purpose)
   );
   return resolvePublicCredit(person, use, given);
 }

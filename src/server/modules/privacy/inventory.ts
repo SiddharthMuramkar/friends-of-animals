@@ -154,6 +154,32 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
   },
   {
     table: "consent_form",
+    column: "competition_id",
+    purpose: "Identifies the competition covered by the guardian's signed form",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "institution_registration_id",
+    purpose:
+      "Connects the signed form to the student's school registration for review and coordinator access",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "uses",
+    purpose: "Records the public uses the guardian marked on the signed form",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "documents",
+    purpose:
+      "Preserves the exact consent document versions reviewed for the guardian's choices",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
     column: "uploaded_by_user_id",
     purpose: "Identifies the coordinator who submitted the form",
     retention: SIGNED_FORM_RECORD,
@@ -169,6 +195,13 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     column: "rejection_note",
     purpose:
       "Explains how the coordinator can correct the submission. Staff are asked to leave out personal details",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form_upload",
+    column: "file_asset_id",
+    purpose:
+      "Identifies the private scan upload bound to the student's enrolment",
     retention: SIGNED_FORM_RECORD,
   },
   {

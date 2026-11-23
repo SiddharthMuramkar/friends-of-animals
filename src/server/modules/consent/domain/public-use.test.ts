@@ -62,6 +62,10 @@ describe("decideSchoolRouteUse: participation and judging", () => {
       allowed: true,
       basis: "code_link",
     });
+    expect(decide("participation", false, given("web_form"))).toEqual({
+      allowed: true,
+      basis: "web_form",
+    });
     expect(decide("participation", false, given("staff_recorded"))).toEqual({
       allowed: false,
       reason: "no_declaration",
@@ -86,30 +90,27 @@ describe("decideSchoolRouteUse: public uses", () => {
     }
   });
 
-  it("follow a guardian's code link, accepted form or own account", () => {
-    expect(decide("public_display", true, given("otp_link"))).toEqual({
-      allowed: true,
-      basis: "code_link",
-    });
-    expect(decide("social_media", false, given("paper_form"))).toEqual({
-      allowed: true,
-      basis: "signed_form",
-    });
-    expect(decide("auction", true, given("web_form"))).toEqual({
-      allowed: true,
-      basis: "web_form",
-    });
-  });
-
-  it("refuse consent recorded by staff on someone's behalf", () => {
-    expect(decide("public_display", true, given("staff_recorded"))).toEqual({
-      allowed: false,
-      reason: "method_not_accepted",
-    });
-  });
+  it.each([
+    ["otp_link", { allowed: true, basis: "code_link" }],
+    ["paper_form", { allowed: true, basis: "signed_form" }],
+    ["web_form", { allowed: false, reason: "method_not_accepted" }],
+    ["staff_recorded", { allowed: false, reason: "method_not_accepted" }],
+  ] as const)(
+    "applies the school public-use rule for a %s grant",
+    (method, expected) => {
+      for (const purpose of PUBLIC_PURPOSES) {
+        expect(decide(purpose, true, given(method))).toEqual(expected);
+        expect(decide(purpose, false, given(method))).toEqual(expected);
+      }
+    }
+  );
 
   it("stop once consent is withdrawn", () => {
     expect(decide("display_school", true, withdrawn("otp_link"))).toEqual({
+      allowed: false,
+      reason: "withdrawn",
+    });
+    expect(decide("auction", true, withdrawn("web_form"))).toEqual({
       allowed: false,
       reason: "withdrawn",
     });

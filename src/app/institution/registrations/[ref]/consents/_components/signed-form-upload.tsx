@@ -9,6 +9,7 @@ import { inputStyles } from "@/components/form/text-field";
 import type { PublicPurpose } from "@/server/modules/consent/domain/public-use";
 import { PURPOSE_RULES } from "@/server/modules/files/domain/purposes";
 import type { Messages } from "@/i18n/messages";
+import type { UseCases } from "@/server/app";
 
 import {
   requestSignedFormUploadAction,
@@ -19,14 +20,15 @@ import type { SignedFormFeedback } from "./signed-form-command";
 type UploadError = keyof Messages["adminConsentForms"]["errors"];
 
 export function SignedFormUpload({
-  registrationId,
-  studentId,
+  target,
   offers,
   labels,
   feedback,
 }: {
-  registrationId: string;
-  studentId: string;
+  target: Omit<
+    Parameters<UseCases["requestConsentFormUpload"]>[0],
+    "contentType" | "sizeBytes"
+  >;
   offers: {
     purpose: PublicPurpose;
     id: string;
@@ -58,7 +60,6 @@ export function SignedFormUpload({
     setError(null);
     startUpload(async () => {
       try {
-        const target = { registrationId, studentId };
         const upload = await requestSignedFormUploadAction({
           ...target,
           contentType: file.type,

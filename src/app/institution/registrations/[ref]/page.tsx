@@ -167,9 +167,11 @@ async function Students({
     done === "enrolled" || done === "enrolledIgnored" || done === "withdrawn";
   const { enrolment } = list;
   const open = enrolment === "open";
-  const forms = await as(actor).listSignedFormsForRegistration({
+  const formScope = {
+    institutionId,
     registrationId: list.registrationId,
-  });
+  };
+  const forms = await as(actor).listSignedFormsForRegistration(formScope);
   const formsByStudent = new Map(
     forms.ok
       ? forms.students.map((student) => [student.enrolmentId, student])
@@ -228,9 +230,10 @@ async function Students({
         summary={feeSummary(list.counts)}
         payHref={payFeesPath(list.reference, institutionId)}
       />
-      {forms.ok ? (
+      {forms.ok &&
+      (forms.canDeclareParticipation || forms.participationDeclaredAt) ? (
         <ParticipationDeclaration
-          registrationId={list.registrationId}
+          scope={formScope}
           declaredAt={forms.participationDeclaredAt}
         />
       ) : null}
@@ -255,7 +258,7 @@ async function Students({
                   />
                   {forms.ok && signedForm ? (
                     <SignedFormCell
-                      registrationId={list.registrationId}
+                      scope={formScope}
                       student={signedForm}
                       studentName={student.fullName}
                       offers={forms.offers}

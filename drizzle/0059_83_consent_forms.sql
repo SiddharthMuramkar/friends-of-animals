@@ -48,6 +48,8 @@ ALTER TABLE "consent_form_upload" ADD CONSTRAINT "consent_form_upload_registrati
 CREATE UNIQUE INDEX "consent_form_one_pending_idx" ON "consent_form" USING btree ("participant_profile_id","competition_id") WHERE "consent_form"."status" = 'pending_review';--> statement-breakpoint
 CREATE INDEX "consent_form_status_submitted_idx" ON "consent_form" USING btree ("status","submitted_at");--> statement-breakpoint
 CREATE INDEX "consent_form_registration_idx" ON "consent_form" USING btree ("institution_registration_id","participant_profile_id");--> statement-breakpoint
+CREATE INDEX "consent_form_participant_profile_id_idx" ON "consent_form" USING btree ("participant_profile_id");--> statement-breakpoint
+CREATE INDEX "consent_form_competition_id_idx" ON "consent_form" USING btree ("competition_id");--> statement-breakpoint
 CREATE INDEX "consent_form_uploaded_by_user_id_idx" ON "consent_form" USING btree ("uploaded_by_user_id");--> statement-breakpoint
 CREATE INDEX "consent_form_reviewed_by_user_id_idx" ON "consent_form" USING btree ("reviewed_by_user_id");--> statement-breakpoint
 CREATE INDEX "consent_form_upload_registration_id_idx" ON "consent_form_upload" USING btree ("registration_id");--> statement-breakpoint

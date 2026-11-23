@@ -7,6 +7,7 @@ import {
   competition,
   consentDocument,
   consentForm,
+  consentFormUpload,
   fileAsset,
   institution,
   institutionRegistration,
@@ -19,7 +20,7 @@ import {
   firstNameAndInitial,
   nameParts,
 } from "../consent/domain/public-credit";
-import { getFileDownloadUrl } from "../files/use-cases/delivery";
+import { hasCleanScan } from "../files/use-cases/clean-scan";
 import { FORM_STATUSES } from "./domain/review";
 import { consentFormsAvailable } from "./scope";
 
@@ -34,9 +35,14 @@ function reviewRows(db: AppDb) {
       form: consentForm,
       fullName: participantProfile.fullName,
       studentRef: participantProfile.studentRef,
+      enrolmentRef: consentFormUpload.registrationId,
       competitionName: competition.name,
       institutionName: institution.name,
-      scanStatus: fileAsset.status,
+      scan: {
+        status: fileAsset.status,
+        bucket: fileAsset.bucket,
+        storageKey: fileAsset.storageKey,
+      },
       reviewerName: user.name,
     })
     .from(consentForm)
@@ -54,6 +60,10 @@ function reviewRows(db: AppDb) {
       eq(institution.id, institutionRegistration.institutionId)
     )
     .innerJoin(fileAsset, eq(fileAsset.id, consentForm.fileAssetId))
+    .leftJoin(
+      consentFormUpload,
+      eq(consentFormUpload.fileAssetId, consentForm.fileAssetId)
+    )
     .leftJoin(user, eq(user.id, consentForm.reviewedByUserId));
 }
 
@@ -62,7 +72,7 @@ function queueItem({
   institutionName,
   competitionName,
   fullName,
-  scanStatus,
+  scan,
 }: Awaited<ReturnType<typeof reviewRows>>[number]) {
   const { firstName, lastName } = nameParts(fullName);
   return {
@@ -73,7 +83,7 @@ function queueItem({
     studentName: firstNameAndInitial(firstName, lastName),
     institutionName,
     competitionName,
-    scanStatus,
+    scanStatus: scan.status,
   };
 }
 
@@ -127,16 +137,17 @@ export async function getConsentFormForReview(
       throw new Error("Signed form is missing a pinned document");
     return { purpose, ...pin, title: document.title, body: document.body };
   });
-  const delivery = await getFileDownloadUrl(ctx, { fileId: form.fileAssetId });
+  const scanAvailable = await hasCleanScan(ctx.storage, row.scan);
   return {
     ok: true,
     form: {
       ...queueItem(row),
+      studentName: row.fullName,
       studentRef: row.studentRef,
+      enrolmentRef: row.enrolmentRef,
       documents,
-      download: delivery.ok
-        ? { url: delivery.url, expiresAt: delivery.expiresAt }
-        : null,
+      fileId: form.fileAssetId,
+      scanAvailable,
       reviewedAt: form.reviewedAt,
       reviewerName: row.reviewerName,
       rejectionReason: form.rejectionReason,

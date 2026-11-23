@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { as, currentActor, type UseCases } from "@/server/app";
 import { DomainError } from "@/server/errors";
+import { schoolScopeInput } from "@/server/modules/consent-forms/scope";
 import { StorageNotConfiguredError } from "@/server/ports/storage";
 
 async function coordinatorAction<T>(run: (useCases: UseCases) => Promise<T>) {
@@ -44,8 +45,8 @@ export async function submitSignedFormAction(
 }
 
 const commandInput = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("declare"), registrationId: z.uuid() }),
-  z.object({ kind: z.literal("withdraw"), formId: z.uuid() }),
+  schoolScopeInput.extend({ kind: z.literal("declare") }),
+  schoolScopeInput.extend({ kind: z.literal("withdraw"), formId: z.uuid() }),
 ]);
 
 type Command = z.input<typeof commandInput>;
@@ -68,10 +69,8 @@ export async function signedFormCommandAction(
   const result = await coordinatorAction(async (useCases) => {
     const input = parsed.data;
     return input.kind === "declare"
-      ? useCases.declareParticipation({
-          registrationId: input.registrationId,
-        })
-      : useCases.withdrawConsentForm({ formId: input.formId });
+      ? useCases.declareParticipation(input)
+      : useCases.withdrawConsentForm(input);
   });
   if (!result.ok) return { error: result.error };
   refresh();

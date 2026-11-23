@@ -138,6 +138,10 @@ export const consentForm = pgTable(
       table.institutionRegistrationId,
       table.participantProfileId
     ),
+    index("consent_form_participant_profile_id_idx").on(
+      table.participantProfileId
+    ),
+    index("consent_form_competition_id_idx").on(table.competitionId),
     index("consent_form_uploaded_by_user_id_idx").on(table.uploadedByUserId),
     index("consent_form_reviewed_by_user_id_idx").on(table.reviewedByUserId),
     check(

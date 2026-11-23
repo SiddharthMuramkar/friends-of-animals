@@ -1,9 +1,8 @@
 // What a school-route student's work may be used for (#83). An
 // institution's declaration covers participation and judging only. Any
 // public use (gallery, credit fields, social media, auction) needs a
-// guardian's consent given by a code link, an accepted signed form, or the
-// guardian's own account. Without it, the student counts for participation
-// and judging and nothing else.
+// guardian's consent given by a code link or an accepted signed form.
+// Without it, the student counts for participation and judging only.
 //
 // Pure: callers load the subject's current consent for one purpose in one
 // competition and pass it in. Loads under plain Node: relative imports only.
@@ -53,11 +52,9 @@ export type UseDecision =
         | "method_not_accepted";
     };
 
-/** A guardian's own act, so it counts for public use. */
-const GUARDIAN_BASIS: Partial<Record<ConsentMethod, UseBasis>> = {
+const PUBLIC_USE_BASIS: Partial<Record<ConsentMethod, UseBasis>> = {
   otp_link: "code_link",
   paper_form: "signed_form",
-  web_form: "web_form",
 };
 
 export function isPublicPurpose(purpose: string): purpose is PublicPurpose {
@@ -65,14 +62,17 @@ export function isPublicPurpose(purpose: string): purpose is PublicPurpose {
 }
 
 /** Whether a guardian's consent supports the use, and on what basis. */
-function guardianConsent(consent: CurrentConsent): UseDecision {
+function guardianConsent(consent: CurrentConsent, use: Use): UseDecision {
   if (consent.status === "never") {
     return { allowed: false, reason: "no_guardian_consent" };
   }
   if (consent.status === "withdrawn") {
     return { allowed: false, reason: "withdrawn" };
   }
-  const basis = GUARDIAN_BASIS[consent.method];
+  const basis =
+    consent.method === "web_form" && !isPublicPurpose(use)
+      ? "web_form"
+      : PUBLIC_USE_BASIS[consent.method];
   return basis
     ? { allowed: true, basis }
     : { allowed: false, reason: "method_not_accepted" };
@@ -90,14 +90,14 @@ export function decideSchoolRouteUse(input: {
   consent: CurrentConsent;
 }): UseDecision {
   const { use, institutionDeclared, consent } = input;
-  if (isPublicPurpose(use)) return guardianConsent(consent);
+  if (isPublicPurpose(use)) return guardianConsent(consent, use);
   if (consent.status === "withdrawn") {
     return { allowed: false, reason: "withdrawn" };
   }
   if (institutionDeclared) {
     return { allowed: true, basis: "institution_declaration" };
   }
-  const guardian = guardianConsent(consent);
+  const guardian = guardianConsent(consent, use);
   return guardian.allowed
     ? guardian
     : { allowed: false, reason: "no_declaration" };

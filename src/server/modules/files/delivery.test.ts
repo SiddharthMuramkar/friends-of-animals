@@ -6,6 +6,7 @@ import { createApp } from "@/server/app";
 import { auditLog, consentEvent, fileAsset } from "@/server/db/schema";
 import {
   formWorld,
+  SCAN,
   signInReviewer,
   submitScan,
   uploadScan,
@@ -108,6 +109,35 @@ describe("getFileDownloadUrl", () => {
     expect(await fileReads(h)).toEqual([]);
   });
 
+  it("requires the staff session to pass its second factor before delivering a consent-form scan", async () => {
+    const w = await formWorld();
+    const { h } = w;
+    const fileId = await uploadScan(w);
+    await setStatus(h, fileId, "clean");
+    const { actor, userId } = await signInReviewer(h, false);
+    await h.seed.authenticator({ id: userId });
+    const staff = h.as(actor);
+    const sign = vi.spyOn(h.storage, "presignGet");
+    await expect(staff.getFileDownloadUrl({ fileId })).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    expect(sign).not.toHaveBeenCalled();
+    expect(await fileReads(h)).toEqual([]);
+
+    await h.passSecondFactor(actor);
+    const delivered = await staff.getFileDownloadUrl({ fileId });
+    if (!delivered.ok) throw new Error(`Delivery refused: ${delivered.error}`);
+    expect(await h.storage.get(delivered.url)).toMatchObject({
+      ok: true,
+      bytes: SCAN,
+      cacheControl: "private, no-store",
+    });
+    expect(sign).toHaveBeenCalledTimes(1);
+    expect(await fileReads(h)).toMatchObject([
+      { actorUserId: userId, actorRole: "staff_admin", entityId: fileId },
+    ]);
+  });
+
   it("refuses delivery and acceptance when a clean consent-form scan has no stored object", async () => {
     const w = await formWorld();
     const { h } = w;
@@ -125,6 +155,10 @@ describe("getFileDownloadUrl", () => {
     expect(await reviewer.getFileDownloadUrl({ fileId })).toEqual({
       ok: false,
       error: "file_unavailable",
+    });
+    expect(await reviewer.getConsentFormForReview({ formId })).toMatchObject({
+      ok: true,
+      form: { fileId, scanAvailable: false },
     });
     expect(
       await reviewer.reviewConsentForm({ formId, decision: "accept" })

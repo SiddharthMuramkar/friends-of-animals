@@ -18,8 +18,10 @@ import { presignUpload } from "../files/use-cases/upload";
 import { decideSubmit, decideWithdraw } from "./domain/review";
 import {
   authorizeSchool,
+  canCollectSchoolConsent,
   consentFormsAvailable,
   offeredFormPurposes,
+  schoolScopeInput,
   schoolStudent,
   targetInput,
 } from "./scope";
@@ -33,7 +35,7 @@ const submitInput = targetInput.extend({
   uses: z.array(z.string().max(64)).max(PUBLIC_PURPOSES.length),
   documentIds: z.partialRecord(z.enum(PUBLIC_PURPOSES), z.uuid()).optional(),
 });
-const formInput = z.object({ formId: z.uuid() });
+const formInput = schoolScopeInput.extend({ formId: z.uuid() });
 
 export async function requestConsentFormUpload(
   ctx: UseCaseContext,
@@ -41,16 +43,19 @@ export async function requestConsentFormUpload(
 ) {
   const parsed = uploadInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const { registrationId, studentId, contentType, sizeBytes } = parsed.data;
+  const { studentId, contentType, sizeBytes } = parsed.data;
   return ctx.db.transaction(async (tx) => {
     const { school } = await authorizeSchool(
       ctx,
       tx,
       "consent_form.submit",
-      registrationId
+      parsed.data,
+      { lock: true }
     );
     if (!consentFormsAvailable(ctx))
       return { ok: false, error: "unavailable" } as const;
+    if (!canCollectSchoolConsent(school))
+      return { ok: false, error: "not_found" } as const;
     const student = await schoolStudent(ctx, tx, school, studentId);
     if (!student) return { ok: false, error: "not_found" } as const;
     const upload = await presignUpload(ctx, tx, {
@@ -78,18 +83,20 @@ export async function submitConsentForm(
       ctx,
       tx,
       "consent_form.submit",
-      registrationId
+      parsed.data,
+      { lock: true }
     );
     if (!consentFormsAvailable(ctx))
       return { ok: false, error: "unavailable" } as const;
+    if (!canCollectSchoolConsent(school))
+      return { ok: false, error: "not_found" } as const;
     // Serialize submissions for this student, including when no form exists yet.
     // Also share the lock that orders the student's consent log.
+    if (!(await schoolStudent(ctx, tx, school, studentId)))
+      return { ok: false, error: "not_found" } as const;
+    await lockProfileSubject(tx, studentId);
     const student = await schoolStudent(ctx, tx, school, studentId);
     if (!student) return { ok: false, error: "not_found" } as const;
-    await lockProfileSubject(tx, studentId);
-    if (!(await schoolStudent(ctx, tx, school, studentId))) {
-      return { ok: false, error: "not_found" } as const;
-    }
     const [file] = await tx
       .select({ status: fileAsset.status })
       .from(fileAsset)
@@ -185,23 +192,23 @@ export async function withdrawConsentForm(
   if (!parsed.success) return invalidInput(parsed.error);
   const { formId } = parsed.data;
   return ctx.db.transaction(async (tx) => {
-    const [form] = await tx
-      .select({ registrationId: consentForm.institutionRegistrationId })
-      .from(consentForm)
-      .where(eq(consentForm.id, formId));
-    if (!form) throw new DomainError("forbidden", "May not withdraw this form");
-    const { role } = await authorizeSchool(
+    const { role, school } = await authorizeSchool(
       ctx,
       tx,
       "consent_form.withdraw",
-      form.registrationId
+      parsed.data
     );
     if (!consentFormsAvailable(ctx))
       return { ok: false, error: "unavailable" } as const;
+    const target = and(
+      eq(consentForm.id, formId),
+      eq(consentForm.institutionRegistrationId, school.id),
+      eq(consentForm.competitionId, school.competitionId)
+    );
     const [current] = await tx
       .select({ status: consentForm.status })
       .from(consentForm)
-      .where(eq(consentForm.id, formId))
+      .where(target)
       .for("update");
     if (!current)
       throw new DomainError("forbidden", "May not withdraw this form");
@@ -211,7 +218,7 @@ export async function withdrawConsentForm(
     await tx
       .update(consentForm)
       .set({ ...decision.patch, withdrawnAt: now, updatedAt: now })
-      .where(eq(consentForm.id, formId));
+      .where(target);
     await recordAudit(tx, ctx, {
       action: "consent_form.withdrawn",
       entity: { type: "consent_form", id: formId },

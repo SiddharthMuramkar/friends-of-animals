@@ -42,11 +42,15 @@ export async function formWorld() {
     .select({ studentId: registration.participantProfileId })
     .from(registration)
     .where(eq(registration.id, enrolled.registrationId));
-  const target = {
+  const formScope = {
+    institutionId: school.institutionId,
     registrationId: school.registrationId,
+  };
+  const target = {
+    ...formScope,
     studentId: student!.studentId,
   };
-  return { h, school, coordinator, target };
+  return { h, school, coordinator, formScope, target };
 }
 
 export type FormWorld = Awaited<ReturnType<typeof formWorld>>;

@@ -6,6 +6,7 @@ import {
   competitionConsentDocument,
   consentEvent,
   fileAsset,
+  guardianLink,
 } from "@/server/db/schema";
 import { uuidv7 } from "@/server/ids";
 import {
@@ -18,25 +19,24 @@ import { publicUse, schoolParticipationUse } from "./index";
 
 describe("school-route use", () => {
   it("records participation and judging once through the school's coordinator", async () => {
-    const { h, target, school, coordinator } = await formWorld();
+    const { h, target, school, coordinator, formScope } = await formWorld();
     const scope = {
       profileId: target.studentId,
       competitionId: school.competition.id,
     };
-    const declaration = { registrationId: school.registrationId };
     const member = h.as(await h.signIn(await h.seed.member()));
-    await expect(
-      member.declareParticipation(declaration)
-    ).rejects.toMatchObject({ code: "forbidden" });
+    await expect(member.declareParticipation(formScope)).rejects.toMatchObject({
+      code: "forbidden",
+    });
     expect(
       await schoolParticipationUse(h.deps, { ...scope, use: "participation" })
     ).toEqual({ allowed: false, reason: "no_declaration" });
-    expect(await coordinator.declareParticipation(declaration)).toMatchObject({
+    expect(await coordinator.declareParticipation(formScope)).toMatchObject({
       ok: true,
       declaredAt: h.clock.now(),
     });
     h.clock.advance({ minutes: 1 });
-    expect(await coordinator.declareParticipation(declaration)).toMatchObject({
+    expect(await coordinator.declareParticipation(formScope)).toMatchObject({
       ok: true,
     });
     for (const use of ["participation", "judging"] as const) {
@@ -61,9 +61,9 @@ describe("school-route use", () => {
     ).toHaveLength(1);
   });
 
-  it("applies approved credit options, refuses staff-recorded consent and respects a later guardian withdrawal", async () => {
+  it("applies approved credit options, refuses account and staff-recorded grants and respects a guardian withdrawal", async () => {
     const w = await formWorld();
-    const { h, target, school } = w;
+    const { h, target, school, formScope, coordinator } = w;
     const scope = {
       profileId: target.studentId,
       competitionId: school.competition.id,
@@ -83,6 +83,32 @@ describe("school-route use", () => {
       documentId: display.consentDocumentId,
       giverUserId: school.coordinator.userId,
     };
+    const { account, guardianId } = await h.seed.guardian({ children: [] });
+    await h.db.insert(guardianLink).values({
+      id: uuidv7(h.clock.now()),
+      guardianId,
+      participantProfileId: target.studentId,
+      relationship: "parent",
+      createdAt: h.clock.now(),
+    });
+    const guardian = h.as(await h.signIn(account));
+    const guardianScope = {
+      childId: scope.profileId,
+      competitionId: scope.competitionId,
+      purpose: "public_display" as const,
+    };
+    h.clock.advance({ minutes: 1 });
+    expect(
+      await guardian.giveChildConsent({
+        ...guardianScope,
+        documentId: display.consentDocumentId,
+      })
+    ).toEqual({ ok: true, changed: true });
+    expect
+      .soft(await publicUse(h.deps, { ...scope, use: "gallery" }))
+      .toBeNull();
+
+    h.clock.advance({ minutes: 1 });
     await h.db.insert(consentEvent).values({
       ...event,
       id: uuidv7(h.clock.now()),
@@ -92,6 +118,7 @@ describe("school-route use", () => {
     });
     expect(await publicUse(h.deps, { ...scope, use: "gallery" })).toBeNull();
 
+    h.clock.advance({ minutes: 1 });
     const { formId, fileId } = await submitScan(w, [
       "public_display",
       "auction",
@@ -117,13 +144,23 @@ describe("school-route use", () => {
 
     // A later event from the verified guardian path must take precedence over the form.
     h.clock.advance({ minutes: 1 });
-    await h.db.insert(consentEvent).values({
-      ...event,
-      id: uuidv7(h.clock.now()),
-      method: "web_form",
-      action: "withdrawn",
-      occurredAt: h.clock.now(),
+    expect(await guardian.withdrawChildConsent(guardianScope)).toEqual({
+      ok: true,
+      changed: true,
     });
     expect(await publicUse(h.deps, { ...scope, use: "gallery" })).toBeNull();
+    expect(
+      await coordinator.listSignedFormsForRegistration(formScope)
+    ).toMatchObject({
+      ok: true,
+      students: [
+        {
+          form: { id: formId, status: "accepted" },
+          effectiveConsent: expect.arrayContaining([
+            { purpose: "public_display", status: "withdrawn" },
+          ]),
+        },
+      ],
+    });
   });
 });

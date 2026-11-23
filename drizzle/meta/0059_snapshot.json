@@ -1,6 +1,6 @@
 {
-  "id": "dfc1fcf7-1d6b-4be7-8c55-72d2197cb654",
-  "prevId": "31923f6e-23bb-4c00-a899-12cb4b1624a4",
+  "id": "383475e3-bd7a-4682-b609-8c11c96a284a",
+  "prevId": "7bc14f33-c7ff-4e14-9760-ec4bdff534ef",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2431,6 +2431,36 @@
             },
             {
               "expression": "participant_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "consent_form_participant_profile_id_idx": {
+          "name": "consent_form_participant_profile_id_idx",
+          "columns": [
+            {
+              "expression": "participant_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "consent_form_competition_id_idx": {
+          "name": "consent_form_competition_id_idx",
+          "columns": [
+            {
+              "expression": "competition_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

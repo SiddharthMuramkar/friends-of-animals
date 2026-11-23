@@ -3,15 +3,18 @@ import { getMessages, getTranslations } from "next-intl/server";
 import { Disclosure } from "@/components/site/disclosure";
 import { SectionHeading } from "@/components/site/heading";
 import type { SignedFormsForRegistration } from "@/server/modules/consent-forms/dashboard";
+import type { UseCases } from "@/server/app";
 
 import { SignedFormCommand } from "./signed-form-command";
 import { SignedFormUpload } from "./signed-form-upload";
 
+type SchoolScope = Parameters<UseCases["listSignedFormsForRegistration"]>[0];
+
 export async function ParticipationDeclaration({
-  registrationId,
+  scope,
   declaredAt,
 }: {
-  registrationId: string;
+  scope: SchoolScope;
   declaredAt: Date | null;
 }) {
   const { adminConsentForms: words, common } = await getMessages();
@@ -28,7 +31,7 @@ export async function ParticipationDeclaration({
         <>
           <p>{declareHint}</p>
           <SignedFormCommand
-            command={{ kind: "declare", registrationId }}
+            command={{ kind: "declare", ...scope }}
             label={declare}
             pendingLabel={words.submitting}
             feedback={{ errors: words.errors, problem: common.callout.danger }}
@@ -40,12 +43,12 @@ export async function ParticipationDeclaration({
 }
 
 export async function SignedFormCell({
-  registrationId,
+  scope,
   student,
   studentName,
   offers,
 }: {
-  registrationId: string;
+  scope: SchoolScope;
   student: SignedFormsForRegistration["students"][number];
   studentName: string;
   offers: SignedFormsForRegistration["offers"];
@@ -54,7 +57,7 @@ export async function SignedFormCell({
     getTranslations("adminConsentForms"),
     getMessages(),
   ]);
-  const { form, studentId } = student;
+  const { form, studentId, canWithdraw, effectiveConsent } = student;
   const feedback = { errors: words.errors, problem: common.callout.danger };
   const { file, limits, uses, submit, uploading } = words.coordinator;
   return (
@@ -67,9 +70,9 @@ export async function SignedFormCell({
       {form?.rejectionNote ? (
         <p className="wrap-anywhere">{form.rejectionNote}</p>
       ) : null}
-      {form?.status === "pending_review" ? (
+      {canWithdraw && form ? (
         <SignedFormCommand
-          command={{ kind: "withdraw", formId: form.id }}
+          command={{ kind: "withdraw", ...scope, formId: form.id }}
           label={words.coordinator.withdraw}
           accessibleName={t("coordinator.withdrawFor", {
             student: studentName,
@@ -80,8 +83,7 @@ export async function SignedFormCell({
       ) : student.uploadEligible && offers.length > 0 ? (
         <Disclosure summary={t("coordinator.upload")}>
           <SignedFormUpload
-            registrationId={registrationId}
-            studentId={studentId}
+            target={{ ...scope, studentId }}
             offers={offers.map(({ purpose, id, title, version }) => ({
               purpose,
               id,
@@ -101,6 +103,22 @@ export async function SignedFormCell({
             feedback={feedback}
           />
         </Disclosure>
+      ) : null}
+      {effectiveConsent.length > 0 ? (
+        <div className="grid gap-1">
+          <p className="font-semibold">{t("coordinator.effectiveConsent")}</p>
+          <dl className="grid gap-1 text-sm">
+            {effectiveConsent.map(({ purpose, status }) => (
+              <div
+                key={purpose}
+                className="flex flex-wrap justify-between gap-x-4"
+              >
+                <dt>{t(`purposes.${purpose}`)}</dt>
+                <dd>{t(`coordinator.consentStatus.${status}`)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       ) : null}
     </div>
   );
