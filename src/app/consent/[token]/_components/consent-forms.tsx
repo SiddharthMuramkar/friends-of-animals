@@ -1,10 +1,8 @@
 "use client";
 
-import { useFormatter, useTranslations } from "next-intl";
 import { useActionState } from "react";
 
 import { FormAlert, SubmitButton, TextField } from "@/components/form";
-import { documentVersionPath } from "@/server/modules/competitions/domain/consent-attachments";
 import type { OfferedPublicUse } from "@/server/modules/consent-links/offered-uses";
 
 import {
@@ -13,26 +11,19 @@ import {
   verifyCodeAction,
 } from "../actions";
 
-type Failure = Awaited<
-  ReturnType<
-    typeof sendCodeAction | typeof verifyCodeAction | typeof saveAnswersAction
-  >
->;
+type SubmitLabels = { submit: string; pending: string; danger: string };
 
-function ActionError({ state }: { state: Failure | null }) {
-  const t = useTranslations("guardianConsent.errors");
-  const callout = useTranslations("common.callout");
-  const format = useFormatter();
-  if (!state) return null;
-  const values = {
-    ...("attemptsLeft" in state ? { attemptsLeft: state.attemptsLeft } : {}),
-    ...("retryAt" in state && state.retryAt
-      ? { retryTime: format.dateTime(state.retryAt, "longDateTime") }
-      : {}),
-  };
+function ActionError({
+  message,
+  label,
+}: {
+  message: string | undefined;
+  label: string;
+}) {
+  if (!message) return null;
   return (
-    <FormAlert tone="danger" label={callout("danger")}>
-      {t(state.error, values)}
+    <FormAlert tone="danger" label={label}>
+      {message}
     </FormAlert>
   );
 }
@@ -40,28 +31,28 @@ function ActionError({ state }: { state: Failure | null }) {
 export function SendCodeForm({
   token,
   resend,
+  labels,
 }: {
   token: string;
   resend: boolean;
+  labels: SubmitLabels;
 }) {
-  const t = useTranslations("guardianConsent");
   const [state, action] = useActionState(
     sendCodeAction.bind(null, token),
     null
   );
-  const label = t(resend ? "resendCode" : "sendCode");
   return (
     <form
       action={action}
-      aria-label={label}
+      aria-label={labels.submit}
       className="flex flex-col items-start gap-3"
     >
-      <ActionError state={state} />
+      <ActionError message={state?.message} label={labels.danger} />
       <SubmitButton
         variant={resend ? "secondary" : "primary"}
-        pendingLabel={t("sending")}
+        pendingLabel={labels.pending}
       >
-        {label}
+        {labels.submit}
       </SubmitButton>
     </form>
   );
@@ -69,28 +60,32 @@ export function SendCodeForm({
 
 export function VerifyCodeForm({
   token,
-  contact,
+  labels,
 }: {
   token: string;
-  contact: string;
+  labels: SubmitLabels & { code: string; hint: string };
 }) {
-  const t = useTranslations("guardianConsent");
   const [state, action] = useActionState(
     verifyCodeAction.bind(null, token),
     null
   );
+  const codeError =
+    state?.error === "wrong_code" || state?.error === "invalid_code"
+      ? state.message
+      : undefined;
   return (
     <form
       action={action}
-      aria-label={t("verify")}
+      aria-label={labels.submit}
       className="flex flex-col items-start gap-4"
     >
-      <ActionError state={state} />
+      <ActionError message={state?.message} label={labels.danger} />
       <TextField
         id="consent-code"
         name="code"
-        label={t("code")}
-        hint={t("codeHint", { contact })}
+        label={labels.code}
+        hint={labels.hint}
+        error={codeError}
         type="text"
         inputMode="numeric"
         autoComplete="one-time-code"
@@ -100,19 +95,26 @@ export function VerifyCodeForm({
         maxLength={6}
         required
       />
-      <SubmitButton pendingLabel={t("verifying")}>{t("verify")}</SubmitButton>
+      <SubmitButton pendingLabel={labels.pending}>{labels.submit}</SubmitButton>
     </form>
   );
 }
 
+type AnswerUse = {
+  purpose: OfferedPublicUse["purpose"];
+  label: string;
+  document: { href: string; label: string };
+};
+
 export function AnswersForm({
   token,
   uses,
+  labels,
 }: {
   token: string;
-  uses: readonly OfferedPublicUse[];
+  uses: readonly AnswerUse[];
+  labels: SubmitLabels & { choices: { give: string; decline: string } };
 }) {
-  const t = useTranslations("guardianConsent");
   const [state, action] = useActionState(
     saveAnswersAction.bind(null, token),
     null
@@ -120,25 +122,23 @@ export function AnswersForm({
   return (
     <form
       action={action}
-      aria-label={t("answer")}
+      aria-label={labels.submit}
       className="flex flex-col items-start gap-5"
     >
-      <ActionError state={state} />
-      {uses.map(({ purpose, title, version }) => (
+      <ActionError message={state?.message} label={labels.danger} />
+      {uses.map(({ purpose, label, document }) => (
         <fieldset
           key={purpose}
           className="w-full rounded-2xl border-2 border-border px-4 py-3"
         >
-          <legend className="px-1 font-bold text-ink">
-            {t(`uses.${purpose}`)}
-          </legend>
+          <legend className="px-1 font-bold text-ink">{label}</legend>
           <a
-            href={documentVersionPath(purpose, version)}
+            href={document.href}
             target="_blank"
             rel="noreferrer"
             className="font-semibold text-link underline wrap-anywhere"
           >
-            {t("viewDocument", { title, version })}
+            {document.label}
           </a>
           <div className="mt-2 flex flex-wrap gap-x-5">
             {(["give", "decline"] as const).map((answer) => (
@@ -152,13 +152,13 @@ export function AnswersForm({
                   value={answer}
                   required
                 />
-                {t(`choices.${answer}`)}
+                {labels.choices[answer]}
               </label>
             ))}
           </div>
         </fieldset>
       ))}
-      <SubmitButton pendingLabel={t("saving")}>{t("answer")}</SubmitButton>
+      <SubmitButton pendingLabel={labels.pending}>{labels.submit}</SubmitButton>
     </form>
   );
 }

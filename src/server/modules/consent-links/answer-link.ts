@@ -1,8 +1,10 @@
 import { eq } from "drizzle-orm";
 
 import { authorize } from "../../access/can";
+import type { RequestMeta } from "../../actor";
 import { recordAudit } from "../../audit/record";
-import { consentLink, type ConsentLink } from "../../db/schema";
+import { competition, consentLink, type ConsentLink } from "../../db/schema";
+import { sqlState } from "../../errors";
 import type { UseCaseContext } from "../../use-cases";
 import {
   appendConsentEvent,
@@ -14,7 +16,8 @@ import {
 } from "../consent/domain/consent-state";
 import { lockProfileSubject, subjectEvents } from "../consent/repository";
 import { checkAnswers } from "./domain/answers";
-import { decideAnswer } from "./domain/link";
+import { closedReason, decideAnswer } from "./domain/link";
+import { offeredPublicUses, samePublicUses } from "./offered-uses";
 import { sessionMatches, tokenHash, type LinkInput } from "./public-link";
 import { activeLinkTarget, CLOSED_LINK_SECRETS, findLink } from "./repository";
 
@@ -44,21 +47,58 @@ export async function answerConsentLink(
   const actor = ctx.actor;
   if (!hash || actor.kind === "system")
     return { ok: false, error: "not_found" } as const;
+  return saveAnswers(ctx, input, hash, actor.meta).catch((error: unknown) => {
+    // Drizzle errors include bound evidence values. Report only the SQLSTATE
+    // once the transaction has rolled back, before returning to the action.
+    const code = sqlState(error);
+    ctx.errors.report(new Error("Could not save consent link choices"), {
+      where: "answerConsentLink",
+      ...(code ? { tags: { sqlState: code } } : {}),
+    });
+    return { ok: false, error: "save_failed" } as const;
+  });
+}
+
+async function saveAnswers(
+  ctx: UseCaseContext,
+  input: AnswerConsentLinkInput,
+  hash: string,
+  meta: RequestMeta
+) {
   const seen = await findLink(ctx.db, hash);
   if (!seen) return { ok: false, error: "not_found" } as const;
   const initial = answerDecision(ctx, seen, input);
-  if (!initial.ok) return { ok: false, error: initial.reason } as const;
+  if (!initial.ok) {
+    const open =
+      initial.reason === "not_verified" || initial.reason === "window_closed";
+    const error =
+      open && !(await activeLinkTarget(ctx.db, seen))
+        ? "not_found"
+        : initial.reason;
+    return { ok: false, error } as const;
+  }
 
   return ctx.db.transaction(async (tx) => {
-    // The same profile lock as account consent and registration (#82),
-    // acquired before locking the link, as in replacement sends.
+    // Keep pins stable through the append. Take the competition, profile and
+    // link locks in the same order as replacement sends and account consent.
+    await tx
+      .select({ id: competition.id })
+      .from(competition)
+      .where(eq(competition.id, seen.competitionId))
+      .for("share");
     await lockProfileSubject(tx, seen.participantProfileId);
     const link = await findLink(tx, hash, true);
     if (!link) return { ok: false, error: "not_found" } as const;
+    const closed = closedReason(link, ctx.clock.now());
+    if (closed) return { ok: false, error: closed } as const;
+    const target = await activeLinkTarget(tx, link, true);
+    if (!target) return { ok: false, error: "not_found" } as const;
     const decision = answerDecision(ctx, link, input);
     if (!decision.ok) return { ok: false, error: decision.reason } as const;
-    if (!(await activeLinkTarget(tx, link, true)))
-      return { ok: false, error: "revoked" } as const;
+
+    const offers = await offeredPublicUses(tx, target.school.competition);
+    if (!samePublicUses(link.offeredUses, offers))
+      return { ok: false, error: "stale_request" } as const;
 
     const answers = input.answers;
     if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
@@ -71,7 +111,7 @@ export async function answerConsentLink(
     const evidenceContext = {
       db: tx,
       clock: ctx.clock,
-      actor: { kind: "visitor", meta: actor.meta } as const,
+      actor: { kind: "visitor", meta } as const,
     };
     const subject = {
       type: "participant_profile",

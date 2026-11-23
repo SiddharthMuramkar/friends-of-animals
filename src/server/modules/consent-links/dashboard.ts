@@ -9,7 +9,7 @@ import { parseInstitutionRegistrationReference } from "../registration/domain/in
 import { PROFILE_PURPOSE } from "../registration/student-profile";
 import { linkStatus } from "./domain/link";
 import { studentConsentStatus } from "./domain/student-status";
-import { offeredPublicUses } from "./offered-uses";
+import { offeredPublicUses, samePublicUses } from "./offered-uses";
 import {
   consentLinksActive,
   linksForRegistration,
@@ -32,10 +32,14 @@ export async function listStudentConsents(
   ctx: UseCaseContext,
   input: ListStudentConsentsInput
 ) {
+  await authorize(
+    ctx,
+    "consent_link.list",
+    institutionResource(input?.institutionId)
+  );
   const parsed = listInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { contactFor, institutionId } = parsed.data;
-  await authorize(ctx, "consent_link.list", institutionResource(institutionId));
   const key =
     "registrationId" in parsed.data
       ? { id: parsed.data.registrationId }
@@ -114,7 +118,11 @@ export async function listStudentConsents(
         ...status,
         name,
         studentId,
-        canSendLink: status.canSendLink && offers.length > 0,
+        canSendLink:
+          offers.length > 0 &&
+          (status.canSendLink ||
+            (latest !== undefined &&
+              !samePublicUses(latest.offeredUses, offers))),
         revocableLinkId: latest?.status === "pending" ? latest.id : null,
       };
     }),

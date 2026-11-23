@@ -97,7 +97,7 @@ export async function viewConsentLink(
   if (closed)
     return { status: closed === "already_used" ? "used" : closed } as const;
   const target = await activeLinkTarget(ctx.db, link);
-  if (!target) return { status: "revoked" } as const;
+  if (!target) return { status: "not_found" } as const;
   const state = linkStatus(link, now);
   const verifiedAt =
     state === "verified" &&
@@ -137,6 +137,10 @@ export async function sendConsentLinkCode(
     const link = await findLink(tx, hash, true);
     if (!link) return { ok: false, error: "not_found" } as const;
     const now = ctx.clock.now();
+    const closed = closedReason(link, now);
+    if (closed) return { ok: false, error: closed } as const;
+    if (!(await activeLinkTarget(tx, link)))
+      return { ok: false, error: "not_found" } as const;
     const decision = decideSendCode(link, now);
     if (!decision.ok) {
       return decision.reason === "wait"
@@ -147,8 +151,6 @@ export async function sendConsentLinkCode(
           } as const)
         : ({ ok: false, error: decision.reason } as const);
     }
-    if (!(await activeLinkTarget(tx, link)))
-      return { ok: false, error: "revoked" } as const;
     if (link.channel === "sms" && !smsEnabled) {
       return { ok: false, error: "sms_disabled" } as const;
     }
@@ -210,7 +212,7 @@ export async function verifyConsentLinkCode(
     const closed = closedReason(link, now);
     if (closed) return { ok: false, error: closed } as const;
     if (!(await activeLinkTarget(tx, link)))
-      return { ok: false, error: "revoked" } as const;
+      return { ok: false, error: "not_found" } as const;
 
     const matches =
       typeof input.code === "string" &&

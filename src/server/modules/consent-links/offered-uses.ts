@@ -13,6 +13,20 @@ export type OfferedPublicUse = {
   title: string;
 };
 
+export function samePublicUses(
+  linked: readonly OfferedPublicUse[],
+  current: readonly OfferedPublicUse[]
+): boolean {
+  return (
+    linked.length === current.length &&
+    current.every(({ purpose, documentId }) =>
+      linked.some(
+        (offer) => offer.purpose === purpose && offer.documentId === documentId
+      )
+    )
+  );
+}
+
 /** Only independent publication choices belong on a school consent link. */
 export async function offeredPublicUses(
   db: AppDb,

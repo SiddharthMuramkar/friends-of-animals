@@ -144,6 +144,20 @@ it("checks coordinator scope before lookup and keeps registrations inside that s
     reference: "TEST26-I-00000",
   };
   const forbidden = { code: "forbidden" };
+  const malformed = { ...missing, registrationId: "invalid" };
+  await expect
+    .soft(other.sendConsentLink({ ...world.send, ...malformed }))
+    .rejects.toMatchObject(forbidden);
+  await expect
+    .soft(other.revokeConsentLink({ ...malformed, linkId: issued.linkId }))
+    .rejects.toMatchObject(forbidden);
+  await expect
+    .soft(other.listStudentConsents(malformed))
+    .rejects.toMatchObject(forbidden);
+  expect(await world.coordinator.listStudentConsents(malformed)).toMatchObject({
+    ok: false,
+    error: "invalid_input",
+  });
   await expect
     .soft(other.sendConsentLink({ ...world.send, ...missing }))
     .rejects.toMatchObject(forbidden);

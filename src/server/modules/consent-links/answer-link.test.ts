@@ -2,11 +2,13 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { auditLog, consentLink } from "@/server/db/schema";
+import { sqlState } from "@/server/errors";
+import { signInManager } from "@/server/modules/competitions/terms/testing";
 import {
   consentRows,
   publishNextVersion,
-  reattach,
 } from "@/server/modules/consent/testing";
+import { signedInStaff } from "@/server/modules/institutions/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { consentLinkWorld, deliveredToken, GUARDIAN_EMAIL } from "./testing";
@@ -49,8 +51,8 @@ describe("answerConsentLink", () => {
         { documentId: world.documents.social_media.id },
       ],
     });
+    // A new publication does not change the competition's attached version.
     const next = await publishNextVersion(h, "public_display");
-    await reattach(h, world.competition.id, "public_display", next.id);
 
     const input = { ...credentials, answers };
     expect(await browser.answerConsentLink(input)).toEqual({ ok: true });
@@ -113,6 +115,13 @@ describe("answerConsentLink", () => {
     ]);
     expect(JSON.stringify(linkAudit).includes(credentials.token)).toBe(false);
 
+    const manager = h.as(await signInManager(h));
+    expect(
+      await manager.attachConsentDocument({
+        competitionId: world.competition.id,
+        purpose: "public_display",
+      })
+    ).toMatchObject({ ok: true, changed: true, document: { id: next.id } });
     const renewed = await verifiedLink(h, world);
     expect(
       await visitor.answerConsentLink({
@@ -138,6 +147,200 @@ describe("answerConsentLink", () => {
         },
       },
     ]);
+  });
+
+  it("refuses stale choices after a document is repinned and lets the school replace the link", async () => {
+    const h = await createHarness();
+    const world = await consentLinkWorld(h);
+    const old = await verifiedLink(h, world);
+    const visitor = h.as(h.visitor());
+    const { institutionId, registrationId, competition } = world;
+    const query = { institutionId, registrationId };
+    expect(await visitor.viewConsentLink(old)).toMatchObject({
+      status: "verified",
+      uses: expect.arrayContaining([
+        expect.objectContaining({
+          purpose: "public_display",
+          documentId: world.documents.public_display.id,
+          version: world.documents.public_display.version,
+        }),
+      ]),
+    });
+
+    const next = await publishNextVersion(h, "public_display");
+    const manager = h.as(await signInManager(h));
+    expect(
+      await manager.attachConsentDocument({
+        competitionId: competition.id,
+        purpose: "public_display",
+      })
+    ).toMatchObject({ ok: true, changed: true, document: { id: next.id } });
+
+    await expect
+      .soft(visitor.answerConsentLink({ ...old, answers }))
+      .resolves.toEqual({
+        ok: false,
+        error: "stale_request",
+      });
+    const { events, audit, outbox } = await consentRows(h);
+    expect
+      .soft([events.length, audit.length, outbox.length])
+      .toEqual([0, 0, 0]);
+    expect
+      .soft(await world.coordinator.listStudentConsents(query))
+      .toMatchObject({
+        ok: true,
+        students: [
+          {
+            publicUse: "none",
+            given: [],
+            canSendLink: true,
+            revocableLinkId: old.linkId,
+          },
+        ],
+      });
+
+    const replacement = await verifiedLink(h, world);
+    expect(await visitor.viewConsentLink(old)).toEqual({ status: "revoked" });
+    expect(await visitor.viewConsentLink(replacement)).toMatchObject({
+      status: "verified",
+      uses: expect.arrayContaining([
+        expect.objectContaining({
+          purpose: "public_display",
+          documentId: next.id,
+          version: next.version,
+        }),
+      ]),
+    });
+    expect(
+      await visitor.answerConsentLink({ ...replacement, answers })
+    ).toEqual({ ok: true });
+    expect(
+      (await consentRows(h)).events.map(({ documentId }) => documentId)
+    ).toEqual([next.id]);
+    expect(await world.coordinator.listStudentConsents(query)).toMatchObject({
+      ok: true,
+      students: [
+        { link: "answered", publicUse: "some", given: ["public_display"] },
+      ],
+    });
+  });
+
+  it("keeps a suspended school's link unavailable until the school is reinstated", async () => {
+    const h = await createHarness();
+    const world = await consentLinkWorld(h);
+    const verified = await verifiedLink(h, world);
+    const visitor = h.as(h.visitor());
+    const staff = h.as(await signedInStaff(h));
+    const decision = {
+      institutionId: world.institutionId,
+      reason: "Synthetic review",
+    };
+    expect(
+      await staff.decideInstitution({ ...decision, decision: "suspend" })
+    ).toMatchObject({ ok: true, status: "suspended" });
+    const [before] = await h.db
+      .select()
+      .from(consentLink)
+      .where(eq(consentLink.id, verified.linkId));
+    const messageCount = h.email.sent.length;
+
+    expect
+      .soft(await visitor.viewConsentLink(verified))
+      .toEqual({ status: "not_found" });
+    const unavailable = { ok: false, error: "not_found" };
+    expect
+      .soft(await visitor.sendConsentLinkCode(verified))
+      .toEqual(unavailable);
+    expect
+      .soft(await visitor.verifyConsentLinkCode(verified))
+      .toEqual(unavailable);
+    expect
+      .soft(await visitor.answerConsentLink({ ...verified, answers }))
+      .toEqual(unavailable);
+    expect
+      .soft(await visitor.answerConsentLink({ token: verified.token, answers }))
+      .toEqual(unavailable);
+    const [after] = await h.db
+      .select()
+      .from(consentLink)
+      .where(eq(consentLink.id, verified.linkId));
+    expect(before?.status).toBe("pending");
+    expect(JSON.stringify(after) === JSON.stringify(before)).toBe(true);
+    expect(h.email.sent).toHaveLength(messageCount);
+    expect((await consentRows(h)).events).toHaveLength(0);
+
+    expect(
+      await staff.decideInstitution({ ...decision, decision: "verify" })
+    ).toMatchObject({ ok: true, outcome: "reinstated" });
+    expect(await visitor.viewConsentLink(verified)).toMatchObject({
+      status: "verified",
+    });
+    expect(await visitor.answerConsentLink({ ...verified, answers })).toEqual({
+      ok: true,
+    });
+  });
+
+  it("rolls back every choice on a database failure and reports only a safe diagnostic", async () => {
+    const h = await createHarness();
+    const world = await consentLinkWorld(h);
+    const verified = await verifiedLink(h, world);
+    const visitor = h.as(h.visitor());
+    // Fail the second evidence insert after the first event and its audit.
+    await h.db.$client.exec(`
+      ALTER TABLE consent_event ADD CONSTRAINT test_refuse_social_consent
+      CHECK (purpose <> 'social_media')
+    `);
+    const input = {
+      ...verified,
+      answers: { ...answers, social_media: "give" },
+    };
+    const result = await visitor
+      .answerConsentLink(input)
+      .catch((error: unknown) => ({ uncaught: sqlState(error) }));
+    expect.soft(result).toEqual({ ok: false, error: "save_failed" });
+    expect.soft(h.errors.reported).toMatchObject([
+      {
+        message: "Could not save consent link choices",
+        tags: { where: "answerConsentLink", sqlState: "23514" },
+        extra: {},
+      },
+    ]);
+    const [diagnostic] = h.errors.reported;
+    expect
+      .soft(
+        diagnostic?.error instanceof Error && !("cause" in diagnostic.error)
+      )
+      .toBe(true);
+    const [link] = await h.db
+      .select({ contactHash: consentLink.contactHash })
+      .from(consentLink)
+      .where(eq(consentLink.id, verified.linkId));
+    const output = JSON.stringify(h.errors.reported);
+    for (const value of [
+      world.studentId,
+      verified.linkId,
+      verified.token,
+      verified.sessionToken,
+      link?.contactHash,
+      "social_media",
+    ]) {
+      expect(Boolean(value && output.includes(value))).toBe(false);
+    }
+    expect(await consentRows(h)).toMatchObject({
+      events: [],
+      audit: [],
+      outbox: [],
+    });
+    expect(await visitor.viewConsentLink(verified)).toMatchObject({
+      status: "verified",
+    });
+
+    await h.db.$client.exec(
+      "ALTER TABLE consent_event DROP CONSTRAINT test_refuse_social_consent"
+    );
+    expect(await visitor.answerConsentLink(input)).toEqual({ ok: true });
+    expect((await consentRows(h)).events).toHaveLength(2);
   });
 
   it("keeps the link open when answers or the answer session are invalid", async () => {

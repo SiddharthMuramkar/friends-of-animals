@@ -66,6 +66,14 @@ test("a coordinator sends a link and a signed-out guardian answers once using th
   const manage = page.getByRole("link", { name: "Manage guardian consents" });
   const dashboard = studentConsentsPath(reference, institutionId);
   await expect(manage).toHaveAttribute("href", dashboard);
+  const dashboardDocument = await page.request.get(dashboard);
+  expect
+    .soft(
+      (await dashboardDocument.text()).includes(
+        "Text messages are unavailable. Send the link by email."
+      )
+    )
+    .toBe(false);
   await expectRendersAccessibly(page, dashboard);
   const row = page.getByRole("row").filter({ hasText: STUDENT });
   await expect(row.getByText("Not sent")).toBeVisible();
@@ -86,6 +94,13 @@ test("a coordinator sends a link and a signed-out guardian answers once using th
   await page.context().clearCookies();
   const response = await page.goto(path);
   expect(response?.status()).toBe(200);
+  expect
+    .soft(
+      (await response?.text())?.includes(
+        "This code is locked. Request a new code."
+      )
+    )
+    .toBe(false);
   const headers = response?.headers();
   expect(headers?.["referrer-policy"]).toBe("no-referrer");
   expect(headers?.["cache-control"]).toContain("no-store");
@@ -120,6 +135,8 @@ test("a coordinator sends a link and a signed-out guardian answers once using th
   await expect(
     page.getByRole("alert").filter({ hasText: "4 attempts left" })
   ).toBeVisible();
+  await expect.soft(entry).toHaveAttribute("aria-invalid", "true");
+  await expect.soft(entry).toHaveAccessibleDescription(/4 attempts left/);
   const answerBy = new Date(Date.now() + 5 * 60_000);
   answerBy.setMilliseconds(0);
   await setLinkExpiry(token, answerBy);

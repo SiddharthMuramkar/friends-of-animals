@@ -63,6 +63,8 @@
       "wrong_code": "That code didn’t match. {attemptsLeft, plural, =0 {Request a new code.} one {# attempt left.} other {# attempts left.}}",
       "not_verified": "Verify with a new code before saving your choices.",
       "window_closed": "Your answer window ended. Request a new code to continue.",
+      "stale_request": "The consent choices for this competition have changed. Ask your school for a new link.",
+      "save_failed": "We couldn’t save your choices. Please try again.",
       "nothing_offered": "There are no public-use choices on this link.",
       "unanswered": "Choose an answer for each use before saving.",
       "not_offered": "This link includes different choices. Reload the page and try again.",

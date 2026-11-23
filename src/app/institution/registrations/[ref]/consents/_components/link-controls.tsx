@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import {
   useActionState,
   useCallback,
@@ -20,6 +19,30 @@ import {
 } from "../actions";
 
 type Contact = Awaited<ReturnType<typeof suggestContactAction>>;
+type Channel = "email" | "sms";
+
+type SendFormLabels = {
+  title: string;
+  channel: string;
+  methods: Record<Channel, string>;
+  addresses: Record<Channel, string>;
+  submit: string;
+  pending: string;
+  danger: string;
+};
+
+type LinkControlLabels = {
+  send: string;
+  revoke: string;
+  revoking: string;
+  sentNotice: string;
+  revokedNotice: string;
+  dialogTitle: string;
+  dialogHint: string;
+  loadingContact: string;
+  cancel: string;
+  form: SendFormLabels;
+};
 
 function SendLinkForm({
   institutionId,
@@ -28,6 +51,7 @@ function SendLinkForm({
   smsEnabled,
   contact,
   onSent,
+  labels,
 }: {
   institutionId: string;
   registrationId: string;
@@ -35,12 +59,11 @@ function SendLinkForm({
   smsEnabled: boolean;
   contact: Contact;
   onSent: () => void;
+  labels: SendFormLabels;
 }) {
-  const t = useTranslations("coordinatorConsents");
-  const common = useTranslations("common.callout");
   const addressId = useId();
   const addressField = useRef<HTMLInputElement>(null);
-  const [channel, setChannel] = useState<"email" | "sms">("email");
+  const [channel, setChannel] = useState<Channel>("email");
   const [state, action] = useActionState(
     sendLinkAction.bind(null, institutionId, registrationId, studentId),
     null
@@ -54,12 +77,12 @@ function SendLinkForm({
   return (
     <form
       action={action}
-      aria-label={t("sendTitle")}
+      aria-label={labels.title}
       className="mt-5 flex flex-col gap-4"
     >
       {smsEnabled ? (
         <fieldset>
-          <legend className="font-semibold text-ink">{t("channel")}</legend>
+          <legend className="font-semibold text-ink">{labels.channel}</legend>
           <div className="flex flex-wrap gap-x-5">
             {(["email", "sms"] as const).map((value) => (
               <label
@@ -73,7 +96,7 @@ function SendLinkForm({
                   checked={channel === value}
                   onChange={() => setChannel(value)}
                 />
-                {t(value)}
+                {labels.methods[value]}
               </label>
             ))}
           </div>
@@ -82,8 +105,8 @@ function SendLinkForm({
         <input type="hidden" name="channel" value="email" />
       )}
       {state && !state.ok ? (
-        <FormAlert tone="danger" label={common("danger")}>
-          {t(`errors.${state.error}`)}
+        <FormAlert tone="danger" label={labels.danger}>
+          {state.message}
         </FormAlert>
       ) : null}
       <TextField
@@ -91,15 +114,15 @@ function SendLinkForm({
         key={channel}
         id={addressId}
         name="address"
-        label={t(channel === "email" ? "emailAddress" : "phoneNumber")}
+        label={labels.addresses[channel]}
         type={channel === "email" ? "email" : "tel"}
         autoComplete="off"
         defaultValue={contact?.[channel] ?? ""}
-        error={invalidAddress ? t("errors.invalid_input") : undefined}
+        error={invalidAddress ? state.message : undefined}
         required
       />
-      <SubmitButton pendingLabel={t("sending")} className="self-start">
-        {t("send")}
+      <SubmitButton pendingLabel={labels.pending} className="self-start">
+        {labels.submit}
       </SubmitButton>
     </form>
   );
@@ -109,23 +132,19 @@ export function LinkControls({
   institutionId,
   registrationId,
   studentId,
-  name,
   canSend,
-  replaces,
   smsEnabled,
   revocableLinkId,
+  labels,
 }: {
   institutionId: string;
   registrationId: string;
   studentId: string;
-  name: string;
   canSend: boolean;
-  replaces: boolean;
   smsEnabled: boolean;
   revocableLinkId: string | null;
+  labels: LinkControlLabels;
 }) {
-  const t = useTranslations("coordinatorConsents");
-  const common = useTranslations("common.callout");
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [contact, setContact] = useState<Contact | undefined>();
@@ -165,25 +184,25 @@ export function LinkControls({
           className={buttonStyles({ variant: "secondary" })}
           onClick={showSendDialog}
         >
-          {t(replaces ? "replace" : "send")}
+          {labels.send}
         </button>
       ) : null}
       {revocableLinkId ? (
-        <form action={revokeAction} aria-label={t("revoke")}>
-          <SubmitButton variant="quiet" pendingLabel={t("revoking")}>
-            {t("revoke")}
+        <form action={revokeAction} aria-label={labels.revoke}>
+          <SubmitButton variant="quiet" pendingLabel={labels.revoking}>
+            {labels.revoke}
           </SubmitButton>
         </form>
       ) : null}
       {sent ? (
-        <output className="text-sm text-ink">{t("sentNotice")}</output>
+        <output className="text-sm text-ink">{labels.sentNotice}</output>
       ) : null}
       {revoke?.ok ? (
-        <output className="text-sm text-ink">{t("revokedNotice")}</output>
+        <output className="text-sm text-ink">{labels.revokedNotice}</output>
       ) : null}
       {revoke && !revoke.ok ? (
-        <FormAlert tone="danger" label={common("danger")}>
-          {t(`errors.${revoke.error}`)}
+        <FormAlert tone="danger" label={labels.form.danger}>
+          {revoke.message}
         </FormAlert>
       ) : null}
       <dialog
@@ -193,13 +212,11 @@ export function LinkControls({
         className="m-auto w-[calc(100%_-_2rem)] max-w-md overflow-auto overscroll-contain rounded-3xl border-2 border-border bg-surface p-5 text-ink shadow-warm backdrop:bg-black/60 sm:p-6"
       >
         <h2 id={titleId} className="text-xl font-bold">
-          {t(replaces ? "replaceTitle" : "sendTitle")}
+          {labels.dialogTitle}
         </h2>
-        <p className="mt-2 text-ink-muted">
-          {t(replaces ? "replaceHint" : "sendHint", { student: name })}
-        </p>
+        <p className="mt-2 text-ink-muted">{labels.dialogHint}</p>
         {open && contact === undefined ? (
-          <output className="mt-4">{t("loadingContact")}</output>
+          <output className="mt-4">{labels.loadingContact}</output>
         ) : null}
         {open && contact !== undefined ? (
           <SendLinkForm
@@ -209,6 +226,7 @@ export function LinkControls({
             smsEnabled={smsEnabled}
             contact={contact}
             onSent={onSent}
+            labels={labels.form}
           />
         ) : null}
         <button
@@ -216,7 +234,7 @@ export function LinkControls({
           className={buttonStyles({ variant: "quiet", className: "mt-2" })}
           onClick={() => dialog.current?.close()}
         >
-          {t("cancel")}
+          {labels.cancel}
         </button>
       </dialog>
     </div>

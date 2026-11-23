@@ -142,6 +142,7 @@ export function linksForRegistration(db: AppDb, registrationId: string) {
       expiresAt: consentLink.expiresAt,
       codesSent: consentLink.codesSent,
       verifiedAt: consentLink.verifiedAt,
+      offeredUses: consentLink.offeredUses,
     })
     .from(consentLink)
     .where(eq(consentLink.institutionRegistrationId, registrationId))

@@ -15,7 +15,7 @@ import { normaliseEmailAddress } from "../../ports/email";
 import { lockProfileSubject } from "../consent/repository";
 import { institutionResource } from "../institutions/coordinators/policy";
 import { decideRevoke, linkExpiresAt, linkStatus } from "./domain/link";
-import { offeredPublicUses } from "./offered-uses";
+import { offeredPublicUses, samePublicUses } from "./offered-uses";
 import {
   CLOSED_LINK_SECRETS,
   consentLinksActive,
@@ -69,11 +69,11 @@ export async function sendConsentLink(
   ctx: UseCaseContext,
   input: SendConsentLinkInput
 ) {
+  const resource = institutionResource(input?.institutionId);
+  await authorize(ctx, "consent_link.send", resource);
   const parsed = sendInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { institutionId, registrationId, studentId, channel } = parsed.data;
-  const resource = institutionResource(institutionId);
-  await authorize(ctx, "consent_link.send", resource);
   const key = { id: registrationId, institutionId };
   const initial = await schoolRegistration(ctx.db, key);
   if (!initial) return { ok: false, error: "not_found" } as const;
@@ -142,7 +142,8 @@ export async function sendConsentLink(
     if (pending) {
       if (
         pending.studentRegistrationId === student.registrationId &&
-        linkStatus(pending, now) === "verified"
+        linkStatus(pending, now) === "verified" &&
+        samePublicUses(pending.offeredUses, offers)
       ) {
         return { ok: false, error: "already_verified" } as const;
       }
@@ -205,11 +206,11 @@ export async function revokeConsentLink(
   ctx: UseCaseContext,
   input: RevokeConsentLinkInput
 ) {
+  const resource = institutionResource(input?.institutionId);
+  await authorize(ctx, "consent_link.revoke", resource);
   const parsed = revokeInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { institutionId, registrationId, linkId } = parsed.data;
-  const resource = institutionResource(institutionId);
-  await authorize(ctx, "consent_link.revoke", resource);
   if (!consentLinksActive(ctx.appEnv))
     return { ok: false, error: "unavailable" } as const;
   return ctx.db.transaction(async (tx) => {
