@@ -35,7 +35,11 @@ import {
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
-import { endUnpaidBatch, lockBatch } from "./batches";
+import {
+  endUnpaidBatch,
+  lockBatch,
+  lockBatchAndParticipation,
+} from "./batches";
 import { captureBatch, registrationsAtCapture } from "./capture";
 import { startSystemRefund } from "./refunds/start-system-refund";
 import {
@@ -101,7 +105,7 @@ export async function resolvePaymentReviewCase(
         if (!found) return { ok: false, error: "not_found" };
         // The batch first, then its case: the order the capture funnel
         // locks them in.
-        const batch = await lockBatch(tx, found.batchId);
+        const batch = await lockBatchAndParticipation(tx, found.batchId);
         if (!batch) return { ok: false, error: "not_found" };
         const [reviewCase] = await tx
           .select()

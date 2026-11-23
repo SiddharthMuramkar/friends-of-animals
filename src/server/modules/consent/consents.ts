@@ -38,6 +38,7 @@ import {
 } from "./domain/purposes";
 import {
   latestDocument,
+  latestProfileEventId,
   lockUserSubject,
   subjectEvents,
   type ConsentSubject,
@@ -128,8 +129,21 @@ export async function appendConsentEvent(
   state: ConsentState,
   event: ConsentEventToAppend
 ): Promise<string> {
-  const now = nextEventTime(state, ctx.clock.now());
-  const id = nextEventId(now);
+  const now = ctx.clock.now();
+  let occurredAt = now;
+  let id: string;
+  if (event.subject.type === "participant_profile") {
+    // Under the profile lock, use the UUIDv7 timestamp as the append order
+    // across purposes, while preserving the actual occurrence time.
+    const lastId = await latestProfileEventId(tx, event.subject.id);
+    const lastMs = lastId
+      ? Number.parseInt(lastId.replaceAll("-", "").slice(0, 12), 16)
+      : -1;
+    id = nextEventId(new Date(Math.max(now.getTime(), lastMs + 1)));
+  } else {
+    occurredAt = nextEventTime(state, now);
+    id = nextEventId(occurredAt);
+  }
   await tx.insert(consentEvent).values({
     id,
     subjectType: event.subject.type,
@@ -140,7 +154,7 @@ export async function appendConsentEvent(
     action: event.action,
     method: event.method,
     competitionId: event.competitionId ?? null,
-    occurredAt: now,
+    occurredAt,
   });
   const ids = {
     consentEventId: id,

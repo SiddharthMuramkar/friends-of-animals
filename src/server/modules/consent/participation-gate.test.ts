@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { auditLog, paymentBatch } from "@/server/db/schema";
 import { adultForm, signInMember } from "@/server/modules/participants/testing";
@@ -182,6 +182,51 @@ describe("withdrawing participation before payment", () => {
         .payForMyRegistration({ registrationId: child.registrationId })
     ).toEqual({ ok: false, error: "participation_consent_required" });
     expect(await statusOf(h, child.registrationId)).toBe("pending_payment");
+  });
+
+  it("withholds checkout after consent is withdrawn while an order is opening", async () => {
+    const h = await createHarness();
+    const competition = await consentCompetition(h);
+    const child = await guardianWithChild(h, competition);
+    const guardian = h.as(child.actor);
+    await giveParticipation(h, child, competition);
+    const orderCreated = Promise.withResolvers<{ orderId: string }>();
+    const releaseGateway = Promise.withResolvers<void>();
+    const createOrder = h.gateway.createOrder.bind(h.gateway);
+    vi.spyOn(h.gateway, "createOrder").mockImplementationOnce(async (input) => {
+      const order = await createOrder(input);
+      orderCreated.resolve(order);
+      await releaseGateway.promise;
+      return order;
+    });
+
+    const registration = { registrationId: child.registrationId };
+    const paying = guardian.payForMyRegistration(registration);
+    try {
+      await Promise.race([orderCreated.promise, paying]);
+      expect(
+        await guardian.withdrawChildConsent({
+          childId: child.childId,
+          competitionId: competition.id,
+          purpose: "participation",
+        })
+      ).toEqual({ ok: true, changed: true });
+    } finally {
+      releaseGateway.resolve();
+    }
+    await expect(paying).resolves.toEqual({
+      ok: false,
+      error: "participation_consent_required",
+    });
+
+    const { orderId } = await orderCreated.promise;
+    await giveParticipation(h, child, competition);
+    expect(await guardian.payForMyRegistration(registration)).toMatchObject({
+      ok: true,
+      kind: "checkout",
+      checkout: { orderId },
+    });
+    expect(h.gateway.orders).toHaveLength(1);
   });
 
   it("holds a capture in review until consent is restored or the payment is refunded", async () => {

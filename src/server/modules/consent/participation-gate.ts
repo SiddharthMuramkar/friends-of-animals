@@ -19,6 +19,7 @@ import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import {
+  competition,
   competitionConsentDocument,
   guardian,
   guardianLink,
@@ -68,9 +69,47 @@ export async function participationGiven(
       { type: "participant_profile", id: profileId },
       "participation",
       competitionId
-    )
+    ),
+    "id"
   );
   return state.status === "given" && state.documentId === attached;
+}
+
+/** Hold individual registrations' pins stable before locking their rows. */
+export async function lockParticipationPins(
+  tx: AppDb,
+  registrationIds: readonly string[]
+): Promise<void> {
+  if (registrationIds.length === 0) return;
+  const competitions = tx
+    .select({ id: registration.competitionId })
+    .from(registration)
+    .where(
+      and(
+        inArray(registration.id, [...registrationIds]),
+        eq(registration.route, "individual")
+      )
+    );
+  await tx
+    .select({ id: competition.id })
+    .from(competition)
+    .where(inArray(competition.id, competitions))
+    .orderBy(competition.id)
+    .for("share");
+}
+
+/** Lock the pins first, then the registrations, as payment and withdrawal require. */
+export async function lockRegistrationsForPayment(
+  tx: AppDb,
+  registrationIds: readonly string[]
+) {
+  await lockParticipationPins(tx, registrationIds);
+  return tx
+    .select({ id: registration.id, status: registration.status })
+    .from(registration)
+    .where(inArray(registration.id, [...registrationIds]))
+    .orderBy(registration.id)
+    .for("no key update");
 }
 
 /** Whether a verified guardian looks after the profile through a live link. */
@@ -217,7 +256,8 @@ export async function recordChildParticipation(
   const subject = { type: "participant_profile", id: input.profileId } as const;
   await lockProfileSubject(tx, input.profileId);
   const state = currentConsent(
-    await subjectEvents(tx, subject, "participation", input.competitionId)
+    await subjectEvents(tx, subject, "participation", input.competitionId),
+    "id"
   );
   if (state.status === "given" && state.documentId === input.documentId) {
     return;

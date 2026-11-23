@@ -296,6 +296,13 @@ export async function giveChildConsent(
   const competitionId = parsed.data.competitionId ?? null;
 
   return ctx.db.transaction(async (tx): Promise<GiveChildConsentResult> => {
+    if (purpose === "participation" && competitionId !== null) {
+      await tx
+        .select({ id: competition.id })
+        .from(competition)
+        .where(eq(competition.id, competitionId))
+        .for("share");
+    }
     await lockProfileSubject(tx, childId);
     // Again under the child's lock: a link revoked since counts.
     const { role } = await authorize(
@@ -325,7 +332,8 @@ export async function giveChildConsent(
 
     const subject = subjectOf(childId);
     const state = currentConsent(
-      await subjectEvents(tx, subject, purpose, competitionId)
+      await subjectEvents(tx, subject, purpose, competitionId),
+      "id"
     );
     // The version the guardian would agree to is the latest that counts.
     const decision = decideGive(state, toGive.document, documentId);
@@ -396,7 +404,8 @@ export async function withdrawChildConsent(
     }
     const subject = subjectOf(childId);
     const state = currentConsent(
-      await subjectEvents(tx, subject, purpose, competitionId)
+      await subjectEvents(tx, subject, purpose, competitionId),
+      "id"
     );
     const decision = decideWithdraw(state);
     if (decision.kind !== "record") return { ok: true, changed: false };
@@ -462,7 +471,7 @@ async function childEvents(db: AppDb, childId: string, competitionId?: string) {
           : eq(consentEvent.competitionId, competitionId)
       )
     )
-    .orderBy(desc(consentEvent.occurredAt), desc(consentEvent.id));
+    .orderBy(desc(consentEvent.id));
 }
 
 /**
@@ -484,6 +493,7 @@ export async function publicUse(
   const view = childConsentsView({
     child: {
       ...nameParts(child.fullName),
+      fullName: child.fullName,
       schoolName: child.schoolName,
       city: child.city,
     },
@@ -496,7 +506,10 @@ export async function publicUse(
       },
     ],
     states: (_, purpose) =>
-      currentConsent(events.filter((event) => event.purpose === purpose)),
+      currentConsent(
+        events.filter((event) => event.purpose === purpose),
+        "id"
+      ),
     communicationsDocument: null,
   });
   return view.competitions[0]?.creditPreview[use] ?? null;
@@ -572,12 +585,13 @@ export async function childConsents(
   const view = childConsentsView({
     child: {
       ...nameParts(child.fullName),
+      fullName: child.fullName,
       schoolName: child.schoolName,
       city: child.city,
     },
     competitions,
     states: (competitionId, purpose) =>
-      currentConsent(logs.get(`${competitionId ?? ""}/${purpose}`) ?? []),
+      currentConsent(logs.get(`${competitionId ?? ""}/${purpose}`) ?? [], "id"),
     communicationsDocument: communications,
   });
   const titled = (document: { id: string } | null) =>

@@ -17,8 +17,10 @@ import {
 } from "../modules/consent/domain/document-body";
 import { and, desc, eq } from "drizzle-orm";
 
+import type { AppDb } from "../db/app-db";
 import type { GuardianPurpose } from "../modules/consent/domain/guardian-purposes";
 import type { ConsentPurpose } from "../modules/consent/domain/purposes";
+import { participationGiven } from "../modules/consent/participation-gate";
 import {
   competition,
   competitionConsentDocument,
@@ -113,9 +115,9 @@ export async function seedConsent(deps: SeedDeps): Promise<void> {
  * Neighbours on My Street (NEIGH27), where the under-13 child has
  * participation, public display and city given (school never) and the
  * linked teen participation and social media, with public display given
- * then withdrawn; the under-13 child also has communications. Both places
- * wait for payment. Runs after the guardians seed; a child whose log
- * already has events is left alone, so it is safe to run again.
+ * then withdrawn; the under-13 child also has communications. Runs after
+ * the guardians seed. Existing consent choices are preserved, and a new
+ * registration waits for payment only with current participation consent.
  */
 export const SEED_CHILD_CONSENTS = {
   young: {
@@ -155,10 +157,10 @@ export const SEED_CHILD_CONSENTS = {
 
 /** The version each purpose's consent points at for NEIGH27. */
 async function seededDocuments(
-  deps: SeedDeps,
+  db: AppDb,
   competitionId: string
 ): Promise<Partial<Record<GuardianPurpose, string>>> {
-  const pinned = await deps.db
+  const pinned = await db
     .select({
       purpose: competitionConsentDocument.purpose,
       id: competitionConsentDocument.consentDocumentId,
@@ -167,7 +169,7 @@ async function seededDocuments(
     .where(eq(competitionConsentDocument.competitionId, competitionId));
   const of = (purpose: string) =>
     pinned.find((row) => row.purpose === purpose)?.id;
-  const [communications] = await deps.db
+  const [communications] = await db
     .select({ id: consentDocument.id })
     .from(consentDocument)
     .where(eq(consentDocument.purpose, "communications"))
@@ -186,97 +188,105 @@ async function seededDocuments(
 
 export async function seedChildConsents(deps: SeedDeps): Promise<void> {
   const competitionId = SEED_TERMS_COMPETITIONS.paid;
-  const [target] = await deps.db
-    .select({ ageCutoffDate: competition.ageCutoffDate })
-    .from(competition)
-    .where(eq(competition.id, competitionId));
-  const cutoff = target?.ageCutoffDate && parseIsoDate(target.ageCutoffDate);
-  if (!cutoff) return;
-  const groups = await ageGroupsOf(deps.db, competitionId);
-  const documents = await seededDocuments(deps, competitionId);
-  if (!documents.participation) return;
-  const giver = await ensureVerifiedAccount(deps, SEED_GUARDIANS.guardian);
   const now = deps.clock.now();
 
-  for (const seed of Object.values(SEED_CHILD_CONSENTS)) {
-    const [profile] = await deps.db
-      .select({
-        id: participantProfile.id,
-        dobCiphertext: participantProfile.dobCiphertext,
-        participantCode: participantProfile.participantCode,
-      })
-      .from(participantProfile)
-      .where(
-        and(
-          eq(participantProfile.id, seed.profileId),
-          eq(participantProfile.ownerUserId, giver.id),
-          eq(participantProfile.ownerKind, "guardian")
-        )
-      );
-    if (!profile) continue;
-    const dateOfBirth = parseIsoDate(
-      deps.cipher.decrypt(PROFILE_PURPOSE.dob, profile.dobCiphertext)
+  await deps.db.transaction(async (tx) => {
+    const [target] = await tx
+      .select({ ageCutoffDate: competition.ageCutoffDate })
+      .from(competition)
+      .where(eq(competition.id, competitionId))
+      .for("share");
+    const cutoff = target?.ageCutoffDate && parseIsoDate(target.ageCutoffDate);
+    if (!cutoff) return;
+    const giver = await ensureVerifiedAccount(
+      { ...deps, db: tx },
+      SEED_GUARDIANS.guardian
     );
-    const placed = dateOfBirth && ageGroupFor(dateOfBirth, cutoff, groups);
-    if (!placed || !placed.ok) continue;
-    if (profile.participantCode === null) {
-      await deps.db
-        .update(participantProfile)
-        .set({
-          participantCode: seed.participantCode,
-          pinCode: "411038",
-          city: "Pune",
-          state: "Maharashtra",
-          country: "IN",
-          schoolName: seed.schoolName,
+    const groups = await ageGroupsOf(tx, competitionId);
+    const documents = await seededDocuments(tx, competitionId);
+
+    for (const seed of Object.values(SEED_CHILD_CONSENTS)) {
+      const [profile] = await tx
+        .select({
+          id: participantProfile.id,
+          dobCiphertext: participantProfile.dobCiphertext,
+          participantCode: participantProfile.participantCode,
+        })
+        .from(participantProfile)
+        .where(
+          and(
+            eq(participantProfile.id, seed.profileId),
+            eq(participantProfile.ownerUserId, giver.id),
+            eq(participantProfile.ownerKind, "guardian")
+          )
+        )
+        .for("no key update");
+      if (!profile) continue;
+      const dateOfBirth = parseIsoDate(
+        deps.cipher.decrypt(PROFILE_PURPOSE.dob, profile.dobCiphertext)
+      );
+      const placed = dateOfBirth && ageGroupFor(dateOfBirth, cutoff, groups);
+      if (!placed || !placed.ok) continue;
+      if (profile.participantCode === null) {
+        await tx
+          .update(participantProfile)
+          .set({
+            participantCode: seed.participantCode,
+            pinCode: "411038",
+            city: "Pune",
+            state: "Maharashtra",
+            country: "IN",
+            schoolName: seed.schoolName,
+            updatedAt: now,
+          })
+          .where(eq(participantProfile.id, profile.id));
+      }
+
+      const [logged] = await tx
+        .select({ id: consentEvent.id })
+        .from(consentEvent)
+        .where(
+          and(
+            eq(consentEvent.subjectType, "participant_profile"),
+            eq(consentEvent.subjectId, profile.id)
+          )
+        )
+        .limit(1);
+      if (!logged) {
+        let at = now.getTime() - seed.plan.length * 60_000;
+        for (const [purpose, action] of seed.plan) {
+          const documentId = documents[purpose];
+          if (!documentId) continue;
+          const occurredAt = new Date(at);
+          at += 60_000;
+          await tx.insert(consentEvent).values({
+            id: uuidv7(occurredAt),
+            subjectType: "participant_profile",
+            subjectId: profile.id,
+            giverUserId: giver.id,
+            purpose,
+            competitionId: purpose === "communications" ? null : competitionId,
+            documentId,
+            action,
+            method: "web_form",
+            occurredAt,
+          });
+        }
+      }
+      const given = await participationGiven(tx, profile.id, competitionId);
+      await tx
+        .insert(registration)
+        .values({
+          id: seed.registrationId,
+          participantProfileId: profile.id,
+          competitionId,
+          route: "individual",
+          ageGroupId: placed.group.id,
+          status: given ? "pending_payment" : "pending_guardian",
+          createdAt: now,
           updatedAt: now,
         })
-        .where(eq(participantProfile.id, profile.id));
+        .onConflictDoNothing();
     }
-    await deps.db
-      .insert(registration)
-      .values({
-        id: seed.registrationId,
-        participantProfileId: profile.id,
-        competitionId,
-        route: "individual",
-        ageGroupId: placed.group.id,
-        // Participation is given below, so it waits for payment.
-        status: "pending_payment",
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoNothing();
-
-    const [logged] = await deps.db
-      .select({ id: consentEvent.id })
-      .from(consentEvent)
-      .where(
-        and(
-          eq(consentEvent.subjectType, "participant_profile"),
-          eq(consentEvent.subjectId, profile.id)
-        )
-      )
-      .limit(1);
-    if (logged) continue;
-    let at = now.getTime() - seed.plan.length * 60_000;
-    for (const [purpose, action] of seed.plan) {
-      const documentId = documents[purpose];
-      if (!documentId) continue;
-      const occurredAt = new Date(at);
-      at += 60_000;
-      await deps.db.insert(consentEvent).values({
-        id: uuidv7(occurredAt),
-        subjectType: "participant_profile",
-        subjectId: profile.id,
-        giverUserId: giver.id,
-        purpose,
-        competitionId: purpose === "communications" ? null : competitionId,
-        documentId,
-        action,
-        method: "web_form",
-        occurredAt,
-      });
-    }
-  }
+  });
 }

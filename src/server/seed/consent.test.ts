@@ -4,8 +4,13 @@ import { describe, expect, it } from "vitest";
 import { competitionConsentDocument, consentEvent } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
-import { SEED_TERMS_COMPETITIONS } from "./competition-terms";
-import { SEED_GUARDIANS } from "./guardians";
+import {
+  SEED_TERMS_COMPETITIONS,
+  seedCompetitionTerms,
+} from "./competition-terms";
+import { seedCompetitions } from "./competitions";
+import { seedConsent } from "./consent";
+import { SEED_GUARDIANS, seedGuardians } from "./guardians";
 
 async function signedInGuardian(h: Harness) {
   return h.signIn(SEED_GUARDIANS.guardian, undefined, { secondFactor: false });
@@ -111,5 +116,40 @@ describe("the guardian consents seed (#82)", () => {
     await h.seed.preview();
 
     expect(await h.db.select().from(consentEvent)).toEqual(before);
+  });
+
+  it("keeps existing communications consent and seeds the registration on hold across reruns", async () => {
+    const h = await createHarness();
+    await seedCompetitions(h.deps);
+    await seedConsent(h.deps);
+    await seedCompetitionTerms(h.deps);
+    await seedGuardians(h.deps);
+    const child = SEED_GUARDIANS.children.young;
+    const guardian = h.as(await signedInGuardian(h));
+    const view = await guardian.childConsents({ childId: child.profileId });
+    if (!view.ok || !view.communications.document)
+      throw new Error("No communications document");
+    expect(
+      await guardian.giveChildConsent({
+        childId: child.profileId,
+        purpose: "communications",
+        documentId: view.communications.document.id,
+      })
+    ).toEqual({ ok: true, changed: true });
+    const history = await guardian.childConsentHistory({
+      childId: child.profileId,
+    });
+
+    for (let run = 0; run < 2; run++) {
+      await h.seed.preview();
+
+      const registrations = await guardian.listMyRegistrations();
+      expect(
+        registrations.filter((each) => each.participantName === child.fullName)
+      ).toMatchObject([{ status: "pending_guardian", heldFor: "consent" }]);
+      expect(
+        await guardian.childConsentHistory({ childId: child.profileId })
+      ).toEqual(history);
+    }
   });
 });

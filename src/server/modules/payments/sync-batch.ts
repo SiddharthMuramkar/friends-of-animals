@@ -28,7 +28,7 @@ import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
 import { paymentBatch } from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
-import { lockBatch } from "./batches";
+import { lockBatch, lockBatchAndParticipation } from "./batches";
 import { captureBatch, registrationsAtCapture } from "./capture";
 import { decideCapture, type GatewayPayment } from "./domain/capture-decision";
 import type { SyncOutcome } from "./domain/outcomes";
@@ -62,7 +62,7 @@ export async function syncBatch(
   const payments = await ctx.payments.fetchOrderPayments(found.orderId);
 
   return ctx.db.transaction(async (tx): Promise<SyncOutcome> => {
-    const batch = await lockBatch(tx, batchId);
+    const batch = await lockBatchAndParticipation(tx, batchId);
     if (!batch) return "awaiting_payment";
     const decision = decideCapture(
       {

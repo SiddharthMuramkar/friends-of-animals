@@ -14,7 +14,7 @@
 // Loads under plain Node (the seed script): relative imports only, no
 // "server-only".
 
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { Role } from "../../access/domain/roles";
 import type { Actor } from "../../actor";
@@ -24,7 +24,10 @@ import { registration, REGISTRATION_NUMBER_UNIQUE } from "../../db/schema";
 import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import { withUniqueCode, type RandomBytes } from "../codes/codes";
-import { lackingParticipation } from "../consent/participation-gate";
+import {
+  lackingParticipation,
+  lockRegistrationsForPayment,
+} from "../consent/participation-gate";
 import { registrationNumberFormat } from "./domain/registration-number";
 import {
   canTransition,
@@ -56,13 +59,7 @@ export async function confirmRegistrations(
   const result: ConfirmRegistrationsResult = { confirmed: [], refused: [] };
   if (input.registrationIds.length === 0) return result;
   const now = ctx.clock.now();
-  // In id order, as a participation withdrawal locks these too.
-  const rows = await tx
-    .select({ id: registration.id, status: registration.status })
-    .from(registration)
-    .where(inArray(registration.id, [...input.registrationIds]))
-    .orderBy(registration.id)
-    .for("update");
+  const rows = await lockRegistrationsForPayment(tx, input.registrationIds);
   const lacking = await lackingParticipation(
     tx,
     rows.map((row) => row.id)

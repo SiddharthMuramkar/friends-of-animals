@@ -19,6 +19,7 @@ import {
   type PaymentBatchRow,
 } from "../../db/schema";
 import type { Clock } from "../../ports/clock";
+import { lockRegistrationsForPayment } from "../consent/participation-gate";
 import {
   nextPaymentBatchStatus,
   type PaymentBatchEvent,
@@ -102,6 +103,28 @@ export async function lockBatch(
     .where(eq(paymentBatch.id, batchId))
     .for("update");
   return row ?? null;
+}
+
+/**
+ * Lock an individual batch's participation pins and registrations before
+ * the batch itself, in the same order as the individual payment planner.
+ * Include released items so review can take them back in that order too.
+ */
+export async function lockBatchAndParticipation(tx: AppDb, batchId: string) {
+  const items = await tx
+    .select({ id: paymentBatchItem.registrationId })
+    .from(paymentBatchItem)
+    .innerJoin(paymentBatch, eq(paymentBatch.id, paymentBatchItem.batchId))
+    .where(
+      and(eq(paymentBatch.id, batchId), eq(paymentBatch.route, "individual"))
+    );
+  if (items.length > 0) {
+    await lockRegistrationsForPayment(
+      tx,
+      items.map((item) => item.id)
+    );
+  }
+  return lockBatch(tx, batchId);
 }
 
 /** The registrations a batch holds now, with what each was charged. */

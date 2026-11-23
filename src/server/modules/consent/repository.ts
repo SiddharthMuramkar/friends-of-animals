@@ -107,7 +107,27 @@ export async function subjectEvents(
         ...competitionFilter(competitionId)
       )
     )
-    .orderBy(desc(consentEvent.occurredAt), desc(consentEvent.id));
+    .orderBy(
+      ...(subject.type === "participant_profile"
+        ? [desc(consentEvent.id)]
+        : [desc(consentEvent.occurredAt), desc(consentEvent.id)])
+    );
+}
+
+/** The last append across all purposes and competitions for a profile. */
+export async function latestProfileEventId(tx: AppDb, profileId: string) {
+  const [last] = await tx
+    .select({ id: consentEvent.id })
+    .from(consentEvent)
+    .where(
+      and(
+        eq(consentEvent.subjectType, "participant_profile"),
+        eq(consentEvent.subjectId, profileId)
+      )
+    )
+    .orderBy(desc(consentEvent.id))
+    .limit(1);
+  return last?.id;
 }
 
 /**

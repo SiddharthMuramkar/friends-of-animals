@@ -245,17 +245,17 @@ describe("withdrawing a child's consent", () => {
         eventType: "consent.withdrawn",
         aggregateType: "consent_event",
         aggregateId: withdrawal?.id,
-        payload: {
-          consentEventId: withdrawal?.id,
-          subjectType: "participant_profile",
-          subjectId: w.child.childId,
-          purpose: "public_display",
-          documentId: w.competition.guardianDocuments.public_display,
-          competitionId: w.competition.id,
-        },
         status: "pending",
       },
     ]);
+    expect(outbox[0]?.payload).toEqual({
+      consentEventId: withdrawal?.id,
+      subjectType: "participant_profile",
+      subjectId: w.child.childId,
+      purpose: "public_display",
+      documentId: w.competition.guardianDocuments.public_display,
+      competitionId: w.competition.id,
+    });
     await w.h.drain();
     expect((await consentRows(w.h)).outbox.map((row) => row.status)).toEqual([
       "dispatched",

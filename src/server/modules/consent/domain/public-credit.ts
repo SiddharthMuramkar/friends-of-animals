@@ -17,6 +17,8 @@ import {
 export type CreditPerson = {
   firstName: string;
   lastName: string;
+  /** The whole stored name, when available, for adult credit. */
+  fullName?: string;
   schoolName?: string | null;
   city?: string | null;
   /**
@@ -42,7 +44,7 @@ export function resolvePublicCredit(
   if (!permission.allowed) return null;
   const name = person.minor
     ? firstNameAndInitial(person.firstName, person.lastName)
-    : tidy(`${person.firstName} ${person.lastName}`);
+    : tidy(person.fullName ?? `${person.firstName} ${person.lastName}`);
   if (!name) return null;
   const credit: PublicCredit = { name };
   const school = present(person.schoolName);

@@ -28,7 +28,7 @@ import type { UseCaseContext } from "../../use-cases";
 import { parseRupeesToPaise } from "../competitions/domain/fees";
 import type { UploadRefusal } from "../files/domain/purposes";
 import { presignUpload } from "../files/use-cases/upload";
-import { lockBatch } from "./batches";
+import { lockBatchAndParticipation } from "./batches";
 import { captureBatch, registrationsAtCapture } from "./capture";
 import {
   decideOfflineCapture,
@@ -89,7 +89,7 @@ export async function recordOfflinePayment(
   const amountMinor = amount.ok ? amount.paise : 0n;
 
   const result = ctx.db.transaction<RecordOfflinePaymentResult>(async (tx) => {
-    const batch = await lockBatch(tx, batchId);
+    const batch = await lockBatchAndParticipation(tx, batchId);
     if (!batch) return { ok: false, error: "not_found" };
     const [proof] = fileId.safeParse(proofFileId).success
       ? await tx

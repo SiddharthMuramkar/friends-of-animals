@@ -46,10 +46,18 @@ import { invalidInput, type InvalidInput } from "../../input";
 import type { CheckoutParams, Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
 import { getRegistrationTerms } from "../competitions/terms/read";
-import { lackingParticipation } from "../consent";
+import {
+  lackingParticipation,
+  lockParticipationPins,
+} from "../consent/participation-gate";
 import { revokePendingGuardianRequest } from "../guardians/guardian-request";
 import { ownProfileOf } from "../guardians/own-profile";
-import { endUnpaidBatch, heldInReview, lockBatch } from "../payments/batches";
+import {
+  endUnpaidBatch,
+  heldInReview,
+  lockBatch,
+  lockBatchAndParticipation,
+} from "../payments/batches";
 import { nextPaymentBatchStatus } from "../payments/domain/batch-status";
 import { syncBatch } from "../payments/sync-batch";
 import { confirmRegistrations } from "../registration/confirm";
@@ -183,6 +191,8 @@ async function planPayment(
     });
     const actor = ctx.actor;
     if (actor.kind !== "user") throw new Error("unreachable");
+    // Registration takes the competition lock before the payer's lock too.
+    await lockParticipationPins(tx, [registrationId]);
     // Serialize the adult's claim with acceptance of their waiting request.
     await tx
       .select({ id: user.id })
@@ -207,7 +217,7 @@ async function planPayment(
         eq(participantProfile.id, registration.participantProfileId)
       )
       .where(eq(registration.id, registrationId))
-      .for("update", { of: registration });
+      .for("no key update", { of: registration });
     if (!mine) return done({ ok: false, error: "nothing_to_pay" });
     if (!(await paysFor(tx, registrationId, actor.userId))) {
       throw new DomainError("forbidden", "The registration payer changed");
@@ -370,11 +380,11 @@ async function openOrder(
     return { ok: false, error: "gateway_unavailable" };
   }
 
-  const opened = await ctx.db.transaction(async (tx) => {
-    const batch = await lockBatch(tx, batchId);
-    if (!batch) return false;
+  return ctx.db.transaction(async (tx): Promise<PayForMyRegistrationResult> => {
+    const batch = await lockBatchAndParticipation(tx, batchId);
+    if (!batch) return { ok: false, error: "superseded" };
     const move = nextPaymentBatchStatus(batch.status, "order_opened");
-    if (!move.ok) return false;
+    if (!move.ok) return { ok: false, error: "superseded" };
     await tx
       .update(paymentBatch)
       .set({
@@ -387,6 +397,7 @@ async function openOrder(
       .select({ registrationId: paymentBatchItem.registrationId })
       .from(paymentBatchItem)
       .where(eq(paymentBatchItem.batchId, batchId));
+    const registrationIds = item ? [item.registrationId] : [];
     await recordAudit(tx, ctx, {
       action: "payment.batch_created",
       entity: { type: "payment_batch", id: batchId },
@@ -395,25 +406,27 @@ async function openOrder(
         status: move.to,
         route: "individual",
         amountMinor: total.amountMinor.toString(),
-        registrationIds: item ? [item.registrationId] : [],
+        registrationIds,
         gatewayOrderId: orderId,
       },
       actorRole,
     });
-    return true;
+    // Consent can change while the gateway is opening the order. Keep the
+    // reference for reconciliation and only return a checkout with consent.
+    if ((await lackingParticipation(tx, registrationIds)).size > 0) {
+      return { ok: false, error: "participation_consent_required" };
+    }
+    return {
+      ok: true,
+      kind: "checkout",
+      batchId,
+      checkout: gateway.checkout({
+        orderId,
+        amount: total,
+        description: describe(plan.competitionName, plan.participantCode),
+      }),
+    };
   });
-  if (!opened) return { ok: false, error: "superseded" };
-
-  return {
-    ok: true,
-    kind: "checkout",
-    batchId,
-    checkout: gateway.checkout({
-      orderId,
-      amount: total,
-      description: describe(plan.competitionName, plan.participantCode),
-    }),
-  };
 }
 
 /** What the payer sees on the gateway's checkout. */
