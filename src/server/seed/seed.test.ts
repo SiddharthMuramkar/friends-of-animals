@@ -26,7 +26,7 @@ async function accounts(deps: Awaited<ReturnType<typeof seedDeps>>) {
 }
 
 describe("seedPreview", () => {
-  it("creates the preview accounts, two competition managers, dedicated consent publishers, template editors, two institutions' people, a safeguarding lead and a guardian with a linked teen", async () => {
+  it("creates the preview accounts, including the dedicated Ledger Finance user", async () => {
     const deps = await seedDeps();
     await seedPreview(deps);
 
@@ -39,6 +39,7 @@ describe("seedPreview", () => {
       "guardian1@example.test",
       "institution-admin@example.test",
       "institution-applicant@example.test",
+      "ledger-finance@example.test",
       "member1@example.test",
       "member2@example.test",
       "member3@example.test",

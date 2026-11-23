@@ -1,0 +1,10 @@
+{
+  "adminLedger": {
+    "postingDescriptions": {
+      "payment_capture": "Online registration fees",
+      "offline_payment": "Offline registration fees",
+      "refund": "Registration fee refund",
+      "reversal": "Reversal of posting {seq}"
+    }
+  }
+}
