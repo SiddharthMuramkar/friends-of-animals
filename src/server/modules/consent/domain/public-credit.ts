@@ -52,6 +52,22 @@ export function resolvePublicCredit(
   return credit;
 }
 
+/**
+ * A profile keeps one full name (#75, #81): its first word is the first
+ * name and its last word the surname. Middle names are left out of both,
+ * so a minor's credit never shows more than first name and initial.
+ */
+export function nameParts(fullName: string): {
+  firstName: string;
+  lastName: string;
+} {
+  const words = tidy(fullName).split(" ").filter(Boolean);
+  return {
+    firstName: words[0] ?? "",
+    lastName: words.length > 1 ? words[words.length - 1]! : "",
+  };
+}
+
 const graphemes = new Intl.Segmenter("en-IN", { granularity: "grapheme" });
 const LETTER = /\p{L}/u;
 

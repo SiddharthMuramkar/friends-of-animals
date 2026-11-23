@@ -8,15 +8,28 @@
 
 /**
  * Purposes a competition can attach, from the Consent module's
- * `consent_purpose`. #82 appends the per-purpose guardian consents
- * (participation, public display, social media, auction).
+ * `consent_purpose`: the documents a registrant agrees to, then the ones a
+ * guardian gives one by one for a child (#82). Showing the school and the
+ * city are options of public display, with no document of their own.
  */
 export const ATTACHABLE_PURPOSES = [
   "competition_terms",
   "privacy_notice",
+  "participation",
+  "public_display",
+  "social_media",
+  "auction",
 ] as const;
 
 export type AttachablePurpose = (typeof ATTACHABLE_PURPOSES)[number];
+
+/** The documents a guardian consents to for a child, each on its own (#82). */
+const GUARDIAN_DOCUMENTS: readonly AttachablePurpose[] = [
+  "participation",
+  "public_display",
+  "social_media",
+  "auction",
+];
 
 /** Purposes everyone must agree to before registering. */
 const REQUIRED_FOR_REGISTRATION: readonly AttachablePurpose[] = [
@@ -28,6 +41,14 @@ export function isAttachablePurpose(
   purpose: string
 ): purpose is AttachablePurpose {
   return (ATTACHABLE_PURPOSES as readonly string[]).includes(purpose);
+}
+
+/**
+ * Whether a guardian gives this document's consent for a child, rather than
+ * a registrant agreeing to it for themselves.
+ */
+export function isGuardianDocument(purpose: AttachablePurpose): boolean {
+  return GUARDIAN_DOCUMENTS.includes(purpose);
 }
 
 /** Whether a registrant must agree to this purpose's document. */

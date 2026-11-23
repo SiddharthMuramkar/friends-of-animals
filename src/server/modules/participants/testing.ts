@@ -35,10 +35,17 @@ export const AGE_GROUPS = [
 /** What setting up a competition needs: the harness, or a real-Postgres world. */
 type World = { db: AppDb; seed: SeedBuilders; clock: FakeClock };
 
+/** The guardian consent documents a competition can attach (#82). */
+export type GuardianDocumentPurpose =
+  | "participation"
+  | "public_display"
+  | "social_media"
+  | "auction";
+
 /** Publishes the next version of `purpose` straight into the table. */
-async function publishedDocument(
+export async function publishedDocument(
   h: World,
-  purpose: "competition_terms" | "privacy_notice"
+  purpose: "competition_terms" | "privacy_notice" | GuardianDocumentPurpose
 ): Promise<string> {
   const { title: _title, ...body } = COMPETITION_TERMS_DRAFT;
   const parsed = parseConsentDocumentBody(body);
@@ -61,14 +68,21 @@ async function publishedDocument(
 /**
  * A competition taking individuals and schools, with registration open
  * now, the individual fee `fee` (none when null), and the competition
- * terms and privacy notice attached, both required.
+ * terms and privacy notice attached, both required, then the guardian
+ * documents asked for (by default participation, which a guardian
+ * registering a child consents to on the form, #82). `documents` holds
+ * every attached version, as a form with every box ticked sends them.
  */
 export async function openToIndividuals(
   h: World,
   {
     fee = INDIVIDUAL_FEE,
+    guardianDocuments = ["participation"],
     ...options
-  }: SeedCompetitionOptions & { fee?: bigint | null } = {}
+  }: SeedCompetitionOptions & {
+    fee?: bigint | null;
+    guardianDocuments?: readonly GuardianDocumentPurpose[];
+  } = {}
 ) {
   const competition = await h.seed.competition({
     status: "registration_open",
@@ -86,7 +100,12 @@ export async function openToIndividuals(
     });
   }
   const documents: string[] = [];
-  for (const purpose of ["competition_terms", "privacy_notice"] as const) {
+  const attached: Partial<Record<GuardianDocumentPurpose, string>> = {};
+  for (const purpose of [
+    "competition_terms",
+    "privacy_notice",
+    ...guardianDocuments,
+  ] as const) {
     const [pinned] = await h.db
       .select({ id: competitionConsentDocument.consentDocumentId })
       .from(competitionConsentDocument)
@@ -100,8 +119,11 @@ export async function openToIndividuals(
       attachedAt: h.clock.now(),
     });
     documents.push(documentId);
+    if (purpose !== "competition_terms" && purpose !== "privacy_notice") {
+      attached[purpose] = documentId;
+    }
   }
-  return { ...competition, documents };
+  return { ...competition, documents, guardianDocuments: attached };
 }
 
 export type OpenCompetition = Awaited<ReturnType<typeof openToIndividuals>>;

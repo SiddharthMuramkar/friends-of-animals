@@ -5,6 +5,7 @@ import {
   attachmentState,
   decideAttach,
   documentVersionPath,
+  isGuardianDocument,
   isRequiredForRegistration,
   parseDocumentVersionPath,
 } from "./consent-attachments";
@@ -13,16 +14,44 @@ const v1 = { id: "doc-terms-v1", version: 1 };
 const v2 = { id: "doc-terms-v2", version: 2 };
 
 describe("attachable purposes", () => {
-  it("lists the competition terms and the privacy notice", () => {
+  it("lists the competition terms, the privacy notice and the guardian consent documents (#82)", () => {
     expect(ATTACHABLE_PURPOSES).toEqual([
       "competition_terms",
       "privacy_notice",
+      "participation",
+      "public_display",
+      "social_media",
+      "auction",
     ]);
   });
 
-  it("requires both before anyone registers", () => {
+  it("requires the terms and the privacy notice before anyone registers", () => {
     expect(isRequiredForRegistration("competition_terms")).toBe(true);
     expect(isRequiredForRegistration("privacy_notice")).toBe(true);
+  });
+
+  it("leaves the guardian documents to the guardian, one consent at a time", () => {
+    for (const purpose of [
+      "participation",
+      "public_display",
+      "social_media",
+      "auction",
+    ] as const) {
+      expect(isRequiredForRegistration(purpose)).toBe(false);
+      expect(isGuardianDocument(purpose)).toBe(true);
+    }
+    expect(isGuardianDocument("competition_terms")).toBe(false);
+    expect(isGuardianDocument("privacy_notice")).toBe(false);
+  });
+
+  it("gives each guardian document a public path", () => {
+    expect(documentVersionPath("public_display", 2)).toBe(
+      "/documents/public-display/2"
+    );
+    expect(parseDocumentVersionPath("social-media", "1")).toEqual({
+      purpose: "social_media",
+      version: 1,
+    });
   });
 });
 

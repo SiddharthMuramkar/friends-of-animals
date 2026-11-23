@@ -2,14 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   childConsentsView,
+  type CompetitionPurposeView,
   type ConsentStates,
   type PurposeState,
 } from "./child-consents";
-import type {
-  CompetitionConsentSetup,
-  DocumentRef,
-  GuardianPurpose,
-} from "./guardian-purposes";
+import type { CompetitionConsentSetup, DocumentRef } from "./guardian-purposes";
 
 const doc = (id: string, version = 1): DocumentRef => ({ id, version });
 
@@ -126,6 +123,52 @@ describe("childConsentsView", () => {
         state: NEVER,
         counts: false,
       },
-    ] satisfies { purpose: GuardianPurpose }[]);
+    ] satisfies CompetitionPurposeView[]);
+  });
+});
+
+describe("childConsentsView, what counts", () => {
+  it("counts a consent only on the version the guardian would agree to now", () => {
+    const view = viewOf(
+      statesFrom({
+        "art-2026/public_display": givenOn(doc("public-display-v1", 1)),
+      })
+    );
+
+    const publicDisplay = purposesOf(view).find(
+      (each) => each.purpose === "public_display"
+    );
+    expect(publicDisplay).toMatchObject({ offered: true, counts: false });
+    expect(view.competitions[0]?.creditPreview.gallery).toBeNull();
+  });
+
+  it("previews each public use's credit from the consents that count", () => {
+    const view = viewOf(
+      statesFrom({
+        "art-2026/public_display": givenOn(publicDisplayV2),
+        "art-2026/display_city": givenOn(publicDisplayV2),
+        "art-2026/display_school": withdrawnFrom(publicDisplayV2),
+      })
+    );
+
+    expect(view.competitions[0]?.creditPreview).toEqual({
+      gallery: { name: "Asha K.", city: "Pune" },
+      results: { name: "Asha K.", city: "Pune" },
+      social_media: null,
+      auction: null,
+    });
+  });
+
+  it("shows the communications consent apart from any competition", () => {
+    const communications = doc("communications-v1");
+    const view = viewOf(
+      statesFrom({ "communications/communications": givenOn(communications) })
+    );
+
+    expect(view.communications).toEqual({
+      document: communications,
+      state: givenOn(communications),
+      counts: true,
+    });
   });
 });

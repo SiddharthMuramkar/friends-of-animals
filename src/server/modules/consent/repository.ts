@@ -3,10 +3,15 @@
 //
 // Loads under plain Node: relative imports only.
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, type SQL } from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
-import { consentDocument, consentEvent, user } from "../../db/schema";
+import {
+  consentDocument,
+  consentEvent,
+  participantProfile,
+  user,
+} from "../../db/schema";
 import type { ConsentDocumentBody } from "./domain/document-body";
 import type { ConsentPurpose, ConsentSubjectType } from "./domain/purposes";
 
@@ -59,11 +64,29 @@ export async function documentVersions(db: AppDb, purpose: ConsentPurpose) {
 /** Whose consent an event is about. */
 export type ConsentSubject = { type: ConsentSubjectType; id: string };
 
-/** One subject's events for one purpose, newest first, with versions. */
+/**
+ * Which competition's log: a child's consent for one competition, or one
+ * that holds everywhere (null). A person's own consents (#64) leave it
+ * out: they are never about a competition.
+ */
+function competitionFilter(competitionId: string | null | undefined): SQL[] {
+  if (competitionId === undefined) return [];
+  return [
+    competitionId === null
+      ? isNull(consentEvent.competitionId)
+      : eq(consentEvent.competitionId, competitionId),
+  ];
+}
+
+/**
+ * One subject's events for one purpose, newest first, with versions; for
+ * a child's, those of one competition (or of none, for communications).
+ */
 export async function subjectEvents(
   db: AppDb,
   subject: ConsentSubject,
-  purpose: ConsentPurpose
+  purpose: ConsentPurpose,
+  competitionId?: string | null
 ) {
   return db
     .select({
@@ -80,10 +103,24 @@ export async function subjectEvents(
       and(
         eq(consentEvent.subjectType, subject.type),
         eq(consentEvent.subjectId, subject.id),
-        eq(consentEvent.purpose, purpose)
+        eq(consentEvent.purpose, purpose),
+        ...competitionFilter(competitionId)
       )
     )
     .orderBy(desc(consentEvent.occurredAt), desc(consentEvent.id));
+}
+
+/**
+ * Locks a child's profile row until the transaction ends (#82), so two
+ * changes to one child's consents, and a registration of the child, queue
+ * and each decides on the latest state.
+ */
+export async function lockProfileSubject(db: AppDb, profileId: string) {
+  await db
+    .select({ id: participantProfile.id })
+    .from(participantProfile)
+    .where(eq(participantProfile.id, profileId))
+    .for("no key update");
 }
 
 /**
