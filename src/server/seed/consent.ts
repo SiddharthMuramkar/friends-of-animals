@@ -194,6 +194,7 @@ export async function seedChildConsents(deps: SeedDeps): Promise<void> {
   if (!cutoff) return;
   const groups = await ageGroupsOf(deps.db, competitionId);
   const documents = await seededDocuments(deps, competitionId);
+  if (!documents.participation) return;
   const giver = await ensureVerifiedAccount(deps, SEED_GUARDIANS.guardian);
   const now = deps.clock.now();
 

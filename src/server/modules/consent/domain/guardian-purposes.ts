@@ -86,6 +86,10 @@ const PURPOSE_RULES: Record<GuardianPurpose, PurposeRule> = {
   communications: { scope: "global", document: "communications" },
 };
 
+export function guardianDocumentPurpose(purpose: GuardianPurpose) {
+  return PURPOSE_RULES[purpose].document;
+}
+
 /**
  * The competition purposes a guardian can give for a child registered in
  * it, in catalogue order, each with the version they would agree to.

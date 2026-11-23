@@ -10,7 +10,8 @@ import { newDevice, signInByCode } from "./support/sign-in";
 // #81: a minor takes part on the individual route with a guardian. A teen
 // with no guardian on the platform registers, is asked who their parent or
 // guardian is, and is held until that person confirms from the link FOA
-// emails them; then the registration waits for the guardian to pay. A
+// emails them; the registration waits for participation consent before
+// the guardian can pay. A
 // verified guardian registers a child from the competition's register
 // form. Every new state of the register form, the guardian request page
 // and the dashboard is checked with axe, light and dark. Ages, refusals,
@@ -170,7 +171,7 @@ test("a teen on their own names a parent or guardian, and is held until they con
   await visitor.context().close();
 });
 
-test("the guardian a teen named confirms, and the registration waits for them to pay", async ({
+test("the guardian a teen named confirms and gives participation consent before paying", async ({
   browser,
   page,
   request,
@@ -221,10 +222,20 @@ test("the guardian a teen named confirms, and the registration waits for them to
   ).toBeVisible();
   const card = guardian.getByRole("article", { name: OPEN.name });
   await expect(card.getByText(`For ${teen}`)).toBeVisible();
-  await expect(card.getByText("Waiting for payment")).toBeVisible();
   await expect(
-    card.getByRole("link", { name: `Pay ₹100.00 for ${OPEN.name}` })
+    card.getByText(/waiting for a parent or guardian's consent/i)
   ).toBeVisible();
+  const pay = card.getByRole("link", { name: `Pay ₹100.00 for ${OPEN.name}` });
+  await expect(pay).toHaveCount(0);
+  await card.getByRole("link", { name: `Manage consents for ${teen}` }).click();
+  const participation = guardian.getByRole("article", {
+    name: "Participation",
+  });
+  await participation.getByRole("button", { name: "Give consent" }).click();
+  await expect(guardian.getByRole("status")).toContainText("Consent recorded.");
+  await visit(guardian, "/participant");
+  await expect(card.getByText("Waiting for payment")).toBeVisible();
+  await expect(pay).toBeVisible();
   await checkBothThemes(guardian, "/participant a child's registration");
   await guardian.context().close();
 
@@ -290,6 +301,12 @@ test("a guardian registers their child from the competition's register form", as
   ).toHaveCount(0);
   await checkBothThemes(page, "/participant/register/[slug] a child");
 
+  await expect(
+    page.getByRole("checkbox", { name: /I give permission for my child/ })
+  ).not.toBeChecked();
+  await expect(
+    page.getByRole("link", { name: /Consent for your child to take part/ })
+  ).toHaveAttribute("href", /^\/documents\/participation\/\d+$/);
   await fillContact(page);
   await register(page);
   await expect(

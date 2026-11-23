@@ -39,7 +39,10 @@ describe("the guardian consents seed (#82)", () => {
       .select({ purpose: competitionConsentDocument.purpose })
       .from(competitionConsentDocument)
       .where(
-        eq(competitionConsentDocument.competitionId, SEED_TERMS_COMPETITIONS.paid)
+        eq(
+          competitionConsentDocument.competitionId,
+          SEED_TERMS_COMPETITIONS.paid
+        )
       )
       .orderBy(asc(competitionConsentDocument.purpose));
     expect(attached.map((row) => row.purpose).sort()).toEqual(
@@ -58,9 +61,7 @@ describe("the guardian consents seed (#82)", () => {
     const h = await createHarness();
     await h.seed.preview();
 
-    expect(
-      await statuses(h, SEED_GUARDIANS.children.young.profileId)
-    ).toEqual({
+    expect(await statuses(h, SEED_GUARDIANS.children.young.profileId)).toEqual({
       participation: "given",
       public_display: "given",
       display_school: "never",

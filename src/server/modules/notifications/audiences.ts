@@ -181,6 +181,8 @@ export const AUDIENCES = {
    * a minor go to them, and a teen with an own login gets an inbox copy. A
    * minor with no verified guardian is told nothing. An adult's own
    * registration has none here: `registration_owner` tells them.
+   * Later events about a registration can add their own route here.
+   * Financial receipts and refunds go to the payer's account.
    */
   guardian_of_participant: async (db, delivery) =>
     delivery.eventType === "registration.confirmed"

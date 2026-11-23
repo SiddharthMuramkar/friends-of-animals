@@ -4,11 +4,14 @@ import { describe, expect, it } from "vitest";
 import { participantProfile } from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 
+import { publicUse } from "./index";
+
 import {
   childForm,
   consentCompetition,
   guardianWithChild,
   publishNextVersion,
+  reattach,
 } from "./testing";
 
 // #82: a guardian sees each child's full consent history, and a preview of
@@ -142,6 +145,32 @@ describe("childConsentHistory", () => {
 });
 
 describe("childConsents' credit preview", () => {
+  it("gives publication callers only the credit allowed on the pinned version", async () => {
+    const h = await createHarness();
+    const competition = await consentCompetition(h);
+    const child = await guardianWithChild(h, competition);
+    const galleryCredit = () =>
+      publicUse(h.deps, {
+        profileId: child.childId,
+        competitionId: competition.id,
+        use: "gallery",
+      });
+
+    expect(await galleryCredit()).toBeNull();
+    await h.as(child.actor).giveChildConsent({
+      childId: child.childId,
+      competitionId: competition.id,
+      purpose: "public_display",
+      documentId: competition.guardianDocuments.public_display!,
+    });
+    expect(await galleryCredit()).toEqual({ name: "Asha K." });
+
+    const next = await publishNextVersion(h, "public_display");
+    expect(await galleryCredit()).toEqual({ name: "Asha K." });
+    await reattach(h, competition.id, "public_display", next.id);
+    expect(await galleryCredit()).toBeNull();
+  });
+
   it("follows the consents: nothing, then first name and initial, then the opted-in fields", async () => {
     const h = await createHarness();
     const competition = await consentCompetition(h);

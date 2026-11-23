@@ -49,6 +49,7 @@
         "consents": "What you agree to"
       },
       "consent": "I agree to the {title}",
+      "participationConsent": "I give permission for my child to take part (optional)",
       "consentLink": "Read the {title}",
       "submit": "Register",
       "problems": "Some details need another look.",
@@ -135,7 +136,9 @@
       "loading": "Loading your registrations…",
       "forChild": "For {name}",
       "childParticipantId": "{name}'s FOA Participant ID: {code}",
-      "held": "Waiting for your parent or guardian to confirm. We emailed them a link. Once they confirm, they can pay the fee.",
+      "held": "Waiting for your parent or guardian to confirm. We emailed them a link. Once they confirm and give consent to take part, they can pay the fee.",
+      "heldForConsent": "This place is waiting for a parent or guardian's consent to take part.",
+      "giveConsent": "Manage consents for {name}",
       "guardianPays": "Your parent or guardian pays the fee for this place."
     },
     "payment": {
@@ -153,6 +156,7 @@
       "writeNumber": "Write this number on the back of your artwork, and quote it if you contact us.",
       "checkoutReady": "This place now has a fee. Pay it with the button below.",
       "back": "Back to my competitions",
+      "manageConsents": "Manage consents",
       "error": {
         "nothing_to_pay": "There is nothing to pay for this registration.",
         "fee_not_set": "FOA hasn't set the fee yet. Please come back soon.",

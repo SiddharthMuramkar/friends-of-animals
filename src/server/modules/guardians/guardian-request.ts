@@ -30,7 +30,7 @@
 // (plus an encrypted copy while pending, for the message). An unknown or
 // malformed token is "not found", with nothing said about why.
 
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -61,6 +61,7 @@ import {
 } from "../institutions/domain/invitation";
 import { maskIdentifier } from "../institutions/domain/mask-identifier";
 import { releaseHeldRegistrations } from "../consent/participation-gate";
+import { canTransition } from "../registration/domain/registration-status";
 import {
   GUARDIAN_RELATIONSHIPS,
   type GuardianRelationship,
@@ -303,6 +304,16 @@ async function withdrawRequest(
   return rows.map((row) => row.id);
 }
 
+/** The requester has reached adulthood and is continuing on their own. */
+export async function revokePendingGuardianRequest(
+  tx: AppDb,
+  profileId: string,
+  now: Date
+) {
+  const pending = await pendingRequestOf(tx, profileId);
+  if (pending) await withdrawRequest(tx, pending.id, now);
+}
+
 export type GuardianRequestView = {
   status: InvitationStatus;
   /** `m***@example.test`: enough to recognise, no more. */
@@ -333,6 +344,76 @@ export type ViewGuardianRequestResult =
 export type AcceptGuardianRequestResult =
   | { ok: true; childId: string; released: string[] }
   | { ok: false; error: GuardianRequestAcceptanceRefusal | "invalid_input" };
+
+type Profile = typeof participantProfile.$inferSelect;
+
+/** Reconciles a teen's held places with the profile the guardian already keeps. */
+async function claimHeldPlaces(
+  tx: AppDb,
+  ctx: UseCaseContext,
+  source: Profile,
+  target: { id: string; participantCode: string | null },
+  now: Date
+) {
+  const held = await tx
+    .select({
+      id: registration.id,
+      competitionId: registration.competitionId,
+      status: registration.status,
+    })
+    .from(registration)
+    .where(eq(registration.participantProfileId, source.id))
+    .orderBy(registration.id)
+    .for("update");
+  if (held.some(({ status }) => status !== "pending_guardian")) return null;
+
+  const existing = await tx
+    .select({ competitionId: registration.competitionId })
+    .from(registration)
+    .where(
+      and(
+        eq(registration.participantProfileId, target.id),
+        ne(registration.status, "withdrawn")
+      )
+    );
+  const competitions = new Set(
+    existing.map(({ competitionId }) => competitionId)
+  );
+  for (const row of held) {
+    const duplicate = competitions.has(row.competitionId);
+    if (
+      duplicate &&
+      !canTransition("pending_guardian", "withdrawn", "guardian")
+    ) {
+      throw new Error(
+        "The registration machine no longer withdraws duplicate held places"
+      );
+    }
+    await tx
+      .update(registration)
+      .set({
+        participantProfileId: target.id,
+        status: duplicate ? "withdrawn" : "pending_guardian",
+        updatedAt: now,
+      })
+      .where(eq(registration.id, row.id));
+    if (duplicate) {
+      await recordAudit(tx, ctx, {
+        action: "registration.status_changed",
+        entity: { type: "registration", id: row.id },
+        before: { status: "pending_guardian", participantProfileId: source.id },
+        after: {
+          status: "withdrawn",
+          participantProfileId: target.id,
+          cause: "guardian",
+          reason: "duplicate",
+        },
+        actorRole: null,
+      });
+    }
+  }
+  return held.map(({ id }) => id);
+}
 
 /** The token's hash, or null for anything that can't be a link token. */
 function tokenHashOf(input: { token?: unknown }): string | null {
@@ -485,13 +566,7 @@ export async function acceptGuardianRequest(
         .for("update");
       const [profile] = request
         ? await tx
-            .select({
-              id: participantProfile.id,
-              ownerKind: participantProfile.ownerKind,
-              ownerUserId: participantProfile.ownerUserId,
-              identityHash: participantProfile.identityHash,
-              dobCiphertext: participantProfile.dobCiphertext,
-            })
+            .select()
             .from(participantProfile)
             .where(eq(participantProfile.id, request.profileId))
             .for("update")
@@ -514,10 +589,14 @@ export async function acceptGuardianRequest(
             ne(participantProfile.id, profile.id)
           )
         );
-      // The same child added by this guardian already (81a): one guardian
-      // keeps each child once.
+      // Keep the profile the guardian already uses, if the match is theirs
+      // to manage and it has no login to displace.
       const [sameChild] = await tx
-        .select({ id: participantProfile.id })
+        .select({
+          id: participantProfile.id,
+          loginUserId: participantProfile.loginUserId,
+          participantCode: participantProfile.participantCode,
+        })
         .from(participantProfile)
         .where(
           and(
@@ -525,7 +604,21 @@ export async function acceptGuardianRequest(
             eq(participantProfile.ownerKind, "guardian"),
             eq(participantProfile.identityHash, profile.identityHash)
           )
-        );
+        )
+        .for("update");
+      const [activeLink] =
+        sameChild && record
+          ? await tx
+              .select({ id: guardianLink.id })
+              .from(guardianLink)
+              .where(
+                and(
+                  eq(guardianLink.guardianId, record.id),
+                  eq(guardianLink.participantProfileId, sameChild.id),
+                  isNull(guardianLink.revokedAt)
+                )
+              )
+          : [];
       const decision = decideGuardianRequestAcceptance({
         request,
         now,
@@ -538,7 +631,9 @@ export async function acceptGuardianRequest(
           // Under the accepter's row lock, which registering alone takes.
           ownProfile: await ownProfileOf(tx, ctx, userId, now),
         },
-        childAlreadyAdded: sameChild !== undefined,
+        childAlreadyAdded:
+          sameChild !== undefined &&
+          (sameChild.loginUserId !== null || !activeLink),
         requester: {
           linkedElsewhere: linkedElsewhere !== undefined,
           isAdult: isAdultAt(childDateOfBirth(ctx, profile).date, now),
@@ -554,22 +649,30 @@ export async function acceptGuardianRequest(
         );
       }
 
-      await tx
-        .update(participantProfile)
-        .set({
-          ownerKind: "guardian",
-          ownerUserId: userId,
-          loginUserId: teenUserId,
-          updatedAt: now,
-        })
-        .where(eq(participantProfile.id, profile.id));
-      await tx.insert(guardianLink).values({
-        id: uuidv7(now),
-        guardianId: record.id,
-        participantProfileId: profile.id,
-        relationship,
-        createdAt: now,
-      });
+      const childId = sameChild?.id ?? profile.id;
+      let claimed: string[] = [];
+      if (sameChild) {
+        const places = await claimHeldPlaces(tx, ctx, profile, sameChild, now);
+        if (!places) return { ok: false, error: "child_already_added" };
+        claimed = places;
+      } else {
+        await tx
+          .update(participantProfile)
+          .set({
+            ownerKind: "guardian",
+            ownerUserId: userId,
+            loginUserId: teenUserId,
+            updatedAt: now,
+          })
+          .where(eq(participantProfile.id, childId));
+        await tx.insert(guardianLink).values({
+          id: uuidv7(now),
+          guardianId: record.id,
+          participantProfileId: childId,
+          relationship,
+          createdAt: now,
+        });
+      }
       await tx
         .update(guardianInvitation)
         .set({
@@ -577,30 +680,80 @@ export async function acceptGuardianRequest(
           guardianId: record.id,
           acceptedAt: now,
           acceptedByUserId: userId,
+          participantProfileId: childId,
           tokenCiphertext: null,
           updatedAt: now,
         })
         .where(eq(guardianInvitation.id, request.id));
+      if (sameChild) {
+        // Preserve closed requests and close any pending teen-login invite.
+        await tx
+          .update(guardianInvitation)
+          .set({ participantProfileId: childId })
+          .where(eq(guardianInvitation.participantProfileId, profile.id));
+        await tx
+          .update(guardianInvitation)
+          .set({
+            status: "revoked",
+            revokedAt: now,
+            tokenCiphertext: null,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(guardianInvitation.participantProfileId, childId),
+              eq(guardianInvitation.status, "pending"),
+              eq(guardianInvitation.kind, "teen_login")
+            )
+          );
+        await tx
+          .delete(participantProfile)
+          .where(eq(participantProfile.id, profile.id));
+        await tx
+          .update(participantProfile)
+          .set({
+            loginUserId: teenUserId,
+            updatedAt: now,
+            ...(sameChild.participantCode === null
+              ? {
+                  participantCode: profile.participantCode,
+                  phoneCiphertext: profile.phoneCiphertext,
+                  emailCiphertext: profile.emailCiphertext,
+                  pinCode: profile.pinCode,
+                  city: profile.city,
+                  state: profile.state,
+                  country: profile.country,
+                  schoolName: profile.schoolName,
+                }
+              : {}),
+          })
+          .where(eq(participantProfile.id, childId));
+      }
       await recordAudit(tx, ctx, {
         action: "guardian.request_accepted",
-        entity: { type: "participant_profile", id: profile.id },
-        before: { ownerKind: "self", loginUserId: null },
+        entity: { type: "participant_profile", id: childId },
+        before: {
+          ownerKind: "self",
+          loginUserId: null,
+          participantProfileId: profile.id,
+        },
         after: {
           ownerKind: "guardian",
           guardianId: record.id,
           loginUserId: teenUserId,
           requestId: request.id,
           relationship,
+          claimedRegistrations: claimed,
         },
         actorRole: null,
       });
       // Held still until the guardian gives participation for each (#82).
       const released = await releaseHeldRegistrations(tx, ctx, {
-        profileId: profile.id,
+        profileId: childId,
         actorRole: null,
       });
       await grantGlobalRole(tx, ctx, teenUserId, "participant");
-      return { ok: true, childId: profile.id, released };
+      return { ok: true, childId, released };
     }
   );
 }

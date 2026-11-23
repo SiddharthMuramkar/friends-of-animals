@@ -54,6 +54,7 @@ import {
   type ConsentEventAction,
   type ConsentEventRecord,
 } from "./domain/consent-state";
+import type { ConsentDocumentBody } from "./domain/document-body";
 import {
   documentToGive,
   GUARDIAN_PURPOSES,
@@ -96,7 +97,7 @@ export type ChildConsents = {
     creditPreview: Record<PublicUse, PublicCredit | null>;
   }[];
   communications: {
-    document: ChildConsentDocument | null;
+    document: (ChildConsentDocument & { body: ConsentDocumentBody }) | null;
     state: PurposeState;
     counts: boolean;
   };
@@ -415,7 +416,7 @@ async function childFacts(
 }
 
 /** Every event of the child's log, with what the views name. */
-async function childEvents(db: AppDb, childId: string) {
+async function childEvents(db: AppDb, childId: string, competitionId?: string) {
   return db
     .select({
       id: consentEvent.id,
@@ -437,10 +438,50 @@ async function childEvents(db: AppDb, childId: string) {
     .where(
       and(
         eq(consentEvent.subjectType, "participant_profile"),
-        eq(consentEvent.subjectId, childId)
+        eq(consentEvent.subjectId, childId),
+        competitionId === undefined
+          ? undefined
+          : eq(consentEvent.competitionId, competitionId)
       )
     )
     .orderBy(desc(consentEvent.occurredAt), desc(consentEvent.id));
+}
+
+/**
+ * A publication caller gets only the credit allowed for this competition
+ * and use. Other publication checks, such as whether an entry is released,
+ * belong to the caller.
+ */
+export async function publicUse(
+  ctx: Pick<UseCaseContext, "db" | "cipher">,
+  input: { profileId: string; competitionId: string; use: PublicUse }
+): Promise<PublicCredit | null> {
+  const { profileId, competitionId, use } = input;
+  const registration = await liveRegistration(ctx.db, profileId, competitionId);
+  if (!registration) return null;
+  const found = await competitionSetup(ctx.db, competitionId);
+  if (!found) return null;
+  const child = await childFacts(ctx, profileId);
+  const events = await childEvents(ctx.db, profileId, competitionId);
+  const view = childConsentsView({
+    child: {
+      ...nameParts(child.fullName),
+      schoolName: child.schoolName,
+      city: child.city,
+    },
+    competitions: [
+      {
+        id: competitionId,
+        title: found.title,
+        setup: found.setup,
+        minor: ageAt(child.dateOfBirth, registration.createdAt) < ADULT_AGE,
+      },
+    ],
+    states: (_, purpose) =>
+      currentConsent(events.filter((event) => event.purpose === purpose)),
+    communicationsDocument: null,
+  });
+  return view.competitions[0]?.creditPreview[use] ?? null;
 }
 
 function isGuardianPurpose(purpose: string): purpose is GuardianPurpose {
@@ -498,19 +539,12 @@ export async function childConsents(
     competitions.push({
       id: competitionId,
       title: found.title,
-      setup: found.setup,
+      setup: at === undefined ? { ...found.setup, attached: {} } : found.setup,
       // Under 18 when registered; with no live registration, a child's.
       minor: at === undefined || ageAt(child.dateOfBirth, at) < ADULT_AGE,
     });
   }
   const communications = await latestDocument(ctx.db, "communications");
-  if (communications) {
-    titles.set(communications.id, {
-      id: communications.id,
-      version: communications.version,
-      title: communications.title,
-    });
-  }
 
   const logs = new Map<string, ConsentEventRecord[]>();
   for (const event of events) {
@@ -542,7 +576,12 @@ export async function childConsents(
     })),
     communications: {
       ...view.communications,
-      document: titled(view.communications.document),
+      document: communications && {
+        id: communications.id,
+        version: communications.version,
+        title: communications.title,
+        body: communications.body,
+      },
     },
   };
 }

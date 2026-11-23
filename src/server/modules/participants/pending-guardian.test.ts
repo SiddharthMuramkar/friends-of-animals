@@ -106,6 +106,34 @@ describe("a registration held for a guardian", () => {
     ).toEqual({ ok: false, error: "awaiting_guardian" });
     expect(await meera.status()).toBe("pending_guardian");
   });
+
+  it("lets the participant continue the same registration after turning 18", async () => {
+    const h = await createHarness();
+    const meera = await heldTeen(h, {
+      fee: 0n,
+      dateOfBirth: bornYearsAgo(h, 18, -3),
+    });
+    const mine = h.as(meera.actor);
+    h.clock.advance({ days: 4 });
+
+    expect(await mine.listMyRegistrations()).toEqual([
+      expect.objectContaining({
+        registrationId: meera.registrationId,
+        amountDue: { amountMinor: 0n, currency: "INR" },
+        heldFor: null,
+      }),
+    ]);
+
+    const confirmed = await mine.payForMyRegistration({
+      registrationId: meera.registrationId,
+    });
+    expect(confirmed).toMatchObject({ ok: true, kind: "confirmed_free" });
+    expect(await meera.status()).toBe("confirmed");
+    expect(h.gateway.orders).toEqual([]);
+    expect(
+      await h.as(h.visitor()).viewGuardianRequest({ token: meera.token })
+    ).toMatchObject({ ok: true, request: { status: "revoked", teen: null } });
+  });
 });
 
 describe("registerAsGuardian, after registering alone", () => {
@@ -374,6 +402,96 @@ describe("acceptGuardianRequest", () => {
     ).toEqual([{ id: meera.profileId }]);
   });
 
+  it.each([false, true])(
+    "claims the held place for an existing child profile (already registered: %s)",
+    async (hasRegistration) => {
+      const h = await createHarness();
+      const meera = await heldTeen(h);
+      const lakshmi = await verifiedGuardian(h, {
+        name: "Lakshmi Iyer",
+        email: MOTHER_EMAIL,
+      });
+      const [teen] = await h.db
+        .select({ dobCiphertext: participantProfile.dobCiphertext })
+        .from(participantProfile)
+        .where(eq(participantProfile.id, meera.profileId));
+      const added = await h.as(lakshmi.actor).addChild({
+        fullName: "Meera Iyer",
+        dateOfBirth: h.deps.cipher.decrypt(
+          "participant_profile.dob",
+          teen!.dobCiphertext
+        ),
+        relationship: "parent",
+      });
+      if (!added.ok) throw new Error(JSON.stringify(added));
+      const { childId } = added;
+      const parent = h.as(lakshmi.actor);
+      let liveId = meera.registrationId;
+      if (hasRegistration) {
+        const prior = await parent.registerAsIndividual({
+          ...adultForm(meera.competition, {
+            consents: meera.competition.documents.filter(
+              (id) => id !== meera.competition.guardianDocuments.participation
+            ),
+          }),
+          forChildId: childId,
+        });
+        expect(prior).toMatchObject({ ok: true, status: "pending_guardian" });
+        if (!prior.ok) throw new Error(JSON.stringify(prior));
+        liveId = prior.registrationId;
+      }
+
+      expect(
+        await parent.acceptGuardianRequest({
+          token: meera.token,
+          relationship: "parent",
+        })
+      ).toEqual({ ok: true, childId, released: [] });
+      expect(
+        (await parent.listMyRegistrations()).filter(
+          ({ status }) => status !== "withdrawn"
+        )
+      ).toEqual([
+        expect.objectContaining({
+          registrationId: liveId,
+          childId,
+          status: "pending_guardian",
+          heldFor: "consent",
+        }),
+      ]);
+      expect(
+        (await h.as(meera.actor).listMyRegistrations()).filter(
+          ({ status }) => status !== "withdrawn"
+        )
+      ).toEqual([
+        expect.objectContaining({
+          registrationId: liveId,
+          whose: "mine",
+          heldFor: "consent",
+          amountDue: null,
+        }),
+      ]);
+      expect(
+        await parent.giveChildConsent({
+          childId,
+          competitionId: meera.competition.id,
+          purpose: "participation",
+          documentId: meera.competition.guardianDocuments.participation!,
+        })
+      ).toEqual({ ok: true, changed: true });
+      expect(await meera.status()).toBe(
+        hasRegistration ? "withdrawn" : "pending_payment"
+      );
+      expect(await parent.listMyRegistrations()).toContainEqual(
+        expect.objectContaining({
+          registrationId: liveId,
+          childId,
+          status: "pending_payment",
+        })
+      );
+    }
+  );
+
   describe("refuses, changing nothing,", () => {
     async function unchanged(h: Harness) {
       return {
@@ -416,32 +534,21 @@ describe("acceptGuardianRequest", () => {
       expect(await unchanged(h)).toEqual(before);
     });
 
-    it("a guardian who already added the same child, rather than failing", async () => {
+    it("a matching child's profile already linked to a different login", async () => {
       const h = await createHarness();
       const meera = await heldTeen(h);
-      const lakshmi = await verifiedGuardian(h, {
-        name: "Lakshmi Iyer",
+      const login = await h.seed.member();
+      const family = await h.seed.guardian({
         email: MOTHER_EMAIL,
+        children: [{ fullName: "Meera Iyer", age: 15, loginUserId: login.id }],
       });
-      const [teen] = await h.db
-        .select({ dobCiphertext: participantProfile.dobCiphertext })
-        .from(participantProfile)
-        .where(eq(participantProfile.id, meera.profileId));
-      const added = await h.as(lakshmi.actor).addChild({
-        fullName: "Meera Iyer",
-        dateOfBirth: h.deps.cipher.decrypt(
-          "participant_profile.dob",
-          teen!.dobCiphertext
-        ),
-        relationship: "parent",
-      });
-      expect(added).toMatchObject({ ok: true });
+      const parent = h.as(await h.signIn(family.account));
       const before = await unchanged(h);
-
       expect(
-        await h
-          .as(lakshmi.actor)
-          .acceptGuardianRequest({ token: meera.token, relationship: "parent" })
+        await parent.acceptGuardianRequest({
+          token: meera.token,
+          relationship: "parent",
+        })
       ).toEqual({ ok: false, error: "child_already_added" });
       expect(await unchanged(h)).toEqual(before);
     });

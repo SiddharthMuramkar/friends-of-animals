@@ -24,6 +24,7 @@ import {
 import type { Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
 import { verifiedLink } from "../guardians/child-access";
+import { ownProfileOf } from "../guardians/own-profile";
 import type { RegistrationRoute } from "../registration/domain/participant";
 import type { RegistrationStatus } from "../registration/domain/registration-status";
 
@@ -142,8 +143,16 @@ export async function listMyRegistrations(
       )
     )
     .orderBy(desc(registration.createdAt), desc(registration.id));
+  const ownsHeld = rows.some(
+    (row) => row.ownerKind === "self" && row.status === "pending_guardian"
+  );
+  const nowAdult =
+    ownsHeld &&
+    (await ownProfileOf(ctx.db, ctx, userId, ctx.clock.now())) === "adult";
   return rows.map((row) => {
     const { whose, pays } = visible.get(row.profileId)!;
+    const canContinue =
+      row.status === "pending_guardian" && row.ownerKind === "self" && nowAdult;
     return {
       registrationId: row.registrationId,
       whose,
@@ -154,12 +163,14 @@ export async function listMyRegistrations(
       participantCode: row.participantCode ?? "",
       registrationNumber: row.registrationNumber,
       amountDue:
-        pays && row.status === "pending_payment" && row.fee !== null
+        pays &&
+        (row.status === "pending_payment" || canContinue) &&
+        row.fee !== null
           ? { amountMinor: row.fee, currency: "INR" }
           : null,
       childId: whose === "child" ? row.profileId : null,
       heldFor:
-        row.status !== "pending_guardian"
+        row.status !== "pending_guardian" || canContinue
           ? null
           : row.ownerKind === "guardian"
             ? "consent"

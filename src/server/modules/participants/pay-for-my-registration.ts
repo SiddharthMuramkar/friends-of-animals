@@ -38,17 +38,22 @@ import {
   paymentBatch,
   paymentBatchItem,
   registration,
+  user,
 } from "../../db/schema";
+import { DomainError } from "../../errors";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { CheckoutParams, Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
 import { getRegistrationTerms } from "../competitions/terms/read";
 import { lackingParticipation } from "../consent";
+import { revokePendingGuardianRequest } from "../guardians/guardian-request";
+import { ownProfileOf } from "../guardians/own-profile";
 import { endUnpaidBatch, heldInReview, lockBatch } from "../payments/batches";
 import { nextPaymentBatchStatus } from "../payments/domain/batch-status";
 import { syncBatch } from "../payments/sync-batch";
 import { confirmRegistrations } from "../registration/confirm";
+import { canTransition } from "../registration/domain/registration-status";
 import { paysFor } from "./owner";
 
 export type PayForMyRegistrationInput = { registrationId: string };
@@ -176,10 +181,20 @@ async function planPayment(
       kind: "done",
       result,
     });
+    const actor = ctx.actor;
+    if (actor.kind !== "user") throw new Error("unreachable");
+    // Serialize the adult's claim with acceptance of their waiting request.
+    await tx
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, actor.userId))
+      .for("no key update");
     const [mine] = await tx
       .select({
         status: registration.status,
         registrationNumber: registration.registrationNumber,
+        profileId: participantProfile.id,
+        ownerKind: participantProfile.ownerKind,
         competitionId: registration.competitionId,
         competitionCode: competition.code,
         competitionName: competition.name,
@@ -194,6 +209,9 @@ async function planPayment(
       .where(eq(registration.id, registrationId))
       .for("update", { of: registration });
     if (!mine) return done({ ok: false, error: "nothing_to_pay" });
+    if (!(await paysFor(tx, registrationId, actor.userId))) {
+      throw new DomainError("forbidden", "The registration payer changed");
+    }
     if (mine.status === "confirmed" && mine.registrationNumber) {
       return done({
         ok: true,
@@ -202,9 +220,36 @@ async function planPayment(
       });
     }
     if (mine.status === "pending_guardian") {
-      return done({ ok: false, error: "awaiting_guardian" });
-    }
-    if (mine.status !== "pending_payment") {
+      if (mine.ownerKind !== "self") {
+        return done({ ok: false, error: "awaiting_guardian" });
+      }
+      if ((await ownProfileOf(tx, ctx, actor.userId, now)) !== "adult") {
+        return done({ ok: false, error: "awaiting_guardian" });
+      }
+      if (
+        !canTransition("pending_guardian", "pending_payment", "participant")
+      ) {
+        throw new Error(
+          "The registration machine no longer releases an adult's hold"
+        );
+      }
+      await tx
+        .update(registration)
+        .set({ status: "pending_payment", updatedAt: now })
+        .where(eq(registration.id, registrationId));
+      await revokePendingGuardianRequest(tx, mine.profileId, now);
+      await recordAudit(tx, ctx, {
+        action: "registration.status_changed",
+        entity: { type: "registration", id: registrationId },
+        before: { status: "pending_guardian" },
+        after: {
+          status: "pending_payment",
+          cause: "participant",
+          reason: "turned_18",
+        },
+        actorRole,
+      });
+    } else if (mine.status !== "pending_payment") {
       return done({ ok: false, error: "nothing_to_pay" });
     }
     if ((await lackingParticipation(tx, [registrationId])).size > 0) {

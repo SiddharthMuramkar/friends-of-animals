@@ -2,6 +2,10 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { outbox, user } from "@/server/db/schema";
+import {
+  childForm,
+  consentCompetition,
+} from "@/server/modules/consent/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { signInStaff } from "../testing";
@@ -17,7 +21,10 @@ import {
 // the transaction that marks it refunded). When the gateway fails one,
 // the finance team is told (refund.failed).
 
-async function approvedRefund(h: Harness, paid: CapturedBatch) {
+async function approvedRefund(
+  h: Harness,
+  paid: Pick<CapturedBatch, "batchId">
+) {
   const staff = await signInStaff(h, "staff_admin");
   const asked = await h
     .as(staff.actor)
@@ -83,5 +90,55 @@ describe("refund messages", () => {
     expect(await h.as(finance.actor).listInbox()).toContainEqual(
       expect.objectContaining({ title: "A refund of ₹1,000.00 failed" })
     );
+  });
+
+  it("routes confirmation, receipt and refund to the guardian who paid for their teen", async () => {
+    const h = await createHarness();
+    const competition = await consentCompetition(h, {
+      name: "Art for Animals",
+    });
+    const teen = await h.seed.member({ name: "Asha Kulkarni" });
+    const family = await h.seed.guardian({
+      children: [{ fullName: teen.name, age: 15, loginUserId: teen.id }],
+    });
+    const parent = h.as(await h.signIn(family.account));
+    const child = h.as(await h.signIn(teen));
+    const registration = await parent.registerAsIndividual(
+      childForm(competition, family.childIds[0]!, { participation: true })
+    );
+    if (!registration.ok) throw new Error(JSON.stringify(registration));
+    const paid = await parent.payForMyRegistration({
+      registrationId: registration.registrationId,
+    });
+    if (!paid.ok || paid.kind !== "checkout")
+      throw new Error("Expected checkout");
+    const orderId = paid.checkout.orderId;
+    h.gateway.capture(orderId);
+    const webhook = await h
+      .as(h.visitor())
+      .receiveGatewayWebhook(
+        h.gateway.webhook({ type: "payment.captured", orderId })
+      );
+    expect(webhook).toMatchObject({ ok: true, outcome: "captured" });
+
+    const { refundId } = await approvedRefund(h, paid);
+    await h.drain();
+    expect((await refundRow(h, refundId)).status).toBe("refunded");
+    const subjects = [
+      "Asha Kulkarni is registered for Art for Animals",
+      "Payment received for Art for Animals",
+      "Refund of ₹250.00 for Art for Animals",
+    ];
+    for (const subject of subjects) {
+      expect(h.email.sent.filter((mail) => mail.subject === subject)).toEqual([
+        expect.objectContaining({ to: family.account.email }),
+      ]);
+    }
+    const parentTitles = (await parent.listInbox()).map(({ title }) => title);
+    const childTitles = (await child.listInbox()).map(({ title }) => title);
+    expect(parentTitles).toEqual(expect.arrayContaining(subjects));
+    expect(childTitles).toContain(subjects[0]);
+    expect(childTitles).not.toContain(subjects[1]);
+    expect(childTitles).not.toContain(subjects[2]);
   });
 });

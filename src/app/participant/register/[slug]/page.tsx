@@ -195,7 +195,10 @@ async function Register({
     ) as Record<Refusal, string>,
     documents: form.documents.map((document) => ({
       documentId: document.documentId,
-      label: t("consent", { title: document.title }),
+      label:
+        document.purpose === "participation"
+          ? t("participationConsent")
+          : t("consent", { title: document.title }),
       link: t("consentLink", { title: document.title }),
       href: document.href,
     })),

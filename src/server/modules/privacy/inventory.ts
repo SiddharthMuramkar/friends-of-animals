@@ -89,6 +89,13 @@ const WHILE_REGISTRATION_KEPT = {
   toConfirm: true,
 } as const;
 
+const CONSENT_RECORD = {
+  period: "While the consent applies, then 3 years (HR-31)",
+  basis:
+    "Shows what a person or guardian agreed to and when they changed their choice",
+  toConfirm: true,
+} as const;
+
 /** A guardian's own record and links: as long as a child of theirs is kept. */
 const WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD = {
   period:
@@ -325,6 +332,26 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     purpose:
       "Records which coordinator or authorised person registered the institution for the competition",
     retention: WHILE_REGISTRATION_KEPT,
+  },
+  // Consent records (#82)
+  {
+    table: "consent_event",
+    column: "subject_id",
+    purpose:
+      "Identifies the person or child whose consent was given or withdrawn",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "giver_user_id",
+    purpose: "Identifies the account that gave or withdrew consent",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "competition_id",
+    purpose: "Identifies the competition to which a child's consent applies",
+    retention: CONSENT_RECORD,
   },
   // Students an institution enrols (#75)
   {

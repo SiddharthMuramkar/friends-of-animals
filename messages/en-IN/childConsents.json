@@ -1,0 +1,64 @@
+{
+  "childConsents": {
+    "meta": "Guardian consents",
+    "title": "Consents for {name}",
+    "lead": "Choose separately what you allow for your child. You can change each choice here.",
+    "loading": "Loading consents…",
+    "back": "Back to child details",
+    "historyLink": "View consent history",
+    "empty": "There are no competition consents for this child yet.",
+    "purposes": {
+      "participation": "Participation",
+      "public_display": "Public display",
+      "display_school": "Show school",
+      "display_city": "Show city",
+      "social_media": "Social media",
+      "auction": "Auction of artwork",
+      "communications": "Messages about your child"
+    },
+    "state": {
+      "given": "Given",
+      "never": "No consent given",
+      "withdrawn": "Withdrawn",
+      "outdated": "Given on an earlier version"
+    },
+    "unavailable": "This consent is currently unavailable.",
+    "document": "Read {title}, version {version}",
+    "give": "Give consent",
+    "withdraw": "Withdraw consent",
+    "saving": "Saving…",
+    "credit": {
+      "title": "Public credit",
+      "hidden": "No credit shown",
+      "gallery": "Gallery",
+      "results": "Results",
+      "social_media": "Social media",
+      "auction": "Auction"
+    },
+    "notice": {
+      "given": "Consent recorded.",
+      "withdrawn": "Consent withdrawn.",
+      "document_outdated": "The consent document has changed. Read the new version before giving consent.",
+      "failed": "We couldn't change this consent. Check the current choices and try again."
+    },
+    "history": {
+      "meta": "Consent history",
+      "title": "Consent history for {name}",
+      "loading": "Loading consent history…",
+      "back": "Back to consents",
+      "empty": "No guardian consent has been given or withdrawn for this child yet.",
+      "given": "Given · {purpose}",
+      "withdrawn": "Withdrawn · {purpose}",
+      "document": "{title}, version {version}",
+      "global": "Applies across competitions",
+      "giver": "By {name}",
+      "unknownGiver": "The giver's account is unavailable",
+      "methods": {
+        "web_form": "On this website",
+        "otp_link": "By verification link",
+        "paper_form": "On a signed form",
+        "staff_recorded": "Recorded by staff"
+      }
+    }
+  }
+}

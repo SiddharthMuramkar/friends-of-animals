@@ -170,6 +170,7 @@
         "added": "Child added."
       },
       "back": "Back to your children",
+      "consents": "Manage consents",
       "register": {
         "title": "Competitions",
         "body": "To register {name}, open a competition, choose to take part as an individual, then choose {name}. Their registrations show in My competitions.",
@@ -264,7 +265,7 @@
       },
       "accepted": {
         "title": "You're their parent or guardian now",
-        "body": "Their registrations wait for you to pay the fee.",
+        "body": "Give participation consent for each registration before paying its fee.",
         "action": "See their registrations"
       },
       "used": {
@@ -276,8 +277,8 @@
         "body": "Request links work for 7 days. The teen can ask again when they register for a competition."
       },
       "revoked": {
-        "title": "This request was replaced",
-        "body": "The teen asked again, or asked someone else. Use the newest email you have."
+        "title": "This request is no longer active",
+        "body": "Open the latest request if you received one. A participant who turns 18 can continue on their own."
       },
       "errors": {
         "not_found": "This link doesn't work any more.",
@@ -288,7 +289,7 @@
         "contact_mismatch": "This request is for a different email address than the one you're signed in with.",
         "accepter_is_minor": "This account registered for a competition with a date of birth under 18, so it can't become a teen's parent or guardian. They need to ask a parent or guardian who is 18 or older.",
         "guardian_not_verified": "First register as a parent or guardian, with a code we email you.",
-        "child_already_added": "You've already added this child yourself, so this request can't add them a second time. Please contact us, and we'll bring their registrations together.",
+        "child_already_added": "This request can't be linked to the child's existing profile. Please contact us about their registrations.",
         "already_linked": "This teen's login is already linked to a parent or guardian.",
         "requester_is_adult": "They are 18 or over now, so they don't need a parent or guardian to take part.",
         "requester_has_role": "The account that sent this request looks after children, or works with Friends of Animals, a school or the judges, so it can't be a teen's login. Please contact us.",

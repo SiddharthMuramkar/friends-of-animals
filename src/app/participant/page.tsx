@@ -8,7 +8,10 @@ import { Chip } from "@/components/site/chip";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { payMyRegistrationPath } from "@/lib/app-routes";
+import {
+  guardianChildConsentsPath,
+  payMyRegistrationPath,
+} from "@/lib/app-routes";
 import { ROUTES, slugHref } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type { MyRegistration } from "@/server/modules/participants";
@@ -113,6 +116,10 @@ async function RegistrationCard({
     getFormatter(),
   ]);
   const { competition, amountDue } = registration;
+  const statusLabel =
+    registration.status === "pending_guardian" && amountDue
+      ? "pending_payment"
+      : registration.status;
   const headingId = `registration-${registration.registrationId}`;
   return (
     <article aria-labelledby={headingId} className={CARD}>
@@ -125,9 +132,7 @@ async function RegistrationCard({
             {competition.name}
           </SiteLink>
         </h2>
-        <Chip tone={STATUS_TONE[registration.status]}>
-          {status(registration.status)}
-        </Chip>
+        <Chip tone={STATUS_TONE[statusLabel]}>{status(statusLabel)}</Chip>
       </div>
       {registration.whose === "child" ? (
         <p className="mt-3 font-semibold text-ink">
@@ -140,8 +145,11 @@ async function RegistrationCard({
           </span>
         </p>
       ) : null}
-      {registration.status === "pending_guardian" ? (
+      {registration.heldFor === "guardian" ? (
         <p className="mt-3 text-ink">{t("held")}</p>
+      ) : null}
+      {registration.heldFor === "consent" ? (
+        <p className="mt-3 text-ink">{t("heldForConsent")}</p>
       ) : null}
       {registration.status === "pending_payment" && !amountDue ? (
         <p className="mt-3 text-ink">{t("guardianPays")}</p>
@@ -175,6 +183,14 @@ async function RegistrationCard({
                 })}
           </a>
         </div>
+      ) : null}
+      {registration.heldFor === "consent" && registration.childId ? (
+        <ButtonLink
+          href={guardianChildConsentsPath(registration.childId)}
+          className="mt-4"
+        >
+          {t("giveConsent", { name: registration.participantName })}
+        </ButtonLink>
       ) : null}
     </article>
   );
