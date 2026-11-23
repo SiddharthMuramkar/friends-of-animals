@@ -68,6 +68,7 @@ import {
 } from "./modules/contact/domain/submission";
 
 export interface Deps extends DbWithClock {
+  appEnv: Env["APP_ENV"];
   email: EmailSender;
   sms: SmsSender;
   /** The response's cookies (the session cookie). */
@@ -288,6 +289,7 @@ export function productionDeps(): Deps {
     const config = env();
     const secret = config.BETTER_AUTH_SECRET ?? DEVELOPMENT_AUTH_SECRET;
     production = {
+      appEnv: config.APP_ENV,
       db,
       clock: systemClock,
       email: emailSenderFor(config.APP_ENV, { db, clock: systemClock }, config),

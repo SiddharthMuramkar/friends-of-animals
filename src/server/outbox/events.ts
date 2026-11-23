@@ -35,6 +35,11 @@ type InstitutionDecided<T extends `institution.${string}`> = {
 
 export type DomainEvent =
   | {
+      type: "consent.link_sent";
+      aggregate: { type: "consent_link"; id: string };
+      payload: { linkId: string };
+    }
+  | {
       type: "identity.user_signed_up";
       aggregate: { type: "user"; id: string };
       payload: { userId: string };
@@ -252,6 +257,7 @@ const INSTITUTION_DECIDED = z.object({
  * can't carry personal data into the table.
  */
 export const EVENT_PAYLOADS = {
+  "consent.link_sent": z.object({ linkId: z.uuid() }),
   "identity.user_signed_up": z.object({ userId: z.uuid() }),
   "files.file_uploaded": z.object({ fileId: z.uuid() }),
   "consent.withdrawn": z.object({
@@ -326,6 +332,7 @@ export const SUBSCRIBERS = {
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
   "consent.withdrawn": ["notifications.dispatch"],
+  "consent.link_sent": ["consent_links.deliver"],
   // Runs in worker-media only: the media queue (./queues.ts).
   "files.processing_requested": ["files.process_image"],
   // #85's Entries unit subscribes to these two. A post image's public

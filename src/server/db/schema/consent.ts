@@ -35,6 +35,7 @@ import {
 } from "../../modules/consent/domain/purposes";
 import { cmsRevision } from "./cms";
 import { competition } from "./competitions";
+import { consentLink } from "./consent-links";
 import { user } from "./identity";
 
 /**
@@ -115,6 +116,9 @@ export const consentEvent = pgTable(
     giverUserId: uuid("giver_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
+    /** Evidence from a verified guardian contact, without an account. */
+    giverContactHash: text("giver_contact_hash"),
+    consentLinkId: uuid("consent_link_id").references(() => consentLink.id),
     purpose: consentPurposeEnum().notNull(),
     /**
      * The competition a consent is about (#82), or null for a consent that
@@ -144,6 +148,19 @@ export const consentEvent = pgTable(
     // Deleting a user sets this to null; the index keeps that from
     // scanning the whole log.
     index("consent_event_giver_user_id_idx").on(table.giverUserId),
+    unique("consent_event_link_purpose_unique").on(
+      table.consentLinkId,
+      table.purpose
+    ),
+    check(
+      "consent_event_link_evidence",
+      sql`(${table.method} = 'otp_link') = (${table.consentLinkId} IS NOT NULL)
+        AND (${table.method} <> 'otp_link' OR (
+          ${table.giverUserId} IS NULL AND ${table.giverContactHash} IS NOT NULL
+          AND ${table.subjectType} = 'participant_profile'
+          AND ${table.competitionId} IS NOT NULL
+        ))`
+    ),
   ]
 );
 

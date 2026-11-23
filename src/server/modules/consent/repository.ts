@@ -3,7 +3,7 @@
 //
 // Loads under plain Node: relative imports only.
 
-import { and, desc, eq, isNull, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, type SQL } from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
 import {
@@ -115,6 +115,35 @@ export async function subjectEvents(
       ...(subject.type === "participant_profile"
         ? [desc(consentEvent.id)]
         : [desc(consentEvent.occurredAt), desc(consentEvent.id)])
+    );
+}
+
+/** The latest evidence per purpose for each profile in a competition. */
+export async function latestProfileConsents(
+  db: AppDb,
+  profileIds: string[],
+  competitionId: string
+) {
+  if (profileIds.length === 0) return [];
+  return db
+    .selectDistinctOn([consentEvent.subjectId, consentEvent.purpose], {
+      subjectId: consentEvent.subjectId,
+      purpose: consentEvent.purpose,
+      action: consentEvent.action,
+      documentId: consentEvent.documentId,
+    })
+    .from(consentEvent)
+    .where(
+      and(
+        eq(consentEvent.subjectType, "participant_profile"),
+        inArray(consentEvent.subjectId, profileIds),
+        eq(consentEvent.competitionId, competitionId)
+      )
+    )
+    .orderBy(
+      consentEvent.subjectId,
+      consentEvent.purpose,
+      desc(consentEvent.id)
     );
 }
 

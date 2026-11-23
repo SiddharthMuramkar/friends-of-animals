@@ -17,7 +17,10 @@ import {
   newStudentPath,
   payFeesPath,
   studentImportPath,
+  studentConsentsPath,
 } from "@/lib/app-routes";
+import { appEnv } from "@/lib/site";
+import { consentLinksActive } from "@/server/modules/consent-links/repository";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
@@ -162,6 +165,7 @@ async function Students({
   const success =
     done === "enrolled" || done === "enrolledIgnored" || done === "withdrawn";
   const { enrolment } = list;
+  const consentWords = await getTranslations("coordinatorConsents");
   const open = enrolment === "open";
 
   return (
@@ -217,6 +221,16 @@ async function Students({
         payHref={payFeesPath(list.reference, institutionId)}
       />
 
+      {consentLinksActive(appEnv()) ? (
+        <p>
+          <ButtonLink
+            href={studentConsentsPath(list.reference, institutionId)}
+            variant="secondary"
+          >
+            {consentWords("manage")}
+          </ButtonLink>
+        </p>
+      ) : null}
       <section aria-labelledby="students-list">
         <SectionHeading id="students-list" title={t("listTitle")} />
         {list.students.length === 0 ? (
