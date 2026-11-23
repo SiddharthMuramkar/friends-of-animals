@@ -1,0 +1,272 @@
+{
+  "adminPayments": {
+    "eyebrow": "Finance",
+    "loading": "Loading…",
+    "denied": {
+      "title": "Only FOA's finance team can open this",
+      "body": "Payments are for finance, staff admins and super admins. Ask a super admin for the finance role if you need it.",
+      "back": "Go to your dashboard"
+    },
+    "unexpected": "Something went wrong on our side. Nothing was saved. Please try again in a few minutes.",
+    "reasons": {
+      "already_paid": "Already paid",
+      "registration_cancelled": "Registration withdrawn",
+      "amount_mismatch": "Wrong amount",
+      "registration_closed": "After registration closed",
+      "batch_superseded": "Replaced payment",
+      "paid_while_in_review": "Paid again during review",
+      "participation_consent_required": "Participation consent required"
+    },
+    "reasonBodies": {
+      "already_paid": "These registrations were already paid for, so this money is a second payment.",
+      "registration_cancelled": "A registration in this payment was withdrawn after the payment started.",
+      "amount_mismatch": "The amount received isn't what this payment was for.",
+      "registration_closed": "The money arrived after the competition stopped taking registrations.",
+      "batch_superseded": "The payer started a newer payment for these registrations, then paid this older one.",
+      "paid_while_in_review": "This full payment arrived while an earlier payment for the same registrations was being checked. Resolve the other one first; then this one can be accepted.",
+      "participation_consent_required": "The guardian must give consent on the competition’s current participation document before this payment can be accepted."
+    },
+    "outcomes": {
+      "confirm": "Accept the money",
+      "refund": "Refund it",
+      "keep": "Keep it, no refund"
+    },
+    "outcomeResults": {
+      "confirm": "Accepted",
+      "refund": "Refund started",
+      "keep": "Kept"
+    },
+    "batchStatus": {
+      "created": "Starting",
+      "order_created": "Waiting for payment",
+      "captured": "Paid",
+      "failed": "Not started",
+      "cancelled": "Cancelled",
+      "needs_review": "Needs review"
+    },
+    "registrationStatus": {
+      "enrolled": "Waiting for payment",
+      "confirmed": "Confirmed",
+      "withdrawn": "Withdrawn",
+      "pending_payment": "Waiting for payment",
+      "refunded": "Refunded",
+      "pending_guardian": "Waiting for a guardian"
+    },
+    "methods": {
+      "cheque": "Cheque",
+      "bank_transfer": "Bank transfer",
+      "cash": "Cash"
+    },
+    "payer": {
+      "unknown": "Account closed"
+    },
+    "review": {
+      "meta": {
+        "title": "Payments needing review",
+        "description": "Money that arrived for payments that couldn't accept it."
+      },
+      "title": "Payments needing review",
+      "lead": "Money that arrived but couldn't confirm anyone: nothing has been confirmed or refunded. Open each one, decide what happens to the money, and say why.",
+      "views": {
+        "label": "Show",
+        "open": "Open",
+        "resolved": "Resolved"
+      },
+      "empty": {
+        "open": "Nothing needs review.",
+        "resolved": "No payment has been resolved yet."
+      },
+      "table": {
+        "caption": "{view, select, resolved {Resolved payments} other {Payments needing review}}, newest first",
+        "payment": "Payment",
+        "payer": "Paid by",
+        "competition": "Competition",
+        "reason": "Why",
+        "amount": "Amount",
+        "opened": "Arrived",
+        "resolution": "Decision",
+        "open": "Review payment of {amount} from {payer}"
+      }
+    },
+    "case": {
+      "meta": {
+        "title": "Payment needing review",
+        "description": "One payment that couldn't be accepted, and its decision."
+      },
+      "back": "All payments needing review",
+      "title": "Payment of {amount}",
+      "notFound": {
+        "title": "No payment with that link",
+        "body": "It may have been typed wrongly. Go back to the list to find it.",
+        "back": "All payments needing review"
+      },
+      "detailsTitle": "What arrived",
+      "details": {
+        "payer": "Paid by",
+        "competition": "Competition",
+        "reason": "Why it's here",
+        "received": "Amount received",
+        "expected": "Amount expected",
+        "gatewayPayment": "Payment service reference",
+        "arrived": "Arrived",
+        "batch": "Payment",
+        "batchLink": "See the whole payment",
+        "batchStatus": "Payment status",
+        "others": "Other payments to review for the same registrations"
+      },
+      "decisionTitle": "Decision",
+      "decision": {
+        "lead": "Accepting confirms the registrations as a payment would. Refunding marks the money to be paid back by the finance team; nothing is refunded from here. Keeping moves no money: say how it was settled.",
+        "noConfirm": "Accepting isn't possible here: the registrations are already paid for, or one of them was withdrawn.",
+        "othersFirst": "Decide the other payments for these registrations before accepting this one.",
+        "reason": {
+          "label": "Reason",
+          "hint": "Why you chose this, for the record. Between {min} and {max} characters.",
+          "required": "Write a reason of at least {min} characters.",
+          "tooLong": "Keep the reason to {max} characters."
+        },
+        "saving": "Saving…",
+        "alerts": {
+          "outcome_not_allowed": "That decision isn't possible for this payment.",
+          "resolve_other_cases_first": "Decide the other payments for these registrations first, then accept this one.",
+          "registration_not_payable": "A registration in this payment can no longer be confirmed: it was withdrawn or paid for another way. Refund or keep the money instead.",
+          "already_resolved": "Someone has already decided this payment. The page now shows their decision.",
+          "unexpected": "Something went wrong on our side. Nothing was saved. Please try again in a few minutes."
+        }
+      },
+      "resolvedTitle": "Decided",
+      "resolved": {
+        "outcome": "Decision",
+        "by": "By",
+        "on": "On",
+        "reason": "Reason",
+        "refundDue": "This payment is being refunded to the payer in full.",
+        "nobody": "Account closed"
+      },
+      "done": {
+        "confirm": "Accepted. The registrations are confirmed.",
+        "refund": "Refund started. The payment goes back to the payer in full.",
+        "keep": "Recorded. No money moves."
+      }
+    },
+    "batch": {
+      "meta": {
+        "title": "Payment",
+        "description": "One payment, what it is for and how it was paid."
+      },
+      "back": "Payments needing review",
+      "title": "Payment of {amount}",
+      "refundLink": "Refunds of this payment",
+      "notFound": {
+        "title": "No payment with that link",
+        "body": "It may have been typed wrongly.",
+        "back": "Payments needing review"
+      },
+      "detailsTitle": "Details",
+      "details": {
+        "payer": "Paid by",
+        "competition": "Competition",
+        "reference": "Registration reference",
+        "status": "Status",
+        "amount": "Amount",
+        "started": "Started",
+        "paidOn": "Paid on",
+        "paidHow": "Paid by",
+        "gateway": "Online payment",
+        "offline": "Offline payment",
+        "gatewayPayment": "Payment service reference"
+      },
+      "studentsTitle": "Registrations in this payment",
+      "students": {
+        "caption": "Registrations in this payment",
+        "student": "Registration",
+        "number": "Registration number",
+        "status": "Status",
+        "row": "Registration {n}",
+        "noNumber": "Not yet",
+        "released": "Moved to a newer payment"
+      },
+      "offlineTitle": "Offline payment",
+      "offline": {
+        "method": "Method",
+        "reference": "Reference",
+        "amount": "Amount",
+        "receivedOn": "Received on",
+        "recordedBy": "Recorded by",
+        "recordedAt": "Recorded",
+        "nobody": "Account closed",
+        "proof": "Proof",
+        "openProof": "Open the proof",
+        "proofWaiting": "The proof is being checked for viruses. It opens once that's done.",
+        "proofUnavailable": "The proof can't be opened: it failed its virus check.",
+        "proofStatus": {
+          "pending_upload": "Not uploaded",
+          "uploaded": "Being checked",
+          "scanning": "Being checked",
+          "clean": "Ready",
+          "quarantined": "Failed its virus check",
+          "rejected": "Not what was uploaded",
+          "deleted": "Removed"
+        }
+      },
+      "proofErrors": {
+        "not_found": "This payment has no proof to open.",
+        "file_not_ready": "The proof is still being checked for viruses. Try again in a minute.",
+        "file_unavailable": "The proof can't be opened: it failed its virus check."
+      },
+      "casesTitle": "Payments needing review",
+      "cases": {
+        "open": "Open",
+        "item": "{reason}, {state}",
+        "none": "None."
+      },
+      "recorded": "Offline payment recorded. The registrations are confirmed.",
+      "record": {
+        "title": "Record an offline payment",
+        "lead": "For a cheque, bank transfer or cash FOA has received for this payment. Recording it confirms the registrations, exactly as an online payment would, and sends the payer a receipt.",
+        "notOpen": "An offline payment can only be recorded for a payment nobody has paid yet.",
+        "method": {
+          "legend": "How was it paid?"
+        },
+        "reference": {
+          "label": "Reference",
+          "hint": "The 6-digit cheque number, the bank's transfer reference (UTR), or FOA's cash receipt number."
+        },
+        "amount": {
+          "label": "Amount received (₹)",
+          "hint": "Exactly this payment's amount: {amount}."
+        },
+        "receivedOn": {
+          "label": "Date received",
+          "hint": "The day the money reached FOA, in India."
+        },
+        "proof": {
+          "label": "Proof",
+          "hint": "A scan or photo of the cheque, the bank's advice or the cash receipt: PDF, PNG, JPEG or WebP, up to 10 MB. Only FOA's finance team can open it."
+        },
+        "submit": "Record payment",
+        "uploading": "Uploading the proof…",
+        "saving": "Saving…",
+        "errors": {
+          "reference_invalid": "Enter the reference as it's written: a cheque number has 6 digits, a transfer reference 8 to 35 letters and numbers.",
+          "amount_invalid": "Enter the amount in rupees, for example 2,000.",
+          "amount_mismatch": "The amount must be exactly this payment's amount. Part payments can't be recorded.",
+          "received_on_invalid": "Enter the date the money arrived.",
+          "received_in_future": "The date can't be in the future.",
+          "received_too_long_ago": "The date can't be more than a year ago. Check the year."
+        },
+        "alerts": {
+          "proof_invalid": "Choose the scan or photo of the payment to upload with it.",
+          "already_paid": "This payment has already been paid. Nothing more was recorded.",
+          "batch_not_payable": "This payment can't take an offline payment any more. The page now shows where it stands.",
+          "registration_not_payable": "A registration in this payment was withdrawn or paid another way, so it can't be recorded as paid.",
+          "type_not_allowed": "The proof must be a PDF, PNG, JPEG or WebP file.",
+          "too_large": "The proof is larger than 10 MB. Choose a smaller scan.",
+          "empty": "That file is empty. Choose the scan again.",
+          "upload_failed": "The proof didn't upload. Check your connection and try again.",
+          "unexpected": "Something went wrong on our side. Nothing was saved. Please try again in a few minutes."
+        }
+      }
+    }
+  }
+}

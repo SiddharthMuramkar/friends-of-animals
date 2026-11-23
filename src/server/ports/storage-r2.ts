@@ -27,6 +27,7 @@ import { r2Origin } from "../../lib/r2-origin";
 import type { Clock } from "./clock";
 import {
   contentDispositionFor,
+  FILE_CACHE_CONTROL,
   isPurgeablePrefix,
   ObjectMissingError,
   UnsafePrefixError,
@@ -113,6 +114,8 @@ export function r2Storage(
             disposition,
             filename
           ),
+          // Overrides any Cache-Control the object carries (copies keep it).
+          ResponseCacheControl: FILE_CACHE_CONTROL,
         }),
         { expiresIn: expiresInSeconds, signingDate: clock.now() }
       );
@@ -144,6 +147,18 @@ export function r2Storage(
       } catch (error) {
         throw isNotFound(error) ? new ObjectMissingError(ref) : error;
       }
+    },
+
+    async write({ bucket, key, body, contentType }) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          ContentLength: body.length,
+        })
+      );
     },
 
     async move({ bucket, from, to }) {

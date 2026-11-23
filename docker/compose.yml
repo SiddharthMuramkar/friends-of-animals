@@ -1,6 +1,6 @@
 # VPS database stack for FOA (issue #12): pg-prod, pg-nonprod and PgBouncer.
 #
-#   docker compose -f /srv/foa/docker/compose.yml up -d --wait
+#   docker compose -f /srv/foa/docker/compose.yml up -d --build --wait
 #
 # Runbook: docker/README.md. Secrets live in /etc/foa/secrets (made by
 # scripts/bootstrap-secrets.sh) and are never in git. Relative paths below
@@ -8,20 +8,38 @@
 #
 # Only PgBouncer publishes a port (6432, TLS + SCRAM). Postgres is reachable
 # only on the private network `db`; admins use `docker exec` or an SSH tunnel
-# to pg-prod's fixed address. Docker-published ports bypass ufw, so any port
-# added later must bind 127.0.0.1 (systemd/foa-docker-user-fw.service drops
-# everything else arriving on eth0 anyway).
+# to pg-prod's fixed address. Docker-published ports bypass the host firewall's
+# INPUT rules (ufw on Ubuntu; on Fedora firewalld accepts DNAT'd traffic while
+# StrictForwardPorts=no), so any port added later must bind 127.0.0.1
+# (systemd/foa-docker-user-fw.service drops everything else arriving on eth0
+# anyway).
+#
+# Memory limits are hard (mem_limit). memswap_limit = mem_limit is meant to
+# keep the containers out of swap (Docker otherwise lets a container swap as
+# much again as mem_limit; the Fedora VPS has zram swap and shares RAM with
+# interactive work), but on Docker 29.10 with runc 1.5.3 and the systemd cgroup
+# driver it never reaches the cgroup: memory.swap.max stays "max" and the
+# scope shows MemorySwapMax=infinity. Kept so it applies once runc does.
+#
+# oom_score_adj -900: under memory pressure the kernel's OOM killer takes the
+# agents and test runs that share this box before any database process.
 
 name: foa-vps
 
+# Container logs go to the host's journal, kept a year by
+# systemd/journald-foa.conf (#66; README "Logs"). `docker logs`, and so
+# CrowdSec's `source: docker`, still read them. docker/workers.yml carries
+# the same anchor; docker/logging.test.ts keeps the two identical.
 x-logging: &logging
-  driver: json-file
+  driver: journald
   options:
-    max-size: "50m"
-    max-file: "5"
+    tag: "{{.Name}}"
 
 x-postgres: &postgres
-  build: ./postgres
+  # Built once, by pg-prod; pg-nonprod reuses the tag (pull_policy: never).
+  # Two services building one tag export it twice in parallel, which the
+  # containerd image store (Docker 29's default on a fresh install) can fail
+  # with 'image "...": already exists'.
   image: foa-vps/postgres:18.7-pgbackrest2.60.1
   restart: unless-stopped
   security_opt:
@@ -46,6 +64,7 @@ x-postgres: &postgres
 services:
   pg-prod:
     <<: *postgres
+    build: ./postgres
     container_name: foa-pg-prod
     hostname: pg-prod
     command: ["postgres", "-c", "config_file=/etc/postgresql/prod.conf"]
@@ -85,12 +104,17 @@ services:
     shm_size: 1g
     cpus: 4
     mem_limit: 10g
+    memswap_limit: 10g
+    oom_score_adj: -900
     networks:
       db:
         ipv4_address: 10.112.12.10
 
   pg-nonprod:
     <<: *postgres
+    # The image pg-prod builds; `up --build` builds before it creates
+    # containers, and "never" stops Compose from looking for it on Docker Hub.
+    pull_policy: never
     container_name: foa-pg-nonprod
     hostname: pg-nonprod
     command: ["postgres", "-c", "config_file=/etc/postgresql/nonprod.conf"]
@@ -121,6 +145,8 @@ services:
     shm_size: 512m
     cpus: 2
     mem_limit: 4g
+    memswap_limit: 4g
+    oom_score_adj: -900
     networks:
       db:
         ipv4_address: 10.112.12.11
@@ -137,8 +163,10 @@ services:
       pg-nonprod:
         condition: service_healthy
     ports:
-      # The only published port on the VPS. IPv4 only (db.shipped-it.dev has
-      # no AAAA record).
+      # The only published port on the VPS. IPv4 only: db.friendsofanimals.dev
+      # has no AAAA record, and an IPv6 publish to this IPv4-only network would
+      # go through docker-proxy, hiding client addresses from PgBouncer's log
+      # (and so from CrowdSec). The host's eth0 IPv6 address stays closed.
       - "0.0.0.0:6432:6432"
     secrets:
       # auth_file: only pgbouncer_auth's entry; every other role is looked up
@@ -166,6 +194,8 @@ services:
     stop_grace_period: 30s
     cpus: 1
     mem_limit: 512m
+    memswap_limit: 512m
+    oom_score_adj: -900
     logging: *logging
     healthcheck:
       # Listening on TCP 6432 (0x1920). Deliberately not a login: probes would

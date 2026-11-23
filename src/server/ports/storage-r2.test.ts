@@ -27,17 +27,27 @@ type Answer = {
 /** An R2 adapter whose HTTP requests are recorded and answered by `answer`. */
 function adapter(answer: (method: string, path: string) => Answer) {
   const clock = new FakeClock("2027-01-15T04:30:00.000Z");
-  const requests: { method: string; path: string; query: unknown }[] = [];
+  const requests: {
+    method: string;
+    path: string;
+    query: unknown;
+    headers: Record<string, string>;
+    body: unknown;
+  }[] = [];
   const storage = r2Storage(CONFIG, clock, {
     handle: async (request: {
       method: string;
       path: string;
       query?: unknown;
+      headers: Record<string, string>;
+      body?: unknown;
     }) => {
       requests.push({
         method: request.method,
         path: request.path,
         query: request.query,
+        headers: request.headers,
+        body: request.body,
       });
       const {
         statusCode,
@@ -94,7 +104,7 @@ describe("r2Storage presigning", () => {
     expect(requests).toEqual([]);
   });
 
-  it("presigns a GET that overrides the type and disposition", async () => {
+  it("presigns a GET that overrides the type, disposition and caching", async () => {
     const { storage, requests } = adapter(noNetwork);
 
     const { url } = await storage.presignGet({
@@ -113,6 +123,9 @@ describe("r2Storage presigning", () => {
       "response-content-type": "application/pdf",
       "response-content-disposition":
         'attachment; filename="test_upload-01938a00.pdf"',
+      // Whatever Cache-Control the object was stored or copied with, the
+      // response never lets a cache keep it past the URL's expiry.
+      "response-cache-control": "private, no-store",
     });
     expect(requests).toEqual([]);
   });
@@ -169,6 +182,28 @@ describe("r2Storage requests", () => {
     await expect(
       storage.read({ bucket: BUCKET, key: "local/missing" })
     ).rejects.toThrow(ObjectMissingError);
+  });
+
+  it("writes the server's bytes in one PUT, with their type and length", async () => {
+    const { storage, requests } = adapter(() => ({ statusCode: 200 }));
+    const key =
+      "pr-12/derived/01938a00-1234-7abc-8def-0123456789ab/thumb_320.webp";
+    const body = new Uint8Array([0x52, 0x49, 0x46, 0x46, 1, 2, 3]);
+
+    await storage.write({
+      bucket: BUCKET,
+      key,
+      body,
+      contentType: "image/webp",
+    });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({
+      method: "PUT",
+      path: `/${BUCKET}/${key}`,
+      headers: { "content-type": "image/webp", "content-length": "7" },
+    });
+    expect(new Uint8Array(requests[0]?.body as Uint8Array)).toEqual(body);
   });
 
   it("refuses an unsafe prefix before sending anything", async () => {

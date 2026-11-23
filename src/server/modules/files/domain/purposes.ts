@@ -10,7 +10,12 @@ type AppEnv = Env["APP_ENV"];
 
 const MiB = 1024 * 1024;
 
-export const FILE_PURPOSES = ["test_upload", "consent_form"] as const;
+export const FILE_PURPOSES = [
+  "test_upload",
+  "cms_image",
+  "offline_payment_proof",
+  "consent_form",
+] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
 
@@ -33,6 +38,12 @@ export type PurposeRule = {
   maxBytes: number;
   /** `non_production`: refused when APP_ENV is production. */
   environments: "all" | "non_production";
+  /**
+   * Whether any signed-in user may presign one with `requestUpload`. False
+   * for a purpose only its module's own use case presigns, after its own
+   * authorization (a post's images: `uploadPostImage`, #112).
+   */
+  directUpload: boolean;
 };
 
 export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
@@ -41,12 +52,37 @@ export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
     contentTypes: STORABLE_CONTENT_TYPES,
     maxBytes: 10 * MiB,
     environments: "non_production",
+    directUpload: true,
   },
-  /** A scan of a paper consent form a guardian signed (#83). */
+  /**
+   * A blog post's or story's cover and inline images (#112). Shown publicly
+   * only through their resized copies (./media-work.ts).
+   */
+  cms_image: {
+    contentTypes: ["image/png", "image/jpeg", "image/webp"],
+    maxBytes: 20 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
+  /**
+   * A photo or scan of a cheque, a bank's transfer advice or a cash receipt
+   * that finance records an offline payment with (#79). A cheque image
+   * shows an account number and a signature: only finance and staff
+   * admins read it, and only `requestOfflinePaymentProofUpload` presigns
+   * one, after its own authorization.
+   */
+  offline_payment_proof: {
+    contentTypes: STORABLE_CONTENT_TYPES,
+    maxBytes: 10 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
+  /** A private scan of a guardian’s signed consent form (#83). */
   consent_form: {
     contentTypes: ["application/pdf", "image/jpeg", "image/png"],
     maxBytes: 10 * MiB,
     environments: "all",
+    directUpload: false,
   },
 };
 

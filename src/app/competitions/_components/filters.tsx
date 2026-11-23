@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
-import { DISCIPLINES } from "@/content/sample/model";
+import { DISCIPLINES } from "@/components/competitions/model";
 import { cn } from "@/lib/utils";
 
 import { AGE_BANDS } from "../_lib/view";
@@ -21,7 +21,7 @@ function Choice({
   checked?: boolean;
 }) {
   return (
-    <label className="relative inline-flex min-h-11 cursor-pointer items-center rounded-full border-2 border-border-strong bg-surface px-4 text-sm font-semibold text-ink transition-colors duration-150 hover:border-ink has-checked:border-pink-700 has-checked:bg-pink-700 has-checked:text-white dark:has-checked:border-pink-300 dark:has-checked:bg-pink-300 dark:has-checked:text-neutral-950">
+    <label className="relative inline-flex min-h-11 max-w-full cursor-pointer items-center rounded-full border-2 border-border-strong bg-surface px-4 text-sm font-semibold wrap-anywhere text-ink transition-colors duration-150 hover:border-ink has-checked:border-pink-700 has-checked:bg-pink-700 has-checked:text-white dark:has-checked:border-pink-300 dark:has-checked:bg-pink-300 dark:has-checked:text-neutral-950">
       <input
         type="radio"
         name={name}
@@ -72,7 +72,7 @@ export async function CompetitionFilters({
     <div className={cn(styles.root, className)}>
       <form
         aria-label={t("label")}
-        className="grid gap-6 rounded-3xl border-2 border-border bg-surface p-5 sm:p-6 lg:grid-cols-2"
+        className="grid grid-cols-1 gap-6 rounded-3xl border-2 border-border bg-surface p-5 sm:p-6 lg:grid-cols-2"
       >
         <Group legend={t("status")}>
           <Choice name="status" value="all" label={t("all")} checked />

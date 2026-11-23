@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Client-side checks of the public endpoint db.shipped-it.dev:6432, run from
-# a throwaway postgres:18.7-trixie container on the host network with the
-# credentials from /etc/foa/vercel-urls.env (never printed). Exit 1 if any
-# check fails.
+# Client-side checks of PgBouncer's public endpoint, FOA_DB_DOMAIN:6432
+# (default db.friendsofanimals.dev), run from a throwaway postgres:18.7-trixie
+# container on the host network with the credentials from
+# /etc/foa/vercel-urls.env (never printed). Exit 1 if any check fails.
 #
 # No password ever appears on a command line, where `ps` on the host would
 # show it: the URLs are split here into user, password and database, written
@@ -19,10 +19,18 @@
 # nonprod_app's pooled server connection.
 #
 # libpq needs a CA bundle for sslmode=verify-full; the official image has none,
-# so the host's bundle is mounted read-only (PGSSLROOTCERT). Node/postgres.js
-# uses its built-in CA store instead.
+# so the host's bundle is mounted read-only as one file (PGSSLROOTCERT). The
+# path is resolved first: on Fedora /etc/ssl/certs/ca-certificates.crt is an
+# absolute symlink into /etc/pki/ca-trust, which would dangle inside the
+# container if the directory were mounted. Node/postgres.js uses its built-in
+# CA store instead.
 #
-# Usage: sudo smoke-test.sh
+# Needs: docker, the stack up with the real Let's Encrypt certificate
+# installed (cert-renew.sh), the host name resolving to this host, and
+# Docker Hub reachable for the postgres:18.7-trixie pull on first run.
+#
+# Usage: sudo smoke-test.sh [--print-config]
+#   --print-config  print the endpoint and URL file it checks, and exit
 set -uo pipefail
 
 URLS=/etc/foa/vercel-urls.env
@@ -30,12 +38,34 @@ SU_SECRET=/etc/foa/secrets/pg_prod_postgres_password
 IMAGE=postgres:18.7-trixie
 NONPROD=foa-pg-nonprod
 SCRATCH_DBS=(t_check t_check_staging t_check_timeout)
-DBHOST=db.shipped-it.dev
+# shellcheck source=SCRIPTDIR/db-host.sh
+. "$(dirname "$(readlink -f "$0")")/db-host.sh"
+DBHOST=$DB_HOST
 DBPORT=6432
 passed=0 failed=0
 
+usage() { echo "usage: $0 [--print-config]" >&2; exit 2; }
+[ "$#" -le 1 ] || usage
+case "${1:-}" in
+  "") ;;
+  --print-config) printf '%s\n' "domain=$DBHOST" "port=$DBPORT" "urls=$URLS"; exit 0 ;;
+  *) usage ;;
+esac
+
 die() { echo "smoke-test: $*" >&2; exit 2; }
 [ -r "$URLS" ] || die "cannot read $URLS (run as root)"
+command -v docker >/dev/null || die "docker not found"
+
+# Host CA bundle, symlinks resolved: Debian/Ubuntu ship a real file at the
+# first path; Fedora/RHEL link it (and the others) to
+# /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem.
+CA_BUNDLE=""
+for f in /etc/ssl/certs/ca-certificates.crt /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+  /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/cert.pem; do
+  if [ -s "$f" ]; then CA_BUNDLE="$(readlink -f "$f")"; break; fi
+done
+[ -n "$CA_BUNDLE" ] && [ -s "$CA_BUNDLE" ] || die "no CA bundle found on the host"
+CA_IN_CONTAINER=/run/foa_ca_bundle.pem
 
 drop_scratch_dbs() {
   local db
@@ -58,7 +88,7 @@ drop_scratch_dbs
 pct_decode() { printf '%b' "${1//%/\\x}"; }
 {
   printf '%s\n' "PGHOST=$DBHOST" "PGPORT=$DBPORT" PGSSLMODE=verify-full \
-    PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt PGCONNECT_TIMEOUT=10 \
+    "PGSSLROOTCERT=$CA_IN_CONTAINER" PGCONNECT_TIMEOUT=10 \
     PGAPPNAME=foa-smoke-test
   url_re='^postgres(ql)?://([^:@/]+):([^@/]+)@([^:/?]+):([0-9]+)/([^?/]+)\?(.*)$'
   found=0
@@ -102,7 +132,7 @@ check() {
   snippet="$(cat)"
   out="$(docker run --rm --network host \
     --env-file "$ENV_FILE" \
-    -v /etc/ssl/certs:/etc/ssl/certs:ro \
+    -v "$CA_BUNDLE:$CA_IN_CONTAINER:ro" \
     -v "$SU_SECRET:/run/su_password:ro" \
     "$IMAGE" bash -c "$PRELUDE$snippet" 2>&1)" || rc=$?
   if [ "$want" = ok ] && [ "$rc" -eq 0 ] && grep -Eq -- "$pattern" <<<"$out"; then result=PASS; fi

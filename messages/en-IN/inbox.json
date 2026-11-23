@@ -1,0 +1,32 @@
+{
+  "inbox": {
+    "meta": {
+      "title": "Your inbox",
+      "description": "Messages from Friends of Animals about your account and what you take part in."
+    },
+    "eyebrow": "Your account",
+    "title": "Inbox",
+    "lead": "Every message we send you appears here, even when it also goes by email or SMS.",
+    "loading": "Loading your messages…",
+    "summary": "{count, plural, =0 {You have no unread messages.} one {You have # unread message.} other {You have # unread messages.}}",
+    "listTitle": "Messages",
+    "emptyTitle": "No messages yet",
+    "emptyBody": "When we send you a message, it appears here.",
+    "unread": "Unread",
+    "read": "Read",
+    "received": "Received {date}",
+    "open": "Open",
+    "openLabel": "Open the page for “{title}”",
+    "markRead": "Mark as read",
+    "markReadLabel": "Mark “{title}” as read",
+    "markAll": "Mark all as read",
+    "marking": "Marking…",
+    "choices": "Choose email, SMS or both",
+    "badge": {
+      "inbox": "Inbox",
+      "unread": "{count, number} unread",
+      "count": "{count, number}",
+      "label": "{count, plural, =0 {Inbox, no unread messages} one {Inbox: # unread message} other {Inbox: # unread messages}}"
+    }
+  }
+}

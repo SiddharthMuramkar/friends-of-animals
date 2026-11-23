@@ -3,12 +3,16 @@ import { getTranslations } from "next-intl/server";
 import type { CSSProperties, ReactNode } from "react";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
-import { Photo } from "@/components/site/photo";
+import { PostPhoto } from "@/components/showcase/post-image";
 import { TileMarker } from "@/components/site/tile";
 import type { QuoteId } from "@/content/quotes";
-import type { ArticleBody, Block, Footnote, Inline } from "@/content/stories";
+import type { Footnote, Inline } from "@/content/stories";
 import { WHAT_YOU_CAN_DO_TITLE, headingAnchors } from "@/content/stories/text";
 import { cn } from "@/lib/utils";
+import type {
+  PostBlockView,
+  PostBodyView,
+} from "@/server/modules/cms/domain/post-view";
 
 import styles from "./article.module.css";
 
@@ -88,7 +92,7 @@ function FootnoteRef({
           <a
             href={note.url}
             rel="noreferrer"
-            className="inline-flex min-h-6 items-center gap-1.5 font-semibold text-link underline underline-offset-2 hover:text-link-hover"
+            className="inline-flex min-h-6 items-center gap-1.5 font-semibold text-link underline underline-offset-2 hover:text-link-hover pointer-coarse:min-h-11"
           >
             {ctx.labels.openSource}
             <ExternalLink aria-hidden="true" className="size-4" />
@@ -97,7 +101,7 @@ function FootnoteRef({
             type="button"
             popoverTarget={popId}
             popoverTargetAction="hide"
-            className="ms-auto inline-flex min-h-8 items-center rounded-full border-2 border-border px-3 text-sm font-semibold hover:bg-surface-muted"
+            className="ms-auto inline-flex min-h-8 items-center rounded-full border-2 border-border px-3 text-sm font-semibold hover:bg-surface-muted pointer-coarse:min-h-11"
           >
             {ctx.labels.close}
           </button>
@@ -136,7 +140,7 @@ function Box({
   ctx,
   path,
 }: {
-  block: Extract<Block, { type: "callout" }>;
+  block: Extract<PostBlockView, { type: "callout" }>;
   ctx: Ctx;
   path: string;
 }) {
@@ -166,7 +170,7 @@ function Box({
               >
                 {k + 1}
               </span>
-              <span className="pt-0.5">
+              <span className="min-w-0 pt-0.5">
                 <Inlines text={text} ctx={ctx} path={`${path}-${k}`} />
               </span>
             </li>
@@ -191,7 +195,7 @@ function BlockView({
   ctx,
   path,
 }: {
-  block: Block;
+  block: PostBlockView;
   anchor?: string;
   ctx: Ctx;
   path: string;
@@ -247,8 +251,8 @@ function BlockView({
       );
     case "image":
       return (
-        <Photo
-          id={block.imageId}
+        <PostPhoto
+          image={block.image}
           caption={block.caption}
           sizes="(min-width: 768px) 680px, 92vw"
         />
@@ -263,7 +267,7 @@ export async function ArticleBodyView({
   body,
   id,
 }: {
-  body: ArticleBody;
+  body: PostBodyView;
   id: string;
 }) {
   const t = await getTranslations("stories.article");

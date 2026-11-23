@@ -18,7 +18,7 @@ const browserEvent = envelope(
     message: "No account for asha@example.test",
     environment: "local",
     request: {
-      url: "https://shipped-it.dev/sign-in?email=asha@example.test",
+      url: "https://friendsofanimals.dev/sign-in?email=asha@example.test",
       headers: { Cookie: "session=abc123", "User-Agent": "Safari" },
     },
   }
@@ -26,7 +26,7 @@ const browserEvent = envelope(
 
 /** A post as the browser SDK's fetch transport sends it. */
 const post = (body: BodyInit) =>
-  new Request("https://shipped-it.dev/monitoring", {
+  new Request("https://friendsofanimals.dev/monitoring", {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=UTF-8" },
     body,
@@ -83,7 +83,7 @@ describe("handleTunnelRequest", () => {
     expect(JSON.parse(payload!)).toEqual({
       message: "No account for [email]",
       environment: "staging",
-      request: { url: "https://shipped-it.dev/sign-in" },
+      request: { url: "https://friendsofanimals.dev/sign-in" },
     });
     expect(forwarded).not.toContain("asha");
     expect(forwarded).not.toContain("session=abc123");
@@ -135,7 +135,7 @@ describe("handleTunnelRequest", () => {
         throw new Error("the body should not be read");
       },
     });
-    const request = new Request("https://shipped-it.dev/monitoring", {
+    const request = new Request("https://friendsofanimals.dev/monitoring", {
       method: "POST",
       headers: { "Content-Length": String(2 * 1024 * 1024) },
       body,

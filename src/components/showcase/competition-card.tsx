@@ -5,8 +5,12 @@ import { PendingDot } from "@/components/nav-link";
 import { SiteLink } from "@/components/site/site-link";
 import { Placeholder } from "@/components/site/placeholder";
 import { SampleTag } from "@/components/site/sample-tag";
-import type { Competition } from "@/content/sample/model";
-import { ageRange, feeDisplay, nextKeyDate } from "@/content/sample/selectors";
+import {
+  ageRange,
+  type CompetitionCardModel,
+  nextKeyDate,
+} from "@/components/competitions/model";
+import { feeDisplay } from "@/content/sample/selectors";
 import { slugHref } from "@/lib/routes";
 import { placeholder } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -18,8 +22,8 @@ import { StatusChip } from "./status-chip";
 
 /**
  * A competition card with the listing fields: cover, name, theme,
- * disciplines, ages, next key date, ways in, fee and status. Sample content
- * only for now, so it always carries the Sample tag.
+ * disciplines, ages, next key date, ways in, fee and status. A sample
+ * competition carries the Sample tag.
  */
 export async function CompetitionCard({
   competition: c,
@@ -27,7 +31,7 @@ export async function CompetitionCard({
   sizes = "(min-width: 1024px) 380px, (min-width: 640px) 45vw, 92vw",
   className,
 }: {
-  competition: Competition;
+  competition: CompetitionCardModel;
   headingLevel?: HeadingLevel;
   sizes?: string;
   className?: string;
@@ -36,8 +40,8 @@ export async function CompetitionCard({
   const ts = await getTranslations("sample");
   const format = await getFormatter();
   const now = new Date(await cachedNow());
-  const next = nextKeyDate(c, now);
-  const ages = ageRange(c);
+  const next = nextKeyDate(c.keyDates, now);
+  const ages = ageRange(c.ageGroups);
 
   return (
     <article
@@ -50,7 +54,7 @@ export async function CompetitionCard({
       <div className="flex flex-1 flex-col gap-4 p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip status={c.status} />
-          <SampleTag />
+          {c.sample ? <SampleTag /> : null}
         </div>
         <div>
           <H level={headingLevel} className="text-h4 leading-tight text-ink">
@@ -65,7 +69,7 @@ export async function CompetitionCard({
           </H>
           <p className="mt-2 text-ink-muted">{c.theme}</p>
         </div>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm">
+        <dl className="grid grid-cols-[fit-content(45%)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm [&>dt]:wrap-anywhere">
           <dt className="font-semibold text-ink">{t("disciplines")}</dt>
           <dd className="text-ink-muted">
             {format.list(
@@ -89,7 +93,7 @@ export async function CompetitionCard({
           <dt className="font-semibold text-ink">{t("fee")}</dt>
           <dd className="flex flex-wrap gap-1.5 text-ink-muted">
             {c.routes.map((r) => {
-              const fee = feeDisplay(r.feeBaseMinor);
+              const fee = feeDisplay(r.fee);
               if (fee.kind === "placeholder")
                 return (
                   <Placeholder key={r.route} fact={placeholder(fee.key)} />
@@ -107,11 +111,13 @@ export async function CompetitionCard({
         </dl>
         <p className="mt-auto flex items-center gap-2 rounded-2xl bg-section-pink px-4 py-3 font-semibold text-section-pink-heading">
           <CalendarDays aria-hidden="true" className="size-5 shrink-0" />
-          {next
-            ? t(`keyDate.${next.kind}`, {
-                date: format.dateTime(new Date(next.at), "long"),
-              })
-            : t("keyDate.none")}
+          <span className="min-w-0">
+            {next
+              ? t(`keyDate.${next.kind}`, {
+                  date: format.dateTime(new Date(next.at), "long"),
+                })
+              : t("keyDate.none")}
+          </span>
         </p>
         <CardCredit id={c.coverImageId} />
       </div>

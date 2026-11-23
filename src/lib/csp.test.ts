@@ -5,6 +5,8 @@ import { modifyRouteRegex } from "next/dist/lib/redirect-status";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { describe, expect, it } from "vitest";
 
+import { individualLink } from "../app/participate/_lib/individual-link";
+import { SIGNED_IN_PREFIXES } from "./app-routes";
 import {
   createNonce,
   cspHeaderRules,
@@ -221,6 +223,38 @@ describe("feature sources", () => {
     expect(directives(signedIn.value)["frame-src"]).toEqual(["'none'"]);
   });
 
+  it("keeps a route-scoped feature to the signed-in pages it names", () => {
+    const checkout: CspSources = {
+      feature: "checkout",
+      areas: ["signedIn"],
+      routes: ["/institution/registrations/[ref]/pay"],
+      directives: { "frame-src": ["https://api.razorpay.com"] },
+    };
+    const context = {
+      appEnv: "preview",
+      nodeEnv: "production",
+      sources: [checkout],
+    };
+    const frames = (path?: string) =>
+      directives(signedInCsp(context, "bm9uY2U=", path).value)["frame-src"];
+
+    expect(frames("/institution/registrations/PAWS27-I-Q2W9R/pay")).toEqual([
+      "https://api.razorpay.com",
+    ]);
+    for (const path of [
+      undefined,
+      "/institution/registrations/PAWS27-I-Q2W9R",
+      "/institution/registrations/PAWS27-I-Q2W9R/pay/more",
+      "/institution/registrations//pay",
+      "/account/sessions",
+    ]) {
+      expect(frames(path), String(path)).toEqual(["'none'"]);
+    }
+    expect(directives(publicCsp(context).value)["frame-src"]).toEqual([
+      "'none'",
+    ]);
+  });
+
   it("refuses keywords and wildcards, which would weaken the policy", () => {
     for (const source of [
       "'unsafe-inline'",
@@ -318,6 +352,14 @@ describe("cspHeaderRules", () => {
     expect(headersFor(rules, "/administrator")).toContainEqual(
       publicCsp(context)
     );
+  });
+
+  it("leaves the individual register form (#78) to the proxy's nonce policy", () => {
+    // It takes a signed-in adult's date of birth, phone and address.
+    const rules = cspHeaderRules(context, SIGNED_IN_PREFIXES);
+    const pathname = individualLink("neighbours-on-my-street").href;
+    const keys = headersFor(rules, pathname).map((h) => h.key);
+    for (const key of POLICY_KEYS) expect(keys, pathname).not.toContain(key);
   });
 
   it("names the report endpoint on every path, signed-in ones included", () => {

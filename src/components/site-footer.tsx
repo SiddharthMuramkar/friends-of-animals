@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { cacheLife } from "next/cache";
 
+import { LivingIllustration } from "@/components/art/living-illustration";
 import { Logo } from "@/components/logo";
 import { SiteLink } from "@/components/site/site-link";
 import { TileDivider } from "@/components/site/tile";
@@ -16,7 +17,7 @@ async function currentYear() {
 }
 
 const LINK =
-  "inline-flex min-h-6 items-center py-1 text-ink-muted underline-offset-4 hover:text-ink hover:underline";
+  "inline-flex min-h-6 max-w-full items-center py-1 wrap-break-word text-ink-muted underline-offset-4 hover:text-ink hover:underline";
 
 export async function SiteFooter() {
   const t = await getTranslations("footer");
@@ -39,7 +40,7 @@ export async function SiteFooter() {
 
             <section
               aria-labelledby="footer-helplines"
-              className="mt-8 rounded-3xl border-2 border-border-strong bg-surface p-5"
+              className="mt-8 rounded-3xl border-2 border-border-strong bg-surface p-5 wrap-break-word"
             >
               <h2 id="footer-helplines" className="text-h4">
                 {t("helplines.title")}
@@ -47,7 +48,7 @@ export async function SiteFooter() {
               <p className="mt-1 text-sm text-ink-muted">
                 {t("helplines.intro")}
               </p>
-              <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              <ul className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
                 <li>
                   <a
                     href="tel:112"
@@ -85,8 +86,7 @@ export async function SiteFooter() {
                     {t("helplines.cyber")} {t("helplines.cyberOr")}{" "}
                     <a
                       href="https://cybercrime.gov.in"
-                      // Breaks inside the address only with large text.
-                      className="text-link underline underline-offset-2 max-[20rem]:wrap-break-word"
+                      className="wrap-anywhere text-link underline underline-offset-2"
                     >
                       {t("helplines.cyberSite")}
                     </a>
@@ -102,11 +102,9 @@ export async function SiteFooter() {
             </section>
           </div>
 
-          {/* One column under a rem breakpoint, which phones only reach
-              with large text. */}
           <nav
             aria-label={t("navLabel")}
-            className="grid grid-cols-2 gap-8 max-[20rem]:grid-cols-1 sm:grid-cols-3"
+            className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-8"
           >
             {FOOTER_GROUPS.map((group) => (
               <div key={group}>
@@ -127,10 +125,31 @@ export async function SiteFooter() {
           </nav>
         </div>
 
-        <TileDivider className="mt-12" />
+        {/* The street cat naps on the divider and wakes as the footer comes
+            into view. It sits to the right, where the links leave room; at
+            tablet widths (sm to lg) the link columns fill the row, so it
+            stays away. Sized in px, so enlarged text, which grows the links,
+            never grows it into them; it never takes a click either. The
+            wrapper hides it: a display utility on the drawing itself would
+            lose to its own display: block. It stays away from /safeguarding
+            too (globals.css, data-footer-cat): no play beside the
+            helplines. */}
+        <div className="relative mt-12">
+          <div data-footer-cat className="sm:hidden lg:block">
+            <LivingIllustration
+              id="living-cat"
+              trigger="arrive"
+              className="pointer-events-none absolute right-1 bottom-1/2 w-[80px] translate-y-[3px] sm:right-4 sm:w-[96px]"
+            />
+          </div>
+          <TileDivider />
+        </div>
 
         <div className="mt-6 flex flex-col gap-2 text-sm text-ink-muted sm:flex-row sm:items-start sm:justify-between">
-          <p>{t("copyright", { year })}</p>
+          <div className="space-y-1">
+            <p>{t("copyright", { year })}</p>
+            <p>{t("artNote")}</p>
+          </div>
           {isSampleContentEnabled() ? (
             <p className="max-w-xl sm:text-right">{t("sampleNote")}</p>
           ) : null}

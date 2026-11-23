@@ -9,7 +9,11 @@ import { FlipCard } from "./flip-card";
 /** One street-neighbour card: a fact on the front, good-neighbour tips behind. */
 export async function NeighbourCard({ n }: { n: Neighbour }) {
   const t = await getTranslations("awareness.neighbours");
-  const titleId = `neighbour-${n.id}`;
+  // The street scene's rings link to the whole card, so a jump lands with
+  // its photo in view, not on the title below it. FlipCard puts the id on
+  // its outer box: this front face is inert while the card is turned.
+  const cardId = `neighbour-${n.id}`;
+  const titleId = `${cardId}-title`;
 
   const front = (
     <article
@@ -98,11 +102,14 @@ export async function NeighbourCard({ n }: { n: Neighbour }) {
 
   return (
     <FlipCard
+      id={cardId}
+      labelledBy={titleId}
       front={front}
       back={back}
       label={t("flipLabel", { name: n.name })}
       buttonText={t("flip")}
-      className="h-full"
+      // Rounded like the card, for the focus outline after a jump.
+      className="h-full rounded-3xl"
     />
   );
 }
