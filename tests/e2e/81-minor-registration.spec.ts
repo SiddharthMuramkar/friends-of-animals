@@ -221,7 +221,7 @@ test("the guardian a teen named confirms and gives participation consent before 
     guardian.getByRole("heading", { level: 1, name: "My competitions" })
   ).toBeVisible();
   const card = guardian.getByRole("article", { name: OPEN.name });
-  await expect(card.getByText(`For ${teen}`)).toBeVisible();
+  await expect(card.getByText(new RegExp(`^For ${teen}`))).toBeVisible();
   await expect(
     card.getByText(/waiting for a parent or guardian's consent/i)
   ).toBeVisible();
