@@ -16,6 +16,10 @@ import { authorize } from "../../../access/can";
 import { entryUploadGrant, user } from "../../../db/schema";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
+import {
+  lackingParticipation,
+  lockParticipationPins,
+} from "../../consent/participation-gate";
 import { uploadKeyFor } from "../../files/domain/storage-key";
 import { presignUpload } from "../../files/use-cases/upload";
 import { checkUpload } from "../domain/upload-rules";
@@ -50,6 +54,7 @@ export type StartEntryUploadInput = {
 /** Why an upload can't go ahead, as the form names it. */
 export type EntryUploadRefusal =
   | "registration_not_confirmed"
+  | "participation_consent_required"
   | "discipline_not_offered"
   | "discipline_required"
   | "empty"
@@ -103,6 +108,7 @@ export async function startEntryUpload(
   const ownerId = ctx.actor.userId;
 
   return ctx.db.transaction(async (tx): Promise<StartEntryUploadResult> => {
+    await lockParticipationPins(tx, [registrationId]);
     // Serializes one actor's grant requests even across registrations.
     await tx
       .select({ id: user.id })
@@ -114,6 +120,9 @@ export async function startEntryUpload(
       return { ok: false, error: "registration_not_confirmed" };
     }
     await authorizeEntrySubmission({ ...ctx, db: tx }, registrationId);
+    if ((await lackingParticipation(tx, ctx, [registrationId])).size > 0) {
+      return { ok: false, error: "participation_consent_required" };
+    }
     const facts = await submissionFacts(tx, registrationId);
     if (!facts)
       throw new Error("unreachable: locked registration has no facts");

@@ -36,6 +36,10 @@ import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import { withUniqueCode } from "../../codes/codes";
 import {
+  lackingParticipation,
+  lockParticipationPins,
+} from "../../consent/participation-gate";
+import {
   acceptPendingUpload,
   preparePendingUpload,
 } from "../../files/use-cases/upload";
@@ -166,7 +170,8 @@ async function record(
 ): Promise<CompleteEntryUploadResult> {
   if (ctx.actor.kind !== "user") throw new Error("unreachable");
   const actor = ctx.actor;
-  // Serialize completions with each other and with registration status changes.
+  // Serialize completions with each other, registration changes and consent withdrawal.
+  await lockParticipationPins(tx, [request.registrationId]);
   const registered = await lockRegistrationStatus(tx, request.registrationId);
   if (registered !== "confirmed") {
     return { ok: false, error: "registration_not_confirmed" };
@@ -187,6 +192,11 @@ async function record(
     return current && attached.entryId === current.row.id
       ? { ok: true, entryCode: current.row.code, status: current.row.status }
       : { ok: false, error: "file_not_found" };
+  }
+  if (
+    (await lackingParticipation(tx, ctx, [request.registrationId])).size > 0
+  ) {
+    return { ok: false, error: "participation_consent_required" };
   }
   const facts = await submissionFacts(tx, request.registrationId);
   if (!facts) throw new Error("unreachable: locked registration has no facts");

@@ -34,6 +34,7 @@ import {
 // before the deadline. Staff never see an entry before its file has passed.
 
 const MANAGER_EMAIL = "manager@example.test";
+const MISSING_FILE_ID = "00000000-0000-4000-8000-000000000001";
 
 async function competitionManager(h: Harness, competitionId: string) {
   const manager = await h.seed.member({ email: MANAGER_EMAIL });
@@ -87,6 +88,40 @@ describe("an entry's file checks", () => {
     ]);
     expect(sent[0]!.text).toContain("The dog at the tea stall");
     expect(h.media.processed).toHaveLength(1);
+  });
+
+  it("keeps the dashboard status and checking flag in sync during first-file settlement", async () => {
+    const h = await createHarness();
+    const asha = await confirmedAdult(h);
+    const app = h.as(asha.actor);
+    const code = await submittedImage(h, asha);
+    const client = h.db.$client;
+    const query = client.query.bind(client);
+    const read = vi
+      .spyOn(client, "query")
+      .mockImplementation(async (...args) => {
+        const result = await query(...args);
+        if (args[0].includes('from "entry" inner join "competition"')) {
+          // Settle after the database has read the entry but before the list
+          // receives those rows. Both operations use the real database.
+          read.mockRestore();
+          await h.drain();
+        }
+        return result;
+      });
+
+    const duringSettlement = await app.listMyEntries();
+    expect(duringSettlement).toMatchObject([
+      { code, status: "processing", checking: true, submittedAt: null },
+    ]);
+    expect(await app.listMyEntries()).toMatchObject([
+      {
+        code,
+        status: "submitted",
+        checking: false,
+        submittedAt: h.clock.now(),
+      },
+    ]);
   });
 
   it("retries a receipt with the submitted image's title and reference after replacement", async () => {
@@ -293,9 +328,9 @@ describe("an entry's file checks", () => {
     if (!file) throw new Error("Missing entry upload");
     const original = { fileId: file.id };
 
-    async function downloadOutcome(actor: Actor) {
+    async function downloadOutcome(actor: Actor, input = original) {
       try {
-        const result = await h.as(actor).getFileDownloadUrl(original);
+        const result = await h.as(actor).getFileDownloadUrl(input);
         return result.ok ? "signed" : result.error;
       } catch (error) {
         if (error instanceof DomainError) return error.code;
@@ -312,9 +347,12 @@ describe("an entry's file checks", () => {
 
     expect({ whileScanning, beforeProcessing, afterProcessing }).toEqual({
       whileScanning: "forbidden",
-      beforeProcessing: "forbidden",
-      afterProcessing: "forbidden",
+      beforeProcessing: "not_found",
+      afterProcessing: "not_found",
     });
+    expect(await downloadOutcome(admin, { fileId: MISSING_FILE_ID })).toBe(
+      afterProcessing
+    );
     const detail = await h.as(asha.actor).getEntry({ code });
     if (!detail.ok || !detail.entry.picture) throw new Error("No live copy");
     expect(await h.storage.get(detail.entry.picture.url)).toMatchObject({
@@ -337,14 +375,22 @@ describe("an entry's file checks", () => {
       status: "processing",
     });
 
-    for (const actor of [staff.actor, admin, asha.actor]) {
-      await expect(h.as(actor).getFileStatus(input)).rejects.toMatchObject({
-        code: "forbidden",
-      });
+    const missing = { fileId: MISSING_FILE_ID };
+    for (const actor of [staff.actor, admin]) {
+      const files = h.as(actor);
+      const absent = await files.getFileStatus(missing);
+      expect(absent).toEqual({ ok: false, error: "not_found" });
+      await expect(files.getFileStatus(input)).resolves.toEqual(absent);
+    }
+    for (const target of [input, missing]) {
+      await expect(
+        h.as(asha.actor).getFileStatus(target)
+      ).rejects.toMatchObject({ code: "forbidden" });
     }
     await h.drain();
-    await expect(h.as(staff.actor).getFileStatus(input)).rejects.toMatchObject({
-      code: "forbidden",
+    await expect(h.as(staff.actor).getFileStatus(input)).resolves.toEqual({
+      ok: false,
+      error: "not_found",
     });
   });
 

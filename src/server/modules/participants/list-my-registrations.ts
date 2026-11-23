@@ -40,7 +40,7 @@ export type MyRegistration = {
   participantCode: string;
   /** Given once the registration is confirmed. */
   registrationNumber: string | null;
-  /** The confirmed individual or their guardian can submit work. */
+  /** The confirmed individual or their guardian meets the participation conditions to submit work. */
   maySubmitEntry: boolean;
   /**
    * The individual fee still owed, to the member who pays it; null once
@@ -161,7 +161,8 @@ export async function listMyRegistrations(
     rows
       .filter(
         (row) =>
-          row.status === "pending_payment" && row.ownerKind === "guardian"
+          row.ownerKind === "guardian" &&
+          (row.status === "pending_payment" || row.status === "confirmed")
       )
       .map((row) => row.registrationId)
   );
@@ -169,8 +170,9 @@ export async function listMyRegistrations(
     const { whose, pays } = visible.get(row.profileId)!;
     const canContinue =
       row.status === "pending_guardian" && row.ownerKind === "self" && nowAdult;
+    const hasParticipation = !lacking.has(row.registrationId);
     const held =
-      lacking.has(row.registrationId) ||
+      (row.status === "pending_payment" && !hasParticipation) ||
       (row.status === "pending_guardian" && !canContinue);
     return {
       registrationId: row.registrationId,
@@ -181,7 +183,7 @@ export async function listMyRegistrations(
       status: row.status,
       participantCode: row.participantCode ?? "",
       registrationNumber: row.registrationNumber,
-      maySubmitEntry: row.status === "confirmed",
+      maySubmitEntry: row.status === "confirmed" && hasParticipation,
       amountDue:
         pays &&
         !held &&

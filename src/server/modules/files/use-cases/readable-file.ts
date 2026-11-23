@@ -6,7 +6,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { authorize, can } from "../../../access/can";
 import { fileAsset, type FileAssetRow } from "../../../db/schema";
@@ -15,14 +15,17 @@ import type { FilesContext } from "./upload";
 
 /**
  * An uploaded file the caller may read through Files. Staff with broad
- * Files access get null for a missing file. Entry images are forbidden.
+ * Files access get null for a missing file or an entry image.
  */
 export async function findReadableFile(
   ctx: FilesContext,
   fileId: string
 ): Promise<FileAssetRow | null> {
   const everyFile = await can(ctx, "file.read");
-  const conditions = [eq(fileAsset.id, fileId)];
+  const conditions = [
+    eq(fileAsset.id, fileId),
+    ne(fileAsset.purpose, "entry_image"),
+  ];
   if (!everyFile.allowed) {
     const ownerId = ctx.actor.kind === "user" ? ctx.actor.userId : undefined;
     await authorize(ctx, "file.read", { ownerId });
@@ -33,7 +36,7 @@ export async function findReadableFile(
     .select()
     .from(fileAsset)
     .where(and(...conditions));
-  if (file?.purpose === "entry_image" || (!file && !everyFile.allowed)) {
+  if (!file && !everyFile.allowed) {
     throw new DomainError("forbidden", `${ctx.actor.kind} may not file.read`);
   }
   return file ?? null;

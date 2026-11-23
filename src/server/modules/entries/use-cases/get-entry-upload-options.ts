@@ -5,6 +5,7 @@ import { authorize } from "../../../access/can";
 import { entry } from "../../../db/schema";
 import { invalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
+import { lackingParticipation } from "../../consent/participation-gate";
 import { decideUpload } from "../domain/submission";
 import {
   authorizeEntrySubmission,
@@ -29,6 +30,9 @@ export async function getEntryUploadOptions(
   if (!facts) throw new Error("unreachable: authorized for no registration");
   if (facts.status !== "confirmed") {
     return { ok: false, error: "registration_not_confirmed" } as const;
+  }
+  if ((await lackingParticipation(ctx.db, ctx, [registrationId])).size > 0) {
+    return { ok: false, error: "participation_consent_required" } as const;
   }
   const [existing] = await ctx.db
     .select({ code: entry.code })

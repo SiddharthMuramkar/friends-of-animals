@@ -1,8 +1,14 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Actor } from "@/server/actor";
-import { entry, entryFile, guardianLink } from "@/server/db/schema";
+import {
+  entry,
+  entryFile,
+  entryUploadGrant,
+  guardianLink,
+  outbox,
+} from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import {
   adultForm,
@@ -94,6 +100,8 @@ async function confirmedLinkedTeen(h: Harness) {
     actor,
     registrationId,
     guardian,
+    childId: family.childIds[0]!,
+    competition,
     email: family.account.email,
     teenEmail: teen.email,
   };
@@ -117,6 +125,39 @@ describe("entries for a linked teen", () => {
       ok: true,
       whose: "mine",
       participantName: "Rohan Desai",
+    });
+  });
+
+  it("withholds upload options and new grants from a confirmed teen after participation is withdrawn", async () => {
+    const h = await createHarness();
+    const teen = await confirmedLinkedTeen(h);
+    const app = h.as(teen.actor);
+    const { registrationId } = teen;
+
+    await expect(
+      teen.guardian.withdrawChildConsent({
+        childId: teen.childId,
+        competitionId: teen.competition.id,
+        purpose: "participation",
+      })
+    ).resolves.toEqual({ ok: true, changed: true });
+
+    const options = await app.getEntryUploadOptions({ registrationId });
+    const grant = await start(h, teen.actor, registrationId);
+    const [registration] = await app.listMyRegistrations();
+    const grants = await h.db.select().from(entryUploadGrant);
+    expect({
+      options: options.ok ? "offered" : options.error,
+      grant: grant.ok ? "issued" : grant.error,
+      status: registration?.status,
+      maySubmitEntry: registration?.maySubmitEntry,
+      grantCount: grants.length,
+    }).toEqual({
+      options: "participation_consent_required",
+      grant: "participation_consent_required",
+      status: "confirmed",
+      maySubmitEntry: false,
+      grantCount: 0,
     });
   });
 
@@ -176,6 +217,100 @@ describe("entries for a linked teen", () => {
 });
 
 describe("entries for a guardian's ward", () => {
+  it("refuses to attach a prepared upload when participation is withdrawn before acceptance", async () => {
+    const h = await createHarness();
+    const guardian = await confirmedChild(h);
+    const app = h.as(guardian.actor);
+    const upload = await putEntryImage(h, guardian);
+    const consent = {
+      childId: guardian.childId,
+      competitionId: guardian.competition.id,
+      purpose: "participation",
+    } as const;
+    const head = vi.spyOn(h.storage, "head");
+    const client = h.db.$client;
+    const transaction = client.transaction.bind(client);
+    const prepare = vi
+      .spyOn(client, "transaction")
+      .mockImplementation(async (callback) => {
+        const result = await transaction(callback);
+        if (head.mock.calls.length > 0) {
+          // The stored bytes have been checked and the preparation lock is
+          // released. Record the guardian's decision before acceptance.
+          prepare.mockRestore();
+          await expect(app.withdrawChildConsent(consent)).resolves.toEqual({
+            ok: true,
+            changed: true,
+          });
+        }
+        return result;
+      });
+
+    const completion = await app.completeEntryUpload(upload);
+    expect(head).toHaveBeenCalledOnce();
+    await h.drain();
+    expect({
+      completion,
+      entries: await app.listMyEntries(),
+      scanEvents: await h.db
+        .select({ id: outbox.id })
+        .from(outbox)
+        .where(
+          and(
+            eq(outbox.aggregateId, upload.fileId),
+            eq(outbox.eventType, "files.file_uploaded")
+          )
+        ),
+      scans: h.scanner.scans,
+    }).toEqual({
+      completion: { ok: false, error: "participation_consent_required" },
+      entries: [],
+      scanEvents: [],
+      scans: 0,
+    });
+
+    await expect(
+      app.giveChildConsent({
+        ...consent,
+        documentId: guardian.competition.guardianDocuments.participation!,
+      })
+    ).resolves.toEqual({ ok: true, changed: true });
+    await expect(app.completeEntryUpload(upload)).resolves.toMatchObject({
+      ok: true,
+      status: "processing",
+    });
+  });
+
+  it("allows an accepted image to settle and replay after withdrawal while disabling replacements", async () => {
+    const h = await createHarness();
+    const guardian = await confirmedChild(h);
+    const app = h.as(guardian.actor);
+    const upload = await putEntryImage(h, guardian);
+    const accepted = await app.completeEntryUpload(upload);
+    if (!accepted.ok) throw new Error(accepted.error);
+    const code = accepted.entryCode;
+    await expect(
+      app.withdrawChildConsent({
+        childId: guardian.childId,
+        competitionId: guardian.competition.id,
+        purpose: "participation",
+      })
+    ).resolves.toEqual({ ok: true, changed: true });
+
+    await h.drain();
+    const detail = await app.getEntry({ code });
+    if (!detail.ok) throw new Error(detail.error);
+    expect(detail.entry.picture).toBeTruthy();
+    expect(detail.entry.uploadRule).toBeNull();
+    expect(await app.completeEntryUpload(upload)).toEqual({
+      ok: true,
+      entryCode: code,
+      status: "submitted",
+    });
+    await h.drain();
+    expect(h.scanner.scans).toBe(1);
+  });
+
   it("refuses uploads, listings and detail delivery as soon as the guardian link is revoked", async () => {
     const h = await createHarness();
     const guardian = await confirmedChild(h);
@@ -358,7 +493,14 @@ describe("entries for a guardian's ward", () => {
         })
       )
     );
-    expect(decisions).toEqual(Array(6).fill("forbidden"));
+    expect(decisions).toEqual([
+      "forbidden",
+      "forbidden",
+      "not_found",
+      "not_found",
+      "not_found",
+      "not_found",
+    ]);
   });
 });
 

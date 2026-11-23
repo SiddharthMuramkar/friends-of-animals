@@ -6,7 +6,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, exists, inArray } from "drizzle-orm";
 
 import { authorize } from "../../../access/can";
 import {
@@ -40,9 +40,17 @@ export async function listMyEntries(ctx: UseCaseContext): Promise<MyEntry[]> {
   if (ctx.actor.kind !== "user") throw new Error("unreachable");
   const visible = await visibleProfiles(ctx.db, ctx.actor.userId);
   if (visible.size === 0) return [];
+  const checking = ctx.db
+    .select({ id: entryFile.id })
+    .from(entryFile)
+    .where(
+      and(
+        eq(entryFile.entryId, entry.id),
+        inArray(entryFile.status, ["pending", "processing"])
+      )
+    );
   const rows = await ctx.db
     .select({
-      id: entry.id,
       code: entry.code,
       status: entry.status,
       title: entry.title,
@@ -52,6 +60,7 @@ export async function listMyEntries(ctx: UseCaseContext): Promise<MyEntry[]> {
       registrationId: entry.registrationId,
       profileId: entry.participantProfileId,
       participantName: participantProfile.fullName,
+      checking: exists(checking).mapWith(Boolean),
       submittedAt: entry.submittedAt,
     })
     .from(entry)
@@ -62,20 +71,6 @@ export async function listMyEntries(ctx: UseCaseContext): Promise<MyEntry[]> {
     )
     .where(inArray(entry.participantProfileId, [...visible.keys()]))
     .orderBy(desc(entry.createdAt), desc(entry.id));
-  if (rows.length === 0) return [];
-  const checking = await ctx.db
-    .selectDistinct({ entryId: entryFile.entryId })
-    .from(entryFile)
-    .where(
-      and(
-        inArray(
-          entryFile.entryId,
-          rows.map((row) => row.id)
-        ),
-        inArray(entryFile.status, ["pending", "processing"])
-      )
-    );
-  const busy = new Set(checking.map((row) => row.entryId));
   return rows.map((row) => ({
     code: row.code,
     status: row.status,
@@ -85,7 +80,7 @@ export async function listMyEntries(ctx: UseCaseContext): Promise<MyEntry[]> {
     registrationId: row.registrationId,
     participantName: row.participantName,
     whose: visible.get(row.profileId)!.whose,
-    checking: busy.has(row.id),
+    checking: row.checking,
     submittedAt: row.submittedAt,
   }));
 }
