@@ -383,7 +383,11 @@ describe("notifyAffectedUsers", () => {
       (await noticeRows(h, breachId)).map((row) => row.recipientUserId)
     );
     expect(told).toEqual(
-      new Set(accounts.map((account) => account.id).filter((id) => id !== people.teen.id))
+      new Set(
+        accounts
+          .map((account) => account.id)
+          .filter((id) => id !== people.teen.id)
+      )
     );
     expect(
       notices(h).some((message) => message.to === "rohan@example.test")

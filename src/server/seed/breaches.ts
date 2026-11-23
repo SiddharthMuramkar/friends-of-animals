@@ -6,10 +6,13 @@
 // sends nothing and writes no audit entry. Loads under plain Node (the seed
 // script): relative imports only, no "server-only".
 
+import { inArray } from "drizzle-orm";
+
 import {
   breachNotification,
   breachRecord,
   breachTimelineEvent,
+  user,
 } from "../db/schema";
 import { sealBreachText } from "../modules/breaches/content";
 import { SEED_ACCOUNTS } from "./accounts";
@@ -46,14 +49,14 @@ export const SEED_BREACHES = {
     ],
     notices: [
       {
-        recipientUserId: SEED_ACCOUNTS.members[0].id,
+        recipientEmail: SEED_ACCOUNTS.members[0].email,
         ids: [
           "01938a00-0000-7000-8000-00000000b181",
           "01938a00-0000-7000-8000-00000000b182",
         ],
       },
       {
-        recipientUserId: SEED_ACCOUNTS.members[2].id,
+        recipientEmail: SEED_ACCOUNTS.members[2].email,
         ids: [
           "01938a00-0000-7000-8000-00000000b183",
           "01938a00-0000-7000-8000-00000000b184",
@@ -67,7 +70,18 @@ export const SEED_BREACHES = {
 export async function seedBreaches(deps: SeedDeps): Promise<void> {
   const { db, cipher, clock } = deps;
   const now = clock.now();
-  const lead = SEED_ACCOUNTS.members[1].id;
+  // The identity seed preserves an account that already uses a seeded address.
+  const accounts = await db
+    .select({ id: user.id, email: user.email })
+    .from(user)
+    .where(
+      inArray(
+        user.email,
+        SEED_ACCOUNTS.members.map(({ email }) => email)
+      )
+    );
+  const accountIds = new Map(accounts.map(({ id, email }) => [email, id]));
+  const lead = accountIds.get(SEED_ACCOUNTS.members[1].email) ?? null;
   const at = (hoursAgo: number) => new Date(now.getTime() - hoursAgo * HOUR);
 
   const open = SEED_BREACHES.open;
@@ -152,7 +166,7 @@ export async function seedBreaches(deps: SeedDeps): Promise<void> {
       (["email", "in_app"] as const).map((channel, index) => ({
         id: notice.ids[index]!,
         breachId: told.id,
-        recipientUserId: notice.recipientUserId,
+        recipientUserId: accountIds.get(notice.recipientEmail) ?? null,
         channel,
         recipientRole: "principal" as const,
         aboutCount: 1,
