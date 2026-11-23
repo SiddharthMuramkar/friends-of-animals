@@ -1,5 +1,4 @@
 import { connection } from "next/server";
-import type { ReactNode } from "react";
 
 // Signed-in pages carry a per-request CSP nonce (src/proxy.ts, #65), and
 // Next puts it only on the scripts it renders for that request. A static
@@ -12,9 +11,7 @@ export const instant = false;
 
 export default async function AccountLayout({
   children,
-}: {
-  children: ReactNode;
-}) {
+}: LayoutProps<"/account">) {
   await connection();
   return children;
 }

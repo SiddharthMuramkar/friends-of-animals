@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { KolamDivider } from "@/components/art/kolam-divider";
+import { LivingIllustration } from "@/components/art/living-illustration";
+import { type Sticker, StickerScatter } from "@/components/art/sticker-scatter";
 import { HappyMosaic } from "@/components/showcase/happy-mosaic";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { SeasonalCard } from "@/components/showcase/seasonal-card";
@@ -26,6 +29,7 @@ import { pageMetadata } from "@/lib/seo";
 
 import { NeighbourCard } from "./_components/neighbour-card";
 import { PledgeCard, type PledgeLabels } from "./_components/pledge-card";
+import { StreetScene } from "./_components/street-scene";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("awareness.meta");
@@ -51,6 +55,35 @@ const PLEDGE_PHOTOS = [
 ] as const satisfies readonly (readonly [SiteImageId, string])[];
 
 const SWAPS = ["milk", "bread", "sweets", "chick", "holi", "manja"] as const;
+
+// Doodles in the empty space beside two section headings. Only on wide
+// screens: below lg the heading fills the row (month), and below xl the prose
+// column leaves no margin (law).
+const MONTH_STICKERS: readonly Sticker[] = [
+  {
+    id: "sticker-diya",
+    className: "hidden lg:block top-0 right-[5%] w-16",
+    tilt: -4,
+  },
+  {
+    id: "sticker-sparrow-bowl",
+    className: "hidden xl:block top-3 right-[21%] w-10",
+    tilt: 8,
+  },
+];
+const LAW_STICKERS: readonly Sticker[] = [
+  {
+    id: "sticker-puppy",
+    className: "hidden xl:block top-6 -left-32 w-14",
+    tilt: -6,
+  },
+  {
+    id: "sticker-marigold",
+    className: "hidden xl:block top-52 -right-36 w-20",
+    tilt: 12,
+  },
+];
+
 const PROMISES = [
   "water",
   "distance",
@@ -71,6 +104,10 @@ const STEP_TILES = [
 
 const LINK =
   "inline-flex min-h-6 items-center text-link underline underline-offset-2 hover:text-link-hover";
+
+// Pulls a section-top kolam up into the band's padding, with as much space
+// below it as above, so the heading moves down only a little.
+const KOLAM_GAP = "-mt-6 mb-8 sm:-mt-10 sm:mb-10";
 
 export default async function AwarenessPage() {
   const t = await getTranslations("awareness");
@@ -144,13 +181,19 @@ export default async function AwarenessPage() {
 
       {/* 2. This month, and all twelve */}
       <Section hue="teal" id="month" labelledBy="month-title">
-        <SectionHeading
-          id="month-title"
-          eyebrow={t("month.eyebrow")}
-          tile="yellow"
-          title={t("month.title")}
-          lead={t("month.lead")}
-        />
+        {/* A kolam at the threshold of each plain section, drawn in the
+            band's top padding. */}
+        <KolamDivider className={KOLAM_GAP} />
+        <div className="relative">
+          <SectionHeading
+            id="month-title"
+            eyebrow={t("month.eyebrow")}
+            tile="yellow"
+            title={t("month.title")}
+            lead={t("month.lead")}
+          />
+          <StickerScatter stickers={MONTH_STICKERS} />
+        </div>
         <SeasonalCard id="now" headingLevel={3} className="mt-10" />
         <h3 className="mt-14 text-h3 text-(--section-heading)">
           {t("month.allTitle")}
@@ -197,7 +240,9 @@ export default async function AwarenessPage() {
         <p className="mt-6 inline-flex rounded-2xl bg-surface px-4 py-3 font-semibold text-ink shadow-warm">
           {t("neighbours.rule")}
         </p>
-        <ul className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+        {/* "Spot the neighbour": each ring links to a card below. */}
+        <StreetScene className="mt-10" />
+        <ul className="mt-10 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {NEIGHBOURS.map((n) => (
             <li key={n.id}>
               <NeighbourCard n={n} />
@@ -214,6 +259,7 @@ export default async function AwarenessPage() {
 
       {/* 4. Kindness that helps: Tagore Q22 */}
       <Section hue="teal" id="kindness" labelledBy="helps-title">
+        <KolamDivider dots={7} className={KOLAM_GAP} />
         <SectionHeading
           id="helps-title"
           eyebrow={t("helps.eyebrow")}
@@ -221,12 +267,25 @@ export default async function AwarenessPage() {
           title={t("helps.title")}
           lead={t("helps.lead")}
         />
-        <QuoteFigure id="Q22" size="md" hue="pink" className="mt-10" />
-        <ul className="mt-10 grid gap-4 md:grid-cols-2">
+        {/* Tagore's bird gives the fish "a lift in the air"; beside it, a
+            sparrow gets what it really needs from the bread swap below: a
+            shallow bowl of water to bathe in. It sits beside the quote from
+            lg, under it before that. No overflow clipping here: the sparrow
+            plays on a view timeline. */}
+        <div className="mt-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+          <QuoteFigure id="Q22" size="md" hue="pink" />
+          <LivingIllustration
+            id="living-sparrow"
+            trigger="middle"
+            decorative
+            className="w-48 max-w-full shrink-0 self-center sm:w-56"
+          />
+        </div>
+        <ul className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
           {SWAPS.map((key) => (
             <li
               key={key}
-              className="grid gap-3 rounded-3xl border-2 border-border bg-surface p-5 sm:grid-cols-2 sm:p-6"
+              className="grid grid-cols-1 gap-3 rounded-3xl border-2 border-border bg-surface p-5 sm:grid-cols-2 sm:p-6"
             >
               <p>
                 <span className="block text-sm font-semibold text-red-700 dark:text-red-400">
@@ -258,7 +317,7 @@ export default async function AwarenessPage() {
           title={t("hurt.title")}
           lead={t("hurt.lead")}
         />
-        <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ol className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {HURT_ANIMAL_KID_STEPS.map((step, i) => (
             <li
               key={step}
@@ -270,14 +329,14 @@ export default async function AwarenessPage() {
               >
                 {i + 1}
               </span>
-              <span className="pt-1 font-display text-lead leading-snug font-semibold text-ink">
+              <span className="min-w-0 pt-1 font-display text-lead leading-snug font-semibold text-ink wrap-anywhere">
                 {step}
               </span>
             </li>
           ))}
         </ol>
 
-        <div className="mt-10 grid items-start gap-6 lg:grid-cols-2">
+        <div className="mt-10 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
           <Callout tone="info" title={t("hurt.saveTitle")}>
             <p>{t("hurt.saveBody")}</p>
             <p>{t("hurt.save1962")}</p>
@@ -318,7 +377,16 @@ export default async function AwarenessPage() {
       </Section>
 
       {/* 6. What the law says: PCA s.3 */}
-      <Section hue="teal" id="law" labelledBy="law-title" width="prose">
+      <Section
+        hue="teal"
+        id="law"
+        labelledBy="law-title"
+        width="prose"
+        innerClassName="relative"
+      >
+        <KolamDivider className={KOLAM_GAP} />
+        {/* In the wide margins beside the prose column (xl and up). */}
+        <StickerScatter stickers={LAW_STICKERS} />
         <SectionHeading
           id="law-title"
           eyebrow={t("law.eyebrow")}
@@ -340,7 +408,7 @@ export default async function AwarenessPage() {
 
       {/* 7. Kindness pledge card */}
       <Section hue="teal" tone="tint" id="pledge" labelledBy="pledge-title">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
           <SectionHeading
             id="pledge-title"
             eyebrow={t("pledge.eyebrow")}
@@ -351,6 +419,7 @@ export default async function AwarenessPage() {
           <HappyMosaic
             layout="pair"
             label={t("pledge.photosLabel")}
+            className="max-sm:px-1"
             tiles={PLEDGE_PHOTOS.map(([id, key]) => ({
               id,
               caption: t(`pledge.photos.${key}`),

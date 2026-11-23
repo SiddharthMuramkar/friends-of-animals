@@ -14,6 +14,7 @@ describe("getAccount", () => {
     expect(await h.as(asha).getAccount()).toEqual({
       name: "Asha Rao",
       email: "asha@example.test",
+      phone: null,
     });
   });
 

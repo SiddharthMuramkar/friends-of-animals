@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { SITE_ART_IDS } from "@/lib/art/ids";
 import { SITE_IMAGE_IDS } from "@/lib/images/credits";
 
 import { QUOTE_IDS } from "../quotes";
@@ -177,22 +178,32 @@ const sourceIds = Object.keys(SEASONAL_SOURCES) as [
   ...SeasonalSourceId[],
 ];
 
-const seasonalMonthSchema = z.strictObject({
-  month: z.int().min(1).max(12),
-  slug: z.string().regex(/^[a-z]+$/),
-  title: z.string().min(1),
-  /** One short line for children (grade ≤ 6). */
-  kid: z.string().min(1),
-  /** Things a child can do, each one or two short sentences. */
-  actions: z.array(z.string().min(1)).min(2).max(4),
-  /** "For grown-ups": the practical detail, with the rule or guideline named. */
-  grownUps: z.string().min(1),
-  /** One true, sourced sentence on why it matters. */
-  why: z.string().min(1),
-  sources: z.array(z.enum(sourceIds)).min(1),
-  imageId: z.enum(SITE_IMAGE_IDS).optional(),
-  quoteId: z.enum(QUOTE_IDS as [string, ...string[]]).optional(),
-});
+export const seasonalMonthSchema = z
+  .strictObject({
+    month: z.int().min(1).max(12),
+    slug: z.string().regex(/^[a-z]+$/),
+    title: z.string().min(1),
+    /** One short line for children (grade ≤ 6). */
+    kid: z.string().min(1),
+    /** Things a child can do, each one or two short sentences. */
+    actions: z.array(z.string().min(1)).min(2).max(4),
+    /** "For grown-ups": the practical detail, with the rule or guideline named. */
+    grownUps: z.string().min(1),
+    /** One true, sourced sentence on why it matters. */
+    why: z.string().min(1),
+    sources: z.array(z.enum(sourceIds)).min(1),
+    imageId: z.enum(SITE_IMAGE_IDS).optional(),
+    /**
+     * An AI illustration (labelled) for a month with no licensed photo. A photo
+     * always wins: a month never has both.
+     */
+    artId: z.enum(SITE_ART_IDS).optional(),
+    quoteId: z.enum(QUOTE_IDS as [string, ...string[]]).optional(),
+  })
+  .refine((m) => !(m.imageId && m.artId), {
+    message: "a month has a photo or an illustration, never both",
+    path: ["artId"],
+  });
 
 export type SeasonalMonth = z.infer<typeof seasonalMonthSchema>;
 
@@ -220,6 +231,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 2,
       slug: "february",
+      artId: "season-feb",
       title: "Be a bird counter",
       kid: "Be a bird counter. Scientists use lists like yours.",
       actions: [
@@ -269,6 +281,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 5,
       slug: "may",
+      artId: "season-may",
       title: "Hot ground, hot cars",
       kid: "Hot roads can burn paws.",
       actions: [
@@ -300,6 +313,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 7,
       slug: "july",
+      artId: "season-jul",
       title: "Plant a tree for birds",
       kid: "In the first week of July, people across India plant trees.",
       actions: [
@@ -331,6 +345,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 9,
       slug: "september",
+      artId: "season-sep",
       title: "World Rabies Day: what to do if bitten",
       kid: "Never touch a dog, cat or monkey you do not know.",
       actions: [
@@ -346,6 +361,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 10,
       slug: "october",
+      artId: "season-oct",
       title: "Wildlife Week and quieter celebrations",
       kid: "Wildlife Week is 2 to 8 October. 4 October is World Animal Day.",
       actions: [
@@ -361,6 +377,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 11,
       slug: "november",
+      artId: "season-nov",
       title: "Puppy season: give mothers space",
       kid: "Many puppies are born in winter. Their mother keeps watch.",
       actions: [

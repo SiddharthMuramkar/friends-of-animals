@@ -40,3 +40,6 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /playwright/.auth/
+
+# Site art: downloaded AI generations and working files (scripts/site-art)
+/.art-staging/

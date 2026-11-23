@@ -14,7 +14,8 @@
       "primitives": "Building blocks",
       "cards": "Cards",
       "showcase": "Showcase",
-      "dark": "Dark theme"
+      "dark": "Dark theme",
+      "illustrations": "Illustrations"
     },
     "colour": {
       "lead": "Six hues from the logo and its mixes, on warm paper. Step 700 and darker is safe for text on paper. Meaning never rides on colour alone.",
@@ -88,6 +89,7 @@
       "tiles": "Tiles",
       "callouts": "Callouts",
       "calloutBody": "One idea per box, with an icon and a word as well as a colour.",
+      "calloutWithLink": "Callout with a way on: phone sign-in while SMS is off",
       "disclosure": "Disclosure",
       "disclosureSummary": "For parents and teachers",
       "disclosureBody": "Native details element: no JavaScript, keyboard ready. Give a group the same name to open one at a time.",
@@ -112,6 +114,23 @@
     },
     "dark": {
       "lead": "The same parts in the dark theme: warm ink-black, never pure black, with the white logo."
+    },
+    "illustrations": {
+      "lead": "Drawings made with AI until commissioned art arrives. Meaningful ones carry alt text and the AI mark; decorative ones are hidden from screen readers.",
+      "illustration": "Illustration",
+      "meaningful": "Meaningful: alt text and the AI mark",
+      "decorative": "Decorative: empty alt text, no mark",
+      "figure": "Framed, as a story’s cover on its page",
+      "living": "Living illustration",
+      "livingNote": "Steps through its frames as you scroll; with reduced motion, it rests on its last frame.",
+      "stickers": "Sticker scatter",
+      "stickersNote": "A relative box: each sticker sets its own place, size and tilt, on the edges and never over words.",
+      "kolam": "Kolam divider",
+      "explain": "Explain state, with a waiting drawing",
+      "explainTitle": "This page opens soon",
+      "explainBody": "We are still putting it together. When it is ready, you will find it right here.",
+      "mark": "AI mark",
+      "markNote": "Beside meaningful art only. Screen readers get the same words from the alt text."
     }
   }
 }

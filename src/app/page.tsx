@@ -4,9 +4,13 @@ import { SiteLink } from "@/components/site/site-link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { AiMark } from "@/components/art/ai-mark";
+import { LivingIllustration } from "@/components/art/living-illustration";
+import { type Sticker, StickerScatter } from "@/components/art/sticker-scatter";
 import { BadgeConstellation } from "@/components/showcase/badge-constellation";
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
 import { cachedNow } from "@/components/showcase/clock";
+import { fromSample } from "@/components/competitions/model";
 import { CompetitionCard } from "@/components/showcase/competition-card";
 import { GalleryFrames } from "@/components/showcase/gallery-frames";
 import { HappyMosaic } from "@/components/showcase/happy-mosaic";
@@ -23,16 +27,26 @@ import { Photo } from "@/components/site/photo";
 import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
-import { getSampleCompetitions, getSampleImpact } from "@/content/sample";
+import { getSampleCompetitions } from "@/content/sample";
 import { homeCompetitions } from "@/content/sample/selectors";
-import { latestStories } from "@/content/stories";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+import { isSampleContentEnabled } from "@/lib/site";
+import { cn } from "@/lib/utils";
+import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
+import { Live } from "@/components/site/live";
+import {
+  type HomePage,
+  loadHomePage,
+  loadPublishedHomePage,
+  seedHomePage,
+} from "@/server/modules/cms/site-pages";
+import { loadLatestPublishedPosts } from "@/server/modules/cms/posts/loaders";
 
 import {
   activeAnnouncement,
-  HOME_LAYOUT,
+  type HomeLayout,
   type HomeSectionKey,
   openAnnouncement,
   visibleSections,
@@ -95,9 +109,16 @@ async function Announcement() {
   );
 }
 
-async function Hero() {
-  const t = await getTranslations("home");
-  const { hero } = HOME_LAYOUT;
+type BlockProps = HomePage;
+
+// The hero's columns and its photo's column. The sleeping dog's layer uses
+// them too, so the dog keeps to the photo's lower-left corner.
+const HERO_COLUMNS =
+  "mx-auto max-w-7xl px-4 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16";
+const HERO_PHOTO_COLUMN = "mx-auto w-full max-w-xl lg:mr-3 lg:max-w-none";
+
+function Hero({ home }: { home: HomeLayout }) {
+  const { hero } = home;
   return (
     <section aria-labelledby="home-title" className="relative bg-surface-muted">
       {/* Tile field: a few loose logo-colour tiles, decorative. Only this
@@ -108,51 +129,87 @@ async function Hero() {
       >
         <span className="absolute bottom-16 left-[4%] hidden size-5 -rotate-6 rounded-[22%] bg-teal-400 sm:block" />
         <span className="absolute right-[6%] bottom-8 hidden size-4 rotate-6 rounded-[22%] bg-pink-400 sm:block" />
+        {/* An Indie dog naps on the band's floor, its tail tucked under the
+            photo's lower-left corner and its head clear of the caption and
+            the buttons (any wider and an ear runs into the caption). It
+            wakes over the first 40% of a screen of scroll. Only from xl:
+            narrower, it would cover the teal tile, crowd the buttons or
+            float below the caption, and on tablets it would lie below the
+            fold. It sits right under "Children's art…", so it carries the
+            visible AI mark: no one should take it for a child's drawing
+            (ADR 0003). Screen readers skip this whole layer. */}
+        <div className={cn(HERO_COLUMNS, "hidden h-full xl:grid")}>
+          <div
+            className={cn(HERO_PHOTO_COLUMN, "relative h-full lg:col-start-2")}
+          >
+            <span className="absolute bottom-0 -left-28 w-30">
+              <LivingIllustration
+                id="living-dog"
+                trigger="page"
+                decorative
+                className="w-full"
+              />
+              <AiMark className="absolute bottom-3 left-full ms-1" />
+            </span>
+          </div>
+        </div>
       </div>
-      <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-12 px-4 py-8 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-16">
+      <div
+        className={cn(
+          "relative grid grid-cols-[minmax(0,1fr)] items-center gap-7 py-5 sm:gap-12 sm:py-16 lg:py-16",
+          HERO_COLUMNS
+        )}
+      >
         <div>
-          <Eyebrow tile="green">{t("hero.eyebrow")}</Eyebrow>
+          <Eyebrow tile="green">{hero.eyebrow}</Eyebrow>
           <h1
             id="home-title"
-            className="mt-4 font-display text-[2.75rem] leading-[1.05] font-extrabold text-balance text-ink sm:text-display lg:text-[4.5rem]"
+            className="mt-2 font-display text-[clamp(2rem,1.25rem+3.75vw,2.75rem)] leading-[1.05] font-extrabold text-balance text-ink sm:mt-4 sm:text-display lg:text-[4.5rem]"
           >
-            {t(hero.heading)}
+            {hero.heading}
           </h1>
-          <p className="mt-5 max-w-prose text-lg text-ink-muted sm:mt-6 sm:text-lead">
-            {t(hero.subheading)}
+          <p className="mt-3 max-w-prose text-base text-ink-muted max-sm:leading-6 sm:mt-6 sm:text-lead">
+            {hero.subheading}
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink href={hero.primaryCta.href} size="lg">
-              {t(hero.primaryCta.label)}
+          <div className="mt-4 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
+            <ButtonLink
+              href={hero.primaryCta.href}
+              size="lg"
+              className="max-sm:min-h-11 max-sm:px-5 max-sm:py-1.5 max-sm:text-base"
+            >
+              {hero.primaryCta.label}
             </ButtonLink>
             {hero.secondaryCta ? (
               <ButtonLink
                 href={hero.secondaryCta.href}
                 variant="secondary"
                 size="lg"
+                className="max-sm:min-h-11 max-sm:px-5 max-sm:py-1.5 max-sm:text-base"
               >
-                {t(hero.secondaryCta.label)}
+                {hero.secondaryCta.label}
               </ButtonLink>
             ) : null}
           </div>
         </div>
-        <div className="relative mx-auto w-full max-w-xl lg:mr-3 lg:max-w-none">
+        <div className={cn("relative", HERO_PHOTO_COLUMN)}>
           <Photo
             id={hero.imageAssetId}
             sizes="(min-width: 1280px) 560px, (min-width: 1024px) 44vw, min(92vw, 576px)"
             preload
             frame="red"
             frameCorner="top-right"
-            caption={t("hero.caption")}
+            caption={hero.caption || undefined}
             className="aspect-4/3 shadow-warm ring-8 ring-surface"
             figureClassName="lg:rotate-1"
           />
-          <p
-            aria-hidden="true"
-            className="absolute -top-4 -left-2 hidden -rotate-6 rounded-2xl bg-yellow-300 px-4 py-1.5 font-hand text-lead text-neutral-900 shadow-warm sm:block lg:-left-6"
-          >
-            {t("hero.note")}
-          </p>
+          {hero.note ? (
+            <p
+              aria-hidden="true"
+              className="absolute -top-4 -left-2 hidden -rotate-6 rounded-2xl bg-yellow-300 px-4 py-1.5 font-hand text-lead text-neutral-900 shadow-warm sm:block lg:-left-6"
+            >
+              {hero.note}
+            </p>
+          ) : null}
         </div>
       </div>
     </section>
@@ -173,11 +230,11 @@ async function Competitions() {
       />
       {list.length > 0 ? (
         <>
-          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
-                  competition={c}
+                  competition={fromSample(c)}
                   headingLevel={3}
                   className="w-full"
                 />
@@ -193,14 +250,14 @@ async function Competitions() {
                     <TileMarker hue="pink" size="lg" />
                     <TileMarker hue="yellow" size="lg" />
                   </span>
-                  <span className="font-display text-h4 leading-tight font-bold text-ink">
+                  <span className="max-w-full font-display text-h4 leading-tight font-bold text-ink">
                     {t("moreTitle")}
                   </span>
-                  <span className="inline-flex min-h-11 items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4">
-                    {t("all")}
+                  <span className="inline-flex min-h-11 max-w-full items-center gap-2 font-semibold text-link underline decoration-2 underline-offset-4">
+                    <span className="min-w-0">{t("all")}</span>
                     <ArrowRight
                       aria-hidden="true"
-                      className="size-5 transition-transform motion-safe:group-hover:translate-x-1"
+                      className="size-5 shrink-0 transition-transform motion-safe:group-hover:translate-x-1"
                     />
                   </span>
                 </SiteLink>
@@ -216,6 +273,7 @@ async function Competitions() {
           title={t("emptyTitle")}
           headingLevel="h3"
           back={{ href: ROUTES.schools.path, label: t("emptyBack") }}
+          art="wait-horizon-myna"
           className="mt-10 max-w-3xl"
         >
           <p>{t("emptyBody")}</p>
@@ -246,7 +304,7 @@ async function WhyChildren() {
   const t = await getTranslations("home.why");
   return (
     <Section labelledBy="home-why" width="wide" hue="red">
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-center lg:gap-16">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-center lg:gap-16">
         <div>
           <SectionHeading
             id="home-why"
@@ -281,14 +339,13 @@ async function Gallery() {
   );
 }
 
-async function Impact() {
+async function Impact({ home, impact }: BlockProps) {
   const t = await getTranslations("home.impact");
-  const impact = getSampleImpact();
-  const counters = impact
+  const counters = impact?.counters.length
     ? {
         ...impact,
         counters: impact.counters.filter((c) =>
-          HOME_LAYOUT.counterKeys.includes(c.key)
+          home.counterKeys.includes(c.key)
         ),
       }
     : null;
@@ -302,7 +359,12 @@ async function Impact() {
         lead={t("lead")}
       />
       {counters ? (
-        <ImpactCounters impact={counters} headingLevel={3} className="mt-10" />
+        <ImpactCounters
+          impact={counters}
+          sample={isSampleContentEnabled()}
+          headingLevel={3}
+          className="mt-10"
+        />
       ) : (
         <p className="mt-6 max-w-prose text-body text-ink">{t("emptyBody")}</p>
       )}
@@ -311,19 +373,47 @@ async function Impact() {
   );
 }
 
+// Doodles by the Stories heading: on phones and tablets one sits in the band's
+// top padding, above the heading's right end; from lg, where the heading
+// leaves the right side of the row empty, three sit there.
+const STORY_STICKERS = [
+  {
+    id: "sticker-puppy",
+    className:
+      "-top-10 right-1 w-10 sm:-top-14 sm:w-12 lg:top-1 lg:right-6 lg:w-16",
+    tilt: -8,
+  },
+  {
+    id: "sticker-kitten",
+    className: "hidden lg:top-22 lg:right-26 lg:block lg:w-14",
+    tilt: 10,
+  },
+  {
+    id: "sticker-sparrow-bowl",
+    className: "hidden lg:-top-6 lg:right-40 lg:block lg:w-14",
+    tilt: -12,
+  },
+] as const satisfies readonly Sticker[];
+
 async function Stories() {
-  const t = await getTranslations("home.stories");
+  const [t, posts] = await Promise.all([
+    getTranslations("home.stories"),
+    loadLatestPublishedPosts(3),
+  ]);
   return (
     <Section labelledBy="home-stories" width="wide" tone="tint" hue="yellow">
-      <SectionHeading
-        id="home-stories"
-        eyebrow={t("eyebrow")}
-        tile="yellow"
-        title={t("title")}
-        lead={t("lead")}
-      />
-      <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {latestStories(3).map((story) => (
+      <div className="relative">
+        <StickerScatter stickers={STORY_STICKERS} />
+        <SectionHeading
+          id="home-stories"
+          eyebrow={t("eyebrow")}
+          tile="yellow"
+          title={t("title")}
+          lead={t("lead")}
+        />
+      </div>
+      <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {posts.map((story) => (
           <li key={story.slug} className="flex">
             <StoryCard story={story} headingLevel={3} className="w-full" />
           </li>
@@ -397,6 +487,26 @@ const JOY_PHOTOS = [
   ["puppy-white-running", "running"],
 ] as const satisfies readonly (readonly [SiteImageId, string])[];
 
+// Doodles round the joy heading, never on the prints: two in the band's top
+// padding; from lg a sketchbook in the empty top of the right-hand column.
+const JOY_STICKERS = [
+  {
+    id: "sticker-diya",
+    className: "-top-9 right-2 w-12 sm:-top-13 sm:w-14",
+    tilt: 12,
+  },
+  {
+    id: "sticker-marigold",
+    className: "-top-10 right-20 hidden w-10 sm:-top-14 sm:right-24 sm:block",
+    tilt: -10,
+  },
+  {
+    id: "sticker-sketchbook",
+    className: "hidden lg:top-0 lg:-right-24 lg:block lg:w-14",
+    tilt: 6,
+  },
+] as const satisfies readonly Sticker[];
+
 async function Joy() {
   const t = await getTranslations("home.joy");
   return (
@@ -408,19 +518,25 @@ async function Joy() {
           caption: t(`photos.${key}`),
         }))}
       >
-        <SectionHeading
-          id="home-joy"
-          eyebrow={t("eyebrow")}
-          tile="yellow"
-          title={t("title")}
-        />
+        <div className="relative">
+          <StickerScatter stickers={JOY_STICKERS} />
+          <SectionHeading
+            id="home-joy"
+            eyebrow={t("eyebrow")}
+            tile="yellow"
+            title={t("title")}
+          />
+        </div>
         <QuoteFigure id="Q36" hue="yellow" size="md" className="mt-8" />
       </HappyMosaic>
     </Section>
   );
 }
 
-const SECTIONS: Record<HomeSectionKey, () => Promise<ReactNode>> = {
+const SECTIONS: Record<
+  HomeSectionKey,
+  (props: BlockProps) => ReactNode | Promise<ReactNode>
+> = {
   competitions: Competitions,
   howItWorks: HowItWorks,
   whyChildren: WhyChildren,
@@ -432,18 +548,42 @@ const SECTIONS: Record<HomeSectionKey, () => Promise<ReactNode>> = {
   donate: Donate,
   joy: Joy,
   // Upcoming events: not built yet.
-  events: async () => null,
+  events: () => null,
 };
 
+function HomeContent(page: HomePage) {
+  return (
+    <>
+      {page.preview ? (
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <CmsDraftPreview {...page.preview} />
+        </div>
+      ) : null}
+      <Hero home={page.home} />
+      {visibleSections(page.home).map((key) => {
+        const Block = SECTIONS[key];
+        return <Block key={key} {...page} />;
+      })}
+    </>
+  );
+}
+
+// The hero and sections come from the published home document. The static
+// shell renders it once the server has regenerated the page, so the hero
+// and its buttons are painted once; until then (the build's shell, which
+// has no database) and in Draft Mode, the shell holds the seed copy and
+// the document streams in at request time (see Live).
 export default function Page() {
   return (
     <>
       <Announcement />
-      <Hero />
-      {visibleSections(HOME_LAYOUT).map((key) => {
-        const Block = SECTIONS[key];
-        return <Block key={key} />;
-      })}
+      <Live
+        fallback={seedHomePage()}
+        load={loadHomePage}
+        published={loadPublishedHomePage}
+      >
+        {(page) => <HomeContent {...page} />}
+      </Live>
     </>
   );
 }

@@ -1,0 +1,263 @@
+{
+  "adminCms": {
+    "meta": {
+      "title": "Site content",
+      "description": "Edit the site's pages, preview a draft and publish it."
+    },
+    "eyebrow": "Admin",
+    "title": "Site content",
+    "lead": "Edit a page as a draft, see it on the site before anyone else does, then publish it as the next version.",
+    "loading": "Loading the pages…",
+    "denied": {
+      "title": "Only content managers can open this page",
+      "body": "Editing the site's pages is for content managers. Ask a super admin if you need the role.",
+      "back": "Back to your account"
+    },
+    "documents": {
+      "home": "Home page",
+      "about": "About page",
+      "impact": "Impact counters",
+      "site_facts": "Site facts",
+      "legal_privacy": "Privacy policy",
+      "legal_terms": "Terms of use",
+      "legal_safeguarding": "Safeguarding policy",
+      "legal_child_protection": "Child protection policy"
+    },
+    "list": {
+      "caption": "Every page you can edit, with its published version and any draft",
+      "page": "Page",
+      "published": "Published",
+      "draft": "Draft",
+      "version": "Version {version}, {date}",
+      "notPublished": "Not published yet",
+      "hasDraft": "Unpublished changes",
+      "noDraft": "None",
+      "edit": "Edit",
+      "editLabel": "Edit the {document}",
+      "later": "Editor coming soon"
+    },
+    "editor": {
+      "back": "All pages",
+      "state": {
+        "published": "Published: version {version}, {date}.",
+        "notPublished": "Not published yet. Until you publish version 1, the page shows the text in the code.",
+        "draft": "Draft saved {date}.",
+        "noDraft": "No draft. Saving starts one from the text below."
+      },
+      "form": {
+        "heading": "Edit the draft",
+        "label": "Text",
+        "hint": "Short-version points go first, each on a line starting with a dash. Start each section with two hash signs and its title. Write **bold** for strong words and [words](/page) for a link.",
+        "save": "Save draft",
+        "saving": "Saving…",
+        "fixErrors": "Fix these before you save:",
+        "invalidBody": "The text doesn't make a complete page. Check that every section has a title and some text.",
+        "failed": "Something went wrong on our side. Nothing was saved. Please try again.",
+        "problem": "Problem",
+        "fixFields": "Some fields need fixing. Each one says what's wrong."
+      },
+      "draft": {
+        "heading": "The draft",
+        "lead": "This is what publishing will show. Preview it on the site to see it in place.",
+        "none": "There is no draft yet.",
+        "preview": "Preview on the site",
+        "previewing": "Opening the preview…",
+        "publish": "Publish as version {version}",
+        "publishing": "Publishing…",
+        "shortVersion": "The short version",
+        "leadFields": "Preview it on the site to see it in place before you publish it."
+      },
+      "notices": {
+        "done": "Done",
+        "saved": "Draft saved.",
+        "published": "Published version {version}. The page shows it now.",
+        "problem": "Problem",
+        "not_draft": "That draft was already published. Here is the page as it is now.",
+        "not_found": "We couldn't find that draft. Here is the page as it is now.",
+        "failed": "Something went wrong on our side. Nothing changed. Please try again."
+      },
+      "revisions": {
+        "heading": "Versions",
+        "caption": "Every version of this page, newest first",
+        "version": "Version",
+        "status": "Status",
+        "date": "Date",
+        "by": "By",
+        "draftVersion": "Draft",
+        "seed": "Seed data",
+        "statuses": {
+          "draft": "Draft",
+          "published": "Published",
+          "superseded": "Replaced"
+        },
+        "savedOn": "Saved {date}",
+        "publishedOn": "Published {date}"
+      },
+      "fields": {
+        "count": "Enter a whole number, 0 or more, or leave it empty to hide this counter.",
+        "none": "None",
+        "other": "Also check:",
+        "lead": "Each field is plain text: anything that looks like code or markup is removed when you save.",
+        "hints": {
+          "lines": "One per line.",
+          "markup": "Leave a blank line between paragraphs. Start a list item with a dash. Write **bold** for strong words and [words](/page) for a link.",
+          "titled": "For each item, write its title on one line and its text on the next. Leave a blank line between items.",
+          "toggles": "Untick a section to hide it. The order stays as shown.",
+          "counts": "Leave a counter empty to hide it. Counts under 10 never show.",
+          "optional": "Optional: leave it empty for none.",
+          "length": "Up to {maxLength} characters."
+        }
+      }
+    },
+    "preview": {
+      "status": "Draft preview",
+      "draft": "You're seeing the unpublished draft. Everyone else sees the published version.",
+      "noDraft": "This page has no unpublished draft, so you're seeing the published version.",
+      "exit": "Exit preview"
+    },
+    "groups": {
+      "home": {
+        "hero": "Hero",
+        "buttons": "Buttons",
+        "counters": "Counters on the home page",
+        "sections": "Sections"
+      },
+      "page": {
+        "hero": "Top of the page",
+        "duty": "Where we start",
+        "vision": "Vision and mission",
+        "skill": "Why it works",
+        "ashoka": "An old Indian idea",
+        "how": "How it works",
+        "people": "Who it is for",
+        "objectives": "Objectives",
+        "transparency": "Our promise",
+        "name": "Small print"
+      },
+      "impact": {
+        "counters": "Impact counters"
+      },
+      "facts": {
+        "contact": "How to reach FOA",
+        "grievance": "Grievance officer"
+      }
+    },
+    "fields": {
+      "home": {
+        "hero": {
+          "eyebrow": "Small heading above the title",
+          "heading": "Main heading",
+          "subheading": "Text under the heading",
+          "imageAssetId": "Picture",
+          "caption": "Caption under the picture",
+          "note": "Handwritten note on the picture",
+          "primaryCta": {
+            "label": "Main button: words",
+            "href": "Main button: page it opens"
+          },
+          "secondaryCta": {
+            "label": "Second button: words",
+            "href": "Second button: page it opens"
+          }
+        },
+        "counterKeys": "Counter {n}",
+        "sections": "Sections shown on the home page"
+      },
+      "page": {
+        "hero": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "lead": "Introduction",
+          "easy": "Easy-read line"
+        },
+        "duty": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "body": "Text",
+          "court": "Line before the Supreme Court quote"
+        },
+        "vision": {
+          "visionTitle": "Vision: title",
+          "vision": "Vision",
+          "missionTitle": "Mission: title",
+          "mission": "Mission"
+        },
+        "skill": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "easy": "Easy-read line",
+          "body": "Text",
+          "detailSummary": "Title of the part for parents and teachers",
+          "detail": "Text for parents and teachers"
+        },
+        "ashoka": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "body": "Text"
+        },
+        "how": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "steps": {
+            "title": "Step {n}: title",
+            "body": "Step {n}: text"
+          }
+        },
+        "people": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "lead": "Introduction",
+          "items": "Who it is for"
+        },
+        "objectives": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "items": "Objectives"
+        },
+        "transparency": {
+          "eyebrow": "Small heading above the title",
+          "title": "Title",
+          "body": "Text"
+        },
+        "name": "Small print at the end of the page"
+      },
+      "impact": {
+        "asOf": "Counted on",
+        "counters": "Counters"
+      },
+      "facts": {
+        "email": "Email address",
+        "phone": "Phone number",
+        "address": "Postal address",
+        "socials": "Social media profiles (full https:// addresses)",
+        "grievanceOfficer": {
+          "name": "Name",
+          "email": "Email address"
+        }
+      }
+    },
+    "options": {
+      "sections": {
+        "competitions": "Competitions",
+        "howItWorks": "How it works",
+        "whyChildren": "Why children",
+        "gallery": "Gallery",
+        "impact": "Impact counters",
+        "stories": "Stories",
+        "seasonal": "Seasonal competition",
+        "badges": "Badges",
+        "donate": "Donate",
+        "joy": "Joy of animals",
+        "events": "Events (needs the events module)"
+      },
+      "counters": {
+        "participants": "Participants",
+        "institutions": "Schools and institutions",
+        "competitions": "Competitions",
+        "statesReached": "States reached",
+        "artworksShowcased": "Artworks showcased",
+        "certificatesIssued": "Certificates issued"
+      }
+    }
+  }
+}

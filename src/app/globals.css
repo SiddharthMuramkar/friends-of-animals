@@ -410,6 +410,7 @@
   }
   body {
     @apply bg-background font-sans text-body text-ink antialiased;
+    overflow-wrap: break-word;
   }
   h1,
   h2,
@@ -563,4 +564,16 @@ html:not(:lang(hi)) :lang(hi) {
   font-family:
     "Kohinoor Devanagari", "Devanagari Sangam MN", "Noto Sans Devanagari",
     "Nirmala UI", "Mangal", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* /safeguarding: no playful footer cat beside the helplines. The same
+   signal as the Quick exit offset (data-quick-exit, set by QuickExit; before
+   hydration, the bar's presence). Unlayered, so it wins over the wrapper's
+   display utilities; two rules, so a browser without :has() keeps the
+   first. */
+html[data-quick-exit="shown"] [data-footer-cat] {
+  display: none;
+}
+html:not([data-quick-exit]):has([data-quick-exit-bar]) [data-footer-cat] {
+  display: none;
 }

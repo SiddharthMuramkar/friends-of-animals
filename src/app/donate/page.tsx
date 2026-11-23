@@ -1,7 +1,10 @@
 import { Ban, Mail } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { Fragment } from "react";
 
+import { KindnessChain } from "@/components/showcase/kindness-chain";
+import { StickerScatter } from "@/components/art/sticker-scatter";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { Callout } from "@/components/site/callout";
 import { ContactFact } from "@/components/site/contact-fact";
@@ -15,7 +18,8 @@ import { type TileHue, TileMarker } from "@/components/site/tile";
 import { siteUrl } from "@/env";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
+import { isFactShown, SITE } from "@/lib/site";
 
 import { EasyRead } from "@/components/site/easy-read";
 import { ButtonLink } from "@/components/site/button-link";
@@ -44,7 +48,6 @@ const CANT = ["tax", "foreign", "minors", "rescue"] as const;
 export default async function Page() {
   const t = await getTranslations("donate");
   const tc = await getTranslations("competitions");
-  const { registration } = SITE.org;
   const base = siteUrl();
 
   return (
@@ -107,6 +110,7 @@ export default async function Page() {
         <ExplainState
           title={t("notLive.title")}
           back={{ href: ROUTES.contact.path, label: t("notLive.back") }}
+          art="wait-horizon-myna"
           className="mx-auto max-w-3xl"
         >
           <p>{t("notLive.body")}</p>
@@ -122,16 +126,23 @@ export default async function Page() {
       >
         <SectionHeading id="why-title" title={t("why.title")} />
         <p className="mt-5 text-lead text-ink">{t("why.body")}</p>
-        <p className="mt-4 text-ink-muted">{t("why.notShelter")}</p>
+        {/* The three steps the paragraph names, drawn (as on /about). */}
+        <KindnessChain container="prose" className="mt-10" />
+        <p className="mt-10 text-ink-muted">{t("why.notShelter")}</p>
       </Section>
 
-      <Section labelledBy="map-title" hue={HUE} tone="tint">
+      <Section
+        labelledBy="map-title"
+        hue={HUE}
+        tone="tint"
+        innerClassName="relative"
+      >
         <SectionHeading
           id="map-title"
           title={t("map.title")}
           lead={t("map.lead")}
         />
-        <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {MAP.map(({ key, hue }) => (
             <li key={key} className="rounded-3xl bg-surface p-6 shadow-warm">
               <TileMarker hue={hue} size="lg" />
@@ -144,10 +155,25 @@ export default async function Page() {
             </li>
           ))}
         </ul>
+        {/* Five cards leave the grid's last cell empty from sm (two
+            columns or three): a sparrow at its water bowl rests in the
+            middle of it, centred on the column's middle (a quarter, then a
+            sixth, in from the right). */}
+        <StickerScatter
+          className="hidden sm:block"
+          stickers={[
+            {
+              id: "sticker-sparrow-bowl",
+              className:
+                "right-1/4 bottom-12 w-20 translate-x-1/2 lg:right-1/6 lg:bottom-18 lg:w-24",
+              tilt: -16,
+            },
+          ]}
+        />
       </Section>
 
       <Section hue={HUE}>
-        <div className="grid gap-12 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
           <div>
             <h2 className="text-(--section-heading,var(--ink))">
               {t("cant.title")}
@@ -164,39 +190,47 @@ export default async function Page() {
               ))}
             </ul>
           </div>
-          <div>
-            <h2 className="text-(--section-heading,var(--ink))">
-              {t("legit.title")}
-            </h2>
-            <p className="mt-4 text-ink-muted">{t("legit.lead")}</p>
-            <dl className="mt-6 grid items-center gap-x-5 gap-y-1 rounded-3xl sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-y-3 border-2 border-border bg-surface p-5 sm:p-6">
-              <dt className="font-semibold">{t("legit.registeredName")}</dt>
-              <dd className="mb-2 sm:mb-0">
-                <Placeholder fact={SITE.org.legalName} />
-              </dd>
-              <dt className="font-semibold">{t("legit.registration")}</dt>
-              <dd className="mb-2 sm:mb-0">
-                <Placeholder fact={registration.type} />
-              </dd>
-              <dt className="font-semibold">{t("legit.registrationNumber")}</dt>
-              <dd className="mb-2 sm:mb-0">
-                <Placeholder fact={registration.number} />
-              </dd>
-              <dt className="font-semibold">{t("legit.pan")}</dt>
-              <dd className="mb-2 sm:mb-0">
-                <Placeholder fact={registration.pan} />
-              </dd>
-            </dl>
-            <Callout tone="warning" className="mt-6">
-              <p>{t("legit.honest")}</p>
-            </Callout>
-            <p className="mt-4 text-ink-muted">{t("legit.publish")}</p>
-          </div>
+          <WithOrgFacts>
+            {(facts) => {
+              // Production leaves out unconfirmed facts with their labels,
+              // and the card once none is left.
+              const legit = (
+                [
+                  ["registeredName", facts.legalName],
+                  ["registration", facts.registration.type],
+                  ["registrationNumber", facts.registration.number],
+                  ["pan", facts.registration.pan],
+                ] as const
+              ).filter(([, fact]) => isFactShown(fact));
+              return legit.length > 0 ? (
+                <div>
+                  <h2 className="text-(--section-heading,var(--ink))">
+                    {t("legit.title")}
+                  </h2>
+                  <p className="mt-4 text-ink-muted">{t("legit.lead")}</p>
+                  <dl className="mt-6 grid grid-cols-1 items-center gap-x-5 gap-y-1 rounded-3xl sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-y-3 border-2 border-border bg-surface p-5 sm:p-6">
+                    {legit.map(([label, fact]) => (
+                      <Fragment key={label}>
+                        <dt className="font-semibold">{t(`legit.${label}`)}</dt>
+                        <dd className="mb-2 sm:mb-0">
+                          <Placeholder fact={fact} />
+                        </dd>
+                      </Fragment>
+                    ))}
+                  </dl>
+                  <Callout tone="warning" className="mt-6">
+                    <p>{t("legit.honest")}</p>
+                  </Callout>
+                  <p className="mt-4 text-ink-muted">{t("legit.publish")}</p>
+                </div>
+              ) : null;
+            }}
+          </WithOrgFacts>
         </div>
       </Section>
 
       <Section hue={HUE} tone="tint">
-        <div className="grid gap-10 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
           <div>
             <h2 className="text-h3 text-(--section-heading,var(--ink))">
               {t("receipts.title")}
@@ -208,10 +242,16 @@ export default async function Page() {
               {t("csr.title")}
             </h2>
             <p className="mt-3 text-ink-muted">{t("csr.body")}</p>
-            <p className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="font-semibold">{t("csr.email")}</span>
-              <ContactFact kind="email" fact={SITE.org.email} />
-            </p>
+            <WithOrgFacts>
+              {({ email }) =>
+                isFactShown(email) ? (
+                  <p className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">{t("csr.email")}</span>
+                    <ContactFact kind="email" fact={email} />
+                  </p>
+                ) : null
+              }
+            </WithOrgFacts>
             <ButtonLink
               href={ROUTES.contact.path}
               variant="secondary"

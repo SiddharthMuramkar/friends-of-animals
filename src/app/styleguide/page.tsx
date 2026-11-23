@@ -3,7 +3,16 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { EmailOffCallout } from "@/app/(auth)/_components/email-off-callout";
+import { SmsOffCallout } from "@/app/(auth)/_components/sms-off-callout";
+import { AiMark } from "@/components/art/ai-mark";
+import { ArtFigure } from "@/components/art/art-figure";
+import { Illustration } from "@/components/art/illustration";
+import { KolamDivider } from "@/components/art/kolam-divider";
+import { LivingIllustration } from "@/components/art/living-illustration";
+import { type Sticker, StickerScatter } from "@/components/art/sticker-scatter";
 import { CertificatePreview } from "@/components/showcase/certificate-preview";
+import { fromSample } from "@/components/competitions/model";
 import { CompetitionCard } from "@/components/showcase/competition-card";
 import { ImpactCounters } from "@/components/showcase/impact-counters";
 import { JudgingPath } from "@/components/showcase/judging-path";
@@ -16,6 +25,7 @@ import { ButtonLink } from "@/components/site/button-link";
 import { Callout } from "@/components/site/callout";
 import { Chip } from "@/components/site/chip";
 import { Disclosure } from "@/components/site/disclosure";
+import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { InPageLink } from "@/components/site/in-page-link";
 import { Placeholder } from "@/components/site/placeholder";
@@ -24,11 +34,12 @@ import { Section } from "@/components/site/section";
 import { type TileHue, TileDivider, TileMarker } from "@/components/site/tile";
 import { getSampleCompetitions, getSampleImpact } from "@/content/sample";
 import { COMPETITION_STATUSES } from "@/content/sample/model";
-import { STORIES } from "@/content/stories";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { isSampleContentEnabled, SITE } from "@/lib/site";
+import { isSampleContentEnabled } from "@/lib/site";
+import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { cn } from "@/lib/utils";
+import { repoStoryCards } from "@/server/modules/cms/posts/repo-stories";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("styleguide.meta");
@@ -185,9 +196,25 @@ const SECTIONS = [
   { id: "cards", hue: "yellow" },
   { id: "showcase", hue: "teal" },
   { id: "dark", hue: "pink" },
+  { id: "illustrations", hue: "red" },
 ] as const satisfies readonly { id: string; hue: TileHue }[];
 
 const HUES: TileHue[] = ["red", "green", "blue", "yellow", "teal", "pink"];
+
+// On the demo box's edges, clear of its words at every width.
+const STICKERS: readonly Sticker[] = [
+  { id: "sticker-kitten", className: "-top-8 -left-2 w-14 sm:w-16", tilt: -8 },
+  {
+    id: "sticker-marigold",
+    className: "-top-6 right-6 w-12 sm:w-14",
+    tilt: 10,
+  },
+  {
+    id: "sticker-diya",
+    className: "-bottom-8 left-[38%] w-14 sm:w-18",
+    tilt: -4,
+  },
+];
 
 function Sub({
   title,
@@ -418,6 +445,14 @@ export default async function Page() {
             ))}
           </div>
         </Sub>
+        <Sub title={t("primitives.calloutWithLink")}>
+          {/* What staging and production show on the phone pages until
+              DLT approval; here, axe checks it in every E2E run. */}
+          <SmsOffCallout intent="sign-in" className="max-w-xl" />
+          {/* What production's sign-in pages show until SES can send to
+              anyone (DECISIONS R-27). */}
+          <EmailOffCallout intent="sign-in" className="mt-4 max-w-xl" />
+        </Sub>
         <Sub title={t("primitives.disclosure")}>
           <Disclosure
             summary={t("primitives.disclosureSummary")}
@@ -427,7 +462,9 @@ export default async function Page() {
           </Disclosure>
         </Sub>
         <Sub title={t("primitives.placeholder")}>
-          <Placeholder fact={SITE.org.email} />
+          <WithOrgFacts>
+            {(facts) => <Placeholder fact={facts.email} />}
+          </WithOrgFacts>
         </Sub>
         <Sub title={t("primitives.headings")}>
           <SectionHeading
@@ -455,7 +492,7 @@ export default async function Page() {
         />
         <Sub title={t("cards.stories")}>
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {STORIES.map((story) => (
+            {repoStoryCards().map((story) => (
               <li key={story.slug} className="flex">
                 <StoryCard story={story} headingLevel={4} className="w-full" />
               </li>
@@ -467,7 +504,7 @@ export default async function Page() {
             {competitions.map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
-                  competition={c}
+                  competition={fromSample(c)}
                   headingLevel={4}
                   className="w-full"
                 />
@@ -544,7 +581,7 @@ export default async function Page() {
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <li className="flex">
               <StoryCard
-                story={STORIES[1]!}
+                story={repoStoryCards()[1]!}
                 headingLevel={3}
                 className="w-full"
               />
@@ -552,7 +589,7 @@ export default async function Page() {
             {competitions.slice(0, 2).map((c) => (
               <li key={c.slug} className="flex">
                 <CompetitionCard
-                  competition={c}
+                  competition={fromSample(c)}
                   headingLevel={3}
                   className="w-full"
                 />
@@ -570,6 +607,93 @@ export default async function Page() {
             <CertificatePreview headingLevel={3} />
           </div>
         </div>
+      </Section>
+
+      {/* Illustrations: every art component, so axe checks each one in
+          every E2E run. */}
+      <Section id="illustrations" labelledBy="sg-illustrations" width="wide">
+        <SectionHeading
+          id="sg-illustrations"
+          eyebrow="07"
+          tile="red"
+          title={t("sections.illustrations")}
+          lead={t("illustrations.lead")}
+        />
+        <Sub title={t("illustrations.illustration")}>
+          <ul className="flex flex-wrap items-end gap-x-12 gap-y-8">
+            <li>
+              <Illustration
+                id="chain-create"
+                sizes="(min-width: 640px) 288px, 256px"
+                className="w-64 sm:w-72"
+              />
+              <p className="mt-4 text-sm text-ink-muted">
+                {t("illustrations.meaningful")}
+              </p>
+            </li>
+            <li>
+              <Illustration
+                id="sticker-puppy"
+                sizes="(min-width: 640px) 96px, 80px"
+                decorative
+                className="w-20 sm:w-24"
+              />
+              <p className="mt-4 text-sm text-ink-muted">
+                {t("illustrations.decorative")}
+              </p>
+            </li>
+            <li className="w-64 sm:w-80">
+              <ArtFigure
+                id="cover-stork"
+                frame="blue"
+                frameCorner="bottom-right"
+                sizes="(min-width: 640px) 320px, 256px"
+                className="aspect-4/3"
+              />
+              <p className="mt-4 text-sm text-ink-muted">
+                {t("illustrations.figure")}
+              </p>
+            </li>
+          </ul>
+        </Sub>
+        <Sub title={t("illustrations.living")}>
+          <LivingIllustration
+            id="living-sparrow"
+            trigger="middle"
+            decorative
+            className="w-48 sm:w-56"
+          />
+          <p className="mt-4 max-w-prose text-sm text-ink-muted">
+            {t("illustrations.livingNote")}
+          </p>
+        </Sub>
+        <Sub title={t("illustrations.stickers")}>
+          <div className="relative mt-8 max-w-xl rounded-3xl border-2 border-border bg-surface px-6 py-12 sm:px-10">
+            <p className="mx-auto max-w-xs text-center text-sm text-ink-muted">
+              {t("illustrations.stickersNote")}
+            </p>
+            <StickerScatter stickers={STICKERS} />
+          </div>
+        </Sub>
+        <Sub title={t("illustrations.kolam")}>
+          <KolamDivider />
+        </Sub>
+        <Sub title={t("illustrations.explain")}>
+          <ExplainState
+            title={t("illustrations.explainTitle")}
+            art="wait-mailbox-cat"
+            headingLevel="h3"
+            className="max-w-2xl"
+          >
+            <p>{t("illustrations.explainBody")}</p>
+          </ExplainState>
+        </Sub>
+        <Sub title={t("illustrations.mark")}>
+          <AiMark />
+          <p className="mt-4 max-w-prose text-sm text-ink-muted">
+            {t("illustrations.markNote")}
+          </p>
+        </Sub>
       </Section>
     </>
   );
