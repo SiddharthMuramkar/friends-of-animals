@@ -58,11 +58,15 @@ function refundWebhook(
   );
 }
 
-async function eventsOf(h: Harness, type: string) {
+async function deliveriesOf(
+  h: Harness,
+  type: "refund.processed" | "refund.failed"
+) {
   return h.db
-    .selectDistinct({ eventId: outbox.eventId })
+    .select({ eventId: outbox.eventId, handler: outbox.handler })
     .from(outbox)
-    .where(eq(outbox.eventType, type));
+    .where(eq(outbox.eventType, type))
+    .orderBy(outbox.handler);
 }
 
 describe("a refund the gateway holds", () => {
@@ -98,15 +102,11 @@ describe("a refund the gateway holds", () => {
       "refunded",
       "refunded",
     ]);
-    expect(await eventsOf(h, "refund.processed")).toHaveLength(1);
-    const deliveries = await h.db
-      .select({ handler: outbox.handler })
-      .from(outbox)
-      .where(eq(outbox.eventType, "refund.processed"))
-      .orderBy(outbox.handler);
-    expect(deliveries).toEqual([
-      { handler: "ledger.post_refund" },
-      { handler: "notifications.dispatch" },
+    const deliveries = await deliveriesOf(h, "refund.processed");
+    expect(new Set(deliveries.map(({ eventId }) => eventId)).size).toBe(1);
+    expect(deliveries.map(({ handler }) => handler)).toEqual([
+      "ledger.post_refund",
+      "notifications.dispatch",
     ]);
 
     const settled = await refundRows(h);
@@ -177,7 +177,10 @@ describe("a refund the gateway fails", () => {
       status: "failed",
       failedAt: h.clock.now(),
     });
-    expect(await eventsOf(h, "refund.failed")).toHaveLength(1);
+    const deliveries = await deliveriesOf(h, "refund.failed");
+    expect(deliveries.map(({ handler }) => handler)).toEqual([
+      "notifications.dispatch",
+    ]);
     expect(await statusesOf(h, paid.registrationIds)).toEqual([
       "confirmed",
       "confirmed",

@@ -8,12 +8,17 @@ import {
   refund,
 } from "../../db/schema";
 import type { ScheduleDefinition } from "../../outbox/schedules";
+import type { ErrorReporter } from "../../ports/errors";
 
 import { ledgerWorker, postPaymentCapture, postRefund } from "./consumers";
+import { UnsupportedCaptureCurrencyError } from "./sources/payments";
 
+const RECONCILE_JOB = "ledger.reconcile_payments";
 const PAGE_SIZE = 100;
 
 async function postMissing(
+  errors: ErrorReporter,
+  sourceType: "payment_batch" | "refund",
   nextPage: (after: string | undefined) => PromiseLike<{ id: string }[]>,
   post: (id: string) => Promise<{ outcome: string }>
 ): Promise<number> {
@@ -22,7 +27,16 @@ async function postMissing(
   while (true) {
     const rows = await nextPage(after);
     for (const { id } of rows) {
-      if ((await post(id)).outcome === "posted") count += 1;
+      try {
+        if ((await post(id)).outcome === "posted") count += 1;
+      } catch (error) {
+        if (!(error instanceof UnsupportedCaptureCurrencyError)) throw error;
+        errors.report(error, {
+          where: RECONCILE_JOB,
+          tags: { reason: error.code, sourceType },
+          extra: { sourceId: id },
+        });
+      }
     }
     if (rows.length < PAGE_SIZE) return count;
     after = rows[rows.length - 1]!.id;
@@ -30,11 +44,15 @@ async function postMissing(
 }
 
 /** Backfills old payments and reconciles missing deliveries in bounded pages. */
-export async function backfillLedgerFromPayments(ctx: PolicyContext) {
+export async function backfillLedgerFromPayments(
+  ctx: PolicyContext & { errors: ErrorReporter }
+) {
   await authorize(ctx, "ledger.post_payment");
-  const { db } = ctx;
+  const { db, errors } = ctx;
   const isOffline = sql`${paymentBatch.captureMethod} = 'offline'`;
   const capturesPosted = await postMissing(
+    errors,
+    "payment_batch",
     (after) =>
       db
         .select({ id: paymentBatch.id })
@@ -68,6 +86,8 @@ export async function backfillLedgerFromPayments(ctx: PolicyContext) {
     (batchId) => postPaymentCapture(ctx, { batchId })
   );
   const refundsPosted = await postMissing(
+    errors,
+    "refund",
     (after) =>
       db
         .select({ id: refund.id })
@@ -98,7 +118,7 @@ export async function backfillLedgerFromPayments(ctx: PolicyContext) {
 }
 
 export const reconcileLedgerSchedule: ScheduleDefinition = {
-  name: "ledger.reconcile_payments",
+  name: RECONCILE_JOB,
   cron: "0 3 * * *",
   tz: "Asia/Kolkata",
   async run(deps) {

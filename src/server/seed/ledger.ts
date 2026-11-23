@@ -3,6 +3,7 @@ import { insertLedgerAccount } from "../modules/ledger/accounts";
 import { backfillLedgerFromPayments } from "../modules/ledger/backfill";
 import { istDateOf, parseIstDate } from "../modules/ledger/domain/period";
 import { postToLedger } from "../modules/ledger/post";
+import { silentErrorReporter } from "../ports/errors";
 import { ensureGrant } from "./access";
 import { ensureSeedAuthenticator } from "./second-factor";
 import type { Seeder } from "./types";
@@ -38,7 +39,7 @@ export const seedLedger: Seeder = async (deps) => {
     clock,
     actor: { kind: "system", process: "seed" },
   } as const;
-  await backfillLedgerFromPayments(ctx);
+  await backfillLedgerFromPayments({ ...ctx, errors: silentErrorReporter });
   const finance = await ensureVerifiedAccount(deps, FINANCE);
   await ensureGrant(deps, finance.id, {
     role: "finance",

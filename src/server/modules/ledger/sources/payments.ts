@@ -19,6 +19,15 @@ export type CaptureFact = {
   method: MoneyMethod;
 };
 
+export class UnsupportedCaptureCurrencyError extends Error {
+  readonly code = "unsupported_currency";
+
+  constructor() {
+    super("Ledger capture requires INR");
+    this.name = "UnsupportedCaptureCurrencyError";
+  }
+}
+
 export async function readCapture(
   db: AppDb,
   batchId: string
@@ -56,7 +65,7 @@ export async function readCapture(
       and(eq(paymentBatch.id, batchId), eq(paymentBatch.status, "captured"))
     );
   if (!row) return undefined;
-  if (row.currency !== "INR") throw new Error("Ledger capture requires INR");
+  if (row.currency !== "INR") throw new UnsupportedCaptureCurrencyError();
 
   if (row.captureMethod === "offline") {
     if (!row.offline) throw new Error("Captured batch has no offline payment");
@@ -79,7 +88,7 @@ export async function readCapture(
     throw new Error("Captured batch has no gateway capture");
   // Payments keeps the order total when finance confirms a different receipt.
   if (row.acceptedReceipt && row.acceptedReceipt.currency !== "INR")
-    throw new Error("Ledger capture requires INR");
+    throw new UnsupportedCaptureCurrencyError();
   return {
     source: { type: "payment_capture", id: row.gatewayPaymentId },
     competitionId: row.competitionId,

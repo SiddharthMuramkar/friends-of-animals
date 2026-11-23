@@ -9,9 +9,14 @@ import {
   paymentBatch,
   user,
 } from "@/server/db/schema";
-import { capturedBatch } from "@/server/modules/payments/refunds/testing";
+import {
+  capturedBatch,
+  REASON,
+  refundRow,
+} from "@/server/modules/payments/refunds/testing";
 import {
   openOrder,
+  reviewCasesOf,
   schoolWithStudents,
   signInStaff,
 } from "@/server/modules/payments/testing";
@@ -85,6 +90,88 @@ describe("backfillLedgerFromPayments", () => {
         sourceType: "payment_capture",
       }),
     ]);
+  });
+
+  it("reports an unsupported receipt and reconciles later INR captures and refunds once", async () => {
+    const h = await createHarness();
+    const { batchId, orderId } = await openOrder(
+      await schoolWithStudents(h, { students: 1 })
+    );
+    h.gateway.capture(orderId, {
+      // A gateway receipt can carry a currency outside the fake's order type.
+      amount: { amountMinor: 50_000n, currency: "USD" as "INR" },
+    });
+    const visitor = h.as(h.visitor());
+    expect(
+      await visitor.receiveGatewayWebhook(
+        h.gateway.webhook({ type: "payment.captured", orderId })
+      )
+    ).toEqual({ ok: true, outcome: "needs_review" });
+    const [review] = await reviewCasesOf(h, batchId);
+    const finance = h.as((await signInStaff(h)).actor);
+    expect(
+      await finance.resolvePaymentReviewCase({
+        caseId: review!.id,
+        outcome: "confirm",
+        reason: "Accept the payment after reviewing the receipt",
+      })
+    ).toEqual({ ok: true, batchStatus: "captured" });
+
+    // The unsupported batch sorts before the INR batch in the capture scan.
+    h.clock.advance({ seconds: 1 });
+    const paid = await capturedBatch(h, { students: 1, code: "PARK27" });
+    const staff = h.as((await signInStaff(h, "staff_admin")).actor);
+    const requested = await staff.requestRefund({
+      batchId: paid.batchId,
+      reason: REASON,
+    });
+    if (!requested.ok) throw new Error(requested.error);
+    const { refundId } = requested;
+    expect(await finance.approveRefund({ refundId })).toMatchObject({
+      ok: true,
+    });
+    expect(
+      await visitor.receiveGatewayWebhook(
+        h.gateway.webhook({
+          type: "refund.processed",
+          orderId: paid.orderId,
+          refund: { refundId: "rfnd_reconcile", paymentId: paid.paymentId },
+        })
+      )
+    ).toMatchObject({ ok: true, outcome: "refund_updated" });
+    expect(await refundRow(h, refundId)).toMatchObject({ status: "refunded" });
+
+    const read = () =>
+      h.db.select().from(ledgerPosting).orderBy(ledgerPosting.seq);
+    expect(await read()).toEqual([]);
+    const schedule = SCHEDULES.find(
+      ({ name }) => name === "ledger.reconcile_payments"
+    )!;
+    await schedule.run(h.deps);
+    const posted = await read();
+    expect(posted).toEqual([
+      expect.objectContaining({
+        sourceType: "payment_capture",
+        sourceId: paid.paymentId,
+      }),
+      expect.objectContaining({
+        sourceType: "refund",
+        sourceId: refundId,
+        reversalOfPostingId: posted[0]?.id,
+      }),
+    ]);
+
+    await schedule.run(h.deps);
+    expect(await read()).toEqual(posted);
+    expect(h.errors.reported).toHaveLength(2);
+    for (const { tags, extra } of h.errors.reported) {
+      expect(tags).toEqual({
+        where: "ledger.reconcile_payments",
+        reason: "unsupported_currency",
+        sourceType: "payment_batch",
+      });
+      expect(extra).toEqual({ sourceId: batchId });
+    }
   });
 });
 

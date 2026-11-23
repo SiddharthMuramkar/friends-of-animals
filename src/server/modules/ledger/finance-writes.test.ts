@@ -305,4 +305,41 @@ describe("finance write authorization", () => {
     await expectRefused(h.as(actor), "second_factor_required");
     expect(await audit(h)).toEqual([]);
   });
+
+  it("refuses reads and writes in an existing finance session after revocation", async () => {
+    const h = await createHarness();
+    const { actor, userId } = await signInStaff(h);
+    const finance = h.as(actor);
+    expect(await finance.createManualEntry(ENTRY)).toMatchObject({
+      ok: true,
+      seq: 1n,
+    });
+    expect(await finance.listPostings({})).toMatchObject({ ok: true });
+    expect(await finance.getPosting(1n)).toMatchObject({ ok: true });
+    expect(await finance.listLedgerAccounts()).toContainEqual(
+      expect.objectContaining({ code: "5100" })
+    );
+    const before = await audit(h);
+
+    const admin = await h.signIn(await h.seed.superAdmin());
+    expect(
+      await h.as(admin).revokeRole({
+        userId,
+        role: "finance",
+        scope: { type: "global" },
+      })
+    ).toMatchObject({ ok: true, changed: true });
+
+    await expect(finance.listPostings({})).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    await expect(finance.getPosting(1n)).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    await expect(finance.listLedgerAccounts()).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    await expectRefused(finance, "forbidden");
+    expect(await audit(h)).toEqual(before);
+  });
 });
