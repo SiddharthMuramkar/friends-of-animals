@@ -12,9 +12,9 @@ import { invalidInput } from "../../input";
 import { emit } from "../../outbox/emit";
 import type { UseCaseContext } from "../../use-cases";
 import { lockProfileSubject } from "../consent/repository";
+import { hasCleanScan } from "../files/use-cases/clean-scan";
 import { decideReview } from "./domain/review";
 import { recordSignedFormConsent } from "./record";
-import { hasCleanScan } from "./scan";
 import { consentFormsAvailable, schoolStudent } from "./scope";
 
 const reviewInput = z.discriminatedUnion("decision", [

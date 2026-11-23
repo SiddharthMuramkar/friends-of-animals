@@ -14,6 +14,7 @@ import { test, type SeedAccount } from "./support/seed-account";
 import { signInByCode } from "./support/sign-in";
 
 const QUEUE = "/admin/consent-forms";
+const PENDING_FORM = `${QUEUE}/01938a00-0000-7000-8083-000000000002`;
 const school = SEED_REGISTRATIONS.institution;
 const DASHBOARD = `/institution/registrations/${school.reference}?institution=${school.institutionId}`;
 
@@ -88,11 +89,11 @@ test("staff can read accepted, rejected and empty review states", async ({
   await signInAsReviewer(page, request, seedAccount);
   await page.getByRole("link", { name: "Accepted", exact: true }).click();
   const accepted = await openSignedForm(page, "Aarav K.");
+  await expectRendersAccessibly(page, new URL(page.url()).pathname);
   await expect(accepted.getByText("Accepted", { exact: true })).toBeVisible();
   await expect(
     accepted.getByText(/Reviewed by Seed Super Admin/)
   ).toBeVisible();
-  await expectAccessible(page, "accepted signed form");
   await expectAccessibleInDark(page, "accepted signed form");
 
   await page.goto(`${QUEUE}?status=rejected`);
@@ -142,4 +143,23 @@ test("a coordinator can find signed-form status and open the upload control", as
   ).toBeVisible();
   await expectAccessible(page, "coordinator signed-form upload");
   await expectAccessibleInDark(page, "coordinator signed-form upload");
+});
+
+test("a signed-in member sees accessible review access denials", async ({
+  page,
+  request,
+  seedAccount,
+}) => {
+  const email = await seedAccount({ name: "Synthetic Member", grants: [] });
+  await signInByCode(page, request, email);
+
+  for (const path of [QUEUE, PENDING_FORM]) {
+    await expectRendersAccessibly(page, path);
+    await expect(
+      page.getByRole("heading", { name: "Review access required", level: 2 })
+    ).toBeVisible();
+    await expect(
+      page.getByText("Your account cannot review signed consent forms.")
+    ).toBeVisible();
+  }
 });

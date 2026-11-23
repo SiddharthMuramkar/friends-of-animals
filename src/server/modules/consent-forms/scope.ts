@@ -13,6 +13,7 @@ import type { UseCaseContext } from "../../use-cases";
 import { competitionSetup } from "../consent/child-consent";
 import { offeredPurposes } from "../consent/domain/guardian-purposes";
 import { isPublicPurpose } from "../consent/domain/public-use";
+import { isFilePurposeAvailable } from "../files/domain/purposes";
 import { childDateOfBirth } from "../guardians/child-view";
 import { institutionResource } from "../institutions/coordinators/policy";
 import { isAdultAt } from "../participants/domain/age";
@@ -24,7 +25,7 @@ export const targetInput = z.object({
 
 /** HR-32 and HR-33 keep paper collection dormant in production. */
 export function consentFormsAvailable(ctx: Pick<UseCaseContext, "files">) {
-  return ctx.files.appEnv !== "production";
+  return isFilePurposeAvailable("consent_form", ctx.files.appEnv);
 }
 
 type CoordinatorAction =
@@ -53,7 +54,7 @@ export async function authorizeSchool(
   return { school, userId: ctx.actor.userId, role };
 }
 
-export function activeSchoolStudents(school: {
+export function schoolStudents(school: {
   id: string;
   competitionId: string;
   institutionId: string;
@@ -62,7 +63,6 @@ export function activeSchoolStudents(school: {
     eq(registration.institutionRegistrationId, school.id),
     eq(registration.competitionId, school.competitionId),
     eq(registration.route, "institution"),
-    inArray(registration.status, ["enrolled", "confirmed"]),
     eq(participantProfile.ownerKind, "institution"),
     eq(participantProfile.managingInstitutionId, school.institutionId)
   );
@@ -92,7 +92,11 @@ export async function schoolStudent(
       eq(registration.participantProfileId, participantProfile.id)
     )
     .where(
-      and(activeSchoolStudents(school), eq(participantProfile.id, studentId))
+      and(
+        schoolStudents(school),
+        inArray(registration.status, ["enrolled", "confirmed"]),
+        eq(participantProfile.id, studentId)
+      )
     );
   if (!row || isAdultAt(childDateOfBirth(ctx, row).date, row.createdAt))
     return null;

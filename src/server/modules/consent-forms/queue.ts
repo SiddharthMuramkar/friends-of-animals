@@ -21,7 +21,6 @@ import {
 } from "../consent/domain/public-credit";
 import { getFileDownloadUrl } from "../files/use-cases/delivery";
 import { FORM_STATUSES } from "./domain/review";
-import { hasCleanScan } from "./scan";
 import { consentFormsAvailable } from "./scope";
 
 const listInput = z.object({
@@ -37,8 +36,6 @@ function reviewRows(db: AppDb) {
       competitionName: competition.name,
       institutionName: institution.name,
       scanStatus: fileAsset.status,
-      bucket: fileAsset.bucket,
-      storageKey: fileAsset.storageKey,
       reviewerName: user.name,
     })
     .from(consentForm)
@@ -129,19 +126,13 @@ export async function getConsentFormForReview(
       throw new Error("Signed form is missing a pinned document");
     return { purpose, ...pin, title: document.title, body: document.body };
   });
-  const delivery = (await hasCleanScan(ctx.storage, {
-    status: row.scanStatus,
-    bucket: row.bucket,
-    storageKey: row.storageKey,
-  }))
-    ? await getFileDownloadUrl(ctx, { fileId: form.fileAssetId })
-    : null;
+  const delivery = await getFileDownloadUrl(ctx, { fileId: form.fileAssetId });
   return {
     ok: true,
     form: {
       ...queueItem(row),
       documents,
-      download: delivery?.ok
+      download: delivery.ok
         ? { url: delivery.url, expiresAt: delivery.expiresAt }
         : null,
       reviewedAt: form.reviewedAt,

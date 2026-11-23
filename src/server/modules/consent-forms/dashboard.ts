@@ -1,16 +1,21 @@
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { consentForm, participantProfile, registration } from "../../db/schema";
+import {
+  consentForm,
+  consentFormUpload,
+  participantProfile,
+  registration,
+} from "../../db/schema";
 import { invalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import { childDateOfBirth } from "../guardians/child-view";
 import { isAdultAt } from "../participants/domain/age";
 import {
-  activeSchoolStudents,
   authorizeSchool,
   consentFormsAvailable,
   offeredFormPurposes,
+  schoolStudents,
 } from "./scope";
 
 const registrationInput = z.object({ registrationId: z.uuid() });
@@ -35,6 +40,7 @@ export async function listSignedFormsForRegistration(
       .select({
         studentId: participantProfile.id,
         enrolmentId: registration.id,
+        status: registration.status,
         dobCiphertext: participantProfile.dobCiphertext,
         createdAt: registration.createdAt,
       })
@@ -43,41 +49,46 @@ export async function listSignedFormsForRegistration(
         participantProfile,
         eq(participantProfile.id, registration.participantProfileId)
       )
-      .where(activeSchoolStudents(school)),
+      .where(schoolStudents(school)),
     ctx.db
-      .selectDistinctOn([consentForm.participantProfileId], {
-        studentId: consentForm.participantProfileId,
+      .selectDistinctOn([consentFormUpload.registrationId], {
+        enrolmentId: consentFormUpload.registrationId,
         id: consentForm.id,
         status: consentForm.status,
         rejectionReason: consentForm.rejectionReason,
         rejectionNote: consentForm.rejectionNote,
       })
       .from(consentForm)
+      .innerJoin(
+        consentFormUpload,
+        eq(consentFormUpload.fileAssetId, consentForm.fileAssetId)
+      )
       .where(eq(consentForm.institutionRegistrationId, registrationId))
       .orderBy(
-        consentForm.participantProfileId,
+        consentFormUpload.registrationId,
         desc(consentForm.submittedAt),
         desc(consentForm.id)
       ),
     offeredFormPurposes(ctx.db, school.competitionId),
   ]);
-  const byStudent = new Map(
-    forms.map(({ studentId, ...form }) => [studentId, form])
+  const byEnrolment = new Map(
+    forms.map(({ enrolmentId, ...form }) => [enrolmentId, form])
   );
   return {
     ok: true,
     offers,
     participationDeclaredAt: school.participationDeclaredAt,
-    students: students
-      .filter(
-        (student) =>
-          !isAdultAt(childDateOfBirth(ctx, student).date, student.createdAt)
-      )
-      .map(({ studentId, enrolmentId }) => ({
-        studentId,
-        enrolmentId,
-        form: byStudent.get(studentId) ?? null,
-      })),
+    students: students.flatMap((student) => {
+      const { studentId, enrolmentId, status, createdAt } = student;
+      const form = byEnrolment.get(enrolmentId) ?? null;
+      const uploadEligible =
+        school.status === "active" &&
+        (status === "enrolled" || status === "confirmed") &&
+        !isAdultAt(childDateOfBirth(ctx, student).date, createdAt);
+      return uploadEligible || form?.status === "pending_review"
+        ? [{ studentId, enrolmentId, uploadEligible, form }]
+        : [];
+    }),
   } as const;
 }
 

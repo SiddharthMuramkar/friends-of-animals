@@ -1,3 +1,4 @@
+-- Custom SQL migration file, put your code below! --
 -- An in-app notice for the uploader. The coordinator's dashboard provides
 -- the reason after its institution-scope check.
 INSERT INTO "message_template" ("key", "channel", "subject", "body", "variables", "updated_at") VALUES

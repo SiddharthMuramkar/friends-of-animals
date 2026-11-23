@@ -146,7 +146,9 @@ export const consentForm = pgTable(
     ),
     check(
       "consent_form_reviewed_iff_decided",
-      sql`(${table.status} IN ('accepted', 'rejected')) = (${table.reviewedByUserId} IS NOT NULL AND ${table.reviewedAt} IS NOT NULL)`
+      sql`CASE WHEN ${table.status} IN ('accepted', 'rejected')
+        THEN ${table.reviewedByUserId} IS NOT NULL AND ${table.reviewedAt} IS NOT NULL
+        ELSE ${table.reviewedByUserId} IS NULL AND ${table.reviewedAt} IS NULL END`
     ),
     check(
       "consent_form_reason_iff_rejected",

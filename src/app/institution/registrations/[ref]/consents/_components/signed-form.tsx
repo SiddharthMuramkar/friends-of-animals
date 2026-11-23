@@ -77,7 +77,7 @@ export async function SignedFormCell({
           pendingLabel={words.submitting}
           feedback={feedback}
         />
-      ) : offers.length > 0 ? (
+      ) : student.uploadEligible && offers.length > 0 ? (
         <Disclosure summary={t("coordinator.upload")}>
           <SignedFormUpload
             registrationId={registrationId}

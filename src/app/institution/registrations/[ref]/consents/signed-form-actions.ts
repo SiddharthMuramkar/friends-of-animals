@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { z } from "zod";
 
 import { as, currentActor, type UseCases } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -42,9 +43,12 @@ export async function submitSignedFormAction(
   return result;
 }
 
-type Command =
-  | { kind: "declare"; registrationId: string }
-  | { kind: "withdraw"; formId: string };
+const commandInput = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("declare"), registrationId: z.uuid() }),
+  z.object({ kind: z.literal("withdraw"), formId: z.uuid() }),
+]);
+
+type Command = z.input<typeof commandInput>;
 type CommandState = {
   error?:
     | "forbidden"
@@ -59,12 +63,15 @@ export async function signedFormCommandAction(
   command: Command,
   _state: CommandState
 ): Promise<CommandState> {
+  const parsed = commandInput.safeParse(command);
+  if (!parsed.success) return { error: "invalid_input" };
   const result = await coordinatorAction(async (useCases) => {
-    return command.kind === "declare"
+    const input = parsed.data;
+    return input.kind === "declare"
       ? useCases.declareParticipation({
-          registrationId: command.registrationId,
+          registrationId: input.registrationId,
         })
-      : useCases.withdrawConsentForm({ formId: command.formId });
+      : useCases.withdrawConsentForm({ formId: input.formId });
   });
   if (!result.ok) return { error: result.error };
   refresh();

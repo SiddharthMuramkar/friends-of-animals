@@ -4,6 +4,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { orSecondFactor } from "@/app/auth/_lib/refusal";
+import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { APP_ROUTES, adminConsentFormPath } from "@/lib/app-routes";
@@ -61,10 +62,13 @@ async function ReviewQueue({ searchParams }: { searchParams: SearchParams }) {
       throw error;
     }
   }, queuePath(status));
-  if (!result?.ok)
+  if (result === null)
     return (
-      <p className="mt-8">{t(result === null ? "denied" : "unavailable")}</p>
+      <ExplainState title={t("deniedTitle")} className="mt-8">
+        <p>{t("denied")}</p>
+      </ExplainState>
     );
+  if (!result.ok) return <p className="mt-8">{t("unavailable")}</p>;
 
   return (
     <div className="mt-8 grid gap-5">

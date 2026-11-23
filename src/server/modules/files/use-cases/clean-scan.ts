@@ -1,8 +1,8 @@
-import type { FileAssetRow } from "../../db/schema";
+import type { FileAssetRow } from "../../../db/schema";
 import {
   StorageNotConfiguredError,
   type ObjectStorage,
-} from "../../ports/storage";
+} from "../../../ports/storage";
 
 /** A preview fixture may have scan metadata without an object. */
 export async function hasCleanScan(

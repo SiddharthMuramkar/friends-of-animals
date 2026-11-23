@@ -5,6 +5,7 @@
     "queueLabel": "Filter by review status",
     "empty": "There are no forms with this status.",
     "unavailable": "Signed-form consent is currently unavailable.",
+    "deniedTitle": "Review access required",
     "denied": "Your account cannot review signed consent forms.",
     "loading": "Loading signed forms…",
     "back": "Back to signed consent forms",

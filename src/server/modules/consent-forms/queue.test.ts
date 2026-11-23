@@ -2,7 +2,12 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { createApp } from "@/server/app";
-import { auditLog, fileAsset } from "@/server/db/schema";
+import { auditLog, fileAsset, registration } from "@/server/db/schema";
+import {
+  AANYA,
+  signInCoordinator,
+} from "@/server/modules/registration/testing";
+import { seedInstitution } from "@/test/institutions";
 
 import {
   formWorld,
@@ -111,9 +116,94 @@ describe("signed-form queue and dashboard", () => {
       })
     ).toEqual({ ok: false, error: "unavailable" });
     expect(
+      await coordinator.declareParticipation({
+        registrationId: target.registrationId,
+      })
+    ).toEqual({ ok: false, error: "unavailable" });
+    expect(
       await staff.listConsentFormsForReview({ status: "pending_review" })
     ).toEqual({ ok: false, error: "unavailable" });
     expect(await h.db.select().from(fileAsset)).toEqual([]);
+  });
+
+  it("keeps a pending form withdrawable after the enrolment ends without offering another upload", async () => {
+    const w = await formWorld();
+    const { h, school, target, coordinator } = w;
+    const { formId } = await submitScan(w);
+    const scope = {
+      institutionId: school.institutionId,
+      reference: school.reference,
+    };
+    const roster = await coordinator.listEnrolledStudents(scope);
+    if (!roster.ok || !roster.students[0]) throw new Error("Missing student");
+    const { registrationId: enrolmentId } = roster.students[0];
+    expect(
+      await coordinator.withdrawStudent({
+        ...scope,
+        registrationId: enrolmentId,
+      })
+    ).toEqual({ ok: true });
+
+    const query = { registrationId: target.registrationId };
+    expect(
+      await coordinator.listSignedFormsForRegistration(query)
+    ).toMatchObject({
+      ok: true,
+      students: [
+        {
+          studentId: target.studentId,
+          enrolmentId,
+          uploadEligible: false,
+          form: { id: formId, status: "pending_review" },
+        },
+      ],
+    });
+    expect(
+      await coordinator.requestConsentFormUpload({ ...target, ...UPLOAD })
+    ).toEqual({ ok: false, error: "not_found" });
+
+    const { institution } = await seedInstitution(h, {
+      name: "Other Synthetic School",
+    });
+    const outsider = await signInCoordinator(h, institution.id);
+    for (const actor of [outsider.actor, h.visitor()]) {
+      await expect(
+        h.as(actor).withdrawConsentForm({ formId })
+      ).rejects.toMatchObject({
+        code: "forbidden",
+      });
+    }
+    const authorisedPerson = h.as(await h.signIn(school.admin));
+    expect(await authorisedPerson.withdrawConsentForm({ formId })).toEqual({
+      ok: true,
+      status: "withdrawn",
+    });
+  });
+
+  it("lists pending forms in submission order", async () => {
+    const w = await formWorld();
+    const { h, school, coordinator, target } = w;
+    const first = await submitScan(w);
+    h.clock.advance({ minutes: 1 });
+    const enrolment = await coordinator.enrolStudent({
+      institutionId: school.institutionId,
+      reference: school.reference,
+      student: { ...AANYA, fullName: "Synthetic Second Student" },
+    });
+    if (!enrolment.ok) throw new Error(`Enrolment refused: ${enrolment.error}`);
+    const [student] = await h.db
+      .select({ studentId: registration.participantProfileId })
+      .from(registration)
+      .where(eq(registration.id, enrolment.registrationId));
+    const second = await submitScan({
+      ...w,
+      target: { ...target, ...student! },
+    });
+    const reviewer = h.as((await signInReviewer(h)).actor);
+    expect(await reviewer.listConsentFormsForReview({})).toMatchObject({
+      ok: true,
+      forms: [{ id: first.formId }, { id: second.formId }],
+    });
   });
 
   it("allows only one pending form, and refuses a quarantined replacement", async () => {

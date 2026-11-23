@@ -224,6 +224,29 @@ describe("the data inventory", () => {
     expect(listed.size).toBe(DATA_INVENTORY.length);
   });
 
+  it("covers the signed scan, rejection note, and consent reviewer retention", () => {
+    const formPeriod =
+      "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure (HR-31)";
+    const expected = [
+      ["consent_form", "file_asset_id", formPeriod],
+      ["consent_form", "rejection_note", formPeriod],
+      [
+        "consent_event",
+        "reviewer_user_id",
+        "While the consent applies, then 3 years (HR-31)",
+      ],
+    ];
+    for (const [table, column, period] of expected) {
+      expect(
+        DATA_INVENTORY.find(
+          (entry) => entry.table === table && entry.column === column
+        )
+      ).toMatchObject({
+        retention: { period, toConfirm: true },
+      });
+    }
+  });
+
   it("gives each entry a purpose and a retention marked to confirm", () => {
     for (const entry of DATA_INVENTORY) {
       expect(entry.purpose.length).toBeGreaterThan(10);

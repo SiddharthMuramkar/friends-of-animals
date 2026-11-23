@@ -20,7 +20,9 @@ CREATE TABLE "consent_form" (
 	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "consent_form_file_asset_id_unique" UNIQUE("file_asset_id"),
 	CONSTRAINT "consent_form_uses_known" CHECK (cardinality("consent_form"."uses") > 0 AND "consent_form"."uses" <@ ARRAY['public_display', 'display_school', 'display_city', 'social_media', 'auction']::text[]),
-	CONSTRAINT "consent_form_reviewed_iff_decided" CHECK (("consent_form"."status" IN ('accepted', 'rejected')) = ("consent_form"."reviewed_by_user_id" IS NOT NULL AND "consent_form"."reviewed_at" IS NOT NULL)),
+	CONSTRAINT "consent_form_reviewed_iff_decided" CHECK (CASE WHEN "consent_form"."status" IN ('accepted', 'rejected')
+        THEN "consent_form"."reviewed_by_user_id" IS NOT NULL AND "consent_form"."reviewed_at" IS NOT NULL
+        ELSE "consent_form"."reviewed_by_user_id" IS NULL AND "consent_form"."reviewed_at" IS NULL END),
 	CONSTRAINT "consent_form_reason_iff_rejected" CHECK (("consent_form"."status" = 'rejected') = ("consent_form"."rejection_reason" IS NOT NULL)),
 	CONSTRAINT "consent_form_note_only_on_rejection" CHECK ("consent_form"."rejection_note" IS NULL OR ("consent_form"."status" = 'rejected' AND char_length("consent_form"."rejection_note") <= 500)),
 	CONSTRAINT "consent_form_withdrawn_iff_withdrawn" CHECK (("consent_form"."status" = 'withdrawn') = ("consent_form"."withdrawn_at" IS NOT NULL))

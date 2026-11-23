@@ -1,7 +1,13 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { auditLog, consentEvent, fileAsset, outbox } from "@/server/db/schema";
+import {
+  auditLog,
+  consentEvent,
+  consentForm,
+  fileAsset,
+  outbox,
+} from "@/server/db/schema";
 import { publicUse } from "@/server/modules/consent";
 import { publishNextVersion, reattach } from "@/server/modules/consent/testing";
 
@@ -83,7 +89,7 @@ describe("signed-form review", () => {
 
   it("rejects with a reason, sends one private inbox notice, and leaves consent unchanged", async () => {
     const w = await formWorld();
-    const { h, coordinator } = w;
+    const { h, coordinator, school, target } = w;
     const { formId } = await submitScan(w);
     const staff = h.as(await h.signIn(await h.seed.superAdmin()));
     expect(
@@ -98,6 +104,7 @@ describe("signed-form review", () => {
         formId,
         decision: "reject",
         reason: "not_signed",
+        note: "Please rescan the signature page.",
       })
     ).toMatchObject({ ok: true, status: "rejected" });
     expect(await h.db.select().from(consentEvent)).toEqual([]);
@@ -108,12 +115,38 @@ describe("signed-form review", () => {
         .where(eq(outbox.eventType, "consent.form_reviewed"))
     ).toHaveLength(1);
     await h.drain();
-    const messages = await coordinator.listInbox();
+    const title = "A signed consent form needs attention";
+    const notices = (await coordinator.listInbox()).filter(
+      (item) => item.title === title
+    );
+    expect(notices).toMatchObject([
+      {
+        title,
+        body: "Open the school registration’s consent dashboard to see the review decision and what to do next.",
+      },
+    ]);
+    const authorisedPerson = h.as(await h.signIn(school.admin));
     expect(
-      messages.filter(
-        (item) => item.title === "A signed consent form needs attention"
-      )
-    ).toHaveLength(1);
+      (await authorisedPerson.listInbox()).map((item) => item.title)
+    ).not.toContain(title);
+    expect((await staff.listInbox()).map((item) => item.title)).not.toContain(
+      title
+    );
+    expect(
+      await authorisedPerson.listSignedFormsForRegistration({
+        registrationId: target.registrationId,
+      })
+    ).toMatchObject({
+      ok: true,
+      students: [
+        {
+          form: {
+            id: formId,
+            rejectionNote: "Please rescan the signature page.",
+          },
+        },
+      ],
+    });
     const replacement = await submitScan(w);
     expect(replacement.formId).not.toBe(formId);
   });
@@ -139,5 +172,41 @@ describe("signed-form review", () => {
       ok: false,
       error: "own_upload",
     });
+    const enrolled = await signInReviewer(h);
+    h.clock.advance({ minutes: 10, seconds: 1 });
+    const staff = h.as(enrolled.actor);
+    await expect(staff.reviewConsentForm(input)).rejects.toMatchObject({
+      code: "step_up_required",
+    });
+    await h.passSecondFactor(enrolled.actor);
+    expect(await staff.reviewConsentForm(input)).toEqual({
+      ok: true,
+      status: "rejected",
+    });
+  });
+
+  it("rejects incomplete review metadata in the database for undecided forms", async () => {
+    const w = await formWorld();
+    const { h, coordinator } = w;
+    const { formId } = await submitScan(w);
+    const { userId } = await signInReviewer(h);
+    for (const status of ["pending_review", "withdrawn"]) {
+      if (status === "withdrawn") {
+        expect(await coordinator.withdrawConsentForm({ formId })).toEqual({
+          ok: true,
+          status: "withdrawn",
+        });
+      }
+      for (const patch of [
+        { reviewedByUserId: userId },
+        { reviewedAt: h.clock.now() },
+      ]) {
+        await expect(
+          h.db.update(consentForm).set(patch).where(eq(consentForm.id, formId))
+        ).rejects.toMatchObject({
+          cause: { constraint: "consent_form_reviewed_iff_decided" },
+        });
+      }
+    }
   });
 });

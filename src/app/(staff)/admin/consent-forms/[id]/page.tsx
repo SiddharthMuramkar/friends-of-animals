@@ -11,6 +11,7 @@ import {
 import { ButtonLink, buttonStyles } from "@/components/site/button-link";
 import { Chip } from "@/components/site/chip";
 import { Disclosure } from "@/components/site/disclosure";
+import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { adminConsentFormPath, APP_ROUTES } from "@/lib/app-routes";
@@ -69,7 +70,12 @@ async function FormDetails({ params }: { params: Params }) {
       throw error;
     }
   }, adminConsentFormPath(id));
-  if (result === null) return <p className="mt-8">{t("denied")}</p>;
+  if (result === null)
+    return (
+      <ExplainState title={t("deniedTitle")} className="mt-8">
+        <p>{t("denied")}</p>
+      </ExplainState>
+    );
   if (!result.ok) {
     if (result.error === "unavailable")
       return <p className="mt-8">{t("unavailable")}</p>;

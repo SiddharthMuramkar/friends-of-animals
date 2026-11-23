@@ -1,6 +1,6 @@
 {
-  "id": "a01ebf47-3986-4448-a94f-33fa731a19d6",
-  "prevId": "6327e34d-f426-4fb3-abdf-f03fbfbc28e1",
+  "id": "dfc1fcf7-1d6b-4be7-8c55-72d2197cb654",
+  "prevId": "31923f6e-23bb-4c00-a899-12cb4b1624a4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2570,7 +2570,7 @@
         },
         "consent_form_reviewed_iff_decided": {
           "name": "consent_form_reviewed_iff_decided",
-          "value": "(\"consent_form\".\"status\" IN ('accepted', 'rejected')) = (\"consent_form\".\"reviewed_by_user_id\" IS NOT NULL AND \"consent_form\".\"reviewed_at\" IS NOT NULL)"
+          "value": "CASE WHEN \"consent_form\".\"status\" IN ('accepted', 'rejected')\n        THEN \"consent_form\".\"reviewed_by_user_id\" IS NOT NULL AND \"consent_form\".\"reviewed_at\" IS NOT NULL\n        ELSE \"consent_form\".\"reviewed_by_user_id\" IS NULL AND \"consent_form\".\"reviewed_at\" IS NULL END"
         },
         "consent_form_reason_iff_rejected": {
           "name": "consent_form_reason_iff_rejected",
