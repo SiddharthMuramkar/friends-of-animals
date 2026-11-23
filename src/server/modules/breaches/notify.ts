@@ -26,7 +26,7 @@
 // added later: the notice is once per recipient (HR-50 residue: a follow-up
 // notice). Loads under plain Node: relative imports only.
 
-import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AppDb } from "../../db/app-db";
@@ -37,6 +37,7 @@ import {
   breachUnreachable,
   outbox,
   user,
+  type BreachRecordRow,
 } from "../../db/schema";
 import { monotonicUuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
@@ -51,18 +52,24 @@ import {
   planBreachNotices,
   type AffectedRef,
   type NoticePlan,
+  type NoticeRecipient,
   type UnreachablePerson,
 } from "./domain/notice-recipients";
 import { appendTimeline, CLOSED, lockBreach, NOT_FOUND } from "./record";
 import { PRINCIPAL_NOTICE, PRINCIPAL_NOTICE_CHANNELS } from "./notice-message";
-import { withBreachStaff, type BreachContext } from "./with-breach-staff";
+import { retryBreachEvents } from "./outbox";
+import {
+  withBreachStaff,
+  type BreachAuditRow,
+  type BreachContext,
+} from "./with-breach-staff";
 
 const nextNoticeId = monotonicUuidv7();
 
 /**
  * Saves the plan's notices and unreachable people for `breachId`, and
- * emits one notice event per recipient not told before. Returns how many
- * recipients were newly queued.
+ * emits one notice event per recipient not told before. Reports changes
+ * to new and pending notices.
  */
 export async function queueNotices(
   tx: AppDb,
@@ -70,9 +77,10 @@ export async function queueNotices(
   breachId: string,
   plan: NoticePlan,
   reached: readonly AffectedRef[]
-): Promise<number> {
+): Promise<{ queued: number; scopeChanged: boolean }> {
   const now = clock.now();
   let queued = 0;
+  let scopeChanged = false;
   for (const recipient of plan.recipients) {
     const inserted = await tx
       .insert(breachNotification)
@@ -96,6 +104,10 @@ export async function queueNotices(
         ],
       })
       .returning({ id: breachNotification.id });
+    if (inserted.length < PRINCIPAL_NOTICE_CHANNELS.length) {
+      const merged = await mergePendingNoticeScope(tx, breachId, recipient);
+      scopeChanged ||= merged;
+    }
     if (inserted.length === 0) continue;
     await emit(tx, clock, {
       type: PRINCIPAL_NOTICE,
@@ -119,7 +131,60 @@ export async function queueNotices(
         )
       );
   }
-  return queued;
+  return { queued, scopeChanged };
+}
+
+/** Merge under the same row lock the dispatcher holds for each handoff. */
+async function mergePendingNoticeScope(
+  tx: AppDb,
+  breachId: string,
+  recipient: NoticeRecipient
+): Promise<boolean> {
+  let changed = false;
+  const pending = await tx
+    .select({
+      id: breachNotification.id,
+      recipientRole: breachNotification.recipientRole,
+      guardianProfileIds: breachNotification.guardianProfileIds,
+    })
+    .from(breachNotification)
+    .where(
+      and(
+        eq(breachNotification.breachId, breachId),
+        eq(breachNotification.recipientUserId, recipient.userId),
+        isNull(breachNotification.sentAt),
+        isNull(breachNotification.suppressedAt)
+      )
+    )
+    .for("update");
+  for (const notice of pending) {
+    const guardianProfileIds = [
+      ...new Set([
+        ...notice.guardianProfileIds,
+        ...recipient.guardianProfileIds,
+      ]),
+    ];
+    const recipientRole =
+      notice.recipientRole === recipient.as
+        ? recipient.as
+        : "principal_and_guardian";
+    if (
+      guardianProfileIds.length === notice.guardianProfileIds.length &&
+      recipientRole === notice.recipientRole
+    )
+      continue;
+    await tx
+      .update(breachNotification)
+      .set({
+        guardianProfileIds,
+        recipientRole,
+        aboutCount:
+          guardianProfileIds.length + (recipientRole === "guardian" ? 0 : 1),
+      })
+      .where(eq(breachNotification.id, notice.id));
+    changed = true;
+  }
+  return changed;
 }
 
 export async function recordUnreachable(
@@ -148,33 +213,6 @@ export async function recordUnreachable(
       ],
       set: { reason: sql`excluded.reason`, recordedAt: now },
     });
-}
-
-/** Resubmission gives the original failed events another chance. */
-async function retryBreachEvents(
-  tx: AppDb,
-  breachId: string,
-  now: Date,
-  ...matches: [SQL, ...SQL[]]
-) {
-  await tx
-    .update(outbox)
-    .set({
-      status: "pending",
-      attempts: 0,
-      availableAt: now,
-      lockedUntil: null,
-      failedAt: null,
-      lastError: null,
-    })
-    .where(
-      and(
-        eq(outbox.aggregateType, "breach"),
-        eq(outbox.aggregateId, breachId),
-        eq(outbox.status, "failed"),
-        ...matches
-      )
-    );
 }
 
 /** The people in `people` the plan reaches (everyone it lists as unreachable aside). */
@@ -241,14 +279,18 @@ export async function notifyAffectedUsers(
 
       const breach = await lockBreach(tx, breachId);
       if (!breach) return { result: NOT_FOUND };
-      const decision = decideBreachTransition(breach, "notify");
-      if (!decision.ok) return { result: CLOSED };
+      if (!decideBreachTransition(breach, "notify").ok)
+        return { result: CLOSED };
       const now = ctx.clock.now();
 
-      let queued = 0;
-      let unreachable: UnreachablePerson[] = [];
-      let unmatchedEmails: string[] = [];
       if (subjects === "all_users") {
+        const result = {
+          ok: true as const,
+          noticesQueued: 0,
+          unreachable: [],
+          unmatchedEmails: [],
+          fanOut: true,
+        };
         const [job] = await tx
           .insert(breachFanOut)
           .values({ breachId })
@@ -264,15 +306,7 @@ export async function notifyAffectedUsers(
               PRINCIPAL_NOTICE,
             ])
           );
-          return {
-            result: {
-              ok: true,
-              noticesQueued: 0,
-              unreachable,
-              unmatchedEmails,
-              fanOut: true,
-            },
-          };
+          return { result };
         }
         await emit(tx, ctx.clock, {
           type: "breach.fan_out_requested",
@@ -283,72 +317,107 @@ export async function notifyAffectedUsers(
             pageSize: BREACH_FAN_OUT_PAGE_SIZE,
           },
         });
-      } else {
-        const resolved = await subjectRefs(tx, subjects);
-        unmatchedEmails = resolved.unmatchedEmails;
-        const people = await affectedPeople(tx, ctx.cipher, now, resolved.refs);
-        const plan = planBreachNotices(people);
-        unreachable = plan.unreachable;
-        queued = await queueNotices(
-          tx,
-          ctx.clock,
-          breachId,
-          plan,
-          reachedRefs(resolved.refs, plan)
-        );
-        if (plan.recipients.length > queued) {
-          await retryBreachEvents(
-            tx,
+        const snapshot = breachAuditSnapshot(breach);
+        return {
+          result,
+          audit: {
+            action: "breach.fan_out_requested",
             breachId,
-            now,
-            eq(outbox.eventType, PRINCIPAL_NOTICE),
-            inArray(
-              sql<string>`${outbox.payload}->>'recipientUserId'`,
-              plan.recipients.map(({ userId }) => userId)
-            )
-          );
-        }
+            before: snapshot,
+            after: snapshot,
+          },
+        };
+      }
+
+      const { refs, unmatchedEmails } = await subjectRefs(tx, subjects);
+      const people = await affectedPeople(tx, ctx.cipher, now, refs);
+      const plan = planBreachNotices(people);
+      const { queued, scopeChanged } = await queueNotices(
+        tx,
+        ctx.clock,
+        breachId,
+        plan,
+        reachedRefs(refs, plan)
+      );
+      if (plan.recipients.length > queued) {
+        await retryBreachEvents(
+          tx,
+          breachId,
+          now,
+          eq(outbox.eventType, PRINCIPAL_NOTICE),
+          inArray(
+            sql<string>`${outbox.payload}->>'recipientUserId'`,
+            plan.recipients.map(({ userId }) => userId)
+          )
+        );
       }
 
       const result = {
         ok: true as const,
         noticesQueued: queued,
-        unreachable,
+        unreachable: plan.unreachable,
         unmatchedEmails,
-        fanOut: subjects === "all_users",
+        fanOut: false,
       };
-      if (subjects !== "all_users" && queued === 0) return { result };
-
-      const [updated] = await tx
-        .update(breachRecord)
-        .set({
-          status: decision.to,
-          principalsNotifiedAt: breach.principalsNotifiedAt ?? now,
-          updatedAt: now,
-        })
-        .where(eq(breachRecord.id, breachId))
-        .returning();
-      if (!updated) throw new Error(`Breach ${breachId} vanished while locked`);
-      await appendTimeline(tx, {
-        breachId,
-        kind: "principals_notified",
-        authorUserId: staff.userId,
-        at: now,
-      });
+      if (queued > 0) {
+        const { audit } = await recordPrincipalNotices(
+          tx,
+          breach,
+          now,
+          queued,
+          staff.userId
+        );
+        return { result, audit };
+      }
+      if (!scopeChanged) return { result };
+      const snapshot = breachAuditSnapshot(breach);
       return {
         result,
         audit: {
-          action: "breach.principals_notified",
+          action: "breach.principal_notice_scope_updated",
           breachId,
-          before: breachAuditSnapshot(breach),
-          after: breachAuditSnapshot(
-            updated,
-            subjects === "all_users" ? {} : { noticesSent: queued }
-          ),
+          before: snapshot,
+          after: snapshot,
         },
       };
     }
   );
+}
+
+/** Records the notice batch in the same transaction as its notices. */
+export async function recordPrincipalNotices(
+  tx: AppDb,
+  breach: BreachRecordRow,
+  now: Date,
+  queued: number,
+  authorUserId: string | null
+): Promise<{ updated: BreachRecordRow; audit: BreachAuditRow }> {
+  const decision = decideBreachTransition(breach, "notify");
+  const [updated] = await tx
+    .update(breachRecord)
+    .set({
+      status: decision.ok ? decision.to : breach.status,
+      principalsNotifiedAt: breach.principalsNotifiedAt ?? now,
+      updatedAt: now,
+    })
+    .where(eq(breachRecord.id, breach.id))
+    .returning();
+  if (!updated) throw new Error(`Breach ${breach.id} vanished while locked`);
+  await appendTimeline(tx, {
+    breachId: breach.id,
+    kind: "principals_notified",
+    authorUserId,
+    at: now,
+  });
+  return {
+    updated,
+    audit: {
+      action: "breach.principals_notified",
+      breachId: breach.id,
+      before: breachAuditSnapshot(breach),
+      after: breachAuditSnapshot(updated, { noticesSent: queued }),
+    },
+  };
 }
 
 /** The subjects as account and profile refs; emails become their accounts. */

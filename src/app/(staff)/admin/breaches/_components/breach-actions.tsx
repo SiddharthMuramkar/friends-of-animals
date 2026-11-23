@@ -98,7 +98,7 @@ export async function BreachActions({ breach }: { breach: BreachView }) {
           )}
           <SubmitButton pendingLabel={pendingLabel}>
             {authority.emailConfigured
-              ? t("queueAuthority")
+              ? t(authority.emailFailedAt ? "retryAuthority" : "queueAuthority")
               : t("saveReference")}
           </SubmitButton>
         </form>

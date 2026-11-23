@@ -83,6 +83,21 @@ test("breach staff open the log and record a breach through the staff pages", as
   await expect(page).toHaveURL(/\/admin\/breaches\/[\da-f-]+$/);
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
+  const editSummary = page
+    .locator("summary:visible")
+    .filter({ hasText: "Edit breach details" });
+  const editForm = page.getByRole("form", { name: "Edit breach details" });
+  await expect(editSummary).toBeVisible();
+  expect((await editSummary.boundingBox())?.height).toBeGreaterThanOrEqual(48);
+  await expect(editForm).toBeHidden();
+  await editSummary.press("Enter");
+  await expect(editForm).toBeVisible();
+  await editForm
+    .getByLabel("What happened and its impact")
+    .fill("The test folder was secured.");
+  await editForm.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Breach details saved.")).toBeVisible();
+
   await page
     .getByRole("textbox", { name: "Timeline note" })
     .fill("Access was removed from the folder.");

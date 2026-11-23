@@ -17,7 +17,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { recordAudit } from "../../audit/record";
-import { messageRoute, messageTemplate } from "../../db/schema";
+import { messageTemplate } from "../../db/schema";
 import { oneLineSubject } from "../../ports/email";
 import type { OutboxDeps } from "../../outbox/handlers";
 import {
@@ -26,14 +26,11 @@ import {
 } from "../notifications/domain/template";
 import { DEFAULT_LOCALE } from "../notifications/locale";
 import { readSetting } from "../settings/read";
-import { completeAuthorityNotice } from "./authority";
+import { authorityEmailRoute, completeAuthorityNotice } from "./authority";
 import { breachAuditSnapshot } from "./domain/audit";
 import { configuredAuthorityEmail } from "./domain/authority-notice";
 import { authorityNoticeValues } from "./notice-message";
 import { lockBreach } from "./record";
-
-/** The audience of the route row that tells the authority. */
-export const AUTHORITY_AUDIENCE = "breach_authority";
 
 export async function sendAuthorityNotice(
   deps: Pick<OutboxDeps, "db" | "clock" | "cipher" | "email">,
@@ -43,32 +40,8 @@ export async function sendAuthorityNotice(
     const breach = await lockBreach(tx, breachId);
     if (!breach?.authorityEmailQueuedAt || breach.authorityNotifiedAt) return;
 
-    const to = configuredAuthorityEmail(
-      await readSetting(tx, "breach.authorityEmail")
-    );
-    if (!to) {
-      throw new Error(
-        `breach.authorityEmail is unusable: breach ${breachId}'s notice waits`
-      );
-    }
-
-    const [route] = await tx
-      .select({
-        templateKey: messageRoute.templateKey,
-        channels: messageRoute.channels,
-      })
-      .from(messageRoute)
-      .where(
-        and(
-          eq(messageRoute.eventType, "breach.authority_notice"),
-          eq(messageRoute.audience, AUTHORITY_AUDIENCE),
-          eq(messageRoute.templateKey, "breach.authority_notice"),
-          eq(messageRoute.requiredByLaw, true),
-          eq(messageRoute.enabled, true)
-        )
-      )
-      .for("share");
-    if (!route?.channels.includes("email")) {
+    const route = await authorityEmailRoute(tx);
+    if (!route) {
       throw new Error("No enabled authority email route");
     }
 
@@ -84,6 +57,15 @@ export async function sendAuthorityNotice(
       );
     if (!template)
       throw new Error(`Template ${route.templateKey} has no email`);
+
+    const to = configuredAuthorityEmail(
+      await readSetting(tx, "breach.authorityEmail", { lock: "share" })
+    );
+    if (!to) {
+      throw new Error(
+        `breach.authorityEmail is unusable: breach ${breachId}'s notice waits`
+      );
+    }
 
     const values = authorityNoticeValues(deps.cipher, breach);
     const text = renderTemplate(template.body, values);

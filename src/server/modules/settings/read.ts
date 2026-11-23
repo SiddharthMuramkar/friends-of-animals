@@ -14,15 +14,18 @@ import { resolveSetting } from "./values";
 /**
  * The value that applies for `key` now: the stored one, or the default
  * while none is stored or the stored one no longer passes the schema.
+ * In a transaction, a shared lock holds the stored value through handoff.
  */
 export async function readSetting<K extends SettingKey>(
   db: AppDb,
-  key: K
+  key: K,
+  options?: { lock: "share" }
 ): Promise<SettingValue<K>> {
-  const [row] = await db
+  const query = db
     .select({ value: setting.value })
     .from(setting)
     .where(eq(setting.key, key));
+  const [row] = await (options ? query.for(options.lock) : query);
   return resolveSetting(key, row).value;
 }
 

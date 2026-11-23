@@ -8,6 +8,7 @@ import {
   breachAudit,
   noticeHarness,
   recordedBreach,
+  setBreachNoticeRoute,
   staffActor,
   storedBreach,
   timelineKinds,
@@ -194,6 +195,101 @@ describe("notifyAuthority", () => {
     await h.drain();
     expect(reports(h)).toHaveLength(1);
   });
+
+  it.each(["disabled route", "mail outage"])(
+    "retries the original authority email after a %s exhausts delivery attempts",
+    async (outage) => {
+      const h = await createHarness();
+      const admin = await staffActor(h, "super_admin");
+      const staff = h.as(admin);
+      const breachId = await recordedBreach(h, admin);
+      const deliveries = () =>
+        h.db
+          .select({
+            id: outbox.id,
+            status: outbox.status,
+            attempts: outbox.attempts,
+          })
+          .from(outbox)
+          .where(
+            and(
+              eq(outbox.aggregateId, breachId),
+              eq(outbox.eventType, AUTHORITY_NOTICE)
+            )
+          );
+
+      await h.settings.set("breach.authorityEmail", AUTHORITY);
+      if (outage === "mail outage") {
+        await setBreachNoticeRoute(h, AUTHORITY_NOTICE, true);
+        h.email.failNext(5);
+      }
+      await expect(staff.notifyAuthority({ breachId })).resolves.toEqual({
+        ok: true,
+        channel: "email",
+      });
+      const [original] = await deliveries();
+      for (const seconds of [0, 30, 60, 120, 240]) {
+        h.clock.advance({ seconds });
+        await h.drain();
+      }
+      expect(await deliveries()).toEqual([
+        { id: original!.id, status: "failed", attempts: 5 },
+      ]);
+      expect(reports(h)).toEqual([]);
+
+      const failedAt = h.clock.now();
+      if (outage === "disabled route") {
+        await expect(staff.notifyAuthority({ breachId })).resolves.toEqual({
+          ok: false,
+          error: "authority_email_route_unavailable",
+        });
+        expect(await deliveries()).toEqual([
+          { id: original!.id, status: "failed", attempts: 5 },
+        ]);
+      }
+      await setBreachNoticeRoute(h, AUTHORITY_NOTICE, true);
+      const view = await staff.getBreach({ breachId });
+      const retry = await staff.notifyAuthority({ breachId });
+      await expect(staff.notifyAuthority({ breachId })).resolves.toEqual({
+        ok: false,
+        error: "authority_email_queued",
+      });
+      await h.drain();
+
+      expect.soft(view).toMatchObject({
+        ok: true,
+        breach: {
+          authority: {
+            emailFailedAt: failedAt,
+            notifiedAt: null,
+            emailSentAt: null,
+          },
+          canNotifyAuthority: true,
+        },
+      });
+      expect.soft(retry).toEqual({ ok: true, channel: "email" });
+      expect(await deliveries()).toEqual([
+        { id: original!.id, status: "dispatched", attempts: 1 },
+      ]);
+      expect(await staff.notifyAuthority({ breachId })).toEqual({
+        ok: false,
+        error: "already_notified",
+      });
+      expect(reports(h)).toHaveLength(1);
+      expect(await timelineKinds(h, breachId)).toEqual([
+        "recorded",
+        "authority_notified",
+      ]);
+      expect(
+        (await breachAudit(h, breachId)).map(({ action }) => action)
+      ).toEqual([
+        "breach.recorded",
+        "breach.authority_email_queued",
+        "breach.authority_email_requeued",
+        "breach.authority_notified",
+      ]);
+    }
+  );
 
   it.each([
     ["cleared", ""],

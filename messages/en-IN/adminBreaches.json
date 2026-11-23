@@ -60,12 +60,14 @@
     "summary": {
       "title": "Details",
       "notices": "Notices and reach",
+      "fanOutPending": "All-account notices are pending.",
       "recipients": "Recipients with notices",
       "unreachable": "People the notice could not reach",
       "noGuardian": "No active guardian",
       "noAccount": "No active account",
       "authority": "Authority notice",
       "authorityPending": "Email queued",
+      "authorityFailed": "Email delivery failed",
       "authoritySent": "Email sent",
       "authorityManual": "Filed manually",
       "authorityMissing": "No authority notice recorded"
@@ -88,6 +90,7 @@
       "authority": "Notify the authority",
       "emailHint": "Queue an email to the authority address in Settings.",
       "queueAuthority": "Queue authority email",
+      "retryAuthority": "Retry authority email",
       "reference": "Authority reference",
       "referenceHint": "Record the reference the authority gave you when you filed the notice.",
       "saveReference": "Record authority notice",
@@ -116,8 +119,10 @@
       "already_contained": "The breach is already marked as contained.",
       "not_contained": "Mark the breach as contained before closing it.",
       "reason_required": "Enter the reason no notices were needed.",
+      "fan_out_pending": "Wait for the all-account notice job before closing this breach.",
       "already_notified": "An authority notice has already been recorded.",
       "authority_email_queued": "An authority email is already queued.",
+      "authority_email_route_unavailable": "Enable the authority email route before retrying.",
       "authority_unconfigured": "Enter the reference from your manual notice or configure an authority email address.",
       "authority_email_invalid": "Ask a super admin to correct the authority email address in Settings."
     },

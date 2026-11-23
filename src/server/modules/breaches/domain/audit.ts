@@ -24,9 +24,12 @@ export const BREACH_AUDIT_ACTIONS = [
   "breach.updated",
   "breach.timeline_entry_added",
   "breach.contained",
+  "breach.fan_out_requested",
   "breach.principals_notified",
+  "breach.principal_notice_scope_updated",
   "breach.fan_out_completed",
   "breach.authority_email_queued",
+  "breach.authority_email_requeued",
   "breach.authority_notified",
   "breach.closed",
 ] as const;

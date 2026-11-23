@@ -18,11 +18,12 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AppDb } from "../../db/app-db";
 import {
+  breachFanOut,
   breachRecord,
   breachTimelineEvent,
   type BreachRecordRow,
@@ -351,6 +352,19 @@ const closeInput = z.strictObject({
   reason: z.string().trim().max(NO_NOTICE_REASON_MAX).optional(),
 });
 
+export async function hasPendingBreachFanOut(
+  db: AppDb,
+  breachId: string
+): Promise<boolean> {
+  const [job] = await db
+    .select({ breachId: breachFanOut.breachId })
+    .from(breachFanOut)
+    .where(
+      and(eq(breachFanOut.breachId, breachId), isNull(breachFanOut.completedAt))
+    );
+  return job !== undefined;
+}
+
 /**
  * Closes a breach: a contained one no one needed telling about (with the
  * reason, kept encrypted in the timeline), or a notified one once it is
@@ -371,6 +385,9 @@ export async function closeBreach(
       if (!breach) return { result: NOT_FOUND };
       const decision = decideBreachTransition(breach, "close", {
         noNoticeReason: reason,
+        fanOutPending:
+          breach.status === "contained" &&
+          (await hasPendingBreachFanOut(tx, breach.id)),
       });
       if (!decision.ok) {
         return { result: { ok: false, error: decision.reason } };

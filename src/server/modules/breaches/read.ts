@@ -30,6 +30,7 @@ import {
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import { readSetting } from "../settings/read";
+import { failedAuthorityEmailAt } from "./authority";
 import { openBreachText } from "./content";
 import { configuredAuthorityEmail } from "./domain/authority-notice";
 import {
@@ -40,6 +41,7 @@ import {
   type BreachTimelineKind,
 } from "./domain/breach-status";
 import type { NoticeRecipientRole } from "./domain/notice-recipients";
+import { hasPendingBreachFanOut } from "./record";
 import type { BreachContext } from "./with-breach-staff";
 
 /** The most breaches one list shows. */
@@ -117,6 +119,7 @@ export type BreachView = {
   impact: string;
   containedAt: Date | null;
   principalsNotifiedAt: Date | null;
+  fanOutPending: boolean;
   closedAt: Date | null;
   lead: PersonRef | null;
   createdAt: Date;
@@ -130,6 +133,8 @@ export type BreachView = {
     emailQueuedAt: Date | null;
     /** When the email port accepted the notice. */
     emailSentAt: Date | null;
+    /** When the outstanding email exhausted its attempts. */
+    emailFailedAt: Date | null;
     /** Whether `breach.authorityEmail` holds a usable address. */
     emailConfigured: boolean;
   };
@@ -245,6 +250,11 @@ export async function getBreach(
     authorityEmailSentAt: emailSentAt,
     authorityNotifiedAt: notifiedAt,
   } = row;
+  const emailFailedAt =
+    emailQueuedAt === null
+      ? null
+      : await failedAuthorityEmailAt(ctx.db, breachId);
+  const fanOutPending = await hasPendingBreachFanOut(ctx.db, breachId);
 
   return {
     ok: true,
@@ -260,6 +270,7 @@ export async function getBreach(
       impact: openBreachText(ctx.cipher, "impact", row.impact) ?? "",
       containedAt: row.containedAt,
       principalsNotifiedAt: row.principalsNotifiedAt,
+      fanOutPending,
       closedAt: row.closedAt,
       lead: personOf(row.leadUserId),
       createdAt: row.createdAt,
@@ -278,6 +289,7 @@ export async function getBreach(
         ),
         emailQueuedAt,
         emailSentAt,
+        emailFailedAt,
         emailConfigured,
       },
       notices: {
@@ -297,11 +309,11 @@ export async function getBreach(
         author: personOf(event.authorUserId),
         occurredAt: event.occurredAt,
       })),
-      allowedEvents: allowedBreachEvents(row),
+      allowedEvents: allowedBreachEvents(row, fanOutPending),
       canNotifyAuthority:
         row.status !== "closed" &&
         notifiedAt === null &&
-        (emailQueuedAt === null || !emailConfigured),
+        (emailQueuedAt === null || emailFailedAt !== null || !emailConfigured),
     },
   };
 }

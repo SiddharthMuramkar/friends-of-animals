@@ -15,12 +15,17 @@
 // event and audit row. A manual filing retires an outstanding email.
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Ciphertext } from "../../crypto/field-cipher";
 import type { AppDb } from "../../db/app-db";
-import { breachRecord, type BreachRecordRow } from "../../db/schema";
+import {
+  breachRecord,
+  messageRoute,
+  outbox,
+  type BreachRecordRow,
+} from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import { emit } from "../../outbox/emit";
 import { readSetting } from "../settings/read";
@@ -31,6 +36,7 @@ import {
   planAuthorityNotice,
 } from "./domain/authority-notice";
 import { decideBreachTransition } from "./domain/breach-status";
+import { retryBreachEvents } from "./outbox";
 import { appendTimeline, CLOSED, lockBreach, NOT_FOUND } from "./record";
 import { withBreachStaff, type BreachContext } from "./with-breach-staff";
 
@@ -38,6 +44,44 @@ const notifyAuthorityInput = z.strictObject({
   breachId: z.uuid(),
   manualReference: z.string().trim().max(AUTHORITY_REFERENCE_MAX).optional(),
 });
+
+const AUTHORITY_NOTICE = "breach.authority_notice";
+
+/** Finds and holds the enabled route while retrying or delivering this email. */
+export async function authorityEmailRoute(tx: AppDb) {
+  const [route] = await tx
+    .select({
+      templateKey: messageRoute.templateKey,
+      channels: messageRoute.channels,
+    })
+    .from(messageRoute)
+    .where(
+      and(
+        eq(messageRoute.eventType, AUTHORITY_NOTICE),
+        eq(messageRoute.audience, "breach_authority"),
+        eq(messageRoute.templateKey, AUTHORITY_NOTICE),
+        eq(messageRoute.requiredByLaw, true),
+        eq(messageRoute.enabled, true)
+      )
+    )
+    .for("share");
+  return route?.channels.includes("email") ? route : undefined;
+}
+
+export async function failedAuthorityEmailAt(db: AppDb, breachId: string) {
+  const [delivery] = await db
+    .select({ failedAt: outbox.failedAt })
+    .from(outbox)
+    .where(
+      and(
+        eq(outbox.aggregateType, "breach"),
+        eq(outbox.aggregateId, breachId),
+        eq(outbox.eventType, AUTHORITY_NOTICE),
+        eq(outbox.status, "failed")
+      )
+    );
+  return delivery?.failedAt ?? null;
+}
 
 export type NotifyAuthorityResult =
   | { ok: true; channel: "email" | "manual" }
@@ -49,6 +93,7 @@ export type NotifyAuthorityResult =
         | "breach_closed"
         | "already_notified"
         | "authority_email_queued"
+        | "authority_email_route_unavailable"
         | "authority_unconfigured"
         | "authority_email_invalid";
     };
@@ -83,23 +128,42 @@ export async function notifyAuthority(
       }
       const now = ctx.clock.now();
       if (plan.kind === "email") {
-        if (breach.authorityEmailQueuedAt !== null) {
-          return { result: { ok: false, error: "authority_email_queued" } };
+        const retry = breach.authorityEmailQueuedAt !== null;
+        if (retry) {
+          if (!(await failedAuthorityEmailAt(tx, breachId))) {
+            return { result: { ok: false, error: "authority_email_queued" } };
+          }
+          if (!(await authorityEmailRoute(tx))) {
+            return {
+              result: { ok: false, error: "authority_email_route_unavailable" },
+            };
+          }
+          const retried = await retryBreachEvents(
+            tx,
+            breachId,
+            now,
+            eq(outbox.eventType, AUTHORITY_NOTICE)
+          );
+          if (!retried)
+            return { result: { ok: false, error: "authority_email_queued" } };
+        } else {
+          await tx
+            .update(breachRecord)
+            .set({ authorityEmailQueuedAt: now, updatedAt: now })
+            .where(eq(breachRecord.id, breachId));
+          await emit(tx, ctx.clock, {
+            type: AUTHORITY_NOTICE,
+            aggregate: { type: "breach", id: breachId },
+            payload: { breachId },
+          });
         }
-        await tx
-          .update(breachRecord)
-          .set({ authorityEmailQueuedAt: now, updatedAt: now })
-          .where(eq(breachRecord.id, breachId));
-        await emit(tx, ctx.clock, {
-          type: "breach.authority_notice",
-          aggregate: { type: "breach", id: breachId },
-          payload: { breachId },
-        });
         const snapshot = breachAuditSnapshot(breach);
         return {
           result: { ok: true, channel: "email" },
           audit: {
-            action: "breach.authority_email_queued",
+            action: retry
+              ? "breach.authority_email_requeued"
+              : "breach.authority_email_queued",
             breachId,
             before: snapshot,
             after: snapshot,

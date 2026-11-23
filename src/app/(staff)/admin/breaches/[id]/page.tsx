@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
 import { SubmitButton, TextAreaField } from "@/components/form";
+import { Disclosure } from "@/components/site/disclosure";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
@@ -74,14 +75,11 @@ async function BreachDetail({
         <div className="flex min-w-0 flex-col gap-6">
           <BreachActions breach={breach} />
           {breach.status === "closed" ? null : (
-            <details className={PANEL}>
-              <summary className="min-h-11 cursor-pointer font-semibold">
-                {t("forms.edit")}
-              </summary>
+            <Disclosure summary={t("forms.edit")} className="min-w-0">
               <form
                 aria-label={t("forms.edit")}
                 action={updateBreachAction.bind(null, id)}
-                className="mt-4 flex flex-col gap-4"
+                className="flex flex-col gap-4"
               >
                 <BreachFields breach={breach} />
                 <SubmitButton
@@ -91,7 +89,7 @@ async function BreachDetail({
                   {t("forms.editSubmit")}
                 </SubmitButton>
               </form>
-            </details>
+            </Disclosure>
           )}
         </div>
       </div>
@@ -156,7 +154,9 @@ async function BreachOverview({ breach }: { breach: BreachView }) {
           {format.number(breach.notices.recipients)}
         </Fact>
         <Fact label={t("fields.principalsNotifiedAt")}>
-          {when(breach.principalsNotifiedAt)}
+          {breach.fanOutPending && !breach.principalsNotifiedAt
+            ? t("summary.fanOutPending")
+            : when(breach.principalsNotifiedAt)}
         </Fact>
         <Fact label={t("summary.unreachable")}>
           {format.number(unreachable.total)}
@@ -185,9 +185,16 @@ async function BreachOverview({ breach }: { breach: BreachView }) {
               {t(
                 authority.emailSentAt
                   ? "summary.authoritySent"
-                  : "summary.authorityPending"
+                  : authority.emailFailedAt
+                    ? "summary.authorityFailed"
+                    : "summary.authorityPending"
               )}{" "}
-              · {when(authority.emailSentAt ?? authority.emailQueuedAt)}
+              ·{" "}
+              {when(
+                authority.emailSentAt ??
+                  authority.emailFailedAt ??
+                  authority.emailQueuedAt
+              )}
             </>
           ) : (
             t("summary.authorityMissing")

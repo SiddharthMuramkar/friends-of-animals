@@ -104,6 +104,7 @@ export function createPgWorld() {
 
   return {
     db,
+    deps,
     sql,
     clock,
     seed,

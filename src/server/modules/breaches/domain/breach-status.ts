@@ -62,7 +62,8 @@ export type BreachTransitionRefusal =
   | "transition_not_allowed"
   | "already_contained"
   | "not_contained"
-  | "reason_required";
+  | "reason_required"
+  | "fan_out_pending";
 
 export type BreachTransition =
   | { ok: true; to: BreachStatus; stampContainedAt: boolean }
@@ -76,13 +77,13 @@ export type BreachState = {
 
 /**
  * Where `event` takes `breach`, if anywhere. Closing from `contained`
- * means no notice was sent, so it needs `noNoticeReason`; closing from
+ * needs `noNoticeReason` and no outstanding fan-out; closing from
  * `notified` needs the breach to be contained first.
  */
 export function decideBreachTransition(
   breach: BreachState,
   event: BreachEvent,
-  options: { noNoticeReason?: string | undefined } = {}
+  options: { noNoticeReason?: string | undefined; fanOutPending?: boolean } = {}
 ): BreachTransition {
   const { status, containedAt } = breach;
   if (status === "closed") return { ok: false, reason: "breach_closed" };
@@ -98,14 +99,24 @@ export function decideBreachTransition(
     if (status === "contained" && !options.noNoticeReason?.trim()) {
       return { ok: false, reason: "reason_required" };
     }
+    if (status === "contained" && options.fanOutPending) {
+      return { ok: false, reason: "fan_out_pending" };
+    }
   }
   return { ok: true, to, stampContainedAt: event === "contain" };
 }
 
 /** The events staff may take next, in table order (for the page's buttons). */
-export function allowedBreachEvents(breach: BreachState): BreachEvent[] {
+export function allowedBreachEvents(
+  breach: BreachState,
+  fanOutPending = false
+): BreachEvent[] {
   return BREACH_EVENTS.filter(
-    (event) => decideBreachTransition(breach, event, { noNoticeReason: "-" }).ok
+    (event) =>
+      decideBreachTransition(breach, event, {
+        noNoticeReason: "-",
+        fanOutPending,
+      }).ok
   );
 }
 

@@ -16,13 +16,14 @@
 import { asc, eq, gt } from "drizzle-orm";
 
 import { recordAudit } from "../../audit/record";
-import { breachFanOut, breachRecord, user } from "../../db/schema";
+import { breachFanOut, user } from "../../db/schema";
 import { emit } from "../../outbox/emit";
 import type { OutboxDeps } from "../../outbox/handlers";
 import { affectedPeople, minorAccountsOfGuardians } from "./affected";
 import { breachAuditSnapshot } from "./domain/audit";
 import { planBreachNotices } from "./domain/notice-recipients";
-import { queueNotices, reachedRefs } from "./notify";
+import { queueNotices, reachedRefs, recordPrincipalNotices } from "./notify";
+import { lockBreach } from "./record";
 
 export async function fanOutBreachNotices(
   deps: Pick<OutboxDeps, "db" | "clock" | "cipher">,
@@ -30,11 +31,13 @@ export async function fanOutBreachNotices(
 ): Promise<void> {
   const { breachId, afterUserId, pageSize } = page;
   await deps.db.transaction(async (tx) => {
+    // Staff requests and closure use this lock before checking the fan-out.
+    const breach = await lockBreach(tx, breachId);
+    if (!breach) return;
     const [job] = await tx
       .select()
       .from(breachFanOut)
-      .where(eq(breachFanOut.breachId, breachId))
-      .for("update");
+      .where(eq(breachFanOut.breachId, breachId));
     if (!job || job.completedAt || job.afterUserId !== afterUserId) return;
 
     const accounts = await tx
@@ -52,6 +55,12 @@ export async function fanOutBreachNotices(
     const accountIds = accounts.map(({ id }) => id);
     const recipientsOnPage = new Set(accountIds);
     const now = deps.clock.now();
+    const auditContext = {
+      clock: deps.clock,
+      actor: { kind: "system", process: "worker" },
+    } as const;
+    const entity = { type: "breach", id: breachId };
+    let currentBreach = breach;
     if (last) {
       const people = await affectedPeople(tx, deps.cipher, now, refs);
       const children = await minorAccountsOfGuardians(
@@ -61,7 +70,7 @@ export async function fanOutBreachNotices(
         accountIds
       );
       const plan = planBreachNotices([...people, ...children]);
-      await queueNotices(
+      const { queued } = await queueNotices(
         tx,
         deps.clock,
         breachId,
@@ -73,6 +82,23 @@ export async function fanOutBreachNotices(
         },
         reachedRefs(refs, plan)
       );
+      if (queued > 0 && breach.principalsNotifiedAt === null) {
+        const { updated, audit } = await recordPrincipalNotices(
+          tx,
+          breach,
+          now,
+          queued,
+          null
+        );
+        await recordAudit(tx, auditContext, {
+          action: audit.action,
+          entity,
+          actorRole: null,
+          before: audit.before,
+          after: audit.after,
+        });
+        currentBreach = updated;
+      }
     }
 
     if (last && accounts.length === pageSize) {
@@ -88,25 +114,16 @@ export async function fanOutBreachNotices(
       return;
     }
 
-    const [breach] = await tx
-      .select()
-      .from(breachRecord)
-      .where(eq(breachRecord.id, breachId));
-    if (!breach) return;
     await tx
       .update(breachFanOut)
       .set({ afterUserId: null, completedAt: now })
       .where(eq(breachFanOut.breachId, breachId));
-    await recordAudit(
-      tx,
-      { clock: deps.clock, actor: { kind: "system", process: "worker" } },
-      {
-        action: "breach.fan_out_completed",
-        entity: { type: "breach", id: breachId },
-        actorRole: null,
-        before: null,
-        after: breachAuditSnapshot(breach),
-      }
-    );
+    await recordAudit(tx, auditContext, {
+      action: "breach.fan_out_completed",
+      entity,
+      actorRole: null,
+      before: null,
+      after: breachAuditSnapshot(currentBreach),
+    });
   });
 }
