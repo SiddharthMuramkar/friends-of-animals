@@ -38,7 +38,7 @@ export async function changeConsent(
       ? kind === "give"
         ? "given"
         : "withdrawn"
-      : result.error === "document_outdated"
+      : result.error === "document_outdated" || result.error === "unavailable"
         ? result.error
         : "failed";
   } catch (error) {

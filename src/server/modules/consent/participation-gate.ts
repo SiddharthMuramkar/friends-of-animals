@@ -24,6 +24,7 @@ import {
   registration,
 } from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
+import { guardianFlowsActive } from "../guardians/availability";
 import { hasVerifiedGuardian } from "../guardians/child-access";
 import { childDateOfBirth } from "../guardians/child-view";
 import { isAdultAt } from "../participants/domain/age";
@@ -181,18 +182,16 @@ export function releaseOnParticipation(
   return releaseHeldRegistrations(tx, ctx, input);
 }
 
-/**
- * The registrations among `registrationIds` that are a minor's and lack
- * participation consent on their competition's attached version: paying
- * for them is refused and the capture confirms none of them.
- */
-export async function lackingParticipation(
+type ParticipationRefusal = "unavailable" | "participation_consent_required";
+
+/** The #82 decision shared by checkout and confirmation. */
+export async function participationRefusals(
   db: AppDb,
-  ctx: Pick<UseCaseContext, "cipher">,
+  ctx: Pick<UseCaseContext, "appEnv" | "cipher">,
   registrationIds: readonly string[]
-): Promise<Set<string>> {
-  const lacking = new Set<string>();
-  if (registrationIds.length === 0) return lacking;
+): Promise<Map<string, ParticipationRefusal>> {
+  const refusals = new Map<string, ParticipationRefusal>();
+  if (registrationIds.length === 0) return refusals;
   const rows = await db
     .select({
       id: registration.id,
@@ -213,13 +212,18 @@ export async function lackingParticipation(
         eq(participantProfile.ownerKind, "guardian")
       )
     );
+  const active = guardianFlowsActive(ctx.appEnv);
   for (const row of rows) {
     if (isAdultAt(childDateOfBirth(ctx, row).date, row.createdAt)) continue;
-    if (!(await participationGiven(db, row.profileId, row.competitionId))) {
-      lacking.add(row.id);
+    if (!active) {
+      refusals.set(row.id, "unavailable");
+    } else if (
+      !(await participationGiven(db, row.profileId, row.competitionId))
+    ) {
+      refusals.set(row.id, "participation_consent_required");
     }
   }
-  return lacking;
+  return refusals;
 }
 
 /**

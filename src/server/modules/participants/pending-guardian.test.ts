@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { createApp } from "@/server/app";
 import {
   auditLog,
   guardian,
@@ -10,6 +11,7 @@ import {
   registration,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { drainUntilIdle } from "@/server/outbox";
 import { addGuardianFamily } from "@/server/seed/guardians";
 import { paymentRows } from "@/server/modules/payments/testing";
 import {
@@ -28,7 +30,7 @@ const MOTHER_EMAIL = "lakshmi.iyer@example.test";
 const LINK = /\/invitations\/([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
 
 /** A 15-year-old (or `dateOfBirth`) who registered alone and named their mother. */
-async function heldTeen(
+async function startHeldTeen(
   h: Harness,
   { fee, dateOfBirth }: { fee?: bigint; dateOfBirth?: string } = {}
 ) {
@@ -55,9 +57,6 @@ async function heldTeen(
   if (!result.ok || result.status !== "pending_guardian") {
     throw new Error(JSON.stringify(result));
   }
-  await h.drain();
-  const token = LINK.exec(h.email.lastTo(MOTHER_EMAIL)?.text ?? "")?.[1];
-  if (!token) throw new Error("No guardian request was emailed");
   const [profile] = await h.db
     .select({ id: participantProfile.id })
     .from(participantProfile)
@@ -66,7 +65,6 @@ async function heldTeen(
     account,
     actor,
     competition,
-    token,
     profileId: profile!.id,
     registrationId: result.registrationId,
     status: async () => {
@@ -79,7 +77,56 @@ async function heldTeen(
   };
 }
 
+async function heldTeen(
+  h: Harness,
+  options?: Parameters<typeof startHeldTeen>[1]
+) {
+  const held = await startHeldTeen(h, options);
+  await h.drain();
+  const token = LINK.exec(h.email.lastTo(MOTHER_EMAIL)?.text ?? "")?.[1];
+  if (!token) throw new Error("No guardian request was emailed");
+  return { ...held, token };
+}
+
 describe("a registration held for a guardian", () => {
+  it("does not deliver the named guardian request from the production worker", async () => {
+    const h = await createHarness();
+    const held = await startHeldTeen(h);
+
+    await drainUntilIdle({ ...h.deps, appEnv: "production" });
+
+    expect(h.email.sent.some((message) => message.to === MOTHER_EMAIL)).toBe(
+      false
+    );
+    expect(await held.status()).toBe("pending_guardian");
+  });
+
+  it("refuses a verified named guardian accepting an existing request in production", async () => {
+    const h = await createHarness();
+    const held = await heldTeen(h);
+    const { account } = await h.seed.guardian({
+      email: MOTHER_EMAIL,
+      children: [],
+    });
+    const actor = await h.signIn(account);
+    const production = createApp({ ...h.deps, appEnv: "production" }).as(actor);
+    const request = { token: held.token, relationship: "parent" };
+
+    expect(await production.viewGuardianRequest(request)).toMatchObject({
+      ok: true,
+      request: { forYou: true, status: "pending" },
+    });
+    expect(await production.acceptGuardianRequest(request)).toEqual({
+      ok: false,
+      error: "unavailable",
+    });
+    expect(await h.db.select().from(guardianLink)).toEqual([]);
+    expect(await held.status()).toBe("pending_guardian");
+    expect(await h.as(actor).acceptGuardianRequest(request)).toMatchObject({
+      ok: true,
+    });
+  });
+
   it("can't be paid for: no batch and no gateway order", async () => {
     const h = await createHarness();
     const meera = await heldTeen(h);
@@ -107,33 +154,36 @@ describe("a registration held for a guardian", () => {
     expect(await meera.status()).toBe("pending_guardian");
   });
 
-  it("lets the participant continue the same registration after turning 18", async () => {
-    const h = await createHarness();
-    const meera = await heldTeen(h, {
-      fee: 0n,
-      dateOfBirth: bornYearsAgo(h, 18, -3),
-    });
-    const mine = h.as(meera.actor);
-    h.clock.advance({ days: 4 });
+  it.each(["local", "production"] as const)(
+    "lets the participant continue the same registration after turning 18 in %s",
+    async (appEnv) => {
+      const h = await createHarness();
+      const meera = await heldTeen(h, {
+        fee: 0n,
+        dateOfBirth: bornYearsAgo(h, 18, -3),
+      });
+      const mine = createApp({ ...h.deps, appEnv }).as(meera.actor);
+      h.clock.advance({ days: 4 });
 
-    expect(await mine.listMyRegistrations()).toEqual([
-      expect.objectContaining({
+      expect(await mine.listMyRegistrations()).toEqual([
+        expect.objectContaining({
+          registrationId: meera.registrationId,
+          amountDue: { amountMinor: 0n, currency: "INR" },
+          heldFor: null,
+        }),
+      ]);
+
+      const confirmed = await mine.payForMyRegistration({
         registrationId: meera.registrationId,
-        amountDue: { amountMinor: 0n, currency: "INR" },
-        heldFor: null,
-      }),
-    ]);
-
-    const confirmed = await mine.payForMyRegistration({
-      registrationId: meera.registrationId,
-    });
-    expect(confirmed).toMatchObject({ ok: true, kind: "confirmed_free" });
-    expect(await meera.status()).toBe("confirmed");
-    expect(h.gateway.orders).toEqual([]);
-    expect(
-      await h.as(h.visitor()).viewGuardianRequest({ token: meera.token })
-    ).toMatchObject({ ok: true, request: { status: "revoked", teen: null } });
-  });
+      });
+      expect(confirmed).toMatchObject({ ok: true, kind: "confirmed_free" });
+      expect(await meera.status()).toBe("confirmed");
+      expect(h.gateway.orders).toEqual([]);
+      expect(
+        await h.as(h.visitor()).viewGuardianRequest({ token: meera.token })
+      ).toMatchObject({ ok: true, request: { status: "revoked", teen: null } });
+    }
+  );
 });
 
 describe("registerAsGuardian, after registering alone", () => {

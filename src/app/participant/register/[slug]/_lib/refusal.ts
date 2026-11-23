@@ -19,6 +19,7 @@ export type RefusalView = {
 };
 
 const VIEWS: Record<Refusal, RefusalView> = {
+  unavailable: { message: "register.refusal.unavailable" },
   registration_closed: { message: "register.refusal.registration_closed" },
   institutions_only: { message: "register.refusal.institutions_only" },
   fee_not_set: { message: "register.refusal.fee_not_set" },

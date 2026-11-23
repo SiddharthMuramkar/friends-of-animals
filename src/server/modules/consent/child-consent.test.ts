@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { createApp } from "@/server/app";
 import { guardian, guardianLink } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import { uuidv7 } from "@/server/ids";
@@ -18,6 +19,7 @@ import {
   guardianWithChild,
   publishNextVersion,
   reattach,
+  statusOf,
 } from "./testing";
 
 // #82: a verified guardian gives and withdraws each purpose for their
@@ -84,6 +86,47 @@ const NONE_GIVEN = Object.fromEntries(
 );
 
 describe("giveChildConsent and withdrawChildConsent", () => {
+  it("refuses new grants in production and preserves withdrawals and history", async () => {
+    const w = await world();
+    const display = target(w, "public_display");
+    expect(
+      await w.h.as(w.child.actor).giveChildConsent({
+        ...display,
+        documentId: documentFor(w, "public_display"),
+      })
+    ).toEqual({ ok: true, changed: true });
+    const production = createApp({ ...w.h.deps, appEnv: "production" }).as(
+      w.child.actor
+    );
+    const before = await consentRows(w.h);
+
+    expect(
+      await production.giveChildConsent({
+        ...target(w, "participation"),
+        documentId: documentFor(w, "participation"),
+      })
+    ).toEqual({ ok: false, error: "unavailable" });
+    expect(await consentRows(w.h)).toEqual(before);
+    expect(await statusOf(w.h, w.child.registrationId)).toBe(
+      "pending_guardian"
+    );
+
+    expect(await production.withdrawChildConsent(display)).toEqual({
+      ok: true,
+      changed: true,
+    });
+    expect(
+      await production.childConsentHistory({ childId: w.child.childId })
+    ).toMatchObject({
+      ok: true,
+      events: [
+        { purpose: "public_display", action: "withdrawn" },
+        { purpose: "public_display", action: "given" },
+      ],
+    });
+    expect((await consentRows(w.h)).outbox).toHaveLength(1);
+  });
+
   it.each(GUARDIAN_PURPOSES)(
     "give and withdraw %s on its own, leaving the other six as they were",
     async (purpose) => {

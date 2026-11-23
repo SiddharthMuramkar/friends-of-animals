@@ -15,6 +15,8 @@ import { paymentBatch, paymentBatchItem } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import { isFallbackGateway } from "../../ports/payment-gateway-fallback";
 import type { UseCaseContext } from "../../use-cases";
+import { participationRefusals } from "../consent/participation-gate";
+import { guardianFlowsActive } from "../guardians/availability";
 import {
   answerTestCheckout,
   type TestCheckoutAnswer,
@@ -47,6 +49,14 @@ export async function payMyTestCheckout(
 
   const gateway = ctx.payments;
   if (!isFallbackGateway(gateway)) return { ok: false, error: "unavailable" };
+  if (
+    !guardianFlowsActive(ctx.appEnv) &&
+    (await participationRefusals(ctx.db, ctx, [registrationId])).has(
+      registrationId
+    )
+  ) {
+    return { ok: false, error: "unavailable" };
+  }
 
   const [batch] = await ctx.db
     .select({ orderId: paymentBatch.gatewayOrderId })

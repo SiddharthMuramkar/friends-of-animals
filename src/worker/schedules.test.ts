@@ -57,6 +57,7 @@ function recordingBoss(existing: string[] = []) {
 const clock = new FakeClock();
 const db = {} as ScheduleDeps["db"];
 const deps = {
+  appEnv: "local",
   db,
   clock,
   email: new FakeEmail(clock),

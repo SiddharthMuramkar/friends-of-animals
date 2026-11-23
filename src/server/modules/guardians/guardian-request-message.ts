@@ -19,6 +19,7 @@ import { formats, LOCALE } from "../../../i18n/formats";
 import { invitationPath } from "../../../lib/app-routes";
 import { guardianInvitation, participantProfile } from "../../db/schema";
 import { invitationStatus } from "../institutions/domain/invitation";
+import { guardianFlowsActive } from "./availability";
 import {
   readTeenContact,
   REQUESTED_GUARDIAN_NAME,
@@ -41,6 +42,7 @@ export async function sendGuardianRequest(
   deps: TeenInvitationMessageDeps,
   payload: { requestId: string }
 ): Promise<void> {
+  if (!guardianFlowsActive(deps.appEnv)) return;
   const [row] = await deps.db
     .select({
       channel: guardianInvitation.channel,

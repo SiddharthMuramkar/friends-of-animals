@@ -1,5 +1,10 @@
 {
   "guardian": {
+    "setupUnavailable": {
+      "title": "Guardian setup is coming soon",
+      "body": "Parent and guardian setup will open once FOA finishes its safeguarding and consent checks.",
+      "back": "Back to your dashboard"
+    },
     "codeEmail": {
       "subject": "Your code to confirm you're a parent or guardian",
       "text": "Your code is {code}.\n\nEnter it on Friends of Animals to confirm you're a parent or lawful guardian. It works for {minutes} minutes. If you didn't ask for it, you can ignore this email: nothing changes without the code.\n\nFriends of Animals"
@@ -64,6 +69,7 @@
       "submit": "Email me a code",
       "submitting": "Sending…",
       "errors": {
+        "unavailable": "Guardian setup is coming soon.",
         "linked_child": "This account is a child's own login, so it can't register as a guardian.",
         "registered_as_minor": "You registered for a competition with a date of birth under 18, so this account can't register as a guardian.",
         "no_verified_email": "We email the code, and your account has no email address yet. Sign in with an email address to register as a guardian.",
@@ -82,6 +88,7 @@
         "edit": "Change your details"
       },
       "codeErrors": {
+        "unavailable": "Guardian verification is currently unavailable.",
         "code_invalid": "That code isn't right. Check it and try again.",
         "code_expired": "That code has expired. Ask for a new one.",
         "too_many_attempts": "Too many wrong codes. Ask for a new one.",
@@ -115,6 +122,7 @@
         "relationship": "Choose how you're related to the child."
       },
       "refusals": {
+        "unavailable": "Adding children is currently unavailable.",
         "dob_invalid": "Enter a real date of birth, not in the future.",
         "adult": "This date of birth makes them 18 or older. Adults register themselves.",
         "already_added": "You've already added this child.",
@@ -155,6 +163,7 @@
         "withdrawing": "Withdrawing…"
       },
       "inviteErrors": {
+        "unavailable": "Teen login invitations are currently unavailable.",
         "invalid_input": "Enter an email address.",
         "under_13": "Children under 13 can't have their own login.",
         "adult": "{name} is 18 or older and registers themselves.",
@@ -212,6 +221,7 @@
         "body": "Ask your parent or guardian for a new invitation if you still need one."
       },
       "errors": {
+        "unavailable": "Accepting a teen login invitation is currently unavailable.",
         "not_found": "This link doesn't work any more.",
         "already_used": "This invitation was already accepted.",
         "withdrawn": "This invitation was withdrawn.",
@@ -281,6 +291,7 @@
         "body": "Open the latest request if you received one. A participant who turns 18 can continue on their own."
       },
       "errors": {
+        "unavailable": "Confirming a guardian request is currently unavailable.",
         "not_found": "This link doesn't work any more.",
         "already_used": "This request was already answered.",
         "withdrawn": "This request was replaced by a newer one.",

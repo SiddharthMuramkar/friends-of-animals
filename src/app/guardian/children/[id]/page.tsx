@@ -11,11 +11,13 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
+import { env } from "@/env";
 import { APP_ROUTES, guardianChildConsentsPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
 import type { ChildDetail } from "@/server/modules/guardians";
+import { guardianFlowsActive } from "@/server/modules/guardians/availability";
 import { parseIsoDate } from "@/server/modules/registration/domain/calendar-date";
 
 import { withdrawTeenInvitationAction } from "../../_lib/actions";
@@ -65,6 +67,7 @@ async function childFor(
 }
 
 const INVITE_PROBLEMS: readonly InviteProblem[] = [
+  "unavailable",
   "invalid_input",
   "under_13",
   "adult",
@@ -154,7 +157,7 @@ async function Child({
                   </SubmitButton>
                 </form>
               </>
-            ) : (
+            ) : guardianFlowsActive(env().APP_ENV) ? (
               <>
                 <p className="text-ink">{t("invite.lead", { name })}</p>
                 {child.invitation?.status === "expired" ? (
@@ -179,6 +182,8 @@ async function Child({
                   }}
                 />
               </>
+            ) : (
+              <p className="text-ink-muted">{t("inviteErrors.unavailable")}</p>
             )}
           </section>
         )}

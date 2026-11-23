@@ -116,6 +116,12 @@ async function RegistrationCard({
     getFormatter(),
   ]);
   const { competition, amountDue } = registration;
+  const label =
+    registration.heldFor === "unavailable"
+      ? t("unavailableStatus")
+      : registration.heldFor === "consent"
+        ? t("heldForConsentStatus")
+        : null;
   const statusLabel =
     registration.status === "pending_guardian" && amountDue
       ? "pending_payment"
@@ -133,9 +139,7 @@ async function RegistrationCard({
           </SiteLink>
         </h2>
         <Chip tone={STATUS_TONE[statusLabel]}>
-          {registration.heldFor === "consent"
-            ? t("heldForConsentStatus")
-            : status(statusLabel)}
+          {label ?? status(statusLabel)}
         </Chip>
       </div>
       {registration.whose === "child" ? (

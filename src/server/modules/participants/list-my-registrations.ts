@@ -23,7 +23,7 @@ import {
 } from "../../db/schema";
 import type { Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
-import { lackingParticipation } from "../consent/participation-gate";
+import { participationRefusals } from "../consent/participation-gate";
 import { verifiedLink } from "../guardians/child-access";
 import { ownProfileOf } from "../guardians/own-profile";
 import type { RegistrationRoute } from "../registration/domain/participant";
@@ -50,9 +50,9 @@ export type MyRegistration = {
   /**
    * What a held registration waits for: a guardian to confirm the teen
    * who registered alone (#81), or the guardian's participation consent
-   * (#82); null when it isn't held.
+   * (#82), or launch approval; null when it isn't held.
    */
-  heldFor: "guardian" | "consent" | null;
+  heldFor: "guardian" | "consent" | "unavailable" | null;
   createdAt: Date;
 };
 
@@ -150,13 +150,15 @@ export async function listMyRegistrations(
   const nowAdult =
     ownsHeld &&
     (await ownProfileOf(ctx.db, ctx, userId, ctx.clock.now())) === "adult";
-  const lacking = await lackingParticipation(
+  const refusals = await participationRefusals(
     ctx.db,
     ctx,
     rows
       .filter(
         (row) =>
-          row.status === "pending_payment" && row.ownerKind === "guardian"
+          row.ownerKind === "guardian" &&
+          (row.status === "pending_payment" ||
+            row.status === "pending_guardian")
       )
       .map((row) => row.registrationId)
   );
@@ -164,9 +166,13 @@ export async function listMyRegistrations(
     const { whose, pays } = visible.get(row.profileId)!;
     const canContinue =
       row.status === "pending_guardian" && row.ownerKind === "self" && nowAdult;
-    const held =
-      lacking.has(row.registrationId) ||
-      (row.status === "pending_guardian" && !canContinue);
+    const refusal = refusals.get(row.registrationId);
+    let heldFor: MyRegistration["heldFor"] = null;
+    if (refusal === "unavailable") {
+      heldFor = refusal;
+    } else if (refusal || (row.status === "pending_guardian" && !canContinue)) {
+      heldFor = row.ownerKind === "guardian" ? "consent" : "guardian";
+    }
     return {
       registrationId: row.registrationId,
       whose,
@@ -178,17 +184,13 @@ export async function listMyRegistrations(
       registrationNumber: row.registrationNumber,
       amountDue:
         pays &&
-        !held &&
+        heldFor === null &&
         (row.status === "pending_payment" || canContinue) &&
         row.fee !== null
           ? { amountMinor: row.fee, currency: "INR" }
           : null,
       childId: whose === "child" ? row.profileId : null,
-      heldFor: held
-        ? row.ownerKind === "guardian"
-          ? "consent"
-          : "guardian"
-        : null,
+      heldFor,
       createdAt: row.createdAt,
     };
   });

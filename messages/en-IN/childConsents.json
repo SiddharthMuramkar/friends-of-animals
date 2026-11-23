@@ -3,6 +3,7 @@
     "meta": "Guardian consents",
     "title": "Consents for {name}",
     "lead": "Choose separately what you allow for your child. You can change each choice here.",
+    "reviewLead": "You can review and withdraw existing consents. Giving consent here is currently unavailable.",
     "loading": "Loading consents…",
     "back": "Back to child details",
     "historyLink": "View consent history",
@@ -36,6 +37,7 @@
       "auction": "Auction"
     },
     "notice": {
+      "unavailable": "Giving guardian consent is currently unavailable.",
       "given": "Consent recorded.",
       "withdrawn": "Consent withdrawn.",
       "document_outdated": "The consent document has changed. Read the new version before giving consent.",

@@ -62,6 +62,7 @@ import {
 } from "./domain/children";
 import { guardianName } from "./guardian-record";
 import { recoverHeldProfile } from "./guardian-request";
+import { guardianFlowsActive } from "./availability";
 import { ownProfileOf } from "./own-profile";
 import {
   parseTeenEmail,
@@ -76,7 +77,7 @@ export type InviteTeenLoginInput = { childId: string; email: string };
 export type InviteTeenLoginResult =
   | { ok: true; invitationId: string; expiresAt: Date }
   | InvalidInput
-  | { ok: false; error: TeenInviteRefusal | "rate_limited" };
+  | { ok: false; error: TeenInviteRefusal | "rate_limited" | "unavailable" };
 
 export type WithdrawTeenInvitationResult =
   | { ok: true }
@@ -105,7 +106,7 @@ export type ViewTeenInvitationResult =
 
 export type AcceptTeenInvitationResult =
   | { ok: true; childId: string }
-  | { ok: false; error: TeenAcceptanceRefusal };
+  | { ok: false; error: TeenAcceptanceRefusal | "unavailable" };
 
 export type MyGuardian = {
   fullName: string;
@@ -246,6 +247,9 @@ export async function inviteTeenLogin(
     "guardian.child.manage",
     resource
   );
+  if (!guardianFlowsActive(ctx.appEnv)) {
+    return { ok: false, error: "unavailable" };
+  }
   if (ctx.actor.kind !== "user") throw new Error("unreachable");
   const { userId, meta } = ctx.actor;
   const parsed = inviteInput.safeParse(input);
@@ -435,6 +439,9 @@ export async function acceptTeenInvitation(
   input: { token: string }
 ): Promise<AcceptTeenInvitationResult> {
   await authorize(ctx, "guardian.invitation.accept");
+  if (!guardianFlowsActive(ctx.appEnv)) {
+    return { ok: false, error: "unavailable" };
+  }
   if (ctx.actor.kind !== "user") throw new Error("unreachable");
   const { userId } = ctx.actor;
   const tokenHash = tokenHashOf(input);

@@ -24,8 +24,8 @@ import { emit } from "../../outbox/emit";
 import type { UseCaseContext } from "../../use-cases";
 import { withUniqueCode, type RandomBytes } from "../codes/codes";
 import {
-  lackingParticipation,
   lockRegistrationsForPayment,
+  participationRefusals,
 } from "../consent/participation-gate";
 import { registrationNumberFormat } from "./domain/registration-number";
 import {
@@ -52,22 +52,23 @@ export type ConfirmRegistrationsResult = {
 
 export async function confirmRegistrations(
   tx: AppDb,
-  ctx: Pick<UseCaseContext, "clock" | "actor" | "cipher">,
+  ctx: Pick<UseCaseContext, "appEnv" | "clock" | "actor" | "cipher">,
   input: ConfirmRegistrationsInput
 ): Promise<ConfirmRegistrationsResult> {
   const result: ConfirmRegistrationsResult = { confirmed: [], refused: [] };
   if (input.registrationIds.length === 0) return result;
   const now = ctx.clock.now();
   const rows = await lockRegistrationsForPayment(tx, input.registrationIds);
-  const lacking = await lackingParticipation(
+  const blocked = await participationRefusals(
     tx,
     ctx,
     rows.map((row) => row.id)
   );
-  if (lacking.size > 0) {
+  if (blocked.size > 0) {
     return {
       confirmed: [],
       refused: rows.map(({ id, status }) => ({ registrationId: id, status })),
+      // Preserve the participation review path for money already captured.
       error: "participation_consent_required",
     };
   }
