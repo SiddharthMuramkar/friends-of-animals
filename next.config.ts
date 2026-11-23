@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // No `X-Powered-By: Next.js` (the standalone server sends it by default).
   poweredByHeader: false,
+  // Consent bearer URLs and bound action arguments are private, including
+  // the render-path timing recorded by the development request logger.
+  logging: false,
   cacheComponents: true,
   partialPrefetching: true,
   images: {

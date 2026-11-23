@@ -10,6 +10,7 @@ import {
 } from "./one-time-code";
 
 const LINK_ID = "01890a5d-ac96-7e4b-8f3a-3f2a1b0c9d8e";
+const TEST_KEY = "synthetic consent code key";
 
 /** Hands out `words` in order, four at a time as the code asks. */
 function words(...values: number[]): RandomWords {
@@ -48,24 +49,25 @@ describe("normaliseOneTimeCode", () => {
 });
 
 describe("oneTimeCodeMatches", () => {
-  const stored = hashOneTimeCode(LINK_ID, "042917");
+  const stored = hashOneTimeCode(TEST_KEY, LINK_ID, "042917");
 
   it("matches the stored code, typed with spaces or not", () => {
-    expect(oneTimeCodeMatches(LINK_ID, "042917", stored)).toBe(true);
-    expect(oneTimeCodeMatches(LINK_ID, "042 917", stored)).toBe(true);
+    expect(oneTimeCodeMatches(TEST_KEY, LINK_ID, "042917", stored)).toBe(true);
+    expect(oneTimeCodeMatches(TEST_KEY, LINK_ID, "042 917", stored)).toBe(true);
   });
 
   it("refuses another code, another link's code or no code", () => {
-    expect(oneTimeCodeMatches(LINK_ID, "042918", stored)).toBe(false);
+    expect(oneTimeCodeMatches(TEST_KEY, LINK_ID, "042918", stored)).toBe(false);
     expect(
       oneTimeCodeMatches(
+        TEST_KEY,
         "01890a5d-ac96-7e4b-8f3a-000000000000",
         "042917",
         stored
       )
     ).toBe(false);
-    expect(oneTimeCodeMatches(LINK_ID, "042917", null)).toBe(false);
-    expect(oneTimeCodeMatches(LINK_ID, "abc", stored)).toBe(false);
+    expect(oneTimeCodeMatches(TEST_KEY, LINK_ID, "042917", null)).toBe(false);
+    expect(oneTimeCodeMatches(TEST_KEY, LINK_ID, "abc", stored)).toBe(false);
   });
 
   it("stores a hash, never the code", () => {

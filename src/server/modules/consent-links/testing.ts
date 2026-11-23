@@ -57,6 +57,7 @@ export async function consentLinkWorld(
     coordinator,
     studentId: entry.participantProfileId,
     send: {
+      institutionId: school.institutionId,
       registrationId: school.registrationId,
       studentId: entry.participantProfileId,
       channel: "email" as const,

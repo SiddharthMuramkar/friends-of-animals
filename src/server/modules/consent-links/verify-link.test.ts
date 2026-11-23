@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { createApp } from "@/server/app";
 import { consentLink, outbox } from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 
@@ -124,15 +125,41 @@ describe("a guardian opens and verifies a consent link", () => {
     );
   });
 
+  it("requires the issuing application's key to verify a guardian code", async () => {
+    const h = await createHarness();
+    const world = await consentLinkWorld(h);
+    const issued = await world.coordinator.sendConsentLink(world.send);
+    if (!issued.ok) throw new Error("Could not issue the synthetic link");
+    await h.drain();
+    const token = deliveredToken(h);
+    const actor = h.visitor();
+    const visitor = h.as(actor);
+    expect(await visitor.sendConsentLinkCode({ token })).toEqual({ ok: true });
+    const code = h.email.codeFor(GUARDIAN_EMAIL);
+    if (!code) throw new Error("No synthetic code arrived");
+
+    const differentKey = createApp({
+      ...h.deps,
+      auth: { ...h.deps.auth, secret: "different-key-for-this-test" },
+    }).as(actor);
+    const checked = await differentKey.verifyConsentLinkCode({ token, code });
+    expect(checked.ok).toBe(false);
+    expect(checked).toMatchObject({ error: "wrong_code", attemptsLeft: 4 });
+    expect((await visitor.verifyConsentLinkCode({ token, code })).ok).toBe(
+      true
+    );
+  });
+
   it("caps each link at five codes and the IP at ten across links", async () => {
     const h = await createHarness();
     const world = await consentLinkWorld(h);
     const visitor = h.as(h.visitor({ ip: "203.0.113.55" }));
 
     for (let link = 0; link < 2; link++) {
-      await world.coordinator.sendConsentLink(world.send);
+      const address = `guardian.link+${link}@example.test`;
+      await world.coordinator.sendConsentLink({ ...world.send, address });
       await h.drain();
-      const token = deliveredToken(h);
+      const token = deliveredToken(h, address);
       for (let code = 0; code < 5; code++) {
         expect(await visitor.sendConsentLinkCode({ token })).toEqual({
           ok: true,
@@ -154,6 +181,47 @@ describe("a guardian opens and verifies a consent link", () => {
     });
     const otherIp = h.as(h.visitor({ ip: "203.0.113.56" }));
     expect(await otherIp.sendConsentLinkCode({ token })).toEqual({ ok: true });
+  });
+
+  it("caps codes to the same normalized guardian contact across links and IPs", async () => {
+    const h = await createHarness();
+    const world = await consentLinkWorld(h);
+    const visitor = h.as(h.visitor({ ip: "203.0.113.55" }));
+
+    expect(await world.coordinator.sendConsentLink(world.send)).toMatchObject({
+      ok: true,
+    });
+    await h.drain();
+    const first = deliveredToken(h);
+    for (let code = 0; code < 5; code++) {
+      expect(await visitor.sendConsentLinkCode({ token: first })).toEqual({
+        ok: true,
+      });
+      h.clock.advance({ minutes: 1 });
+    }
+
+    expect(
+      await world.coordinator.sendConsentLink({
+        ...world.send,
+        address: ` ${GUARDIAN_EMAIL.toUpperCase()} `,
+      })
+    ).toMatchObject({ ok: true });
+    await h.drain();
+    const replacement = deliveredToken(h);
+    const otherIp = h.as(h.visitor({ ip: "203.0.113.56" }));
+    const before = h.email.inbox(GUARDIAN_EMAIL).length;
+    const refused = await otherIp.sendConsentLinkCode({ token: replacement });
+    expect(refused).toMatchObject({
+      ok: false,
+      error: "rate_limited",
+      retryAt: expect.any(Date),
+    });
+    expect(h.email.inbox(GUARDIAN_EMAIL)).toHaveLength(before);
+
+    h.clock.advance({ hours: 1 });
+    expect(await otherIp.sendConsentLinkCode({ token: replacement })).toEqual({
+      ok: true,
+    });
   });
 });
 

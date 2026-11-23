@@ -22,12 +22,14 @@ import {
 type Contact = Awaited<ReturnType<typeof suggestContactAction>>;
 
 function SendLinkForm({
+  institutionId,
   registrationId,
   studentId,
   smsEnabled,
   contact,
   onSent,
 }: {
+  institutionId: string;
   registrationId: string;
   studentId: string;
   smsEnabled: boolean;
@@ -37,14 +39,17 @@ function SendLinkForm({
   const t = useTranslations("coordinatorConsents");
   const common = useTranslations("common.callout");
   const addressId = useId();
+  const addressField = useRef<HTMLInputElement>(null);
   const [channel, setChannel] = useState<"email" | "sms">("email");
   const [state, action] = useActionState(
-    sendLinkAction.bind(null, registrationId, studentId),
+    sendLinkAction.bind(null, institutionId, registrationId, studentId),
     null
   );
+  const invalidAddress = state?.ok === false && state.error === "invalid_input";
   useEffect(() => {
     if (state?.ok) onSent();
-  }, [state, onSent]);
+    else if (invalidAddress) addressField.current?.focus();
+  }, [state, onSent, invalidAddress]);
 
   return (
     <form
@@ -82,6 +87,7 @@ function SendLinkForm({
         </FormAlert>
       ) : null}
       <TextField
+        ref={addressField}
         key={channel}
         id={addressId}
         name="address"
@@ -89,11 +95,7 @@ function SendLinkForm({
         type={channel === "email" ? "email" : "tel"}
         autoComplete="off"
         defaultValue={contact?.[channel] ?? ""}
-        error={
-          state?.ok === false && state.error === "invalid_input"
-            ? t("errors.invalid_input")
-            : undefined
-        }
+        error={invalidAddress ? t("errors.invalid_input") : undefined}
         required
       />
       <SubmitButton pendingLabel={t("sending")} className="self-start">
@@ -104,6 +106,7 @@ function SendLinkForm({
 }
 
 export function LinkControls({
+  institutionId,
   registrationId,
   studentId,
   name,
@@ -112,6 +115,7 @@ export function LinkControls({
   smsEnabled,
   revocableLinkId,
 }: {
+  institutionId: string;
   registrationId: string;
   studentId: string;
   name: string;
@@ -128,7 +132,12 @@ export function LinkControls({
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState(false);
   const [revoke, revokeAction] = useActionState(
-    revokeLinkAction.bind(null, registrationId, revocableLinkId ?? ""),
+    revokeLinkAction.bind(
+      null,
+      institutionId,
+      registrationId,
+      revocableLinkId ?? ""
+    ),
     null
   );
 
@@ -142,7 +151,9 @@ export function LinkControls({
     setSent(false);
     setOpen(true);
     dialog.current?.showModal();
-    setContact(await suggestContactAction(registrationId, studentId));
+    setContact(
+      await suggestContactAction(institutionId, registrationId, studentId)
+    );
   }
 
   return (
@@ -192,6 +203,7 @@ export function LinkControls({
         ) : null}
         {open && contact !== undefined ? (
           <SendLinkForm
+            institutionId={institutionId}
             registrationId={registrationId}
             studentId={studentId}
             smsEnabled={smsEnabled}

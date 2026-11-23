@@ -123,7 +123,6 @@ export function AnswersForm({
       aria-label={t("answer")}
       className="flex flex-col items-start gap-5"
     >
-      <p className="text-ink-muted">{t("answerHint")}</p>
       <ActionError state={state} />
       {uses.map(({ purpose, title, version }) => (
         <fieldset

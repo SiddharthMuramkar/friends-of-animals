@@ -28,7 +28,7 @@ export const test = base.extend<{
     guardianEmail: string;
     institutionId: string;
     reference: string;
-    expire: (token: string) => Promise<void>;
+    setLinkExpiry: (token: string, expiresAt: Date) => Promise<void>;
   };
 }>({
   consentStudent: async (
@@ -119,14 +119,14 @@ export const test = base.extend<{
         guardianEmail,
         institutionId: school.id,
         reference: registration.reference,
-        async expire(token) {
+        async setLinkExpiry(token, expiresAt) {
           // Age this fixture's link without altering a shared clock or another link.
           const day = 24 * 60 * 60 * 1000;
           const [expired] = await db
             .update(schema.consentLink)
             .set({
-              sentAt: new Date(now.getTime() - 8 * day),
-              expiresAt: new Date(now.getTime() - day),
+              sentAt: new Date(expiresAt.getTime() - 7 * day),
+              expiresAt,
             })
             .where(
               and(

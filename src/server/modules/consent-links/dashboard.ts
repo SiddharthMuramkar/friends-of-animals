@@ -17,9 +17,13 @@ import {
   schoolStudents,
 } from "./repository";
 
+const scope = z.object({
+  institutionId: z.uuid(),
+  contactFor: z.uuid().optional(),
+});
 const listInput = z.union([
-  z.object({ registrationId: z.uuid(), contactFor: z.uuid().optional() }),
-  z.object({ reference: z.string().max(40), contactFor: z.uuid().optional() }),
+  scope.extend({ registrationId: z.uuid() }),
+  scope.extend({ reference: z.string().max(40) }),
 ]);
 
 export type ListStudentConsentsInput = z.input<typeof listInput>;
@@ -30,19 +34,15 @@ export async function listStudentConsents(
 ) {
   const parsed = listInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const { contactFor } = parsed.data;
+  const { contactFor, institutionId } = parsed.data;
+  await authorize(ctx, "consent_link.list", institutionResource(institutionId));
   const key =
     "registrationId" in parsed.data
       ? { id: parsed.data.registrationId }
       : parseInstitutionRegistrationReference(parsed.data.reference);
   if (!key) return { ok: false, error: "not_found" } as const;
-  const school = await schoolRegistration(ctx.db, key);
+  const school = await schoolRegistration(ctx.db, { ...key, institutionId });
   if (!school) return { ok: false, error: "not_found" } as const;
-  await authorize(
-    ctx,
-    "consent_link.list",
-    institutionResource(school.institutionId)
-  );
   if (!consentLinksActive(ctx.appEnv))
     return { ok: false, error: "unavailable" } as const;
   if (school.status !== "active" || school.schoolStatus !== "verified") {

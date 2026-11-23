@@ -122,12 +122,19 @@ export function closedReason(
 
 /** Whether a verified guardian may still answer at `now`. */
 function inAnswerWindow(
-  link: Pick<LinkState, "verifiedAt">,
+  link: Pick<LinkState, "verifiedAt" | "expiresAt">,
   now: Date
 ): boolean {
   return (
     link.verifiedAt !== null &&
-    !reached(now, after(link.verifiedAt, ANSWER_WINDOW_MS))
+    !reached(now, answerDeadline(link.verifiedAt, link.expiresAt))
+  );
+}
+
+/** The answer window ends with the link or 30 minutes after verification. */
+export function answerDeadline(verifiedAt: Date, expiresAt: Date): Date {
+  return new Date(
+    Math.min(verifiedAt.getTime() + ANSWER_WINDOW_MS, expiresAt.getTime())
   );
 }
 
@@ -202,7 +209,7 @@ export function decideVerifyCode(
     ok: true,
     // A right code is spent at once: it can't verify a second session.
     patch: { verifiedAt: now, codeExpiresAt: now, codeAttempts: 0 },
-    answerBy: after(now, ANSWER_WINDOW_MS),
+    answerBy: answerDeadline(now, link.expiresAt),
   };
 }
 

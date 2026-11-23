@@ -10,7 +10,8 @@ import { consentLinkWorld, deliveredToken, GUARDIAN_EMAIL } from "./testing";
 it("reports each dashboard state as the guardian verifies and answers", async () => {
   const h = await createHarness();
   const world = await consentLinkWorld(h);
-  const query = { registrationId: world.registrationId };
+  const { institutionId, registrationId } = world;
+  const query = { institutionId, registrationId };
   const rowIs = async (expected: object) => {
     const list = await world.coordinator.listStudentConsents(query);
     expect(list).toMatchObject({
@@ -27,6 +28,7 @@ it("reports each dashboard state as the guardian verifies and answers", async ()
     canSendLink: true,
   });
   const contact = await world.coordinator.listStudentConsents({
+    institutionId,
     reference: world.reference,
     contactFor: world.studentId,
   });
@@ -87,7 +89,8 @@ it("allows the school's authorised person and denies outsiders at every coordina
   const sent = await authorised.sendConsentLink(world.send);
   if (!sent.ok)
     throw new Error("The school's authorised person could not send");
-  const query = { registrationId: world.registrationId };
+  const { institutionId, registrationId } = world;
+  const query = { institutionId, registrationId };
   const revoke = { ...query, linkId: sent.linkId };
   const before = await h.db.select({ id: outbox.id }).from(outbox);
   for (const actor of [h.visitor(), other.actor, guardian, member]) {
@@ -124,6 +127,59 @@ it("allows the school's authorised person and denies outsiders at every coordina
   });
 });
 
+it("checks coordinator scope before lookup and keeps registrations inside that scope", async () => {
+  const h = await createHarness();
+  const world = await consentLinkWorld(h);
+  const { institution } = await seedInstitution(h, { name: "Other School" });
+  const other = h.as((await signInCoordinator(h, institution.id)).actor);
+  const issued = await world.coordinator.sendConsentLink(world.send);
+  if (!issued.ok) throw new Error("Could not issue the synthetic link");
+
+  const missing = {
+    institutionId: world.institutionId,
+    registrationId: "00000000-0000-4000-8000-000000000001",
+  };
+  const missingReference = {
+    institutionId: world.institutionId,
+    reference: "TEST26-I-00000",
+  };
+  const forbidden = { code: "forbidden" };
+  await expect
+    .soft(other.sendConsentLink({ ...world.send, ...missing }))
+    .rejects.toMatchObject(forbidden);
+  await expect
+    .soft(other.revokeConsentLink({ ...missing, linkId: issued.linkId }))
+    .rejects.toMatchObject(forbidden);
+  await expect
+    .soft(other.listStudentConsents(missing))
+    .rejects.toMatchObject(forbidden);
+  await expect
+    .soft(other.listStudentConsents(missingReference))
+    .rejects.toMatchObject(forbidden);
+
+  const wrongScope = {
+    institutionId: institution.id,
+    registrationId: world.registrationId,
+  };
+  const wrongReference = {
+    institutionId: institution.id,
+    reference: world.reference,
+  };
+  const notFound = { ok: false, error: "not_found" };
+  await expect
+    .soft(other.sendConsentLink({ ...world.send, ...wrongScope }))
+    .resolves.toEqual(notFound);
+  await expect
+    .soft(other.revokeConsentLink({ ...wrongScope, linkId: issued.linkId }))
+    .resolves.toEqual(notFound);
+  await expect
+    .soft(other.listStudentConsents(wrongScope))
+    .resolves.toEqual(notFound);
+  await expect
+    .soft(other.listStudentConsents(wrongReference))
+    .resolves.toEqual(notFound);
+});
+
 it("keeps school code links inactive in production even with SMS enabled and fixture copy present", async () => {
   const h = await createHarness({ appEnv: "production" });
   const world = await consentLinkWorld(h);
@@ -134,6 +190,7 @@ it("keeps school code links inactive in production even with SMS enabled and fix
   });
   expect(
     await world.coordinator.listStudentConsents({
+      institutionId: world.institutionId,
       registrationId: world.registrationId,
     })
   ).toEqual({

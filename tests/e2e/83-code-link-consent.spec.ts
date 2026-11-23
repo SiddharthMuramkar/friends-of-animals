@@ -59,13 +59,14 @@ test("a coordinator sends a link and a signed-out guardian answers once using th
   request,
   consentStudent,
 }) => {
-  const { reference, institutionId, adminEmail, guardianEmail } =
+  const { reference, institutionId, adminEmail, guardianEmail, setLinkExpiry } =
     consentStudent;
   await signInByCode(page, request, adminEmail);
   await page.goto(institutionRegistrationPath(reference, institutionId));
   const manage = page.getByRole("link", { name: "Manage guardian consents" });
-  await expect(manage).toHaveAttribute("href", studentConsentsPath(reference));
-  await expectRendersAccessibly(page, studentConsentsPath(reference));
+  const dashboard = studentConsentsPath(reference, institutionId);
+  await expect(manage).toHaveAttribute("href", dashboard);
+  await expectRendersAccessibly(page, dashboard);
   const row = page.getByRole("row").filter({ hasText: STUDENT });
   await expect(row.getByText("Not sent")).toBeVisible();
   await expectAccessibleInDark(page, "consent dashboard");
@@ -80,7 +81,7 @@ test("a coordinator sends a link and a signed-out guardian answers once using th
   await expect(
     row.getByText("Consent link queued for delivery.")
   ).toBeVisible();
-  const { path } = await readLink(request, guardianEmail);
+  const { token, path } = await readLink(request, guardianEmail);
 
   await page.context().clearCookies();
   const response = await page.goto(path);
@@ -119,7 +120,15 @@ test("a coordinator sends a link and a signed-out guardian answers once using th
   await expect(
     page.getByRole("alert").filter({ hasText: "4 attempts left" })
   ).toBeVisible();
+  const answerBy = new Date(Date.now() + 5 * 60_000);
+  answerBy.setMilliseconds(0);
+  await setLinkExpiry(token, answerBy);
   await entry.fill(code);
+  const verification = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === path
+  );
   await page.getByRole("button", { name: "Verify code" }).click();
   const display = page.getByRole("group", { name: "Public display" });
   const social = page.getByRole("group", { name: "Social media" });
@@ -133,6 +142,14 @@ test("a coordinator sends a link and a signed-out guardian answers once using th
   expect(
     answer?.path === path && answer.httpOnly && answer.sameSite === "Strict"
   ).toBe(true);
+  const setCookies = await (await verification).headerValues("set-cookie");
+  const expiry = setCookies
+    .find((cookie) => cookie.startsWith("foa-consent-answer="))
+    ?.match(/; expires=([^;]+)/i)?.[1];
+  expect(expiry).toBe(answerBy.toUTCString());
+  const deadline = page.getByText(/Save your choices by/).locator("time");
+  await expect(deadline).toBeVisible();
+  await expect(deadline).toHaveAttribute("datetime", answerBy.toISOString());
   await bothThemes(page, "consent choices");
   await display.getByRole("radio", { name: "I give consent" }).check();
   await social.getByRole("radio", { name: "I decline" }).check();
@@ -155,14 +172,45 @@ test("a coordinator sends a link and a signed-out guardian answers once using th
   await bothThemes(page, "used consent link");
 });
 
+test("a coordinator rejects an invalid guardian destination and keeps the send dialog open", async ({
+  page,
+  request,
+  consentStudent,
+}) => {
+  const { reference, institutionId, adminEmail } = consentStudent;
+  await signInByCode(page, request, adminEmail);
+  await page.goto(studentConsentsPath(reference, institutionId));
+  const row = page.getByRole("row").filter({ hasText: STUDENT });
+  await row.getByRole("button", { name: "Send link" }).click();
+  const dialog = page.getByRole("dialog", { name: "Send a consent link" });
+  const address = dialog.getByLabel("Guardian’s email address");
+  // A single-label domain passes the browser's email constraint, so this
+  // exercises the server's destination validation without bypassing the form.
+  await address.fill("guardian@example");
+  await dialog.getByRole("button", { name: "Send link", exact: true }).click();
+
+  const error = "Enter a valid address for the selected delivery method.";
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("alert")).toContainText(error);
+  await expect(address).toHaveAccessibleDescription(error);
+  await expect(address).toHaveAttribute("aria-invalid", "true");
+  await expect(address).toBeFocused();
+  await bothThemes(page, "invalid guardian destination");
+
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(row.getByText("Not sent")).toBeVisible();
+});
+
 test("a replacement withdraws the first link, and an expired replacement shows no child details", async ({
   page,
   request,
   consentStudent,
 }, testInfo) => {
-  const { reference, adminEmail, guardianEmail, expire } = consentStudent;
+  const { reference, institutionId, adminEmail, guardianEmail, setLinkExpiry } =
+    consentStudent;
   await signInByCode(page, request, adminEmail);
-  const dashboard = studentConsentsPath(reference);
+  const dashboard = studentConsentsPath(reference, institutionId);
   await page.goto(dashboard);
   await queueLink(page, guardianEmail);
   const original = await readLink(request, guardianEmail);
@@ -178,7 +226,7 @@ test("a replacement withdraws the first link, and an expired replacement shows n
   await expect(page.getByText(/Tara/)).toHaveCount(0);
   await bothThemes(page, "withdrawn consent link");
 
-  await expire(replacement.token);
+  await setLinkExpiry(replacement.token, new Date(Date.now() - 86_400_000));
   await page.goto(replacement.path);
   await expect(
     page.getByRole("heading", { name: "This consent link has expired" })

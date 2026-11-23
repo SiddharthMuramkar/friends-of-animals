@@ -1,11 +1,10 @@
 // The six-digit code a guardian enters after opening a consent link. It is
-// scoped to one link: only its hash is stored, salted with the link id, and
-// it is useless without the link's own 256-bit token, so a plain SHA-256 is
-// enough. Guessing is bounded by the attempts and sends in ./link.ts.
+// scoped to one link: store a digest keyed with the app's auth secret.
+// Online guessing is bounded by the attempts and sends in ./link.ts.
 //
 // Loads under plain Node (the seed script): relative imports only.
 
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 /** Digits in a code. */
 export const CODE_DIGITS = 6;
@@ -38,13 +37,20 @@ export function normaliseOneTimeCode(value: string): string | null {
   return new RegExp(`^\\d{${CODE_DIGITS}}$`).test(digits) ? digits : null;
 }
 
-/** The hash a link's current code is stored as: SHA-256 hex. */
-export function hashOneTimeCode(linkId: string, code: string): string {
-  return createHash("sha256").update(`${linkId}:${code}`).digest("hex");
+/** The digest a link's current code is stored as: HMAC-SHA-256 hex. */
+export function hashOneTimeCode(
+  secret: string,
+  linkId: string,
+  code: string
+): string {
+  return createHmac("sha256", secret)
+    .update(`consent-link-code:${linkId}\0${code}`)
+    .digest("hex");
 }
 
 /** Whether `entered` is the code stored as `storedHash`, in constant time. */
 export function oneTimeCodeMatches(
+  secret: string,
   linkId: string,
   entered: string,
   storedHash: string | null
@@ -52,6 +58,6 @@ export function oneTimeCodeMatches(
   const code = normaliseOneTimeCode(entered);
   if (code === null || storedHash === null) return false;
   const expected = Buffer.from(storedHash, "hex");
-  const actual = Buffer.from(hashOneTimeCode(linkId, code), "hex");
+  const actual = Buffer.from(hashOneTimeCode(secret, linkId, code), "hex");
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }

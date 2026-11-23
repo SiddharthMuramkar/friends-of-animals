@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { NextIntlClientProvider } from "next-intl";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { ExplainState } from "@/components/site/explain-state";
@@ -44,12 +44,13 @@ export default async function Page(props: Props) {
 }
 
 async function ConsentLink({ params, searchParams }: Props) {
-  const [{ token }, query, actor, jar, t] = await Promise.all([
+  const [{ token }, query, actor, jar, t, format] = await Promise.all([
     params,
     searchParams,
     currentActor(),
     cookies(),
     getTranslations("guardianConsent"),
+    getFormatter(),
   ]);
   const sessionToken = jar.get(ANSWER_COOKIE)?.value;
   const link = await as(actor).viewConsentLink({
@@ -92,9 +93,19 @@ async function ConsentLink({ params, searchParams }: Props) {
             <VerifyCodeForm token={token} contact={link.maskedContact} />
             <SendCodeForm token={token} resend />
           </>
-        ) : (
-          <AnswersForm token={token} uses={link.uses} />
-        )}
+        ) : link.status === "verified" ? (
+          <>
+            <p className="text-ink-muted">
+              {t.rich("answerHint", {
+                deadline: (chunks) => (
+                  <time dateTime={link.answerBy.toISOString()}>{chunks}</time>
+                ),
+                answerBy: format.dateTime(link.answerBy, "longDateTime"),
+              })}
+            </p>
+            <AnswersForm token={token} uses={link.uses} />
+          </>
+        ) : null}
       </NextIntlClientProvider>
     </div>
   );

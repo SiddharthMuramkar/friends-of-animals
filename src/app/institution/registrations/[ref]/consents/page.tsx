@@ -13,6 +13,10 @@ import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
 
+import {
+  actingInstitutions,
+  chooseInstitution,
+} from "../../../competitions/_lib/register-state";
 import { StudentConsentTable } from "./_components/student-consent-table";
 
 export const instant = false;
@@ -24,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type Props = PageProps<"/institution/registrations/[ref]/consents">;
 
-export default async function Page({ params }: Props) {
+export default async function Page(props: Props) {
   await connection();
   const t = await getTranslations("coordinatorConsents");
   return (
@@ -33,27 +37,36 @@ export default async function Page({ params }: Props) {
       <Suspense
         fallback={<p className="mt-6 text-ink-muted">{t("loading")}</p>}
       >
-        <StudentConsents params={params} />
+        <StudentConsents {...props} />
       </Suspense>
     </Section>
   );
 }
 
-async function StudentConsents({ params }: Pick<Props, "params">) {
-  const [{ ref }, actor, t] = await Promise.all([
+async function StudentConsents({ params, searchParams }: Props) {
+  const [{ ref }, query, actor, t] = await Promise.all([
     params,
+    searchParams,
     currentActor(),
     getTranslations("coordinatorConsents"),
   ]);
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
 
-  const list = await as(actor)
-    .listStudentConsents({ reference: ref })
-    .catch((error: unknown) => {
-      if (error instanceof DomainError)
-        return { ok: false, error: "not_found" } as const;
-      throw error;
-    });
+  const app = as(actor);
+  const { grants } = await app.myAccess();
+  const institutionId = chooseInstitution(
+    actingInstitutions(grants),
+    typeof query.institution === "string" ? query.institution : undefined
+  );
+  const list = institutionId
+    ? await app
+        .listStudentConsents({ institutionId, reference: ref })
+        .catch((error: unknown) => {
+          if (error instanceof DomainError)
+            return { ok: false, error: "not_found" } as const;
+          throw error;
+        })
+    : ({ ok: false, error: "not_found" } as const);
   if (!list.ok) {
     const state = list.error === "unavailable" ? "unavailable" : "notFound";
     return (

@@ -1,6 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { createTranslator } from "next-intl";
 
+import { LOCALE } from "@/i18n/formats";
+
+import deliveryWords from "../../../../messages/en-IN/guardianConsentDelivery.json";
 import { authorize } from "../../access/can";
 import {
   createLinkToken,
@@ -14,6 +18,8 @@ import { nameParts } from "../consent/domain/public-credit";
 import { maskIdentifier } from "../institutions/domain/mask-identifier";
 import { sendToLinkContact } from "./delivery";
 import {
+  answerDeadline,
+  CODE_TTL_MS,
   closedReason,
   decideSendCode,
   decideVerifyCode,
@@ -35,6 +41,12 @@ import {
 export type LinkInput = { token: string };
 export type ViewConsentLinkInput = LinkInput & { sessionToken?: string };
 export type VerifyConsentLinkCodeInput = LinkInput & { code: string };
+
+const codeWords = createTranslator({
+  locale: LOCALE,
+  messages: deliveryWords,
+  namespace: "guardianConsentDelivery.code",
+});
 
 export function tokenHash(ctx: UseCaseContext, token: unknown): string | null {
   return consentLinksActive(ctx.appEnv) &&
@@ -61,14 +73,16 @@ export function sessionMatches(
 
 export type ConsentLinkView =
   | { status: "not_found" | "used" | "revoked" | "expired" }
-  | {
-      status: "sent" | "opened" | "verified";
+  | ((
+      | { status: "sent" | "opened" }
+      | { status: "verified"; answerBy: Date }
+    ) & {
       childFirstName: string;
       competitionTitle: string;
       institutionName: string;
       maskedContact: string;
       uses: OfferedPublicUse[];
-    };
+    });
 
 export async function viewConsentLink(
   ctx: UseCaseContext,
@@ -85,11 +99,18 @@ export async function viewConsentLink(
   const target = await activeLinkTarget(ctx.db, link);
   if (!target) return { status: "revoked" } as const;
   const state = linkStatus(link, now);
-  const verified =
+  const verifiedAt =
     state === "verified" &&
-    sessionMatches(input.sessionToken, link.sessionTokenHash);
+    sessionMatches(input.sessionToken, link.sessionTokenHash)
+      ? link.verifiedAt
+      : null;
   return {
-    status: verified ? "verified" : state === "sent" ? "sent" : "opened",
+    ...(verifiedAt
+      ? {
+          status: "verified",
+          answerBy: answerDeadline(verifiedAt, link.expiresAt),
+        }
+      : { status: state === "sent" ? "sent" : "opened" }),
     childFirstName: nameParts(target.student.name).firstName,
     competitionTitle: target.school.competition.name,
     institutionName: target.school.institutionName,
@@ -132,6 +153,7 @@ export async function sendConsentLinkCode(
       return { ok: false, error: "sms_disabled" } as const;
     }
     const allowance = await takeConsentLinkCodeAllowance(tx, {
+      contactHash: link.contactHash,
       ip,
       now,
       secret: ctx.auth.secret,
@@ -149,7 +171,7 @@ export async function sendConsentLinkCode(
       .update(consentLink)
       .set({
         ...decision.patch,
-        codeHash: hashOneTimeCode(link.id, code),
+        codeHash: hashOneTimeCode(ctx.auth.secret, link.id, code),
         sessionTokenHash: null,
         updatedAt: now,
       })
@@ -163,8 +185,8 @@ export async function sendConsentLinkCode(
     // The reserved code remains subject to its limit and cooldown even if
     // the provider times out after accepting the message.
     await sendToLinkContact(ctx, link, {
-      subject: "Your guardian consent code",
-      text: `Your Friends of Animals guardian consent code is ${code}. It expires in ten minutes.`,
+      subject: codeWords("subject"),
+      text: codeWords("text", { code, minutes: CODE_TTL_MS / 60_000 }),
       vars: { code },
     });
   } catch {
@@ -193,7 +215,7 @@ export async function verifyConsentLinkCode(
     const matches =
       typeof input.code === "string" &&
       input.code.length <= 64 &&
-      oneTimeCodeMatches(link.id, input.code, link.codeHash);
+      oneTimeCodeMatches(ctx.auth.secret, link.id, input.code, link.codeHash);
     const decision = decideVerifyCode(link, now, matches);
     if (!decision.ok) {
       if (decision.reason !== "wrong_code")

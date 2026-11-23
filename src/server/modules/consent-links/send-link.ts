@@ -26,6 +26,7 @@ import {
 } from "./repository";
 
 const sendInput = z.object({
+  institutionId: z.uuid(),
   registrationId: z.uuid(),
   studentId: z.uuid(),
   channel: z.enum(["email", "sms"]),
@@ -34,7 +35,11 @@ const sendInput = z.object({
 
 export type SendConsentLinkInput = z.input<typeof sendInput>;
 
-const revokeInput = z.object({ registrationId: z.uuid(), linkId: z.uuid() });
+const revokeInput = z.object({
+  institutionId: z.uuid(),
+  registrationId: z.uuid(),
+  linkId: z.uuid(),
+});
 export type RevokeConsentLinkInput = z.input<typeof revokeInput>;
 
 async function revoke(
@@ -66,11 +71,12 @@ export async function sendConsentLink(
 ) {
   const parsed = sendInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const { registrationId, studentId, channel } = parsed.data;
-  const initial = await schoolRegistration(ctx.db, { id: registrationId });
-  if (!initial) return { ok: false, error: "not_found" } as const;
-  const resource = institutionResource(initial.institutionId);
+  const { institutionId, registrationId, studentId, channel } = parsed.data;
+  const resource = institutionResource(institutionId);
   await authorize(ctx, "consent_link.send", resource);
+  const key = { id: registrationId, institutionId };
+  const initial = await schoolRegistration(ctx.db, key);
+  if (!initial) return { ok: false, error: "not_found" } as const;
   if (!consentLinksActive(ctx.appEnv))
     return { ok: false, error: "unavailable" } as const;
   if (channel === "sms" && !(await ctx.settings.get("sms.enabled"))) {
@@ -104,7 +110,7 @@ export async function sendConsentLink(
       "consent_link.send",
       resource
     );
-    const school = await schoolRegistration(tx, { id: registrationId });
+    const school = await schoolRegistration(tx, key);
     if (
       !school ||
       school.status !== "active" ||
@@ -201,10 +207,8 @@ export async function revokeConsentLink(
 ) {
   const parsed = revokeInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const { registrationId, linkId } = parsed.data;
-  const school = await schoolRegistration(ctx.db, { id: registrationId });
-  if (!school) return { ok: false, error: "not_found" } as const;
-  const resource = institutionResource(school.institutionId);
+  const { institutionId, registrationId, linkId } = parsed.data;
+  const resource = institutionResource(institutionId);
   await authorize(ctx, "consent_link.revoke", resource);
   if (!consentLinksActive(ctx.appEnv))
     return { ok: false, error: "unavailable" } as const;
@@ -214,6 +218,8 @@ export async function revokeConsentLink(
       "consent_link.revoke",
       resource
     );
+    if (!(await schoolRegistration(tx, { id: registrationId, institutionId })))
+      return { ok: false, error: "not_found" } as const;
     const [link] = await tx
       .select()
       .from(consentLink)

@@ -143,14 +143,25 @@ export async function takeCodeAllowance(
   return takeAllowance(db, countersFor(to, ip, limits), now, secret);
 }
 
-/** Consent codes have their own hourly IP allowance, separate from sign-in. */
+/** Consent codes share hourly allowances per guardian contact and per IP. */
 export function takeConsentLinkCodeAllowance(
   db: AppDb,
-  { ip, now, secret }: { ip: string; now: Date; secret: string }
+  {
+    contactHash,
+    ip,
+    now,
+    secret,
+  }: { contactHash: string; ip: string; now: Date; secret: string }
 ): Promise<Allowance> {
   return takeAllowance(
     db,
     [
+      {
+        scope: "consent_link_contact",
+        key: contactHash,
+        limit: 5,
+        windowMs: HOUR_MS,
+      },
       {
         scope: "ip",
         key: `consent-link:${ipNetwork(ip)}`,

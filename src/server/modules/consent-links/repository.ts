@@ -21,7 +21,7 @@ export function consentLinksActive(appEnv: string): boolean {
 
 export async function schoolRegistration(
   db: AppDb,
-  key: { id: string } | { reference: string }
+  key: ({ id: string } | { reference: string }) & { institutionId?: string }
 ) {
   const [row] = await db
     .select({
@@ -48,9 +48,14 @@ export async function schoolRegistration(
       eq(institutionRegistration.competitionId, competition.id)
     )
     .where(
-      "id" in key
-        ? eq(institutionRegistration.id, key.id)
-        : eq(institutionRegistration.reference, key.reference)
+      and(
+        "id" in key
+          ? eq(institutionRegistration.id, key.id)
+          : eq(institutionRegistration.reference, key.reference),
+        key.institutionId
+          ? eq(institutionRegistration.institutionId, key.institutionId)
+          : undefined
+      )
     );
   return row;
 }

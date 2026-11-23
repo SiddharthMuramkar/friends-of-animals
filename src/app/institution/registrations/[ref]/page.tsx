@@ -224,7 +224,7 @@ async function Students({
       {consentLinksActive(appEnv()) ? (
         <p>
           <ButtonLink
-            href={studentConsentsPath(list.reference)}
+            href={studentConsentsPath(list.reference, institutionId)}
             variant="secondary"
           >
             {consentWords("manage")}

@@ -192,7 +192,8 @@ describe("answerConsentLink", () => {
   it("expires at seven days even if the answer session was verified just before expiry", async () => {
     const h = await createHarness();
     const world = await consentLinkWorld(h);
-    await world.coordinator.sendConsentLink(world.send);
+    const issued = await world.coordinator.sendConsentLink(world.send);
+    if (!issued.ok) throw new Error("Could not issue the synthetic link");
     await h.drain();
     const token = deliveredToken(h);
     const visitor = h.as(h.visitor());
@@ -202,6 +203,13 @@ describe("answerConsentLink", () => {
     if (!code) throw new Error("No synthetic code arrived");
     const checked = await visitor.verifyConsentLinkCode({ token, code });
     if (!checked.ok) throw new Error("Could not verify the synthetic code");
+    expect(checked.answerBy).toEqual(issued.expiresAt);
+    expect(
+      await visitor.viewConsentLink({
+        token,
+        sessionToken: checked.sessionToken,
+      })
+    ).toMatchObject({ status: "verified", answerBy: issued.expiresAt });
     h.clock.advance({ minutes: 1 });
 
     expect(await visitor.viewConsentLink({ token })).toEqual({

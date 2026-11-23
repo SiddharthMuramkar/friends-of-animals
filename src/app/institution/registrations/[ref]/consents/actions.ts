@@ -6,11 +6,13 @@ import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
 
 export async function suggestContactAction(
+  institutionId: string,
   registrationId: string,
   studentId: string
 ) {
   try {
     const list = await as(await currentActor()).listStudentConsents({
+      institutionId,
       registrationId,
       contactFor: studentId,
     });
@@ -22,6 +24,7 @@ export async function suggestContactAction(
 }
 
 export async function sendLinkAction(
+  institutionId: string,
   registrationId: string,
   studentId: string,
   _previous: unknown,
@@ -37,6 +40,7 @@ export async function sendLinkAction(
   }
   try {
     const result = await as(await currentActor()).sendConsentLink({
+      institutionId,
       registrationId,
       studentId,
       channel,
@@ -52,9 +56,14 @@ export async function sendLinkAction(
   }
 }
 
-export async function revokeLinkAction(registrationId: string, linkId: string) {
+export async function revokeLinkAction(
+  institutionId: string,
+  registrationId: string,
+  linkId: string
+) {
   try {
     const result = await as(await currentActor()).revokeConsentLink({
+      institutionId,
       registrationId,
       linkId,
     });

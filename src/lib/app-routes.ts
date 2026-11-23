@@ -123,8 +123,12 @@ export function institutionRegistrationPath(
 }
 
 /** A school's consent dashboard, behind sign-in. */
-export function studentConsentsPath(reference: string): string {
-  return `/institution/registrations/${encodeURIComponent(reference)}/consents`;
+export function studentConsentsPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/consents?${query.toString()}`;
 }
 
 /** Where a coordinator adds a student to a registration (#75). */

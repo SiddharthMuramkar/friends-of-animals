@@ -67,6 +67,7 @@ export async function StudentConsentTable({ list }: { list: StudentConsents }) {
                 </td>
                 <td className={CELL}>
                   <LinkControls
+                    institutionId={list.institutionId}
                     registrationId={list.registrationId}
                     studentId={student.studentId}
                     name={student.name}
