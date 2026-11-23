@@ -92,17 +92,104 @@ export function rosterGuardianPhoneAlias({
     : null;
 }
 
+export type RosterContact = { contact: DetailsContact; minor: boolean };
+
+export function rosterConflicts(roster: readonly RosterContact[]) {
+  const phoneByEmail = new Map<string, E164Phone>();
+  const adultsByEmail = new Map<string, Map<E164Phone | null, number>>();
+  const guardianEmails = new Set<string>();
+  const guardianAliasesByEmail = new Map<string, Map<E164Phone, Set<string>>>();
+  const emailByAlias = new Map<string, string>();
+  const sharedEmails = new Set<string>();
+  const conflictingGuardianAliases = new Set<string>();
+  for (const { contact, minor } of roster) {
+    const { email, phone } = contact;
+    if (!email) continue;
+    if (!minor) {
+      const adults =
+        adultsByEmail.get(email) ?? new Map<E164Phone | null, number>();
+      if (adults.size > 0) sharedEmails.add(email);
+      adults.set(phone, (adults.get(phone) ?? 0) + 1);
+      adultsByEmail.set(email, adults);
+    } else guardianEmails.add(email);
+    if (!phone) continue;
+    const otherPhone = phoneByEmail.get(email);
+    if (otherPhone && otherPhone !== phone) sharedEmails.add(email);
+    phoneByEmail.set(email, phone);
+
+    const alias = minor ? rosterGuardianPhoneAlias(contact) : null;
+    if (alias === null) continue;
+    const aliasesByPhone =
+      guardianAliasesByEmail.get(email) ?? new Map<E164Phone, Set<string>>();
+    const aliases = aliasesByPhone.get(phone) ?? new Set<string>();
+    aliases.add(alias);
+    if (aliases.size > 1) sharedEmails.add(email);
+    aliasesByPhone.set(phone, aliases);
+    guardianAliasesByEmail.set(email, aliasesByPhone);
+
+    const otherEmail = emailByAlias.get(alias);
+    if (otherEmail && otherEmail !== email)
+      conflictingGuardianAliases.add(alias);
+    emailByAlias.set(alias, email);
+  }
+  for (const email of guardianEmails) {
+    if (adultsByEmail.has(email)) sharedEmails.add(email);
+  }
+
+  function hasCompetingIdentity({
+    email,
+    phone,
+  }: Pick<DetailsContact, "email" | "phone">) {
+    if (email === null) return false;
+    const adults = adultsByEmail.get(email)?.get(phone) ?? 0;
+    const guardians = phone
+      ? (guardianAliasesByEmail.get(email)?.get(phone)?.size ?? 0)
+      : 0;
+    return adults + guardians > 1;
+  }
+
+  return {
+    sharedEmails,
+    conflictingGuardianAliases,
+    hasCompetingIdentity,
+    linkedGuardianIndex(
+      roster: DetailsContact,
+      linked: readonly AccountContact[]
+    ) {
+      const { email, phone } = roster;
+      return linked.findIndex(
+        (account) =>
+          !hasCompetingIdentity({ email: account.email, phone }) &&
+          (email !== null
+            ? account.email === email &&
+              (!sharedEmails.has(email) || account.phone === phone)
+            : account.phone === phone)
+      );
+    },
+  };
+}
+
+/** An active link on an eligible outside row, for conflict checks only. */
+export type OutsideGuardianLink = {
+  alias: string;
+  /** Null when the linked account does not corroborate the roster alias. */
+  account: Pick<AccountContact, "userId" | "email"> | null;
+};
+
 function rosterGuardianMatches(
   candidates: readonly Candidate[],
-  conflictingGuardianAliases: ReadonlySet<string>
+  conflictingGuardianAliases: ReadonlySet<string>,
+  outsideGuardianLinks: readonly OutsideGuardianLink[]
 ) {
   const evidence = new Map<
     string,
     {
       emails: Set<string>;
-      accounts: Map<string, AccountContact>;
+      account: AccountContact | null;
+      accountIds: Set<string>;
       emailContact: DetailsContact | null;
       conflictingContact: boolean;
+      verifiedPhoneOwnerId?: string | undefined;
     }
   >();
   for (const candidate of candidates) {
@@ -115,34 +202,50 @@ function rosterGuardianMatches(
     if (!group) {
       group = {
         emails: new Set(),
-        accounts: new Map(),
+        account: null,
+        accountIds: new Set(),
         emailContact: null,
         conflictingContact: false,
       };
       evidence.set(alias, group);
     }
     if (listedEmail) group.emails.add(listedEmail);
+    group.verifiedPhoneOwnerId ??= verifiedPhoneOwnerId;
     if (contact === null) group.conflictingContact = true;
     if (contact?.kind === "account") {
-      group.accounts.set(contact.userId, contact);
+      group.account = contact;
+      group.accountIds.add(contact.userId);
       if (verifiedPhoneOwnerId && verifiedPhoneOwnerId !== contact.userId)
         group.conflictingContact = true;
     } else if (contact?.email) group.emailContact ??= contact;
+  }
+
+  for (const { alias, account } of outsideGuardianLinks) {
+    const group = evidence.get(alias);
+    if (!group) continue;
+    const { emails, verifiedPhoneOwnerId } = group;
+    if (
+      account === null ||
+      (emails.size > 0 &&
+        (account.email === null || !emails.has(account.email))) ||
+      (verifiedPhoneOwnerId && verifiedPhoneOwnerId !== account.userId)
+    ) {
+      group.conflictingContact = true;
+    } else group.accountIds.add(account.userId);
   }
 
   // Only consistent evidence links phone-only records to a shared alias.
   const matches = new Map<string, Contact | null>();
   for (const [
     alias,
-    { emails, accounts, emailContact, conflictingContact },
+    { emails, account, accountIds, emailContact, conflictingContact },
   ] of evidence) {
-    const account = accounts.values().next().value;
     const email = emails.values().next().value;
     if (
       conflictingContact ||
       conflictingGuardianAliases.has(alias) ||
       emails.size > 1 ||
-      accounts.size > 1 ||
+      accountIds.size > 1 ||
       (account && email && account.email !== email)
     )
       continue;
@@ -180,15 +283,18 @@ export function planAnnouncementAudience(
   {
     sharedEmails = new Set<string>(),
     conflictingGuardianAliases = new Set<string>(),
+    outsideGuardianLinks = [],
   }: {
     sharedEmails?: ReadonlySet<string>;
     conflictingGuardianAliases?: ReadonlySet<string>;
+    outsideGuardianLinks?: readonly OutsideGuardianLink[];
   } = {}
 ): AudiencePlan {
   const byKey = new Map<string, Recipient>();
   const guardianMatches = rosterGuardianMatches(
     candidates,
-    conflictingGuardianAliases
+    conflictingGuardianAliases,
+    outsideGuardianLinks
   );
   const keysByCandidate = candidates.map((candidate) =>
     candidate.contacts.map((listed, index) => {

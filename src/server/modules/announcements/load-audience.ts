@@ -26,12 +26,15 @@ import { PROFILE_PURPOSE } from "../registration/student-profile";
 import { isUnder18On } from "./domain/age";
 import {
   planAnnouncementAudience,
+  rosterConflicts,
   rosterGuardianPhoneAlias,
   type AccountContact,
   type AudiencePlan,
   type Candidate,
   type ChannelsForContact,
   type DetailsContact,
+  type OutsideGuardianLink,
+  type RosterContact,
 } from "./domain/audience";
 
 type Deps = { db: AppDb; cipher: FieldCipher; blindIndex: BlindIndex };
@@ -202,14 +205,12 @@ function readRosterEmail(
   return normaliseEmailAddress(cipher.decrypt(purpose, stored)) || null;
 }
 
-type RosterContact = { contact: DetailsContact; minor: boolean };
-
 function matchingRosterContacts(
   cipher: FieldCipher,
   at: Date,
   rows: readonly AudienceRow[],
   selected: readonly RosterContact[]
-): RosterContact[] {
+) {
   const selectedEmails = new Set(
     selected.flatMap(({ contact }) => (contact.email ? [contact.email] : []))
   );
@@ -218,83 +219,40 @@ function matchingRosterContacts(
       minor && contact.phone ? [contact.phone] : []
     )
   );
+  const selectedGuardianAliases = new Set(
+    selected.flatMap(({ contact, minor }) => {
+      const alias = minor ? rosterGuardianPhoneAlias(contact) : null;
+      return alias === null ? [] : [alias];
+    })
+  );
   if (selectedEmails.size === 0 && selectedGuardianPhones.size === 0) return [];
 
-  // A different name at the same phone can make a guardian's mailbox ambiguous.
-  // Outside the subset, these rows only supply conflicts.
-  const matching: RosterContact[] = [];
+  // Outside roster rows can supply conflict evidence for selected mailboxes and aliases.
+  const matching: (RosterContact & {
+    profileId: string;
+    sharedGuardianAlias: string | null;
+  })[] = [];
   for (const row of rows) {
-    if (row.route !== "institution" || (!row.email && !row.guardianEmail))
-      continue;
+    if (row.route !== "institution") continue;
     const minor = isUnder18On(cipher.decrypt(PROFILE_PURPOSE.dob, row.dob), at);
     const email = readRosterEmail(cipher, row, minor);
-    if (!email) continue;
-    const sameMailbox = selectedEmails.has(email);
-    if (!sameMailbox && !(minor && selectedGuardianPhones.size > 0)) continue;
+    const sameMailbox = email !== null && selectedEmails.has(email);
+    if (!sameMailbox && selectedGuardianPhones.size === 0) continue;
     const contact = readRosterContact(cipher, row, minor, email);
-    if (
-      sameMailbox ||
-      (minor && contact.phone && selectedGuardianPhones.has(contact.phone))
-    )
-      matching.push({ contact, minor });
+    const alias = minor ? rosterGuardianPhoneAlias(contact) : null;
+    const sharedGuardianAlias =
+      alias && selectedGuardianAliases.has(alias) ? alias : null;
+    const competingPair =
+      email && contact.phone && selectedGuardianPhones.has(contact.phone);
+    if (sameMailbox || sharedGuardianAlias || competingPair)
+      matching.push({
+        contact,
+        minor,
+        profileId: row.profileId,
+        sharedGuardianAlias,
+      });
   }
   return matching;
-}
-
-function rosterConflicts(roster: readonly RosterContact[]) {
-  const phoneByEmail = new Map<string, E164Phone>();
-  const adultsByEmail = new Map<string, Map<E164Phone | null, number>>();
-  const guardianAliasesByEmail = new Map<string, Map<E164Phone, Set<string>>>();
-  const emailByAlias = new Map<string, string>();
-  const sharedEmails = new Set<string>();
-  const conflictingGuardianAliases = new Set<string>();
-  for (const { contact, minor } of roster) {
-    const { email, phone } = contact;
-    if (!email) continue;
-    if (!minor) {
-      const adults =
-        adultsByEmail.get(email) ?? new Map<E164Phone | null, number>();
-      if (adults.size > 0) sharedEmails.add(email);
-      adults.set(phone, (adults.get(phone) ?? 0) + 1);
-      adultsByEmail.set(email, adults);
-    }
-    if (!phone) continue;
-    const otherPhone = phoneByEmail.get(email);
-    if (otherPhone && otherPhone !== phone) sharedEmails.add(email);
-    phoneByEmail.set(email, phone);
-
-    const alias = minor ? rosterGuardianPhoneAlias(contact) : null;
-    if (alias === null) continue;
-    const aliasesByPhone =
-      guardianAliasesByEmail.get(email) ?? new Map<E164Phone, Set<string>>();
-    const aliases = aliasesByPhone.get(phone) ?? new Set<string>();
-    aliases.add(alias);
-    if (aliases.size > 1) sharedEmails.add(email);
-    aliasesByPhone.set(phone, aliases);
-    guardianAliasesByEmail.set(email, aliasesByPhone);
-
-    const otherEmail = emailByAlias.get(alias);
-    if (otherEmail && otherEmail !== email)
-      conflictingGuardianAliases.add(alias);
-    emailByAlias.set(alias, email);
-  }
-  return {
-    sharedEmails,
-    conflictingGuardianAliases,
-    hasCompetingAdult({ email, phone }: DetailsContact) {
-      return email !== null && (adultsByEmail.get(email)?.get(phone) ?? 0) > 1;
-    },
-    hasCompetingGuardian({
-      email,
-      phone,
-    }: Pick<DetailsContact, "email" | "phone">) {
-      return (
-        email !== null &&
-        phone !== null &&
-        (guardianAliasesByEmail.get(email)?.get(phone)?.size ?? 0) > 1
-      );
-    },
-  };
 }
 
 async function minorAccountsAt(deps: Deps, userIds: string[], at: Date) {
@@ -455,6 +413,26 @@ export async function loadAnnouncementAudience(
           : null,
     };
   });
+  const rosterContacts = participants.flatMap(({ minor, roster }) =>
+    roster ? [{ contact: roster, minor }] : []
+  );
+  const outsideContacts = registrationIds
+    ? matchingRosterContacts(
+        cipher,
+        input.at,
+        rows.filter(
+          ({ registrationId }) => !registrationIds.has(registrationId)
+        ),
+        rosterContacts
+      )
+    : [];
+  const outsideAliases = outsideContacts.flatMap(
+    ({ contact, profileId, sharedGuardianAlias }) =>
+      sharedGuardianAlias
+        ? [{ contact, profileId, alias: sharedGuardianAlias }]
+        : []
+  );
+  const conflicts = rosterConflicts([...rosterContacts, ...outsideContacts]);
   const [coordinators, links] = await Promise.all([
     coordinatorIds(
       db,
@@ -462,10 +440,12 @@ export async function loadAnnouncementAudience(
         institutionId ? [institutionId] : []
       )
     ),
-    guardianLinksByProfile(
-      db,
-      participants.flatMap(({ row, minor }) => (minor ? [row.profileId] : []))
-    ),
+    guardianLinksByProfile(db, [
+      ...participants.flatMap(({ row, minor }) =>
+        minor ? [row.profileId] : []
+      ),
+      ...outsideAliases.map(({ profileId }) => profileId),
+    ]),
   ]);
   const guardiansByProfile = new Map(
     [...links].map(([profileId, facts]) => {
@@ -485,29 +465,41 @@ export async function loadAnnouncementAudience(
       ...participants.flatMap(({ minor, userId }) =>
         !minor && userId ? [userId] : []
       ),
-      ...[...guardiansByProfile.values()].flatMap(({ active }) => active),
+      ...participants.flatMap(({ row, minor }) =>
+        minor ? (guardiansByProfile.get(row.profileId)?.active ?? []) : []
+      ),
     ]),
   ];
-  const rosterContacts = participants.flatMap(({ minor, roster }) =>
-    roster ? [{ contact: roster, minor }] : []
-  );
-  const outsideContacts = registrationIds
-    ? matchingRosterContacts(
-        cipher,
-        input.at,
-        rows.filter(
-          ({ registrationId }) => !registrationIds.has(registrationId)
-        ),
-        rosterContacts
+  const outsideGuardianIds = [
+    ...new Set(
+      outsideAliases.flatMap(
+        ({ profileId }) => guardiansByProfile.get(profileId)?.active ?? []
       )
-    : [];
-  const conflicts = rosterConflicts([...rosterContacts, ...outsideContacts]);
-  const contacts = await loadContacts(
-    deps,
-    userIds,
-    rosterContacts.map(({ contact }) => contact),
-    input.at
-  );
+    ),
+  ];
+  const [contacts, outsideAccounts] = await Promise.all([
+    loadContacts(
+      deps,
+      userIds,
+      rosterContacts.map(({ contact }) => contact),
+      input.at
+    ),
+    loadContacts(deps, outsideGuardianIds, [], input.at),
+  ]);
+  const outsideGuardianLinks: OutsideGuardianLink[] = [];
+  for (const { alias, contact, profileId } of outsideAliases) {
+    const linked = outsideAccounts.forGuardians(
+      guardiansByProfile.get(profileId)?.active ?? []
+    );
+    if (linked.length === 0) continue;
+    const matched = linked[conflicts.linkedGuardianIndex(contact, linked)];
+    outsideGuardianLinks.push({
+      alias,
+      account: matched
+        ? { userId: matched.userId, email: matched.email }
+        : null,
+    });
+  }
 
   const candidates: Candidate[] = participants.map(
     ({ row, minor, userId, roster }) => {
@@ -523,7 +515,7 @@ export async function loadAnnouncementAudience(
             ? [
                 contacts.forRoster(roster, {
                   sharedEmail,
-                  competingIdentity: conflicts.hasCompetingAdult(roster),
+                  competingIdentity: conflicts.hasCompetingIdentity(roster),
                 }).contact,
               ]
             : contacts.forUsers(userId ? [userId] : []),
@@ -533,7 +525,7 @@ export async function loadAnnouncementAudience(
       const linked = contacts.forGuardians(guardians?.active ?? []);
       if (!roster)
         return { participantProfileId, role: "guardian", contacts: linked };
-      const competingIdentity = conflicts.hasCompetingGuardian(roster);
+      const competingIdentity = conflicts.hasCompetingIdentity(roster);
       const revokedAccountIds = guardians?.revokedAccountIds;
       const { contact, minorPhone, verifiedPhoneOwnerId } = contacts.forRoster(
         roster,
@@ -543,19 +535,7 @@ export async function loadAnnouncementAudience(
       // A verified link identifies a guardian for this profile. Assign its
       // account to a shared roster alias only with corroborating address evidence.
       const contactIndex =
-        linked.length === 0
-          ? 0
-          : linked.findIndex(
-              (account) =>
-                !conflicts.hasCompetingGuardian({
-                  email: account.email,
-                  phone: roster.phone,
-                }) &&
-                (roster.email !== null
-                  ? account.email === roster.email &&
-                    (!sharedEmail || account.phone === roster.phone)
-                  : account.phone === roster.phone)
-            );
+        linked.length === 0 ? 0 : conflicts.linkedGuardianIndex(roster, linked);
       return {
         participantProfileId,
         role: "guardian",
@@ -578,9 +558,8 @@ export async function loadAnnouncementAudience(
     role: "coordinator",
     contacts: contacts.forUsers(coordinators),
   });
-  return planAnnouncementAudience(
-    candidates,
-    input.channelsForContact,
-    conflicts
-  );
+  return planAnnouncementAudience(candidates, input.channelsForContact, {
+    ...conflicts,
+    outsideGuardianLinks,
+  });
 }

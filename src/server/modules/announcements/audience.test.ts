@@ -282,6 +282,85 @@ describe("loadAnnouncementAudience", () => {
     ).toEqual([`email:${FAMILY_EMAIL}`, `sms:${SHARED_PHONE}`]);
   });
 
+  it("keeps an adult pupil and a differently named guardian distinct on a verified contact pair", async () => {
+    const h = await createHarness();
+    const school = await schoolRoster(h);
+    const adult = await school.enrol({
+      fullName: "Adult Pupil",
+      dateOfBirth: "2000-01-01",
+      email: FAMILY_EMAIL,
+      phone: SHARED_PHONE,
+    });
+    await school.confirm();
+    const minor = await school.enrol(sibling("Younger Pupil", FAMILY_EMAIL));
+    const options = { smsEnabled: true };
+
+    async function plans() {
+      return Promise.all([
+        audience(h, school.competition.id, options),
+        audience(h, school.competition.id, {
+          ...options,
+          registrationIds: new Set([adult]),
+        }),
+        audience(h, school.competition.id, {
+          ...options,
+          registrationIds: new Set([minor]),
+        }),
+      ]);
+    }
+
+    const beforeVerification = await plans();
+    await h.seed.member({
+      name: "Listed Guardian",
+      email: FAMILY_EMAIL,
+      phone: SHARED_PHONE,
+    });
+    const family = await h.seed.guardian({ email: FAMILY_EMAIL, children: [] });
+    const verified = await plans();
+    await family.linkInstitutionRegistration(minor);
+    const linked = await plans();
+
+    for (const phase of [beforeVerification, verified, linked]) {
+      expect(phase.map(({ counts }) => counts)).toEqual([
+        {
+          recipients: 3,
+          participants: 1,
+          guardians: 1,
+          coordinators: 1,
+          unreachable: 0,
+        },
+        {
+          recipients: 2,
+          participants: 1,
+          guardians: 0,
+          coordinators: 1,
+          unreachable: 0,
+        },
+        {
+          recipients: 2,
+          participants: 0,
+          guardians: 1,
+          coordinators: 1,
+          unreachable: 0,
+        },
+      ]);
+      for (const plan of phase) {
+        expect(
+          plan.deliveries
+            .filter(({ recipient }) => !recipient.roles.includes("coordinator"))
+            .map(({ channel, address }) => `${channel}:${address}`)
+            .sort()
+        ).toEqual([
+          `email:${FAMILY_EMAIL}`,
+          ...(phase === linked && plan.counts.guardians
+            ? [`in_app:${family.account.id}`]
+            : []),
+          `sms:${SHARED_PHONE}`,
+        ]);
+      }
+    }
+  });
+
   it("counts distinct roster guardians who share a mailbox and keeps both SMS destinations", async () => {
     const h = await createHarness();
     const { competitionId } = await sharedMailboxRoster(h);
@@ -771,6 +850,59 @@ describe("loadAnnouncementAudience", () => {
     expect(guardianDestinations(withoutConflict)).toEqual(
       guardianDestinations(subset)
     );
+  });
+
+  it("uses an eligible outside guardian link only to veto an ambiguous shared alias", async () => {
+    const h = await createHarness();
+    const email = "selected-guardian@example.test";
+    await h.seed.member({ email, phone: SHARED_PHONE });
+    const guardian = await h.seed.guardian({ email, children: [] });
+    const otherGuardian = await h.seed.guardian({ children: [] });
+    const school = await schoolRoster(h);
+    const selected = await school.enrol(sibling("Selected Pupil", email));
+    await school.confirm();
+    const phoneOnly = await school.enrol(sibling("Phone-only Pupil"));
+    const outside = await school.enrol(sibling("Outside Pupil"));
+    const options = { registrationIds: new Set([selected, phoneOnly]) };
+    const { id: competitionId } = school.competition;
+
+    const matchingLink = await guardian.linkInstitutionRegistration(outside);
+    const matching = await audience(h, competitionId, options);
+    const phoneOnlySubset = await audience(h, competitionId, {
+      registrationIds: new Set([phoneOnly]),
+    });
+    await matchingLink.revoke();
+    await otherGuardian.linkInstitutionRegistration(outside);
+    const full = await audience(h, competitionId);
+    const subset = await audience(h, competitionId, options);
+    await school.withdraw(outside);
+    const afterWithdrawal = await audience(h, competitionId, options);
+
+    expect(
+      [matching, phoneOnlySubset, full, subset, afterWithdrawal].map(
+        ({ counts }) => counts.unreachable
+      )
+    ).toEqual([0, 1, 1, 1, 0]);
+    expect(subset.unreachable).toEqual(full.unreachable);
+    const selectedDestinations = [
+      `email:${email}`,
+      `in_app:${guardian.account.id}`,
+    ];
+    expect(
+      [matching, phoneOnlySubset, full, subset, afterWithdrawal].map(
+        guardianDestinations
+      )
+    ).toEqual([
+      selectedDestinations,
+      [],
+      [
+        ...selectedDestinations,
+        `email:${otherGuardian.account.email}`,
+        `in_app:${otherGuardian.account.id}`,
+      ].sort(),
+      selectedDestinations,
+      selectedDestinations,
+    ]);
   });
 
   it("vetoes direct email inheritance until the conflicting roster row is withdrawn", async () => {
