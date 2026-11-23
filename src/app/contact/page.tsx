@@ -9,7 +9,7 @@ import { Illustration } from "@/components/art/illustration";
 import { ButtonLink } from "@/components/site/button-link";
 import { CONTACT_LINK, ContactFact } from "@/components/site/contact-fact";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
-import { Photo } from "@/components/site/photo";
+import { LcpPhoto } from "@/components/site/lcp-photo";
 import { Live } from "@/components/site/live";
 import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
@@ -214,11 +214,12 @@ export default async function Page() {
             </aside>
           </div>
           {/* On phones a half-width print, smaller than the safety note's
-              text, so text stays the LCP element (see /donate). */}
-          <Photo
+              text, so text stays the LCP element (see /donate). LcpPhoto,
+              not Photo: next/image's client code would cost this page
+              about 5.7 kB of its JS budget (#55). */}
+          <LcpPhoto
             id="dog-thrissur-happy-white"
             sizes="(min-width: 1024px) min(40vw, 512px), (min-width: 640px) min(92vw, 512px), 46vw"
-            preload
             frame="blue"
             frameCorner="top-right"
             caption={t("hero.photoCaption")}

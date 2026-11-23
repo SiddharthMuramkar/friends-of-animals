@@ -179,6 +179,14 @@ const storageVariables = {
       error: "must be an R2 bucket name: 3-63 of a-z, 0-9 and -",
     })
     .optional(),
+  /**
+   * Where browsers load the public bucket's objects (`<R2_BUCKET>-public`,
+   * #112): its custom domain, e.g. https://assets.friendsofanimals.dev/.
+   * Unset, the public site shows no uploaded post image (HR-13).
+   */
+  PUBLIC_ASSET_BASE_URL: z
+    .url({ protocol: /^https$/, error: "must be an https:// URL" })
+    .optional(),
 };
 
 const STORAGE_VARIABLES = [
@@ -289,6 +297,59 @@ function requireWholeSesConfig(
       message:
         `${name} is not set. SES needs ${SES_VARIABLES.join(", ")}: ` +
         "all three or none (none: production sends no email).",
+    });
+  }
+}
+
+/**
+ * Razorpay (#77, HR-09, HR-15): the API key pair and the webhook secret.
+ * All three or none. Without them production refuses every payment and
+ * every other environment pays through the fallback's test checkout;
+ * production takes only rzp_live_ keys and the rest only rzp_test_ keys
+ * (src/server/ports/payment-gateway-select.ts). Messages never repeat a
+ * value, since the secrets are among them.
+ */
+const razorpayVariables = {
+  RAZORPAY_KEY_ID: z
+    .string()
+    .regex(/^rzp_(?:test|live)_[A-Za-z0-9]{8,32}$/, {
+      error: "must be a Razorpay key id: rzp_test_ or rzp_live_ and its id",
+    })
+    .optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+};
+
+const RAZORPAY_VARIABLES = [
+  "RAZORPAY_KEY_ID",
+  "RAZORPAY_KEY_SECRET",
+  "RAZORPAY_WEBHOOK_SECRET",
+] as const;
+
+type RazorpayKeyVariables = Partial<
+  Record<(typeof RAZORPAY_VARIABLES)[number], string>
+>;
+
+/** Razorpay's key pair and webhook secret come together or not at all. */
+function requireWholeRazorpayConfig(
+  values: RazorpayKeyVariables,
+  ctx: z.RefinementCtx<RazorpayKeyVariables>
+) {
+  const missing = RAZORPAY_VARIABLES.filter(
+    (name) => values[name] === undefined
+  );
+  if (missing.length === 0 || missing.length === RAZORPAY_VARIABLES.length) {
+    return;
+  }
+  for (const name of missing) {
+    ctx.issues.push({
+      code: "custom",
+      path: [name],
+      input: undefined,
+      message:
+        `${name} is not set. Razorpay needs ${RAZORPAY_VARIABLES.join(", ")}: ` +
+        "all three or none (none: production takes no payments, other " +
+        "environments use the test checkout).",
     });
   }
 }
@@ -582,6 +643,7 @@ export const envSchema = z
     ...secretVariables,
     ...storageVariables,
     ...sesVariables,
+    ...razorpayVariables,
     ...errorTrackingVariables,
     ...scannerVariables,
   })
@@ -592,6 +654,7 @@ export const envSchema = z
   .superRefine(requireFieldKeys, always)
   .superRefine(requireWholeStorageConfig, always)
   .superRefine(requireWholeSesConfig, always)
+  .superRefine(requireWholeRazorpayConfig, always)
   .superRefine(requireSentryInProduction, always)
   .transform(withDefaults);
 
@@ -661,6 +724,17 @@ export const scanJobEnvSchema = z
   .superRefine(requireWholeStorageConfig);
 
 export type ScanJobEnv = z.output<typeof scanJobEnvSchema>;
+
+/**
+ * What the worker's refund job reads (#80, src/worker/config.ts): Razorpay's
+ * keys, all three or none, chosen per environment as the app does
+ * (src/server/ports/payment-gateway-select.ts). Without them production's
+ * worker refuses every refund and retries it, and other environments
+ * refund through the fallback.
+ */
+export const refundJobEnvSchema = z
+  .object(razorpayVariables)
+  .superRefine(requireWholeRazorpayConfig);
 
 /**
  * Parses an env-like object, usually process.env, against `schema`. Empty

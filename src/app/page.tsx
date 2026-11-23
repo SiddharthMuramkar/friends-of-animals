@@ -29,7 +29,6 @@ import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
 import { getSampleCompetitions } from "@/content/sample";
 import { homeCompetitions } from "@/content/sample/selectors";
-import { latestStories } from "@/content/stories";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
@@ -43,6 +42,7 @@ import {
   loadPublishedHomePage,
   seedHomePage,
 } from "@/server/modules/cms/site-pages";
+import { loadLatestPublishedPosts } from "@/server/modules/cms/posts/loaders";
 
 import {
   activeAnnouncement,
@@ -396,7 +396,10 @@ const STORY_STICKERS = [
 ] as const satisfies readonly Sticker[];
 
 async function Stories() {
-  const t = await getTranslations("home.stories");
+  const [t, posts] = await Promise.all([
+    getTranslations("home.stories"),
+    loadLatestPublishedPosts(3),
+  ]);
   return (
     <Section labelledBy="home-stories" width="wide" tone="tint" hue="yellow">
       <div className="relative">
@@ -410,7 +413,7 @@ async function Stories() {
         />
       </div>
       <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {latestStories(3).map((story) => (
+        {posts.map((story) => (
           <li key={story.slug} className="flex">
             <StoryCard story={story} headingLevel={3} className="w-full" />
           </li>

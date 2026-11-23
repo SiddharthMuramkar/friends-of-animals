@@ -102,6 +102,117 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
+  it("lists every personal-data column of an offline payment and a payment in review (#79)", () => {
+    expect(
+      [
+        "offline_payment.reference",
+        "offline_payment.proof_file_asset_id",
+        "offline_payment.recorded_by_user_id",
+        "payment_review_case.resolution_reason",
+        "payment_review_case.resolved_by_user_id",
+      ].filter((column) => !listed.has(column))
+    ).toEqual([]);
+  });
+
+  it("lists who registered an institution for a competition", () => {
+    expect(listed.has("institution_registration.registered_by")).toBe(true);
+  });
+
+  it("lists every personal-data column of a participant profile", () => {
+    expect(
+      [
+        "full_name",
+        "dob_ciphertext",
+        "grade",
+        "student_ref",
+        "phone_ciphertext",
+        "email_ciphertext",
+        "guardian_name_ciphertext",
+        "guardian_relationship",
+        "guardian_phone_ciphertext",
+        "guardian_email_ciphertext",
+        "address_ciphertext",
+        "pin_code",
+        "city",
+        "state",
+        "identity_hash",
+        "created_by",
+      ].filter((column) => !listed.has(`participant_profile.${column}`))
+    ).toEqual([]);
+  });
+
+  it("lists every personal-data column an adult's own profile adds (#78)", () => {
+    expect(
+      [
+        "owner_user_id",
+        "participant_code",
+        "country",
+        "school_name",
+        "dob_ciphertext",
+        "phone_ciphertext",
+        "pin_code",
+        "city",
+        "state",
+      ].filter((column) => !listed.has(`participant_profile.${column}`))
+    ).toEqual([]);
+  });
+
+  it("says each shared participant column is kept for adults on their own too (#78)", () => {
+    for (const column of ["full_name", "dob_ciphertext", "phone_ciphertext"]) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === "participant_profile" && each.column === column
+      );
+      expect(entry?.purpose, column).toMatch(/adult/i);
+      expect(entry?.retention.period, column).toMatch(/adult|participant/i);
+    }
+  });
+
+  it("lists every personal-data column of a guardian, their links and invitations (#81)", () => {
+    expect(
+      [
+        "guardian.user_id",
+        "guardian.full_name_ciphertext",
+        "guardian.phone_ciphertext",
+        "guardian.phone_hash",
+        "guardian.adult_declared_at",
+        "guardian.verified_at",
+        "guardian_link.relationship",
+        "guardian_invitation.contact_ciphertext",
+        "guardian_invitation.contact_hash",
+        "guardian_invitation.token_ciphertext",
+        "guardian_invitation.accepted_by_user_id",
+        "participant_profile.login_user_id",
+      ].filter((column) => !listed.has(column))
+    ).toEqual([]);
+  });
+
+  it("lists every personal-data column of a teen's guardian request, kept 30 days after it closes (#81)", () => {
+    const columns = [
+      "invitee_name_ciphertext",
+      "relationship",
+      "requested_by_user_id",
+    ];
+    expect(
+      columns.filter((column) => !listed.has(`guardian_invitation.${column}`))
+    ).toEqual([]);
+    for (const column of columns) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === "guardian_invitation" && each.column === column
+      );
+      expect(entry?.retention.period, column).toMatch(/^30 days after/);
+      expect(entry?.retention.toConfirm, column).toBe(true);
+    }
+  });
+
+  it("says a profile's shared columns are kept for a guardian's child too (#81)", () => {
+    for (const column of ["full_name", "dob_ciphertext", "owner_user_id"]) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === "participant_profile" && each.column === column
+      );
+      expect(entry?.purpose, column).toMatch(/guardian/i);
+    }
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>

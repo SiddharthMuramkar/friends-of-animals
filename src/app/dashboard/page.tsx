@@ -8,7 +8,13 @@ import { Chip } from "@/components/site/chip";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { APP_ROUTES, judgingGuidePath } from "@/lib/app-routes";
+import {
+  ADMIN_PAYMENTS_REVIEW,
+  ADMIN_REFUNDS,
+  APP_ROUTES,
+  institutionCompetitionsPath,
+  judgingGuidePath,
+} from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -60,6 +66,12 @@ async function Areas() {
   ]);
   // Only a safeguarding lead is pointed at the reports (#116).
   const lead = grants.some((grant) => grant.role === "safeguarding_lead");
+  // Finance, staff admins and super admins look after payments (#79).
+  const money = grants.some((grant) =>
+    (["finance", "staff_admin", "super_admin"] as const).some(
+      (role) => grant.role === role
+    )
+  );
   const links = dashboardLinks(dashboards);
   const name = (link: DashboardLink) =>
     t(`areas.${link.area}`, { id: link.id ?? "" });
@@ -98,7 +110,7 @@ async function Areas() {
             />
             <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
           </div>
-          <AreaBody area={link.area} lead={lead} />
+          <AreaBody area={link.area} id={link.id} lead={lead} money={money} />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
       ))}
@@ -108,12 +120,19 @@ async function Areas() {
 
 async function AreaBody({
   area,
+  id,
   lead,
+  money,
 }: {
   area: DashboardLink["area"];
+  id?: string;
   lead: boolean;
+  money: boolean;
 }) {
-  const t = await getTranslations("dashboard");
+  const [t, registration] = await Promise.all([
+    getTranslations("dashboard"),
+    getTranslations("institutionRegistration.competitions"),
+  ]);
   const links = (items: { href: string; label: string }[]): ReactNode => (
     <ul className="mt-3 flex flex-col">
       {items.map((item) => (
@@ -131,6 +150,15 @@ async function AreaBody({
       {area === "member"
         ? links([
             { href: APP_ROUTES.accountSessions, label: t("member.sessions") },
+            { href: APP_ROUTES.guardian, label: t("member.children") },
+          ])
+        : null}
+      {area === "institution" && id
+        ? links([
+            {
+              href: institutionCompetitionsPath(id),
+              label: registration("entry"),
+            },
           ])
         : null}
       {area === "admin"
@@ -143,6 +171,16 @@ async function AreaBody({
                     href: APP_ROUTES.adminSafeguarding,
                     label: t("admin.safeguarding"),
                   },
+                ]
+              : []),
+            ...(money
+              ? [
+                  {
+                    href: ADMIN_PAYMENTS_REVIEW,
+                    label: t("admin.payments"),
+                  },
+                  // The refunds queue (#80).
+                  { href: ADMIN_REFUNDS, label: t("admin.refunds") },
                 ]
               : []),
           ])

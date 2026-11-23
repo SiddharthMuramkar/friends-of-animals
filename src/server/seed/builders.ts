@@ -11,7 +11,9 @@ import {
 } from "../identity/verified-account";
 import { ensureGrant } from "./access";
 import { competitionBuilder } from "./competitions";
+import { guardianBuilder } from "./guardians";
 import { seedPhone } from "./identity";
+import { institutionRegistrationBuilder } from "./registration";
 import { ensureSeedAuthenticator } from "./second-factor";
 import type { SeedDeps, Seeder } from "./types";
 
@@ -82,6 +84,13 @@ export function seedFunctions(seeders: readonly Seeder[]) {
         ensureSeedAuthenticator(deps, user.id),
       /** A complete competition (draft unless told), no audit entry. */
       competition: competitionBuilder(deps),
+      /** An institution registered for a competition: no checks, no message. */
+      institutionRegistration: institutionRegistrationBuilder(deps),
+      /**
+       * A verified guardian (#81) with the children asked for, by name and
+       * age today; none with a login. No code, no audit entry.
+       */
+      guardian: guardianBuilder(deps),
       /** Everything `pnpm db:seed` puts in a preview database. */
       preview: () => seedPreview(deps),
     };

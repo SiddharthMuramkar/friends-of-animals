@@ -34,12 +34,12 @@ import { Section } from "@/components/site/section";
 import { type TileHue, TileDivider, TileMarker } from "@/components/site/tile";
 import { getSampleCompetitions, getSampleImpact } from "@/content/sample";
 import { COMPETITION_STATUSES } from "@/content/sample/model";
-import { STORIES } from "@/content/stories";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { isSampleContentEnabled } from "@/lib/site";
 import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { cn } from "@/lib/utils";
+import { repoStoryCards } from "@/server/modules/cms/posts/repo-stories";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("styleguide.meta");
@@ -492,7 +492,7 @@ export default async function Page() {
         />
         <Sub title={t("cards.stories")}>
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {STORIES.map((story) => (
+            {repoStoryCards().map((story) => (
               <li key={story.slug} className="flex">
                 <StoryCard story={story} headingLevel={4} className="w-full" />
               </li>
@@ -581,7 +581,7 @@ export default async function Page() {
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <li className="flex">
               <StoryCard
-                story={STORIES[1]!}
+                story={repoStoryCards()[1]!}
                 headingLevel={3}
                 className="w-full"
               />

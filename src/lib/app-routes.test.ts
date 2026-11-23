@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ADMIN_PAYMENTS_REVIEW,
+  ADMIN_REFUNDS,
+  adminBatchRefundPath,
+  adminRefundPath,
   adminCmsDocumentPath,
+  adminPaymentBatchPath,
+  adminPaymentReviewCasePath,
   adminInstitutionPath,
   APP_ROUTES,
+  guardianChildPath,
+  institutionCompetitionsPath,
+  institutionRegistrationPath,
   isNonProductionPath,
+  newStudentPath,
+  payMyRegistrationPath,
+  individualRegisterPath,
+  individualRegisterSlug,
   isSignedInPage,
+  studentImportFilePath,
+  studentImportPath,
   isSignedInPath,
   judgingGuidePath,
 } from "./app-routes";
@@ -17,6 +32,25 @@ describe("isSignedInPage", () => {
     for (const path of Object.values(APP_ROUTES)) {
       expect(isSignedInPage(path), path).toBe(true);
     }
+  });
+
+  it("knows the payments pages (#79), though the review list isn't in APP_ROUTES", () => {
+    expect(isSignedInPage(ADMIN_PAYMENTS_REVIEW)).toBe(true);
+    expect(isSignedInPage(adminPaymentReviewCasePath(COMPETITION_ID))).toBe(
+      true
+    );
+    expect(isSignedInPage(adminPaymentBatchPath(COMPETITION_ID))).toBe(true);
+    expect(isSignedInPage("/admin/payments")).toBe(false);
+    expect(isSignedInPage("/admin/payments/batches")).toBe(false);
+  });
+
+  it("knows the refunds pages (#80)", () => {
+    expect(isSignedInPage(ADMIN_REFUNDS)).toBe(true);
+    expect(isSignedInPage(adminRefundPath(COMPETITION_ID))).toBe(true);
+    expect(isSignedInPage(adminBatchRefundPath(COMPETITION_ID))).toBe(true);
+    expect(adminBatchRefundPath(COMPETITION_ID)).toBe(
+      `/admin/payments/batches/${COMPETITION_ID}/refund`
+    );
   });
 
   it("knows a competition's edit and preview pages, whatever its id", () => {
@@ -42,6 +76,29 @@ describe("isSignedInPage", () => {
     expect(judgingGuidePath("NEIGH27")).toBe(
       "/institution/competitions/NEIGH27/judging-guide"
     );
+  });
+
+  it("knows the pay page of an adult's own registration, whatever its id (#78)", () => {
+    const path = payMyRegistrationPath("01938a00-0000-7000-8000-000000009001");
+    expect(path).toBe(
+      "/participant/registrations/01938a00-0000-7000-8000-000000009001/pay"
+    );
+    expect(isSignedInPage(path)).toBe(true);
+    expect(isSignedInPath(path)).toBe(true);
+    expect(
+      isSignedInPage(
+        "/participant/registrations/01938a00-0000-7000-8000-000000009001"
+      )
+    ).toBe(false);
+  });
+
+  it("knows an adult's register form for any competition, in the signed-in tree (#78)", () => {
+    const path = individualRegisterPath("neighbours-on-my-street");
+    expect(path).toBe("/participant/register/neighbours-on-my-street");
+    expect(isSignedInPage(path)).toBe(true);
+    expect(isSignedInPath(path)).toBe(true);
+    expect(isSignedInPage("/participant/register")).toBe(false);
+    expect(isSignedInPage(`${path}/more`)).toBe(false);
   });
 
   it("knows a competition's fees, prizes and terms page, whatever its id", () => {
@@ -72,10 +129,64 @@ describe("isSignedInPage", () => {
       "/admin/institutions/x/edit",
       `/admin/competitions/${COMPETITION_ID}/rubrics/essay/edit`,
       "/institution/competitions/NEIGH27",
-      "/institution/competitions",
     ]) {
       expect(isSignedInPage(path), path).toBe(false);
     }
+  });
+
+  it("knows a registration's students page and its add-a-student page, for the institution acting", () => {
+    const institutionId = "01938a00-0000-7000-8000-000000001001";
+    const students = institutionRegistrationPath(
+      "NEIGH27-I-5EED1",
+      institutionId
+    );
+    const add = newStudentPath("NEIGH27-I-5EED1", institutionId);
+
+    expect(students).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1?institution=${institutionId}`
+    );
+    expect(add).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1/students/new?institution=${institutionId}`
+    );
+    for (const path of [students, add]) {
+      expect(isSignedInPage(path.split("?")[0]!), path).toBe(true);
+    }
+    expect(
+      isSignedInPage("/institution/registrations/NEIGH27-I-5EED1/students")
+    ).toBe(false);
+  });
+
+  it("knows a registration's student import page and its two CSV files (#76)", () => {
+    const institutionId = "01938a00-0000-7000-8000-000000001001";
+    const page = studentImportPath("NEIGH27-I-5EED1", institutionId);
+    const template = studentImportFilePath(
+      "NEIGH27-I-5EED1",
+      institutionId,
+      "template.csv"
+    );
+    const sample = studentImportFilePath(
+      "NEIGH27-I-5EED1",
+      institutionId,
+      "sample.csv"
+    );
+
+    expect(page).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1/import?institution=${institutionId}`
+    );
+    expect(template).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1/import/template.csv?institution=${institutionId}`
+    );
+    expect(sample).toBe(
+      `/institution/registrations/NEIGH27-I-5EED1/import/sample.csv?institution=${institutionId}`
+    );
+    for (const path of [page, template, sample]) {
+      expect(isSignedInPage(path.split("?")[0]!), path).toBe(true);
+    }
+    expect(
+      isSignedInPage(
+        "/institution/registrations/NEIGH27-I-5EED1/import/other.csv"
+      )
+    ).toBe(false);
   });
 
   it("knows the contact inbox and each message in it", () => {
@@ -131,6 +242,25 @@ describe("isSignedInPath", () => {
     expect(isSignedInPath("/administrators")).toBe(false);
   });
 
+  it("puts the guardian pages behind sign-in, one child's page per id (#81)", () => {
+    const child = guardianChildPath("01938a00-0000-7000-8000-000000008121");
+
+    expect(child).toBe(
+      "/guardian/children/01938a00-0000-7000-8000-000000008121"
+    );
+    for (const path of [
+      APP_ROUTES.guardian,
+      APP_ROUTES.guardianRegister,
+      APP_ROUTES.guardianNewChild,
+      child,
+    ]) {
+      expect(isSignedInPath(path), path).toBe(true);
+      expect(isSignedInPage(path), path).toBe(true);
+    }
+    expect(isSignedInPath("/guardians")).toBe(false);
+    expect(isSignedInPage("/guardian/children")).toBe(false);
+  });
+
   it("covers the institution pages and the admin area", () => {
     expect(isSignedInPath(APP_ROUTES.institutionRegister)).toBe(true);
     expect(isSignedInPath(APP_ROUTES.myInstitution)).toBe(true);
@@ -139,6 +269,18 @@ describe("isSignedInPath", () => {
         adminInstitutionPath("01938a00-0000-7000-8000-000000001001")
       )
     ).toBe(true);
+  });
+
+  it("puts the competitions an institution registers for behind sign-in, for one institution at a time", () => {
+    const path = institutionCompetitionsPath(
+      "01938a00-0000-7000-8000-000000001001"
+    );
+
+    expect(path).toBe(
+      "/institution/competitions?institution=01938a00-0000-7000-8000-000000001001"
+    );
+    expect(isSignedInPage(new URL(path, "http://x").pathname)).toBe(true);
+    expect(isSignedInPath(path)).toBe(true);
   });
 
   it("leaves a public list of institutions open, should one come", () => {
@@ -178,5 +320,29 @@ describe("isNonProductionPath", () => {
     expect(isNonProductionPath(APP_ROUTES.accountSessions)).toBe(false);
     expect(isNonProductionPath("/account/filesystem")).toBe(false);
     expect(isNonProductionPath("/account")).toBe(false);
+  });
+});
+
+describe("individualRegisterSlug", () => {
+  it("is the competition slug of a register form's path, as sent", () => {
+    expect(
+      individualRegisterSlug(individualRegisterPath("neighbours-on-my-street"))
+    ).toBe("neighbours-on-my-street");
+    expect(individualRegisterSlug("/participant/register/%E0%A4%A")).toBe(
+      "%E0%A4%A"
+    );
+  });
+
+  it("is null for any other path", () => {
+    for (const path of [
+      "/participant",
+      "/participant/register",
+      "/participant/register/",
+      "/participant/register/a-slug/more",
+      "/participant/registrations/01938a00-0000-7000-8000-000000009001/pay",
+      "/competitions/a-slug",
+    ]) {
+      expect(individualRegisterSlug(path), path).toBeNull();
+    }
   });
 });

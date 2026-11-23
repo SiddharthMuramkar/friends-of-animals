@@ -193,6 +193,62 @@ The one Version of a Consent document a competition asks registrants to agree
 to. Publishing a newer Version leaves the Pin alone until a manager moves it.
 _Avoid_: Link, attachment (alone), current version
 
+## Payments
+
+**Payment batch**:
+One gateway order for one or more registrations: an institution paying its
+students' Fees at once. It holds its registrations while it waits for the
+money, and lets them go if it is replaced or the gateway refuses the order.
+_Avoid_: Invoice, cart, transaction
+
+**Capture**:
+The gateway taking the payer's money for a Payment batch's order in full. A
+Checkout return or a webhook only says a capture may have happened; the
+gateway's own record of the order decides.
+_Avoid_: Payment success, settlement
+
+**Offline payment**:
+A cheque, bank transfer or cash FOA received for a Payment batch, recorded by
+finance with a reference and a private proof file. It captures the batch as
+the gateway would, so its registrations are confirmed the same way.
+_Avoid_: Manual payment, cash entry
+
+**Payment needing review**:
+Money the gateway captured that its Payment batch couldn't accept: a second
+payment, a withdrawn registration, the wrong amount, money after
+registration closed, or for a replaced batch. The batch waits in review (a
+paid batch stays paid), one review case per payment, until staff accept,
+refund or keep the money with a reason. Nothing is confirmed or refunded on
+its own.
+_Avoid_: Failed payment, disputed payment, exception
+
+**Refund**:
+A Payment batch's money going back to whoever paid it: every student it has
+left, some of them (a partial refund), or a whole payment it couldn't keep.
+A refund someone asks for waits for finance to approve it behind a fresh
+second factor; a cancellation or a payment resolved in review is approved by
+the system. Approved refunds go to the gateway, or are paid back by hand for
+an offline payment. A registration is refunded only once its money is back.
+_Avoid_: Reversal, chargeback, credit note
+
+**Duplicate refund**:
+A payment in review resolved with a refund: the payment goes back in full,
+with no finance approval, and no registration changes. Most often the second
+of two payments.
+_Avoid_: Auto-refund, double refund
+
+**Test checkout**:
+Where a payer pays outside production while no Razorpay test keys are set:
+the fallback gateway's stand-in for Razorpay's Checkout, on the pay page. It
+moves no money and never runs in production.
+_Avoid_: Mock payment, dummy gateway
+
+**Registration number**:
+What a confirmed registration is known by: the competition's code, "R" and
+six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the
+Route is free.
+_Avoid_: Entry number, roll number, receipt number
+
 ## Site content
 
 **Content document**:
@@ -380,6 +436,47 @@ What a coordinator of a registered institution reads before their school
 round: FOA's judging framework and the published Rubric of each discipline.
 _Avoid_: Judging kit, rules
 
+## Registration
+
+**Institution registration**:
+An institution signing up for one competition, made once by one of its
+coordinators or its authorised person while the competition's registration is
+open and the institution is verified. Its students are enrolled against it.
+_Avoid_: Entry, enrolment (that is a student's), sign-up
+
+**Registration reference**:
+The code an institution registration gets, the competition's code, `I` and
+five random symbols (PAWS27-I-Q2W9R), which the institution and FOA quote.
+_Avoid_: Registration number (that is a participant's), Institution ID
+
+**Registration window**:
+Whether a competition takes registrations right now: not open yet, open or
+closed. The competition's status says when it opened; its closing instant
+closes it even if a Status job runs late.
+_Avoid_: Registration period, deadline
+
+**Participant profile**:
+One person who takes part, as whoever keeps their details knows them. For now
+a student an institution keeps: one per child per institution, recognised
+again by their name and date of birth, or the institution's roll number.
+Adults keep their own later, and guardians a child's.
+_Avoid_: Student record, participant (for the stored details)
+
+**Enrolment**:
+A coordinator adding a student to their institution's registration for a
+competition while its Registration window is open. It gives the student a
+participant's registration in the age group their date of birth puts them in
+on the competition's cut-off date. Withdrawing ends it; enrolling again makes
+a new one.
+_Avoid_: Entry, sign-up, registering a student
+
+**Student import**:
+Enrolling many students at once from a CSV file in the template's columns.
+Every row is held to the rules of an Enrolment; good rows are enrolled, and
+the rest come back in a report of rows to fix, which the coordinator corrects
+and uploads again. Nothing of the file is kept.
+_Avoid_: Bulk upload, batch enrolment, import job
+
 ## Files
 
 **File**:
@@ -459,3 +556,27 @@ _Avoid_: Unit tests, integration tests
 A few end-to-end journeys per milestone, run in a browser against a pull
 request's preview deployment.
 _Avoid_: E2E suite, UI tests
+
+## Taking part
+
+**Individual route**:
+How someone takes part in a competition on their own, instead of being
+entered by their school: an adult registers and pays for themselves; a minor
+takes part with a guardian, who registers or confirms them and pays. A
+minor's registration is held for a guardian until a verified guardian has
+accepted them.
+_Avoid_: Route B, self-registration, direct entry
+
+**Guardian request**:
+A teen of 13 to 17 with no guardian on the platform names their parent or
+guardian when they register, and FOA emails that person a link. Accepting it,
+signed in as a verified guardian with that address, makes them the teen's
+guardian and releases the registrations held for a guardian.
+_Avoid_: Guardian invitation (a guardian inviting a teen to an own login),
+consent request
+
+**Participant ID**:
+The code that names one person who takes part in competitions, such as
+FOA-P-277K3M9Q. It identifies them to FOA and is never a way to sign in.
+_Avoid_: Participant number, registration number (that names one
+registration)

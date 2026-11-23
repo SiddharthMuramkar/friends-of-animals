@@ -166,6 +166,68 @@ export type DomainEvent =
       type: "competition.disciplines_changed";
       aggregate: { type: "competition"; id: string };
       payload: { competitionId: string };
+    }
+  | {
+      /** An institution registered for a competition (#75). */
+      type: "registration.institution_registered";
+      aggregate: { type: "institution_registration"; id: string };
+      payload: { institutionRegistrationId: string };
+    }
+  | {
+      /**
+       * A registration was confirmed, paid or free, and has its number
+       * (#77). Its family contact is told.
+       */
+      type: "registration.confirmed";
+      aggregate: { type: "registration"; id: string };
+      payload: { registrationId: string };
+    }
+  | {
+      /**
+       * The gateway captured a batch's payment in full (#77). `payerUserId`
+       * started the payment and gets the receipt; null once their account
+       * is gone.
+       */
+      type: "payment.batch_captured";
+      aggregate: { type: "payment_batch"; id: string };
+      payload: { batchId: string; payerUserId: string | null };
+    }
+  | {
+      /** A guardian invited their 13- to 17-year-old to an own login (#81). */
+      type: "guardian.teen_invited";
+      aggregate: { type: "guardian_invitation"; id: string };
+      payload: { invitationId: string };
+    }
+  | {
+      /**
+       * A refund was approved (#80): by finance, by its kind (a
+       * cancellation or a duplicate), or again on a retry. Its gateway
+       * refund goes out from here (refunds.send).
+       */
+      type: "refund.approved";
+      aggregate: { type: "refund"; id: string };
+      payload: { refundId: string };
+    }
+  | {
+      /**
+       * A refund's money is back with the payer (#80). `payerUserId` started
+       * the batch's payment and is told; null once their account is gone.
+       */
+      type: "refund.processed";
+      aggregate: { type: "refund"; id: string };
+      payload: { refundId: string; payerUserId: string | null };
+    }
+  | {
+      /** The gateway gave up on a refund (#80); finance is told to act. */
+      type: "refund.failed";
+      aggregate: { type: "refund"; id: string };
+      payload: { refundId: string };
+    }
+  | {
+      /** A teen with no guardian yet asked one to verify and accept (#81). */
+      type: "guardian.guardian_requested";
+      aggregate: { type: "guardian_invitation"; id: string };
+      payload: { requestId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -227,6 +289,22 @@ export const EVENT_PAYLOADS = {
     version: z.int().min(1),
   }),
   "competition.disciplines_changed": z.object({ competitionId: z.uuid() }),
+  "registration.institution_registered": z.object({
+    institutionRegistrationId: z.uuid(),
+  }),
+  "registration.confirmed": z.object({ registrationId: z.uuid() }),
+  "payment.batch_captured": z.object({
+    batchId: z.uuid(),
+    payerUserId: z.uuid().nullable(),
+  }),
+  "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
+  "refund.approved": z.object({ refundId: z.uuid() }),
+  "refund.processed": z.object({
+    refundId: z.uuid(),
+    payerUserId: z.uuid().nullable(),
+  }),
+  "refund.failed": z.object({ refundId: z.uuid() }),
+  "guardian.guardian_requested": z.object({ requestId: z.uuid() }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -272,6 +350,29 @@ export const SUBSCRIBERS = {
   // Each guard's retryOn events (modules/competitions/transition-guards.ts).
   "rubric.published": ["competitions.retry_blocked_moves"],
   "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
+  // The principal is a contact on the institution, not a user, so no
+  // route row can name them: the message goes by its own handler (#75).
+  "registration.institution_registered": ["registration.notify_principal"],
+  // The family contact isn't a user, so no route row can name them: the
+  // confirmation goes by its own handler (#77). An adult's own goes by
+  // route row (#78).
+  "registration.confirmed": [
+    "registration.send_confirmation",
+    "notifications.dispatch",
+  ],
+  // The payer's receipt goes by route row (#77).
+  "payment.batch_captured": ["notifications.dispatch"],
+  // The teen may have no account yet, so no route row can name them: the
+  // invitation goes to the invited address by its own handler (#81).
+  "guardian.teen_invited": ["guardians.send_teen_invitation"],
+  // The one funnel to the gateway (#80): approval, system refunds, retries.
+  "refund.approved": ["refunds.send"],
+  // The payer's notice and finance's alert go by route row (#80).
+  "refund.processed": ["notifications.dispatch"],
+  "refund.failed": ["notifications.dispatch"],
+  // The guardian a teen names may have no account yet: the request goes to
+  // the address the teen gave by its own handler (#81).
+  "guardian.guardian_requested": ["guardians.send_guardian_request"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

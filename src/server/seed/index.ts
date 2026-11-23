@@ -16,12 +16,18 @@ import { seedCms } from "./cms";
 import { seedConsent } from "./consent";
 import { seedContact } from "./contact";
 import { seedFiles } from "./files";
+import { seedGuardians } from "./guardians";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
 import { seedInstitutions } from "./institutions";
 import { seedNotifications } from "./notifications";
+import { seedRegistrations } from "./registration";
+import { seedPayments } from "./payments";
+import { seedRefunds } from "./refunds";
+import { seedParticipants } from "./participants";
 import { seedPosts } from "./posts";
+import { importRepoStories } from "./posts-import";
 import { seedSecondFactor } from "./second-factor";
 import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
@@ -47,10 +53,24 @@ const seeders: readonly Seeder[] = [
   seedInstitutions,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,
+  // After the institutions and competitions seeds: it needs both.
+  seedRegistrations,
+  // After the registration seed: its batches hold those students.
+  seedPayments,
+  // After the payments seed: a refund waiting for finance on its paid
+  // batch, and one refunded (#80).
+  seedRefunds,
+  // After the competitions, their terms and the accounts: adults who
+  // registered themselves for NEIGH27, one paid.
+  seedParticipants,
+  // After the participants seed: a guardian, their under-13 child and a
+  // teen whose own login is linked to them (#81).
+  seedGuardians,
   seedNotifications,
   seedContact,
   seedCms,
   seedPosts,
+  importRepoStories,
 ];
 
 export const { seedPreview, createSeedBuilders } = seedFunctions(seeders);

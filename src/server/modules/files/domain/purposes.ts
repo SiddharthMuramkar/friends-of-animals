@@ -10,7 +10,11 @@ type AppEnv = Env["APP_ENV"];
 
 const MiB = 1024 * 1024;
 
-export const FILE_PURPOSES = ["test_upload", "cms_image"] as const;
+export const FILE_PURPOSES = [
+  "test_upload",
+  "cms_image",
+  "offline_payment_proof",
+] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
 
@@ -56,6 +60,19 @@ export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
   cms_image: {
     contentTypes: ["image/png", "image/jpeg", "image/webp"],
     maxBytes: 20 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
+  /**
+   * A photo or scan of a cheque, a bank's transfer advice or a cash receipt
+   * that finance records an offline payment with (#79). A cheque image
+   * shows an account number and a signature: only finance and staff
+   * admins read it, and only `requestOfflinePaymentProofUpload` presigns
+   * one, after its own authorization.
+   */
+  offline_payment_proof: {
+    contentTypes: STORABLE_CONTENT_TYPES,
+    maxBytes: 10 * MiB,
     environments: "all",
     directUpload: false,
   },

@@ -68,6 +68,29 @@ describe("workerConfig", () => {
     });
   });
 
+  it("reads Razorpay's keys for refunds (#80), all three or none", () => {
+    const base = {
+      WORKER_MODE: "single",
+      APP_ENV: "production",
+      WORKER_DATABASE_URL: PROD_URL,
+    };
+    const keys = {
+      RAZORPAY_KEY_ID: "rzp_live_1DP5mmOlF5G5ag",
+      RAZORPAY_KEY_SECRET: "key-secret-for-the-test",
+      RAZORPAY_WEBHOOK_SECRET: "webhook-secret-for-the-test",
+    };
+
+    expect(workerConfig({ ...base, ...keys }).razorpay).toEqual({
+      keyId: keys.RAZORPAY_KEY_ID,
+      keySecret: keys.RAZORPAY_KEY_SECRET,
+      webhookSecret: keys.RAZORPAY_WEBHOOK_SECRET,
+    });
+    expect(workerConfig(base).razorpay).toBeUndefined();
+    expect(() =>
+      workerConfig({ ...base, RAZORPAY_KEY_ID: keys.RAZORPAY_KEY_ID })
+    ).toThrow(/RAZORPAY_KEY_SECRET/);
+  });
+
   it("names the worker after its environment", () => {
     const name = (APP_ENV: string) =>
       workerConfig({

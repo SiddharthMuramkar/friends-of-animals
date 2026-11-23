@@ -61,6 +61,9 @@ const AGE_GROUPS = [
   { label: "Group C", minAge: 13, maxAge: 17 },
 ];
 
+/** For a competition adults may enter on their own (#78). */
+const ADULT_AGE_GROUP = { label: "Adults", minAge: 18, maxAge: 99 };
+
 const COMMON = {
   welfareMessage:
     "Animals share our streets, parks and skies. Clean water, shade and a gentle hand keep them safe.",
@@ -108,6 +111,8 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
           "Draw, paint or photograph an animal that shares your street, and show one kind thing you do for it.",
         participation: "both",
         disciplines: ["drawing", "painting", "photography"],
+        // Open to adults on their own too (#78), so it has their group.
+        ageGroups: [...AGE_GROUPS, ADULT_AGE_GROUP],
         ageCutoffDate: "2027-01-01",
         publicDisplay: true,
         keyDates: {

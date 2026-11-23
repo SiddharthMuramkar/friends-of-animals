@@ -402,6 +402,17 @@ export async function CompetitionDetail({
                 <span className="font-semibold">{t("routes.fee")}</span>
                 <Fee fee={self.fee} line={termsFee("individual")} />
               </p>
+              {/* Through the chooser, which recommends the school route
+                  first (#78). */}
+              {c.status === "REGISTRATION_OPEN" && !c.sample ? (
+                <ButtonLink
+                  href={`${ROUTES.participate.path}?${new URLSearchParams({ competition: c.slug }).toString()}`}
+                  variant="secondary"
+                  className="mt-5"
+                >
+                  {t("routes.self.register")}
+                </ButtonLink>
+              ) : null}
             </article>
           ) : null}
         </div>

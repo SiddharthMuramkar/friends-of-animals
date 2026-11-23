@@ -2,8 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
-import { isStorySlug } from "@/content/stories";
 import {
+  individualRegisterSlug,
   isNonProductionPath,
   isSignedInPage,
   isSignedInPath,
@@ -14,10 +14,11 @@ import { ROUTES } from "@/lib/routes";
 import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
+import { checkPostSlug } from "@/server/modules/cms/domain/post-slug";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
-// one outside dependency, the published-competition check, so tests can
-// give it a stand-in for the database.
+// outside dependencies, the published-competition and public-post checks,
+// so tests can give it stand-ins for the database.
 
 // No route matches this path, so Next serves app/not-found.tsx with a 404.
 const MISSING = "/__not-found";
@@ -39,7 +40,7 @@ function decodedSlug(raw: string): string {
  */
 function withNonceCsp(request: NextRequest): NextResponse {
   const nonce = createNonce();
-  const policy = signedInCsp(cspContext(), nonce);
+  const policy = signedInCsp(cspContext(), nonce, request.nextUrl.pathname);
   const headers = new Headers(request.headers);
   // Next reads an enforced policy before a report-only one: drop any the
   // client sent, so only this request's nonce reaches the page.
@@ -75,12 +76,18 @@ export type RequestProxyDeps = {
    * a memo (src/app/competitions/_lib/public-reader.ts).
    */
   isPublishedCompetitionSlug: SlugLookup;
+  /**
+   * Whether a public post (#112) has this slug: the CMS, through a memo
+   * (src/app/blog/_lib/public-slugs.ts).
+   */
+  isPublicPostSlug: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
 
 export function createProxy({
   isPublishedCompetitionSlug,
+  isPublicPostSlug,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -93,6 +100,25 @@ export function createProxy({
     } catch (error) {
       console.error(
         "Proxy: could not check a competition slug against the database.",
+        error instanceof Error ? error.message : error
+      );
+      return true;
+    }
+  }
+
+  /**
+   * Whether /blog/<raw> is a public post: not a draft, archived or unknown.
+   * A slug no post could have is never asked about. If the database can't
+   * answer, the request goes through and the page answers for itself.
+   */
+  async function isPublicPost(raw: string): Promise<boolean> {
+    const slug = decodedSlug(raw);
+    if (!checkPostSlug(slug).ok) return false;
+    try {
+      return await isPublicPostSlug(slug);
+    } catch (error) {
+      console.error(
+        "Proxy: could not check a post slug against the database.",
         error instanceof Error ? error.message : error
       );
       return true;
@@ -116,15 +142,24 @@ export function createProxy({
       if (!hasSessionCookie(request.headers)) {
         return NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
       }
-      return isSignedInPage(pathname)
-        ? withNonceCsp(request)
-        : missingSignedInPage(request);
+      if (!isSignedInPage(pathname)) return missingSignedInPage(request);
+      // The individual register form names a public competition (#78):
+      // an unknown or draft one gets the 404 status here, before the
+      // page's notFound() could only stream a 200.
+      const competition = individualRegisterSlug(pathname);
+      if (
+        competition !== null &&
+        !(await isPublishedCompetition(competition))
+      ) {
+        return missingSignedInPage(request);
+      }
+      return withNonceCsp(request);
     }
 
     const [, section, raw = ""] = pathname.split("/");
     const known =
       section === "blog"
-        ? isStorySlug(decodedSlug(raw))
+        ? await isPublicPost(raw)
         : await isPublishedCompetition(raw);
     if (known) return NextResponse.next();
     return NextResponse.rewrite(new URL(MISSING, request.url));

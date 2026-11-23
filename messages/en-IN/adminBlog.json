@@ -80,7 +80,7 @@
       "topicsHint": "Words separated by commas, as in kites, street-dogs.",
       "featured": "Feature this post",
       "cover": "Cover image",
-      "coverHint": "An image you uploaded below, or a photo from the site's library. Without one, the post shows a tile pattern.",
+      "coverHint": "An image you uploaded below, or a photo from the site's library. Without one, the post shows its AI illustration if it has one, or else a tile pattern.",
       "coverNone": "No cover",
       "coverUploaded": "Uploaded: {alt}",
       "coverUploadedNoAlt": "Uploaded image without alt text",

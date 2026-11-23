@@ -54,6 +54,8 @@ import type { MalwareScanner } from "./ports/malware-scanner";
 import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { localScanner } from "./ports/malware-scanner-local";
 import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
+import type { PaymentGateway } from "./ports/payment-gateway";
+import { paymentGatewayFor } from "./ports/payment-gateway-select";
 import { serverErrorReporter } from "./observability/server-reporter";
 import type { HumanCheck } from "./ports/human-check";
 import {
@@ -96,6 +98,8 @@ export interface Deps extends DbWithClock {
   contactLimits: ContactRateLimits;
   /** The sign-in code limits per address or phone, and per IP. */
   codeRequestLimits: CodeRequestLimits;
+  /** Takes fee payments: orders, Checkout and webhooks (#77). */
+  payments: PaymentGateway;
 }
 
 export { DEVELOPMENT_AUTH_SECRET };
@@ -106,6 +110,11 @@ export type FilesConfig = {
   keyPrefix: string;
   /** Some purposes (test uploads) are refused in production. */
   appEnv: Env["APP_ENV"];
+  /**
+   * Where browsers load the public bucket's objects, ending in "/"; null
+   * while it has no domain, so the public site shows no uploaded image.
+   */
+  publicBaseUrl: string | null;
 };
 
 // Which SMS adapter an environment uses: shared with the VPS worker,
@@ -118,6 +127,7 @@ export type StorageEnv = {
   R2_ACCESS_KEY_ID?: string | undefined;
   R2_SECRET_ACCESS_KEY?: string | undefined;
   R2_BUCKET?: string | undefined;
+  PUBLIC_ASSET_BASE_URL?: string | undefined;
 };
 
 /** What a local run's disk store needs as well: the run and the app. */
@@ -187,6 +197,9 @@ export function filesConfigFor(
     bucket: storageBucketFor(env),
     keyPrefix: storagePrefixFor(env),
     appEnv: env.APP_ENV,
+    publicBaseUrl: env.PUBLIC_ASSET_BASE_URL
+      ? env.PUBLIC_ASSET_BASE_URL.replace(/\/*$/, "/")
+      : null,
   };
 }
 
@@ -311,6 +324,10 @@ export function productionDeps(): Deps {
       errors: serverErrorReporter,
       scanner: scannerFor(config),
       media: unconfiguredMedia,
+      // Razorpay where its keys are set (live in production, test
+      // elsewhere), the test checkout's fallback where none are, and a
+      // gateway that refuses every payment in production without live keys.
+      payments: paymentGatewayFor(config, { db, clock: systemClock }),
     };
   }
   return production;

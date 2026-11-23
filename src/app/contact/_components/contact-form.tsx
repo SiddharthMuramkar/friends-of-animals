@@ -10,12 +10,12 @@ import {
   useState,
 } from "react";
 
-import {
-  FormAlert,
-  inputStyles,
-  SubmitButton,
-  TextField,
-} from "@/components/form";
+// From their own files, not the kit's index, which also brings
+// SelectField: this page sits close to its JS budget (#55).
+import { FormAlert } from "@/components/form/form-alert";
+import { SubmitButton } from "@/components/form/submit-button";
+import { TextAreaField } from "@/components/form/text-area-field";
+import { TextField } from "@/components/form/text-field";
 import { buttonStyles } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
 import { solveProofOfWork } from "@/lib/proof-of-work";
@@ -273,12 +273,16 @@ function ContactFormRound({
             label={labels.subject.label}
             error={text.errors.subject}
           />
-          <MessageField
+          <TextAreaField
+            id="contact-message"
+            name="message"
+            required
             maxLength={limits.message}
+            rows={7}
+            defaultValue={view.entered.message}
             label={labels.message.label}
             hint={labels.message.hint}
             error={text.errors.message}
-            defaultValue={view.entered.message}
           />
 
           {/* The honeypot: out of sight and out of reach (inert), so only
@@ -312,54 +316,5 @@ function ContactFormRound({
         </>
       )}
     </form>
-  );
-}
-
-/** A labelled textarea, wired like TextField. */
-function MessageField({
-  maxLength,
-  label,
-  hint,
-  error,
-  defaultValue,
-}: {
-  maxLength: number;
-  label: string;
-  hint: string;
-  error: string | undefined;
-  defaultValue: string;
-}) {
-  const describedBy = ["contact-message-hint", error && "contact-message-error"]
-    .filter(Boolean)
-    .join(" ");
-  return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor="contact-message" className="font-semibold text-ink">
-        {label}
-      </label>
-      <p id="contact-message-hint" className="text-sm text-ink-muted">
-        {hint}
-      </p>
-      {error ? (
-        <p
-          id="contact-message-error"
-          className="flex items-start gap-2 font-semibold text-danger"
-        >
-          <OctagonAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-          <span>{error}</span>
-        </p>
-      ) : null}
-      <textarea
-        id="contact-message"
-        name="message"
-        required
-        maxLength={maxLength}
-        rows={7}
-        defaultValue={defaultValue}
-        aria-describedby={describedBy}
-        aria-invalid={error ? true : undefined}
-        className={inputStyles}
-      />
-    </div>
   );
 }

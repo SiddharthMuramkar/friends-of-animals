@@ -18,6 +18,8 @@ import adminInstitutions from "../../messages/en-IN/adminInstitutions.json";
 import adminSafeguarding from "../../messages/en-IN/adminSafeguarding.json";
 import adminRubrics from "../../messages/en-IN/adminRubrics.json";
 import adminCompetitionTerms from "../../messages/en-IN/adminCompetitionTerms.json";
+import adminPayments from "../../messages/en-IN/adminPayments.json";
+import adminRefunds from "../../messages/en-IN/adminRefunds.json";
 import art from "../../messages/en-IN/art.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
@@ -37,24 +39,30 @@ import donate from "../../messages/en-IN/donate.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
+import guardian from "../../messages/en-IN/guardian.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
 import inbox from "../../messages/en-IN/inbox.json";
 import institutions from "../../messages/en-IN/institutions.json";
 import judgingGuide from "../../messages/en-IN/judgingGuide.json";
+import institutionRegistration from "../../messages/en-IN/institutionRegistration.json";
 import legal from "../../messages/en-IN/legal.json";
 import nav from "../../messages/en-IN/nav.json";
 import notFound from "../../messages/en-IN/notFound.json";
 import notificationSettings from "../../messages/en-IN/notificationSettings.json";
+import participant from "../../messages/en-IN/participant.json";
+import payments from "../../messages/en-IN/payments.json";
 import pricing from "../../messages/en-IN/pricing.json";
 import refunds from "../../messages/en-IN/refunds.json";
 import safeguardingReport from "../../messages/en-IN/safeguardingReport.json";
+import registration from "../../messages/en-IN/registration.json";
 import sample from "../../messages/en-IN/sample.json";
 import schools from "../../messages/en-IN/schools.json";
 import security from "../../messages/en-IN/security.json";
 import showcase from "../../messages/en-IN/showcase.json";
 import stories from "../../messages/en-IN/stories.json";
 import styleguide from "../../messages/en-IN/styleguide.json";
+import studentImport from "../../messages/en-IN/studentImport.json";
 
 export const NAMESPACES = [
   "a11y",
@@ -73,6 +81,8 @@ export const NAMESPACES = [
   "adminBlog",
   "adminRubrics",
   "adminCompetitionTerms",
+  "adminPayments",
+  "adminRefunds",
   "art",
   "auth",
   "authPhone",
@@ -92,24 +102,30 @@ export const NAMESPACES = [
   "error",
   "files",
   "footer",
+  "guardian",
   "home",
   "impact",
   "inbox",
   "institutions",
   "judgingGuide",
+  "institutionRegistration",
   "legal",
   "nav",
   "notFound",
   "notificationSettings",
+  "participant",
+  "payments",
   "pricing",
   "refunds",
   "safeguardingReport",
+  "registration",
   "sample",
   "schools",
   "security",
   "showcase",
   "stories",
   "styleguide",
+  "studentImport",
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
@@ -132,6 +148,8 @@ export const messages = {
   ...adminBlog,
   ...adminRubrics,
   ...adminCompetitionTerms,
+  ...adminPayments,
+  ...adminRefunds,
   ...art,
   ...auth,
   ...authPhone,
@@ -151,24 +169,30 @@ export const messages = {
   ...error,
   ...files,
   ...footer,
+  ...guardian,
   ...home,
   ...impact,
   ...inbox,
   ...institutions,
   ...judgingGuide,
+  ...institutionRegistration,
   ...legal,
   ...nav,
   ...notFound,
   ...notificationSettings,
+  ...participant,
+  ...payments,
   ...pricing,
   ...refunds,
   ...safeguardingReport,
+  ...registration,
   ...sample,
   ...schools,
   ...security,
   ...showcase,
   ...stories,
   ...styleguide,
+  ...studentImport,
 };
 
 export type Messages = typeof messages;

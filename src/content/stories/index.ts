@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { SITE_ART_IDS } from "@/lib/art/ids";
+import { SITE_ART_IDS, type SiteArtId } from "@/lib/art/ids";
 import { SITE_IMAGE_IDS } from "@/lib/images/credits";
 
 import { type ArticleBody, articleBodySchema } from "./model";
@@ -142,6 +142,15 @@ export function isStorySlug(slug: string): slug is StorySlug {
 
 export function getStory(slug: StorySlug): Story {
   return bySlug.get(slug)!;
+}
+
+/**
+ * The AI illustrated cover drawn for a repo story with no licensed photo,
+ * or null. By slug, so a post copied into the CMS keeps it until it gets a
+ * cover photo there.
+ */
+export function storyCoverArt(slug: string): SiteArtId | null {
+  return isStorySlug(slug) ? (getStory(slug).coverArtId ?? null) : null;
 }
 
 /** Featured first, then newest; ties keep registry order. */

@@ -72,6 +72,13 @@ export type CspSources = {
   appEnvs?: readonly string[];
   /** Kinds of page that get them; both if omitted. */
   areas?: readonly CspArea[];
+  /**
+   * Signed-in pages that get them, written as in the app directory (each
+   * `[name]` stands for one path segment); every page if omitted. Public
+   * policies are built per deployment, not per page, so they never get a
+   * feature that names routes.
+   */
+  routes?: readonly string[];
   directives: Partial<Record<FeatureDirective, readonly string[]>>;
 };
 
@@ -85,11 +92,27 @@ export type CspContext = {
 const ORIGIN_SOURCE =
   /^(?:https|wss):\/\/[a-z0-9.-]+(?::\d+)?(?:\/[\w./-]*)?$/i;
 
-/** `policy` plus the sources of every feature that applies here. */
+/** Whether `pathname` is the page `route` names, segment by segment. */
+function isRoute(pathname: string, route: string): boolean {
+  const segments = pathname.split("/");
+  const parts = route.split("/");
+  return (
+    segments.length === parts.length &&
+    parts.every((part, at) =>
+      /^\[\w+\]$/.test(part) ? segments[at] !== "" : part === segments[at]
+    )
+  );
+}
+
+/**
+ * `policy` plus the sources of every feature that applies here: on page
+ * `pathname`, or on no page in particular when it is undefined.
+ */
 function withFeatures(
   policy: Policy,
   area: CspArea,
-  context: CspContext
+  context: CspContext,
+  pathname: string | undefined
 ): Policy {
   const result: Policy = { ...policy };
   for (const feature of context.sources ?? []) {
@@ -97,6 +120,13 @@ function withFeatures(
       continue;
     }
     if (feature.areas && !feature.areas.includes(area)) continue;
+    if (
+      feature.routes &&
+      (pathname === undefined ||
+        !feature.routes.some((route) => isRoute(pathname, route)))
+    ) {
+      continue;
+    }
     for (const [name, added] of Object.entries(feature.directives) as [
       FeatureDirective,
       readonly string[],
@@ -180,11 +210,14 @@ function serialize(policy: Policy): string {
 function header(
   area: CspArea,
   scripts: readonly string[],
-  context: CspContext
+  context: CspContext,
+  pathname?: string
 ): SecurityHeader {
   return {
     key: headerName(cspMode(context.appEnv)),
-    value: serialize(withFeatures(policyWith(scripts, context), area, context)),
+    value: serialize(
+      withFeatures(policyWith(scripts, context), area, context, pathname)
+    ),
   };
 }
 
@@ -255,10 +288,12 @@ const NONCE_PATTERN = /^[A-Za-z0-9+/_-]+={0,2}$/;
  * The policy for signed-in pages, which render per request: scripts need
  * this request's nonce, and 'strict-dynamic' trusts what they load.
  * ('self' is only a fallback for browsers without 'strict-dynamic'.)
+ * `pathname` is the page's path, for features scoped to some pages.
  */
 export function signedInCsp(
   context: CspContext,
-  nonce: string
+  nonce: string,
+  pathname?: string
 ): SecurityHeader {
   if (!NONCE_PATTERN.test(nonce)) {
     throw new RangeError("A CSP nonce must be non-empty base64");
@@ -266,7 +301,8 @@ export function signedInCsp(
   return header(
     "signedIn",
     ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", THEME_SCRIPT_HASH],
-    context
+    context,
+    pathname
   );
 }
 

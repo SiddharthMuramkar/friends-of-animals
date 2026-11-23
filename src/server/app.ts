@@ -31,6 +31,10 @@ import { publicFormUseCases } from "./modules/public-forms";
 import { safeguardingUseCases } from "./modules/safeguarding";
 import { judgingUseCases } from "./modules/judging";
 import { competitionTermsUseCases } from "./modules/competitions/terms";
+import { registrationUseCases } from "./modules/registration";
+import { paymentsUseCases } from "./modules/payments";
+import { participantsUseCases } from "./modules/participants";
+import { guardiansUseCases } from "./modules/guardians";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -50,7 +54,11 @@ const useCases = composeUseCases(
   contactUseCases,
   safeguardingUseCases,
   judgingUseCases,
-  competitionTermsUseCases
+  competitionTermsUseCases,
+  registrationUseCases,
+  paymentsUseCases,
+  participantsUseCases,
+  guardiansUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

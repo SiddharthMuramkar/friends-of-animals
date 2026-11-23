@@ -1,5 +1,6 @@
 import type { NextRequest, NextResponse } from "next/server";
 
+import { publicPostSlugLookup } from "@/app/blog/_lib/public-slugs";
 import { publishedSlugLookup } from "@/app/competitions/_lib/public-reader";
 import { createProxy } from "@/request-proxy";
 
@@ -7,6 +8,7 @@ import { createProxy } from "@/request-proxy";
 // database and tells Next which paths it runs on.
 const handle = createProxy({
   isPublishedCompetitionSlug: publishedSlugLookup,
+  isPublicPostSlug: publicPostSlugLookup,
 });
 
 export function proxy(request: NextRequest): Promise<NextResponse> {
@@ -29,5 +31,9 @@ export const config = {
     "/institution/:path*",
     "/institutions/register",
     "/institutions/register/:path*",
+    "/participant",
+    "/participant/:path*",
+    "/guardian",
+    "/guardian/:path*",
   ],
 };

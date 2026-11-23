@@ -267,6 +267,132 @@
       "when": 1795356119479,
       "tag": "0037_72_competition_terms",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1795357614195,
+      "tag": "0038_75_institution_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1795360077507,
+      "tag": "0039_75_enrol_students",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1795362925616,
+      "tag": "0040_77_registration_confirmed",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795363144559,
+      "tag": "0041_77_payments_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795363677380,
+      "tag": "0042_77_payment_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1795367109750,
+      "tag": "0043_78_registration_pending_payment",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795367133124,
+      "tag": "0044_78_individual_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795368527018,
+      "tag": "0045_78_individual_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795375891311,
+      "tag": "0046_81_guardians",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795378201297,
+      "tag": "0047_77_razorpay",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1795378998087,
+      "tag": "0048_79_review_enum_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1795379034026,
+      "tag": "0049_79_offline_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1795384621701,
+      "tag": "0050_80_refund_enum_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1795384622664,
+      "tag": "0051_80_refunds",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1795385101558,
+      "tag": "0052_80_refund_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1795387953699,
+      "tag": "0053_81_pre_enum_minor_reg",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1795387954589,
+      "tag": "0054_81_minor_reg",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1795387955433,
+      "tag": "0055_81_minor_messages",
+      "breakpoints": true
     }
   ]
 }

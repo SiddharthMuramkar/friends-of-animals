@@ -10,8 +10,10 @@
       "home": "Home",
       "competitions": "Competitions",
       "competition": "Competition",
+      "participate": "Take part",
       "schools": "Schools",
       "myInstitution": "My institution",
+      "myCompetitions": "My competitions",
       "awareness": "Awareness",
       "stories": "Stories",
       "story": "Story",
@@ -32,7 +34,8 @@
       "signUp": "Create an account",
       "signIn": "Sign in",
       "signUpPhone": "Create an account with your phone",
-      "signInPhone": "Sign in with your phone"
+      "signInPhone": "Sign in with your phone",
+      "myChildren": "My children"
     }
   }
 }

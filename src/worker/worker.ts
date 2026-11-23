@@ -24,6 +24,7 @@ import { emailSenderFor } from "../server/ports/email-sender-for";
 import type { ErrorReporter } from "../server/ports/errors";
 import type { MalwareScanner } from "../server/ports/malware-scanner";
 import { unconfiguredMedia, type MediaProcessor } from "../server/ports/media";
+import { paymentGatewayFor } from "../server/ports/payment-gateway-select";
 import { smsSenderFor } from "../server/ports/sms-sender-for";
 import type { ObjectStorage } from "../server/ports/storage";
 import type { WorkerConfig } from "./config";
@@ -128,6 +129,17 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     storage: io.storage,
     scanner: io.scanner,
     media,
+    // Refunds (#80), through the adapter the app picks for this
+    // environment and keys: the fallback lives in this database.
+    payments: paymentGatewayFor(
+      {
+        APP_ENV: config.appEnv,
+        RAZORPAY_KEY_ID: config.razorpay?.keyId,
+        RAZORPAY_KEY_SECRET: config.razorpay?.keySecret,
+        RAZORPAY_WEBHOOK_SECRET: config.razorpay?.webhookSecret,
+      },
+      { db, clock: io.clock }
+    ),
   });
 
   async function startSingle(

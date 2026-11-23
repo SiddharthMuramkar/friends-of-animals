@@ -4,11 +4,11 @@ import { getTranslations } from "next-intl/server";
 import { PendingDot } from "@/components/nav-link";
 import { SiteLink } from "@/components/site/site-link";
 import { Chip } from "@/components/site/chip";
-import type { Story } from "@/content/stories";
 import { slugHref } from "@/lib/routes";
+import type { PostCard } from "@/server/modules/cms/domain/post-view";
 import { cn } from "@/lib/utils";
 
-import { ArtCover, CardCover, CardCredit, TileCover } from "./card-cover";
+import { PostCover, PostCoverCredit } from "./post-image";
 import { H, type HeadingLevel } from "./heading";
 
 const AUDIENCE_TONE = {
@@ -17,14 +17,14 @@ const AUDIENCE_TONE = {
   everyone: "pink",
 } as const;
 
-/** A story teaser: cover, audience, title, dek and reading time. */
+/** A post teaser: cover, audience, title, excerpt and reading time. */
 export async function StoryCard({
   story,
   headingLevel = 3,
   sizes = "(min-width: 1024px) 380px, (min-width: 640px) 45vw, 92vw",
   className,
 }: {
-  story: Story;
+  story: PostCard;
   headingLevel?: HeadingLevel;
   sizes?: string;
   className?: string;
@@ -37,13 +37,7 @@ export async function StoryCard({
         className
       )}
     >
-      {story.coverImageId ? (
-        <CardCover id={story.coverImageId} sizes={sizes} />
-      ) : story.coverArtId ? (
-        <ArtCover id={story.coverArtId} sizes={sizes} />
-      ) : (
-        <TileCover seed={story.slug} />
-      )}
+      <PostCover image={story.cover} seed={story.slug} sizes={sizes} />
       <div className="flex flex-1 flex-col gap-3 p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Chip tone={AUDIENCE_TONE[story.audience]}>
@@ -66,10 +60,8 @@ export async function StoryCard({
             <PendingDot className="ms-2 inline-block align-middle" />
           </SiteLink>
         </H>
-        <p className="text-ink-muted">{story.dek}</p>
-        {story.coverImageId ? (
-          <CardCredit id={story.coverImageId} className="mt-auto pt-2" />
-        ) : null}
+        <p className="text-ink-muted">{story.excerpt}</p>
+        <PostCoverCredit image={story.cover} className="mt-auto pt-2" />
       </div>
     </article>
   );

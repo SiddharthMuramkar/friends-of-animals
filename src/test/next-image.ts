@@ -6,7 +6,36 @@ export default function Image() {
   return null;
 }
 
-/** For the art components' server-built <img>: its alt text, no file. */
-export function getImageProps({ alt }: { alt: string }) {
-  return { props: { alt } };
+/**
+ * getImageProps's stand-in (LcpPhoto): the props it passes through, with
+ * no srcset, since that needs the image's width.
+ */
+export function getImageProps({
+  src,
+  alt,
+  sizes,
+  loading,
+  fetchPriority,
+  className,
+  style,
+}: {
+  src: unknown;
+  alt: string;
+  sizes?: string;
+  loading?: "eager" | "lazy";
+  fetchPriority?: "high" | "low" | "auto";
+  className?: string;
+  style?: Record<string, string>;
+}) {
+  return {
+    props: {
+      alt,
+      loading,
+      fetchPriority,
+      className,
+      style,
+      sizes,
+      src: typeof src === "string" ? src : undefined,
+    },
+  };
 }
