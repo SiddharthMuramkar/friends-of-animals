@@ -3,10 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Actor } from "@/server/actor";
 import { createApp } from "@/server/app";
-import { auditLog, fileAsset } from "@/server/db/schema";
+import { auditLog, consentEvent, fileAsset } from "@/server/db/schema";
 import {
   formWorld,
   signInReviewer,
+  submitScan,
   uploadScan,
 } from "@/server/modules/consent-forms/testing";
 import { createHarness, type Harness } from "@/test/harness";
@@ -89,6 +90,52 @@ describe("getFileDownloadUrl", () => {
         entityId: fileId,
       },
     ]);
+  });
+
+  it("refuses a clean consent-form scan to the uploader without a staff role", async () => {
+    const w = await formWorld();
+    const { h, coordinator } = w;
+    const fileId = await uploadScan(w);
+    await setStatus(h, fileId, "clean");
+    const sign = vi.spyOn(h.storage, "presignGet");
+
+    await expect(
+      coordinator.getFileDownloadUrl({ fileId })
+    ).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    expect(sign).not.toHaveBeenCalled();
+    expect(await fileReads(h)).toEqual([]);
+  });
+
+  it("refuses delivery and acceptance when a clean consent-form scan has no stored object", async () => {
+    const w = await formWorld();
+    const { h } = w;
+    const { formId, fileId } = await submitScan(w);
+    const [file] = await h.db
+      .select({ bucket: fileAsset.bucket, key: fileAsset.storageKey })
+      .from(fileAsset)
+      .where(eq(fileAsset.id, fileId));
+    if (!file) throw new Error("Missing file");
+    await h.storage.delete(file);
+    await setStatus(h, fileId, "clean");
+    const reviewer = h.as((await signInReviewer(h)).actor);
+    const sign = vi.spyOn(h.storage, "presignGet");
+
+    expect(await reviewer.getFileDownloadUrl({ fileId })).toEqual({
+      ok: false,
+      error: "file_unavailable",
+    });
+    expect(
+      await reviewer.reviewConsentForm({ formId, decision: "accept" })
+    ).toEqual({ ok: false, error: "file_unavailable" });
+    expect(await reviewer.listConsentFormsForReview({})).toMatchObject({
+      ok: true,
+      forms: [{ id: formId, status: "pending_review" }],
+    });
+    expect(sign).not.toHaveBeenCalled();
+    expect(await fileReads(h)).toEqual([]);
+    expect(await h.db.select().from(consentEvent)).toEqual([]);
   });
 
   it("keeps clean consent-form scans unavailable in the production configuration", async () => {

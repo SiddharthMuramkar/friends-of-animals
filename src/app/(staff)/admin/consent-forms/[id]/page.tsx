@@ -104,6 +104,11 @@ async function FormDetails({ params }: { params: Params }) {
         <p className="mt-1 wrap-anywhere">
           {form.institutionName} · {form.competitionName}
         </p>
+        {form.studentRef ? (
+          <p className="mt-1 wrap-anywhere">
+            {t("studentRef", { number: form.studentRef })}
+          </p>
+        ) : null}
         <p className="mt-3">
           <Chip tone="neutral">{t(`status.${form.status}`)}</Chip>
         </p>

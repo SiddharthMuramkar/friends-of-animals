@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -7,6 +6,7 @@ import { orSecondFactor } from "@/app/auth/_lib/refusal";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
+import { SiteLink } from "@/components/site/site-link";
 import { APP_ROUTES, adminConsentFormPath } from "@/lib/app-routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -76,14 +76,14 @@ async function ReviewQueue({ searchParams }: { searchParams: SearchParams }) {
         <ul className="flex flex-wrap gap-x-5 gap-y-2">
           {FORM_STATUSES.map((choice) => (
             <li key={choice}>
-              <Link
+              <SiteLink
                 href={queuePath(choice)}
                 prefetch={false}
                 aria-current={status === choice ? "page" : undefined}
                 className="inline-flex min-h-11 items-center text-link underline underline-offset-4 aria-[current=page]:font-bold"
               >
                 {t(`status.${choice}`)}
-              </Link>
+              </SiteLink>
             </li>
           ))}
         </ul>
@@ -98,13 +98,13 @@ async function ReviewQueue({ searchParams }: { searchParams: SearchParams }) {
               className="rounded-3xl border-2 border-border bg-surface p-5 text-ink"
             >
               <h2 className="text-h3">
-                <Link
+                <SiteLink
                   href={adminConsentFormPath(form.id)}
                   prefetch={false}
                   className="text-link underline underline-offset-4"
                 >
                   {t("openForm", { student: form.studentName })}
-                </Link>
+                </SiteLink>
               </h2>
               <p className="mt-1 wrap-anywhere">
                 {form.institutionName} · {form.competitionName}

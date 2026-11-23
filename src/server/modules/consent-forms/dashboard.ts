@@ -85,7 +85,7 @@ export async function listSignedFormsForRegistration(
         school.status === "active" &&
         (status === "enrolled" || status === "confirmed") &&
         !isAdultAt(childDateOfBirth(ctx, student).date, createdAt);
-      return uploadEligible || form?.status === "pending_review"
+      return uploadEligible || form !== null
         ? [{ studentId, enrolmentId, uploadEligible, form }]
         : [];
     }),

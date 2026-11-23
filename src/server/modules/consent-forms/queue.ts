@@ -33,6 +33,7 @@ function reviewRows(db: AppDb) {
     .select({
       form: consentForm,
       fullName: participantProfile.fullName,
+      studentRef: participantProfile.studentRef,
       competitionName: competition.name,
       institutionName: institution.name,
       scanStatus: fileAsset.status,
@@ -131,6 +132,7 @@ export async function getConsentFormForReview(
     ok: true,
     form: {
       ...queueItem(row),
+      studentRef: row.studentRef,
       documents,
       download: delivery.ok
         ? { url: delivery.url, expiresAt: delivery.expiresAt }

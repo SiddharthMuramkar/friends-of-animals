@@ -12,6 +12,7 @@ import {
 } from "./support/a11y";
 import { test, type SeedAccount } from "./support/seed-account";
 import { signInByCode } from "./support/sign-in";
+import { countViewTransitions } from "./support/view-transitions";
 
 const QUEUE = "/admin/consent-forms";
 const PENDING_FORM = `${QUEUE}/01938a00-0000-7000-8083-000000000002`;
@@ -60,10 +61,15 @@ test("staff can read the signed-form queue and see an accessible rejection error
   request,
   seedAccount,
 }) => {
+  const transitions = await countViewTransitions(page);
   await signInAsReviewer(page, request, seedAccount);
   await expectRendersAccessibly(page, QUEUE);
   await expectAccessibleInDark(page, "signed forms queue");
+  const beforeReview = await transitions();
   const record = await openSignedForm(page, "Diya N.");
+  await expect
+    .poll(transitions, { message: "view transition when opening the review" })
+    .toBeGreaterThan(beforeReview);
   await expect(
     record.getByText("Pending review", { exact: true })
   ).toBeVisible();
@@ -86,8 +92,18 @@ test("staff can read accepted, rejected and empty review states", async ({
   request,
   seedAccount,
 }) => {
+  const transitions = await countViewTransitions(page);
   await signInAsReviewer(page, request, seedAccount);
-  await page.getByRole("link", { name: "Accepted", exact: true }).click();
+  const acceptedFilter = page.getByRole("link", {
+    name: "Accepted",
+    exact: true,
+  });
+  const beforeFilter = await transitions();
+  await acceptedFilter.click();
+  await expect(acceptedFilter).toHaveAttribute("aria-current", "page");
+  await expect
+    .poll(transitions, { message: "view transition when filtering the queue" })
+    .toBeGreaterThan(beforeFilter);
   const accepted = await openSignedForm(page, "Aarav K.");
   await expectRendersAccessibly(page, new URL(page.url()).pathname);
   await expect(accepted.getByText("Accepted", { exact: true })).toBeVisible();

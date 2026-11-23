@@ -10,6 +10,7 @@
     "loading": "Loading signed forms…",
     "back": "Back to signed consent forms",
     "openForm": "Review form for {student}",
+    "studentRef": "School roll number {number}",
     "submitted": "Submitted {date}",
     "reviewed": "Reviewed by {reviewer} on {date}",
     "openScan": "Open private scan (new tab)",

@@ -180,7 +180,63 @@ describe("signed-form queue and dashboard", () => {
     });
   });
 
-  it("lists pending forms in submission order", async () => {
+  it("shows the rejection reason and note after the enrolment is withdrawn", async () => {
+    const w = await formWorld();
+    const { h, school, target, coordinator } = w;
+    const { formId } = await submitScan(w);
+    const scope = {
+      institutionId: school.institutionId,
+      reference: school.reference,
+    };
+    const roster = await coordinator.listEnrolledStudents(scope);
+    if (!roster.ok || !roster.students[0]) throw new Error("Missing student");
+    const { registrationId: enrolmentId } = roster.students[0];
+    expect(
+      await coordinator.withdrawStudent({
+        ...scope,
+        registrationId: enrolmentId,
+      })
+    ).toEqual({ ok: true });
+
+    const reviewer = h.as((await signInReviewer(h)).actor);
+    const note = "The scan is missing the signature page.";
+    expect(
+      await reviewer.reviewConsentForm({
+        formId,
+        decision: "reject",
+        reason: "not_signed",
+        note,
+      })
+    ).toEqual({ ok: true, status: "rejected" });
+    await h.drain();
+    expect(await coordinator.listInbox()).toContainEqual(
+      expect.objectContaining({
+        title: "A signed consent form needs attention",
+      })
+    );
+    expect(
+      await coordinator.listSignedFormsForRegistration({
+        registrationId: target.registrationId,
+      })
+    ).toMatchObject({
+      ok: true,
+      students: [
+        {
+          studentId: target.studentId,
+          enrolmentId,
+          uploadEligible: false,
+          form: {
+            id: formId,
+            status: "rejected",
+            rejectionReason: "not_signed",
+            rejectionNote: note,
+          },
+        },
+      ],
+    });
+  });
+
+  it("lists pending forms in submission order and reserves roll numbers for detail", async () => {
     const w = await formWorld();
     const { h, school, coordinator, target } = w;
     const first = await submitScan(w);
@@ -188,7 +244,7 @@ describe("signed-form queue and dashboard", () => {
     const enrolment = await coordinator.enrolStudent({
       institutionId: school.institutionId,
       reference: school.reference,
-      student: { ...AANYA, fullName: "Synthetic Second Student" },
+      student: { ...AANYA, fullName: "Aanya Reddy", studentRef: "FORM-02" },
     });
     if (!enrolment.ok) throw new Error(`Enrolment refused: ${enrolment.error}`);
     const [student] = await h.db
@@ -200,9 +256,22 @@ describe("signed-form queue and dashboard", () => {
       target: { ...target, ...student! },
     });
     const reviewer = h.as((await signInReviewer(h)).actor);
-    expect(await reviewer.listConsentFormsForReview({})).toMatchObject({
+    const queue = await reviewer.listConsentFormsForReview({});
+    expect(queue).toMatchObject({
       ok: true,
-      forms: [{ id: first.formId }, { id: second.formId }],
+      forms: [
+        { id: first.formId, studentName: "Aanya R." },
+        { id: second.formId, studentName: "Aanya R." },
+      ],
+    });
+    if (!queue.ok) throw new Error("Missing review queue");
+    for (const form of queue.forms)
+      expect(form).not.toHaveProperty("studentRef");
+    expect(
+      await reviewer.getConsentFormForReview({ formId: second.formId })
+    ).toMatchObject({
+      ok: true,
+      form: { studentName: "Aanya R.", studentRef: "FORM-02" },
     });
   });
 
