@@ -15,7 +15,10 @@ import {
   type LineDraft,
   type LinesCheck,
 } from "./domain/posting";
-import type { LedgerSourceType } from "./domain/posting-rules";
+import {
+  isLedgerSourceType,
+  type LedgerSourceType,
+} from "./domain/posting-rules";
 
 type Source = { type: LedgerSourceType; id: string };
 type PostingDraft = {
@@ -35,6 +38,7 @@ export type PostedEntry = {
 
 type PostingErrorCode =
   | Extract<LinesCheck, { ok: false }>["error"]
+  | "invalid_source_type"
   | "invalid_description"
   | "invalid_memo"
   | "unknown_account"
@@ -68,6 +72,9 @@ export async function postToLedger(
   ctx: PostingActor,
   entry: PostingDraft
 ): Promise<PostedEntry> {
+  if (!isLedgerSourceType(entry.source.type)) {
+    throw new LedgerPostingError("invalid_source_type");
+  }
   const previous = await findSourcePosting(tx, entry.source);
   if (previous) return { outcome: "duplicate", ...previous };
 

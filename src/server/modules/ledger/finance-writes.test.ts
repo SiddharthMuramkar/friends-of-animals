@@ -12,6 +12,9 @@ import { capturedBatch } from "@/server/modules/payments/refunds/testing";
 import { signInStaff } from "@/server/modules/payments/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
+import type { LedgerSourceType } from "./domain/posting-rules";
+import { postToLedger } from "./index";
+
 const DATE = "2027-01-01";
 const LINES = [
   {
@@ -35,6 +38,33 @@ const audit = (h: Harness) =>
     .from(auditLog)
     .where(like(auditLog.action, "ledger.%"))
     .orderBy(auditLog.id);
+
+describe("the shared ledger writer", () => {
+  it("refuses an unregistered source type without writing journal or audit rows", async () => {
+    const h = await createHarness();
+    const { actor } = await signInStaff(h);
+    await expect(
+      h.db.transaction((tx) =>
+        postToLedger(
+          tx,
+          { actor, clock: h.clock, actorRole: "finance" },
+          {
+            source: {
+              type: "unregistered_source" as LedgerSourceType,
+              id: "unregistered-test-source",
+            },
+            occurredAt: h.clock.now(),
+            description: ENTRY.description,
+            lines: LINES,
+          }
+        )
+      )
+    ).rejects.toMatchObject({ code: "invalid_source_type" });
+    expect(await h.db.select().from(ledgerPosting)).toEqual([]);
+    expect(await h.db.select().from(ledgerLine)).toEqual([]);
+    expect(await audit(h)).toEqual([]);
+  });
+});
 
 describe("manual entries", () => {
   it("books a balanced entry on the chosen IST day and audits it without its free text", async () => {

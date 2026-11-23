@@ -56,7 +56,7 @@ async function capturedBatchWithRefunds(world: PgWorld) {
       updatedAt: now,
     }))
   );
-  return { batchId, refunds };
+  return { batchId, gatewayPaymentId, refunds };
 }
 
 it("serializes two partial refund deliveries and books each with one audit", async () => {
@@ -121,6 +121,88 @@ it("serializes two partial refund deliveries and books each with one audit", asy
         })
       );
     }
+  } finally {
+    await world.close();
+  }
+});
+
+it("books one missing capture when two refunds arrive before its delivery", async () => {
+  const world = createPgWorld();
+  try {
+    const { batchId, gatewayPaymentId, refunds } =
+      await capturedBatchWithRefunds(world);
+    const worker = world.as({ kind: "system", process: "worker" });
+
+    const blocker = await world.sql.reserve();
+    try {
+      await blocker`begin`;
+      // Let both deliveries read the journal, then release their inserts together.
+      await blocker`lock table ledger_posting in share mode`;
+      expect(
+        await blocker`select id from ledger_posting where source_id = ${gatewayPaymentId}`
+      ).toEqual([]);
+      const attempts = Promise.allSettled(
+        refunds.map(({ id }) => worker.postRefund({ refundId: id }))
+      );
+      await world.waitForLockWaiters(2);
+      await blocker`commit`;
+      expect(await attempts).toMatchObject([
+        { status: "fulfilled", value: { outcome: "posted" } },
+        { status: "fulfilled", value: { outcome: "posted" } },
+      ]);
+    } finally {
+      await blocker`rollback`.finally(() => blocker.release());
+    }
+
+    const sourceIds = [gatewayPaymentId, ...refunds.map(({ id }) => id)];
+    const readJournal = async () => {
+      const postings = await world.db
+        .select()
+        .from(ledgerPosting)
+        .where(inArray(ledgerPosting.sourceId, sourceIds))
+        .orderBy(ledgerPosting.seq);
+      const audits = await world.db
+        .select()
+        .from(auditLog)
+        .where(
+          and(
+            eq(auditLog.action, "ledger.posting_created"),
+            inArray(
+              auditLog.entityId,
+              postings.map(({ id }) => id)
+            )
+          )
+        )
+        .orderBy(auditLog.id);
+      return { postings, audits };
+    };
+    const journal = await readJournal();
+    expect(journal.postings).toHaveLength(3);
+    const [capture, ...reversals] = journal.postings;
+    expect(capture).toMatchObject({
+      sourceType: "payment_capture",
+      sourceId: gatewayPaymentId,
+    });
+    expect(reversals).toEqual(
+      expect.arrayContaining(
+        refunds.map(({ id }) =>
+          expect.objectContaining({
+            sourceType: "refund",
+            sourceId: id,
+            reversalOfPostingId: capture!.id,
+          })
+        )
+      )
+    );
+    expect(journal.audits.map(({ entityId }) => entityId).sort()).toEqual(
+      journal.postings.map(({ id }) => id).sort()
+    );
+
+    expect(await worker.postPaymentCapture({ batchId })).toMatchObject({
+      outcome: "duplicate",
+      postingId: capture!.id,
+    });
+    expect(await readJournal()).toEqual(journal);
   } finally {
     await world.close();
   }

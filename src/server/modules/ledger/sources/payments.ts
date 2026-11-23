@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, exists, isNotNull, isNull, or } from "drizzle-orm";
 
 import type { AppDb } from "../../../db/app-db";
 import {
@@ -26,6 +26,34 @@ export class UnsupportedCaptureCurrencyError extends Error {
     super("Ledger capture requires INR");
     this.name = "UnsupportedCaptureCurrencyError";
   }
+}
+
+export function eligibleCapture(db: AppDb) {
+  const openReview = db
+    .select({ id: paymentReviewCase.id })
+    .from(paymentReviewCase)
+    .where(
+      and(
+        eq(paymentReviewCase.batchId, paymentBatch.id),
+        eq(paymentReviewCase.batchStatusBefore, "captured"),
+        isNull(paymentReviewCase.resolvedAt)
+      )
+    );
+
+  // Before #80a, a duplicate could move a paid batch into needs_review
+  // while its original capture remained on the batch.
+  return or(
+    eq(paymentBatch.status, "captured"),
+    and(
+      eq(paymentBatch.status, "needs_review"),
+      isNotNull(paymentBatch.capturedAt),
+      or(
+        isNotNull(paymentBatch.gatewayPaymentId),
+        eq(paymentBatch.captureMethod, "offline")
+      ),
+      exists(openReview)
+    )
+  );
 }
 
 export async function readCapture(
@@ -61,9 +89,7 @@ export async function readCapture(
         eq(paymentReviewCase.outcome, "confirm")
       )
     )
-    .where(
-      and(eq(paymentBatch.id, batchId), eq(paymentBatch.status, "captured"))
-    );
+    .where(and(eq(paymentBatch.id, batchId), eligibleCapture(db)));
   if (!row) return undefined;
   if (row.currency !== "INR") throw new UnsupportedCaptureCurrencyError();
 

@@ -4,10 +4,11 @@
 // postToLedger.
 
 import { sql } from "drizzle-orm";
-import { beforeEach, describe, expect, it } from "vitest";
+import { drizzle } from "drizzle-orm/pglite";
+import { beforeEach, describe, expect, it, onTestFinished } from "vitest";
 
 import { sqlState } from "@/server/errors";
-import { createTestDb, type TestDb } from "@/test/db";
+import { createMigratedClient, createTestDb, type TestDb } from "@/test/db";
 
 import { SEEDED_ACCOUNTS } from "./domain/chart";
 
@@ -239,6 +240,41 @@ describe("postings and lines are append-only", () => {
     expect(refused.message).toMatch(/append-only/);
     expect(await count("ledger_posting")).toBe(1);
     expect(await count("ledger_line")).toBe(2);
+  });
+
+  it("revokes line mutations and posting deletes from runtime roles while preserving the refund lock", async () => {
+    const client = await createMigratedClient({
+      before: (empty) =>
+        empty.exec(`
+          CREATE ROLE ledger_runtime_test;
+          GRANT USAGE ON SCHEMA public TO ledger_runtime_test;
+          ALTER DEFAULT PRIVILEGES
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ledger_runtime_test;
+          ALTER DEFAULT PRIVILEGES
+            GRANT USAGE, SELECT ON SEQUENCES TO ledger_runtime_test;
+          ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+          ALTER DEFAULT PRIVILEGES GRANT EXECUTE ON FUNCTIONS TO ledger_runtime_test;
+        `),
+    });
+    onTestFinished(() => client.close());
+    await client.exec("SET ROLE ledger_runtime_test");
+    const runtime = drizzle({ client });
+    const id = nextPostingId();
+    await runtime.transaction((tx) => insertPosting(tx, id, BALANCED));
+    const locked = await client.query(
+      "SELECT id FROM ledger_posting FOR NO KEY UPDATE"
+    );
+    expect(locked.rows).toEqual([{ id }]);
+
+    for (const [table, statement] of [
+      ["ledger_line", "UPDATE ledger_line SET debit_minor = debit_minor"],
+      ["ledger_line", "DELETE FROM ledger_line"],
+      ["ledger_posting", "DELETE FROM ledger_posting"],
+    ]) {
+      await expect(client.query(statement)).rejects.toThrow(
+        `permission denied for table ${table}`
+      );
+    }
   });
 });
 

@@ -8,6 +8,7 @@ import {
   ledgerLine,
   ledgerPosting,
   outbox,
+  paymentBatch,
   refund,
 } from "@/server/db/schema";
 import {
@@ -53,6 +54,88 @@ async function ledgerRows(h: Harness) {
 }
 
 describe("automatic capture postings", () => {
+  it.each(["backfill", "outbox"] as const)(
+    "books only the retained capture in a legacy review batch through the %s",
+    async (delivery) => {
+      const h = await createHarness();
+      const paid = await capturedBatch(h, { students: 1 });
+      const capturedAt = h.clock.now();
+      h.clock.advance({ minutes: 1 });
+      const second = h.gateway.capture(paid.orderId);
+      expect(
+        await h.as(h.visitor()).receiveGatewayWebhook(
+          h.gateway.webhook({
+            type: "payment.captured",
+            orderId: paid.orderId,
+          })
+        )
+      ).toEqual({ ok: true, outcome: "needs_review" });
+      expect(await reviewCasesOf(h, paid.batchId)).toEqual([
+        expect.objectContaining({
+          batchStatusBefore: "captured",
+          gatewayPaymentId: second.paymentId,
+          resolvedAt: null,
+        }),
+      ]);
+      // Before #80a, opening this case changed the batch's status but kept
+      // the original receipt and its capture time.
+      await h.db
+        .update(paymentBatch)
+        .set({ status: "needs_review" })
+        .where(eq(paymentBatch.id, paid.batchId));
+      expect(await ledgerRows(h)).toEqual({
+        postings: [],
+        lines: [],
+        audits: [],
+      });
+
+      const system = h.as({ kind: "system", process: "cli" });
+      if (delivery === "backfill") {
+        expect(await system.backfillLedgerFromPayments()).toEqual({
+          capturesPosted: 1,
+          refundsPosted: 0,
+        });
+      } else {
+        await h.drain();
+      }
+      const posted = await ledgerRows(h);
+      expect(posted.postings).toEqual([
+        expect.objectContaining({
+          sourceType: "payment_capture",
+          sourceId: paid.paymentId,
+          occurredAt: capturedAt,
+        }),
+      ]);
+      const postingId = posted.postings[0]!.id;
+      expect(posted.lines).toEqual([
+        {
+          postingId,
+          code: "1100",
+          debit: 50_000n,
+          credit: 0n,
+          currency: "INR",
+        },
+        {
+          postingId,
+          code: "4100",
+          debit: 0n,
+          credit: 50_000n,
+          currency: "INR",
+        },
+      ]);
+      expect(posted.audits).toMatchObject([
+        { action: "ledger.posting_created", entityId: postingId },
+      ]);
+
+      expect(await system.backfillLedgerFromPayments()).toEqual({
+        capturesPosted: 0,
+        refundsPosted: 0,
+      });
+      await h.drain();
+      expect(await ledgerRows(h)).toEqual(posted);
+    }
+  );
+
   it.each(["outbox", "backfill"] as const)(
     "books the accepted receipt amount for a short payment through the %s",
     async (delivery) => {

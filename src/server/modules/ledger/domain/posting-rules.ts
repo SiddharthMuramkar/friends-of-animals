@@ -4,6 +4,8 @@
 // same lines. Later sources (donations #106-#108, auctions #133) add their
 // own rules and source types. Pure: no I/O.
 
+import { z } from "zod";
+
 import { SYSTEM_ACCOUNT_CODES as CODES } from "./chart";
 import { checkLines, type LineDraft, reverseLines } from "./posting";
 
@@ -25,10 +27,12 @@ export const LEDGER_SOURCE_TYPES = [
   "reversal",
 ] as const;
 
-export type LedgerSourceType = (typeof LEDGER_SOURCE_TYPES)[number];
+const ledgerSourceTypeSchema = z.enum(LEDGER_SOURCE_TYPES);
 
-export function isLedgerSourceType(value: string): value is LedgerSourceType {
-  return (LEDGER_SOURCE_TYPES as readonly string[]).includes(value);
+export type LedgerSourceType = z.infer<typeof ledgerSourceTypeSchema>;
+
+export function isLedgerSourceType(value: unknown): value is LedgerSourceType {
+  return ledgerSourceTypeSchema.safeParse(value).success;
 }
 
 /** How money reached FOA, or left it. Offline methods are #79's. */

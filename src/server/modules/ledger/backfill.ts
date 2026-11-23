@@ -11,7 +11,10 @@ import type { ScheduleDefinition } from "../../outbox/schedules";
 import type { ErrorReporter } from "../../ports/errors";
 
 import { ledgerWorker, postPaymentCapture, postRefund } from "./consumers";
-import { UnsupportedCaptureCurrencyError } from "./sources/payments";
+import {
+  eligibleCapture,
+  UnsupportedCaptureCurrencyError,
+} from "./sources/payments";
 
 const RECONCILE_JOB = "ledger.reconcile_payments";
 const PAGE_SIZE = 100;
@@ -60,7 +63,7 @@ export async function backfillLedgerFromPayments(
         .leftJoin(offlinePayment, eq(offlinePayment.batchId, paymentBatch.id))
         .where(
           and(
-            eq(paymentBatch.status, "captured"),
+            eligibleCapture(db),
             after === undefined ? undefined : gt(paymentBatch.id, after),
             notExists(
               db

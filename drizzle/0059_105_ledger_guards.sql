@@ -22,6 +22,31 @@ CREATE TRIGGER ledger_line_no_truncate
 BEFORE TRUNCATE ON ledger_line
 FOR EACH STATEMENT EXECUTE FUNCTION ledger_reject_mutation();
 --> statement-breakpoint
+-- Strip the default mutation grants. Posting UPDATE supports the refund row lock.
+DO $$
+DECLARE
+  table_grant record;
+BEGIN
+  FOR table_grant IN
+    SELECT DISTINCT c.relname, acl.grantee, acl.privilege_type
+    FROM pg_class AS c
+    CROSS JOIN LATERAL aclexplode(c.relacl) AS acl
+    WHERE c.oid IN ('public.ledger_posting'::regclass, 'public.ledger_line'::regclass)
+      AND acl.grantee <> c.relowner
+      AND (acl.privilege_type = 'DELETE'
+        OR (c.relname = 'ledger_line' AND acl.privilege_type = 'UPDATE'))
+  LOOP
+    EXECUTE format(
+      'REVOKE %s ON TABLE public.%I FROM %s',
+      table_grant.privilege_type,
+      table_grant.relname,
+      CASE WHEN table_grant.grantee = 0 THEN 'PUBLIC'
+        ELSE quote_ident(pg_get_userbyid(table_grant.grantee)) END
+    );
+  END LOOP;
+END;
+$$;
+--> statement-breakpoint
 CREATE FUNCTION ledger_check_balance() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
