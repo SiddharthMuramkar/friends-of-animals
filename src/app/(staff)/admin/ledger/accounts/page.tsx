@@ -58,6 +58,7 @@ export default async function Page() {
       saved: t("saved"),
       ...ledgerFeedbackLabels(t, [
         "forbidden",
+        "invalid_input",
         "kind_not_allowed",
         "invalid_code",
         "code_out_of_range",

@@ -106,7 +106,11 @@ export function CategoryForm({
         />
       </div>
       <div className="flex flex-wrap gap-3">
-        <SubmitButton pendingLabel={t.saving}>
+        <SubmitButton
+          pendingLabel={t.saving}
+          name={account ? "intent" : undefined}
+          value={account ? "save" : undefined}
+        >
           {account ? t.save : t.create}
         </SubmitButton>
         {account?.isActive ? (

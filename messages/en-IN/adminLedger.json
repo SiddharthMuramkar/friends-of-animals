@@ -86,6 +86,12 @@
       "reversal": "Manual reversal",
       "other": "Other posting"
     },
+    "postingDescriptions": {
+      "payment_capture": "Online registration fees",
+      "offline_payment": "Offline registration fees",
+      "refund": "Registration fee refund",
+      "reversal": "Reversal of posting {seq}"
+    },
     "errors": {
       "forbidden": "Only FOA finance staff can make this change.",
       "invalid_input": "Check that the form is complete and try again.",

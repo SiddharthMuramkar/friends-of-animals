@@ -1,6 +1,7 @@
 import { and, eq, like, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { messages } from "@/i18n/messages";
 import {
   auditLog,
   ledgerAccount,
@@ -52,6 +53,103 @@ async function ledgerRows(h: Harness) {
 }
 
 describe("automatic capture postings", () => {
+  it.each(["outbox", "backfill"] as const)(
+    "books the accepted receipt amount for a short payment through the %s",
+    async (delivery) => {
+      const h = await createHarness();
+      const { batchId, orderId } = await openOrder(
+        await schoolWithStudents(h, { students: 2 })
+      );
+      const { paymentId } = h.gateway.capture(orderId, {
+        amount: { amountMinor: 99_900n, currency: "INR" },
+      });
+      expect(
+        await h
+          .as(h.visitor())
+          .receiveGatewayWebhook(
+            h.gateway.webhook({ type: "payment.captured", orderId })
+          )
+      ).toEqual({ ok: true, outcome: "needs_review" });
+      const [opened] = await reviewCasesOf(h, batchId);
+      expect(opened).toMatchObject({
+        reason: "amount_mismatch",
+        gatewayPaymentId: paymentId,
+      });
+      const { actor } = await signInStaff(h);
+      expect(
+        await h.as(actor).resolvePaymentReviewCase({
+          caseId: opened!.id,
+          outcome: "confirm",
+          reason: "Accept the short payment after reviewing the receipt",
+        })
+      ).toEqual({ ok: true, batchStatus: "captured" });
+
+      if (delivery === "backfill") {
+        expect(
+          await h
+            .as({ kind: "system", process: "cli" })
+            .backfillLedgerFromPayments()
+        ).toEqual({ capturesPosted: 1, refundsPosted: 0 });
+      } else {
+        await h.drain();
+      }
+      const posted = await ledgerRows(h);
+      expect(posted.postings).toEqual([
+        expect.objectContaining({
+          sourceType: "payment_capture",
+          sourceId: paymentId,
+        }),
+      ]);
+      expect(posted.lines).toMatchObject([
+        { code: "1100", debit: 99_900n, credit: 0n, currency: "INR" },
+        { code: "4100", debit: 0n, credit: 99_900n, currency: "INR" },
+      ]);
+      expect(posted.audits).toMatchObject([
+        { action: "ledger.posting_created", after: { totalMinor: "99900" } },
+      ]);
+      await h.drain();
+      expect(await ledgerRows(h)).toEqual(posted);
+    }
+  );
+
+  it("refuses to book an accepted review receipt in another currency", async () => {
+    const h = await createHarness();
+    const { batchId, orderId } = await openOrder(
+      await schoolWithStudents(h, { students: 1 })
+    );
+    h.gateway.capture(orderId, {
+      // The gateway can report a currency outside the fake's order type.
+      amount: { amountMinor: 50_000n, currency: "USD" as "INR" },
+    });
+    expect(
+      await h
+        .as(h.visitor())
+        .receiveGatewayWebhook(
+          h.gateway.webhook({ type: "payment.captured", orderId })
+        )
+    ).toEqual({ ok: true, outcome: "needs_review" });
+    const [opened] = await reviewCasesOf(h, batchId);
+    const { actor } = await signInStaff(h);
+    expect(
+      await h.as(actor).resolvePaymentReviewCase({
+        caseId: opened!.id,
+        outcome: "confirm",
+        reason: "Accept the payment after reviewing the receipt",
+      })
+    ).toEqual({ ok: true, batchStatus: "captured" });
+
+    await expect(
+      h
+        .as({ kind: "system", process: "worker" })
+        .postPaymentCapture({ batchId })
+    ).rejects.toThrow("Ledger capture requires INR");
+    expect(await ledgerRows(h)).toEqual({
+      postings: [],
+      lines: [],
+      audits: [],
+    });
+  });
+
   it("posts a gateway capture once, in balanced INR paise, even if the event is emitted again", async () => {
     const h = await createHarness();
     const paid = await capturedBatch(h, { students: 2 });
@@ -71,6 +169,7 @@ describe("automatic capture postings", () => {
         competitionId: paid.school.competition.id,
         occurredAt: h.clock.now(),
         createdByUserId: null,
+        description: messages.adminLedger.postingDescriptions.payment_capture,
       }),
     ]);
     expect(
@@ -138,6 +237,7 @@ describe("automatic capture postings", () => {
           sourceType: "offline_payment",
           sourceId: (await offlinePaymentOf(h, batchId))!.id,
           occurredAt: new Date("2027-01-13T18:30:00Z"),
+          description: messages.adminLedger.postingDescriptions.offline_payment,
         }),
       ]);
       expect(
@@ -221,6 +321,7 @@ describe("automatic refund postings", () => {
         sourceType: "refund",
         sourceId: refundId,
         reversalOfPostingId: original.id,
+        description: messages.adminLedger.postingDescriptions.refund,
       }),
     ]);
     expect(

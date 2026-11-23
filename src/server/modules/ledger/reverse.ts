@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { authorize, type PolicyContext } from "../../access/can";
 import { ledgerPosting } from "../../db/schema";
 
+import { postingDescription } from "./descriptions";
 import { fromColumns, parsePostingSeq, reverseLines } from "./domain/posting";
 import { postToLedger } from "./post";
 import { postingLines } from "./rows";
@@ -31,7 +32,7 @@ export async function reversePosting(ctx: PolicyContext, seq: string | bigint) {
       {
         source: { type: "reversal", id: original.id },
         occurredAt: ctx.clock.now(),
-        description: `Reversal of posting ${number}`,
+        description: postingDescription("reversal", { seq: number.toString() }),
         lines: reverseLines(lines.map(fromColumns)),
         reversalOfPostingId: original.id,
         competitionId: original.competitionId ?? undefined,

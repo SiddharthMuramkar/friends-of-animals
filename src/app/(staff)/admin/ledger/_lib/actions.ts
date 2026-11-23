@@ -18,16 +18,12 @@ import {
 import { parseRupees } from "@/server/modules/ledger/domain/money";
 import {
   MAX_LINES,
+  parsePostingSeq,
   type LineDraft,
 } from "@/server/modules/ledger/domain/posting";
 
 import { adminCall } from "../../_lib/boundary";
-import type { LedgerFormState } from "./form-state";
-
-function text(data: FormData, name: string): string {
-  const value = data.get(name);
-  return typeof value === "string" ? value : "";
-}
+import type { LedgerErrorCode, LedgerFormState } from "./form-state";
 
 async function signedInLedger() {
   const actor = await currentActor();
@@ -107,42 +103,86 @@ export async function createEntryAction(
   redirect(adminLedgerPostingPath(result.value.seq), RedirectType.replace);
 }
 
+const reversalSequence = z
+  .string()
+  .refine((value) => parsePostingSeq(value) !== undefined);
+
 export async function reverseEntryAction(
   seq: string,
   _previous: LedgerFormState,
   _data: FormData
 ): Promise<LedgerFormState> {
   const ledger = await signedInLedger();
+  const sequence = reversalSequence.safeParse(seq);
+  if (!sequence.success) return { error: "invalid_input" };
   const result = await adminCall(
-    () => ledger.reversePosting(seq),
-    adminLedgerPostingPath(seq)
+    () => ledger.reversePosting(sequence.data),
+    adminLedgerPostingPath(sequence.data)
   );
   if (!result.ok) return { error: "forbidden" };
   if (!result.value.ok) return { error: result.value.error };
   redirect(adminLedgerPostingPath(result.value.seq), RedirectType.replace);
 }
 
-const groups = z.enum(PUBLIC_GROUPS);
-const kinds = z.enum(CATEGORY_KINDS);
+const categoryCode = z
+  .string()
+  .trim()
+  .regex(/^\d{4}$/);
+const categoryText = z
+  .string()
+  .trim()
+  .max(80)
+  .refine((value) => !value.includes("\u0000"));
+const categoryDetails = z.object({
+  publicGroup: singleTextField.pipe(z.enum(PUBLIC_GROUPS)),
+  name: singleTextField.pipe(categoryText.min(1)),
+  publicLabel: z
+    .array(categoryText)
+    .max(1)
+    .transform(([value]) => value || null),
+});
+const newCategory = categoryDetails.extend({
+  code: singleTextField.pipe(categoryCode),
+  kind: singleTextField.pipe(z.enum(CATEGORY_KINDS)),
+});
+const categoryIntent = singleTextField.pipe(z.enum(["save", "deactivate"]));
+
+function readCategoryDetails(data: FormData) {
+  return {
+    publicGroup: data.getAll("publicGroup"),
+    name: data.getAll("name"),
+    publicLabel: data.getAll("publicLabel"),
+  };
+}
+
+const categoryErrors: Partial<Record<PropertyKey, LedgerErrorCode>> = {
+  code: "invalid_code",
+  name: "invalid_name",
+  kind: "kind_not_allowed",
+  publicGroup: "invalid_public_group",
+  publicLabel: "invalid_public_label",
+};
+
+function categoryError(error: z.ZodError): LedgerErrorCode {
+  const field = error.issues[0]?.path[0];
+  return (
+    (field === undefined ? undefined : categoryErrors[field]) ?? "invalid_input"
+  );
+}
 
 export async function createCategoryAction(
   _previous: LedgerFormState,
   data: FormData
 ): Promise<LedgerFormState> {
   const ledger = await signedInLedger();
-  const kind = kinds.safeParse(text(data, "kind"));
-  const group = groups.safeParse(text(data, "publicGroup"));
-  if (!kind.success) return { error: "kind_not_allowed" };
-  if (!group.success) return { error: "invalid_public_group" };
+  const form = newCategory.safeParse({
+    code: data.getAll("code"),
+    kind: data.getAll("kind"),
+    ...readCategoryDetails(data),
+  });
+  if (!form.success) return { error: categoryError(form.error) };
   const result = await adminCall(
-    () =>
-      ledger.createLedgerAccount({
-        code: text(data, "code").trim(),
-        kind: kind.data,
-        name: text(data, "name"),
-        publicLabel: text(data, "publicLabel").trim() || null,
-        publicGroup: group.data,
-      }),
+    () => ledger.createLedgerAccount(form.data),
     ADMIN_LEDGER_ACCOUNTS
   );
   if (!result.ok) return { error: "forbidden" };
@@ -157,17 +197,19 @@ export async function editCategoryAction(
   data: FormData
 ): Promise<LedgerFormState> {
   const ledger = await signedInLedger();
+  const account = categoryCode.safeParse(code);
+  if (!account.success) return { error: "invalid_code" };
+  const intent = categoryIntent.safeParse(data.getAll("intent"));
+  if (!intent.success) return { error: "invalid_input" };
   const result = await adminCall(async () => {
-    if (data.get("intent") === "deactivate")
-      return ledger.deactivateLedgerAccount({ code });
-    const group = groups.safeParse(text(data, "publicGroup"));
-    if (!group.success)
-      return { ok: false, error: "invalid_public_group" } as const;
+    if (intent.data === "deactivate")
+      return ledger.deactivateLedgerAccount({ code: account.data });
+    const form = categoryDetails.safeParse(readCategoryDetails(data));
+    if (!form.success)
+      return { ok: false, error: categoryError(form.error) } as const;
     return ledger.updateLedgerAccount({
-      code,
-      name: text(data, "name"),
-      publicLabel: text(data, "publicLabel").trim() || null,
-      publicGroup: group.data,
+      code: account.data,
+      ...form.data,
     });
   }, ADMIN_LEDGER_ACCOUNTS);
   if (!result.ok) return { error: "forbidden" };

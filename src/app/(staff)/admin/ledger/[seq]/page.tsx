@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 
 import { SiteLink } from "@/components/site/site-link";
@@ -26,9 +26,10 @@ const link = "inline-flex min-h-11 items-center text-link underline";
 export default async function Page({
   params,
 }: PageProps<"/admin/ledger/[seq]">) {
-  const [actor, t] = await Promise.all([
+  const [actor, t, format] = await Promise.all([
     currentActor(),
     getTranslations("adminLedger"),
+    getFormatter(),
   ]);
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const { seq } = await params;
@@ -50,7 +51,10 @@ export default async function Page({
       back={t("back")}
     >
       <p className="text-ink-muted">
-        <time dateTime={day}>{day}</time> · {t(`sources.${source}`)}
+        <time dateTime={day}>
+          {format.dateTime(posting.occurredAt, "long")}
+        </time>{" "}
+        · {t(`sources.${source}`)}
       </p>
       <p className="text-lead wrap-anywhere">{posting.description}</p>
       {posting.reversalOfSeq ? (
@@ -118,6 +122,7 @@ export default async function Page({
             submit: t("detail.reverse"),
             feedback: ledgerFeedbackLabels(t, [
               "forbidden",
+              "invalid_input",
               "not_found",
               "not_reversible",
               "already_reversed",

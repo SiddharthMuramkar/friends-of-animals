@@ -4,6 +4,7 @@ import { authorize, type PolicyContext } from "../../access/can";
 import type { AppDb } from "../../db/app-db";
 import { ledgerLine, ledgerPosting } from "../../db/schema";
 
+import { postingDescription } from "./descriptions";
 import { fromColumns } from "./domain/posting";
 import { refundLines, registrationCaptureLines } from "./domain/posting-rules";
 import { findSourcePosting, postToLedger } from "./post";
@@ -33,10 +34,7 @@ function postCapture(tx: AppDb, ctx: PolicyContext, fact: CaptureFact) {
     source: fact.source,
     competitionId: fact.competitionId,
     occurredAt: fact.occurredAt,
-    description:
-      fact.source.type === "offline_payment"
-        ? "Offline registration fees"
-        : "Online registration fees",
+    description: postingDescription(fact.source.type),
     lines: registrationCaptureLines(fact),
   });
 }
@@ -98,7 +96,7 @@ export async function postRefund(
     return postToLedger(tx, ctx, {
       source,
       occurredAt: returned.occurredAt,
-      description: "Registration fee refund",
+      description: postingDescription("refund"),
       competitionId: fact.competitionId,
       reversalOfPostingId: capture.postingId,
       lines: reversal.lines,

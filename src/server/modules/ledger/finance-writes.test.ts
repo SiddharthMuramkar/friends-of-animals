@@ -1,6 +1,7 @@
 import { eq, like } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { messages } from "@/i18n/messages";
 import {
   auditLog,
   ledgerAccount,
@@ -233,6 +234,10 @@ describe("ledger categories and corrections", () => {
       sourceType: "reversal",
       sourceId: original!.id,
       reversalOfPostingId: original!.id,
+      description: messages.adminLedger.postingDescriptions.reversal.replace(
+        "{seq}",
+        "1"
+      ),
     });
     expect(
       await h.db

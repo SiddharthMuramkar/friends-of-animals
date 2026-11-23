@@ -125,4 +125,23 @@ describe("the ledger's finance views", () => {
       });
     }
   );
+
+  it("requires the staff second factor in the session that reads the ledger", async () => {
+    const h = await createHarness();
+    const user = await h.seed.member();
+    await h.seed.grant(user, { role: "finance", scope: { type: "global" } });
+    await h.seed.authenticator(user);
+    const actor = await h.signIn(user, undefined, { secondFactor: false });
+    const app = h.as(actor);
+
+    await expect(app.listPostings({})).rejects.toMatchObject({
+      code: "second_factor_required",
+    });
+    await expect(app.getPosting(1n)).rejects.toMatchObject({
+      code: "second_factor_required",
+    });
+    await expect(app.listLedgerAccounts()).rejects.toMatchObject({
+      code: "second_factor_required",
+    });
+  });
 });

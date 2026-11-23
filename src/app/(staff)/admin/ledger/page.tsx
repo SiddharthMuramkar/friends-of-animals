@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { FormAlert } from "@/components/form/form-alert";
@@ -144,7 +144,10 @@ async function PostingTable({
 }: {
   result: Extract<Awaited<ReturnType<typeof listPostings>>, { ok: true }>;
 }) {
-  const t = await getTranslations("adminLedger");
+  const [t, format] = await Promise.all([
+    getTranslations("adminLedger"),
+    getFormatter(),
+  ]);
   if (result.postings.length === 0)
     return <p className="text-ink-muted">{t("list.empty")}</p>;
   const tableHeaders = [
@@ -197,7 +200,9 @@ async function PostingTable({
                   </SiteLink>
                 </th>
                 <td className={`${cell} whitespace-nowrap`}>
-                  <time dateTime={day}>{day}</time>
+                  <time dateTime={day}>
+                    {format.dateTime(posting.occurredAt, "long")}
+                  </time>
                 </td>
                 <td className={`${cell} min-w-36 wrap-anywhere`}>
                   {posting.description}

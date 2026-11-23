@@ -1,7 +1,12 @@
 import { and, eq } from "drizzle-orm";
 
 import type { AppDb } from "../../../db/app-db";
-import { offlinePayment, paymentBatch, refund } from "../../../db/schema";
+import {
+  offlinePayment,
+  paymentBatch,
+  paymentReviewCase,
+  refund,
+} from "../../../db/schema";
 
 import { parseIstDate } from "../domain/period";
 import type { MoneyMethod } from "../domain/posting-rules";
@@ -32,9 +37,21 @@ export async function readCapture(
         receivedOn: offlinePayment.receivedOn,
         amountMinor: offlinePayment.amountMinor,
       },
+      acceptedReceipt: {
+        amountMinor: paymentReviewCase.amountMinor,
+        currency: paymentReviewCase.currency,
+      },
     })
     .from(paymentBatch)
     .leftJoin(offlinePayment, eq(offlinePayment.batchId, paymentBatch.id))
+    .leftJoin(
+      paymentReviewCase,
+      and(
+        eq(paymentReviewCase.batchId, paymentBatch.id),
+        eq(paymentReviewCase.gatewayPaymentId, paymentBatch.gatewayPaymentId),
+        eq(paymentReviewCase.outcome, "confirm")
+      )
+    )
     .where(
       and(eq(paymentBatch.id, batchId), eq(paymentBatch.status, "captured"))
     );
@@ -60,11 +77,14 @@ export async function readCapture(
   // Captures made before #79 have no capture method and used the gateway.
   if (!row.gatewayPaymentId || !row.capturedAt)
     throw new Error("Captured batch has no gateway capture");
+  // Payments keeps the order total when finance confirms a different receipt.
+  if (row.acceptedReceipt && row.acceptedReceipt.currency !== "INR")
+    throw new Error("Ledger capture requires INR");
   return {
     source: { type: "payment_capture", id: row.gatewayPaymentId },
     competitionId: row.competitionId,
     occurredAt: row.capturedAt,
-    amountMinor: row.amountMinor,
+    amountMinor: row.acceptedReceipt?.amountMinor ?? row.amountMinor,
     method: "gateway",
   };
 }
