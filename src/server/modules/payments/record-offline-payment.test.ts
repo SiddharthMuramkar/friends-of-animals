@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 
 import type { Actor } from "@/server/actor";
 import { auditLog, outbox, paymentBatch, user } from "@/server/db/schema";
+import {
+  consentCompetition,
+  guardianWithChild,
+} from "@/server/modules/consent/testing";
 import { REGISTRATION_NUMBER } from "@/server/modules/registration/domain/registration-number";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -345,6 +349,39 @@ describe("recordOfflinePayment refusals", () => {
       ok: false,
       error: "registration_not_payable",
     });
+  });
+
+  it("leaves the batch and audit unchanged when participation consent was withdrawn", async () => {
+    const h = await createHarness();
+    const competition = await consentCompetition(h);
+    const child = await guardianWithChild(h, competition);
+    const guardian = h.as(child.actor);
+    const consent = {
+      childId: child.childId,
+      competitionId: competition.id,
+      purpose: "participation",
+    } as const;
+    await guardian.giveChildConsent({
+      ...consent,
+      documentId: competition.guardianDocuments.participation!,
+    });
+    const payment = await guardian.payForMyRegistration({
+      registrationId: child.registrationId,
+    });
+    if (!payment.ok || payment.kind !== "checkout") throw new Error("No order");
+    await guardian.withdrawChildConsent(consent);
+    const finance = await signInStaff(h, "finance");
+    const proofFileId = await uploadProof(h, finance.actor, payment.batchId);
+    const before = await paymentRows(h);
+
+    expect(
+      await h.as(finance.actor).recordOfflinePayment({
+        ...cheque(payment.batchId, proofFileId),
+        amount: "250",
+      })
+    ).toEqual({ ok: false, error: "registration_not_payable" });
+    expect(await offlinePaymentOf(h, payment.batchId)).toBeNull();
+    expect(await paymentRows(h)).toEqual(before);
   });
 
   it("refuses a batch that doesn't exist", async () => {

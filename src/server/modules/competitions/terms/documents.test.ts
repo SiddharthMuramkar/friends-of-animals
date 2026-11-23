@@ -113,6 +113,17 @@ describe("attachConsentDocument", () => {
         pinned: null,
         latest: null,
       },
+      // The guardian consent documents (#82): a guardian gives each for a
+      // child, so none is required to register.
+      ...["participation", "public_display", "social_media", "auction"].map(
+        (purpose) => ({
+          purpose,
+          required: false,
+          state: "not_attached",
+          pinned: null,
+          latest: null,
+        })
+      ),
     ]);
   });
 

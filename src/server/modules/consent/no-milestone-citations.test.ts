@@ -15,6 +15,8 @@ const CONSENT_PATHS = [
   "src/app/account/consents",
   "src/app/(auth)/_components/messages-consent-field.tsx",
   "src/content/legal/messages-consent.ts",
+  "src/content/legal/guardian-consents.ts",
+  "src/app/guardian/children/[id]/consents",
   "tests/e2e/64-consent.spec.ts",
 ];
 

@@ -200,6 +200,13 @@ test("a staff admin publishes a new version of the messages consent", async ({
 
   await expectRendersAccessibly(page, "/admin/consent-documents");
   await expectAccessibleInDark(page, "/admin/consent-documents");
+  await expect(page).toHaveTitle(/Consent documents/i);
+  await expect(
+    page.getByRole("main").getByRole("heading", {
+      level: 2,
+      name: "A child's consent to take part",
+    })
+  ).toBeVisible();
   // The privacy policy and the terms are their policy pages' text: only
   // publishing the page in the CMS publishes them (#111).
   for (const name of ["Privacy policy", "Terms of use"]) {

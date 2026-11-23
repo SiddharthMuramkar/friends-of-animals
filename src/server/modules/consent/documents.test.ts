@@ -51,6 +51,47 @@ async function staffAdmin(h: Harness) {
 }
 
 describe("publishConsentDocument", () => {
+  it("publishes public display and refuses documents for its individual credit fields", async () => {
+    const h = await createHarness();
+    const { actor } = await staffAdmin(h);
+    const staff = h.as(actor);
+    const source = SOURCE_V1;
+    for (const purpose of ["display_school", "display_city"] as const) {
+      expect
+        .soft(
+          await staff.publishConsentDocument({
+            purpose,
+            title: "Field option",
+            source,
+          })
+        )
+        .toEqual({ ok: false, error: "invalid_input", fields: ["purpose"] });
+    }
+    expect(await rowCounts(h)).toEqual({ documents: 0, auditEntries: 0 });
+    expect(
+      await staff.publishConsentDocument({
+        purpose: "public_display",
+        title: "Public display",
+        source,
+      })
+    ).toMatchObject({ ok: true, version: 1 });
+  });
+
+  it.each(["display_school", "display_city"] as const)(
+    "does not preview or list %s as a document",
+    async (purpose) => {
+      const h = await createHarness();
+      const { actor } = await staffAdmin(h);
+      const staff = h.as(actor);
+      await expect
+        .soft(staff.previewConsentDocument({ purpose, source: SOURCE_V1 }))
+        .rejects.toMatchObject({ name: "ZodError" });
+      await expect(
+        staff.listConsentDocumentVersions({ purpose })
+      ).rejects.toMatchObject({ name: "ZodError" });
+    }
+  );
+
   it("publishes the next version and leaves the older one unchanged", async () => {
     const h = await createHarness();
     const { account, actor } = await staffAdmin(h);

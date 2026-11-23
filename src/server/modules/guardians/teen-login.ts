@@ -61,6 +61,7 @@ import {
   type TeenInviteRefusal,
 } from "./domain/children";
 import { guardianName } from "./guardian-record";
+import { recoverHeldProfile } from "./guardian-request";
 import { ownProfileOf } from "./own-profile";
 import {
   parseTeenEmail,
@@ -191,7 +192,10 @@ async function lockedChild(tx: AppDb, childId: string) {
     .select({
       id: participantProfile.id,
       dobCiphertext: participantProfile.dobCiphertext,
+      identityHash: participantProfile.identityHash,
+      ownerUserId: participantProfile.ownerUserId,
       loginUserId: participantProfile.loginUserId,
+      participantCode: participantProfile.participantCode,
     })
     .from(participantProfile)
     .where(
@@ -444,35 +448,42 @@ export async function acceptTeenInvitation(
       .from(user)
       .where(eq(user.id, userId))
       .for("no key update");
-    // The row lock makes one accept win; a second waits, then reads it
-    // accepted.
+    const forToken = and(
+      eq(guardianInvitation.tokenHash, tokenHash),
+      eq(guardianInvitation.kind, "teen_login")
+    );
+    const [target] = await tx
+      .select({ childId: guardianInvitation.participantProfileId })
+      .from(guardianInvitation)
+      .where(forToken);
+    // Inviting and withdrawing also lock the profile before the invitation.
+    const child = target ? await lockedChild(tx, target.childId) : null;
+    if (!child) return { ok: false, error: "not_found" };
     const [invitation] = await tx
       .select({
         id: guardianInvitation.id,
-        childId: guardianInvitation.participantProfileId,
+        guardianId: guardianInvitation.guardianId,
         contactHash: guardianInvitation.contactHash,
         status: guardianInvitation.status,
         expiresAt: guardianInvitation.expiresAt,
       })
       .from(guardianInvitation)
       .where(
-        and(
-          eq(guardianInvitation.tokenHash, tokenHash),
-          eq(guardianInvitation.kind, "teen_login")
-        )
+        and(forToken, eq(guardianInvitation.participantProfileId, child.id))
       )
       .for("update");
-    const child = invitation ? await lockedChild(tx, invitation.childId) : null;
-    if (!invitation || !child) return { ok: false, error: "not_found" };
+    if (!invitation) return { ok: false, error: "not_found" };
 
+    const accepter = await accepterFacts(tx, ctx, userId, child.id, now);
     const decision = decideTeenAcceptance({
       invitation,
       now,
+      allowHeldProfileRecovery: true,
       accepter: {
         isTheInvitedContact:
           (await verifiedContactHash(tx, ctx, userId)) ===
           invitation.contactHash,
-        ...(await accepterFacts(tx, ctx, userId, child.id, now)),
+        ...accepter,
       },
       child: {
         ageYears: ageAt(childDateOfBirth(ctx, child).date, now),
@@ -480,6 +491,20 @@ export async function acceptTeenInvitation(
       },
     });
     if (!decision.ok) return { ok: false, error: decision.reason };
+    if (
+      accepter.ownProfile === "minor" &&
+      (!invitation.guardianId ||
+        !(await recoverHeldProfile(
+          tx,
+          ctx,
+          userId,
+          child,
+          invitation.guardianId,
+          now
+        )))
+    ) {
+      return { ok: false, error: "accepter_has_own_profile" };
+    }
 
     await tx
       .update(participantProfile)

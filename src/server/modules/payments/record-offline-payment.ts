@@ -28,7 +28,7 @@ import type { UseCaseContext } from "../../use-cases";
 import { parseRupeesToPaise } from "../competitions/domain/fees";
 import type { UploadRefusal } from "../files/domain/purposes";
 import { presignUpload } from "../files/use-cases/upload";
-import { lockBatch } from "./batches";
+import { lockBatchAndParticipation } from "./batches";
 import { captureBatch, registrationsAtCapture } from "./capture";
 import {
   decideOfflineCapture,
@@ -71,6 +71,8 @@ const recordInput = z.object({
 
 const fileId = z.uuid();
 
+class RegistrationNotPayable extends Error {}
+
 export async function recordOfflinePayment(
   ctx: UseCaseContext,
   input: RecordOfflinePaymentInput
@@ -86,8 +88,8 @@ export async function recordOfflinePayment(
   const amount = parseRupeesToPaise(parsed.data.amount);
   const amountMinor = amount.ok ? amount.paise : 0n;
 
-  return ctx.db.transaction(async (tx): Promise<RecordOfflinePaymentResult> => {
-    const batch = await lockBatch(tx, batchId);
+  const result = ctx.db.transaction<RecordOfflinePaymentResult>(async (tx) => {
+    const batch = await lockBatchAndParticipation(tx, batchId);
     if (!batch) return { ok: false, error: "not_found" };
     const [proof] = fileId.safeParse(proofFileId).success
       ? await tx
@@ -139,14 +141,22 @@ export async function recordOfflinePayment(
       },
       actorRole: role,
     });
-    const { confirmed } = await captureBatch(
+    const capture = await captureBatch(
       tx,
       ctx,
       batch,
       { event: "offline_recorded", method: "offline", gatewayPaymentId: null },
       role
     );
-    return { ok: true, batchId, confirmed };
+    // Roll back the record and its audit entry when consent is missing.
+    if (!capture.ok) throw new RegistrationNotPayable();
+    return { ok: true, batchId, confirmed: capture.confirmed };
+  });
+  return result.catch((error: unknown): RecordOfflinePaymentResult => {
+    if (error instanceof RegistrationNotPayable) {
+      return { ok: false, error: "registration_not_payable" };
+    }
+    throw error;
   });
 }
 

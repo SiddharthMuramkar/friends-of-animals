@@ -52,6 +52,11 @@ const SAMPLE_FEES = [
 const ATTACHED: readonly AttachablePurpose[] = [
   "competition_terms",
   "privacy_notice",
+  // The guardian consent documents (#82), as drafts (HR-33).
+  "participation",
+  "public_display",
+  "social_media",
+  "auction",
 ];
 
 async function ensureCompetitionTermsV1(deps: SeedDeps): Promise<void> {

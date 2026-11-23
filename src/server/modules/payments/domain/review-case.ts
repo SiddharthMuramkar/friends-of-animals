@@ -33,6 +33,8 @@ export const PAYMENT_REVIEW_REASONS = [
    * once the other case is resolved. Never from `reviewReasonFor`: the
    * capture funnel picks it when that finds nothing wrong. */
   "paid_while_in_review",
+  /** A guardian must give consent on the attached participation version. */
+  "participation_consent_required",
 ] as const;
 
 export type PaymentReviewReason = (typeof PAYMENT_REVIEW_REASONS)[number];
@@ -125,6 +127,7 @@ const CONFIRMABLE: ReadonlySet<PaymentReviewReason> = new Set([
   "registration_closed",
   "batch_superseded",
   "paid_while_in_review",
+  "participation_consent_required",
 ]);
 
 /**
