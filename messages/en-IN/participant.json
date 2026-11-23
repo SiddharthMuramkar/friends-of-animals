@@ -74,6 +74,7 @@
         "guardianEmail": "Enter your parent or guardian's email address."
       },
       "refusal": {
+        "unavailable": "Individual registration for under-18s is coming soon.",
         "registration_closed": "Registration for this competition isn't open.",
         "institutions_only": "This competition takes entries through schools and other institutions only.",
         "fee_not_set": "Registration opens once FOA has set the fee. Please come back soon.",
@@ -144,6 +145,7 @@
       "held": "Waiting for your parent or guardian to confirm. We emailed them a link. Once they confirm and give consent to take part, they can pay the fee.",
       "heldForConsent": "This place is waiting for a parent or guardian's consent to take part.",
       "heldForConsentStatus": "Waiting for consent",
+      "unavailableStatus": "Participation unavailable",
       "giveConsent": "Manage consents for {name}",
       "guardianPays": "Your parent or guardian pays the fee for this place."
     },
@@ -164,6 +166,7 @@
       "back": "Back to my competitions",
       "manageConsents": "Manage consents",
       "error": {
+        "unavailable": "Confirming a place for an under-18 registration is currently unavailable.",
         "nothing_to_pay": "There is nothing to pay for this registration.",
         "fee_not_set": "FOA hasn't set the fee yet. Please come back soon.",
         "gateway_unavailable": "Online payment isn't available right now. Please try again later.",

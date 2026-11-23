@@ -24,7 +24,7 @@ import { DomainError } from "../../../errors";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import type { Discipline } from "../../competitions/domain/vocabulary";
-import { lackingParticipation } from "../../consent/participation-gate";
+import { participationRefusals } from "../../consent/participation-gate";
 import { moduleDerivativeUrl } from "../../files/use-cases/derivative-url";
 import { visibleProfiles } from "../../participants/list-my-registrations";
 import { parseEntryCode } from "../domain/entry-code";
@@ -163,7 +163,7 @@ export async function getEntry(
       window,
       now: ctx.clock.now(),
     }).ok &&
-    (await lackingParticipation(ctx.db, ctx, [row.registrationId])).size === 0;
+    (await participationRefusals(ctx.db, ctx, [row.registrationId])).size === 0;
 
   return {
     ok: true,

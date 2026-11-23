@@ -36,7 +36,7 @@ import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import { withUniqueCode } from "../../codes/codes";
 import {
-  lackingParticipation,
+  participationRefusals,
   lockParticipationPins,
 } from "../../consent/participation-gate";
 import {
@@ -194,7 +194,7 @@ async function record(
       : { ok: false, error: "file_not_found" };
   }
   if (
-    (await lackingParticipation(tx, ctx, [request.registrationId])).size > 0
+    (await participationRefusals(tx, ctx, [request.registrationId])).size > 0
   ) {
     return { ok: false, error: "participation_consent_required" };
   }

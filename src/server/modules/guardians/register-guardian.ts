@@ -32,6 +32,7 @@ import {
   guardianPhone,
   storedGuardianDetails,
 } from "./guardian-record";
+import { guardianFlowsActive } from "./availability";
 import { ownProfileOf } from "./own-profile";
 
 export type RegisterAsGuardianInput = {
@@ -48,6 +49,7 @@ export type RegisterAsGuardianResult =
   | {
       ok: false;
       error:
+        | "unavailable"
         | "adult_declaration_required"
         | "already_verified"
         | "linked_child"
@@ -113,6 +115,9 @@ export async function registerAsGuardian(
   input: RegisterAsGuardianInput
 ): Promise<RegisterAsGuardianResult> {
   const { role: actorRole } = await authorize(ctx, "guardian.register");
+  if (!guardianFlowsActive(ctx.appEnv)) {
+    return { ok: false, error: "unavailable" };
+  }
   const { userId } = signedInUser(ctx);
   const details = readDetails(input);
   if (!details.ok) return details;

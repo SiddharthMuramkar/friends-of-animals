@@ -52,7 +52,7 @@ export {
 // Not use cases either (#82): the registration use cases call them inside
 // their transactions, after authorizing their actor.
 export {
-  lackingParticipation,
+  participationRefusals,
   participationGiven,
   recordChildParticipation,
   releaseHeldRegistrations,

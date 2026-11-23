@@ -15,7 +15,8 @@
       "registration_closed": "After registration closed",
       "batch_superseded": "Replaced payment",
       "paid_while_in_review": "Paid again during review",
-      "participation_consent_required": "Participation consent required"
+      "participation_consent_required": "Participation check",
+      "participation_unavailable": "Minor participation paused"
     },
     "reasonBodies": {
       "already_paid": "These registrations were already paid for, so this money is a second payment.",
@@ -23,8 +24,9 @@
       "amount_mismatch": "The amount received isn't what this payment was for.",
       "registration_closed": "The money arrived after the competition stopped taking registrations.",
       "batch_superseded": "The payer started a newer payment for these registrations, then paid this older one.",
-      "paid_while_in_review": "This full payment arrived while an earlier payment for the same registrations was being checked. Resolve the other one first; then this one can be accepted.",
-      "participation_consent_required": "The guardian must give consent on the competition’s current participation document before this payment can be accepted."
+      "paid_while_in_review": "This full payment arrived while an earlier payment for the same registrations was being checked.",
+      "participation_consent_required": "Accepting this payment requires guardian consent on the competition’s current participation document.",
+      "participation_unavailable": "Individual participation for minors is paused. This payment cannot confirm the registration right now."
     },
     "outcomes": {
       "confirm": "Accept the money",
@@ -117,6 +119,7 @@
       "decisionTitle": "Decision",
       "decision": {
         "lead": "Accepting confirms the registrations as a payment would. Refunding marks the money to be paid back by the finance team; nothing is refunded from here. Keeping moves no money: say how it was settled.",
+        "unavailableLead": "Refund the payment or record how it was settled.",
         "noConfirm": "Accepting isn't possible here: the registrations are already paid for, or one of them was withdrawn.",
         "othersFirst": "Decide the other payments for these registrations before accepting this one.",
         "reason": {

@@ -17,11 +17,14 @@ import {
   competition,
   institution,
   paymentBatch,
+  paymentBatchItem,
   paymentReviewCase,
   user,
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
+import { participationRefusals } from "../consent/participation-gate";
+import { guardianFlowsActive } from "../guardians/availability";
 import type { PaymentBatchStatus } from "./domain/batch-status";
 import {
   allowedOutcomes,
@@ -150,6 +153,8 @@ export type PaymentReviewCaseView = PaymentReviewCaseItem & {
   batchStatus: PaymentBatchStatus;
   batchStatusBefore: BatchStatusBeforeReview;
   batchAmountMinor: bigint;
+  /** The current launch gate prevents this open case from confirming a minor. */
+  participationUnavailable: boolean;
   /** What staff may choose; empty once resolved. */
   allowedOutcomes: readonly PaymentReviewOutcome[];
   /** Other unresolved cases on the same batch. */
@@ -189,6 +194,7 @@ export async function getPaymentReviewCase(
   const [details] = await ctx.db
     .select({
       batchStatus: paymentBatch.status,
+      batchRoute: paymentBatch.route,
       batchAmountMinor: paymentBatch.amountMinor,
       batchStatusBefore: paymentReviewCase.batchStatusBefore,
       resolutionReason: paymentReviewCase.resolutionReason,
@@ -212,6 +218,29 @@ export async function getPaymentReviewCase(
       )
     );
   const item = itemOf(row);
+  const outcomes = allowedOutcomes({
+    reason: item.reason,
+    batchStatusBefore: details.batchStatusBefore,
+  });
+  let participationUnavailable = false;
+  if (
+    !item.resolution &&
+    details.batchRoute === "individual" &&
+    outcomes.includes("confirm") &&
+    !guardianFlowsActive(ctx.appEnv)
+  ) {
+    // Review can take back released items before confirming, so check them too.
+    const items = await ctx.db
+      .select({ registrationId: paymentBatchItem.registrationId })
+      .from(paymentBatchItem)
+      .where(eq(paymentBatchItem.batchId, item.batchId));
+    const refusals = await participationRefusals(
+      ctx.db,
+      ctx,
+      items.map(({ registrationId }) => registrationId)
+    );
+    participationUnavailable = [...refusals.values()].includes("unavailable");
+  }
   return {
     ok: true,
     reviewCase: {
@@ -219,12 +248,12 @@ export async function getPaymentReviewCase(
       batchStatus: details.batchStatus,
       batchStatusBefore: details.batchStatusBefore,
       batchAmountMinor: details.batchAmountMinor,
+      participationUnavailable,
       allowedOutcomes: item.resolution
         ? []
-        : allowedOutcomes({
-            reason: item.reason,
-            batchStatusBefore: details.batchStatusBefore,
-          }),
+        : participationUnavailable
+          ? outcomes.filter((outcome) => outcome !== "confirm")
+          : outcomes,
       otherOpenCases: others?.count ?? 0,
       resolutionReason: details.resolutionReason,
       resolvedByName: details.resolvedByName,

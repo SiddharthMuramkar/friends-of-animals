@@ -17,7 +17,7 @@ import { entryUploadGrant, user } from "../../../db/schema";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import {
-  lackingParticipation,
+  participationRefusals,
   lockParticipationPins,
 } from "../../consent/participation-gate";
 import { uploadKeyFor } from "../../files/domain/storage-key";
@@ -120,7 +120,7 @@ export async function startEntryUpload(
       return { ok: false, error: "registration_not_confirmed" };
     }
     await authorizeEntrySubmission({ ...ctx, db: tx }, registrationId);
-    if ((await lackingParticipation(tx, ctx, [registrationId])).size > 0) {
+    if ((await participationRefusals(tx, ctx, [registrationId])).size > 0) {
       return { ok: false, error: "participation_consent_required" };
     }
     const facts = await submissionFacts(tx, registrationId);

@@ -37,6 +37,7 @@ import { DomainError } from "../../errors";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import { pinnedDocuments } from "../competitions/terms/repository";
+import { guardianFlowsActive } from "../guardians/availability";
 import { childResource } from "../guardians/child-access";
 import { childDateOfBirth } from "../guardians/child-view";
 import { guardianOfUser } from "../guardians/guardian-record";
@@ -131,7 +132,11 @@ export type GiveChildConsentResult =
   | NotVerified
   | {
       ok: false;
-      error: GiveRefusal | "document_outdated" | "no_published_document";
+      error:
+        | GiveRefusal
+        | "document_outdated"
+        | "no_published_document"
+        | "unavailable";
     };
 
 export type WithdrawChildConsentResult =
@@ -288,6 +293,9 @@ export async function giveChildConsent(
     input?.childId
   );
   if (!allowed.ok) return allowed;
+  if (!guardianFlowsActive(ctx.appEnv)) {
+    return { ok: false, error: "unavailable" };
+  }
   const parsed = giveChildConsentInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { childId, purpose, documentId } = parsed.data;

@@ -9,6 +9,7 @@ export type TeenAcceptError = Extract<
 >["error"];
 
 const TEEN_ACCEPT_ERRORS: readonly TeenAcceptError[] = [
+  "unavailable",
   "not_found",
   "already_used",
   "withdrawn",

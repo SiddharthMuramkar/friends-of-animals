@@ -11,11 +11,13 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
+import { env } from "@/env";
 import { APP_ROUTES, guardianChildConsentsPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
 import type { ChildDetail } from "@/server/modules/guardians";
+import { guardianFlowsActive } from "@/server/modules/guardians/availability";
 import { parseIsoDate } from "@/server/modules/registration/domain/calendar-date";
 
 import { withdrawTeenInvitationAction } from "../../_lib/actions";
@@ -65,6 +67,7 @@ async function childFor(
 }
 
 const INVITE_PROBLEMS: readonly InviteProblem[] = [
+  "unavailable",
   "invalid_input",
   "under_13",
   "adult",
@@ -80,15 +83,18 @@ async function Child({
 }: Pick<Props, "params" | "searchParams">) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [{ id }, query, t, callout, format] = await Promise.all([
-    params,
-    searchParams,
-    getTranslations("guardian.child"),
-    getTranslations("common.callout"),
-    getFormatter(),
-  ]);
+  const [{ id }, query, t, registrationRefusal, callout, format] =
+    await Promise.all([
+      params,
+      searchParams,
+      getTranslations("guardian.child"),
+      getTranslations("participant.register.refusal"),
+      getTranslations("common.callout"),
+      getFormatter(),
+    ]);
   const child = await childFor(actor, id);
   if (!child) notFound();
+  const setupAvailable = guardianFlowsActive(env().APP_ENV);
   const name = child.fullName;
   const born = parseIsoDate(child.dateOfBirth);
   const done = isChildOutcome(query.done) ? query.done : undefined;
@@ -135,13 +141,15 @@ async function Child({
             {child.invitation?.status === "pending" ? (
               <>
                 <p className="text-ink wrap-anywhere">
-                  {t("pending.body", {
-                    address: child.invitation.sentTo,
-                    date: format.dateTime(
-                      child.invitation.expiresAt,
-                      "longDateTime"
-                    ),
-                  })}
+                  {setupAvailable
+                    ? t("pending.body", {
+                        address: child.invitation.sentTo,
+                        date: format.dateTime(
+                          child.invitation.expiresAt,
+                          "longDateTime"
+                        ),
+                      })
+                    : t("inviteErrors.unavailable")}
                 </p>
                 <form
                   action={withdrawTeenInvitationAction.bind(null, child.id)}
@@ -154,7 +162,7 @@ async function Child({
                   </SubmitButton>
                 </form>
               </>
-            ) : (
+            ) : setupAvailable ? (
               <>
                 <p className="text-ink">{t("invite.lead", { name })}</p>
                 {child.invitation?.status === "expired" ? (
@@ -179,6 +187,8 @@ async function Child({
                   }}
                 />
               </>
+            ) : (
+              <p className="text-ink-muted">{t("inviteErrors.unavailable")}</p>
             )}
           </section>
         )}
@@ -195,11 +205,17 @@ async function Child({
         {child.kind === "adult" ? null : (
           <section aria-labelledby="child-register" className={CARD}>
             <SectionHeading id="child-register" title={t("register.title")} />
-            <p className="text-ink">{t("register.body", { name })}</p>
+            <p className="text-ink">
+              {setupAvailable
+                ? t("register.body", { name })
+                : registrationRefusal("unavailable")}
+            </p>
             <div className="flex flex-wrap gap-3">
-              <ButtonLink href={ROUTES.competitions.path}>
-                {t("register.find")}
-              </ButtonLink>
+              {setupAvailable ? (
+                <ButtonLink href={ROUTES.competitions.path}>
+                  {t("register.find")}
+                </ButtonLink>
+              ) : null}
               <ButtonLink href={APP_ROUTES.participant} variant="secondary">
                 {t("register.mine")}
               </ButtonLink>

@@ -264,26 +264,36 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 30
-    # A local run: sample content, the capture mailbox and every provider on
-    # its fake or capture adapter. APP_ENV is fixed at build time too.
+    # Build and run the regular journeys in local mode with sample content,
+    # the capture mailbox and the fake or capture adapters.
     env:
       APP_ENV: local
       APP_URL: http://localhost:3000
       DATABASE_URL: postgres://foa:foa@127.0.0.1:5432/foa
       DIRECT_URL: postgres://foa:foa@127.0.0.1:5432/foa
+      PLAYWRIGHT_GUARDIAN_PAUSED_URL: http://127.0.0.1:3101
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
 
-      # A fresh token per run, so no repository secret is needed. The server
-      # and the tests read the same value.
-      - name: Generate the capture mailbox token
+      # Both loopback servers and the fixtures use the same test keys.
+      - name: Generate isolated test credentials
         run: |
-          token="$(openssl rand -hex 32)"
-          echo "::add-mask::$token"
-          echo "CAPTURE_MAILBOX_TOKEN=$token" >> "$GITHUB_ENV"
+          capture_token="$(openssl rand -hex 32)"
+          auth_secret="$(openssl rand -hex 32)"
+          field_keys="1:$(openssl rand -base64 32)"
+          hmac_key="$(openssl rand -base64 32)"
+          for value in "$capture_token" "$auth_secret" "$field_keys" "$hmac_key"; do
+            echo "::add-mask::$value"
+          done
+          {
+            printf 'CAPTURE_MAILBOX_TOKEN=%s\n' "$capture_token"
+            printf 'BETTER_AUTH_SECRET=%s\n' "$auth_secret"
+            printf 'FIELD_ENCRYPTION_KEYS=%s\n' "$field_keys"
+            printf 'FIELD_HMAC_KEY=%s\n' "$hmac_key"
+          } >> "$GITHUB_ENV"
 
       # Chromium is cached per Playwright version. It and its system packages
       # (fonts included, every run) install in the background while the app
@@ -321,18 +331,22 @@ jobs:
       - name: Migrate, seed and build
         run: pnpm db:migrate && pnpm db:seed && pnpm build && pnpm check:build
 
-      - name: Start the server
+      - name: Start the loopback test servers
         run: |
           nohup pnpm start > "$RUNNER_TEMP/next-start.log" 2>&1 &
+          # The staging runtime closes the guardian capability and keeps the
+          # capture mailbox and fallback payment adapter on the CI database.
+          APP_ENV=staging APP_URL="$PLAYWRIGHT_GUARDIAN_PAUSED_URL" \
+            nohup pnpm start --hostname 127.0.0.1 --port 3101 > "$RUNNER_TEMP/next-guardian-paused.log" 2>&1 &
           for _ in $(seq 1 60); do
-            if curl -fsS -o /dev/null http://localhost:3000/api/health; then
-              echo "Server is up."
+            if curl -fsS -o /dev/null http://localhost:3000/api/health &&
+              curl -fsS -o /dev/null "$PLAYWRIGHT_GUARDIAN_PAUSED_URL/api/health"; then
+              echo "Test servers are up."
               exit 0
             fi
             sleep 2
           done
-          echo "::error::next start did not answer on :3000 within 2 minutes."
-          cat "$RUNNER_TEMP/next-start.log"
+          echo "::error::The test servers did not both answer within 2 minutes."
           exit 1
 
       - name: Wait for Chromium
@@ -359,7 +373,7 @@ jobs:
 
       - name: Server log
         if: failure()
-        run: tail -n 200 "$RUNNER_TEMP/next-start.log" || true
+        run: tail -n 200 "$RUNNER_TEMP/next-start.log" "$RUNNER_TEMP/next-guardian-paused.log" || true
 
       # The report and traces only: never .vercel or env files.
       - name: Upload the report and traces

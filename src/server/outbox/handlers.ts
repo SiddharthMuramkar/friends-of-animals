@@ -11,6 +11,7 @@
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import type { Deps } from "../deps";
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
 import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
@@ -76,7 +77,7 @@ export type OutboxDeps = {
   media: MediaProcessor;
   /** Sends approved refunds and reads them back (#80). */
   payments: PaymentGateway;
-};
+} & Pick<Deps, "appEnv">;
 
 /** The event a handler listens to, from SUBSCRIBERS. */
 type EventFor<H extends HandlerName> = {
