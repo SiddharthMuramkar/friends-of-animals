@@ -1,0 +1,76 @@
+/* A living illustration: a strip of --frames frames cut from a short
+ * generated video, shown one frame at a time through a clipped window.
+ *
+ * The resting state is the last frame (the animal awake), so browsers
+ * without scroll-driven animations, and anyone who prefers reduced motion,
+ * see one still drawing. With motion allowed, scrolling steps through the
+ * frames like a flip book: the animal wakes as you scroll. It is tied to the
+ * scroll position, so it never plays on its own and never loops.
+ */
+.frame {
+  display: block;
+  /* clip, not hidden: a hidden box is a scroll container and would capture
+     the view() timeline. */
+  overflow: clip;
+}
+
+.strip {
+  display: block;
+  max-inline-size: none;
+  inline-size: calc(var(--frames) * 100%);
+  block-size: 100%;
+  translate: calc(-100% * (var(--frames) - 1) / var(--frames)) 0;
+  user-select: none;
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .strip {
+      animation: wake linear both;
+      animation-duration: 1ms;
+      animation-timing-function: steps(var(--frames), jump-none);
+    }
+
+    /* Wakes over the first 40% of a screen of page scroll (the home hero). */
+    .page .strip {
+      animation-timeline: scroll(root block);
+      animation-range: 0 40vh;
+    }
+
+    /* Wakes while rising from the bottom edge to a quarter of the way up.
+       It needs some page below it to finish: at the very end, use arrive. */
+    .view {
+      view-timeline: --living block;
+    }
+    .view .strip {
+      animation-timeline: --living;
+      animation-range: entry 0% cover 25%;
+    }
+
+    /* Wakes while rising in from the bottom edge and is done once it is
+       wholly on screen, at any screen height: it finishes even as the last
+       thing on the page (the footer). */
+    .arrive {
+      view-timeline: --living-arrive block;
+    }
+    .arrive .strip {
+      animation-timeline: --living-arrive;
+      animation-range: entry 0% entry 100%;
+    }
+
+    /* Wakes as it scrolls to the middle of the screen (mid-page passages). */
+    .middle {
+      view-timeline: --living-middle block;
+    }
+    .middle .strip {
+      animation-timeline: --living-middle;
+      animation-range: entry 50% cover 50%;
+    }
+  }
+}
+
+@keyframes wake {
+  from {
+    translate: 0 0;
+  }
+}

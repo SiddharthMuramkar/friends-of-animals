@@ -6,6 +6,11 @@
     },
     "easyLabel": "Easy read",
     "how": {
+      "chain": {
+        "create": "Watch, then draw",
+        "wall": "On the school wall",
+        "street": "A kinder street"
+      },
       "photos": {
         "title": "Who it’s all for",
         "roof": "A nap among the flowers",

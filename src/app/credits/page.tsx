@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import Image from "next/image";
 
 import { PageHeader, SectionHeading } from "@/components/site/heading";
+import { InPageLink } from "@/components/site/in-page-link";
 import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { siteImage } from "@/lib/images";
@@ -15,6 +16,8 @@ import {
 } from "@/lib/images/credits";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
+
+import { ART_CREDITS_ID, ArtCredits } from "./_components/art-credits";
 
 // next/image placeholder mode (a constant: the lint rule bars literals here).
 const BLUR = "blur";
@@ -129,6 +132,16 @@ export default async function Page() {
           lead={t("lead")}
         />
         <p className="mt-6 max-w-prose text-ink-muted">{t("adaptations")}</p>
+        {/* The drawings' section sits far down the page: link to it. */}
+        <p className="mt-3 max-w-prose text-ink-muted">
+          {t.rich("illustrationsNote", {
+            link: (chunks) => (
+              <InPageLink href={`#${ART_CREDITS_ID}`} className={LINK}>
+                {chunks}
+              </InPageLink>
+            ),
+          })}
+        </p>
       </Section>
 
       {GROUPS.map(({ key, hue }) => {
@@ -162,6 +175,8 @@ export default async function Page() {
           </Section>
         );
       })}
+
+      <ArtCredits />
 
       <Section
         hue="neutral"

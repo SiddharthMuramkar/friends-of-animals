@@ -8,6 +8,7 @@ import {
   SEASONAL_SOURCES,
   seasonalGuideFor,
   seasonalMonthFor,
+  seasonalMonthSchema,
 } from "./seasonal";
 
 describe("seasonalMonthFor (Asia/Kolkata)", () => {
@@ -32,6 +33,15 @@ describe("SEASONAL_MONTHS", () => {
     expect(SEASONAL_MONTHS.map((m) => m.month)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
     ]);
+  });
+
+  it("gives a month a photo or an illustration, never both", () => {
+    const drawn = SEASONAL_MONTHS.find((m) => m.artId);
+    const photo = SEASONAL_MONTHS.find((m) => m.imageId);
+    expect(drawn && photo).toBeTruthy();
+    expect(seasonalMonthSchema.safeParse(drawn).success).toBe(true);
+    const both = { ...drawn, imageId: photo!.imageId };
+    expect(seasonalMonthSchema.safeParse(both).success).toBe(false);
   });
 
   it("gives every month 2 to 4 actions and known sources", () => {

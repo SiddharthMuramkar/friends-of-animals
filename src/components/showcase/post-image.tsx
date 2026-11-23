@@ -1,10 +1,11 @@
 import Image from "next/image";
 
 import { Photo } from "@/components/site/photo";
+import { storyCoverArt } from "@/content/stories";
 import type { PostImage } from "@/server/modules/cms/domain/post-view";
 import { cn } from "@/lib/utils";
 
-import { CardCover, CardCredit, TileCover } from "./card-cover";
+import { ArtCover, CardCover, CardCredit, TileCover } from "./card-cover";
 
 // An uploaded image's public copy is already a resized WebP with its
 // metadata stripped (post_cover_1200, post_inline_960), so next/image
@@ -67,7 +68,10 @@ export function PostPhoto({
   );
 }
 
-/** A card's cover: the photo cropped to 4:3, or the tile pattern. */
+/**
+ * A card's cover: the photo cropped to 4:3; with no photo, the story's
+ * illustrated cover (an AI illustration) or the tile pattern.
+ */
 export function PostCover({
   image,
   seed,
@@ -75,12 +79,19 @@ export function PostCover({
   className,
 }: {
   image: PostImage | null;
-  /** The post's slug: picks the tile pattern when there is no photo. */
+  /** The post's slug: picks the illustrated cover or the tile pattern. */
   seed: string;
   sizes: string;
   className?: string;
 }) {
-  if (image === null) return <TileCover seed={seed} className={className} />;
+  if (image === null) {
+    const art = storyCoverArt(seed);
+    return art ? (
+      <ArtCover id={art} sizes={sizes} className={className} />
+    ) : (
+      <TileCover seed={seed} className={className} />
+    );
+  }
   if (image.source === "site") {
     return <CardCover id={image.id} sizes={sizes} className={className} />;
   }

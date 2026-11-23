@@ -1,0 +1,104 @@
+/* FOA's AI illustrations: small scroll and hover moments.
+ *
+ * Every rule here is progressive enhancement. The resting state is the
+ * finished drawing, so browsers without scroll-driven animations, and anyone
+ * who prefers reduced motion, see still art. Motion is opt-in, inside
+ * (prefers-reduced-motion: no-preference), and it never loops.
+ * Containers that hold these use overflow: clip, never hidden: an
+ * overflow: hidden box is a scroll container and would become view()'s
+ * timeline instead of the page.
+ */
+
+/* Pop in: a drawing grows a little and settles as it scrolls into view. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .pop {
+      animation: pop linear both;
+      animation-duration: 1ms;
+      animation-timeline: view();
+      animation-range: entry 10% entry 90%;
+    }
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    scale: 0.6;
+    rotate: -8deg;
+  }
+}
+
+/* Stickers scattered around a section: placed by the caller, rotated by
+   --tilt. On a device that can hover, a sticker wiggles when pointed at. */
+.sticker {
+  position: absolute;
+  rotate: var(--tilt, 0deg);
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sticker {
+    pointer-events: auto;
+  }
+  @media screen and (prefers-reduced-motion: no-preference) {
+    .sticker:hover {
+      animation: wiggle 600ms ease-in-out;
+    }
+  }
+}
+
+@keyframes wiggle {
+  25% {
+    rotate: calc(var(--tilt, 0deg) - 9deg);
+    scale: 1.08;
+  }
+  60% {
+    rotate: calc(var(--tilt, 0deg) + 6deg);
+  }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .sticker {
+      animation: pop linear both;
+      animation-duration: 1ms;
+      animation-timeline: view();
+      animation-range: entry 0% entry 100%;
+    }
+  }
+}
+
+/* Kolam divider: a rice-flour loop that draws itself as it scrolls into
+   view. Drawn by default. */
+.kolam {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .kolam {
+      animation: draw linear both;
+      animation-duration: 1ms;
+      animation-timeline: --kolam;
+      animation-range: entry 20% cover 55%;
+    }
+    .kolamFrame {
+      view-timeline: --kolam block;
+    }
+    .kolamDot {
+      animation: pop linear both;
+      animation-duration: 1ms;
+      animation-timeline: --kolam;
+      animation-range: entry 0% entry 80%;
+    }
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}

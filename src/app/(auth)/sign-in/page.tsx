@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { Illustration } from "@/components/art/illustration";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
@@ -16,5 +17,18 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function Page() {
-  return <AuthPage intent="sign-in" />;
+  return (
+    <AuthPage
+      intent="sign-in"
+      art={
+        // The crow who carries your code, beside the form from md.
+        <Illustration
+          id="crow-envelope"
+          sizes="80px"
+          decorative
+          className="w-20"
+        />
+      }
+    />
+  );
 }
