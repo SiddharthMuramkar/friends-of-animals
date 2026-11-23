@@ -11,10 +11,10 @@
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import type { Deps } from "../deps";
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
 import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
-import type { AppEnv } from "../../lib/site";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
@@ -42,7 +42,6 @@ import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
 export type OutboxDeps = {
-  appEnv: AppEnv;
   db: AppDb;
   clock: Clock;
   email: EmailSender;
@@ -65,7 +64,7 @@ export type OutboxDeps = {
   media: MediaProcessor;
   /** Sends approved refunds and reads them back (#80). */
   payments: PaymentGateway;
-};
+} & Pick<Deps, "appEnv">;
 
 /** The event a handler listens to, from SUBSCRIBERS. */
 type EventFor<H extends HandlerName> = {
