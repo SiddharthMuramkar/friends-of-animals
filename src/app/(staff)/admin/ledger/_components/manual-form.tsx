@@ -57,7 +57,13 @@ export function ManualEntryForm({
     emptyLine(0, "debit"),
     emptyLine(1, "credit"),
   ]);
+  const [submittedLineIds, setSubmittedLineIds] = useState<number[]>([]);
   const nextId = useRef(2);
+  const error = state.error ? t.feedback.errors[state.error] : undefined;
+  const amountErrorId =
+    state.amountLine === undefined
+      ? undefined
+      : submittedLineIds[state.amountLine];
 
   function updateLine(
     id: number,
@@ -77,7 +83,11 @@ export function ManualEntryForm({
   }
 
   return (
-    <form action={action} className="max-w-4xl space-y-5">
+    <form
+      action={action}
+      onSubmit={() => setSubmittedLineIds(lines.map(({ id }) => id))}
+      className="max-w-4xl space-y-5"
+    >
       <LedgerFormFeedback state={state} labels={t.feedback} />
       <TextField
         id="ledger-entry-date"
@@ -85,6 +95,11 @@ export function ManualEntryForm({
         label={t.date}
         type="date"
         value={date}
+        error={
+          state.error === "invalid_date" || state.error === "future_date"
+            ? error
+            : undefined
+        }
         onChange={(event) => setDate(event.target.value)}
         max={today}
         required
@@ -94,6 +109,7 @@ export function ManualEntryForm({
         name="description"
         label={t.description}
         value={description}
+        error={state.error === "invalid_description" ? error : undefined}
         onChange={(event) => setDescription(event.target.value)}
         rows={3}
         maxLength={500}
@@ -139,6 +155,7 @@ export function ManualEntryForm({
               inputMode="decimal"
               maxLength={32}
               value={line.amount}
+              error={!pending && line.id === amountErrorId ? error : undefined}
               onChange={(event) =>
                 updateLine(line.id, "amount", event.target.value)
               }

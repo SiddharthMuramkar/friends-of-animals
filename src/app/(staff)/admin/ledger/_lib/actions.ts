@@ -75,8 +75,11 @@ export async function createEntryAction(
   if (!form.success) return { error: "invalid_input" };
 
   const lines: LineDraft[] = [];
-  for (const { accountCode, side, amount, memo } of form.data.lines) {
-    if (amount.length > 32) return { error: "amount_too_large" };
+  for (const [
+    amountLine,
+    { accountCode, side, amount, memo },
+  ] of form.data.lines.entries()) {
+    if (amount.length > 32) return { error: "amount_too_large", amountLine };
     const parsed = parseRupees(amount);
     if (!parsed.ok) {
       const error = {
@@ -84,7 +87,7 @@ export async function createEntryAction(
         too_large: "amount_too_large",
         invalid_amount: "invalid_amount",
       } as const;
-      return { error: error[parsed.error] };
+      return { error: error[parsed.error], amountLine };
     }
     lines.push({ accountCode, side, amountMinor: parsed.amountMinor, memo });
   }

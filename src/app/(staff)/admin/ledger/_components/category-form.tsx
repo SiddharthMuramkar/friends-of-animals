@@ -50,6 +50,7 @@ export function CategoryForm({
     : createCategoryAction;
   const [state, action, pending] = useActionState(submit, initialFormState);
   const id = `category-${account?.code ?? "new"}`;
+  const error = state.error ? t.feedback.errors[state.error] : undefined;
   return (
     <form
       action={action}
@@ -65,6 +66,13 @@ export function CategoryForm({
               name="code"
               label={t.code}
               hint={t.codeHint}
+              error={
+                state.error === "invalid_code" ||
+                state.error === "code_out_of_range" ||
+                state.error === "code_taken"
+                  ? error
+                  : undefined
+              }
               inputMode="numeric"
               pattern="[0-9]{4}"
               maxLength={4}
@@ -76,6 +84,7 @@ export function CategoryForm({
               label={t.kind}
               options={t.kinds}
               placeholder={t.chooseKind}
+              error={state.error === "kind_not_allowed" ? error : undefined}
               required
             />
           </>
@@ -84,6 +93,7 @@ export function CategoryForm({
           id={`${id}-name`}
           name="name"
           label={t.name}
+          error={state.error === "invalid_name" ? error : undefined}
           defaultValue={account?.name}
           maxLength={80}
           required
@@ -92,6 +102,7 @@ export function CategoryForm({
           id={`${id}-label`}
           name="publicLabel"
           label={t.publicLabel}
+          error={state.error === "invalid_public_label" ? error : undefined}
           defaultValue={account?.publicLabel ?? ""}
           maxLength={80}
         />
@@ -101,6 +112,7 @@ export function CategoryForm({
           label={t.publicGroup}
           options={t.groups}
           placeholder={t.chooseGroup}
+          error={state.error === "invalid_public_group" ? error : undefined}
           defaultValue={account?.publicGroup ?? ""}
           required
         />

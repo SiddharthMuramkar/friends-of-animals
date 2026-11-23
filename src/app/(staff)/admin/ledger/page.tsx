@@ -14,6 +14,7 @@ import {
   adminLedgerPostingPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
 import { istDateOf } from "@/server/modules/ledger/domain/period";
 import { isLedgerSourceType } from "@/server/modules/ledger/domain/posting-rules";
@@ -29,7 +30,8 @@ export function generateMetadata() {
   return ledgerMetadata("list");
 }
 const cell = "px-4 py-3 align-top";
-const number = `${cell} text-right whitespace-nowrap tabular-nums`;
+const nowrapCell = cn(cell, "whitespace-nowrap");
+const number = cn(nowrapCell, "text-right tabular-nums");
 
 export default async function Page({
   searchParams,
@@ -173,7 +175,7 @@ async function PostingTable({
               <th
                 key={heading}
                 scope="col"
-                className={index >= 4 ? number : `${cell} whitespace-nowrap`}
+                className={index >= 4 ? number : nowrapCell}
               >
                 {heading}
               </th>
@@ -190,7 +192,7 @@ async function PostingTable({
               <tr key={posting.seq.toString()}>
                 <th
                   scope="row"
-                  className={`${cell} sticky start-0 bg-surface whitespace-nowrap`}
+                  className={cn(nowrapCell, "sticky start-0 bg-surface")}
                 >
                   <SiteLink
                     href={adminLedgerPostingPath(posting.seq)}
@@ -199,12 +201,12 @@ async function PostingTable({
                     {posting.seq.toString()}
                   </SiteLink>
                 </th>
-                <td className={`${cell} whitespace-nowrap`}>
+                <td className={nowrapCell}>
                   <time dateTime={day}>
                     {format.dateTime(posting.occurredAt, "long")}
                   </time>
                 </td>
-                <td className={`${cell} min-w-36 wrap-anywhere`}>
+                <td className={cn(cell, "min-w-36 wrap-anywhere")}>
                   {posting.description}
                 </td>
                 <td className={cell}>{t(`sources.${source}`)}</td>

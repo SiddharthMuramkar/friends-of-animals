@@ -145,7 +145,12 @@ test("category creation refuses duplicate field values", async ({
     button.form?.append(label);
   });
   await submit.click();
-  await expect(form.getByRole("alert")).toContainText(
+  const summary = form.getByRole("alert");
+  await expect(summary).toContainText(
+    "Use up to 80 characters for the public label."
+  );
+  await expect(summary).toBeFocused();
+  await expect(form.getByLabel("Public label")).toHaveAccessibleDescription(
     "Use up to 80 characters for the public label."
   );
   await expect(
@@ -220,17 +225,23 @@ for (const [scenario, amount, error] of [
     await signInStaff(page, request, email, secret, manualEntry);
 
     await page.getByRole("textbox", { name: "Description" }).fill("Test entry");
-    for (const [line, account] of [
-      [1, "5100"],
-      [2, "1000"],
-    ] as const) {
-      const row = page.getByRole("group", {
-        name: `Line ${line}`,
-        exact: true,
-      });
-      await row.getByLabel("Account").selectOption(account);
-      await row.getByLabel("Amount in rupees").fill(amount);
+    async function fillLines() {
+      for (const [line, account, side] of [
+        [1, "5100", "debit"],
+        [2, "1000", "credit"],
+      ] as const) {
+        const row = page.getByRole("group", {
+          name: `Line ${line}`,
+          exact: true,
+        });
+        await row.getByLabel("Account").selectOption(account);
+        await row.getByLabel("Side").selectOption(side);
+        await row
+          .getByLabel("Amount in rupees")
+          .fill(line === 1 ? "25.50" : amount);
+      }
     }
+    await fillLines();
     const submit = page.getByRole("button", { name: "Post entry" });
     if (scenario === "duplicate posting dates") {
       await submit.evaluate((button: HTMLButtonElement) => {
@@ -242,9 +253,20 @@ for (const [scenario, amount, error] of [
       });
     }
     await submit.click();
-    await expect(
-      page.getByRole("alert").filter({ hasText: "Check the entry" })
-    ).toContainText(error);
+    const summary = page
+      .getByRole("alert")
+      .filter({ hasText: "Check the entry" });
+    await expect(summary).toContainText(error);
+    await expect(summary).toBeFocused();
+    if (scenario === "malformed amount grouping") {
+      const amounts = page.getByLabel("Amount in rupees");
+      await expect(amounts.nth(1)).toHaveAccessibleDescription(error);
+      await expect(amounts.nth(1)).toHaveAttribute("aria-invalid", "true");
+      await expect(amounts.nth(0)).not.toHaveAttribute("aria-invalid", "true");
+      await fillLines();
+      await submit.click();
+      await expect(summary).toBeFocused();
+    }
     await expect(page).toHaveURL(new RegExp(`${manualEntry}$`));
   });
 }

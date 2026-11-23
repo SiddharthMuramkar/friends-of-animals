@@ -5,6 +5,7 @@ import { SiteLink } from "@/components/site/site-link";
 import { TableScroller } from "@/components/site/table-scroller";
 import { adminLedgerPostingPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
 import { istDateOf } from "@/server/modules/ledger/domain/period";
 import { isLedgerSourceType } from "@/server/modules/ledger/domain/posting-rules";
@@ -20,7 +21,7 @@ export function generateMetadata() {
   return ledgerMetadata("detail");
 }
 const cell = "px-4 py-3 align-top";
-const number = `${cell} text-right whitespace-nowrap tabular-nums`;
+const number = cn(cell, "text-right whitespace-nowrap tabular-nums");
 const link = "inline-flex min-h-11 items-center text-link underline";
 
 export default async function Page({
@@ -103,12 +104,12 @@ export default async function Page({
           <tbody className="divide-y divide-border">
             {posting.lines.map((line) => (
               <tr key={line.lineNo}>
-                <th scope="row" className={`${cell} min-w-32 wrap-anywhere`}>
+                <th scope="row" className={cn(cell, "min-w-32 wrap-anywhere")}>
                   {line.accountCode} {line.accountName}
                 </th>
                 <td className={number}>{formatPaise(line.debitMinor)}</td>
                 <td className={number}>{formatPaise(line.creditMinor)}</td>
-                <td className={`${cell} wrap-anywhere`}>{line.memo}</td>
+                <td className={cn(cell, "wrap-anywhere")}>{line.memo}</td>
               </tr>
             ))}
           </tbody>
