@@ -184,6 +184,8 @@ describe("a guardian's consent record", () => {
         documentId: w.competition.guardianDocuments.public_display,
         action: "given",
         method: "web_form",
+        consentFormId: null,
+        reviewerUserId: null,
         occurredAt: at,
       },
     ]);

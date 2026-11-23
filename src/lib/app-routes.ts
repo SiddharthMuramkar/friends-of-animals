@@ -22,6 +22,7 @@ export const APP_ROUTES = {
   adminSettings: "/admin/settings",
   accountConsents: "/account/consents",
   adminConsentDocuments: "/admin/consent-documents",
+  adminConsentForms: "/admin/consent-forms",
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
@@ -94,6 +95,11 @@ export function adminBatchRefundPath(batchId: string): string {
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
+}
+
+/** One signed form in the staff review queue. */
+export function adminConsentFormPath(formId: string): string {
+  return `${APP_ROUTES.adminConsentForms}/${encodeURIComponent(formId)}`;
 }
 
 /** One post's editor in the admin area (#112). */
@@ -234,6 +240,7 @@ export function studentImportFilePath(
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  "/admin/consent-forms/[id]",
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
   "/admin/competitions/[id]/terms",

@@ -245,6 +245,45 @@ describe("the data inventory", () => {
     expect(listed.size).toBe(DATA_INVENTORY.length);
   });
 
+  it("covers signed-form scope, evidence, and the identities who submitted and reviewed it", () => {
+    const formPeriod =
+      "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure (HR-31)";
+    const consentPeriod = "While the consent applies, then 3 years (HR-31)";
+    const expected = [
+      ["consent_form", "file_asset_id", formPeriod],
+      ["consent_form", "participant_profile_id", formPeriod],
+      ["consent_form", "competition_id", formPeriod],
+      ["consent_form", "institution_registration_id", formPeriod],
+      ["consent_form", "uses", formPeriod],
+      ["consent_form", "documents", formPeriod],
+      ["consent_form", "uploaded_by_user_id", formPeriod],
+      ["consent_form", "reviewed_by_user_id", formPeriod],
+      ["consent_form", "rejection_note", formPeriod],
+      ["consent_form_upload", "file_asset_id", formPeriod],
+      ["consent_form_upload", "registration_id", formPeriod],
+      ["consent_event", "consent_form_id", consentPeriod],
+      ["consent_event", "reviewer_user_id", consentPeriod],
+      [
+        "institution_registration",
+        "participation_declared_by_user_id",
+        "While the institution takes part, then 3 years after the competition ends (HR-31)",
+      ],
+    ];
+    for (const [table, column, period] of expected) {
+      expect
+        .soft(
+          DATA_INVENTORY.find(
+            (entry) => entry.table === table && entry.column === column
+          ),
+          `${table}.${column}`
+        )
+        .toMatchObject({
+          purpose: expect.any(String),
+          retention: { period, toConfirm: true },
+        });
+    }
+  });
+
   it("gives each entry a purpose and a retention marked to confirm", () => {
     for (const entry of DATA_INVENTORY) {
       expect(entry.purpose.length).toBeGreaterThan(10);

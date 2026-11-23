@@ -21,6 +21,7 @@ import adminCompetitionTerms from "../../messages/en-IN/adminCompetitionTerms.js
 import adminPayments from "../../messages/en-IN/adminPayments.json";
 import adminRefunds from "../../messages/en-IN/adminRefunds.json";
 import adminLedger from "../../messages/en-IN/adminLedger.json";
+import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import art from "../../messages/en-IN/art.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
@@ -87,6 +88,7 @@ export const NAMESPACES = [
   "adminRubrics",
   "adminCompetitionTerms",
   "adminPayments",
+  "adminConsentForms",
   "adminRefunds",
   "adminLedger",
   "art",
@@ -161,6 +163,7 @@ export const messages = {
   ...adminPayments,
   ...adminRefunds,
   ...adminLedger,
+  ...adminConsentForms,
   ...art,
   ...auth,
   ...authPhone,

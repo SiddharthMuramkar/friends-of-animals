@@ -16,6 +16,7 @@ export * from "./consent-links";
 export * from "./second-factor";
 export * from "./cms";
 export * from "./files";
+export * from "./consent-forms";
 export * from "./media";
 export * from "./offsite-copy";
 export * from "./worker";

@@ -35,6 +35,11 @@ type InstitutionDecided<T extends `institution.${string}`> = {
 
 export type DomainEvent =
   | {
+      type: "consent.form_reviewed";
+      aggregate: { type: "consent_form"; id: string };
+      payload: { formId: string; uploaderUserId: string };
+    }
+  | {
       type: "consent.link_sent";
       aggregate: { type: "consent_link"; id: string };
       payload: { linkId: string };
@@ -257,6 +262,10 @@ const INSTITUTION_DECIDED = z.object({
  * can't carry personal data into the table.
  */
 export const EVENT_PAYLOADS = {
+  "consent.form_reviewed": z.object({
+    formId: z.uuid(),
+    uploaderUserId: z.uuid(),
+  }),
   "consent.link_sent": z.object({ linkId: z.uuid() }),
   "identity.user_signed_up": z.object({ userId: z.uuid() }),
   "files.file_uploaded": z.object({ fileId: z.uuid() }),
@@ -327,6 +336,7 @@ export const EVENT_PAYLOADS = {
  * none.
  */
 export const SUBSCRIBERS = {
+  "consent.form_reviewed": ["notifications.dispatch"],
   "identity.user_signed_up": ["notifications.dispatch"],
   "files.file_uploaded": ["files.scan_file"],
   // The modules that act on a withdrawal (gallery, social, auctions,
