@@ -21,6 +21,7 @@ import { COMPETITION_TERMS_POLICY } from "../modules/competitions/terms/policy";
 import { PAYMENTS_POLICY } from "../modules/payments/policy";
 import { PARTICIPANTS_POLICY } from "../modules/participants/policy";
 import { GUARDIANS_POLICY } from "../modules/guardians/policy";
+import { LEDGER_POLICY } from "../modules/ledger/policy";
 import { ENTRIES_POLICY } from "../modules/entries/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
@@ -45,6 +46,7 @@ export const POLICY = composePolicies(
   PAYMENTS_POLICY,
   PARTICIPANTS_POLICY,
   GUARDIANS_POLICY,
+  LEDGER_POLICY,
   ENTRIES_POLICY
 );
 

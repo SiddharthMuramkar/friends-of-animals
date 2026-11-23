@@ -30,6 +30,11 @@ import { sendRegistrationConfirmation } from "../modules/registration/confirmati
 import { sendGuardianRequest } from "../modules/guardians/guardian-request-message";
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
 import { sendApprovedRefund } from "../modules/payments/refunds/sync-refund";
+import {
+  ledgerWorker,
+  postPaymentCapture,
+  postRefund,
+} from "../modules/ledger/consumers";
 import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
 import { expireUploadGrant } from "../modules/entries/upload-grants";
 import type { Clock } from "../ports/clock";
@@ -97,6 +102,12 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
+  "ledger.post_capture": async (deps, { payload }) => {
+    await postPaymentCapture({ ...deps, actor: ledgerWorker }, payload);
+  },
+  "ledger.post_refund": async (deps, { payload }) => {
+    await postRefund({ ...deps, actor: ledgerWorker }, payload);
+  },
   // Sends the messages the event's route rows name (#69).
   "notifications.dispatch": dispatchEvent,
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
