@@ -20,6 +20,7 @@ import { seedGuardians } from "./guardians";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
+import { seedBreaches } from "./breaches";
 import { seedInstitutions } from "./institutions";
 import { seedNotifications } from "./notifications";
 import { seedRegistrations } from "./registration";
@@ -50,6 +51,8 @@ const seeders: readonly Seeder[] = [
   seedSecondFactor,
   seedSettings,
   seedSafeguarding,
+  // After the identity and access seeds: the seeded members (#116).
+  seedBreaches,
   seedInstitutions,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,
