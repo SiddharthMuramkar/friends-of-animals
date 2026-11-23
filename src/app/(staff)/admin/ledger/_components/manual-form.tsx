@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useRef, useState } from "react";
 
 import { SelectField } from "@/components/form/select-field";
@@ -10,11 +11,15 @@ import { buttonStyles } from "@/components/site/button-link";
 import { MAX_LINES } from "@/server/modules/ledger/domain/posting";
 
 import { createEntryAction } from "../_lib/actions";
-import { initialFormState } from "../_lib/form-state";
+import { initialFormState, type LedgerFormState } from "../_lib/form-state";
 import { LedgerFormFeedback, type LedgerFeedbackLabels } from "./form-feedback";
 
 function emptyLine(id: number, side = "") {
   return { id, accountCode: "", side, amount: "", memo: "" };
+}
+
+function initialLines() {
+  return [emptyLine(0, "debit"), emptyLine(1, "credit")];
 }
 
 export function ManualEntryForm({
@@ -47,18 +52,27 @@ export function ManualEntryForm({
     { value: "debit", label: t.debit },
     { value: "credit", label: t.credit },
   ];
-  const [state, action, pending] = useActionState(
-    createEntryAction,
-    initialFormState
-  );
+  const router = useRouter();
   const [date, setDate] = useState(today);
   const [description, setDescription] = useState("");
-  const [lines, setLines] = useState([
-    emptyLine(0, "debit"),
-    emptyLine(1, "credit"),
-  ]);
+  const [lines, setLines] = useState(initialLines);
   const [submittedLineIds, setSubmittedLineIds] = useState<number[]>([]);
   const nextId = useRef(2);
+  const [state, action, pending] = useActionState<LedgerFormState, FormData>(
+    async (_previous, data) => {
+      const result = await createEntryAction(data);
+      if (!("postingPath" in result)) return result;
+
+      setDate(today);
+      setDescription("");
+      setLines(initialLines());
+      setSubmittedLineIds([]);
+      nextId.current = 2;
+      router.replace(result.postingPath);
+      return initialFormState;
+    },
+    initialFormState
+  );
   const error = state.error ? t.feedback.errors[state.error] : undefined;
   const amountErrorId =
     state.amountLine === undefined

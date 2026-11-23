@@ -46,9 +46,8 @@ const manualEntryForm = z.object({
 });
 
 export async function createEntryAction(
-  _previous: LedgerFormState,
   data: FormData
-): Promise<LedgerFormState> {
+): Promise<LedgerFormState | { postingPath: string }> {
   const ledger = await signedInLedger();
   const accounts = data.getAll("accountCode");
   const sides = data.getAll("side");
@@ -103,7 +102,7 @@ export async function createEntryAction(
   );
   if (!result.ok) return { error: "forbidden" };
   if (!result.value.ok) return { error: result.value.error };
-  redirect(adminLedgerPostingPath(result.value.seq), RedirectType.replace);
+  return { postingPath: adminLedgerPostingPath(result.value.seq) };
 }
 
 const reversalSequence = z

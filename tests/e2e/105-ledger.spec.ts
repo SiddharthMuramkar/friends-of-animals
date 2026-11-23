@@ -48,6 +48,47 @@ async function signInFinanceFixture(
   await signInStaff(page, request, email, secret, path);
 }
 
+test("finance starts a fresh manual entry after posting", async ({
+  page,
+  request,
+  seedAccount,
+}) => {
+  await signInFinanceFixture(page, request, seedAccount, "/admin/ledger");
+  const newEntry = page.getByRole("link", { name: "New manual entry" });
+  await newEntry.click();
+  const date = page.getByLabel("Posting date (IST)");
+  const description = page.getByRole("textbox", { name: "Description" });
+  const defaultDate = await date.inputValue();
+  await date.fill("2026-05-01");
+  await description.fill("Finance workshop supplies");
+  const debit = page.getByRole("group", { name: "Line 1", exact: true });
+  await debit.getByLabel("Account").selectOption("5110");
+  await debit.getByLabel("Amount in rupees").fill("25.50");
+  await debit.getByLabel("Memo (optional)").fill("Workshop markers");
+  const credit = page.getByRole("group", { name: "Line 2", exact: true });
+  await credit.getByLabel("Account").selectOption("1000");
+  await credit.getByLabel("Amount in rupees").fill("25.50");
+  await page.getByRole("button", { name: "Post entry" }).click();
+  await expect(page).toHaveURL(/\/admin\/ledger\/\d+$/);
+  await page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: /^Ledger posting #/ }) })
+    .getByRole("link", { name: "Ledger", exact: true })
+    .click();
+  await newEntry.click();
+  await expect(page).toHaveURL(new RegExp(`${manualEntry}$`));
+  await expect(date).toBeVisible();
+  await expect(date).toHaveValue(defaultDate);
+  await expect(description).toHaveValue("");
+  for (const line of [debit, credit]) {
+    await expect(line.getByLabel("Account")).toHaveValue("");
+    await expect(line.getByLabel("Amount in rupees")).toHaveValue("");
+    await expect(line.getByLabel("Memo (optional)")).toHaveValue("");
+  }
+  await expect(debit.getByLabel("Side")).toHaveValue("debit");
+  await expect(credit.getByLabel("Side")).toHaveValue("credit");
+});
+
 test("finance reads the ledger in both themes and finds a new entry by category", async ({
   page,
   request,
@@ -156,6 +197,51 @@ test("category creation refuses duplicate field values", async ({
   await expect(
     page.getByRole("heading", { name: "Duplicate label test" })
   ).toHaveCount(0);
+});
+
+test("finance can correct a taken category code without re-entering the other fields", async ({
+  page,
+  request,
+  seedAccount,
+}, testInfo) => {
+  await signInFinanceFixture(page, request, seedAccount, categories);
+  const form = page.getByRole("form", { name: "New category" });
+  const name = `Animal care supplies ${testInfo.project.name}`;
+  const publicLabel = "Animal care";
+  const code = form.getByLabel("Account code");
+  const kind = form.getByLabel("Type");
+  const categoryName = form.getByLabel("Name", { exact: true });
+  const label = form.getByLabel("Public label");
+  const group = form.getByLabel("Public group");
+  const fields = [
+    [code, "5100"],
+    [kind, "expense"],
+    [categoryName, name],
+    [label, publicLabel],
+    [group, "programs"],
+  ] as const;
+  await code.fill("5100");
+  await kind.selectOption("expense");
+  await categoryName.fill(name);
+  await label.fill(publicLabel);
+  await group.selectOption("programs");
+  const submit = form.getByRole("button", { name: "Create category" });
+  await submit.click();
+  const summary = form.getByRole("alert");
+  await expect(summary).toContainText(
+    "Choose an account code that is available."
+  );
+  await expect(summary).toBeFocused();
+  for (const [field, value] of fields) await expect(field).toHaveValue(value);
+
+  await code.fill(testInfo.project.name === "mobile" ? "5196" : "5195");
+  await submit.click();
+  await expect(form.getByText("Category saved.")).toBeVisible();
+  const created = page.getByRole("form", { name, exact: true });
+  await expect(created).toBeVisible();
+  await expect(created.getByLabel("Public label")).toHaveValue(publicLabel);
+  await expect(created.getByLabel("Public group")).toHaveValue("programs");
+  for (const [field] of fields) await expect(field).toHaveValue("");
 });
 
 test("category edits only save or deactivate for the matching submit intent", async ({

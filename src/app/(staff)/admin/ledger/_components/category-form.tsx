@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { SelectField } from "@/components/form/select-field";
 import { SubmitButton } from "@/components/form/submit-button";
@@ -9,10 +9,11 @@ import { buttonStyles } from "@/components/site/button-link";
 import type { PublicGroup } from "@/server/modules/ledger/domain/chart";
 
 import { createCategoryAction, editCategoryAction } from "../_lib/actions";
-import { initialFormState } from "../_lib/form-state";
+import { initialFormState, type LedgerFormState } from "../_lib/form-state";
 import { LedgerFormFeedback, type LedgerFeedbackLabels } from "./form-feedback";
 
 type Option = { value: string; label: string };
+type CategoryField = "code" | "kind" | "name" | "publicLabel" | "publicGroup";
 
 export function CategoryForm({
   account,
@@ -48,12 +49,29 @@ export function CategoryForm({
   const submit = account
     ? editCategoryAction.bind(null, account.code)
     : createCategoryAction;
-  const [state, action, pending] = useActionState(submit, initialFormState);
+  const [draft, setDraft] = useState<Partial<Record<CategoryField, string>>>(
+    {}
+  );
+  const [state, action, pending] = useActionState<LedgerFormState, FormData>(
+    async (previous, data) => {
+      const result = await submit(previous, data);
+      if (result.saved) setDraft({});
+      return result;
+    },
+    initialFormState
+  );
   const id = `category-${account?.code ?? "new"}`;
   const error = state.error ? t.feedback.errors[state.error] : undefined;
+
+  function updateField(field: CategoryField, value: string) {
+    setDraft((current) => ({ ...current, [field]: value }));
+  }
+
   return (
     <form
       action={action}
+      // The draft controls resets so a refused submission keeps its selects.
+      onReset={(event) => event.preventDefault()}
       aria-labelledby={headingId}
       className="mt-4 space-y-4"
     >
@@ -65,6 +83,8 @@ export function CategoryForm({
               id={`${id}-code`}
               name="code"
               label={t.code}
+              value={draft.code ?? ""}
+              onChange={(event) => updateField("code", event.target.value)}
               hint={t.codeHint}
               error={
                 state.error === "invalid_code" ||
@@ -82,6 +102,8 @@ export function CategoryForm({
               id={`${id}-kind`}
               name="kind"
               label={t.kind}
+              value={draft.kind ?? ""}
+              onChange={(event) => updateField("kind", event.target.value)}
               options={t.kinds}
               placeholder={t.chooseKind}
               error={state.error === "kind_not_allowed" ? error : undefined}
@@ -94,7 +116,8 @@ export function CategoryForm({
           name="name"
           label={t.name}
           error={state.error === "invalid_name" ? error : undefined}
-          defaultValue={account?.name}
+          value={draft.name ?? account?.name ?? ""}
+          onChange={(event) => updateField("name", event.target.value)}
           maxLength={80}
           required
         />
@@ -103,7 +126,8 @@ export function CategoryForm({
           name="publicLabel"
           label={t.publicLabel}
           error={state.error === "invalid_public_label" ? error : undefined}
-          defaultValue={account?.publicLabel ?? ""}
+          value={draft.publicLabel ?? account?.publicLabel ?? ""}
+          onChange={(event) => updateField("publicLabel", event.target.value)}
           maxLength={80}
         />
         <SelectField
@@ -113,7 +137,8 @@ export function CategoryForm({
           options={t.groups}
           placeholder={t.chooseGroup}
           error={state.error === "invalid_public_group" ? error : undefined}
-          defaultValue={account?.publicGroup ?? ""}
+          value={draft.publicGroup ?? account?.publicGroup ?? ""}
+          onChange={(event) => updateField("publicGroup", event.target.value)}
           required
         />
       </div>

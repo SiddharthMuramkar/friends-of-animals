@@ -7,6 +7,7 @@ import { as, currentActor } from "@/server/app";
 
 import { AdminNav, AdminNavView } from "./_components/admin-nav";
 import { FactsReadiness } from "./_components/facts-readiness";
+import { showLedgerNavigation } from "./_lib/ledger-navigation";
 
 // Signed-in pages carry a per-request CSP nonce (src/proxy.ts, #65), which
 // a static shell's build-time scripts can't have. Waiting for the request
@@ -50,8 +51,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
 async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
   const actor = await currentActor();
   const finance =
-    actor.kind === "user" &&
-    (await as(actor).myAccess()).grants.some(({ role }) => role === "finance");
+    actor.kind === "user" && (await showLedgerNavigation(as(actor).myAccess));
   if (!finance) return <AdminNav {...nav} />;
 
   const t = await getTranslations("adminLedger.list");
