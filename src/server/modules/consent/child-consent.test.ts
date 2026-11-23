@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { guardian, guardianLink } from "@/server/db/schema";
@@ -422,6 +423,17 @@ describe("who may give, withdraw and read a child's consents", () => {
     expect((await consentRows(w.h)).events).toEqual([]);
   });
 
+  it("refuses a guardian whose link to the child has been revoked", async () => {
+    const w = await world();
+    await w.h.db
+      .update(guardianLink)
+      .set({ revokedAt: w.h.clock.now() })
+      .where(eq(guardianLink.participantProfileId, w.child.childId));
+
+    await refusedEverything(w, w.child.actor);
+    expect((await consentRows(w.h)).events).toEqual([]);
+  });
+
   it("refuses a plain member and a visitor", async () => {
     const w = await world();
 
@@ -486,6 +498,9 @@ describe("who may give, withdraw and read a child's consents", () => {
     ).toEqual({ ok: false, error: "guardian_not_verified" });
     expect(
       await w.h.as(actor).childConsents({ childId: w.child.childId })
+    ).toEqual({ ok: false, error: "guardian_not_verified" });
+    expect(
+      await w.h.as(actor).childConsentHistory({ childId: w.child.childId })
     ).toEqual({ ok: false, error: "guardian_not_verified" });
     expect((await consentRows(w.h)).events).toEqual([]);
   });

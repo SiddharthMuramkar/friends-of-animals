@@ -152,6 +152,7 @@ export async function listMyRegistrations(
     (await ownProfileOf(ctx.db, ctx, userId, ctx.clock.now())) === "adult";
   const lacking = await lackingParticipation(
     ctx.db,
+    ctx,
     rows
       .filter(
         (row) =>

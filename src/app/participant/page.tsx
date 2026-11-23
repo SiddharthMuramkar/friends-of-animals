@@ -132,7 +132,11 @@ async function RegistrationCard({
             {competition.name}
           </SiteLink>
         </h2>
-        <Chip tone={STATUS_TONE[statusLabel]}>{status(statusLabel)}</Chip>
+        <Chip tone={STATUS_TONE[statusLabel]}>
+          {registration.heldFor === "consent"
+            ? t("heldForConsentStatus")
+            : status(statusLabel)}
+        </Chip>
       </div>
       {registration.whose === "child" ? (
         <p className="mt-3 font-semibold text-ink">
@@ -151,7 +155,9 @@ async function RegistrationCard({
       {registration.heldFor === "consent" ? (
         <p className="mt-3 text-ink">{t("heldForConsent")}</p>
       ) : null}
-      {registration.status === "pending_payment" && !amountDue ? (
+      {registration.heldFor === null &&
+      registration.status === "pending_payment" &&
+      !amountDue ? (
         <p className="mt-3 text-ink">{t("guardianPays")}</p>
       ) : null}
       {registration.registrationNumber ? (

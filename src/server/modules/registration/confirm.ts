@@ -17,12 +17,11 @@
 import { eq } from "drizzle-orm";
 
 import type { Role } from "../../access/domain/roles";
-import type { Actor } from "../../actor";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import { registration, REGISTRATION_NUMBER_UNIQUE } from "../../db/schema";
 import { emit } from "../../outbox/emit";
-import type { Clock } from "../../ports/clock";
+import type { UseCaseContext } from "../../use-cases";
 import { withUniqueCode, type RandomBytes } from "../codes/codes";
 import {
   lackingParticipation,
@@ -53,7 +52,7 @@ export type ConfirmRegistrationsResult = {
 
 export async function confirmRegistrations(
   tx: AppDb,
-  ctx: { clock: Clock; actor: Actor },
+  ctx: Pick<UseCaseContext, "clock" | "actor" | "cipher">,
   input: ConfirmRegistrationsInput
 ): Promise<ConfirmRegistrationsResult> {
   const result: ConfirmRegistrationsResult = { confirmed: [], refused: [] };
@@ -62,6 +61,7 @@ export async function confirmRegistrations(
   const rows = await lockRegistrationsForPayment(tx, input.registrationIds);
   const lacking = await lackingParticipation(
     tx,
+    ctx,
     rows.map((row) => row.id)
   );
   if (lacking.size > 0) {

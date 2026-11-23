@@ -117,9 +117,8 @@ export const consentEvent = pgTable(
     }),
     purpose: consentPurposeEnum().notNull(),
     /**
-     * The competition a guardian's consent for a child is about (#82);
-     * null for a consent that holds everywhere (a person's own, a child's
-     * communications). Each competition keeps its own log per purpose.
+     * The competition a consent is about (#82), or null for a consent that
+     * holds everywhere. Each competition keeps its own log per purpose.
      */
     competitionId: uuid("competition_id").references(() => competition.id),
     /** The version given, or the one whose consent was withdrawn. */

@@ -6,9 +6,8 @@
 // and the capture path confirms nothing (../registration/confirm.ts).
 //
 // A minor's registration here is an individual one on a profile a
-// guardian keeps (#81): a guardian's child, or a teen whose login is
-// linked. A school's student takes part on the school route (#83), and an
-// adult's own profile is never gated.
+// guardian keeps (#81), if the participant was under 18 at registration.
+// A school's student takes part on the school route (#83).
 //
 // Not use cases: callers have authorized their actor and pass their
 // transaction. Loads under plain Node: relative imports only.
@@ -27,6 +26,8 @@ import {
   registration,
 } from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
+import { childDateOfBirth } from "../guardians/child-view";
+import { isAdultAt } from "../participants/domain/age";
 import { canTransition } from "../registration/domain/registration-status";
 import { appendConsentEvent } from "./consents";
 import type { ConsentContext } from "./documents";
@@ -205,6 +206,7 @@ export function releaseOnParticipation(
  */
 export async function lackingParticipation(
   db: AppDb,
+  ctx: Pick<UseCaseContext, "cipher">,
   registrationIds: readonly string[]
 ): Promise<Set<string>> {
   const lacking = new Set<string>();
@@ -214,6 +216,8 @@ export async function lackingParticipation(
       id: registration.id,
       profileId: registration.participantProfileId,
       competitionId: registration.competitionId,
+      createdAt: registration.createdAt,
+      dobCiphertext: participantProfile.dobCiphertext,
     })
     .from(registration)
     .innerJoin(
@@ -228,6 +232,7 @@ export async function lackingParticipation(
       )
     );
   for (const row of rows) {
+    if (isAdultAt(childDateOfBirth(ctx, row).date, row.createdAt)) continue;
     if (!(await participationGiven(db, row.profileId, row.competitionId))) {
       lacking.add(row.id);
     }

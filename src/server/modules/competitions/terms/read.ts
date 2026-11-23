@@ -11,6 +11,11 @@ import { z } from "zod";
 import { authorize } from "../../../access/can";
 import type { AppDb } from "../../../db/app-db";
 import { invalidInput, type InvalidInput } from "../../../input";
+import {
+  isPublicationPurpose,
+  offeredPurposes,
+  type PublicationPurpose,
+} from "../../consent/domain/guardian-purposes";
 import { awardPlan, type RoundAwardPlan } from "../domain/award-schemes";
 import {
   ATTACHABLE_PURPOSES,
@@ -188,6 +193,13 @@ export type RegistrationTerms = {
    * attached, so a minor's registration stays held.
    */
   participationDocument: { documentId: string; version: number } | null;
+  /** Optional, use-specific publication choices for adults registering themselves. */
+  publicationDocuments: readonly {
+    purpose: PublicationPurpose;
+    documentId: string;
+    version: number;
+    required: false;
+  }[];
 };
 
 /**
@@ -231,5 +243,23 @@ export async function getRegistrationTerms(
     participationDocument: participation
       ? { documentId: participation.id, version: participation.version }
       : null,
+    publicationDocuments: offeredPurposes({
+      publicDisplayAllowed: found.publicDisplay,
+      auctionAllowed: found.auctionPermitted,
+      attached: Object.fromEntries(
+        pinned.map((document) => [document.purpose, document])
+      ),
+    }).flatMap(({ purpose, document }) =>
+      isPublicationPurpose(purpose)
+        ? [
+            {
+              purpose,
+              documentId: document.id,
+              version: document.version,
+              required: false as const,
+            },
+          ]
+        : []
+    ),
   };
 }

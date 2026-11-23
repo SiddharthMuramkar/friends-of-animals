@@ -72,6 +72,7 @@ import { canStartIn } from "../registration/domain/registration-status";
 import { registrationWindow } from "../registration/domain/registration-window";
 import { ageGroupsOf } from "../registration/enrolment-facts";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
+import { isAdultAt } from "./domain/age";
 import {
   decideIndividualRegistration,
   type IndividualRegistrationRefusal,
@@ -373,6 +374,15 @@ async function registerOnce(
           .filter((document) => given.has(document.documentId))
           .map(({ purpose, documentId }) => ({ purpose, documentId })),
       });
+      if (subject.kind !== "child" && isAdultAt(decision.dateOfBirth, now)) {
+        await recordRegistrationConsents(tx, ctx, {
+          userId,
+          competitionId: target.id,
+          documents: terms.publicationDocuments.filter((document) =>
+            given.has(document.documentId)
+          ),
+        });
+      }
       if (participationTicked && participation) {
         await recordChildParticipation(tx, ctx, {
           profileId: saved.id,

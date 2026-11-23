@@ -66,8 +66,8 @@ export type ConsentSubject = { type: ConsentSubjectType; id: string };
 
 /**
  * Which competition's log: a child's consent for one competition, or one
- * that holds everywhere (null). A person's own consents (#64) leave it
- * out: they are never about a competition.
+ * that holds everywhere (null). Own publication consent is scoped to its
+ * competition too. Callers may omit the filter to read across scopes.
  */
 function competitionFilter(competitionId: string | null | undefined): SQL[] {
   if (competitionId === undefined) return [];
@@ -86,7 +86,8 @@ export async function subjectEvents(
   db: AppDb,
   subject: ConsentSubject,
   purpose: ConsentPurpose,
-  competitionId?: string | null
+  competitionId?: string | null,
+  giverUserId?: string
 ) {
   return db
     .select({
@@ -104,6 +105,9 @@ export async function subjectEvents(
         eq(consentEvent.subjectType, subject.type),
         eq(consentEvent.subjectId, subject.id),
         eq(consentEvent.purpose, purpose),
+        giverUserId === undefined
+          ? undefined
+          : eq(consentEvent.giverUserId, giverUserId),
         ...competitionFilter(competitionId)
       )
     )

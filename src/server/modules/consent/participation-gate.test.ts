@@ -165,11 +165,12 @@ describe("withdrawing participation before payment", () => {
     expect(await h.db.select().from(paymentBatch)).toEqual([]);
   });
 
-  it("refuses a free competition's confirmation too", async () => {
+  it("refuses a free confirmation for an entry made as a minor after the entrant turns 18", async () => {
     const h = await createHarness();
     const competition = await consentCompetition(h, { fee: 0n });
-    const child = await guardianWithChild(h, competition);
+    const child = await guardianWithChild(h, competition, { age: 17 });
     await giveParticipation(h, child, competition);
+    h.clock.set("2027-12-15T18:30:00.000Z");
     await h.as(child.actor).withdrawChildConsent({
       childId: child.childId,
       competitionId: competition.id,
@@ -348,6 +349,63 @@ describe("a linked teen registering themselves", () => {
 });
 
 describe("an adult registering themselves", () => {
+  it.each([0n, 25_000n])(
+    "lets an entrant on a linked profile pay after registering as an adult (fee %s)",
+    async (fee) => {
+      const h = await createHarness();
+      const entrant = await h.seed.member({ name: "Rohan Desai" });
+      const family = await h.seed.guardian({
+        children: [
+          { fullName: "Rohan Desai", age: 17, loginUserId: entrant.id },
+        ],
+      });
+      h.clock.set("2027-12-15T18:30:00.000Z");
+      const competition = await consentCompetition(h, { fee });
+      const registrant = h.as(await h.signIn(entrant));
+      const guardian = h.as(await h.signIn(family.account));
+      const {
+        fullName: _name,
+        dateOfBirth: _dob,
+        ...form
+      } = adultForm(competition, {
+        consents: competition.documents.slice(0, 2),
+      });
+
+      const registered = await registrant.registerAsIndividual(form);
+      expect(registered).toMatchObject({ ok: true, status: "pending_payment" });
+      if (!registered.ok) throw new Error(registered.error);
+      const { registrationId } = registered;
+
+      expect
+        .soft(await guardian.listMyRegistrations())
+        .toMatchObject([
+          { registrationId, heldFor: null, amountDue: { amountMinor: fee } },
+        ]);
+      expect((await consentRows(h)).events).toEqual([]);
+      const payment = await guardian.payForMyRegistration({ registrationId });
+      if (fee === 0n) {
+        expect(payment).toMatchObject({ ok: true, kind: "confirmed_free" });
+      } else {
+        expect(payment).toMatchObject({ ok: true, kind: "checkout" });
+        if (!payment.ok || payment.kind !== "checkout")
+          throw new Error("No order");
+        const { orderId } = payment.checkout;
+        h.gateway.capture(orderId);
+        const webhook = h.gateway.webhook({
+          type: "payment.captured",
+          orderId,
+        });
+        expect(
+          await h.as(h.visitor()).receiveGatewayWebhook(webhook)
+        ).toMatchObject({
+          ok: true,
+          outcome: "captured",
+        });
+      }
+      expect(await statusOf(h, registrationId)).toBe("confirmed");
+    }
+  );
+
   it("is unaffected: waits for payment and pays with no guardian consent", async () => {
     const h = await createHarness();
     const competition = await consentCompetition(h, { fee: 0n });

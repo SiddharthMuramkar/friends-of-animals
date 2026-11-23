@@ -37,7 +37,7 @@ import {
 } from "./domain/batch-status";
 import type { RegistrationAtCapture } from "./domain/review-case";
 
-type CaptureContext = Pick<UseCaseContext, "clock" | "actor">;
+type CaptureContext = Pick<UseCaseContext, "clock" | "actor" | "cipher">;
 
 export type CaptureHow = {
   event: "captured" | "offline_recorded" | "review_confirmed";

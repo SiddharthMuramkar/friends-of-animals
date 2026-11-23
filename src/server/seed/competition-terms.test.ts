@@ -68,19 +68,19 @@ describe("the competition terms seed", () => {
         },
         {
           purpose: "public_display",
-          title: "Consent to show your child's work in public",
+          title: "Consent to show artwork in public",
           version: 1,
           href: "/documents/public-display/1",
         },
         {
           purpose: "social_media",
-          title: "Consent to share your child's work on social media",
+          title: "Consent to share artwork on social media",
           version: 1,
           href: "/documents/social-media/1",
         },
         {
           purpose: "auction",
-          title: "Consent to auction your child's artwork",
+          title: "Consent to auction artwork",
           version: 1,
           href: "/documents/auction/1",
         },

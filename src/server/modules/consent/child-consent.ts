@@ -40,7 +40,7 @@ import { pinnedDocuments } from "../competitions/terms/repository";
 import { childResource } from "../guardians/child-access";
 import { childDateOfBirth } from "../guardians/child-view";
 import { guardianOfUser } from "../guardians/guardian-record";
-import { ADULT_AGE, ageAt } from "../participants/domain/age";
+import { isAdultAt } from "../participants/domain/age";
 import { appendConsentEvent } from "./consents";
 import {
   childConsentsView,
@@ -58,6 +58,8 @@ import type { ConsentDocumentBody } from "./domain/document-body";
 import {
   documentToGive,
   GUARDIAN_PURPOSES,
+  offeredPurposes,
+  publicationPurposeFor,
   scopeRefusal,
   type CompetitionConsentSetup,
   type CompetitionDocumentPurpose,
@@ -66,7 +68,11 @@ import {
   type PublicUse,
   type ScopeRefusal,
 } from "./domain/guardian-purposes";
-import { nameParts, type PublicCredit } from "./domain/public-credit";
+import {
+  nameParts,
+  resolvePublicCredit,
+  type PublicCredit,
+} from "./domain/public-credit";
 import type { ConsentMethod } from "./domain/purposes";
 import { releaseOnParticipation } from "./participation-gate";
 import {
@@ -320,11 +326,15 @@ export async function giveChildConsent(
       };
     } else {
       const found = await competitionSetup(tx, competitionId);
-      if (!found) return { ok: false, error: "not_registered" };
+      const entry = await liveRegistration(tx, childId, competitionId);
+      if (!found || !entry) return { ok: false, error: "not_registered" };
+      const child = await childFacts({ db: tx, cipher: ctx.cipher }, childId);
+      if (isAdultAt(child.dateOfBirth, entry.createdAt)) {
+        return { ok: false, error: "purpose_not_offered" };
+      }
       target = {
         competition: found.setup,
-        childRegistered:
-          (await liveRegistration(tx, childId, competitionId)) !== null,
+        childRegistered: true,
       };
     }
     const toGive = documentToGive(purpose, target);
@@ -432,6 +442,9 @@ async function childFacts(
     .select({
       fullName: participantProfile.fullName,
       dobCiphertext: participantProfile.dobCiphertext,
+      ownerKind: participantProfile.ownerKind,
+      ownerUserId: participantProfile.ownerUserId,
+      loginUserId: participantProfile.loginUserId,
       schoolName: participantProfile.schoolName,
       city: participantProfile.city,
     })
@@ -489,20 +502,48 @@ export async function publicUse(
   const found = await competitionSetup(ctx.db, competitionId);
   if (!found) return null;
   const child = await childFacts(ctx, profileId);
+  const person = {
+    ...nameParts(child.fullName),
+    fullName: child.fullName,
+    schoolName: child.schoolName,
+    city: child.city,
+  };
+  if (isAdultAt(child.dateOfBirth, registration.createdAt)) {
+    const userId =
+      child.ownerKind === "self" ? child.ownerUserId : child.loginUserId;
+    if (userId === null) return null;
+    const purpose = publicationPurposeFor(use);
+    const offer = offeredPurposes(found.setup).find(
+      (choice) => choice.purpose === purpose
+    );
+    if (!offer) return null;
+    const state = currentConsent(
+      await subjectEvents(
+        ctx.db,
+        { type: "user", id: userId },
+        purpose,
+        competitionId,
+        userId
+      )
+    );
+    if (state.status !== "given" || state.documentId !== offer.document.id)
+      return null;
+    return resolvePublicCredit(
+      { ...person, minor: false },
+      use,
+      new Set([purpose])
+    );
+  }
+
   const events = await childEvents(ctx.db, profileId, competitionId);
   const view = childConsentsView({
-    child: {
-      ...nameParts(child.fullName),
-      fullName: child.fullName,
-      schoolName: child.schoolName,
-      city: child.city,
-    },
+    child: person,
     competitions: [
       {
         id: competitionId,
         title: found.title,
         setup: found.setup,
-        minor: ageAt(child.dateOfBirth, registration.createdAt) < ADULT_AGE,
+        minor: true,
       },
     ],
     states: (_, purpose) =>
@@ -548,13 +589,16 @@ export async function childConsents(
     )
     .orderBy(registration.createdAt, registration.id);
   const events = await childEvents(ctx.db, childId);
-  const registeredAt = new Map(
-    registered.map((row) => [row.competitionId, row.createdAt])
+  const registeredAsMinor = new Set(
+    registered
+      .filter((row) => !isAdultAt(child.dateOfBirth, row.createdAt))
+      .map((row) => row.competitionId)
   );
   const competitionIds = [
-    ...registeredAt.keys(),
+    ...registeredAsMinor,
     ...events.flatMap((event) =>
-      event.competitionId !== null && !registeredAt.has(event.competitionId)
+      event.competitionId !== null &&
+      !registeredAsMinor.has(event.competitionId)
         ? [event.competitionId]
         : []
     ),
@@ -566,13 +610,13 @@ export async function childConsents(
     const found = await competitionSetup(ctx.db, competitionId);
     if (!found) continue;
     for (const document of found.documents) titles.set(document.id, document);
-    const at = registeredAt.get(competitionId);
     competitions.push({
       id: competitionId,
       title: found.title,
-      setup: at === undefined ? { ...found.setup, attached: {} } : found.setup,
-      // Under 18 when registered; with no live registration, a child's.
-      minor: at === undefined || ageAt(child.dateOfBirth, at) < ADULT_AGE,
+      setup: registeredAsMinor.has(competitionId)
+        ? found.setup
+        : { ...found.setup, attached: {} },
+      minor: true,
     });
   }
   const communications = await latestDocument(ctx.db, "communications");

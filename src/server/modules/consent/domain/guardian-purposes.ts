@@ -177,6 +177,19 @@ export const PUBLIC_USES = [
 ] as const;
 export type PublicUse = (typeof PUBLIC_USES)[number];
 
+const PUBLICATION_PURPOSES = [
+  "public_display",
+  "social_media",
+  "auction",
+] as const;
+export type PublicationPurpose = (typeof PUBLICATION_PURPOSES)[number];
+
+export function isPublicationPurpose(
+  purpose: string
+): purpose is PublicationPurpose {
+  return PUBLICATION_PURPOSES.some((choice) => choice === purpose);
+}
+
 /**
  * The consent each use needs. School and city follow the guardian's
  * field-by-field opt-ins everywhere except a minor's auction credit, which
@@ -184,13 +197,17 @@ export type PublicUse = (typeof PUBLIC_USES)[number];
  */
 const PUBLIC_USE_RULES: Record<
   PublicUse,
-  { purpose: GuardianPurpose; capsMinorCredit: boolean }
+  { purpose: PublicationPurpose; capsMinorCredit: boolean }
 > = {
   gallery: { purpose: "public_display", capsMinorCredit: false },
   results: { purpose: "public_display", capsMinorCredit: false },
   social_media: { purpose: "social_media", capsMinorCredit: false },
   auction: { purpose: "auction", capsMinorCredit: true },
 };
+
+export function publicationPurposeFor(use: PublicUse): PublicationPurpose {
+  return PUBLIC_USE_RULES[use].purpose;
+}
 
 export type PublicUsePermission =
   | { allowed: false }

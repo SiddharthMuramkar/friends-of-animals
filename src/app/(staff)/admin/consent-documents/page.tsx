@@ -22,7 +22,7 @@ import type {
   ConsentPurpose,
 } from "@/server/modules/consent";
 import { formatConsentDocumentSource } from "@/server/modules/consent/domain/document-source";
-import { CONSENT_PURPOSES } from "@/server/modules/consent/domain/purposes";
+import { DOCUMENT_PURPOSES } from "@/server/modules/consent/domain/purposes";
 import { DomainError } from "@/server/errors";
 
 import { PublishForm } from "./_components/publish-form";
@@ -70,7 +70,7 @@ const CARD =
 function publishedOf(published: string | string[] | undefined) {
   if (typeof published !== "string") return null;
   const match = /^([a-z_]+)-(\d+)-/.exec(published);
-  const purpose = CONSENT_PURPOSES.find((each) => each === match?.[1]);
+  const purpose = DOCUMENT_PURPOSES.find((each) => each === match?.[1]);
   return purpose && match
     ? { purpose, version: Number(match[2]), key: published }
     : null;
@@ -82,12 +82,12 @@ async function versionsFor(
 ): Promise<Record<ConsentPurpose, ConsentDocumentVersion[]> | null> {
   try {
     const lists = await Promise.all(
-      CONSENT_PURPOSES.map((purpose) =>
+      DOCUMENT_PURPOSES.map((purpose) =>
         as(actor).listConsentDocumentVersions({ purpose })
       )
     );
     return Object.fromEntries(
-      CONSENT_PURPOSES.map((purpose, k) => [purpose, lists[k] ?? []])
+      DOCUMENT_PURPOSES.map((purpose, k) => [purpose, lists[k] ?? []])
     ) as Record<ConsentPurpose, ConsentDocumentVersion[]>;
   } catch (error) {
     if (error instanceof DomainError && error.code === "forbidden") return null;
@@ -134,7 +134,7 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <div className="mt-8 flex flex-col gap-8">
-      {CONSENT_PURPOSES.map((purpose) => {
+      {DOCUMENT_PURPOSES.map((purpose) => {
         const all = versions[purpose];
         const current = all[0];
         const nextVersion = (current?.version ?? 0) + 1;

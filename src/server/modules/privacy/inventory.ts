@@ -350,7 +350,7 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
   {
     table: "consent_event",
     column: "competition_id",
-    purpose: "Identifies the competition to which a child's consent applies",
+    purpose: "Identifies the competition to which the consent applies",
     retention: CONSENT_RECORD,
   },
   // Students an institution enrols (#75)

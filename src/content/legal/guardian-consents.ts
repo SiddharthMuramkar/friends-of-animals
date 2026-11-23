@@ -1,7 +1,8 @@
 import type { LegalDoc, LegalSection } from "./model";
 
-// DRAFT copy for the consents a parent or guardian gives for a child, one
-// purpose at a time (#82). Counsel and FOA approve the final words (HR-33,
+// DRAFT copy for the consents a parent or guardian gives for a child (#82)
+// and the publication consents an adult entrant can give for themselves.
+// Counsel and FOA approve the final words (HR-33,
 // HR-30) and staff publish them through /admin/consent-documents;
 // previews seed this text as version 1 and attach it to the seeded
 // competitions. They are not policy pages, so they are not in LEGAL_DOCS.
@@ -24,7 +25,7 @@ const CHANGING_YOUR_MIND: LegalSection = {
   blocks: [
     {
       p: [
-        "You can withdraw this consent at any time on your child's consents page. We stop what it allowed as soon as we can.",
+        "You can withdraw consent you gave for a child at any time on their consents page. We stop what it allowed as soon as we can.",
       ],
     },
   ],
@@ -57,11 +58,15 @@ export const GUARDIAN_CONSENT_DRAFTS: Record<
     ],
   },
   public_display: {
-    title: "Consent to show your child's work in public",
+    title: "Consent to show artwork in public",
     short: [
-      ["Their work may be shown in the gallery and the results."],
-      ["We credit them by first name and last initial."],
-      ["School and city only if you choose each one."],
+      ["The work may be shown in the gallery and the results."],
+      [
+        "Adults are credited by full name. Children are credited by first name and last initial.",
+      ],
+      [
+        "A child's school and city appear only if their guardian chooses each one.",
+      ],
     ],
     sections: [
       {
@@ -70,12 +75,12 @@ export const GUARDIAN_CONSENT_DRAFTS: Record<
         blocks: [
           {
             p: [
-              "Your child's artwork may be shown on the Friends of Animals website: in the competition's gallery and its results.",
+              "Friends of Animals may show the work in the competition's gallery and results. If you entered as an adult and give this consent, we credit you by your full name.",
             ],
           },
           {
             p: [
-              "We credit them by first name and the first letter of their surname, such as Asha K. We add their school, or their city, only if you choose to show it.",
+              "We credit children by first name and the first letter of their surname, such as Asha K. We add their school or city only if their guardian chooses to show it.",
             ],
           },
         ],
@@ -84,9 +89,9 @@ export const GUARDIAN_CONSENT_DRAFTS: Record<
     ],
   },
   social_media: {
-    title: "Consent to share your child's work on social media",
+    title: "Consent to share artwork on social media",
     short: [
-      ["Their work may be shared on Friends of Animals' social media."],
+      ["The work may be shared on Friends of Animals' social media."],
       ["Credited the same way as in the gallery."],
     ],
     sections: [
@@ -96,7 +101,7 @@ export const GUARDIAN_CONSENT_DRAFTS: Record<
         blocks: [
           {
             p: [
-              "Friends of Animals may share your child's artwork on its own social media accounts, credited as in the gallery.",
+              "Friends of Animals may share the work on its own social media accounts, with the same credit format as the gallery.",
             ],
           },
         ],
@@ -105,10 +110,12 @@ export const GUARDIAN_CONSENT_DRAFTS: Record<
     ],
   },
   auction: {
-    title: "Consent to auction your child's artwork",
+    title: "Consent to auction artwork",
     short: [
-      ["Their physical artwork may be auctioned to raise money for animals."],
-      ["Credited by first name and last initial only."],
+      ["The physical artwork may be auctioned to raise money for animals."],
+      [
+        "Adults are credited by full name. Children are credited by first name and last initial.",
+      ],
     ],
     sections: [
       {
@@ -117,7 +124,7 @@ export const GUARDIAN_CONSENT_DRAFTS: Record<
         blocks: [
           {
             p: [
-              "If your child's physical artwork is chosen, Friends of Animals may auction it to raise money for animal welfare. Buyers see only their first name and last initial.",
+              "If the physical artwork is chosen, Friends of Animals may auction it to raise money for animal welfare. Buyers see an adult entrant's full name. We credit children by first name and last initial.",
             ],
           },
         ],

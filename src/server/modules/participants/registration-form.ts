@@ -21,6 +21,7 @@ import { documentVersionPath } from "../competitions/domain/consent-attachments"
 import { offeredRoutes } from "../competitions/domain/fees";
 import { getRegistrationTerms } from "../competitions/terms/read";
 import { pinnedDocuments } from "../competitions/terms/repository";
+import { isAdultAt, parseDateOfBirth } from "./domain/age";
 import { COMPETITION_SLUG_PATTERN } from "./register-input";
 import { childrenOf, keptDetailsOf, subjectOf } from "./registrant";
 
@@ -92,6 +93,14 @@ export async function individualRegistrationForm(
       purpose: "participation",
       required: false,
     });
+  }
+  if (subject.kind === "own") {
+    documents.push(...terms.publicationDocuments);
+  } else if (subject.kind === "linked" && kept) {
+    const now = ctx.clock.now();
+    const dob = parseDateOfBirth(kept.dateOfBirth, now);
+    if (dob && isAdultAt(dob, now))
+      documents.push(...terms.publicationDocuments);
   }
   return {
     competition: { name: found.name, slug: found.slug },

@@ -110,7 +110,7 @@ export type ConsentEventToAppend = {
   action: ConsentEventAction;
   documentId: string;
   method: ConsentMethod;
-  /** A child's consent for one competition (#82); null otherwise. */
+  /** Set for a guardian's change or an adult's publication consent in a competition. */
   competitionId?: string | null;
   /** The role that allowed it, for the audit log: a guardian's (#82). */
   actorRole?: Role | null;
@@ -238,12 +238,17 @@ export async function recordRegistrationConsents(
   input: {
     userId: string;
     documents: readonly { purpose: ConsentPurpose; documentId: string }[];
+    competitionId?: string;
   }
 ): Promise<void> {
+  if (input.documents.length === 0) return;
   const subject: ConsentSubject = { type: "user", id: input.userId };
+  const competitionId = input.competitionId ?? null;
   await lockUserSubject(tx, input.userId);
   for (const { purpose, documentId } of input.documents) {
-    const state = currentConsent(await subjectEvents(tx, subject, purpose));
+    const state = currentConsent(
+      await subjectEvents(tx, subject, purpose, competitionId, input.userId)
+    );
     if (state.status === "given" && state.documentId === documentId) continue;
     await appendConsentEvent(tx, ctx, state, {
       subject,
@@ -252,6 +257,7 @@ export async function recordRegistrationConsents(
       action: "given",
       documentId,
       method: "web_form",
+      competitionId,
     });
   }
 }

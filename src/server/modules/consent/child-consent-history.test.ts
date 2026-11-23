@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { participantProfile } from "@/server/db/schema";
+import { consentEvent, participantProfile } from "@/server/db/schema";
+import { uuidv7 } from "@/server/ids";
 import { adultForm } from "@/server/modules/participants/testing";
 import { createHarness } from "@/test/harness";
 
@@ -191,7 +192,7 @@ describe("childConsentHistory", () => {
 });
 
 describe("childConsents' credit preview", () => {
-  it("keeps the full name of an adult registrant in public credit and its preview", async () => {
+  it("keeps historical guardian consent withdrawable and refuses new guardian consent for an adult entry", async () => {
     const h = await createHarness();
     const competition = await consentCompetition(h);
     const fullName = "Riya Kavya Rao";
@@ -203,41 +204,144 @@ describe("childConsents' credit preview", () => {
     const guardian = h.as(await h.signIn(family.account));
     const registrant = h.as(await h.signIn(entrant));
     expect(
-      await registrant.registerAsIndividual(adultForm(competition))
+      await registrant.registerAsIndividual(
+        adultForm(competition, {
+          consents: competition.documents.slice(0, 2),
+        })
+      )
     ).toMatchObject({ ok: true, status: "pending_payment" });
-    expect(
-      await guardian.giveChildConsent({
-        childId,
-        competitionId: competition.id,
-        purpose: "public_display",
-        documentId: competition.guardianDocuments.public_display!,
-      })
-    ).toEqual({ ok: true, changed: true });
+    const scope = { childId, competitionId: competition.id };
+    const purpose = "public_display" as const;
+    const documentId = competition.guardianDocuments.public_display!;
 
-    const credit = await publicUse(h.deps, {
-      profileId: childId,
+    expect(
+      await guardian.giveChildConsent({ ...scope, purpose, documentId })
+    ).toEqual({ ok: false, error: "purpose_not_offered" });
+
+    // A historical event from when guardian grants were accepted for adults.
+    const now = h.clock.now();
+    await h.db.insert(consentEvent).values({
+      id: uuidv7(now),
+      subjectType: "participant_profile",
+      subjectId: childId,
+      giverUserId: family.account.id,
       competitionId: competition.id,
-      use: "gallery",
+      purpose,
+      documentId,
+      action: "given",
+      method: "web_form",
+      occurredAt: now,
     });
-    const preview = await guardian.childConsents({ childId });
-    expect({ credit, preview }).toMatchObject({
-      credit: { name: fullName },
-      preview: {
+    expect(await guardian.childConsents({ childId })).toMatchObject({
+      ok: true,
+      competitions: [
+        {
+          id: competition.id,
+          purposes: expect.arrayContaining([
+            expect.objectContaining({
+              purpose,
+              offered: false,
+              counts: false,
+              state: expect.objectContaining({ status: "given" }),
+            }),
+          ]),
+          creditPreview: { gallery: null },
+        },
+      ],
+    });
+    expect(await guardian.withdrawChildConsent({ ...scope, purpose })).toEqual({
+      ok: true,
+      changed: true,
+    });
+  });
+
+  it("credits an adult's full name only for the competition and use the entrant authorized", async () => {
+    const h = await createHarness();
+    const fullName = "Riya Kavya Rao";
+    const entrant = await h.seed.member({ name: fullName });
+    const family = await h.seed.guardian({
+      children: [{ fullName, age: 18, loginUserId: entrant.id }],
+    });
+    const childId = family.childIds[0]!;
+    const registrant = h.as(await h.signIn(entrant));
+    const accepted = await consentCompetition(h, { name: "Adult exhibition" });
+    const declined = await consentCompetition(h, {
+      name: "Private competition",
+    });
+    const purpose = "public_display" as const;
+    expect(
+      await registrant.individualRegistrationForm({
+        competitionSlug: accepted.slug,
+      })
+    ).toMatchObject({
+      documents: expect.arrayContaining([
+        expect.objectContaining({
+          purpose,
+          documentId: accepted.guardianDocuments[purpose],
+          required: false,
+        }),
+      ]),
+    });
+    for (const [competition, optedIn] of [
+      [accepted, true],
+      [declined, false],
+    ] as const) {
+      const {
+        fullName: _name,
+        dateOfBirth: _dob,
+        ...form
+      } = adultForm(competition, {
+        consents: optedIn
+          ? [
+              ...competition.documents.slice(0, 2),
+              competition.guardianDocuments[purpose]!,
+            ]
+          : competition.documents.slice(0, 2),
+      });
+      expect(await registrant.registerAsIndividual(form)).toMatchObject({
         ok: true,
-        competitions: [
-          {
-            id: competition.id,
-            creditPreview: { gallery: { name: fullName } },
-          },
-        ],
-      },
+      });
+    }
+
+    const now = h.clock.now();
+    // Previously recorded guardian consent cannot authorize this adult.
+    await h.db.insert(consentEvent).values({
+      id: uuidv7(now),
+      subjectType: "participant_profile",
+      subjectId: childId,
+      giverUserId: family.account.id,
+      competitionId: declined.id,
+      purpose,
+      documentId: declined.guardianDocuments[purpose]!,
+      action: "given",
+      method: "web_form",
+      occurredAt: now,
     });
+    const credit = (
+      competitionId: string,
+      use: "gallery" | "social_media" = "gallery"
+    ) => publicUse(h.deps, { profileId: childId, competitionId, use });
+    expect(await credit(declined.id)).toBeNull();
+    expect(await credit(accepted.id)).toEqual({ name: fullName });
+    expect(await credit(accepted.id, "social_media")).toBeNull();
+    const guardian = h.as(await h.signIn(family.account));
+    expect(
+      await guardian.withdrawChildConsent({
+        childId,
+        competitionId: accepted.id,
+        purpose,
+      })
+    ).toEqual({ ok: true, changed: false });
+    expect(await credit(accepted.id)).toEqual({ name: fullName });
+    const v2 = await publishNextVersion(h, purpose);
+    await reattach(h, accepted.id, purpose, v2.id);
+    expect(await credit(accepted.id)).toBeNull();
   });
 
   it("gives publication callers only the credit allowed on the pinned version", async () => {
     const h = await createHarness();
     const competition = await consentCompetition(h);
-    const child = await guardianWithChild(h, competition);
+    const child = await guardianWithChild(h, competition, { age: 17 });
     const galleryCredit = () =>
       publicUse(h.deps, {
         profileId: child.childId,
@@ -254,6 +358,8 @@ describe("childConsents' credit preview", () => {
     });
     expect(await galleryCredit()).toEqual({ name: "Asha K." });
 
+    h.clock.set("2027-12-15T18:30:00.000Z");
+    expect(await galleryCredit()).toEqual({ name: "Asha K." });
     const next = await publishNextVersion(h, "public_display");
     expect(await galleryCredit()).toEqual({ name: "Asha K." });
     await reattach(h, competition.id, "public_display", next.id);

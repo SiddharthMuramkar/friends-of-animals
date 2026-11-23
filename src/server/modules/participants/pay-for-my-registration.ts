@@ -262,7 +262,7 @@ async function planPayment(
     } else if (mine.status !== "pending_payment") {
       return done({ ok: false, error: "nothing_to_pay" });
     }
-    if ((await lackingParticipation(tx, [registrationId])).size > 0) {
+    if ((await lackingParticipation(tx, ctx, [registrationId])).size > 0) {
       return done({ ok: false, error: "participation_consent_required" });
     }
     // A payment for it is in review (#79): staff decide, nobody pays again.
@@ -413,7 +413,7 @@ async function openOrder(
     });
     // Consent can change while the gateway is opening the order. Keep the
     // reference for reconciliation and only return a checkout with consent.
-    if ((await lackingParticipation(tx, registrationIds)).size > 0) {
+    if ((await lackingParticipation(tx, ctx, registrationIds)).size > 0) {
       return { ok: false, error: "participation_consent_required" };
     }
     return {

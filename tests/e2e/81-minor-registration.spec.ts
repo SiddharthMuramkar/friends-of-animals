@@ -312,9 +312,34 @@ test("a guardian registers their child from the competition's register form", as
   await expect(
     page.getByRole("heading", { level: 1, name: `Pay for ${OPEN.name}` })
   ).toBeVisible();
+  const paymentPath = new URL(page.url()).pathname;
 
   await visit(page, "/participant");
   const card = page.getByRole("article", { name: OPEN.name });
   await expect(card.getByText(`For ${child}`)).toBeVisible();
   await expect(card.getByText("Waiting for payment")).toBeVisible();
+
+  await visit(page, `/guardian/children/${childIds[0]}/consents`);
+  await page
+    .getByRole("article", { name: "Participation", exact: true })
+    .getByRole("button", { name: "Withdraw consent" })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Consent withdrawn.");
+
+  await visit(page, "/participant");
+  await expect(
+    card.getByRole("link", { name: `Manage consents for ${child}` })
+  ).toBeVisible();
+  expect.soft(await card.innerText()).toContain("Waiting for consent");
+  expect
+    .soft(await card.innerText())
+    .not.toContain("Your parent or guardian pays");
+
+  await visit(page, paymentPath);
+  await expect(
+    page.getByRole("link", { name: "Manage consents" })
+  ).toBeVisible();
+  expect(await page.getByRole("main").innerText()).toContain(
+    "This place needs a parent or guardian's consent to take part."
+  );
 });

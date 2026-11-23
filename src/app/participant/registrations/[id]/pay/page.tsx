@@ -148,7 +148,7 @@ async function Pay({ params, searchParams }: Props) {
             </form>
           )}
         </div>
-      ) : mine.status === "pending_guardian" ? (
+      ) : mine.heldFor !== null || mine.status === "pending_guardian" ? (
         <p className={CARD}>
           {t(
             mine.heldFor === "consent"
