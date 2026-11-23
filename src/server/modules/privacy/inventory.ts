@@ -117,6 +117,27 @@ const ENTRY_UPLOAD_GRANT = {
   toConfirm: true,
 } as const;
 
+const SIGNED_FORM_RECORD = {
+  period:
+    "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure (HR-31)",
+  basis: "Lets FOA check the signed evidence and account for its review",
+  toConfirm: true,
+} as const;
+
+const AFTER_CONSENT_LINK_CLOSES = {
+  period: "90 days after the link is answered, revoked or expires (HR-31)",
+  basis:
+    "Reaches the guardian contact and helps FOA answer queries about link delivery",
+  toConfirm: true,
+} as const;
+
+const WHILE_CONSENT_LINK_OPEN = {
+  period: "Until used, revoked or expired (HR-31)",
+  basis:
+    "Provides a single-use link and verifies control of the contact before recording choices",
+  toConfirm: true,
+} as const;
+
 /** A guardian's own record and links: as long as a child of theirs is kept. */
 const WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD = {
   period:
@@ -299,6 +320,186 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     column: "storage_key",
     purpose: "Locates a metadata-stripped copy used to show a live entry image",
     retention: ENTRY_MEDIA,
+  },
+  {
+    table: "consent_form",
+    column: "file_asset_id",
+    purpose:
+      "Locates the private scan bearing the guardian's name and signature",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "participant_profile_id",
+    purpose: "Identifies the enrolled student whose signed form FOA reviewed",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "competition_id",
+    purpose: "Identifies the competition covered by the guardian's signed form",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "institution_registration_id",
+    purpose:
+      "Connects the signed form to the student's school registration for review and coordinator access",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "uses",
+    purpose: "Records the public uses the guardian marked on the signed form",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "documents",
+    purpose:
+      "Preserves the exact consent document versions reviewed for the guardian's choices",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "uploaded_by_user_id",
+    purpose: "Identifies the coordinator who submitted the form",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "reviewed_by_user_id",
+    purpose: "Identifies the authorised reviewer who made the decision",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "rejection_note",
+    purpose:
+      "Explains how the coordinator can correct the submission. Staff are asked to leave out personal details",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form_upload",
+    column: "file_asset_id",
+    purpose:
+      "Identifies the private scan upload bound to the student's enrolment",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form_upload",
+    column: "registration_id",
+    purpose:
+      "Restricts a signed-form upload to the enrolled student it was requested for",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "consent_form_id",
+    purpose:
+      "Links a consent decision to the signed evidence of what the guardian agreed to",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "reviewer_user_id",
+    purpose: "Identifies who verified the signed evidence for this consent",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "institution_registration",
+    column: "participation_declared_by_user_id",
+    purpose:
+      "Identifies who declared that the institution authorises participation and judging",
+    retention: WHILE_REGISTRATION_KEPT,
+  },
+  // School guardian consent by code link (#83).
+  ...(
+    [
+      [
+        "contact_ciphertext",
+        "Delivers the consent link and one-time code to the guardian",
+        AFTER_CONSENT_LINK_CLOSES,
+      ],
+      [
+        "contact_hash",
+        "Identifies the normalised delivery contact without reading it",
+        AFTER_CONSENT_LINK_CLOSES,
+      ],
+      [
+        "token_ciphertext",
+        "Builds the guardian's link when the message is delivered",
+        WHILE_CONSENT_LINK_OPEN,
+      ],
+      [
+        "token_hash",
+        "Finds the link and recognises previously used or revoked links",
+        AFTER_CONSENT_LINK_CLOSES,
+      ],
+      [
+        "code_hash",
+        "Verifies the one-time code sent to the guardian contact",
+        WHILE_CONSENT_LINK_OPEN,
+      ],
+      [
+        "session_token_hash",
+        "Binds the answer session to the browser which verified the code",
+        WHILE_CONSENT_LINK_OPEN,
+      ],
+      [
+        "answers",
+        "Records the public uses the guardian gave or declined on the link",
+        CONSENT_RECORD,
+      ],
+      [
+        "offered_uses",
+        "Records the document versions shown for the guardian's choices",
+        CONSENT_RECORD,
+      ],
+      [
+        "participant_profile_id",
+        "Identifies the student whose choices the link records",
+        CONSENT_RECORD,
+      ],
+      [
+        "student_registration_id",
+        "Keeps the link tied to this student's school enrolment",
+        CONSENT_RECORD,
+      ],
+      [
+        "institution_registration_id",
+        "Scopes the student's link to the school's registration",
+        CONSENT_RECORD,
+      ],
+      [
+        "competition_id",
+        "Identifies the competition for which the guardian answered",
+        CONSENT_RECORD,
+      ],
+      [
+        "sent_by_user_id",
+        "Records the coordinator who issued the guardian link",
+        CONSENT_RECORD,
+      ],
+    ] as const
+  ).map(([column, purpose, retention]) => ({
+    table: "consent_link",
+    column,
+    purpose,
+    retention,
+  })),
+  {
+    table: "consent_event",
+    column: "giver_contact_hash",
+    purpose:
+      "Identifies the verified consent giver without storing the contact in the consent log",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "consent_link_id",
+    purpose: "Links a recorded consent to the guardian's code link evidence",
+    retention: CONSENT_RECORD,
   },
   // Accounts (#57, #58)
   {

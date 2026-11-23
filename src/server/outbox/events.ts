@@ -35,6 +35,16 @@ type InstitutionDecided<T extends `institution.${string}`> = {
 
 export type DomainEvent =
   | {
+      type: "consent.form_reviewed";
+      aggregate: { type: "consent_form"; id: string };
+      payload: { formId: string; uploaderUserId: string };
+    }
+  | {
+      type: "consent.link_sent";
+      aggregate: { type: "consent_link"; id: string };
+      payload: { linkId: string };
+    }
+  | {
       type: "identity.user_signed_up";
       aggregate: { type: "user"; id: string };
       payload: { userId: string };
@@ -314,6 +324,11 @@ const INSTITUTION_DECIDED = z.object({
  * can't carry personal data into the table.
  */
 export const EVENT_PAYLOADS = {
+  "consent.form_reviewed": z.object({
+    formId: z.uuid(),
+    uploaderUserId: z.uuid(),
+  }),
+  "consent.link_sent": z.object({ linkId: z.uuid() }),
   "identity.user_signed_up": z.object({ userId: z.uuid() }),
   "files.file_uploaded": z.object({ fileId: z.uuid() }),
   "consent.withdrawn": z.object({
@@ -404,11 +419,13 @@ export const EVENT_PAYLOADS = {
  * none.
  */
 export const SUBSCRIBERS = {
+  "consent.form_reviewed": ["notifications.dispatch"],
   "identity.user_signed_up": ["notifications.dispatch"],
   "files.file_uploaded": ["files.scan_file"],
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
   "consent.withdrawn": ["notifications.dispatch"],
+  "consent.link_sent": ["consent_links.deliver"],
   // files.process_image runs in worker-media only: the media queue
   // (./queues.ts). An entry's file follows each step of its own (#85):
   // entries.apply_file_outcome reads where the file stands, so the order

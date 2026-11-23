@@ -77,7 +77,8 @@ export function createPgWorld() {
   const gateway = new FakePaymentGateway();
   const storage = new FakeStorage(clock);
   const media = new FakeMediaProcessor();
-  const deps: Deps = {
+  const deps = {
+    appEnv: "local",
     db,
     clock,
     email: new FakeEmail(clock),
@@ -102,13 +103,14 @@ export function createPgWorld() {
     contactLimits: CONTACT_RATE_LIMITS,
     codeRequestLimits: CODE_REQUEST_LIMITS,
     payments: gateway,
-  };
+  } satisfies Deps;
   const app = createApp(deps);
   const seed: SeedBuilders = createSeedBuilders(deps);
 
   return {
     db,
     sql,
+    deps,
     clock,
     gateway,
     seed,

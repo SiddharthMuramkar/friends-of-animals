@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { countViewTransitions } from "./support/view-transitions";
+
 // Typing and clicks around hydration (refs #55). From the moment a commit
 // starts a view transition until the browser runs the transition's update
 // callback (a frame at least, longer on a busy machine), React ignores
@@ -12,28 +14,6 @@ import { expect, test, type Page } from "@playwright/test";
 //
 // A link clicked before the page has fully hydrated still opens the next
 // page in full: the header, the page and the footer all show.
-
-type Counter = { viewTransitionsStarted: number };
-
-/**
- * Counts the view transitions each page loaded from now on starts. Every
- * one still runs as before.
- */
-async function countViewTransitions(
-  page: Page
-): Promise<() => Promise<number>> {
-  await page.addInitScript(() => {
-    const counter = window as unknown as Counter;
-    counter.viewTransitionsStarted = 0;
-    const start = document.startViewTransition.bind(document);
-    document.startViewTransition = (...args) => {
-      counter.viewTransitionsStarted += 1;
-      return start(...args);
-    };
-  });
-  return () =>
-    page.evaluate(() => (window as unknown as Counter).viewTransitionsStarted);
-}
 
 /**
  * From now on, each load of `from` clicks the link `selector` from inside

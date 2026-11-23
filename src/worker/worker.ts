@@ -124,6 +124,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   // sms.enabled is off, and email, until AWS grants SES production access
   // (DECISIONS R-27); the runtime settings are the database's own.
   const depsFor = (db: AppDb, database: string): OutboxDeps => ({
+    appEnv: config.appEnv,
     db,
     clock: io.clock,
     email: emailSenderFor(config.appEnv, { db, clock: io.clock }, {}),

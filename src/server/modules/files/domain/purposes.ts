@@ -14,6 +14,7 @@ export const FILE_PURPOSES = [
   "test_upload",
   "cms_image",
   "offline_payment_proof",
+  "consent_form",
   "entry_image",
 ] as const;
 
@@ -96,6 +97,13 @@ export const PURPOSE_RULES = {
     environments: "all",
     directUpload: false,
   },
+  /** A private scan of a guardian’s signed consent form (#83). */
+  consent_form: {
+    contentTypes: ["application/pdf", "image/jpeg", "image/png"],
+    maxBytes: 10 * MiB,
+    environments: "non_production",
+    directUpload: false,
+  },
 } satisfies Record<FilePurpose, PurposeRule>;
 
 export type UploadRefusal =
@@ -122,6 +130,12 @@ function isStorable(rule: PurposeRule, contentType: string): boolean {
   );
 }
 
+export function isFilePurposeAvailable(purpose: FilePurpose, appEnv: AppEnv) {
+  return (
+    PURPOSE_RULES[purpose].environments === "all" || appEnv !== "production"
+  );
+}
+
 /**
  * Whether an upload of `sizeBytes` bytes of `contentType` may be presigned
  * for `purpose`. Checks the purpose, then the type, then the size.
@@ -131,7 +145,7 @@ export function checkUploadRequest(
   appEnv: AppEnv
 ): Check<UploadRefusal> {
   const rule = PURPOSE_RULES[request.purpose];
-  if (rule.environments === "non_production" && appEnv === "production") {
+  if (!isFilePurposeAvailable(request.purpose, appEnv)) {
     return { ok: false, refusal: "purpose_unavailable" };
   }
   if (!isStorable(rule, request.contentType)) {
