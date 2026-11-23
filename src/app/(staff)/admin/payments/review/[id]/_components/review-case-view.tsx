@@ -33,6 +33,11 @@ export async function ReviewCaseView({
 }) {
   const t = await getTranslations("adminPayments");
   const amount = formatPaise(reviewCase.amountMinor);
+  const reason =
+    reviewCase.participationUnavailable &&
+    reviewCase.reason === "participation_consent_required"
+      ? "participation_unavailable"
+      : reviewCase.reason;
 
   return (
     <div className="flex flex-col gap-8">
@@ -40,18 +45,14 @@ export async function ReviewCaseView({
         eyebrow={t("eyebrow")}
         tile="yellow"
         title={t("case.title", { amount })}
-        lead={t(
-          reviewCase.participationUnavailable
-            ? "reasonBodies.participation_unavailable"
-            : `reasonBodies.${reviewCase.reason}`
-        )}
+        lead={t(`reasonBodies.${reason}`)}
       />
       {outcome && reviewCase.resolution ? (
         <FormAlert tone="success" label={t("case.resolvedTitle")}>
           <p>{t(`case.done.${outcome}`)}</p>
         </FormAlert>
       ) : null}
-      <Details reviewCase={reviewCase} />
+      <Details reviewCase={reviewCase} reasonLabel={t(`reasons.${reason}`)} />
       {reviewCase.resolution ? (
         <Resolved reviewCase={reviewCase} />
       ) : (
@@ -61,7 +62,13 @@ export async function ReviewCaseView({
   );
 }
 
-async function Details({ reviewCase }: { reviewCase: PaymentReviewCaseView }) {
+async function Details({
+  reviewCase,
+  reasonLabel,
+}: {
+  reviewCase: PaymentReviewCaseView;
+  reasonLabel: string;
+}) {
   const [t, format] = await Promise.all([
     getTranslations("adminPayments"),
     getFormatter(),
@@ -71,14 +78,7 @@ async function Details({ reviewCase }: { reviewCase: PaymentReviewCaseView }) {
     <section aria-labelledby="case-details" className={CARD}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <SectionHeading id="case-details" title={t("case.detailsTitle")} />
-        <Chip tone="marigold">
-          {t(
-            reviewCase.participationUnavailable &&
-              reviewCase.reason === "participation_consent_required"
-              ? "reasons.participation_unavailable"
-              : `reasons.${reviewCase.reason}`
-          )}
-        </Chip>
+        <Chip tone="marigold">{reasonLabel}</Chip>
       </div>
       <dl className="mt-4 flex flex-col gap-3 text-ink">
         <div className={row}>
@@ -195,6 +195,12 @@ async function Decision({ reviewCase }: { reviewCase: PaymentReviewCaseView }) {
   return (
     <section aria-labelledby="case-decision" className={CARD}>
       <SectionHeading id="case-decision" title={t("case.decisionTitle")} />
+      {reviewCase.participationUnavailable &&
+      reviewCase.reason !== "participation_consent_required" ? (
+        <p className="mt-3 text-ink">
+          {t("reasonBodies.participation_unavailable")}
+        </p>
+      ) : null}
       <p className="mt-3 text-ink">
         {t(
           reviewCase.participationUnavailable

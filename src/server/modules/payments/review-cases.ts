@@ -153,7 +153,7 @@ export type PaymentReviewCaseView = PaymentReviewCaseItem & {
   batchStatus: PaymentBatchStatus;
   batchStatusBefore: BatchStatusBeforeReview;
   batchAmountMinor: bigint;
-  /** The current launch gate prevents confirmation for a minor. */
+  /** The current launch gate prevents this open case from confirming a minor. */
   participationUnavailable: boolean;
   /** What staff may choose; empty once resolved. */
   allowedOutcomes: readonly PaymentReviewOutcome[];
@@ -224,6 +224,7 @@ export async function getPaymentReviewCase(
   });
   let participationUnavailable = false;
   if (
+    !item.resolution &&
     details.batchRoute === "individual" &&
     outcomes.includes("confirm") &&
     !guardianFlowsActive(ctx.appEnv)

@@ -19,6 +19,7 @@ describe("individualRegistrationForm", () => {
       competition: { name: "Paws on Paper", slug: competition.slug },
       acceptsIndividuals: true,
       fee: { amountMinor: 25_000n, currency: "INR" },
+      allowsMinorRegistration: true,
       minorRegistrationUnavailable: false,
       registrant: { kind: "own", children: [] },
       documents: [

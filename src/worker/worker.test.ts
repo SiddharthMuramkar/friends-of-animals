@@ -1,15 +1,16 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import type { E164Phone } from "@/lib/phone";
 import { createApp } from "@/server/app";
-import { fieldCryptoFor } from "@/server/crypto/keys";
+import { DEVELOPMENT_FIELD_KEYS, fieldCryptoFor } from "@/server/crypto/keys";
 import type { AppDb } from "@/server/db/app-db";
 import {
   capturedMessage,
   fileAsset,
   fileDerivative,
   fileProcessing,
+  guardianInvitation,
   inboxItem,
   messageRoute,
   messageTemplate,
@@ -19,6 +20,10 @@ import {
 } from "@/server/db/schema";
 import { storedPhone } from "@/server/identity/stored-phone";
 import { OffsiteCopyNotConfiguredError } from "@/server/modules/offsite-copy/errors";
+import {
+  adultForm,
+  openToIndividuals,
+} from "@/server/modules/participants/testing";
 import { drainUntilIdle } from "@/server/outbox";
 import { emitUserSignedUp } from "@/server/outbox/testing";
 import type { Clock } from "@/server/ports/clock";
@@ -26,6 +31,8 @@ import type { ErrorReporter } from "@/server/ports/errors";
 import type { MalwareScanner } from "@/server/ports/malware-scanner";
 import type { MediaProcessor } from "@/server/ports/media";
 import type { ObjectStorage } from "@/server/ports/storage";
+import { bornYearsAgo, guardianBuilder } from "@/server/seed/guardians";
+import { formatIsoDate } from "@/server/modules/registration/domain/calendar-date";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
 import { FakeErrorReporter } from "@/test/fakes/errors";
@@ -253,6 +260,90 @@ describe("a single-database worker", () => {
     expect(record.opened).toEqual([{ url: DB_URL, connections: 1 }]);
     expect(record.beats).toEqual([io.clock.now()]);
   });
+
+  it.each(["local", "staging", "production"] as const)(
+    "settles queued guardian setup deliveries in %s with the configured capability",
+    async (appEnv) => {
+      const h = await createHarness();
+      const deps = {
+        ...h.deps,
+        ...fieldCryptoFor({ APP_ENV: "local", ...DEVELOPMENT_FIELD_KEYS }),
+      };
+      const app = createApp(deps);
+      const teenEmail = "invited-teen@example.test";
+      const guardianEmail = "named-guardian@example.test";
+      const { account, childIds } = await guardianBuilder(deps)({
+        children: [{ fullName: "Invited Teen", age: 15 }],
+      });
+      const parent = await h.signIn(account);
+      expect(
+        await app
+          .as(parent)
+          .inviteTeenLogin({ childId: childIds[0]!, email: teenEmail })
+      ).toMatchObject({ ok: true });
+
+      const teen = await h.signIn(await h.seed.member());
+      const competition = await openToIndividuals(h);
+      expect(
+        await app.as(teen).registerAsIndividual({
+          ...adultForm(competition, {
+            fullName: "Independent Teen",
+            dateOfBirth: formatIsoDate(bornYearsAgo(h.clock.now(), 15, 30)),
+          }),
+          guardian: {
+            fullName: "Named Guardian",
+            relationship: "parent",
+            email: guardianEmail,
+          },
+        })
+      ).toMatchObject({ ok: true, status: "pending_guardian" });
+
+      const events = ["guardian.guardian_requested", "guardian.teen_invited"];
+      const setupDeliveries = () =>
+        h.db
+          .select({ eventType: outbox.eventType, status: outbox.status })
+          .from(outbox)
+          .where(inArray(outbox.eventType, events))
+          .orderBy(outbox.eventType);
+      expect(await setupDeliveries()).toEqual(
+        events.map((eventType) => ({ eventType, status: "pending" }))
+      );
+
+      const { io } = fakeIo({ foa: h.db }, [], { clock: h.clock });
+      const worker = createWorker(
+        {
+          ...singleConfig(appEnv),
+          siteUrl: deps.auth.baseUrl,
+          fieldEncryptionKeys: DEVELOPMENT_FIELD_KEYS.FIELD_ENCRYPTION_KEYS,
+          fieldHmacKey: DEVELOPMENT_FIELD_KEYS.FIELD_HMAC_KEY,
+        },
+        io
+      );
+      await worker.start();
+      try {
+        await worker.tick();
+      } finally {
+        await worker.stop();
+      }
+
+      expect(await setupDeliveries()).toEqual(
+        events.map((eventType) => ({ eventType, status: "dispatched" }))
+      );
+      const setupMessages = await h.db
+        .select({ address: capturedMessage.toAddress })
+        .from(capturedMessage)
+        .where(inArray(capturedMessage.toAddress, [teenEmail, guardianEmail]))
+        .orderBy(capturedMessage.toAddress);
+      expect(setupMessages.map(({ address }) => address)).toEqual(
+        appEnv === "local" ? [teenEmail, guardianEmail] : []
+      );
+      expect(
+        await h.db
+          .select({ status: guardianInvitation.status })
+          .from(guardianInvitation)
+      ).toEqual([{ status: "pending" }, { status: "pending" }]);
+    }
+  );
 
   it("sends to a member without a phone though it holds no field keys", async () => {
     // #69's dispatcher reads phone numbers with the field cipher. A staging

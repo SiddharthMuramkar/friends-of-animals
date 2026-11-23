@@ -32,6 +32,8 @@ export type IndividualRegistrationForm = {
   acceptsIndividuals: boolean;
   /** Null until FOA sets it; zero for a free competition. */
   fee: Money | null;
+  /** Whether this environment allows under-18 registrations. */
+  allowsMinorRegistration: boolean;
   /** The entrant's stored age is under 18 and minor registration is paused. */
   minorRegistrationUnavailable: boolean;
   /**
@@ -93,8 +95,9 @@ export async function individualRegistrationForm(
   const now = ctx.clock.now();
   const dob = kept && parseDateOfBirth(kept.dateOfBirth, now);
   const keptAdult = dob !== null && isAdultAt(dob, now);
+  const allowsMinorRegistration = guardianFlowsActive(ctx.appEnv);
   const minorRegistrationUnavailable =
-    !guardianFlowsActive(ctx.appEnv) &&
+    !allowsMinorRegistration &&
     (subject.kind === "own"
       ? (await ownProfileOf(ctx.db, ctx, ctx.actor.userId, now)) === "minor"
       : dob !== null && !keptAdult);
@@ -115,6 +118,7 @@ export async function individualRegistrationForm(
       "individual"
     ),
     fee: terms.fees.individual,
+    allowsMinorRegistration,
     minorRegistrationUnavailable,
     registrant:
       subject.kind === "own"

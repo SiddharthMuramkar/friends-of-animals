@@ -107,7 +107,9 @@ export async function RegistrationView({
       consents: t("fields.consents"),
     },
     hints: {
-      dateOfBirth: t("fields.dateOfBirthHint"),
+      ...(form.allowsMinorRegistration
+        ? { dateOfBirth: t("fields.dateOfBirthHint") }
+        : {}),
       phone: t("fields.phoneHint"),
     },
     invalid: Object.fromEntries(
@@ -165,10 +167,16 @@ export async function RegistrationView({
     <>
       <PageHeader eyebrow={t("eyebrow")} tile={HUE} title={title} lead={lead} />
       {registrant.kind === "own" && registrant.children.length > 0 ? (
-        <Chooser
-          slug={form.competition.slug}
-          childrenToRegister={registrant.children}
-        />
+        form.allowsMinorRegistration ? (
+          <Chooser
+            slug={form.competition.slug}
+            childrenToRegister={registrant.children}
+          />
+        ) : (
+          <Callout tone="info" className="mt-8">
+            <p>{t("refusal.unavailable")}</p>
+          </Callout>
+        )
       ) : null}
       {registrant.kind === "child" ? null : <SchoolNote />}
       {fee ? (
