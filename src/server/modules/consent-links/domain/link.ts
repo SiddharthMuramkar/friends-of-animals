@@ -61,14 +61,10 @@ export type SendCodeDecision =
   | {
       ok: true;
       /** Store these on the link with the new code's hash. */
-      patch: Pick<
-        LinkState,
-        | "codesSent"
-        | "lastCodeSentAt"
-        | "codeExpiresAt"
-        | "codeAttempts"
-        | "verifiedAt"
-      >;
+      patch: Pick<LinkState, "codesSent" | "codeAttempts" | "verifiedAt"> & {
+        lastCodeSentAt: Date;
+        codeExpiresAt: Date;
+      };
     }
   | { ok: false; reason: ClosedLinkReason | "too_many_codes" }
   | { ok: false; reason: "wait"; retryAt: Date };
@@ -170,7 +166,9 @@ export function decideSendCode(link: LinkState, now: Date): SendCodeDecision {
     patch: {
       codesSent: link.codesSent + 1,
       lastCodeSentAt: now,
-      codeExpiresAt: after(now, CODE_TTL_MS),
+      codeExpiresAt: new Date(
+        Math.min(now.getTime() + CODE_TTL_MS, link.expiresAt.getTime())
+      ),
       codeAttempts: 0,
       verifiedAt: null,
     },

@@ -35,9 +35,8 @@ it("delivers the seeded guardian link and direct code using the message catalogu
   expect(linkMail?.subject).toBe(link.email.subject);
   expect(linkMail?.text === link.email.text.replace("{link}", url)).toBe(true);
   expect(codeMail?.subject).toBe(codeWords("subject"));
-  expect(codeMail?.text === codeWords("text", { code, minutes: 10 })).toBe(
-    true
-  );
+  const expiresAt = "15 January 2027 at 10:10:00 am IST";
+  expect(codeMail?.text === codeWords("text", { code, expiresAt })).toBe(true);
 });
 
 it.each(["staging", "production"] as const)(

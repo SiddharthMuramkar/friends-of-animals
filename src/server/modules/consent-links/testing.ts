@@ -66,7 +66,10 @@ export async function consentLinkWorld(
   };
 }
 
-export function deliveredToken(h: Harness, address = GUARDIAN_EMAIL): string {
+export function deliveredToken(
+  h: Pick<Harness, "email">,
+  address = GUARDIAN_EMAIL
+): string {
   const token = /\/consent\/([\w-]{43})(?![\w-])/.exec(
     h.email.lastTo(address)?.text ?? ""
   )?.[1];

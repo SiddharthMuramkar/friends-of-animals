@@ -131,12 +131,13 @@ test("a coordinator sends a link and a signed-out guardian answers once using th
   await expect(entry).toBeVisible();
   await bothThemes(page, "consent code entry");
   await entry.fill(code === "000000" ? "111111" : "000000");
-  await page.getByRole("button", { name: "Verify code" }).click();
+  await page.getByRole("button", { name: "Verify code" }).press("Enter");
   await expect(
     page.getByRole("alert").filter({ hasText: "4 attempts left" })
   ).toBeVisible();
   await expect.soft(entry).toHaveAttribute("aria-invalid", "true");
   await expect.soft(entry).toHaveAccessibleDescription(/4 attempts left/);
+  await expect(entry).toBeFocused();
   const answerBy = new Date(Date.now() + 5 * 60_000);
   answerBy.setMilliseconds(0);
   await setLinkExpiry(token, answerBy);

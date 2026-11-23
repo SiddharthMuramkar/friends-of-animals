@@ -19,6 +19,21 @@ export function consentLinksActive(appEnv: string): boolean {
   return appEnv === "local" || appEnv === "preview";
 }
 
+export async function lockInstitutionForRegistration(
+  db: AppDb,
+  registrationId: string
+): Promise<void> {
+  await db
+    .select({ id: institution.id })
+    .from(institution)
+    .innerJoin(
+      institutionRegistration,
+      eq(institutionRegistration.institutionId, institution.id)
+    )
+    .where(eq(institutionRegistration.id, registrationId))
+    .for("share", { of: institution });
+}
+
 export async function schoolRegistration(
   db: AppDb,
   key: ({ id: string } | { reference: string }) & { institutionId?: string }

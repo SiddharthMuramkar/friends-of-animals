@@ -11,7 +11,7 @@
     },
     "code": {
       "subject": "Your guardian consent code",
-      "text": "Your Friends of Animals guardian consent code is {code}. It expires in {minutes, number} minutes."
+      "text": "Your Friends of Animals guardian consent code is {code}. It expires on {expiresAt}."
     }
   }
 }

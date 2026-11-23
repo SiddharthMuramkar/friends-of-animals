@@ -125,6 +125,46 @@ describe("a guardian opens and verifies a consent link", () => {
     );
   });
 
+  it.each(["email", "sms"] as const)(
+    "reports the link deadline in the %s code notice when less than a minute remains",
+    async (channel) => {
+      const h = await createHarness({ now: "2027-01-15T04:30:26.000Z" });
+      const world = await consentLinkWorld(h);
+      const address = channel === "email" ? GUARDIAN_EMAIL : "+919000003083";
+      if (channel === "sms") await h.settings.set("sms.enabled", true);
+      const latestMessage = () =>
+        channel === "email" ? h.email.lastTo(address) : h.sms.lastTo(address);
+      const issued = await world.coordinator.sendConsentLink({
+        ...world.send,
+        channel,
+        address,
+      });
+      if (!issued.ok) throw new Error("Could not issue the fixture link");
+      await h.drain();
+      const token = /\/consent\/([\w-]{43})/.exec(
+        latestMessage()?.text ?? ""
+      )?.[1];
+      if (!token) throw new Error("Missing the fixture link");
+      h.clock.advance({ days: 6, hours: 23, minutes: 59, seconds: 15 });
+      const visitor = h.as(h.visitor());
+      expect(await visitor.sendConsentLinkCode({ token })).toEqual({
+        ok: true,
+      });
+      const notice = latestMessage()?.text;
+      const code = /\b\d{6}\b/.exec(notice ?? "")?.[0];
+      if (!code) throw new Error("Missing the fixture code");
+
+      h.clock.advance({ seconds: 45 });
+      expect(await visitor.verifyConsentLinkCode({ token, code })).toEqual({
+        ok: false,
+        error: "expired",
+      });
+      expect(notice?.replace(code, "[code]")).toMatch(
+        /22 January 2027 at 10:00:26\s+am IST/
+      );
+    }
+  );
+
   it("requires the issuing application's key to verify a guardian code", async () => {
     const h = await createHarness();
     const world = await consentLinkWorld(h);

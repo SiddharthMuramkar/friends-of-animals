@@ -74,7 +74,7 @@ export function createPgWorld() {
   const db = drizzle(client, { schema });
   const clock = new FakeClock(new Date());
   const gateway = new FakePaymentGateway();
-  const deps: Deps = {
+  const deps = {
     appEnv: "local",
     db,
     clock,
@@ -100,13 +100,14 @@ export function createPgWorld() {
     contactLimits: CONTACT_RATE_LIMITS,
     codeRequestLimits: CODE_REQUEST_LIMITS,
     payments: gateway,
-  };
+  } satisfies Deps;
   const app = createApp(deps);
   const seed: SeedBuilders = createSeedBuilders(deps);
 
   return {
     db,
     sql,
+    deps,
     clock,
     gateway,
     seed,

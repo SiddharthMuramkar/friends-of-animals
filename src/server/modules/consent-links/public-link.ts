@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { createTranslator } from "next-intl";
 
-import { LOCALE } from "@/i18n/formats";
+import { formats, LOCALE } from "@/i18n/formats";
 
 import deliveryWords from "../../../../messages/en-IN/guardianConsentDelivery.json";
 import { authorize } from "../../access/can";
@@ -19,7 +19,6 @@ import { maskIdentifier } from "../institutions/domain/mask-identifier";
 import { sendToLinkContact } from "./delivery";
 import {
   answerDeadline,
-  CODE_TTL_MS,
   closedReason,
   decideSendCode,
   decideVerifyCode,
@@ -46,6 +45,10 @@ const codeWords = createTranslator({
   locale: LOCALE,
   messages: deliveryWords,
   namespace: "guardianConsentDelivery.code",
+});
+const codeExpiryFormat = new Intl.DateTimeFormat(LOCALE, {
+  ...formats.dateTime.longDateTime,
+  second: "2-digit",
 });
 
 export function tokenHash(ctx: UseCaseContext, token: unknown): string | null {
@@ -178,17 +181,25 @@ export async function sendConsentLinkCode(
         updatedAt: now,
       })
       .where(eq(consentLink.id, link.id));
-    return { ok: true, link, code } as const;
+    return {
+      ok: true,
+      link,
+      code,
+      codeExpiresAt: decision.patch.codeExpiresAt,
+    } as const;
   });
 
   if (!reserved.ok) return reserved;
-  const { link, code } = reserved;
+  const { link, code, codeExpiresAt } = reserved;
   try {
     // The reserved code remains subject to its limit and cooldown even if
     // the provider times out after accepting the message.
     await sendToLinkContact(ctx, link, {
       subject: codeWords("subject"),
-      text: codeWords("text", { code, minutes: CODE_TTL_MS / 60_000 }),
+      text: codeWords("text", {
+        code,
+        expiresAt: codeExpiryFormat.format(codeExpiresAt),
+      }),
       vars: { code },
     });
   } catch {

@@ -19,7 +19,12 @@ import { checkAnswers } from "./domain/answers";
 import { closedReason, decideAnswer } from "./domain/link";
 import { offeredPublicUses, samePublicUses } from "./offered-uses";
 import { sessionMatches, tokenHash, type LinkInput } from "./public-link";
-import { activeLinkTarget, CLOSED_LINK_SECRETS, findLink } from "./repository";
+import {
+  activeLinkTarget,
+  CLOSED_LINK_SECRETS,
+  findLink,
+  lockInstitutionForRegistration,
+} from "./repository";
 
 export type AnswerConsentLinkInput = LinkInput & {
   sessionToken?: string;
@@ -79,13 +84,15 @@ async function saveAnswers(
   }
 
   return ctx.db.transaction(async (tx) => {
-    // Keep pins stable through the append. Take the competition, profile and
-    // link locks in the same order as replacement sends and account consent.
+    // Enrolment locks the institution before the competition. Hold both
+    // through the append to keep the school's eligibility and pins current.
+    await lockInstitutionForRegistration(tx, seen.institutionRegistrationId);
     await tx
       .select({ id: competition.id })
       .from(competition)
       .where(eq(competition.id, seen.competitionId))
       .for("share");
+    // Match the profile-before-link order of replacement sends.
     await lockProfileSubject(tx, seen.participantProfileId);
     const link = await findLink(tx, hash, true);
     if (!link) return { ok: false, error: "not_found" } as const;

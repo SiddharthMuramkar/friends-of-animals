@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import { FormAlert, SubmitButton, TextField } from "@/components/form";
 import type { OfferedPublicUse } from "@/server/modules/consent-links/offered-uses";
@@ -65,14 +65,18 @@ export function VerifyCodeForm({
   token: string;
   labels: SubmitLabels & { code: string; hint: string };
 }) {
+  const codeField = useRef<HTMLInputElement>(null);
   const [state, action] = useActionState(
     verifyCodeAction.bind(null, token),
     null
   );
   const codeError =
     state?.error === "wrong_code" || state?.error === "invalid_code"
-      ? state.message
+      ? state
       : undefined;
+  useEffect(() => {
+    if (codeError) codeField.current?.focus();
+  }, [codeError]);
   return (
     <form
       action={action}
@@ -81,11 +85,12 @@ export function VerifyCodeForm({
     >
       <ActionError message={state?.message} label={labels.danger} />
       <TextField
+        ref={codeField}
         id="consent-code"
         name="code"
         label={labels.code}
         hint={labels.hint}
-        error={codeError}
+        error={codeError?.message}
         type="text"
         inputMode="numeric"
         autoComplete="one-time-code"
