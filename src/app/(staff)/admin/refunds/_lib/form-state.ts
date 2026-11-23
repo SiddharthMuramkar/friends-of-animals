@@ -21,6 +21,7 @@ export type RequestFormState = {
   error?: "reason_required" | "reason_too_long";
   alert?:
     | "batch_not_captured"
+    | "dashboard_managed"
     | "nothing_to_refund"
     | "item_in_live_refund"
     | "item_already_refunded"
@@ -47,6 +48,7 @@ export function afterRequest(
     case "reason_too_long":
       return { ...next, error: result.error };
     case "batch_not_captured":
+    case "dashboard_managed":
     case "nothing_to_refund":
     case "exceeds_paid":
       return { ...next, alert: result.error };
@@ -111,7 +113,7 @@ export type ManualFormState = {
   method: string;
   reference: string;
   error?: "reference_invalid";
-  alert?: "not_approved" | "not_manual" | "unexpected";
+  alert?: "not_approved" | "not_manual" | "same_person" | "unexpected";
 };
 
 export const MANUAL_START: ManualFormState = {
@@ -133,6 +135,7 @@ export function afterManual(
       return { ...next, error: result.error };
     case "not_approved":
     case "not_manual":
+    case "same_person":
       return { ...next, alert: result.error };
     default:
       return { ...next, alert: "unexpected" };

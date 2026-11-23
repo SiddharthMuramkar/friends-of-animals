@@ -45,7 +45,7 @@ export type PaymentReviewCaseItem = {
   batchId: string;
   reason: PaymentReviewReason;
   gatewayPaymentId: string | null;
-  /** What the gateway captured, in paise. */
+  /** What the gateway captured, in the currency's minor units. */
   amountMinor: bigint;
   currency: string;
   openedAt: Date;
@@ -55,6 +55,7 @@ export type PaymentReviewCaseItem = {
     outcome: PaymentReviewOutcome;
     resolvedAt: Date;
     refundDue: boolean;
+    manualRefund?: "required" | "recorded";
   } | null;
 };
 
@@ -77,6 +78,7 @@ const ITEM_COLUMNS = {
   outcome: paymentReviewCase.outcome,
   resolvedAt: paymentReviewCase.resolvedAt,
   refundDue: paymentReviewCase.refundDue,
+  dashboardRefundReference: paymentReviewCase.dashboardRefundReference,
   institutionName: institution.name,
   payerName: payerUser.name,
   competitionName: competition.name,
@@ -89,6 +91,11 @@ type ItemRow = {
 };
 
 function itemOf(row: ItemRow): PaymentReviewCaseItem {
+  const manualRefund = row.dashboardRefundReference
+    ? "recorded"
+    : row.currency !== "INR" && row.refundDue
+      ? "required"
+      : undefined;
   const payer: PaymentReviewPayer =
     row.institutionName !== null
       ? { kind: "institution", name: row.institutionName }
@@ -111,6 +118,7 @@ function itemOf(row: ItemRow): PaymentReviewCaseItem {
             outcome: row.outcome,
             resolvedAt: row.resolvedAt,
             refundDue: row.refundDue ?? false,
+            ...(manualRefund ? { manualRefund } : {}),
           }
         : null,
   };
@@ -141,7 +149,13 @@ export async function listPaymentReviewCases(
         ? isNull(paymentReviewCase.resolvedAt)
         : isNotNull(paymentReviewCase.resolvedAt)
     )
-    .orderBy(desc(paymentReviewCase.openedAt), desc(paymentReviewCase.id))
+    .orderBy(
+      desc(
+        sql`${paymentReviewCase.refundDue} AND ${paymentReviewCase.currency} <> 'INR'`
+      ),
+      desc(paymentReviewCase.openedAt),
+      desc(paymentReviewCase.id)
+    )
     .limit(REVIEW_LIST_LIMIT);
   return { ok: true, cases: rows.map(itemOf) };
 }
@@ -212,6 +226,12 @@ export async function getPaymentReviewCase(
       )
     );
   const item = itemOf(row);
+  const outcomes = allowedOutcomes({
+    reason: item.reason,
+    batchStatusBefore: details.batchStatusBefore,
+    currency: item.currency,
+    amountMinor: item.amountMinor,
+  });
   return {
     ok: true,
     reviewCase: {
@@ -219,12 +239,7 @@ export async function getPaymentReviewCase(
       batchStatus: details.batchStatus,
       batchStatusBefore: details.batchStatusBefore,
       batchAmountMinor: details.batchAmountMinor,
-      allowedOutcomes: item.resolution
-        ? []
-        : allowedOutcomes({
-            reason: item.reason,
-            batchStatusBefore: details.batchStatusBefore,
-          }),
+      allowedOutcomes: item.resolution ? [] : outcomes,
       otherOpenCases: others?.count ?? 0,
       resolutionReason: details.resolutionReason,
       resolvedByName: details.resolvedByName,

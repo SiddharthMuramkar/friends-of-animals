@@ -1,7 +1,10 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { refund } from "@/server/db/schema";
+import { createApp } from "@/server/app";
+import { auditLog, paymentReviewCase, refund } from "@/server/db/schema";
+import { uuidv7 } from "@/server/ids";
+import { razorpayGateway } from "@/server/ports/razorpay/gateway";
 import { createHarness, type Harness } from "@/test/harness";
 
 import {
@@ -163,6 +166,161 @@ describe("resolving a payment in review with a refund", () => {
     expect((await batchRow(h, batchId)).status).toBe("cancelled");
   });
 
+  it("says so, loudly, when the money came in a currency refunds can't send: staff refund it by hand", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 2 });
+    const { batchId, orderId } = await openOrder(school);
+    const { paymentId } = h.gateway.capture(orderId, {
+      amount: { amountMinor: 1_200n, currency: "USD" },
+    });
+    await receive(h, orderId);
+    const [opened] = await reviewCasesOf(h, batchId);
+    const finance = await signInStaff(h, "finance");
+
+    expect
+      .soft(
+        await h.as(finance.actor).resolvePaymentReviewCase({
+          caseId: opened!.id,
+          outcome: "refund",
+          reason: "Paid in dollars by mistake; give it back.",
+        })
+      )
+      .toEqual({
+        ok: true,
+        batchStatus: "cancelled",
+        manualRefundRequired: { currency: "USD" },
+      });
+    await h.drain();
+    expect
+      .soft(
+        await h.as(finance.actor).getPaymentReviewCase({ caseId: opened!.id })
+      )
+      .toMatchObject({
+        ok: true,
+        reviewCase: {
+          currency: "USD",
+          resolution: {
+            outcome: "refund",
+            refundDue: true,
+            manualRefund: "required",
+          },
+        },
+      });
+
+    expect(await h.db.select().from(refund)).toEqual([]);
+    expect(h.gateway.refunds).toEqual([]);
+    expect(h.errors.reported).toEqual([
+      expect.objectContaining({
+        type: "Error",
+        message: expect.stringContaining("refund it by hand"),
+        tags: expect.objectContaining({
+          where: "payments.resolveReviewCase",
+          currency: "USD",
+        }),
+        extra: expect.objectContaining({ caseId: opened!.id, batchId }),
+      }),
+    ]);
+    const [resolved] = await h.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, "payment.review_resolved"));
+    expect(resolved?.after).toMatchObject({
+      refundDue: true,
+      refundId: null,
+      refundByHand: "currency_not_inr",
+    });
+
+    const caseId = opened!.id;
+    const recording = { caseId, reference: " rfnd_dashboard " };
+    await expect(
+      h.as(school.coordinator.actor).recordDashboardRefund(recording)
+    ).rejects.toMatchObject({ code: "forbidden" });
+    h.clock.advance({ minutes: 11 });
+    await expect(
+      h.as(finance.actor).recordDashboardRefund(recording)
+    ).rejects.toMatchObject({ code: "step_up_required" });
+    await h.passSecondFactor(finance.actor);
+    const providerRefund = {
+      id: "rfnd_dashboard",
+      paymentId,
+      amountMinor: 1_200n,
+      currency: "USD",
+      status: "processed" as const,
+      notes: {},
+    };
+    const otherTransport = vi.fn<typeof fetch>();
+    const otherGateway = razorpayGateway({
+      keyId: "rzp_test_foa_fixture",
+      keySecret: "fixture-key",
+      webhookSecret: "fixture-webhook",
+      fetch: otherTransport,
+    });
+    const onOtherGateway = createApp({ ...h.deps, payments: otherGateway }).as(
+      finance.actor
+    );
+    expect(await onOtherGateway.recordDashboardRefund(recording)).toEqual({
+      ok: false,
+      error: "refund_unverified",
+    });
+    expect(otherTransport).not.toHaveBeenCalled();
+    expect(await onOtherGateway.getPaymentReviewCase({ caseId })).toMatchObject(
+      {
+        reviewCase: {
+          resolution: { refundDue: true, manualRefund: "required" },
+        },
+      }
+    );
+    for (const unverified of [
+      { id: "rfnd_other_payment", paymentId: "pay_another_receipt" },
+      { id: "rfnd_partial", amountMinor: 600n },
+      { id: "rfnd_wrong_currency", currency: "INR" },
+      { id: "rfnd_pending", status: "pending" as const },
+      { id: "rfnd_failed", status: "failed" as const },
+    ]) {
+      h.gateway.addDashboardRefund({ ...providerRefund, ...unverified });
+      expect(
+        await h
+          .as(finance.actor)
+          .recordDashboardRefund({ caseId, reference: unverified.id })
+      ).toEqual({ ok: false, error: "refund_unverified" });
+    }
+    h.gateway.addDashboardRefund(providerRefund);
+    expect(await h.as(finance.actor).recordDashboardRefund(recording)).toEqual({
+      ok: true,
+    });
+    expect(await h.as(finance.actor).recordDashboardRefund(recording)).toEqual({
+      ok: false,
+      error: "not_pending",
+    });
+    expect(
+      await h.as(finance.actor).getPaymentReviewCase({ caseId })
+    ).toMatchObject({
+      reviewCase: {
+        resolution: {
+          outcome: "refund",
+          refundDue: false,
+          manualRefund: "recorded",
+        },
+      },
+    });
+    const records = await h.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, "payment.dashboard_refund_recorded"));
+    expect(records).toMatchObject([
+      {
+        entityId: caseId,
+        actorUserId: finance.userId,
+        after: {
+          refundDue: false,
+          reference: "rfnd_dashboard",
+          currency: "USD",
+        },
+      },
+    ]);
+    expect(h.gateway.refunds).toEqual([]);
+  });
+
   it("starts one refund however often it is asked: a second resolution is refused", async () => {
     const h = await createHarness();
     const paid = await paidTwice(h);
@@ -238,6 +396,54 @@ describe("a full payment while another is in review (#79's review, finding 2)", 
       "confirmed",
       "confirmed",
     ]);
+  });
+
+  it("claims one verified dashboard refund across two review cases for the same payment", async () => {
+    const h = await createHarness();
+    const first = await openOrder(await schoolWithStudents(h, { students: 1 }));
+    const second = await openOrder(
+      await schoolWithStudents(h, { students: 1, code: "PETS27" })
+    );
+    const finance = h.as((await signInStaff(h, "finance")).actor);
+    const now = h.clock.now();
+    const caseIds = [uuidv7(now), uuidv7(now)];
+    const paymentId = "pay_dashboard_import";
+    await h.db.insert(paymentReviewCase).values(
+      [first, second].map(({ batchId }, index) => ({
+        id: caseIds[index]!,
+        batchId,
+        gatewayPaymentId: paymentId,
+        reason: "amount_mismatch" as const,
+        amountMinor: 1_200n,
+        currency: "USD",
+        batchStatusBefore: "order_created" as const,
+        openedAt: now,
+        resolvedAt: now,
+        outcome: "refund" as const,
+        resolutionReason: RESOLUTION,
+        refundDue: true,
+      }))
+    );
+    const reference = "rfnd_dashboard_import";
+    h.gateway.addDashboardRefund({
+      id: reference,
+      paymentId,
+      amountMinor: 1_200n,
+      currency: "USD",
+      status: "processed",
+      notes: {},
+    });
+    expect(
+      await finance.recordDashboardRefund({ caseId: caseIds[0]!, reference })
+    ).toEqual({ ok: true });
+    expect(
+      await finance.recordDashboardRefund({ caseId: caseIds[1]!, reference })
+    ).toEqual({ ok: false, error: "reference_already_recorded" });
+    expect(
+      await finance.getPaymentReviewCase({ caseId: caseIds[1]! })
+    ).toMatchObject({
+      reviewCase: { resolution: { refundDue: true, manualRefund: "required" } },
+    });
   });
 });
 

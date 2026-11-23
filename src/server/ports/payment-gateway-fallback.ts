@@ -26,13 +26,14 @@ import {
 } from "../db/schema";
 import { uuidv7 } from "../ids";
 import type { Clock } from "./clock";
-import type {
-  CheckoutParams,
-  GatewayPayment,
-  GatewayRefund,
-  GatewayWebhook,
-  Money,
-  PaymentGateway,
+import {
+  RefundRefusedError,
+  type CheckoutParams,
+  type GatewayPayment,
+  type GatewayRefund,
+  type GatewayWebhook,
+  type Money,
+  type PaymentGateway,
 } from "./payment-gateway";
 
 /** Public on purpose; see the note above. */
@@ -220,7 +221,9 @@ export class FallbackPaymentGateway implements PaymentGateway {
         )
       );
     if (!payment) {
-      throw new RangeError("The fallback has no captured payment to refund");
+      throw new RefundRefusedError(
+        "The fallback has no captured payment to refund"
+      );
     }
     const [refunded] = await this.#db
       .select({ total: sum(gatewayTestRefund.amountMinor) })
@@ -236,7 +239,9 @@ export class FallbackPaymentGateway implements PaymentGateway {
       amount.amountMinor <= 0n ||
       out + amount.amountMinor > payment.amountMinor
     ) {
-      throw new RangeError("A fallback refund can't be more than is left");
+      throw new RefundRefusedError(
+        "A fallback refund can't be more than is left"
+      );
     }
     const now = this.#clock.now();
     const [made] = await this.#db

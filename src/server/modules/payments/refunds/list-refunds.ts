@@ -23,6 +23,7 @@ import {
   institutionRegistration,
   paymentBatch,
   paymentBatchItem,
+  paymentReviewCase,
   refund,
   refundItem,
   registration,
@@ -44,7 +45,7 @@ import type {
 } from "../domain/refund-status";
 import type { PaymentReviewPayer } from "../review-cases";
 import { batchResource } from "./request-refund";
-import { refundableItems } from "./rows";
+import { acceptedReviewOfBatch, refundableBatch } from "./rows";
 
 /** How many refunds one list shows; older ones wait their turn. */
 export const REFUND_LIST_LIMIT = 100;
@@ -91,6 +92,7 @@ export type RefundView = RefundListItem & {
   manualReference: string | null;
   reviewCaseId: string | null;
   batchAmountMinor: bigint;
+  batchCurrency: string;
   /** The institution registration's reference; null on the individual route. */
   reference: string | null;
   items: {
@@ -123,6 +125,14 @@ export type RefundableBatch = {
   status: PaymentBatchStatus;
   captureMethod: PaymentCaptureMethod | null;
   amountMinor: bigint;
+  currency: string;
+  payout:
+    | { kind: "inr" }
+    | {
+        kind: "dashboard";
+        reviewCaseId: string | null;
+        state: "review" | "required" | "recorded";
+      };
   competitionName: string;
   payer: PaymentReviewPayer;
   reference: string | null;
@@ -274,10 +284,16 @@ export async function getRefund(
       manualReference: refund.manualReference,
       reviewCaseId: refund.reviewCaseId,
       batchAmountMinor: paymentBatch.amountMinor,
+      batchCurrency: paymentBatch.currency,
+      acceptedReceipt: {
+        amountMinor: paymentReviewCase.amountMinor,
+        currency: paymentReviewCase.currency,
+      },
       reference: institutionRegistration.reference,
     })
     .from(refund)
     .innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
+    .leftJoin(paymentReviewCase, acceptedReviewOfBatch)
     .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
     .leftJoin(institution, eq(institution.id, paymentBatch.institutionId))
     .leftJoin(payerUser, eq(payerUser.id, paymentBatch.payerUserId))
@@ -332,7 +348,9 @@ export async function getRefund(
       manualMethod: row.manualMethod,
       manualReference: row.manualReference,
       reviewCaseId: row.reviewCaseId,
-      batchAmountMinor: row.batchAmountMinor,
+      batchAmountMinor:
+        row.acceptedReceipt?.amountMinor ?? row.batchAmountMinor,
+      batchCurrency: row.acceptedReceipt?.currency ?? row.batchCurrency,
       reference: row.reference,
       items: items.map((item) => ({
         registrationId: item.registrationId,
@@ -384,9 +402,18 @@ export async function getRefundableBatch(
     )
     .where(eq(paymentBatch.id, parsed.data.batchId));
   if (!row) return { ok: false, error: "not_found" };
-  const states = new Map(
-    (await refundableItems(ctx.db, row.id)).map((item) => [item.id, item])
-  );
+  const available = await refundableBatch(ctx.db, row);
+  const states = new Map(available.items.map((item) => [item.id, item]));
+  const payout: RefundableBatch["payout"] =
+    available.kind === "dashboard"
+      ? {
+          kind: "dashboard",
+          reviewCaseId: (await can(ctx, "payments.review.read")).allowed
+            ? available.reviewCaseId
+            : null,
+          state: available.state,
+        }
+      : { kind: "inr" };
   const students = await ctx.db
     .select({
       registrationId: paymentBatchItem.registrationId,
@@ -422,7 +449,9 @@ export async function getRefundableBatch(
       id: row.id,
       status: row.status,
       captureMethod: row.captureMethod,
-      amountMinor: row.amountMinor,
+      amountMinor: available.amountMinor,
+      currency: available.currency,
+      payout,
       competitionName: row.competitionName,
       payer: payerOf(row),
       reference: row.reference,

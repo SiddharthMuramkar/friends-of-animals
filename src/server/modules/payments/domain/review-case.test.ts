@@ -132,17 +132,25 @@ describe("allowedOutcomes()", () => {
     )
   )("for %s on a batch that was %s", (reason, before) => {
     const confirmable = CONFIRMABLE.includes(reason) && before !== "captured";
-    expect(allowedOutcomes({ reason, batchStatusBefore: before })).toEqual(
-      confirmable ? ["confirm", "refund", "keep"] : ["refund", "keep"]
-    );
+    expect(
+      allowedOutcomes({
+        reason,
+        batchStatusBefore: before,
+        currency: "INR",
+        amountMinor: 100n,
+      })
+    ).toEqual(confirmable ? ["confirm", "refund", "keep"] : ["refund", "keep"]);
   });
 
   it("never offers confirm for a reason ranked above the confirmable ones", () => {
     for (const [index, reason] of PAYMENT_REVIEW_REASONS.entries()) {
       expect(
-        allowedOutcomes({ reason, batchStatusBefore: "cancelled" }).includes(
-          "confirm"
-        )
+        allowedOutcomes({
+          reason,
+          batchStatusBefore: "cancelled",
+          currency: "INR",
+          amountMinor: 100n,
+        }).includes("confirm")
       ).toBe(index >= 2);
     }
   });
@@ -153,7 +161,13 @@ describe("planResolution()", () => {
   const open = (
     reason: PaymentReviewReason,
     batchStatusBefore: BatchStatusBeforeReview
-  ) => ({ reason, batchStatusBefore, resolvedAt: null });
+  ) => ({
+    reason,
+    batchStatusBefore,
+    resolvedAt: null,
+    currency: "INR",
+    amountMinor: 100n,
+  });
   const plan = (
     reviewCase: ReturnType<typeof open>,
     outcome: PaymentReviewOutcome,

@@ -240,6 +240,44 @@ describe("getPaymentReviewCase", () => {
 });
 
 describe("resolvePaymentReviewCase", () => {
+  it("leaves a foreign-currency payment in review for a dashboard refund", async () => {
+    const h = await createHarness();
+    const school = await schoolWithStudents(h, { students: 2 });
+    const { batchId, orderId } = await openOrder(school);
+    h.gateway.capture(orderId, {
+      amount: { amountMinor: 1200n, currency: "USD" },
+    });
+    expect(await receive(h, orderId)).toEqual({
+      ok: true,
+      outcome: "needs_review",
+    });
+    const [opened] = await reviewCasesOf(h, batchId);
+    if (!opened) throw new Error("No payment review case");
+    const finance = h.as((await signInStaff(h, "finance")).actor);
+    const decide = (outcome: "confirm" | "refund") =>
+      finance.resolvePaymentReviewCase({
+        caseId: opened.id,
+        outcome,
+        reason: REASON,
+      });
+    expect(await decide("confirm")).toEqual({
+      ok: false,
+      error: "outcome_not_allowed",
+    });
+    expect(
+      await finance.getPaymentReviewCase({ caseId: opened.id })
+    ).toMatchObject({
+      reviewCase: { currency: "USD", allowedOutcomes: ["refund", "keep"] },
+    });
+    expect(await decide("refund")).toEqual({
+      ok: true,
+      batchStatus: "cancelled",
+      manualRefundRequired: { currency: "USD" },
+    });
+    await h.drain();
+    expect(h.gateway.refunds).toEqual([]);
+  });
+
   it("confirms money that arrived after the close: the batch is captured and each student confirmed", async () => {
     const h = await createHarness();
     const { school, batchId, paymentId, caseId } = await closedCase(h);

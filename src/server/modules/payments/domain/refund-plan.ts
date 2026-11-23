@@ -14,6 +14,8 @@ export type RefundableBatch = {
   captured: boolean;
   /** What the batch captured, in paise. */
   amountMinor: bigint;
+  /** What refunds of the original capture have settled or still hold. */
+  committedMinor: bigint;
   currency: "INR";
   items: readonly {
     id: string;
@@ -24,6 +26,32 @@ export type RefundableBatch = {
 
 /** No `registrationIds` means every item that is left. */
 export type RefundRequest = { registrationIds?: readonly string[] };
+
+/** Split the balance by item charge, keeping existing allocations. */
+export function allocateRefundItems(
+  balanceMinor: bigint,
+  items: readonly { amountMinor: bigint; heldMinor: bigint | null }[]
+): bigint[] {
+  const remainingMinor = balanceMinor > 0n ? balanceMinor : 0n;
+  let weight = 0n;
+  for (const item of items) {
+    if (item.heldMinor === null) weight += item.amountMinor;
+  }
+
+  // Consecutive boundaries rounded down give every remaining minor unit a
+  // home, even when a capture did not divide evenly across its students.
+  let usedWeight = 0n;
+  let allocated = 0n;
+  return items.map((item) => {
+    if (item.heldMinor !== null) return item.heldMinor;
+    if (weight === 0n) return 0n;
+    usedWeight += item.amountMinor;
+    const next = (remainingMinor * usedWeight) / weight;
+    const share = next - allocated;
+    allocated = next;
+    return share;
+  });
+}
 
 export type RefundPlan =
   | {
@@ -83,19 +111,18 @@ export function planRefund(
     }
   }
 
-  const amountMinor = chosen.reduce((sum, item) => sum + item.amountMinor, 0n);
+  // A reviewed capture can round a registration's share down to zero.
+  const payable = chosen.filter((item) => item.amountMinor > 0n);
+  const amountMinor = payable.reduce((sum, item) => sum + item.amountMinor, 0n);
   if (amountMinor <= 0n) return { ok: false, reason: "nothing_to_refund" };
 
-  const alreadyOut = batch.items
-    .filter((item) => item.refund !== "none")
-    .reduce((sum, item) => sum + item.amountMinor, 0n);
-  if (alreadyOut + amountMinor > batch.amountMinor) {
+  if (batch.committedMinor + amountMinor > batch.amountMinor) {
     return { ok: false, reason: "exceeds_paid" };
   }
 
   return {
     ok: true,
-    registrationIds: chosen.map((item) => item.id),
+    registrationIds: payable.map((item) => item.id),
     amountMinor,
     currency: batch.currency,
   };

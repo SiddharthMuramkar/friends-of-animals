@@ -28,12 +28,18 @@ import { and, eq, inArray, or } from "drizzle-orm";
 import type { Role } from "../../../access/domain/roles";
 import type { Actor } from "../../../actor";
 import type { AppDb } from "../../../db/app-db";
-import { paymentBatch, refund, type RefundRow } from "../../../db/schema";
+import {
+  paymentBatch,
+  paymentReviewCase,
+  refund,
+  type RefundRow,
+} from "../../../db/schema";
 import { emit } from "../../../outbox/emit";
 import type { Clock } from "../../../ports/clock";
-import type {
-  GatewayRefund,
-  PaymentGateway,
+import {
+  RefundRefusedError,
+  type GatewayRefund,
+  type PaymentGateway,
 } from "../../../ports/payment-gateway";
 import {
   decideRefundSync,
@@ -42,7 +48,12 @@ import {
   type RefundForSync,
 } from "../domain/refund-sync";
 import { nextRefundStatus, type RefundEvent } from "../domain/refund-status";
-import { auditRefund, lockRefund, refundRegistrations } from "./rows";
+import {
+  acceptedReviewOfBatch,
+  auditRefund,
+  lockRefund,
+  refundRegistrations,
+} from "./rows";
 
 export type RefundSyncDeps = {
   db: AppDb;
@@ -76,6 +87,7 @@ export type RefundSyncOutcome = (typeof REFUND_SYNC_OUTCOMES)[number];
 
 function forSync(row: RefundRow): RefundForSync | null {
   if (row.method === "gateway" && row.gatewayPaymentId === null) return null;
+  if (row.currency !== "INR") throw new Error("Gateway refunds require INR");
   return {
     id: row.id,
     status: row.status,
@@ -84,7 +96,7 @@ function forSync(row: RefundRow): RefundForSync | null {
     gatewayRefundId: row.gatewayRefundId,
     paymentId: row.gatewayPaymentId ?? "",
     amountMinor: row.amountMinor,
-    currency: "INR",
+    currency: row.currency,
   };
 }
 
@@ -105,8 +117,13 @@ export async function syncRefund(
   if (found.method === "manual") return "awaiting_manual";
   // Only the gateway that took the payment can give it back.
   const [batch] = await deps.db
-    .select({ gateway: paymentBatch.gateway })
+    .select({
+      gateway: paymentBatch.gateway,
+      acceptedCurrency: paymentReviewCase.currency,
+      acceptedPaymentId: paymentBatch.gatewayPaymentId,
+    })
     .from(paymentBatch)
+    .leftJoin(paymentReviewCase, acceptedReviewOfBatch)
     .where(eq(paymentBatch.id, found.batchId));
   if (batch?.gateway !== deps.payments.name) return "other_gateway";
 
@@ -114,12 +131,45 @@ export async function syncRefund(
     subject.paymentId
   );
   if (decideRefundSync(subject, atGateway).kind === "send") {
-    const sent = await deps.payments.refund({
-      paymentId: subject.paymentId,
-      amount: { amountMinor: subject.amountMinor, currency: "INR" },
-      idempotencyKey: refundIdempotencyKey(subject),
-      notes: refundNotes(subject),
-    });
+    // An approval from before the currency check can still be queued. A
+    // later duplicate has its own receipt and can still be refunded in INR.
+    if (
+      batch.acceptedCurrency &&
+      batch.acceptedCurrency !== subject.currency &&
+      batch.acceptedPaymentId === subject.paymentId
+    ) {
+      return failUnsentAttempt(
+        deps,
+        found,
+        { dashboardManaged: true },
+        actorRole
+      );
+    }
+    let sent: GatewayRefund;
+    try {
+      sent = await deps.payments.refund({
+        paymentId: subject.paymentId,
+        amount: {
+          amountMinor: subject.amountMinor,
+          currency: subject.currency,
+        },
+        idempotencyKey: refundIdempotencyKey(subject),
+        notes: refundNotes(subject),
+      });
+    } catch (error) {
+      if (!(error instanceof RefundRefusedError)) throw error;
+      return failUnsentAttempt(
+        deps,
+        found,
+        {
+          refusedByGateway: true,
+          ...(error.reason === "full_refund_only"
+            ? { fullRefundOnly: true }
+            : {}),
+        },
+        actorRole
+      );
+    }
     atGateway = [sent, ...atGateway.filter((each) => each.id !== sent.id)];
   }
 
@@ -202,6 +252,51 @@ async function apply(
     await settleRefunded(tx, deps, row, status, actorRole);
     return "refunded";
   }
+  await failLocked(
+    tx,
+    deps,
+    row,
+    status,
+    { gatewayRefundId: decision.gatewayRefundId },
+    actorRole
+  );
+  return "failed";
+}
+
+/** A refusal fails only this attempt, while it is still unacknowledged. */
+async function failUnsentAttempt(
+  deps: RefundSyncDeps,
+  attempt: RefundRow,
+  details: Record<string, unknown>,
+  actorRole: Role | null
+): Promise<RefundSyncOutcome> {
+  return deps.db.transaction(async (tx) => {
+    const row = await lockRefund(tx, attempt.id);
+    if (
+      !row ||
+      row.status !== "approved" ||
+      row.attempt !== attempt.attempt ||
+      row.gatewayRefundId !== null
+    ) {
+      return "unchanged";
+    }
+    await failLocked(tx, deps, row, row.status, details, actorRole);
+    return "failed";
+  });
+}
+
+/** Keeps the refund's holds in place for finance to retry or close. */
+async function failLocked(
+  tx: AppDb,
+  deps: RefundSyncDeps,
+  row: RefundRow,
+  status: RefundRow["status"],
+  details: Record<string, unknown>,
+  actorRole: Role | null
+): Promise<void> {
+  const move = nextRefundStatus(status, "gateway_failed");
+  if (!move.ok) throw new Error(`Refund ${row.id} can't fail`);
+  const now = deps.clock.now();
   await tx
     .update(refund)
     .set({ status: move.to, failedAt: now, updatedAt: now })
@@ -213,7 +308,7 @@ async function apply(
     {
       action: "refund.failed",
       before: { status },
-      after: { status: move.to, gatewayRefundId: decision.gatewayRefundId },
+      after: { status: move.to, ...details },
     },
     actorRole
   );
@@ -222,7 +317,6 @@ async function apply(
     aggregate: { type: "refund", id: row.id },
     payload: { refundId: row.id },
   });
-  return "failed";
 }
 
 /**
@@ -239,7 +333,11 @@ export async function settleRefunded(
   extra: Record<string, unknown> = {}
 ): Promise<void> {
   const now = ctx.clock.now();
-  const registrationsRefunded = await refundRegistrations(tx, row.id, now);
+  const registrationsRefunded = await refundRegistrations(
+    tx,
+    { refundId: row.id },
+    now
+  );
   await auditRefund(
     tx,
     ctx,
