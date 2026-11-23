@@ -62,25 +62,28 @@ const ENTRY: {
 };
 
 /**
- * The allowed moves, each with the one cause that may make it. A pair that
- * is missing is forbidden for everyone.
+ * The allowed moves and their causes. A pair that is missing is forbidden
+ * for everyone.
  */
 const TRANSITIONS: {
   readonly [From in RegistrationStatus]: Partial<
-    Record<RegistrationStatus, RegistrationCause>
+    Record<RegistrationStatus, readonly RegistrationCause[]>
   >;
 } = {
-  enrolled: { withdrawn: "coordinator", confirmed: "payment" },
+  enrolled: { withdrawn: ["coordinator"], confirmed: ["payment"] },
   // A refund that lists it moves it, once the money is back (#80).
-  confirmed: { refunded: "payment" },
+  confirmed: { refunded: ["payment"] },
   withdrawn: {},
   // Withdrawing an unpaid registration of one's own waits for a later
   // ticket; only the payment moves it.
-  pending_payment: { confirmed: "payment" },
+  pending_payment: { confirmed: ["payment"] },
   refunded: {},
-  // Only a verified guardian's acceptance releases it; nothing confirms it
-  // directly, and nothing moves a registration back here.
-  pending_guardian: { pending_payment: "guardian" },
+  // Guardian consent or a participant reaching adulthood can release it.
+  // A guardian accepting a request can withdraw a duplicate held place.
+  pending_guardian: {
+    pending_payment: ["guardian", "participant"],
+    withdrawn: ["guardian"],
+  },
 };
 
 /** The status a new registration usually starts in, and who creates it. */
@@ -101,19 +104,18 @@ export function canStartIn(
   return entry.status === status || entry.alsoStartsIn.includes(status);
 }
 
-/** Who may move a registration from `from` to `to`, or null if nobody may. */
-export function transitionCause(
-  from: RegistrationStatus,
-  to: RegistrationStatus
-): RegistrationCause | null {
-  return TRANSITIONS[from][to] ?? null;
-}
-
 /** Whether `by` may move a registration from `from` to `to`. */
 export function canTransition(
   from: RegistrationStatus,
   to: RegistrationStatus,
   by: RegistrationCause
 ): boolean {
-  return transitionCause(from, to) === by;
+  return transitionCauses(from, to).includes(by);
+}
+
+export function transitionCauses(
+  from: RegistrationStatus,
+  to: RegistrationStatus
+): readonly RegistrationCause[] {
+  return TRANSITIONS[from][to] ?? [];
 }

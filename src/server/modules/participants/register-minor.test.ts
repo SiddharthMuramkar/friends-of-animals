@@ -146,10 +146,11 @@ describe("registerAsIndividual for a minor", () => {
         adultForm(competition, { fullName: "Rohan", dateOfBirth: "1990-01-01" })
       );
 
-    // Their guardian pays, not them.
+    // Held for their guardian's participation consent (#82); then their
+    // guardian pays, not them.
     expect(result).toMatchObject({
       ok: true,
-      status: "pending_payment",
+      status: "pending_guardian",
       payNow: false,
     });
     if (!result.ok) return;

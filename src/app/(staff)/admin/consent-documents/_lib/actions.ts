@@ -10,10 +10,7 @@ import { secondFactorPath } from "@/lib/second-factor-routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import { consentDocumentTag } from "@/server/modules/consent/cached";
-import {
-  CONSENT_PURPOSES,
-  type ConsentPurpose,
-} from "@/server/modules/consent/domain/purposes";
+import { DOCUMENT_PURPOSES } from "@/server/modules/consent/domain/purposes";
 
 import {
   afterPreview,
@@ -43,10 +40,6 @@ function field(formData: FormData, name: string): string {
   return typeof value === "string" ? value : "";
 }
 
-function isPurpose(value: string): value is ConsentPurpose {
-  return (CONSENT_PURPOSES as readonly string[]).includes(value);
-}
-
 /**
  * The publish form's one action. `intent` (from the pressed button) says
  * what to do: preview the source, or publish it as the next version.
@@ -62,12 +55,15 @@ export async function publishFormAction(
 ): Promise<PublishFormView> {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const purpose = field(formData, "purpose");
+  const selectedPurpose = field(formData, "purpose");
+  const purpose = DOCUMENT_PURPOSES.find(
+    (choice) => choice === selectedPurpose
+  );
   const entered = {
     title: field(formData, "title"),
     source: field(formData, "source"),
   };
-  if (!isPurpose(purpose)) return withText({ ...entered, alert: "failed" });
+  if (!purpose) return withText({ ...entered, alert: "failed" });
 
   let version: number;
   try {

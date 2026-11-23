@@ -23,7 +23,9 @@ import {
 } from "../../db/schema";
 import type { Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
+import { lackingParticipation } from "../consent/participation-gate";
 import { verifiedLink } from "../guardians/child-access";
+import { ownProfileOf } from "../guardians/own-profile";
 import type { RegistrationRoute } from "../registration/domain/participant";
 import type { RegistrationStatus } from "../registration/domain/registration-status";
 
@@ -43,6 +45,14 @@ export type MyRegistration = {
    * nothing is owed, or when someone else (a teen's guardian) pays.
    */
   amountDue: Money | null;
+  /** The child's profile, for a guardian's own child; null otherwise. */
+  childId: string | null;
+  /**
+   * What a held registration waits for: a guardian to confirm the teen
+   * who registered alone (#81), or the guardian's participation consent
+   * (#82); null when it isn't held.
+   */
+  heldFor: "guardian" | "consent" | null;
   createdAt: Date;
 };
 
@@ -109,6 +119,7 @@ export async function listMyRegistrations(
       route: registration.route,
       status: registration.status,
       participantCode: participantProfile.participantCode,
+      ownerKind: participantProfile.ownerKind,
       registrationNumber: registration.registrationNumber,
       fee: competitionFee.amountMinor,
       createdAt: registration.createdAt,
@@ -133,8 +144,29 @@ export async function listMyRegistrations(
       )
     )
     .orderBy(desc(registration.createdAt), desc(registration.id));
+  const ownsHeld = rows.some(
+    (row) => row.ownerKind === "self" && row.status === "pending_guardian"
+  );
+  const nowAdult =
+    ownsHeld &&
+    (await ownProfileOf(ctx.db, ctx, userId, ctx.clock.now())) === "adult";
+  const lacking = await lackingParticipation(
+    ctx.db,
+    ctx,
+    rows
+      .filter(
+        (row) =>
+          row.status === "pending_payment" && row.ownerKind === "guardian"
+      )
+      .map((row) => row.registrationId)
+  );
   return rows.map((row) => {
     const { whose, pays } = visible.get(row.profileId)!;
+    const canContinue =
+      row.status === "pending_guardian" && row.ownerKind === "self" && nowAdult;
+    const held =
+      lacking.has(row.registrationId) ||
+      (row.status === "pending_guardian" && !canContinue);
     return {
       registrationId: row.registrationId,
       whose,
@@ -145,9 +177,18 @@ export async function listMyRegistrations(
       participantCode: row.participantCode ?? "",
       registrationNumber: row.registrationNumber,
       amountDue:
-        pays && row.status === "pending_payment" && row.fee !== null
+        pays &&
+        !held &&
+        (row.status === "pending_payment" || canContinue) &&
+        row.fee !== null
           ? { amountMinor: row.fee, currency: "INR" }
           : null,
+      childId: whose === "child" ? row.profileId : null,
+      heldFor: held
+        ? row.ownerKind === "guardian"
+          ? "consent"
+          : "guardian"
+        : null,
       createdAt: row.createdAt,
     };
   });

@@ -11,11 +11,17 @@ import { z } from "zod";
 import { authorize } from "../../../access/can";
 import type { AppDb } from "../../../db/app-db";
 import { invalidInput, type InvalidInput } from "../../../input";
+import {
+  isPublicationPurpose,
+  offeredPurposes,
+  type PublicationPurpose,
+} from "../../consent/domain/guardian-purposes";
 import { awardPlan, type RoundAwardPlan } from "../domain/award-schemes";
 import {
   ATTACHABLE_PURPOSES,
   attachmentState,
   documentVersionPath,
+  isGuardianDocument,
   isRequiredForRegistration,
   type AttachablePurpose,
   type AttachmentState,
@@ -171,12 +177,28 @@ export type RegistrationTerms = {
     ParticipationRoute,
     { amountMinor: bigint; currency: typeof FEE_CURRENCY } | null
   >;
-  /** The pinned versions; consent is given to exactly these. */
+  /**
+   * The pinned versions the registrant agrees to themselves; consent is
+   * given to exactly these.
+   */
   documents: readonly {
     purpose: AttachablePurpose;
     documentId: string;
     version: number;
     required: boolean;
+  }[];
+  /**
+   * The pinned participation document, which a guardian registering a
+   * child may consent to on the same form (#82); null when none is
+   * attached, so a minor's registration stays held.
+   */
+  participationDocument: { documentId: string; version: number } | null;
+  /** Optional, use-specific publication choices for adults registering themselves. */
+  publicationDocuments: readonly {
+    purpose: PublicationPurpose;
+    documentId: string;
+    version: number;
+    required: false;
   }[];
 };
 
@@ -195,6 +217,9 @@ export async function getRegistrationTerms(
   const fees = await storedFees(db, competitionId);
   const pinned = await pinnedDocuments(db, competitionId);
   const offered = offeredRoutes(found.participation);
+  const participation = pinned.find(
+    (document) => document.purpose === "participation"
+  );
   return {
     fees: Object.fromEntries(
       PARTICIPATION_ROUTES.map((route) => {
@@ -207,11 +232,34 @@ export async function getRegistrationTerms(
         ];
       })
     ) as RegistrationTerms["fees"],
-    documents: pinned.map((document) => ({
-      purpose: document.purpose,
-      documentId: document.id,
-      version: document.version,
-      required: isRequiredForRegistration(document.purpose),
-    })),
+    documents: pinned
+      .filter((document) => !isGuardianDocument(document.purpose))
+      .map((document) => ({
+        purpose: document.purpose,
+        documentId: document.id,
+        version: document.version,
+        required: isRequiredForRegistration(document.purpose),
+      })),
+    participationDocument: participation
+      ? { documentId: participation.id, version: participation.version }
+      : null,
+    publicationDocuments: offeredPurposes({
+      publicDisplayAllowed: found.publicDisplay,
+      auctionAllowed: found.auctionPermitted,
+      attached: Object.fromEntries(
+        pinned.map((document) => [document.purpose, document])
+      ),
+    }).flatMap(({ purpose, document }) =>
+      isPublicationPurpose(purpose)
+        ? [
+            {
+              purpose,
+              documentId: document.id,
+              version: document.version,
+              required: false as const,
+            },
+          ]
+        : []
+    ),
   };
 }

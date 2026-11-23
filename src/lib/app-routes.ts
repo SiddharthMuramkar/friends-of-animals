@@ -48,6 +48,10 @@ export function guardianChildPath(childId: string): string {
   return `/guardian/children/${encodeURIComponent(childId)}`;
 }
 
+export function guardianChildConsentsPath(childId: string): string {
+  return `${guardianChildPath(childId)}/consents`;
+}
+
 /** A competition's judging guide, for the institutions taking part (#88). */
 export function judgingGuidePath(competitionCode: string): string {
   return `/institution/competitions/${encodeURIComponent(competitionCode)}/judging-guide`;
@@ -257,6 +261,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/import/sample.csv",
   "/participant/register/[slug]",
   "/guardian/children/[id]",
+  "/guardian/children/[id]/consents",
+  "/guardian/children/[id]/consents/history",
   PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,

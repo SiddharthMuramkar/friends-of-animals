@@ -73,6 +73,7 @@ export function createPgWorld() {
   const sql = postgres(url, { max: 4, prepare: false, onnotice: () => {} });
   const db = drizzle(client, { schema });
   const clock = new FakeClock(new Date());
+  const gateway = new FakePaymentGateway();
   const deps: Deps = {
     db,
     clock,
@@ -97,7 +98,7 @@ export function createPgWorld() {
     }),
     contactLimits: CONTACT_RATE_LIMITS,
     codeRequestLimits: CODE_REQUEST_LIMITS,
-    payments: new FakePaymentGateway(),
+    payments: gateway,
   };
   const app = createApp(deps);
   const seed: SeedBuilders = createSeedBuilders(deps);
@@ -106,6 +107,7 @@ export function createPgWorld() {
     db,
     sql,
     clock,
+    gateway,
     seed,
     as: (actor: Actor): UseCases => app.as(actor),
     /** An address no other test in the shared database uses. */

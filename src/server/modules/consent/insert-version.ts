@@ -19,6 +19,13 @@ const FIRST_TITLES: Record<ConsentPurpose, string> = {
   terms: "Terms of use",
   messages: MESSAGES_CONSENT_DRAFT.title,
   competition_terms: "Competition terms",
+  participation: "Consent to take part",
+  public_display: "Consent to show the work in public",
+  display_school: "Consent to show the school",
+  display_city: "Consent to show the city",
+  social_media: "Consent to share the work on social media",
+  auction: "Consent to auction the artwork",
+  communications: "Consent to messages about the child",
 };
 
 export type ConsentVersionInput = {

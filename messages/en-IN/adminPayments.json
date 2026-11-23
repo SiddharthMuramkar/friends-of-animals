@@ -14,7 +14,8 @@
       "amount_mismatch": "Wrong amount",
       "registration_closed": "After registration closed",
       "batch_superseded": "Replaced payment",
-      "paid_while_in_review": "Paid again during review"
+      "paid_while_in_review": "Paid again during review",
+      "participation_consent_required": "Participation consent required"
     },
     "reasonBodies": {
       "already_paid": "These registrations were already paid for, so this money is a second payment.",
@@ -22,7 +23,8 @@
       "amount_mismatch": "The amount received isn't what this payment was for.",
       "registration_closed": "The money arrived after the competition stopped taking registrations.",
       "batch_superseded": "The payer started a newer payment for these registrations, then paid this older one.",
-      "paid_while_in_review": "This full payment arrived while an earlier payment for the same registrations was being checked. Resolve the other one first; then this one can be accepted."
+      "paid_while_in_review": "This full payment arrived while an earlier payment for the same registrations was being checked. Resolve the other one first; then this one can be accepted.",
+      "participation_consent_required": "The guardian must give consent on the competition’s current participation document before this payment can be accepted."
     },
     "outcomes": {
       "confirm": "Accept the money",

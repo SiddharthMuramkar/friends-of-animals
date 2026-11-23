@@ -101,6 +101,16 @@ describe("individualRegistrationForm", () => {
           fullName: "Rohan Desai",
           dateOfBirth: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         },
+        documents: expect.arrayContaining([
+          {
+            purpose: "participation",
+            documentId: competition.guardianDocuments.participation,
+            title: "Draft participation",
+            version: 1,
+            href: "/documents/participation/1",
+            required: false,
+          },
+        ]),
       });
     });
 
@@ -118,6 +128,16 @@ describe("individualRegistrationForm", () => {
           .individualRegistrationForm({ competitionSlug: competition.slug })
       ).toMatchObject({
         registrant: { kind: "linked", fullName: "Rohan Desai" },
+        documents: [
+          expect.objectContaining({
+            purpose: "competition_terms",
+            required: true,
+          }),
+          expect.objectContaining({
+            purpose: "privacy_notice",
+            required: true,
+          }),
+        ],
       });
     });
 

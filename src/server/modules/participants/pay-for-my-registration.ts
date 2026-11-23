@@ -9,7 +9,9 @@
 // - A free competition (fee 0) confirms the registration at once, with no
 //   batch and no order.
 // - A minor's registration held until a guardian verifies (#81) can't be
-//   paid for or confirmed, free or not: `awaiting_guardian`.
+//   paid for or confirmed, free or not: `awaiting_guardian`; nor one whose
+//   guardian withdrew participation consent since it was released (#82):
+//   `participation_consent_required`.
 // - Paying again while the order is open returns the same order. Before
 //   reusing or replacing an open order it is synced with the gateway first,
 //   since it may have been paid with neither the Checkout return nor the
@@ -36,16 +38,30 @@ import {
   paymentBatch,
   paymentBatchItem,
   registration,
+  user,
 } from "../../db/schema";
+import { DomainError } from "../../errors";
 import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { CheckoutParams, Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
 import { getRegistrationTerms } from "../competitions/terms/read";
-import { endUnpaidBatch, heldInReview, lockBatch } from "../payments/batches";
+import {
+  lackingParticipation,
+  lockParticipationPins,
+} from "../consent/participation-gate";
+import { revokePendingGuardianRequest } from "../guardians/guardian-request";
+import { ownProfileOf } from "../guardians/own-profile";
+import {
+  endUnpaidBatch,
+  heldInReview,
+  lockBatch,
+  lockBatchAndParticipation,
+} from "../payments/batches";
 import { nextPaymentBatchStatus } from "../payments/domain/batch-status";
 import { syncBatch } from "../payments/sync-batch";
 import { confirmRegistrations } from "../registration/confirm";
+import { canTransition } from "../registration/domain/registration-status";
 import { paysFor } from "./owner";
 
 export type PayForMyRegistrationInput = { registrationId: string };
@@ -63,6 +79,7 @@ export type PayForMyRegistrationResult =
       error:
         | "nothing_to_pay"
         | "awaiting_guardian"
+        | "participation_consent_required"
         | "fee_not_set"
         | "gateway_unavailable"
         | "superseded";
@@ -172,10 +189,22 @@ async function planPayment(
       kind: "done",
       result,
     });
+    const actor = ctx.actor;
+    if (actor.kind !== "user") throw new Error("unreachable");
+    // Registration takes the competition lock before the payer's lock too.
+    await lockParticipationPins(tx, [registrationId]);
+    // Serialize the adult's claim with acceptance of their waiting request.
+    await tx
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, actor.userId))
+      .for("no key update");
     const [mine] = await tx
       .select({
         status: registration.status,
         registrationNumber: registration.registrationNumber,
+        profileId: participantProfile.id,
+        ownerKind: participantProfile.ownerKind,
         competitionId: registration.competitionId,
         competitionCode: competition.code,
         competitionName: competition.name,
@@ -188,8 +217,11 @@ async function planPayment(
         eq(participantProfile.id, registration.participantProfileId)
       )
       .where(eq(registration.id, registrationId))
-      .for("update", { of: registration });
+      .for("no key update", { of: registration });
     if (!mine) return done({ ok: false, error: "nothing_to_pay" });
+    if (!(await paysFor(tx, registrationId, actor.userId))) {
+      throw new DomainError("forbidden", "The registration payer changed");
+    }
     if (mine.status === "confirmed" && mine.registrationNumber) {
       return done({
         ok: true,
@@ -198,10 +230,40 @@ async function planPayment(
       });
     }
     if (mine.status === "pending_guardian") {
-      return done({ ok: false, error: "awaiting_guardian" });
-    }
-    if (mine.status !== "pending_payment") {
+      if (mine.ownerKind !== "self") {
+        return done({ ok: false, error: "awaiting_guardian" });
+      }
+      if ((await ownProfileOf(tx, ctx, actor.userId, now)) !== "adult") {
+        return done({ ok: false, error: "awaiting_guardian" });
+      }
+      if (
+        !canTransition("pending_guardian", "pending_payment", "participant")
+      ) {
+        throw new Error(
+          "The registration machine no longer releases an adult's hold"
+        );
+      }
+      await tx
+        .update(registration)
+        .set({ status: "pending_payment", updatedAt: now })
+        .where(eq(registration.id, registrationId));
+      await revokePendingGuardianRequest(tx, mine.profileId, now);
+      await recordAudit(tx, ctx, {
+        action: "registration.status_changed",
+        entity: { type: "registration", id: registrationId },
+        before: { status: "pending_guardian" },
+        after: {
+          status: "pending_payment",
+          cause: "participant",
+          reason: "turned_18",
+        },
+        actorRole,
+      });
+    } else if (mine.status !== "pending_payment") {
       return done({ ok: false, error: "nothing_to_pay" });
+    }
+    if ((await lackingParticipation(tx, ctx, [registrationId])).size > 0) {
+      return done({ ok: false, error: "participation_consent_required" });
     }
     // A payment for it is in review (#79): staff decide, nobody pays again.
     const [inReview] = await heldInReview(tx, registrationId);
@@ -237,12 +299,13 @@ async function planPayment(
     }
 
     if (fee.amountMinor === 0n) {
-      const { confirmed } = await confirmRegistrations(tx, ctx, {
+      const { confirmed, error } = await confirmRegistrations(tx, ctx, {
         registrationIds: [registrationId],
         competitionCode: mine.competitionCode,
         batchId: null,
         actorRole,
       });
+      if (error) return done({ ok: false, error });
       const [number] = confirmed;
       if (!number)
         throw new Error(`Registration ${registrationId} not confirmed`);
@@ -317,11 +380,11 @@ async function openOrder(
     return { ok: false, error: "gateway_unavailable" };
   }
 
-  const opened = await ctx.db.transaction(async (tx) => {
-    const batch = await lockBatch(tx, batchId);
-    if (!batch) return false;
+  return ctx.db.transaction(async (tx): Promise<PayForMyRegistrationResult> => {
+    const batch = await lockBatchAndParticipation(tx, batchId);
+    if (!batch) return { ok: false, error: "superseded" };
     const move = nextPaymentBatchStatus(batch.status, "order_opened");
-    if (!move.ok) return false;
+    if (!move.ok) return { ok: false, error: "superseded" };
     await tx
       .update(paymentBatch)
       .set({
@@ -334,6 +397,7 @@ async function openOrder(
       .select({ registrationId: paymentBatchItem.registrationId })
       .from(paymentBatchItem)
       .where(eq(paymentBatchItem.batchId, batchId));
+    const registrationIds = item ? [item.registrationId] : [];
     await recordAudit(tx, ctx, {
       action: "payment.batch_created",
       entity: { type: "payment_batch", id: batchId },
@@ -342,25 +406,27 @@ async function openOrder(
         status: move.to,
         route: "individual",
         amountMinor: total.amountMinor.toString(),
-        registrationIds: item ? [item.registrationId] : [],
+        registrationIds,
         gatewayOrderId: orderId,
       },
       actorRole,
     });
-    return true;
+    // Consent can change while the gateway is opening the order. Keep the
+    // reference for reconciliation and only return a checkout with consent.
+    if ((await lackingParticipation(tx, ctx, registrationIds)).size > 0) {
+      return { ok: false, error: "participation_consent_required" };
+    }
+    return {
+      ok: true,
+      kind: "checkout",
+      batchId,
+      checkout: gateway.checkout({
+        orderId,
+        amount: total,
+        description: describe(plan.competitionName, plan.participantCode),
+      }),
+    };
   });
-  if (!opened) return { ok: false, error: "superseded" };
-
-  return {
-    ok: true,
-    kind: "checkout",
-    batchId,
-    checkout: gateway.checkout({
-      orderId,
-      amount: total,
-      description: describe(plan.competitionName, plan.participantCode),
-    }),
-  };
 }
 
 /** What the payer sees on the gateway's checkout. */

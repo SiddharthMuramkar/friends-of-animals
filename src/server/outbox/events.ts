@@ -17,9 +17,9 @@ import {
 } from "../modules/competitions/domain/vocabulary";
 import {
   CONSENT_SUBJECT_TYPES,
-  GIVABLE_PURPOSES,
+  WITHDRAWABLE_PURPOSES,
   type ConsentSubjectType,
-  type GivablePurpose,
+  type WithdrawablePurpose,
 } from "../modules/consent/domain/purposes";
 import { FILE_PROCESSING_ERROR_CODES } from "../ports/media";
 
@@ -46,15 +46,21 @@ export type DomainEvent =
       payload: { fileId: string };
     }
   | {
-      /** Someone withdrew consent (#64); later modules stop what it allowed. */
+      /**
+       * Someone withdrew consent (#64), or a guardian withdrew a child's
+       * (#82); later modules (gallery, social, auction) stop what it
+       * allowed.
+       */
       type: "consent.withdrawn";
       aggregate: { type: "consent_event"; id: string };
       payload: {
         consentEventId: string;
         subjectType: ConsentSubjectType;
         subjectId: string;
-        purpose: GivablePurpose;
+        purpose: WithdrawablePurpose;
         documentId: string;
+        /** The competition a child's consent was for; null otherwise. */
+        competitionId: string | null;
       };
     }
   | {
@@ -252,8 +258,9 @@ export const EVENT_PAYLOADS = {
     consentEventId: z.uuid(),
     subjectType: z.enum(CONSENT_SUBJECT_TYPES),
     subjectId: z.uuid(),
-    purpose: z.enum(GIVABLE_PURPOSES),
+    purpose: z.enum(WITHDRAWABLE_PURPOSES),
     documentId: z.uuid(),
+    competitionId: z.uuid().nullable(),
   }),
   "files.processing_requested": z.object({ fileId: z.uuid() }),
   "files.file_processed": z.object({ fileId: z.uuid() }),

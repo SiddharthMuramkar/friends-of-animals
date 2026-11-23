@@ -35,7 +35,11 @@ import {
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
-import { endUnpaidBatch, lockBatch } from "./batches";
+import {
+  endUnpaidBatch,
+  lockBatch,
+  lockBatchAndParticipation,
+} from "./batches";
 import { captureBatch, registrationsAtCapture } from "./capture";
 import { startSystemRefund } from "./refunds/start-system-refund";
 import {
@@ -101,7 +105,7 @@ export async function resolvePaymentReviewCase(
         if (!found) return { ok: false, error: "not_found" };
         // The batch first, then its case: the order the capture funnel
         // locks them in.
-        const batch = await lockBatch(tx, found.batchId);
+        const batch = await lockBatchAndParticipation(tx, found.batchId);
         if (!batch) return { ok: false, error: "not_found" };
         const [reviewCase] = await tx
           .select()
@@ -137,7 +141,7 @@ export async function resolvePaymentReviewCase(
         let batchStatus: PaymentBatchStatus = batch.status;
         if (plan.confirmsRegistrations) {
           await takeBackRegistrations(tx, ctx, batch, role);
-          await captureBatch(
+          const capture = await captureBatch(
             tx,
             ctx,
             batch,
@@ -148,6 +152,7 @@ export async function resolvePaymentReviewCase(
             },
             role
           );
+          if (!capture.ok) throw new NotPayable();
           batchStatus = "captured";
         } else if (plan.batchEvent && batch.status !== "captured") {
           // A captured batch paid again never left captured (#80).

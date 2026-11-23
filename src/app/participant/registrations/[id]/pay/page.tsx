@@ -11,7 +11,7 @@ import { checkoutLabels } from "@/components/payments/checkout-labels";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { APP_ROUTES, guardianChildConsentsPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { formatPaise } from "@/server/modules/payments/domain/money-format";
@@ -148,14 +148,30 @@ async function Pay({ params, searchParams }: Props) {
             </form>
           )}
         </div>
-      ) : mine.status === "pending_guardian" ? (
-        <p className={CARD}>{t("error.awaiting_guardian")}</p>
+      ) : mine.heldFor !== null || mine.status === "pending_guardian" ? (
+        <p className={CARD}>
+          {t(
+            mine.heldFor === "consent"
+              ? "error.participation_consent_required"
+              : "error.awaiting_guardian"
+          )}
+        </p>
       ) : mine.status === "pending_payment" ? (
         <p className={CARD}>{t("guardianPays")}</p>
       ) : (
         <p className={CARD}>{t("error.nothing_to_pay")}</p>
       )}
       <div className="mt-8">
+        {mine.childId &&
+        (mine.heldFor === "consent" ||
+          done === "participation_consent_required") ? (
+          <ButtonLink
+            href={guardianChildConsentsPath(mine.childId)}
+            className="me-3"
+          >
+            {t("manageConsents")}
+          </ButtonLink>
+        ) : null}
         <ButtonLink href={APP_ROUTES.participant} variant="secondary">
           {t("back")}
         </ButtonLink>
