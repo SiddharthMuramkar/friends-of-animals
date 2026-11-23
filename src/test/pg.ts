@@ -74,7 +74,8 @@ export function createPgWorld() {
   const sql = postgres(url, { max: 4, prepare: false, onnotice: () => {} });
   const db = drizzle(client, { schema });
   const clock = new FakeClock(new Date());
-  const gateway = new FakePaymentGateway();
+  // Separate fake gateway IDs even when multiple test files share this database.
+  const gateway = new FakePaymentGateway(`${randomUUID()}_`);
   const storage = new FakeStorage(clock);
   const media = new FakeMediaProcessor();
   const deps = {

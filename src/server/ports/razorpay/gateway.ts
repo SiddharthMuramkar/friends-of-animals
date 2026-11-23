@@ -26,13 +26,14 @@
 
 import { z } from "zod";
 
-import type {
-  CheckoutParams,
-  GatewayPayment,
-  GatewayRefund,
-  GatewayWebhook,
-  Money,
-  PaymentGateway,
+import {
+  RefundRefusedError,
+  type CheckoutParams,
+  type GatewayPayment,
+  type GatewayRefund,
+  type GatewayWebhook,
+  type Money,
+  type PaymentGateway,
 } from "../payment-gateway";
 import { isValidCheckoutSignature } from "./signature";
 import { readRazorpayWebhook } from "./webhook";
@@ -51,11 +52,26 @@ const TIMEOUT_MS = 15_000;
 
 /** Thrown when Razorpay refuses a call or answers in a way we can't read. */
 export class RazorpayError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly refundRefusal: RefundRefusedError["reason"] | null = null
+  ) {
     super(message);
     this.name = "RazorpayError";
   }
 }
+
+// Documented refusals for the same refund request. Other 400s can mean
+// the payment is busy or the refund already exists. Recover with the
+// same key and look up the original attempt.
+const FULL_REFUND_ONLY =
+  "partial refund is currently not supported for this payment method";
+const DEFINITIVE_REFUND_REFUSALS = new Set([
+  "the refund amount provided is greater than amount captured",
+  "the amount must be at least inr 1.00",
+  "refund is currently not supported for this payment method",
+  FULL_REFUND_ONLY,
+]);
 
 const orderCreated = z.object({ id: z.string().min(1) });
 
@@ -95,7 +111,9 @@ function refundFrom(entity: z.infer<typeof refundEntity>): GatewayRefund {
 }
 
 const errorBody = z.object({
-  error: z.object({ code: z.string().optional() }).optional(),
+  error: z
+    .object({ code: z.string().optional(), description: z.string().nullish() })
+    .optional(),
 });
 
 function modeOf(keyId: string): "razorpay" | "razorpay-test" {
@@ -151,10 +169,23 @@ export function razorpayGateway({
       parsed = null;
     }
     if (!response.ok) {
-      const code = errorBody.safeParse(parsed).data?.error?.code;
+      const error = errorBody.safeParse(parsed).data?.error;
+      const code = error?.code;
+      const description = error?.description
+        ?.trim()
+        .replace(/\.$/, "")
+        .toLowerCase();
+      const refused =
+        response.status === 400 &&
+        code === "BAD_REQUEST_ERROR" &&
+        DEFINITIVE_REFUND_REFUSALS.has(description ?? "");
       throw new RazorpayError(
-        `Razorpay answered ${method} ${path.split("/")[1]} with HTTP ${response.status}` +
-          (code ? ` (${code})` : "")
+        `Razorpay answered ${method} ${path.split("/")[1]} with HTTP ${response.status}`,
+        refused
+          ? description === FULL_REFUND_ONLY
+            ? "full_refund_only"
+            : "definitive"
+          : null
       );
     }
     return parsed;
@@ -209,8 +240,9 @@ export function razorpayGateway({
 
     async refund({ paymentId, amount, idempotencyKey, notes }) {
       const paise = paiseForJson(amount);
-      const answer = refundEntity.safeParse(
-        await call(
+      let answered: unknown;
+      try {
+        answered = await call(
           "POST",
           `/payments/${encodeURIComponent(paymentId)}/refund`,
           {
@@ -219,8 +251,14 @@ export function razorpayGateway({
             ...(Object.keys(notes).length > 0 ? { notes } : {}),
           },
           { "x-refund-idempotency": idempotencyKey }
-        )
-      );
+        );
+      } catch (error) {
+        if (error instanceof RazorpayError && error.refundRefusal) {
+          throw new RefundRefusedError(error.message, error.refundRefusal);
+        }
+        throw error;
+      }
+      const answer = refundEntity.safeParse(answered);
       if (!answer.success) {
         throw new RazorpayError("Razorpay's refund answer can't be read");
       }

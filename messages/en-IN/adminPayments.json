@@ -38,6 +38,24 @@
       "refund": "Refund started",
       "keep": "Kept"
     },
+    "manualRefund": {
+      "required": "Dashboard refund required",
+      "recordable": "Dashboard proof can be recorded",
+      "recorded": "Dashboard refund recorded",
+      "instructions": "Refund this payment in {currency} from the payment gateway dashboard.",
+      "recordableInstructions": "If this payment was refunded in the payment gateway dashboard, record its reference.",
+      "reference": "Gateway refund reference",
+      "hint": "Enter the reference after the gateway confirms the refund.",
+      "record": "Record dashboard refund",
+      "saving": "Recording…",
+      "errorTitle": "Could not record the refund",
+      "fieldErrors": {
+        "invalid_reference": "Enter a gateway refund reference of up to 200 characters.",
+        "refund_unverified": "Enter the reference for a processed refund of this payment's full amount in its original currency.",
+        "reference_already_recorded": "This gateway refund reference was already recorded on another payment review."
+      },
+      "unexpected": "The refund record was not saved. Try recording it again."
+    },
     "batchStatus": {
       "created": "Starting",
       "order_created": "Waiting for payment",

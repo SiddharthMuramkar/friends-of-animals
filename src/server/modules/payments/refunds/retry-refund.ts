@@ -47,7 +47,12 @@ export type RecordManualRefundResult =
   | InvalidInput
   | {
       ok: false;
-      error: "not_found" | "not_manual" | "not_approved" | "reference_invalid";
+      error:
+        | "not_found"
+        | "not_manual"
+        | "not_approved"
+        | "same_person"
+        | "reference_invalid";
     };
 
 const retryInput = z.strictObject({ refundId: z.uuid() });
@@ -120,6 +125,8 @@ export async function recordManualRefund(
     if (row.status !== "approved" || !move.ok) {
       return { ok: false, error: "not_approved" };
     }
+    if (row.requestedBy === recordedBy)
+      return { ok: false, error: "same_person" };
     if (!reference) return { ok: false, error: "reference_invalid" };
     const now = ctx.clock.now();
     await tx

@@ -13,20 +13,23 @@
 // A batch paid offline (#79) is paid back by hand: its refund's method is
 // manual, and finance records how once it is approved.
 
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../access/can";
 import type { Resource } from "../../../access/domain/policy";
 import { paymentBatch, refund, refundItem } from "../../../db/schema";
-import { sqlState } from "../../../errors";
 import { uuidv7 } from "../../../ids";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import { lockBatch } from "../batches";
-import { planRefund, type RefundPlan } from "../domain/refund-plan";
+import {
+  planRefund,
+  splitRefundCoverage,
+  type RefundPlan,
+} from "../domain/refund-plan";
 import { initialRefundStatus } from "../domain/refund-status";
-import { auditRefund, checkRefundText, refundableItems } from "./rows";
+import { auditRefund, checkRefundText, refundableBatch } from "./rows";
 
 export type RequestRefundInput = {
   batchId: string;
@@ -49,6 +52,15 @@ function refusalOf(plan: PlanRefusal): Refusal {
   return { ...rest, error: reason } as Refusal;
 }
 
+class RefundItemTaken extends Error {
+  readonly registrationId: string;
+
+  constructor(registrationId: string) {
+    super("A live refund already holds this registration");
+    this.registrationId = registrationId;
+  }
+}
+
 export type RequestRefundResult =
   | {
       ok: true;
@@ -58,7 +70,14 @@ export type RequestRefundResult =
       registrationIds: string[];
     }
   | InvalidInput
-  | { ok: false; error: "not_found" | "reason_required" | "reason_too_long" }
+  | {
+      ok: false;
+      error:
+        | "not_found"
+        | "reason_required"
+        | "reason_too_long"
+        | "dashboard_managed";
+    }
   | Refusal;
 
 const requestInput = z.strictObject({
@@ -117,16 +136,20 @@ export async function requestRefund(
         // One request at a time per batch, so two can't list one student.
         const batch = await lockBatch(tx, batchId);
         if (!batch) return { ok: false, error: "not_found" };
+        const available = await refundableBatch(tx, batch);
+        if (available.kind === "dashboard") {
+          return { ok: false, error: "dashboard_managed" };
+        }
         const plan = planRefund(
-          {
-            captured: batch.status === "captured",
-            amountMinor: batch.amountMinor,
-            currency: "INR",
-            items: await refundableItems(tx, batch.id),
-          },
+          available,
           registrationIds === undefined ? {} : { registrationIds }
         );
         if (!plan.ok) return refusalOf(plan);
+
+        const { payableItems, zeroShareRegistrationIds } = splitRefundCoverage(
+          available.items,
+          plan.registrationIds
+        );
 
         const now = ctx.clock.now();
         const refundId = uuidv7(now);
@@ -140,26 +163,34 @@ export async function requestRefund(
           status,
           method: manual ? "manual" : "gateway",
           amountMinor: plan.amountMinor,
+          zeroShareRegistrationIds,
           currency: plan.currency,
           reason: reason.text ?? "",
           requestedBy,
           requestedAt: now,
           updatedAt: now,
         });
-        const charged = new Map(
-          (await refundableItems(tx, batch.id)).map((item) => [
-            item.id,
-            item.amountMinor,
-          ])
+        const inserted = await tx
+          .insert(refundItem)
+          .values(
+            payableItems.map((item) => ({
+              ...item,
+              refundId,
+              batchId: batch.id,
+            }))
+          )
+          .onConflictDoNothing({
+            target: refundItem.registrationId,
+            where: isNull(refundItem.releasedAt),
+          })
+          .returning({ registrationId: refundItem.registrationId });
+        // The unique index skips any item another live refund holds. Roll
+        // back the entire request and name a student it actually skipped.
+        const held = new Set(inserted.map((item) => item.registrationId));
+        const taken = payableItems.find(
+          ({ registrationId }) => !held.has(registrationId)
         );
-        await tx.insert(refundItem).values(
-          plan.registrationIds.map((registrationId) => ({
-            refundId,
-            batchId: batch.id,
-            registrationId,
-            amountMinor: charged.get(registrationId) ?? 0n,
-          }))
-        );
+        if (taken) throw new RefundItemTaken(taken.registrationId);
         await auditRefund(
           tx,
           ctx,
@@ -187,12 +218,11 @@ export async function requestRefund(
       }
     );
   } catch (error) {
-    // Another refund took a student between the plan and the write.
-    if (sqlState(error) === "23505" && registrationIds?.[0]) {
+    if (error instanceof RefundItemTaken) {
       return {
         ok: false,
         error: "item_in_live_refund",
-        registrationId: registrationIds[0],
+        registrationId: error.registrationId,
       };
     }
     throw error;

@@ -5,7 +5,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Money, PaymentGateway } from "./payment-gateway";
+import {
+  RefundRefusedError,
+  type Money,
+  type PaymentGateway,
+} from "./payment-gateway";
 
 export type PaymentGatewayContractSetup = () => Promise<{
   gateway: PaymentGateway;
@@ -261,7 +265,10 @@ export function paymentGatewayContract(
       await refund(200_000n, KEY);
       await refund(50_000n, `${KEY}0`);
 
-      await expect(refund(1n, `${KEY}00`)).rejects.toThrow();
+      // Refused for good: asking again would be refused again (#80).
+      await expect(refund(1n, `${KEY}00`)).rejects.toBeInstanceOf(
+        RefundRefusedError
+      );
       expect(
         (await gateway.fetchRefunds(paymentId)).map((each) => each.amountMinor)
       ).toEqual(expect.arrayContaining([200_000n, 50_000n]));

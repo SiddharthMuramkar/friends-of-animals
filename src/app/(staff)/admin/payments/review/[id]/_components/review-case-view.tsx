@@ -1,12 +1,15 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
-import { FormAlert } from "@/components/form";
+import { FormAlert, SubmitButton } from "@/components/form";
 import { Chip } from "@/components/site/chip";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { SiteLink } from "@/components/site/site-link";
 import { adminPaymentBatchPath } from "@/lib/app-routes";
 import type { PaymentReviewCaseView } from "@/server/modules/payments";
-import { formatPaise } from "@/server/modules/payments/domain/money-format";
+import {
+  formatCapturedAmount,
+  formatPaise,
+} from "@/server/modules/payments/domain/money-format";
 import {
   RESOLUTION_REASON_MAX_LENGTH,
   RESOLUTION_REASON_MIN_LENGTH,
@@ -17,6 +20,15 @@ import {
   ResolveForm,
   type ResolveFormLabels,
 } from "../../../_components/resolve-form";
+import { recordDashboardRefundAction } from "../../../_lib/actions";
+import { DashboardRefundReference } from "./dashboard-refund-reference";
+
+type RecordError =
+  | "invalid_reference"
+  | "unexpected"
+  | "refund_unverified"
+  | "reference_already_recorded"
+  | undefined;
 
 const CARD =
   "rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
@@ -27,12 +39,18 @@ const LINK =
 export async function ReviewCaseView({
   reviewCase,
   outcome,
+  recordError,
 }: {
   reviewCase: PaymentReviewCaseView;
   outcome?: PaymentReviewOutcome | undefined;
+  recordError?: RecordError;
 }) {
   const t = await getTranslations("adminPayments");
-  const amount = formatPaise(reviewCase.amountMinor);
+  const amount = formatCapturedAmount(
+    reviewCase.amountMinor,
+    reviewCase.currency
+  );
+  const manualRefund = reviewCase.resolution?.manualRefund;
   const reason =
     reviewCase.participationUnavailable &&
     reviewCase.reason === "participation_consent_required"
@@ -47,14 +65,18 @@ export async function ReviewCaseView({
         title={t("case.title", { amount })}
         lead={t(`reasonBodies.${reason}`)}
       />
-      {outcome && reviewCase.resolution ? (
+      {outcome && outcome === reviewCase.resolution?.outcome ? (
         <FormAlert tone="success" label={t("case.resolvedTitle")}>
-          <p>{t(`case.done.${outcome}`)}</p>
+          <p>
+            {manualRefund
+              ? t(`manualRefund.${manualRefund}`)
+              : t(`case.done.${outcome}`)}
+          </p>
         </FormAlert>
       ) : null}
       <Details reviewCase={reviewCase} reasonLabel={t(`reasons.${reason}`)} />
       {reviewCase.resolution ? (
-        <Resolved reviewCase={reviewCase} />
+        <Resolved reviewCase={reviewCase} recordError={recordError} />
       ) : (
         <Decision reviewCase={reviewCase} />
       )}
@@ -94,8 +116,7 @@ async function Details({
         <div className={row}>
           <dt className="font-semibold">{t("case.details.received")}</dt>
           <dd>
-            {formatPaise(reviewCase.amountMinor)}
-            {reviewCase.currency === "INR" ? "" : ` (${reviewCase.currency})`}
+            {formatCapturedAmount(reviewCase.amountMinor, reviewCase.currency)}
           </dd>
         </div>
         <div className={row}>
@@ -223,7 +244,13 @@ async function Decision({ reviewCase }: { reviewCase: PaymentReviewCaseView }) {
   );
 }
 
-async function Resolved({ reviewCase }: { reviewCase: PaymentReviewCaseView }) {
+async function Resolved({
+  reviewCase,
+  recordError,
+}: {
+  reviewCase: PaymentReviewCaseView;
+  recordError: RecordError;
+}) {
   const [t, format] = await Promise.all([
     getTranslations("adminPayments"),
     getFormatter(),
@@ -237,7 +264,11 @@ async function Resolved({ reviewCase }: { reviewCase: PaymentReviewCaseView }) {
       <dl className="mt-4 flex flex-col gap-3 text-ink">
         <div className={row}>
           <dt className="font-semibold">{t("case.resolved.outcome")}</dt>
-          <dd>{t(`outcomeResults.${resolution.outcome}`)}</dd>
+          <dd>
+            {resolution.manualRefund
+              ? t(`manualRefund.${resolution.manualRefund}`)
+              : t(`outcomeResults.${resolution.outcome}`)}
+          </dd>
         </div>
         <div className={row}>
           <dt className="font-semibold">{t("case.resolved.by")}</dt>
@@ -263,7 +294,50 @@ async function Resolved({ reviewCase }: { reviewCase: PaymentReviewCaseView }) {
           </dd>
         </div>
       </dl>
-      {resolution.refundDue ? (
+      {resolution.manualRefund === "required" ||
+      resolution.manualRefund === "recordable" ? (
+        <>
+          <p className="mt-4 font-semibold text-ink">
+            {resolution.manualRefund === "recordable"
+              ? t("manualRefund.recordableInstructions")
+              : t("manualRefund.instructions", {
+                  currency: reviewCase.currency,
+                })}
+          </p>
+          <form
+            className="mt-4 flex max-w-md flex-col gap-4"
+            action={recordDashboardRefundAction.bind(null, reviewCase.id)}
+          >
+            {recordError === "unexpected" ? (
+              <FormAlert tone="danger" label={t("manualRefund.errorTitle")}>
+                <p>{t("manualRefund.unexpected")}</p>
+              </FormAlert>
+            ) : null}
+            <DashboardRefundReference
+              name="reference"
+              id="dashboard-refund-reference"
+              label={t("manualRefund.reference")}
+              hint={t("manualRefund.hint")}
+              required
+              maxLength={200}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              error={
+                recordError === "unexpected" || recordError === undefined
+                  ? undefined
+                  : t(`manualRefund.fieldErrors.${recordError}`)
+              }
+            />
+            <div>
+              <SubmitButton pendingLabel={t("manualRefund.saving")}>
+                {t("manualRefund.record")}
+              </SubmitButton>
+            </div>
+          </form>
+        </>
+      ) : resolution.refundDue ? (
         <p className="mt-4 font-semibold text-ink">
           {t("case.resolved.refundDue")}
         </p>

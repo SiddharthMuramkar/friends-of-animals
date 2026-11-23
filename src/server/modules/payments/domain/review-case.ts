@@ -137,10 +137,14 @@ const CONFIRMABLE: ReadonlySet<PaymentReviewReason> = new Set([
 export function allowedOutcomes(reviewCase: {
   reason: PaymentReviewReason;
   batchStatusBefore: BatchStatusBeforeReview;
+  currency: string;
+  amountMinor: bigint;
 }): readonly PaymentReviewOutcome[] {
   const confirmable =
     CONFIRMABLE.has(reviewCase.reason) &&
-    reviewCase.batchStatusBefore !== "captured";
+    reviewCase.batchStatusBefore !== "captured" &&
+    reviewCase.currency === "INR" &&
+    reviewCase.amountMinor > 0n;
   return confirmable ? ["confirm", "refund", "keep"] : ["refund", "keep"];
 }
 
@@ -190,6 +194,8 @@ export function planResolution(input: {
   reviewCase: {
     reason: PaymentReviewReason;
     batchStatusBefore: BatchStatusBeforeReview;
+    currency: string;
+    amountMinor: bigint;
     resolvedAt: Date | null;
   };
   outcome: PaymentReviewOutcome;

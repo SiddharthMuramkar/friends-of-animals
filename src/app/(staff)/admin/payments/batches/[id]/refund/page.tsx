@@ -12,13 +12,17 @@ import { SiteLink } from "@/components/site/site-link";
 import {
   adminBatchRefundPath,
   adminPaymentBatchPath,
+  adminPaymentReviewCasePath,
   adminRefundPath,
   APP_ROUTES,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type { RefundableBatch } from "@/server/modules/payments";
-import { formatPaise } from "@/server/modules/payments/domain/money-format";
+import {
+  formatCapturedAmount,
+  formatPaise,
+} from "@/server/modules/payments/domain/money-format";
 import { REFUND_TEXT_MAX_LENGTH } from "@/server/modules/payments/refunds/rows";
 
 import { adminCall } from "../../../../_lib/boundary";
@@ -103,10 +107,14 @@ async function Request({
       <PageHeader
         eyebrow={t("eyebrow")}
         tile="yellow"
-        title={t("request.title")}
-        lead={t("request.lead")}
+        title={t(
+          batch.payout.kind === "dashboard"
+            ? "request.dashboard.title"
+            : "request.title"
+        )}
+        lead={batch.payout.kind === "inr" ? t("request.lead") : undefined}
       />
-      {sent === "1" ? (
+      {sent === "1" && batch.payout.kind === "inr" ? (
         <FormAlert tone="success" label={t("statuses.requested")}>
           <p>{t("request.sent")}</p>
         </FormAlert>
@@ -136,7 +144,7 @@ async function Summary({ batch }: { batch: RefundableBatch }) {
         </div>
         <div className={ROW}>
           <dt className="font-semibold">{t("request.summary.amount")}</dt>
-          <dd>{formatPaise(batch.amountMinor)}</dd>
+          <dd>{formatCapturedAmount(batch.amountMinor, batch.currency)}</dd>
         </div>
         {batch.status === "captured" ? (
           <div className={ROW}>
@@ -158,7 +166,28 @@ async function Ask({ batch }: { batch: RefundableBatch }) {
     getTranslations("adminRefunds"),
     getTranslations("common.callout"),
   ]);
+  if (batch.payout.kind === "dashboard") {
+    const { reviewCaseId, state } = batch.payout;
+    return (
+      <section aria-labelledby="request-ask" className={CARD}>
+        <SectionHeading
+          id="request-ask"
+          title={t("request.dashboard.heading")}
+        />
+        <p className="mt-3 text-ink">{t(`request.dashboard.${state}`)}</p>
+        {reviewCaseId && (
+          <SiteLink
+            href={adminPaymentReviewCasePath(reviewCaseId)}
+            className={LINK}
+          >
+            {t("request.dashboard.openReview")}
+          </SiteLink>
+        )}
+      </section>
+    );
+  }
   const free = batch.items.filter((item) => item.refund === "none");
+  const canRefund = free.some((item) => item.amountMinor > 0n);
   const taken = batch.items.filter((item) => item.refund !== "none");
   const numberOf = (item: RefundableBatch["items"][number]) =>
     item.registrationNumber ?? t("detail.studentsTable.noNumber");
@@ -168,7 +197,7 @@ async function Ask({ batch }: { batch: RefundableBatch }) {
       <SectionHeading id="request-ask" title={t("request.form.title")} />
       {batch.status !== "captured" ? (
         <p className="mt-3 text-ink">{t("request.notCaptured")}</p>
-      ) : free.length === 0 ? (
+      ) : !canRefund ? (
         <p className="mt-3 text-ink">{t("request.form.noneLeft")}</p>
       ) : (
         <div className="mt-5">
@@ -200,6 +229,7 @@ async function Ask({ batch }: { batch: RefundableBatch }) {
               },
               alerts: {
                 batch_not_captured: t("request.form.alerts.batch_not_captured"),
+                dashboard_managed: t("request.dashboard.review"),
                 nothing_to_refund: t("request.form.alerts.nothing_to_refund"),
                 item_in_live_refund: t(
                   "request.form.alerts.item_in_live_refund"

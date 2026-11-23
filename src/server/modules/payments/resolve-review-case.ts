@@ -28,6 +28,7 @@ import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import {
+  DASHBOARD_REFUND_REFERENCE_UNIQUE,
   paymentBatch,
   paymentBatchItem,
   paymentReviewCase,
@@ -35,13 +36,16 @@ import {
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
+import { isUniqueViolation } from "../codes/codes";
 import {
   endUnpaidBatch,
   lockBatch,
   lockBatchAndParticipation,
 } from "./batches";
 import { captureBatch, registrationsAtCapture } from "./capture";
+import { refundRegistrations } from "./refunds/rows";
 import { startSystemRefund } from "./refunds/start-system-refund";
+import { dashboardRefundPending } from "./review-cases";
 import {
   nextPaymentBatchStatus,
   type PaymentBatchStatus,
@@ -63,7 +67,11 @@ export type ResolvePaymentReviewCaseInput = {
 };
 
 export type ResolvePaymentReviewCaseResult =
-  | { ok: true; batchStatus: PaymentBatchStatus }
+  | {
+      ok: true;
+      batchStatus: PaymentBatchStatus;
+      manualRefundRequired?: { currency: string };
+    }
   | InvalidInput
   | {
       ok: false;
@@ -94,17 +102,20 @@ export async function resolvePaymentReviewCase(
   if (ctx.actor.kind !== "user") throw new Error("unreachable");
   const resolvedBy = ctx.actor.userId;
   const { caseId, outcome } = parsed.data;
+  // A refund due in a currency refunds can't send, told once committed.
+  const told: { byHand: { currency: string; batchId: string } | null } = {
+    byHand: null,
+  };
 
   try {
-    return await ctx.db.transaction(
+    const result = await ctx.db.transaction(
       async (tx): Promise<ResolvePaymentReviewCaseResult> => {
         const [found] = await tx
           .select({ batchId: paymentReviewCase.batchId })
           .from(paymentReviewCase)
           .where(eq(paymentReviewCase.id, caseId));
         if (!found) return { ok: false, error: "not_found" };
-        // The batch first, then its case: the order the capture funnel
-        // locks them in.
+        // Hold individual participation before the batch and review case.
         const batch = await lockBatchAndParticipation(tx, found.batchId);
         if (!batch) return { ok: false, error: "not_found" };
         const [reviewCase] = await tx
@@ -130,6 +141,8 @@ export async function resolvePaymentReviewCase(
             reason: reviewCase.reason,
             batchStatusBefore: reviewCase.batchStatusBefore,
             resolvedAt: reviewCase.resolvedAt,
+            amountMinor: reviewCase.amountMinor,
+            currency: reviewCase.currency,
           },
           outcome,
           resolutionReason: parsed.data.reason,
@@ -178,7 +191,18 @@ export async function resolvePaymentReviewCase(
         }
 
         let refundId: string | null = null;
-        if (plan.refundDue && reviewCase.currency === "INR") {
+        // Refunds go out in rupees only (the refund row is INR). Money that
+        // came in another currency is refunded by hand from the gateway's
+        // dashboard: the audit entry says so, and so does the error
+        // tracker, so nobody waits for a refund that will never start.
+        const refundByHand =
+          plan.refundDue && reviewCase.currency !== "INR"
+            ? ("currency_not_inr" as const)
+            : null;
+        if (refundByHand) {
+          told.byHand = { currency: reviewCase.currency, batchId: batch.id };
+        }
+        if (plan.refundDue && !refundByHand) {
           const started = await startSystemRefund(tx, ctx, {
             kind: "duplicate",
             batchId: batch.id,
@@ -210,17 +234,154 @@ export async function resolvePaymentReviewCase(
             outcome: plan.outcome,
             refundDue: plan.refundDue,
             refundId,
+            ...(refundByHand ? { refundByHand } : {}),
             batchId: batch.id,
             batchStatus,
           },
           actorRole: role,
         });
-        return { ok: true, batchStatus };
+        return refundByHand
+          ? {
+              ok: true,
+              batchStatus,
+              manualRefundRequired: { currency: reviewCase.currency },
+            }
+          : { ok: true, batchStatus };
       }
     );
+    const { byHand } = told;
+    if (result.ok && byHand) {
+      ctx.errors.report(
+        new Error(
+          "A payment in review is due a refund in a currency refunds " +
+            "can't send; refund it by hand from the gateway's dashboard"
+        ),
+        {
+          where: "payments.resolveReviewCase",
+          tags: { currency: byHand.currency },
+          extra: { caseId, batchId: byHand.batchId },
+        }
+      );
+    }
+    return result;
   } catch (error) {
     if (error instanceof NotPayable) {
       return { ok: false, error: "registration_not_payable" };
+    }
+    throw error;
+  }
+}
+
+export const dashboardRefundInput = z.strictObject({
+  caseId: z.uuid(),
+  reference: z.string().trim().min(1).max(200),
+});
+
+export type RecordDashboardRefundInput = z.input<typeof dashboardRefundInput>;
+
+export type RecordDashboardRefundResult =
+  | { ok: true }
+  | InvalidInput
+  | {
+      ok: false;
+      error: "not_pending" | "refund_unverified" | "reference_already_recorded";
+    };
+
+/** Verifies and records a refund already issued in the gateway dashboard. */
+export async function recordDashboardRefund(
+  ctx: UseCaseContext,
+  input: RecordDashboardRefundInput
+): Promise<RecordDashboardRefundResult> {
+  const { role } = await authorize(ctx, "payments.review.resolve");
+  const parsed = dashboardRefundInput.safeParse(input);
+  if (!parsed.success) return invalidInput(parsed.error);
+  const { caseId, reference } = parsed.data;
+  const pending = and(eq(paymentReviewCase.id, caseId), dashboardRefundPending);
+  const [subject] = await ctx.db
+    .select({
+      batchId: paymentReviewCase.batchId,
+      paymentId: paymentReviewCase.gatewayPaymentId,
+      amountMinor: paymentReviewCase.amountMinor,
+      currency: paymentReviewCase.currency,
+      outcome: paymentReviewCase.outcome,
+      gateway: paymentBatch.gateway,
+    })
+    .from(paymentReviewCase)
+    .innerJoin(paymentBatch, eq(paymentBatch.id, paymentReviewCase.batchId))
+    .where(pending);
+  if (!subject?.outcome) return { ok: false, error: "not_pending" };
+  const { paymentId, amountMinor, currency, outcome, batchId } = subject;
+  if (!paymentId || subject.gateway !== ctx.payments.name) {
+    return { ok: false, error: "refund_unverified" };
+  }
+  // Provider I/O stays outside the transaction. Recheck the receipt when
+  // taking the unique claim so concurrent recorders can't reuse it.
+  const refunds = await ctx.payments.fetchRefunds(paymentId);
+  if (
+    !refunds.some(
+      (refund) =>
+        refund.id === reference &&
+        refund.paymentId === paymentId &&
+        refund.amountMinor === amountMinor &&
+        refund.currency === currency &&
+        refund.status === "processed"
+    )
+  )
+    return { ok: false, error: "refund_unverified" };
+
+  try {
+    return await ctx.db.transaction(async (tx) => {
+      const batch = await (outcome === "confirm"
+        ? lockBatchAndParticipation(tx, batchId)
+        : lockBatch(tx, batchId));
+      if (batch?.gateway !== subject.gateway) {
+        return { ok: false, error: "not_pending" };
+      }
+      const [current] = await tx
+        .select({ refundDue: paymentReviewCase.refundDue })
+        .from(paymentReviewCase)
+        .innerJoin(paymentBatch, eq(paymentBatch.id, paymentReviewCase.batchId))
+        .where(
+          and(
+            pending,
+            eq(paymentReviewCase.batchId, batchId),
+            eq(paymentReviewCase.gatewayPaymentId, paymentId),
+            eq(paymentReviewCase.amountMinor, amountMinor),
+            eq(paymentReviewCase.currency, currency),
+            eq(paymentReviewCase.outcome, outcome)
+          )
+        )
+        .for("update", { of: paymentReviewCase });
+      if (!current) return { ok: false, error: "not_pending" };
+      await tx
+        .update(paymentReviewCase)
+        .set({ refundDue: false, dashboardRefundReference: reference })
+        .where(eq(paymentReviewCase.id, caseId));
+
+      const registrationsRefunded =
+        outcome === "confirm"
+          ? await refundRegistrations(tx, { batchId }, ctx.clock.now())
+          : [];
+      await recordAudit(tx, ctx, {
+        action: "payment.dashboard_refund_recorded",
+        entity: { type: "payment_review_case", id: caseId },
+        before: { refundDue: current.refundDue },
+        after: {
+          refundDue: false,
+          reference,
+          batchId,
+          paymentId,
+          currency,
+          amountMinor: amountMinor.toString(),
+          registrationsRefunded,
+        },
+        actorRole: role,
+      });
+      return { ok: true };
+    });
+  } catch (error) {
+    if (isUniqueViolation(error, DASHBOARD_REFUND_REFERENCE_UNIQUE)) {
+      return { ok: false, error: "reference_already_recorded" };
     }
     throw error;
   }

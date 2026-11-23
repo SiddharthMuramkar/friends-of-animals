@@ -83,11 +83,24 @@ async function ReviewCase({
     );
   }
   const { reviewCase } = call.value;
-  const { done } = await searchParams;
+  const { done, record } = await searchParams;
   const outcome =
     typeof done === "string" &&
     (PAYMENT_REVIEW_OUTCOMES as readonly string[]).includes(done)
       ? (done as PaymentReviewOutcome)
       : undefined;
-  return <ReviewCaseView reviewCase={reviewCase} outcome={outcome} />;
+  return (
+    <ReviewCaseView
+      reviewCase={reviewCase}
+      outcome={outcome}
+      recordError={
+        record === "invalid_reference" ||
+        record === "unexpected" ||
+        record === "refund_unverified" ||
+        record === "reference_already_recorded"
+          ? record
+          : undefined
+      }
+    />
+  );
 }

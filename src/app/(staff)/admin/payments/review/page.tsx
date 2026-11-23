@@ -15,7 +15,7 @@ import {
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type { PaymentReviewCaseItem } from "@/server/modules/payments";
-import { formatPaise } from "@/server/modules/payments/domain/money-format";
+import { formatCapturedAmount } from "@/server/modules/payments/domain/money-format";
 
 import { adminCall } from "../../_lib/boundary";
 import { PaymentsDenied } from "../_components/payments-denied";
@@ -155,7 +155,10 @@ async function CaseTable({
         </thead>
         <tbody>
           {cases.map((each) => {
-            const amount = formatPaise(each.amountMinor);
+            const amount = formatCapturedAmount(
+              each.amountMinor,
+              each.currency
+            );
             const payer = each.payer?.name ?? t("payer.unknown");
             return (
               <tr key={each.id} className="border-t border-border">
@@ -191,7 +194,9 @@ async function CaseTable({
                             : "neutral"
                         }
                       >
-                        {t(`outcomeResults.${each.resolution.outcome}`)}
+                        {each.resolution.manualRefund
+                          ? t(`manualRefund.${each.resolution.manualRefund}`)
+                          : t(`outcomeResults.${each.resolution.outcome}`)}
                       </Chip>
                     ) : null}
                   </td>

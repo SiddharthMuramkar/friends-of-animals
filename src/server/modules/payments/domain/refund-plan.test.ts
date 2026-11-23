@@ -7,6 +7,7 @@ function batch(overrides: Partial<RefundableBatch> = {}): RefundableBatch {
   return {
     captured: true,
     amountMinor: 90_000n,
+    committedMinor: 0n,
     currency: "INR",
     items: [
       { id: "reg-a", amountMinor: 25_000n, refund: "none" },
@@ -40,6 +41,7 @@ describe("planRefund()", () => {
 
   it("takes only what is left when a whole-batch request follows a partial refund", () => {
     const partlyRefunded = batch({
+      committedMinor: 50_000n,
       items: [
         { id: "reg-a", amountMinor: 25_000n, refund: "refunded" },
         { id: "reg-b", amountMinor: 25_000n, refund: "live" },
@@ -145,6 +147,7 @@ describe("planRefund()", () => {
   it("counts refunded and held items against what the batch captured", () => {
     const inconsistent = batch({
       amountMinor: 60_000n,
+      committedMinor: 50_000n,
       items: [
         { id: "reg-a", amountMinor: 25_000n, refund: "refunded" },
         { id: "reg-b", amountMinor: 25_000n, refund: "live" },

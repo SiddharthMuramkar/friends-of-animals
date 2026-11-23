@@ -24,7 +24,10 @@ import type {
   StaffPaymentBatch,
 } from "@/server/modules/payments";
 import { formatPaiseForInput } from "@/server/modules/competitions/domain/fees";
-import { formatPaise } from "@/server/modules/payments/domain/money-format";
+import {
+  formatCapturedAmount,
+  formatPaise,
+} from "@/server/modules/payments/domain/money-format";
 import { istDate } from "@/server/modules/payments/domain/offline-payment";
 
 import { adminCall } from "../../../_lib/boundary";
@@ -120,6 +123,7 @@ async function Batch({
     );
   }
   const { batch } = call.value;
+  const payment = batch.acceptedReceipt ?? batch;
   const query = await searchParams;
   const proofError = PROOF_ERRORS.find((each) => each === query.proof);
   const callout = await getTranslations("common.callout");
@@ -129,7 +133,9 @@ async function Batch({
       <PageHeader
         eyebrow={t("eyebrow")}
         tile="yellow"
-        title={t("batch.title", { amount: formatPaise(batch.amountMinor) })}
+        title={t("batch.title", {
+          amount: formatCapturedAmount(payment.amountMinor, payment.currency),
+        })}
       />
       {query.recorded === "1" && batch.captureMethod === "offline" ? (
         <FormAlert tone="success" label={callout("success")}>
@@ -197,6 +203,17 @@ async function Details({ batch }: { batch: StaffPaymentBatch }) {
           <dt className="font-semibold">{t("batch.details.amount")}</dt>
           <dd>{formatPaise(batch.amountMinor)}</dd>
         </div>
+        {batch.acceptedReceipt ? (
+          <div className={ROW}>
+            <dt className="font-semibold">{t("case.details.received")}</dt>
+            <dd>
+              {formatCapturedAmount(
+                batch.acceptedReceipt.amountMinor,
+                batch.acceptedReceipt.currency
+              )}
+            </dd>
+          </div>
+        ) : null}
         <div className={ROW}>
           <dt className="font-semibold">{t("batch.details.started")}</dt>
           <dd>{when(batch.createdAt)}</dd>
