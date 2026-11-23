@@ -15,9 +15,15 @@ export type ParsedAmount =
   | { ok: true; amountMinor: bigint }
   | { ok: false; error: "invalid_amount" | "not_positive" | "too_large" };
 
+// Ledger forms accept three digits in the crore group, as in 100,00,00,000.
+// Normalize it to 1,00,00,00,000 for the shared parser.
+const CRORE_GROUP =
+  /^((?:₹\s*)?\d)(\d{2})(?=,\d{2},\d{2},\d{3}(?:\.\d{1,2})?$)/;
+
 /** Reads "₹ 1,23,456.78", "Rs 2500" or "1234.5" as paise. */
 export function parseRupees(input: string): ParsedAmount {
-  const parsed = parseRupeesToPaise(input.trim().replace(/^rs\.?\s*/i, "₹"));
+  const text = input.trim().replace(/^rs\.?\s*/i, "₹");
+  const parsed = parseRupeesToPaise(text.replace(CRORE_GROUP, "$1,$2"));
   if (!parsed.ok) {
     return {
       ok: false,
