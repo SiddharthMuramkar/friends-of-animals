@@ -29,7 +29,8 @@
       "audit": "Audit log",
       "safeguarding": "Safeguarding reports",
       "payments": "Payments needing review",
-      "refunds": "Refunds"
+      "refunds": "Refunds",
+      "ledger": "Ledger"
     },
     "institution": {
       "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."
