@@ -403,7 +403,7 @@ describe("acceptGuardianRequest", () => {
   });
 
   it.each([false, true])(
-    "claims the held place for an existing child profile (already registered: %s)",
+    "recovers the held place through the teen's verified invitation (already registered: %s)",
     async (hasRegistration) => {
       const h = await createHarness();
       const meera = await heldTeen(h);
@@ -442,11 +442,25 @@ describe("acceptGuardianRequest", () => {
       }
 
       expect(
+        await parent.inviteTeenLogin({ childId, email: meera.account.email })
+      ).toMatchObject({ ok: true });
+      await h.drain();
+      const invitationToken = LINK.exec(
+        h.email.lastTo(meera.account.email)?.text ?? ""
+      )?.[1];
+      if (!invitationToken) throw new Error("No teen invitation was emailed");
+      expect(
+        await h.as(meera.actor).acceptTeenInvitation({ token: invitationToken })
+      ).toEqual({ ok: true, childId });
+      expect(
+        await h.as(meera.actor).viewTeenInvitation({ token: invitationToken })
+      ).toMatchObject({ ok: true, invitation: { status: "accepted" } });
+      expect(
         await parent.acceptGuardianRequest({
           token: meera.token,
           relationship: "parent",
         })
-      ).toEqual({ ok: true, childId, released: [] });
+      ).toEqual({ ok: false, error: "already_used" });
       expect(
         (await parent.listMyRegistrations()).filter(
           ({ status }) => status !== "withdrawn"
@@ -500,6 +514,39 @@ describe("acceptGuardianRequest", () => {
         links: await h.db.select().from(guardianLink),
       };
     }
+
+    it.each([undefined, "meera@example.test", "previous@example.test"])(
+      "keeps both profiles and a pending teen invitation intact before teen confirmation (%s)",
+      async (invitedEmail) => {
+        const h = await createHarness();
+        const meera = await heldTeen(h);
+        const family = await h.seed.guardian({
+          email: MOTHER_EMAIL,
+          children: [{ fullName: "Meera Iyer", age: 15 }],
+        });
+        const childId = family.childIds[0]!;
+        const parent = h.as(await h.signIn(family.account));
+        if (invitedEmail) {
+          expect(
+            await parent.inviteTeenLogin({ childId, email: invitedEmail })
+          ).toMatchObject({
+            ok: true,
+          });
+        }
+        const before = await unchanged(h);
+        const places = await h.as(meera.actor).listMyRegistrations();
+
+        expect(
+          await parent.acceptGuardianRequest({
+            token: meera.token,
+            relationship: "parent",
+          })
+        ).toEqual({ ok: false, error: "child_already_added" });
+        expect(await unchanged(h)).toEqual(before);
+        expect(await h.as(meera.actor).listMyRegistrations()).toEqual(places);
+        expect(await meera.status()).toBe("pending_guardian");
+      }
+    );
 
     it("someone signed in with another address", async () => {
       const h = await createHarness();

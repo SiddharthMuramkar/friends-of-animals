@@ -58,11 +58,11 @@ import type { ConsentDocumentBody } from "./domain/document-body";
 import {
   documentToGive,
   GUARDIAN_PURPOSES,
+  isCompetitionGuardianDocument,
   offeredPurposes,
   publicationPurposeFor,
   scopeRefusal,
   type CompetitionConsentSetup,
-  type CompetitionDocumentPurpose,
   type GiveRefusal,
   type GuardianPurpose,
   type PublicUse,
@@ -235,7 +235,7 @@ async function competitionSetup(
   const pinned = await pinnedDocuments(db, competitionId);
   const attached: CompetitionConsentSetup["attached"] = {};
   for (const document of pinned) {
-    if (isCompetitionDocument(document.purpose)) {
+    if (isCompetitionGuardianDocument(document.purpose)) {
       attached[document.purpose] = {
         id: document.id,
         version: document.version,
@@ -251,19 +251,6 @@ async function competitionSetup(
     },
     documents: pinned.map(({ id, version, title }) => ({ id, version, title })),
   };
-}
-
-const COMPETITION_DOCUMENTS: readonly string[] = [
-  "participation",
-  "public_display",
-  "social_media",
-  "auction",
-] satisfies CompetitionDocumentPurpose[];
-
-function isCompetitionDocument(
-  purpose: string
-): purpose is CompetitionDocumentPurpose {
-  return COMPETITION_DOCUMENTS.includes(purpose);
 }
 
 /** The child's registration for the competition that still takes part. */

@@ -21,7 +21,7 @@ afterAll(async () => {
   await world.close();
 });
 
-it("claims the matching child while a teen accepts a login invitation", async () => {
+it("keeps separate registrations while the invited teen accepts their login invitation", async () => {
   const name = "Meera Iyer";
   const motherEmail = world.uniqueEmail();
   const family = await world.seed.guardian({
@@ -77,27 +77,37 @@ it("claims the matching child while a teen accepts a login invitation", async ()
     .set({ tokenHash: loginLink.tokenHash })
     .where(eq(guardianInvitation.id, invitation.invitationId));
 
-  const { claiming, signingIn } = await world.sql.begin(async (blocker) => {
-    // Queue the two real requests on the profile, with the claim first.
-    await blocker`select 1 from participant_profile where id = ${childId} for update`;
-    const claiming = parent.acceptGuardianRequest({
-      token: requestLink.token,
-      relationship: "parent",
-    });
-    claiming.catch(() => {});
-    await world.waitForLockWaiters(1);
-    const signingIn = invited.acceptTeenInvitation({ token: loginLink.token });
-    signingIn.catch(() => {});
-    await world.waitForLockWaiters(2);
-    return { claiming, signingIn };
-  });
+  const { acceptingRequest, signingIn } = await world.sql.begin(
+    async (blocker) => {
+      // Queue both actions on the profile, with the guardian's request first.
+      await blocker`select 1 from participant_profile where id = ${childId} for update`;
+      const acceptingRequest = parent.acceptGuardianRequest({
+        token: requestLink.token,
+        relationship: "parent",
+      });
+      acceptingRequest.catch(() => {});
+      await world.waitForLockWaiters(1);
+      const signingIn = invited.acceptTeenInvitation({
+        token: loginLink.token,
+      });
+      signingIn.catch(() => {});
+      await world.waitForLockWaiters(2);
+      return { acceptingRequest, signingIn };
+    }
+  );
 
-  await expect(Promise.all([claiming, signingIn])).resolves.toEqual([
-    { ok: true, childId, released: [] },
-    { ok: false, error: "withdrawn" },
+  await expect(Promise.all([acceptingRequest, signingIn])).resolves.toEqual([
+    { ok: false, error: "child_already_added" },
+    { ok: true, childId },
   ]);
+  expect(
+    await parent.viewGuardianRequest({ token: requestLink.token })
+  ).toMatchObject({
+    ok: true,
+    request: { status: "pending" },
+  });
   expect(await teen.listMyRegistrations()).toMatchObject([
-    { registrationId: registration.registrationId, heldFor: "consent" },
+    { registrationId: registration.registrationId, heldFor: "guardian" },
   ]);
   expect(await invited.listMyRegistrations()).toEqual([]);
 });

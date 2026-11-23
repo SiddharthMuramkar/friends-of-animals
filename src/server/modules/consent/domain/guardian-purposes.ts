@@ -21,12 +21,24 @@ export type GuardianPurpose = (typeof GUARDIAN_PURPOSES)[number];
 /** A consent document version, as the consent event points at it. */
 export type DocumentRef = { id: string; version: number };
 
-/** The document purposes a competition attaches a version of. */
+/** The guardian consent documents a competition attaches. */
+export const COMPETITION_GUARDIAN_DOCUMENT_PURPOSES = [
+  "participation",
+  "public_display",
+  "social_media",
+  "auction",
+] as const;
+
 export type CompetitionDocumentPurpose =
-  | "participation"
-  | "public_display"
-  | "social_media"
-  | "auction";
+  (typeof COMPETITION_GUARDIAN_DOCUMENT_PURPOSES)[number];
+
+export function isCompetitionGuardianDocument(
+  purpose: string
+): purpose is CompetitionDocumentPurpose {
+  return (COMPETITION_GUARDIAN_DOCUMENT_PURPOSES as readonly string[]).includes(
+    purpose
+  );
+}
 
 /** What a competition says about consent, from its definition. */
 export type CompetitionConsentSetup = {

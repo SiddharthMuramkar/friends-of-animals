@@ -3,8 +3,13 @@
 // the exact text agreed. Publishing a newer version in the Consent module
 // (#64) changes nothing here until a manager re-attaches.
 //
-// Plain TypeScript with no imports, so the schema file and the seed script
+// Pure TypeScript, so the schema file and the seed script
 // can load it under plain Node.
+
+import {
+  COMPETITION_GUARDIAN_DOCUMENT_PURPOSES,
+  isCompetitionGuardianDocument,
+} from "../../consent/domain/guardian-purposes";
 
 /**
  * Purposes a competition can attach, from the Consent module's
@@ -15,21 +20,10 @@
 export const ATTACHABLE_PURPOSES = [
   "competition_terms",
   "privacy_notice",
-  "participation",
-  "public_display",
-  "social_media",
-  "auction",
+  ...COMPETITION_GUARDIAN_DOCUMENT_PURPOSES,
 ] as const;
 
 export type AttachablePurpose = (typeof ATTACHABLE_PURPOSES)[number];
-
-/** The documents a guardian consents to for a child, each on its own (#82). */
-const GUARDIAN_DOCUMENTS: readonly AttachablePurpose[] = [
-  "participation",
-  "public_display",
-  "social_media",
-  "auction",
-];
 
 /** Purposes everyone must agree to before registering. */
 const REQUIRED_FOR_REGISTRATION: readonly AttachablePurpose[] = [
@@ -48,7 +42,7 @@ export function isAttachablePurpose(
  * a registrant agreeing to it for themselves.
  */
 export function isGuardianDocument(purpose: AttachablePurpose): boolean {
-  return GUARDIAN_DOCUMENTS.includes(purpose);
+  return isCompetitionGuardianDocument(purpose);
 }
 
 /** Whether a registrant must agree to this purpose's document. */

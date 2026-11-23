@@ -30,7 +30,7 @@
 // (plus an encrypted copy while pending, for the message). An unknown or
 // malformed token is "not found", with nothing said about why.
 
-import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -153,6 +153,7 @@ async function pendingRequestOf(tx: AppDb, profileId: string) {
       id: guardianInvitation.id,
       contactHash: guardianInvitation.contactHash,
       expiresAt: guardianInvitation.expiresAt,
+      requesterUserId: guardianInvitation.requestedByUserId,
     })
     .from(guardianInvitation)
     .where(
@@ -347,12 +348,126 @@ export type AcceptGuardianRequestResult =
 
 type Profile = typeof participantProfile.$inferSelect;
 
+/**
+ * Finds the held profile only after the teen accepts a profile-bound invitation
+ * at its verified address. Both requests must name the same guardian and the
+ * profiles must match. The caller holds the teen, child and invitation locks.
+ */
+export async function recoverHeldProfile(
+  tx: AppDb,
+  ctx: UseCaseContext,
+  teenUserId: string,
+  child: Pick<
+    Profile,
+    "id" | "identityHash" | "ownerUserId" | "participantCode"
+  >,
+  inviterId: string,
+  now: Date
+): Promise<boolean> {
+  if (!child.ownerUserId) return false;
+  const [inviter] = await tx
+    .select({ userId: guardian.userId })
+    .from(guardian)
+    .innerJoin(guardianLink, eq(guardian.id, guardianLink.guardianId))
+    .where(
+      and(
+        eq(guardian.id, inviterId),
+        eq(guardian.userId, child.ownerUserId),
+        eq(guardianLink.participantProfileId, child.id),
+        verifiedLink()
+      )
+    );
+  if (!inviter) return false;
+  const guardianContact = await verifiedContactHash(tx, ctx, inviter.userId);
+  if (!guardianContact) return false;
+
+  const [source] = await tx
+    .select()
+    .from(participantProfile)
+    .where(
+      and(
+        eq(participantProfile.ownerUserId, teenUserId),
+        eq(participantProfile.ownerKind, "self"),
+        eq(participantProfile.identityHash, child.identityHash)
+      )
+    )
+    .for("update");
+  if (!source) return false;
+  const request = await pendingRequestOf(tx, source.id);
+  if (
+    request?.requesterUserId !== teenUserId ||
+    request.contactHash !== guardianContact ||
+    request.expiresAt <= now
+  ) {
+    return false;
+  }
+
+  const claimed = await claimHeldPlaces(tx, ctx, source.id, child.id, now);
+  if (!claimed) return false;
+  await tx
+    .update(guardianInvitation)
+    .set({
+      status: "accepted",
+      guardianId: inviterId,
+      acceptedAt: now,
+      acceptedByUserId: inviter.userId,
+      participantProfileId: child.id,
+      tokenCiphertext: null,
+      updatedAt: now,
+    })
+    .where(eq(guardianInvitation.id, request.id));
+  await tx
+    .update(guardianInvitation)
+    .set({ participantProfileId: child.id })
+    .where(eq(guardianInvitation.participantProfileId, source.id));
+  await tx
+    .delete(participantProfile)
+    .where(eq(participantProfile.id, source.id));
+  if (child.participantCode === null) {
+    await tx
+      .update(participantProfile)
+      .set({
+        participantCode: source.participantCode,
+        phoneCiphertext: source.phoneCiphertext,
+        emailCiphertext: source.emailCiphertext,
+        pinCode: source.pinCode,
+        city: source.city,
+        state: source.state,
+        country: source.country,
+        schoolName: source.schoolName,
+      })
+      .where(eq(participantProfile.id, child.id));
+  }
+  await recordAudit(tx, ctx, {
+    action: "guardian.request_accepted",
+    entity: { type: "participant_profile", id: child.id },
+    before: {
+      ownerKind: "self",
+      loginUserId: null,
+      participantProfileId: source.id,
+    },
+    after: {
+      ownerKind: "guardian",
+      guardianId: inviterId,
+      loginUserId: teenUserId,
+      requestId: request.id,
+      claimedRegistrations: claimed,
+    },
+    actorRole: null,
+  });
+  await releaseHeldRegistrations(tx, ctx, {
+    profileId: child.id,
+    actorRole: null,
+  });
+  return true;
+}
+
 /** Reconciles a teen's held places with the profile the guardian already keeps. */
 async function claimHeldPlaces(
   tx: AppDb,
   ctx: UseCaseContext,
-  source: Profile,
-  target: { id: string; participantCode: string | null },
+  sourceId: string,
+  targetId: string,
   now: Date
 ) {
   const held = await tx
@@ -362,7 +477,7 @@ async function claimHeldPlaces(
       status: registration.status,
     })
     .from(registration)
-    .where(eq(registration.participantProfileId, source.id))
+    .where(eq(registration.participantProfileId, sourceId))
     .orderBy(registration.id)
     .for("update");
   if (held.some(({ status }) => status !== "pending_guardian")) return null;
@@ -372,7 +487,7 @@ async function claimHeldPlaces(
     .from(registration)
     .where(
       and(
-        eq(registration.participantProfileId, target.id),
+        eq(registration.participantProfileId, targetId),
         ne(registration.status, "withdrawn")
       )
     );
@@ -392,7 +507,7 @@ async function claimHeldPlaces(
     await tx
       .update(registration)
       .set({
-        participantProfileId: target.id,
+        participantProfileId: targetId,
         status: duplicate ? "withdrawn" : "pending_guardian",
         updatedAt: now,
       })
@@ -401,10 +516,10 @@ async function claimHeldPlaces(
       await recordAudit(tx, ctx, {
         action: "registration.status_changed",
         entity: { type: "registration", id: row.id },
-        before: { status: "pending_guardian", participantProfileId: source.id },
+        before: { status: "pending_guardian", participantProfileId: sourceId },
         after: {
           status: "withdrawn",
-          participantProfileId: target.id,
+          participantProfileId: targetId,
           cause: "guardian",
           reason: "duplicate",
         },
@@ -589,14 +704,9 @@ export async function acceptGuardianRequest(
             ne(participantProfile.id, profile.id)
           )
         );
-      // Keep the profile the guardian already uses, if the match is theirs
-      // to manage and it has no login to displace.
+      // A demographic match suggests recovery through a teen-login invitation.
       const [sameChild] = await tx
-        .select({
-          id: participantProfile.id,
-          loginUserId: participantProfile.loginUserId,
-          participantCode: participantProfile.participantCode,
-        })
+        .select({ id: participantProfile.id })
         .from(participantProfile)
         .where(
           and(
@@ -606,19 +716,6 @@ export async function acceptGuardianRequest(
           )
         )
         .for("update");
-      const [activeLink] =
-        sameChild && record
-          ? await tx
-              .select({ id: guardianLink.id })
-              .from(guardianLink)
-              .where(
-                and(
-                  eq(guardianLink.guardianId, record.id),
-                  eq(guardianLink.participantProfileId, sameChild.id),
-                  isNull(guardianLink.revokedAt)
-                )
-              )
-          : [];
       const decision = decideGuardianRequestAcceptance({
         request,
         now,
@@ -631,9 +728,7 @@ export async function acceptGuardianRequest(
           // Under the accepter's row lock, which registering alone takes.
           ownProfile: await ownProfileOf(tx, ctx, userId, now),
         },
-        childAlreadyAdded:
-          sameChild !== undefined &&
-          (sameChild.loginUserId !== null || !activeLink),
+        childAlreadyAdded: sameChild !== undefined,
         requester: {
           linkedElsewhere: linkedElsewhere !== undefined,
           isAdult: isAdultAt(childDateOfBirth(ctx, profile).date, now),
@@ -649,30 +744,23 @@ export async function acceptGuardianRequest(
         );
       }
 
-      const childId = sameChild?.id ?? profile.id;
-      let claimed: string[] = [];
-      if (sameChild) {
-        const places = await claimHeldPlaces(tx, ctx, profile, sameChild, now);
-        if (!places) return { ok: false, error: "child_already_added" };
-        claimed = places;
-      } else {
-        await tx
-          .update(participantProfile)
-          .set({
-            ownerKind: "guardian",
-            ownerUserId: userId,
-            loginUserId: teenUserId,
-            updatedAt: now,
-          })
-          .where(eq(participantProfile.id, childId));
-        await tx.insert(guardianLink).values({
-          id: uuidv7(now),
-          guardianId: record.id,
-          participantProfileId: childId,
-          relationship,
-          createdAt: now,
-        });
-      }
+      const childId = profile.id;
+      await tx
+        .update(participantProfile)
+        .set({
+          ownerKind: "guardian",
+          ownerUserId: userId,
+          loginUserId: teenUserId,
+          updatedAt: now,
+        })
+        .where(eq(participantProfile.id, childId));
+      await tx.insert(guardianLink).values({
+        id: uuidv7(now),
+        guardianId: record.id,
+        participantProfileId: childId,
+        relationship,
+        createdAt: now,
+      });
       await tx
         .update(guardianInvitation)
         .set({
@@ -685,50 +773,6 @@ export async function acceptGuardianRequest(
           updatedAt: now,
         })
         .where(eq(guardianInvitation.id, request.id));
-      if (sameChild) {
-        // Preserve closed requests and close any pending teen-login invite.
-        await tx
-          .update(guardianInvitation)
-          .set({ participantProfileId: childId })
-          .where(eq(guardianInvitation.participantProfileId, profile.id));
-        await tx
-          .update(guardianInvitation)
-          .set({
-            status: "revoked",
-            revokedAt: now,
-            tokenCiphertext: null,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              eq(guardianInvitation.participantProfileId, childId),
-              eq(guardianInvitation.status, "pending"),
-              eq(guardianInvitation.kind, "teen_login")
-            )
-          );
-        await tx
-          .delete(participantProfile)
-          .where(eq(participantProfile.id, profile.id));
-        await tx
-          .update(participantProfile)
-          .set({
-            loginUserId: teenUserId,
-            updatedAt: now,
-            ...(sameChild.participantCode === null
-              ? {
-                  participantCode: profile.participantCode,
-                  phoneCiphertext: profile.phoneCiphertext,
-                  emailCiphertext: profile.emailCiphertext,
-                  pinCode: profile.pinCode,
-                  city: profile.city,
-                  state: profile.state,
-                  country: profile.country,
-                  schoolName: profile.schoolName,
-                }
-              : {}),
-          })
-          .where(eq(participantProfile.id, childId));
-      }
       await recordAudit(tx, ctx, {
         action: "guardian.request_accepted",
         entity: { type: "participant_profile", id: childId },
@@ -743,7 +787,6 @@ export async function acceptGuardianRequest(
           loginUserId: teenUserId,
           requestId: request.id,
           relationship,
-          claimedRegistrations: claimed,
         },
         actorRole: null,
       });
@@ -769,20 +812,4 @@ async function lockUsers(tx: AppDb, userIds: string[]): Promise<void> {
     .where(inArray(user.id, userIds))
     .orderBy(asc(user.id))
     .for("no key update");
-}
-
-/** Whether an active link joins the profile to a verified guardian. */
-export async function hasVerifiedGuardian(
-  db: AppDb,
-  profileId: string
-): Promise<boolean> {
-  const [row] = await db
-    .select({ id: guardianLink.id })
-    .from(guardianLink)
-    .innerJoin(guardian, eq(guardian.id, guardianLink.guardianId))
-    .where(
-      and(eq(guardianLink.participantProfileId, profileId), verifiedLink())
-    )
-    .limit(1);
-  return row !== undefined;
 }

@@ -12,7 +12,7 @@
 // Not use cases: callers have authorized their actor and pass their
 // transaction. Loads under plain Node: relative imports only.
 
-import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
@@ -20,12 +20,11 @@ import type { AppDb } from "../../db/app-db";
 import {
   competition,
   competitionConsentDocument,
-  guardian,
-  guardianLink,
   participantProfile,
   registration,
 } from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
+import { hasVerifiedGuardian } from "../guardians/child-access";
 import { childDateOfBirth } from "../guardians/child-view";
 import { isAdultAt } from "../participants/domain/age";
 import { canTransition } from "../registration/domain/registration-status";
@@ -113,23 +112,6 @@ export async function lockRegistrationsForPayment(
     .for("no key update");
 }
 
-/** Whether a verified guardian looks after the profile through a live link. */
-async function guardianVerified(db: AppDb, profileId: string) {
-  const [row] = await db
-    .select({ id: guardianLink.id })
-    .from(guardianLink)
-    .innerJoin(guardian, eq(guardian.id, guardianLink.guardianId))
-    .where(
-      and(
-        eq(guardianLink.participantProfileId, profileId),
-        isNull(guardianLink.revokedAt),
-        isNotNull(guardian.verifiedAt)
-      )
-    )
-    .limit(1);
-  return row !== undefined;
-}
-
 /**
  * Releases the profile's registrations held for a guardian (in one
  * competition, or in all), each whose guardian has verified and given
@@ -159,7 +141,7 @@ export async function releaseHeldRegistrations(
     .orderBy(registration.id)
     .for("update");
   if (held.length === 0) return [];
-  const verified = await guardianVerified(tx, input.profileId);
+  const verified = await hasVerifiedGuardian(tx, input.profileId);
   const released: string[] = [];
   for (const row of held) {
     const hold = minorRegistrationHold({

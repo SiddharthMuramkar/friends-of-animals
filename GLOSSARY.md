@@ -571,7 +571,9 @@ _Avoid_: Route B, self-registration, direct entry
 A teen of 13 to 17 with no guardian on the platform names their parent or
 guardian when they register, and FOA emails that person a link. Accepting it,
 signed in as a verified guardian with that address, makes them the teen's
-guardian. Each held registration is released when the guardian gives
+guardian. If the guardian already manages a matching profile, they invite
+the teen to that profile. The teen confirms the link from the invited
+verified account. Each held registration is released when the guardian gives
 participation consent for that competition.
 _Avoid_: Guardian invitation (a guardian inviting a teen to an own login),
 consent request

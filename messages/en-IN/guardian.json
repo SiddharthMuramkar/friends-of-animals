@@ -289,7 +289,7 @@
         "contact_mismatch": "This request is for a different email address than the one you're signed in with.",
         "accepter_is_minor": "This account registered for a competition with a date of birth under 18, so it can't become a teen's parent or guardian. They need to ask a parent or guardian who is 18 or older.",
         "guardian_not_verified": "First register as a parent or guardian, with a code we email you.",
-        "child_already_added": "This request can't be linked to the child's existing profile. Please contact us about their registrations.",
+        "child_already_added": "You already manage a matching child profile. If it belongs to this teen and has no login or pending invitation, invite their verified email from that profile. The teen can link their held registrations by accepting. If a login or invitation is already in place for a different address, please contact us.",
         "already_linked": "This teen's login is already linked to a parent or guardian.",
         "requester_is_adult": "They are 18 or over now, so they don't need a parent or guardian to take part.",
         "requester_has_role": "The account that sent this request looks after children, or works with Friends of Animals, a school or the judges, so it can't be a teen's login. Please contact us.",
