@@ -463,6 +463,77 @@ describe("loadAnnouncementAudience", () => {
     ]);
   });
 
+  it("keeps differently named guardians distinct when both listed destinations are shared", async () => {
+    const h = await createHarness();
+    const school = await schoolRoster(h);
+    const first = await school.enrol(sibling("First Pupil", FAMILY_EMAIL));
+    await school.confirm();
+    const second = await school.enrol({
+      ...sibling("Second Pupil", FAMILY_EMAIL),
+      guardianName: "Second Guardian",
+    });
+    const options = { smsEnabled: true };
+    const direct = [`email:${FAMILY_EMAIL}`, `sms:${SHARED_PHONE}`];
+
+    const before = await audience(h, school.competition.id, options);
+    await h.seed.member({ email: FAMILY_EMAIL, phone: SHARED_PHONE });
+    const family = await h.seed.guardian({ email: FAMILY_EMAIL, children: [] });
+    const verified = await audience(h, school.competition.id, options);
+    const subset = await audience(h, school.competition.id, {
+      ...options,
+      registrationIds: new Set([second]),
+    });
+    await family.linkInstitutionRegistration(first);
+    const linked = await audience(h, school.competition.id, options);
+
+    expect(
+      [before, verified, subset, linked].map((plan) => ({
+        recipients: plan.counts.recipients,
+        guardians: plan.counts.guardians,
+        deliveries: guardianDestinations(plan),
+      }))
+    ).toEqual([
+      { recipients: 3, guardians: 2, deliveries: direct },
+      { recipients: 3, guardians: 2, deliveries: direct },
+      { recipients: 2, guardians: 1, deliveries: direct },
+      {
+        recipients: 3,
+        guardians: 2,
+        deliveries: [
+          `email:${FAMILY_EMAIL}`,
+          `in_app:${family.account.id}`,
+          `sms:${SHARED_PHONE}`,
+        ],
+      },
+    ]);
+  });
+
+  it("requires each pupil's verified link to inherit an account when guardians share both addresses", async () => {
+    const h = await createHarness();
+    const school = await schoolRoster(h);
+    await school.enrol(sibling("First Pupil", FAMILY_EMAIL));
+    await school.confirm();
+    await school.enrol({
+      ...sibling("Second Pupil", FAMILY_EMAIL),
+      guardianName: "Second Guardian",
+    });
+    const linked = await school.enrol(sibling("Linked Pupil"));
+    const unlinked = await school.enrol(sibling("Unlinked Pupil"));
+    await h.seed.member({ email: FAMILY_EMAIL, phone: SHARED_PHONE });
+    const family = await h.seed.guardian({ email: FAMILY_EMAIL, children: [] });
+    await family.linkInstitutionRegistration(linked);
+
+    const subset = await audience(h, school.competition.id, {
+      registrationIds: new Set([linked, unlinked]),
+    });
+
+    expect(subset.counts).toMatchObject({ guardians: 1, unreachable: 1 });
+    expect(guardianDestinations(subset)).toEqual([
+      `email:${FAMILY_EMAIL}`,
+      `in_app:${family.account.id}`,
+    ]);
+  });
+
   it("keeps a listed guardian phone on SMS when another account owns the number", async () => {
     const h = await createHarness();
     await h.seed.member({
@@ -587,6 +658,34 @@ describe("loadAnnouncementAudience", () => {
     });
   });
 
+  it("preserves listed channels when verified phone ownership contradicts account inheritance", async () => {
+    const h = await createHarness();
+    const emailOwner = await h.seed.member({ email: "guardian@example.test" });
+    const school = await schoolRoster(h);
+    await school.enrol(sibling("First Pupil", emailOwner.email));
+    await school.confirm();
+    await school.enrol(sibling("Phone-only Pupil"));
+    await h.seed.member({
+      email: "phone-owner@example.test",
+      phone: SHARED_PHONE,
+    });
+
+    const smsOff = await audience(h, school.competition.id);
+    const smsOn = await audience(h, school.competition.id, {
+      smsEnabled: true,
+    });
+    const account = [`email:${emailOwner.email}`, `in_app:${emailOwner.id}`];
+    expect([smsOff, smsOn].map(({ counts }) => counts.unreachable)).toEqual([
+      1, 0,
+    ]);
+    expect(smsOff.unreachable.map(({ reason }) => reason)).toEqual([
+      "minor_without_guardian",
+    ]);
+    expect([guardianDestinations(smsOff), guardianDestinations(smsOn)]).toEqual(
+      [account, [...account, `sms:${SHARED_PHONE}`]]
+    );
+  });
+
   it("keeps each verified guardian's channels when a shared alias has conflicting emails", async () => {
     const h = await createHarness();
     const first = await h.seed.member({
@@ -674,6 +773,32 @@ describe("loadAnnouncementAudience", () => {
     );
   });
 
+  it("vetoes direct email inheritance until the conflicting roster row is withdrawn", async () => {
+    const h = await createHarness();
+    const school = await schoolRoster(h);
+    const email = "selected-contact@example.test";
+    const selected = await school.enrol(sibling("Selected Pupil", email));
+    await school.confirm();
+    const outsideEmail = "other-contact@example.test";
+    const outside = await school.enrol(sibling("Other Pupil", outsideEmail));
+    const phoneOnly = await school.enrol(sibling("Phone-only Pupil"));
+    const options = { registrationIds: new Set([selected, phoneOnly]) };
+
+    const full = await audience(h, school.competition.id);
+    const before = await audience(h, school.competition.id, options);
+    await school.withdraw(outside);
+    const after = await audience(h, school.competition.id, options);
+
+    expect(
+      [full, before, after].map(({ counts }) => counts.unreachable)
+    ).toEqual([1, 1, 0]);
+    expect([full, before, after].map(guardianDestinations)).toEqual([
+      [`email:${outsideEmail}`, `email:${email}`],
+      [`email:${email}`],
+      [`email:${email}`],
+    ]);
+  });
+
   it("selects an active verified guardian link and uses roster channels after revocation", async () => {
     const h = await createHarness();
     const family = await h.seed.guardian({ children: [] });
@@ -700,6 +825,56 @@ describe("loadAnnouncementAudience", () => {
         .filter(({ recipient }) => recipient.roles.includes("guardian"))
         .map(({ channel, address }) => `${channel}:${address}`)
     ).toEqual([`sms:${SHARED_PHONE}`]);
+  });
+
+  it("keeps independently listed destinations when their matching guardian link is revoked", async () => {
+    const h = await createHarness();
+    const email = "listed-guardian@example.test";
+    await h.seed.member({ email, phone: SECOND_GUARDIAN_PHONE });
+    const family = await h.seed.guardian({ email, children: [] });
+    const school = await schoolRoster(h);
+    const pupil = await school.enrol(sibling("Linked Pupil", email));
+    await school.confirm();
+    const link = await family.linkInstitutionRegistration(pupil);
+    const options = { smsEnabled: true };
+
+    const linked = await audience(h, school.competition.id, options);
+    await link.revoke();
+    const revoked = await audience(h, school.competition.id, options);
+
+    expect([
+      guardianDestinations(linked),
+      guardianDestinations(revoked),
+    ]).toEqual([
+      [
+        `email:${email}`,
+        `in_app:${family.account.id}`,
+        `sms:${SECOND_GUARDIAN_PHONE}`,
+      ],
+      [`email:${email}`, `sms:${SHARED_PHONE}`],
+    ]);
+  });
+
+  it("scopes a revoked guardian link to the pupil when siblings share an alias", async () => {
+    const h = await createHarness();
+    const family = await h.seed.guardian({ children: [] });
+    const school = await schoolRoster(h);
+    await school.enrol(sibling("First Pupil", family.account.email));
+    await school.confirm();
+    const pupil = await school.enrol(sibling("Second Pupil"));
+    const link = await family.linkInstitutionRegistration(pupil);
+
+    const linked = await audience(h, school.competition.id);
+    await link.revoke();
+    const revoked = await audience(h, school.competition.id);
+
+    expect([linked, revoked].map(({ counts }) => counts.unreachable)).toEqual([
+      0, 1,
+    ]);
+    expect(guardianDestinations(revoked)).toEqual([
+      `email:${family.account.email}`,
+      `in_app:${family.account.id}`,
+    ]);
   });
 
   it("routes a confirmed individual to their guardian before their 18th birthday in India", async () => {

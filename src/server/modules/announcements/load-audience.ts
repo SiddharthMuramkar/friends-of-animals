@@ -213,15 +213,15 @@ function matchingRosterContacts(
   const selectedEmails = new Set(
     selected.flatMap(({ contact }) => (contact.email ? [contact.email] : []))
   );
-  const selectedAliases = new Set(
-    selected.flatMap(({ contact, minor }) => {
-      const alias = minor ? rosterGuardianPhoneAlias(contact) : null;
-      return alias === null ? [] : [alias];
-    })
+  const selectedGuardianPhones = new Set(
+    selected.flatMap(({ contact, minor }) =>
+      minor && contact.phone ? [contact.phone] : []
+    )
   );
-  if (selectedEmails.size === 0 && selectedAliases.size === 0) return [];
+  if (selectedEmails.size === 0 && selectedGuardianPhones.size === 0) return [];
 
-  // Outside the subset, read only evidence relevant to a selected mailbox or alias.
+  // A different name at the same phone can make a guardian's mailbox ambiguous.
+  // Outside the subset, these rows only supply conflicts.
   const matching: RosterContact[] = [];
   for (const row of rows) {
     if (row.route !== "institution" || (!row.email && !row.guardianEmail))
@@ -230,10 +230,12 @@ function matchingRosterContacts(
     const email = readRosterEmail(cipher, row, minor);
     if (!email) continue;
     const sameMailbox = selectedEmails.has(email);
-    if (!sameMailbox && !(minor && selectedAliases.size > 0)) continue;
+    if (!sameMailbox && !(minor && selectedGuardianPhones.size > 0)) continue;
     const contact = readRosterContact(cipher, row, minor, email);
-    const alias = minor ? rosterGuardianPhoneAlias(contact) : null;
-    if (sameMailbox || (alias !== null && selectedAliases.has(alias)))
+    if (
+      sameMailbox ||
+      (minor && contact.phone && selectedGuardianPhones.has(contact.phone))
+    )
       matching.push({ contact, minor });
   }
   return matching;
@@ -242,6 +244,7 @@ function matchingRosterContacts(
 function rosterConflicts(roster: readonly RosterContact[]) {
   const phoneByEmail = new Map<string, E164Phone>();
   const adultsByEmail = new Map<string, Map<E164Phone | null, number>>();
+  const guardianAliasesByEmail = new Map<string, Map<E164Phone, Set<string>>>();
   const emailByAlias = new Map<string, string>();
   const sharedEmails = new Set<string>();
   const conflictingGuardianAliases = new Set<string>();
@@ -262,6 +265,14 @@ function rosterConflicts(roster: readonly RosterContact[]) {
 
     const alias = minor ? rosterGuardianPhoneAlias(contact) : null;
     if (alias === null) continue;
+    const aliasesByPhone =
+      guardianAliasesByEmail.get(email) ?? new Map<E164Phone, Set<string>>();
+    const aliases = aliasesByPhone.get(phone) ?? new Set<string>();
+    aliases.add(alias);
+    if (aliases.size > 1) sharedEmails.add(email);
+    aliasesByPhone.set(phone, aliases);
+    guardianAliasesByEmail.set(email, aliasesByPhone);
+
     const otherEmail = emailByAlias.get(alias);
     if (otherEmail && otherEmail !== email)
       conflictingGuardianAliases.add(alias);
@@ -272,6 +283,16 @@ function rosterConflicts(roster: readonly RosterContact[]) {
     conflictingGuardianAliases,
     hasCompetingAdult({ email, phone }: DetailsContact) {
       return email !== null && (adultsByEmail.get(email)?.get(phone) ?? 0) > 1;
+    },
+    hasCompetingGuardian({
+      email,
+      phone,
+    }: Pick<DetailsContact, "email" | "phone">) {
+      return (
+        email !== null &&
+        phone !== null &&
+        (guardianAliasesByEmail.get(email)?.get(phone)?.size ?? 0) > 1
+      );
     },
   };
 }
@@ -365,19 +386,27 @@ async function loadContacts(
     },
     forRoster(
       listed: DetailsContact,
-      sharedEmail: boolean,
-      competingAdult = false
+      {
+        sharedEmail,
+        competingIdentity,
+        revokedAccountIds,
+      }: {
+        sharedEmail: boolean;
+        competingIdentity: boolean;
+        revokedAccountIds?: ReadonlySet<string> | undefined;
+      }
     ) {
       const emailOwner = listed.email ? byEmail.get(listed.email) : undefined;
       const hash = listed.phone ? phoneHashes.get(listed.phone) : undefined;
       const phoneOwner = hash ? byPhoneHash.get(hash) : undefined;
       const minorEmail = emailOwner && minors.has(emailOwner.id);
       const minorPhone = phoneOwner && minors.has(phoneOwner.id);
-      // A verified phone can corroborate a shared mailbox for a single adult profile.
+      // A verified phone corroborates a shared mailbox only when it distinguishes the roster identity.
       const verifiedEmailMatch =
-        !competingAdult &&
+        !competingIdentity &&
         emailOwner?.emailVerified &&
         !minorEmail &&
+        !revokedAccountIds?.has(emailOwner.id) &&
         (!sharedEmail ||
           (phoneOwner?.phoneVerified && phoneOwner.id === emailOwner.id));
       const contact = verifiedEmailMatch
@@ -387,7 +416,13 @@ async function loadContacts(
             email: minorEmail ? null : listed.email,
             phone: minorPhone ? null : listed.phone,
           };
-      return { contact, minorPhone };
+      return {
+        contact,
+        minorPhone,
+        verifiedPhoneOwnerId: phoneOwner?.phoneVerified
+          ? phoneOwner.id
+          : undefined,
+      };
     },
   };
 }
@@ -433,10 +468,16 @@ export async function loadAnnouncementAudience(
     ),
   ]);
   const guardiansByProfile = new Map(
-    [...links].map(([profileId, facts]) => [
-      profileId,
-      verifiedGuardianIds(facts),
-    ])
+    [...links].map(([profileId, facts]) => {
+      const active = verifiedGuardianIds(facts);
+      const activeIds = new Set(active);
+      const revokedAccountIds = new Set(
+        facts.flatMap(({ userId, revoked }) =>
+          revoked && !activeIds.has(userId) ? [userId] : []
+        )
+      );
+      return [profileId, { active, revokedAccountIds }];
+    })
   );
   const userIds = [
     ...new Set([
@@ -444,7 +485,7 @@ export async function loadAnnouncementAudience(
       ...participants.flatMap(({ minor, userId }) =>
         !minor && userId ? [userId] : []
       ),
-      ...[...guardiansByProfile.values()].flat(),
+      ...[...guardiansByProfile.values()].flatMap(({ active }) => active),
     ]),
   ];
   const rosterContacts = participants.flatMap(({ minor, roster }) =>
@@ -480,32 +521,40 @@ export async function loadAnnouncementAudience(
           role: "participant",
           contacts: roster
             ? [
-                contacts.forRoster(
-                  roster,
+                contacts.forRoster(roster, {
                   sharedEmail,
-                  conflicts.hasCompetingAdult(roster)
-                ).contact,
+                  competingIdentity: conflicts.hasCompetingAdult(roster),
+                }).contact,
               ]
             : contacts.forUsers(userId ? [userId] : []),
         };
       }
-      const linked = contacts.forGuardians(
-        guardiansByProfile.get(participantProfileId) ?? []
-      );
+      const guardians = guardiansByProfile.get(participantProfileId);
+      const linked = contacts.forGuardians(guardians?.active ?? []);
       if (!roster)
         return { participantProfileId, role: "guardian", contacts: linked };
-      const { contact, minorPhone } = contacts.forRoster(roster, sharedEmail);
+      const competingIdentity = conflicts.hasCompetingGuardian(roster);
+      const revokedAccountIds = guardians?.revokedAccountIds;
+      const { contact, minorPhone, verifiedPhoneOwnerId } = contacts.forRoster(
+        roster,
+        { sharedEmail, competingIdentity, revokedAccountIds }
+      );
       const alias = minorPhone ? null : rosterGuardianPhoneAlias(roster);
       // A verified link identifies a guardian for this profile. Assign its
       // account to a shared roster alias only with corroborating address evidence.
       const contactIndex =
         linked.length === 0
           ? 0
-          : linked.findIndex((account) =>
-              roster.email !== null
-                ? account.email === roster.email &&
-                  (!sharedEmail || account.phone === roster.phone)
-                : account.phone === roster.phone
+          : linked.findIndex(
+              (account) =>
+                !conflicts.hasCompetingGuardian({
+                  email: account.email,
+                  phone: roster.phone,
+                }) &&
+                (roster.email !== null
+                  ? account.email === roster.email &&
+                    (!sharedEmail || account.phone === roster.phone)
+                  : account.phone === roster.phone)
             );
       return {
         participantProfileId,
@@ -517,6 +566,8 @@ export async function loadAnnouncementAudience(
                 alias,
                 listedEmail: roster.email,
                 contactIndex: contactIndex === -1 ? null : contactIndex,
+                revokedAccountIds,
+                verifiedPhoneOwnerId,
               },
             }
           : {}),

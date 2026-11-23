@@ -35,6 +35,8 @@ export type Candidate =
         listedEmail: string | null;
         /** Position in contacts, or null if no contact corroborates the alias. */
         contactIndex: number | null;
+        verifiedPhoneOwnerId?: string | undefined;
+        revokedAccountIds?: ReadonlySet<string> | undefined;
       };
     };
 
@@ -100,12 +102,13 @@ function rosterGuardianMatches(
       emails: Set<string>;
       accounts: Map<string, AccountContact>;
       emailContact: DetailsContact | null;
-      mismatchedLink: boolean;
+      conflictingContact: boolean;
     }
   >();
   for (const candidate of candidates) {
     if (candidate.role !== "guardian" || !candidate.roster) continue;
-    const { alias, listedEmail, contactIndex } = candidate.roster;
+    const { alias, listedEmail, contactIndex, verifiedPhoneOwnerId } =
+      candidate.roster;
     const contact =
       contactIndex === null ? null : (candidate.contacts[contactIndex] ?? null);
     let group = evidence.get(alias);
@@ -114,35 +117,36 @@ function rosterGuardianMatches(
         emails: new Set(),
         accounts: new Map(),
         emailContact: null,
-        mismatchedLink: false,
+        conflictingContact: false,
       };
       evidence.set(alias, group);
     }
     if (listedEmail) group.emails.add(listedEmail);
-    if (contact === null) group.mismatchedLink = true;
-    if (contact?.kind === "account")
+    if (contact === null) group.conflictingContact = true;
+    if (contact?.kind === "account") {
       group.accounts.set(contact.userId, contact);
-    else if (contact?.email) group.emailContact ??= contact;
+      if (verifiedPhoneOwnerId && verifiedPhoneOwnerId !== contact.userId)
+        group.conflictingContact = true;
+    } else if (contact?.email) group.emailContact ??= contact;
   }
 
   // Only consistent evidence links phone-only records to a shared alias.
-  const matches = new Map<string, { contact: Contact | null }>();
+  const matches = new Map<string, Contact | null>();
   for (const [
     alias,
-    { emails, accounts, emailContact, mismatchedLink },
+    { emails, accounts, emailContact, conflictingContact },
   ] of evidence) {
     const account = accounts.values().next().value;
     const email = emails.values().next().value;
     if (
-      mismatchedLink ||
+      conflictingContact ||
+      conflictingGuardianAliases.has(alias) ||
       emails.size > 1 ||
       accounts.size > 1 ||
-      (account &&
-        (conflictingGuardianAliases.has(alias) ||
-          (email && account.email !== email)))
+      (account && email && account.email !== email)
     )
       continue;
-    matches.set(alias, { contact: account ?? emailContact });
+    matches.set(alias, account ?? emailContact);
   }
   return matches;
 }
@@ -193,11 +197,16 @@ export function planAnnouncementAudience(
         candidate.roster?.contactIndex === index
           ? candidate.roster
           : undefined;
-      const match = roster ? guardianMatches.get(roster.alias) : undefined;
-      const alias = match ? roster?.alias : undefined;
+      const matched = roster ? guardianMatches.get(roster.alias) : undefined;
+      const match =
+        matched?.kind === "account" &&
+        roster?.revokedAccountIds?.has(matched.userId)
+          ? undefined
+          : matched;
+      const alias = match === undefined ? undefined : roster?.alias;
       const contact =
         listed.kind === "details" && !roster?.listedEmail
-          ? (match?.contact ?? listed)
+          ? (match ?? listed)
           : listed;
       const key = recipientKey(candidate, contact, alias, sharedEmails);
       let recipient = byKey.get(key);
