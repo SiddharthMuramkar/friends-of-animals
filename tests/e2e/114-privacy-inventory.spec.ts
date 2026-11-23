@@ -40,6 +40,10 @@ test("a staff admin reads the data inventory after signing in and passing their 
 
   await expectRendersAccessibly(page, PRIVACY);
   await expect(page).toHaveTitle(/^Data inventory\b/);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    "The personal-data fields FOA keeps and their purposes and retention periods."
+  );
   await expect(
     page.getByRole("link", { name: "Data inventory" })
   ).toHaveAttribute("aria-current", "page");
@@ -56,6 +60,16 @@ test("a staff admin reads the data inventory after signing in and passing their 
   ).toBeVisible();
   await expect(
     notes.getByText(/24 months after it is closed/).first()
+  ).toBeVisible();
+
+  const consent = page.locator("details").filter({
+    has: page.locator("summary").getByText("consent_document", { exact: true }),
+  });
+  await consent.locator("summary").press("Enter");
+  await expect(
+    consent.getByText(
+      "Kept with the published consent version, which is immutable"
+    )
   ).toBeVisible();
 
   const posts = page.locator("details").filter({

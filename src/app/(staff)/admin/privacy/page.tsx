@@ -6,19 +6,21 @@ import { Suspense } from "react";
 import { Disclosure } from "@/components/site/disclosure";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { messages } from "@/i18n/messages";
 import { ADMIN_PRIVACY } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import { MONTHS_AFTER_CLOSE } from "@/server/modules/contact/inventory";
 
 import { AdminDenied } from "../_components/admin-denied";
 import { adminCall } from "../_lib/boundary";
 
-export const metadata: Metadata = {
-  ...messages.adminPrivacy.meta,
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminPrivacy.meta");
+  return {
+    title: t("title"),
+    description: t("description"),
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function Page() {
   const t = await getTranslations("adminPrivacy");
@@ -40,10 +42,11 @@ async function Inventory() {
   const result = await adminCall(() => as(actor).getInventory(), ADMIN_PRIVACY);
   if (!result.ok) return <AdminDenied />;
 
-  const [t, purposes, subjectKinds] = await Promise.all([
+  const [t, purposes, subjectKinds, periods] = await Promise.all([
     getTranslations("adminPrivacy.inventory"),
     getTranslations("adminPrivacy.inventory.purposes"),
     getTranslations("adminPrivacy.inventory.subjectKinds"),
+    getTranslations("adminPrivacy.inventory.periods"),
   ]);
   const byTable = Map.groupBy(result.value.entries, (entry) => entry.table);
   return (
@@ -94,11 +97,10 @@ async function Inventory() {
                     </dd>
                     <dt>{t("kept")}</dt>
                     <dd>
-                      {entry.retention.policy === "contactMessages"
-                        ? t("periods.contactMessages", {
-                            months: MONTHS_AFTER_CLOSE,
-                          })
-                        : entry.retention.period}
+                      {periods(
+                        entry.retentionMessage.key,
+                        entry.retentionMessage.values
+                      )}
                     </dd>
                   </dl>
                 </li>

@@ -20,7 +20,7 @@
 
 import inventoryMessages from "../../../../messages/en-IN/adminPrivacy.json";
 
-import { CONTACT_INVENTORY } from "../contact/inventory";
+import { CONTACT_INVENTORY, MONTHS_AFTER_CLOSE } from "../contact/inventory";
 import type {
   InventoryEntry,
   OnExpiry,
@@ -29,18 +29,37 @@ import type {
 
 export type { InventoryEntry };
 
-const PERIODS = inventoryMessages.adminPrivacy.inventory.periods;
+const policyPeriods = inventoryMessages.adminPrivacy.inventory.periods;
+const { consentRecords, guardianInvitations, ...simplePeriods } = policyPeriods;
+const PERIOD_TEXT = {
+  ...simplePeriods,
+  "consentRecords.general": consentRecords.general,
+  "consentRecords.competition": consentRecords.competition,
+  "guardianInvitations.invitation": guardianInvitations.invitation,
+  "guardianInvitations.request": guardianInvitations.request,
+};
 const PURPOSES: Partial<Record<string, Partial<Record<string, string>>>> =
   inventoryMessages.adminPrivacy.inventory.purposes;
 
 /** The policy keys used by the catalogue's retention descriptors. */
 export const RETENTION_POLICY_KEYS: ReadonlySet<string> = new Set(
-  Object.keys(PERIODS)
+  Object.keys(policyPeriods)
 );
 
 type Subject = InventoryEntry["subject"];
-type Retention = InventoryEntry["retention"];
-type InventoryField = Omit<InventoryEntry, "purpose">;
+type StaticPeriodKey = Exclude<keyof typeof PERIOD_TEXT, "contactMessages">;
+type Retention = Omit<InventoryEntry["retention"], "period"> & {
+  periodKey: StaticPeriodKey;
+};
+type InventoryField = Omit<InventoryEntry, "purpose" | "retention"> & {
+  retention: Retention;
+};
+
+export type InventoryViewEntry = InventoryEntry & {
+  retentionMessage:
+    | { key: StaticPeriodKey; values?: never }
+    | { key: "contactMessages"; values: { months: number } };
+};
 
 /**
  * Entries for one table: each shares the table's subject, retention and
@@ -86,14 +105,14 @@ function actorColumn(
 
 const WHILE_ACCOUNT_OPEN = {
   policy: "accounts",
-  period: PERIODS.accounts,
+  periodKey: "accounts",
   basis: "Needed to sign the person in and reach them about their account",
   toConfirm: true,
 } as const;
 
 const WHILE_INSTITUTION_TAKES_PART = {
   policy: "institutions",
-  period: PERIODS.institutions,
+  periodKey: "institutions",
   basis:
     "FOA reaches the institution about its competitions, and answers queries about past results",
   toConfirm: true,
@@ -101,7 +120,7 @@ const WHILE_INSTITUTION_TAKES_PART = {
 
 const AFTER_INVITATION_CLOSES = {
   policy: "coordinatorInvitations",
-  period: PERIODS.coordinatorInvitations,
+  periodKey: "coordinatorInvitations",
   basis:
     "Lets the authorised person and FOA see who was invited, and answer a query about it",
   toConfirm: true,
@@ -109,7 +128,7 @@ const AFTER_INVITATION_CLOSES = {
 
 const WHILE_INVITATION_PENDING = {
   policy: "coordinatorInvitationLinks",
-  period: PERIODS.coordinatorInvitationLinks,
+  periodKey: "coordinatorInvitationLinks",
   basis:
     "Lets the message include the link while the invitation is waiting for an answer",
   toConfirm: true,
@@ -118,7 +137,7 @@ const WHILE_INVITATION_PENDING = {
 /** The safeguarding module supplies the retention dates for these reports. */
 const SAFEGUARDING_RECORD = {
   policy: "safeguardingReports",
-  period: PERIODS.safeguardingReports,
+  periodKey: "safeguardingReports",
   basis:
     "Child protection: the record of what was reported and done, kept for " +
     "the child, FOA and the authorities (legal basis to confirm)",
@@ -127,7 +146,7 @@ const SAFEGUARDING_RECORD = {
 
 const WHILE_POST_EXISTS = {
   policy: "posts",
-  period: PERIODS.posts,
+  periodKey: "posts",
   basis:
     "FOA keeps the post's content and byline together and answers for who wrote and changed it",
   toConfirm: true,
@@ -136,7 +155,7 @@ const WHILE_POST_EXISTS = {
 /** Payment records: an 8-year floor for financial records (HR-31). */
 const PAYMENT_RECORD = {
   policy: "financialRecords",
-  period: PERIODS.financialRecords,
+  periodKey: "financialRecords",
   basis:
     "Financial records: FOA answers for what was paid, by whom, and what it confirmed, to the payer, its auditors and the tax authorities",
   toConfirm: true,
@@ -146,12 +165,12 @@ const PAYMENT_RECORD = {
 const PAYMENT_PROOF = {
   ...PAYMENT_RECORD,
   policy: "paymentProofs",
-  period: PERIODS.paymentProofs,
+  periodKey: "paymentProofs",
 } as const;
 
 const WHILE_REGISTRATION_KEPT = {
   policy: "registrations",
-  period: PERIODS.registrations,
+  periodKey: "registrations",
   basis:
     "Lets the institution and FOA see who registered it, and answer a query about the registration",
   toConfirm: true,
@@ -160,7 +179,7 @@ const WHILE_REGISTRATION_KEPT = {
 /** A guardian's own record and links: as long as a child of theirs is kept. */
 const WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD = {
   policy: "guardians",
-  period: PERIODS.guardians,
+  periodKey: "guardians",
   basis:
     "Shows who looks after each child and when they confirmed it, the record behind a minor's participation (verifiable parental consent, HR-30)",
   toConfirm: true,
@@ -169,7 +188,7 @@ const WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD = {
 /** A teen-login invitation's address and link. */
 const AFTER_TEEN_INVITATION_CLOSES = {
   policy: "guardianInvitations",
-  period: PERIODS.guardianInvitations.invitation,
+  periodKey: "guardianInvitations.invitation",
   basis:
     "Lets the guardian and FOA see where the invitation went, and answer a query about it",
   toConfirm: true,
@@ -178,7 +197,7 @@ const AFTER_TEEN_INVITATION_CLOSES = {
 /** A teen's guardian request (#81): who they named, and its answer. */
 const AFTER_GUARDIAN_REQUEST_CLOSES = {
   policy: "guardianInvitations",
-  period: PERIODS.guardianInvitations.request,
+  periodKey: "guardianInvitations.request",
   basis:
     "Lets FOA ask the person a teen named to confirm them, and answer a query about who was asked and when (HR-30)",
   toConfirm: true,
@@ -186,7 +205,7 @@ const AFTER_GUARDIAN_REQUEST_CLOSES = {
 
 const WHILE_STUDENT_TAKES_PART = {
   policy: "participants",
-  period: PERIODS.participants,
+  periodKey: "participants",
   basis:
     "FOA, and the school for its students, run the competition with it, and answer queries about entries, results and certificates",
   toConfirm: true,
@@ -196,7 +215,7 @@ const WHILE_STUDENT_TAKES_PART = {
 
 const WHILE_SESSION_LASTS = {
   policy: "expiredSessions",
-  period: PERIODS.expiredSessions,
+  periodKey: "expiredSessions",
   basis:
     "Keeps the person signed in, and lets FOA look into a sign-in the person didn't make",
   toConfirm: true,
@@ -204,14 +223,14 @@ const WHILE_SESSION_LASTS = {
 
 const UNTIL_CODE_EXPIRES = {
   policy: "expiredVerifications",
-  period: PERIODS.expiredVerifications,
+  periodKey: "expiredVerifications",
   basis: "Checks the code or link the person was sent",
   toConfirm: true,
 } as const;
 
 const AUDIT_RECORD = {
   policy: "auditLog",
-  period: PERIODS.auditLog,
+  periodKey: "auditLog",
   basis:
     "FOA answers for who did what on the platform, including staff actions on people's data",
   toConfirm: true,
@@ -219,7 +238,7 @@ const AUDIT_RECORD = {
 
 const CAPTURED_MESSAGE = {
   policy: "capturedMessages",
-  period: PERIODS.capturedMessages,
+  periodKey: "capturedMessages",
   basis:
     "Local runs and previews capture messages instead of sending them, so a tester can read them; production captures none",
   toConfirm: true,
@@ -227,7 +246,7 @@ const CAPTURED_MESSAGE = {
 
 const DELIVERY_LOG = {
   policy: "messageDeliveries",
-  period: PERIODS.messageDeliveries,
+  periodKey: "messageDeliveries",
   basis:
     "Shows whether a message reached the person, to answer a query or find a fault",
   toConfirm: true,
@@ -235,14 +254,14 @@ const DELIVERY_LOG = {
 
 const INBOX_MESSAGE = {
   policy: "readInboxItems",
-  period: PERIODS.readInboxItems,
+  periodKey: "readInboxItems",
   basis: "The person's own copy of what FOA told them in the app",
   toConfirm: true,
 } as const;
 
 const BACKGROUND_JOB = {
   policy: "dispatchedOutbox",
-  period: PERIODS.dispatchedOutbox,
+  periodKey: "dispatchedOutbox",
   basis:
     "Lets FOA see what ran in the background after a change, to find a fault",
   toConfirm: true,
@@ -250,14 +269,14 @@ const BACKGROUND_JOB = {
 
 const RATE_LIMIT_WINDOW = {
   policy: "rateLimitWindows",
-  period: PERIODS.rateLimitWindows,
+  periodKey: "rateLimitWindows",
   basis: "Stops one network or number from flooding a form or sign-in codes",
   toConfirm: true,
 } as const;
 
 const CONSENT_RECORD = {
   policy: "consentRecords",
-  period: PERIODS.consentRecords.general,
+  periodKey: "consentRecords.general",
   basis:
     "FOA must show when a person, or a child's guardian, consented to what (DPDP Act 2023; verifiable parental consent, HR-30)",
   toConfirm: true,
@@ -266,7 +285,7 @@ const CONSENT_RECORD = {
 /** Who on FOA's staff made or changed a record. */
 const STAFF_RECORD = {
   policy: "staffRecords",
-  period: PERIODS.staffRecords,
+  periodKey: "staffRecords",
   basis: "FOA answers for who on its staff published, decided or changed what",
   toConfirm: true,
 } as const;
@@ -275,12 +294,12 @@ const STAFF_RECORD = {
 const CMS_REVISION_AUTHORSHIP = {
   ...STAFF_RECORD,
   policy: "cmsRevisionAuthorship",
-  period: PERIODS.cmsRevisionAuthorship,
+  periodKey: "cmsRevisionAuthorship",
 } as const;
 
 const CMS_REVISION_CONTENT = {
   policy: "cmsRevisionContent",
-  period: PERIODS.cmsRevisionContent,
+  periodKey: "cmsRevisionContent",
   basis: "FOA can show the content of each published version of a page",
   toConfirm: true,
 } as const;
@@ -288,12 +307,19 @@ const CMS_REVISION_CONTENT = {
 const CONSENT_DOCUMENT_AUTHORSHIP = {
   ...STAFF_RECORD,
   policy: "consentDocumentAuthorship",
-  period: PERIODS.consentDocumentAuthorship,
+  periodKey: "consentDocumentAuthorship",
+} as const;
+
+const CONSENT_DOCUMENT_CONTENT = {
+  policy: "consentDocumentContent",
+  periodKey: "consentDocumentContent",
+  basis: "FOA can show the exact terms and notices people consented to",
+  toConfirm: true,
 } as const;
 
 const WHILE_FILE_KEPT = {
   policy: "files",
-  period: PERIODS.files,
+  periodKey: "files",
   basis: "Lets the person who uploaded a file, and staff, find and manage it",
   toConfirm: true,
 } as const;
@@ -322,7 +348,10 @@ const session = rowsOf("session", {
 });
 
 const verification = rowsOf("verification", {
-  subject: { kind: "recipient", via: "identifier" },
+  subject: {
+    kind: "recipient",
+    via: "identifier (email sign-in hash, sms-sign-in:<phone hash>, or guardian-verification:<guardian id> → guardian.user_id)",
+  },
   retention: UNTIL_CODE_EXPIRES,
   onExpiry: "delete_row",
 });
@@ -374,6 +403,11 @@ const guardian = rowsOf("guardian", {
   retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
   onExpiry: "delete_row",
 });
+
+const GUARDIAN_ACCOUNT = {
+  kind: "user",
+  via: "guardian_id → guardian.user_id",
+};
 
 const guardianLink = rowsOf("guardian_link", {
   subject: { kind: "participant_profile", via: "participant_profile_id" },
@@ -503,7 +537,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     subject: { kind: "consent_subject", via: "subject_id" },
     retention: {
       ...CONSENT_RECORD,
-      period: PERIODS.consentRecords.competition,
+      periodKey: "consentRecords.competition",
     },
     onExpiry: "retain",
   })("competition_id", "technical"),
@@ -533,6 +567,14 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     CONSENT_DOCUMENT_AUTHORSHIP,
     "retain"
   ),
+  {
+    table: "consent_document",
+    column: "body",
+    category: "content",
+    subject: { kind: "content_subject", via: "body" },
+    retention: CONSENT_DOCUMENT_CONTENT,
+    onExpiry: "retain",
+  },
   actorColumn(
     "cms_revision",
     "created_by_user_id",
@@ -673,6 +715,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   // Registrations (#75, #78): an entry names the participant and age group.
   registration("participant_profile_id", "identity"),
   registration("age_group_id", "demographic"),
+  registration("registration_number", "identity"),
   // Fee payments (#77). Webhook events keep no body: it carries the payer's
   // email and phone.
   payment("payment_batch", "payer_user_id")("payer_user_id", "identity"),
@@ -711,7 +754,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   guardian("adult_declared_at", "demographic"),
   guardian("verified_at", "technical"),
   guardianLink("relationship", "demographic"),
-  guardianLink("guardian_id", "identity"),
+  guardianLink("guardian_id", "identity", { subject: GUARDIAN_ACCOUNT }),
   guardianLink("participant_profile_id", "identity"),
   guardianInvitation("contact_ciphertext", "contact", {
     subject: GUARDIAN_INVITATION_RECIPIENT,
@@ -727,12 +770,14 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     retention: {
       ...WHILE_INVITATION_PENDING,
       policy: "guardianInvitationLinks",
-      period: PERIODS.guardianInvitationLinks,
+      periodKey: "guardianInvitationLinks",
     },
     onExpiry: "set_null",
   },
-  guardianInvitation("accepted_by_user_id", "identity"),
-  guardianInvitation("guardian_id", "identity"),
+  guardianInvitation("accepted_by_user_id", "identity", {
+    subject: { kind: "user", via: "accepted_by_user_id" },
+  }),
+  guardianInvitation("guardian_id", "identity", { subject: GUARDIAN_ACCOUNT }),
   guardianInvitation("participant_profile_id", "identity"),
   rowsOf("guardian_invitation", {
     subject: GUARDIAN_INVITATION_RECIPIENT,
@@ -755,11 +800,30 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   }),
 ];
 
-export const DATA_INVENTORY: readonly InventoryEntry[] = [
-  ...INVENTORY_FIELDS.map((field) => ({
+const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(
+  ({ retention: { periodKey, ...retention }, ...field }) => ({
     ...field,
     purpose: PURPOSES[field.table]?.[field.column] ?? "",
-  })),
-  // The contact inbox (#113): its own module lists what a sender wrote.
+    retention: { ...retention, period: PERIOD_TEXT[periodKey] },
+    retentionMessage: { key: periodKey },
+  })
+);
+
+/** The field catalogue for retention policy consumers. */
+export const DATA_INVENTORY: readonly InventoryEntry[] = [
+  ...fieldsWithRetentionMessages.map(
+    ({ retentionMessage: _retentionMessage, ...entry }) => entry
+  ),
   ...CONTACT_INVENTORY,
+];
+
+export const INVENTORY_VIEW_ENTRIES: readonly InventoryViewEntry[] = [
+  ...fieldsWithRetentionMessages,
+  ...CONTACT_INVENTORY.map<InventoryViewEntry>((entry) => ({
+    ...entry,
+    retentionMessage: {
+      key: "contactMessages",
+      values: { months: MONTHS_AFTER_CLOSE },
+    },
+  })),
 ];

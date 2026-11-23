@@ -51,15 +51,25 @@ async function staffAdmin(h: Harness) {
 }
 
 describe("publishConsentDocument", () => {
-  it("catalogues a publisher's reference that stays with the immutable version after account deletion", async () => {
+  it("catalogues published consent content and publisher attribution as metadata for the immutable version", async () => {
     const h = await createHarness();
     const { account, actor } = await staffAdmin(h);
+    const name = "Mira Example";
+    const email = "mira@example.test";
+    const contact = `${name} (${email})`;
     const published = await h.as(actor).publishConsentDocument({
       purpose: "messages",
       title: "News and updates",
-      source: SOURCE_V1,
+      source: `${SOURCE_V1}\n\nFor questions, contact ${contact}.`,
     });
     if (!published.ok) throw new Error("Expected a published document");
+    const [document] = await h
+      .as(actor)
+      .listConsentDocumentVersions({ purpose: "messages" });
+    expect(document?.id).toBe(published.id);
+    expect(document?.body.sections[0]?.blocks).toContainEqual({
+      p: [`For questions, contact ${contact}.`],
+    });
     await h.db.delete(user).where(eq(user.id, account.id));
     expect(
       await h.db
@@ -84,6 +94,24 @@ describe("publishConsentDocument", () => {
       },
       onExpiry: "retain",
     });
+    expect(
+      entries.find(
+        ({ table, column }) => table === "consent_document" && column === "body"
+      )
+    ).toMatchObject({
+      category: "content",
+      purpose: expect.stringMatching(/contact/i),
+      subject: { kind: "content_subject", via: "body" },
+      retention: {
+        policy: "consentDocumentContent",
+        period: "Kept with the published consent version, which is immutable",
+        toConfirm: true,
+      },
+      onExpiry: "retain",
+    });
+    const metadata = JSON.stringify(entries);
+    expect(metadata).not.toContain(name);
+    expect(metadata).not.toContain(email);
   });
 
   it("publishes public display and refuses documents for its individual credit fields", async () => {

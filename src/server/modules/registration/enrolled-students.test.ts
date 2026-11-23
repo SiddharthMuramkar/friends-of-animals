@@ -186,6 +186,27 @@ describe("listEnrolledStudents", () => {
       ["Student D Rao", "enrolled", null],
     ]);
     expect(new Set(students.map((s) => s.registrationNumber)).size).toBe(4);
+
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const inventory = await h.as(admin).getInventory();
+    expect(
+      inventory.entries.find(
+        ({ table, column }) =>
+          table === "registration" && column === "registration_number"
+      )
+    ).toMatchObject({
+      category: "identity",
+      purpose: expect.stringMatching(/confirmed registration/i),
+      subject: { kind: "participant_profile", via: "participant_profile_id" },
+      retention: { policy: "participants", toConfirm: true },
+      onExpiry: "delete_row",
+    });
+    const metadata = JSON.stringify(inventory);
+    for (const { fullName, registrationNumber } of students) {
+      expect(metadata).not.toContain(fullName);
+      if (registrationNumber)
+        expect(metadata).not.toContain(registrationNumber);
+    }
   });
 
   it("reads the reference as a URL or a person may carry it: any case, O for 0", async () => {

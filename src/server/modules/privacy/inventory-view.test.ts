@@ -30,12 +30,29 @@ describe("getInventory", () => {
       purpose: "What staff noted while handling the message",
       subject: { kind: "contact_sender", via: "message_id" },
       retention: { policy: "contactMessages", toConfirm: true },
+      retentionMessage: { key: "contactMessages", values: { months: 24 } },
     });
     expect(
       entries.find(
         ({ table, column }) => table === "user" && column === "email"
       )
     ).toMatchObject({ subject: { kind: "user", via: "id" } });
+    const retentionMessages = Object.fromEntries(
+      entries.map(({ table, column, retentionMessage }) => [
+        `${table}.${column}`,
+        retentionMessage,
+      ])
+    );
+    expect(retentionMessages).toMatchObject({
+      "consent_event.subject_id": { key: "consentRecords.general" },
+      "consent_event.competition_id": { key: "consentRecords.competition" },
+      "guardian_invitation.participant_profile_id": {
+        key: "guardianInvitations.invitation",
+      },
+      "guardian_invitation.requested_by_user_id": {
+        key: "guardianInvitations.request",
+      },
+    });
     expect(JSON.stringify(entries)).not.toContain(staff.email);
   });
 
@@ -200,7 +217,12 @@ describe("getInventory", () => {
     expect(smsRow?.value).toMatch(/^[\w-]{43}:0$/);
 
     const { entries } = await h.as(admin).getInventory();
-    const recipient = { kind: "recipient", via: "identifier" };
+    const recipient = {
+      kind: "recipient",
+      via: expect.stringContaining(
+        "identifier (email sign-in hash, sms-sign-in:<phone hash>"
+      ),
+    };
     expect(
       entries.filter(({ table }) => table === "verification")
     ).toMatchObject([

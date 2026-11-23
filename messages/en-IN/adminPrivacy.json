@@ -71,6 +71,7 @@
         "cmsRevisionAuthorship": "Kept with the revision, including after the staff account is deleted",
         "cmsRevisionContent": "Kept with the revision. Published revisions are immutable",
         "consentDocumentAuthorship": "Kept with the published consent version, including after the staff account is deleted",
+        "consentDocumentContent": "Kept with the published consent version, which is immutable",
         "files": "While the file is kept: as long as the record it belongs to (an entry, a proof, a post)",
         "contactMessages": "While the message is open, then {months} months after it is closed",
         "guardianInvitationLinks": "Until the invitation is accepted, withdrawn or expires"
@@ -130,6 +131,7 @@
           "updated_by_user_id": "Records who last changed a competition's fee"
         },
         "consent_document": {
+          "body": "The published consent text, which may name a person or include their contact details",
           "published_by_user_id": "Records who published a consent document"
         },
         "consent_event": {
@@ -270,7 +272,8 @@
         },
         "registration": {
           "age_group_id": "Records the age group assigned from the participant's date of birth and the competition's cut-off date",
-          "participant_profile_id": "Says whose entry it is"
+          "participant_profile_id": "Says whose entry it is",
+          "registration_number": "The unique number used to identify a participant's confirmed registration on rosters and in confirmations"
         },
         "rubric": {
           "created_by_user_id": "Records who wrote a judging rubric",
@@ -322,8 +325,8 @@
           "user_id": "Says which account holds the role"
         },
         "verification": {
-          "identifier": "A hash of the email sign-in identifier, or a namespaced keyed hash of the phone number, to find the recipient's verification even before they have an account",
-          "value": "The hashed email code or keyed SMS code digest, stored with the count of failed attempts"
+          "identifier": "A hash of the email sign-in identifier or a namespaced keyed hash of the phone number finds the recipient's verification even before they have an account. A namespaced guardian record ID locates codes for guardian confirmation.",
+          "value": "The hashed email code, keyed SMS code digest or keyed guardian confirmation code digest, stored with the count of failed attempts"
         }
       }
     }

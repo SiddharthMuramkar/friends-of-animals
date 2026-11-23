@@ -128,7 +128,6 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "to_status",
   ],
   consent_document: [
-    "body",
     "id",
     "legal_revision_id",
     "published_at",
@@ -433,7 +432,6 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "created_at",
     "id",
     "institution_registration_id",
-    "registration_number",
     "route",
     "status",
     "updated_at",
