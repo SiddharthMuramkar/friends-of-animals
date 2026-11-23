@@ -35,6 +35,7 @@ import { registrationUseCases } from "./modules/registration";
 import { paymentsUseCases } from "./modules/payments";
 import { participantsUseCases } from "./modules/participants";
 import { guardiansUseCases } from "./modules/guardians";
+import { privacyUseCases } from "./modules/privacy";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -58,7 +59,8 @@ const useCases = composeUseCases(
   registrationUseCases,
   paymentsUseCases,
   participantsUseCases,
-  guardiansUseCases
+  guardiansUseCases,
+  privacyUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

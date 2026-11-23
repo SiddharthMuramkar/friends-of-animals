@@ -2,9 +2,14 @@ import { getTableConfig, PgTable, type PgColumn } from "drizzle-orm/pg-core";
 import { is } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { messages } from "@/i18n/messages";
 import * as schema from "@/server/db/schema";
+import { CONTACT_INVENTORY } from "@/server/modules/contact/inventory";
 
-import { DATA_INVENTORY } from "./inventory";
+import { checkInventoryCoverage } from "./domain/coverage";
+import { schemaColumns } from "./domain/schema-columns";
+import { DATA_INVENTORY, RETENTION_POLICY_KEYS } from "./inventory";
+import { NON_PERSONAL } from "./non-personal";
 
 const tables = (Object.values(schema) as unknown[])
   .filter((value): value is PgTable => is(value, PgTable))
@@ -23,6 +28,80 @@ const builtEncrypted = (column: PgColumn) =>
   column.columnType === "PgCustomColumn" && column.getSQLType() === "text";
 
 describe("the data inventory", () => {
+  it("classifies every column in the schema exactly once", () => {
+    expect(
+      checkInventoryCoverage({
+        columns: schemaColumns(schema),
+        inventory: DATA_INVENTORY,
+        nonPersonal: NON_PERSONAL,
+        policies: RETENTION_POLICY_KEYS,
+      })
+    ).toEqual([]);
+  });
+
+  it("has staff-facing purpose copy for every listed field", () => {
+    const translated = Object.entries(
+      messages.adminPrivacy.inventory.purposes
+    ).flatMap(([table, columns]) =>
+      Object.entries(columns)
+        .filter(([, purpose]) => purpose.trim())
+        .map(([column]) => `${table}.${column}`)
+    );
+    expect(new Set(translated)).toEqual(listed);
+  });
+
+  it("includes the contact module's entries for messages and staff notes", () => {
+    const contactEntries = DATA_INVENTORY.filter(
+      ({ table }) => table === "contact_message" || table === "contact_note"
+    );
+    expect(contactEntries).toEqual(CONTACT_INVENTORY);
+  });
+
+  it("classifies private decision text and recorded age information as personal data", () => {
+    expect(DATA_INVENTORY).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          table: "institution",
+          column: "status_reason",
+          category: "content",
+          subject: { kind: "institution", via: "id" },
+          retention: expect.objectContaining({ policy: "institutions" }),
+        }),
+        expect.objectContaining({
+          table: "registration",
+          column: "age_group_id",
+          category: "demographic",
+          subject: {
+            kind: "participant_profile",
+            via: "participant_profile_id",
+          },
+          retention: expect.objectContaining({ policy: "participants" }),
+        }),
+        expect.objectContaining({
+          table: "safeguarding_report",
+          column: "reporter_is_child",
+          category: "demographic",
+          subject: { kind: "safeguarding_report", via: "id" },
+          retention: expect.objectContaining({ policy: "safeguardingReports" }),
+        }),
+        expect.objectContaining({
+          table: "payment_review_case",
+          column: "resolution_reason",
+          category: "content",
+          subject: { kind: "payer", via: "batch_id" },
+          retention: expect.objectContaining({ policy: "financialRecords" }),
+        }),
+        expect.objectContaining({
+          table: "refund",
+          column: "decision_note",
+          category: "content",
+          subject: { kind: "payer", via: "batch_id" },
+          retention: expect.objectContaining({ policy: "financialRecords" }),
+        }),
+      ])
+    );
+  });
+
   it("lists every encrypted column in the schema", () => {
     const encrypted = tables.flatMap((table) =>
       table.columns
@@ -60,6 +139,7 @@ describe("the data inventory", () => {
         "contact_email",
         "contact_phone",
         "created_by",
+        "status_reason",
       ].filter((column) => !listed.has(`institution.${column}`))
     ).toEqual([]);
   });
@@ -84,6 +164,7 @@ describe("the data inventory", () => {
         "safeguarding_report.subject_details_ciphertext",
         "safeguarding_report.subject_age",
         "safeguarding_report.reporter_name_ciphertext",
+        "safeguarding_report.reporter_is_child",
         "safeguarding_report.reporter_contact_ciphertext",
         "safeguarding_report.escalation_reference_ciphertext",
         "safeguarding_report.outcome_ciphertext",

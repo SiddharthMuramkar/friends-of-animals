@@ -65,6 +65,9 @@ export function judgingGuidePath(competitionCode: string): string {
  */
 export const ADMIN_PAYMENTS_REVIEW = "/admin/payments/review";
 
+/** The staff data inventory (#114). */
+export const ADMIN_PRIVACY = "/admin/privacy";
+
 /** One payment batch in the admin area (#79): record an offline payment. */
 export function adminPaymentBatchPath(batchId: string): string {
   return `/admin/payments/batches/${encodeURIComponent(batchId)}`;
@@ -236,6 +239,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/rubrics",
   "/admin/competitions/[id]/rubrics/[discipline]",
   ADMIN_PAYMENTS_REVIEW,
+  ADMIN_PRIVACY,
   "/admin/payments/batches/[id]",
   "/admin/payments/review/[id]",
   ADMIN_REFUNDS,
