@@ -9,7 +9,9 @@
 // - A free competition (fee 0) confirms the registration at once, with no
 //   batch and no order.
 // - A minor's registration held until a guardian verifies (#81) can't be
-//   paid for or confirmed, free or not: `awaiting_guardian`.
+//   paid for or confirmed, free or not: `awaiting_guardian`; nor one whose
+//   guardian withdrew participation consent since it was released (#82):
+//   `participation_consent_required`.
 // - Paying again while the order is open returns the same order. Before
 //   reusing or replacing an open order it is synced with the gateway first,
 //   since it may have been paid with neither the Checkout return nor the
@@ -42,6 +44,7 @@ import { invalidInput, type InvalidInput } from "../../input";
 import type { CheckoutParams, Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
 import { getRegistrationTerms } from "../competitions/terms/read";
+import { lackingParticipation } from "../consent";
 import { endUnpaidBatch, heldInReview, lockBatch } from "../payments/batches";
 import { nextPaymentBatchStatus } from "../payments/domain/batch-status";
 import { syncBatch } from "../payments/sync-batch";
@@ -63,6 +66,7 @@ export type PayForMyRegistrationResult =
       error:
         | "nothing_to_pay"
         | "awaiting_guardian"
+        | "participation_consent_required"
         | "fee_not_set"
         | "gateway_unavailable"
         | "superseded";
@@ -202,6 +206,9 @@ async function planPayment(
     }
     if (mine.status !== "pending_payment") {
       return done({ ok: false, error: "nothing_to_pay" });
+    }
+    if ((await lackingParticipation(tx, [registrationId])).size > 0) {
+      return done({ ok: false, error: "participation_consent_required" });
     }
     // A payment for it is in review (#79): staff decide, nobody pays again.
     const [inReview] = await heldInReview(tx, registrationId);

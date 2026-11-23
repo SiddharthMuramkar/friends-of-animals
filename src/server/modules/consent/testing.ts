@@ -21,7 +21,6 @@ import {
   type GuardianDocumentPurpose,
   type OpenCompetition,
 } from "@/server/modules/participants/testing";
-import type { SeedCompetitionOptions } from "@/server/seed/competitions";
 import type { Harness } from "@/test/harness";
 
 /** Children's, teens' and adults' groups, counted on 1 June 2027. */
@@ -45,9 +44,7 @@ export const ALL_GUARDIAN_DOCUMENTS: readonly GuardianDocumentPurpose[] = [
  */
 export function consentCompetition(
   h: Harness,
-  options: SeedCompetitionOptions & {
-    guardianDocuments?: readonly GuardianDocumentPurpose[];
-  } = {}
+  options: Parameters<typeof openToIndividuals>[1] = {}
 ) {
   return openToIndividuals(h, {
     ageGroups: ALL_AGES,

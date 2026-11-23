@@ -43,6 +43,14 @@ export type MyRegistration = {
    * nothing is owed, or when someone else (a teen's guardian) pays.
    */
   amountDue: Money | null;
+  /** The child's profile, for a guardian's own child; null otherwise. */
+  childId: string | null;
+  /**
+   * What a held registration waits for: a guardian to confirm the teen
+   * who registered alone (#81), or the guardian's participation consent
+   * (#82); null when it isn't held.
+   */
+  heldFor: "guardian" | "consent" | null;
   createdAt: Date;
 };
 
@@ -109,6 +117,7 @@ export async function listMyRegistrations(
       route: registration.route,
       status: registration.status,
       participantCode: participantProfile.participantCode,
+      ownerKind: participantProfile.ownerKind,
       registrationNumber: registration.registrationNumber,
       fee: competitionFee.amountMinor,
       createdAt: registration.createdAt,
@@ -148,6 +157,13 @@ export async function listMyRegistrations(
         pays && row.status === "pending_payment" && row.fee !== null
           ? { amountMinor: row.fee, currency: "INR" }
           : null,
+      childId: whose === "child" ? row.profileId : null,
+      heldFor:
+        row.status !== "pending_guardian"
+          ? null
+          : row.ownerKind === "guardian"
+            ? "consent"
+            : "guardian",
       createdAt: row.createdAt,
     };
   });

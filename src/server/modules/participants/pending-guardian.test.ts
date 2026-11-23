@@ -255,7 +255,7 @@ describe("a date of birth already on a profile of one's own", () => {
 });
 
 describe("acceptGuardianRequest", () => {
-  it("links the teen to the verified guardian asked, and releases the registration for the guardian to pay", async () => {
+  it("links the teen to the verified guardian asked, whose participation consent releases the registration for them to pay", async () => {
     const h = await createHarness();
     const meera = await heldTeen(h);
     const lakshmi = await verifiedGuardian(h, {
@@ -267,11 +267,21 @@ describe("acceptGuardianRequest", () => {
       .as(lakshmi.actor)
       .acceptGuardianRequest({ token: meera.token, relationship: "parent" });
 
+    // Held still: the guardian hasn't given participation yet (#82).
     expect(result).toEqual({
       ok: true,
       childId: meera.profileId,
-      released: [meera.registrationId],
+      released: [],
     });
+    expect(await meera.status()).toBe("pending_guardian");
+    expect(
+      await h.as(lakshmi.actor).giveChildConsent({
+        childId: meera.profileId,
+        competitionId: meera.competition.id,
+        purpose: "participation",
+        documentId: meera.competition.guardianDocuments.participation!,
+      })
+    ).toEqual({ ok: true, changed: true });
     const [profile] = await h.db
       .select()
       .from(participantProfile)
@@ -708,7 +718,19 @@ describe("paying for a guardian's child", () => {
     await expect(pay(await h.signIn(await h.seed.member()))).rejects.toThrow(
       DomainError
     );
-    expect(await pay(await h.signIn(family.account))).toMatchObject({
+    const guardianActor = await h.signIn(family.account);
+    // Held for the guardian's participation consent first (#82).
+    expect(await pay(guardianActor)).toEqual({
+      ok: false,
+      error: "awaiting_guardian",
+    });
+    await h.as(guardianActor).giveChildConsent({
+      childId: family.childIds[0]!,
+      competitionId: competition.id,
+      purpose: "participation",
+      documentId: competition.guardianDocuments.participation!,
+    });
+    expect(await pay(guardianActor)).toMatchObject({
       ok: true,
       kind: "checkout",
     });

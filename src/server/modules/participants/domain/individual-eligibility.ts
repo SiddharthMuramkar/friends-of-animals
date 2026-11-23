@@ -4,7 +4,8 @@
 // same facts. An adult registers themselves (#78); a minor takes part with
 // a guardian (#81): a verified guardian registers their child, a teen of
 // 13 to 17 may register themselves, and a minor's registration is held
-// until a guardian has verified (./minor-registration.ts).
+// until a guardian has verified (./minor-registration.ts) and given
+// participation consent (#82).
 //
 // A date of birth, once a profile holds it, is the one every later
 // registration counts: a different one typed is refused, never stored, so
@@ -62,6 +63,12 @@ export type IndividualRegistrationRequest = {
   alreadyRegistered: boolean;
   /** Document versions, by id: the competition's required ones, and the ones ticked. */
   consents: { required: readonly string[]; given: readonly string[] };
+  /**
+   * A minor's guardian has given participation on the competition's
+   * attached version (#82), already or on this form. Without it a minor's
+   * registration is held, even once their guardian has verified.
+   */
+  participationGiven: boolean;
   /** The registration instant, from the injected clock. */
   at: Date;
 };
@@ -117,14 +124,19 @@ export function decideIndividualRegistration(
     if (compareDates(dateOfBirth, stored) !== 0) return refuse("dob_mismatch");
   }
   const ageYears = ageAt(dateOfBirth, request.at);
-  const start =
-    ageYears >= ADULT_AGE && request.registrant.kind === "self"
-      ? ({ ok: true, status: "pending_payment", askGuardian: false } as const)
-      : decideMinorRegistration({ ageYears, registrant: request.registrant });
+  const adult = ageYears >= ADULT_AGE && request.registrant.kind === "self";
+  const start = adult
+    ? ({ ok: true, status: "pending_payment", askGuardian: false } as const)
+    : decideMinorRegistration({ ageYears, registrant: request.registrant });
   if (!start.ok) {
     if (start.reason === "not_a_minor") throw new Error("unreachable");
     return refuse(start.reason);
   }
+  // A minor's waits for payment only with participation consent too.
+  const status =
+    !adult && start.status === "pending_payment" && !request.participationGiven
+      ? "pending_guardian"
+      : start.status;
   const cutoff = parseIsoDate(competition.ageCutoffDate);
   if (!cutoff) throw new Error("A competition's age cut-off is not a date");
   const placed = ageGroupFor(dateOfBirth, cutoff, competition.ageGroups);
@@ -138,7 +150,7 @@ export function decideIndividualRegistration(
     ok: true,
     dateOfBirth,
     ageGroup: placed.group,
-    status: start.status,
+    status,
     askGuardian: start.askGuardian,
   };
 }

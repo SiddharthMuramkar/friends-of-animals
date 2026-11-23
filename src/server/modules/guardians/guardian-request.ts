@@ -14,8 +14,9 @@
 //       registrations waiting only for the person asked, signed in
 //   acceptGuardianRequest({ token, relationship }) → the verified guardian
 //       signed in with the requested address becomes the teen's guardian:
-//       the teen's profile becomes theirs (the teen's account its login),
-//       and every registration held for a guardian waits for payment
+//       the teen's profile becomes theirs (the teen's account its login);
+//       each registration held for a guardian waits for payment once they
+//       give its participation consent (#82)
 //
 // A child's login holds no guardian, staff, school or judge role, so it
 // never adds or manages other children (./policy.ts): asking refuses an
@@ -59,7 +60,7 @@ import {
   type InvitationStatus,
 } from "../institutions/domain/invitation";
 import { maskIdentifier } from "../institutions/domain/mask-identifier";
-import { canTransition } from "../registration/domain/registration-status";
+import { releaseHeldRegistrations } from "../consent/participation-gate";
 import {
   GUARDIAN_RELATIONSHIPS,
   type GuardianRelationship,
@@ -593,7 +594,11 @@ export async function acceptGuardianRequest(
         },
         actorRole: null,
       });
-      const released = await releaseHeldRegistrations(tx, ctx, profile.id);
+      // Held still until the guardian gives participation for each (#82).
+      const released = await releaseHeldRegistrations(tx, ctx, {
+        profileId: profile.id,
+        actorRole: null,
+      });
       await grantGlobalRole(tx, ctx, teenUserId, "participant");
       return { ok: true, childId: profile.id, released };
     }
@@ -611,47 +616,6 @@ async function lockUsers(tx: AppDb, userIds: string[]): Promise<void> {
     .where(inArray(user.id, userIds))
     .orderBy(asc(user.id))
     .for("no key update");
-}
-
-/**
- * Every registration of the profile held for a guardian now waits for its
- * fee, each with its audit entry; returns their ids.
- */
-async function releaseHeldRegistrations(
-  tx: AppDb,
-  ctx: UseCaseContext,
-  profileId: string
-): Promise<string[]> {
-  if (!canTransition("pending_guardian", "pending_payment", "guardian")) {
-    throw new Error("The registration machine no longer releases held ones");
-  }
-  const held = await tx
-    .select({ id: registration.id })
-    .from(registration)
-    .where(
-      and(
-        eq(registration.participantProfileId, profileId),
-        eq(registration.status, "pending_guardian")
-      )
-    )
-    .orderBy(registration.id)
-    .for("update");
-  const ids = held.map((row) => row.id);
-  if (ids.length === 0) return [];
-  await tx
-    .update(registration)
-    .set({ status: "pending_payment", updatedAt: ctx.clock.now() })
-    .where(inArray(registration.id, ids));
-  for (const id of ids) {
-    await recordAudit(tx, ctx, {
-      action: "registration.status_changed",
-      entity: { type: "registration", id },
-      before: { status: "pending_guardian" },
-      after: { status: "pending_payment", cause: "guardian" },
-      actorRole: null,
-    });
-  }
-  return ids;
 }
 
 /** Whether an active link joins the profile to a verified guardian. */

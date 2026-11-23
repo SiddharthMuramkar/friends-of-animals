@@ -19,7 +19,9 @@
 //
 // A registration waits for its fee (`pending_payment`) until
 // payForMyRegistration takes it; a minor's is held (`pending_guardian`)
-// until a verified guardian has accepted them. A child under 13 never
+// until a verified guardian has accepted them and given participation
+// consent (#82), which a guardian registering their child may give on this
+// form, recorded in the same transaction. A child under 13 never
 // registers alone.
 //
 // Whether they may register is the pure decision's to say
@@ -55,7 +57,11 @@ import {
 import type { GuardianRequestRefusal } from "../guardians/domain/guardian-request";
 import { offeredRoutes } from "../competitions/domain/fees";
 import { getRegistrationTerms } from "../competitions/terms/read";
-import { recordRegistrationConsents } from "../consent";
+import {
+  participationGiven,
+  recordChildParticipation,
+  recordRegistrationConsents,
+} from "../consent";
 import {
   formatIsoDate,
   type CalendarDate,
@@ -286,6 +292,13 @@ async function registerOnce(
         );
       }
 
+      // A guardian registering their child may give participation on the
+      // form (#82); a minor's registration waits for payment only with it.
+      const participation = terms.participationDocument;
+      const participationTicked =
+        subject.kind === "child" &&
+        participation !== null &&
+        form.consents.includes(participation.documentId);
       const decision = decideIndividualRegistration({
         competition: {
           registrationOpen: target.open,
@@ -309,6 +322,11 @@ async function registerOnce(
             .map((document) => document.documentId),
           given: form.consents,
         },
+        participationGiven:
+          participationTicked ||
+          (subject.kind !== "own" &&
+            profile !== null &&
+            (await participationGiven(tx, profile.id, target.id))),
         at: now,
       });
       if (!decision.ok) return { ok: false, error: decision.reason };
@@ -355,6 +373,15 @@ async function registerOnce(
           .filter((document) => given.has(document.documentId))
           .map(({ purpose, documentId }) => ({ purpose, documentId })),
       });
+      if (participationTicked && participation) {
+        await recordChildParticipation(tx, ctx, {
+          profileId: saved.id,
+          competitionId: target.id,
+          guardianUserId: userId,
+          documentId: participation.documentId,
+          actorRole,
+        });
+      }
       if (askGuardian) await askGuardian(saved.id);
       await recordAudit(tx, ctx, {
         action: "registration.individual_registered",

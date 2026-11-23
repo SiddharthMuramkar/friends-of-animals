@@ -4,6 +4,8 @@ import { DomainError } from "@/server/errors";
 import { schoolWithStudents } from "@/server/modules/payments/testing";
 import { createHarness } from "@/test/harness";
 
+import { bornYearsAgo } from "@/server/modules/guardians/testing";
+
 import { adultForm, openToIndividuals, signInMember } from "./testing";
 
 describe("listMyRegistrations", () => {
@@ -41,6 +43,8 @@ describe("listMyRegistrations", () => {
         participantCode: first.participantCode,
         registrationNumber: confirmed.registrationNumber,
         amountDue: null,
+        childId: null,
+        heldFor: null,
         createdAt: h.clock.now(),
       },
       {
@@ -53,8 +57,58 @@ describe("listMyRegistrations", () => {
         participantCode: first.participantCode,
         registrationNumber: null,
         amountDue: { amountMinor: 25_000n, currency: "INR" },
+        childId: null,
+        heldFor: null,
         createdAt: new Date(h.clock.now().getTime() - 5 * 60_000),
       },
+    ]);
+  });
+
+  it("says what a held registration waits for: a guardian to confirm, or the guardian's consent (#82)", async () => {
+    const h = await createHarness();
+    const competition = await openToIndividuals(h, { name: "Paws on Paper" });
+    const teen = await h.seed.member({ name: "Rohan Desai" });
+    const family = await h.seed.guardian({
+      children: [{ fullName: "Rohan Desai", age: 15, loginUserId: teen.id }],
+    });
+    const rohan = await h.signIn(teen);
+    const { fullName: _n, dateOfBirth: _d, ...form } = adultForm(competition);
+    const held = await h.as(rohan).registerAsIndividual(form);
+    if (!held.ok) throw new Error(JSON.stringify(held));
+    const alone = await signInMember(h, { name: "Meera Iyer" });
+    await h.as(alone.actor).registerAsIndividual({
+      ...adultForm(competition, {
+        fullName: "Meera Iyer",
+        dateOfBirth: bornYearsAgo(h, 15, 30),
+      }),
+      guardian: {
+        fullName: "Lakshmi Iyer",
+        relationship: "parent",
+        email: "lakshmi@example.test",
+      },
+    });
+
+    expect(
+      await h.as(await h.signIn(family.account)).listMyRegistrations()
+    ).toEqual([
+      expect.objectContaining({
+        registrationId: held.registrationId,
+        whose: "child",
+        status: "pending_guardian",
+        childId: family.childIds[0],
+        heldFor: "consent",
+        amountDue: null,
+      }),
+    ]);
+    expect(await h.as(rohan).listMyRegistrations()).toEqual([
+      expect.objectContaining({
+        whose: "mine",
+        childId: null,
+        heldFor: "consent",
+      }),
+    ]);
+    expect(await h.as(alone.actor).listMyRegistrations()).toEqual([
+      expect.objectContaining({ whose: "mine", heldFor: "guardian" }),
     ]);
   });
 

@@ -62,8 +62,11 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "identity.user_signed_up":
       return delivery.payload.userId;
     case "consent.withdrawn":
-      // A participant profile's consent (#82) is not a user's.
-      return delivery.payload.subjectType === "user"
+      // The withdrawal receipt answers a person's own messages consent
+      // only: a child's consents (#82) are no user's, and the receipt
+      // speaks of messages, not of any other purpose.
+      return delivery.payload.subjectType === "user" &&
+        delivery.payload.purpose === "messages"
         ? delivery.payload.subjectId
         : null;
     case "contact_message.received":

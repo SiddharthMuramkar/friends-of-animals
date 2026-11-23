@@ -159,7 +159,8 @@
         "gateway_unavailable": "Online payment isn't available right now. Please try again later.",
         "superseded": "Someone changed this payment while you were paying. Please try again.",
         "invalid_input": "Something went wrong. Please try again.",
-        "awaiting_guardian": "This registration waits for a parent or guardian to confirm it. It can be paid for after that."
+        "awaiting_guardian": "This registration waits for a parent or guardian to confirm it. It can be paid for after that.",
+        "participation_consent_required": "This place needs a parent or guardian's consent to take part. Give it on the child's consents page, then pay."
       },
       "paying": "Opening payment…",
       "confirming": "Confirming…",

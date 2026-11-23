@@ -6,7 +6,8 @@
 // or not at all.
 //
 // Only a registration the machine lets the payment confirm is confirmed
-// (enrolled, not withdrawn or already confirmed); the others come back as
+// (enrolled, not withdrawn or already confirmed), and a minor's only with
+// their guardian's participation consent (#82); the others come back as
 // refused, unchanged. Each number is drawn in a savepoint, so a number
 // that is already taken draws another without aborting the capture.
 //
@@ -23,6 +24,7 @@ import { registration, REGISTRATION_NUMBER_UNIQUE } from "../../db/schema";
 import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import { withUniqueCode, type RandomBytes } from "../codes/codes";
+import { lackingParticipation } from "../consent/participation-gate";
 import { registrationNumberFormat } from "./domain/registration-number";
 import {
   canTransition,
@@ -60,9 +62,16 @@ export async function confirmRegistrations(
     .where(inArray(registration.id, [...input.registrationIds]))
     .orderBy(registration.id)
     .for("update");
+  const lacking = await lackingParticipation(
+    tx,
+    rows.map((row) => row.id)
+  );
 
   for (const row of rows) {
-    if (!canTransition(row.status, "confirmed", "payment")) {
+    if (
+      !canTransition(row.status, "confirmed", "payment") ||
+      lacking.has(row.id)
+    ) {
       result.refused.push({ registrationId: row.id, status: row.status });
       continue;
     }
