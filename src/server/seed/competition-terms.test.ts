@@ -60,6 +60,30 @@ describe("the competition terms seed", () => {
           version: 1,
           href: "/documents/privacy-notice/1",
         },
+        {
+          purpose: "participation",
+          title: "Consent for your child to take part",
+          version: 1,
+          href: "/documents/participation/1",
+        },
+        {
+          purpose: "public_display",
+          title: "Consent to show your child's work in public",
+          version: 1,
+          href: "/documents/public-display/1",
+        },
+        {
+          purpose: "social_media",
+          title: "Consent to share your child's work on social media",
+          version: 1,
+          href: "/documents/social-media/1",
+        },
+        {
+          purpose: "auction",
+          title: "Consent to auction your child's artwork",
+          version: 1,
+          href: "/documents/auction/1",
+        },
       ]);
     }
   });
@@ -86,6 +110,6 @@ describe("the competition terms seed", () => {
     await h.seed.preview();
 
     expect(await counts(h)).toEqual(once);
-    expect(once).toMatchObject({ fees: 3, awards: 1, pins: 4 });
+    expect(once).toMatchObject({ fees: 3, awards: 1, pins: 12 });
   });
 });
