@@ -89,9 +89,12 @@ async function FormDetails({ params }: { params: Params }) {
     errors,
   } = messages.adminConsentForms;
   return (
-    <div className="mt-8 grid gap-6 rounded-3xl border-2 border-border bg-surface p-5 text-ink sm:p-6">
+    <article
+      aria-labelledby="signed-form-student"
+      className="mt-8 grid gap-6 rounded-3xl border-2 border-border bg-surface p-5 text-ink sm:p-6"
+    >
       <div>
-        <SectionHeading title={form.studentName} />
+        <SectionHeading id="signed-form-student" title={form.studentName} />
         <p className="mt-1 wrap-anywhere">
           {form.institutionName} · {form.competitionName}
         </p>
@@ -167,6 +170,6 @@ async function FormDetails({ params }: { params: Params }) {
           />
         )
       ) : null}
-    </div>
+    </article>
   );
 }

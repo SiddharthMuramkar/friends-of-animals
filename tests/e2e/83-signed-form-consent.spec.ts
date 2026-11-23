@@ -40,6 +40,20 @@ async function signInAsReviewer(
   await expect(page).toHaveURL(QUEUE);
 }
 
+async function openSignedForm(page: Page, student: string) {
+  await page
+    .getByRole("link", { name: `Review form for ${student}`, exact: true })
+    .click();
+  const record = page.getByRole("article", { name: student, exact: true });
+  await expect(
+    record.getByRole("heading", { name: student, exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Filter by review status" })
+  ).toBeHidden();
+  return record;
+}
+
 test("staff can read the signed-form queue and see an accessible rejection error", async ({
   page,
   request,
@@ -48,11 +62,12 @@ test("staff can read the signed-form queue and see an accessible rejection error
   await signInAsReviewer(page, request, seedAccount);
   await expectRendersAccessibly(page, QUEUE);
   await expectAccessibleInDark(page, "signed forms queue");
-  await page.getByRole("link", { name: "Review form for Diya N." }).click();
-  await expect(page.getByRole("heading", { name: "Diya N." })).toBeVisible();
-  await expect(page.getByText("Pending review", { exact: true })).toBeVisible();
+  const record = await openSignedForm(page, "Diya N.");
+  await expect(
+    record.getByText("Pending review", { exact: true })
+  ).toBeVisible();
   await expectAccessible(page, "pending signed form");
-  const rejection = page.getByRole("form", { name: "Reject signed form" });
+  const rejection = record.getByRole("form", { name: "Reject signed form" });
   await rejection.getByLabel("Rejection reason").selectOption("other");
   await rejection.getByRole("button", { name: "Reject signed form" }).click();
   await expect(rejection.getByRole("alert")).toContainText(
@@ -72,16 +87,18 @@ test("staff can read accepted, rejected and empty review states", async ({
 }) => {
   await signInAsReviewer(page, request, seedAccount);
   await page.getByRole("link", { name: "Accepted", exact: true }).click();
-  await page.getByRole("link", { name: "Review form for Aarav K." }).click();
-  await expect(page.getByText("Accepted", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Reviewed by Seed Super Admin/)).toBeVisible();
+  const accepted = await openSignedForm(page, "Aarav K.");
+  await expect(accepted.getByText("Accepted", { exact: true })).toBeVisible();
+  await expect(
+    accepted.getByText(/Reviewed by Seed Super Admin/)
+  ).toBeVisible();
   await expectAccessible(page, "accepted signed form");
   await expectAccessibleInDark(page, "accepted signed form");
 
   await page.goto(`${QUEUE}?status=rejected`);
-  await page.getByRole("link", { name: "Review form for Kabir J." }).click();
+  const rejected = await openSignedForm(page, "Kabir J.");
   await expect(
-    page.getByText("The form is missing a signature.")
+    rejected.getByText("The form is missing a signature.")
   ).toBeVisible();
   await expectAccessible(page, "rejected signed form");
   await expectAccessibleInDark(page, "rejected signed form");
