@@ -2,12 +2,15 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 
 /**
- * The page in front of the test has a <main>, one h1 and no axe violations
- * under every default rule. `label` names it in failure messages.
+ * The page in front of the test has a <main>, one h1, a nonempty title and
+ * no axe violations under every default rule. `label` names it in failures.
  */
 export async function expectAccessible(page: Page, label: string) {
   await expect(page.locator("main")).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // A client navigation or action can show the new content while Next
+  // replaces its streamed metadata. Wait for the title before auditing.
+  await expect(page, `the <title> of ${label}`).toHaveTitle(/\S/);
 
   const { violations } = await new AxeBuilder({ page }).analyze();
   expect(
