@@ -8,7 +8,16 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -184,14 +193,31 @@ export async function getBreach(
   const personOf = (id: string | null) =>
     id === null ? null : (people.get(id) ?? null);
 
-  const noticeCounts = await ctx.db
+  const recipients = ctx.db
     .select({
-      role: breachNotification.recipientRole,
-      recipients: sql<number>`count(DISTINCT ${breachNotification.recipientUserId})::int`,
+      role: sql<NoticeRecipientRole>`case
+        when bool_and(${breachNotification.recipientRole} = 'principal') then 'principal'
+        when bool_and(${breachNotification.recipientRole} = 'guardian') then 'guardian'
+        else 'principal_and_guardian'
+      end`.as("role"),
     })
     .from(breachNotification)
-    .where(eq(breachNotification.breachId, breachId))
-    .groupBy(breachNotification.recipientRole);
+    .where(
+      and(
+        eq(breachNotification.breachId, breachId),
+        isNotNull(breachNotification.recipientUserId),
+        isNull(breachNotification.suppressedAt)
+      )
+    )
+    .groupBy(breachNotification.recipientUserId)
+    .as("recipients");
+  const noticeCounts = await ctx.db
+    .select({
+      role: recipients.role,
+      recipients: sql<number>`count(*)::int`,
+    })
+    .from(recipients)
+    .groupBy(recipients.role);
   const byRole: Record<NoticeRecipientRole, number> = {
     principal: 0,
     guardian: 0,

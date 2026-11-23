@@ -12,8 +12,29 @@ import {
   breachNotification,
   breachRecord,
   breachTimelineEvent,
+  messageRoute,
 } from "@/server/db/schema";
-import type { Harness } from "@/test/harness";
+import { createHarness, type Harness } from "@/test/harness";
+
+/** Enables a route only in the harness database, with fake delivery ports. */
+export async function setBreachNoticeRoute(
+  h: Harness,
+  eventType: "breach.principal_notice" | "breach.authority_notice",
+  enabled: boolean
+) {
+  await h.db
+    .update(messageRoute)
+    .set({ enabled })
+    .where(eq(messageRoute.eventType, eventType));
+}
+
+export async function noticeHarness(
+  eventType: Parameters<typeof setBreachNoticeRoute>[1]
+) {
+  const h = await createHarness();
+  await setBreachNoticeRoute(h, eventType, true);
+  return h;
+}
 
 /** A signed-in user holding `role` globally, second factor passed. */
 export async function staffActor(h: Harness, role: Role): Promise<Actor> {

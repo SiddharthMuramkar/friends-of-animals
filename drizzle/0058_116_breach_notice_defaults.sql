@@ -2,8 +2,8 @@
 -- authority. Data, not seed: production is never seeded, and these notices
 -- are a legal duty there. Staff edit the wording afterwards (new
 -- versions); FOA's counsel approves the copy before production use
--- (HR-49, HR-50). Both routes are required by law, so a recipient's choice
--- of no optional email doesn't stop them.
+-- (HR-49, HR-50). Both routes start disabled and are required by law when
+-- enabled, so a recipient's choice of no optional email doesn't stop them.
 --
 -- A notice to an affected person says only whose data was involved (theirs,
 -- a child's they look after, or both): never the breach's title, impact or
@@ -32,7 +32,7 @@ INSERT INTO "message_template" ("key", "channel", "subject", "body", "variables"
    '["breach.title", "breach.awareAt"]', now())
 ON CONFLICT ("key", "channel", "locale") DO NOTHING;
 --> statement-breakpoint
-INSERT INTO "message_route" ("event_type", "audience", "template_key", "channels", "required_by_law", "created_at") VALUES
-  ('breach.principal_notice', 'breach_recipient', 'breach.principal_notice', '{email,in_app}', true, now()),
-  ('breach.authority_notice', 'breach_authority', 'breach.authority_notice', '{email}', true, now())
+INSERT INTO "message_route" ("event_type", "audience", "template_key", "channels", "required_by_law", "enabled", "created_at") VALUES
+  ('breach.principal_notice', 'breach_recipient', 'breach.principal_notice', '{email,in_app}', true, false, now()),
+  ('breach.authority_notice', 'breach_authority', 'breach.authority_notice', '{email}', true, false, now())
 ON CONFLICT ("event_type", "audience", "template_key") DO NOTHING;

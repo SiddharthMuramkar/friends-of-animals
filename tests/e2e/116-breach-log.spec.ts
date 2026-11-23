@@ -10,6 +10,7 @@ import { expectNoSidewaysScrollAt320, signInByCode } from "./support/sign-in";
 
 const LOG = "/admin/breaches";
 const SEEDED_TITLE = "Entry export emailed to the wrong school";
+const SEEDED_DETAIL = `${LOG}/01938a00-0000-7000-8000-00000000b162`;
 
 async function checkPage(page: Page, path: string, title: RegExp) {
   const response = await page.goto(path);
@@ -60,6 +61,13 @@ test("breach staff open the log and record a breach through the staff pages", as
   ).toHaveCount(0);
 
   await page.getByRole("link", { name: "Back to breach log" }).click();
+  const jump = page.getByRole("link", { name: "Record a breach" });
+  await expect(jump).toBeVisible();
+  const historyLength = await page.evaluate(() => window.history.length);
+  await jump.press("Enter");
+  await expect(page).toHaveURL(/\/admin\/breaches#record-breach$/);
+  expect(await page.evaluate(() => window.history.length)).toBe(historyLength);
+  await expect(page.locator("#record-breach")).toBeFocused();
   const title = `Incorrect folder permissions (${testInfo.project.name})`;
   const record = page.getByRole("form", { name: "Record a breach" });
   await record.getByLabel("Breach title").fill(title);
@@ -86,4 +94,34 @@ test("breach staff open the log and record a breach through the staff pages", as
   await expect(
     page.getByRole("button", { name: "Close breach" })
   ).toBeVisible();
+});
+
+test("a direct breach detail visit checks staff permissions and second factor", async ({
+  page,
+  request,
+  seedAccount,
+}) => {
+  const secret = generateTotpSecret();
+  const email = await seedAccount({
+    name: "Breach Detail Content Manager",
+    grants: [{ role: "content_manager", scope: { type: "global" } }],
+    totpSecret: secret,
+  });
+  await signInByCode(page, request, email);
+  await page.goto(SEEDED_DETAIL);
+  await expect(page).toHaveURL(/\/auth\/second-factor\?next=/);
+  expect(new URL(page.url()).searchParams.get("next")).toBe(SEEDED_DETAIL);
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(secret, new Date()));
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await expect(
+    page.getByRole("heading", {
+      name: "This breach log is for staff administrators",
+    })
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: SEEDED_TITLE })).toHaveCount(
+    0
+  );
 });

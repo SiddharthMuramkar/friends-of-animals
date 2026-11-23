@@ -11,14 +11,13 @@
 // channel. Only a recipient whose rows are new gets a
 // `breach.principal_notice` event, which #69's dispatcher sends by route
 // row (required by law; audience `breach_recipient`). The rows' unique key
-// makes a replay a no-op before #69 is reached, and #69's own delivery key
-// is the second fence. "all_users" never runs in the request: the
-// fan-out job (./fan-out.ts) plans 500 accounts a page.
+// keeps a replay on its original event. "all_users" creates one job per
+// breach, which plans 500 accounts a page in the worker (./fan-out.ts).
 //
 // The first notice moves the breach to `notified` and stamps
 // principals_notified_at, with one timeline event and one audit row that
-// counts the notices (never who got them). A replay that queues nothing
-// changes and records nothing. Someone no notice can reach (a child with no
+// counts the notices (never who got them). A replay can retry failed work
+// without another lifecycle change. Someone no notice can reach (a child with no
 // active guardian, someone with no account) is returned and kept in
 // breach_unreachable, so staff see the gap; once they become reachable, a
 // later call takes them off that list.
@@ -27,14 +26,16 @@
 // added later: the notice is once per recipient (HR-50 residue: a follow-up
 // notice). Loads under plain Node: relative imports only.
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import type { AppDb } from "../../db/app-db";
 import {
+  breachFanOut,
   breachNotification,
   breachRecord,
   breachUnreachable,
+  outbox,
   user,
 } from "../../db/schema";
 import { monotonicUuidv7 } from "../../ids";
@@ -53,10 +54,8 @@ import {
   type UnreachablePerson,
 } from "./domain/notice-recipients";
 import { appendTimeline, CLOSED, lockBreach, NOT_FOUND } from "./record";
+import { PRINCIPAL_NOTICE, PRINCIPAL_NOTICE_CHANNELS } from "./notice-message";
 import { withBreachStaff, type BreachContext } from "./with-breach-staff";
-
-/** The channels every breach notice goes on (the route's, #69). */
-const NOTICE_CHANNELS = ["email", "in_app"] as const;
 
 const nextNoticeId = monotonicUuidv7();
 
@@ -78,13 +77,14 @@ export async function queueNotices(
     const inserted = await tx
       .insert(breachNotification)
       .values(
-        NOTICE_CHANNELS.map((channel) => ({
+        PRINCIPAL_NOTICE_CHANNELS.map((channel) => ({
           id: nextNoticeId(now),
           breachId,
           recipientUserId: recipient.userId,
           channel,
           recipientRole: recipient.as,
           aboutCount: recipient.about.length,
+          guardianProfileIds: recipient.guardianProfileIds,
           queuedAt: now,
         }))
       )
@@ -98,37 +98,14 @@ export async function queueNotices(
       .returning({ id: breachNotification.id });
     if (inserted.length === 0) continue;
     await emit(tx, clock, {
-      type: "breach.principal_notice",
+      type: PRINCIPAL_NOTICE,
       aggregate: { type: "breach", id: breachId },
-      payload: {
-        breachId,
-        recipientUserId: recipient.userId,
-        as: recipient.as,
-        aboutCount: recipient.about.length,
-      },
+      payload: { breachId, recipientUserId: recipient.userId },
     });
     queued += 1;
   }
 
-  for (const person of plan.unreachable) {
-    await tx
-      .insert(breachUnreachable)
-      .values({
-        breachId,
-        subjectType: person.ref.type,
-        subjectId: person.ref.id,
-        reason: person.reason,
-        recordedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [
-          breachUnreachable.breachId,
-          breachUnreachable.subjectType,
-          breachUnreachable.subjectId,
-        ],
-        set: { reason: person.reason, recordedAt: now },
-      });
-  }
+  await recordUnreachable(tx, breachId, now, plan.unreachable);
   for (const type of ["user", "participant_profile"] as const) {
     const ids = reached.filter((ref) => ref.type === type).map((r) => r.id);
     if (ids.length === 0) continue;
@@ -143,6 +120,61 @@ export async function queueNotices(
       );
   }
   return queued;
+}
+
+export async function recordUnreachable(
+  tx: AppDb,
+  breachId: string,
+  now: Date,
+  people: readonly UnreachablePerson[]
+): Promise<void> {
+  if (people.length === 0) return;
+  await tx
+    .insert(breachUnreachable)
+    .values(
+      people.map(({ ref, reason }) => ({
+        breachId,
+        subjectType: ref.type,
+        subjectId: ref.id,
+        reason,
+        recordedAt: now,
+      }))
+    )
+    .onConflictDoUpdate({
+      target: [
+        breachUnreachable.breachId,
+        breachUnreachable.subjectType,
+        breachUnreachable.subjectId,
+      ],
+      set: { reason: sql`excluded.reason`, recordedAt: now },
+    });
+}
+
+/** Resubmission gives the original failed events another chance. */
+async function retryBreachEvents(
+  tx: AppDb,
+  breachId: string,
+  now: Date,
+  ...matches: [SQL, ...SQL[]]
+) {
+  await tx
+    .update(outbox)
+    .set({
+      status: "pending",
+      attempts: 0,
+      availableAt: now,
+      lockedUntil: null,
+      failedAt: null,
+      lastError: null,
+    })
+    .where(
+      and(
+        eq(outbox.aggregateType, "breach"),
+        eq(outbox.aggregateId, breachId),
+        eq(outbox.status, "failed"),
+        ...matches
+      )
+    );
 }
 
 /** The people in `people` the plan reaches (everyone it lists as unreachable aside). */
@@ -217,6 +249,31 @@ export async function notifyAffectedUsers(
       let unreachable: UnreachablePerson[] = [];
       let unmatchedEmails: string[] = [];
       if (subjects === "all_users") {
+        const [job] = await tx
+          .insert(breachFanOut)
+          .values({ breachId })
+          .onConflictDoNothing()
+          .returning({ breachId: breachFanOut.breachId });
+        if (!job) {
+          await retryBreachEvents(
+            tx,
+            breachId,
+            now,
+            inArray(outbox.eventType, [
+              "breach.fan_out_requested",
+              PRINCIPAL_NOTICE,
+            ])
+          );
+          return {
+            result: {
+              ok: true,
+              noticesQueued: 0,
+              unreachable,
+              unmatchedEmails,
+              fanOut: true,
+            },
+          };
+        }
         await emit(tx, ctx.clock, {
           type: "breach.fan_out_requested",
           aggregate: { type: "breach", id: breachId },
@@ -239,6 +296,18 @@ export async function notifyAffectedUsers(
           plan,
           reachedRefs(resolved.refs, plan)
         );
+        if (plan.recipients.length > queued) {
+          await retryBreachEvents(
+            tx,
+            breachId,
+            now,
+            eq(outbox.eventType, PRINCIPAL_NOTICE),
+            inArray(
+              sql<string>`${outbox.payload}->>'recipientUserId'`,
+              plan.recipients.map(({ userId }) => userId)
+            )
+          );
+        }
       }
 
       const result = {

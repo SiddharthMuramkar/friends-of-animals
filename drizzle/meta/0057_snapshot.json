@@ -1,6 +1,6 @@
 {
-  "id": "e333ce3c-bf81-4a52-8dba-c407ba20543c",
-  "prevId": "6c483352-ceae-42a3-a295-5ba0837d5dc5",
+  "id": "c61aba77-71fb-42ec-be17-a7337a452920",
+  "prevId": "1b10517d-8b77-49f9-b74b-e60d909ff18e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8542,6 +8542,51 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.breach_fan_out": {
+      "name": "breach_fan_out",
+      "schema": "",
+      "columns": {
+        "breach_id": {
+          "name": "breach_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "after_user_id": {
+          "name": "after_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "breach_fan_out_breach_id_breach_record_id_fk": {
+          "name": "breach_fan_out_breach_id_breach_record_id_fk",
+          "tableFrom": "breach_fan_out",
+          "columnsFrom": [
+            "breach_id"
+          ],
+          "tableTo": "breach_record",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.breach_notification": {
       "name": "breach_notification",
       "schema": "",
@@ -8584,11 +8629,30 @@
           "primaryKey": false,
           "notNull": true
         },
+        "guardian_profile_ids": {
+          "name": "guardian_profile_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::uuid[]"
+        },
         "queued_at": {
           "name": "queued_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suppressed_at": {
+          "name": "suppressed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -8653,6 +8717,10 @@
         "breach_notification_about_someone": {
           "name": "breach_notification_about_someone",
           "value": "\"breach_notification\".\"about_count\" >= 1"
+        },
+        "breach_notification_one_outcome": {
+          "name": "breach_notification_one_outcome",
+          "value": "\"breach_notification\".\"sent_at\" IS NULL OR \"breach_notification\".\"suppressed_at\" IS NULL"
         }
       },
       "isRLSEnabled": false
@@ -8793,6 +8861,27 @@
               "expression": "aware_at",
               "isExpression": false,
               "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "breach_record_status_closed_at_idx": {
+          "name": "breach_record_status_closed_at_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "closed_at",
+              "isExpression": false,
+              "asc": true,
               "nulls": "last"
             }
           ],

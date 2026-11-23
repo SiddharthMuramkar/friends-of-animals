@@ -6,6 +6,7 @@ import { createHarness, type Harness } from "@/test/harness";
 
 import {
   breachAudit,
+  noticeHarness,
   recordedBreach,
   staffActor,
   storedBreach,
@@ -17,6 +18,7 @@ import {
 // notice by hand and record the reference they were given (HR-49).
 
 const AUTHORITY = "breaches@authority.example.test";
+const AUTHORITY_NOTICE = "breach.authority_notice";
 const REPORT_SUBJECT =
   "Personal data breach report from Friends of Animals: Entry export emailed to the wrong school";
 
@@ -26,7 +28,7 @@ function reports(h: Harness) {
 
 describe("notifyAuthority", () => {
   it("emails the configured address once, through the outbox", async () => {
-    const h = await createHarness();
+    const h = await noticeHarness(AUTHORITY_NOTICE);
     await h.settings.set("breach.authorityEmail", AUTHORITY);
     const admin = await staffActor(h, "super_admin");
     const breachId = await recordedBreach(h, admin);
@@ -85,7 +87,7 @@ describe("notifyAuthority", () => {
   });
 
   it("says the authority was already told, and sends nothing more", async () => {
-    const h = await createHarness();
+    const h = await noticeHarness(AUTHORITY_NOTICE);
     await h.settings.set("breach.authorityEmail", AUTHORITY);
     const admin = await staffActor(h, "super_admin");
     const breachId = await recordedBreach(h, admin);
@@ -177,7 +179,7 @@ describe("notifyAuthority", () => {
   });
 
   it("holds the email while the address is emptied, and sends it once it is back", async () => {
-    const h = await createHarness();
+    const h = await noticeHarness(AUTHORITY_NOTICE);
     await h.settings.set("breach.authorityEmail", AUTHORITY);
     const admin = await staffActor(h, "super_admin");
     const breachId = await recordedBreach(h, admin);
@@ -199,7 +201,7 @@ describe("notifyAuthority", () => {
   ])(
     "records a manual filing when the queued email address is %s",
     async (_, address) => {
-      const h = await createHarness();
+      const h = await noticeHarness(AUTHORITY_NOTICE);
       const admin = await staffActor(h, "staff_admin");
       const staff = h.as(admin);
       const breachId = await recordedBreach(h, admin);

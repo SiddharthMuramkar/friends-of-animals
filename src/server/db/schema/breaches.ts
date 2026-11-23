@@ -137,6 +137,10 @@ export const breachRecord = pgTable(
       table.status,
       table.awareAt.desc()
     ),
+    index("breach_record_status_closed_at_idx").on(
+      table.status,
+      table.closedAt
+    ),
     index("breach_record_lead_user_id_idx").on(table.leadUserId),
   ]
 );
@@ -191,8 +195,14 @@ export const breachNotification = pgTable(
     recipientRole: breachNoticeRoleEnum("recipient_role").notNull(),
     /** How many affected people the notice was about. */
     aboutCount: integer("about_count").notNull(),
-    /** When the notice was queued; #69's delivery row says when it went. */
+    /** Minimal scope needed to recheck guardian eligibility on this channel. */
+    guardianProfileIds: uuid("guardian_profile_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     queuedAt: timestamptz("queued_at").notNull(),
+    sentAt: timestamptz("sent_at"),
+    suppressedAt: timestamptz("suppressed_at"),
   },
   (table) => [
     unique("breach_notification_once").on(
@@ -204,10 +214,23 @@ export const breachNotification = pgTable(
       table.recipientUserId
     ),
     check("breach_notification_about_someone", sql`${table.aboutCount} >= 1`),
+    check(
+      "breach_notification_one_outcome",
+      sql`${table.sentAt} IS NULL OR ${table.suppressedAt} IS NULL`
+    ),
   ]
 );
 
 export type BreachNotificationRow = typeof breachNotification.$inferSelect;
+
+/** One all-accounts job per breach. A page can only advance its own cursor. */
+export const breachFanOut = pgTable("breach_fan_out", {
+  breachId: uuid("breach_id")
+    .primaryKey()
+    .references(() => breachRecord.id, { onDelete: "cascade" }),
+  afterUserId: uuid("after_user_id"),
+  completedAt: timestamptz("completed_at"),
+});
 
 export const breachUnreachable = pgTable(
   "breach_unreachable",

@@ -39,6 +39,10 @@ const words = createTranslator({
 
 const format = createFormatter({ locale: LOCALE, formats });
 
+export const PRINCIPAL_NOTICE = "breach.principal_notice";
+export const PRINCIPAL_NOTICE_AUDIENCE = "breach_recipient";
+export const PRINCIPAL_NOTICE_CHANNELS = ["email", "in_app"] as const;
+
 /** The variables a notice to an affected person may use. */
 export const PRINCIPAL_NOTICE_VARIABLES = ["breach.about"] as const;
 

@@ -360,6 +360,20 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     retention: BREACH_RECORD,
   },
   {
+    table: "breach_notification",
+    column: "guardian_profile_ids",
+    purpose:
+      "Child profiles used to recheck a queued notice's guardian links, cleared when that channel settles",
+    retention: BREACH_RECORD,
+  },
+  {
+    table: "breach_fan_out",
+    column: "after_user_id",
+    purpose:
+      "Account cursor for resuming a breach notice job, cleared on completion",
+    retention: BREACH_RECORD,
+  },
+  {
     table: "breach_unreachable",
     column: "subject_id",
     purpose:

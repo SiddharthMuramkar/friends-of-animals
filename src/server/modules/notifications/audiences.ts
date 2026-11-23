@@ -39,7 +39,6 @@ import { safeguardingLeads } from "../safeguarding/leads";
 import {
   AUTHORITY_NOTICE_VARIABLES,
   PRINCIPAL_NOTICE_VARIABLES,
-  principalNoticeValues,
 } from "../breaches/notice-message";
 import { ownerOfRegistration } from "../participants/owner";
 import { payerOn, RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
@@ -246,13 +245,10 @@ export const AUDIENCES = {
   /** Everyone holding the finance role (#80): a refund needs them. */
   finance_team: async (db) => financeTeam(db),
   /**
-   * The one person a breach notice is for (#116): an affected adult, or the
-   * guardian of an affected child, as the breaches module planned it.
+   * The breach dispatcher checks the saved recipient and live guardian links
+   * for this route. The generic audience resolver grants no recipients.
    */
-  breach_recipient: async (_db, delivery) =>
-    delivery.eventType === "breach.principal_notice"
-      ? [delivery.payload.recipientUserId]
-      : [],
+  breach_recipient: async () => [],
   /**
    * The authority a breach is reported to (#116). It is an address, not a
    * user, so no user receives it here: the breaches module emails the
@@ -433,7 +429,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   // Whose data it involved, never what happened (#116).
   "breach.principal_notice": {
     names: PRINCIPAL_NOTICE_VARIABLES,
-    load: async (_db, { payload }) => principalNoticeValues(payload),
+    // Revalidated separately for each channel by the breach dispatcher.
+    load: async () => ({}),
   },
   "breach.fan_out_requested": { names: [], load: async () => ({}) },
   "breach.authority_notice": {

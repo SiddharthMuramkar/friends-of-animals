@@ -4,6 +4,12 @@ CREATE TYPE "public"."breach_status" AS ENUM('open', 'contained', 'notified', 'c
 CREATE TYPE "public"."breach_subject_type" AS ENUM('user', 'participant_profile');--> statement-breakpoint
 CREATE TYPE "public"."breach_timeline_kind" AS ENUM('recorded', 'updated', 'contained', 'principals_notified', 'authority_notified', 'note', 'closed');--> statement-breakpoint
 CREATE TYPE "public"."breach_unreachable_reason" AS ENUM('no_guardian', 'no_account');--> statement-breakpoint
+CREATE TABLE "breach_fan_out" (
+	"breach_id" uuid PRIMARY KEY NOT NULL,
+	"after_user_id" uuid,
+	"completed_at" timestamp with time zone
+);
+--> statement-breakpoint
 CREATE TABLE "breach_notification" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"breach_id" uuid NOT NULL,
@@ -11,9 +17,13 @@ CREATE TABLE "breach_notification" (
 	"channel" "message_channel" NOT NULL,
 	"recipient_role" "breach_notice_role" NOT NULL,
 	"about_count" integer NOT NULL,
+	"guardian_profile_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL,
 	"queued_at" timestamp with time zone NOT NULL,
+	"sent_at" timestamp with time zone,
+	"suppressed_at" timestamp with time zone,
 	CONSTRAINT "breach_notification_once" UNIQUE("breach_id","recipient_user_id","channel"),
-	CONSTRAINT "breach_notification_about_someone" CHECK ("breach_notification"."about_count" >= 1)
+	CONSTRAINT "breach_notification_about_someone" CHECK ("breach_notification"."about_count" >= 1),
+	CONSTRAINT "breach_notification_one_outcome" CHECK ("breach_notification"."sent_at" IS NULL OR "breach_notification"."suppressed_at" IS NULL)
 );
 --> statement-breakpoint
 CREATE TABLE "breach_record" (
@@ -62,6 +72,7 @@ CREATE TABLE "breach_unreachable" (
 	CONSTRAINT "breach_unreachable_pk" PRIMARY KEY("breach_id","subject_type","subject_id")
 );
 --> statement-breakpoint
+ALTER TABLE "breach_fan_out" ADD CONSTRAINT "breach_fan_out_breach_id_breach_record_id_fk" FOREIGN KEY ("breach_id") REFERENCES "public"."breach_record"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "breach_notification" ADD CONSTRAINT "breach_notification_breach_id_breach_record_id_fk" FOREIGN KEY ("breach_id") REFERENCES "public"."breach_record"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "breach_notification" ADD CONSTRAINT "breach_notification_recipient_user_id_user_id_fk" FOREIGN KEY ("recipient_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "breach_record" ADD CONSTRAINT "breach_record_lead_user_id_user_id_fk" FOREIGN KEY ("lead_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -69,5 +80,6 @@ ALTER TABLE "breach_timeline_event" ADD CONSTRAINT "breach_timeline_event_breach
 ALTER TABLE "breach_unreachable" ADD CONSTRAINT "breach_unreachable_breach_id_breach_record_id_fk" FOREIGN KEY ("breach_id") REFERENCES "public"."breach_record"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "breach_notification_recipient_user_id_idx" ON "breach_notification" USING btree ("recipient_user_id");--> statement-breakpoint
 CREATE INDEX "breach_record_status_aware_at_idx" ON "breach_record" USING btree ("status","aware_at" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "breach_record_status_closed_at_idx" ON "breach_record" USING btree ("status","closed_at");--> statement-breakpoint
 CREATE INDEX "breach_record_lead_user_id_idx" ON "breach_record" USING btree ("lead_user_id");--> statement-breakpoint
 CREATE INDEX "breach_timeline_event_breach_id_idx" ON "breach_timeline_event" USING btree ("breach_id","occurred_at");

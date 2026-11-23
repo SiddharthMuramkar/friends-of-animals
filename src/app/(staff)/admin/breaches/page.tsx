@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { SubmitButton } from "@/components/form";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
+import { InPageLink } from "@/components/site/in-page-link";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import { TableScroller } from "@/components/site/table-scroller";
@@ -50,12 +51,12 @@ async function BreachLog({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader title={t("title")} />
-      <a
+      <InPageLink
         href="#record-breach"
         className="w-fit font-semibold text-link underline underline-offset-4"
       >
         {t("forms.record")}
-      </a>
+      </InPageLink>
       <BreachOutcomeNotice search={await searchParams} />
       {breaches.length ? (
         <BreachTable breaches={breaches} />

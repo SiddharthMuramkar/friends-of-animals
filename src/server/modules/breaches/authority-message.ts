@@ -14,7 +14,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { recordAudit } from "../../audit/record";
 import { messageRoute, messageTemplate } from "../../db/schema";
@@ -62,11 +62,12 @@ export async function sendAuthorityNotice(
         and(
           eq(messageRoute.eventType, "breach.authority_notice"),
           eq(messageRoute.audience, AUTHORITY_AUDIENCE),
+          eq(messageRoute.templateKey, "breach.authority_notice"),
+          eq(messageRoute.requiredByLaw, true),
           eq(messageRoute.enabled, true)
         )
       )
-      .orderBy(asc(messageRoute.createdAt))
-      .limit(1);
+      .for("share");
     if (!route?.channels.includes("email")) {
       throw new Error("No enabled authority email route");
     }

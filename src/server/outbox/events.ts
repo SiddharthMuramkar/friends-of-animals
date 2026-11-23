@@ -22,11 +22,7 @@ import {
   type GivablePurpose,
 } from "../modules/consent/domain/purposes";
 import { FILE_PROCESSING_ERROR_CODES } from "../ports/media";
-import {
-  BREACH_FAN_OUT_PAGE_SIZE,
-  NOTICE_RECIPIENT_ROLES,
-  type NoticeRecipientRole,
-} from "../modules/breaches/domain/notice-recipients";
+import { BREACH_FAN_OUT_PAGE_SIZE } from "../modules/breaches/domain/notice-recipients";
 
 /**
  * FOA staff decided about an institution (#73). `userId` is its authorised
@@ -236,17 +232,14 @@ export type DomainEvent =
     }
   | {
       /**
-       * One person is to be told of a breach that touched them or a child
-       * they look after (#116): `as` says which, `aboutCount` how many
-       * people it concerns. Required by law; nothing of the breach travels.
+       * One person is to be told of a breach (#116). The dispatcher reads
+       * their saved scope in the breach log and checks it before each send.
        */
       type: "breach.principal_notice";
       aggregate: { type: "breach"; id: string };
       payload: {
         breachId: string;
         recipientUserId: string;
-        as: NoticeRecipientRole;
-        aboutCount: number;
       };
     }
   | {
@@ -348,8 +341,6 @@ export const EVENT_PAYLOADS = {
   "breach.principal_notice": z.object({
     breachId: z.uuid(),
     recipientUserId: z.uuid(),
-    as: z.enum(NOTICE_RECIPIENT_ROLES),
-    aboutCount: z.int().min(1),
   }),
   "breach.fan_out_requested": z.object({
     breachId: z.uuid(),

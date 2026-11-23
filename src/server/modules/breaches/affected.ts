@@ -15,7 +15,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, asc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, or } from "drizzle-orm";
 
 import type { FieldCipher } from "../../crypto/field-cipher";
 import type { AppDb } from "../../db/app-db";
@@ -25,6 +25,7 @@ import {
   participantProfile,
   user,
 } from "../../db/schema";
+import { verifiedLink } from "../guardians/child-access";
 import { isAdultAt } from "../participants/domain/age";
 import { parseIsoDate } from "../registration/domain/calendar-date";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
@@ -46,11 +47,6 @@ const PROFILE_FACTS = {
   dobCiphertext: participantProfile.dobCiphertext,
 };
 
-const verifiedGuardianLink = and(
-  isNull(guardianLink.revokedAt),
-  isNotNull(guardian.verifiedAt)
-);
-
 const accountOfProfile = (profile: ProfileFacts) =>
   profile.ownerKind === "self" ? profile.ownerUserId : profile.loginUserId;
 
@@ -69,7 +65,8 @@ export async function affectedPeople(
   db: AppDb,
   cipher: FieldCipher,
   now: Date,
-  refs: readonly AffectedRef[]
+  refs: readonly AffectedRef[],
+  { lock = false } = {}
 ): Promise<AffectedPerson[]> {
   const userIds = [
     ...new Set(refs.filter((r) => r.type === "user").map((r) => r.id)),
@@ -91,44 +88,47 @@ export async function affectedPeople(
         ).map((row) => row.id)
   );
   // The profiles that say whether an account is a child's.
-  const accountProfiles: ProfileFacts[] =
-    userIds.length === 0
-      ? []
-      : await db
-          .select(PROFILE_FACTS)
-          .from(participantProfile)
-          .where(
-            or(
-              inArray(participantProfile.loginUserId, userIds),
-              and(
-                inArray(participantProfile.ownerUserId, userIds),
-                eq(participantProfile.ownerKind, "self")
-              )
-            )
-          );
-  const namedProfiles: ProfileFacts[] =
-    profileIds.length === 0
-      ? []
-      : await db
-          .select(PROFILE_FACTS)
-          .from(participantProfile)
-          .where(inArray(participantProfile.id, profileIds));
+  const accountQuery = db
+    .select(PROFILE_FACTS)
+    .from(participantProfile)
+    .where(
+      or(
+        inArray(participantProfile.loginUserId, userIds),
+        and(
+          inArray(participantProfile.ownerUserId, userIds),
+          eq(participantProfile.ownerKind, "self")
+        )
+      )
+    );
+  const profileQuery = db
+    .select(PROFILE_FACTS)
+    .from(participantProfile)
+    .where(inArray(participantProfile.id, profileIds));
+  const accountProfiles = userIds.length
+    ? await (lock ? accountQuery.for("share") : accountQuery)
+    : [];
+  const namedProfiles = profileIds.length
+    ? await (lock ? profileQuery.for("share") : profileQuery)
+    : [];
 
   const minorProfileIds = new Set(
     [...accountProfiles, ...namedProfiles]
       .filter((profile) => isMinorProfile(cipher, now, profile))
       .map((profile) => profile.id)
   );
-  const guardiansByProfile = await activeGuardians(db, [...minorProfileIds]);
-  const guardiansOf = (profiles: readonly ProfileFacts[]) => [
-    ...new Set(profiles.flatMap((p) => guardiansByProfile.get(p.id) ?? [])),
-  ];
+  const guardiansByProfile = await activeGuardians(
+    db,
+    [...minorProfileIds],
+    lock
+  );
+  const guardiansOf = (profiles: readonly ProfileFacts[]) =>
+    profiles.flatMap((p) => guardiansByProfile.get(p.id) ?? []);
   const byId = new Map(namedProfiles.map((profile) => [profile.id, profile]));
 
   return refs.map((ref): AffectedPerson => {
     if (ref.type === "user") {
       if (!accounts.has(ref.id)) {
-        return { ref, userId: null, minor: false, guardianUserIds: [] };
+        return { ref, userId: null, minor: false, guardians: [] };
       }
       const childProfiles = accountProfiles.filter(
         (profile) =>
@@ -140,13 +140,13 @@ export async function affectedPeople(
             ref,
             userId: ref.id,
             minor: true,
-            guardianUserIds: guardiansOf(childProfiles),
+            guardians: guardiansOf(childProfiles),
           }
-        : { ref, userId: ref.id, minor: false, guardianUserIds: [] };
+        : { ref, userId: ref.id, minor: false, guardians: [] };
     }
     const profile = byId.get(ref.id);
     if (!profile) {
-      return { ref, userId: null, minor: false, guardianUserIds: [] };
+      return { ref, userId: null, minor: false, guardians: [] };
     }
     const ownAccount = accountOfProfile(profile);
     return minorProfileIds.has(profile.id)
@@ -154,9 +154,9 @@ export async function affectedPeople(
           ref,
           userId: ownAccount,
           minor: true,
-          guardianUserIds: guardiansOf([profile]),
+          guardians: guardiansOf([profile]),
         }
-      : { ref, userId: ownAccount, minor: false, guardianUserIds: [] };
+      : { ref, userId: ownAccount, minor: false, guardians: [] };
   });
 }
 
@@ -178,7 +178,7 @@ export async function minorAccountsOfGuardians(
     .where(
       and(
         inArray(guardian.userId, guardianUserIds),
-        verifiedGuardianLink,
+        verifiedLink(),
         or(
           isNotNull(participantProfile.loginUserId),
           and(
@@ -189,30 +189,29 @@ export async function minorAccountsOfGuardians(
       )
     );
 
-  const guardiansByAccount = new Map<string, string[]>();
+  const children: AffectedPerson[] = [];
   for (const link of links) {
     const userId = accountOfProfile(link);
     if (userId === null || !isMinorProfile(cipher, now, link)) continue;
-    const guardians = guardiansByAccount.get(userId) ?? [];
-    guardians.push(link.guardianUserId);
-    guardiansByAccount.set(userId, guardians);
+    children.push({
+      ref: { type: "user", id: userId },
+      userId,
+      minor: true,
+      guardians: [{ userId: link.guardianUserId, profileId: link.id }],
+    });
   }
-  return [...guardiansByAccount].map(([userId, guardianUserIds]) => ({
-    ref: { type: "user", id: userId },
-    userId,
-    minor: true,
-    guardianUserIds,
-  }));
+  return children;
 }
 
 /** Each profile's verified guardians with an unrevoked link, in link order. */
 async function activeGuardians(
   db: AppDb,
-  profileIds: readonly string[]
-): Promise<Map<string, string[]>> {
-  const byProfile = new Map<string, string[]>();
+  profileIds: readonly string[],
+  lock: boolean
+) {
+  const byProfile = new Map<string, { userId: string; profileId: string }[]>();
   if (profileIds.length === 0) return byProfile;
-  const links = await db
+  const query = db
     .select({
       profileId: guardianLink.participantProfileId,
       userId: guardian.userId,
@@ -222,14 +221,15 @@ async function activeGuardians(
     .where(
       and(
         inArray(guardianLink.participantProfileId, [...profileIds]),
-        verifiedGuardianLink
+        verifiedLink()
       )
     )
     .orderBy(asc(guardianLink.createdAt), asc(guardianLink.id));
+  const links = await (lock ? query.for("share") : query);
   for (const link of links) {
     byProfile.set(link.profileId, [
       ...(byProfile.get(link.profileId) ?? []),
-      link.userId,
+      link,
     ]);
   }
   return byProfile;

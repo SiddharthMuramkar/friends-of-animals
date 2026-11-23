@@ -13,7 +13,7 @@ const adult: AffectedPerson = {
   ref: { type: "user", id: ADULT },
   userId: ADULT,
   minor: false,
-  guardianUserIds: [],
+  guardians: [],
 };
 
 /** A 15-year-old with their own login, linked to PARENT. */
@@ -21,7 +21,7 @@ const teen: AffectedPerson = {
   ref: { type: "user", id: TEEN },
   userId: TEEN,
   minor: true,
-  guardianUserIds: [PARENT],
+  guardians: [{ userId: PARENT, profileId: CHILD_PROFILE }],
 };
 
 /** A 9-year-old's profile that OTHER_PARENT manages; no login. */
@@ -29,16 +29,31 @@ const child: AffectedPerson = {
   ref: { type: "participant_profile", id: CHILD_PROFILE },
   userId: null,
   minor: true,
-  guardianUserIds: [OTHER_PARENT],
+  guardians: [{ userId: OTHER_PARENT, profileId: CHILD_PROFILE }],
 };
 
 describe("planBreachNotices", () => {
   it("tells the adult and both guardians, and never the teen", () => {
     const plan = planBreachNotices([adult, teen, child]);
     expect(plan.recipients).toEqual([
-      { userId: ADULT, as: "principal", about: [adult.ref] },
-      { userId: PARENT, as: "guardian", about: [teen.ref] },
-      { userId: OTHER_PARENT, as: "guardian", about: [child.ref] },
+      {
+        userId: ADULT,
+        as: "principal",
+        about: [adult.ref],
+        guardianProfileIds: [],
+      },
+      {
+        userId: PARENT,
+        as: "guardian",
+        about: [teen.ref],
+        guardianProfileIds: [CHILD_PROFILE],
+      },
+      {
+        userId: OTHER_PARENT,
+        as: "guardian",
+        about: [child.ref],
+        guardianProfileIds: [CHILD_PROFILE],
+      },
     ]);
     expect(plan.recipients.map((r) => r.userId)).not.toContain(TEEN);
     expect(plan.unreachable).toEqual([]);
@@ -49,17 +64,25 @@ describe("planBreachNotices", () => {
       ref: { type: "participant_profile", id: SECOND_CHILD_PROFILE },
       userId: null,
       minor: true,
-      guardianUserIds: [PARENT],
+      guardians: [{ userId: PARENT, profileId: SECOND_CHILD_PROFILE }],
     };
     expect(planBreachNotices([teen, sibling]).recipients).toEqual([
-      { userId: PARENT, as: "guardian", about: [teen.ref, sibling.ref] },
+      {
+        userId: PARENT,
+        as: "guardian",
+        about: [teen.ref, sibling.ref],
+        guardianProfileIds: [CHILD_PROFILE, SECOND_CHILD_PROFILE],
+      },
     ]);
   });
 
   it("tells both guardians of a child who has two", () => {
     const shared: AffectedPerson = {
       ...child,
-      guardianUserIds: [OTHER_PARENT, PARENT],
+      guardians: [
+        { userId: OTHER_PARENT, profileId: CHILD_PROFILE },
+        { userId: PARENT, profileId: CHILD_PROFILE },
+      ],
     };
     expect(planBreachNotices([shared]).recipients.map((r) => r.userId)).toEqual(
       [PARENT, OTHER_PARENT]
@@ -71,19 +94,20 @@ describe("planBreachNotices", () => {
       ref: { type: "user", id: PARENT },
       userId: PARENT,
       minor: false,
-      guardianUserIds: [],
+      guardians: [],
     };
     expect(planBreachNotices([teen, parentAccount]).recipients).toEqual([
       {
         userId: PARENT,
         as: "principal_and_guardian",
         about: [teen.ref, parentAccount.ref],
+        guardianProfileIds: [CHILD_PROFILE],
       },
     ]);
   });
 
   it("reports a child with no active guardian instead of telling the child", () => {
-    const alone: AffectedPerson = { ...teen, guardianUserIds: [] };
+    const alone: AffectedPerson = { ...teen, guardians: [] };
     expect(planBreachNotices([alone])).toEqual({
       recipients: [],
       unreachable: [{ ref: teen.ref, reason: "no_guardian" }],
@@ -95,7 +119,7 @@ describe("planBreachNotices", () => {
       ref: { type: "participant_profile", id: CHILD_PROFILE },
       userId: null,
       minor: false,
-      guardianUserIds: [OTHER_PARENT],
+      guardians: [{ userId: OTHER_PARENT, profileId: CHILD_PROFILE }],
     };
     expect(planBreachNotices([profileOnly])).toEqual({
       recipients: [],
@@ -106,12 +130,22 @@ describe("planBreachNotices", () => {
   it("counts a person listed twice once, and a guardian listed twice once", () => {
     const doubled: AffectedPerson = {
       ...child,
-      guardianUserIds: [OTHER_PARENT, OTHER_PARENT],
+      guardians: [...child.guardians, ...child.guardians],
     };
     expect(planBreachNotices([doubled, doubled, adult, adult])).toEqual({
       recipients: [
-        { userId: ADULT, as: "principal", about: [adult.ref] },
-        { userId: OTHER_PARENT, as: "guardian", about: [child.ref] },
+        {
+          userId: ADULT,
+          as: "principal",
+          about: [adult.ref],
+          guardianProfileIds: [],
+        },
+        {
+          userId: OTHER_PARENT,
+          as: "guardian",
+          about: [child.ref],
+          guardianProfileIds: [CHILD_PROFILE],
+        },
       ],
       unreachable: [],
     });

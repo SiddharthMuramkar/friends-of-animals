@@ -171,6 +171,7 @@ export async function seedBreaches(deps: SeedDeps): Promise<void> {
         recipientRole: "principal" as const,
         aboutCount: 1,
         queuedAt: notified,
+        sentAt: notified,
       }))
     )
   );

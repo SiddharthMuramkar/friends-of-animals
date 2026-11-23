@@ -7,9 +7,9 @@
 // inventory (src/server/modules/privacy/inventory.ts).
 //
 // #114's policy registry and sweep aren't on main yet: it registers
-// BREACH_RETENTION_POLICY when it lands. Deleting a breach takes its
-// timeline, notices and unreachable list with it (ON DELETE CASCADE; the
-// timeline's append-only trigger allows exactly that delete).
+// BREACH_RETENTION_POLICY after it lands. The sweep must check legal holds
+// before deleting, since the breach owns its timeline, notices, fan-out
+// and unreachable list (ON DELETE CASCADE).
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
@@ -29,8 +29,9 @@ export const BREACH_RETENTION_POLICY = {
 } as const;
 
 /**
- * Closed breaches whose close is at least YEARS_AFTER_CLOSE years before
- * `now`, by id. Open breaches are never picked.
+ * Closed breaches at or past their fifth UTC anniversary, by id. A breach
+ * closed on February 29 reaches that anniversary on March 1 at the same
+ * UTC time in a non-leap year. Listing candidates leaves the records intact.
  */
 export async function breachRetentionCandidates(
   db: AppDb,
@@ -39,7 +40,7 @@ export async function breachRetentionCandidates(
   const closedBy = new Date(now.getTime());
   closedBy.setUTCFullYear(closedBy.getUTCFullYear() - YEARS_AFTER_CLOSE);
   const rows = await db
-    .select({ id: breachRecord.id })
+    .select({ id: breachRecord.id, closedAt: breachRecord.closedAt })
     .from(breachRecord)
     .where(
       and(
@@ -48,5 +49,14 @@ export async function breachRetentionCandidates(
       )
     )
     .orderBy(asc(breachRecord.id));
-  return rows.map((row) => row.id);
+  // The indexed cutoff can include part of March 1 during a leap-day sweep.
+  // Compare each closure's actual anniversary to handle both leap boundaries.
+  return rows.flatMap(({ id, closedAt }) => {
+    if (closedAt === null) return [];
+    const anniversary = new Date(closedAt);
+    anniversary.setUTCFullYear(
+      anniversary.getUTCFullYear() + YEARS_AFTER_CLOSE
+    );
+    return anniversary <= now ? [id] : [];
+  });
 }

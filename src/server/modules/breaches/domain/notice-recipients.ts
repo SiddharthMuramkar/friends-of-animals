@@ -47,8 +47,8 @@ export type AffectedPerson = {
   userId: string | null;
   /** Under 18 at the time of the notice. */
   minor: boolean;
-  /** The user ids of their active guardians (empty for most adults). */
-  guardianUserIds: readonly string[];
+  /** Verified guardians, with the profile on which each link was found. */
+  guardians: readonly { userId: string; profileId: string }[];
 };
 
 export type NoticeRecipient = {
@@ -57,6 +57,8 @@ export type NoticeRecipient = {
   as: NoticeRecipientRole;
   /** The people this notice is about, in input order. */
   about: AffectedRef[];
+  /** The child profiles to recheck before sending on a pending channel. */
+  guardianProfileIds: string[];
 };
 
 export type UnreachablePerson = {
@@ -76,40 +78,62 @@ export function planBreachNotices(
 ): NoticePlan {
   const byUser = new Map<
     string,
-    { principal: boolean; guardian: boolean; about: AffectedRef[] }
+    { principal: boolean; about: AffectedRef[]; guardianProfiles: Set<string> }
   >();
   const unreachable: UnreachablePerson[] = [];
-  const seen = new Set<string>();
+
+  // A participant profile and its login or own account can name one person.
+  const subjects = new Map<string, AffectedPerson>();
+  for (const person of people) {
+    const key = person.userId
+      ? `user:${person.userId}`
+      : `${person.ref.type}:${person.ref.id}`;
+    const existing = subjects.get(key);
+    subjects.set(
+      key,
+      existing
+        ? {
+            ...existing,
+            minor: existing.minor || person.minor,
+            guardians: [...existing.guardians, ...person.guardians],
+          }
+        : person
+    );
+  }
 
   const add = (
     userId: string,
-    role: "principal" | "guardian",
-    ref: AffectedRef
+    ref: AffectedRef,
+    profiles: readonly string[]
   ) => {
     const entry = byUser.get(userId) ?? {
       principal: false,
-      guardian: false,
       about: [],
+      guardianProfiles: new Set<string>(),
     };
-    entry[role] = true;
+    if (profiles.length === 0) entry.principal = true;
+    for (const profileId of profiles) entry.guardianProfiles.add(profileId);
     entry.about.push(ref);
     byUser.set(userId, entry);
   };
 
-  for (const person of people) {
-    const key = `${person.ref.type}:${person.ref.id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+  for (const person of subjects.values()) {
     if (person.minor) {
-      const guardians = [...new Set(person.guardianUserIds)];
-      if (guardians.length === 0) {
+      const byGuardian = Map.groupBy(person.guardians, (link) => link.userId);
+      if (byGuardian.size === 0) {
         unreachable.push({ ref: person.ref, reason: "no_guardian" });
       }
-      for (const guardian of guardians) add(guardian, "guardian", person.ref);
+      for (const [guardianId, links] of byGuardian) {
+        add(
+          guardianId,
+          person.ref,
+          links.map((link) => link.profileId)
+        );
+      }
     } else if (person.userId === null) {
       unreachable.push({ ref: person.ref, reason: "no_account" });
     } else {
-      add(person.userId, "principal", person.ref);
+      add(person.userId, person.ref, []);
     }
   }
 
@@ -118,12 +142,13 @@ export function planBreachNotices(
     .map(([userId, entry]) => ({
       userId,
       as:
-        entry.principal && entry.guardian
+        entry.principal && entry.guardianProfiles.size > 0
           ? ("principal_and_guardian" as const)
           : entry.principal
             ? ("principal" as const)
             : ("guardian" as const),
       about: entry.about,
+      guardianProfileIds: [...entry.guardianProfiles],
     }));
   return { recipients, unreachable };
 }
