@@ -1,5 +1,6 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { Illustration } from "@/components/art/illustration";
 import { Disclosure } from "@/components/site/disclosure";
 import { Eyebrow } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
@@ -54,7 +55,7 @@ export async function SeasonalCard({
     <article
       aria-labelledby={titleId}
       className={cn(
-        "grid gap-8 rounded-3xl border-2 border-border bg-surface p-6 shadow-warm [--section-heading:var(--section-teal-heading)] sm:p-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-10",
+        "grid grid-cols-1 gap-8 rounded-3xl border-2 border-border bg-surface p-6 shadow-warm [--section-heading:var(--section-teal-heading)] sm:p-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-10",
         className
       )}
     >
@@ -88,7 +89,7 @@ export async function SeasonalCard({
               >
                 {i + 1}
               </span>
-              <span className="pt-1">{action}</span>
+              <span className="min-w-0 pt-1 wrap-anywhere">{action}</span>
             </li>
           ))}
         </ol>
@@ -105,7 +106,7 @@ export async function SeasonalCard({
                 <li key={id}>
                   <a
                     href={SEASONAL_SOURCES[id].url}
-                    className="inline-flex min-h-6 items-center text-link underline underline-offset-2 hover:text-link-hover"
+                    className="inline-flex min-h-6 max-w-full items-center text-link wrap-anywhere underline underline-offset-2 hover:text-link-hover"
                   >
                     {SEASONAL_SOURCES[id].label}
                   </a>
@@ -127,29 +128,45 @@ export async function SeasonalCard({
             className="aspect-4/3"
           />
         ) : (
-          // No photo this month: the year at a glance, this month lit.
-          <div
-            aria-hidden="true"
-            className="rounded-3xl bg-section-teal p-6 sm:p-8"
-          >
-            <p className="font-display text-h2 leading-none font-bold text-(--section-heading)">
-              {monthName}
-            </p>
-            <ol className="mt-6 grid grid-cols-6 gap-2">
-              {initials.map((initial, i) => (
-                <li
-                  key={i}
-                  className={cn(
-                    "grid aspect-square place-items-center rounded-[22%] font-display text-sm font-bold",
-                    i + 1 === entry.month
-                      ? "bg-teal-700 text-white shadow-warm"
-                      : "bg-surface text-ink-muted"
-                  )}
-                >
-                  {initial}
-                </li>
-              ))}
-            </ol>
+          // No photo this month: the year at a glance, this month lit, then
+          // the month's illustration if it has one. The calendar keeps its
+          // place at the top; the picture fills the space under it (narrower
+          // from lg, so the pair stays about as tall as the words beside it).
+          <div className="flex flex-col gap-6">
+            <div
+              aria-hidden="true"
+              className="@container/seasonal-month rounded-3xl bg-section-teal p-[min(1.5rem,8%)] sm:p-8"
+            >
+              <p className="font-display text-h2 leading-none font-bold wrap-anywhere text-(--section-heading)">
+                {monthName}
+              </p>
+              <ol className="mt-6 grid grid-cols-3 gap-2 @min-[12rem]/seasonal-month:grid-cols-6">
+                {initials.map((initial, i) => (
+                  <li
+                    key={i}
+                    className={cn(
+                      "grid aspect-square place-items-center rounded-[22%] font-display text-sm font-bold",
+                      i + 1 === entry.month
+                        ? "bg-teal-700 text-white shadow-warm"
+                        : "bg-surface text-ink-muted"
+                    )}
+                  >
+                    {initial}
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {entry.artId ? (
+              // Its rendered width: max-w-xs from lg; below that the screen
+              // less the section's gutter and the card's border and padding
+              // (5.25rem), up to max-w-md, reached at 532px.
+              <Illustration
+                id={entry.artId}
+                sizes="(min-width: 1024px) 320px, (min-width: 532px) 448px, calc(100vw - 5.25rem)"
+                pop
+                className="mx-auto w-full max-w-md lg:max-w-xs"
+              />
+            ) : null}
           </div>
         )}
         {entry.quoteId ? (

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { GUARDIAN_PURPOSES, type GuardianPurpose } from "./guardian-purposes";
-import { resolvePublicCredit, type CreditPerson } from "./public-credit";
+import {
+  nameParts,
+  resolvePublicCredit,
+  type CreditPerson,
+} from "./public-credit";
 
 const asha: CreditPerson = {
   firstName: "Asha",
@@ -160,5 +164,36 @@ describe("resolvePublicCredit", () => {
         new Set(["public_display"])
       )
     ).toBeNull();
+  });
+});
+
+describe("nameParts", () => {
+  it("takes the first word as the first name and the last as the surname", () => {
+    expect(nameParts("Asha Kulkarni")).toEqual({
+      firstName: "Asha",
+      lastName: "Kulkarni",
+    });
+  });
+
+  it("leaves middle names out of both, so a credit shows no more than first name and initial", () => {
+    expect(nameParts("  Asha   Rani Kulkarni ")).toEqual({
+      firstName: "Asha",
+      lastName: "Kulkarni",
+    });
+  });
+
+  it("has no surname for a single name", () => {
+    expect(nameParts("Zoya")).toEqual({ firstName: "Zoya", lastName: "" });
+  });
+
+  it("splits a Devanagari name the same way", () => {
+    const { firstName, lastName } = nameParts("आशा कुलकर्णी");
+    expect(
+      resolvePublicCredit(
+        { firstName, lastName, minor: true },
+        "gallery",
+        new Set(["public_display"])
+      )
+    ).toEqual({ name: "आशा कु." });
   });
 });

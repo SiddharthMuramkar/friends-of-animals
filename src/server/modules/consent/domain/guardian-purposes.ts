@@ -21,12 +21,24 @@ export type GuardianPurpose = (typeof GUARDIAN_PURPOSES)[number];
 /** A consent document version, as the consent event points at it. */
 export type DocumentRef = { id: string; version: number };
 
-/** The document purposes a competition attaches a version of. */
+/** The guardian consent documents a competition attaches. */
+export const COMPETITION_GUARDIAN_DOCUMENT_PURPOSES = [
+  "participation",
+  "public_display",
+  "social_media",
+  "auction",
+] as const;
+
 export type CompetitionDocumentPurpose =
-  | "participation"
-  | "public_display"
-  | "social_media"
-  | "auction";
+  (typeof COMPETITION_GUARDIAN_DOCUMENT_PURPOSES)[number];
+
+export function isCompetitionGuardianDocument(
+  purpose: string
+): purpose is CompetitionDocumentPurpose {
+  return (COMPETITION_GUARDIAN_DOCUMENT_PURPOSES as readonly string[]).includes(
+    purpose
+  );
+}
 
 /** What a competition says about consent, from its definition. */
 export type CompetitionConsentSetup = {
@@ -85,6 +97,10 @@ const PURPOSE_RULES: Record<GuardianPurpose, PurposeRule> = {
   },
   communications: { scope: "global", document: "communications" },
 };
+
+export function guardianDocumentPurpose(purpose: GuardianPurpose) {
+  return PURPOSE_RULES[purpose].document;
+}
 
 /**
  * The competition purposes a guardian can give for a child registered in
@@ -173,6 +189,19 @@ export const PUBLIC_USES = [
 ] as const;
 export type PublicUse = (typeof PUBLIC_USES)[number];
 
+const PUBLICATION_PURPOSES = [
+  "public_display",
+  "social_media",
+  "auction",
+] as const;
+export type PublicationPurpose = (typeof PUBLICATION_PURPOSES)[number];
+
+export function isPublicationPurpose(
+  purpose: string
+): purpose is PublicationPurpose {
+  return PUBLICATION_PURPOSES.some((choice) => choice === purpose);
+}
+
 /**
  * The consent each use needs. School and city follow the guardian's
  * field-by-field opt-ins everywhere except a minor's auction credit, which
@@ -180,13 +209,17 @@ export type PublicUse = (typeof PUBLIC_USES)[number];
  */
 const PUBLIC_USE_RULES: Record<
   PublicUse,
-  { purpose: GuardianPurpose; capsMinorCredit: boolean }
+  { purpose: PublicationPurpose; capsMinorCredit: boolean }
 > = {
   gallery: { purpose: "public_display", capsMinorCredit: false },
   results: { purpose: "public_display", capsMinorCredit: false },
   social_media: { purpose: "social_media", capsMinorCredit: false },
   auction: { purpose: "auction", capsMinorCredit: true },
 };
+
+export function publicationPurposeFor(use: PublicUse): PublicationPurpose {
+  return PUBLIC_USE_RULES[use].purpose;
+}
 
 export type PublicUsePermission =
   | { allowed: false }

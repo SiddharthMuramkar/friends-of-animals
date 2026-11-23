@@ -15,7 +15,7 @@ describe("parseCspReport: application/csp-report", () => {
       "application/csp-report",
       legacy({
         "document-uri":
-          "https://shipped-it.dev/account/sessions?email=asha@example.test#top",
+          "https://friendsofanimals.dev/account/sessions?email=asha@example.test#top",
         referrer: "https://mail.example.test/inbox?id=42",
         "violated-directive": "script-src-elem",
         "effective-directive": "script-src-elem",
@@ -24,7 +24,8 @@ describe("parseCspReport: application/csp-report", () => {
         "blocked-uri": "https://evil.example.test/x.js?token=secret",
         "line-number": 12,
         "column-number": 7,
-        "source-file": "https://shipped-it.dev/_next/static/chunks/a.js?v=1",
+        "source-file":
+          "https://friendsofanimals.dev/_next/static/chunks/a.js?v=1",
         "status-code": 200,
         "script-sample": "alert('asha@example.test')",
       })
@@ -34,10 +35,10 @@ describe("parseCspReport: application/csp-report", () => {
       ok: true,
       violations: [
         {
-          documentUrl: "https://shipped-it.dev/account/sessions",
+          documentUrl: "https://friendsofanimals.dev/account/sessions",
           directive: "script-src-elem",
           blocked: "https://evil.example.test/x.js",
-          sourceFile: "https://shipped-it.dev/_next/static/chunks/a.js",
+          sourceFile: "https://friendsofanimals.dev/_next/static/chunks/a.js",
           line: 12,
           column: 7,
           disposition: "enforce",
@@ -52,7 +53,7 @@ describe("parseCspReport: application/csp-report", () => {
       const result = parseCspReport(
         "application/csp-report; charset=utf-8",
         legacy({
-          "document-uri": "https://shipped-it.dev/",
+          "document-uri": "https://friendsofanimals.dev/",
           "effective-directive": "script-src",
           "blocked-uri": uri,
         })
@@ -78,15 +79,16 @@ describe("parseCspReport: application/reports+json", () => {
         {
           type: "csp-violation",
           age: 10,
-          url: "https://shipped-it.dev/account?code=123456",
+          url: "https://friendsofanimals.dev/account?code=123456",
           user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)",
           body: {
-            documentURL: "https://shipped-it.dev/account?code=123456",
-            referrer: "https://shipped-it.dev/sign-in?email=asha@example.test",
+            documentURL: "https://friendsofanimals.dev/account?code=123456",
+            referrer:
+              "https://friendsofanimals.dev/sign-in?email=asha@example.test",
             blockedURL: "inline",
             effectiveDirective: "script-src-attr",
             originalPolicy: "script-src 'nonce-abc'",
-            sourceFile: "https://shipped-it.dev/account",
+            sourceFile: "https://friendsofanimals.dev/account",
             sample: "onclick=steal()",
             disposition: "report",
             statusCode: 200,
@@ -94,7 +96,7 @@ describe("parseCspReport: application/reports+json", () => {
             columnNumber: 14,
           },
         },
-        { type: "deprecation", url: "https://shipped-it.dev/", body: {} },
+        { type: "deprecation", url: "https://friendsofanimals.dev/", body: {} },
       ])
     );
 
@@ -102,10 +104,10 @@ describe("parseCspReport: application/reports+json", () => {
       ok: true,
       violations: [
         {
-          documentUrl: "https://shipped-it.dev/account",
+          documentUrl: "https://friendsofanimals.dev/account",
           directive: "script-src-attr",
           blocked: "inline",
-          sourceFile: "https://shipped-it.dev/account",
+          sourceFile: "https://friendsofanimals.dev/account",
           line: 3,
           column: 14,
           disposition: "report",
@@ -121,7 +123,7 @@ describe("parseCspReport: application/reports+json", () => {
     const one = {
       type: "csp-violation",
       body: {
-        documentURL: "https://shipped-it.dev/",
+        documentURL: "https://friendsofanimals.dev/",
         blockedURL: "eval",
         effectiveDirective: "script-src",
       },
@@ -134,10 +136,47 @@ describe("parseCspReport: application/reports+json", () => {
   });
 });
 
+describe("parseCspReport: Chrome's batches", () => {
+  it("accepts a full Reporting API batch of 100 realistic reports, so a page that lost its nonce is still heard", () => {
+    // Chrome queues reports and uploads them about once a minute, up to
+    // 100 at a time; each signed-in script blocked is one report.
+    const report = (n: number) => ({
+      type: "csp-violation",
+      age: 1200 + n,
+      url: "https://friendsofanimals.dev/institution/registrations/NEIGH27-I-5EED1/pay?institution=01938a00-0000-7000-8000-000000001001",
+      user_agent:
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36",
+      body: {
+        documentURL:
+          "https://friendsofanimals.dev/institution/registrations/NEIGH27-I-5EED1/pay?institution=01938a00-0000-7000-8000-000000001001",
+        referrer: "https://friendsofanimals.dev/institution/competitions",
+        blockedURL: `https://friendsofanimals.dev/_next/static/chunks/app/institution/registrations/%5Bref%5D/pay/page-${String(n).padStart(16, "0")}.js`,
+        effectiveDirective: "script-src-elem",
+        originalPolicy:
+          "default-src 'self'; script-src 'self' 'nonce-AAAAAAAAAAAAAAAAAAAAAA==' 'strict-dynamic' 'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; report-uri /api/csp-report; report-to csp",
+        disposition: "enforce",
+        statusCode: 200,
+        sourceFile: null,
+        lineNumber: 0,
+        columnNumber: 0,
+        sample: "",
+      },
+    });
+    const batch = JSON.stringify(
+      Array.from({ length: 100 }, (_, n) => report(n))
+    );
+
+    const result = parseCspReport("application/reports+json", batch);
+
+    expect(new TextEncoder().encode(batch).length).toBeGreaterThan(64 * 1024);
+    expect(result.ok && result.violations).toHaveLength(20);
+  });
+});
+
 describe("parseCspReport: refusals", () => {
   it("refuses a body over the size cap", () => {
     const big = legacy({
-      "document-uri": "https://shipped-it.dev/",
+      "document-uri": "https://friendsofanimals.dev/",
       padding: "x".repeat(CSP_REPORT_MAX_BYTES),
     });
     expect(parseCspReport("application/csp-report", big)).toEqual({
@@ -147,14 +186,20 @@ describe("parseCspReport: refusals", () => {
   });
 
   it("measures the cap in bytes, not characters", () => {
-    const body = legacy({ "document-uri": "https://shipped-it.dev/", x: "" });
+    const body = legacy({
+      "document-uri": "https://friendsofanimals.dev/",
+      x: "",
+    });
     const multibyte = "ह".repeat(
       Math.ceil((CSP_REPORT_MAX_BYTES - body.length) / 3) + 10
     );
     expect(
       parseCspReport(
         "application/csp-report",
-        legacy({ "document-uri": "https://shipped-it.dev/", x: multibyte })
+        legacy({
+          "document-uri": "https://friendsofanimals.dev/",
+          x: multibyte,
+        })
       )
     ).toEqual({ ok: false, status: 413 });
   });

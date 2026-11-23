@@ -1,0 +1,235 @@
+{
+  "adminRefunds": {
+    "eyebrow": "Finance",
+    "loading": "Loading…",
+    "denied": {
+      "title": "Only FOA's finance and staff teams can open this",
+      "body": "Refunds are for finance, staff admins, super admins and competition managers. Ask a super admin for a role if you need one.",
+      "back": "Go to your dashboard"
+    },
+    "unexpected": "Something went wrong on our side. Nothing was saved. Please try again in a few minutes.",
+    "kinds": {
+      "discretionary": "Asked for",
+      "cancellation": "Competition cancelled",
+      "duplicate": "Payment in review"
+    },
+    "statuses": {
+      "requested": "Waiting for finance",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "processing": "With the gateway",
+      "refunded": "Refunded",
+      "failed": "Failed"
+    },
+    "methods": {
+      "gateway": "Back to the card, UPI or bank account that paid",
+      "manual": "Paid back by hand"
+    },
+    "manualMethods": {
+      "cheque": "Cheque",
+      "bank_transfer": "Bank transfer",
+      "cash": "Cash"
+    },
+    "registrationStatus": {
+      "enrolled": "Enrolled",
+      "confirmed": "Confirmed",
+      "withdrawn": "Withdrawn",
+      "pending_payment": "Waiting for payment",
+      "refunded": "Refunded",
+      "pending_guardian": "Waiting for a guardian"
+    },
+    "payer": {
+      "unknown": "Account closed",
+      "noName": "Nobody"
+    },
+    "students": "{count, plural, =0 {No students} one {# student} other {# students}}",
+    "list": {
+      "meta": {
+        "title": "Refunds",
+        "description": "Refunds waiting for finance, with the gateway, and done."
+      },
+      "title": "Refunds",
+      "lead": "A competition manager or staff admin asks for a refund; finance approves or rejects it. Cancellations and payments resolved in review are refunded without approval.",
+      "nav": "Refund lists",
+      "views": {
+        "waiting": "Waiting for finance",
+        "in_progress": "In progress",
+        "done": "Done"
+      },
+      "table": {
+        "caption": "Refunds: {view}",
+        "refund": "Refund",
+        "competition": "Competition",
+        "kind": "Kind",
+        "status": "Status",
+        "requested": "Asked on",
+        "open": "Open refund of {amount} to {payer}"
+      },
+      "empty": {
+        "waiting": "No refund is waiting for finance.",
+        "in_progress": "No refund is on its way.",
+        "done": "No refund is done yet."
+      }
+    },
+    "detail": {
+      "meta": {
+        "title": "Refund",
+        "description": "One refund: what it returns, who asked, and finance's decision."
+      },
+      "back": "All refunds",
+      "title": "Refund of {amount}",
+      "notFound": {
+        "title": "We can't find that refund",
+        "body": "The link may be wrong. Go back to the list to find it.",
+        "back": "All refunds"
+      },
+      "detailsTitle": "Details",
+      "details": {
+        "payer": "Paid by",
+        "competition": "Competition",
+        "reference": "Registration",
+        "kind": "Kind",
+        "method": "How it goes back",
+        "amount": "Refund",
+        "paid": "The payment was",
+        "requestedBy": "Asked for by",
+        "requestedOn": "Asked on",
+        "system": "FOA, automatically",
+        "reason": "Reason",
+        "decidedBy": "Decided by",
+        "decidedOn": "Decided on",
+        "note": "Finance's note",
+        "gatewayPayment": "Gateway payment",
+        "gatewayRefund": "Gateway refund",
+        "attempt": "Attempt",
+        "refundedOn": "Refunded on",
+        "failedOn": "Failed on",
+        "manual": "Paid back by",
+        "manualValue": "{method}, reference {reference}",
+        "batchLink": "See the whole payment"
+      },
+      "studentsTitle": "Students",
+      "studentsNone": "This refund returns a whole payment that confirmed no one, so it lists no students.",
+      "studentsTable": {
+        "caption": "Students this refund returns",
+        "number": "Registration number",
+        "status": "Status",
+        "amount": "Fee",
+        "noNumber": "No number",
+        "released": "Let go"
+      },
+      "policyTitle": "The refund policy",
+      "policy": "FOA's default: no refunds once a registration is confirmed, except when a competition is cancelled or someone paid twice. Approve a request only when FOA has agreed to an exception.",
+      "decisionTitle": "Decide",
+      "decision": {
+        "lead": "Approving sends the refund to the payment gateway, or to be paid back by hand for a payment made offline. You need to have entered your second factor in the last 10 minutes.",
+        "note": {
+          "label": "Note",
+          "hint": "Up to {max} characters. Needed to reject: the requester reads it."
+        },
+        "approve": "Approve refund",
+        "reject": "Reject",
+        "saving": "Saving…",
+        "ownRequest": "You asked for this refund, so someone else in finance decides it.",
+        "financeOnly": "Only the finance team decides refunds.",
+        "errors": {
+          "note_required": "Write a note saying why it is rejected.",
+          "note_too_long": "Keep the note to {max} characters."
+        },
+        "alerts": {
+          "not_requested": "This refund has already been decided. The page now shows its state.",
+          "not_rejectable": "This refund can't be rejected now. The page now shows its state.",
+          "same_person": "You asked for this refund, so someone else in finance decides it.",
+          "unexpected": "Something went wrong on our side. Nothing was saved. Please try again in a few minutes."
+        }
+      },
+      "failedTitle": "The gateway couldn't refund this",
+      "failed": {
+        "lead": "Send it again, or close it if FOA paid the money back another way. Closing frees its students for another refund.",
+        "retry": "Send it again",
+        "close": "Close without refunding",
+        "alerts": {
+          "not_failed": "This refund is no longer failed. The page now shows its state."
+        }
+      },
+      "manualTitle": "Record paying it back",
+      "manual": {
+        "lead": "The payment was made offline, so FOA pays it back by hand. Once it is paid, record how: the students are refunded and the payer is told.",
+        "method": "How it was paid back",
+        "reference": {
+          "label": "Reference",
+          "hint": "The transfer's UTR, the cheque number or the cash receipt number."
+        },
+        "submit": "Record refund",
+        "errors": {
+          "reference_invalid": "Enter the reference as it's written on the transfer, cheque or receipt."
+        },
+        "alerts": {
+          "not_approved": "This refund isn't waiting to be paid back. The page now shows its state.",
+          "not_manual": "This refund goes back through the gateway, not by hand."
+        }
+      },
+      "done": {
+        "approved": "Approved. The refund is on its way.",
+        "rejected": "Rejected. Its students can be asked for again.",
+        "retried": "Sent again.",
+        "recorded": "Recorded. The students are refunded and the payer has been told."
+      }
+    },
+    "request": {
+      "meta": {
+        "title": "Ask for a refund",
+        "description": "Ask finance to refund some or all of a payment."
+      },
+      "back": "Back to the payment",
+      "title": "Ask for a refund",
+      "lead": "Choose the students whose fees go back, or every student left, and say why. Finance approves or rejects it.",
+      "notFound": {
+        "title": "We can't find that payment",
+        "body": "The link may be wrong.",
+        "back": "Go to your dashboard"
+      },
+      "notCaptured": "Only a paid payment can be refunded. This one isn't paid.",
+      "summaryTitle": "The payment",
+      "summary": {
+        "payer": "Paid by",
+        "competition": "Competition",
+        "amount": "Amount",
+        "method": "Paid",
+        "gateway": "Through the gateway",
+        "offline": "Offline, so it is paid back by hand"
+      },
+      "form": {
+        "title": "What to refund",
+        "students": "Students to refund",
+        "studentsHint": "Leave all unticked to refund every student who is left.",
+        "student": "{number}, {amount}",
+        "inRefund": "{number}: in a refund already",
+        "refunded": "{number}: refunded",
+        "noneLeft": "Every student of this payment is refunded or in a refund already.",
+        "reason": {
+          "label": "Reason",
+          "hint": "Up to {max} characters. Finance reads it before deciding."
+        },
+        "submit": "Ask finance to refund",
+        "saving": "Sending…",
+        "errors": {
+          "reason_required": "Write a reason for the refund.",
+          "reason_too_long": "Keep the reason to {max} characters."
+        },
+        "alerts": {
+          "batch_not_captured": "This payment isn't paid, so nothing can be refunded.",
+          "nothing_to_refund": "Every student of this payment is refunded or in a refund already.",
+          "item_in_live_refund": "A student you chose is in another refund already. The page now shows who is left.",
+          "item_already_refunded": "A student you chose is refunded already. The page now shows who is left.",
+          "exceeds_paid": "That's more than this payment has left to refund.",
+          "unexpected": "Something went wrong on our side. Nothing was saved. Please try again in a few minutes."
+        }
+      },
+      "refundsTitle": "Refunds of this payment",
+      "refundsNone": "None yet.",
+      "refundItem": "{amount}, {status}",
+      "sent": "Sent to finance. They approve or reject it on the refunds page."
+    }
+  }
+}

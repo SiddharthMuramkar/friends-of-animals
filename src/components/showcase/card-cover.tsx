@@ -1,12 +1,17 @@
 import Image from "next/image";
 
+import { AiMark } from "@/components/art/ai-mark";
 import type { TileHue } from "@/components/site/tile";
+import { type SiteArtId, siteArt } from "@/lib/art";
 import { type SiteImageId, siteImage } from "@/lib/images";
 import { needsVisibleCredit, shortCredit } from "@/lib/images/credits";
 import { cn } from "@/lib/utils";
 
 // next/image placeholder mode (a constant: the lint rule bars literals here).
 const BLUR = "blur";
+// The default quality: covers are full-bleed paintings, where 85 adds about
+// a fifth to the bytes for no visible gain (line art keeps 85).
+const ART_QUALITY = 75;
 
 /** A card's cover photo, cropped by aspect with the image's focal point. */
 export function CardCover({
@@ -35,6 +40,41 @@ export function CardCover({
         style={{ objectPosition: `${focal[0] * 100}% ${focal[1] * 100}%` }}
         className="object-cover transition-transform duration-300 ease-out motion-safe:group-hover:scale-[1.03]"
       />
+    </div>
+  );
+}
+
+/**
+ * A card's illustrated cover: an AI illustration (labelled) for a story with
+ * no licensed photo, cropped by aspect like a photo cover.
+ */
+export function ArtCover({
+  id,
+  sizes,
+  className,
+}: {
+  id: SiteArtId;
+  sizes: string;
+  className?: string;
+}) {
+  const { src, entry } = siteArt(id);
+  return (
+    <div
+      className={cn(
+        "relative aspect-4/3 overflow-hidden bg-surface-muted",
+        className
+      )}
+    >
+      <Image
+        src={src}
+        alt={entry.alt ?? ""}
+        fill
+        sizes={sizes}
+        quality={ART_QUALITY}
+        placeholder={BLUR}
+        className="object-cover transition-transform duration-300 ease-out motion-safe:group-hover:scale-[1.03]"
+      />
+      <AiMark className="absolute right-3 bottom-3" />
     </div>
   );
 }

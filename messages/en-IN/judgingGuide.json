@@ -1,0 +1,61 @@
+{
+  "judgingGuide": {
+    "meta": {
+      "title": "Judging guide",
+      "description": "FOA's judging framework and the rubric for each discipline of a competition, for the schools taking part."
+    },
+    "eyebrow": "For schools",
+    "title": "Judging guide",
+    "lead": "Your school judges the first round. Use this guide, the same for every school, so the round is fair and quick.",
+    "loading": "Loading the judging guide…",
+    "competition": "Competition {code}: {name}",
+    "framework": {
+      "title": "FOA's judging framework",
+      "items": [
+        "Appoint a small judging panel from your school.",
+        "Judge each entry against the rubric of its discipline below. Give each criterion a score within its range; each criterion counts for its share of the total.",
+        "Name 1st, 2nd and 3rd for each category, and pick your shortlist for the next level.",
+        "Your coordinator confirms that the competition and its judging followed FOA's guidelines."
+      ]
+    },
+    "rubrics": {
+      "title": "Rubrics",
+      "version": "Version {version}, published {date}",
+      "none": "FOA hasn't published this rubric yet. It appears here before your round opens.",
+      "caption": "Criteria for {discipline}"
+    },
+    "table": {
+      "label": "Criterion",
+      "description": "What judges look for",
+      "weight": "Share of the score",
+      "scores": "Score range",
+      "weightValue": "{weight}%",
+      "scoreRange": "{min} to {max}"
+    },
+    "disciplines": {
+      "drawing": "Drawing",
+      "painting": "Painting",
+      "art": "Art",
+      "craft": "Craft",
+      "essay": "Essay",
+      "photography": "Photography",
+      "videography": "Videography"
+    },
+    "denied": {
+      "title": "This page is for registered schools",
+      "body": "Coordinators of an institution FOA has verified can read the judging guide. Ask your school's coordinator, or register your institution first.",
+      "back": "Back to your dashboard"
+    },
+    "notFound": {
+      "title": "No judging guide here",
+      "body": "We couldn't find a competition with this code that schools take part in.",
+      "back": "Back to your dashboard"
+    },
+    "back": "Back to your dashboard",
+    "dashboard": {
+      "title": "Judging guides",
+      "item": "{name} ({code})",
+      "none": "No competition has a judging guide yet."
+    }
+  }
+}

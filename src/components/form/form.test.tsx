@@ -1,7 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { FormAlert, SubmitButton, TextField } from "./index";
+import {
+  FormAlert,
+  SelectField,
+  SubmitButton,
+  TextAreaField,
+  TextField,
+} from "./index";
 
 describe("<TextField>", () => {
   it("labels its input", () => {
@@ -124,5 +130,62 @@ describe("<SubmitButton>", () => {
     );
     expect(html).toMatch(/<button[^>]* name="step"/);
     expect(html).toMatch(/<button[^>]* value="resend"/);
+  });
+
+  it("shows the pending state it is given, for a form sent from onSubmit", () => {
+    const html = renderToStaticMarkup(
+      <SubmitButton pending pendingLabel="Sending…">
+        Send
+      </SubmitButton>
+    );
+    expect(html).toMatch(/ disabled=""/);
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain("Sending…");
+    expect(html).not.toContain(">Send<");
+  });
+});
+
+describe("<TextAreaField>", () => {
+  it("labels its textarea and points it at its hint and error", () => {
+    const html = renderToStaticMarkup(
+      <TextAreaField
+        id="note"
+        name="note"
+        label="Note"
+        hint="Only leads read it"
+        error="Write a note first"
+      />
+    );
+    expect(html).toContain('<label for="note"');
+    expect(html).toMatch(
+      /<textarea[^>]* name="note"[^>]* id="note"[^>]* aria-describedby="note-hint note-error" aria-invalid="true"/
+    );
+    expect(html).toMatch(/id="note-error"[^>]*>.*Write a note first</);
+  });
+
+  it("is valid without an error", () => {
+    const html = renderToStaticMarkup(
+      <TextAreaField id="note" name="note" label="Note" />
+    );
+    expect(html).not.toMatch(/ aria-invalid="/);
+    expect(html).not.toMatch(/ aria-describedby="/);
+  });
+});
+
+describe("<SelectField>", () => {
+  it("labels its select and offers the placeholder first", () => {
+    const html = renderToStaticMarkup(
+      <SelectField
+        id="severity"
+        name="severity"
+        label="Severity"
+        placeholder="Choose one"
+        options={[{ value: "high", label: "High" }]}
+      />
+    );
+    expect(html).toContain('<label for="severity"');
+    expect(html).toMatch(
+      /<option value="">Choose one<\/option><option value="high">High<\/option>/
+    );
   });
 });

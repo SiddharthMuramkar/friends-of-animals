@@ -2,22 +2,32 @@ import { Brush, Eye, Sprout } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { StickerScatter } from "@/components/art/sticker-scatter";
 import { BadgeConstellation } from "@/components/showcase/badge-constellation";
 import { HappyMosaic } from "@/components/showcase/happy-mosaic";
+import { KindnessChain } from "@/components/showcase/kindness-chain";
 import { NotAShelter } from "@/components/showcase/not-a-shelter";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { ButtonLink } from "@/components/site/button-link";
 import { Disclosure } from "@/components/site/disclosure";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
+import { LegalBlockView } from "@/components/legal/legal-text";
 import { Placeholder } from "@/components/site/placeholder";
+import { CmsDraftPreview } from "@/app/_components/cms-draft-preview";
+import { Live } from "@/components/site/live";
 import { Section } from "@/components/site/section";
 import { TileDivider, TileMarker } from "@/components/site/tile";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { isFactShown } from "@/lib/site";
 import { cn } from "@/lib/utils";
+import {
+  type AboutPage,
+  loadAboutPage,
+  seedAboutPage,
+} from "@/server/modules/cms/site-pages";
 
 import { EasyRead } from "@/components/site/easy-read";
 
@@ -30,6 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
+// One icon per step of the about document's three, in order.
 const HOW = [
   { key: "create", Icon: Brush, tile: "bg-blue-700 text-white" },
   { key: "share", Icon: Eye, tile: "bg-pink-400 text-neutral-900" },
@@ -43,17 +54,6 @@ const HOW_PHOTOS = [
   ["cat-stretch-ahmedabad", "paws"],
 ] as const satisfies readonly (readonly [SiteImageId, string])[];
 
-const PEOPLE = [
-  "schools",
-  "participants",
-  "teachers",
-  "parents",
-  "judges",
-  "welfare",
-  "volunteers",
-  "donors",
-] as const;
-
 const PEOPLE_TILES = [
   "red",
   "green",
@@ -63,12 +63,18 @@ const PEOPLE_TILES = [
   "pink",
 ] as const;
 
-export default async function Page() {
+// The copy comes from the published about document, read at request
+// time; the static shell holds the seed copy (see Live).
+export default function Page() {
+  return (
+    <Live fallback={seedAboutPage()} load={loadAboutPage}>
+      {(page) => <AboutContent {...page} />}
+    </Live>
+  );
+}
+
+async function AboutContent({ about, facts, preview }: AboutPage) {
   const t = await getTranslations("about");
-  const objectives = t.raw("objectives.items") as {
-    title: string;
-    body: string;
-  }[];
 
   return (
     <>
@@ -81,13 +87,14 @@ export default async function Page() {
         <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14">
           <div>
             <PageHeader
-              eyebrow={t("hero.eyebrow")}
+              eyebrow={about.hero.eyebrow}
               tile="blue"
-              title={t("hero.title")}
-              lead={t("hero.lead")}
+              title={about.hero.title}
+              lead={about.hero.lead}
             />
+            {preview ? <CmsDraftPreview {...preview} /> : null}
             <EasyRead label={t("easyLabel")} className="mt-6">
-              <p>{t("hero.easy")}</p>
+              <p>{about.hero.easy}</p>
             </EasyRead>
           </div>
           {/* On phones a half-width print, smaller than the lead text, so
@@ -108,24 +115,24 @@ export default async function Page() {
       <Section labelledBy="about-duty" width="wide" hue="blue">
         <SectionHeading
           id="about-duty"
-          eyebrow={t("duty.eyebrow")}
+          eyebrow={about.duty.eyebrow}
           tile="blue"
-          title={t("duty.title")}
-          lead={t("duty.body")}
+          title={about.duty.title}
+          lead={about.duty.body}
         />
-        <div className="mt-10 grid gap-10 lg:grid-cols-2 lg:gap-14">
+        <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-14">
           <QuoteFigure id="Q01" hue="blue" />
           <QuoteFigure id="Q02" hue="green" size="md" />
         </div>
         <p className="mt-12 max-w-prose text-lead text-ink">
-          {t("duty.court")}
+          {about.duty.court}
         </p>
         <QuoteFigure id="Q03" hue="red" size="md" className="mt-6 max-w-3xl" />
       </Section>
 
       {/* Vision and mission, in FOA's own words. */}
       <Section width="wide" tone="tint" hue="blue">
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {(
             [
               ["visionTitle", "vision", "yellow"],
@@ -138,10 +145,10 @@ export default async function Page() {
             >
               <h2 className="flex items-center gap-3 text-h3">
                 <TileMarker hue={tile} size="lg" />
-                {t(`vision.${title}`)}
+                <span className="min-w-0">{about.vision[title]}</span>
               </h2>
               <p className="mt-4 font-display text-h5 leading-snug font-semibold text-ink">
-                {t(`vision.${body}`)}
+                {about.vision[body]}
               </p>
             </div>
           ))}
@@ -150,7 +157,7 @@ export default async function Page() {
 
       {/* Why compassion is a skill. */}
       <Section labelledBy="about-skill" width="wide" hue="blue">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16">
           <Photo
             id="cat-lentils-west-bengal"
             sizes="(min-width: 1024px) 40vw, 92vw"
@@ -162,21 +169,25 @@ export default async function Page() {
           <div>
             <SectionHeading
               id="about-skill"
-              eyebrow={t("skill.eyebrow")}
+              eyebrow={about.skill.eyebrow}
               tile="green"
-              title={t("skill.title")}
+              title={about.skill.title}
             />
             <EasyRead label={t("easyLabel")} className="mt-6">
-              <p>{t("skill.easy")}</p>
+              <p>{about.skill.easy}</p>
             </EasyRead>
-            <p className="mt-6 max-w-prose text-body text-ink">
-              {t("skill.body")}
-            </p>
+            <div className="mt-6 max-w-prose space-y-4 text-body text-ink">
+              {about.skill.body.map((block, k) => (
+                <LegalBlockView key={k} block={block} />
+              ))}
+            </div>
             <Disclosure
-              summary={t("skill.detailSummary")}
+              summary={about.skill.detailSummary}
               className="mt-6 max-w-prose"
             >
-              <p>{t("skill.detail")}</p>
+              {about.skill.detail.map((block, k) => (
+                <LegalBlockView key={k} block={block} />
+              ))}
             </Disclosure>
           </div>
         </div>
@@ -189,28 +200,51 @@ export default async function Page() {
         tone="tint"
         hue="yellow"
       >
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:gap-14">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:gap-14">
           <SectionHeading
             id="about-ashoka"
-            eyebrow={t("ashoka.eyebrow")}
+            eyebrow={about.ashoka.eyebrow}
             tile="yellow"
-            title={t("ashoka.title")}
-            lead={t("ashoka.body")}
+            title={about.ashoka.title}
+            lead={about.ashoka.body}
           />
           <QuoteFigure id="Q11" hue="yellow" size="md" />
         </div>
       </Section>
 
-      {/* How FOA works: creativity → awareness → compassion. */}
-      <Section labelledBy="about-how" width="wide" hue="blue">
+      {/* How FOA works: creativity → awareness → compassion, drawn as a
+          chain first. A sketchbook in the top corner, clear of the eyebrow
+          and the heading; from lg, where the heading wraps and leaves the
+          corner free, a marigold beside it. */}
+      <Section
+        labelledBy="about-how"
+        width="wide"
+        hue="blue"
+        innerClassName="relative"
+      >
+        <StickerScatter
+          stickers={[
+            {
+              id: "sticker-sketchbook",
+              className: "-top-12 right-[5%] w-12 sm:-top-14 sm:w-16",
+              tilt: -10,
+            },
+            {
+              id: "sticker-marigold",
+              className: "-top-5 right-[17%] hidden w-16 lg:block",
+              tilt: 12,
+            },
+          ]}
+        />
         <SectionHeading
           id="about-how"
-          eyebrow={t("how.eyebrow")}
+          eyebrow={about.how.eyebrow}
           tile="blue"
-          title={t("how.title")}
+          title={about.how.title}
         />
-        <ol className="mt-10 grid gap-6 md:grid-cols-3">
-          {HOW.map(({ key, Icon, tile }) => (
+        <KindnessChain className="mt-10" />
+        <ol className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {HOW.map(({ key, Icon, tile }, i) => (
             <li
               key={key}
               className="relative rounded-3xl border-2 border-border bg-surface p-6 shadow-warm"
@@ -224,16 +258,16 @@ export default async function Page() {
               >
                 <Icon className="size-7" strokeWidth={2.25} />
               </span>
-              <h3 className="mt-4 text-h4">{t(`how.steps.${key}.title`)}</h3>
+              <h3 className="mt-4 text-h4">{about.how.steps[i].title}</h3>
               <p className="mt-2 text-body text-ink-muted">
-                {t(`how.steps.${key}.body`)}
+                {about.how.steps[i].body}
               </p>
             </li>
           ))}
         </ol>
         <h3 className="mt-16 flex items-center gap-3 text-h3 sm:mt-20">
           <TileMarker hue="yellow" size="lg" />
-          {t("how.photos.title")}
+          <span className="min-w-0">{t("how.photos.title")}</span>
         </h3>
         <HappyMosaic
           layout="row3"
@@ -249,22 +283,23 @@ export default async function Page() {
       <Section labelledBy="about-people" width="wide" tone="tint" hue="blue">
         <SectionHeading
           id="about-people"
-          eyebrow={t("people.eyebrow")}
+          eyebrow={about.people.eyebrow}
           tile="teal"
-          title={t("people.title")}
-          lead={t("people.lead")}
+          title={about.people.title}
+          lead={about.people.lead}
         />
         <ul className="mt-8 flex flex-wrap gap-3">
-          {PEOPLE.map((key, i) => (
+          {/* Items may repeat (the schema allows it), so key by place. */}
+          {about.people.items.map((item, i) => (
             <li
-              key={key}
-              className="inline-flex min-h-11 items-center gap-2.5 rounded-full border-2 border-border bg-surface px-4 py-2 font-semibold text-ink"
+              key={i}
+              className="inline-flex min-h-11 max-w-full items-center gap-2.5 rounded-full border-2 border-border bg-surface px-4 py-2 font-semibold text-ink"
             >
               <TileMarker
                 hue={PEOPLE_TILES[i % PEOPLE_TILES.length]}
                 size="sm"
               />
-              {t(`people.items.${key}`)}
+              <span className="min-w-0">{item}</span>
             </li>
           ))}
         </ul>
@@ -292,12 +327,12 @@ export default async function Page() {
       >
         <SectionHeading
           id="about-objectives"
-          eyebrow={t("objectives.eyebrow")}
+          eyebrow={about.objectives.eyebrow}
           tile="green"
-          title={t("objectives.title")}
+          title={about.objectives.title}
         />
-        <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {objectives.map((o, i) => (
+        <ol className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {about.objectives.items.map((o, i) => (
             <li
               key={o.title}
               className="rounded-3xl border-2 border-border bg-surface p-5"
@@ -320,16 +355,19 @@ export default async function Page() {
         <div className="rounded-3xl border-2 border-ink bg-surface p-6 shadow-warm sm:p-10">
           <SectionHeading
             id="about-promise"
-            eyebrow={t("transparency.eyebrow")}
+            eyebrow={about.transparency.eyebrow}
             tile="red"
-            title={t("transparency.title")}
-            lead={t("transparency.body")}
+            title={about.transparency.title}
+            lead={about.transparency.body}
           />
-          <p className="mt-6 flex flex-wrap items-center gap-2 text-body text-ink">
-            {t("transparency.registration")}
-            <Placeholder fact={SITE.org.registration.type} />
-            <Placeholder fact={SITE.org.registration.number} />
-          </p>
+          {isFactShown(facts.registration.type) ||
+          isFactShown(facts.registration.number) ? (
+            <p className="mt-6 flex flex-wrap items-center gap-2 text-body text-ink">
+              {t("transparency.registration")}
+              <Placeholder fact={facts.registration.type} />
+              <Placeholder fact={facts.registration.number} />
+            </p>
+          ) : null}
           <ButtonLink
             href={ROUTES.donate.path}
             variant="secondary"
@@ -338,7 +376,7 @@ export default async function Page() {
             {t("transparency.cta")}
           </ButtonLink>
         </div>
-        <p className="mt-10 max-w-prose text-sm text-ink-muted">{t("name")}</p>
+        <p className="mt-10 max-w-prose text-sm text-ink-muted">{about.name}</p>
       </Section>
     </>
   );

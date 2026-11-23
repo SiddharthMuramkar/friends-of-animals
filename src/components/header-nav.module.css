@@ -1,0 +1,24 @@
+/* On very short screens, the whole dialog scrolls so its actions and links
+ * stay reachable, even when enlarged text takes more room. */
+.dialog {
+  container: mobile-menu / size;
+}
+
+/* At sm and up the theme switch is in the header, freeing room in the menu. */
+@container mobile-menu (height >= 22rem) {
+  .nav {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+@media (width >= 40rem) {
+  @container mobile-menu (height >= 18rem) {
+    .nav {
+      flex: 1;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+  }
+}

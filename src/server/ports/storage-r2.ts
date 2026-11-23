@@ -23,9 +23,11 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+import { r2Origin } from "../../lib/r2-origin";
 import type { Clock } from "./clock";
 import {
   contentDispositionFor,
+  FILE_CACHE_CONTROL,
   isPurgeablePrefix,
   ObjectMissingError,
   UnsafePrefixError,
@@ -54,9 +56,11 @@ export function r2Storage(
   clock: Clock,
   requestHandler?: S3ClientConfig["requestHandler"]
 ): ObjectStorage {
+  const endpoint = r2Origin(config.accountId);
+  if (!endpoint) throw new Error("R2_ACCOUNT_ID is not an R2 account id");
   const client = new S3Client({
     region: "auto",
-    endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
+    endpoint,
     forcePathStyle: true,
     credentials: {
       accessKeyId: config.accessKeyId,
@@ -110,6 +114,8 @@ export function r2Storage(
             disposition,
             filename
           ),
+          // Overrides any Cache-Control the object carries (copies keep it).
+          ResponseCacheControl: FILE_CACHE_CONTROL,
         }),
         { expiresIn: expiresInSeconds, signingDate: clock.now() }
       );
@@ -141,6 +147,18 @@ export function r2Storage(
       } catch (error) {
         throw isNotFound(error) ? new ObjectMissingError(ref) : error;
       }
+    },
+
+    async write({ bucket, key, body, contentType }) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          ContentLength: body.length,
+        })
+      );
     },
 
     async move({ bucket, from, to }) {

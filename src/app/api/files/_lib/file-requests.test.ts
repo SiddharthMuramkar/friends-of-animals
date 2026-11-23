@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { createApp } from "@/server/app";
+import { createApp, type UseCases } from "@/server/app";
 import { fileAsset } from "@/server/db/schema";
 import { unconfiguredStorage } from "@/server/ports/storage";
 import { createHarness } from "@/test/harness";
@@ -52,6 +52,86 @@ async function uploaded() {
   await completeRequest(h.as(owner), fileId);
   return { ...ctx, fileId };
 }
+
+/**
+ * `useCases`, recording what each files use case is called with, so a test
+ * can see what got past the request's validation.
+ */
+function recording(useCases: UseCases) {
+  const calls: [string, unknown][] = [];
+  const wrapped: UseCases = {
+    ...useCases,
+    requestUpload: (input) => {
+      calls.push(["requestUpload", input]);
+      return useCases.requestUpload(input);
+    },
+    completeUpload: (input) => {
+      calls.push(["completeUpload", input]);
+      return useCases.completeUpload(input);
+    },
+    getFileDownloadUrl: (input) => {
+      calls.push(["getFileDownloadUrl", input]);
+      return useCases.getFileDownloadUrl(input);
+    },
+  };
+  return { useCases: wrapped, calls };
+}
+
+describe("validating each request at the edge", () => {
+  it("hands the presign use case only the parsed declaration", async () => {
+    const { h, owner } = await world();
+    const { useCases, calls } = recording(h.as(owner));
+
+    const response = await presignRequest(
+      useCases,
+      await readJson(
+        post(JSON.stringify({ ...pngUpload, ownerUserId: "someone-else" }))
+      )
+    );
+
+    expect(response.status).toBe(201);
+    expect(calls).toEqual([["requestUpload", pngUpload]]);
+  });
+
+  it("answers a declaration of the wrong shape 400 without calling the use case", async () => {
+    const h = await createHarness();
+    for (const actor of [await h.signIn(await h.seed.member()), h.visitor()]) {
+      const { useCases, calls } = recording(h.as(actor));
+
+      expect(
+        await presignRequest(
+          useCases,
+          await readJson(
+            post(JSON.stringify({ ...pngUpload, sizeBytes: "12" }))
+          )
+        )
+      ).toEqual({
+        status: 400,
+        body: { error: "invalid_input", fields: ["sizeBytes"] },
+      });
+      expect(
+        await presignRequest(useCases, await readJson(post("[1]")))
+      ).toMatchObject({ status: 400, body: { error: "invalid_input" } });
+      expect(calls).toEqual([]);
+    }
+  });
+
+  it("answers a file id that isn't a UUID 400 without calling the use case", async () => {
+    const { h, owner } = await world();
+    const { useCases, calls } = recording(h.as(owner));
+
+    for (const answer of [
+      await completeRequest(useCases, "../etc"),
+      await downloadRequest(useCases, "x"),
+    ]) {
+      expect(answer).toEqual({
+        status: 400,
+        body: { error: "invalid_input", fields: ["fileId"] },
+      });
+    }
+    expect(calls).toEqual([]);
+  });
+});
 
 describe("readJson", () => {
   it("reads a JSON body", async () => {
@@ -229,6 +309,18 @@ describe("downloadRequest", () => {
       status: 403,
       body: { error: "forbidden" },
     });
+  });
+
+  it("answers a member 403 alike for another's file and for no file", async () => {
+    const { h, fileId } = await uploaded();
+    const other = await h.signIn(await h.seed.member());
+
+    for (const id of [fileId, "01938a00-0000-7000-8000-000000000000"]) {
+      expect(await downloadRequest(h.as(other), id)).toEqual({
+        status: 403,
+        body: { error: "forbidden" },
+      });
+    }
   });
 });
 

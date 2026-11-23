@@ -21,6 +21,7 @@ and merges only its own entries into `credits.json` and `focal.json`.
 
 To add a photo: add it to the script's pick list, run `node make-masters.mjs <repo>`, open the master and
 reject any identifiable child, distress, legible plate or name, or watermark, then add its id to
-`SITE_IMAGE_IDS` and the registry. No identifiable person goes in Git. No AI images.
+`SITE_IMAGE_IDS` and the registry. No identifiable person goes in Git. No AI photos: every photo here is
+real. Drawn AI illustrations are a separate, labelled registry (`src/assets/site-art`, ADR 0003).
 
 CC BY-SA masters that were cropped are adaptations and carry the same licence; say so in `modifications`.

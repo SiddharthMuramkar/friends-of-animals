@@ -16,6 +16,8 @@ export type Download = {
   bytes: Uint8Array;
   contentType: string | null;
   contentDisposition: string | null;
+  /** The response's Cache-Control: never "public" or a freshness. */
+  cacheControl: string | null;
 };
 
 export type StorageContractSetup = () => Promise<{
@@ -158,6 +160,7 @@ export function objectStorageContract(
         bytes: PNG_BYTES,
         contentType: "image/png",
         contentDisposition: 'attachment; filename="test_upload-01938a00.png"',
+        cacheControl: "private, no-store",
       });
     });
 
@@ -199,6 +202,35 @@ export function objectStorageContract(
       expect(await download(await getUrl(keyFor()))).toBeNull();
     });
 
+    it("stores what the server writes, replacing what was there", async () => {
+      const { storage, bucket, keyFor, download, getUrl } = await world();
+      const key = keyFor("derived");
+      const first = new Uint8Array([0x52, 0x49, 0x46, 0x46, 1, 2, 3]);
+      const second = new Uint8Array([0x52, 0x49, 0x46, 0x46, 9]);
+
+      await storage.write({
+        bucket,
+        key,
+        body: first,
+        contentType: "image/webp",
+      });
+      expect(await storage.head({ bucket, key })).toEqual({
+        sizeBytes: first.length,
+        contentType: "image/webp",
+      });
+      await storage.write({
+        bucket,
+        key,
+        body: second,
+        contentType: "image/webp",
+      });
+
+      expect(await bytesOf(await storage.read({ bucket, key }))).toEqual(
+        second
+      );
+      expect((await download(await getUrl(key)))?.bytes).toEqual(second);
+    });
+
     it("streams an object's bytes, and rejects a missing one", async () => {
       const { storage, bucket, keyFor, store } = await world();
       const key = keyFor();
@@ -231,6 +263,40 @@ export function objectStorageContract(
       await expect(
         storage.move({ bucket, from: keyFor(), to: keyFor() })
       ).rejects.toThrow(ObjectMissingError);
+    });
+
+    // Why the Files module moves an upload off the key its PUT URL names
+    // before anything reads it (src/server/modules/files/use-cases/upload.ts).
+    it("takes a presigned PUT again until it expires, but never at an object moved away", async () => {
+      const { storage, bucket, upload, download, keyFor, getUrl } =
+        await world();
+      const from = keyFor("incoming");
+      const to = keyFor();
+      const { url, headers } = await storage.presignPut({
+        bucket,
+        key: from,
+        contentType: "image/png",
+        contentLength: PNG_BYTES.length,
+        expiresInSeconds: 60,
+      });
+      expect(await upload(url, headers, PNG_BYTES)).toBe(true);
+      await storage.move({ bucket, from, to });
+
+      // Same type and length: the URL isn't single-use, so it is stored.
+      const replacement = new Uint8Array([
+        0x89, 0x50, 0x4e, 0x47, 9, 9, 9, 9, 9,
+      ]);
+      expect(await upload(url, headers, replacement)).toBe(true);
+
+      expect(await bytesOf(await storage.read({ bucket, key: from }))).toEqual(
+        replacement
+      );
+      expect(await bytesOf(await storage.read({ bucket, key: to }))).toEqual(
+        PNG_BYTES
+      );
+      expect(await download(await getUrl(to))).toMatchObject({
+        bytes: PNG_BYTES,
+      });
     });
 
     it("deletes an object, and does nothing for a missing one", async () => {

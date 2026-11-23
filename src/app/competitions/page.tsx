@@ -1,6 +1,9 @@
 import { ArrowDown } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { connection } from "next/server";
+import { Suspense } from "react";
+
 import { SiteLink } from "@/components/site/site-link";
 
 import { QuoteFigure } from "@/components/showcase/quote-figure";
@@ -12,16 +15,15 @@ import { Disclosure } from "@/components/site/disclosure";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Photo } from "@/components/site/photo";
-import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
 import { TileMarker } from "@/components/site/tile";
-import { getSampleCompetitions } from "@/content/sample";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
 import { EasyRead } from "@/components/site/easy-read";
 import { cardClass, CompetitionFilters } from "./_components/filters";
+import { publishedCompetitions } from "./_lib/public-reads";
 import { filterTokens } from "./_lib/view";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,10 +45,99 @@ const PROMPTS = [
   ["cat-grass-srinagar", "stretch"],
 ] as const satisfies readonly (readonly [SiteImageId, string])[];
 
+/**
+ * The published competitions, from the database at request time: the
+ * rest of the page is prerendered and this streams into it. Drafts never
+ * reach the read model.
+ */
+async function OpenCompetitions() {
+  await connection();
+  const t = await getTranslations("competitions");
+  const list = await publishedCompetitions();
+
+  if (list.length === 0)
+    return (
+      <ExplainState
+        title={t("empty.title")}
+        back={{ href: ROUTES.contact.path, label: t("empty.back") }}
+        art="wait-mailbox-cat"
+        className="mt-8 max-w-2xl"
+      >
+        <p>{t("empty.body")}</p>
+      </ExplainState>
+    );
+
+  return (
+    <>
+      <p className="mt-4 max-w-prose text-lead text-ink-muted">
+        {t("list.lead")}
+      </p>
+      <CompetitionFilters className="mt-8">
+        <ul className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {list.map((c) => {
+            const tokens = filterTokens(c);
+            return (
+              <li
+                key={c.slug}
+                className={`${cardClass} flex`}
+                data-status={tokens.status}
+                data-disciplines={tokens.disciplines}
+                data-ages={tokens.ages}
+              >
+                <CompetitionCard competition={c} className="w-full" />
+              </li>
+            );
+          })}
+          <li className="flex">
+            <div className="flex w-full flex-col justify-between gap-6 rounded-3xl border-2 border-dashed border-border-strong p-6">
+              <div>
+                <div aria-hidden="true" className="flex gap-1.5">
+                  <TileMarker hue="pink" />
+                  <TileMarker hue="yellow" />
+                  <TileMarker hue="teal" />
+                </div>
+                <h3 className="mt-4 text-h4 leading-tight">
+                  {t("endCard.title")}
+                </h3>
+                <p className="mt-3 text-ink-muted">{t("endCard.body")}</p>
+              </div>
+              <SiteLink
+                href={ROUTES.contact.path}
+                className="inline-flex min-h-11 items-center self-start font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover"
+              >
+                {t("endCard.link")}
+              </SiteLink>
+            </div>
+          </li>
+        </ul>
+      </CompetitionFilters>
+    </>
+  );
+}
+
+/** Card-sized blocks while the list streams in, so the page doesn't jump. */
+async function OpenCompetitionsFallback() {
+  const t = await getTranslations("competitions.list");
+  return (
+    <output className="mt-8 block">
+      <span className="sr-only">{t("loading")}</span>
+      <span
+        aria-hidden="true"
+        className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="block h-96 rounded-3xl border-2 border-border bg-surface-muted motion-safe:animate-pulse"
+          />
+        ))}
+      </span>
+    </output>
+  );
+}
+
 export default async function Page() {
   const t = await getTranslations("competitions");
-  // Never drafts; samples only off production (owner decision 1).
-  const list = getSampleCompetitions().filter((c) => c.status !== "DRAFT");
 
   return (
     <>
@@ -107,68 +198,14 @@ export default async function Page() {
         hue={HUE}
         className="scroll-mt-24"
       >
-        <SectionHeading
-          id="open-title"
-          title={t("list.title")}
-          lead={list.length > 0 ? t("list.lead") : undefined}
-        />
-        {list.length > 0 ? (
-          <CompetitionFilters className="mt-8">
-            <p className="mt-6 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-              <SampleTag />
-              {t("list.sampleNote")}
-            </p>
-            <ul className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {list.map((c) => {
-                const tokens = filterTokens(c);
-                return (
-                  <li
-                    key={c.slug}
-                    className={`${cardClass} flex`}
-                    data-status={tokens.status}
-                    data-disciplines={tokens.disciplines}
-                    data-ages={tokens.ages}
-                  >
-                    <CompetitionCard competition={c} className="w-full" />
-                  </li>
-                );
-              })}
-              <li className="flex">
-                <div className="flex w-full flex-col justify-between gap-6 rounded-3xl border-2 border-dashed border-border-strong p-6">
-                  <div>
-                    <div aria-hidden="true" className="flex gap-1.5">
-                      <TileMarker hue="pink" />
-                      <TileMarker hue="yellow" />
-                      <TileMarker hue="teal" />
-                    </div>
-                    <h3 className="mt-4 text-h4 leading-tight">
-                      {t("endCard.title")}
-                    </h3>
-                    <p className="mt-3 text-ink-muted">{t("endCard.body")}</p>
-                  </div>
-                  <SiteLink
-                    href={ROUTES.contact.path}
-                    className="inline-flex min-h-11 items-center self-start font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover"
-                  >
-                    {t("endCard.link")}
-                  </SiteLink>
-                </div>
-              </li>
-            </ul>
-          </CompetitionFilters>
-        ) : (
-          <ExplainState
-            title={t("empty.title")}
-            back={{ href: ROUTES.contact.path, label: t("empty.back") }}
-            className="mt-8 max-w-2xl"
-          >
-            <p>{t("empty.body")}</p>
-          </ExplainState>
-        )}
+        <SectionHeading id="open-title" title={t("list.title")} />
+        <Suspense fallback={<OpenCompetitionsFallback />}>
+          <OpenCompetitions />
+        </Suspense>
       </Section>
 
       <Section labelledBy="own-title" hue={HUE} tone="tint">
-        <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-14">
           <div>
             <SectionHeading
               id="own-title"

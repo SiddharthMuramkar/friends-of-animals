@@ -17,6 +17,8 @@ import {
 export type CreditPerson = {
   firstName: string;
   lastName: string;
+  /** The whole stored name, when available, for adult credit. */
+  fullName?: string;
   schoolName?: string | null;
   city?: string | null;
   /**
@@ -42,7 +44,7 @@ export function resolvePublicCredit(
   if (!permission.allowed) return null;
   const name = person.minor
     ? firstNameAndInitial(person.firstName, person.lastName)
-    : tidy(`${person.firstName} ${person.lastName}`);
+    : tidy(person.fullName ?? `${person.firstName} ${person.lastName}`);
   if (!name) return null;
   const credit: PublicCredit = { name };
   const school = present(person.schoolName);
@@ -50,6 +52,22 @@ export function resolvePublicCredit(
   const city = present(person.city);
   if (city && permission.showCity) credit.city = city;
   return credit;
+}
+
+/**
+ * A profile keeps one full name (#75, #81): its first word is the first
+ * name and its last word the surname. Middle names are left out of both,
+ * so a minor's credit never shows more than first name and initial.
+ */
+export function nameParts(fullName: string): {
+  firstName: string;
+  lastName: string;
+} {
+  const words = tidy(fullName).split(" ").filter(Boolean);
+  return {
+    firstName: words[0] ?? "",
+    lastName: words.length > 1 ? words[words.length - 1]! : "",
+  };
 }
 
 const graphemes = new Intl.Segmenter("en-IN", { granularity: "grapheme" });
