@@ -96,6 +96,27 @@ const CONSENT_RECORD = {
   toConfirm: true,
 } as const;
 
+const ENTRY_RECORD = {
+  period: "3 years after the competition ends (HR-31)",
+  basis:
+    "Lets participants and FOA find the submitted work, resolve questions and review judging or upload history",
+  toConfirm: true,
+} as const;
+
+const ENTRY_MEDIA = {
+  period: "Until 90 days after the competition ends (HR-31)",
+  basis:
+    "Keeps private originals for processing and metadata-stripped copies for review and appeals",
+  toConfirm: true,
+} as const;
+
+const ENTRY_UPLOAD_GRANT = {
+  period:
+    "Until the upload URL expires after 10 minutes and cleanup runs (HR-31)",
+  basis: "Confirms and rate-limits uploads and removes unused staged data",
+  toConfirm: true,
+} as const;
+
 const SIGNED_FORM_RECORD = {
   period:
     "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure (HR-31)",
@@ -153,6 +174,153 @@ const WHILE_STUDENT_TAKES_PART = {
 } as const;
 
 export const DATA_INVENTORY: readonly InventoryEntry[] = [
+  {
+    table: "entry",
+    column: "code",
+    purpose: "Identifies the work when a participant asks FOA about an entry",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "registration_id",
+    purpose: "Links the entry to its confirmed competition registration",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "participant_profile_id",
+    purpose:
+      "Links the work to the participant and the person authorised to view it",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "title",
+    purpose: "Displays the name the participant gave the work",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "description",
+    purpose: "Describes the work for the participant and authorised reviewers",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "statement",
+    purpose: "Lets the participant explain the work in their own words",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "created_by_user_id",
+    purpose: "Records which participant or guardian first uploaded the work",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_file",
+    column: "id",
+    purpose: "Identifies which upload attempt an entry notice is about",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_file",
+    column: "entry_id",
+    purpose: "Associates each upload attempt with the participant's entry",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_file",
+    column: "file_asset_id",
+    purpose:
+      "Links to privately stored artwork and the safe copies made from it",
+    retention: ENTRY_MEDIA,
+  },
+  {
+    table: "entry_file",
+    column: "uploaded_by_user_id",
+    purpose: "Records who uploaded each version of the work",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_file",
+    column: "pending_text",
+    purpose: "Keeps a replacement's proposed text with the image being checked",
+    retention: {
+      period: "Until the replacement passes, fails or is superseded (HR-31)",
+      basis:
+        "Publishes the text with its approved image and discards unused revisions",
+      toConfirm: true,
+    },
+  },
+  {
+    table: "entry_file",
+    column: "receipt_title",
+    purpose:
+      "Keeps the adult participant's receipt tied to the submitted title",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_upload_grant",
+    column: "file_asset_id",
+    purpose: "Associates the short-lived grant with the uploader's staged file",
+    retention: ENTRY_UPLOAD_GRANT,
+  },
+  {
+    table: "entry_upload_grant",
+    column: "registration_id",
+    purpose: "Limits the grant to the authorised registration",
+    retention: ENTRY_UPLOAD_GRANT,
+  },
+  {
+    table: "entry_upload_grant",
+    column: "upload_key",
+    purpose: "Locates the staged object to clear when the grant expires",
+    retention: ENTRY_UPLOAD_GRANT,
+  },
+  {
+    table: "entry_transition",
+    column: "entry_id",
+    purpose: "Associates a change in status with the participant's entry",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_transition",
+    column: "entry_file_id",
+    purpose: "Shows which upload caused a change in the entry's status",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_transition",
+    column: "actor_user_id",
+    purpose: "Records which user acted when the entry changed status",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "file_asset",
+    column: "owner_user_id",
+    purpose: "Identifies who owns an uploaded file, including an entry image",
+    retention: ENTRY_MEDIA,
+  },
+  {
+    table: "file_asset",
+    column: "storage_key",
+    purpose:
+      "Locates an entry's private original, including quarantined uploads",
+    retention: ENTRY_MEDIA,
+  },
+  {
+    table: "file_derivative",
+    column: "file_asset_id",
+    purpose: "Links a metadata-stripped copy to the uploaded file it came from",
+    retention: ENTRY_MEDIA,
+  },
+  {
+    table: "file_derivative",
+    column: "storage_key",
+    purpose: "Locates a metadata-stripped copy used to show a live entry image",
+    retention: ENTRY_MEDIA,
+  },
   {
     table: "consent_form",
     column: "file_asset_id",

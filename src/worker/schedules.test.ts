@@ -68,6 +68,7 @@ const deps = {
     keys: new Map([[1, randomBytes(32)]]),
   }),
   storage: new FakeStorage(clock),
+  files: { bucket: "local", keyPrefix: "local/" },
   scanner: new FakeMalwareScanner(),
   media: unconfiguredMedia,
   payments: unconfiguredPaymentGateway,

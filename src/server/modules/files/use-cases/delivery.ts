@@ -1,5 +1,8 @@
 // Delivering a file (#63).
 //
+//   getFileDownloadUrl({ fileId }) → the uploader; staff admins and super
+//                                    admins once the file is clean.
+//   Entry pictures are delivered by Entries as live derivatives.
 // Consent forms are available only to staff admins and super admins after
 // scanning. Other files also allow uploader access under the status gate.
 //

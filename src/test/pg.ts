@@ -30,6 +30,7 @@ import { CONTACT_RATE_LIMITS } from "@/server/modules/contact/domain/submission"
 import { CODE_REQUEST_LIMITS } from "@/server/identity/settings";
 import { proofOfWorkHumanCheck } from "@/server/modules/public-forms/proof-of-work-check";
 import { stampSession } from "@/server/modules/second-factor/session-factor";
+import { drainUntilIdle } from "@/server/outbox";
 import { createSeedBuilders, type SeedBuilders } from "@/server/seed";
 import { notLocal } from "@/server/seed/target";
 
@@ -74,6 +75,8 @@ export function createPgWorld() {
   const db = drizzle(client, { schema });
   const clock = new FakeClock(new Date());
   const gateway = new FakePaymentGateway();
+  const storage = new FakeStorage(clock);
+  const media = new FakeMediaProcessor();
   const deps = {
     appEnv: "local",
     db,
@@ -88,11 +91,11 @@ export function createPgWorld() {
     }),
     blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
     settings: new TestSettings({ db, clock }),
-    storage: new FakeStorage(clock),
+    storage,
     files: TEST_FILES,
     errors: new FakeErrorReporter(),
     scanner: new FakeMalwareScanner(),
-    media: new FakeMediaProcessor(),
+    media,
     humanCheck: proofOfWorkHumanCheck({
       secret: TEST_AUTH.secret,
       difficulty: TEST_HUMAN_CHECK_DIFFICULTY,
@@ -111,6 +114,9 @@ export function createPgWorld() {
     clock,
     gateway,
     seed,
+    storage,
+    media,
+    drain: () => drainUntilIdle(deps, { queue: "all" }),
     as: (actor: Actor): UseCases => app.as(actor),
     /** An address no other test in the shared database uses. */
     uniqueEmail: () => `pg-${randomUUID()}@example.test`,

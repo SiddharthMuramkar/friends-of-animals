@@ -397,6 +397,7 @@ describe("the worker's malware scan settings", () => {
     });
 
     expect(config.r2).toEqual({
+      bucket: "foa-files",
       accountId: R2.R2_ACCOUNT_ID,
       accessKeyId: R2.R2_ACCESS_KEY_ID,
       secretAccessKey: R2.R2_SECRET_ACCESS_KEY,

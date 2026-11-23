@@ -15,14 +15,15 @@ export const FILE_PURPOSES = [
   "cms_image",
   "offline_payment_proof",
   "consent_form",
+  "entry_image",
 ] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
 
 /**
- * Types the platform will store and serve back. HTML, SVG and other active
- * content are never on this list: a signed URL would serve them from the
- * storage origin.
+ * Types that can be opened as stored. HTML, SVG and other active content
+ * are never on this list: a signed URL would serve them from the storage
+ * origin.
  */
 export const STORABLE_CONTENT_TYPES = [
   "image/png",
@@ -34,7 +35,8 @@ export const STORABLE_CONTENT_TYPES = [
 export type StorableContentType = (typeof STORABLE_CONTENT_TYPES)[number];
 
 export type PurposeRule = {
-  contentTypes: readonly StorableContentType[];
+  /** HEIC and HEIF originals are accepted for private processing. */
+  contentTypes: readonly (StorableContentType | "image/heic" | "image/heif")[];
   maxBytes: number;
   /** `non_production`: refused when APP_ENV is production. */
   environments: "all" | "non_production";
@@ -46,7 +48,7 @@ export type PurposeRule = {
   directUpload: boolean;
 };
 
-export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
+export const PURPOSE_RULES = {
   /** The signed-in demo page and the Seam 2 round trip. */
   test_upload: {
     contentTypes: STORABLE_CONTENT_TYPES,
@@ -77,6 +79,24 @@ export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
     environments: "all",
     directUpload: false,
   },
+  /**
+   * A participant's picture of their work, or a scan of it (#85). Only
+   * `startEntryUpload` presigns one, after the entry's own rules
+   * (src/server/modules/entries/rules.ts); the original stays private and
+   * people see its derivatives.
+   */
+  entry_image: {
+    contentTypes: [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/heic",
+      "image/heif",
+    ],
+    maxBytes: 20 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
   /** A private scan of a guardian’s signed consent form (#83). */
   consent_form: {
     contentTypes: ["application/pdf", "image/jpeg", "image/png"],
@@ -84,7 +104,7 @@ export const PURPOSE_RULES: Record<FilePurpose, PurposeRule> = {
     environments: "non_production",
     directUpload: false,
   },
-};
+} satisfies Record<FilePurpose, PurposeRule>;
 
 export type UploadRefusal =
   | "purpose_unavailable"
@@ -104,10 +124,7 @@ export function normaliseContentType(contentType: string): string {
   return contentType.trim().toLowerCase();
 }
 
-function isStorable(
-  rule: PurposeRule,
-  contentType: string
-): contentType is StorableContentType {
+function isStorable(rule: PurposeRule, contentType: string): boolean {
   return (rule.contentTypes as readonly string[]).includes(
     normaliseContentType(contentType)
   );
