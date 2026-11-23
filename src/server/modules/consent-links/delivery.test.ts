@@ -33,9 +33,7 @@ it("delivers the seeded guardian link and direct code using the message catalogu
   });
   const url = new URL(`/consent/${token}`, h.deps.auth.baseUrl).href;
   expect(linkMail?.subject).toBe(link.email.subject);
-  expect(linkMail?.text === link.email.text.replace("{{link}}", url)).toBe(
-    true
-  );
+  expect(linkMail?.text === link.email.text.replace("{link}", url)).toBe(true);
   expect(codeMail?.subject).toBe(codeWords("subject"));
   expect(codeMail?.text === codeWords("text", { code, minutes: 10 })).toBe(
     true

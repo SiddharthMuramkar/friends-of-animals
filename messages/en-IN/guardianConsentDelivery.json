@@ -3,10 +3,10 @@
     "link": {
       "email": {
         "subject": "Review a guardian consent request",
-        "text": "Your school has asked you to review consent choices for a competition. To view the request and verify with a one-time code, open {{link}}. The link expires in seven days.\n\nFriends of Animals"
+        "text": "Your school has asked you to review consent choices for a competition. To view the request and verify with a one-time code, open {link}. The link expires in seven days.\n\nFriends of Animals"
       },
       "sms": {
-        "text": "Friends of Animals: Review a guardian consent request at {{link}}. This link expires in seven days."
+        "text": "Friends of Animals: Review a guardian consent request at {link}. This link expires in seven days."
       }
     },
     "code": {
