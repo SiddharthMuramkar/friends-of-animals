@@ -274,6 +274,47 @@ it("lets concurrent recordings claim the same settled provider refund only once"
   });
 });
 
+it("holds and releases both registrations of a one-paise whole-batch request", async () => {
+  const { batch, studentIds } = await reviewedBatch("FXCOVR26", "INR", 1n);
+  const admin = await staff("staff_admin");
+  const finance = await staff("finance");
+  const ask = () => admin.requestRefund({ batchId: batch.id, reason: REASON });
+  const [zeroShare] = studentIds;
+
+  const { requests } = await world.sql.begin(async (blocker) => {
+    await blocker`select id from payment_batch where id = ${batch.id} for update`;
+    const requests = Promise.all([ask(), ask()]);
+    requests.catch(() => {});
+    await world.waitForLockWaiters(2);
+    return { requests };
+  });
+  const outcomes = await requests;
+  expect(outcomes).toHaveLength(2);
+  expect(outcomes).toContainEqual({ ok: false, error: "nothing_to_refund" });
+  const held = outcomes.find((result) => result.ok);
+  if (!held) throw new Error("Refund request was refused");
+  expect(held).toMatchObject({ amountMinor: 1n, registrationIds: studentIds });
+  expect(
+    await admin.requestRefund({
+      batchId: batch.id,
+      registrationIds: [zeroShare!],
+      reason: REASON,
+    })
+  ).toEqual({
+    ok: false,
+    error: "item_in_live_refund",
+    registrationId: zeroShare,
+  });
+  expect(
+    await finance.rejectRefund({ refundId: held.refundId, note: REASON })
+  ).toEqual({ ok: true, status: "rejected" });
+  expect(await ask()).toMatchObject({
+    ok: true,
+    amountMinor: 1n,
+    registrationIds: studentIds,
+  });
+});
+
 it("rolls back the whole request and names the student claimed by another transaction", async () => {
   const {
     batch,

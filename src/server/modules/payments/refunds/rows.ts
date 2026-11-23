@@ -74,7 +74,10 @@ type RefundableCapture =
 /** The refundable amount and allocation for every registration the batch holds. */
 export async function refundableBatch(
   db: AppDb,
-  batch: Pick<PaymentBatchRow, "id" | "status" | "amountMinor">
+  batch: Pick<
+    PaymentBatchRow,
+    "id" | "status" | "amountMinor" | "gatewayPaymentId" | "captureMethod"
+  >
 ): Promise<RefundableCapture> {
   const captured = batch.status === "captured";
   const [receipt] = captured
@@ -105,59 +108,77 @@ export async function refundableBatch(
       )
     )
     .orderBy(asc(paymentBatchItem.registrationId));
-  const againstCapture = or(
-    eq(refund.gatewayPaymentId, paymentBatch.gatewayPaymentId),
-    and(
-      eq(paymentBatch.captureMethod, "offline"),
-      eq(refund.method, "manual"),
-      ne(refund.kind, "duplicate")
-    )
-  );
+  const againstCapture =
+    or(
+      batch.gatewayPaymentId === null
+        ? undefined
+        : eq(refund.gatewayPaymentId, batch.gatewayPaymentId),
+      batch.captureMethod === "offline"
+        ? and(eq(refund.method, "manual"), ne(refund.kind, "duplicate"))
+        : undefined
+    ) ?? sql`false`;
+  const notRejected = sql`${refund.status} <> 'rejected'`;
   // Use one snapshot for holds and committed amounts. A concurrent rejection
   // releases both together, so the allocation must observe both or neither.
-  const commitments = await db
+  const committed = db
     .select({
-      id: refund.id,
-      status: refund.status,
-      amountMinor: refund.amountMinor,
-      againstCapture: sql<boolean>`coalesce(${againstCapture}, false)`,
-      held: {
-        registrationId: refundItem.registrationId,
-        amountMinor: refundItem.amountMinor,
-      },
+      amountMinor: sql`coalesce(sum(${refund.amountMinor}), 0)`
+        .mapWith(BigInt)
+        .as("committed_minor"),
     })
     .from(refund)
-    .innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
-    .leftJoin(
-      refundItem,
+    .where(and(eq(refund.batchId, batch.id), notRejected, againstCapture))
+    .as("committed");
+  const liveItems = db
+    .select({
+      registrationId: refundItem.registrationId,
+      amountMinor: refundItem.amountMinor,
+      status: refund.status,
+    })
+    .from(refundItem)
+    .innerJoin(
+      refund,
       and(
-        eq(refundItem.refundId, refund.id),
-        eq(refundItem.batchId, refund.batchId),
-        isNull(refundItem.releasedAt)
+        eq(refund.id, refundItem.refundId),
+        eq(refundItem.batchId, refund.batchId)
       )
     )
-    .where(eq(refund.batchId, batch.id));
+    .where(and(eq(refundItem.batchId, batch.id), isNull(refundItem.releasedAt)))
+    .unionAll(
+      db
+        .select({
+          registrationId: sql<string>`unnest(${refund.zeroShareRegistrationIds})`,
+          amountMinor: sql<bigint>`0::bigint`,
+          status: refund.status,
+        })
+        .from(refund)
+        .where(
+          and(
+            eq(refund.batchId, batch.id),
+            notRejected,
+            sql`cardinality(${refund.zeroShareRegistrationIds}) > 0`
+          )
+        )
+    )
+    .as("live_items");
+  const commitments = await db
+    .select({
+      committedMinor: committed.amountMinor,
+      held: {
+        registrationId: liveItems.registrationId,
+        amountMinor: liveItems.amountMinor,
+        status: liveItems.status,
+      },
+    })
+    .from(committed)
+    .leftJoin(liveItems, sql`true`);
   const holds = new Map<
     string,
     { amountMinor: bigint; status: RefundRow["status"] }
   >();
-  const counted = new Set<string>();
-  let committedMinor = 0n;
-  for (const row of commitments) {
-    if (row.held) {
-      holds.set(row.held.registrationId, {
-        amountMinor: row.held.amountMinor,
-        status: row.status,
-      });
-    }
-    if (
-      row.againstCapture &&
-      row.status !== "rejected" &&
-      !counted.has(row.id)
-    ) {
-      committedMinor += row.amountMinor;
-      counted.add(row.id);
-    }
+  const committedMinor = commitments[0]?.committedMinor ?? 0n;
+  for (const { held } of commitments) {
+    if (held) holds.set(held.registrationId, held);
   }
   const allocations = items.map((item) => ({
     ...item,
@@ -252,6 +273,14 @@ export async function refundRegistrations(
               eq(refundItem.refundId, source.refundId),
               isNull(refundItem.releasedAt)
             )
+          )
+          .unionAll(
+            tx
+              .select({
+                id: sql<string>`unnest(${refund.zeroShareRegistrationIds})`,
+              })
+              .from(refund)
+              .where(eq(refund.id, source.refundId))
           )
       : tx
           .select({ id: paymentBatchItem.registrationId })

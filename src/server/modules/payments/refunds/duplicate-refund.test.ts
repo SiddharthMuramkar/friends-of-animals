@@ -232,13 +232,16 @@ describe("resolving a payment in review with a refund", () => {
 
     const caseId = opened!.id;
     const recording = { caseId, reference: " rfnd_dashboard " };
+    const providerLookups = vi.spyOn(h.gateway, "fetchRefunds");
     await expect(
       h.as(school.coordinator.actor).recordDashboardRefund(recording)
     ).rejects.toMatchObject({ code: "forbidden" });
+    expect(providerLookups).not.toHaveBeenCalled();
     h.clock.advance({ minutes: 11 });
     await expect(
       h.as(finance.actor).recordDashboardRefund(recording)
     ).rejects.toMatchObject({ code: "step_up_required" });
+    expect(providerLookups).not.toHaveBeenCalled();
     await h.passSecondFactor(finance.actor);
     const providerRefund = {
       id: "rfnd_dashboard",

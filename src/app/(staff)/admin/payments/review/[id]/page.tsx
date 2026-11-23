@@ -3,7 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { FormAlert, SubmitButton, TextField } from "@/components/form";
+import { FormAlert, SubmitButton } from "@/components/form";
 import { ButtonLink } from "@/components/site/button-link";
 import { Chip } from "@/components/site/chip";
 import { ExplainState } from "@/components/site/explain-state";
@@ -36,6 +36,7 @@ import {
   type ResolveFormLabels,
 } from "../../_components/resolve-form";
 import { recordDashboardRefundAction } from "../../_lib/actions";
+import { DashboardRefundReference } from "./_components/dashboard-refund-reference";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("adminPayments.case.meta");
@@ -362,7 +363,7 @@ async function Resolved({
                 <p>{t("manualRefund.unexpected")}</p>
               </FormAlert>
             ) : null}
-            <TextField
+            <DashboardRefundReference
               name="reference"
               id="dashboard-refund-reference"
               label={t("manualRefund.reference")}

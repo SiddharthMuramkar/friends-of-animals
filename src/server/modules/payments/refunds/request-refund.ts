@@ -142,6 +142,21 @@ export async function requestRefund(
         );
         if (!plan.ok) return refusalOf(plan);
 
+        // A captured batch keeps its registrations. Under its lock, hold
+        // zero-share registrations for the whole-batch request as well.
+        const zeroShareRegistrationIds =
+          registrationIds === undefined
+            ? available.items
+                .filter(
+                  (item) => item.refund === "none" && item.amountMinor === 0n
+                )
+                .map((item) => item.id)
+            : [];
+        const coveredRegistrationIds =
+          zeroShareRegistrationIds.length === 0
+            ? plan.registrationIds
+            : [...plan.registrationIds, ...zeroShareRegistrationIds].sort();
+
         const now = ctx.clock.now();
         const refundId = uuidv7(now);
         const manual = batch.captureMethod === "offline";
@@ -154,6 +169,7 @@ export async function requestRefund(
           status,
           method: manual ? "manual" : "gateway",
           amountMinor: plan.amountMinor,
+          zeroShareRegistrationIds,
           currency: plan.currency,
           reason: reason.text ?? "",
           requestedBy,
@@ -198,7 +214,7 @@ export async function requestRefund(
               status,
               method: manual ? "manual" : "gateway",
               amountMinor: plan.amountMinor.toString(),
-              registrationIds: plan.registrationIds,
+              registrationIds: coveredRegistrationIds,
             },
           },
           role
@@ -207,7 +223,7 @@ export async function requestRefund(
           ok: true,
           refundId,
           amountMinor: plan.amountMinor,
-          registrationIds: plan.registrationIds,
+          registrationIds: coveredRegistrationIds,
         };
       }
     );

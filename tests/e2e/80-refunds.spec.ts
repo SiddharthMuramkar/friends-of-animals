@@ -279,6 +279,7 @@ test("staff reads a historical receipt and records its verified dashboard refund
     await expect(
       page.getByText(/Enter the reference for a processed refund/)
     ).toBeVisible();
+    await expect(reference).toBeFocused();
     await expect(page).toHaveTitle(/^Payment needing review ·/);
     await expectAccessible(page, "dashboard refund reference error");
 

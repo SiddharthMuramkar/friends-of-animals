@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { expect, it } from "vitest";
 
-import { paymentReviewCase } from "@/server/db/schema";
+import { createApp } from "@/server/app";
+import * as schema from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
 import {
@@ -42,14 +44,15 @@ async function acceptedReceipt(
   const [receipt] = await reviewCasesOf(h, batchId);
   if (!receipt) throw new Error("Missing payment review case");
   const finance = h.as((await signInStaff(h, "finance")).actor);
-  const staff = h.as((await signInStaff(h, "staff_admin")).actor);
+  const staffActor = (await signInStaff(h, "staff_admin")).actor;
+  const staff = h.as(staffActor);
 
   // Reproduce a capture that finance could confirm before the INR guard.
   const setReceiptCurrency = (currency: string) =>
     h.db
-      .update(paymentReviewCase)
+      .update(schema.paymentReviewCase)
       .set({ currency })
-      .where(eq(paymentReviewCase.id, receipt.id));
+      .where(eq(schema.paymentReviewCase.id, receipt.id));
   if (currency !== "INR") await setReceiptCurrency("INR");
   expect(
     await finance.resolvePaymentReviewCase({
@@ -59,7 +62,16 @@ async function acceptedReceipt(
     })
   ).toEqual({ ok: true, batchStatus: "captured" });
   if (currency !== "INR") await setReceiptCurrency(currency);
-  return { batchId, orderId, paymentId, school, receipt, finance, staff };
+  return {
+    batchId,
+    orderId,
+    paymentId,
+    school,
+    receipt,
+    finance,
+    staff,
+    staffActor,
+  };
 }
 
 it("shows an accepted historical receipt in its currency and refuses a discretionary payout", async () => {
@@ -155,17 +167,24 @@ it.each([
   "allocates a reviewed INR capture of $amountMinor minor units with positive refund items",
   async ({ amountMinor, shares }) => {
     const h = await createHarness();
-    const { batchId, paymentId, finance, staff } = await acceptedReceipt(
-      h,
-      amountMinor,
-      "INR"
-    );
+    const { batchId, paymentId, finance, staff, school } =
+      await acceptedReceipt(h, amountMinor, "INR");
+    const registrationIds = [...school.registrationIds].sort();
     const request = await staff.requestRefund({ batchId, reason: REASON });
-    expect(request).toMatchObject({ ok: true, amountMinor });
+    expect(request).toMatchObject({ ok: true, amountMinor, registrationIds });
     if (!request.ok) throw new Error("Refund request was refused");
     expect(
       (await refundItemsOf(h, request.refundId)).map((item) => item.amountMinor)
     ).toEqual(shares);
+    expect(
+      await finance.getRefund({ refundId: request.refundId })
+    ).toMatchObject({
+      ok: true,
+      refund: {
+        students: 2,
+        items: registrationIds.map((registrationId) => ({ registrationId })),
+      },
+    });
     expect(await finance.approveRefund({ refundId: request.refundId })).toEqual(
       { ok: true, status: "approved" }
     );
@@ -174,12 +193,84 @@ it.each([
     expect(h.gateway.refunds).toEqual([
       expect.objectContaining({ paymentId, amountMinor, currency: "INR" }),
     ]);
+    expect(await statusesOf(h, school.registrationIds)).toEqual([
+      "refunded",
+      "refunded",
+    ]);
+    expect(
+      await staff.requestRefund({
+        batchId,
+        registrationIds: [registrationIds[0]!],
+        reason: REASON,
+      })
+    ).toEqual({
+      ok: false,
+      error: "item_already_refunded",
+      registrationId: registrationIds[0],
+    });
     expect(await staff.requestRefund({ batchId, reason: REASON })).toEqual({
       ok: false,
       error: "nothing_to_refund",
     });
   }
 );
+
+it("reads only live holds and the committed total when requesting a refund with rejected history", async () => {
+  const h = await createHarness();
+  const { batchId, school, finance, staff, staffActor } = await acceptedReceipt(
+    h,
+    40_001n,
+    "INR"
+  );
+  const [first, second] = [...school.registrationIds].sort();
+  for (let i = 0; i < 6; i++) {
+    const asked = await staff.requestRefund({ batchId, reason: REASON });
+    if (!asked.ok) throw new Error("Refund request was refused");
+    expect(
+      await finance.rejectRefund({ refundId: asked.refundId, note: REASON })
+    ).toEqual({ ok: true, status: "rejected" });
+  }
+  const held = { batchId, registrationIds: [first!], reason: REASON };
+  expect(await staff.requestRefund(held)).toMatchObject({
+    ok: true,
+    amountMinor: 20_000n,
+  });
+
+  const reads: { statement: string; params: unknown[] }[] = [];
+  const db = drizzle({
+    client: h.db.$client,
+    schema,
+    logger: {
+      logQuery(statement, params) {
+        if (
+          /^(select|with)\b/i.test(statement) &&
+          /"refund(?:_item)?"/.test(statement)
+        ) {
+          reads.push({ statement, params });
+        }
+      },
+    },
+  });
+  expect(
+    await createApp({ ...h.deps, db })
+      .as(staffActor)
+      .requestRefund(held)
+  ).toEqual({ ok: false, error: "item_in_live_refund", registrationId: first });
+  expect(reads).toHaveLength(1);
+  const { statement, params } = reads[0]!;
+  // The refused request left the same snapshot in place. Measure the result
+  // size of its actual query, independent of timings on the test host.
+  const result = await db.$client.query(statement, params);
+  expect(result.rows.length).toBeLessThanOrEqual(2);
+
+  expect(
+    await staff.requestRefund({
+      batchId,
+      registrationIds: [second!],
+      reason: REASON,
+    })
+  ).toMatchObject({ ok: true, amountMinor: 20_001n });
+});
 
 it("does not send a queued INR approval against a historical foreign-currency receipt", async () => {
   const h = await createHarness();
@@ -190,9 +281,9 @@ it("does not send a queued INR approval against a historical foreign-currency re
   );
   const setReceiptCurrency = (currency: string) =>
     h.db
-      .update(paymentReviewCase)
+      .update(schema.paymentReviewCase)
       .set({ currency })
-      .where(eq(paymentReviewCase.id, receipt.id));
+      .where(eq(schema.paymentReviewCase.id, receipt.id));
   await setReceiptCurrency("INR");
   const asked = await staff.requestRefund({ batchId, reason: REASON });
   if (!asked.ok) throw new Error("Missing legacy approval to replay");

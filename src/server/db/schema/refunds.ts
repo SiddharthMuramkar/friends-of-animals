@@ -79,6 +79,11 @@ export const refund = pgTable(
     method: refundMethodEnum().notNull(),
     /** Paise, a bigint end to end (#55). */
     amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    /** Registrations covered by a whole-batch refund with no paise allocated. */
+    zeroShareRegistrationIds: uuid("zero_share_registration_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     currency: char({ length: 3 }).notNull().default("INR"),
     /** Why it is refunded: the requester's words, or the system's. */
     reason: text().notNull(),
@@ -159,6 +164,14 @@ export const refund = pgTable(
       sql`(${table.kind} = 'duplicate') = (${table.reviewCaseId} IS NOT NULL)`
     ),
     index("refund_batch_id_idx").on(table.batchId),
+    index("refund_committed_capture_idx")
+      .on(table.batchId, table.gatewayPaymentId)
+      .where(sql`${table.status} <> 'rejected'`),
+    index("refund_live_zero_share_batch_idx")
+      .on(table.batchId)
+      .where(
+        sql`${table.status} <> 'rejected' AND cardinality(${table.zeroShareRegistrationIds}) > 0`
+      ),
     index("refund_status_requested_at_idx").on(table.status, table.requestedAt),
     index("refund_requested_at_idx").on(table.requestedAt),
     index("refund_gateway_payment_id_idx").on(table.gatewayPaymentId),
@@ -211,6 +224,9 @@ export const refundItem = pgTable(
       table.batchId,
       table.registrationId
     ),
+    index("refund_item_live_batch_idx")
+      .on(table.batchId)
+      .where(sql`${table.releasedAt} IS NULL`),
     check("refund_item_amount_positive", sql`${table.amountMinor} > 0`),
   ]
 );

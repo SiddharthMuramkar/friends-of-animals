@@ -12,7 +12,7 @@
 // finance matches money, not children (as #79's batch page does). The
 // requester's reason and finance's note are on the refund's own page only.
 
-import { and, asc, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -185,6 +185,7 @@ const LIST_COLUMNS = {
   competitionName: competition.name,
   institutionName: institution.name,
   payerName: payerUser.name,
+  zeroShareCount: sql<number>`cardinality(${refund.zeroShareRegistrationIds})`,
 };
 
 function listQuery(ctx: UseCaseContext) {
@@ -239,7 +240,7 @@ export async function listRefunds(
       requestedAt: row.requestedAt,
       payer: payerOf(row),
       competitionName: row.competitionName,
-      students: students.get(row.id) ?? 0,
+      students: (students.get(row.id) ?? 0) + row.zeroShareCount,
     })),
   };
 }
@@ -283,6 +284,7 @@ export async function getRefund(
       manualMethod: refund.manualMethod,
       manualReference: refund.manualReference,
       reviewCaseId: refund.reviewCaseId,
+      zeroShareRegistrationIds: refund.zeroShareRegistrationIds,
       batchAmountMinor: paymentBatch.amountMinor,
       batchCurrency: paymentBatch.currency,
       acceptedReceipt: {
@@ -317,6 +319,24 @@ export async function getRefund(
     .innerJoin(registration, eq(registration.id, refundItem.registrationId))
     .where(eq(refundItem.refundId, row.id))
     .orderBy(asc(refundItem.registrationId));
+  if (row.zeroShareRegistrationIds.length > 0) {
+    const covered = await ctx.db
+      .select({
+        registrationId: registration.id,
+        registrationNumber: registration.registrationNumber,
+        status: registration.status,
+      })
+      .from(registration)
+      .where(inArray(registration.id, row.zeroShareRegistrationIds));
+    items.push(
+      ...covered.map((item) => ({
+        ...item,
+        amountMinor: 0n,
+        releasedAt: row.status === "rejected" ? row.decidedAt : null,
+      }))
+    );
+    items.sort((a, b) => a.registrationId.localeCompare(b.registrationId));
+  }
   // Holding finance, whatever their second factor's age: the page then
   // offers the decision, and the use case asks for a fresh one.
   const decision = await can(ctx, "refunds.decide", resource);
@@ -386,6 +406,7 @@ export async function getRefundableBatch(
       id: paymentBatch.id,
       status: paymentBatch.status,
       captureMethod: paymentBatch.captureMethod,
+      gatewayPaymentId: paymentBatch.gatewayPaymentId,
       amountMinor: paymentBatch.amountMinor,
       competitionName: competition.name,
       institutionName: institution.name,

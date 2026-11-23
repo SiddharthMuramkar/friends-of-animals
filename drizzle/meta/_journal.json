@@ -414,6 +414,13 @@
       "when": 1795425897016,
       "tag": "0058_80_payment_refund_proof",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1795429121948,
+      "tag": "0059_80_refund_coverage",
+      "breakpoints": true
     }
   ]
 }
