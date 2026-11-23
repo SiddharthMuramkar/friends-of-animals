@@ -213,6 +213,27 @@ describe("the data inventory", () => {
     }
   });
 
+  it("keeps consent-link contacts for 90 days and answers with the evidence record", () => {
+    for (const column of ["contact_ciphertext", "contact_hash"]) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === "consent_link" && each.column === column
+      );
+      expect(entry?.retention.period).toMatch(/^90 days after/);
+      expect(entry?.retention.toConfirm).toBe(true);
+    }
+    for (const [table, column] of [
+      ["consent_link", "answers"],
+      ["consent_event", "giver_contact_hash"],
+      ["consent_event", "consent_link_id"],
+    ]) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === table && each.column === column
+      );
+      expect(entry?.retention.period).toMatch(/consent applies, then 3 years/);
+      expect(entry?.retention.toConfirm).toBe(true);
+    }
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>

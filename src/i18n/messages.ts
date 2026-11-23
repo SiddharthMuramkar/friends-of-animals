@@ -34,6 +34,9 @@ import consent from "../../messages/en-IN/consent.json";
 import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import competitionStatus from "../../messages/en-IN/competitionStatus.json";
 import contact from "../../messages/en-IN/contact.json";
+import coordinatorConsents from "../../messages/en-IN/coordinatorConsents.json";
+import guardianConsent from "../../messages/en-IN/guardianConsent.json";
+import guardianConsentDelivery from "../../messages/en-IN/guardianConsentDelivery.json";
 import coordinators from "../../messages/en-IN/coordinators.json";
 import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
@@ -101,6 +104,9 @@ export const NAMESPACES = [
   "competitionStatus",
   "contact",
   "coordinators",
+  "coordinatorConsents",
+  "guardianConsent",
+  "guardianConsentDelivery",
   "contactForm",
   "credits",
   "dashboard",
@@ -171,6 +177,9 @@ export const messages = {
   ...competitionStatus,
   ...contact,
   ...coordinators,
+  ...coordinatorConsents,
+  ...guardianConsent,
+  ...guardianConsentDelivery,
   ...contactForm,
   ...credits,
   ...dashboard,

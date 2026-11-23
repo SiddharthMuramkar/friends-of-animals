@@ -128,6 +128,15 @@ export function institutionRegistrationPath(
   return `/institution/registrations/${encodeURIComponent(reference)}?${query.toString()}`;
 }
 
+/** A school's consent dashboard, behind sign-in. */
+export function studentConsentsPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/consents?${query.toString()}`;
+}
+
 /** Where a coordinator adds a student to a registration (#75). */
 export function newStudentPath(
   reference: string,
@@ -250,6 +259,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/payments/batches/[id]/refund",
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
+  "/institution/registrations/[ref]/consents",
   "/institution/registrations/[ref]/students/new",
   "/institution/registrations/[ref]/import",
   "/institution/registrations/[ref]/import/template.csv",
@@ -361,4 +371,14 @@ export function isNonProductionPath(pathname: string): boolean {
   return NON_PRODUCTION_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
+}
+
+export const CONSENT_LINK_PREFIX = "/consent";
+
+export function consentLinkPath(token: string): string {
+  return `${CONSENT_LINK_PREFIX}/${encodeURIComponent(token)}`;
+}
+
+export function isConsentLinkPage(pathname: string): boolean {
+  return fitsTemplate(pathname, `${CONSENT_LINK_PREFIX}/[token]`);
 }
