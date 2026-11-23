@@ -564,6 +564,53 @@ describe("the shared preview worker", () => {
     }
   );
 
+  it("refuses a delayed staging sweep before deleting anything for an unmapped preview database", async () => {
+    const h = await createHarness();
+    const database = "foa_pr_1";
+    const bucket = "preview-files";
+    const fileId = uuidv7(h.clock.now());
+    const deleteObject = vi.spyOn(h.storage, "delete");
+    await emit(h.db, h.clock, {
+      type: "entry.sweep_staged_upload",
+      aggregate: { type: "file_asset", id: fileId },
+      payload: { fileId },
+    });
+    const { io } = fakeIo(
+      { [database]: h.db },
+      [{ datname: database, comment: "foa-preview pr=1" }],
+      { clock: h.clock, storage: h.storage }
+    );
+    const worker = createWorker(
+      {
+        ...PREVIEW_CONFIG,
+        r2: {
+          accountId: "unused",
+          accessKeyId: "unused",
+          secretAccessKey: "unused",
+          bucket,
+        },
+      },
+      io
+    );
+    await worker.start();
+    try {
+      await worker.tick();
+      expect(deleteObject).not.toHaveBeenCalled();
+      const [sweep] = await h.db
+        .select()
+        .from(outbox)
+        .where(eq(outbox.aggregateId, fileId));
+      expect(sweep).toMatchObject({
+        handler: "entries.sweep_staged_upload",
+        status: "pending",
+        attempts: 1,
+        lastError: "Error: The database has no entry staging prefix",
+      });
+    } finally {
+      await worker.stop();
+    }
+  });
+
   it.each(["staging key", "original key", "bucket", "unknown prefix"])(
     "leaves both entry objects alone when primary expiry refuses the storage scope (%s)",
     async (mismatch) => {

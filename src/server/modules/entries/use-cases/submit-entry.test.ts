@@ -83,6 +83,32 @@ describe("startEntryUpload and completeEntryUpload", () => {
     ]);
   });
 
+  it("completes the participant's JPEG using the same uppercase registration UUID at start and completion", async () => {
+    const h = await createHarness();
+    const asha = await confirmedAdult(h);
+    const uppercaseId = asha.registrationId.toUpperCase();
+    expect(uppercaseId).not.toBe(asha.registrationId);
+
+    const completed = await submitImage(h, {
+      ...asha,
+      registrationId: uppercaseId,
+    });
+
+    expect(completed).toEqual({
+      ok: true,
+      entryCode: expect.stringMatching(ENTRY_ID),
+      status: "processing",
+    });
+    if (!completed.ok) return;
+    expect(await h.as(asha.actor).listMyEntries()).toMatchObject([
+      {
+        code: completed.entryCode,
+        registrationId: asha.registrationId,
+        status: "processing",
+      },
+    ]);
+  });
+
   it("presigns the picture as a private entry image of the declared type and size", async () => {
     const h = await createHarness();
     const asha = await confirmedAdult(h);

@@ -78,7 +78,7 @@ export type StartEntryUploadResult =
   | { ok: false; error: EntryUploadRefusal };
 
 export const startEntryUploadInput = z.object({
-  registrationId: z.uuid(),
+  registrationId: z.uuid().transform((id) => id.toLowerCase()),
   replacesFileId: z.uuid().optional(),
   restartPendingUpload: z.boolean().optional(),
   discipline: z.string().max(40).optional(),

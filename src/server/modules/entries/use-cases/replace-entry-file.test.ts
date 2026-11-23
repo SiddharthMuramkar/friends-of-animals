@@ -464,62 +464,68 @@ describe("the submission deadline", () => {
     });
   });
 
-  it("restarts the uploader's pending replacement when its grant response was lost before close", async () => {
-    const h = await createHarness();
-    const asha = await confirmedAdult(h);
-    const code = await submittedImage(h, asha);
-    await h.drain();
-    const deadline = await closesAt(h, asha, code);
-    h.clock.set(new Date(deadline.getTime() - 30_000));
-    const app = h.as(asha.actor);
-    const registrationId = asha.registrationId;
-    const first = await app.startEntryUpload({
-      registrationId,
-      file: { name: "first.jpg", type: "image/jpeg", size: PHOTO.length },
-    });
-    if (!first.ok) throw new Error(first.error);
-
-    const file = {
-      name: "replacement.jpg",
-      type: "image/jpeg",
-      size: PORTRAIT.length,
-    };
-    const lost = await app.startEntryUpload({
-      registrationId,
-      replacesFileId: first.fileId,
-      file,
-    });
-    if (!lost.ok) throw new Error(lost.error);
-
-    const recovered = await app.startEntryUpload({
-      registrationId,
-      restartPendingUpload: true,
-      file,
-    });
-    if (!recovered.ok) throw new Error(recovered.error);
-    await expect(
-      app.completeEntryUpload({
+  it.each(["lowercase", "uppercase"])(
+    "restarts the uploader's pending replacement after a lost grant response using a registration UUID in %s",
+    async (letterCase) => {
+      const h = await createHarness();
+      const asha = await confirmedAdult(h);
+      const code = await submittedImage(h, asha);
+      await h.drain();
+      const deadline = await closesAt(h, asha, code);
+      h.clock.set(new Date(deadline.getTime() - 30_000));
+      const app = h.as(asha.actor);
+      const registrationId = asha.registrationId;
+      const first = await app.startEntryUpload({
         registrationId,
-        fileId: lost.fileId,
-        ...REPLACEMENT_TEXT,
-      })
-    ).resolves.toEqual({ ok: false, error: "file_not_found" });
-    expect(
-      await h.storage.put(recovered.uploadUrl, PORTRAIT, recovered.headers)
-    ).toEqual({ ok: true });
-    await expect(
-      app.completeEntryUpload({
+        file: { name: "first.jpg", type: "image/jpeg", size: PHOTO.length },
+      });
+      if (!first.ok) throw new Error(first.error);
+
+      const file = {
+        name: "replacement.jpg",
+        type: "image/jpeg",
+        size: PORTRAIT.length,
+      };
+      const lost = await app.startEntryUpload({
         registrationId,
-        fileId: recovered.fileId,
-        ...REPLACEMENT_TEXT,
-      })
-    ).resolves.toEqual({ ok: true, entryCode: code, status: "submitted" });
-    await h.drain();
-    expect(await app.getEntry({ code })).toMatchObject({
-      ok: true,
-      entry: { ...REPLACEMENT_TEXT, picture: { width: 400, height: 600 } },
-    });
-  });
+        replacesFileId: first.fileId,
+        file,
+      });
+      if (!lost.ok) throw new Error(lost.error);
+
+      const recovered = await app.startEntryUpload({
+        registrationId:
+          letterCase === "uppercase"
+            ? registrationId.toUpperCase()
+            : registrationId,
+        restartPendingUpload: true,
+        file,
+      });
+      if (!recovered.ok) throw new Error(recovered.error);
+      await expect(
+        app.completeEntryUpload({
+          registrationId,
+          fileId: lost.fileId,
+          ...REPLACEMENT_TEXT,
+        })
+      ).resolves.toEqual({ ok: false, error: "file_not_found" });
+      expect(
+        await h.storage.put(recovered.uploadUrl, PORTRAIT, recovered.headers)
+      ).toEqual({ ok: true });
+      await expect(
+        app.completeEntryUpload({
+          registrationId,
+          fileId: recovered.fileId,
+          ...REPLACEMENT_TEXT,
+        })
+      ).resolves.toEqual({ ok: true, entryCode: code, status: "submitted" });
+      await h.drain();
+      expect(await app.getEntry({ code })).toMatchObject({
+        ok: true,
+        entry: { ...REPLACEMENT_TEXT, picture: { width: 400, height: 600 } },
+      });
+    }
+  );
 
   it("refuses a new entry, a replacement and a retry once submissions close", async () => {
     const h = await createHarness();

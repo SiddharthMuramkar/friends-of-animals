@@ -103,7 +103,7 @@ export const ENTRY_CODE_UNIQUE = "entry_code_unique";
 const words = (max: number) => z.string().trim().min(1).max(max);
 
 export const completeEntryUploadInput = z.object({
-  registrationId: z.uuid(),
+  registrationId: z.uuid().transform((id) => id.toLowerCase()),
   discipline: z.string().max(40).optional(),
   fileId: z.uuid(),
   title: words(ENTRY_TEXT_LIMITS.title),
