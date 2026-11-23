@@ -41,6 +41,9 @@ test("finance reads the refunds queue and a refund, a staff admin opens the requ
   page,
   request,
 }, testInfo) => {
+  // A long staff journey: 20 to 27 s on CI, and 33 s as a shard's first
+  // test on a cold server, past the 30 s default.
+  test.setTimeout(60_000);
   const email = freshEmail(testInfo.project.name);
   await signInByCode(page, request, email, "Farah Refunds");
 
