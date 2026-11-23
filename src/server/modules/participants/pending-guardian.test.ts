@@ -89,16 +89,55 @@ async function heldTeen(
 }
 
 describe("a registration held for a guardian", () => {
-  it("does not deliver the named guardian request from the production worker", async () => {
+  it("suppresses the guardian request in production and keeps the same place available at 18", async () => {
     const h = await createHarness();
-    const held = await startHeldTeen(h);
+    // One millisecond before the participant's 18th birthday in India.
+    h.clock.set("2027-01-15T18:29:59.999Z");
+    const held = await startHeldTeen(h, { dateOfBirth: "2009-01-16" });
+    const production = createApp({ ...h.deps, appEnv: "production" });
+    const mine = production.as(held.actor);
+    const input = { registrationId: held.registrationId };
 
     await drainUntilIdle({ ...h.deps, appEnv: "production" });
 
     expect(h.email.sent.some((message) => message.to === MOTHER_EMAIL)).toBe(
       false
     );
+    const before = await paymentRows(h);
+    expect
+      .soft(await mine.listMyRegistrations())
+      .toMatchObject([{ ...input, heldFor: "unavailable", amountDue: null }]);
+    expect.soft(await mine.payForMyRegistration(input)).toEqual({
+      ok: false,
+      error: "unavailable",
+    });
     expect(await held.status()).toBe("pending_guardian");
+    expect(await paymentRows(h)).toEqual(before);
+    expect(h.gateway.orders).toEqual([]);
+    expect(await h.db.select().from(guardianInvitation)).toMatchObject([
+      { status: "pending" },
+    ]);
+
+    h.clock.advance(1);
+
+    expect(await mine.listMyRegistrations()).toMatchObject([
+      {
+        ...input,
+        heldFor: null,
+        amountDue: { amountMinor: 25_000n, currency: "INR" },
+      },
+    ]);
+    const order = await mine.payForMyRegistration(input);
+    if (!order.ok || order.kind !== "checkout") throw new Error("No order");
+    const captured = h.gateway.capture(order.checkout.orderId);
+    expect(await mine.confirmMyPayment({ ...input, ...captured })).toEqual({
+      ok: true,
+      outcome: "captured",
+    });
+    expect(await held.status()).toBe("confirmed");
+    expect(await h.db.select().from(guardianInvitation)).toMatchObject([
+      { status: "revoked", revokedAt: h.clock.now() },
+    ]);
   });
 
   it("refuses a verified named guardian accepting an existing request in production", async () => {

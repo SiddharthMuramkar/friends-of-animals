@@ -229,22 +229,28 @@ describe("registerAsIndividual for a minor", () => {
     ]);
   });
 
-  it("never lets a child under 13 register alone, and writes nothing", async () => {
-    const h = await createHarness();
-    const competition = await openToAllAges(h);
-    const child = await h.seed.member({ name: "Isha" });
-    const isha = await h.signIn(child);
-    const before = await participantRows(h);
+  it.each([
+    { appEnv: "local", error: "under_13_needs_guardian" },
+    { appEnv: "production", error: "unavailable" },
+  ] as const)(
+    "refuses an independent applicant under 13 in $appEnv with $error and writes nothing",
+    async ({ appEnv, error }) => {
+      const h = await createHarness({ appEnv });
+      const competition = await openToAllAges(h);
+      const child = await h.seed.member({ name: "Isha" });
+      const isha = await h.signIn(child);
+      const before = await participantRows(h);
 
-    const result = await h
-      .as(isha)
-      .registerAsIndividual(
-        adultForm(competition, { dateOfBirth: bornYearsAgo(h, 12, 300) })
-      );
+      const result = await h
+        .as(isha)
+        .registerAsIndividual(
+          adultForm(competition, { dateOfBirth: bornYearsAgo(h, 12, 300) })
+        );
 
-    expect(result).toEqual({ ok: false, error: "under_13_needs_guardian" });
-    expect(await participantRows(h)).toEqual(before);
-  });
+      expect(result).toEqual({ ok: false, error });
+      expect(await participantRows(h)).toEqual(before);
+    }
+  );
 
   it("refuses a guardian registering a child who has turned 18", async () => {
     const h = await createHarness();

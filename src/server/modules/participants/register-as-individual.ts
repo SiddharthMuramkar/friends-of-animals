@@ -332,13 +332,13 @@ async function registerOnce(
             (await participationGiven(tx, profile.id, target.id))),
         at: now,
       });
-      if (!decision.ok) return { ok: false, error: decision.reason };
-      if (
-        !guardianFlowsActive(ctx.appEnv) &&
-        !isAdultAt(decision.dateOfBirth, now)
-      ) {
+      const needsGuardian = decision.ok
+        ? !isAdultAt(decision.dateOfBirth, now)
+        : decision.reason === "under_13_needs_guardian";
+      if (needsGuardian && !guardianFlowsActive(ctx.appEnv)) {
         return { ok: false, error: "unavailable" };
       }
+      if (!decision.ok) return { ok: false, error: decision.reason };
 
       let askGuardian: ((profileId: string) => Promise<void>) | null = null;
       if (decision.askGuardian) {

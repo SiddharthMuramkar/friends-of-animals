@@ -50,6 +50,7 @@ import {
   lockParticipationPins,
   participationRefusals,
 } from "../consent/participation-gate";
+import { guardianFlowsActive } from "../guardians/availability";
 import { revokePendingGuardianRequest } from "../guardians/guardian-request";
 import { ownProfileOf } from "../guardians/own-profile";
 import {
@@ -231,11 +232,16 @@ async function planPayment(
       });
     }
     if (mine.status === "pending_guardian") {
-      if (mine.ownerKind !== "self") {
-        return done({ ok: false, error: "awaiting_guardian" });
-      }
-      if ((await ownProfileOf(tx, ctx, actor.userId, now)) !== "adult") {
-        return done({ ok: false, error: "awaiting_guardian" });
+      if (
+        mine.ownerKind !== "self" ||
+        (await ownProfileOf(tx, ctx, actor.userId, now)) !== "adult"
+      ) {
+        return done({
+          ok: false,
+          error: guardianFlowsActive(ctx.appEnv)
+            ? "awaiting_guardian"
+            : "unavailable",
+        });
       }
       if (
         !canTransition("pending_guardian", "pending_payment", "participant")

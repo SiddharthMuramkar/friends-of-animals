@@ -21,6 +21,8 @@ import { documentVersionPath } from "../competitions/domain/consent-attachments"
 import { offeredRoutes } from "../competitions/domain/fees";
 import { getRegistrationTerms } from "../competitions/terms/read";
 import { pinnedDocuments } from "../competitions/terms/repository";
+import { guardianFlowsActive } from "../guardians/availability";
+import { ownProfileOf } from "../guardians/own-profile";
 import { isAdultAt, parseDateOfBirth } from "./domain/age";
 import { COMPETITION_SLUG_PATTERN } from "./register-input";
 import { childrenOf, keptDetailsOf, subjectOf } from "./registrant";
@@ -30,6 +32,8 @@ export type IndividualRegistrationForm = {
   acceptsIndividuals: boolean;
   /** Null until FOA sets it; zero for a free competition. */
   fee: Money | null;
+  /** The entrant's stored age is under 18 and minor registration is paused. */
+  minorRegistrationUnavailable: boolean;
   /**
    * The member themselves, with the children they could register instead;
    * a linked teen, or a child, with the profile's name and date of birth.
@@ -86,6 +90,14 @@ export async function individualRegistrationForm(
     ])
   );
   const kept = await keptDetailsOf(ctx, subject);
+  const now = ctx.clock.now();
+  const dob = kept && parseDateOfBirth(kept.dateOfBirth, now);
+  const keptAdult = dob !== null && isAdultAt(dob, now);
+  const minorRegistrationUnavailable =
+    !guardianFlowsActive(ctx.appEnv) &&
+    (subject.kind === "own"
+      ? (await ownProfileOf(ctx.db, ctx, ctx.actor.userId, now)) === "minor"
+      : dob !== null && !keptAdult);
   const documents = [...terms.documents];
   if (subject.kind === "child" && terms.participationDocument) {
     documents.push({
@@ -94,13 +106,8 @@ export async function individualRegistrationForm(
       required: false,
     });
   }
-  if (subject.kind === "own") {
+  if (subject.kind === "own" || (subject.kind === "linked" && keptAdult)) {
     documents.push(...terms.publicationDocuments);
-  } else if (subject.kind === "linked" && kept) {
-    const now = ctx.clock.now();
-    const dob = parseDateOfBirth(kept.dateOfBirth, now);
-    if (dob && isAdultAt(dob, now))
-      documents.push(...terms.publicationDocuments);
   }
   return {
     competition: { name: found.name, slug: found.slug },
@@ -108,6 +115,7 @@ export async function individualRegistrationForm(
       "individual"
     ),
     fee: terms.fees.individual,
+    minorRegistrationUnavailable,
     registrant:
       subject.kind === "own"
         ? {

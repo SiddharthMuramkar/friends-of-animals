@@ -24,6 +24,7 @@ import {
 import type { Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
 import { participationRefusals } from "../consent/participation-gate";
+import { guardianFlowsActive } from "../guardians/availability";
 import { verifiedLink } from "../guardians/child-access";
 import { ownProfileOf } from "../guardians/own-profile";
 import type { RegistrationRoute } from "../registration/domain/participant";
@@ -150,6 +151,9 @@ export async function listMyRegistrations(
   const nowAdult =
     ownsHeld &&
     (await ownProfileOf(ctx.db, ctx, userId, ctx.clock.now())) === "adult";
+  const guardianHold = guardianFlowsActive(ctx.appEnv)
+    ? "guardian"
+    : "unavailable";
   const refusals = await participationRefusals(
     ctx.db,
     ctx,
@@ -171,7 +175,7 @@ export async function listMyRegistrations(
     if (refusal === "unavailable") {
       heldFor = refusal;
     } else if (refusal || (row.status === "pending_guardian" && !canContinue)) {
-      heldFor = row.ownerKind === "guardian" ? "consent" : "guardian";
+      heldFor = row.ownerKind === "guardian" ? "consent" : guardianHold;
     }
     return {
       registrationId: row.registrationId,
