@@ -4,11 +4,14 @@
 // Node: relative imports only, no "server-only".
 
 import type { Grant } from "../access/domain/roles";
+import { user } from "../db/schema";
 import { storedPhone } from "../identity/stored-phone";
 import {
   ensureVerifiedAccount,
   type VerifiedAccount,
 } from "../identity/verified-account";
+import { uuidv7 } from "../ids";
+import { normaliseEmailAddress } from "../ports/email";
 import { ensureGrant } from "./access";
 import { competitionBuilder } from "./competitions";
 import { guardianBuilder } from "./guardians";
@@ -66,6 +69,21 @@ export function seedFunctions(seeders: readonly Seeder[]) {
     }
     return {
       member,
+      /** An account with a stored email awaiting verification. */
+      async pendingEmailAccount(details: { name: string; email: string }) {
+        const now = deps.clock.now();
+        const id = uuidv7(now);
+        const email = normaliseEmailAddress(details.email);
+        await deps.db.insert(user).values({
+          id,
+          name: details.name,
+          email,
+          emailVerified: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+        return { id, email };
+      },
       grant,
       /** A verified account holding the global super admin role. */
       async superAdmin(details: { name?: string; email?: string } = {}) {

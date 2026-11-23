@@ -12,7 +12,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
 import {
@@ -22,7 +22,37 @@ import {
   registration,
 } from "../../db/schema";
 import type { AudienceMember } from "../notifications/domain/audience-member";
-import { minorAudience } from "./domain/minor-audience";
+import { minorAudience, type AudienceSubject } from "./domain/minor-audience";
+
+/** Link facts for guardian routing, in the order they were created. */
+export async function guardianLinksByProfile(
+  db: AppDb,
+  profileIds: readonly string[]
+): Promise<Map<string, AudienceSubject["guardians"]>> {
+  const links = new Map<string, AudienceSubject["guardians"][number][]>();
+  if (profileIds.length === 0) return links;
+  const rows = await db
+    .select({
+      profileId: guardianLink.participantProfileId,
+      userId: guardian.userId,
+      verifiedAt: guardian.verifiedAt,
+      revokedAt: guardianLink.revokedAt,
+    })
+    .from(guardianLink)
+    .innerJoin(guardian, eq(guardian.id, guardianLink.guardianId))
+    .where(inArray(guardianLink.participantProfileId, [...new Set(profileIds)]))
+    .orderBy(asc(guardianLink.createdAt), asc(guardianLink.id));
+  for (const row of rows) {
+    const facts = links.get(row.profileId) ?? [];
+    facts.push({
+      userId: row.userId,
+      verified: row.verifiedAt !== null,
+      revoked: row.revokedAt !== null,
+    });
+    links.set(row.profileId, facts);
+  }
+  return links;
+}
 
 export async function guardianOfParticipant(
   db: AppDb,
@@ -41,24 +71,11 @@ export async function guardianOfParticipant(
     )
     .where(eq(registration.id, registrationId));
   if (subject?.ownerKind !== "guardian") return [];
-  const links = await db
-    .select({
-      userId: guardian.userId,
-      verifiedAt: guardian.verifiedAt,
-      revokedAt: guardianLink.revokedAt,
-    })
-    .from(guardianLink)
-    .innerJoin(guardian, eq(guardian.id, guardianLink.guardianId))
-    .where(eq(guardianLink.participantProfileId, subject.profileId))
-    .orderBy(asc(guardianLink.createdAt), asc(guardianLink.id));
+  const links = await guardianLinksByProfile(db, [subject.profileId]);
   const audience = minorAudience({
     minor: true,
     loginUserId: subject.loginUserId,
-    guardians: links.map((link) => ({
-      userId: link.userId,
-      verified: link.verifiedAt !== null,
-      revoked: link.revokedAt !== null,
-    })),
+    guardians: links.get(subject.profileId) ?? [],
   });
   if (audience.kind === "suppress") {
     return subject.loginUserId
