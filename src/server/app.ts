@@ -16,6 +16,7 @@ import { accessUseCases } from "./access";
 import type { Actor } from "./actor";
 import { auditUseCases } from "./audit";
 import { cmsUseCases } from "./modules/cms";
+import { consentLinksUseCases } from "./modules/consent-links";
 import { consentUseCases } from "./modules/consent";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
@@ -45,6 +46,7 @@ const useCases = composeUseCases(
   filesUseCases,
   settingsUseCases,
   consentUseCases,
+  consentLinksUseCases,
   competitionsUseCases,
   cmsUseCases,
   notificationsUseCases,

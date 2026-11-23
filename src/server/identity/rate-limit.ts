@@ -140,8 +140,35 @@ export async function takeCodeAllowance(
     limits: CodeRequestLimits;
   }
 ): Promise<Allowance> {
-  const counters = countersFor(to, ip, limits);
+  return takeAllowance(db, countersFor(to, ip, limits), now, secret);
+}
 
+/** Consent codes have their own hourly IP allowance, separate from sign-in. */
+export function takeConsentLinkCodeAllowance(
+  db: AppDb,
+  { ip, now, secret }: { ip: string; now: Date; secret: string }
+): Promise<Allowance> {
+  return takeAllowance(
+    db,
+    [
+      {
+        scope: "ip",
+        key: `consent-link:${ipNetwork(ip)}`,
+        limit: 10,
+        windowMs: HOUR_MS,
+      },
+    ],
+    now,
+    secret
+  );
+}
+
+async function takeAllowance(
+  db: AppDb,
+  counters: readonly Counter[],
+  now: Date,
+  secret: string
+): Promise<Allowance> {
   try {
     await db.transaction(async (tx) => {
       // Check every counter: with two full, the visitor must wait for the

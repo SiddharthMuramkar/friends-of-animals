@@ -6,6 +6,7 @@
 import { CMS_POLICY } from "../modules/cms/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
 import { FILES_POLICY } from "../modules/files/policy";
+import { CONSENT_LINKS_POLICY } from "../modules/consent-links/policy";
 import { CONSENT_POLICY } from "../modules/consent/policy";
 import { COMPETITIONS_POLICY } from "../modules/competitions/policy";
 import { NOTIFICATIONS_POLICY } from "../modules/notifications/policy";
@@ -31,6 +32,7 @@ export const POLICY = composePolicies(
   FILES_POLICY,
   SETTINGS_POLICY,
   CONSENT_POLICY,
+  CONSENT_LINKS_POLICY,
   COMPETITIONS_POLICY,
   CMS_POLICY,
   NOTIFICATIONS_POLICY,

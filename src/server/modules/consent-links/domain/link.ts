@@ -121,7 +121,10 @@ export function closedReason(
 }
 
 /** Whether a verified guardian may still answer at `now`. */
-function inAnswerWindow(link: LinkState, now: Date): boolean {
+function inAnswerWindow(
+  link: Pick<LinkState, "verifiedAt">,
+  now: Date
+): boolean {
   return (
     link.verifiedAt !== null &&
     !reached(now, after(link.verifiedAt, ANSWER_WINDOW_MS))
@@ -129,7 +132,10 @@ function inAnswerWindow(link: LinkState, now: Date): boolean {
 }
 
 /** The link's status at `now`, for the dashboard and the public page. */
-export function linkStatus(link: LinkState, now: Date): LinkStatus {
+export function linkStatus(
+  link: Pick<LinkState, "status" | "expiresAt" | "codesSent" | "verifiedAt">,
+  now: Date
+): LinkStatus {
   const closed = closedReason(link, now);
   if (closed === "already_used") return "answered";
   if (closed !== null) return closed;

@@ -1,0 +1,71 @@
+{
+  "guardianConsent": {
+    "title": "Guardian consent",
+    "loading": "Loading the consent request…",
+    "intro": "Choose how {child}’s work may be shared for {competition} at {institution}.",
+    "sendHint": "We’ll send a one-time code to {contact}.",
+    "codeHint": "Enter the six-digit code sent to {contact}.",
+    "answerHint": "Choose one answer for each use. You have 30 minutes after verification to save your choices.",
+    "sendCode": "Send a code",
+    "resendCode": "Send a new code",
+    "sending": "Sending…",
+    "verify": "Verify code",
+    "verifying": "Verifying…",
+    "code": "Six-digit code",
+    "answer": "Save choices",
+    "saving": "Saving…",
+    "viewDocument": "Read {title} (version {version})",
+    "choices": {
+      "give": "I give consent",
+      "decline": "I decline"
+    },
+    "uses": {
+      "public_display": "Public display",
+      "social_media": "Social media",
+      "auction": "Auction"
+    },
+    "states": {
+      "done": {
+        "title": "Your choices have been saved",
+        "body": "Thank you. To change a choice, ask your school for a new consent link."
+      },
+      "used": {
+        "title": "This link has already been used",
+        "body": "Ask your school for a new link if you want to change your choices."
+      },
+      "expired": {
+        "title": "This consent link has expired",
+        "body": "Ask your school for a new link."
+      },
+      "revoked": {
+        "title": "This consent link was withdrawn",
+        "body": "Contact your school if you need a new link."
+      },
+      "not_found": {
+        "title": "Consent link unavailable",
+        "body": "Check the link in your message or ask your school for help."
+      }
+    },
+    "errors": {
+      "not_found": "Check the link in your message or ask your school for help.",
+      "already_used": "This link has already been used.",
+      "revoked": "This consent link was withdrawn.",
+      "expired": "This consent link has expired. Ask your school for a new link.",
+      "wait": "You can request another code at {retryTime}.",
+      "rate_limited": "Too many code requests. Try again at {retryTime}.",
+      "too_many_codes": "This link has reached its code limit. Ask your school for a new link.",
+      "sms_disabled": "Texts are unavailable. Ask your school for an email link.",
+      "delivery_failed": "We couldn’t deliver a code. Check with your school or request another code in a minute.",
+      "no_code": "Request a code before verifying.",
+      "code_expired": "This code has expired or has already been used. Request a new code.",
+      "code_locked": "This code is locked. Request a new code.",
+      "wrong_code": "That code didn’t match. {attemptsLeft, plural, =0 {Request a new code.} one {# attempt left.} other {# attempts left.}}",
+      "not_verified": "Verify with a new code before saving your choices.",
+      "window_closed": "Your answer window ended. Request a new code to continue.",
+      "nothing_offered": "There are no public-use choices on this link.",
+      "unanswered": "Choose an answer for each use before saving.",
+      "not_offered": "This link includes different choices. Reload the page and try again.",
+      "invalid_answer": "Choose an answer for each use and try again."
+    }
+  }
+}

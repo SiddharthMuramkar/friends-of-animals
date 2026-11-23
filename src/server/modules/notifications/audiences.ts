@@ -69,6 +69,7 @@ function subjectUserOf(delivery: Delivery): string | null {
         delivery.payload.purpose === "messages"
         ? delivery.payload.subjectId
         : null;
+    case "consent.link_sent":
     case "contact_message.received":
       // A visitor's message (#113): its sender has no account.
       return null;
@@ -342,6 +343,8 @@ function reasonSentence(block: TransitionBlock): string {
 export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "identity.user_signed_up": { names: [], load: async () => ({}) },
   "consent.withdrawn": { names: [], load: async () => ({}) },
+  // Bearer links are delivered by their own handler. Their secrets never enter this map.
+  "consent.link_sent": { names: [], load: async () => ({}) },
   "files.file_uploaded": { names: [], load: async () => ({}) },
   "files.processing_requested": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },

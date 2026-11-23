@@ -75,6 +75,7 @@ export function createPgWorld() {
   const clock = new FakeClock(new Date());
   const gateway = new FakePaymentGateway();
   const deps: Deps = {
+    appEnv: "local",
     db,
     clock,
     email: new FakeEmail(clock),

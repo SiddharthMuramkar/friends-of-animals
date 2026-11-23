@@ -14,6 +14,8 @@
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
 import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
+import type { AppEnv } from "../../lib/site";
+import { deliverConsentLink } from "../modules/consent-links/delivery";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { processImageAsset } from "../modules/files/process-image";
 import { scanUploadedFile } from "../modules/files/scan-handler";
@@ -41,6 +43,7 @@ import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
 export type OutboxDeps = {
+  appEnv: AppEnv;
   db: AppDb;
   clock: Clock;
   email: EmailSender;
@@ -94,6 +97,8 @@ type Handlers = {
 export const HANDLERS: Handlers = {
   // Sends the messages the event's route rows name (#69).
   "notifications.dispatch": dispatchEvent,
+  "consent_links.deliver": (deps, { payload }) =>
+    deliverConsentLink(deps, payload),
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>

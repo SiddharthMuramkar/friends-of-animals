@@ -11,10 +11,12 @@ export type Answer = (typeof ANSWERS)[number];
 export type OfferedUse = { purpose: string; documentId: string };
 
 /** One checked answer, tied to the exact document the guardian was shown. */
-export type CheckedAnswer = OfferedUse & { answer: Answer };
+export type CheckedAnswer<Use extends OfferedUse = OfferedUse> = Use & {
+  answer: Answer;
+};
 
-export type AnswersCheck =
-  | { ok: true; answers: CheckedAnswer[] }
+export type AnswersCheck<Use extends OfferedUse = OfferedUse> =
+  | { ok: true; answers: CheckedAnswer<Use>[] }
   | { ok: false; reason: "nothing_offered" }
   | {
       ok: false;
@@ -29,10 +31,10 @@ const isAnswer = (value: unknown): value is Answer =>
  * Checks `submitted` (purpose → answer, as the form posts it) against the
  * offered uses. Answers come back in the offered order.
  */
-export function checkAnswers(
-  offered: readonly OfferedUse[],
+export function checkAnswers<Use extends OfferedUse>(
+  offered: readonly Use[],
   submitted: Readonly<Record<string, unknown>>
-): AnswersCheck {
+): AnswersCheck<Use> {
   if (offered.length === 0) return { ok: false, reason: "nothing_offered" };
   const offeredPurposes = new Set(offered.map((use) => use.purpose));
 
