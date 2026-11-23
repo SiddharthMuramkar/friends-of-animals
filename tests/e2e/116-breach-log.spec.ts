@@ -76,7 +76,7 @@ test("breach staff open the log and record a breach through the staff pages", as
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
   await page
-    .getByLabel("Timeline note")
+    .getByRole("textbox", { name: "Timeline note" })
     .fill("Access was removed from the folder.");
   await page.getByRole("button", { name: "Add note" }).click();
   await expect(
