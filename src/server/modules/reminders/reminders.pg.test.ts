@@ -107,7 +107,9 @@ describe("reminders under concurrency", () => {
 
     const results = await Promise.all([first, second]);
     expect(
-      results.map((result) => (result.ok ? result.scheduled : -1)).toSorted()
+      results
+        .map((result) => (result.ok ? result.scheduled : -1))
+        .toSorted((a, b) => a - b)
     ).toEqual([0, 2]);
     expect(await rowsOf(competition.id)).toHaveLength(2);
   });
@@ -128,7 +130,7 @@ describe("reminders under concurrency", () => {
     );
     world.clock.set(first!.fireAt);
 
-    const runs = await world.sql.begin(async (blocker) => {
+    const { runs } = await world.sql.begin(async (blocker) => {
       await blocker`select id from reminder_job where id = ${first!.id} for update`;
       const runs = [
         worker.runReminder({ reminderJobId: first!.id }),
@@ -136,7 +138,7 @@ describe("reminders under concurrency", () => {
       ];
       for (const run of runs) run.catch(() => {});
       await world.waitForLockWaiters(2);
-      return runs;
+      return { runs };
     });
     const settled = await Promise.allSettled(runs);
     // A run that met the other's claim mid-send fails, for the relay to
