@@ -180,6 +180,40 @@ export type DomainEvent =
       payload: { competitionId: string; kind: KeyDateKind; dueAt: string };
     }
   | {
+      /**
+       * A competition manager published a competition (#70). Its reminders
+       * are scheduled from its key dates (#84).
+       */
+      type: "competition.published";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * A published competition's key dates were edited (#71): its
+       * reminders follow the new dates (#84).
+       */
+      type: "competition.key_dates_changed";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /** A competition was cancelled (#80): its reminders are cancelled (#84). */
+      type: "competition.cancelled";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * A planned reminder's fire time (#84). Saved with `availableAt:
+       * fire_at`; the run checks the reminder_job row and who owes its
+       * deadline then.
+       */
+      type: "reminder.due";
+      aggregate: { type: "reminder_job"; id: string };
+      payload: { reminderJobId: string };
+    }
+  | {
       /** An authorised person invited a coordinator (#74). */
       type: "institution.coordinator_invited";
       aggregate: { type: "institution_invitation"; id: string };
@@ -457,6 +491,10 @@ export const EVENT_PAYLOADS = {
     kind: z.enum(KEY_DATE_KINDS),
     dueAt: z.iso.datetime(),
   }),
+  "competition.published": z.object({ competitionId: z.uuid() }),
+  "competition.key_dates_changed": z.object({ competitionId: z.uuid() }),
+  "competition.cancelled": z.object({ competitionId: z.uuid() }),
+  "reminder.due": z.object({ reminderJobId: z.uuid() }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
   "contact_message.received": z.object({ messageId: z.uuid() }),
   "safeguarding.report_submitted": z.object({ reportId: z.uuid() }),
@@ -578,6 +616,12 @@ export const SUBSCRIBERS = {
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
   "competitions.key_date_scheduled": ["competitions.advance_status"],
+  // Each keeps the competition's reminders in step with it (#84).
+  "competition.published": ["reminders.schedule"],
+  "competition.key_dates_changed": ["reminders.schedule"],
+  "competition.cancelled": ["reminders.schedule"],
+  // One handler reminds whoever owes the deadline when it runs (#84).
+  "reminder.due": ["reminders.run"],
   // An invitee has no account yet, so no route row can name them: the
   // invitation goes to the invited address itself (#74).
   "institution.coordinator_invited": [

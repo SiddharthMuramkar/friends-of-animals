@@ -10,6 +10,7 @@
 import { offsiteCopySchedule } from "../modules/offsite-copy/schedule";
 import { reconcileLedgerSchedule } from "../modules/ledger/backfill";
 import { retentionSweepSchedule } from "../modules/privacy/schedule";
+import { remindersSyncSchedule } from "../modules/reminders/schedule";
 import type { ErrorReporter } from "../ports/errors";
 import type { OutboxDeps } from "./handlers";
 
@@ -47,6 +48,7 @@ export const SCHEDULES: readonly ScheduleDefinition[] = [
   offsiteCopySchedule,
   reconcileLedgerSchedule,
   retentionSweepSchedule,
+  remindersSyncSchedule,
 ];
 
 const NAME = /^[a-z0-9_]+(\.[a-z0-9_]+)*$/;

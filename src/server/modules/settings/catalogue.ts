@@ -17,6 +17,7 @@ import {
   RETENTION_PERIODS,
   type RetentionPeriod,
 } from "../privacy/domain/periods";
+import { MAX_REMINDER_OFFSET_HOURS } from "../reminders/domain/offsets";
 import {
   booleanSetting,
   integerSetting,
@@ -34,6 +35,19 @@ function retentionDays(period: RetentionPeriod) {
     min: minimumRetentionDays(period),
     max: MAX_RETENTION_DAYS,
     unit: "days",
+  });
+}
+
+/**
+ * When one reminder goes out (#84): hours before its deadline, up to 30
+ * days; 0 sends none. FOA confirms the defaults (HR-37).
+ */
+function reminderHours(defaultHours: number) {
+  return integerSetting({
+    default: defaultHours,
+    min: 0,
+    max: MAX_REMINDER_OFFSET_HOURS,
+    unit: "hours",
   });
 }
 
@@ -89,6 +103,11 @@ export const SETTINGS = {
   // Empty until FOA's counsel names the channel (HR-49); staff then file
   // the notice by hand and record the authority's reference.
   "breach.authorityEmail": textSetting({ default: "", maxLength: 254 }),
+  // Reminders (#84): two reminders before submissions close, to whoever
+  // still owes an entry. A change applies to each reminder when it runs,
+  // and the hourly reminder sync plans any new time.
+  "reminders.entrySubmissionDueFirstHours": reminderHours(72),
+  "reminders.entrySubmissionDueSecondHours": reminderHours(24),
   // Retention (#114). Off until a super admin turns it on: the daily sweep
   // then deletes and anonymises expired records; while off it only counts
   // them (a dry run, still audited). Every period waits for counsel

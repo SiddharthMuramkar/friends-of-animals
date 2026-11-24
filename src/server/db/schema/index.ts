@@ -39,6 +39,7 @@ export * from "./refunds";
 export * from "./posts";
 export * from "./breaches";
 export * from "./announcements";
+export * from "./reminders";
 export * from "./contact";
 export * from "./public-forms";
 export * from "./privacy";

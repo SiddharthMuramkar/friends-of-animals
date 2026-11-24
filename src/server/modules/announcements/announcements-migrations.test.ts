@@ -21,7 +21,10 @@ describe("announcement migrations", () => {
     expect(pre).toBeGreaterThan(-1);
     expect(ddl).toBe(pre + 1);
     expect(post).toBe(ddl + 1);
-    expect(tags.filter((tag) => /^\d+_84_/.test(tag))).toEqual([
+    // 84b's reminder migrations follow later; none touches the enum.
+    expect(
+      tags.filter((tag) => /^\d+_84_(pre_enum|announcement)/.test(tag))
+    ).toEqual([
       tags[pre],
       tags[ddl],
       tags[post],
