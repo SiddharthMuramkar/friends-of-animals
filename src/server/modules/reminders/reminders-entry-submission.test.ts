@@ -19,6 +19,7 @@ import {
   reminderSubject,
   reminderWorld,
   scheduleFor,
+  WORKER,
 } from "./testing";
 
 // #84 84b AC2, AC3, AC6 and AC9: a reminder goes, at its time, only to
@@ -195,6 +196,32 @@ describe("the submission reminder", () => {
     expect(remindedByEmail(h, { since: hoursBefore(24) })).toEqual([
       "kavita@example.test",
     ]);
+  });
+
+  it("waits for its time when its job runs early", async () => {
+    const h = await createHarness();
+    const competition = await reminderCompetition(h);
+    await registrants(h, competition).adult({
+      name: "Asha Rao",
+      email: "asha@example.test",
+    });
+    await scheduleFor(h, competition.id);
+    const [first] = await reminderRows(h, competition.id);
+
+    // A worker whose clock runs an hour behind the one that planned it.
+    h.clock.set(hoursBefore(73));
+    const early = await h.as(WORKER).runReminder({ reminderJobId: first!.id });
+
+    expect(early).toEqual({
+      ok: true,
+      outcome: "skipped",
+      status: "scheduled",
+      reason: "not_due",
+    });
+    expect(remindedByEmail(h)).toEqual([]);
+    h.clock.set(hoursBefore(72));
+    await h.drain();
+    expect(remindedByEmail(h)).toEqual(["asha@example.test"]);
   });
 
   it("sends nothing when its job runs after the deadline", async () => {
