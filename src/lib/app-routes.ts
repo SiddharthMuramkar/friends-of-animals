@@ -82,6 +82,22 @@ export function adminPaymentReviewCasePath(caseId: string): string {
  */
 export const ADMIN_REFUNDS = "/admin/refunds";
 
+/**
+ * A participant's entries (#85): their list, the form for a registration's
+ * first upload, and each entry's page by its Entry ID.
+ */
+export const PARTICIPANT_ENTRIES = "/participant/entries";
+export const NEW_PARTICIPANT_ENTRY = "/participant/entries/new";
+
+export function entryDetailPath(code: string): string {
+  return `${PARTICIPANT_ENTRIES}/${encodeURIComponent(code)}`;
+}
+
+export function newEntryPath(registrationId: string): string {
+  const query = new URLSearchParams({ registration: registrationId });
+  return `${NEW_PARTICIPANT_ENTRY}?${query.toString()}`;
+}
+
 /** One refund's page: finance approves, rejects, retries or records it. */
 export function adminRefundPath(refundId: string): string {
   return `${ADMIN_REFUNDS}/${encodeURIComponent(refundId)}`;
@@ -265,6 +281,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/import/template.csv",
   "/institution/registrations/[ref]/import/sample.csv",
   "/participant/register/[slug]",
+  PARTICIPANT_ENTRIES,
+  NEW_PARTICIPANT_ENTRY,
+  "/participant/entries/[code]",
   "/guardian/children/[id]",
   "/guardian/children/[id]/consents",
   "/guardian/children/[id]/consents/history",

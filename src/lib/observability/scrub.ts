@@ -232,10 +232,20 @@ function truncateText(text: string): string {
   return `${text.slice(0, end)}${TRUNCATED}`;
 }
 
-/** A URL or path without its query, fragment or consent-link credential. */
+/**
+ * A URL or path without its query, fragment, consent-link credential or
+ * Entry ID (an entry's page, #85, names it: it identifies a participant's
+ * work).
+ */
 export function stripQuery(url: string): string {
   const path = url.split(/[?#]/, 1)[0] ?? "";
-  return path.replace(/(\/consent\/)[^/\s]+/g, `$1${REDACTED}`);
+  return path
+    .replace(/(\/consent\/)[^/\s]+/g, `$1${REDACTED}`)
+    .replace(
+      /(\/participant\/entries\/)([^/\s]+)/g,
+      (match, prefix: string, segment: string) =>
+        segment === "new" ? match : `${prefix}${REDACTED}`
+    );
 }
 
 function isPersonalKey(key: string): boolean {

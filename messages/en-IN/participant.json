@@ -138,7 +138,7 @@
       "registeredOn": "Registered on {date}",
       "pay": "Pay {amount} for {competition}",
       "confirmFree": "Confirm your free place in {competition}",
-      "comingSoon": "Entries, results and certificates will show here too.",
+      "comingSoon": "Results and certificates will show here too.",
       "loading": "Loading your registrations…",
       "forChild": "For {name}",
       "childParticipantId": "{name}'s FOA Participant ID: {code}",
