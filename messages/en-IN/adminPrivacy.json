@@ -1,0 +1,457 @@
+{
+  "adminPrivacy": {
+    "meta": {
+      "title": "Data inventory",
+      "description": "The personal-data fields FOA keeps and their purposes and retention periods."
+    },
+    "title": "Data inventory",
+    "lead": "Find each personal-data field by its database table. Retention periods are pending confirmation with counsel.",
+    "loading": "Loading the data inventory…",
+    "inventory": {
+      "columns": "{count, plural, one {# column} other {# columns}}",
+      "purpose": "Purpose",
+      "kind": "Category",
+      "subject": "Data subject",
+      "subjectPath": "{kind} via {via}",
+      "subjectKinds": {
+        "audit_target": "Target of the audit action",
+        "author": "Post author",
+        "breach_affected": "Person affected by the breach",
+        "consent_giver": "Person who gave the consent",
+        "consent_subject": "Person the consent is for",
+        "contact_sender": "Contact sender",
+        "content_subject": "Person described in the content",
+        "guardian_contact": "Guardian contact recorded for the participant",
+        "institution": "Institution",
+        "invitee": "Person invited",
+        "participant_profile": "Participant profile",
+        "payer": "Payer",
+        "recipient": "Recipient",
+        "safeguarding_report": "Person in the safeguarding report",
+        "user": "Account holder",
+        "visitor": "Visitor"
+      },
+      "kept": "Default retention",
+      "categories": {
+        "identity": "Who they are",
+        "contact": "How to reach them",
+        "demographic": "About them",
+        "financial": "Money",
+        "content": "What they or staff wrote",
+        "technical": "Technical",
+        "preference": "Their choices"
+      },
+      "periods": {
+        "accounts": "While the account is open",
+        "institutions": "While the institution takes part, then 3 years after its last competition",
+        "coordinatorInvitations": "90 days after the invitation is accepted, withdrawn or expires",
+        "coordinatorInvitationLinks": "Until the invitation is accepted, withdrawn or expires",
+        "safeguardingReports": "While the report is open, then 7 years after it is resolved or until the child concerned turns 25, whichever is later",
+        "breachRecords": "While the breach is open, then 5 years after the breach is closed",
+        "posts": "While the post exists. Deleted with it",
+        "financialRecords": {
+          "payments": "8 years after the end of the financial year of the payment",
+          "ledger": "Kept in the append-only ledger for at least 8 years after the end of the financial year"
+        },
+        "ledgerCategories": "Kept with the ledger category, including after it is deactivated",
+        "paymentProofs": "Kept with the payment record",
+        "registrations": "While the institution takes part, then 3 years after the competition ends",
+        "guardians": "While a linked child's profile exists, then 1 year. A guardian with no child is deleted with their account",
+        "guardianInvitations": {
+          "invitation": "30 days after the invitation is accepted, withdrawn or expires",
+          "request": "30 days after the request is accepted, withdrawn or expires. An accepted request's guardian is then on the guardian record"
+        },
+        "participants": "Until 3 years after the last competition the participant (a school's student, or an adult on their own) was registered for",
+        "expiredSessions": "While the session lasts, then 30 days after it expires",
+        "expiredVerifications": "Until the code or link is used or expires, then 1 day at most",
+        "auditLog": "Kept: the audit log is append-only, and only the database owner can remove entries",
+        "capturedMessages": "30 days after the message was captured",
+        "messageDeliveries": "365 days after the message was queued",
+        "readInboxItems": "365 days after the person reads it. Unread messages stay while the account is open",
+        "dispatchedOutbox": "30 days after the job ran. A job that failed stays until staff resolve it",
+        "rateLimitWindows": "Until its window ends (at most a day). The next request removes it",
+        "consentRecords": {
+          "general": "Kept as the proof of each consent given or withdrawn, while the person takes part and as long as FOA may need to show it",
+          "competition": "While the consent applies, then 3 years"
+        },
+        "staffRecords": "While the record exists. Cleared when the staff member's account is deleted",
+        "cmsRevisionAuthorship": "Kept with the revision, including after the staff account is deleted",
+        "cmsRevisionContent": "Kept with the revision. Published revisions are immutable",
+        "consentDocumentAuthorship": "Kept with the published consent version, including after the staff account is deleted",
+        "consentDocumentContent": "Kept with the published consent version, which is immutable",
+        "files": "While the file is kept: as long as the record it belongs to (an entry, a proof, a post)",
+        "contactMessages": "While the message is open, then {months} months after it is closed",
+        "guardianInvitationLinks": "Until the invitation is accepted, withdrawn or expires",
+        "signedConsentForms": "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure",
+        "consentLinkContacts": "90 days after the link is answered, revoked or expires",
+        "consentLinkSecrets": "Until the link is used, revoked or expires",
+        "entries": "3 years after the competition ends",
+        "entryMedia": "Until 90 days after the competition ends",
+        "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
+        "entryPendingText": "Until the replacement passes, fails or is superseded",
+        "announcements": "While the competition's records are kept"
+      },
+      "purposes": {
+        "account": {
+          "access_token": "A sign-in provider's access token for the person, when one is used",
+          "account_id": "The person's id at the sign-in provider (their own account id for email codes)",
+          "id_token": "A sign-in provider's identity token, which carries the person's name and email",
+          "password": "A password hash, if a password sign-in is ever turned on (none today)",
+          "refresh_token": "A sign-in provider's refresh token for the person, when one is used",
+          "user_id": "Links a sign-in method to the person's account"
+        },
+        "announcement": {
+          "help_contacts_ciphertext": "Provides the help contacts named in a competition's announcement",
+          "created_by": "Records which competition manager wrote the announcement",
+          "sent_by": "Records which competition manager sent the announcement"
+        },
+        "audit_log": {
+          "actor_user_id": "Records which account took the action",
+          "after": "The changed fields after the action: ids and values, never a whole row",
+          "before": "The changed fields before the action: ids and values, never a whole row",
+          "entity_id": "Names the record acted on, which is a person's account or profile for some actions",
+          "ip": "The network address the action came from, to look into misuse",
+          "user_agent": "The browser the action came from, to look into misuse"
+        },
+        "breach_fan_out": {
+          "after_user_id": "Account cursor for resuming a breach notice job, cleared on completion"
+        },
+        "breach_notification": {
+          "recipient_user_id": "Shows who was told of the breach, about themselves or a child they look after, so each person is told once",
+          "guardian_profile_ids": "Child profiles used to recheck a queued notice's guardian links, cleared when that channel settles"
+        },
+        "breach_record": {
+          "title_ciphertext": "A short label for the breach in the log, which may identify someone (encrypted)",
+          "impact_ciphertext": "What happened and what it means for the people affected, which may name them (encrypted)",
+          "authority_reference_ciphertext": "The reference the authority gave a breach notice filed by hand, to follow it up with them (encrypted)",
+          "lead_user_id": "Records which member of staff recorded and leads the response"
+        },
+        "breach_timeline_event": {
+          "note_ciphertext": "Staff notes over the breach's life, and why it closed without a notice, which may name people (encrypted)",
+          "author_user_id": "Records which member of staff made each change to the breach"
+        },
+        "breach_unreachable": {
+          "subject_id": "Lists the accounts and child profiles a notice couldn't reach (no account, or a child with no guardian), so staff can reach them another way"
+        },
+        "captured_message": {
+          "body_html": "A captured message's words as sent, which may hold the person's name or code",
+          "body_text": "A captured message's words, which may hold the person's name or code",
+          "subject": "A captured message's subject, which may name the person",
+          "to_address": "Where a captured message would have gone (local runs and previews only)"
+        },
+        "cms_post": {
+          "author_name": "The byline a post shows, as its editor typed it (optional)",
+          "body": "The text of the post, which may name or describe a person",
+          "created_by": "Records which content manager started the post",
+          "easy_read": "The easy-read summary, which may name or describe a person",
+          "excerpt": "The summary of the post, which may name or describe a person",
+          "seo_title": "The title shown in search results, which may name a person",
+          "slug": "The post's URL segment, which may include a person's name from the title",
+          "title": "The post's title, which may name a person",
+          "updated_by": "Records which content manager last changed the post"
+        },
+        "cms_post_image": {
+          "alt": "The image description, which may name or describe a person"
+        },
+        "cms_revision": {
+          "body": "The page's text and facts, including the grievance officer's name and email in Site facts",
+          "created_by_user_id": "Records who wrote a page revision",
+          "published_by_user_id": "Records who published a page revision"
+        },
+        "competition": {
+          "created_by_user_id": "Records which competition manager created the competition"
+        },
+        "competition_award_scheme": {
+          "updated_by_user_id": "Records who last changed a competition's prizes"
+        },
+        "competition_consent_document": {
+          "attached_by_user_id": "Records who attached a consent document to a competition"
+        },
+        "competition_fee": {
+          "updated_by_user_id": "Records who last changed a competition's fee"
+        },
+        "consent_document": {
+          "body": "The published consent text, which may name a person or include their contact details",
+          "published_by_user_id": "Records who published a consent document"
+        },
+        "consent_event": {
+          "competition_id": "Identifies the competition to which the consent applies",
+          "giver_user_id": "Says who gave or withdrew the consent: the person, or a child's guardian",
+          "subject_id": "Says whose consent it is: an account or a child's profile",
+          "consent_form_id": "Links a consent decision to the signed evidence of what the guardian agreed to",
+          "consent_link_id": "Links a recorded consent to the guardian's code link evidence",
+          "giver_contact_hash": "Identifies the verified consent giver without storing the contact in the consent log",
+          "reviewer_user_id": "Identifies who verified the signed evidence for this consent"
+        },
+        "consent_form": {
+          "file_asset_id": "Locates the private scan bearing the guardian's name and signature",
+          "participant_profile_id": "Identifies the enrolled student whose signed form FOA reviewed",
+          "competition_id": "Identifies the competition covered by the guardian's signed form",
+          "institution_registration_id": "Connects the signed form to the student's school registration for review and coordinator access",
+          "uses": "Records the public uses the guardian marked on the signed form",
+          "documents": "Preserves the exact consent document versions reviewed for the guardian's choices",
+          "uploaded_by_user_id": "Identifies the coordinator who submitted the form",
+          "reviewed_by_user_id": "Identifies the authorised reviewer who made the decision",
+          "rejection_note": "Explains how the coordinator can correct the submission. Staff are asked to leave out personal details"
+        },
+        "consent_form_upload": {
+          "file_asset_id": "Identifies the private scan upload bound to the student's enrolment",
+          "registration_id": "Restricts a signed-form upload to the enrolled student it was requested for"
+        },
+        "consent_link": {
+          "contact_ciphertext": "Delivers the consent link and one-time code to the guardian",
+          "contact_hash": "Identifies the normalised delivery contact without reading it",
+          "token_ciphertext": "Builds the guardian's link when the message is delivered",
+          "token_hash": "Finds the link and recognises previously used or revoked links",
+          "code_hash": "Verifies the one-time code sent to the guardian contact",
+          "session_token_hash": "Binds the answer session to the browser which verified the code",
+          "answers": "Records the public uses the guardian gave or declined on the link",
+          "offered_uses": "Records the document versions shown for the guardian's choices",
+          "participant_profile_id": "Identifies the student whose choices the link records",
+          "student_registration_id": "Keeps the link tied to this student's school enrolment",
+          "institution_registration_id": "Scopes the student's link to the school's registration",
+          "competition_id": "Identifies the competition for which the guardian answered",
+          "sent_by_user_id": "Records the coordinator who issued the guardian link"
+        },
+        "contact_message": {
+          "assigned_to_user_id": "Records which member of staff is handling the message",
+          "email": "Where staff reply, and where the acknowledgement goes",
+          "ip_hash": "A keyed hash of the sender's network, never the address, to spot repeated abuse of the form",
+          "message": "What the sender asked or told FOA, so staff can answer",
+          "name": "Lets staff address the sender when they reply",
+          "organisation": "Tells staff which school or organisation wrote, when the sender gave one",
+          "subject": "Tells staff at a glance what the message is about"
+        },
+        "contact_note": {
+          "author_user_id": "Records which member of staff wrote the note",
+          "body": "What staff noted while handling the message"
+        },
+        "entry": {
+          "code": "Identifies the work when a participant asks FOA about an entry",
+          "registration_id": "Links the entry to its confirmed competition registration",
+          "participant_profile_id": "Links the work to the participant and the person authorised to view it",
+          "title": "Displays the name the participant gave the work",
+          "description": "Describes the work for the participant and authorised reviewers",
+          "statement": "Lets the participant explain the work in their own words",
+          "created_by_user_id": "Records which participant or guardian first uploaded the work"
+        },
+        "entry_file": {
+          "id": "Identifies which upload attempt an entry notice is about",
+          "entry_id": "Associates each upload attempt with the participant's entry",
+          "file_asset_id": "Links to privately stored artwork and the safe copies made from it",
+          "uploaded_by_user_id": "Records who uploaded each version of the work",
+          "pending_text": "Keeps a replacement's proposed text with the image being checked",
+          "receipt_title": "Keeps the adult participant's receipt tied to the submitted title"
+        },
+        "entry_transition": {
+          "entry_id": "Associates a change in status with the participant's entry",
+          "entry_file_id": "Shows which upload caused a change in the entry's status",
+          "actor_user_id": "Records which user acted when the entry changed status"
+        },
+        "entry_upload_grant": {
+          "file_asset_id": "Associates the short-lived grant with the uploader's staged file",
+          "registration_id": "Limits the grant to the authorised registration",
+          "upload_key": "Locates the staged object to clear when the grant expires"
+        },
+        "file_asset": {
+          "owner_user_id": "Says who uploaded the file, so only they and staff reach it",
+          "storage_key": "Locates the stored file, such as an entry's private original or a signed form's scan, including quarantined uploads"
+        },
+        "file_derivative": {
+          "file_asset_id": "Links a metadata-stripped copy to the uploaded file it came from",
+          "storage_key": "Locates a metadata-stripped copy, such as the one shown for a live entry image"
+        },
+        "form_rate_limit": {
+          "key_hash": "A keyed hash of the network or address sending a public form, never the value"
+        },
+        "guardian": {
+          "adult_declared_at": "When the guardian declared they are 18 or older and the child's parent or lawful guardian",
+          "full_name_ciphertext": "Names the parent or guardian who looks after a child, to the child and to FOA (encrypted)",
+          "phone_ciphertext": "Reaches a child's parent or guardian about the child, if they gave a phone (encrypted)",
+          "phone_hash": "A keyed hash of the guardian's phone, to find it without reading it",
+          "user_id": "Links the guardian's declaration to their account, so only they manage their children",
+          "verified_at": "When the guardian confirmed the declaration with a one-time code sent to them"
+        },
+        "guardian_invitation": {
+          "accepted_by_user_id": "Records which account accepted the invitation as the teen's own, or a teen's guardian request as their guardian (#81)",
+          "contact_ciphertext": "The email a guardian invited their teen to an own login at, or a teen gave for the guardian they asked (#81), to send the link (encrypted)",
+          "contact_hash": "A keyed hash of the invited email, to check that the teen or guardian accepting signed in with it",
+          "guardian_id": "Says which guardian sent the invitation, or accepted a teen's request",
+          "invitee_name_ciphertext": "The name a teen gave for the parent or guardian they asked FOA to contact, to greet them in the request (encrypted)",
+          "participant_profile_id": "Says which child the invitation or request is about",
+          "relationship": "How a teen says the person they named is related to them, shown to that person to confirm",
+          "requested_by_user_id": "Links a guardian request to the teen who asked, so their held registrations are released to the guardian who accepts",
+          "token_ciphertext": "The invitation link's token, to build the link when the message is sent (encrypted)"
+        },
+        "guardian_link": {
+          "guardian_id": "Says which guardian looks after the child",
+          "participant_profile_id": "Says which child the guardian looks after",
+          "relationship": "Says whether the guardian is the child's parent or legal guardian"
+        },
+        "inbox_item": {
+          "body": "What FOA told the person in the app, which may name them or their child",
+          "title": "What FOA told the person in the app, which may name them or their child",
+          "user_id": "Says whose in-app message it is",
+          "title_ciphertext": "Shows the recipient the rendered announcement title",
+          "body_ciphertext": "Shows the recipient the announcement instructions and help contacts"
+        },
+        "institution": {
+          "contact_email": "Reaches the institution's office about its registration",
+          "contact_phone": "Reaches the institution's office about its registration",
+          "created_by": "Links the institution to its authorised person, who becomes its admin",
+          "principal_email_ciphertext": "Lets FOA staff confirm the registration with the principal (encrypted)",
+          "principal_name": "Names the head of the institution FOA verifies it with",
+          "principal_phone_ciphertext": "Lets FOA staff confirm the registration with the principal (encrypted)",
+          "status_reason": "Records the reason staff gave for the institution decision",
+          "verified_by": "Records which FOA staff member verified the institution"
+        },
+        "institution_invitation": {
+          "accepted_by_user_id": "Records which account accepted the invitation",
+          "identifier_ciphertext": "The email or mobile number a coordinator invitation goes to (encrypted)",
+          "identifier_hash": "Matches the invitee's account, and a second invitation to the same person, without storing the address readably",
+          "invited_by_user_id": "Records which authorised person sent the invitation",
+          "revoked_by_user_id": "Records which authorised person withdrew the invitation",
+          "token_ciphertext": "The invitation link's secret, so the message can carry it (encrypted)"
+        },
+        "institution_registration": {
+          "registered_by": "Records which coordinator or authorised person registered the institution for the competition",
+          "participation_declared_by_user_id": "Identifies who declared that the institution authorises participation and judging"
+        },
+        "ledger_account": {
+          "name": "The finance category name, which may name a person",
+          "public_label": "The public label for the category, which may name a person"
+        },
+        "ledger_line": {
+          "memo": "Explains a journal line and may name a counterparty"
+        },
+        "ledger_posting": {
+          "created_by_user_id": "Identifies the finance user who entered or reversed a posting",
+          "description": "Describes the entry and may name a counterparty"
+        },
+        "message_delivery": {
+          "user_id": "Says who a message was sent to",
+          "contact_hash": "A keyed hash of the email or phone that deduplicates external deliveries across retries",
+          "recipient_hashes": "Keyed hashes of a recipient's known addresses reconcile a contact delivery if their contact changes before a retry",
+          "recipient_account_hash": "A keyed hash of the recipient's account reconciles a delivery if their address changes before a retry"
+        },
+        "message_template": {
+          "updated_by_user_id": "Records who last changed a message template"
+        },
+        "notification_preference": {
+          "email": "Whether the person wants optional messages by email",
+          "sms": "Whether the person wants optional messages by text",
+          "user_id": "Links message choices to the person's account"
+        },
+        "offline_payment": {
+          "proof_file_asset_id": "The scan or photo of the cheque, transfer advice or cash receipt; a cheque shows the payer's account number and signature. Only finance and staff admins open it",
+          "recorded_by_user_id": "Who in finance recorded the offline payment, so FOA can answer for it",
+          "reference": "The cheque number, bank transfer reference or FOA cash receipt finance recorded a payment with, so the money can be traced to the payer's bank"
+        },
+        "otp_rate_limit": {
+          "key_hash": "A keyed hash of the email, phone or network asking for sign-in codes, never the value"
+        },
+        "outbox": {
+          "aggregate_id": "The ids a background job works on, which can be a person's account or profile",
+          "last_error": "Why a background job failed, which may quote a record it read",
+          "payload": "The ids a background job works on, which can be a person's account or profile"
+        },
+        "participant_profile": {
+          "address_ciphertext": "Where certificates or artwork go back to, when it differs from the school (encrypted)",
+          "city": "Locates the participant for regional rounds and reports",
+          "country": "Where an adult on their own lives, so their postal code reads right and FOA reports by country",
+          "created_by": "Records which coordinator or authorised person first entered the student",
+          "dob_ciphertext": "Places the participant in an age group on the competition's cut-off date, keeps an adult registering on their own from being a minor, and tells a guardian's child under 13 (no login) from a teen (own login) (encrypted)",
+          "email_ciphertext": "Reaches an adult student about their entry (encrypted)",
+          "full_name": "Names the participant (a school's student, an adult on their own, or a guardian's child) on lists, entries and certificates",
+          "grade": "Shows the student's class or year on the school's list",
+          "guardian_email_ciphertext": "Reaches a minor's parent or guardian about the entry (encrypted)",
+          "guardian_name_ciphertext": "Names a minor's parent or guardian to contact (encrypted)",
+          "guardian_phone_ciphertext": "Reaches a minor's parent or guardian about the entry (encrypted)",
+          "guardian_relationship": "Says whether the contact is the minor's parent or legal guardian",
+          "identity_hash": "A keyed hash of the name and date of birth that spots the same student entered twice, without reading either",
+          "login_user_id": "Links a guardian's 13- to 17-year-old child to their own login, so they take part themselves",
+          "owner_user_id": "Links an adult's own profile to their account, or a child's profile to the guardian who keeps it (#81), so only they see and act on it",
+          "participant_code": "The FOA Participant ID that names an adult to FOA across competitions; never a way to sign in",
+          "phone_ciphertext": "Reaches an adult student, or an adult registered on their own, about their entry (encrypted)",
+          "pin_code": "Locates the participant for regional rounds and reports (an adult abroad gives their postal code)",
+          "school_name": "The school or college an adult on their own names, if any, so FOA can invite it to take part",
+          "state": "Locates the participant for regional rounds and reports",
+          "student_ref": "The school's own roll number, so the school recognises the student and FOA spots the same student entered twice"
+        },
+        "payment_batch": {
+          "payer_user_id": "Records who paid an institution's fees, or an adult their own (#78), so the receipt reaches them and FOA can answer a query about the payment"
+        },
+        "payment_review_case": {
+          "resolution_reason": "Why staff accepted, refunded or kept a payment in review: free text that may name the payer or what they said",
+          "resolved_by_user_id": "Who resolved a payment in review, so FOA can answer for it"
+        },
+        "refund": {
+          "decided_by": "Who in finance approved or rejected a refund, so FOA can answer for it",
+          "decision_note": "Finance's note on approving or rejecting a refund: free text the requester reads",
+          "manual_recorded_by": "Who in finance recorded paying a refund back by hand",
+          "manual_reference": "The transfer reference (UTR), cheque number or cash receipt of a refund paid back by hand",
+          "reason": "Why a refund was asked for, or why the system made it: free text that may name the payer or what they said",
+          "requested_by": "Who asked for a refund, so nobody decides their own request"
+        },
+        "registration": {
+          "age_group_id": "Records the age group assigned from the participant's date of birth and the competition's cut-off date",
+          "participant_profile_id": "Says whose entry it is",
+          "registration_number": "The unique number used to identify a participant's confirmed registration on rosters and in confirmations"
+        },
+        "rubric": {
+          "created_by_user_id": "Records who wrote a judging rubric",
+          "published_by_user_id": "Records who published a judging rubric"
+        },
+        "safeguarding_incident_log": {
+          "author_user_id": "Records which safeguarding lead wrote each log entry",
+          "body_ciphertext": "The lead's notes and decisions over the case's life, as its record (encrypted)"
+        },
+        "safeguarding_report": {
+          "assigned_to_user_id": "Records which safeguarding lead is handling the report",
+          "description_ciphertext": "What the reporter saw or was told, so the safeguarding lead can act (encrypted)",
+          "escalation_reference_ciphertext": "The outside authority's reference, to follow the case with them (encrypted)",
+          "outcome_ciphertext": "What the safeguarding lead decided and did, as the record of the case (encrypted)",
+          "reporter_contact_ciphertext": "How to reach the reporter (email or phone), when they chose to be reached (encrypted)",
+          "reporter_is_child": "Whether the reporter is a child, so the safeguarding lead can respond appropriately",
+          "reporter_name_ciphertext": "Who reported, when they chose not to stay anonymous, to follow up (encrypted)",
+          "subject_age": "The child's rough age, to judge urgency and how long to keep the report",
+          "subject_details_ciphertext": "Who the concern is about (a name, a school, a username), to find the child (encrypted)"
+        },
+        "second_factor": {
+          "credential_id": "The passkey's id, to find it when the person signs in with it",
+          "label": "The name the person gave their authenticator or passkey, which may name them or their device",
+          "public_key": "The passkey's public key, to check the person's signature",
+          "totp_secret_sealed": "The authenticator app's shared secret, sealed, to check its codes",
+          "user_id": "Links an authenticator app or passkey to its account"
+        },
+        "second_factor_lockout": {
+          "user_id": "Links a run of wrong second-factor codes to the account it locks"
+        },
+        "session": {
+          "ip_address": "The network address the person signed in from, to spot a sign-in they didn't make",
+          "token": "The session's secret, which the browser's cookie carries",
+          "user_agent": "The browser and device the person signed in with, shown so they recognise their sessions",
+          "user_id": "Links the session to the signed-in account"
+        },
+        "setting": {
+          "updated_by_user_id": "Records which super admin last changed a setting"
+        },
+        "user": {
+          "email": "Signs the person in by email code and sends their messages",
+          "image": "A profile picture's address, when the sign-in provider gives one",
+          "name": "Greets the person and names them to staff",
+          "phone_ciphertext": "Signs the person in by SMS code (encrypted)",
+          "phone_hash": "A keyed hash of the person's phone, to find their account by it without reading it"
+        },
+        "user_role": {
+          "granted_by_user_id": "Records which super admin granted the role",
+          "user_id": "Says which account holds the role"
+        },
+        "verification": {
+          "identifier": "A hash of the email sign-in identifier or a namespaced keyed hash of the phone number finds the recipient's verification even before they have an account. A namespaced guardian record ID locates codes for guardian confirmation.",
+          "value": "The hashed email code, keyed SMS code digest or keyed guardian confirmation code digest, stored with the count of failed attempts"
+        }
+      }
+    }
+  }
+}

@@ -5,7 +5,8 @@
       "roles": "Roles",
       "audit": "Audit log",
       "breaches": "Breach log",
-      "consentForms": "Signed forms"
+      "consentForms": "Signed forms",
+      "privacy": "Data inventory"
     },
     "loading": "Loading…",
     "denied": {

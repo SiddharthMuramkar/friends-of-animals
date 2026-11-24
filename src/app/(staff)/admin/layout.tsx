@@ -2,7 +2,12 @@ import { getTranslations } from "next-intl/server";
 import { connection } from "next/server";
 import { Suspense, type ComponentProps } from "react";
 
-import { ADMIN_BREACHES, ADMIN_LEDGER, APP_ROUTES } from "@/lib/app-routes";
+import {
+  ADMIN_BREACHES,
+  ADMIN_LEDGER,
+  ADMIN_PRIVACY,
+  APP_ROUTES,
+} from "@/lib/app-routes";
 import { env } from "@/env";
 import { as, currentActor } from "@/server/app";
 
@@ -34,6 +39,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ...(env().APP_ENV === "production"
         ? []
         : [{ href: APP_ROUTES.adminConsentForms, label: t("consentForms") }]),
+      { href: ADMIN_PRIVACY, label: t("privacy") },
     ],
   };
   return (

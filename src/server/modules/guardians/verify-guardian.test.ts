@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { createApp } from "@/server/app";
-import { auditLog, guardian, userRole } from "@/server/db/schema";
+import { auditLog, guardian, userRole, verification } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -194,9 +194,52 @@ describe("guardian verification by one-time code", () => {
 
   it("verifies with the right code: dated, by email, with the guardian role and an audit entry", async () => {
     const h = await createHarness();
+    const admin = await h.signIn(await h.seed.superAdmin());
     const { member, actor } = await signedInMember(h);
     await h.as(actor).registerAsGuardian(DECLARATION);
     await h.as(actor).startGuardianVerification();
+    const [record] = await h.db
+      .select({ id: guardian.id })
+      .from(guardian)
+      .where(eq(guardian.userId, member.id));
+    if (!record) throw new Error("Expected the guardian record");
+    const [codeRow] = await h.db
+      .select({ value: verification.value })
+      .from(verification)
+      .where(eq(verification.identifier, `guardian-verification:${record.id}`));
+    if (!codeRow) throw new Error("Expected a code for the guardian record");
+    expect(/^[\w-]{43}:0$/.test(codeRow.value)).toBe(true);
+
+    const inventory = await h.as(admin).getInventory();
+    const subject = {
+      kind: "recipient",
+      via: expect.stringContaining(
+        "guardian-verification:<guardian id> → guardian.user_id"
+      ),
+    };
+    expect
+      .soft(inventory.entries.filter(({ table }) => table === "verification"))
+      .toMatchObject([
+        {
+          column: "identifier",
+          subject,
+          purpose: expect.stringMatching(
+            /guardian record ID.*guardian confirmation/i
+          ),
+        },
+        {
+          column: "value",
+          subject,
+          purpose: expect.stringMatching(
+            /keyed guardian confirmation code digest/i
+          ),
+        },
+      ]);
+    const metadata = JSON.stringify(inventory);
+    expect(metadata.includes(record.id)).toBe(false);
+    expect(metadata.includes(codeRow.value.split(":")[0]!)).toBe(false);
+    expect(metadata).not.toContain(member.email);
+
     h.clock.advance({ minutes: 3 });
     const verifiedAt = h.clock.now();
 

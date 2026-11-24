@@ -30,12 +30,13 @@ const entries = DATA_INVENTORY.filter((entry) =>
 const listed = entries.map((entry) => `${entry.table}.${entry.column}`);
 
 describe("safeguarding's entries in the data inventory", () => {
-  it("list every encrypted column, the child's age and who handled the case", () => {
+  it("lists encrypted columns, recorded age information and who handled the case", () => {
     expect([...listed].sort()).toEqual(
       [
         ...encryptedColumns(safeguardingReport),
         ...encryptedColumns(safeguardingIncidentLog),
         "safeguarding_report.subject_age",
+        "safeguarding_report.reporter_is_child",
         "safeguarding_report.assigned_to_user_id",
         "safeguarding_incident_log.author_user_id",
       ].sort()

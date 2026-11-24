@@ -7,6 +7,7 @@ import {
   competition as competitionTable,
   rubric,
   rubricCriterion,
+  user,
 } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -84,6 +85,45 @@ async function rubricAudit(h: Harness) {
 }
 
 describe("writing and publishing a rubric", () => {
+  it("catalogues both rubric author references that clear on account deletion", async () => {
+    const { h, competition, manager } = await setUp();
+    if (manager.kind !== "user")
+      throw new Error("Expected a signed-in manager");
+    const published = await publishedRubric(h, manager, competition.id);
+    const stored = () =>
+      h.db.select().from(rubric).where(eq(rubric.id, published.id));
+    expect(await stored()).toMatchObject([
+      {
+        status: "published",
+        createdByUserId: manager.userId,
+        publishedByUserId: manager.userId,
+      },
+    ]);
+    await h.db.delete(user).where(eq(user.id, manager.userId));
+    expect(await stored()).toMatchObject([
+      {
+        status: "published",
+        createdByUserId: null,
+        publishedByUserId: null,
+      },
+    ]);
+
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const { entries } = await h.as(admin).getInventory();
+    expect(entries.filter(({ table }) => table === "rubric")).toMatchObject(
+      ["created_by_user_id", "published_by_user_id"].map((column) => ({
+        column,
+        subject: { kind: "user", via: column },
+        retention: {
+          policy: "staffRecords",
+          period:
+            "While the record exists. Cleared when the staff member's account is deleted",
+        },
+        onExpiry: "set_null",
+      }))
+    );
+  });
+
   it("starts a draft from the default judging guide, saves edits and publishes it", async () => {
     const { h, competition, manager } = await setUp();
 
