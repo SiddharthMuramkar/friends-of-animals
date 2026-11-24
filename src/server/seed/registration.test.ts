@@ -10,6 +10,7 @@ import { seedInstitution } from "@/test/institutions";
 
 import { SEED_CANCELLED } from "./competition-cancelled";
 import { SEED_COORDINATORS } from "./coordinators";
+import { SEED_SCHOOL_SUBMISSIONS } from "./institution-submissions";
 import { SEED_PAYMENTS } from "./payments";
 import { SEED_REGISTRATIONS, SEED_STUDENTS } from "./registration";
 import { SEED_SCOPES } from "./scopes";
@@ -39,6 +40,15 @@ describe("the registration seed", () => {
         institutionId: SEED_SCOPES.institution.id,
         competitionId: "01938a00-0000-7000-8000-000000002103",
         reference: "SKIES26-I-5EED2",
+        status: "active",
+      }),
+      // The school-route submissions seed's, for Trees for Birds (#87).
+      expect.objectContaining({
+        id: SEED_SCHOOL_SUBMISSIONS.institutionRegistration.id,
+        institutionId: SEED_SCOPES.institution.id,
+        competitionId:
+          SEED_SCHOOL_SUBMISSIONS.institutionRegistration.competitionId,
+        reference: "TREES27-I-5EED3",
         status: "active",
       }),
       // The cancelled competition's seed: its registration for Wings at
@@ -133,10 +143,12 @@ describe("the registration seed", () => {
     await h.seed.preview();
 
     expect(await h.db.select().from(registration)).toEqual(once);
-    // The school's students; adults' own profiles are the participants
-    // seed's (#78).
+    // This seed's students; adults' own profiles are the participants
+    // seed's (#78), and TREES27's the school-route submissions seed's (#87).
     const profiles = (await h.db.select().from(participantProfile)).filter(
-      (profile) => profile.ownerKind === "institution"
+      (profile) =>
+        profile.ownerKind === "institution" &&
+        SEED_STUDENTS.some((student) => student.profileId === profile.id)
     );
     expect(profiles).toHaveLength(7);
     for (const profile of profiles) {

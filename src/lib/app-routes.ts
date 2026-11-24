@@ -179,6 +179,34 @@ export function studentConsentsPath(
   return `/institution/registrations/${encodeURIComponent(reference)}/consents?${query.toString()}`;
 }
 
+/** A registration's submission roster: every student's entry (#87). */
+export function institutionSubmissionsPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/submissions?${query.toString()}`;
+}
+
+/** One student's entry, where their coordinator uploads it (#87). */
+export function studentSubmissionPath(
+  reference: string,
+  registrationNumber: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/submissions/${encodeURIComponent(registrationNumber)}?${query.toString()}`;
+}
+
+/** Where a coordinator certifies the competition's conduct (#87). */
+export function conductCertificationPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/conduct?${query.toString()}`;
+}
+
 /** Where a coordinator adds a student to a registration (#75). */
 export function newStudentPath(
   reference: string,
@@ -313,6 +341,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/consents",
+  "/institution/registrations/[ref]/submissions",
+  "/institution/registrations/[ref]/submissions/[number]",
+  "/institution/registrations/[ref]/conduct",
   "/institution/registrations/[ref]/students/new",
   "/institution/registrations/[ref]/import",
   "/institution/registrations/[ref]/import/template.csv",
