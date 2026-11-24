@@ -1,65 +1,150 @@
 // The data inventory: every database column that holds personal data, what
-// FOA keeps it for, and how long. Each ticket that adds such a column adds
-// its entries here; ./inventory.test.ts fails while an encrypted column is
-// missing. docs/privacy/data-inventory.md explains the list. Retention
-// periods are defaults until counsel confirms them (HR-31), so every entry
-// says `toConfirm: true`.
+// FOA keeps it for, whose it is, how long it stays and what happens when
+// it expires. Every other column is on the not-personal list
+// (./non-personal.ts), and ./inventory.test.ts fails until each column of
+// every table is on exactly one of the two, so a ticket that adds a column
+// classifies it in the same pull request. docs/privacy/data-inventory.md
+// explains the list.
 //
-// Loads under plain Node: no imports.
+// What counts as personal data here: anything that identifies a person or
+// says something about one (names, contact details, dates of birth, what
+// they wrote, their network address and browser, keyed hashes of any of
+// these), and every column that names a person's account, profile or
+// guardian record, since that links the row to them. A row's own id,
+// timestamps, statuses and organisations' details are not.
+//
+// Policy keys describe the intended retention of each field. The periods
+// are defaults pending counsel confirmation (HR-31).
 
-export type InventoryEntry = {
-  table: string;
-  column: string;
-  /** What FOA keeps it for. */
-  purpose: string;
-  retention: {
-    /** How long, in words a person reads. */
-    period: string;
-    /** Why it is kept that long. */
-    basis: string;
-    /** True until counsel confirms the period. */
-    toConfirm: true;
-  };
+// Loads under plain Node: relative imports only, no "server-only".
+
+import inventoryMessages from "../../../../messages/en-IN/adminPrivacy.json";
+
+import { CONTACT_INVENTORY, MONTHS_AFTER_CLOSE } from "../contact/inventory";
+import type {
+  InventoryEntry,
+  OnExpiry,
+  PersonalDataCategory,
+} from "./domain/coverage";
+
+export type { InventoryEntry };
+
+const policyPeriods = inventoryMessages.adminPrivacy.inventory.periods;
+const {
+  consentRecords,
+  financialRecords,
+  guardianInvitations,
+  ...simplePeriods
+} = policyPeriods;
+const PERIOD_TEXT = {
+  ...simplePeriods,
+  "consentRecords.general": consentRecords.general,
+  "consentRecords.competition": consentRecords.competition,
+  "financialRecords.payments": financialRecords.payments,
+  "financialRecords.ledger": financialRecords.ledger,
+  "guardianInvitations.invitation": guardianInvitations.invitation,
+  "guardianInvitations.request": guardianInvitations.request,
+};
+const PURPOSES: Partial<Record<string, Partial<Record<string, string>>>> =
+  inventoryMessages.adminPrivacy.inventory.purposes;
+
+/** The policy keys used by the catalogue's retention descriptors. */
+export const RETENTION_POLICY_KEYS: ReadonlySet<string> = new Set(
+  Object.keys(policyPeriods)
+);
+
+type Subject = InventoryEntry["subject"];
+type StaticPeriodKey = Exclude<keyof typeof PERIOD_TEXT, "contactMessages">;
+type Retention = Omit<InventoryEntry["retention"], "period"> & {
+  periodKey: StaticPeriodKey;
+};
+type InventoryField = Omit<InventoryEntry, "purpose" | "retention"> & {
+  retention: Retention;
 };
 
+export type InventoryViewEntry = InventoryEntry & {
+  retentionMessage:
+    | { key: StaticPeriodKey; values?: never }
+    | { key: "contactMessages"; values: { months: number } };
+};
+
+/**
+ * Entries for one table: each shares the table's subject, retention and
+ * expiry unless the column says otherwise.
+ */
+function rowsOf(
+  table: string,
+  defaults: { subject: Subject; retention: Retention; onExpiry: OnExpiry }
+) {
+  return (
+    column: string,
+    category: PersonalDataCategory,
+    overrides: Partial<Pick<InventoryEntry, "subject" | "onExpiry">> = {}
+  ): InventoryField => ({
+    table,
+    column,
+    category,
+    ...defaults,
+    ...overrides,
+  });
+}
+
+/**
+ * A column naming the account of whoever did something to the row (staff
+ * who verified, decided or edited it). It goes to null when that account
+ * is deleted, unless `onExpiry` says the row can't change.
+ */
+function actorColumn(
+  table: string,
+  column: string,
+  retention: Retention,
+  onExpiry: OnExpiry = "set_null"
+): InventoryField {
+  return {
+    table,
+    column,
+    category: "identity",
+    subject: { kind: "user", via: column },
+    retention,
+    onExpiry,
+  };
+}
+
 const WHILE_ACCOUNT_OPEN = {
-  period: "While the account is open",
+  policy: "accounts",
+  periodKey: "accounts",
   basis: "Needed to sign the person in and reach them about their account",
   toConfirm: true,
 } as const;
 
 const WHILE_INSTITUTION_TAKES_PART = {
-  period:
-    "While the institution takes part, then 3 years after its last competition",
+  policy: "institutions",
+  periodKey: "institutions",
   basis:
     "FOA reaches the institution about its competitions, and answers queries about past results",
   toConfirm: true,
 } as const;
 
 const AFTER_INVITATION_CLOSES = {
-  period:
-    "90 days after the invitation is accepted, withdrawn or expires (HR-31)",
+  policy: "coordinatorInvitations",
+  periodKey: "coordinatorInvitations",
   basis:
     "Lets the authorised person and FOA see who was invited, and answer a query about it",
   toConfirm: true,
 } as const;
 
 const WHILE_INVITATION_PENDING = {
-  period: "Until the invitation is accepted, withdrawn or expires",
+  policy: "coordinatorInvitationLinks",
+  periodKey: "coordinatorInvitationLinks",
   basis:
-    "Builds the link in the message when it is sent; cleared once the invitation is no longer waiting",
+    "Lets the message include the link while the invitation is waiting for an answer",
   toConfirm: true,
 } as const;
 
-/**
- * src/server/modules/safeguarding/domain/retention.ts computes this date;
- * src/server/modules/safeguarding/retention-policy.ts picks the reports
- * past it for #114's sweep, which deletes each with its incident log.
- */
+/** The safeguarding module supplies the retention dates for these reports. */
 const SAFEGUARDING_RECORD = {
-  period:
-    "While the report is open, then 7 years after it is resolved or until " +
-    "the child concerned turns 25, whichever is later",
+  policy: "safeguardingReports",
+  periodKey: "safeguardingReports",
   basis:
     "Child protection: the record of what was reported and done, kept for " +
     "the child, FOA and the authorities (legal basis to confirm)",
@@ -67,81 +152,56 @@ const SAFEGUARDING_RECORD = {
 } as const;
 
 const WHILE_POST_EXISTS = {
-  period: "While the post exists; deleted with it",
+  policy: "posts",
+  periodKey: "posts",
   basis:
-    "A published post names its author, and FOA answers for who wrote and changed what it publishes",
+    "FOA keeps the post's content and byline together and answers for who wrote and changed it",
   toConfirm: true,
 } as const;
 
 /** Payment records: an 8-year floor for financial records (HR-31). */
 const PAYMENT_RECORD = {
-  period: "8 years after the end of the financial year of the payment (HR-31)",
+  policy: "financialRecords",
+  periodKey: "financialRecords.payments",
   basis:
     "Financial records: FOA answers for what was paid, by whom, and what it confirmed, to the payer, its auditors and the tax authorities",
   toConfirm: true,
 } as const;
 
+const LEDGER_RECORD = {
+  policy: "financialRecords",
+  periodKey: "financialRecords.ledger",
+  basis:
+    "FOA keeps the journal and its attribution for accounting and tax records",
+  toConfirm: true,
+} as const;
+
+const LEDGER_CATEGORY = {
+  policy: "ledgerCategories",
+  periodKey: "ledgerCategories",
+  basis: "FOA can identify the categories used in its financial records",
+  toConfirm: true,
+} as const;
+
+/** The proof stays linked to the payment record. */
+const PAYMENT_PROOF = {
+  ...PAYMENT_RECORD,
+  policy: "paymentProofs",
+  periodKey: "paymentProofs",
+} as const;
+
 const WHILE_REGISTRATION_KEPT = {
-  period:
-    "While the institution takes part, then 3 years after the competition ends (HR-31)",
+  policy: "registrations",
+  periodKey: "registrations",
   basis:
     "Lets the institution and FOA see who registered it, and answer a query about the registration",
   toConfirm: true,
 } as const;
 
-const CONSENT_RECORD = {
-  period: "While the consent applies, then 3 years (HR-31)",
-  basis:
-    "Shows what a person or guardian agreed to and when they changed their choice",
-  toConfirm: true,
-} as const;
-
-const ENTRY_RECORD = {
-  period: "3 years after the competition ends (HR-31)",
-  basis:
-    "Lets participants and FOA find the submitted work, resolve questions and review judging or upload history",
-  toConfirm: true,
-} as const;
-
-const ENTRY_MEDIA = {
-  period: "Until 90 days after the competition ends (HR-31)",
-  basis:
-    "Keeps private originals for processing and metadata-stripped copies for review and appeals",
-  toConfirm: true,
-} as const;
-
-const ENTRY_UPLOAD_GRANT = {
-  period:
-    "Until the upload URL expires after 10 minutes and cleanup runs (HR-31)",
-  basis: "Confirms and rate-limits uploads and removes unused staged data",
-  toConfirm: true,
-} as const;
-
-const SIGNED_FORM_RECORD = {
-  period:
-    "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure (HR-31)",
-  basis: "Lets FOA check the signed evidence and account for its review",
-  toConfirm: true,
-} as const;
-
-const AFTER_CONSENT_LINK_CLOSES = {
-  period: "90 days after the link is answered, revoked or expires (HR-31)",
-  basis:
-    "Reaches the guardian contact and helps FOA answer queries about link delivery",
-  toConfirm: true,
-} as const;
-
-const WHILE_CONSENT_LINK_OPEN = {
-  period: "Until used, revoked or expired (HR-31)",
-  basis:
-    "Provides a single-use link and verifies control of the contact before recording choices",
-  toConfirm: true,
-} as const;
-
 /** A guardian's own record and links: as long as a child of theirs is kept. */
 const WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD = {
-  period:
-    "While a linked child's profile exists, then 1 year (HR-31); a guardian with no child is deleted with their account",
+  policy: "guardians",
+  periodKey: "guardians",
   basis:
     "Shows who looks after each child and when they confirmed it, the record behind a minor's participation (verifiable parental consent, HR-30)",
   toConfirm: true,
@@ -149,8 +209,8 @@ const WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD = {
 
 /** A teen-login invitation's address and link. */
 const AFTER_TEEN_INVITATION_CLOSES = {
-  period:
-    "30 days after the invitation is accepted, withdrawn or expires (HR-31)",
+  policy: "guardianInvitations",
+  periodKey: "guardianInvitations.invitation",
   basis:
     "Lets the guardian and FOA see where the invitation went, and answer a query about it",
   toConfirm: true,
@@ -158,912 +218,933 @@ const AFTER_TEEN_INVITATION_CLOSES = {
 
 /** A teen's guardian request (#81): who they named, and its answer. */
 const AFTER_GUARDIAN_REQUEST_CLOSES = {
-  period:
-    "30 days after the request is accepted, withdrawn or expires (HR-31); an accepted request's guardian is then on the guardian record",
+  policy: "guardianInvitations",
+  periodKey: "guardianInvitations.request",
   basis:
     "Lets FOA ask the person a teen named to confirm them, and answer a query about who was asked and when (HR-30)",
   toConfirm: true,
 } as const;
 
 const WHILE_STUDENT_TAKES_PART = {
-  period:
-    "Until 3 years after the last competition the participant (a school's student, or an adult on their own) was registered for (HR-31)",
+  policy: "participants",
+  periodKey: "participants",
   basis:
     "FOA, and the school for its students, run the competition with it, and answer queries about entries, results and certificates",
   toConfirm: true,
 } as const;
 
-export const DATA_INVENTORY: readonly InventoryEntry[] = [
-  {
-    table: "entry",
-    column: "code",
-    purpose: "Identifies the work when a participant asks FOA about an entry",
-    retention: ENTRY_RECORD,
+// Retention added by #114 for the tables the earlier tickets left out.
+
+const WHILE_SESSION_LASTS = {
+  policy: "expiredSessions",
+  periodKey: "expiredSessions",
+  basis:
+    "Keeps the person signed in, and lets FOA look into a sign-in the person didn't make",
+  toConfirm: true,
+} as const;
+
+const UNTIL_CODE_EXPIRES = {
+  policy: "expiredVerifications",
+  periodKey: "expiredVerifications",
+  basis: "Checks the code or link the person was sent",
+  toConfirm: true,
+} as const;
+
+const AUDIT_RECORD = {
+  policy: "auditLog",
+  periodKey: "auditLog",
+  basis:
+    "FOA answers for who did what on the platform, including staff actions on people's data",
+  toConfirm: true,
+} as const;
+
+const CAPTURED_MESSAGE = {
+  policy: "capturedMessages",
+  periodKey: "capturedMessages",
+  basis:
+    "Local runs and previews capture messages instead of sending them, so a tester can read them; production captures none",
+  toConfirm: true,
+} as const;
+
+const DELIVERY_LOG = {
+  policy: "messageDeliveries",
+  periodKey: "messageDeliveries",
+  basis:
+    "Shows whether a message reached the person, to answer a query or find a fault",
+  toConfirm: true,
+} as const;
+
+const INBOX_MESSAGE = {
+  policy: "readInboxItems",
+  periodKey: "readInboxItems",
+  basis: "The person's own copy of what FOA told them in the app",
+  toConfirm: true,
+} as const;
+
+const BACKGROUND_JOB = {
+  policy: "dispatchedOutbox",
+  periodKey: "dispatchedOutbox",
+  basis:
+    "Lets FOA see what ran in the background after a change, to find a fault",
+  toConfirm: true,
+} as const;
+
+const RATE_LIMIT_WINDOW = {
+  policy: "rateLimitWindows",
+  periodKey: "rateLimitWindows",
+  basis: "Stops one network or number from flooding a form or sign-in codes",
+  toConfirm: true,
+} as const;
+
+const CONSENT_RECORD = {
+  policy: "consentRecords",
+  periodKey: "consentRecords.general",
+  basis:
+    "FOA must show when a person, or a child's guardian, consented to what (DPDP Act 2023; verifiable parental consent, HR-30)",
+  toConfirm: true,
+} as const;
+
+/** Who on FOA's staff made or changed a record. */
+const STAFF_RECORD = {
+  policy: "staffRecords",
+  periodKey: "staffRecords",
+  basis: "FOA answers for who on its staff published, decided or changed what",
+  toConfirm: true,
+} as const;
+
+/** Authorship stays with immutable CMS revisions after account deletion. */
+const CMS_REVISION_AUTHORSHIP = {
+  ...STAFF_RECORD,
+  policy: "cmsRevisionAuthorship",
+  periodKey: "cmsRevisionAuthorship",
+} as const;
+
+const CMS_REVISION_CONTENT = {
+  policy: "cmsRevisionContent",
+  periodKey: "cmsRevisionContent",
+  basis: "FOA can show the content of each published version of a page",
+  toConfirm: true,
+} as const;
+
+const CONSENT_DOCUMENT_AUTHORSHIP = {
+  ...STAFF_RECORD,
+  policy: "consentDocumentAuthorship",
+  periodKey: "consentDocumentAuthorship",
+} as const;
+
+const CONSENT_DOCUMENT_CONTENT = {
+  policy: "consentDocumentContent",
+  periodKey: "consentDocumentContent",
+  basis: "FOA can show the exact terms and notices people consented to",
+  toConfirm: true,
+} as const;
+
+const WHILE_FILE_KEPT = {
+  policy: "files",
+  periodKey: "files",
+  basis: "Lets the person who uploaded a file, and staff, find and manage it",
+  toConfirm: true,
+} as const;
+
+/** Announcements to registrants (#84): kept with the competition's records. */
+const ANNOUNCEMENT_RECORD = {
+  policy: "announcements",
+  periodKey: "announcements",
+  basis:
+    "Shows FOA who wrote and who sent each announcement, and lets it answer questions about the instructions and help contacts it sent",
+  toConfirm: true,
+} as const;
+
+/** A competition-scoped consent: what a signed form or code link recorded. */
+const COMPETITION_CONSENT_RECORD = {
+  ...CONSENT_RECORD,
+  periodKey: "consentRecords.competition",
+} as const;
+
+/** Signed consent forms (#83): the scan, its scope and its review. */
+const SIGNED_FORM_RECORD = {
+  policy: "signedConsentForms",
+  periodKey: "signedConsentForms",
+  basis: "Lets FOA check the signed evidence and account for its review",
+  toConfirm: true,
+} as const;
+
+/** A guardian code link's delivery contact (#83). */
+const AFTER_CONSENT_LINK_CLOSES = {
+  policy: "consentLinkContacts",
+  periodKey: "consentLinkContacts",
+  basis:
+    "Reaches the guardian contact and helps FOA answer queries about link delivery",
+  toConfirm: true,
+} as const;
+
+/** A guardian code link's single-use secrets (#83). */
+const WHILE_CONSENT_LINK_OPEN = {
+  policy: "consentLinkSecrets",
+  periodKey: "consentLinkSecrets",
+  basis:
+    "Provides a single-use link and verifies control of the contact before recording choices",
+  toConfirm: true,
+} as const;
+
+/** Competition entries (#85): the work, its words and its history. */
+const ENTRY_RECORD = {
+  policy: "entries",
+  periodKey: "entries",
+  basis:
+    "Lets participants and FOA find the submitted work, resolve questions and review judging or upload history",
+  toConfirm: true,
+} as const;
+
+const ENTRY_MEDIA = {
+  policy: "entryMedia",
+  periodKey: "entryMedia",
+  basis:
+    "Keeps private originals for processing and metadata-stripped copies for review and appeals",
+  toConfirm: true,
+} as const;
+
+const ENTRY_UPLOAD_GRANT = {
+  policy: "entryUploadGrants",
+  periodKey: "entryUploadGrants",
+  basis: "Confirms and rate-limits uploads and removes unused staged data",
+  toConfirm: true,
+} as const;
+
+const ENTRY_PENDING_TEXT = {
+  policy: "entryPendingText",
+  periodKey: "entryPendingText",
+  basis:
+    "Publishes the text with its approved image and discards unused revisions",
+  toConfirm: true,
+} as const;
+
+const user = rowsOf("user", {
+  subject: { kind: "user", via: "id" },
+  retention: WHILE_ACCOUNT_OPEN,
+  onExpiry: "delete_row",
+});
+
+/** A table whose rows belong to one account and go with it. */
+const accountRows = (table: string, via = "user_id") =>
+  rowsOf(table, {
+    subject: { kind: "user", via },
+    retention: WHILE_ACCOUNT_OPEN,
+    onExpiry: "delete_row",
+  });
+
+const account = accountRows("account");
+const secondFactor = accountRows("second_factor");
+
+const session = rowsOf("session", {
+  subject: { kind: "user", via: "user_id" },
+  retention: WHILE_SESSION_LASTS,
+  onExpiry: "delete_row",
+});
+
+const verification = rowsOf("verification", {
+  subject: {
+    kind: "recipient",
+    via: "identifier (email sign-in hash, sms-sign-in:<phone hash>, or guardian-verification:<guardian id> → guardian.user_id)",
   },
-  {
-    table: "entry",
-    column: "registration_id",
-    purpose: "Links the entry to its confirmed competition registration",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry",
-    column: "participant_profile_id",
-    purpose:
-      "Links the work to the participant and the person authorised to view it",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry",
-    column: "title",
-    purpose: "Displays the name the participant gave the work",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry",
-    column: "description",
-    purpose: "Describes the work for the participant and authorised reviewers",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry",
-    column: "statement",
-    purpose: "Lets the participant explain the work in their own words",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry",
-    column: "created_by_user_id",
-    purpose: "Records which participant or guardian first uploaded the work",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry_file",
-    column: "id",
-    purpose: "Identifies which upload attempt an entry notice is about",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry_file",
-    column: "entry_id",
-    purpose: "Associates each upload attempt with the participant's entry",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry_file",
-    column: "file_asset_id",
-    purpose:
-      "Links to privately stored artwork and the safe copies made from it",
-    retention: ENTRY_MEDIA,
-  },
-  {
-    table: "entry_file",
-    column: "uploaded_by_user_id",
-    purpose: "Records who uploaded each version of the work",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry_file",
-    column: "pending_text",
-    purpose: "Keeps a replacement's proposed text with the image being checked",
-    retention: {
-      period: "Until the replacement passes, fails or is superseded (HR-31)",
-      basis:
-        "Publishes the text with its approved image and discards unused revisions",
-      toConfirm: true,
-    },
-  },
-  {
-    table: "entry_file",
-    column: "receipt_title",
-    purpose:
-      "Keeps the adult participant's receipt tied to the submitted title",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry_upload_grant",
-    column: "file_asset_id",
-    purpose: "Associates the short-lived grant with the uploader's staged file",
-    retention: ENTRY_UPLOAD_GRANT,
-  },
-  {
-    table: "entry_upload_grant",
-    column: "registration_id",
-    purpose: "Limits the grant to the authorised registration",
-    retention: ENTRY_UPLOAD_GRANT,
-  },
-  {
-    table: "entry_upload_grant",
-    column: "upload_key",
-    purpose: "Locates the staged object to clear when the grant expires",
-    retention: ENTRY_UPLOAD_GRANT,
-  },
-  {
-    table: "entry_transition",
-    column: "entry_id",
-    purpose: "Associates a change in status with the participant's entry",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry_transition",
-    column: "entry_file_id",
-    purpose: "Shows which upload caused a change in the entry's status",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "entry_transition",
-    column: "actor_user_id",
-    purpose: "Records which user acted when the entry changed status",
-    retention: ENTRY_RECORD,
-  },
-  {
-    table: "file_asset",
-    column: "owner_user_id",
-    purpose: "Identifies who owns an uploaded file, including an entry image",
-    retention: ENTRY_MEDIA,
-  },
-  {
-    table: "file_asset",
-    column: "storage_key",
-    purpose:
-      "Locates an entry's private original, including quarantined uploads",
-    retention: ENTRY_MEDIA,
-  },
-  {
-    table: "file_derivative",
-    column: "file_asset_id",
-    purpose: "Links a metadata-stripped copy to the uploaded file it came from",
-    retention: ENTRY_MEDIA,
-  },
-  {
-    table: "file_derivative",
-    column: "storage_key",
-    purpose: "Locates a metadata-stripped copy used to show a live entry image",
-    retention: ENTRY_MEDIA,
-  },
-  {
-    table: "consent_form",
-    column: "file_asset_id",
-    purpose:
-      "Locates the private scan bearing the guardian's name and signature",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form",
-    column: "participant_profile_id",
-    purpose: "Identifies the enrolled student whose signed form FOA reviewed",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form",
-    column: "competition_id",
-    purpose: "Identifies the competition covered by the guardian's signed form",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form",
-    column: "institution_registration_id",
-    purpose:
-      "Connects the signed form to the student's school registration for review and coordinator access",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form",
-    column: "uses",
-    purpose: "Records the public uses the guardian marked on the signed form",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form",
-    column: "documents",
-    purpose:
-      "Preserves the exact consent document versions reviewed for the guardian's choices",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form",
-    column: "uploaded_by_user_id",
-    purpose: "Identifies the coordinator who submitted the form",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form",
-    column: "reviewed_by_user_id",
-    purpose: "Identifies the authorised reviewer who made the decision",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form",
-    column: "rejection_note",
-    purpose:
-      "Explains how the coordinator can correct the submission. Staff are asked to leave out personal details",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form_upload",
-    column: "file_asset_id",
-    purpose:
-      "Identifies the private scan upload bound to the student's enrolment",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_form_upload",
-    column: "registration_id",
-    purpose:
-      "Restricts a signed-form upload to the enrolled student it was requested for",
-    retention: SIGNED_FORM_RECORD,
-  },
-  {
-    table: "consent_event",
-    column: "consent_form_id",
-    purpose:
-      "Links a consent decision to the signed evidence of what the guardian agreed to",
-    retention: CONSENT_RECORD,
-  },
-  {
-    table: "consent_event",
-    column: "reviewer_user_id",
-    purpose: "Identifies who verified the signed evidence for this consent",
-    retention: CONSENT_RECORD,
-  },
-  {
-    table: "institution_registration",
-    column: "participation_declared_by_user_id",
-    purpose:
-      "Identifies who declared that the institution authorises participation and judging",
-    retention: WHILE_REGISTRATION_KEPT,
-  },
-  // School guardian consent by code link (#83).
-  ...(
-    [
-      [
-        "contact_ciphertext",
-        "Delivers the consent link and one-time code to the guardian",
-        AFTER_CONSENT_LINK_CLOSES,
-      ],
-      [
-        "contact_hash",
-        "Identifies the normalised delivery contact without reading it",
-        AFTER_CONSENT_LINK_CLOSES,
-      ],
-      [
-        "token_ciphertext",
-        "Builds the guardian's link when the message is delivered",
-        WHILE_CONSENT_LINK_OPEN,
-      ],
-      [
-        "token_hash",
-        "Finds the link and recognises previously used or revoked links",
-        AFTER_CONSENT_LINK_CLOSES,
-      ],
-      [
-        "code_hash",
-        "Verifies the one-time code sent to the guardian contact",
-        WHILE_CONSENT_LINK_OPEN,
-      ],
-      [
-        "session_token_hash",
-        "Binds the answer session to the browser which verified the code",
-        WHILE_CONSENT_LINK_OPEN,
-      ],
-      [
-        "answers",
-        "Records the public uses the guardian gave or declined on the link",
-        CONSENT_RECORD,
-      ],
-      [
-        "offered_uses",
-        "Records the document versions shown for the guardian's choices",
-        CONSENT_RECORD,
-      ],
-      [
-        "participant_profile_id",
-        "Identifies the student whose choices the link records",
-        CONSENT_RECORD,
-      ],
-      [
-        "student_registration_id",
-        "Keeps the link tied to this student's school enrolment",
-        CONSENT_RECORD,
-      ],
-      [
-        "institution_registration_id",
-        "Scopes the student's link to the school's registration",
-        CONSENT_RECORD,
-      ],
-      [
-        "competition_id",
-        "Identifies the competition for which the guardian answered",
-        CONSENT_RECORD,
-      ],
-      [
-        "sent_by_user_id",
-        "Records the coordinator who issued the guardian link",
-        CONSENT_RECORD,
-      ],
-    ] as const
-  ).map(([column, purpose, retention]) => ({
+  retention: UNTIL_CODE_EXPIRES,
+  onExpiry: "delete_row",
+});
+
+const institution = rowsOf("institution", {
+  subject: { kind: "institution", via: "id" },
+  retention: WHILE_INSTITUTION_TAKES_PART,
+  onExpiry: "delete_row",
+});
+
+const coordinatorInvitation = rowsOf("institution_invitation", {
+  subject: { kind: "invitee", via: "identifier_hash" },
+  retention: AFTER_INVITATION_CLOSES,
+  onExpiry: "delete_row",
+});
+
+const safeguardingReport = rowsOf("safeguarding_report", {
+  subject: { kind: "safeguarding_report", via: "id" },
+  retention: SAFEGUARDING_RECORD,
+  onExpiry: "delete_row",
+});
+
+const incidentLog = rowsOf("safeguarding_incident_log", {
+  subject: { kind: "safeguarding_report", via: "report_id" },
+  retention: SAFEGUARDING_RECORD,
+  onExpiry: "delete_row",
+});
+
+const profile = rowsOf("participant_profile", {
+  subject: { kind: "participant_profile", via: "id" },
+  retention: WHILE_STUDENT_TAKES_PART,
+  onExpiry: "delete_row",
+});
+
+// School enrolment can record a guardian contact without a guardian account.
+const PROFILE_GUARDIAN_CONTACT = {
+  kind: "guardian_contact",
+  via: "participant_profile.guardian_phone_ciphertext or participant_profile.guardian_email_ciphertext",
+};
+
+const registration = rowsOf("registration", {
+  subject: { kind: "participant_profile", via: "participant_profile_id" },
+  retention: WHILE_STUDENT_TAKES_PART,
+  onExpiry: "delete_row",
+});
+
+const guardian = rowsOf("guardian", {
+  subject: { kind: "user", via: "user_id" },
+  retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
+  onExpiry: "delete_row",
+});
+
+const GUARDIAN_ACCOUNT = {
+  kind: "user",
+  via: "guardian_id → guardian.user_id",
+};
+
+const guardianLink = rowsOf("guardian_link", {
+  subject: { kind: "participant_profile", via: "participant_profile_id" },
+  retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
+  onExpiry: "delete_row",
+});
+
+const guardianInvitation = rowsOf("guardian_invitation", {
+  subject: { kind: "participant_profile", via: "participant_profile_id" },
+  retention: AFTER_TEEN_INVITATION_CLOSES,
+  onExpiry: "delete_row",
+});
+
+// The kind distinguishes an invited teen from a requested guardian.
+const GUARDIAN_INVITATION_RECIPIENT = {
+  kind: "invitee",
+  via: "kind + contact_hash",
+} as const;
+
+/** A payment record: anonymised once the financial floor has passed. */
+const payment = (table: string, via: string) =>
+  rowsOf(table, {
+    subject: { kind: "payer", via },
+    retention: PAYMENT_RECORD,
+    onExpiry: "set_null",
+  });
+
+const auditLog = rowsOf("audit_log", {
+  subject: { kind: "user", via: "actor_user_id" },
+  retention: AUDIT_RECORD,
+  onExpiry: "retain",
+});
+
+// The entity type selects what the entity id refers to.
+const AUDIT_TARGET = { kind: "audit_target", via: "entity_type + entity_id" };
+
+const capturedMessage = rowsOf("captured_message", {
+  subject: { kind: "recipient", via: "to_address" },
+  retention: CAPTURED_MESSAGE,
+  onExpiry: "delete_row",
+});
+
+const signedForm = rowsOf("consent_form", {
+  subject: { kind: "participant_profile", via: "participant_profile_id" },
+  retention: SIGNED_FORM_RECORD,
+  onExpiry: "delete_row",
+});
+
+/** A code link's fields follow the consent it records unless they say otherwise. */
+function consentLink(
+  column: string,
+  category: PersonalDataCategory,
+  overrides: Partial<Pick<InventoryField, "retention" | "onExpiry">> = {}
+): InventoryField {
+  return {
     table: "consent_link",
     column,
-    purpose,
-    retention,
-  })),
-  {
-    table: "consent_event",
-    column: "giver_contact_hash",
-    purpose:
-      "Identifies the verified consent giver without storing the contact in the consent log",
-    retention: CONSENT_RECORD,
-  },
-  {
-    table: "consent_event",
-    column: "consent_link_id",
-    purpose: "Links a recorded consent to the guardian's code link evidence",
-    retention: CONSENT_RECORD,
-  },
+    category,
+    subject: { kind: "participant_profile", via: "participant_profile_id" },
+    retention: COMPETITION_CONSENT_RECORD,
+    onExpiry: "delete_row",
+    ...overrides,
+  };
+}
+
+const entry = rowsOf("entry", {
+  subject: { kind: "participant_profile", via: "participant_profile_id" },
+  retention: ENTRY_RECORD,
+  onExpiry: "delete_row",
+});
+
+const ENTRY_PARTICIPANT = {
+  kind: "participant_profile",
+  via: "entry_id → entry.participant_profile_id",
+};
+
+/** An upload attempt: kept with the entry, its file only until the media go. */
+function entryFile(
+  column: string,
+  category: PersonalDataCategory,
+  overrides: Partial<Pick<InventoryField, "retention" | "onExpiry">> = {}
+): InventoryField {
+  return {
+    table: "entry_file",
+    column,
+    category,
+    subject: ENTRY_PARTICIPANT,
+    retention: ENTRY_RECORD,
+    onExpiry: "delete_row",
+    ...overrides,
+  };
+}
+
+const INVENTORY_FIELDS: readonly InventoryField[] = [
   // Accounts (#57, #58)
+  user("name", "identity"),
+  user("email", "contact"),
+  user("phone_ciphertext", "contact"),
+  user("phone_hash", "technical"),
+  user("image", "identity"),
+  account("user_id", "identity"),
+  account("account_id", "identity"),
+  account("access_token", "technical"),
+  account("refresh_token", "technical"),
+  account("id_token", "technical"),
+  account("password", "technical"),
+  session("user_id", "identity"),
+  session("token", "technical"),
+  session("ip_address", "technical"),
+  session("user_agent", "technical"),
+  verification("identifier", "contact"),
+  verification("value", "technical"),
+  rowsOf("otp_rate_limit", {
+    subject: { kind: "visitor", via: "key_hash" },
+    retention: RATE_LIMIT_WINDOW,
+    onExpiry: "delete_row",
+  })("key_hash", "technical"),
+  rowsOf("form_rate_limit", {
+    subject: { kind: "visitor", via: "key_hash" },
+    retention: RATE_LIMIT_WINDOW,
+    onExpiry: "delete_row",
+  })("key_hash", "technical"),
+  // Roles and the audit log (#59)
+  accountRows("user_role")("user_id", "identity"),
+  actorColumn("user_role", "granted_by_user_id", STAFF_RECORD),
+  auditLog("actor_user_id", "identity"),
+  auditLog("entity_id", "identity", { subject: AUDIT_TARGET }),
+  auditLog("before", "content", { subject: AUDIT_TARGET }),
+  auditLog("after", "content", { subject: AUDIT_TARGET }),
+  auditLog("ip", "technical"),
+  auditLog("user_agent", "technical"),
+  // Second factor (#60)
+  secondFactor("user_id", "identity"),
+  secondFactor("label", "identity"),
+  secondFactor("credential_id", "technical"),
+  secondFactor("public_key", "technical"),
+  secondFactor("totp_secret_sealed", "technical"),
+  accountRows("second_factor_lockout")("user_id", "identity"),
+  // Messages (#69)
+  accountRows("notification_preference")("user_id", "identity"),
+  accountRows("notification_preference")("email", "preference"),
+  accountRows("notification_preference")("sms", "preference"),
+  rowsOf("message_delivery", {
+    subject: { kind: "user", via: "user_id" },
+    retention: DELIVERY_LOG,
+    onExpiry: "delete_row",
+  })("user_id", "identity"),
+  // A delivery keyed by destination (#84) names its recipient by blind index.
+  ...(
+    ["contact_hash", "recipient_account_hash", "recipient_hashes"] as const
+  ).map((column) =>
+    rowsOf("message_delivery", {
+      subject: { kind: "recipient", via: column },
+      retention: DELIVERY_LOG,
+      onExpiry: "delete_row",
+    })(column, "technical")
+  ),
+  ...(
+    ["user_id", "title", "body", "title_ciphertext", "body_ciphertext"] as const
+  ).map((column) =>
+    rowsOf("inbox_item", {
+      subject: { kind: "user", via: "user_id" },
+      retention: INBOX_MESSAGE,
+      onExpiry: "delete_row",
+    })(column, column === "user_id" ? "identity" : "content")
+  ),
+  capturedMessage("to_address", "contact"),
+  capturedMessage("subject", "content"),
+  capturedMessage("body_text", "content"),
+  capturedMessage("body_html", "content"),
+  ...(["aggregate_id", "payload", "last_error"] as const).map((column) =>
+    rowsOf("outbox", {
+      subject: { kind: "user", via: "payload" },
+      retention: BACKGROUND_JOB,
+      onExpiry: "delete_row",
+    })(column, "technical")
+  ),
+  // Consent (#64)
+  rowsOf("consent_event", {
+    subject: { kind: "consent_subject", via: "subject_id" },
+    retention: CONSENT_RECORD,
+    onExpiry: "retain",
+  })("subject_id", "identity"),
+  rowsOf("consent_event", {
+    subject: { kind: "user", via: "giver_user_id" },
+    retention: CONSENT_RECORD,
+    onExpiry: "set_null",
+  })("giver_user_id", "identity"),
+  rowsOf("consent_event", {
+    subject: { kind: "consent_subject", via: "subject_id" },
+    retention: {
+      ...CONSENT_RECORD,
+      periodKey: "consentRecords.competition",
+    },
+    onExpiry: "retain",
+  })("competition_id", "technical"),
+  // Signed forms and code links (#83) as consent evidence.
+  ...(["consent_form_id", "consent_link_id"] as const).map((column) =>
+    rowsOf("consent_event", {
+      subject: { kind: "consent_subject", via: "subject_id" },
+      retention: COMPETITION_CONSENT_RECORD,
+      onExpiry: "retain",
+    })(column, "technical")
+  ),
+  rowsOf("consent_event", {
+    subject: { kind: "consent_giver", via: "giver_contact_hash" },
+    retention: COMPETITION_CONSENT_RECORD,
+    onExpiry: "retain",
+  })("giver_contact_hash", "technical"),
+  actorColumn(
+    "consent_event",
+    "reviewer_user_id",
+    COMPETITION_CONSENT_RECORD,
+    "retain"
+  ),
+  // Files (#63)
+  ...(["owner_user_id", "storage_key"] as const).map((column) =>
+    rowsOf("file_asset", {
+      subject: { kind: "user", via: "owner_user_id" },
+      retention: WHILE_FILE_KEPT,
+      onExpiry: "delete_row",
+    })(column, column === "owner_user_id" ? "identity" : "technical")
+  ),
+  ...(["file_asset_id", "storage_key"] as const).map((column) =>
+    rowsOf("file_derivative", {
+      subject: {
+        kind: "user",
+        via: "file_asset_id → file_asset.owner_user_id",
+      },
+      retention: WHILE_FILE_KEPT,
+      onExpiry: "delete_row",
+    })(column, "technical")
+  ),
+  // Staff who made or changed a record
+  ...(
+    [
+      ["competition", "created_by_user_id"],
+      ["competition_award_scheme", "updated_by_user_id"],
+      ["competition_consent_document", "attached_by_user_id"],
+      ["competition_fee", "updated_by_user_id"],
+      ["rubric", "created_by_user_id"],
+      ["rubric", "published_by_user_id"],
+      ["message_template", "updated_by_user_id"],
+      ["setting", "updated_by_user_id"],
+    ] as const
+  ).map(([table, column]) => actorColumn(table, column, STAFF_RECORD)),
+  // Published documents and revisions keep their authorship.
+  actorColumn(
+    "consent_document",
+    "published_by_user_id",
+    CONSENT_DOCUMENT_AUTHORSHIP,
+    "retain"
+  ),
   {
-    table: "user",
-    column: "name",
-    purpose: "Greets the person and names them to staff",
-    retention: WHILE_ACCOUNT_OPEN,
+    table: "consent_document",
+    column: "body",
+    category: "content",
+    subject: { kind: "content_subject", via: "body" },
+    retention: CONSENT_DOCUMENT_CONTENT,
+    onExpiry: "retain",
   },
+  actorColumn(
+    "cms_revision",
+    "created_by_user_id",
+    CMS_REVISION_AUTHORSHIP,
+    "retain"
+  ),
+  actorColumn(
+    "cms_revision",
+    "published_by_user_id",
+    CMS_REVISION_AUTHORSHIP,
+    "retain"
+  ),
   {
-    table: "user",
-    column: "email",
-    purpose: "Signs the person in by email code and sends their messages",
-    retention: WHILE_ACCOUNT_OPEN,
-  },
-  {
-    table: "user",
-    column: "phone_ciphertext",
-    purpose: "Signs the person in by SMS code (encrypted)",
-    retention: WHILE_ACCOUNT_OPEN,
+    table: "cms_revision",
+    column: "body",
+    category: "content",
+    subject: {
+      kind: "content_subject",
+      via: "document_id → cms_document.key → body (site_facts: grievanceOfficer.name and grievanceOfficer.email)",
+    },
+    retention: CMS_REVISION_CONTENT,
+    onExpiry: "retain",
   },
   // Institutions (#73)
-  {
-    table: "institution",
-    column: "contact_email",
-    purpose: "Reaches the institution's office about its registration",
-    retention: WHILE_INSTITUTION_TAKES_PART,
-  },
-  {
-    table: "institution",
-    column: "contact_phone",
-    purpose: "Reaches the institution's office about its registration",
-    retention: WHILE_INSTITUTION_TAKES_PART,
-  },
-  {
-    table: "institution",
-    column: "principal_name",
-    purpose: "Names the head of the institution FOA verifies it with",
-    retention: WHILE_INSTITUTION_TAKES_PART,
-  },
-  {
-    table: "institution",
-    column: "principal_email_ciphertext",
-    purpose:
-      "Lets FOA staff confirm the registration with the principal (encrypted)",
-    retention: WHILE_INSTITUTION_TAKES_PART,
-  },
-  {
-    table: "institution",
-    column: "principal_phone_ciphertext",
-    purpose:
-      "Lets FOA staff confirm the registration with the principal (encrypted)",
-    retention: WHILE_INSTITUTION_TAKES_PART,
-  },
-  {
-    table: "institution",
-    column: "created_by",
-    purpose:
-      "Links the institution to its authorised person, who becomes its admin",
-    retention: WHILE_INSTITUTION_TAKES_PART,
-  },
-  {
-    table: "institution",
-    column: "verified_by",
-    purpose: "Records which FOA staff member verified the institution",
-    retention: WHILE_INSTITUTION_TAKES_PART,
-  },
+  institution("contact_email", "contact"),
+  institution("contact_phone", "contact"),
+  institution("principal_name", "identity"),
+  institution("principal_email_ciphertext", "contact"),
+  institution("principal_phone_ciphertext", "contact"),
+  institution("status_reason", "content"),
+  institution("created_by", "identity", {
+    subject: { kind: "user", via: "created_by" },
+    onExpiry: "retain",
+  }),
+  institution("verified_by", "identity", {
+    subject: { kind: "user", via: "verified_by" },
+    onExpiry: "set_null",
+  }),
   // Coordinator invitations (#74)
-  {
-    table: "institution_invitation",
-    column: "identifier_ciphertext",
-    purpose:
-      "The email or mobile number a coordinator invitation goes to (encrypted)",
-    retention: AFTER_INVITATION_CLOSES,
-  },
-  {
-    table: "institution_invitation",
-    column: "identifier_hash",
-    purpose:
-      "Matches the invitee's account, and a second invitation to the same person, without storing the address readably",
-    retention: AFTER_INVITATION_CLOSES,
-  },
+  coordinatorInvitation("identifier_ciphertext", "contact"),
+  coordinatorInvitation("identifier_hash", "technical"),
   {
     table: "institution_invitation",
     column: "token_ciphertext",
-    purpose:
-      "The invitation link's secret, so the message can carry it (encrypted)",
+    category: "technical",
+    subject: { kind: "invitee", via: "identifier_hash" },
     retention: WHILE_INVITATION_PENDING,
+    onExpiry: "set_null",
   },
-  {
-    table: "institution_invitation",
-    column: "invited_by_user_id",
-    purpose: "Records which authorised person sent the invitation",
-    retention: AFTER_INVITATION_CLOSES,
-  },
-  {
-    table: "institution_invitation",
-    column: "accepted_by_user_id",
-    purpose: "Records which account accepted the invitation",
-    retention: AFTER_INVITATION_CLOSES,
-  },
-  {
-    table: "institution_invitation",
-    column: "revoked_by_user_id",
-    purpose: "Records which authorised person withdrew the invitation",
-    retention: AFTER_INVITATION_CLOSES,
-  },
+  coordinatorInvitation("invited_by_user_id", "identity", {
+    subject: { kind: "user", via: "invited_by_user_id" },
+  }),
+  coordinatorInvitation("accepted_by_user_id", "identity"),
+  coordinatorInvitation("revoked_by_user_id", "identity", {
+    subject: { kind: "user", via: "revoked_by_user_id" },
+  }),
   // Safeguarding reports (#116): only a safeguarding lead reads them
-  {
-    table: "safeguarding_report",
-    column: "description_ciphertext",
-    purpose:
-      "What the reporter saw or was told, so the safeguarding lead can act (encrypted)",
-    retention: SAFEGUARDING_RECORD,
-  },
-  {
-    table: "safeguarding_report",
-    column: "subject_details_ciphertext",
-    purpose:
-      "Who the concern is about (a name, a school, a username), to find the child (encrypted)",
-    retention: SAFEGUARDING_RECORD,
-  },
-  {
-    table: "safeguarding_report",
-    column: "subject_age",
-    purpose:
-      "The child's rough age, to judge urgency and how long to keep the report",
-    retention: SAFEGUARDING_RECORD,
-  },
-  {
-    table: "safeguarding_report",
-    column: "reporter_name_ciphertext",
-    purpose:
-      "Who reported, when they chose not to stay anonymous, to follow up (encrypted)",
-    retention: SAFEGUARDING_RECORD,
-  },
-  {
-    table: "safeguarding_report",
-    column: "reporter_contact_ciphertext",
-    purpose:
-      "How to reach the reporter (email or phone), when they chose to be reached (encrypted)",
-    retention: SAFEGUARDING_RECORD,
-  },
-  {
-    table: "safeguarding_report",
-    column: "escalation_reference_ciphertext",
-    purpose:
-      "The outside authority's reference, to follow the case with them (encrypted)",
-    retention: SAFEGUARDING_RECORD,
-  },
-  {
-    table: "safeguarding_report",
-    column: "outcome_ciphertext",
-    purpose:
-      "What the safeguarding lead decided and did, as the record of the case (encrypted)",
-    retention: SAFEGUARDING_RECORD,
-  },
-  {
-    table: "safeguarding_report",
-    column: "assigned_to_user_id",
-    purpose: "Records which safeguarding lead is handling the report",
-    retention: SAFEGUARDING_RECORD,
-  },
-  {
-    table: "safeguarding_incident_log",
-    column: "body_ciphertext",
-    purpose:
-      "The lead's notes and decisions over the case's life, as its record (encrypted)",
-    retention: SAFEGUARDING_RECORD,
-  },
-  {
-    table: "safeguarding_incident_log",
-    column: "author_user_id",
-    purpose: "Records which safeguarding lead wrote each log entry",
-    retention: SAFEGUARDING_RECORD,
-  },
+  safeguardingReport("description_ciphertext", "content"),
+  safeguardingReport("subject_details_ciphertext", "identity"),
+  safeguardingReport("subject_age", "demographic"),
+  safeguardingReport("reporter_name_ciphertext", "identity"),
+  safeguardingReport("reporter_is_child", "demographic"),
+  safeguardingReport("reporter_contact_ciphertext", "contact"),
+  safeguardingReport("escalation_reference_ciphertext", "content"),
+  safeguardingReport("outcome_ciphertext", "content"),
+  safeguardingReport("assigned_to_user_id", "identity", {
+    subject: { kind: "user", via: "assigned_to_user_id" },
+  }),
+  incidentLog("body_ciphertext", "content"),
+  incidentLog("author_user_id", "identity", {
+    subject: { kind: "user", via: "author_user_id" },
+  }),
   // Blog posts and stories (#112)
+  ...["body", "easy_read", "excerpt", "seo_title", "slug", "title"].map(
+    (column): InventoryField => ({
+      table: "cms_post",
+      column,
+      category: "content",
+      subject: { kind: "content_subject", via: column },
+      retention: WHILE_POST_EXISTS,
+      onExpiry: "delete_row",
+    })
+  ),
+  rowsOf("cms_post_image", {
+    subject: { kind: "content_subject", via: "alt" },
+    retention: WHILE_POST_EXISTS,
+    onExpiry: "delete_row",
+  })("alt", "content"),
   {
     table: "cms_post",
     column: "author_name",
-    purpose: "The byline a post shows, as its editor typed it (optional)",
+    category: "identity",
+    subject: { kind: "author", via: "author_name" },
     retention: WHILE_POST_EXISTS,
+    onExpiry: "delete_row",
   },
-  {
-    table: "cms_post",
-    column: "created_by",
-    purpose: "Records which content manager started the post",
-    retention: WHILE_POST_EXISTS,
-  },
-  {
-    table: "cms_post",
-    column: "updated_by",
-    purpose: "Records which content manager last changed the post",
-    retention: WHILE_POST_EXISTS,
-  },
+  actorColumn("cms_post", "created_by", WHILE_POST_EXISTS),
+  actorColumn("cms_post", "updated_by", WHILE_POST_EXISTS),
   // Institution registrations for a competition (#75)
-  {
-    table: "institution_registration",
-    column: "registered_by",
-    purpose:
-      "Records which coordinator or authorised person registered the institution for the competition",
-    retention: WHILE_REGISTRATION_KEPT,
-  },
-  // Consent records (#82)
-  {
-    table: "consent_event",
-    column: "subject_id",
-    purpose:
-      "Identifies the person or child whose consent was given or withdrawn",
-    retention: CONSENT_RECORD,
-  },
-  {
-    table: "consent_event",
-    column: "giver_user_id",
-    purpose: "Identifies the account that gave or withdrew consent",
-    retention: CONSENT_RECORD,
-  },
-  {
-    table: "consent_event",
-    column: "competition_id",
-    purpose: "Identifies the competition to which the consent applies",
-    retention: CONSENT_RECORD,
-  },
+  actorColumn(
+    "institution_registration",
+    "registered_by",
+    WHILE_REGISTRATION_KEPT
+  ),
+  actorColumn(
+    "institution_registration",
+    "participation_declared_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
   // Students an institution enrols (#75)
-  {
-    table: "participant_profile",
-    column: "full_name",
-    purpose:
-      "Names the participant (a school's student, an adult on their own, or a guardian's child) on lists, entries and certificates",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "dob_ciphertext",
-    purpose:
-      "Places the participant in an age group on the competition's cut-off date, keeps an adult registering on their own from being a minor, and tells a guardian's child under 13 (no login) from a teen (own login) (encrypted)",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "grade",
-    purpose: "Shows the student's class or year on the school's list",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "student_ref",
-    purpose:
-      "The school's own roll number, so the school recognises the student and FOA spots the same student entered twice",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "phone_ciphertext",
-    purpose:
-      "Reaches an adult student, or an adult registered on their own, about their entry (encrypted)",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "email_ciphertext",
-    purpose: "Reaches an adult student about their entry (encrypted)",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "guardian_name_ciphertext",
-    purpose: "Names a minor's parent or guardian to contact (encrypted)",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "guardian_relationship",
-    purpose: "Says whether the contact is the minor's parent or legal guardian",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "guardian_phone_ciphertext",
-    purpose: "Reaches a minor's parent or guardian about the entry (encrypted)",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "guardian_email_ciphertext",
-    purpose: "Reaches a minor's parent or guardian about the entry (encrypted)",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "address_ciphertext",
-    purpose:
-      "Where certificates or artwork go back to, when it differs from the school (encrypted)",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "pin_code",
-    purpose:
-      "Locates the participant for regional rounds and reports (an adult abroad gives their postal code)",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "city",
-    purpose: "Locates the participant for regional rounds and reports",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "state",
-    purpose: "Locates the participant for regional rounds and reports",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "identity_hash",
-    purpose:
-      "A keyed hash of the name and date of birth that spots the same student entered twice, without reading either",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "created_by",
-    purpose:
-      "Records which coordinator or authorised person first entered the student",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
+  profile("full_name", "identity"),
+  profile("dob_ciphertext", "demographic"),
+  profile("grade", "demographic"),
+  profile("student_ref", "identity"),
+  profile("phone_ciphertext", "contact"),
+  profile("email_ciphertext", "contact"),
+  profile("guardian_name_ciphertext", "identity", {
+    subject: PROFILE_GUARDIAN_CONTACT,
+  }),
+  profile("guardian_relationship", "demographic", {
+    subject: PROFILE_GUARDIAN_CONTACT,
+  }),
+  profile("guardian_phone_ciphertext", "contact", {
+    subject: PROFILE_GUARDIAN_CONTACT,
+  }),
+  profile("guardian_email_ciphertext", "contact", {
+    subject: PROFILE_GUARDIAN_CONTACT,
+  }),
+  profile("address_ciphertext", "contact"),
+  profile("pin_code", "demographic"),
+  profile("city", "demographic"),
+  profile("state", "demographic"),
+  profile("identity_hash", "technical"),
+  profile("created_by", "identity", {
+    subject: { kind: "user", via: "created_by" },
+    onExpiry: "set_null",
+  }),
   // Adults who register themselves (#78): their own profile
-  {
-    table: "participant_profile",
-    column: "owner_user_id",
-    purpose:
-      "Links an adult's own profile to their account, or a child's profile to the guardian who keeps it (#81), so only they see and act on it",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "participant_code",
-    purpose:
-      "The FOA Participant ID that names an adult to FOA across competitions; never a way to sign in",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "country",
-    purpose:
-      "Where an adult on their own lives, so their postal code reads right and FOA reports by country",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
-  {
-    table: "participant_profile",
-    column: "school_name",
-    purpose:
-      "The school or college an adult on their own names, if any, so FOA can invite it to take part",
-    retention: WHILE_STUDENT_TAKES_PART,
-  },
+  profile("owner_user_id", "identity", { onExpiry: "set_null" }),
+  profile("participant_code", "identity"),
+  profile("country", "demographic"),
+  profile("school_name", "demographic"),
+  // Registrations (#75, #78): an entry names the participant and age group.
+  registration("participant_profile_id", "identity"),
+  registration("age_group_id", "demographic"),
+  registration("registration_number", "identity"),
   // Fee payments (#77). Webhook events keep no body: it carries the payer's
   // email and phone.
-  {
-    table: "payment_batch",
-    column: "payer_user_id",
-    purpose:
-      "Records who paid an institution's fees, or an adult their own (#78), so the receipt reaches them and FOA can answer a query about the payment",
-    retention: PAYMENT_RECORD,
-  },
+  payment("payment_batch", "payer_user_id")("payer_user_id", "identity"),
   // Offline payments and payments needing review (#79).
-  {
-    table: "offline_payment",
-    column: "reference",
-    purpose:
-      "The cheque number, bank transfer reference or FOA cash receipt finance recorded a payment with, so the money can be traced to the payer's bank",
-    retention: PAYMENT_RECORD,
-  },
+  payment("offline_payment", "batch_id")("reference", "financial", {
+    onExpiry: "tombstone",
+  }),
   {
     table: "offline_payment",
     column: "proof_file_asset_id",
-    purpose:
-      "The scan or photo of the cheque, transfer advice or cash receipt; a cheque shows the payer's account number and signature. Only finance and staff admins open it",
-    retention: PAYMENT_RECORD,
+    category: "financial",
+    subject: { kind: "payer", via: "batch_id" },
+    retention: PAYMENT_PROOF,
+    onExpiry: "retain",
   },
-  {
-    table: "offline_payment",
-    column: "recorded_by_user_id",
-    purpose:
-      "Who in finance recorded the offline payment, so FOA can answer for it",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "payment_review_case",
-    column: "resolution_reason",
-    purpose:
-      "Why staff accepted, refunded or kept a payment in review: free text that may name the payer or what they said",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "payment_review_case",
-    column: "resolved_by_user_id",
-    purpose: "Who resolved a payment in review, so FOA can answer for it",
-    retention: PAYMENT_RECORD,
-  },
+  actorColumn("offline_payment", "recorded_by_user_id", PAYMENT_RECORD),
+  payment("payment_review_case", "batch_id")("resolution_reason", "content", {
+    onExpiry: "tombstone",
+  }),
+  actorColumn("payment_review_case", "resolved_by_user_id", PAYMENT_RECORD),
   // Refunds (#80): money records, kept as long as the payment they return.
-  {
-    table: "refund",
-    column: "reason",
-    purpose:
-      "Why a refund was asked for, or why the system made it: free text that may name the payer or what they said",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "refund",
-    column: "requested_by",
-    purpose: "Who asked for a refund, so nobody decides their own request",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "refund",
-    column: "decided_by",
-    purpose:
-      "Who in finance approved or rejected a refund, so FOA can answer for it",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "refund",
-    column: "decision_note",
-    purpose:
-      "Finance's note on approving or rejecting a refund: free text the requester reads",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "refund",
-    column: "manual_reference",
-    purpose:
-      "The transfer reference (UTR), cheque number or cash receipt of a refund paid back by hand",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "refund",
-    column: "manual_recorded_by",
-    purpose: "Who in finance recorded paying a refund back by hand",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "ledger_posting",
-    column: "description",
-    purpose: "Describes the entry and may name a counterparty",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "ledger_posting",
-    column: "created_by_user_id",
-    purpose: "Identifies the finance user who entered or reversed a posting",
-    retention: PAYMENT_RECORD,
-  },
-  {
-    table: "ledger_line",
-    column: "memo",
-    purpose: "Explains a journal line and may name a counterparty",
-    retention: PAYMENT_RECORD,
-  },
+  payment("refund", "batch_id")("reason", "content", { onExpiry: "tombstone" }),
+  actorColumn("refund", "requested_by", PAYMENT_RECORD),
+  actorColumn("refund", "decided_by", PAYMENT_RECORD),
+  payment("refund", "batch_id")("decision_note", "content"),
+  payment("refund", "batch_id")("manual_reference", "financial", {
+    onExpiry: "tombstone",
+  }),
+  actorColumn("refund", "manual_recorded_by", PAYMENT_RECORD),
+  // The ledger keeps finance authorship and text that may name people (#105).
+  actorColumn("ledger_posting", "created_by_user_id", LEDGER_RECORD, "retain"),
+  ...(
+    [
+      ["ledger_account", "name", LEDGER_CATEGORY],
+      ["ledger_account", "public_label", LEDGER_CATEGORY],
+      ["ledger_posting", "description", LEDGER_RECORD],
+      ["ledger_line", "memo", LEDGER_RECORD],
+    ] as const
+  ).map(([table, column, retention]): InventoryField => ({
+    table,
+    column,
+    category: "content",
+    subject: { kind: "content_subject", via: column },
+    retention,
+    onExpiry: "retain",
+  })),
   // Guardians and their children (#81). A child's profile is a
   // participant_profile row (owner_kind guardian), listed above.
-  {
-    table: "guardian",
-    column: "user_id",
-    purpose:
-      "Links the guardian's declaration to their account, so only they manage their children",
-    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
-  },
-  {
-    table: "guardian",
-    column: "full_name_ciphertext",
-    purpose:
-      "Names the parent or guardian who looks after a child, to the child and to FOA (encrypted)",
-    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
-  },
-  {
-    table: "guardian",
-    column: "phone_ciphertext",
-    purpose:
-      "Reaches a child's parent or guardian about the child, if they gave a phone (encrypted)",
-    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
-  },
-  {
-    table: "guardian",
-    column: "phone_hash",
-    purpose:
-      "A keyed hash of the guardian's phone, to find it without reading it",
-    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
-  },
-  {
-    table: "guardian",
-    column: "adult_declared_at",
-    purpose:
-      "When the guardian declared they are 18 or older and the child's parent or lawful guardian",
-    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
-  },
-  {
-    table: "guardian",
-    column: "verified_at",
-    purpose:
-      "When the guardian confirmed the declaration with a one-time code sent to them",
-    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
-  },
-  {
-    table: "guardian_link",
-    column: "relationship",
-    purpose:
-      "Says whether the guardian is the child's parent or legal guardian",
-    retention: WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD,
-  },
-  {
-    table: "guardian_invitation",
-    column: "contact_ciphertext",
-    purpose:
-      "The email a guardian invited their teen to an own login at, or a teen gave for the guardian they asked (#81), to send the link (encrypted)",
-    retention: AFTER_TEEN_INVITATION_CLOSES,
-  },
-  {
-    table: "guardian_invitation",
-    column: "contact_hash",
-    purpose:
-      "A keyed hash of the invited email, to check the teen accepting signed in with it",
-    retention: AFTER_TEEN_INVITATION_CLOSES,
-  },
+  guardian("user_id", "identity"),
+  guardian("full_name_ciphertext", "identity"),
+  guardian("phone_ciphertext", "contact"),
+  guardian("phone_hash", "technical"),
+  guardian("adult_declared_at", "demographic"),
+  guardian("verified_at", "technical"),
+  guardianLink("relationship", "demographic"),
+  guardianLink("guardian_id", "identity", { subject: GUARDIAN_ACCOUNT }),
+  guardianLink("participant_profile_id", "identity"),
+  guardianInvitation("contact_ciphertext", "contact", {
+    subject: GUARDIAN_INVITATION_RECIPIENT,
+  }),
+  guardianInvitation("contact_hash", "technical", {
+    subject: GUARDIAN_INVITATION_RECIPIENT,
+  }),
   {
     table: "guardian_invitation",
     column: "token_ciphertext",
-    purpose:
-      "The invitation link's token, to build the link when the message is sent (encrypted)",
-    retention: WHILE_INVITATION_PENDING,
+    category: "technical",
+    subject: { kind: "participant_profile", via: "participant_profile_id" },
+    retention: {
+      ...WHILE_INVITATION_PENDING,
+      policy: "guardianInvitationLinks",
+      periodKey: "guardianInvitationLinks",
+    },
+    onExpiry: "set_null",
   },
-  {
-    table: "guardian_invitation",
-    column: "accepted_by_user_id",
-    purpose:
-      "Records which account accepted the invitation as the teen's own, or a teen's guardian request as their guardian (#81)",
-    retention: AFTER_TEEN_INVITATION_CLOSES,
-  },
-  {
-    table: "guardian_invitation",
-    column: "invitee_name_ciphertext",
-    purpose:
-      "The name a teen gave for the parent or guardian they asked FOA to contact, to greet them in the request (encrypted)",
+  guardianInvitation("accepted_by_user_id", "identity", {
+    subject: { kind: "user", via: "accepted_by_user_id" },
+  }),
+  guardianInvitation("guardian_id", "identity", { subject: GUARDIAN_ACCOUNT }),
+  guardianInvitation("participant_profile_id", "identity"),
+  rowsOf("guardian_invitation", {
+    subject: GUARDIAN_INVITATION_RECIPIENT,
     retention: AFTER_GUARDIAN_REQUEST_CLOSES,
-  },
-  {
-    table: "guardian_invitation",
-    column: "relationship",
-    purpose:
-      "How a teen says the person they named is related to them, shown to that person to confirm",
+    onExpiry: "delete_row",
+  })("invitee_name_ciphertext", "identity"),
+  rowsOf("guardian_invitation", {
+    subject: { kind: "user", via: "requested_by_user_id" },
     retention: AFTER_GUARDIAN_REQUEST_CLOSES,
-  },
-  {
-    table: "guardian_invitation",
-    column: "requested_by_user_id",
-    purpose:
-      "Links a guardian request to the teen who asked, so their held registrations are released to the guardian who accepts",
+    onExpiry: "delete_row",
+  })("relationship", "demographic"),
+  rowsOf("guardian_invitation", {
+    subject: { kind: "user", via: "requested_by_user_id" },
     retention: AFTER_GUARDIAN_REQUEST_CLOSES,
-  },
+    onExpiry: "delete_row",
+  })("requested_by_user_id", "identity"),
+  profile("login_user_id", "identity", {
+    subject: { kind: "user", via: "login_user_id" },
+    onExpiry: "set_null",
+  }),
+  // Signed consent forms (#83): a coordinator submits the scan, staff review it.
+  signedForm("participant_profile_id", "identity"),
+  signedForm("file_asset_id", "identity"),
+  signedForm("competition_id", "technical"),
+  signedForm("institution_registration_id", "technical"),
+  signedForm("uses", "preference"),
+  signedForm("documents", "technical"),
+  signedForm("rejection_note", "content"),
+  // Both accounts stay on the record: the foreign keys restrict deletion.
+  actorColumn(
+    "consent_form",
+    "uploaded_by_user_id",
+    SIGNED_FORM_RECORD,
+    "retain"
+  ),
+  actorColumn(
+    "consent_form",
+    "reviewed_by_user_id",
+    SIGNED_FORM_RECORD,
+    "retain"
+  ),
+  ...(["file_asset_id", "registration_id"] as const).map((column) =>
+    rowsOf("consent_form_upload", {
+      subject: {
+        kind: "participant_profile",
+        via: "registration_id → registration.participant_profile_id",
+      },
+      retention: SIGNED_FORM_RECORD,
+      onExpiry: "delete_row",
+    })(column, "identity")
+  ),
+  // Guardian consent by code link (#83). The contact and the token's hash
+  // are required columns, so the sweep can't clear them alone: unit 114-2
+  // decides how they go after 90 days.
+  consentLink("contact_ciphertext", "contact", {
+    retention: AFTER_CONSENT_LINK_CLOSES,
+    onExpiry: "retain",
+  }),
+  consentLink("contact_hash", "technical", {
+    retention: AFTER_CONSENT_LINK_CLOSES,
+    onExpiry: "retain",
+  }),
+  consentLink("token_hash", "technical", {
+    retention: AFTER_CONSENT_LINK_CLOSES,
+    onExpiry: "retain",
+  }),
+  ...(["token_ciphertext", "code_hash", "session_token_hash"] as const).map(
+    (column) =>
+      consentLink(column, "technical", {
+        retention: WHILE_CONSENT_LINK_OPEN,
+        onExpiry: "set_null",
+      })
+  ),
+  consentLink("answers", "preference"),
+  consentLink("offered_uses", "technical"),
+  consentLink("participant_profile_id", "identity"),
+  consentLink("student_registration_id", "identity"),
+  consentLink("institution_registration_id", "technical"),
+  consentLink("competition_id", "technical"),
+  actorColumn("consent_link", "sent_by_user_id", COMPETITION_CONSENT_RECORD),
+  // Competition entries (#85): the work, its uploads and its history.
+  entry("code", "identity"),
+  entry("registration_id", "identity"),
+  entry("participant_profile_id", "identity"),
+  entry("title", "content"),
+  entry("description", "content"),
+  entry("statement", "content"),
+  actorColumn("entry", "created_by_user_id", ENTRY_RECORD),
+  entryFile("id", "technical"),
+  entryFile("entry_id", "identity"),
+  entryFile("file_asset_id", "content", {
+    retention: ENTRY_MEDIA,
+    onExpiry: "set_null",
+  }),
+  entryFile("pending_text", "content", {
+    retention: ENTRY_PENDING_TEXT,
+    onExpiry: "set_null",
+  }),
+  entryFile("receipt_title", "content"),
+  actorColumn("entry_file", "uploaded_by_user_id", ENTRY_RECORD),
+  ...(["file_asset_id", "registration_id", "upload_key"] as const).map(
+    (column) =>
+      rowsOf("entry_upload_grant", {
+        subject: {
+          kind: "participant_profile",
+          via: "registration_id → registration.participant_profile_id",
+        },
+        retention: ENTRY_UPLOAD_GRANT,
+        onExpiry: "delete_row",
+      })(column, column === "registration_id" ? "identity" : "technical")
+  ),
+  ...(["entry_id", "entry_file_id"] as const).map((column) =>
+    rowsOf("entry_transition", {
+      subject: ENTRY_PARTICIPANT,
+      retention: ENTRY_RECORD,
+      onExpiry: "delete_row",
+    })(column, "technical")
+  ),
+  actorColumn("entry_transition", "actor_user_id", ENTRY_RECORD),
+  // Announcements to registrants (#84): help contacts and staff accounts.
   {
-    table: "participant_profile",
-    column: "login_user_id",
-    purpose:
-      "Links a guardian's 13- to 17-year-old child to their own login, so they take part themselves",
-    retention: WHILE_STUDENT_TAKES_PART,
+    table: "announcement",
+    column: "help_contacts_ciphertext",
+    category: "contact",
+    subject: { kind: "content_subject", via: "help_contacts_ciphertext" },
+    retention: ANNOUNCEMENT_RECORD,
+    onExpiry: "delete_row",
   },
+  actorColumn("announcement", "created_by", ANNOUNCEMENT_RECORD),
+  actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
+];
+
+const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(
+  ({ retention: { periodKey, ...retention }, ...field }) => ({
+    ...field,
+    purpose: PURPOSES[field.table]?.[field.column] ?? "",
+    retention: { ...retention, period: PERIOD_TEXT[periodKey] },
+    retentionMessage: { key: periodKey },
+  })
+);
+
+/** The field catalogue for retention policy consumers. */
+export const DATA_INVENTORY: readonly InventoryEntry[] = [
+  ...fieldsWithRetentionMessages.map(
+    ({ retentionMessage: _retentionMessage, ...entry }) => entry
+  ),
+  ...CONTACT_INVENTORY,
+];
+
+export const INVENTORY_VIEW_ENTRIES: readonly InventoryViewEntry[] = [
+  ...fieldsWithRetentionMessages,
+  ...CONTACT_INVENTORY.map<InventoryViewEntry>((entry) => ({
+    ...entry,
+    retentionMessage: {
+      key: "contactMessages",
+      values: { months: MONTHS_AFTER_CLOSE },
+    },
+  })),
 ];

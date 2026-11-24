@@ -12,7 +12,11 @@ import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
-import { inboxItem } from "../../db/schema";
+import {
+  INBOX_BODY_PURPOSE,
+  INBOX_TITLE_PURPOSE,
+  inboxItem,
+} from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
 import { isInboxLink } from "./domain/inbox-link";
 
@@ -52,6 +56,8 @@ export async function listInbox(
       id: inboxItem.id,
       title: inboxItem.title,
       body: inboxItem.body,
+      titleCiphertext: inboxItem.titleCiphertext,
+      bodyCiphertext: inboxItem.bodyCiphertext,
       link: inboxItem.link,
       createdAt: inboxItem.createdAt,
       readAt: inboxItem.readAt,
@@ -60,8 +66,16 @@ export async function listInbox(
     .where(eq(inboxItem.userId, ownerId(ctx)))
     .orderBy(desc(inboxItem.createdAt), desc(inboxItem.id))
     .limit(limit);
-  return rows.map((row) => ({
+  return rows.map(({ titleCiphertext, bodyCiphertext, ...row }) => ({
     ...row,
+    title:
+      titleCiphertext === null
+        ? row.title
+        : ctx.cipher.decrypt(INBOX_TITLE_PURPOSE, titleCiphertext),
+    body:
+      bodyCiphertext === null
+        ? row.body
+        : ctx.cipher.decrypt(INBOX_BODY_PURPOSE, bodyCiphertext),
     // Links come from code, but the page renders them as hrefs.
     link: row.link !== null && isInboxLink(row.link) ? row.link : null,
   }));

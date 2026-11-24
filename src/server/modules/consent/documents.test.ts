@@ -1,9 +1,9 @@
-import { count, sql } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { LEGAL_DOCS } from "@/content/legal";
 import { MESSAGES_CONSENT_DRAFT } from "@/content/legal/messages-consent";
-import { auditLog, consentDocument } from "@/server/db/schema";
+import { auditLog, consentDocument, user } from "@/server/db/schema";
 import { SEED_ACCOUNTS } from "@/server/seed";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -51,6 +51,69 @@ async function staffAdmin(h: Harness) {
 }
 
 describe("publishConsentDocument", () => {
+  it("catalogues published consent content and publisher attribution as metadata for the immutable version", async () => {
+    const h = await createHarness();
+    const { account, actor } = await staffAdmin(h);
+    const name = "Mira Example";
+    const email = "mira@example.test";
+    const contact = `${name} (${email})`;
+    const published = await h.as(actor).publishConsentDocument({
+      purpose: "messages",
+      title: "News and updates",
+      source: `${SOURCE_V1}\n\nFor questions, contact ${contact}.`,
+    });
+    if (!published.ok) throw new Error("Expected a published document");
+    const [document] = await h
+      .as(actor)
+      .listConsentDocumentVersions({ purpose: "messages" });
+    expect(document?.id).toBe(published.id);
+    expect(document?.body.sections[0]?.blocks).toContainEqual({
+      p: [`For questions, contact ${contact}.`],
+    });
+    await h.db.delete(user).where(eq(user.id, account.id));
+    expect(
+      await h.db
+        .select()
+        .from(consentDocument)
+        .where(eq(consentDocument.id, published.id))
+    ).toMatchObject([{ publishedByUserId: account.id, version: 1 }]);
+
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const { entries } = await h.as(admin).getInventory();
+    expect(
+      entries.find(
+        ({ table, column }) =>
+          table === "consent_document" && column === "published_by_user_id"
+      )
+    ).toMatchObject({
+      subject: { kind: "user", via: "published_by_user_id" },
+      retention: {
+        policy: "consentDocumentAuthorship",
+        period:
+          "Kept with the published consent version, including after the staff account is deleted",
+      },
+      onExpiry: "retain",
+    });
+    expect(
+      entries.find(
+        ({ table, column }) => table === "consent_document" && column === "body"
+      )
+    ).toMatchObject({
+      category: "content",
+      purpose: expect.stringMatching(/contact/i),
+      subject: { kind: "content_subject", via: "body" },
+      retention: {
+        policy: "consentDocumentContent",
+        period: "Kept with the published consent version, which is immutable",
+        toConfirm: true,
+      },
+      onExpiry: "retain",
+    });
+    const metadata = JSON.stringify(entries);
+    expect(metadata).not.toContain(name);
+    expect(metadata).not.toContain(email);
+  });
+
   it("publishes public display and refuses documents for its individual credit fields", async () => {
     const h = await createHarness();
     const { actor } = await staffAdmin(h);

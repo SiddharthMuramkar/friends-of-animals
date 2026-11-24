@@ -9,7 +9,10 @@ import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  entryDetailPath,
   guardianChildConsentsPath,
+  newEntryPath,
+  PARTICIPANT_ENTRIES,
   payMyRegistrationPath,
 } from "@/lib/app-routes";
 import { ROUTES, slugHref } from "@/lib/routes";
@@ -21,8 +24,9 @@ import type { RegistrationStatus } from "@/server/modules/registration";
 // The participant dashboard (#78, #81): the member's own registrations
 // and, for a guardian, their children's, and where each stands: waiting
 // for a guardian to confirm, waiting for payment (with the button for
-// whoever pays), or confirmed. Entries, results and certificates join it
-// later.
+// whoever pays), or confirmed. A confirmed registration links to its entry
+// (#85), or to the form for submitting one. Results and certificates join
+// it later.
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("participant.dashboard.meta");
@@ -65,9 +69,12 @@ export default async function Page() {
 async function Registrations() {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [mine, t] = await Promise.all([
-    as(actor).listMyRegistrations(),
+  const app = as(actor);
+  const [mine, entries, t, te] = await Promise.all([
+    app.listMyRegistrations(),
+    app.listMyEntries(),
     getTranslations("participant.dashboard"),
+    getTranslations("entries"),
   ]);
   if (mine.length === 0) {
     return (
@@ -82,8 +89,18 @@ async function Registrations() {
     );
   }
   const own = mine.find((registration) => registration.whose === "mine");
+  const entriesByRegistration = new Map(
+    entries.map(({ registrationId, code }) => [registrationId, code])
+  );
   return (
     <>
+      <ButtonLink
+        href={PARTICIPANT_ENTRIES}
+        variant="secondary"
+        className="mt-6"
+      >
+        {te("seeEntries")}
+      </ButtonLink>
       {own ? (
         <p className="mt-8 text-lead font-semibold text-ink">
           {t("participantId", { code: own.participantCode })}
@@ -96,7 +113,10 @@ async function Registrations() {
       >
         {mine.map((registration) => (
           <li key={registration.registrationId}>
-            <RegistrationCard registration={registration} />
+            <RegistrationCard
+              registration={registration}
+              entryCode={entriesByRegistration.get(registration.registrationId)}
+            />
           </li>
         ))}
       </ul>
@@ -107,11 +127,14 @@ async function Registrations() {
 
 async function RegistrationCard({
   registration,
+  entryCode,
 }: {
   registration: MyRegistration;
+  entryCode: string | undefined;
 }) {
-  const [t, status, format] = await Promise.all([
+  const [t, te, status, format] = await Promise.all([
     getTranslations("participant.dashboard"),
+    getTranslations("entries"),
     getTranslations("registration.status"),
     getFormatter(),
   ]);
@@ -201,6 +224,22 @@ async function RegistrationCard({
         >
           {t("giveConsent", { name: registration.participantName })}
         </ButtonLink>
+      ) : null}
+      {entryCode || registration.maySubmitEntry ? (
+        <div className="mt-4">
+          <ButtonLink
+            href={
+              entryCode
+                ? entryDetailPath(entryCode)
+                : newEntryPath(registration.registrationId)
+            }
+            variant="secondary"
+          >
+            {entryCode
+              ? te("viewEntry", { code: entryCode })
+              : te("submitWork", { competition: competition.name })}
+          </ButtonLink>
+        </div>
       ) : null}
     </article>
   );

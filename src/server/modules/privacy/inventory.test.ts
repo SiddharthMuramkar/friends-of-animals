@@ -2,9 +2,14 @@ import { getTableConfig, PgTable, type PgColumn } from "drizzle-orm/pg-core";
 import { is } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { messages } from "@/i18n/messages";
 import * as schema from "@/server/db/schema";
+import { CONTACT_INVENTORY } from "@/server/modules/contact/inventory";
 
-import { DATA_INVENTORY } from "./inventory";
+import { checkInventoryCoverage } from "./domain/coverage";
+import { schemaColumns } from "./domain/schema-columns";
+import { DATA_INVENTORY, RETENTION_POLICY_KEYS } from "./inventory";
+import { NON_PERSONAL } from "./non-personal";
 
 const tables = (Object.values(schema) as unknown[])
   .filter((value): value is PgTable => is(value, PgTable))
@@ -23,6 +28,98 @@ const builtEncrypted = (column: PgColumn) =>
   column.columnType === "PgCustomColumn" && column.getSQLType() === "text";
 
 describe("the data inventory", () => {
+  it("classifies every column in the schema exactly once", () => {
+    expect(
+      checkInventoryCoverage({
+        columns: schemaColumns(schema),
+        inventory: DATA_INVENTORY,
+        nonPersonal: NON_PERSONAL,
+        policies: RETENTION_POLICY_KEYS,
+      })
+    ).toEqual([]);
+  });
+
+  it("has one non-empty purpose message for every catalogue field", () => {
+    const purposes = Object.entries(
+      messages.adminPrivacy.inventory.purposes
+    ).flatMap(([table, columns]) =>
+      Object.entries(columns).map(
+        ([column, purpose]) => [`${table}.${column}`, purpose] as const
+      )
+    );
+    expect(new Set(purposes.map(([key]) => key))).toEqual(listed);
+    expect(purposes.filter(([, purpose]) => !purpose.trim())).toEqual([]);
+    expect(new Map(purposes)).toEqual(
+      new Map(
+        DATA_INVENTORY.map(({ table, column, purpose }) => [
+          `${table}.${column}`,
+          purpose,
+        ])
+      )
+    );
+  });
+
+  it("has a staff-facing label for every data subject kind", () => {
+    const kinds = new Set(DATA_INVENTORY.map(({ subject }) => subject.kind));
+    expect(messages.adminPrivacy.inventory).toMatchObject({
+      subjectKinds: Object.fromEntries(
+        [...kinds].map((kind) => [kind, expect.stringMatching(/\S/)])
+      ),
+    });
+  });
+
+  it("includes the contact module's entries for messages and staff notes", () => {
+    const contactEntries = DATA_INVENTORY.filter(
+      ({ table }) => table === "contact_message" || table === "contact_note"
+    );
+    expect(contactEntries).toEqual(CONTACT_INVENTORY);
+  });
+
+  it("classifies private decision text and recorded age information as personal data", () => {
+    expect(DATA_INVENTORY).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          table: "institution",
+          column: "status_reason",
+          category: "content",
+          subject: { kind: "institution", via: "id" },
+          retention: expect.objectContaining({ policy: "institutions" }),
+        }),
+        expect.objectContaining({
+          table: "registration",
+          column: "age_group_id",
+          category: "demographic",
+          subject: {
+            kind: "participant_profile",
+            via: "participant_profile_id",
+          },
+          retention: expect.objectContaining({ policy: "participants" }),
+        }),
+        expect.objectContaining({
+          table: "safeguarding_report",
+          column: "reporter_is_child",
+          category: "demographic",
+          subject: { kind: "safeguarding_report", via: "id" },
+          retention: expect.objectContaining({ policy: "safeguardingReports" }),
+        }),
+        expect.objectContaining({
+          table: "payment_review_case",
+          column: "resolution_reason",
+          category: "content",
+          subject: { kind: "payer", via: "batch_id" },
+          retention: expect.objectContaining({ policy: "financialRecords" }),
+        }),
+        expect.objectContaining({
+          table: "refund",
+          column: "decision_note",
+          category: "content",
+          subject: { kind: "payer", via: "batch_id" },
+          retention: expect.objectContaining({ policy: "financialRecords" }),
+        }),
+      ])
+    );
+  });
+
   it("lists every encrypted column in the schema", () => {
     const encrypted = tables.flatMap((table) =>
       table.columns
@@ -60,6 +157,7 @@ describe("the data inventory", () => {
         "contact_email",
         "contact_phone",
         "created_by",
+        "status_reason",
       ].filter((column) => !listed.has(`institution.${column}`))
     ).toEqual([]);
   });
@@ -84,6 +182,7 @@ describe("the data inventory", () => {
         "safeguarding_report.subject_details_ciphertext",
         "safeguarding_report.subject_age",
         "safeguarding_report.reporter_name_ciphertext",
+        "safeguarding_report.reporter_is_child",
         "safeguarding_report.reporter_contact_ciphertext",
         "safeguarding_report.escalation_reference_ciphertext",
         "safeguarding_report.outcome_ciphertext",
@@ -112,6 +211,48 @@ describe("the data inventory", () => {
         "payment_review_case.resolved_by_user_id",
       ].filter((column) => !listed.has(column))
     ).toEqual([]);
+  });
+
+  it("lists who wrote and sent an announcement, and a contact's delivery key (#84)", () => {
+    expect(listed.has("announcement.created_by")).toBe(true);
+    expect(listed.has("announcement.sent_by")).toBe(true);
+    expect(listed.has("message_delivery.contact_hash")).toBe(true);
+  });
+
+  it("lists encrypted announcement help contacts with their purpose and retention", () => {
+    expect(
+      DATA_INVENTORY.find(
+        ({ table, column }) =>
+          table === "announcement" && column === "help_contacts_ciphertext"
+      )
+    ).toMatchObject({
+      table: "announcement",
+      column: "help_contacts_ciphertext",
+      purpose: expect.stringContaining("help"),
+      retention: expect.objectContaining({
+        period: expect.stringContaining("competition"),
+        toConfirm: true,
+      }),
+    });
+    expect(listed.has("message_delivery.recipient_hashes")).toBe(true);
+    expect(listed.has("message_delivery.recipient_account_hash")).toBe(true);
+  });
+
+  it("lists encrypted announcement inbox content with its retention period", () => {
+    for (const column of ["title_ciphertext", "body_ciphertext"]) {
+      expect(
+        DATA_INVENTORY.find(
+          (entry) => entry.table === "inbox_item" && entry.column === column
+        )
+      ).toMatchObject({
+        purpose: expect.stringContaining("announcement"),
+        retention: {
+          period: expect.stringMatching(/^365 days after the person reads it/),
+          basis: expect.any(String),
+          toConfirm: true,
+        },
+      });
+    }
   });
 
   it("lists who registered an institution for a competition", () => {
@@ -280,8 +421,8 @@ describe("the data inventory", () => {
 
   it("covers signed-form scope, evidence, and the identities who submitted and reviewed it", () => {
     const formPeriod =
-      "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure (HR-31)";
-    const consentPeriod = "While the consent applies, then 3 years (HR-31)";
+      "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure";
+    const consentPeriod = "While the consent applies, then 3 years";
     const expected = [
       ["consent_form", "file_asset_id", formPeriod],
       ["consent_form", "participant_profile_id", formPeriod],
@@ -299,7 +440,7 @@ describe("the data inventory", () => {
       [
         "institution_registration",
         "participation_declared_by_user_id",
-        "While the institution takes part, then 3 years after the competition ends (HR-31)",
+        "While the institution takes part, then 3 years after the competition ends",
       ],
     ];
     for (const [table, column, period] of expected) {

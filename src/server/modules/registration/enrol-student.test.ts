@@ -2,7 +2,12 @@ import { eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { Actor } from "@/server/actor";
-import { auditLog, participantProfile, registration } from "@/server/db/schema";
+import {
+  auditLog,
+  participantProfile,
+  registration,
+  user,
+} from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import { signedInStaff } from "@/server/modules/institutions/testing";
 import { createHarness, type Harness } from "@/test/harness";
@@ -286,6 +291,41 @@ describe("enrolStudent", () => {
       guardianEmail: "kavita.rao@example.test",
       address: "4 Banyan Lane, Kothrud",
     });
+    expect(
+      await h.db.select().from(user).where(eq(user.email, AANYA.guardianEmail))
+    ).toHaveLength(0);
+
+    const staff = await signedInStaff(h);
+    const { entries } = await h.as(staff).getInventory();
+    expect(
+      entries.filter(
+        ({ table, column }) =>
+          table === "participant_profile" && column.startsWith("guardian_")
+      )
+    ).toMatchObject(
+      [
+        "guardian_email_ciphertext",
+        "guardian_name_ciphertext",
+        "guardian_phone_ciphertext",
+        "guardian_relationship",
+      ].map((column) => ({
+        column,
+        subject: {
+          kind: "guardian_contact",
+          via: "participant_profile.guardian_phone_ciphertext or participant_profile.guardian_email_ciphertext",
+        },
+        retention: { policy: "participants" },
+        onExpiry: "delete_row",
+      }))
+    );
+    const catalogue = JSON.stringify(entries);
+    for (const value of [
+      AANYA.guardianName,
+      "+919000000301",
+      AANYA.guardianEmail,
+    ]) {
+      expect(catalogue).not.toContain(value);
+    }
   });
 
   describe("the same student twice", () => {

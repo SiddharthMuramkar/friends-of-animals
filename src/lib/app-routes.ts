@@ -66,6 +66,9 @@ export function judgingGuidePath(competitionCode: string): string {
  */
 export const ADMIN_PAYMENTS_REVIEW = "/admin/payments/review";
 
+/** The staff data inventory (#114). */
+export const ADMIN_PRIVACY = "/admin/privacy";
+
 /** One payment batch in the admin area (#79): record an offline payment. */
 export function adminPaymentBatchPath(batchId: string): string {
   return `/admin/payments/batches/${encodeURIComponent(batchId)}`;
@@ -88,6 +91,22 @@ export const ADMIN_NEW_LEDGER_ENTRY = `${ADMIN_LEDGER}/entries/new`;
 
 export function adminLedgerPostingPath(seq: bigint | string): string {
   return `${ADMIN_LEDGER}/${encodeURIComponent(String(seq))}`;
+}
+
+/**
+ * A participant's entries (#85): their list, the form for a registration's
+ * first upload, and each entry's page by its Entry ID.
+ */
+export const PARTICIPANT_ENTRIES = "/participant/entries";
+export const NEW_PARTICIPANT_ENTRY = "/participant/entries/new";
+
+export function entryDetailPath(code: string): string {
+  return `${PARTICIPANT_ENTRIES}/${encodeURIComponent(code)}`;
+}
+
+export function newEntryPath(registrationId: string): string {
+  const query = new URLSearchParams({ registration: registrationId });
+  return `${NEW_PARTICIPANT_ENTRY}?${query.toString()}`;
 }
 
 /** One refund's page: finance approves, rejects, retries or records it. */
@@ -252,6 +271,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
   "/admin/competitions/[id]/terms",
+  "/admin/competitions/[id]/announcements",
+  "/admin/competitions/[id]/announcements/new",
+  "/admin/competitions/[id]/announcements/[announcementId]",
   "/admin/templates/[key]",
   "/admin/institutions/[id]",
   "/admin/inbox/[id]",
@@ -260,6 +282,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/rubrics",
   "/admin/competitions/[id]/rubrics/[discipline]",
   ADMIN_PAYMENTS_REVIEW,
+  ADMIN_PRIVACY,
   "/admin/payments/batches/[id]",
   "/admin/payments/review/[id]",
   ADMIN_REFUNDS,
@@ -277,6 +300,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/import/template.csv",
   "/institution/registrations/[ref]/import/sample.csv",
   "/participant/register/[slug]",
+  PARTICIPANT_ENTRIES,
+  NEW_PARTICIPANT_ENTRY,
+  "/participant/entries/[code]",
   "/guardian/children/[id]",
   "/guardian/children/[id]/consents",
   "/guardian/children/[id]/consents/history",

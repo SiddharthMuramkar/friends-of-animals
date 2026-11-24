@@ -74,6 +74,29 @@ describe("organisation facts from the site facts document", () => {
       "registrationNumber",
       "pan",
     ]);
+
+    const staff = await h.signIn(await h.seed.superAdmin());
+    const { entries } = await h.as(staff).getInventory();
+    expect(
+      entries.find(
+        ({ table, column }) => table === "cms_revision" && column === "body"
+      )
+    ).toMatchObject({
+      category: "content",
+      purpose: expect.stringMatching(/grievance officer's name and email/i),
+      subject: {
+        kind: "content_subject",
+        via: "document_id → cms_document.key → body (site_facts: grievanceOfficer.name and grievanceOfficer.email)",
+      },
+      retention: {
+        policy: "cmsRevisionContent",
+        period: "Kept with the revision. Published revisions are immutable",
+      },
+      onExpiry: "retain",
+    });
+    for (const value of Object.values(SITE_FACTS.grievanceOfficer)) {
+      expect(JSON.stringify(entries)).not.toContain(value);
+    }
   });
 
   it("merges a super admin's tax settings with the published site facts", async () => {
