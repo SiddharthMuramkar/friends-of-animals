@@ -5,6 +5,7 @@ import { refund, refundItem, registration } from "@/server/db/schema";
 import { signInStaff } from "@/server/modules/payments/testing";
 import { createHarness } from "@/test/harness";
 
+import { SEED_CANCELLED } from "./competition-cancelled";
 import { SEED_PAYMENTS } from "./payments";
 import { SEED_REFUNDS } from "./refunds";
 
@@ -32,6 +33,12 @@ describe("the refunds seed", () => {
         id: SEED_REFUNDS.refunded.refundId,
         status: "refunded",
         kind: "discretionary",
+      },
+      // The cancelled competition's seed (./competition-cancelled.ts).
+      {
+        id: SEED_CANCELLED.refundId,
+        status: "refunded",
+        kind: "cancellation",
       },
     ]);
     expect(await rows()).toEqual(once);

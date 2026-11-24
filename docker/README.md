@@ -948,6 +948,33 @@ sessions, which transaction pooling breaks. None publishes a port.
   with pg-boss in schema `pgboss` (owned by the worker role) at every start;
   a schedule removed from the code is unscheduled. Previews run none.
 
+### Reconciling a cancellation email
+
+Set `SES_CONFIGURATION_SET` to a configuration set with event publishing
+enabled before sending tracked cancellation emails. Without it SES sends
+are refused before contacting the provider.
+
+When a failed outbox delivery says an email needs reconciliation, look up
+the delivery ID under `outbox_delivery_id` in the SES configuration set's
+event destination. For `registration.send_cancellation`, use the outbox ID.
+For `notifications.dispatch`, use each `message_delivery.id` linked to the
+outbox `event_id` with channel `email`, status `pending` and attempts above
+zero. Each recipient has its own ID.
+
+Use the provider's acceptance or definitive rejection as evidence. A missing
+event leaves the outcome uncertain. Keep the reservation and failed outbox
+row until the provider can confirm the outcome.
+
+After verifying each outcome, lock the failed outbox row and reconcile its
+reservations in one transaction. For an accepted family email, record the
+acceptance time in `competition_cancellation_email.sent_at`. For a verified
+unsent family email, delete the reservation with that ID and a null `sent_at`.
+For an account email, move its pending `message_delivery` row to `sent` if
+accepted or `failed` if verified unsent and refresh `updated_at`. Return the
+same outbox row to `pending`, set `available_at` to now, reset `attempts` to
+zero, and clear `locked_until`, `failed_at` and `last_error`. The relay skips
+accepted sends and retries those verified unsent with their original IDs.
+
 ### Preview databases: attach and detach
 
 There are no Vercel previews today

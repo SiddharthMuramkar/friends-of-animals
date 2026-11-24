@@ -28,6 +28,7 @@ import type { Role } from "../../access/domain/roles";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import {
+  competition,
   DASHBOARD_REFUND_REFERENCE_UNIQUE,
   paymentBatch,
   paymentBatchItem,
@@ -35,6 +36,7 @@ import {
   type PaymentBatchRow,
 } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
+import { emit } from "../../outbox/emit";
 import type { UseCaseContext } from "../../use-cases";
 import { isUniqueViolation } from "../codes/codes";
 import {
@@ -111,10 +113,27 @@ export async function resolvePaymentReviewCase(
     const result = await ctx.db.transaction(
       async (tx): Promise<ResolvePaymentReviewCaseResult> => {
         const [found] = await tx
-          .select({ batchId: paymentReviewCase.batchId })
+          .select({
+            batchId: paymentReviewCase.batchId,
+            competitionId: paymentBatch.competitionId,
+          })
           .from(paymentReviewCase)
+          .innerJoin(
+            paymentBatch,
+            eq(paymentBatch.id, paymentReviewCase.batchId)
+          )
           .where(eq(paymentReviewCase.id, caseId));
         if (!found) return { ok: false, error: "not_found" };
+        // Confirmation can turn a review batch into a paid batch. Lock the
+        // competition first, in cancellation's order (#80).
+        const [target] =
+          outcome === "confirm"
+            ? await tx
+                .select({ status: competition.status })
+                .from(competition)
+                .where(eq(competition.id, found.competitionId))
+                .for("no key update")
+            : [];
         // Hold individual participation before the batch and review case.
         const batch = await lockBatchAndParticipation(tx, found.batchId);
         if (!batch) return { ok: false, error: "not_found" };
@@ -153,6 +172,10 @@ export async function resolvePaymentReviewCase(
         const now = ctx.clock.now();
         let batchStatus: PaymentBatchStatus = batch.status;
         if (plan.confirmsRegistrations) {
+          // A cancelled competition takes no more payments (#80).
+          if (target?.status === "cancelled") {
+            return { ok: false, error: "registration_not_payable" };
+          }
           await takeBackRegistrations(tx, ctx, batch, role);
           const capture = await captureBatch(
             tx,
@@ -377,6 +400,14 @@ export async function recordDashboardRefund(
         },
         actorRole: role,
       });
+      if (outcome === "confirm") {
+        // The payer is told their money is back, as for a gateway refund.
+        await emit(tx, ctx.clock, {
+          type: "refund.dashboard_processed",
+          aggregate: { type: "payment_review_case", id: caseId },
+          payload: { reviewCaseId: caseId, payerUserId: batch.payerUserId },
+        });
+      }
       return { ok: true };
     });
   } catch (error) {

@@ -1,17 +1,24 @@
 // The competitions module (#70): competition managers create, edit,
 // preview and publish competitions; the public pages read the published
-// ones. Its use cases join `as(actor)` through `competitionsUseCases`.
+// ones; a super admin cancels one (#80). Its use cases join `as(actor)`
+// through `competitionsUseCases`.
 
 import type { UseCaseContext } from "../../use-cases";
 import {
   advanceCompetitionStatus,
   type AdvanceCompetitionStatusInput,
 } from "./advance-status";
+import {
+  cancelCompetition,
+  getCompetitionCancellation,
+  type CancelCompetitionInput,
+} from "./cancel-competition";
 import type { CompetitionInput } from "./fields";
 import {
   createCompetition,
   getCompetitionForEdit,
   listCompetitionsForAdmin,
+  listCompetitionsForCancellation,
   updateCompetition,
   type UpdateCompetitionInput,
 } from "./manage";
@@ -27,6 +34,13 @@ export type {
   AdvanceCompetitionStatusResult,
 } from "./advance-status";
 export { COMPETITION_TAGS } from "./cache-tags";
+export type {
+  CancelCompetitionInput,
+  CancelCompetitionResult,
+  CancellationEffects,
+  CompetitionCancellation,
+  GetCompetitionCancellationResult,
+} from "./cancel-competition";
 export type { KeyDateKind } from "./domain/key-dates";
 export type { PublishProblem } from "./domain/publish-rules";
 export type {
@@ -60,6 +74,7 @@ export const competitionsUseCases = (ctx: UseCaseContext) => ({
   updateCompetition: (input: UpdateCompetitionInput) =>
     updateCompetition(ctx, input),
   listCompetitionsForAdmin: () => listCompetitionsForAdmin(ctx),
+  listCompetitionsForCancellation: () => listCompetitionsForCancellation(ctx),
   previewCompetition: (input: { competitionId: string }) =>
     previewCompetition(ctx, input),
   publishCompetition: (input: { competitionId: string }) =>
@@ -70,4 +85,8 @@ export const competitionsUseCases = (ctx: UseCaseContext) => ({
   publishedCompetitionSlugs: () => publishedCompetitionSlugs(ctx),
   advanceCompetitionStatus: (input: AdvanceCompetitionStatusInput) =>
     advanceCompetitionStatus(ctx, input),
+  cancelCompetition: (input: CancelCompetitionInput) =>
+    cancelCompetition(ctx, input),
+  getCompetitionCancellation: (input: { competitionId: string }) =>
+    getCompetitionCancellation(ctx, input),
 });

@@ -1,4 +1,5 @@
 import {
+  Ban,
   CalendarClock,
   DoorClosed,
   DoorOpen,
@@ -20,6 +21,7 @@ const LOOK: Record<
   registration_open: { icon: DoorOpen, tone: "green" },
   registration_closed: { icon: DoorClosed, tone: "pink" },
   school_judging: { icon: Gavel, tone: "blue" },
+  cancelled: { icon: Ban, tone: "neutral" },
 };
 
 /** A competition's stored status, as icon plus word. */

@@ -20,7 +20,8 @@ import { signInByCode } from "./support/sign-in";
 // finance and staff admin roles, adds an authenticator at #60's staff gate
 // (a seeded authenticator would clash with other runs: a code works once).
 // They read the refunds queue (the seeded refund waiting for finance, and
-// the seeded refunded one), each refund's page, and the request page of
+// the seeded refunded ones: a discretionary refund, and the cancelled
+// competition's, 80b), each refund's page, and the request page of
 // the seeded paid batch. Both forms are sent with a mistake, so each shows
 // its error and writes nothing: no step changes a seeded row, so runs
 // can't disturb each other. Approving, rejecting, the gateway's answers,
@@ -95,9 +96,23 @@ test("finance reads the refunds queue and a refund, a staff admin opens the requ
   await checkBothThemes(page, "/admin/refunds");
   await page.getByRole("link", { name: "Done", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/refunds\?view=done$/);
+  const refunded = page.getByRole("row").filter({ hasText: "Refunded" });
+  await expect(refunded).toHaveCount(2);
   await expect(
-    page.getByRole("row").filter({ hasText: "Refunded" })
+    refunded.filter({
+      has: page.getByRole("link", {
+        name: "Open refund of ₹1,000.00 to Seed Public School",
+      }),
+    })
   ).toHaveCount(1);
+  // The cancelled competition's refund (80b's seed, Wings at Dusk).
+  await expect(
+    refunded.filter({
+      has: page.getByRole("link", {
+        name: "Open refund of ₹800.00 to Seed Public School",
+      }),
+    })
+  ).toContainText("Competition cancelled");
   await checkBothThemes(page, "/admin/refunds?view=done");
   await page.getByRole("link", { name: "In progress", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/refunds\?view=in_progress$/);

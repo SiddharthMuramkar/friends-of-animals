@@ -52,16 +52,18 @@ export function DecisionForm({
           <p>{labels.alerts[state.alert]}</p>
         </FormAlert>
       ) : null}
-      <TextAreaField
-        id="refund-note"
-        name="note"
-        label={labels.note.label}
-        hint={labels.note.hint}
-        error={state.error ? labels.errors[state.error] : undefined}
-        rows={3}
-        maxLength={maxNoteLength}
-        defaultValue={state.note}
-      />
+      {decisions.includes("reject") ? (
+        <TextAreaField
+          id="refund-note"
+          name="note"
+          label={labels.note.label}
+          hint={labels.note.hint}
+          error={state.error ? labels.errors[state.error] : undefined}
+          rows={3}
+          maxLength={maxNoteLength}
+          defaultValue={state.note}
+        />
+      ) : null}
       <div className="flex flex-wrap gap-3">
         {decisions.map((decision, index) => (
           <SubmitButton

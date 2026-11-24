@@ -82,6 +82,7 @@ describe("listEnrolledStudents", () => {
         pending_payment: 0,
         refunded: 0,
         pending_guardian: 0,
+        cancelled: 0,
       },
       students: [
         {

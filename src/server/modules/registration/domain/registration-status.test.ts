@@ -22,6 +22,11 @@ const ALLOWED: Record<string, readonly RegistrationCause[]> = {
   // Guardian consent releases the hold. The participant can also continue as an adult.
   "pending_guardian->pending_payment": ["guardian", "participant"],
   "pending_guardian->withdrawn": ["guardian"],
+  // Unpaid and free confirmed registrations cancel immediately.
+  "enrolled->cancelled": ["cancellation"],
+  "pending_payment->cancelled": ["cancellation"],
+  "pending_guardian->cancelled": ["cancellation"],
+  "confirmed->cancelled": ["cancellation"],
 };
 
 const CAUSES: readonly RegistrationCause[] = [
@@ -29,6 +34,7 @@ const CAUSES: readonly RegistrationCause[] = [
   "participant",
   "payment",
   "guardian",
+  "cancellation",
 ];
 
 const PAIRS = REGISTRATION_STATUSES.flatMap((from) =>
@@ -44,13 +50,24 @@ describe("the registration status machine", () => {
       "pending_payment",
       "refunded",
       "pending_guardian",
+      "cancelled",
     ]);
   });
 
-  it("never brings a refunded registration back (#80)", () => {
-    for (const to of REGISTRATION_STATUSES) {
-      for (const cause of CAUSES) {
-        expect(canTransition("refunded", to, cause)).toBe(false);
+  it("never brings a refunded or cancelled registration back (#80)", () => {
+    for (const from of ["refunded", "cancelled"] as const) {
+      for (const to of REGISTRATION_STATUSES) {
+        for (const cause of CAUSES) {
+          expect(canTransition(from, to, cause)).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("lets only a cancellation cancel a registration (#80)", () => {
+    for (const from of REGISTRATION_STATUSES) {
+      for (const cause of CAUSES.filter((each) => each !== "cancellation")) {
+        expect(canTransition(from, "cancelled", cause)).toBe(false);
       }
     }
   });

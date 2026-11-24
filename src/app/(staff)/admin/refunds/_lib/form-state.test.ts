@@ -76,4 +76,19 @@ describe("afterManual", () => {
       error: "reference_invalid",
     });
   });
+
+  it("tells the requester they can't pay out their own refund", () => {
+    expect(
+      afterManual(
+        MANUAL_START,
+        { method: "cheque", reference: "004512" },
+        { ok: false, error: "same_person" }
+      )
+    ).toEqual({
+      attempt: 1,
+      method: "cheque",
+      reference: "004512",
+      alert: "same_person",
+    });
+  });
 });

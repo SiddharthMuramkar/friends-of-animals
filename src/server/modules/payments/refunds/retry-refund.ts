@@ -24,8 +24,8 @@ import {
   OFFLINE_PAYMENT_METHODS,
 } from "../domain/offline-payment";
 import { nextRefundStatus } from "../domain/refund-status";
-import { queueSend } from "./decide-refund";
-import { auditRefund, lockRefund } from "./rows";
+import { retryLocked } from "./decide-refund";
+import { lockRefund } from "./rows";
 import { settleRefunded } from "./sync-refund";
 
 export type RetryRefundInput = { refundId: string };
@@ -74,33 +74,10 @@ export async function retryRefund(
   return ctx.db.transaction(async (tx): Promise<RetryRefundResult> => {
     const row = await lockRefund(tx, parsed.data.refundId);
     if (!row) return { ok: false, error: "not_found" };
-    const move = nextRefundStatus(row.status, "retried");
-    if (!move.ok) return { ok: false, error: "not_failed" };
-    const now = ctx.clock.now();
-    const attempt = row.attempt + 1;
-    await tx
-      .update(refund)
-      .set({
-        status: move.to,
-        attempt,
-        gatewayRefundId: null,
-        sentAt: null,
-        failedAt: null,
-        updatedAt: now,
-      })
-      .where(eq(refund.id, row.id));
-    await auditRefund(
-      tx,
-      ctx,
-      row.id,
-      {
-        action: "refund.retried",
-        before: { status: row.status, attempt: row.attempt },
-        after: { status: move.to, attempt },
-      },
-      role
-    );
-    await queueSend(tx, ctx, row);
+    if (!nextRefundStatus(row.status, "retried").ok) {
+      return { ok: false, error: "not_failed" };
+    }
+    await retryLocked(tx, ctx, row, role);
     return { ok: true, status: "approved" };
   });
 }

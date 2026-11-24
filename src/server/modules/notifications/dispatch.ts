@@ -25,7 +25,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, or, sql } from "drizzle-orm";
 
 import { currentConsent } from "../consent/domain/consent-state";
 import { subjectEvents } from "../consent/repository";
@@ -45,7 +45,7 @@ import {
 import type { Ciphertext, FieldCipher } from "../../crypto/field-cipher";
 import { readStoredPhone } from "../../identity/stored-phone";
 import { uuidv7 } from "../../ids";
-import { oneLineSubject } from "../../ports/email";
+import { EmailNotSentError, oneLineSubject } from "../../ports/email";
 import type { Delivery, OutboxDeps } from "../../outbox";
 import {
   AUDIENCES,
@@ -394,22 +394,54 @@ async function deliverByPort(
   const deliveryId = await claimDelivery(deps.db, now, message, channel);
   if (!deliveryId) return null;
   const content = rendered(message, channel);
-  await deps.db
+  const tracked =
+    channel === "email" &&
+    (message.delivery.eventType === "registration.competition_cancelled" ||
+      message.delivery.eventType ===
+        "institution_registration.competition_cancelled");
+  // A pending cancellation email with an attempt already recorded may
+  // have reached the provider. Only a definite rejection can be retried.
+  const [claimed] = await deps.db
     .update(messageDelivery)
     .set({
+      ...(tracked ? { status: "pending" as const } : {}),
       templateVersion: content.version,
       attempts: sql`${messageDelivery.attempts} + 1`,
       updatedAt: now,
     })
-    .where(eq(messageDelivery.id, deliveryId));
+    .where(
+      and(
+        eq(messageDelivery.id, deliveryId),
+        tracked
+          ? or(
+              eq(messageDelivery.status, "failed"),
+              and(
+                eq(messageDelivery.status, "pending"),
+                eq(messageDelivery.attempts, 0)
+              )
+            )
+          : undefined
+      )
+    )
+    .returning({ id: messageDelivery.id });
+  const uncertain = () => ({
+    deliveryId,
+    error: new Error(
+      `Cancellation email for delivery ${deliveryId} needs reconciliation`
+    ),
+  });
+  if (!claimed) return tracked ? uncertain() : null;
   try {
     if (channel === "email") {
-      await deps.email.send({
-        to: message.recipient.email!,
-        subject: content.subject ?? "",
-        text: content.body,
-        html: renderEmailHtml(content.body),
-      });
+      await deps.email.send(
+        {
+          to: message.recipient.email!,
+          subject: content.subject ?? "",
+          text: content.body,
+          html: renderEmailHtml(content.body),
+        },
+        tracked ? { deliveryId } : undefined
+      );
     } else {
       await deps.sms.send({
         to: readStoredPhone(deps, message.recipient.storedPhone!),
@@ -420,6 +452,7 @@ async function deliverByPort(
       });
     }
   } catch (error) {
+    if (tracked && !(error instanceof EmailNotSentError)) return uncertain();
     await deps.db
       .update(messageDelivery)
       .set({ status: "failed", updatedAt: deps.clock.now() })

@@ -3,12 +3,13 @@
 // one competition covers that competition alone. Super admin is not a
 // wildcard. Anyone, signed in or not, reads published competitions. Only
 // the worker moves a status on schedule (#71): nobody opens or closes
-// registration by hand.
+// registration by hand. Only a super admin cancels a competition (#80).
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
 import {
   role,
+  stepUp,
   system,
   type Decision,
   type Policy,
@@ -40,6 +41,15 @@ export const COMPETITIONS_POLICY = {
   "competition.read_published": anyone,
   /** A status job arriving at its key date (#71). */
   "competition.advance_status": system("worker"),
+  /**
+   * Cancelling a competition (#80) refunds every paid fee with nobody
+   * else approving, so only a super admin may, behind a second factor
+   * passed in the last 10 minutes. Not a competition manager, staff admin
+   * or finance (HR-34).
+   */
+  "competition.cancel": stepUp(role("super_admin")),
+  /** Reading what cancelling would do, on the cancel page. */
+  "competition.cancel.read": role("super_admin"),
 } satisfies Policy<string>;
 
 export type CompetitionsAction = keyof typeof COMPETITIONS_POLICY;

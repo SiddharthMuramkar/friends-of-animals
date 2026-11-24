@@ -35,6 +35,28 @@ export const REFUND_STATUSES = [
 
 export type RefundStatus = (typeof REFUND_STATUSES)[number];
 
+export const SUPERSEDED_BY_CANCELLATION = "superseded_by_cancellation";
+
+/** Failed attempts have a definitive gateway result. Approved or processing
+ * attempts still hold their items because money may already be on its way. */
+export function canSupersedeForCancellation(refund: {
+  kind: RefundKind;
+  status: RefundStatus;
+}): boolean {
+  return (
+    refund.kind === "discretionary" &&
+    (refund.status === "requested" || refund.status === "failed")
+  );
+}
+
+/** A fee still has to be refunded once its competition is cancelled. */
+export function requiresCancellationPayout(
+  kind: RefundKind,
+  competitionStatus: string
+): boolean {
+  return kind !== "duplicate" && competitionStatus === "cancelled";
+}
+
 export const REFUND_METHODS = [
   /** Back to the captured payment, through the gateway. */
   "gateway",

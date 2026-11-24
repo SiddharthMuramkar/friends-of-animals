@@ -20,15 +20,27 @@
 // Order and repetition don't matter: a refund moves forward only, and a
 // signal that brings nothing new changes no row.
 //
+// A cancelled competition's refund (80b) must still go back in full. When
+// every refund of a capture has failed for good and the gateway said it
+// takes only a full refund, the cancellation's refund takes over the
+// capture's whole receipt and is sent again (retryCancellationInFull).
+//
 // Not a use case: the outbox handler, the webhook and the retry call it.
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import type { Role } from "../../../access/domain/roles";
 import type { Actor } from "../../../actor";
 import type { AppDb } from "../../../db/app-db";
-import { paymentBatch, refund, type RefundRow } from "../../../db/schema";
+import {
+  auditLog,
+  paymentBatch,
+  refund,
+  refundItem,
+  type PaymentBatchRow,
+  type RefundRow,
+} from "../../../db/schema";
 import { emit } from "../../../outbox/emit";
 import type { Clock } from "../../../ports/clock";
 import {
@@ -37,6 +49,7 @@ import {
   type PaymentGateway,
 } from "../../../ports/payment-gateway";
 import { lockBatch } from "../batches";
+import { planRefund, splitRefundCoverage } from "../domain/refund-plan";
 import {
   decideRefundSync,
   refundIdempotencyKey,
@@ -44,12 +57,19 @@ import {
   type RefundForSync,
 } from "../domain/refund-sync";
 import { nextRefundStatus, type RefundEvent } from "../domain/refund-status";
+import { retryLocked } from "./decide-refund";
 import {
   auditRefund,
   lockRefund,
   refundableBatch,
   refundRegistrations,
+  refundsAgainstCapture,
+  releaseItems,
 } from "./rows";
+import {
+  lockRefundsForCancellation,
+  supersedeDiscretionaryRefunds,
+} from "./start-system-refund";
 
 export type RefundSyncDeps = {
   db: AppDb;
@@ -140,6 +160,7 @@ export async function syncRefund(
       return failUnsentAttempt(
         deps,
         found,
+        atGateway,
         {
           refusedByGateway: true,
           ...(error.reason === "full_refund_only"
@@ -152,7 +173,14 @@ export async function syncRefund(
     atGateway = [sent, ...atGateway.filter((each) => each.id !== sent.id)];
   }
 
+  const observed = decideRefundSync(subject, atGateway);
   return deps.db.transaction(async (tx): Promise<RefundSyncOutcome> => {
+    // A failure may leave a cancelled competition's capture to pay back in
+    // full: lock it in cancellation's order before the refund.
+    const capture =
+      observed.kind === "apply" && observed.event === "gateway_failed"
+        ? await lockCaptureForReconciliation(tx, found, atGateway)
+        : null;
     const row = await lockRefund(tx, refundId);
     const locked = row && forSync(row);
     if (!row || !locked) return "unchanged";
@@ -168,8 +196,13 @@ export async function syncRefund(
       case "amount_mismatch":
       case "missing_at_gateway":
         return decision.kind;
-      case "apply":
-        return apply(tx, deps, row, decision, actorRole);
+      case "apply": {
+        const outcome = await apply(tx, deps, row, decision, actorRole);
+        if (outcome === "failed" && capture) {
+          await retryCancellationInFull(tx, deps, capture, actorRole);
+        }
+        return outcome;
+      }
     }
   });
 }
@@ -322,17 +355,133 @@ async function validateUnsentAttempt(
 async function failUnsentAttempt(
   deps: RefundSyncDeps,
   attempt: RefundRow,
+  atGateway: GatewayRefund[],
   details: Record<string, unknown>,
   actorRole: Role | null
 ): Promise<RefundSyncOutcome> {
   return deps.db.transaction(async (tx) => {
+    const capture = await lockCaptureForReconciliation(tx, attempt, atGateway);
     const row = await lockRefund(tx, attempt.id);
     if (!row || row.attempt !== attempt.attempt || !canSend(row)) {
       return "unchanged";
     }
     await failLocked(tx, deps, row, row.status, details, actorRole);
+    if (capture) await retryCancellationInFull(tx, deps, capture, actorRole);
     return "failed";
   });
+}
+
+/**
+ * The capture `attempt` returns, locked in cancellation's order (the batch,
+ * then its refunds), while nothing of it is still at the gateway; null for
+ * a duplicate's refund or a capture the batch no longer holds.
+ */
+async function lockCaptureForReconciliation(
+  tx: AppDb,
+  attempt: RefundRow,
+  atGateway: GatewayRefund[]
+): Promise<PaymentBatchRow | null> {
+  if (
+    attempt.kind === "duplicate" ||
+    atGateway.some((entry) => entry.status !== "failed")
+  ) {
+    return null;
+  }
+  const batch = await lockBatch(tx, attempt.batchId);
+  if (
+    batch?.status !== "captured" ||
+    batch.gatewayPaymentId !== attempt.gatewayPaymentId
+  ) {
+    return null;
+  }
+  await lockRefundsForCancellation(tx, [batch.id]);
+  return batch;
+}
+
+/**
+ * Consolidates a cancellation's refund into one refund of the whole
+ * receipt, once every commitment on this capture has failed for good and
+ * the gateway said it takes only a full refund (80b). The discretionary
+ * refunds beside it are superseded, and the cancellation's refund is sent
+ * again for everything the capture holds.
+ */
+async function retryCancellationInFull(
+  tx: AppDb,
+  deps: RefundSyncDeps,
+  batch: PaymentBatchRow,
+  actorRole: Role | null
+): Promise<void> {
+  const commitments = await refundsAgainstCapture(tx, [batch.id]);
+  const cancellation = commitments.find((row) => row.kind === "cancellation");
+  if (
+    !cancellation ||
+    commitments.some(
+      (row) =>
+        row.status !== "failed" ||
+        (row.id !== cancellation.id && row.kind !== "discretionary")
+    )
+  ) {
+    return;
+  }
+
+  // Another attempt may have been uncertain when the full-only refusal arrived.
+  const [fullOnly] = await tx
+    .select({ id: auditLog.id })
+    .from(auditLog)
+    .where(
+      and(
+        eq(auditLog.entityType, "refund"),
+        eq(auditLog.action, "refund.failed"),
+        inArray(
+          auditLog.entityId,
+          commitments.map(({ id }) => id)
+        ),
+        sql`${auditLog.after}->>'fullRefundOnly' = 'true'`
+      )
+    )
+    .limit(1);
+  if (!fullOnly) return;
+
+  const row = await lockRefund(tx, cancellation.id);
+  if (!row) throw new Error("The locked cancellation refund disappeared");
+  const discretionaryIds = commitments
+    .filter((prior) => prior.kind === "discretionary")
+    .map((prior) => prior.id);
+  const available = await refundableBatch(tx, batch, [
+    row.id,
+    ...discretionaryIds,
+  ]);
+  if (available.kind === "dashboard") return;
+  if (row.amountMinor >= available.amountMinor) return;
+  const plan = planRefund(available, {});
+  if (!plan.ok && plan.reason !== "nothing_to_refund") {
+    throw new Error("Cannot allocate a full cancellation refund");
+  }
+  await supersedeDiscretionaryRefunds(tx, deps, discretionaryIds, actorRole);
+  await releaseItems(tx, row.id, deps.clock.now());
+  const coverage = plan.ok
+    ? splitRefundCoverage(available.items, plan.registrationIds)
+    : { payableItems: [], zeroShareRegistrationIds: [] };
+  if (coverage.payableItems.length > 0) {
+    await tx
+      .insert(refundItem)
+      .values(
+        coverage.payableItems.map((item) => ({
+          ...item,
+          refundId: row.id,
+          batchId: batch.id,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: [refundItem.refundId, refundItem.registrationId],
+        set: { amountMinor: sql`excluded.amount_minor`, releasedAt: null },
+      });
+  }
+  await tx
+    .update(refund)
+    .set({ zeroShareRegistrationIds: coverage.zeroShareRegistrationIds })
+    .where(eq(refund.id, row.id));
+  await retryLocked(tx, deps, row, actorRole, available.amountMinor);
 }
 
 /** Keeps the refund's holds in place for finance to retry or close. */

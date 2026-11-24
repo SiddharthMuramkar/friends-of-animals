@@ -1,0 +1,71 @@
+{
+  "competitionCancel": {
+    "meta": {
+      "title": "Cancel a competition",
+      "description": "Cancel a competition: every paid fee goes back and everyone taking part is told."
+    },
+    "eyebrow": "Competitions",
+    "loading": "Loading…",
+    "title": "Cancel {name}",
+    "lead": "Cancelling is final. Every paid fee goes back without anyone approving it, unpaid and free registrations are cancelled, and everyone taking part is told.",
+    "back": "Back to competitions",
+    "denied": {
+      "title": "Only a super admin can cancel a competition",
+      "body": "Cancelling refunds every paid fee with nobody else approving it, so only super admins may. Ask one if this competition must be called off.",
+      "back": "Go to your dashboard"
+    },
+    "notFound": {
+      "title": "There is no such competition",
+      "body": "It may have been mistyped. Open it from the competitions list.",
+      "back": "Go to your dashboard"
+    },
+    "effectsTitle": "What cancelling does",
+    "effects": {
+      "told": "{count, plural, =0 {Nobody is registered yet, so no family is told} one {# registration's family contact is told by email} other {# registrations' family contacts are told by email}}.",
+      "institutions": "{count, plural, =0 {No institution is registered} one {# institution's coordinators are told} other {# institutions' coordinators are told}}.",
+      "cancelled": "{count, plural, =0 {No registration is cancelled at once} one {# unpaid or free registration is cancelled at once} other {# unpaid or free registrations are cancelled at once}}; paid ones are refunded.",
+      "gateway": "{count, plural, =0 {No payment goes back through the gateway} one {# payment goes back through the gateway} other {# payments go back through the gateway}}.",
+      "manual": "{count, plural, =0 {No payment was made offline} one {# payment made offline is paid back by hand, once finance records it} other {# payments made offline are paid back by hand, once finance records each}}.",
+      "dashboard": "{count, plural, one {Finance refunds # payment through the gateway dashboard in its original currency} other {Finance refunds # payments through the gateway dashboard in their original currencies}}.",
+      "amountDashboard": "{amount} is refunded through the gateway dashboard.",
+      "amountInr": "{amount} is refunded in Indian rupees.",
+      "amount": "{amount} is refunded in all."
+    },
+    "form": {
+      "title": "Cancel it",
+      "lead": "You will be asked for your second factor if you haven't used it in the last 10 minutes.",
+      "reason": {
+        "label": "Why is it cancelled?",
+        "hint": "Families and coordinators read this in their email. Up to {max} characters."
+      },
+      "submit": "Cancel the competition for good",
+      "saving": "Cancelling…",
+      "errors": {
+        "reason_invalid": "Enter the cancellation reason as text.",
+        "reason_required": "Write why the competition is cancelled.",
+        "reason_too_long": "Keep the reason to {max} characters or fewer."
+      },
+      "alerts": {
+        "already_cancelled": "This competition was cancelled already. The page now shows when and why.",
+        "not_found": "This competition no longer exists.",
+        "unexpected": "Something went wrong on our side. Nothing was cancelled. Please try again in a few minutes."
+      }
+    },
+    "cancelled": {
+      "title": "This competition is cancelled",
+      "on": "Cancelled on {at}.",
+      "reason": "Why: {reason}",
+      "next": "Gateway refunds go out automatically. Finance handles offline refunds on the refunds page and foreign-currency refunds from payment review.",
+      "done": "Cancelled. Its refunds are on their way and everyone taking part is being told."
+    },
+    "editLink": "Cancel this competition",
+    "message": {
+      "fee": {
+        "gateway": "The fee paid for this registration goes back to the card, UPI or bank account it was paid from. Whoever paid it gets an email when it is refunded.",
+        "manual": "The fee for this registration was paid by cheque, bank transfer or cash, so we pay it back by hand. Whoever paid it gets an email when that is done.",
+        "dashboard": "Finance refunds the fee through the payment gateway in the original currency. Whoever paid it gets an email when it is refunded.",
+        "none": "Nothing was paid for this registration, so there is nothing to refund."
+      }
+    }
+  }
+}

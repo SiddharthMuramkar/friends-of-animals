@@ -43,6 +43,8 @@ describe("createCompetition", () => {
         publishedAt: null,
         fields,
         nextChange: null,
+        // Only a super admin may cancel it (#80).
+        mayCancel: false,
       },
     });
   });
