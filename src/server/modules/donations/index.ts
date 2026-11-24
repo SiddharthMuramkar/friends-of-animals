@@ -40,6 +40,7 @@ import {
   type RequestReceiptLinkByEmailInput,
 } from "./receipt-links";
 import { startDonation, type StartDonationInput } from "./start-donation";
+import { getDonationTerms } from "./terms";
 
 export type * from "./admin";
 export type * from "./checkout";
@@ -47,11 +48,13 @@ export type * from "./expire";
 export type * from "./outcome";
 export type * from "./receipt-links";
 export type * from "./start-donation";
+export type * from "./terms";
 export type { DonationStatus } from "./domain/donation-status";
 export type { DonorType } from "./domain/donor";
 export type { ReceiptSnapshot } from "./receipts/snapshot";
 
 export const donationsUseCases = (ctx: UseCaseContext) => ({
+  getDonationTerms: () => getDonationTerms(ctx),
   startDonation: (input: StartDonationInput) => startDonation(ctx, input),
   payForDonation: (input: PayForDonationInput) => payForDonation(ctx, input),
   confirmDonationCheckout: (input: ConfirmDonationCheckoutInput) =>

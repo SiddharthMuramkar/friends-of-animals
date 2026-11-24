@@ -46,6 +46,10 @@ import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
 import donate from "../../messages/en-IN/donate.json";
+import donationCheckout from "../../messages/en-IN/donationCheckout.json";
+import donations from "../../messages/en-IN/donations.json";
+import receipts from "../../messages/en-IN/receipts.json";
+import adminDonations from "../../messages/en-IN/adminDonations.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
@@ -120,6 +124,10 @@ export const NAMESPACES = [
   "credits",
   "dashboard",
   "donate",
+  "donationCheckout",
+  "donations",
+  "receipts",
+  "adminDonations",
   "entries",
   "error",
   "files",
@@ -198,6 +206,10 @@ export const messages = {
   ...credits,
   ...dashboard,
   ...donate,
+  ...donationCheckout,
+  ...donations,
+  ...receipts,
+  ...adminDonations,
   ...entries,
   ...error,
   ...files,
