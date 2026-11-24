@@ -3,8 +3,8 @@
 // them. #75 brought the school route's enrolled and withdrawn; #77 adds
 // confirmed, once its fee is paid (or it is free); #78 adds an adult's own
 // registration waiting for its fee; #81 a minor's, waiting for their
-// guardian. Later tickets append theirs (refunded with #80) and their rows
-// here, each new enum value in its own migration.
+// guardian; #80 refunded and cancelled. Later tickets append theirs and
+// their rows here, each new enum value in its own migration.
 //
 // Plain TypeScript with no imports, so the schema file and the seed
 // script can load it under plain Node.
@@ -24,6 +24,9 @@ export const REGISTRATION_STATUSES = [
    * accepted them (#81): it can't be paid for or confirmed until then.
    */
   "pending_guardian",
+  /** Its competition was cancelled before it was paid, or it was free
+   * (#80). A paid one becomes refunded once its fee is back. */
+  "cancelled",
 ] as const;
 
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
@@ -31,14 +34,15 @@ export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 /**
  * Who makes a move: the institution's coordinator or authorised person,
  * the adult registering themselves, the payments module once the fee is
- * captured or found to be zero, or a verified guardian accepting the
- * minor (#81).
+ * captured or found to be zero, a verified guardian accepting the minor
+ * (#81), or the competition's cancellation (#80).
  */
 export type RegistrationCause =
   | "coordinator"
   | "participant"
   | "payment"
-  | "guardian";
+  | "guardian"
+  | "cancellation";
 
 /**
  * How a registration enters the machine on each route: the status it
@@ -70,20 +74,27 @@ const TRANSITIONS: {
     Record<RegistrationStatus, readonly RegistrationCause[]>
   >;
 } = {
-  enrolled: { withdrawn: ["coordinator"], confirmed: ["payment"] },
-  // A refund that lists it moves it, once the money is back (#80).
-  confirmed: { refunded: ["payment"] },
+  enrolled: {
+    withdrawn: ["coordinator"],
+    confirmed: ["payment"],
+    cancelled: ["cancellation"],
+  },
+  // A refund that lists it moves it, once the money is back (#80). A free
+  // one is cancelled with its competition.
+  confirmed: { refunded: ["payment"], cancelled: ["cancellation"] },
   withdrawn: {},
   // Withdrawing an unpaid registration of one's own waits for a later
-  // ticket; only the payment moves it.
-  pending_payment: { confirmed: ["payment"] },
+  // ticket. Payment and competition cancellation can move it.
+  pending_payment: { confirmed: ["payment"], cancelled: ["cancellation"] },
   refunded: {},
   // Guardian consent or a participant reaching adulthood can release it.
-  // A guardian accepting a request can withdraw a duplicate held place.
+  // A guardian can withdraw a duplicate held place.
   pending_guardian: {
     pending_payment: ["guardian", "participant"],
     withdrawn: ["guardian"],
+    cancelled: ["cancellation"],
   },
+  cancelled: {},
 };
 
 /** The status a new registration usually starts in, and who creates it. */

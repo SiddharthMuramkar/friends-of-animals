@@ -7,16 +7,18 @@
 //   approver, and goes out through the same funnel as finance's approvals
 //   (refund.approved → refunds.send). Its idempotency key makes it safe to
 //   call again: the refund the first call made is returned.
-// - supersedeRequestedRefunds: a cancellation takes over requests still
-//   waiting for finance, rejecting them so their students are free for the
-//   cancellation's refund.
+// - supersedeDiscretionaryRefunds: a cancellation takes over requests
+//   awaiting finance and definitively failed attempts, rejecting them so
+//   their students are free for the cancellation's refund.
+// - lockRefundsForCancellation: a cancellation and a settlement lock a
+//   batch's refunds in the same order, after the batch.
 //
-// Both run in the caller's transaction, after the caller has authorised
+// They run in the caller's transaction, after the caller has authorised
 // its actor; they write audit entries as that actor.
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import type { Role } from "../../../access/domain/roles";
 import type { Actor } from "../../../actor";
@@ -26,9 +28,13 @@ import { uuidv7 } from "../../../ids";
 import type { Clock } from "../../../ports/clock";
 import { lockBatch } from "../batches";
 import { planRefund, splitRefundCoverage } from "../domain/refund-plan";
-import { initialRefundStatus } from "../domain/refund-status";
+import {
+  canSupersedeForCancellation,
+  initialRefundStatus,
+  SUPERSEDED_BY_CANCELLATION,
+} from "../domain/refund-status";
 import { queueSend, rejectLocked } from "./decide-refund";
-import { auditRefund, lockRefund, refundableBatch } from "./rows";
+import { auditRefund, refundableBatch } from "./rows";
 
 type SystemContext = { clock: Clock; actor: Actor };
 
@@ -38,6 +44,12 @@ export type SystemRefund =
       batchId: string;
       /** Leave out for every student the batch has left. */
       registrationIds?: string[];
+      /**
+       * The cancellation's balance, including any amount no student's share
+       * holds. The refund is skipped unless it is exactly what the capture
+       * has left; with an empty `registrationIds` it lists no students.
+       */
+      expectedAmountMinor?: bigint;
       reason: string;
       idempotencyKey: string;
       actorRole?: Role | null;
@@ -85,11 +97,24 @@ export async function startSystemRefund(
   } else {
     const available = await refundableBatch(tx, batch);
     if (available.kind === "dashboard") return { skipped: "nothing_to_refund" };
-    const plan = planRefund(available, request);
-    if (!plan.ok) return { skipped: "nothing_to_refund" };
-    registrationIds = plan.registrationIds;
-    coverage = splitRefundCoverage(available.items, registrationIds);
-    amountMinor = plan.amountMinor;
+    const expected = request.expectedAmountMinor;
+    if (
+      expected !== undefined &&
+      (!available.captured ||
+        expected <= 0n ||
+        expected !== available.amountMinor - available.committedMinor)
+    ) {
+      return { skipped: "nothing_to_refund" };
+    }
+    if (expected !== undefined && request.registrationIds?.length === 0) {
+      amountMinor = expected;
+    } else {
+      const plan = planRefund(available, request);
+      if (!plan.ok) return { skipped: "nothing_to_refund" };
+      registrationIds = plan.registrationIds;
+      coverage = splitRefundCoverage(available.items, registrationIds);
+      amountMinor = expected ?? plan.amountMinor;
+    }
     gatewayPaymentId =
       batch.captureMethod === "offline" ? null : batch.gatewayPaymentId;
   }
@@ -158,36 +183,51 @@ export async function startSystemRefund(
 }
 
 /**
- * Rejects the requests still waiting for finance on `batchIds`, freeing
- * their students. Returns the refunds it rejected.
+ * Locks a batch's refunds after the batch and before any registrations.
+ * Settlement takes its refund lock before locking registrations too.
  */
-export async function supersedeRequestedRefunds(
+export async function lockRefundsForCancellation(
   tx: AppDb,
-  ctx: SystemContext,
-  {
-    batchIds,
-    reason,
-    actorRole = null,
-  }: { batchIds: string[]; reason: string; actorRole?: Role | null }
-): Promise<string[]> {
-  if (batchIds.length === 0) return [];
-  const waiting = await tx
+  batchIds: string[]
+): Promise<void> {
+  if (batchIds.length === 0) return;
+  await tx
     .select({ id: refund.id })
     .from(refund)
-    .where(
-      and(inArray(refund.batchId, batchIds), eq(refund.status, "requested"))
-    )
-    .orderBy(refund.id);
-  const superseded: string[] = [];
-  for (const { id } of waiting) {
-    const row = await lockRefund(tx, id);
-    if (!row || row.status !== "requested") continue;
+    .where(inArray(refund.batchId, batchIds))
+    .orderBy(refund.id)
+    .for("update");
+}
+
+/**
+ * Rejects the locked discretionary refunds the cancellation takes over,
+ * freeing their students. Returns the refunds it rejected.
+ */
+export async function supersedeDiscretionaryRefunds(
+  tx: AppDb,
+  ctx: SystemContext,
+  refundIds: string[],
+  actorRole: Role | null = null
+): Promise<string[]> {
+  if (refundIds.length === 0) return [];
+  const prior = await tx
+    .select()
+    .from(refund)
+    .where(inArray(refund.id, refundIds))
+    .orderBy(refund.id)
+    .for("update");
+  if (
+    prior.length !== new Set(refundIds).size ||
+    prior.some((row) => !canSupersedeForCancellation(row))
+  ) {
+    throw new Error("A refund planned for supersession is no longer eligible");
+  }
+  for (const row of prior) {
     await rejectLocked(tx, ctx, row, {
       decidedBy: null,
-      note: reason.trim(),
+      note: SUPERSEDED_BY_CANCELLATION,
       role: actorRole,
     });
-    superseded.push(id);
   }
-  return superseded;
+  return prior.map((row) => row.id);
 }

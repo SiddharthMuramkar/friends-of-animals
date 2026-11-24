@@ -18,9 +18,7 @@ emailSenderContract("captureEmailSender", async () => {
 });
 
 describe("captureEmailSender", () => {
-  // Staging captures real visitors' addresses and codes, so the mailbox
-  // keeps a week of messages, not everything ever sent.
-  it("drops captured messages more than seven days old", async () => {
+  it("shows only the last week of captures in the mailbox", async () => {
     const db = await createTestDb();
     const clock = new FakeClock();
     const sender = captureEmailSender({ db, clock });
@@ -112,7 +110,7 @@ describe("readCapturedEmail", () => {
     expect(error).toMatchObject({ code: "42P01" });
   });
 
-  it("leaves out messages past the week, even before a send drops them", async () => {
+  it("leaves out messages past the week even without a later send", async () => {
     const db = await createTestDb();
     const clock = new FakeClock();
     const to = "asha@example.test";

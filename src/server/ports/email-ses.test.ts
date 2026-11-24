@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FakeClock } from "@/test/fakes/clock";
 import { FakeSes, type SesRequest } from "@/test/fakes/ses";
 
+import { EmailNotSentError } from "./email";
 import { emailSenderContract } from "./email.contract";
 import { sesEmailSender, type SesConfig } from "./email-ses";
 
@@ -108,6 +109,52 @@ function leaks(error: unknown): string[] {
 }
 
 describe("sesEmailSender's failures", () => {
+  it("rejects a tracked send before transport when event publishing is unconfigured", async () => {
+    const { ses, sender } = setup();
+    await expect(
+      sender.send(message, { deliveryId: "test-delivery" })
+    ).rejects.toBeInstanceOf(EmailNotSentError);
+    expect(ses.requests).toHaveLength(0);
+  });
+
+  it("tags tracked mail and treats a verified rejection as unsent", async () => {
+    const { ses, sender } = setup({ ...SES, configurationSet: "foa-prod" });
+    ses.refuse({
+      status: 429,
+      type: "TooManyRequestsException",
+      message: "Request rate too high",
+    });
+    const deliveryId = "01938a00-0000-7000-8000-00000000abcd";
+
+    await expect(sender.send(message, { deliveryId })).rejects.toBeInstanceOf(
+      EmailNotSentError
+    );
+    expect(ses.requests).toHaveLength(1);
+    expect(ses.requests[0]?.body).toMatchObject({
+      ConfigurationSetName: "foa-prod",
+      EmailTags: [{ Name: "outbox_delivery_id", Value: deliveryId }],
+    });
+  });
+
+  it("makes one provider attempt when a tracked send has an uncertain outcome", async () => {
+    const { ses, sender } = setup({ ...SES, configurationSet: "foa-prod" });
+    ses.refuse({
+      status: 503,
+      type: "ServiceUnavailable",
+      message: "Response unavailable",
+    });
+
+    const error = await failure(
+      sender.send(message, {
+        deliveryId: "01938a00-0000-7000-8000-00000000abcd",
+      })
+    );
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(EmailNotSentError);
+    expect(ses.requests).toHaveLength(1);
+  });
+
   it("rejects when SES refuses the message, keeping its reason but no address, code or key", async () => {
     const { ses, sender } = setup();
     // What SES says to an account still in the sandbox.

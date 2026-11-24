@@ -51,6 +51,8 @@ export const PAYMENT_BATCH_EVENTS = [
   "review_cleared",
   /** Staff resolved the case of a batch nobody had paid: it lets go. */
   "review_dismissed",
+  /** Its competition was cancelled before anyone paid (#80). */
+  "competition_cancelled",
 ] as const;
 
 export type PaymentBatchEvent = (typeof PAYMENT_BATCH_EVENTS)[number];
@@ -75,12 +77,14 @@ const TRANSITIONS: Readonly<
     order_refused: "failed",
     superseded: "cancelled",
     offline_recorded: "captured",
+    competition_cancelled: "cancelled",
   },
   order_created: {
     captured: "captured",
     superseded: "cancelled",
     offline_recorded: "captured",
     review_opened: "needs_review",
+    competition_cancelled: "cancelled",
   },
   // A paid batch stays paid. A second payment opens a case beside it
   // (#80, from #79's review), and refunds are rows of their own, so a

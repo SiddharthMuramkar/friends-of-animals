@@ -13,6 +13,7 @@ import {
   nextKeyDate,
   paragraphs,
   primaryAction,
+  statusChip,
   timeline,
   type KeyDate,
 } from "./model";
@@ -308,6 +309,16 @@ describe("fromPublic", () => {
       nextKeyDate(view.keyDates, new Date("2026-12-10T00:00:00Z"))
     ).toEqual({ kind: "registrationCloses", at: "2027-01-15T18:29:00.000Z" });
     expect(ageRange(view.ageGroups)).toEqual({ min: 5, max: 12 });
+  });
+
+  it("keeps a cancelled competition listed, labelled cancelled, with nothing to register for (#80)", () => {
+    const view = fromPublic({ ...published, status: "cancelled" });
+    expect(view.status).toBe("CANCELLED");
+    expect(statusChip(view.status)).toEqual({
+      label: "cancelled",
+      tone: "neutral",
+    });
+    expect(primaryAction(view.status)).toBe("cancelled");
   });
 });
 

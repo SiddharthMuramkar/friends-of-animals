@@ -1,4 +1,11 @@
-import { Eye, ListChecks, Megaphone, PencilLine, Plus } from "lucide-react";
+import {
+  Ban,
+  Eye,
+  ListChecks,
+  Megaphone,
+  PencilLine,
+  Plus,
+} from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
@@ -7,7 +14,7 @@ import { Suspense } from "react";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { adminCompetitionCancelPath, APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -53,15 +60,29 @@ const CARD =
 async function CompetitionList() {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  let competitions;
+  const staff = as(actor);
+  const { grants } = await staff.myAccess();
+  const mayCancel = grants.some(
+    (grant) => grant.role === "super_admin" && grant.scope.type === "global"
+  );
+  const mayManage = grants.some(
+    (grant) => grant.role === "competition_manager"
+  );
+  if (!mayCancel && !mayManage) return <CompetitionsDenied />;
+  let managed, forCancellation;
   try {
-    competitions = await as(actor).listCompetitionsForAdmin();
+    [managed, forCancellation] = await Promise.all([
+      mayManage ? staff.listCompetitionsForAdmin() : [],
+      mayCancel ? staff.listCompetitionsForCancellation() : null,
+    ]);
   } catch (error) {
     if (error instanceof DomainError && error.code === "forbidden") {
       return <CompetitionsDenied />;
     }
     throw error;
   }
+  const competitions = forCancellation ?? managed;
+  const managedIds = new Set(managed.map(({ id }) => id));
   const [t, format] = await Promise.all([
     getTranslations("adminCompetitions.list"),
     getFormatter(),
@@ -69,12 +90,14 @@ async function CompetitionList() {
 
   return (
     <div className="mt-8 flex flex-col gap-8">
-      <div>
-        <ButtonLink href={APP_ROUTES.adminNewCompetition}>
-          <Plus aria-hidden="true" />
-          {t("new")}
-        </ButtonLink>
-      </div>
+      {mayManage ? (
+        <div>
+          <ButtonLink href={APP_ROUTES.adminNewCompetition}>
+            <Plus aria-hidden="true" />
+            {t("new")}
+          </ButtonLink>
+        </div>
+      ) : null}
       <section aria-labelledby="competitions-list">
         <SectionHeading id="competitions-list" title={t("listTitle")} />
         {competitions.length === 0 ? (
@@ -106,48 +129,64 @@ async function CompetitionList() {
                       })}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <ButtonLink
-                    href={competitionHref(competition.id, "edit")}
-                    variant="secondary"
-                  >
-                    <PencilLine aria-hidden="true" />
-                    {/* One phrase for screen readers that starts with the
+                  {managedIds.has(competition.id) ? (
+                    <>
+                      <ButtonLink
+                        href={competitionHref(competition.id, "edit")}
+                        variant="secondary"
+                      >
+                        <PencilLine aria-hidden="true" />
+                        {/* One phrase for screen readers that starts with the
                         visible word (WCAG 2.5.3). */}
-                    <span aria-hidden="true">{t("edit")}</span>
-                    <span className="sr-only">
-                      {t("editLabel", { name: competition.name })}
-                    </span>
-                  </ButtonLink>
-                  <ButtonLink
-                    href={competitionHref(competition.id, "preview")}
-                    variant="secondary"
-                  >
-                    <Eye aria-hidden="true" />
-                    <span aria-hidden="true">{t("preview")}</span>
-                    <span className="sr-only">
-                      {t("previewLabel", { name: competition.name })}
-                    </span>
-                  </ButtonLink>
-                  <ButtonLink
-                    href={rubricsHref(competition.id)}
-                    variant="secondary"
-                  >
-                    <ListChecks aria-hidden="true" />
-                    <span aria-hidden="true">{t("rubrics")}</span>
-                    <span className="sr-only">
-                      {t("rubricsLabel", { name: competition.name })}
-                    </span>
-                  </ButtonLink>
-                  <ButtonLink
-                    href={announcementsHref(competition.id)}
-                    variant="secondary"
-                  >
-                    <Megaphone aria-hidden="true" />
-                    <span aria-hidden="true">{t("announcements")}</span>
-                    <span className="sr-only">
-                      {t("announcementsLabel", { name: competition.name })}
-                    </span>
-                  </ButtonLink>
+                        <span aria-hidden="true">{t("edit")}</span>
+                        <span className="sr-only">
+                          {t("editLabel", { name: competition.name })}
+                        </span>
+                      </ButtonLink>
+                      <ButtonLink
+                        href={competitionHref(competition.id, "preview")}
+                        variant="secondary"
+                      >
+                        <Eye aria-hidden="true" />
+                        <span aria-hidden="true">{t("preview")}</span>
+                        <span className="sr-only">
+                          {t("previewLabel", { name: competition.name })}
+                        </span>
+                      </ButtonLink>
+                      <ButtonLink
+                        href={rubricsHref(competition.id)}
+                        variant="secondary"
+                      >
+                        <ListChecks aria-hidden="true" />
+                        <span aria-hidden="true">{t("rubrics")}</span>
+                        <span className="sr-only">
+                          {t("rubricsLabel", { name: competition.name })}
+                        </span>
+                      </ButtonLink>
+                      <ButtonLink
+                        href={announcementsHref(competition.id)}
+                        variant="secondary"
+                      >
+                        <Megaphone aria-hidden="true" />
+                        <span aria-hidden="true">{t("announcements")}</span>
+                        <span className="sr-only">
+                          {t("announcementsLabel", { name: competition.name })}
+                        </span>
+                      </ButtonLink>
+                    </>
+                  ) : null}
+                  {mayCancel && competition.status !== "cancelled" ? (
+                    <ButtonLink
+                      href={adminCompetitionCancelPath(competition.id)}
+                      variant="secondary"
+                    >
+                      <Ban aria-hidden="true" />
+                      <span aria-hidden="true">{t("cancel")}</span>
+                      <span className="sr-only">
+                        {t("cancelLabel", { name: competition.name })}
+                      </span>
+                    </ButtonLink>
+                  ) : null}
                 </div>
               </li>
             ))}

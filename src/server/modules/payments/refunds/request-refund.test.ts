@@ -1,10 +1,21 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { refund, refundItem } from "@/server/db/schema";
+import {
+  paymentBatch,
+  paymentBatchItem,
+  refund,
+  refundItem,
+} from "@/server/db/schema";
 import { uuidv7 } from "@/server/ids";
 import { createHarness } from "@/test/harness";
 
-import { openOrder, schoolWithStudents, signInStaff } from "../testing";
+import {
+  batchRow,
+  openOrder,
+  schoolWithStudents,
+  signInStaff,
+} from "../testing";
 import {
   capturedBatch,
   chequePaidBatch,
@@ -250,6 +261,101 @@ describe("requestRefund", () => {
         amountMinor: FEE_PAISE,
       })
     ).rejects.toThrow();
+  });
+
+  it("names the student another refund took between the plan and the write, for a whole batch too", async () => {
+    const h = await createHarness();
+    const paid = await capturedBatch(h, { students: 2 });
+    const [first, taken] = [...paid.registrationIds].sort();
+    // A live refund of another batch holds `taken`: the plan, which reads
+    // this batch's refunds, can't see it, as it couldn't see a refund
+    // written by another connection after it read.
+    const batch = await batchRow(h, paid.batchId);
+    const now = h.clock.now();
+    const otherBatchId = uuidv7(now);
+    await h.db.insert(paymentBatch).values({
+      ...batch,
+      id: otherBatchId,
+      status: "cancelled",
+      gatewayOrderId: null,
+      gatewayPaymentId: null,
+      captureMethod: null,
+      capturedAt: null,
+    });
+    await h.db.insert(paymentBatchItem).values({
+      batchId: otherBatchId,
+      registrationId: taken!,
+      amountMinor: FEE_PAISE,
+      releasedAt: now,
+    });
+    const [other] = await h.db
+      .insert(refund)
+      .values({
+        id: uuidv7(now),
+        batchId: otherBatchId,
+        kind: "discretionary",
+        status: "approved",
+        method: "manual",
+        amountMinor: FEE_PAISE,
+        reason: REASON,
+        requestedAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: refund.id });
+    await h.db.insert(refundItem).values({
+      refundId: other!.id,
+      batchId: otherBatchId,
+      registrationId: taken!,
+      amountMinor: FEE_PAISE,
+    });
+    const staff = await signInStaff(h, "staff_admin");
+
+    expect(
+      await h
+        .as(staff.actor)
+        .requestRefund({ batchId: paid.batchId, reason: REASON })
+    ).toEqual({
+      ok: false,
+      error: "item_in_live_refund",
+      registrationId: taken,
+    });
+    expect(
+      await h.as(staff.actor).requestRefund({
+        batchId: paid.batchId,
+        registrationIds: [first!, taken!],
+        reason: REASON,
+      })
+    ).toEqual({
+      ok: false,
+      error: "item_in_live_refund",
+      registrationId: taken,
+    });
+    expect(
+      await h.db.select().from(refund).where(eq(refund.batchId, paid.batchId))
+    ).toEqual([]);
+
+    const partial = await h.as(staff.actor).requestRefund({
+      batchId: paid.batchId,
+      registrationIds: [first!],
+      reason: REASON,
+    });
+    if (!partial.ok) throw new Error("not asked");
+    const before = await h.db
+      .select()
+      .from(refund)
+      .where(eq(refund.batchId, paid.batchId));
+    expect(
+      await h
+        .as(staff.actor)
+        .requestRefund({ batchId: paid.batchId, reason: REASON })
+    ).toEqual({
+      ok: false,
+      error: "item_in_live_refund",
+      registrationId: taken,
+    });
+    expect(
+      await h.db.select().from(refund).where(eq(refund.batchId, paid.batchId))
+    ).toEqual(before);
   });
 
   describe("who may ask", () => {

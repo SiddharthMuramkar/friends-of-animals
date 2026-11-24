@@ -1,4 +1,4 @@
-import { getTableColumns, getTableName, sql } from "drizzle-orm";
+import { eq, getTableColumns, getTableName, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -16,7 +16,7 @@ import {
   breachRetentionCandidates,
   YEARS_AFTER_CLOSE,
 } from "./retention-policy";
-import { recordedBreach, staffActor } from "./testing";
+import { recordedBreach, staffActor, userIdOf } from "./testing";
 
 /** Every column built with #58's encryptedText(), by its SQL name. */
 function encryptedColumns(
@@ -159,5 +159,43 @@ describe("breachRetentionCandidates", () => {
       key: "breachRecords",
       action: "delete",
     });
+  });
+});
+
+describe("the daily sweep's breachRecords policy", () => {
+  it("deletes a breach with its timeline 5 years after it closes, and keeps it while its lead is held", async () => {
+    const h = await createHarness();
+    await h.settings.set("retention.enforce", true);
+    const admin = await staffActor(h, "super_admin");
+    const breachId = await recordedBreach(h, admin);
+    await h.as(admin).containBreach({ breachId });
+    await h.as(admin).closeBreach({ breachId, reason: "Nothing left FOA." });
+    const [stored] = await h.db
+      .select({ lead: breachRecord.leadUserId })
+      .from(breachRecord)
+      .where(eq(breachRecord.id, breachId));
+    const lead = stored?.lead ?? userIdOf(admin);
+    const hold = await h.as(admin).placeLegalHold({
+      subjectType: "user",
+      subjectId: lead,
+      reason: "Authority inquiry",
+    });
+    if (!hold.ok) throw new Error(hold.error);
+    h.clock.advance({ days: 5 * 366 });
+    const worker = h.as({ kind: "system", process: "worker" });
+
+    const held = await worker.runRetentionSweep();
+    expect(held.policies.breachRecords).toMatchObject({ held: 1 });
+    expect(await h.db.select().from(breachRecord)).toHaveLength(1);
+
+    // Five years on, releasing needs a fresh sign-in and second factor.
+    const releaser = await staffActor(h, "super_admin");
+    expect(
+      await h.as(releaser).releaseLegalHold({ holdId: hold.holdId })
+    ).toEqual({ ok: true });
+    const swept = await worker.runRetentionSweep();
+    expect(swept.policies.breachRecords).toMatchObject({ deleted: 1 });
+    expect(await h.db.select().from(breachRecord)).toEqual([]);
+    expect(await h.db.select().from(breachTimelineEvent)).toEqual([]);
   });
 });

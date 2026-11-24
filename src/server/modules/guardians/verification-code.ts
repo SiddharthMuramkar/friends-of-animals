@@ -28,7 +28,7 @@ export type GuardianCodeCheck =
   | "code_expired"
   | "too_many_attempts";
 
-function identifierFor(guardianId: string): string {
+export function guardianVerificationIdentifier(guardianId: string): string {
   return `guardian-verification:${guardianId}`;
 }
 
@@ -52,7 +52,7 @@ export async function issueGuardianCode(
   { db, clock, auth }: Pick<UseCaseContext, "db" | "clock" | "auth">,
   guardianId: string
 ): Promise<{ code: string; expiresAt: Date }> {
-  const identifier = identifierFor(guardianId);
+  const identifier = guardianVerificationIdentifier(guardianId);
   const code = String(randomInt(10 ** SIGN_IN_CODE.length)).padStart(
     SIGN_IN_CODE.length,
     "0"
@@ -87,7 +87,7 @@ export async function checkGuardianCode(
   guardianId: string,
   code: string
 ): Promise<GuardianCodeCheck> {
-  const identifier = identifierFor(guardianId);
+  const identifier = guardianVerificationIdentifier(guardianId);
   const taken = await db
     .delete(verification)
     .where(eq(verification.identifier, identifier))

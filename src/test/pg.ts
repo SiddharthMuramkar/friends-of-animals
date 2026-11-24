@@ -11,7 +11,7 @@
 //   const admin = await world.signedIn(await world.seed.superAdmin(...));
 //   await world.waitForLockWaiters(1);
 
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { sql as raw } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -63,6 +63,15 @@ export function pgTestUrl(): string {
 export type PgWorld = ReturnType<typeof createPgWorld>;
 
 /**
+ * Every world on the shared test database encrypts and indexes with the
+ * same keys, so a second file seeding the preview (idempotent: it reads
+ * back the rows the first one stored) can decrypt them. Test-only keys,
+ * for a throwaway local database.
+ */
+const testKey = (name: string) =>
+  createHash("sha256").update(`foa test:pg ${name}`).digest();
+
+/**
  * Use cases over a pool on the test database, with the harness's fakes
  * and a clock at the real time. `sql` is a separate client for holding
  * locks the way another request would. Call `close()` in afterAll.
@@ -88,9 +97,9 @@ export function createPgWorld() {
     auth: TEST_AUTH,
     cipher: createFieldCipher({
       primary: 1,
-      keys: new Map([[1, randomBytes(32)]]),
+      keys: new Map([[1, testKey("field cipher")]]),
     }),
-    blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
+    blindIndex: createBlindIndex(testKey("blind index") as BlindIndexKey),
     settings: new TestSettings({ db, clock }),
     storage,
     files: TEST_FILES,

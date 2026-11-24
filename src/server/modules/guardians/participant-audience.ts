@@ -8,7 +8,10 @@
 // A guardian-kept profile is a child's. A profile of one's own is an
 // adult's, who hears through `registration_owner` instead: a teen on a
 // profile of their own has their registrations held for a guardian, which
-// can't be confirmed, so nothing about them is routed here.
+// can't be confirmed, so nothing about them is routed here, but for a
+// cancellation (#80), which can mark such a held registration
+// (`awaitingGuardian`): the teen's guardians hear of it, the teen in the
+// inbox.
 //
 // Loads under plain Node (the worker): relative imports only.
 
@@ -56,12 +59,14 @@ export async function guardianLinksByProfile(
 
 export async function guardianOfParticipant(
   db: AppDb,
-  registrationId: string
+  registrationId: string,
+  awaitingGuardian = false
 ): Promise<AudienceMember[]> {
   const [subject] = await db
     .select({
       profileId: participantProfile.id,
       ownerKind: participantProfile.ownerKind,
+      ownerUserId: participantProfile.ownerUserId,
       loginUserId: participantProfile.loginUserId,
     })
     .from(registration)
@@ -70,16 +75,24 @@ export async function guardianOfParticipant(
       eq(participantProfile.id, registration.participantProfileId)
     )
     .where(eq(registration.id, registrationId));
-  if (subject?.ownerKind !== "guardian") return [];
+  if (
+    !subject ||
+    (subject.ownerKind !== "guardian" &&
+      !(awaitingGuardian && subject.ownerKind === "self"))
+  ) {
+    return [];
+  }
+  const loginUserId =
+    subject.ownerKind === "self" ? subject.ownerUserId : subject.loginUserId;
   const links = await guardianLinksByProfile(db, [subject.profileId]);
   const audience = minorAudience({
     minor: true,
-    loginUserId: subject.loginUserId,
+    loginUserId,
     guardians: links.get(subject.profileId) ?? [],
   });
   if (audience.kind === "suppress") {
-    return subject.loginUserId
-      ? [{ userId: subject.loginUserId, suppressed: "no_guardian" }]
+    return loginUserId
+      ? [{ userId: loginUserId, suppressed: "no_guardian" }]
       : [];
   }
   return audience.recipients.map((recipient) =>

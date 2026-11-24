@@ -104,7 +104,11 @@ function createAuth({ db, clock, auth: config }: Deps) {
     rateLimit: { enabled: false },
     // A code's row is keyed "sign-in-otp-<address>", for addresses with no
     // account too. Store a SHA-256 of that key instead of the address.
-    verification: { storeIdentifier: "hashed" },
+    verification: {
+      storeIdentifier: "hashed",
+      // The retention sweep checks legal holds before pruning expired rows.
+      disableCleanup: true,
+    },
     telemetry: { enabled: false },
     logger,
     advanced: {

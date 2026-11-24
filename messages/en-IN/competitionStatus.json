@@ -5,14 +5,16 @@
       "published": "Published",
       "registration_open": "Registration open",
       "registration_closed": "Registration closed",
-      "school_judging": "School judging"
+      "school_judging": "School judging",
+      "cancelled": "Cancelled"
     },
     "inSentence": {
       "draft": "draft",
       "published": "published",
       "registration_open": "registration open",
       "registration_closed": "registration closed",
-      "school_judging": "school judging"
+      "school_judging": "school judging",
+      "cancelled": "cancelled"
     },
     "countdown": {
       "opens": "Registration opens {at} ({relative})",

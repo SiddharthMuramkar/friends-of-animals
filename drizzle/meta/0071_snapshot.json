@@ -1,5 +1,5 @@
 {
-  "id": "7f477581-0156-4207-b29a-c8805bec1590",
+  "id": "1af16cba-4f67-46fa-ad25-22f282706463",
   "prevId": "b3d2b104-948b-41a2-b430-4bc0db0ff390",
   "version": "7",
   "dialect": "postgresql",
@@ -953,6 +953,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "session_expires_at_id_idx": {
+          "name": "session_expires_at_id_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1143,6 +1164,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "verification_expires_at_id_idx": {
+          "name": "verification_expires_at_id_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -1214,6 +1256,27 @@
               "expression": "created_at",
               "isExpression": false,
               "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "captured_message_created_at_id_idx": {
+          "name": "captured_message_created_at_id_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
               "nulls": "last"
             }
           ],
@@ -1660,6 +1723,28 @@
           ],
           "isUnique": false,
           "where": "\"outbox\".\"status\" = 'failed'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "outbox_dispatched_at_idx": {
+          "name": "outbox_dispatched_at_idx",
+          "columns": [
+            {
+              "expression": "dispatched_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"outbox\".\"dispatched_at\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3653,6 +3738,13 @@
           "notNull": true,
           "default": "'pending_upload'"
         },
+        "quarantine_purge_pending": {
+          "name": "quarantine_purge_pending",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "sha256": {
           "name": "sha256",
           "type": "text",
@@ -3743,6 +3835,10 @@
         "file_asset_size_bytes_positive": {
           "name": "file_asset_size_bytes_positive",
           "value": "\"file_asset\".\"size_bytes\" > 0"
+        },
+        "file_asset_quarantine_purge_status": {
+          "name": "file_asset_quarantine_purge_status",
+          "value": "NOT \"file_asset\".\"quarantine_purge_pending\" OR \"file_asset\".\"status\" = 'quarantined'"
         }
       },
       "isRLSEnabled": false
@@ -10759,577 +10855,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.breach_fan_out": {
-      "name": "breach_fan_out",
-      "schema": "",
-      "columns": {
-        "breach_id": {
-          "name": "breach_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "after_user_id": {
-          "name": "after_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "breach_fan_out_breach_id_breach_record_id_fk": {
-          "name": "breach_fan_out_breach_id_breach_record_id_fk",
-          "tableFrom": "breach_fan_out",
-          "tableTo": "breach_record",
-          "columnsFrom": [
-            "breach_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.breach_notification": {
-      "name": "breach_notification",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "breach_id": {
-          "name": "breach_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recipient_user_id": {
-          "name": "recipient_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "channel": {
-          "name": "channel",
-          "type": "message_channel",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recipient_role": {
-          "name": "recipient_role",
-          "type": "breach_notice_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "about_count": {
-          "name": "about_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "guardian_profile_ids": {
-          "name": "guardian_profile_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::uuid[]"
-        },
-        "queued_at": {
-          "name": "queued_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "suppressed_at": {
-          "name": "suppressed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "breach_notification_recipient_user_id_idx": {
-          "name": "breach_notification_recipient_user_id_idx",
-          "columns": [
-            {
-              "expression": "recipient_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "breach_notification_breach_id_breach_record_id_fk": {
-          "name": "breach_notification_breach_id_breach_record_id_fk",
-          "tableFrom": "breach_notification",
-          "tableTo": "breach_record",
-          "columnsFrom": [
-            "breach_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "breach_notification_recipient_user_id_user_id_fk": {
-          "name": "breach_notification_recipient_user_id_user_id_fk",
-          "tableFrom": "breach_notification",
-          "tableTo": "user",
-          "columnsFrom": [
-            "recipient_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "breach_notification_once": {
-          "name": "breach_notification_once",
-          "nullsNotDistinct": false,
-          "columns": [
-            "breach_id",
-            "recipient_user_id",
-            "channel"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "breach_notification_about_someone": {
-          "name": "breach_notification_about_someone",
-          "value": "\"breach_notification\".\"about_count\" >= 1"
-        },
-        "breach_notification_one_outcome": {
-          "name": "breach_notification_one_outcome",
-          "value": "\"breach_notification\".\"sent_at\" IS NULL OR \"breach_notification\".\"suppressed_at\" IS NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.breach_record": {
-      "name": "breach_record",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "title_ciphertext": {
-          "name": "title_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "aware_at": {
-          "name": "aware_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "severity": {
-          "name": "severity",
-          "type": "breach_severity",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "personal_data_involved": {
-          "name": "personal_data_involved",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "minors_affected": {
-          "name": "minors_affected",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "affected_count": {
-          "name": "affected_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "impact_ciphertext": {
-          "name": "impact_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "breach_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'open'"
-        },
-        "contained_at": {
-          "name": "contained_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "principals_notified_at": {
-          "name": "principals_notified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authority_notified_at": {
-          "name": "authority_notified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authority_reference_ciphertext": {
-          "name": "authority_reference_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authority_email_queued_at": {
-          "name": "authority_email_queued_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authority_email_sent_at": {
-          "name": "authority_email_sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lead_user_id": {
-          "name": "lead_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "breach_record_log_order_idx": {
-          "name": "breach_record_log_order_idx",
-          "columns": [
-            {
-              "expression": "(\"status\" <> 'closed') desc",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "aware_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "breach_record_status_closed_at_idx": {
-          "name": "breach_record_status_closed_at_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "closed_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "breach_record_lead_user_id_idx": {
-          "name": "breach_record_lead_user_id_idx",
-          "columns": [
-            {
-              "expression": "lead_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "breach_record_lead_user_id_user_id_fk": {
-          "name": "breach_record_lead_user_id_user_id_fk",
-          "tableFrom": "breach_record",
-          "tableTo": "user",
-          "columnsFrom": [
-            "lead_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "breach_record_affected_count_not_negative": {
-          "name": "breach_record_affected_count_not_negative",
-          "value": "\"breach_record\".\"affected_count\" >= 0"
-        },
-        "breach_record_closed_has_closed_at": {
-          "name": "breach_record_closed_has_closed_at",
-          "value": "(\"breach_record\".\"status\" = 'closed') = (\"breach_record\".\"closed_at\" IS NOT NULL)"
-        },
-        "breach_record_contained_has_contained_at": {
-          "name": "breach_record_contained_has_contained_at",
-          "value": "\"breach_record\".\"status\" <> 'contained' OR \"breach_record\".\"contained_at\" IS NOT NULL"
-        },
-        "breach_record_notified_has_a_notice": {
-          "name": "breach_record_notified_has_a_notice",
-          "value": "\"breach_record\".\"status\" <> 'notified' OR \"breach_record\".\"principals_notified_at\" IS NOT NULL OR \"breach_record\".\"authority_notified_at\" IS NOT NULL"
-        },
-        "breach_record_reference_after_notice": {
-          "name": "breach_record_reference_after_notice",
-          "value": "\"breach_record\".\"authority_reference_ciphertext\" IS NULL OR \"breach_record\".\"authority_notified_at\" IS NOT NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.breach_timeline_event": {
-      "name": "breach_timeline_event",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "breach_id": {
-          "name": "breach_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "breach_timeline_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "note_ciphertext": {
-          "name": "note_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "author_user_id": {
-          "name": "author_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "breach_timeline_event_breach_id_idx": {
-          "name": "breach_timeline_event_breach_id_idx",
-          "columns": [
-            {
-              "expression": "breach_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "breach_timeline_event_breach_id_breach_record_id_fk": {
-          "name": "breach_timeline_event_breach_id_breach_record_id_fk",
-          "tableFrom": "breach_timeline_event",
-          "tableTo": "breach_record",
-          "columnsFrom": [
-            "breach_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "breach_timeline_event_note_has_text": {
-          "name": "breach_timeline_event_note_has_text",
-          "value": "\"breach_timeline_event\".\"kind\" <> 'note' OR \"breach_timeline_event\".\"note_ciphertext\" IS NOT NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.breach_unreachable": {
-      "name": "breach_unreachable",
-      "schema": "",
-      "columns": {
-        "breach_id": {
-          "name": "breach_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_type": {
-          "name": "subject_type",
-          "type": "breach_subject_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_id": {
-          "name": "subject_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "breach_unreachable_reason",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "breach_unreachable_breach_id_breach_record_id_fk": {
-          "name": "breach_unreachable_breach_id_breach_record_id_fk",
-          "tableFrom": "breach_unreachable",
-          "tableTo": "breach_record",
-          "columnsFrom": [
-            "breach_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "breach_unreachable_pk": {
-          "name": "breach_unreachable_pk",
-          "columns": [
-            "breach_id",
-            "subject_type",
-            "subject_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.announcement": {
       "name": "announcement",
       "schema": "",
@@ -11571,6 +11096,235 @@
           "value": "\"announcement\".\"recipient_count\" >= 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.legal_hold": {
+      "name": "legal_hold",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "subject_type": {
+          "name": "subject_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "placed_by_user_id": {
+          "name": "placed_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "placed_at": {
+          "name": "placed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "released_by_user_id": {
+          "name": "released_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "released_at": {
+          "name": "released_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "legal_hold_one_active_per_subject": {
+          "name": "legal_hold_one_active_per_subject",
+          "columns": [
+            {
+              "expression": "subject_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"legal_hold\".\"released_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "legal_hold_active_idx": {
+          "name": "legal_hold_active_idx",
+          "columns": [
+            {
+              "expression": "subject_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"legal_hold\".\"released_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "legal_hold_active_placed_at_idx": {
+          "name": "legal_hold_active_placed_at_idx",
+          "columns": [
+            {
+              "expression": "placed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"legal_hold\".\"released_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "legal_hold_placed_by_user_id_idx": {
+          "name": "legal_hold_placed_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "placed_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "legal_hold_released_by_user_id_idx": {
+          "name": "legal_hold_released_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "released_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "legal_hold_placed_by_user_id_user_id_fk": {
+          "name": "legal_hold_placed_by_user_id_user_id_fk",
+          "tableFrom": "legal_hold",
+          "tableTo": "user",
+          "columnsFrom": [
+            "placed_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "legal_hold_released_by_user_id_user_id_fk": {
+          "name": "legal_hold_released_by_user_id_user_id_fk",
+          "tableFrom": "legal_hold",
+          "tableTo": "user",
+          "columnsFrom": [
+            "released_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "legal_hold_subject_type_known": {
+          "name": "legal_hold_subject_type_known",
+          "value": "\"legal_hold\".\"subject_type\" IN ('user', 'participant_profile', 'institution')"
+        },
+        "legal_hold_reason_length": {
+          "name": "legal_hold_reason_length",
+          "value": "char_length(\"legal_hold\".\"reason\") BETWEEN 1 AND 500"
+        },
+        "legal_hold_released_by_only_when_released": {
+          "name": "legal_hold_released_by_only_when_released",
+          "value": "\"legal_hold\".\"released_by_user_id\" IS NULL OR \"legal_hold\".\"released_at\" IS NOT NULL"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.retention_run_progress": {
+      "name": "retention_run_progress",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "actor_process": {
+          "name": "actor_process",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "policies": {
+          "name": "policies",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },
@@ -12230,64 +11984,6 @@
         "scheduled",
         "published",
         "archived"
-      ]
-    },
-    "public.breach_notice_role": {
-      "name": "breach_notice_role",
-      "schema": "public",
-      "values": [
-        "principal",
-        "guardian",
-        "principal_and_guardian"
-      ]
-    },
-    "public.breach_severity": {
-      "name": "breach_severity",
-      "schema": "public",
-      "values": [
-        "critical",
-        "high",
-        "medium",
-        "low"
-      ]
-    },
-    "public.breach_status": {
-      "name": "breach_status",
-      "schema": "public",
-      "values": [
-        "open",
-        "contained",
-        "notified",
-        "closed"
-      ]
-    },
-    "public.breach_subject_type": {
-      "name": "breach_subject_type",
-      "schema": "public",
-      "values": [
-        "user",
-        "participant_profile"
-      ]
-    },
-    "public.breach_timeline_kind": {
-      "name": "breach_timeline_kind",
-      "schema": "public",
-      "values": [
-        "recorded",
-        "updated",
-        "contained",
-        "principals_notified",
-        "authority_notified",
-        "note",
-        "closed"
-      ]
-    },
-    "public.breach_unreachable_reason": {
-      "name": "breach_unreachable_reason",
-      "schema": "public",
-      "values": [
-        "no_guardian",
-        "no_account"
       ]
     },
     "public.announcement_status": {

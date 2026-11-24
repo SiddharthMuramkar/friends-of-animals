@@ -27,7 +27,7 @@ import {
 
 import type { AppDb } from "../db/app-db";
 import { outbox, type OutboxRow } from "../db/schema";
-import { EVENT_PAYLOADS, SUBSCRIBERS, type EventType } from "./events";
+import { parseStoredEventPayload, SUBSCRIBERS, type EventType } from "./events";
 import { describeFailure } from "./failure";
 import {
   HANDLERS,
@@ -187,16 +187,9 @@ function payloadOf(row: OutboxRow) {
       `Handler ${row.handler} does not handle ${row.eventType} events`
     );
   }
-  const payload = row.payload;
-  // Before guardian consent, a person's messages withdrawal had no scope
-  // field. Supply it for those stored rows before validating the payload.
-  const legacyWithdrawal =
-    row.eventType === "consent.withdrawn" &&
-    payload?.subjectType === "user" &&
-    payload.purpose === "messages" &&
-    !Object.hasOwn(payload, "competitionId");
-  const parsed = EVENT_PAYLOADS[row.eventType as EventType].safeParse(
-    legacyWithdrawal ? { ...payload, competitionId: null } : payload
+  const parsed = parseStoredEventPayload(
+    row.eventType as EventType,
+    row.payload
   );
   if (!parsed.success) {
     // Paths only: a value in the message could be personal data.

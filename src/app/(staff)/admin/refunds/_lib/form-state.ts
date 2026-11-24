@@ -72,6 +72,7 @@ export type DecisionFormState = {
   alert?:
     | "not_requested"
     | "not_rejectable"
+    | "cancellation_refund_required"
     | "not_failed"
     | "same_person"
     | "unexpected";
@@ -98,6 +99,7 @@ export function afterDecision(
       return { ...next, error: result.error };
     case "not_requested":
     case "not_rejectable":
+    case "cancellation_refund_required":
     case "not_failed":
     case "same_person":
       return { ...next, alert: result.error };

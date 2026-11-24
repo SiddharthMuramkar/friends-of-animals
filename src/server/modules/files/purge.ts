@@ -10,9 +10,16 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import { and, eq, inArray } from "drizzle-orm";
+
 import type { Env } from "../../../env.schema";
+import type { AppDb } from "../../db/app-db";
+import { fileAsset, type FileAssetRow } from "../../db/schema";
 import type { ObjectStorage } from "../../ports/storage";
-import { storagePrefixForDatabase } from "./domain/storage-key";
+import {
+  quarantineKeyOf,
+  storagePrefixForDatabase,
+} from "./domain/storage-key";
 
 export type PurgeDeps = {
   storage: ObjectStorage;
@@ -57,4 +64,31 @@ export async function purgePreviewFiles(
   }
   const { deleted } = await storage.deletePrefix({ bucket, prefix });
   return { prefix, deleted };
+}
+
+/** Commit the intent before any storage operation. */
+export async function stageQuarantinePurge(tx: AppDb, ids: readonly string[]) {
+  if (ids.length === 0) return;
+  await tx
+    .update(fileAsset)
+    .set({ quarantinePurgePending: true })
+    .where(
+      and(inArray(fileAsset.id, [...ids]), eq(fileAsset.status, "quarantined"))
+    );
+}
+
+/** Retires one locked asset with a committed intent. */
+export async function purgeQuarantinedFile(
+  tx: AppDb,
+  file: Pick<FileAssetRow, "id" | "bucket" | "purpose" | "storageKey">,
+  storage: ObjectStorage
+) {
+  // Check database references before touching storage. The row deletion
+  // only commits after both object deletes and the sweep's checkpoint.
+  await tx.delete(fileAsset).where(eq(fileAsset.id, file.id));
+  const key = quarantineKeyOf(file);
+  if (key !== file.storageKey) {
+    await storage.delete({ bucket: file.bucket, key: file.storageKey });
+  }
+  await storage.delete({ bucket: file.bucket, key });
 }

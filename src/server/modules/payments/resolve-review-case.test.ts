@@ -2,7 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { Actor } from "@/server/actor";
-import { auditLog, outbox, paymentBatchItem } from "@/server/db/schema";
+import { auditLog, outbox, paymentBatchItem, user } from "@/server/db/schema";
 import { REGISTRATION_NUMBER } from "@/server/modules/registration/domain/registration-number";
 import { createHarness, type Harness } from "@/test/harness";
 
@@ -334,6 +334,57 @@ describe("resolvePaymentReviewCase", () => {
           .where(eq(outbox.eventType, "payment.batch_captured"))
       ).length
     ).toBe(1);
+  });
+
+  it("keeps the payer while a payment review is open, then expires from the resolution", async () => {
+    const h = await createHarness();
+    const { school, batchId, caseId } = await closedCase(h);
+    await h.settings.set("retention.enforce", true);
+    const worker = h.as({ kind: "system", process: "worker" });
+    const payerId = school.coordinator.userId;
+    const [payer] = await h.db
+      .select({ email: user.email })
+      .from(user)
+      .where(eq(user.id, payerId));
+    expect(payer?.email).toEqual(expect.any(String));
+    h.clock.set("2041-05-01T00:00:00Z");
+
+    expect(
+      (await worker.runRetentionSweep()).policies.financialRecords?.anonymised
+    ).toBe(0);
+    expect(await batchRow(h, batchId)).toMatchObject({
+      status: "needs_review",
+      payerUserId: payerId,
+    });
+
+    const finance = await signInStaff(h, "finance");
+    expect(
+      await h.as(finance.actor).resolvePaymentReviewCase({
+        caseId,
+        outcome: "confirm",
+        reason: REASON,
+      })
+    ).toEqual({ ok: true, batchStatus: "captured" });
+    const mark = h.email.sent.length;
+    await h.drain();
+    expect(h.email.sent.slice(mark)).toContainEqual(
+      expect.objectContaining({
+        to: payer?.email,
+        subject: expect.stringMatching(/^Payment received for /),
+      })
+    );
+
+    h.clock.set("2050-03-31T18:29:59Z");
+    await worker.runRetentionSweep();
+    expect(await batchRow(h, batchId)).toMatchObject({ payerUserId: payerId });
+    h.clock.advance({ seconds: 1 });
+    expect(
+      (await worker.runRetentionSweep()).policies.financialRecords?.anonymised
+    ).toBe(1);
+    expect(await batchRow(h, batchId)).toMatchObject({
+      status: "captured",
+      payerUserId: null,
+    });
   });
 
   it("confirms a replaced batch's money: the newer, unpaid batch is cancelled and lets its students go", async () => {

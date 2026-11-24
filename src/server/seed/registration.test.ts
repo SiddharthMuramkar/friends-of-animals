@@ -8,6 +8,7 @@ import {
 import { createHarness } from "@/test/harness";
 import { seedInstitution } from "@/test/institutions";
 
+import { SEED_CANCELLED } from "./competition-cancelled";
 import { SEED_COORDINATORS } from "./coordinators";
 import { SEED_PAYMENTS } from "./payments";
 import { SEED_REGISTRATIONS, SEED_STUDENTS } from "./registration";
@@ -38,6 +39,15 @@ describe("the registration seed", () => {
         institutionId: SEED_SCOPES.institution.id,
         competitionId: "01938a00-0000-7000-8000-000000002103",
         reference: "SKIES26-I-5EED2",
+        status: "active",
+      }),
+      // The cancelled competition's seed: its registration for Wings at
+      // Dusk (#80).
+      expect.objectContaining({
+        id: SEED_CANCELLED.institutionRegistrationId,
+        institutionId: SEED_SCOPES.institution.id,
+        competitionId: SEED_CANCELLED.competitionId,
+        reference: "WINGS26-I-5EED3",
         status: "active",
       }),
     ]);
@@ -104,6 +114,8 @@ describe("the registration seed", () => {
       // A fee given back (#80): nothing is refunded in the seed's NEIGH27.
       refunded: 0,
       pending_guardian: 0,
+      // Its competition called off (#80): NEIGH27 isn't.
+      cancelled: 0,
     });
     const students = dashboard.ok ? dashboard.students : [];
     const groupsOfEnrolled = new Set(

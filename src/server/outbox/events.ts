@@ -8,6 +8,10 @@
 import { z } from "zod";
 
 import {
+  FEE_RETURNS,
+  type FeeReturn,
+} from "../modules/competitions/domain/cancellation";
+import {
   KEY_DATE_KINDS,
   type KeyDateKind,
 } from "../modules/competitions/domain/key-dates";
@@ -297,6 +301,15 @@ export type DomainEvent =
       payload: { refundId: string; payerUserId: string | null };
     }
   | {
+      /**
+       * Finance recorded the gateway dashboard's refund of an accepted
+       * receipt in another currency (#80); the payer is told.
+       */
+      type: "refund.dashboard_processed";
+      aggregate: { type: "payment_review_case"; id: string };
+      payload: { reviewCaseId: string; payerUserId: string | null };
+    }
+  | {
       /** The gateway gave up on a refund (#80); finance is told to act. */
       type: "refund.failed";
       aggregate: { type: "refund"; id: string };
@@ -349,6 +362,32 @@ export type DomainEvent =
       type: "breach.authority_notice";
       aggregate: { type: "breach"; id: string };
       payload: { breachId: string };
+    }
+  | {
+      /**
+       * The registration's competition was cancelled (#80). Its family
+       * contact (or the adult whose own it is) is told, with how its fee
+       * comes back: `refund` says through the gateway, by hand, from the
+       * gateway's dashboard, or none.
+       */
+      type: "registration.competition_cancelled";
+      aggregate: { type: "registration"; id: string };
+      payload: {
+        registrationId: string;
+        competitionId: string;
+        refund: FeeReturn;
+        /** It was held for a guardian (#81) when it was cancelled. */
+        awaitingGuardian?: boolean;
+      };
+    }
+  | {
+      /**
+       * The competition an institution registered for was cancelled
+       * (#80); its coordinators and authorised person are told.
+       */
+      type: "institution_registration.competition_cancelled";
+      aggregate: { type: "institution_registration"; id: string };
+      payload: { institutionRegistrationId: string; competitionId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -451,6 +490,10 @@ export const EVENT_PAYLOADS = {
     refundId: z.uuid(),
     payerUserId: z.uuid().nullable(),
   }),
+  "refund.dashboard_processed": z.object({
+    reviewCaseId: z.uuid(),
+    payerUserId: z.uuid().nullable(),
+  }),
   "refund.failed": z.object({ refundId: z.uuid() }),
   "guardian.guardian_requested": z.object({ requestId: z.uuid() }),
   "competition.announcement_sent": z.object({
@@ -467,7 +510,32 @@ export const EVENT_PAYLOADS = {
     pageSize: z.int().min(1).max(BREACH_FAN_OUT_PAGE_SIZE),
   }),
   "breach.authority_notice": z.object({ breachId: z.uuid() }),
+  "registration.competition_cancelled": z.object({
+    registrationId: z.uuid(),
+    competitionId: z.uuid(),
+    refund: z.enum(FEE_RETURNS),
+    awaitingGuardian: z.boolean().optional(),
+  }),
+  "institution_registration.competition_cancelled": z.object({
+    institutionRegistrationId: z.uuid(),
+    competitionId: z.uuid(),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
+
+/** Validate a stored event, including withdrawals written before #82. */
+export function parseStoredEventPayload(
+  type: EventType,
+  payload: Record<string, unknown>
+) {
+  const legacyWithdrawal =
+    type === "consent.withdrawn" &&
+    payload?.subjectType === "user" &&
+    payload.purpose === "messages" &&
+    !Object.hasOwn(payload, "competitionId");
+  return EVENT_PAYLOADS[type].safeParse(
+    legacyWithdrawal ? { ...payload, competitionId: null } : payload
+  );
+}
 
 /**
  * The handlers each event is delivered to, one outbox row apiece. Every
@@ -549,6 +617,7 @@ export const SUBSCRIBERS = {
   "refund.approved": ["refunds.send"],
   // The payer's notice and finance's alert go by route row (#80).
   "refund.processed": ["notifications.dispatch", "ledger.post_refund"],
+  "refund.dashboard_processed": ["notifications.dispatch"],
   "refund.failed": ["notifications.dispatch"],
   // The guardian a teen names may have no account yet: the request goes to
   // the address the teen gave by its own handler (#81).
@@ -562,6 +631,15 @@ export const SUBSCRIBERS = {
   // The authority is an address, not a user, so no route row can name it:
   // the email goes by its own handler, with its route's template (#116).
   "breach.authority_notice": ["breaches.send_authority_notice"],
+  // The family contact isn't a user: their message goes by its own
+  // handler, as the confirmation's does; an adult's own and a minor's
+  // guardians' go by route row (#80).
+  "registration.competition_cancelled": [
+    "registration.send_cancellation",
+    "notifications.dispatch",
+  ],
+  // The coordinators' notice goes by route row (#80).
+  "institution_registration.competition_cancelled": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

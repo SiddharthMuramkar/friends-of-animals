@@ -35,6 +35,7 @@ import { sendGuardianRequest } from "../modules/guardians/guardian-request-messa
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
 import { sendApprovedRefund } from "../modules/payments/refunds/sync-refund";
 import { fanOutAnnouncement } from "../modules/announcements/fan-out";
+import { sendCancellationToFamily } from "../modules/competitions/cancellation-message";
 import {
   ledgerWorker,
   postPaymentCapture,
@@ -152,6 +153,8 @@ export const HANDLERS: Handlers = {
     sendGuardianRequest(deps, payload),
   // Sends a competition's announcement to its registrants (#84).
   "announcements.fan_out": fanOutAnnouncement,
+  // Emails each family that its competition was cancelled (#80).
+  "registration.send_cancellation": sendCancellationToFamily,
   // Brings an entry's file up to date with its scan and derivatives (#85).
   "entries.apply_file_outcome": (deps, { payload }) =>
     applyEntryFileOutcome(deps, payload),

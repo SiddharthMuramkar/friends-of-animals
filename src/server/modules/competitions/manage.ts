@@ -11,7 +11,7 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
-import { authorize } from "../../access/can";
+import { authorize, can } from "../../access/can";
 import type { Resource } from "../../access/domain/policy";
 import { grantsOf } from "../../access/grants";
 import type { AppDb } from "../../db/app-db";
@@ -222,6 +222,8 @@ export type CompetitionForEdit = {
   fields: CompetitionFields;
   /** The schedule's next move, for the countdown under the status (#71). */
   nextChange: UpcomingChange;
+  /** Whether the reader may cancel it (#80): a super admin, until it is. */
+  mayCancel: boolean;
 };
 
 export type GetCompetitionForEditResult =
@@ -244,6 +246,15 @@ export async function getCompetitionForEdit(
   const stored = await loadCompetition(ctx.db, input.competitionId);
   if (!stored) return { ok: false, error: "not_found" };
   const { row, values } = stored;
+  const mayCancel =
+    row.status !== "cancelled" &&
+    (
+      await can(
+        ctx,
+        "competition.cancel.read",
+        competitionResource(input.competitionId)
+      )
+    ).allowed;
   return {
     ok: true,
     competition: {
@@ -253,6 +264,7 @@ export async function getCompetitionForEdit(
       publishedAt: row.publishedAt,
       fields: fieldsOf(values),
       nextChange: upcomingChange(row.status, values.keyDates, ctx.clock.now()),
+      mayCancel,
     },
   };
 }
@@ -399,7 +411,19 @@ export async function listCompetitionsForAdmin(
     grant.scope.type === "competition" ? [grant.scope.id] : []
   );
   if (!global && ids.length === 0) return [];
-  return ctx.db
+  return adminCompetitionRows(ctx.db, global ? undefined : ids);
+}
+
+/** Super admins can find a competition to cancel without management rights. */
+export async function listCompetitionsForCancellation(
+  ctx: CompetitionsContext
+): Promise<AdminCompetitionListItem[]> {
+  await authorize(ctx, "competition.cancel.read");
+  return adminCompetitionRows(ctx.db);
+}
+
+function adminCompetitionRows(db: AppDb, ids?: string[]) {
+  return db
     .select({
       id: competition.id,
       code: competition.code,
@@ -410,7 +434,7 @@ export async function listCompetitionsForAdmin(
       updatedAt: competition.updatedAt,
     })
     .from(competition)
-    .where(global ? undefined : inArray(competition.id, ids))
+    .where(ids ? inArray(competition.id, ids) : undefined)
     .orderBy(desc(competition.updatedAt), desc(competition.id));
 }
 

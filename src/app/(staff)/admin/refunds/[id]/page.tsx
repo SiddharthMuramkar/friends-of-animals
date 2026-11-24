@@ -190,9 +190,13 @@ async function Details({ refund }: { refund: RefundView }) {
             </Row>
           </>
         ) : null}
-        {refund.decisionNote ? (
+        {refund.decisionNote || refund.supersededByCancellation ? (
           <Row term={t("detail.details.note")}>
-            <span className="whitespace-pre-line">{refund.decisionNote}</span>
+            <span className="whitespace-pre-line">
+              {refund.supersededByCancellation
+                ? t("detail.details.supersededByCancellation")
+                : refund.decisionNote}
+            </span>
           </Row>
         ) : null}
         {refund.gatewayPaymentId ? (
@@ -317,6 +321,7 @@ async function Actions({ refund }: { refund: RefundView }) {
     alerts: {
       not_requested: t("detail.decision.alerts.not_requested"),
       not_rejectable: t("detail.decision.alerts.not_rejectable"),
+      cancellation_refund_required: t("detail.failed.cancellationRequired"),
       not_failed: t("detail.failed.alerts.not_failed"),
       same_person: t("detail.decision.alerts.same_person"),
       unexpected: t("detail.decision.alerts.unexpected"),
@@ -372,11 +377,17 @@ async function Actions({ refund }: { refund: RefundView }) {
     return (
       <section aria-labelledby="refund-failed" className={CARD}>
         <SectionHeading id="refund-failed" title={t("detail.failedTitle")} />
-        <p className="mt-3 text-ink">{t("detail.failed.lead")}</p>
+        <p className="mt-3 text-ink">
+          {refund.requiredByCancellation
+            ? t("detail.failed.cancellationRequired")
+            : t("detail.failed.lead")}
+        </p>
         <div className="mt-5">
           <DecisionForm
             refundId={refund.id}
-            decisions={["retry", "reject"]}
+            decisions={
+              refund.requiredByCancellation ? ["retry"] : ["retry", "reject"]
+            }
             maxNoteLength={REFUND_TEXT_MAX_LENGTH}
             labels={labels({
               retry: t("detail.failed.retry"),

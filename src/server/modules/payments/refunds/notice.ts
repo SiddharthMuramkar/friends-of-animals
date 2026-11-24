@@ -13,10 +13,11 @@ import type { AppDb } from "../../../db/app-db";
 import {
   competition,
   paymentBatch,
+  paymentReviewCase,
   refund,
   userRole,
 } from "../../../db/schema";
-import { formatPaise } from "../domain/money-format";
+import { formatCapturedAmount, formatPaise } from "../domain/money-format";
 
 /** The variables a refund template may use, beyond the recipient's. */
 export const REFUND_VARIABLES = [
@@ -45,6 +46,29 @@ export async function refundValues(
     "competition.name": row.competitionName,
     "refund.amount": formatPaise(row.amountMinor),
     "refund.reference": row.gatewayRefundId ?? row.manualReference ?? "",
+  };
+}
+
+export async function dashboardRefundValues(
+  db: AppDb,
+  caseId: string
+): Promise<Record<string, string>> {
+  const [row] = await db
+    .select({
+      amountMinor: paymentReviewCase.amountMinor,
+      currency: paymentReviewCase.currency,
+      reference: paymentReviewCase.dashboardRefundReference,
+      competitionName: competition.name,
+    })
+    .from(paymentReviewCase)
+    .innerJoin(paymentBatch, eq(paymentBatch.id, paymentReviewCase.batchId))
+    .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
+    .where(eq(paymentReviewCase.id, caseId));
+  if (!row?.reference) return {};
+  return {
+    "competition.name": row.competitionName,
+    "refund.amount": formatCapturedAmount(row.amountMinor, row.currency),
+    "refund.reference": row.reference,
   };
 }
 

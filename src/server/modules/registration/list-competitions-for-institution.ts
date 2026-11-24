@@ -4,7 +4,7 @@
 // it has registered. Drafts and competitions for individuals only are
 // never listed.
 
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -107,7 +107,7 @@ export async function listCompetitionsForInstitution(
     .from(competition)
     .where(
       and(
-        ne(competition.status, "draft"),
+        isNotNull(competition.publishedAt),
         inArray(competition.participation, ["institutions", "both"])
       )
     );

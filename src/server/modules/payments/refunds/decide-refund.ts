@@ -21,11 +21,21 @@ import { z } from "zod";
 import { authorize } from "../../../access/can";
 import type { Role } from "../../../access/domain/roles";
 import type { AppDb } from "../../../db/app-db";
-import { refund, type RefundRow } from "../../../db/schema";
+import {
+  competition,
+  paymentBatch,
+  refund,
+  type RefundRow,
+} from "../../../db/schema";
 import { invalidInput, type InvalidInput } from "../../../input";
 import { emit } from "../../../outbox/emit";
 import type { UseCaseContext } from "../../../use-cases";
-import { checkRefundDecision, nextRefundStatus } from "../domain/refund-status";
+import {
+  checkRefundDecision,
+  nextRefundStatus,
+  requiresCancellationPayout,
+  SUPERSEDED_BY_CANCELLATION,
+} from "../domain/refund-status";
 import { auditRefund, checkRefundText, lockRefund, releaseItems } from "./rows";
 
 export type ApproveRefundInput = { refundId: string; note?: string };
@@ -48,6 +58,7 @@ export type RejectRefundResult =
       error:
         | "not_found"
         | "not_rejectable"
+        | "cancellation_refund_required"
         | "same_person"
         | "note_required"
         | "note_too_long";
@@ -83,6 +94,55 @@ export async function queueSend(
     aggregate: { type: "refund", id: row.id },
     payload: { refundId: row.id },
   });
+}
+
+/** Starts a fresh provider attempt on the same locked refund. */
+export async function retryLocked(
+  tx: AppDb,
+  ctx: Pick<UseCaseContext, "clock" | "actor">,
+  row: RefundRow,
+  role: Role | null,
+  amountMinor = row.amountMinor
+): Promise<void> {
+  const move = nextRefundStatus(row.status, "retried");
+  if (!move.ok) throw new Error(`Refund ${row.id} can't be retried`);
+  const attempt = row.attempt + 1;
+  await tx
+    .update(refund)
+    .set({
+      status: move.to,
+      amountMinor,
+      attempt,
+      gatewayRefundId: null,
+      sentAt: null,
+      failedAt: null,
+      updatedAt: ctx.clock.now(),
+    })
+    .where(eq(refund.id, row.id));
+  await auditRefund(
+    tx,
+    ctx,
+    row.id,
+    {
+      action: "refund.retried",
+      before: {
+        status: row.status,
+        attempt: row.attempt,
+        ...(amountMinor !== row.amountMinor
+          ? { amountMinor: row.amountMinor.toString() }
+          : {}),
+      },
+      after: {
+        status: move.to,
+        attempt,
+        ...(amountMinor !== row.amountMinor
+          ? { amountMinor: amountMinor.toString() }
+          : {}),
+      },
+    },
+    role
+  );
+  await queueSend(tx, ctx, row);
 }
 
 export async function approveRefund(
@@ -156,6 +216,21 @@ export async function rejectRefund(
     }
     const move = nextRefundStatus(row.status, "rejected");
     if (!move.ok) return { ok: false, error: "not_rejectable" };
+    if (row.status === "failed") {
+      // Cancellation locks this refund before planning. If it is still
+      // waiting for this lock, it will plan with any hold we release here.
+      const [batch] = await tx
+        .select({ competitionStatus: competition.status })
+        .from(paymentBatch)
+        .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
+        .where(eq(paymentBatch.id, row.batchId));
+      if (
+        batch &&
+        requiresCancellationPayout(row.kind, batch.competitionStatus)
+      ) {
+        return { ok: false, error: "cancellation_refund_required" };
+      }
+    }
     await rejectLocked(tx, ctx, row, { decidedBy, note: note.text, role });
     return { ok: true, status: "rejected" };
   });
@@ -197,7 +272,11 @@ export async function rejectLocked(
     {
       action: "refund.rejected",
       before: { status: row.status },
-      after: { status: move.to, decidedBy },
+      after: {
+        status: move.to,
+        decidedBy,
+        ...(decidedBy === null ? { reason: SUPERSEDED_BY_CANCELLATION } : {}),
+      },
     },
     role
   );

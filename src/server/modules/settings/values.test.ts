@@ -155,6 +155,21 @@ describe("resolveAllSettings", () => {
       ["org.pan", "", "default"],
       ["safeguarding.reportsPerIpPerHour", 10, "default"],
       ["breach.authorityEmail", "", "default"],
+      ["retention.enforce", false, "default"],
+      ["retention.expiredVerificationsDays", 1, "default"],
+      ["retention.expiredSessionsDays", 30, "default"],
+      ["retention.capturedMessagesDays", 30, "default"],
+      ["retention.messageDeliveriesDays", 365, "default"],
+      ["retention.readInboxItemsDays", 365, "default"],
+      ["retention.quarantinedFilesDays", 30, "default"],
+      ["retention.dispatchedOutboxDays", 30, "default"],
+      ["retention.coordinatorInvitationLinksDays", 1, "default"],
+      ["retention.guardianInvitationLinksDays", 1, "default"],
+      ["retention.coordinatorInvitationsDays", 90, "default"],
+      ["retention.guardianInvitationsDays", 30, "default"],
+      ["retention.contactMessagesMonths", 24, "default"],
+      ["retention.releasedLegalHoldsDays", 365, "default"],
+      ["retention.financialRecordsDays", 2922, "default"],
     ]);
   });
 });

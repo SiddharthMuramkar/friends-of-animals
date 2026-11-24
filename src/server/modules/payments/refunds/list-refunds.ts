@@ -12,12 +12,23 @@
 // finance matches money, not children (as #79's batch page does). The
 // requester's reason and finance's note are on the refund's own page only.
 
-import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 import { authorize, can } from "../../../access/can";
 import {
+  auditLog,
   competition,
   institution,
   institutionRegistration,
@@ -38,10 +49,12 @@ import type {
 } from "../domain/batch-status";
 import type { OfflinePaymentMethod } from "../domain/offline-payment";
 import type { ItemRefundState } from "../domain/refund-plan";
-import type {
-  RefundKind,
-  RefundMethod,
-  RefundStatus,
+import {
+  requiresCancellationPayout,
+  SUPERSEDED_BY_CANCELLATION,
+  type RefundKind,
+  type RefundMethod,
+  type RefundStatus,
 } from "../domain/refund-status";
 import type { PaymentReviewPayer } from "../review-cases";
 import { batchResource } from "./request-refund";
@@ -82,6 +95,8 @@ export type RefundView = RefundListItem & {
   decidedByName: string | null;
   decidedAt: Date | null;
   decisionNote: string | null;
+  supersededByCancellation: boolean;
+  requiredByCancellation: boolean;
   gatewayPaymentId: string | null;
   gatewayRefundId: string | null;
   attempt: number;
@@ -275,6 +290,20 @@ export async function getRefund(
       decidedByName: decider.name,
       decidedAt: refund.decidedAt,
       decisionNote: refund.decisionNote,
+      competitionStatus: competition.status,
+      supersededByCancellation: exists(
+        ctx.db
+          .select({ id: auditLog.id })
+          .from(auditLog)
+          .where(
+            and(
+              eq(auditLog.entityType, "refund"),
+              eq(auditLog.entityId, parsed.data.refundId),
+              eq(auditLog.action, "refund.rejected"),
+              sql`${auditLog.after}->>'reason' = ${SUPERSEDED_BY_CANCELLATION}`
+            )
+          )
+      ),
       gatewayPaymentId: refund.gatewayPaymentId,
       gatewayRefundId: refund.gatewayRefundId,
       attempt: refund.attempt,
@@ -359,6 +388,10 @@ export async function getRefund(
       decidedByName: row.decidedByName,
       decidedAt: row.decidedAt,
       decisionNote: row.decisionNote,
+      supersededByCancellation: row.supersededByCancellation === true,
+      requiredByCancellation:
+        row.status === "failed" &&
+        requiresCancellationPayout(row.kind, row.competitionStatus),
       gatewayPaymentId: row.gatewayPaymentId,
       gatewayRefundId: row.gatewayRefundId,
       attempt: row.attempt,

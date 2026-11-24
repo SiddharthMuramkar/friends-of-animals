@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, inject, it } from "vitest";
 
 import journal from "../../drizzle/meta/_journal.json" with { type: "json" };
@@ -38,6 +38,28 @@ describe("createTestDb", () => {
     expect(applied.rows.map((row) => Number(row.created_at))).toEqual(
       journal.entries.map((entry) => entry.when)
     );
+  });
+
+  it("marks the contact retention grants as custom SQL so a migration renumber preserves them", () => {
+    const grants = journal.entries.find(({ tag }) =>
+      tag.endsWith("_114_contact_retention_grants")
+    );
+    expect(grants).toBeDefined();
+    const migration = readFileSync(
+      new URL(`../../drizzle/${grants!.tag}.sql`, import.meta.url),
+      "utf8"
+    );
+    expect(migration.split("\n")[0]).toBe(
+      "-- Custom SQL migration file, put your code below! --"
+    );
+  });
+
+  it("keeps unit 114's generated DDL in one migration before its grants", () => {
+    expect(
+      journal.entries
+        .filter(({ tag }) => /^\d+_114_/.test(tag))
+        .map(({ tag }) => tag.replace(/^\d+_/, ""))
+    ).toEqual(["114_privacy_retention", "114_contact_retention_grants"]);
   });
 
   it("gives every call its own database", async () => {

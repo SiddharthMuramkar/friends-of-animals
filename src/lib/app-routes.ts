@@ -126,6 +126,14 @@ export function adminBatchRefundPath(batchId: string): string {
   return `${adminPaymentBatchPath(batchId)}/refund`;
 }
 
+/**
+ * Where a super admin cancels a competition (#80). Listed with
+ * APP_ROUTE_TEMPLATES rather than in APP_ROUTES, like the payments pages.
+ */
+export function adminCompetitionCancelPath(competitionId: string): string {
+  return `/admin/competitions/${encodeURIComponent(competitionId)}/cancel`;
+}
+
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
@@ -301,6 +309,7 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_LEDGER_ACCOUNTS,
   ADMIN_NEW_LEDGER_ENTRY,
   "/admin/ledger/[seq]",
+  "/admin/competitions/[id]/cancel",
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/consents",

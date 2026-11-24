@@ -114,6 +114,10 @@ export const NON_PERSONAL: NonPersonalColumns = {
   competition: [
     "age_cutoff_date",
     "auction_permitted",
+    // Why a super admin cancelled the competition (#80): staff-written text
+    // about the event, like an announcement's message; it names no person.
+    "cancel_reason",
+    "cancelled_at",
     "code",
     "created_at",
     "digital_scope",
@@ -151,6 +155,8 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "scheme",
     "updated_at",
   ],
+  // A reserved cancellation notice: its outbox delivery and when it went.
+  competition_cancellation_email: ["delivery_id", "sent_at"],
   competition_category: ["age_group_id", "competition_id", "discipline", "id"],
   competition_consent_document: [
     "attached_at",
@@ -265,6 +271,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "created_at",
     "id",
     "purpose",
+    "quarantine_purge_pending",
     "scan_result",
     "scanned_at",
     "sha256",
@@ -456,6 +463,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "occurred_at",
     "status",
   ],
+  legal_hold: ["id", "placed_at", "released_at", "subject_type"],
   ledger_account: [
     "code",
     "created_at",
@@ -569,6 +577,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "status",
     "updated_at",
   ],
+  retention_run_progress: ["actor_process", "id", "policies", "updated_at"],
   rubric: [
     "competition_id",
     "created_at",

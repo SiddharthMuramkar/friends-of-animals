@@ -16,7 +16,7 @@ import {
 } from "../testing";
 import {
   startSystemRefund,
-  supersedeRequestedRefunds,
+  supersedeDiscretionaryRefunds,
 } from "./start-system-refund";
 import {
   capturedBatch,
@@ -532,10 +532,9 @@ describe("startSystemRefund (for 80b's cancellations)", () => {
     } as const;
 
     const result = await h.db.transaction(async (tx) => {
-      const superseded = await supersedeRequestedRefunds(tx, system, {
-        batchIds: [paid.batchId],
-        reason: "The competition was cancelled.",
-      });
+      const superseded = await supersedeDiscretionaryRefunds(tx, system, [
+        asked.refundId,
+      ]);
       const made = await startSystemRefund(tx, system, {
         kind: "cancellation",
         batchId: paid.batchId,

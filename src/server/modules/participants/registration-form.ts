@@ -9,7 +9,7 @@
 // or a draft. Signed-in members only, like registering itself; naming a
 // child needs the guardian's link to them.
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -77,12 +77,16 @@ export async function individualRegistrationForm(
       id: competition.id,
       name: competition.name,
       slug: competition.slug,
-      status: competition.status,
       participation: competition.participation,
     })
     .from(competition)
-    .where(eq(competition.slug, parsed.data.competitionSlug));
-  if (!found || found.status === "draft") return null;
+    .where(
+      and(
+        eq(competition.slug, parsed.data.competitionSlug),
+        isNotNull(competition.publishedAt)
+      )
+    );
+  if (!found) return null;
   const terms = await getRegistrationTerms(ctx.db, found.id);
   if (!terms) return null;
   const titles = new Map(

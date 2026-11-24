@@ -226,12 +226,14 @@ export async function getPaymentReviewCase(
       batchStatus: paymentBatch.status,
       batchRoute: paymentBatch.route,
       batchAmountMinor: paymentBatch.amountMinor,
+      competitionStatus: competition.status,
       batchStatusBefore: paymentReviewCase.batchStatusBefore,
       resolutionReason: paymentReviewCase.resolutionReason,
       resolvedByName: resolver.name,
     })
     .from(paymentReviewCase)
     .innerJoin(paymentBatch, eq(paymentBatch.id, paymentReviewCase.batchId))
+    .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
     .leftJoin(resolver, eq(resolver.id, paymentReviewCase.resolvedByUserId))
     .where(eq(paymentReviewCase.id, caseId));
   if (!details || !isBeforeReview(details.batchStatusBefore)) {
@@ -281,9 +283,10 @@ export async function getPaymentReviewCase(
       batchStatusBefore: details.batchStatusBefore,
       batchAmountMinor: details.batchAmountMinor,
       participationUnavailable,
+      // A cancelled competition takes no more payments (#80).
       allowedOutcomes: item.resolution
         ? []
-        : participationUnavailable
+        : participationUnavailable || details.competitionStatus === "cancelled"
           ? outcomes.filter((outcome) => outcome !== "confirm")
           : outcomes,
       otherOpenCases: others?.count ?? 0,

@@ -8,6 +8,7 @@ import {
   ADMIN_REFUNDS,
   adminBatchRefundPath,
   adminLedgerPostingPath,
+  adminCompetitionCancelPath,
   adminRefundPath,
   adminCmsDocumentPath,
   adminPaymentBatchPath,
@@ -103,6 +104,16 @@ describe("isSignedInPage", () => {
       expect(isSignedInPath(path), path).toBe(true);
     }
     expect(paths[3]).toBe("/admin/ledger/9007199254740993");
+  });
+
+  it("knows a competition's cancel page, whatever its id (#80)", () => {
+    expect(adminCompetitionCancelPath(COMPETITION_ID)).toBe(
+      `/admin/competitions/${COMPETITION_ID}/cancel`
+    );
+    expect(isSignedInPage(adminCompetitionCancelPath(COMPETITION_ID))).toBe(
+      true
+    );
+    expect(isSignedInPage("/admin/competitions/cancel")).toBe(false);
   });
 
   it("knows a competition's edit and preview pages, whatever its id", () => {

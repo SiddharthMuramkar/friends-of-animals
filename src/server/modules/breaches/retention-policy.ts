@@ -6,10 +6,11 @@
 // couldn't be reached is listed, with that period, in the platform's data
 // inventory (src/server/modules/privacy/inventory.ts).
 //
-// #114's policy registry and sweep aren't on main yet: it registers
-// BREACH_RETENTION_POLICY after it lands. The sweep must check legal holds
-// before deleting, since the breach owns its timeline, notices, fan-out
-// and unreachable list (ON DELETE CASCADE).
+// #114's sweep runs it as BREACH_RECORDS
+// (src/server/modules/privacy/policies/module-owned.ts), which checks legal
+// holds on the lead and the timeline's authors before deleting, since the
+// breach owns its timeline, notices, fan-out and unreachable list (ON DELETE
+// CASCADE).
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
