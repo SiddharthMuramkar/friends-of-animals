@@ -380,7 +380,7 @@ Foundations live in `src/server/`:
 | `seed/`          | Seed builders and seed data for local databases and tests.                                     |
 | `db/`            | The Drizzle client, database URL rules, and every table in `db/schema/`.                       |
 | `crypto/`        | The field cipher, blind indexes and link tokens.                                               |
-| `rich-text/`     | The one sanitiser for CMS and post bodies. A helper, not a domain module.                      |
+| `rich-text/`     | The one sanitiser for CMS and post bodies, and typed essays (#86). A helper, not a module.     |
 
 Domain modules live in `src/server/modules/<name>/`. Each usually has `index.ts` (its use cases), `policy.ts` (who may call them), a pure `domain/` folder, a `testing.ts` of test helpers, and tests beside the code. They are listed in [Domain modules](#domain-modules).
 
@@ -429,7 +429,7 @@ A **port** is an interface to an outside service; an **adapter** implements it. 
 | storage                               | R2, local disk                                            | `storage-for.ts`: R2 when `R2_*` are set. A local run without R2 uses disk, served by `/api/local-storage`.                                                                               |
 | malware-scanner                       | clamd, local, unconfigured                                | `scannerFor()` in `deps.ts`: clamd when `CLAMD_HOST` is set. A local run without R2 uses a stand-in that flags only the EICAR test file. Vercel never reaches clamd, so the worker scans. |
 | payment-gateway                       | Razorpay, fallback (test checkout), unconfigured          | `payment-gateway-select.ts` ([Payment gateway](#payment-gateway)).                                                                                                                        |
-| media                                 | sharp                                                     | Only worker-media has it. The app gets `unconfiguredMedia`.                                                                                                                               |
+| media                                 | sharp (images), ffmpeg (videos, #86)                      | Only worker-media has them. The app gets `unconfiguredMedia`.                                                                                                                             |
 | errors                                | Sentry SDK                                                | Silent without a DSN.                                                                                                                                                                     |
 | copy-bucket                           | S3 API                                                    | The off-site copy (R2 to B2).                                                                                                                                                             |
 | clock, cookies, settings, human-check | system clock, Next cookies, settings table, proof of work | Always the same.                                                                                                                                                                          |
@@ -461,7 +461,7 @@ Each port has a `*.contract.ts` suite. The real adapter and its fake in `src/tes
 
 - **Emit.** `emit(tx, clock, event)` (`outbox/emit.ts`) checks the payload against `EVENT_PAYLOADS` and inserts one outbox row per handler listed in `SUBSCRIBERS` (`outbox/events.ts`). Handlers are registered in `outbox/handlers.ts`. `availableAt` delays a row.
 - **Relay.** `outbox/relay.ts` claims due rows with a 5-minute lease, runs the handler, and settles the row. The default policy makes 5 attempts (waits of 30 s, 1, 2 and 4 minutes), then marks the row `failed` and keeps it for staff (`outbox/retry-policy.ts`). Delivery is at least once, so **handlers must be safe to repeat**. Times come from the injected clock, so tests drive retries.
-- **Queues.** The `media` queue (`files.process_image`) is drained only by worker-media. Every other handler runs in the default worker (`outbox/queues.ts`).
+- **Queues.** The `media` queue (`files.process_image`, `files.process_video`) is drained only by worker-media. `files.process_video` gets a 20-minute lease (`HANDLER_LEASE_MS` in `outbox/queues.ts`) instead of the default 5. Every other handler runs in the default worker (`outbox/queues.ts`).
 - **Schedules.** pg-boss runs only recurring jobs (ADR 0008). `SCHEDULES` (`outbox/schedules.ts`) lists them, in Asia/Kolkata time; see [Worker jobs and schedules](#worker-jobs-and-schedules).
 - **Worker processes.** `src/worker/main.ts` (`pnpm worker`, Docker target `worker`) drains every 5 s. `single` mode serves one database; `preview` mode (dormant) serves every preview database. `src/worker-media/main.ts` (Docker target `worker-media`) makes image derivatives in a child process with a hard timeout (`MEDIA_TIMEOUT_SECONDS`, default 60). `docker/workers.yml` defines `worker-prod`, `worker-staging`, `worker-preview` and `worker-media`; **only `worker-prod` runs** ([The VPS](#the-vps)).
 - **Health.** The worker writes a `worker_heartbeat` row and touches `/tmp/foa-worker-heartbeat` after each poll. Docker's health check reads the file. `GET /api/health/worker` reads the row and answers 503 once it is older than 120 s.
@@ -472,7 +472,7 @@ Each port has a `*.contract.ts` suite. The real adapter and its fake in `src/tes
 2. The browser PUTs the bytes straight to R2 (or local disk). They never pass through a Vercel function.
 3. `POST /api/files/[id]/complete` runs `completeUpload`. It checks the stored object, moves it to its final key (which no upload URL names), and emits `files.file_uploaded`.
 4. The worker's `files.scan_file` handler streams the object once into clamd, a SHA-256 hash and a type sniffer. The outcome is **clean**, **quarantined** (moved to `<prefix>quarantine/<id>`, audited, never served) or **rejected** (bytes don't match the declared type; the object is deleted). The scan fails closed: with no verdict the file stays `scanning` and only its uploader can open it.
-5. Clean images emit `files.processing_requested`. worker-media makes **derivatives**: rotated upright, resized, location and camera data removed. Entries and blog images follow these events.
+5. Clean images emit `files.processing_requested`. worker-media makes **derivatives**: rotated upright, resized, location and camera data removed. Clean videos emit `files.video_processing_requested`: worker-media's ffmpeg checks the length (ffprobe), then makes an H.264/AAC MP4 at most 1080p and a JPEG poster, with no metadata (#86). A clean file with no media work (an essay's PDF) emits `files.file_ready`. Entries and blog images follow these events.
 6. Delivery: `getFileDownloadUrl` checks `can()` and the file's status, then returns a signed GET URL valid for 5 minutes. Files are never public, except post images copied to the public bucket.
 
 Gotenberg (HTML or Office to PDF) runs on the VPS and `docker/workers.yml` gives worker-media its URL, but no code calls it yet.
@@ -712,19 +712,19 @@ The public contact form, routed by topic to a staff team, and the staff inbox.
 
 ### entries
 
-An **Entry** is the work one confirmed individual registration submits for a competition. A registration has at most one Entry. Its first completed upload creates the row and the **Entry ID**. Later uploads retry a failed first file or replace the **live file**. The words travel with the file: there is no draft. Why every status value exists before any judging uses it: ADR 0004.
+An **Entry** is the work one confirmed individual registration submits for a competition: a picture, a video (#86) or an essay, typed or as a PDF (#86). A registration has at most one Entry. Its first completed upload (or typed essay) creates the row and the **Entry ID**. Later submissions retry a failed first file or replace the **live file**. The words travel with the file: there is no draft. Why every status value exists before any judging uses it: ADR 0004.
 
-- **Tables** (`entries.ts`): `entry`, `entry_file` (kind `image`, `video`, `document` or `text`), `entry_upload_grant`, `entry_transition`.
-- **Use cases:** `startEntryUpload`, `completeEntryUpload`, `listMyEntries`, `getEntry`, `getEntryUploadOptions`, `listCompetitionEntries`. The worker applies scan and derivative results in `apply-file-outcome.ts`.
+- **Tables** (`entries.ts`): `entry`, `entry_file` (kind `image`, `video`, `document` or `text`; a typed essay's `essay_body` and `word_count`, #86), `entry_upload_grant`, `entry_transition`.
+- **Use cases:** `startEntryUpload`, `completeEntryUpload`, `submitEssayText` (#86), `listMyEntries`, `getEntry`, `getEntryUploadOptions`, `listCompetitionEntries`. The worker applies scan and derivative results in `apply-file-outcome.ts`.
 - **Pages:** `/participant/entries`, `/participant/entries/new`, `/participant/entries/[code]`, and links on `/participant` (PR #268). The upload flow is grant → PUT → complete and recovers when a grant's answer is lost (`src/app/participant/entries/_lib/upload-flow.ts`). No page calls `listCompetitionEntries` yet.
 
 **Who may act:**
 
-| Action                       | Who                                                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `entry.submit`, `entry.read` | The registration's owner. A verified guardian with an active link owns their ward's registration; a linked teen owns their own. |
-| `entry.list_mine`            | Any signed-in member; the list holds only their own entries and their wards'.                                                   |
-| `entry.list_competition`     | A competition manager for that competition, or a global one (second factor required).                                           |
+| Action                       | Who                                                                                                                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entry.submit`, `entry.read` | The registration's owner. A verified guardian with an active link owns their ward's registration; a linked teen owns their own. `submitEssayText` checks `entry.submit` too. |
+| `entry.list_mine`            | Any signed-in member; the list holds only their own entries and their wards'.                                                                                                |
+| `entry.list_competition`     | A competition manager for that competition, or a global one (second factor required).                                                                                        |
 
 Only `route = individual` registrations qualify; institution registrations fail the owner check until #87. The registration must be `confirmed` (`registration_not_confirmed`). A guardian-owned minor profile needs participation consent (`participation_consent_required`); on staging and production `guardianFlowsActive` is false, so that check refuses even with consent on file.
 
@@ -748,11 +748,13 @@ const done = await as(actor).completeEntryUpload({
 // done: { ok: true, entryCode, status: "processing" } until the checks finish
 ```
 
-`startEntryUpload` checks the file, the window and the registration, then presigns a private `entry_image` upload; the Entry is unchanged until `completeEntryUpload`. Completing the same `fileId` again returns the Entry as it stands. `getEntryUploadOptions` serves only the first-upload form; once an Entry exists it returns `entry_exists` with its code.
+`startEntryUpload` checks the file, the window and the registration, then presigns a private upload under the purpose for the discipline's kind of file (`entry_image`, `entry_video` or `entry_document`); the Entry is unchanged until `completeEntryUpload`. A video's `file.durationMs`, when the browser could read it, is checked against the length limit (`too_long`). Completing the same `fileId` again returns the Entry as it stands. `getEntryUploadOptions` serves only the first-upload form; once an Entry exists it returns `entry_exists` with its code.
 
-**Discipline** is chosen with the first upload and stays fixed: the Entry's current one, else the requested one if the competition offers it and it is a picture discipline, else the competition's only picture discipline. Picture disciplines: `drawing`, `painting`, `art`, `craft`, `photography` (`rules.ts`). Essay and videography have no rule yet (#86), so they are refused (`discipline_not_offered`, `discipline_required`).
+**Discipline** is chosen with the first submission and stays fixed: the Entry's current one, else the requested one if the competition offers it, else the competition's only discipline (`discipline_not_offered`, `discipline_required`). Its format (`formatOf` in `rules.ts`): `drawing`, `painting`, `art`, `craft`, `photography` take a picture; `videography` a video; `essay` typed text or a PDF.
 
-**File rules:** `DEFAULT_IMAGE_RULE` in `domain/upload-rules.ts` (until FOA sets limits, HR-37): JPEG, PNG, WebP, HEIC, HEIF; 1 byte to 20 MiB. `checkUpload` refuses `empty`, then `wrong_type`, then `too_large`. An empty or `application/octet-stream` type falls back to the file name's extension (how a phone HEIC gets through); `completeEntryUpload` checks the stored type without that fallback. After a clean scan, media work makes `thumb_320` and `display_1600`; `getEntry` shows the large one through a short-lived signed URL.
+**File rules** in `domain/upload-rules.ts` (until FOA sets limits, HR-37): `DEFAULT_IMAGE_RULE` JPEG, PNG, WebP, HEIC, HEIF up to 20 MiB; `DEFAULT_VIDEO_RULE` MP4, MOV, 3GP, WebM up to 200 MiB and 3 minutes (a second of slack); `DEFAULT_DOCUMENT_RULE` PDF up to 10 MiB. `checkUpload` refuses `empty`, then `wrong_type`, then `too_large`, then (a video whose length the browser read) `too_long`. An empty or `application/octet-stream` type falls back to the file name's extension (how a phone HEIC or MOV gets through); `completeEntryUpload` checks the stored type without that fallback. After a clean scan, media work makes a picture's `thumb_320` and `display_1600`, or a video's `video_mp4` and `video_poster` (worker-media's ffprobe refuses a clip over the limit: the entry fails with `video_too_long`); a PDF needs none and is live once clean. `getEntry` shows the live picture's large copy, the video's copy and poster (never the original), the typed essay or the PDF, each through a short-lived signed URL, and `latestProblem` when a media job failed.
+
+**Typed essays** (`submitEssayText`, #86): up to 1,500 words and 20,000 characters (`domain/essay-text.ts`; refusals `empty`, `too_many_words`, `too_long`). Nothing to scan, so the owner's ruling (2026-11-19) applies: the text is live and the entry `submitted` at once, with the receipt. It is stored through the rich-text sanitiser's `essay` profile (`src/server/rich-text/essay.ts`): paragraphs of plain text, never HTML, with control and direction-override characters removed but no markup stripped (a typed `<b>` stays text). Over a submitted entry it replaces the live file in one step, typed or PDF; after a rejected or failed first file it moves the entry to `processing`, then `submitted`.
 
 **Window:** opens at `registration_opens`, closes at `submissions_close` (open instant included, close excluded). A missing date means `submission_not_open`. The upload counts when `completeEntryUpload` succeeds; scans and derivatives may finish after the close.
 
@@ -775,6 +777,7 @@ Any other status returns `entry_locked`. A new upload supersedes any file still 
 | `processing`         | `rejected`   | first file fails the virus check |
 | `processing`         | `failed`     | first file cannot be processed   |
 | `rejected`, `failed` | `processing` | the participant retries          |
+| new, `processing`    | `submitted`  | a typed essay is saved (#86)     |
 
 The enum already has `school_shortlisted`, `not_shortlisted`, `submitted_to_foa`, `foa_verified` and `sent_back`; no move reaches them yet. Each move writes a history row. Outcomes that arrive late, twice, or for a dropped file change nothing.
 
@@ -790,23 +793,24 @@ The enum already has `school_shortlisted`, `not_shortlisted`, `submitted_to_foa`
 
 A replacement that goes live emits no event.
 
-**Refusals.** `startEntryUpload`: `registration_not_confirmed`, `participation_consent_required`, `discipline_not_offered`, `discipline_required`, `empty`, `wrong_type`, `too_large`, `submission_not_open`, `deadline_passed`, `entry_locked`, `upload_limit`. `completeEntryUpload` adds `file_not_found`, `upload_missing` (PUT, then complete again) and `upload_rejected` (storage held something else and deleted it). Both return `invalid_input` for a bad body.
+**Refusals.** `startEntryUpload`: `registration_not_confirmed`, `participation_consent_required`, `discipline_not_offered`, `discipline_required`, `empty`, `wrong_type`, `too_large`, `too_long`, `submission_not_open`, `deadline_passed`, `entry_locked`, `upload_limit`. `completeEntryUpload` adds `file_not_found`, `upload_missing` (PUT, then complete again) and `upload_rejected` (storage held something else and deleted it). Both return `invalid_input` for a bad body.
 
 **Upload grants** (`upload-grants.ts`): at most 3 unfinished uploads per uploader, 6 grants per uploader in the window, one unfinished grant per registration. Pass `replacesFileId` or `restartPendingUpload: true` to retire the current grant and take its slot. Each grant schedules its own expiry and a sweep of the staged object an hour later.
 
-- **Tests:** `domain/status.test.ts`, `domain/submission.test.ts`, `domain/upload-rules.test.ts`, `use-cases/submit-entry.test.ts`, `use-cases/entry-outcomes.test.ts`, `use-cases/replace-entry-file.test.ts`, `use-cases/entry-authz.test.ts`, `use-cases/complete-entry-upload.pg.test.ts`, `src/app/participant/entries/_lib/upload-flow.test.ts`; E2E `85-entries.spec.ts`.
+- **Tests:** `domain/status.test.ts`, `domain/submission.test.ts`, `domain/upload-rules.test.ts`, `domain/essay-text.test.ts`, `use-cases/submit-entry.test.ts`, `use-cases/entry-outcomes.test.ts`, `use-cases/replace-entry-file.test.ts`, `use-cases/entry-authz.test.ts`, `use-cases/video-entry.test.ts`, `use-cases/essay-entry.test.ts`, `use-cases/complete-entry-upload.pg.test.ts`, `use-cases/submit-essay-text.pg.test.ts`, `src/server/rich-text/essay.test.ts`, `src/app/participant/entries/_lib/upload-flow.test.ts`; E2E `85-entries.spec.ts`, `86-video-essay.spec.ts`.
 
 ### files
 
 Uploads, the scan, derivatives and signed delivery. The steps are in [Files pipeline](#files-pipeline).
 
 - **Tables:** `file_asset` (`files.ts`); `file_processing`, `file_derivative` (`media.ts`).
-- **Purposes** (`domain/purposes.ts`): `test_upload` 10 MiB (not production), `cms_image` 20 MiB, `offline_payment_proof` 10 MiB, `entry_image` 20 MiB, `consent_form` 10 MiB (not production).
+- **Purposes** (`domain/purposes.ts`): `test_upload` 10 MiB (not production), `cms_image` 20 MiB, `offline_payment_proof` 10 MiB, `entry_image` 20 MiB, `entry_video` 200 MiB and 3 minutes (#86), `entry_document` 10 MiB PDF (#86), `consent_form` 10 MiB (not production). A video original is never served; people watch its derivatives.
 - **File states** (`domain/file-status.ts`): `pending_upload` → `uploaded` (or `rejected`) → `scanning` → `clean`, `quarantined` or `rejected`; any → `deleted`. `quarantined`, `rejected` and `deleted` never come back.
 - **Use cases:** `requestUpload` (any signed-in user), `completeUpload` (the uploader), `getFileDownloadUrl` (uploader, staff admin, super admin, plus the status gate), `getFileStatus` (uploader), `getFileDerivativeUrl` (no page caller yet). Other modules also use the files domain directly: entries' upload grants, `cms/posts/images.ts`, consent forms, offline payment proofs.
 - **Routes:** `/api/files/presign`, `/api/files/[id]/complete`, `/api/files/[id]`; the `/account/files` demo outside production.
 - **Gaps:** worker-media isn't running in production, so no derivatives are made. Quarantined files are removed by the retention sweep (flagged by `file_asset.quarantine_purge_pending`), except files an `entry_file`, `consent_form`, `file_processing`, `file_derivative` or `offline_payment` row still names; a quarantined payment proof is kept with its payment.
-- **Tests:** `upload.test.ts`, `scan-handler.test.ts`, `scan-retry.test.ts`, `process-image.test.ts`, `delivery.test.ts`, `src/worker-media/process-media.test.ts`; E2E `63-files.spec.ts`.
+- **Video** (#86): `domain/video-sniff.ts` (MP4, QuickTime and 3GP match each other at the scan), `domain/video-probe.ts` (ffprobe's JSON), `domain/video-transcode.ts` (the pure plan and ffmpeg's argument lists: one demuxer, two threads, every piece of metadata dropped), `process-video.ts` (the job), `src/server/ports/media-ffmpeg.ts` (the adapter). `pnpm test:media` runs the ffmpeg contract (`media-ffmpeg.media.test.ts`) where ffmpeg is: the worker-media image.
+- **Tests:** `upload.test.ts`, `scan-handler.test.ts`, `scan-retry.test.ts`, `process-image.test.ts`, `delivery.test.ts`, `domain/video-*.test.ts`, `src/server/ports/media-ffmpeg.test.ts`, `src/worker-media/process-media.test.ts`; E2E `63-files.spec.ts`.
 
 ### guardians
 
@@ -1073,7 +1077,8 @@ Runtime settings a super admin changes without a deploy.
 | `refunds.send`                              | outbox                                  | `refund.approved`                                     | `modules/payments/refunds/sync-refund.ts`                             |
 | `files.scan_file`                           | outbox                                  | `files.file_uploaded`                                 | `modules/files/scan-handler.ts`                                       |
 | `files.process_image`                       | outbox, media queue (worker-media only) | `files.processing_requested`                          | `modules/files/process-image.ts`, `src/worker-media/process-media.ts` |
-| `entries.apply_file_outcome`                | outbox                                  | every `files.*` outcome event                         | `modules/entries/apply-file-outcome.ts`                               |
+| `files.process_video`                       | outbox, media queue, 20-minute lease    | `files.video_processing_requested`                    | `modules/files/process-video.ts`, `ports/media-ffmpeg.ts`             |
+| `entries.apply_file_outcome`                | outbox                                  | every `files.*` outcome event, `files.file_ready`     | `modules/entries/apply-file-outcome.ts`                               |
 | `entries.expire_upload_grant`               | outbox, delayed                         | at grant expiry                                       | `modules/entries/upload-grants.ts`                                    |
 | `entries.sweep_staged_upload`               | outbox, delayed                         | shortly after expiry                                  | `src/server/outbox/handlers.ts`                                       |
 | `cms.publish_scheduled_post`                | outbox, delayed                         | at the publish instant                                | `modules/cms/posts/publishing.ts`                                     |
@@ -1444,13 +1449,14 @@ The full check is in [Testing and CI](#testing-and-ci).
 
 Four test layers plus a read-only smoke check of the live site. Only Vitest runs with nothing but Node 26 and `pnpm install`.
 
-| Layer                          | Files                                                                                           | Command                              | Needs                                 | When CI runs it     |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------- | ------------------- |
-| Vitest (Seam 1 and unit tests) | `*.test.ts(x)` beside the code in `src/`, `scripts/`, `docker/`, `tests/e2e/` (about 600 files) | `pnpm test`                          | Nothing: in-process Postgres (PGlite) | Every run, 8 shards |
-| Real-Postgres races            | `src/**/*.pg.test.ts`                                                                           | `pnpm test:pg`                       | A migrated throwaway Postgres         | Full runs only      |
-| Live provider contracts        | `src/**/*.live.test.ts` (2 files)                                                               | `pnpm test:live`                     | Real R2 or B2 credentials             | Never; by hand      |
-| Playwright journeys (Seam 2)   | `tests/e2e/*.spec.ts` (about 50)                                                                | `pnpm test:e2e`                      | A running app, its Postgres, Chromium | Full runs only      |
-| Production smoke               | `tests/e2e/prod-smoke.spec.ts`                                                                  | `pnpm test:e2e --project=prod-smoke` | The live site                         | By hand (`e2e.yml`) |
+| Layer                          | Files                                                                                           | Command                              | Needs                                      | When CI runs it     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------ | ------------------- |
+| Vitest (Seam 1 and unit tests) | `*.test.ts(x)` beside the code in `src/`, `scripts/`, `docker/`, `tests/e2e/` (about 600 files) | `pnpm test`                          | Nothing: in-process Postgres (PGlite)      | Every run, 8 shards |
+| Real-Postgres races            | `src/**/*.pg.test.ts`                                                                           | `pnpm test:pg`                       | A migrated throwaway Postgres              | Full runs only      |
+| Live provider contracts        | `src/**/*.live.test.ts` (2 files)                                                               | `pnpm test:live`                     | Real R2 or B2 credentials                  | Never; by hand      |
+| ffmpeg contract (#86)          | `src/**/*.media.test.ts` (1 file)                                                               | `pnpm test:media`                    | ffmpeg and ffprobe: the worker-media image | Never; by hand      |
+| Playwright journeys (Seam 2)   | `tests/e2e/*.spec.ts` (about 50)                                                                | `pnpm test:e2e`                      | A running app, its Postgres, Chromium      | Full runs only      |
+| Production smoke               | `tests/e2e/prod-smoke.spec.ts`                                                                  | `pnpm test:e2e --project=prod-smoke` | The live site                              | By hand (`e2e.yml`) |
 
 Before you push:
 
