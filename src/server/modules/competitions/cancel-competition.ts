@@ -545,6 +545,13 @@ export async function cancelCompetition(
       });
     }
 
+    // Its reminders never go (#84).
+    await emit(tx, ctx.clock, {
+      type: "competition.cancelled",
+      aggregate: { type: "competition", id: competitionId },
+      payload: { competitionId },
+    });
+
     // Ids and counts only: the reason is the super admin's own words.
     await recordAudit(tx, ctx, {
       action: "competition.cancelled",

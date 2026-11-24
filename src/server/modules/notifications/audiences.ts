@@ -59,6 +59,10 @@ import {
   PRINCIPAL_NOTICE_VARIABLES,
 } from "../breaches/notice-message";
 import { ownerOfRegistration } from "../participants/owner";
+import {
+  REMINDER_VARIABLES,
+  reminderValues,
+} from "../reminders/message-values";
 import { payerOn, RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
 import {
   dashboardRefundValues,
@@ -125,6 +129,15 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "competitions.key_date_scheduled":
       // A status job (#71): it's about a competition, not a user, and no
       // route row names it.
+      return null;
+    case "competition.published":
+    case "competition.key_dates_changed":
+    case "competition.cancelled":
+      // Keep a competition's reminders in step (#84); no route row names them.
+      return null;
+    case "reminder.due":
+      // For whoever owes the deadline (`reminder_registrants`,
+      // `reminder_contacts`), planned by the reminders handler (#84).
       return null;
     case "institution.coordinator_invited":
       // The invitee may have no account yet: the invitation goes to the
@@ -372,6 +385,12 @@ export const AUDIENCES = {
       ? [delivery.payload.officerUserId]
       : [],
   /**
+   * The reminders handler resolves both from who owes the deadline when it
+   * runs (#84): accounts, and roster contacts without one.
+   */
+  reminder_registrants: async () => [],
+  reminder_contacts: async () => [],
+  /**
    * The breach dispatcher checks the saved recipient and live guardian links
    * for this route. The generic audience resolver grants no recipients.
    */
@@ -520,6 +539,13 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => institutionValues(db, payload.institutionId),
   },
   "competitions.key_date_scheduled": { names: [], load: async () => ({}) },
+  "competition.published": { names: [], load: async () => ({}) },
+  "competition.key_dates_changed": { names: [], load: async () => ({}) },
+  "competition.cancelled": { names: [], load: async () => ({}) },
+  "reminder.due": {
+    names: REMINDER_VARIABLES,
+    load: (db, { payload }) => reminderValues(db, payload.reminderJobId),
+  },
   "institution.coordinator_invited": { names: [], load: async () => ({}) },
   "contact_message.received": {
     names: CONTACT_MESSAGE_VARIABLES,

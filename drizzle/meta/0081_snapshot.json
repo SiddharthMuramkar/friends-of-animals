@@ -1,6 +1,6 @@
 {
-  "id": "77e88036-1527-44e3-b09d-57286d371a94",
-  "prevId": "efe2f502-8ca5-4553-8f17-903d735054de",
+  "id": "774784e9-2bdf-4884-8876-32145b455a00",
+  "prevId": "bfcbc7da-a053-42dc-a266-391b731c7846",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -11728,6 +11728,154 @@
       },
       "isRLSEnabled": false
     },
+    "public.reminder_job": {
+      "name": "reminder_job",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reminder_name": {
+          "name": "reminder_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offset_hours": {
+          "name": "offset_hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deadline_at": {
+          "name": "deadline_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fire_at": {
+          "name": "fire_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "reminder_job_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'scheduled'"
+        },
+        "fired_at": {
+          "name": "fired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "reminder_job_planned_once": {
+          "name": "reminder_job_planned_once",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "offset_hours",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "deadline_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"reminder_job\".\"status\" IN ('scheduled', 'fired')",
+          "concurrently": false
+        },
+        "reminder_job_subject_idx": {
+          "name": "reminder_job_subject_idx",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reminder_job_name_format": {
+          "name": "reminder_job_name_format",
+          "value": "\"reminder_job\".\"reminder_name\" ~ '^[a-z][a-z0-9_]*$'"
+        },
+        "reminder_job_offset_hours": {
+          "name": "reminder_job_offset_hours",
+          "value": "\"reminder_job\".\"offset_hours\" BETWEEN 1 AND 720"
+        },
+        "reminder_job_fire_at": {
+          "name": "reminder_job_fire_at",
+          "value": "\"reminder_job\".\"fire_at\" = \"reminder_job\".\"deadline_at\" - make_interval(hours => \"reminder_job\".\"offset_hours\")"
+        },
+        "reminder_job_fired_stamped": {
+          "name": "reminder_job_fired_stamped",
+          "value": "(\"reminder_job\".\"status\" = 'fired') = (\"reminder_job\".\"fired_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.legal_hold": {
       "name": "legal_hold",
       "schema": "",
@@ -11956,510 +12104,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.privacy_overdue_digest": {
-      "name": "privacy_overdue_digest",
-      "schema": "",
-      "columns": {
-        "day": {
-          "name": "day",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "overdue": {
-          "name": "overdue",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.privacy_request": {
-      "name": "privacy_request",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "reference": {
-          "name": "reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "privacy_request_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "privacy_request_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'submitted'"
-        },
-        "relation": {
-          "name": "relation",
-          "type": "privacy_request_relation",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_kind": {
-          "name": "subject_kind",
-          "type": "privacy_subject_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_id": {
-          "name": "subject_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_by_user_id": {
-          "name": "requested_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "correction_details_ciphertext": {
-          "name": "correction_details_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assigned_to_user_id": {
-          "name": "assigned_to_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "due_at": {
-          "name": "due_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rejection_reason_ciphertext": {
-          "name": "rejection_reason_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resolution_ciphertext": {
-          "name": "resolution_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "export_requested_at": {
-          "name": "export_requested_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "export_storage_key": {
-          "name": "export_storage_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "export_ready_at": {
-          "name": "export_ready_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "export_expires_at": {
-          "name": "export_expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "export_deleted_at": {
-          "name": "export_deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "erasure_fingerprint": {
-          "name": "erasure_fingerprint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "erasure_approved_by_user_id": {
-          "name": "erasure_approved_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "erasure_approved_at": {
-          "name": "erasure_approved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "erasure_failure": {
-          "name": "erasure_failure",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "retained": {
-          "name": "retained",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "privacy_request_reference_unique": {
-          "name": "privacy_request_reference_unique",
-          "columns": [
-            {
-              "expression": "reference",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "privacy_request_status_due_idx": {
-          "name": "privacy_request_status_due_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "due_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "privacy_request_requested_by_idx": {
-          "name": "privacy_request_requested_by_idx",
-          "columns": [
-            {
-              "expression": "requested_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "privacy_request_subject_idx": {
-          "name": "privacy_request_subject_idx",
-          "columns": [
-            {
-              "expression": "subject_kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "subject_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "privacy_request_assigned_to_idx": {
-          "name": "privacy_request_assigned_to_idx",
-          "columns": [
-            {
-              "expression": "assigned_to_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "privacy_request_erasure_approved_by_idx": {
-          "name": "privacy_request_erasure_approved_by_idx",
-          "columns": [
-            {
-              "expression": "erasure_approved_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "privacy_request_requested_by_user_id_user_id_fk": {
-          "name": "privacy_request_requested_by_user_id_user_id_fk",
-          "tableFrom": "privacy_request",
-          "columnsFrom": [
-            "requested_by_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "privacy_request_assigned_to_user_id_user_id_fk": {
-          "name": "privacy_request_assigned_to_user_id_user_id_fk",
-          "tableFrom": "privacy_request",
-          "columnsFrom": [
-            "assigned_to_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "privacy_request_erasure_approved_by_user_id_user_id_fk": {
-          "name": "privacy_request_erasure_approved_by_user_id_user_id_fk",
-          "tableFrom": "privacy_request",
-          "columnsFrom": [
-            "erasure_approved_by_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "privacy_request_reference_format": {
-          "name": "privacy_request_reference_format",
-          "value": "\"privacy_request\".\"reference\" ~ '^PR-[0-9]{2}-[0-9A-HJKMNP-TV-Z]{6}$'"
-        },
-        "privacy_request_correction_details": {
-          "name": "privacy_request_correction_details",
-          "value": "(\"privacy_request\".\"type\" = 'correction') = (\"privacy_request\".\"correction_details_ciphertext\" IS NOT NULL)"
-        },
-        "privacy_request_guardian_subject": {
-          "name": "privacy_request_guardian_subject",
-          "value": "\"privacy_request\".\"relation\" <> 'guardian' OR \"privacy_request\".\"subject_kind\" = 'participant_profile'"
-        },
-        "privacy_request_closed_at": {
-          "name": "privacy_request_closed_at",
-          "value": "(\"privacy_request\".\"status\" IN ('submitted', 'in_progress')) = (\"privacy_request\".\"closed_at\" IS NULL)"
-        },
-        "privacy_request_rejection_reason": {
-          "name": "privacy_request_rejection_reason",
-          "value": "(\"privacy_request\".\"status\" = 'rejected') = (\"privacy_request\".\"rejection_reason_ciphertext\" IS NOT NULL)"
-        },
-        "privacy_request_partial_is_erasure": {
-          "name": "privacy_request_partial_is_erasure",
-          "value": "\"privacy_request\".\"status\" <> 'partially_completed' OR \"privacy_request\".\"type\" = 'erasure'"
-        },
-        "privacy_request_export_is_access": {
-          "name": "privacy_request_export_is_access",
-          "value": "\"privacy_request\".\"export_requested_at\" IS NULL OR \"privacy_request\".\"type\" = 'access'"
-        },
-        "privacy_request_export_ready": {
-          "name": "privacy_request_export_ready",
-          "value": "(\"privacy_request\".\"export_ready_at\" IS NULL) = (\"privacy_request\".\"export_storage_key\" IS NULL) AND (\"privacy_request\".\"export_ready_at\" IS NULL) = (\"privacy_request\".\"export_expires_at\" IS NULL)"
-        },
-        "privacy_request_erasure_approval": {
-          "name": "privacy_request_erasure_approval",
-          "value": "(\"privacy_request\".\"erasure_fingerprint\" IS NULL OR \"privacy_request\".\"type\" = 'erasure') AND (\"privacy_request\".\"erasure_fingerprint\" IS NULL) = (\"privacy_request\".\"erasure_approved_at\" IS NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.privacy_request_note": {
-      "name": "privacy_request_note",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "request_id": {
-          "name": "request_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "author_user_id": {
-          "name": "author_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "body_ciphertext": {
-          "name": "body_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "privacy_request_note_request_idx": {
-          "name": "privacy_request_note_request_idx",
-          "columns": [
-            {
-              "expression": "request_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "privacy_request_note_author_idx": {
-          "name": "privacy_request_note_author_idx",
-          "columns": [
-            {
-              "expression": "author_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "privacy_request_note_request_id_privacy_request_id_fk": {
-          "name": "privacy_request_note_request_id_privacy_request_id_fk",
-          "tableFrom": "privacy_request_note",
-          "columnsFrom": [
-            "request_id"
-          ],
-          "tableTo": "privacy_request",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        },
-        "privacy_request_note_author_user_id_user_id_fk": {
-          "name": "privacy_request_note_author_user_id_user_id_fk",
-          "tableFrom": "privacy_request_note",
-          "columnsFrom": [
-            "author_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -12528,8 +12172,7 @@
         "finance",
         "auction_manager",
         "adoption_coordinator",
-        "safeguarding_lead",
-        "grievance_officer"
+        "safeguarding_lead"
       ]
     },
     "public.role_scope_type": {
@@ -13189,41 +12832,14 @@
         "sent"
       ]
     },
-    "public.privacy_request_relation": {
-      "name": "privacy_request_relation",
+    "public.reminder_job_status": {
+      "name": "reminder_job_status",
       "schema": "public",
       "values": [
-        "self",
-        "guardian"
-      ]
-    },
-    "public.privacy_request_status": {
-      "name": "privacy_request_status",
-      "schema": "public",
-      "values": [
-        "submitted",
-        "in_progress",
-        "completed",
-        "partially_completed",
-        "rejected",
-        "cancelled"
-      ]
-    },
-    "public.privacy_request_type": {
-      "name": "privacy_request_type",
-      "schema": "public",
-      "values": [
-        "access",
-        "correction",
-        "erasure"
-      ]
-    },
-    "public.privacy_subject_kind": {
-      "name": "privacy_subject_kind",
-      "schema": "public",
-      "values": [
-        "user",
-        "participant_profile"
+        "scheduled",
+        "fired",
+        "cancelled",
+        "superseded"
       ]
     }
   },

@@ -566,6 +566,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | [`privacy/requests`](#privacy-requests) | Rights requests (access, correction, erasure), the grievance queue, data exports and erasure                                   | #115                    |
 | [`public-forms`](#public-forms)         | Shared guards for public forms: proof-of-work human check, per-sender rate limits                                              | #113                    |
 | [`registration`](#registration)         | An institution registers for a competition and enrols students, one by one or from CSV; confirmation after payment             | #75, #76, #77           |
+| [`reminders`](#reminders)               | Named reminders before a deadline, to whoever still owes it when each one runs                                                 | #84                     |
 | [`safeguarding`](#safeguarding)         | The public "report a concern" form and the safeguarding lead's queue                                                           | #116                    |
 | [`second-factor`](#second-factor)       | Staff TOTP and passkeys, step-up, staff session lifetimes                                                                      | #60                     |
 | [`settings`](#settings)                 | Runtime settings a super admin changes without a deploy                                                                        | #62                     |
@@ -574,7 +575,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 
 A competition manager writes, previews and sends an announcement to a competition's confirmed registrants (84a-1 audience, 84a-2 delivery).
 
-- **Recipient selection** (`load-audience.ts`, `domain/audience.ts`): coordinators, participants and guardians (a minor's message goes to the guardian). Each address gets one delivery per channel. The header says it is shared with reminders (84b, not built).
+- **Recipient selection** (`load-audience.ts`, `domain/audience.ts`): coordinators, participants and guardians (a minor's message goes to the guardian). Each address gets one delivery per channel. Shared with [`reminders`](#reminders), which passes the registrations that owe a deadline; `delivery-plan.ts` (`loadRosterDeliveryPlan`) and `roster-delivery.ts` (`deliverToRoster`) are shared the same way.
 - **Table** `announcement` (`src/server/db/schema/announcements.ts`): structured plain-text sections, never HTML; encrypted help contacts; `status` `draft` or `sent`; `revision` for optimistic edits; `sent_by`, `sent_at` and `recipient_count` stamped on send (check `announcement_sent_stamped`). Who received it is in `message_delivery`.
 - **States** (`domain/status.ts`): `draft` → `sent`, final. A correction is a new announcement.
 - **Use cases:** `createAnnouncement`, `updateAnnouncement`, `getAnnouncement`, `listAnnouncements`, `previewAnnouncement`, `sendAnnouncement`.
@@ -582,7 +583,6 @@ A competition manager writes, previews and sends an announcement to a competitio
 - **Pages:** `/admin/competitions/[id]/announcements`, `.../new`, `.../[announcementId]`.
 - **Events:** `competition.announcement_sent` → `announcements.fan_out` (`fan-out.ts`), which plans the audience again at send time, then delivers in-app through `notifications/dispatch.ts` and by email or SMS through `notifications/contact-delivery.ts`. The worker gained a `blindIndex` dependency for this.
 - **Migrations:** `0068_84_pre_enum_message_delivery` (adds `sending`, rule F2), `0069_84_announcements`, `0070_84_announcement_messages`.
-- **Missing:** reminders (#84 unit 84b).
 - **Tests:** `announcements-*.test.ts`, `domain/*.test.ts`, `tests/e2e/84-announcements.spec.ts`.
 
 ### breaches
@@ -659,7 +659,7 @@ Competitions and their status; `terms/` holds fees, award schemes and pinned con
   - **Cancelling** (80b): one transaction locks the competition and plans with `domain/cancellation.ts`; supersedes discretionary refunds still `requested` or `failed`; starts one system `cancellation` refund per paid batch (`startSystemRefund`); cancels unpaid and free registrations and open batches; tells families and coordinators. A paid registration stays `confirmed` until its refund is back (`cancel-competition.ts`).
 - **Who may call:** create, edit, preview, publish: `competition_manager`. Read published: anyone. `competition.advance_status`: the worker only. Set fees: `stepUp(competition_manager)`. `competition.cancel`: `stepUp(super_admin)` only (HR-34); `competition.cancel.read`: `super_admin`.
 - **Pages:** staff `/admin/competitions`, `.../new`, `.../[id]/edit`, `.../[id]/preview`, `.../[id]/terms`, `.../[id]/cancel`, `.../[id]/rubrics`, `.../[id]/announcements`; public `/competitions`, `/competitions/[slug]`, `/documents/[purpose]/[version]`.
-- **Events:** `competitions.key_date_scheduled`, `competition.transition_blocked`, `competition.disciplines_changed`, `registration.competition_cancelled`, `institution_registration.competition_cancelled`.
+- **Events:** `competitions.key_date_scheduled`, `competition.transition_blocked`, `competition.disciplines_changed`, `registration.competition_cancelled`, `institution_registration.competition_cancelled`; `competition.published`, `competition.key_dates_changed` (a published one's dates edited) and `competition.cancelled`, each → `reminders.schedule` (#84).
 - **Tests:** `create.test.ts`, `publish.test.ts`, `status-jobs.test.ts`, `transition-guards.test.ts`, `cancel-competition.test.ts`, `cancel-competition.pg.test.ts`, `terms/fees.test.ts`; E2E `70-competitions-*.spec.ts`, `72-competition-terms.spec.ts`, `80-cancel-competition.spec.ts`.
 
 ### consent
@@ -868,7 +868,7 @@ Message templates, message routes, dispatch, the inbox and channel choices (#69)
 - **Use cases:** `listMessageTemplates`, `getMessageTemplate`, `updateMessageTemplate` (content manager, super admin); `listInbox`, `countUnread`, `markInboxItemRead`, `markAllInboxRead`, `getNotificationPreferences`, `updateNotificationPreferences` (any signed-in user, own rows).
 - **Pages:** `/admin/templates`, `/admin/templates/[key]`, `/account/inbox`, `/account/notifications`, the inbox badge.
 - **Delivery states:** `pending`, `sending` (claimed by compare-and-set in `contact-delivery.ts`), `sent`, `failed`, `suppressed`. Suppression reasons: `preference_off`, `consent_withdrawn`, `sms_disabled`, `sms_unregistered`, `no_contact`, `no_guardian`. A `failed` row retries with its outbox delivery.
-- **Audiences** (`audiences.ts`): `subject_user`, `individual_payer`, `registration_owner`, `guardian_of_participant`, `contact_sender`, `family_contact`, `contact_team`, `safeguarding_leads`, `competition_managers`, `finance_team`, `breach_recipient`, `announcement_registrants`, `announcement_contacts`, plus the cancellation audiences.
+- **Audiences** (`audiences.ts`): `subject_user`, `individual_payer`, `registration_owner`, `guardian_of_participant`, `contact_sender`, `family_contact`, `contact_team`, `safeguarding_leads`, `competition_managers`, `finance_team`, `breach_recipient`, `announcement_registrants`, `announcement_contacts`, `reminder_registrants`, `reminder_contacts`, plus the cancellation audiences.
 - **Gaps:** see [Code gaps](#code-gaps) (no idempotency key on email and SMS ports; worker refuses outbox email and SMS in production). SMS needs DLT template ids (HR-14).
 - **Tests:** `dispatch.test.ts`, `inbox.test.ts`, `templates.test.ts`, `channels.test.ts`; E2E `69-messages.spec.ts`.
 
@@ -990,7 +990,7 @@ Privacy rights requests and the grievance officer's queue (#115), in `src/server
 - **Settings:** `privacy.requestDueDays` (30), `privacy.erasureDueDays` (30), `privacy.exportLinkHours` (72), `privacy.erasureEnabled` (off; seeded on locally), `privacy.erasureKeepsPayerAccount` (on), `retention.privacyRequestsDays` (1095). All wait for counsel (HR-30).
 - **Pages:** `/dashboard/privacy`, `/dashboard/privacy/new`, `/dashboard/privacy/[id]`; staff `/admin/privacy/requests`, `/admin/privacy/requests/[id]`.
 - **Events:** `privacy_request.submitted`, `.rejected`, `.completed`, `.overdue_digest` → `notifications.dispatch` (audiences `privacy_requester`, `grievance_officers`, `grievance_digest`); `privacy_request.export_requested` → `privacy.build_export`; `privacy_request.export_expired` (delayed) → `privacy.expire_export`; `privacy_request.erasure_approved` → `privacy.execute_erasure`.
-- **Migrations:** `0079_115_pre_enum_role_grievance_officer` (rule F2), `0080_115_privacy_requests`, `0081_115_privacy_request_messages`, `0082_115_erasure_record`, `0083_115_erasure_notice`.
+- **Migrations:** `0081_115_pre_enum_role_grievance_officer` (rule F2), `0082_115_privacy_requests`, `0083_115_privacy_request_messages`, `0084_115_erasure_record`, `0085_115_erasure_notice`.
 - **Tests:** `requests/*.test.ts`, `requests/domain/*.test.ts`, `requests/subject-data/*.test.ts`, `submit.pg.test.ts`; E2E `115-privacy-requests.spec.ts`.
 
 ### public-forms
@@ -1027,6 +1027,19 @@ Institution registrations, their students' enrolments, and confirming registrati
 - **Events:** `registration.institution_registered` → `registration.notify_principal`; `registration.confirmed` → `registration.send_confirmation`.
 - **Missing:** an adult can't withdraw their own unpaid registration; principal and confirmation SMS wait for DLT (HR-14).
 - **Tests:** `enrol-student.test.ts`, `enrol-student.pg.test.ts`, `import-students.test.ts`, `register-institution.test.ts`; E2E `75-*.spec.ts`, `76-import-students.spec.ts`.
+
+### reminders
+
+Named reminders before a deadline, sent to whoever still owes it when each one runs (#84 unit 84b). The first is `entry_submission_due`.
+
+- **Registry** (`registry.ts`): each reminder is a `ReminderDefinition`: its name, its subject type (`competition`), the hour settings that time it, its message template, its deadline (`deadlineOf`), the subjects the sync visits, who owes it (`owes`, as groups of registrations and the roster roles to remind) and its template values. **Adding one** (#90 school-round shortlist, #93 dispatch, #125 events): a file in `definitions/`, one line in `REMINDERS`, its hour settings in the settings catalogue (group `reminders`, copy in `adminSettings.json`), and a custom migration with its template and two routes on `reminder.due` (like `0080_84_reminder_messages`). `registry.test.ts` fails until all four are there. A subject other than a competition (#125) also adds a subject type and an audience kind.
+- **Table** `reminder_job` (`src/server/db/schema/reminders.ts`): one row per planned reminder: name, subject, offset, the deadline it was planned for, `fire_at`, `status` (`scheduled`, `fired`, `cancelled`, `superseded`; all in the first migration), `fired_at`. A partial unique index allows one live plan per reminder, subject, deadline and offset. No personal data; who was reminded is in `message_delivery`, keyed by the row's id.
+- **Scheduling** (`schedule-reminders.ts`, `domain/schedule.ts`): `competition.published`, `.key_dates_changed` and `.cancelled` → `reminders.schedule`, plus the hourly `reminders.sync`. Rows that still match the deadline and the settings stay; the rest are superseded (cancelled with their competition); each new row is saved with a delayed `reminder.due` event at `fire_at`. An offset whose time has gone is skipped, not sent late.
+- **Running** (`run-reminder.ts`): `reminder.due` → `reminders.run` locks the row and checks it against things as they are now: the deadline unchanged and ahead, the offset still in settings, no nearer reminder due too (after an outage only the nearest goes). Then it asks who owes the deadline, plans the roster through `announcements/delivery-plan.ts` and sends through `roster-delivery.ts`. A fired row's retry sends only what didn't go. Each firing is audited (`reminder.fired`, by the system).
+- **`entry_submission_due`** (`definitions/entry-submission-due.ts`): `submissions_close`; offsets `reminders.entrySubmissionDueFirstHours` (72) and `...SecondHours` (24), 0 for none (HR-37). A confirmed registration owes it with no entry, or only a rejected or failed one (`processing` counts as made). Individuals: the adult, or a minor's guardians. Schools, under `all_participants` only: each coordinator, once per run. Template `reminders.entry_submission_due` (email, in-app, SMS once DLT-registered, HR-14; copy HR-36).
+- **Use cases** (`index.ts`): `scheduleReminders`, `syncReminders` (`reminder.schedule`: the worker or the seed), `runReminder` (`reminder.run`: the worker). No person calls them; there is no page.
+- **Migrations:** `0079_84_reminders`, `0080_84_reminder_messages`. **Seed:** `seed/reminders.ts` plans the seeded competitions' reminders.
+- **Tests:** `reminders-*.test.ts`, `registry.test.ts`, `domain/*.test.ts`, `reminders.pg.test.ts`, `seed/reminders.test.ts`.
 
 ### safeguarding
 
@@ -1070,6 +1083,7 @@ Runtime settings a super admin changes without a deploy.
   | `org.legalName`, `org.registrationType`, `org.registrationNumber`, `org.pan` | empty                      | HR-21                                                 |
   | `safeguarding.reportsPerIpPerHour`                                           | 10                         | HR-48                                                 |
   | `breach.authorityEmail`                                                      | empty                      | HR-49                                                 |
+  | `reminders.entrySubmissionDueFirstHours`, `...SecondHours`                   | 72, 24                     | hours before submissions close; 0 for none (HR-37)    |
   | `retention.enforce`                                                          | false                      | the sweep only counts until a super admin turns it on |
   | `retention.<policy>Days`                                                     | per policy                 | one per retention policy                              |
   | `privacy.requestDueDays`, `privacy.erasureDueDays`                           | 30                         | days to answer a rights request; HR-30                |
@@ -1093,6 +1107,7 @@ Runtime settings a super admin changes without a deploy.
 | `privacy.build_export`, `privacy.expire_export` | outbox (expiry delayed)                 | `privacy_request.export_requested`, at link expiry    | `modules/privacy/requests/subject-data/export.ts`                     |
 | `privacy.execute_erasure`                       | outbox                                  | `privacy_request.erasure_approved`                    | `modules/privacy/requests/subject-data/erasure.ts`                    |
 | `ledger.reconcile_payments`                     | schedule                                | 03:00 daily                                           | `modules/ledger/backfill.ts`                                          |
+| `reminders.sync`                                | schedule                                | 5 past every hour                                     | `modules/reminders/schedule.ts`                                       |
 | `notifications.dispatch`                        | outbox                                  | most events                                           | `modules/notifications/dispatch.ts`                                   |
 | `ledger.post_capture`, `ledger.post_refund`     | outbox                                  | `payment.batch_captured`, `refund.processed`          | `modules/ledger/consumers.ts`                                         |
 | `refunds.send`                                  | outbox                                  | `refund.approved`                                     | `modules/payments/refunds/sync-refund.ts`                             |
@@ -1107,6 +1122,8 @@ Runtime settings a super admin changes without a deploy.
 | `competitions.retry_blocked_moves`              | outbox                                  | `rubric.published`, `competition.disciplines_changed` | `modules/competitions/advance-status.ts`                              |
 | `registration.send_cancellation`                | outbox                                  | `registration.competition_cancelled`                  | `modules/competitions/cancellation-message.ts`                        |
 | `announcements.fan_out`                         | outbox                                  | `competition.announcement_sent`                       | `modules/announcements/fan-out.ts`                                    |
+| `reminders.schedule`                            | outbox                                  | a competition published, re-dated or cancelled        | `modules/reminders/schedule-reminders.ts`                             |
+| `reminders.run`                                 | outbox, delayed                         | `reminder.due`, at each reminder's fire time          | `modules/reminders/run-reminder.ts`                                   |
 | `breaches.fan_out`                              | outbox                                  | `breach.fan_out_requested`, one page per delivery     | `modules/breaches/fan-out.ts`                                         |
 | `breaches.send_authority_notice`                | outbox                                  | `breach.authority_notice`                             | `modules/breaches/authority-message.ts`                               |
 | `consent_links.deliver`                         | outbox                                  | `consent.link_sent`                                   | `modules/consent-links/delivery.ts`                                   |
@@ -1117,7 +1134,7 @@ Runtime settings a super admin changes without a deploy.
 | `guardians.send_teen_invitation`                | outbox                                  | `guardian.teen_invited`                               | `modules/guardians/teen-invitation-message.ts`                        |
 | `guardians.send_guardian_request`               | outbox                                  | `guardian.guardian_requested`                         | `modules/guardians/guardian-request-message.ts`                       |
 
-Not a worker job: `pnpm files:purge-preview` (dormant preview cleanup, [Dormant preview machinery](#dormant-preview-machinery)). Missing jobs: reminders (84b) and a payment reconciliation sweep.
+Not a worker job: `pnpm files:purge-preview` (dormant preview cleanup, [Dormant preview machinery](#dormant-preview-machinery)). Missing jobs: a payment reconciliation sweep.
 
 ## Codebase map
 

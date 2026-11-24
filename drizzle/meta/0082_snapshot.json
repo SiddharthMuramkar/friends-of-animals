@@ -1,6 +1,6 @@
 {
-  "id": "537d3acc-cd03-4cf8-aae9-fdfb64369a9d",
-  "prevId": "77e88036-1527-44e3-b09d-57286d371a94",
+  "id": "5eb77d9a-bc20-40ef-a920-ddd9b19f4061",
+  "prevId": "774784e9-2bdf-4884-8876-32145b455a00",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -11728,6 +11728,154 @@
       },
       "isRLSEnabled": false
     },
+    "public.reminder_job": {
+      "name": "reminder_job",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reminder_name": {
+          "name": "reminder_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offset_hours": {
+          "name": "offset_hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deadline_at": {
+          "name": "deadline_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fire_at": {
+          "name": "fire_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "reminder_job_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'scheduled'"
+        },
+        "fired_at": {
+          "name": "fired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "reminder_job_planned_once": {
+          "name": "reminder_job_planned_once",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "offset_hours",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "deadline_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"reminder_job\".\"status\" IN ('scheduled', 'fired')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "reminder_job_subject_idx": {
+          "name": "reminder_job_subject_idx",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reminder_job_name_format": {
+          "name": "reminder_job_name_format",
+          "value": "\"reminder_job\".\"reminder_name\" ~ '^[a-z][a-z0-9_]*$'"
+        },
+        "reminder_job_offset_hours": {
+          "name": "reminder_job_offset_hours",
+          "value": "\"reminder_job\".\"offset_hours\" BETWEEN 1 AND 720"
+        },
+        "reminder_job_fire_at": {
+          "name": "reminder_job_fire_at",
+          "value": "\"reminder_job\".\"fire_at\" = \"reminder_job\".\"deadline_at\" - make_interval(hours => \"reminder_job\".\"offset_hours\")"
+        },
+        "reminder_job_fired_stamped": {
+          "name": "reminder_job_fired_stamped",
+          "value": "(\"reminder_job\".\"status\" = 'fired') = (\"reminder_job\".\"fired_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.legal_hold": {
       "name": "legal_hold",
       "schema": "",
@@ -11955,136 +12103,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.erasure_record": {
-      "name": "erasure_record",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "request_id": {
-          "name": "request_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "subject_kind": {
-          "name": "subject_kind",
-          "type": "privacy_subject_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_id": {
-          "name": "subject_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_ids": {
-          "name": "user_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "profile_ids": {
-          "name": "profile_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "outcome": {
-          "name": "outcome",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "categories": {
-          "name": "categories",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "retained_until": {
-          "name": "retained_until",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "erased_at": {
-          "name": "erased_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "erasure_record_request_idx": {
-          "name": "erasure_record_request_idx",
-          "columns": [
-            {
-              "expression": "request_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "erasure_record_subject_idx": {
-          "name": "erasure_record_subject_idx",
-          "columns": [
-            {
-              "expression": "subject_kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "subject_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "erasure_record_request_id_privacy_request_id_fk": {
-          "name": "erasure_record_request_id_privacy_request_id_fk",
-          "tableFrom": "erasure_record",
-          "tableTo": "privacy_request",
-          "columnsFrom": [
-            "request_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "erasure_record_outcome": {
-          "name": "erasure_record_outcome",
-          "value": "\"erasure_record\".\"outcome\" IN ('completed', 'partially_completed')"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.privacy_overdue_digest": {
@@ -13317,6 +13335,16 @@
       "values": [
         "draft",
         "sent"
+      ]
+    },
+    "public.reminder_job_status": {
+      "name": "reminder_job_status",
+      "schema": "public",
+      "values": [
+        "scheduled",
+        "fired",
+        "cancelled",
+        "superseded"
       ]
     },
     "public.privacy_request_relation": {

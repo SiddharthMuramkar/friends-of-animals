@@ -32,6 +32,8 @@ describe("the settings seed", () => {
       { key: "privacy.erasureKeepsPayerAccount", value: true },
       { key: "privacy.exportLinkHours", value: 72 },
       { key: "privacy.requestDueDays", value: 30 },
+      { key: "reminders.entrySubmissionDueFirstHours", value: 72 },
+      { key: "reminders.entrySubmissionDueSecondHours", value: 24 },
       { key: "retention.capturedMessagesDays", value: 30 },
       { key: "retention.contactMessagesMonths", value: 24 },
       { key: "retention.coordinatorInvitationLinksDays", value: 1 },

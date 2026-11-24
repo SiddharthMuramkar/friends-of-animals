@@ -160,6 +160,8 @@ describe("resolveAllSettings", () => {
       ["privacy.exportLinkHours", 72, "default"],
       ["privacy.erasureEnabled", false, "default"],
       ["privacy.erasureKeepsPayerAccount", true, "default"],
+      ["reminders.entrySubmissionDueFirstHours", 72, "default"],
+      ["reminders.entrySubmissionDueSecondHours", 24, "default"],
       ["retention.enforce", false, "default"],
       ["retention.expiredVerificationsDays", 1, "default"],
       ["retention.expiredSessionsDays", 30, "default"],
