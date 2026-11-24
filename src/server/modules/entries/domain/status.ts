@@ -55,7 +55,13 @@ export type EntryTrigger =
   | "file_live"
   | "file_infected"
   | "file_failed"
-  | "upload_retried";
+  | "upload_retried"
+  /** Picked in a finalised school round (#89). */
+  | "school_shortlisted"
+  /** Under all-participants scope, a shortlisted entry goes on to FOA. */
+  | "sent_to_foa"
+  /** Not picked in a finalised school round (#89). */
+  | "not_shortlisted";
 
 export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   { from: null, to: "processing", trigger: "upload_completed" },
@@ -64,6 +70,21 @@ export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   { from: "processing", to: "failed", trigger: "file_failed" },
   { from: "rejected", to: "processing", trigger: "upload_retried" },
   { from: "failed", to: "processing", trigger: "upload_retried" },
+  // Finalising a school round (#89).
+  {
+    from: "submitted",
+    to: "school_shortlisted",
+    trigger: "school_shortlisted",
+  },
+  {
+    from: "school_shortlisted",
+    to: "submitted_to_foa",
+    trigger: "sent_to_foa",
+  },
+  { from: "processing", to: "not_shortlisted", trigger: "not_shortlisted" },
+  { from: "rejected", to: "not_shortlisted", trigger: "not_shortlisted" },
+  { from: "failed", to: "not_shortlisted", trigger: "not_shortlisted" },
+  { from: "submitted", to: "not_shortlisted", trigger: "not_shortlisted" },
 ];
 
 export type EntryFileTrigger =
