@@ -40,6 +40,7 @@ import { guardiansUseCases } from "./modules/guardians";
 import { ledgerUseCases } from "./modules/ledger";
 import { entriesUseCases } from "./modules/entries";
 import { privacyUseCases } from "./modules/privacy";
+import { announcementsUseCases } from "./modules/announcements";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -68,7 +69,8 @@ const useCases = composeUseCases(
   guardiansUseCases,
   ledgerUseCases,
   entriesUseCases,
-  privacyUseCases
+  privacyUseCases,
+  announcementsUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

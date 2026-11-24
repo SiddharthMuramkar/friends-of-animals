@@ -1,0 +1,119 @@
+{
+  "adminAnnouncements": {
+    "template": {
+      "subject": "{competitionName}: {subject}",
+      "email": "Hello {recipientName},\n\nThere is news about {competitionName}.\n\n{body}\n\nFriends of Animals",
+      "inApp": "{body}",
+      "sms": "Friends of Animals: news about {competitionName}, \"{subject}\". For details, visit friendsofanimals.dev/contact."
+    },
+    "meta": {
+      "title": "Announcements",
+      "description": "Write, preview and send announcements to a competition's confirmed registrants."
+    },
+    "eyebrow": "Competitions",
+    "title": "Announcements",
+    "lead": "Tell a competition's confirmed registrants what they need to know. Messages about a child go to their guardian.",
+    "loading": "Loading the announcements…",
+    "denied": {
+      "title": "This page is for competition managers",
+      "body": "Your account can't manage this competition's announcements. A super admin can give you the competition manager role.",
+      "back": "Back to the dashboard"
+    },
+    "notFound": {
+      "title": "We couldn't find that",
+      "body": "The competition or announcement doesn't exist, or it was removed.",
+      "back": "Back to the dashboard"
+    },
+    "index": {
+      "competition": "{code}: {name}",
+      "new": "Write an announcement",
+      "listTitle": "Announcements so far",
+      "empty": "No announcements yet.",
+      "draft": "Draft",
+      "sent": "Sent",
+      "updated": "Last changed {date}",
+      "sentOn": "Sent {date} to {count, plural, =0 {nobody} one {# person} other {# people}}",
+      "open": "Open {subject}",
+      "back": "All competitions"
+    },
+    "form": {
+      "newTitle": "Write an announcement",
+      "editTitle": "Edit the draft",
+      "lead": "Plain text only. Leave out any section you don't need. Each one you fill in becomes a heading and its text in the message.",
+      "subject": "Subject",
+      "subjectHint": "Up to 150 characters. It starts the email's subject line.",
+      "eventAt": "Date and time of the event (IST)",
+      "eventAtHint": "Leave it empty if there isn't one.",
+      "confirmedTheme": "Confirmed theme",
+      "permittedMaterials": "Permitted materials",
+      "duration": "Duration",
+      "submissionSteps": "Submission steps",
+      "physicalArtworkRequirements": "Physical artwork requirements",
+      "deadlines": "Deadlines",
+      "helpContacts": "Help contacts",
+      "helpContactsHint": "Who to write to or call with a question.",
+      "message": "Closing message",
+      "save": "Save draft",
+      "saving": "Saving…",
+      "create": "Create draft",
+      "creating": "Creating…",
+      "problem": "Something needs fixing",
+      "errors": {
+        "subject": "Write a subject of up to 150 characters.",
+        "eventAt": "Enter a real date and time, or leave it empty.",
+        "sections": "Fill in at least one section besides the subject.",
+        "field": "This is too long, or holds a character we can't send."
+      }
+    },
+    "detail": {
+      "title": "Announcement",
+      "back": "All announcements",
+      "status": "Status",
+      "saved": "The draft is saved.",
+      "created": "The draft is ready. Preview it below before sending.",
+      "sentDone": "The announcement is on its way to {count, plural, =0 {nobody} one {# person} other {# people}}.",
+      "sentTitle": "Sent",
+      "sentSummary": "Sent {date} to {count, plural, =0 {nobody} one {# person} other {# people}}. A sent announcement can't be changed: write a new one to correct it.",
+      "contentTitle": "What it says"
+    },
+    "preview": {
+      "title": "Preview",
+      "lead": "This preview shows the saved draft as it would appear to a sample recipient.",
+      "sampleName": "Asha Rao",
+      "counts": "It will go to {recipients, plural, =0 {nobody} one {# person} other {# people}}: {participants, plural, one {# participant} other {# participants}}, {guardians, plural, one {# guardian} other {# guardians}} and {coordinators, plural, one {# coordinator} other {# coordinators}}.",
+      "unreachable": "{count, plural, one {# participant has} other {# participants have}} no one we can reach, and won't hear about it.",
+      "email": "Email",
+      "emailSubject": "Subject",
+      "inApp": "Inbox"
+    },
+    "send": {
+      "title": "Send announcement?",
+      "lead": "Sending tells everyone above by email, by SMS when it's switched on, and in their inbox if they have an account. It can't be undone.",
+      "confirm": "Send this announcement to {count, plural, =0 {nobody} one {# person} other {# people}}?",
+      "button": "Send announcement",
+      "cancel": "Cancel",
+      "sending": "Sending…",
+      "unconfirmed": "Confirm the send from the preview."
+    },
+    "refusals": {
+      "forbidden": "Your account can't manage this competition's announcements.",
+      "not_found": "That announcement doesn't exist any more.",
+      "invalid_input": "Something in the form isn't right. Check it and try again.",
+      "announcement_already_sent": "This announcement has already been sent.",
+      "announcement_draft_changed": "This draft changed after you opened the preview. Review the updated preview and confirm the send again.",
+      "announcement_not_editable": "A sent announcement can't be changed."
+    },
+    "letter": {
+      "sections": {
+        "eventAt": "Date and time",
+        "confirmedTheme": "Theme",
+        "permittedMaterials": "Permitted materials",
+        "duration": "Duration",
+        "submissionSteps": "How to submit",
+        "physicalArtworkRequirements": "Your artwork on paper",
+        "deadlines": "Deadlines",
+        "helpContacts": "Questions?"
+      }
+    }
+  }
+}

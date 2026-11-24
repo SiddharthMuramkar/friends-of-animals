@@ -133,6 +133,14 @@ const AFTER_INVITATION_CLOSES = {
   toConfirm: true,
 } as const;
 
+const ANNOUNCEMENT_RECORD = {
+  policy: "announcements",
+  periodKey: "announcements",
+  basis:
+    "Shows FOA who wrote and who sent each announcement, and answers a query about one",
+  toConfirm: true,
+} as const;
+
 const WHILE_INVITATION_PENDING = {
   policy: "coordinatorInvitationLinks",
   periodKey: "coordinatorInvitationLinks",
@@ -648,6 +656,30 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
       onExpiry: "delete_row",
     })(column, column === "user_id" ? "identity" : "content")
   ),
+  // Announcements to registrants (#84)
+  ...(["title_ciphertext", "body_ciphertext"] as const).map((column) =>
+    rowsOf("inbox_item", {
+      subject: { kind: "user", via: "user_id" },
+      retention: INBOX_MESSAGE,
+      onExpiry: "delete_row",
+    })(column, "content")
+  ),
+  ...(
+    ["contact_hash", "recipient_account_hash", "recipient_hashes"] as const
+  ).map((column) =>
+    rowsOf("message_delivery", {
+      subject: { kind: "recipient", via: column },
+      retention: DELIVERY_LOG,
+      onExpiry: "delete_row",
+    })(column, "technical")
+  ),
+  rowsOf("announcement", {
+    subject: { kind: "content_subject", via: "help_contacts_ciphertext" },
+    retention: ANNOUNCEMENT_RECORD,
+    onExpiry: "retain",
+  })("help_contacts_ciphertext", "contact"),
+  actorColumn("announcement", "created_by", ANNOUNCEMENT_RECORD),
+  actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
   capturedMessage("to_address", "contact"),
   capturedMessage("subject", "content"),
   capturedMessage("body_text", "content"),

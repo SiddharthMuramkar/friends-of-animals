@@ -76,6 +76,13 @@ describe("typeNameKeys", () => {
       typeNameKeys(["image/png", "image/jpeg", "image/webp", "application/pdf"])
     ).toEqual(["png", "jpeg", "webp", "pdf"]);
   });
+
+  it("names the HEIC and HEIF photos an entry takes (#85)", () => {
+    expect(typeNameKeys(["image/heic", "image/heif"])).toEqual([
+      "heic",
+      "heif",
+    ]);
+  });
 });
 
 describe("messageKeyFor", () => {

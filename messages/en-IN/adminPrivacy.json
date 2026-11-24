@@ -86,7 +86,8 @@
         "entries": "3 years after the competition ends",
         "entryMedia": "Until 90 days after the competition ends",
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
-        "entryPendingText": "Until the replacement passes, fails or is superseded"
+        "entryPendingText": "Until the replacement passes, fails or is superseded",
+        "announcements": "While the competition's records are kept"
       },
       "purposes": {
         "account": {
@@ -263,7 +264,9 @@
         "inbox_item": {
           "body": "What FOA told the person in the app, which may name them or their child",
           "title": "What FOA told the person in the app, which may name them or their child",
-          "user_id": "Says whose in-app message it is"
+          "user_id": "Says whose in-app message it is",
+          "title_ciphertext": "Shows the recipient the rendered announcement title, which may name a help contact",
+          "body_ciphertext": "Shows the recipient the announcement instructions and help contacts"
         },
         "institution": {
           "contact_email": "Reaches the institution's office about its registration",
@@ -299,7 +302,10 @@
           "description": "Describes the entry and may name a counterparty"
         },
         "message_delivery": {
-          "user_id": "Says who a message was sent to"
+          "user_id": "Says who a message was sent to",
+          "contact_hash": "A keyed hash of the email or phone that deduplicates external deliveries across retries",
+          "recipient_hashes": "Keyed hashes of a recipient's known addresses reconcile a contact delivery if their contact changes before a retry",
+          "recipient_account_hash": "A keyed hash of the recipient's account reconciles a delivery if their address changes before a retry"
         },
         "message_template": {
           "updated_by_user_id": "Records who last changed a message template"
@@ -417,6 +423,11 @@
         "verification": {
           "identifier": "A hash of the email sign-in identifier or a namespaced keyed hash of the phone number finds the recipient's verification even before they have an account. A namespaced guardian record ID locates codes for guardian confirmation.",
           "value": "The hashed email code, keyed SMS code digest or keyed guardian confirmation code digest, stored with the count of failed attempts"
+        },
+        "announcement": {
+          "help_contacts_ciphertext": "Provides the help contacts named in a competition's announcement",
+          "created_by": "Records which competition manager wrote the announcement",
+          "sent_by": "Records which competition manager sent the announcement"
         }
       }
     }

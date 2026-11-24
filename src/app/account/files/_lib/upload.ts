@@ -2,7 +2,7 @@
 // what it sends with the PUT, how often it asks about the scan, and how it
 // shows a file's status. No React, so they're tested on their own.
 
-import type { FileStatus, StorableContentType } from "@/server/modules/files";
+import type { FileStatus, PurposeRule } from "@/server/modules/files";
 
 import type { UploadError } from "./upload-steps";
 
@@ -70,18 +70,23 @@ export function downloadPathFor(fileId: string): string {
   return `/api/files/${fileId}`;
 }
 
+/** Every type a purpose takes, HEIC and HEIF (entry images, #85) included. */
+type NamedContentType = PurposeRule["contentTypes"][number];
+
 const TYPE_NAME_KEY = {
   "image/png": "png",
   "image/jpeg": "jpeg",
   "image/webp": "webp",
   "application/pdf": "pdf",
-} as const satisfies Record<StorableContentType, string>;
+  "image/heic": "heic",
+  "image/heif": "heif",
+} as const satisfies Record<NamedContentType, string>;
 
-export type TypeNameKey = (typeof TYPE_NAME_KEY)[StorableContentType];
+export type TypeNameKey = (typeof TYPE_NAME_KEY)[NamedContentType];
 
 /** The `files.types` message keys naming `types`, in the same order. */
 export function typeNameKeys(
-  types: readonly StorableContentType[]
+  types: readonly NamedContentType[]
 ): TypeNameKey[] {
   return types.map((type) => TYPE_NAME_KEY[type]);
 }

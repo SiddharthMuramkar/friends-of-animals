@@ -213,6 +213,48 @@ describe("the data inventory", () => {
     ).toEqual([]);
   });
 
+  it("lists who wrote and sent an announcement, and a contact's delivery key (#84)", () => {
+    expect(listed.has("announcement.created_by")).toBe(true);
+    expect(listed.has("announcement.sent_by")).toBe(true);
+    expect(listed.has("message_delivery.contact_hash")).toBe(true);
+  });
+
+  it("lists encrypted announcement help contacts with their purpose and retention", () => {
+    expect(
+      DATA_INVENTORY.find(
+        ({ table, column }) =>
+          table === "announcement" && column === "help_contacts_ciphertext"
+      )
+    ).toMatchObject({
+      table: "announcement",
+      column: "help_contacts_ciphertext",
+      purpose: expect.stringContaining("help"),
+      retention: expect.objectContaining({
+        period: expect.stringContaining("competition"),
+        toConfirm: true,
+      }),
+    });
+    expect(listed.has("message_delivery.recipient_hashes")).toBe(true);
+    expect(listed.has("message_delivery.recipient_account_hash")).toBe(true);
+  });
+
+  it("lists encrypted announcement inbox content with its retention period", () => {
+    for (const column of ["title_ciphertext", "body_ciphertext"]) {
+      expect(
+        DATA_INVENTORY.find(
+          (entry) => entry.table === "inbox_item" && entry.column === column
+        )
+      ).toMatchObject({
+        purpose: expect.stringContaining("announcement"),
+        retention: {
+          period: expect.stringContaining("365 days after the person reads it"),
+          basis: expect.any(String),
+          toConfirm: true,
+        },
+      });
+    }
+  });
+
   it("lists who registered an institution for a competition", () => {
     expect(listed.has("institution_registration.registered_by")).toBe(true);
   });

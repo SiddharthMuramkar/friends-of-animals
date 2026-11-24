@@ -1,6 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
+import {
+  createBlindIndex,
+  type BlindIndexKey,
+} from "@/server/crypto/blind-index";
 import { createFieldCipher } from "@/server/crypto/field-cipher";
 import { databaseSettings } from "@/server/modules/settings";
 import {
@@ -67,6 +71,7 @@ const deps = {
     primary: 1,
     keys: new Map([[1, randomBytes(32)]]),
   }),
+  blindIndex: createBlindIndex(randomBytes(32) as BlindIndexKey),
   storage: new FakeStorage(clock),
   files: { bucket: "local", keyPrefix: "local/" },
   scanner: new FakeMalwareScanner(),

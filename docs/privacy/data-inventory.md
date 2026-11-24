@@ -45,6 +45,15 @@ Encrypt a column with `encryptedText()` when it identifies a person directly,
 such as a phone number, personal email address or date of birth. An institution's
 own office contact details are stored plain and listed in the catalogue.
 
+Announcement inbox titles and bodies are encrypted. Their retention period is
+365 days after the recipient reads the message (HR-31, pending confirmation).
+
+A safeguarding report and its incident log are kept while the report is open,
+then 7 years after it is resolved or until the child concerned turns 25,
+whichever is later. The safeguarding module's retention policy
+([`retention-policy.ts`](../../src/server/modules/safeguarding/retention-policy.ts))
+picks the reports past that date for the retention sweep.
+
 ## Competition entry data
 
 The proposed entry retention periods are three years after the competition
