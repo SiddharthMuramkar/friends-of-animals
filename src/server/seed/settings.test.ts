@@ -6,7 +6,7 @@ import { readSetting } from "@/server/modules/settings";
 import { createHarness } from "@/test/harness";
 
 describe("the settings seed", () => {
-  it("stores every setting once, however often it runs: the defaults, with SMS on", async () => {
+  it("stores every setting once, however often it runs: the defaults, with SMS and volunteer applications on", async () => {
     const h = await createHarness();
     const rows = () => h.db.select().from(setting).orderBy(asc(setting.key));
 
@@ -44,10 +44,15 @@ describe("the settings seed", () => {
       { key: "retention.quarantinedFilesDays", value: 30 },
       { key: "retention.readInboxItemsDays", value: 365 },
       { key: "retention.releasedLegalHoldsDays", value: 365 },
+      { key: "retention.volunteerApplicationsDays", value: 365 },
       { key: "safeguarding.reportsPerIpPerHour", value: 10 },
       { key: "sms.enabled", value: true },
       { key: "sms.maxPerDay", value: 1000 },
       { key: "sms.maxPerHour", value: 200 },
+      // Open where nothing is real (#123); production keeps the default.
+      { key: "volunteers.applicationsOpen", value: true },
+      { key: "volunteers.guardianApprovalBelowAgeYears", value: 18 },
+      { key: "volunteers.minAgeYears", value: 14 },
     ]);
   });
 

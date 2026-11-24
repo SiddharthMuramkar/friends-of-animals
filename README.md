@@ -545,6 +545,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
 | [`announcements`](#announcements) | A competition manager writes, previews and sends an announcement to a competition's registrants                                | #84                     |
 | [`breaches`](#breaches)           | The staff breach log, its timeline, and notices to affected people and the authority                                           | #116                    |
+| [`campaigns`](#campaigns)         | A community manager sends a message to a consented segment; every message carries a withdrawal link                            | #126                    |
 | [`cms`](#cms)                     | Editable site documents with drafts and published revisions, and blog posts                                                    | #111, #112              |
 | [`codes`](#codes)                 | Human-facing codes such as the Institution ID `FOA-I-8H3TZ`. Helper, no use cases                                              | #73                     |
 | [`competitions`](#competitions)   | Create, publish, list and cancel competitions; status jobs and guards; fees, award schemes, pinned consent versions (`terms/`) | #70, #71, #72, #80, #88 |
@@ -570,6 +571,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | [`safeguarding`](#safeguarding)   | The public "report a concern" form and the safeguarding lead's queue                                                           | #116                    |
 | [`second-factor`](#second-factor) | Staff TOTP and passkeys, step-up, staff session lifetimes                                                                      | #60                     |
 | [`settings`](#settings)           | Runtime settings a super admin changes without a deploy                                                                        | #62                     |
+| [`volunteers`](#volunteers)       | Volunteer applications: age gate, a teen's guardian approves, community managers vet and grant the volunteer role              | #123                    |
 
 ### announcements
 
@@ -597,6 +599,23 @@ The personal-data breach log (#116b).
 - **Authority notice:** emailed only when the setting `breach.authorityEmail` is set, which waits for counsel (HR-49). Until then staff file it by hand and record the authority's reference (stored encrypted, `authority.ts`).
 - **Retention:** kept while open and 5 years after closing (`retention-policy.ts`, HR-31). The retention sweep runs it as `BREACH_RECORDS` (`privacy/policies/module-owned.ts`): a closed breach is deleted 5 years after closing unless its lead or a timeline author is under a legal hold.
 - **Tests:** `breach-log.test.ts`, `notify.test.ts`, `notify.pg.test.ts`, `authority.test.ts`, `authority.pg.test.ts`, `policy.test.ts`, `retention-policy.test.ts`; E2E `116-breach-log.spec.ts`.
+
+### campaigns
+
+A community manager writes a message once, previews who its segment reaches, and sends it through the outbox (#126). Words: a **campaign** goes to a **segment**; each message carries a **withdrawal link**.
+
+- **Segment** (`domain/segment.ts`): optional criteria over data that exists today. `roles` (a grant of any of guardian, institution authorised person or coordinator, judge, volunteer, organisation representative, at any scope), `competitionIds` (registered themselves, a child registered, or an institution they look after registered) and `cities` (their own profile's, their child's, or their institution's; compared without case or extra spaces). AND across criteria, OR within one; empty is everyone. Consent is never a criterion: the planner applies it to every segment.
+- **Consent gate** (`domain/audience.ts`, `load-audience.ts`): an adult is in only while their own `messages` consent is given (never answered counts as no). A child (a guardian-kept profile) is in only while the guardian's `communications` consent for the child is given, and the message goes to that guardian while they still look after the child, never to the child or a teen's own login. One message per recipient, resting on every consent involved. A school's student without an account has no consent on the platform, so is never in a segment. Channel choices (#69) hold: email only where the recipient's choice allows it, in-app always, never SMS (promotional texts need their own DLT registration).
+- **Extension point for #119:** community membership adds a criterion (for example `milestones`): its key in `SEGMENT_CRITERIA`, its values in the schema, its loader in `load-audience.ts`. Community members with an account are already candidates.
+- **Tables** (`campaigns.ts`): `campaign` (`draft` → `sending` → `sent`; `revision`; `segment` jsonb; `planned_counts` and `sent_by`/`sent_at` stamped on send; `completed_at` when the last message settles) and `campaign_recipient` (one per person a message goes to: `bases` it rests on, `token_hash` of its withdrawal link, `queued` → `sent` or `skipped`, `withdrawn_at`).
+- **Use cases:** `createCampaign`, `updateCampaign`, `getCampaign`, `listCampaigns`, `listSegmentCompetitions`, `previewSegment`, `previewCampaign`, `sendCampaign` (community manager); `viewWithdrawalLink`, `withdrawByLink` (whoever holds the link).
+- **Send:** one transaction plans the segment, saves the recipient rows, queues one `campaign.message_due` event per row and audits `campaign.sent` with the counts (never who). The handler `campaigns.deliver_message` checks the consent again just before each message goes (a withdrawal since the send skips it), sends in-app and email through `notifications/dispatch.ts` (`deliverToAccount`), and the last row to settle marks the campaign `sent` and audits `campaign.completed` with the delivered counts.
+- **Withdrawal link** (`withdrawal-link.ts`): `/withdraw/<token>`, the token a keyed hash of the recipient row's id (FIELD_HMAC_KEY), so only its SHA-256 is stored and a retry builds the same link. Opening it changes nothing; the button withdraws every consent the message rested on that is still given, through the consent log (`withdrawByMessageLink`, method `web_form`), and audits `campaign.withdrawal_link_used`. The notice and link are added by code after the editable template, so no edit removes them.
+- **Template and route:** `campaigns.message` (email and in-app), route `campaign.message_due` → audience `campaign_recipient`; switching the route off stops campaign messages.
+- **Pages:** `/admin/campaigns`, `/admin/campaigns/new`, `/admin/campaigns/[id]`; public `/withdraw/[token]`.
+- **Migrations:** `0084_126_campaigns`, `0085_126_campaign_messages`.
+- **Limits and gaps:** the segment is planned in memory from a few full-table reads (right for thousands of accounts). No RFC 8058 one-click `List-Unsubscribe` headers yet: the email port carries no headers. Child consent and guardian flows are off in production (`guardianFlowsActive`), so children are reachable only where those run.
+- **Tests:** `campaigns-drafts.test.ts`, `campaigns-send.test.ts`, `campaigns-withdrawal.test.ts`, `send.pg.test.ts`, `domain/*.test.ts`; E2E `126-campaign-messages.spec.ts`.
 
 ### cms
 
@@ -833,7 +852,7 @@ The school route's side of submitting (#87). The uploads themselves go through t
 - **Who may call:** `institution_submissions.read`, `conduct.read`, `conduct.certify`: the institution's coordinators and authorised person, at its scope (as `institution.coordinate`).
 - **Pages:** `/institution/registrations/[ref]/submissions`, `.../submissions/[number]` (reuses the participant upload form), `.../conduct`; the registration page links to the roster once a student is confirmed.
 - **Seed:** `src/server/seed/institution-submissions.ts`: the verified school's registration for Trees for Birds (TREES27, free, open for submissions) with submitted, checking, rejected, not-started and unconfirmed students.
-- **Migrations:** `0081_87_conduct_certification`, `0082_87_entry_family_receipt` (the family receipt's template and route).
+- **Migrations:** `0086_87_conduct_certification`, `0087_87_entry_family_receipt` (the family receipt's template and route).
 - **Tests:** `conduct.test.ts`, `certify-conduct.pg.test.ts`, `submissions.test.ts`, `domain/roster.test.ts`, `entries/use-cases/coordinator-submit.test.ts`; E2E `87-coordinator-submissions.spec.ts`.
 
 ### institutions
@@ -883,7 +902,7 @@ Message templates, message routes, dispatch, the inbox and channel choices (#69)
 - **Use cases:** `listMessageTemplates`, `getMessageTemplate`, `updateMessageTemplate` (content manager, super admin); `listInbox`, `countUnread`, `markInboxItemRead`, `markAllInboxRead`, `getNotificationPreferences`, `updateNotificationPreferences` (any signed-in user, own rows).
 - **Pages:** `/admin/templates`, `/admin/templates/[key]`, `/account/inbox`, `/account/notifications`, the inbox badge.
 - **Delivery states:** `pending`, `sending` (claimed by compare-and-set in `contact-delivery.ts`), `sent`, `failed`, `suppressed`. Suppression reasons: `preference_off`, `consent_withdrawn`, `sms_disabled`, `sms_unregistered`, `no_contact`, `no_guardian`. A `failed` row retries with its outbox delivery.
-- **Audiences** (`audiences.ts`): `subject_user`, `individual_payer`, `registration_owner`, `guardian_of_participant`, `contact_sender`, `family_contact`, `contact_team`, `safeguarding_leads`, `competition_managers`, `finance_team`, `breach_recipient`, `announcement_registrants`, `announcement_contacts`, `reminder_registrants`, `reminder_contacts`, plus the cancellation audiences.
+- **Audiences** (`audiences.ts`): `subject_user`, `individual_payer`, `registration_owner`, `guardian_of_participant`, `contact_sender`, `family_contact`, `contact_team`, `safeguarding_leads`, `competition_managers`, `finance_team`, `breach_recipient`, `announcement_registrants`, `announcement_contacts`, `reminder_registrants`, `reminder_contacts`, `campaign_recipient` (#126), plus the cancellation audiences.
 - **Gaps:** see [Code gaps](#code-gaps) (no idempotency key on email and SMS ports; worker refuses outbox email and SMS in production). SMS needs DLT template ids (HR-14).
 - **Tests:** `dispatch.test.ts`, `inbox.test.ts`, `templates.test.ts`, `channels.test.ts`; E2E `69-messages.spec.ts`.
 
@@ -1084,8 +1103,26 @@ Runtime settings a super admin changes without a deploy.
   | `reminders.entrySubmissionDueFirstHours`, `...SecondHours`                   | 72, 24                     | hours before submissions close; 0 for none (HR-37)    |
   | `retention.enforce`                                                          | false                      | the sweep only counts until a super admin turns it on |
   | `retention.<policy>Days`                                                     | per policy                 | one per retention policy                              |
+  | `volunteers.applicationsOpen`                                                | false                      | HR-55, HR-38; seeded on for local runs and previews   |
+  | `volunteers.minAgeYears`, `volunteers.guardianApprovalBelowAgeYears`         | 14, 18                     | 13 to 18 and 18 to 21 years (HR-57)                   |
 
 - **Tests:** `settings.test.ts`, `catalogue.test.ts`, `values.test.ts`; E2E `62-settings.spec.ts`.
+
+### volunteers
+
+People apply to volunteer, and FOA vets anyone who will work near children (#123). #124 adds tasks, hours and certificates on top.
+
+- **Table** `volunteer_application` (`src/server/db/schema/volunteers.ts`): interests (`volunteer_interest[]`), weekly availability (jsonb), the encrypted date of birth the age gate counted from (copied from the applicant's participant profile when they have one, typed otherwise), the guardian who decided, the two consent events an approval rested on, who decided and an encrypted decline reason. One open application per person (partial unique index).
+- **States** (`domain/application-status.ts`, every value in the first migration): `awaiting_guardian` → `submitted`, `guardian_declined` or `withdrawn`; `submitted` → `approved`, `declined` or `withdrawn`; the rest are final, and the person applies again with a new application. `approved` is reachable only from `submitted`.
+- **Rules:** age on India's calendar at `ctx.clock` (`ageAt`); under `volunteers.minAgeYears` (14) refused with nothing written; under `volunteers.guardianApprovalBelowAgeYears` (18) needs a verified guardian actively linked to the teen's guardian-kept profile, or it is refused (`guardian_required`). A linked teen's age is always the one their guardian entered. A bad stored setting only makes the rule stricter. Both declarations are consent purposes (`volunteer_safeguarding_declaration`, `volunteer_code_of_conduct`) recorded through the consent log on their current versions at apply time; approval needs both current (`*_missing`, `*_outdated`, `*_unpublished`), and an applicant re-accepts a republished one from their page. Approval grants the global `volunteer` role through `grantGlobalRole` (audit `role.granted` names the community manager).
+- **Use cases:** `applyToVolunteer`, `acceptVolunteerDeclarations`, `myVolunteerApplication` (signed in, own only); `decideAsGuardian`, `childVolunteerApplication` (the teen's verified guardian); `withdrawVolunteerApplication` (the applicant or that guardian); `listVolunteerApplications`, `getVolunteerApplication`, `declineVolunteer` (community manager, super admin); `approveVolunteer` (the same, with step-up).
+- **Pages:** `/dashboard/volunteer`, `/guardian/children/[id]/volunteer`, staff `/admin/volunteers`, `/admin/volunteers/[id]`. Staff publish the declarations at `/admin/consent-documents`; drafts are in `src/content/legal/volunteer-declarations.ts`.
+- **Events:** `volunteer.guardian_approval_requested`, `volunteer.application_submitted`, `volunteer.application_approved`, `volunteer.application_declined` → `notifications.dispatch`, audiences `volunteer_applicant` (a teen in the inbox only), `volunteer_guardians` and `community_managers` (`message-audiences.ts`).
+- **Gated:** applying is refused until a super admin turns on `volunteers.applicationsOpen` (off in production until HR-55 and HR-38); production also has no declaration versions until FOA publishes them, so applying refuses `declaration_unpublished` there.
+- **Retention:** `volunteerApplications` deletes a declined or withdrawn application 365 days after it closes (`privacy/policies/volunteers.ts`); an approved one stays while the person volunteers (HR-31).
+- **Migrations:** `0081_123_pre_volunteer_consent_purposes` (rule F2), `0082_123_volunteer_applications`, `0083_123_volunteer_messages`.
+- **Seed:** `src/server/seed/volunteers.ts`: community manager Neha Kapoor (`community-manager@example.test`, seed authenticator), approved volunteer Priya Nair, Arjun Mehta waiting for the community team, and Rohan Desai's application waiting for Kavita Desai.
+- **Tests:** `domain/*.test.ts`, `apply.test.ts`, `guardian-decision.test.ts`, `review.test.ts`, `policy.test.ts`, `volunteer-messages.test.ts`, `decide.pg.test.ts`, `src/server/seed/volunteers.test.ts`; E2E `123-volunteer-applications.spec.ts`.
 
 ### Worker jobs and schedules
 
@@ -1116,6 +1153,7 @@ Runtime settings a super admin changes without a deploy.
 | `announcements.fan_out`                     | outbox                                  | `competition.announcement_sent`                       | `modules/announcements/fan-out.ts`                                    |
 | `reminders.schedule`                        | outbox                                  | a competition published, re-dated or cancelled        | `modules/reminders/schedule-reminders.ts`                             |
 | `reminders.run`                             | outbox, delayed                         | `reminder.due`, at each reminder's fire time          | `modules/reminders/run-reminder.ts`                                   |
+| `campaigns.deliver_message`                 | outbox                                  | `campaign.message_due`, one per recipient             | `modules/campaigns/deliver.ts`                                        |
 | `breaches.fan_out`                          | outbox                                  | `breach.fan_out_requested`, one page per delivery     | `modules/breaches/fan-out.ts`                                         |
 | `breaches.send_authority_notice`            | outbox                                  | `breach.authority_notice`                             | `modules/breaches/authority-message.ts`                               |
 | `consent_links.deliver`                     | outbox                                  | `consent.link_sent`                                   | `modules/consent-links/delivery.ts`                                   |

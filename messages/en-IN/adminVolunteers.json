@@ -1,0 +1,88 @@
+{
+  "adminVolunteers": {
+    "meta": {
+      "title": "Volunteer applications",
+      "description": "Review volunteer applications: approve or decline them."
+    },
+    "eyebrow": "Admin",
+    "title": "Volunteer applications",
+    "lead": "Everyone who applies to volunteer, oldest first. Approving gives the person the volunteer role, so check them as you would anyone who will work near children.",
+    "loading": "Loading applications…",
+    "filter": {
+      "title": "Show",
+      "status": "Status",
+      "apply": "Show applications"
+    },
+    "list": {
+      "title": "Applications: {status}",
+      "count": "{count, plural, =0 {No applications} one {# application} other {# applications}}",
+      "empty": "No applications here.",
+      "age": "{age} years old",
+      "applied": "Applied {date}"
+    },
+    "detail": {
+      "meta": {
+        "title": "Volunteer application",
+        "description": "One volunteer application, to approve or decline."
+      },
+      "notFound": "We can't find that application",
+      "notFoundBody": "It may have been deleted after it closed.",
+      "back": "Back to volunteer applications",
+      "lead": "{age} years old",
+      "applicant": "Applicant",
+      "name": "Name",
+      "email": "Email",
+      "noEmail": "No email address: they sign in by phone",
+      "age": "Age",
+      "ageValue": "{age} years old today",
+      "guardian": "Guardian",
+      "guardianApproved": "{name} approved on {date}",
+      "guardianWaiting": "Under 18: waiting for their guardian to approve",
+      "adult": "Not needed: 18 or older",
+      "safeguarding": "Safeguarding declaration",
+      "conduct": "Code of conduct",
+      "standing": {
+        "current": "Accepted, current version",
+        "outdated": "Accepted an older version: they must accept the current one",
+        "missing": "Not accepted"
+      },
+      "decided": "Decided",
+      "decidedBy": "By {name} on {date}",
+      "formerStaff": "a former member of staff",
+      "application": "What they offered",
+      "done": {
+        "approved": "Approved. {name} now holds the volunteer role, and we have told them.",
+        "declined": "Declined. We have told {name} why."
+      },
+      "approve": {
+        "title": "Approve",
+        "body": "Approving gives {name} the volunteer role and records the declarations they accepted. You will be asked for your second factor again if you last gave it more than 10 minutes ago.",
+        "submit": "Approve application",
+        "saving": "Approving…",
+        "forbidden": "Your role doesn't allow you to approve volunteers.",
+        "refused": {
+          "not_found": "That application no longer exists.",
+          "invalid_transition": "This application is not waiting for a community manager.",
+          "unpublished": "A declaration has no published version, so nothing can be approved yet.",
+          "safeguarding_missing": "The applicant hasn't made the safeguarding declaration.",
+          "safeguarding_outdated": "The applicant accepted an older safeguarding declaration. They must accept the current version first.",
+          "conduct_missing": "The applicant hasn't accepted the code of conduct.",
+          "conduct_outdated": "The applicant accepted an older code of conduct. They must accept the current version first."
+        }
+      },
+      "decline": {
+        "title": "Decline",
+        "reason": "Why you are declining",
+        "hint": "The applicant, or a teen's guardian, is told this. Be kind and clear. Up to {max} characters.",
+        "submit": "Decline application",
+        "saving": "Declining…",
+        "forbidden": "Your role doesn't allow you to decline volunteers.",
+        "refused": {
+          "not_found": "That application no longer exists.",
+          "invalid_input": "Enter a reason of up to 500 characters.",
+          "invalid_transition": "This application is not waiting for a community manager."
+        }
+      }
+    }
+  }
+}
