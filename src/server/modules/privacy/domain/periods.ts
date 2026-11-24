@@ -47,6 +47,8 @@ export const RETENTION_PERIODS = {
   guardianInvitations: { defaultDays: 30 },
   /** Legal holds, from when they were released. */
   releasedLegalHolds: { defaultDays: 365 },
+  /** Privacy rights requests and their notes, from when they closed (#115). */
+  privacyRequests: { defaultDays: 1095 },
   /** Payments, refunds and their reviews: the floor decides in practice. */
   financialRecords: {
     defaultDays: minimumFloorDays(FINANCIAL_FLOOR),

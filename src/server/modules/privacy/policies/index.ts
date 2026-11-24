@@ -31,6 +31,7 @@ import {
   READ_INBOX_ITEMS,
 } from "./messages";
 import { BREACH_RECORDS, SAFEGUARDING_REPORTS } from "./module-owned";
+import { PRIVACY_REQUESTS } from "./privacy-requests";
 import { ORPHANED_PROFILES } from "./profiles";
 import { EXPIRED_SESSIONS, EXPIRED_VERIFICATIONS } from "./sign-in";
 import type { RetentionPolicy } from "./types";
@@ -56,6 +57,7 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   BREACH_RECORDS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,
+  PRIVACY_REQUESTS,
 ];
 
 /** Data the sweep never touches, and what governs it instead. */

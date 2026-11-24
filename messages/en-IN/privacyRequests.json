@@ -1,0 +1,9 @@
+{
+  "privacyRequests": {
+    "messageTypes": {
+      "access": "a copy of the data we hold",
+      "correction": "a correction to the data we hold",
+      "erasure": "erasure of the data we hold"
+    }
+  }
+}

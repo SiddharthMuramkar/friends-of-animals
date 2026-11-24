@@ -554,6 +554,27 @@
       "when": 1795495272354,
       "tag": "0078_116_breach_notice_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1795502970165,
+      "tag": "0079_115_pre_enum_role_grievance_officer",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1795503023501,
+      "tag": "0080_115_privacy_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1795503491592,
+      "tag": "0081_115_privacy_request_messages",
+      "breakpoints": true
     }
   ]
 }

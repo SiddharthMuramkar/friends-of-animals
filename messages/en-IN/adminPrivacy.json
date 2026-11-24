@@ -93,7 +93,8 @@
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
         "entryPendingText": "Until the replacement passes, fails or is superseded",
         "announcements": "While the competition's records are kept",
-        "releasedLegalHolds": "While the hold is in force, then 365 days after it is released"
+        "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
+        "privacyRequests": "While the request is open, then 3 years after it is closed"
       },
       "purposes": {
         "account": {
@@ -460,6 +461,19 @@
           "reason": "Why FOA must keep the records, in the super admin's words (a claim, an inquiry)",
           "placed_by_user_id": "Records which super admin placed the hold",
           "released_by_user_id": "Records which super admin released the hold"
+        },
+        "privacy_request": {
+          "subject_id": "Names the account or child's profile the request is about",
+          "requested_by_user_id": "Records who filed the request, so they can follow it and are told the outcome",
+          "correction_details_ciphertext": "What the person says is wrong and should be corrected, in their words",
+          "assigned_to_user_id": "Records which grievance officer is answering the request",
+          "rejection_reason_ciphertext": "Why the grievance officer refused the request, as the person is told",
+          "resolution_ciphertext": "What the grievance officer corrected, as the person is told",
+          "erasure_approved_by_user_id": "Records which grievance officer approved the erasure"
+        },
+        "privacy_request_note": {
+          "body_ciphertext": "The grievance officer's internal notes on the request",
+          "author_user_id": "Records which grievance officer wrote the note"
         }
       }
     },
@@ -548,6 +562,10 @@
         "releasedLegalHolds": {
           "name": "Released legal holds",
           "rule": "Kept while the hold is in force, then deleted {days, plural, one {# day} other {# days}} after it is released."
+        },
+        "privacyRequests": {
+          "name": "Closed privacy requests",
+          "rule": "Kept while the request is open, then deleted with the grievance officer's notes {days, plural, one {# day} other {# days}} after it closes."
         },
         "accounts": {
           "name": "Accounts",

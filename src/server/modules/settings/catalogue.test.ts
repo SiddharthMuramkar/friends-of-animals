@@ -30,6 +30,11 @@ describe("the settings catalogue", () => {
       "org.pan": "",
       "safeguarding.reportsPerIpPerHour": 10,
       "breach.authorityEmail": "",
+      "privacy.requestDueDays": 30,
+      "privacy.erasureDueDays": 30,
+      "privacy.exportLinkHours": 72,
+      "privacy.erasureEnabled": false,
+      "privacy.erasureKeepsPayerAccount": true,
       "retention.enforce": false,
       "retention.expiredVerificationsDays": 1,
       "retention.expiredSessionsDays": 30,
@@ -45,6 +50,7 @@ describe("the settings catalogue", () => {
       "retention.contactMessagesMonths": 24,
       "retention.releasedLegalHoldsDays": 365,
       "retention.financialRecordsDays": 2922,
+      "retention.privacyRequestsDays": 1095,
     });
   });
 

@@ -46,6 +46,14 @@ import {
 } from "../entries/message-values";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
+import { grievanceOfficers } from "../privacy/requests/people";
+import {
+  DIGEST_VARIABLES,
+  digestValues,
+  REQUEST_VARIABLES,
+  requesterOf,
+  requestValues,
+} from "../privacy/requests/messages";
 import {
   AUTHORITY_NOTICE_VARIABLES,
   PRINCIPAL_NOTICE_VARIABLES,
@@ -191,6 +199,13 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "institution_registration.competition_cancelled":
       // For its coordinators (`institution_coordinators`, #80).
       return null;
+    case "privacy_request.submitted":
+    case "privacy_request.rejected":
+    case "privacy_request.completed":
+    case "privacy_request.overdue_digest":
+      // A request's requester (`privacy_requester`), the grievance
+      // officers (`grievance_officers`, `grievance_digest`), #115.
+      return null;
   }
 }
 
@@ -332,6 +347,25 @@ export const AUDIENCES = {
   /** The announcements handler resolves both audiences from one roster. */
   announcement_registrants: async () => [],
   announcement_contacts: async () => [],
+  /** Whoever filed a privacy request (#115): its receipt and outcome. */
+  privacy_requester: async (db, delivery) => {
+    switch (delivery.eventType) {
+      case "privacy_request.submitted":
+      case "privacy_request.rejected":
+      case "privacy_request.completed":
+        return requesterOf(db, delivery.payload.requestId);
+      default:
+        return [];
+    }
+  },
+  /** Every grievance officer (#115), whatever the event. */
+  grievance_officers: async (db) =>
+    (await grievanceOfficers(db)).map((officer) => officer.id),
+  /** The grievance officer one overdue digest is for (#115). */
+  grievance_digest: async (_db, delivery) =>
+    delivery.eventType === "privacy_request.overdue_digest"
+      ? [delivery.payload.officerUserId]
+      : [],
   /**
    * The breach dispatcher checks the saved recipient and live guardian links
    * for this route. The generic audience resolver grants no recipients.
@@ -561,6 +595,22 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "entry.file_failed": {
     names: ENTRY_ATTEMPT_VARIABLES,
     load: (db, { payload }) => entryValues(db, payload),
+  },
+  "privacy_request.submitted": {
+    names: REQUEST_VARIABLES,
+    load: (db, { payload }) => requestValues(db, payload.requestId),
+  },
+  "privacy_request.rejected": {
+    names: REQUEST_VARIABLES,
+    load: (db, { payload }) => requestValues(db, payload.requestId),
+  },
+  "privacy_request.completed": {
+    names: REQUEST_VARIABLES,
+    load: (db, { payload }) => requestValues(db, payload.requestId),
+  },
+  "privacy_request.overdue_digest": {
+    names: DIGEST_VARIABLES,
+    load: async (_db, { payload }) => digestValues(payload),
   },
   "competition.announcement_sent": {
     names: ANNOUNCEMENT_VARIABLES,

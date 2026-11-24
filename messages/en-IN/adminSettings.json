@@ -118,6 +118,28 @@
           "description": "Where the breach log emails a notice to the authority, such as the Data Protection Board. Leave it empty until FOA's lawyer confirms the address: staff then file the notice by hand and record the reference they get."
         }
       },
+      "privacy": {
+        "requestDueDays": {
+          "label": "Days to answer an access or correction request",
+          "description": "Days the grievance officer has to answer a request to see or correct someone's data. The queue flags a request once its due date passes. FOA's lawyer still needs to confirm the period (HR-30)."
+        },
+        "erasureDueDays": {
+          "label": "Days to answer an erasure request",
+          "description": "Days the grievance officer has to act on a request to erase someone's data, which also withdraws their consents. FOA's lawyer still needs to confirm the period (HR-30)."
+        },
+        "exportLinkHours": {
+          "label": "Hours a data export can be downloaded",
+          "description": "How long the person's download link to a copy of their data works. The copy is deleted when the link stops working."
+        },
+        "erasureEnabled": {
+          "label": "Erase data on request",
+          "description": "Lets the grievance officer carry out an erasure they have previewed. Erasing can't be undone. Leave it off until FOA's lawyer confirms what an erasure must keep (HR-30)."
+        },
+        "erasureKeepsPayerAccount": {
+          "label": "Keep a payer's account while their payment records are kept",
+          "description": "When on, erasing a person who paid FOA keeps their name and contact on their account until 8 years after the payment's financial year ends, so the payment still names who paid. Everything else is erased. When off, the account is deleted and the payment records stay without the payer's name."
+        }
+      },
       "retention": {
         "enforce": {
           "label": "Delete expired records",
@@ -178,6 +200,10 @@
         "financialRecordsDays": {
           "label": "Keep payment records",
           "description": "Days a payment, its refunds and its reviews are kept whole before the payer's details are removed. Payment records always stay at least until 8 years after the end of their financial year, whatever this says."
+        },
+        "privacyRequestsDays": {
+          "label": "Keep closed privacy requests",
+          "description": "Days a privacy request and the grievance officer's notes are kept after the request is closed. Open requests are always kept."
         }
       }
     }

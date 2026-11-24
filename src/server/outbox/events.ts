@@ -365,6 +365,41 @@ export type DomainEvent =
     }
   | {
       /**
+       * A privacy rights request was filed (#115): the requester's receipt
+       * and the grievance officers' in-app note go by route row.
+       */
+      type: "privacy_request.submitted";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /** The grievance officer refused a request; the requester is told. */
+      type: "privacy_request.rejected";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /** A request is done (in full or in part); the requester is told. */
+      type: "privacy_request.completed";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /**
+       * The daily overdue digest for one grievance officer (#115): counts
+       * only, never who a request is about.
+       */
+      type: "privacy_request.overdue_digest";
+      aggregate: { type: "privacy_overdue_digest"; id: string };
+      payload: {
+        officerUserId: string;
+        day: string;
+        overdue: number;
+        assignedToYou: number;
+      };
+    }
+  | {
+      /**
        * The registration's competition was cancelled (#80). Its family
        * contact (or the adult whose own it is) is told, with how its fee
        * comes back: `refund` says through the gateway, by hand, from the
@@ -510,6 +545,15 @@ export const EVENT_PAYLOADS = {
     pageSize: z.int().min(1).max(BREACH_FAN_OUT_PAGE_SIZE),
   }),
   "breach.authority_notice": z.object({ breachId: z.uuid() }),
+  "privacy_request.submitted": z.object({ requestId: z.uuid() }),
+  "privacy_request.rejected": z.object({ requestId: z.uuid() }),
+  "privacy_request.completed": z.object({ requestId: z.uuid() }),
+  "privacy_request.overdue_digest": z.object({
+    officerUserId: z.uuid(),
+    day: z.iso.date(),
+    overdue: z.int().min(1),
+    assignedToYou: z.int().min(0),
+  }),
   "registration.competition_cancelled": z.object({
     registrationId: z.uuid(),
     competitionId: z.uuid(),
@@ -631,6 +675,12 @@ export const SUBSCRIBERS = {
   // The authority is an address, not a user, so no route row can name it:
   // the email goes by its own handler, with its route's template (#116).
   "breach.authority_notice": ["breaches.send_authority_notice"],
+  // The requester's receipt and outcome, and the grievance officers'
+  // notes, go by route row (#115).
+  "privacy_request.submitted": ["notifications.dispatch"],
+  "privacy_request.rejected": ["notifications.dispatch"],
+  "privacy_request.completed": ["notifications.dispatch"],
+  "privacy_request.overdue_digest": ["notifications.dispatch"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's
   // guardians' go by route row (#80).

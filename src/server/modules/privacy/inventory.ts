@@ -436,6 +436,21 @@ const ENTRY_PENDING_TEXT = {
   toConfirm: true,
 } as const;
 
+/** Privacy rights requests (#115): kept 3 years after they close. */
+const PRIVACY_REQUEST_RECORD = {
+  policy: "privacyRequests",
+  periodKey: "privacyRequests",
+  basis:
+    "FOA shows what a person asked under their data rights and how and when it answered (DPDP Act 2023; HR-30)",
+  toConfirm: true,
+} as const;
+
+const privacyRequestColumn = rowsOf("privacy_request", {
+  subject: { kind: "user", via: "subject_kind + subject_id" },
+  retention: PRIVACY_REQUEST_RECORD,
+  onExpiry: "delete_row",
+});
+
 const user = rowsOf("user", {
   subject: { kind: "user", via: "id" },
   retention: WHILE_ACCOUNT_OPEN,
@@ -1193,6 +1208,30 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   ),
   actorColumn("legal_hold", "placed_by_user_id", LEGAL_HOLD),
   actorColumn("legal_hold", "released_by_user_id", LEGAL_HOLD),
+  // Privacy rights requests (#115): who asked about whom, and the words
+  // the requester and the grievance officer wrote, encrypted.
+  privacyRequestColumn("subject_id", "identity"),
+  privacyRequestColumn("requested_by_user_id", "identity", {
+    subject: { kind: "user", via: "requested_by_user_id" },
+  }),
+  privacyRequestColumn("correction_details_ciphertext", "content"),
+  privacyRequestColumn("rejection_reason_ciphertext", "content"),
+  privacyRequestColumn("resolution_ciphertext", "content"),
+  actorColumn("privacy_request", "assigned_to_user_id", PRIVACY_REQUEST_RECORD),
+  actorColumn(
+    "privacy_request",
+    "erasure_approved_by_user_id",
+    PRIVACY_REQUEST_RECORD
+  ),
+  rowsOf("privacy_request_note", {
+    subject: {
+      kind: "user",
+      via: "request_id → privacy_request.subject_kind + subject_id",
+    },
+    retention: PRIVACY_REQUEST_RECORD,
+    onExpiry: "delete_row",
+  })("body_ciphertext", "content"),
+  actorColumn("privacy_request_note", "author_user_id", PRIVACY_REQUEST_RECORD),
 ];
 
 const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(
