@@ -103,3 +103,29 @@ export function approximateDistance(metres: number): ApproximateDistance {
     metres < 9950 ? Math.round(metres / 100) / 10 : Math.round(metres / 1000);
   return { kind: "about", km };
 }
+
+export type GeoBox = {
+  minLatitude: number;
+  maxLatitude: number;
+  minLongitude: number;
+  maxLongitude: number;
+};
+
+/**
+ * A latitude-longitude box holding every point within `metres` of
+ * `centre`, with a little to spare. The search narrows to it with plain
+ * comparisons (an index on latitude) before measuring each distance. Near
+ * the poles it widens to every longitude; India is far from them.
+ */
+export function boxAround(centre: GeoPoint, metres: number): GeoBox {
+  const degrees = ((metres / EARTH_RADIUS_METRES) * 180) / Math.PI;
+  const latSpan = degrees * 1.01;
+  const cosLat = Math.cos(radians(centre.latitude));
+  const lngSpan = cosLat < 0.01 ? 180 : Math.min(180, latSpan / cosLat);
+  return {
+    minLatitude: centre.latitude - latSpan,
+    maxLatitude: centre.latitude + latSpan,
+    minLongitude: centre.longitude - lngSpan,
+    maxLongitude: centre.longitude + lngSpan,
+  };
+}

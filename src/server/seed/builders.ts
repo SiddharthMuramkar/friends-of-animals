@@ -14,7 +14,7 @@ import { uuidv7 } from "../ids";
 import { normaliseEmailAddress } from "../ports/email";
 import { ensureGrant } from "./access";
 import { competitionBuilder } from "./competitions";
-import { directoryListingBuilder } from "./directory";
+import { directoryListingBuilder, pincodeCentresBuilder } from "./directory";
 import { guardianBuilder } from "./guardians";
 import { seedPhone } from "./identity";
 import { institutionRegistrationBuilder } from "./registration";
@@ -115,6 +115,8 @@ export function seedFunctions(seeders: readonly Seeder[]) {
        * who represents it. No audit entry, no message.
        */
       directoryListing: directoryListingBuilder(deps),
+      /** Pin-code centres for the directory search (#128), saved as given. */
+      pincodeCentres: pincodeCentresBuilder(deps),
       /** Everything `pnpm db:seed` puts in a preview database. */
       preview: () => seedPreview(deps),
     };

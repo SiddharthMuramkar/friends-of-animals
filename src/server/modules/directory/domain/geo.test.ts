@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   EARTH_RADIUS_METRES,
   approximateDistance,
+  boxAround,
   coarsenLocation,
   earthDistanceMetres,
   isInIndia,
+  type GeoPoint,
 } from "./geo";
 
 // Distances from a point in central Pune (18.52, 73.86). Each value was
@@ -125,5 +127,37 @@ describe("approximateDistance", () => {
     [30517, { kind: "about", km: 31 }],
   ])("reads %d m as %j", (metres, expected) => {
     expect(approximateDistance(metres)).toEqual(expected);
+  });
+});
+
+describe("boxAround", () => {
+  const contains = (box: ReturnType<typeof boxAround>, p: GeoPoint) =>
+    p.latitude >= box.minLatitude &&
+    p.latitude <= box.maxLatitude &&
+    p.longitude >= box.minLongitude &&
+    p.longitude <= box.maxLongitude;
+
+  it("holds every fixture place within the radius and none beyond it in latitude", () => {
+    const box = boxAround(ORIGIN, 25_000);
+    for (const place of FIXTURE) {
+      if (place.metres <= 25_000) expect(contains(box, place)).toBe(true);
+    }
+    // 25 km is about 0.2246 degrees of latitude on this sphere.
+    expect(box.maxLatitude - ORIGIN.latitude).toBeCloseTo(0.2268, 3);
+    expect(contains(box, FIXTURE[5])).toBe(false);
+  });
+
+  it("holds points at the radius due east, west, north and south", () => {
+    const box = boxAround(ORIGIN, 10_000);
+    // 10 km along the parallel at 18.52 degrees: 0.0947 degrees of longitude.
+    for (const point of [
+      { latitude: ORIGIN.latitude, longitude: ORIGIN.longitude + 0.0947 },
+      { latitude: ORIGIN.latitude, longitude: ORIGIN.longitude - 0.0947 },
+      { latitude: ORIGIN.latitude + 0.0898, longitude: ORIGIN.longitude },
+      { latitude: ORIGIN.latitude - 0.0898, longitude: ORIGIN.longitude },
+    ]) {
+      expect(earthDistanceMetres(ORIGIN, point)).toBeLessThanOrEqual(10_000);
+      expect(contains(box, point)).toBe(true);
+    }
   });
 });

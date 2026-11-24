@@ -624,6 +624,13 @@
       "when": 1795511381494,
       "tag": "0088_127_directory_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1795513150760,
+      "tag": "0089_128_directory_search",
+      "breakpoints": true
     }
   ]
 }

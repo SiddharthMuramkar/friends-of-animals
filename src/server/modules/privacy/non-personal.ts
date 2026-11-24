@@ -399,6 +399,16 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "kind",
     "listing_id",
   ],
+  // Where a pin code is (#128): public facts about places.
+  pincode_location: [
+    "district",
+    "latitude",
+    "longitude",
+    "pin_code",
+    "post_offices",
+    "state",
+    "updated_at",
+  ],
   institution: [
     "address",
     "city",
