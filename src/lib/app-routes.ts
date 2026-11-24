@@ -82,6 +82,14 @@ export function adminPaymentReviewCasePath(caseId: string): string {
  */
 export const ADMIN_REFUNDS = "/admin/refunds";
 
+export const ADMIN_LEDGER = "/admin/ledger";
+export const ADMIN_LEDGER_ACCOUNTS = `${ADMIN_LEDGER}/accounts`;
+export const ADMIN_NEW_LEDGER_ENTRY = `${ADMIN_LEDGER}/entries/new`;
+
+export function adminLedgerPostingPath(seq: bigint | string): string {
+  return `${ADMIN_LEDGER}/${encodeURIComponent(String(seq))}`;
+}
+
 /**
  * A participant's entries (#85): their list, the form for a registration's
  * first upload, and each entry's page by its Entry ID.
@@ -273,6 +281,10 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_REFUNDS,
   "/admin/refunds/[id]",
   "/admin/payments/batches/[id]/refund",
+  ADMIN_LEDGER,
+  ADMIN_LEDGER_ACCOUNTS,
+  ADMIN_NEW_LEDGER_ENTRY,
+  "/admin/ledger/[seq]",
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/consents",
