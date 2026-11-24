@@ -39,6 +39,7 @@ import {
 import {
   latestDocument,
   latestProfileEventId,
+  lockProfileSubject,
   lockUserSubject,
   subjectEvents,
   type ConsentSubject,
@@ -281,6 +282,49 @@ export async function recordRegistrationConsents(
       competitionId,
     });
   }
+}
+
+/** A consent a campaign message rested on (#126), to withdraw by its link. */
+export type MessageLinkConsent =
+  | { purpose: "messages"; userId: string }
+  | { purpose: "communications"; childId: string; guardianUserId: string };
+
+/**
+ * Withdraws one consent by the withdrawal link of a message sent on it
+ * (#126): a person's own consent to News and updates, or the consent their
+ * guardian gave to messages about a child, withdrawn by that guardian. The
+ * caller has authorized the link's holder and checked the guardian still
+ * looks after the child. Records nothing when the consent isn't given, and
+ * says whether it recorded a withdrawal.
+ */
+export async function withdrawByMessageLink(
+  tx: AppDb,
+  ctx: ConsentContext,
+  consent: MessageLinkConsent
+): Promise<boolean> {
+  const own = consent.purpose === "messages";
+  const subject: ConsentSubject = own
+    ? { type: "user", id: consent.userId }
+    : { type: "participant_profile", id: consent.childId };
+  if (own) await lockUserSubject(tx, consent.userId);
+  else await lockProfileSubject(tx, consent.childId);
+  const state = own
+    ? currentConsent(await subjectEvents(tx, subject, "messages"))
+    : currentConsent(
+        await subjectEvents(tx, subject, "communications", null),
+        "id"
+      );
+  const decision = decideWithdraw(state);
+  if (decision.kind !== "record") return false;
+  await appendConsentEvent(tx, ctx, state, {
+    subject,
+    giverUserId: own ? consent.userId : consent.guardianUserId,
+    purpose: consent.purpose,
+    action: "withdrawn",
+    documentId: decision.documentId,
+    method: "web_form",
+  });
+  return true;
 }
 
 /** Gives the signed-in user's consent to the purpose's current document. */

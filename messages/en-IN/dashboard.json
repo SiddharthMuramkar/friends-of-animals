@@ -22,7 +22,8 @@
       "body": "Your competition entries, certificates and donations will show here as those parts of the site open.",
       "sessions": "See where you're signed in",
       "children": "Your children, as a parent or guardian",
-      "directory": "Your listing in FOA's NGO directory"
+      "directory": "Your listing in FOA's NGO directory",
+      "volunteer": "Volunteer with Friends of Animals"
     },
     "admin": {
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
@@ -33,7 +34,8 @@
       "payments": "Payments needing review",
       "refunds": "Refunds",
       "ledger": "Ledger",
-      "directory": "Directory listings"
+      "directory": "Directory listings",
+      "volunteers": "Volunteer applications"
     },
     "institution": {
       "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."

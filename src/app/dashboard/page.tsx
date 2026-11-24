@@ -13,7 +13,9 @@ import {
   ADMIN_LEDGER,
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_REFUNDS,
+  ADMIN_VOLUNTEERS,
   APP_ROUTES,
+  DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
   MY_LISTINGS,
@@ -81,6 +83,12 @@ async function Areas() {
   const directory = grants.some(
     (grant) => grant.role === "staff_admin" || grant.role === "super_admin"
   );
+  // Community managers and super admins vet volunteers (#123).
+  const community = grants.some(
+    (grant) =>
+      grant.role === "community_manager" ||
+      (grant.role === "super_admin" && grant.scope.type === "global")
+  );
   const competitions = grants.some(
     (grant) =>
       grant.role === "competition_manager" ||
@@ -132,6 +140,7 @@ async function Areas() {
             finance={finance}
             directory={directory}
             competitions={competitions}
+            community={community}
           />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
@@ -148,6 +157,7 @@ async function AreaBody({
   finance,
   directory,
   competitions,
+  community,
 }: {
   area: DashboardLink["area"];
   id?: string;
@@ -156,6 +166,7 @@ async function AreaBody({
   finance: boolean;
   directory: boolean;
   competitions: boolean;
+  community: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -180,6 +191,7 @@ async function AreaBody({
             { href: APP_ROUTES.accountSessions, label: t("member.sessions") },
             { href: APP_ROUTES.guardian, label: t("member.children") },
             { href: MY_LISTINGS, label: t("member.directory") },
+            { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
           ])
         : null}
       {area === "organisation" && id
@@ -228,6 +240,9 @@ async function AreaBody({
               : []),
             ...(finance
               ? [{ href: ADMIN_LEDGER, label: t("admin.ledger") }]
+              : []),
+            ...(community
+              ? [{ href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") }]
               : []),
           ])
         : null}

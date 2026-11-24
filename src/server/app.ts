@@ -43,6 +43,9 @@ import { announcementsUseCases } from "./modules/announcements";
 import { privacyUseCases } from "./modules/privacy";
 import { breachesUseCases } from "./modules/breaches";
 import { directoryUseCases } from "./modules/directory";
+import { volunteersUseCases } from "./modules/volunteers";
+import { remindersUseCases } from "./modules/reminders";
+import { campaignsUseCases } from "./modules/campaigns";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -74,7 +77,10 @@ const useCases = composeUseCases(
   announcementsUseCases,
   privacyUseCases,
   breachesUseCases,
-  directoryUseCases
+  directoryUseCases,
+  volunteersUseCases,
+  remindersUseCases,
+  campaignsUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

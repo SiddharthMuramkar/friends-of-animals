@@ -45,6 +45,9 @@ import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
 import { expireUploadGrant } from "../modules/entries/upload-grants";
 import { fanOutBreachNotices } from "../modules/breaches/fan-out";
 import { sendAuthorityNotice } from "../modules/breaches/authority-message";
+import { runReminderJob } from "../modules/reminders/run-reminder";
+import { scheduleReminders } from "../modules/reminders/schedule-reminders";
+import { deliverCampaignMessage } from "../modules/campaigns/deliver";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -178,6 +181,24 @@ export const HANDLERS: Handlers = {
   // Emails the authority about a breach, once (#116).
   "breaches.send_authority_notice": (deps, { payload }) =>
     sendAuthorityNotice(deps, payload),
+  // Brings a competition's reminders in step after it is published, its
+  // key dates change or it is cancelled (#84). Safe to repeat.
+  "reminders.schedule": async (deps, { payload }) => {
+    const result = await scheduleReminders(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      { subjectType: "competition", subjectId: payload.competitionId }
+    );
+    if (!result.ok) {
+      throw new Error(
+        `Reminders for competition ${payload.competitionId} not scheduled: ${result.fields.join(", ")}`
+      );
+    }
+  },
+  // Reminds whoever owes the deadline now (#84). Safe to repeat: each
+  // message is claimed under the reminder's id.
+  "reminders.run": (deps, { payload }) => runReminderJob(deps, payload),
+  // One recipient's campaign message, on the consent it rests on (#126).
+  "campaigns.deliver_message": deliverCampaignMessage,
 };
 
 /** Whether this code has a handler by that name. */

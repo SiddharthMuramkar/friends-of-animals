@@ -200,6 +200,40 @@ export type DomainEvent =
       payload: { competitionId: string; kind: KeyDateKind; dueAt: string };
     }
   | {
+      /**
+       * A competition manager published a competition (#70). Its reminders
+       * are scheduled from its key dates (#84).
+       */
+      type: "competition.published";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * A published competition's key dates were edited (#71): its
+       * reminders follow the new dates (#84).
+       */
+      type: "competition.key_dates_changed";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /** A competition was cancelled (#80): its reminders are cancelled (#84). */
+      type: "competition.cancelled";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * A planned reminder's fire time (#84). Saved with `availableAt:
+       * fire_at`; the run checks the reminder_job row and who owes its
+       * deadline then.
+       */
+      type: "reminder.due";
+      aggregate: { type: "reminder_job"; id: string };
+      payload: { reminderJobId: string };
+    }
+  | {
       /** An authorised person invited a coordinator (#74). */
       type: "institution.coordinator_invited";
       aggregate: { type: "institution_invitation"; id: string };
@@ -385,6 +419,15 @@ export type DomainEvent =
     }
   | {
       /**
+       * One recipient's message of a sent campaign (#126) is due. The
+       * handler checks the consent it rests on again before it goes.
+       */
+      type: "campaign.message_due";
+      aggregate: { type: "campaign_recipient"; id: string };
+      payload: { campaignId: string; recipientId: string };
+    }
+  | {
+      /**
        * The registration's competition was cancelled (#80). Its family
        * contact (or the adult whose own it is) is told, with how its fee
        * comes back: `refund` says through the gateway, by hand, from the
@@ -408,7 +451,22 @@ export type DomainEvent =
       type: "institution_registration.competition_cancelled";
       aggregate: { type: "institution_registration"; id: string };
       payload: { institutionRegistrationId: string; competitionId: string };
-    };
+    }
+  // Volunteer applications (#123): a 14- to 17-year-old applied and their
+  // guardians are asked; an application reached the community team; a
+  // community manager approved it (the volunteer role is granted) or
+  // declined it with a reason.
+  | VolunteerApplicationEvent<"volunteer.guardian_approval_requested">
+  | VolunteerApplicationEvent<"volunteer.application_submitted">
+  | VolunteerApplicationEvent<"volunteer.application_approved">
+  | VolunteerApplicationEvent<"volunteer.application_declined">;
+
+/** Something happened to a volunteer application (#123). Ids only. */
+type VolunteerApplicationEvent<T extends `volunteer.${string}`> = {
+  type: T;
+  aggregate: { type: "volunteer_application"; id: string };
+  payload: { applicationId: string };
+};
 
 export type EventType = DomainEvent["type"];
 
@@ -418,6 +476,7 @@ const DIRECTORY_LISTING_EVENT = z.object({
   listingId: z.uuid(),
   userId: z.uuid(),
 });
+const VOLUNTEER_APPLICATION = z.object({ applicationId: z.uuid() });
 
 const INSTITUTION_DECIDED = z.object({
   institutionId: z.uuid(),
@@ -487,6 +546,10 @@ export const EVENT_PAYLOADS = {
     kind: z.enum(KEY_DATE_KINDS),
     dueAt: z.iso.datetime(),
   }),
+  "competition.published": z.object({ competitionId: z.uuid() }),
+  "competition.key_dates_changed": z.object({ competitionId: z.uuid() }),
+  "competition.cancelled": z.object({ competitionId: z.uuid() }),
+  "reminder.due": z.object({ reminderJobId: z.uuid() }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
   "contact_message.received": z.object({ messageId: z.uuid() }),
   "safeguarding.report_submitted": z.object({ reportId: z.uuid() }),
@@ -540,6 +603,10 @@ export const EVENT_PAYLOADS = {
     pageSize: z.int().min(1).max(BREACH_FAN_OUT_PAGE_SIZE),
   }),
   "breach.authority_notice": z.object({ breachId: z.uuid() }),
+  "campaign.message_due": z.object({
+    campaignId: z.uuid(),
+    recipientId: z.uuid(),
+  }),
   "registration.competition_cancelled": z.object({
     registrationId: z.uuid(),
     competitionId: z.uuid(),
@@ -550,6 +617,10 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
     competitionId: z.uuid(),
   }),
+  "volunteer.guardian_approval_requested": VOLUNTEER_APPLICATION,
+  "volunteer.application_submitted": VOLUNTEER_APPLICATION,
+  "volunteer.application_approved": VOLUNTEER_APPLICATION,
+  "volunteer.application_declined": VOLUNTEER_APPLICATION,
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /** Validate a stored event, including withdrawals written before #82. */
@@ -615,6 +686,12 @@ export const SUBSCRIBERS = {
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
   "competitions.key_date_scheduled": ["competitions.advance_status"],
+  // Each keeps the competition's reminders in step with it (#84).
+  "competition.published": ["reminders.schedule"],
+  "competition.key_dates_changed": ["reminders.schedule"],
+  "competition.cancelled": ["reminders.schedule"],
+  // One handler reminds whoever owes the deadline when it runs (#84).
+  "reminder.due": ["reminders.run"],
   // An invitee has no account yet, so no route row can name them: the
   // invitation goes to the invited address itself (#74).
   "institution.coordinator_invited": [
@@ -668,6 +745,9 @@ export const SUBSCRIBERS = {
   // The authority is an address, not a user, so no route row can name it:
   // the email goes by its own handler, with its route's template (#116).
   "breach.authority_notice": ["breaches.send_authority_notice"],
+  // The campaigns module plans its own channels on the consent each
+  // message rests on, with its route's template (#126).
+  "campaign.message_due": ["campaigns.deliver_message"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's
   // guardians' go by route row (#80).
@@ -677,6 +757,12 @@ export const SUBSCRIBERS = {
   ],
   // The coordinators' notice goes by route row (#80).
   "institution_registration.competition_cancelled": ["notifications.dispatch"],
+  // The applicant, their guardians and the community team are told by
+  // route row (#123).
+  "volunteer.guardian_approval_requested": ["notifications.dispatch"],
+  "volunteer.application_submitted": ["notifications.dispatch"],
+  "volunteer.application_approved": ["notifications.dispatch"],
+  "volunteer.application_declined": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

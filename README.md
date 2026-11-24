@@ -545,6 +545,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
 | [`announcements`](#announcements) | A competition manager writes, previews and sends an announcement to a competition's registrants                                | #84                     |
 | [`breaches`](#breaches)           | The staff breach log, its timeline, and notices to affected people and the authority                                           | #116                    |
+| [`campaigns`](#campaigns)         | A community manager sends a message to a consented segment; every message carries a withdrawal link                            | #126                    |
 | [`cms`](#cms)                     | Editable site documents with drafts and published revisions, and blog posts                                                    | #111, #112              |
 | [`codes`](#codes)                 | Human-facing codes such as the Institution ID `FOA-I-8H3TZ`. Helper, no use cases                                              | #73                     |
 | [`competitions`](#competitions)   | Create, publish, list and cancel competitions; status jobs and guards; fees, award schemes, pinned consent versions (`terms/`) | #70, #71, #72, #80, #88 |
@@ -566,15 +567,17 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | [`privacy`](#privacy)             | The data inventory, its admin page, the retention sweep and legal holds                                                        | #114                    |
 | [`public-forms`](#public-forms)   | Shared guards for public forms: proof-of-work human check, per-sender rate limits                                              | #113                    |
 | [`registration`](#registration)   | An institution registers for a competition and enrols students, one by one or from CSV; confirmation after payment             | #75, #76, #77           |
+| [`reminders`](#reminders)         | Named reminders before a deadline, to whoever still owes it when each one runs                                                 | #84                     |
 | [`safeguarding`](#safeguarding)   | The public "report a concern" form and the safeguarding lead's queue                                                           | #116                    |
 | [`second-factor`](#second-factor) | Staff TOTP and passkeys, step-up, staff session lifetimes                                                                      | #60                     |
 | [`settings`](#settings)           | Runtime settings a super admin changes without a deploy                                                                        | #62                     |
+| [`volunteers`](#volunteers)       | Volunteer applications: age gate, a teen's guardian approves, community managers vet and grant the volunteer role              | #123                    |
 
 ### announcements
 
 A competition manager writes, previews and sends an announcement to a competition's confirmed registrants (84a-1 audience, 84a-2 delivery).
 
-- **Recipient selection** (`load-audience.ts`, `domain/audience.ts`): coordinators, participants and guardians (a minor's message goes to the guardian). Each address gets one delivery per channel. The header says it is shared with reminders (84b, not built).
+- **Recipient selection** (`load-audience.ts`, `domain/audience.ts`): coordinators, participants and guardians (a minor's message goes to the guardian). Each address gets one delivery per channel. Shared with [`reminders`](#reminders), which passes the registrations that owe a deadline; `delivery-plan.ts` (`loadRosterDeliveryPlan`) and `roster-delivery.ts` (`deliverToRoster`) are shared the same way.
 - **Table** `announcement` (`src/server/db/schema/announcements.ts`): structured plain-text sections, never HTML; encrypted help contacts; `status` `draft` or `sent`; `revision` for optimistic edits; `sent_by`, `sent_at` and `recipient_count` stamped on send (check `announcement_sent_stamped`). Who received it is in `message_delivery`.
 - **States** (`domain/status.ts`): `draft` → `sent`, final. A correction is a new announcement.
 - **Use cases:** `createAnnouncement`, `updateAnnouncement`, `getAnnouncement`, `listAnnouncements`, `previewAnnouncement`, `sendAnnouncement`.
@@ -582,7 +585,6 @@ A competition manager writes, previews and sends an announcement to a competitio
 - **Pages:** `/admin/competitions/[id]/announcements`, `.../new`, `.../[announcementId]`.
 - **Events:** `competition.announcement_sent` → `announcements.fan_out` (`fan-out.ts`), which plans the audience again at send time, then delivers in-app through `notifications/dispatch.ts` and by email or SMS through `notifications/contact-delivery.ts`. The worker gained a `blindIndex` dependency for this.
 - **Migrations:** `0068_84_pre_enum_message_delivery` (adds `sending`, rule F2), `0069_84_announcements`, `0070_84_announcement_messages`.
-- **Missing:** reminders (#84 unit 84b).
 - **Tests:** `announcements-*.test.ts`, `domain/*.test.ts`, `tests/e2e/84-announcements.spec.ts`.
 
 ### breaches
@@ -597,6 +599,23 @@ The personal-data breach log (#116b).
 - **Authority notice:** emailed only when the setting `breach.authorityEmail` is set, which waits for counsel (HR-49). Until then staff file it by hand and record the authority's reference (stored encrypted, `authority.ts`).
 - **Retention:** kept while open and 5 years after closing (`retention-policy.ts`, HR-31). The retention sweep runs it as `BREACH_RECORDS` (`privacy/policies/module-owned.ts`): a closed breach is deleted 5 years after closing unless its lead or a timeline author is under a legal hold.
 - **Tests:** `breach-log.test.ts`, `notify.test.ts`, `notify.pg.test.ts`, `authority.test.ts`, `authority.pg.test.ts`, `policy.test.ts`, `retention-policy.test.ts`; E2E `116-breach-log.spec.ts`.
+
+### campaigns
+
+A community manager writes a message once, previews who its segment reaches, and sends it through the outbox (#126). Words: a **campaign** goes to a **segment**; each message carries a **withdrawal link**.
+
+- **Segment** (`domain/segment.ts`): optional criteria over data that exists today. `roles` (a grant of any of guardian, institution authorised person or coordinator, judge, volunteer, organisation representative, at any scope), `competitionIds` (registered themselves, a child registered, or an institution they look after registered) and `cities` (their own profile's, their child's, or their institution's; compared without case or extra spaces). AND across criteria, OR within one; empty is everyone. Consent is never a criterion: the planner applies it to every segment.
+- **Consent gate** (`domain/audience.ts`, `load-audience.ts`): an adult is in only while their own `messages` consent is given (never answered counts as no). A child (a guardian-kept profile) is in only while the guardian's `communications` consent for the child is given, and the message goes to that guardian while they still look after the child, never to the child or a teen's own login. One message per recipient, resting on every consent involved. A school's student without an account has no consent on the platform, so is never in a segment. Channel choices (#69) hold: email only where the recipient's choice allows it, in-app always, never SMS (promotional texts need their own DLT registration).
+- **Extension point for #119:** community membership adds a criterion (for example `milestones`): its key in `SEGMENT_CRITERIA`, its values in the schema, its loader in `load-audience.ts`. Community members with an account are already candidates.
+- **Tables** (`campaigns.ts`): `campaign` (`draft` → `sending` → `sent`; `revision`; `segment` jsonb; `planned_counts` and `sent_by`/`sent_at` stamped on send; `completed_at` when the last message settles) and `campaign_recipient` (one per person a message goes to: `bases` it rests on, `token_hash` of its withdrawal link, `queued` → `sent` or `skipped`, `withdrawn_at`).
+- **Use cases:** `createCampaign`, `updateCampaign`, `getCampaign`, `listCampaigns`, `listSegmentCompetitions`, `previewSegment`, `previewCampaign`, `sendCampaign` (community manager); `viewWithdrawalLink`, `withdrawByLink` (whoever holds the link).
+- **Send:** one transaction plans the segment, saves the recipient rows, queues one `campaign.message_due` event per row and audits `campaign.sent` with the counts (never who). The handler `campaigns.deliver_message` checks the consent again just before each message goes (a withdrawal since the send skips it), sends in-app and email through `notifications/dispatch.ts` (`deliverToAccount`), and the last row to settle marks the campaign `sent` and audits `campaign.completed` with the delivered counts.
+- **Withdrawal link** (`withdrawal-link.ts`): `/withdraw/<token>`, the token a keyed hash of the recipient row's id (FIELD_HMAC_KEY), so only its SHA-256 is stored and a retry builds the same link. Opening it changes nothing; the button withdraws every consent the message rested on that is still given, through the consent log (`withdrawByMessageLink`, method `web_form`), and audits `campaign.withdrawal_link_used`. The notice and link are added by code after the editable template, so no edit removes them.
+- **Template and route:** `campaigns.message` (email and in-app), route `campaign.message_due` → audience `campaign_recipient`; switching the route off stops campaign messages.
+- **Pages:** `/admin/campaigns`, `/admin/campaigns/new`, `/admin/campaigns/[id]`; public `/withdraw/[token]`.
+- **Migrations:** `0084_126_campaigns`, `0085_126_campaign_messages`.
+- **Limits and gaps:** the segment is planned in memory from a few full-table reads (right for thousands of accounts). No RFC 8058 one-click `List-Unsubscribe` headers yet: the email port carries no headers. Child consent and guardian flows are off in production (`guardianFlowsActive`), so children are reachable only where those run.
+- **Tests:** `campaigns-drafts.test.ts`, `campaigns-send.test.ts`, `campaigns-withdrawal.test.ts`, `send.pg.test.ts`, `domain/*.test.ts`; E2E `126-campaign-messages.spec.ts`.
 
 ### cms
 
@@ -659,7 +678,7 @@ Competitions and their status; `terms/` holds fees, award schemes and pinned con
   - **Cancelling** (80b): one transaction locks the competition and plans with `domain/cancellation.ts`; supersedes discretionary refunds still `requested` or `failed`; starts one system `cancellation` refund per paid batch (`startSystemRefund`); cancels unpaid and free registrations and open batches; tells families and coordinators. A paid registration stays `confirmed` until its refund is back (`cancel-competition.ts`).
 - **Who may call:** create, edit, preview, publish: `competition_manager`. Read published: anyone. `competition.advance_status`: the worker only. Set fees: `stepUp(competition_manager)`. `competition.cancel`: `stepUp(super_admin)` only (HR-34); `competition.cancel.read`: `super_admin`.
 - **Pages:** staff `/admin/competitions`, `.../new`, `.../[id]/edit`, `.../[id]/preview`, `.../[id]/terms`, `.../[id]/cancel`, `.../[id]/rubrics`, `.../[id]/announcements`; public `/competitions`, `/competitions/[slug]`, `/documents/[purpose]/[version]`.
-- **Events:** `competitions.key_date_scheduled`, `competition.transition_blocked`, `competition.disciplines_changed`, `registration.competition_cancelled`, `institution_registration.competition_cancelled`.
+- **Events:** `competitions.key_date_scheduled`, `competition.transition_blocked`, `competition.disciplines_changed`, `registration.competition_cancelled`, `institution_registration.competition_cancelled`; `competition.published`, `competition.key_dates_changed` (a published one's dates edited) and `competition.cancelled`, each → `reminders.schedule` (#84).
 - **Tests:** `create.test.ts`, `publish.test.ts`, `status-jobs.test.ts`, `transition-guards.test.ts`, `cancel-competition.test.ts`, `cancel-competition.pg.test.ts`, `terms/fees.test.ts`; E2E `70-competitions-*.spec.ts`, `72-competition-terms.spec.ts`, `80-cancel-competition.spec.ts`.
 
 ### consent
@@ -722,7 +741,7 @@ The NGO directory (#127). An NGO, rescue organisation, shelter, independent resc
 - **Use cases:** `registerListing`, `listMyListings`, `getMyListing`, `updateListing`, `withdrawListing`, `requestListingDocumentUpload` (its people); `listListingsForReview`, `getListingForReview`, `getListingDocumentUrl`, `verifyListing`, `rejectListing`, `suspendListing`, `reinstateListing` (staff admin, super admin); `getPublicListing`, `publicListingSlugs` (anyone).
 - **Rules:** one open listing per registrant (`directory_listing_one_open_per_owner`); an Indian mobile is required; the public page shows only the contacts the listing ticked, never the address (HR-61 default). Documents: PDF, JPEG or PNG up to 10 MiB, at most 10 per listing; only staff open them, through Files' delivery gate, which audits each read; the uploader can't. The checklist of expected documents per type is a guide, not enforced (HR-62).
 - **Pages:** `/ngos/register`, `/organisation`, `/organisation/[id]`, `/organisation/[id]/edit` (signed in); staff `/admin/directory`, `/admin/directory/[id]`; public `/ngos/[slug]` (cached by tag `directory-listing:<slug>`; `src/proxy.ts` answers any slug that isn't a verified listing with a 404).
-- **Events:** `directory.listing_submitted` (no route yet), `directory.listing_verified`, `.rejected`, `.suspended`, `.reinstated` → `notifications.dispatch`, which emails and inboxes the registrant with the reason (`drizzle/0081_127_directory_messages.sql`).
+- **Events:** `directory.listing_submitted` (no route yet), `directory.listing_verified`, `.rejected`, `.suspended`, `.reinstated` → `notifications.dispatch`, which emails and inboxes the registrant with the reason (`drizzle/0088_127_directory_messages.sql`).
 - **Seeds for #128 and #129:** `services` and `pin_code` are what search by service and distance reads (#128 adds the pin-code table, a GIN index on `services` and `earthdistance`, HR-59, HR-60); `toPublicListing` is the public read model it lists. Adoption listings (#129) point at `directory_listing.id` and check `isPubliclyListed(status)` and the representative role at its scope. `h.seed.directoryListing({ status })` builds one in tests.
 - **Retention:** policy `directoryListings`, kept while listed, no job yet (HR-31).
 - **Tests:** `register.test.ts`, `decide.test.ts`, `update.test.ts`, `documents.test.ts`, `review-queue.test.ts`, `outcome-messages.test.ts`, `public.test.ts`, `register.pg.test.ts`, `domain/*.test.ts`, `src/server/seed/directory.test.ts`, `src/proxy.directory.test.ts`; E2E `127-ngo-directory.spec.ts`.
@@ -884,7 +903,7 @@ Message templates, message routes, dispatch, the inbox and channel choices (#69)
 - **Use cases:** `listMessageTemplates`, `getMessageTemplate`, `updateMessageTemplate` (content manager, super admin); `listInbox`, `countUnread`, `markInboxItemRead`, `markAllInboxRead`, `getNotificationPreferences`, `updateNotificationPreferences` (any signed-in user, own rows).
 - **Pages:** `/admin/templates`, `/admin/templates/[key]`, `/account/inbox`, `/account/notifications`, the inbox badge.
 - **Delivery states:** `pending`, `sending` (claimed by compare-and-set in `contact-delivery.ts`), `sent`, `failed`, `suppressed`. Suppression reasons: `preference_off`, `consent_withdrawn`, `sms_disabled`, `sms_unregistered`, `no_contact`, `no_guardian`. A `failed` row retries with its outbox delivery.
-- **Audiences** (`audiences.ts`): `subject_user`, `individual_payer`, `registration_owner`, `guardian_of_participant`, `contact_sender`, `family_contact`, `contact_team`, `safeguarding_leads`, `competition_managers`, `finance_team`, `breach_recipient`, `announcement_registrants`, `announcement_contacts`, plus the cancellation audiences.
+- **Audiences** (`audiences.ts`): `subject_user`, `individual_payer`, `registration_owner`, `guardian_of_participant`, `contact_sender`, `family_contact`, `contact_team`, `safeguarding_leads`, `competition_managers`, `finance_team`, `breach_recipient`, `announcement_registrants`, `announcement_contacts`, `reminder_registrants`, `reminder_contacts`, `campaign_recipient` (#126), plus the cancellation audiences.
 - **Gaps:** see [Code gaps](#code-gaps) (no idempotency key on email and SMS ports; worker refuses outbox email and SMS in production). SMS needs DLT template ids (HR-14).
 - **Tests:** `dispatch.test.ts`, `inbox.test.ts`, `templates.test.ts`, `channels.test.ts`; E2E `69-messages.spec.ts`.
 
@@ -1027,6 +1046,19 @@ Institution registrations, their students' enrolments, and confirming registrati
 - **Missing:** an adult can't withdraw their own unpaid registration; principal and confirmation SMS wait for DLT (HR-14).
 - **Tests:** `enrol-student.test.ts`, `enrol-student.pg.test.ts`, `import-students.test.ts`, `register-institution.test.ts`; E2E `75-*.spec.ts`, `76-import-students.spec.ts`.
 
+### reminders
+
+Named reminders before a deadline, sent to whoever still owes it when each one runs (#84 unit 84b). The first is `entry_submission_due`.
+
+- **Registry** (`registry.ts`): each reminder is a `ReminderDefinition`: its name, its subject type (`competition`), the hour settings that time it, its message template, its deadline (`deadlineOf`), the subjects the sync visits, who owes it (`owes`, as groups of registrations and the roster roles to remind) and its template values. **Adding one** (#90 school-round shortlist, #93 dispatch, #125 events): a file in `definitions/`, one line in `REMINDERS`, its hour settings in the settings catalogue (group `reminders`, copy in `adminSettings.json`), and a custom migration with its template and two routes on `reminder.due` (like `0080_84_reminder_messages`). `registry.test.ts` fails until all four are there. A subject other than a competition (#125) also adds a subject type and an audience kind.
+- **Table** `reminder_job` (`src/server/db/schema/reminders.ts`): one row per planned reminder: name, subject, offset, the deadline it was planned for, `fire_at`, `status` (`scheduled`, `fired`, `cancelled`, `superseded`; all in the first migration), `fired_at`. A partial unique index allows one live plan per reminder, subject, deadline and offset. No personal data; who was reminded is in `message_delivery`, keyed by the row's id.
+- **Scheduling** (`schedule-reminders.ts`, `domain/schedule.ts`): `competition.published`, `.key_dates_changed` and `.cancelled` → `reminders.schedule`, plus the hourly `reminders.sync`. Rows that still match the deadline and the settings stay; the rest are superseded (cancelled with their competition); each new row is saved with a delayed `reminder.due` event at `fire_at`. An offset whose time has gone is skipped, not sent late.
+- **Running** (`run-reminder.ts`): `reminder.due` → `reminders.run` locks the row and checks it against things as they are now: the deadline unchanged and ahead, the offset still in settings, no nearer reminder due too (after an outage only the nearest goes). Then it asks who owes the deadline, plans the roster through `announcements/delivery-plan.ts` and sends through `roster-delivery.ts`. A fired row's retry sends only what didn't go. Each firing is audited (`reminder.fired`, by the system).
+- **`entry_submission_due`** (`definitions/entry-submission-due.ts`): `submissions_close`; offsets `reminders.entrySubmissionDueFirstHours` (72) and `...SecondHours` (24), 0 for none (HR-37). A confirmed registration owes it with no entry, or only a rejected or failed one (`processing` counts as made). Individuals: the adult, or a minor's guardians. Schools, under `all_participants` only: each coordinator, once per run. Template `reminders.entry_submission_due` (email, in-app, SMS once DLT-registered, HR-14; copy HR-36).
+- **Use cases** (`index.ts`): `scheduleReminders`, `syncReminders` (`reminder.schedule`: the worker or the seed), `runReminder` (`reminder.run`: the worker). No person calls them; there is no page.
+- **Migrations:** `0079_84_reminders`, `0080_84_reminder_messages`. **Seed:** `seed/reminders.ts` plans the seeded competitions' reminders.
+- **Tests:** `reminders-*.test.ts`, `registry.test.ts`, `domain/*.test.ts`, `reminders.pg.test.ts`, `seed/reminders.test.ts`.
+
 ### safeguarding
 
 The public "report a concern" form and the **safeguarding lead**'s queue.
@@ -1069,10 +1101,29 @@ Runtime settings a super admin changes without a deploy.
   | `org.legalName`, `org.registrationType`, `org.registrationNumber`, `org.pan` | empty                      | HR-21                                                 |
   | `safeguarding.reportsPerIpPerHour`                                           | 10                         | HR-48                                                 |
   | `breach.authorityEmail`                                                      | empty                      | HR-49                                                 |
+  | `reminders.entrySubmissionDueFirstHours`, `...SecondHours`                   | 72, 24                     | hours before submissions close; 0 for none (HR-37)    |
   | `retention.enforce`                                                          | false                      | the sweep only counts until a super admin turns it on |
   | `retention.<policy>Days`                                                     | per policy                 | one per retention policy                              |
+  | `volunteers.applicationsOpen`                                                | false                      | HR-55, HR-38; seeded on for local runs and previews   |
+  | `volunteers.minAgeYears`, `volunteers.guardianApprovalBelowAgeYears`         | 14, 18                     | 13 to 18 and 18 to 21 years (HR-57)                   |
 
 - **Tests:** `settings.test.ts`, `catalogue.test.ts`, `values.test.ts`; E2E `62-settings.spec.ts`.
+
+### volunteers
+
+People apply to volunteer, and FOA vets anyone who will work near children (#123). #124 adds tasks, hours and certificates on top.
+
+- **Table** `volunteer_application` (`src/server/db/schema/volunteers.ts`): interests (`volunteer_interest[]`), weekly availability (jsonb), the encrypted date of birth the age gate counted from (copied from the applicant's participant profile when they have one, typed otherwise), the guardian who decided, the two consent events an approval rested on, who decided and an encrypted decline reason. One open application per person (partial unique index).
+- **States** (`domain/application-status.ts`, every value in the first migration): `awaiting_guardian` → `submitted`, `guardian_declined` or `withdrawn`; `submitted` → `approved`, `declined` or `withdrawn`; the rest are final, and the person applies again with a new application. `approved` is reachable only from `submitted`.
+- **Rules:** age on India's calendar at `ctx.clock` (`ageAt`); under `volunteers.minAgeYears` (14) refused with nothing written; under `volunteers.guardianApprovalBelowAgeYears` (18) needs a verified guardian actively linked to the teen's guardian-kept profile, or it is refused (`guardian_required`). A linked teen's age is always the one their guardian entered. A bad stored setting only makes the rule stricter. Both declarations are consent purposes (`volunteer_safeguarding_declaration`, `volunteer_code_of_conduct`) recorded through the consent log on their current versions at apply time; approval needs both current (`*_missing`, `*_outdated`, `*_unpublished`), and an applicant re-accepts a republished one from their page. Approval grants the global `volunteer` role through `grantGlobalRole` (audit `role.granted` names the community manager).
+- **Use cases:** `applyToVolunteer`, `acceptVolunteerDeclarations`, `myVolunteerApplication` (signed in, own only); `decideAsGuardian`, `childVolunteerApplication` (the teen's verified guardian); `withdrawVolunteerApplication` (the applicant or that guardian); `listVolunteerApplications`, `getVolunteerApplication`, `declineVolunteer` (community manager, super admin); `approveVolunteer` (the same, with step-up).
+- **Pages:** `/dashboard/volunteer`, `/guardian/children/[id]/volunteer`, staff `/admin/volunteers`, `/admin/volunteers/[id]`. Staff publish the declarations at `/admin/consent-documents`; drafts are in `src/content/legal/volunteer-declarations.ts`.
+- **Events:** `volunteer.guardian_approval_requested`, `volunteer.application_submitted`, `volunteer.application_approved`, `volunteer.application_declined` → `notifications.dispatch`, audiences `volunteer_applicant` (a teen in the inbox only), `volunteer_guardians` and `community_managers` (`message-audiences.ts`).
+- **Gated:** applying is refused until a super admin turns on `volunteers.applicationsOpen` (off in production until HR-55 and HR-38); production also has no declaration versions until FOA publishes them, so applying refuses `declaration_unpublished` there.
+- **Retention:** `volunteerApplications` deletes a declined or withdrawn application 365 days after it closes (`privacy/policies/volunteers.ts`); an approved one stays while the person volunteers (HR-31).
+- **Migrations:** `0081_123_pre_volunteer_consent_purposes` (rule F2), `0082_123_volunteer_applications`, `0083_123_volunteer_messages`.
+- **Seed:** `src/server/seed/volunteers.ts`: community manager Neha Kapoor (`community-manager@example.test`, seed authenticator), approved volunteer Priya Nair, Arjun Mehta waiting for the community team, and Rohan Desai's application waiting for Kavita Desai.
+- **Tests:** `domain/*.test.ts`, `apply.test.ts`, `guardian-decision.test.ts`, `review.test.ts`, `policy.test.ts`, `volunteer-messages.test.ts`, `decide.pg.test.ts`, `src/server/seed/volunteers.test.ts`; E2E `123-volunteer-applications.spec.ts`.
 
 ### Worker jobs and schedules
 
@@ -1085,6 +1136,7 @@ Runtime settings a super admin changes without a deploy.
 | `offsite_copy`                              | schedule                                | 01:30 daily, 3 retries, 3 h expiry                    | `modules/offsite-copy/schedule.ts`                                    |
 | `privacy.retention_sweep`                   | schedule                                | 02:15 daily                                           | `modules/privacy/schedule.ts`                                         |
 | `ledger.reconcile_payments`                 | schedule                                | 03:00 daily                                           | `modules/ledger/backfill.ts`                                          |
+| `reminders.sync`                            | schedule                                | 5 past every hour                                     | `modules/reminders/schedule.ts`                                       |
 | `notifications.dispatch`                    | outbox                                  | most events                                           | `modules/notifications/dispatch.ts`                                   |
 | `ledger.post_capture`, `ledger.post_refund` | outbox                                  | `payment.batch_captured`, `refund.processed`          | `modules/ledger/consumers.ts`                                         |
 | `refunds.send`                              | outbox                                  | `refund.approved`                                     | `modules/payments/refunds/sync-refund.ts`                             |
@@ -1099,6 +1151,9 @@ Runtime settings a super admin changes without a deploy.
 | `competitions.retry_blocked_moves`          | outbox                                  | `rubric.published`, `competition.disciplines_changed` | `modules/competitions/advance-status.ts`                              |
 | `registration.send_cancellation`            | outbox                                  | `registration.competition_cancelled`                  | `modules/competitions/cancellation-message.ts`                        |
 | `announcements.fan_out`                     | outbox                                  | `competition.announcement_sent`                       | `modules/announcements/fan-out.ts`                                    |
+| `reminders.schedule`                        | outbox                                  | a competition published, re-dated or cancelled        | `modules/reminders/schedule-reminders.ts`                             |
+| `reminders.run`                             | outbox, delayed                         | `reminder.due`, at each reminder's fire time          | `modules/reminders/run-reminder.ts`                                   |
+| `campaigns.deliver_message`                 | outbox                                  | `campaign.message_due`, one per recipient             | `modules/campaigns/deliver.ts`                                        |
 | `breaches.fan_out`                          | outbox                                  | `breach.fan_out_requested`, one page per delivery     | `modules/breaches/fan-out.ts`                                         |
 | `breaches.send_authority_notice`            | outbox                                  | `breach.authority_notice`                             | `modules/breaches/authority-message.ts`                               |
 | `consent_links.deliver`                     | outbox                                  | `consent.link_sent`                                   | `modules/consent-links/delivery.ts`                                   |
@@ -1109,7 +1164,7 @@ Runtime settings a super admin changes without a deploy.
 | `guardians.send_teen_invitation`            | outbox                                  | `guardian.teen_invited`                               | `modules/guardians/teen-invitation-message.ts`                        |
 | `guardians.send_guardian_request`           | outbox                                  | `guardian.guardian_requested`                         | `modules/guardians/guardian-request-message.ts`                       |
 
-Not a worker job: `pnpm files:purge-preview` (dormant preview cleanup, [Dormant preview machinery](#dormant-preview-machinery)). Missing jobs: reminders (84b) and a payment reconciliation sweep.
+Not a worker job: `pnpm files:purge-preview` (dormant preview cleanup, [Dormant preview machinery](#dormant-preview-machinery)). Missing jobs: a payment reconciliation sweep.
 
 ## Codebase map
 

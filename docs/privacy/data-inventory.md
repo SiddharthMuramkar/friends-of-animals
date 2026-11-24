@@ -64,6 +64,17 @@ and the accounts and child profiles a notice couldn't reach. All of it is
 kept while the breach is open and for 5 years after it closes, then deleted
 with the breach (HR-31, pending confirmation).
 
+## Volunteer applications
+
+A volunteer application holds the applicant's date of birth (encrypted,
+copied from their participant profile when they have one), the areas they
+offered and when they are free, the guardian who approved a 14- to
+17-year-old's application, the consent events behind the two declarations,
+and the community manager who decided, with a decline reason (encrypted).
+An application declined or withdrawn is deleted 365 days after it closes
+(`volunteerApplications`); an approved one stays while the person volunteers
+(HR-31, HR-55, pending confirmation).
+
 ## Scheduled retention
 
 The worker runs the retention sweep
