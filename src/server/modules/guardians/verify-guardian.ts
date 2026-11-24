@@ -29,10 +29,14 @@ import type { EmailMessage } from "../../ports/email";
 import type { UseCaseContext } from "../../use-cases";
 import { maskIdentifier } from "../institutions/domain/mask-identifier";
 import { verifiedEmailOf } from "./account-contact";
+import { guardianFlowsActive } from "./availability";
 import { guardianOfUser } from "./guardian-record";
 import { checkGuardianCode, issueGuardianCode } from "./verification-code";
 
-type NotReady = { ok: false; error: "not_registered" | "already_verified" };
+type NotReady = {
+  ok: false;
+  error: "unavailable" | "not_registered" | "already_verified";
+};
 
 export type StartGuardianVerificationResult =
   | { ok: true; sentTo: string; expiresAt: Date }
@@ -73,6 +77,9 @@ export async function startGuardianVerification(
   ctx: UseCaseContext
 ): Promise<StartGuardianVerificationResult> {
   await authorize(ctx, "guardian.register");
+  if (!guardianFlowsActive(ctx.appEnv)) {
+    return { ok: false, error: "unavailable" };
+  }
   const actor = signedInUser(ctx);
   const record = await guardianOfUser(ctx.db, actor.userId);
   if (!record) return { ok: false, error: "not_registered" };
@@ -107,6 +114,9 @@ export async function confirmGuardianVerification(
   input: { code: string }
 ): Promise<ConfirmGuardianVerificationResult> {
   const { role: actorRole } = await authorize(ctx, "guardian.register");
+  if (!guardianFlowsActive(ctx.appEnv)) {
+    return { ok: false, error: "unavailable" };
+  }
   const { userId } = signedInUser(ctx);
   const parsed = confirmInput.safeParse(input);
   const now = ctx.clock.now();

@@ -78,6 +78,22 @@ describe("proxy: the signed-in nonce policy", () => {
     expect(page.get("cookie")).toBe(SESSION.cookie);
   });
 
+  it("adds a nonce to a public bearer page without forwarding a return path", async () => {
+    vi.stubEnv("APP_ENV", "local");
+    const path = "/consent/synthetic-token";
+    expect(
+      unstable_doesMiddlewareMatch({ config, nextConfig: {}, url: path })
+    ).toBe(true);
+    const response = await proxy(request(path, { [PATH_HEADER]: path }));
+    const policy = response.headers.get("content-security-policy");
+    expect(response.headers.has("location")).toBe(false);
+    expect(getScriptNonceFromHeader(policy ?? "")).toBe(
+      pageHeaders(response).get("x-nonce")
+    );
+    expect(policy).toContain("'strict-dynamic'");
+    expect(pageHeaders(response).has(PATH_HEADER)).toBe(false);
+  });
+
   it("makes a fresh nonce for every request", async () => {
     const nonces = new Set(
       await Promise.all(

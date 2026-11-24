@@ -62,6 +62,7 @@ describe("listEnrolledStudents", () => {
 
     expect(result).toEqual({
       ok: true,
+      registrationId: school.registrationId,
       institution: { id: school.institutionId, name: "Test School" },
       competition: {
         code: "PAWS27",

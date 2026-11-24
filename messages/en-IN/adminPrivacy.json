@@ -16,6 +16,7 @@
       "subjectKinds": {
         "audit_target": "Target of the audit action",
         "author": "Post author",
+        "consent_giver": "Person who gave the consent",
         "consent_subject": "Person the consent is for",
         "contact_sender": "Contact sender",
         "content_subject": "Person described in the content",
@@ -78,7 +79,14 @@
         "consentDocumentContent": "Kept with the published consent version, which is immutable",
         "files": "While the file is kept: as long as the record it belongs to (an entry, a proof, a post)",
         "contactMessages": "While the message is open, then {months} months after it is closed",
-        "guardianInvitationLinks": "Until the invitation is accepted, withdrawn or expires"
+        "guardianInvitationLinks": "Until the invitation is accepted, withdrawn or expires",
+        "signedConsentForms": "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure",
+        "consentLinkContacts": "90 days after the link is answered, revoked or expires",
+        "consentLinkSecrets": "Until the link is used, revoked or expires",
+        "entries": "3 years after the competition ends",
+        "entryMedia": "Until 90 days after the competition ends",
+        "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
+        "entryPendingText": "Until the replacement passes, fails or is superseded"
       },
       "purposes": {
         "account": {
@@ -141,7 +149,41 @@
         "consent_event": {
           "competition_id": "Identifies the competition to which the consent applies",
           "giver_user_id": "Says who gave or withdrew the consent: the person, or a child's guardian",
-          "subject_id": "Says whose consent it is: an account or a child's profile"
+          "subject_id": "Says whose consent it is: an account or a child's profile",
+          "consent_form_id": "Links a consent decision to the signed evidence of what the guardian agreed to",
+          "consent_link_id": "Links a recorded consent to the guardian's code link evidence",
+          "giver_contact_hash": "Identifies the verified consent giver without storing the contact in the consent log",
+          "reviewer_user_id": "Identifies who verified the signed evidence for this consent"
+        },
+        "consent_form": {
+          "file_asset_id": "Locates the private scan bearing the guardian's name and signature",
+          "participant_profile_id": "Identifies the enrolled student whose signed form FOA reviewed",
+          "competition_id": "Identifies the competition covered by the guardian's signed form",
+          "institution_registration_id": "Connects the signed form to the student's school registration for review and coordinator access",
+          "uses": "Records the public uses the guardian marked on the signed form",
+          "documents": "Preserves the exact consent document versions reviewed for the guardian's choices",
+          "uploaded_by_user_id": "Identifies the coordinator who submitted the form",
+          "reviewed_by_user_id": "Identifies the authorised reviewer who made the decision",
+          "rejection_note": "Explains how the coordinator can correct the submission. Staff are asked to leave out personal details"
+        },
+        "consent_form_upload": {
+          "file_asset_id": "Identifies the private scan upload bound to the student's enrolment",
+          "registration_id": "Restricts a signed-form upload to the enrolled student it was requested for"
+        },
+        "consent_link": {
+          "contact_ciphertext": "Delivers the consent link and one-time code to the guardian",
+          "contact_hash": "Identifies the normalised delivery contact without reading it",
+          "token_ciphertext": "Builds the guardian's link when the message is delivered",
+          "token_hash": "Finds the link and recognises previously used or revoked links",
+          "code_hash": "Verifies the one-time code sent to the guardian contact",
+          "session_token_hash": "Binds the answer session to the browser which verified the code",
+          "answers": "Records the public uses the guardian gave or declined on the link",
+          "offered_uses": "Records the document versions shown for the guardian's choices",
+          "participant_profile_id": "Identifies the student whose choices the link records",
+          "student_registration_id": "Keeps the link tied to this student's school enrolment",
+          "institution_registration_id": "Scopes the student's link to the school's registration",
+          "competition_id": "Identifies the competition for which the guardian answered",
+          "sent_by_user_id": "Records the coordinator who issued the guardian link"
         },
         "contact_message": {
           "assigned_to_user_id": "Records which member of staff is handling the message",
@@ -156,8 +198,40 @@
           "author_user_id": "Records which member of staff wrote the note",
           "body": "What staff noted while handling the message"
         },
+        "entry": {
+          "code": "Identifies the work when a participant asks FOA about an entry",
+          "registration_id": "Links the entry to its confirmed competition registration",
+          "participant_profile_id": "Links the work to the participant and the person authorised to view it",
+          "title": "Displays the name the participant gave the work",
+          "description": "Describes the work for the participant and authorised reviewers",
+          "statement": "Lets the participant explain the work in their own words",
+          "created_by_user_id": "Records which participant or guardian first uploaded the work"
+        },
+        "entry_file": {
+          "id": "Identifies which upload attempt an entry notice is about",
+          "entry_id": "Associates each upload attempt with the participant's entry",
+          "file_asset_id": "Links to privately stored artwork and the safe copies made from it",
+          "uploaded_by_user_id": "Records who uploaded each version of the work",
+          "pending_text": "Keeps a replacement's proposed text with the image being checked",
+          "receipt_title": "Keeps the adult participant's receipt tied to the submitted title"
+        },
+        "entry_transition": {
+          "entry_id": "Associates a change in status with the participant's entry",
+          "entry_file_id": "Shows which upload caused a change in the entry's status",
+          "actor_user_id": "Records which user acted when the entry changed status"
+        },
+        "entry_upload_grant": {
+          "file_asset_id": "Associates the short-lived grant with the uploader's staged file",
+          "registration_id": "Limits the grant to the authorised registration",
+          "upload_key": "Locates the staged object to clear when the grant expires"
+        },
         "file_asset": {
-          "owner_user_id": "Says who uploaded the file, so only they and staff reach it"
+          "owner_user_id": "Says who uploaded the file, so only they and staff reach it",
+          "storage_key": "Locates the stored file, such as an entry's private original or a signed form's scan, including quarantined uploads"
+        },
+        "file_derivative": {
+          "file_asset_id": "Links a metadata-stripped copy to the uploaded file it came from",
+          "storage_key": "Locates a metadata-stripped copy, such as the one shown for a live entry image"
         },
         "form_rate_limit": {
           "key_hash": "A keyed hash of the network or address sending a public form, never the value"
@@ -210,7 +284,8 @@
           "token_ciphertext": "The invitation link's secret, so the message can carry it (encrypted)"
         },
         "institution_registration": {
-          "registered_by": "Records which coordinator or authorised person registered the institution for the competition"
+          "registered_by": "Records which coordinator or authorised person registered the institution for the competition",
+          "participation_declared_by_user_id": "Identifies who declared that the institution authorises participation and judging"
         },
         "ledger_account": {
           "name": "The finance category name, which may name a person",

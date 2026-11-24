@@ -5,6 +5,7 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { createHarness } from "@/test/harness";
 
 import { adminCall } from "./boundary";
+import { showLedgerNavigation } from "./ledger-navigation";
 
 /** What Next's logger would print for a thrown error. */
 async function failureOf(call: Promise<unknown>): Promise<string> {
@@ -17,6 +18,24 @@ async function failureOf(call: Promise<unknown>): Promise<string> {
 }
 
 describe("the admin boundary", () => {
+  it("keeps the staff ID and bound parameters out of a failed ledger navigation lookup", async () => {
+    const h = await createHarness();
+    const staff = await h.seed.member();
+    await h.seed.grant(staff, { role: "finance", scope: { type: "global" } });
+    const actor = await h.signIn(staff);
+    const { myAccess } = h.as(actor);
+    await expect(showLedgerNavigation(myAccess)).resolves.toBe(true);
+    await h.db.$client.exec(
+      `ALTER TABLE "user_role" RENAME TO "test_user_role"`
+    );
+
+    const logged = await failureOf(showLedgerNavigation(myAccess));
+
+    expect(logged.includes(staff.id)).toBe(false);
+    expect(logged.includes("params:")).toBe(false);
+    expect(logged.includes("DrizzleQueryError (Postgres 42P01)")).toBe(true);
+  });
+
   it("keeps the search text and the driver cause out of a failed search", async () => {
     const h = await createHarness();
     const admin = await h.signIn(await h.seed.superAdmin());

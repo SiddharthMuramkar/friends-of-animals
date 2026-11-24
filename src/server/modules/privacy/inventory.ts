@@ -346,6 +346,70 @@ const WHILE_FILE_KEPT = {
   toConfirm: true,
 } as const;
 
+/** A competition-scoped consent: what a signed form or code link recorded. */
+const COMPETITION_CONSENT_RECORD = {
+  ...CONSENT_RECORD,
+  periodKey: "consentRecords.competition",
+} as const;
+
+/** Signed consent forms (#83): the scan, its scope and its review. */
+const SIGNED_FORM_RECORD = {
+  policy: "signedConsentForms",
+  periodKey: "signedConsentForms",
+  basis: "Lets FOA check the signed evidence and account for its review",
+  toConfirm: true,
+} as const;
+
+/** A guardian code link's delivery contact (#83). */
+const AFTER_CONSENT_LINK_CLOSES = {
+  policy: "consentLinkContacts",
+  periodKey: "consentLinkContacts",
+  basis:
+    "Reaches the guardian contact and helps FOA answer queries about link delivery",
+  toConfirm: true,
+} as const;
+
+/** A guardian code link's single-use secrets (#83). */
+const WHILE_CONSENT_LINK_OPEN = {
+  policy: "consentLinkSecrets",
+  periodKey: "consentLinkSecrets",
+  basis:
+    "Provides a single-use link and verifies control of the contact before recording choices",
+  toConfirm: true,
+} as const;
+
+/** Competition entries (#85): the work, its words and its history. */
+const ENTRY_RECORD = {
+  policy: "entries",
+  periodKey: "entries",
+  basis:
+    "Lets participants and FOA find the submitted work, resolve questions and review judging or upload history",
+  toConfirm: true,
+} as const;
+
+const ENTRY_MEDIA = {
+  policy: "entryMedia",
+  periodKey: "entryMedia",
+  basis:
+    "Keeps private originals for processing and metadata-stripped copies for review and appeals",
+  toConfirm: true,
+} as const;
+
+const ENTRY_UPLOAD_GRANT = {
+  policy: "entryUploadGrants",
+  periodKey: "entryUploadGrants",
+  basis: "Confirms and rate-limits uploads and removes unused staged data",
+  toConfirm: true,
+} as const;
+
+const ENTRY_PENDING_TEXT = {
+  policy: "entryPendingText",
+  periodKey: "entryPendingText",
+  basis:
+    "Publishes the text with its approved image and discards unused revisions",
+  toConfirm: true,
+} as const;
+
 const user = rowsOf("user", {
   subject: { kind: "user", via: "id" },
   retention: WHILE_ACCOUNT_OPEN,
@@ -472,6 +536,57 @@ const capturedMessage = rowsOf("captured_message", {
   onExpiry: "delete_row",
 });
 
+const signedForm = rowsOf("consent_form", {
+  subject: { kind: "participant_profile", via: "participant_profile_id" },
+  retention: SIGNED_FORM_RECORD,
+  onExpiry: "delete_row",
+});
+
+/** A code link's fields follow the consent it records unless they say otherwise. */
+function consentLink(
+  column: string,
+  category: PersonalDataCategory,
+  overrides: Partial<Pick<InventoryField, "retention" | "onExpiry">> = {}
+): InventoryField {
+  return {
+    table: "consent_link",
+    column,
+    category,
+    subject: { kind: "participant_profile", via: "participant_profile_id" },
+    retention: COMPETITION_CONSENT_RECORD,
+    onExpiry: "delete_row",
+    ...overrides,
+  };
+}
+
+const entry = rowsOf("entry", {
+  subject: { kind: "participant_profile", via: "participant_profile_id" },
+  retention: ENTRY_RECORD,
+  onExpiry: "delete_row",
+});
+
+const ENTRY_PARTICIPANT = {
+  kind: "participant_profile",
+  via: "entry_id → entry.participant_profile_id",
+};
+
+/** An upload attempt: kept with the entry, its file only until the media go. */
+function entryFile(
+  column: string,
+  category: PersonalDataCategory,
+  overrides: Partial<Pick<InventoryField, "retention" | "onExpiry">> = {}
+): InventoryField {
+  return {
+    table: "entry_file",
+    column,
+    category,
+    subject: ENTRY_PARTICIPANT,
+    retention: ENTRY_RECORD,
+    onExpiry: "delete_row",
+    ...overrides,
+  };
+}
+
 const INVENTORY_FIELDS: readonly InventoryField[] = [
   // Accounts (#57, #58)
   user("name", "identity"),
@@ -563,12 +678,43 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     },
     onExpiry: "retain",
   })("competition_id", "technical"),
+  // Signed forms and code links (#83) as consent evidence.
+  ...(["consent_form_id", "consent_link_id"] as const).map((column) =>
+    rowsOf("consent_event", {
+      subject: { kind: "consent_subject", via: "subject_id" },
+      retention: COMPETITION_CONSENT_RECORD,
+      onExpiry: "retain",
+    })(column, "technical")
+  ),
+  rowsOf("consent_event", {
+    subject: { kind: "consent_giver", via: "giver_contact_hash" },
+    retention: COMPETITION_CONSENT_RECORD,
+    onExpiry: "retain",
+  })("giver_contact_hash", "technical"),
+  actorColumn(
+    "consent_event",
+    "reviewer_user_id",
+    COMPETITION_CONSENT_RECORD,
+    "retain"
+  ),
   // Files (#63)
-  rowsOf("file_asset", {
-    subject: { kind: "user", via: "owner_user_id" },
-    retention: WHILE_FILE_KEPT,
-    onExpiry: "delete_row",
-  })("owner_user_id", "identity"),
+  ...(["owner_user_id", "storage_key"] as const).map((column) =>
+    rowsOf("file_asset", {
+      subject: { kind: "user", via: "owner_user_id" },
+      retention: WHILE_FILE_KEPT,
+      onExpiry: "delete_row",
+    })(column, column === "owner_user_id" ? "identity" : "technical")
+  ),
+  ...(["file_asset_id", "storage_key"] as const).map((column) =>
+    rowsOf("file_derivative", {
+      subject: {
+        kind: "user",
+        via: "file_asset_id → file_asset.owner_user_id",
+      },
+      retention: WHILE_FILE_KEPT,
+      onExpiry: "delete_row",
+    })(column, "technical")
+  ),
   // Staff who made or changed a record
   ...(
     [
@@ -699,6 +845,11 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn(
     "institution_registration",
     "registered_by",
+    WHILE_REGISTRATION_KEPT
+  ),
+  actorColumn(
+    "institution_registration",
+    "participation_declared_by_user_id",
     WHILE_REGISTRATION_KEPT
   ),
   // Students an institution enrols (#75)
@@ -837,6 +988,105 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     subject: { kind: "user", via: "login_user_id" },
     onExpiry: "set_null",
   }),
+  // Signed consent forms (#83): a coordinator submits the scan, staff review it.
+  signedForm("participant_profile_id", "identity"),
+  signedForm("file_asset_id", "identity"),
+  signedForm("competition_id", "technical"),
+  signedForm("institution_registration_id", "technical"),
+  signedForm("uses", "preference"),
+  signedForm("documents", "technical"),
+  signedForm("rejection_note", "content"),
+  // Both accounts stay on the record: the foreign keys restrict deletion.
+  actorColumn(
+    "consent_form",
+    "uploaded_by_user_id",
+    SIGNED_FORM_RECORD,
+    "retain"
+  ),
+  actorColumn(
+    "consent_form",
+    "reviewed_by_user_id",
+    SIGNED_FORM_RECORD,
+    "retain"
+  ),
+  ...(["file_asset_id", "registration_id"] as const).map((column) =>
+    rowsOf("consent_form_upload", {
+      subject: {
+        kind: "participant_profile",
+        via: "registration_id → registration.participant_profile_id",
+      },
+      retention: SIGNED_FORM_RECORD,
+      onExpiry: "delete_row",
+    })(column, "identity")
+  ),
+  // Guardian consent by code link (#83). The contact and the token's hash
+  // are required columns, so the sweep can't clear them alone: unit 114-2
+  // decides how they go after 90 days.
+  consentLink("contact_ciphertext", "contact", {
+    retention: AFTER_CONSENT_LINK_CLOSES,
+    onExpiry: "retain",
+  }),
+  consentLink("contact_hash", "technical", {
+    retention: AFTER_CONSENT_LINK_CLOSES,
+    onExpiry: "retain",
+  }),
+  consentLink("token_hash", "technical", {
+    retention: AFTER_CONSENT_LINK_CLOSES,
+    onExpiry: "retain",
+  }),
+  ...(["token_ciphertext", "code_hash", "session_token_hash"] as const).map(
+    (column) =>
+      consentLink(column, "technical", {
+        retention: WHILE_CONSENT_LINK_OPEN,
+        onExpiry: "set_null",
+      })
+  ),
+  consentLink("answers", "preference"),
+  consentLink("offered_uses", "technical"),
+  consentLink("participant_profile_id", "identity"),
+  consentLink("student_registration_id", "identity"),
+  consentLink("institution_registration_id", "technical"),
+  consentLink("competition_id", "technical"),
+  actorColumn("consent_link", "sent_by_user_id", COMPETITION_CONSENT_RECORD),
+  // Competition entries (#85): the work, its uploads and its history.
+  entry("code", "identity"),
+  entry("registration_id", "identity"),
+  entry("participant_profile_id", "identity"),
+  entry("title", "content"),
+  entry("description", "content"),
+  entry("statement", "content"),
+  actorColumn("entry", "created_by_user_id", ENTRY_RECORD),
+  entryFile("id", "technical"),
+  entryFile("entry_id", "identity"),
+  entryFile("file_asset_id", "content", {
+    retention: ENTRY_MEDIA,
+    onExpiry: "set_null",
+  }),
+  entryFile("pending_text", "content", {
+    retention: ENTRY_PENDING_TEXT,
+    onExpiry: "set_null",
+  }),
+  entryFile("receipt_title", "content"),
+  actorColumn("entry_file", "uploaded_by_user_id", ENTRY_RECORD),
+  ...(["file_asset_id", "registration_id", "upload_key"] as const).map(
+    (column) =>
+      rowsOf("entry_upload_grant", {
+        subject: {
+          kind: "participant_profile",
+          via: "registration_id → registration.participant_profile_id",
+        },
+        retention: ENTRY_UPLOAD_GRANT,
+        onExpiry: "delete_row",
+      })(column, column === "registration_id" ? "identity" : "technical")
+  ),
+  ...(["entry_id", "entry_file_id"] as const).map((column) =>
+    rowsOf("entry_transition", {
+      subject: ENTRY_PARTICIPANT,
+      retention: ENTRY_RECORD,
+      onExpiry: "delete_row",
+    })(column, "technical")
+  ),
+  actorColumn("entry_transition", "actor_user_id", ENTRY_RECORD),
 ];
 
 const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(

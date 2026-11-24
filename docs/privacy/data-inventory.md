@@ -44,3 +44,21 @@ also name people.
 Encrypt a column with `encryptedText()` when it identifies a person directly,
 such as a phone number, personal email address or date of birth. An institution's
 own office contact details are stored plain and listed in the catalogue.
+
+## Competition entry data
+
+The proposed entry retention periods are three years after the competition
+ends for entry text, participant references and upload history, and 90 days
+after it ends for the private originals and their metadata-stripped copies.
+This gives FOA time to process and review the work, handle appeals, and answer
+later questions about the entry. Counsel confirms these defaults under HR-31.
+
+Notices reference an upload attempt by its ID. The submitted attempt stores
+the adult participant's original title so receipt retries still describe
+the work that was submitted. Failure notices use the Entry ID and upload
+reference.
+
+Pending replacement text is cleared when the image passes, fails or is
+superseded. Upload grants and unused staged objects are cleared by the worker
+after the 10-minute upload URL expires. A separate worker delivery checks the
+same staging key again an hour after expiry to clear bytes from in-flight PUTs.

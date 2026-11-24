@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { Actor } from "@/server/actor";
+import { createApp } from "@/server/app";
 import { auditLog, outbox, paymentBatch, user } from "@/server/db/schema";
 import {
   consentCompetition,
@@ -351,38 +352,52 @@ describe("recordOfflinePayment refusals", () => {
     });
   });
 
-  it("leaves the batch and audit unchanged when participation consent was withdrawn", async () => {
-    const h = await createHarness();
-    const competition = await consentCompetition(h);
-    const child = await guardianWithChild(h, competition);
-    const guardian = h.as(child.actor);
-    const consent = {
-      childId: child.childId,
-      competitionId: competition.id,
-      purpose: "participation",
-    } as const;
-    await guardian.giveChildConsent({
-      ...consent,
-      documentId: competition.guardianDocuments.participation!,
-    });
-    const payment = await guardian.payForMyRegistration({
-      registrationId: child.registrationId,
-    });
-    if (!payment.ok || payment.kind !== "checkout") throw new Error("No order");
-    await guardian.withdrawChildConsent(consent);
-    const finance = await signInStaff(h, "finance");
-    const proofFileId = await uploadProof(h, finance.actor, payment.batchId);
-    const before = await paymentRows(h);
+  it.each([
+    { appEnv: "local", circumstance: "consent was withdrawn", withdraw: true },
+    {
+      appEnv: "production",
+      circumstance: "minor participation is paused with current consent",
+      withdraw: false,
+    },
+  ] as const)(
+    "leaves the payment and audit unchanged in $appEnv when $circumstance",
+    async ({ appEnv, withdraw }) => {
+      const h = await createHarness();
+      const competition = await consentCompetition(h);
+      const child = await guardianWithChild(h, competition);
+      const guardian = h.as(child.actor);
+      const consent = {
+        childId: child.childId,
+        competitionId: competition.id,
+        purpose: "participation",
+      } as const;
+      expect(
+        await guardian.giveChildConsent({
+          ...consent,
+          documentId: competition.guardianDocuments.participation!,
+        })
+      ).toEqual({ ok: true, changed: true });
+      const payment = await guardian.payForMyRegistration({
+        registrationId: child.registrationId,
+      });
+      if (!payment.ok || payment.kind !== "checkout")
+        throw new Error("No order");
+      if (withdraw) await guardian.withdrawChildConsent(consent);
+      const staff = await signInStaff(h, "finance");
+      const proofFileId = await uploadProof(h, staff.actor, payment.batchId);
+      const before = await paymentRows(h);
+      const finance = createApp({ ...h.deps, appEnv }).as(staff.actor);
 
-    expect(
-      await h.as(finance.actor).recordOfflinePayment({
-        ...cheque(payment.batchId, proofFileId),
-        amount: "250",
-      })
-    ).toEqual({ ok: false, error: "registration_not_payable" });
-    expect(await offlinePaymentOf(h, payment.batchId)).toBeNull();
-    expect(await paymentRows(h)).toEqual(before);
-  });
+      expect(
+        await finance.recordOfflinePayment({
+          ...cheque(payment.batchId, proofFileId),
+          amount: "250",
+        })
+      ).toEqual({ ok: false, error: "registration_not_payable" });
+      expect(await offlinePaymentOf(h, payment.batchId)).toBeNull();
+      expect(await paymentRows(h)).toEqual(before);
+    }
+  );
 
   it("refuses a batch that doesn't exist", async () => {
     const h = await createHarness();

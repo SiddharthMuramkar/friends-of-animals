@@ -15,6 +15,10 @@ import type {
   RecordOfflinePaymentResult,
   ResolvePaymentReviewCaseResult,
 } from "@/server/modules/payments";
+import {
+  dashboardRefundInput,
+  type RecordDashboardRefundResult,
+} from "@/server/modules/payments/resolve-review-case";
 
 import {
   afterRecord,
@@ -84,6 +88,37 @@ export async function resolveReviewCaseAction(
     );
   }
   return afterResolve(previous, reason, result);
+}
+
+export async function recordDashboardRefundAction(
+  caseId: string,
+  formData: FormData
+): Promise<void> {
+  const actor = await signedIn();
+  const back = adminPaymentReviewCasePath(caseId);
+  const parsed = dashboardRefundInput.safeParse({
+    caseId,
+    reference: formData.get("reference"),
+  });
+  if (!parsed.success) redirect(`${back}?record=invalid_reference`);
+  let result: RecordDashboardRefundResult;
+  try {
+    result = await as(actor).recordDashboardRefund(parsed.data);
+  } catch (error) {
+    liftSecondFactor(error, back);
+    console.error(
+      `recordDashboardRefund failed: ${errorSummaryForLogs(error)}`
+    );
+    redirect(`${back}?record=unexpected`);
+  }
+  if (
+    !result.ok &&
+    (result.error === "refund_unverified" ||
+      result.error === "reference_already_recorded")
+  ) {
+    redirect(`${back}?record=${result.error}`);
+  }
+  redirect(back, RedirectType.replace);
 }
 
 export type ProofUploadView =

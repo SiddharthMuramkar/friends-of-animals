@@ -84,7 +84,7 @@ type Common = {
   /** Where errors go; unset, nowhere. */
   sentryDsn: string | undefined;
   /** R2, where the malware scan reads uploads; unset, every scan fails. */
-  r2: R2Config | undefined;
+  r2: (R2Config & { bucket: string }) | undefined;
   /** clamd, which the malware scan asks; without a host every scan fails. */
   clamd: ScannerEnv;
   queue: WorkerQueue;
@@ -250,11 +250,15 @@ export function workerConfig(
       : { name: "default" },
     // The schema takes all four R2 variables or none.
     r2:
-      env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY
+      env.R2_ACCOUNT_ID &&
+      env.R2_ACCESS_KEY_ID &&
+      env.R2_SECRET_ACCESS_KEY &&
+      env.R2_BUCKET
         ? {
             accountId: env.R2_ACCOUNT_ID,
             accessKeyId: env.R2_ACCESS_KEY_ID,
             secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+            bucket: env.R2_BUCKET,
           }
         : undefined,
     clamd: { CLAMD_HOST: env.CLAMD_HOST, CLAMD_PORT: env.CLAMD_PORT },

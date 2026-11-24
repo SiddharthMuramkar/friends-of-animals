@@ -61,6 +61,7 @@ import {
 } from "../institutions/domain/invitation";
 import { maskIdentifier } from "../institutions/domain/mask-identifier";
 import { releaseHeldRegistrations } from "../consent/participation-gate";
+import { guardianFlowsActive } from "./availability";
 import { canTransition } from "../registration/domain/registration-status";
 import {
   GUARDIAN_RELATIONSHIPS,
@@ -344,7 +345,10 @@ export type ViewGuardianRequestResult =
 
 export type AcceptGuardianRequestResult =
   | { ok: true; childId: string; released: string[] }
-  | { ok: false; error: GuardianRequestAcceptanceRefusal | "invalid_input" };
+  | {
+      ok: false;
+      error: GuardianRequestAcceptanceRefusal | "invalid_input" | "unavailable";
+    };
 
 type Profile = typeof participantProfile.$inferSelect;
 
@@ -635,6 +639,9 @@ export async function acceptGuardianRequest(
   input: { token: string; relationship: string }
 ): Promise<AcceptGuardianRequestResult> {
   await authorize(ctx, "guardian.request.accept");
+  if (!guardianFlowsActive(ctx.appEnv)) {
+    return { ok: false, error: "unavailable" };
+  }
   if (ctx.actor.kind !== "user") throw new Error("unreachable");
   const { userId } = ctx.actor;
   const tokenHash = tokenHashOf(input);

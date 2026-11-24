@@ -47,9 +47,10 @@ import type { CheckoutParams, Money } from "../../ports/payment-gateway";
 import type { UseCaseContext } from "../../use-cases";
 import { getRegistrationTerms } from "../competitions/terms/read";
 import {
-  lackingParticipation,
   lockParticipationPins,
+  participationRefusals,
 } from "../consent/participation-gate";
+import { guardianFlowsActive } from "../guardians/availability";
 import { revokePendingGuardianRequest } from "../guardians/guardian-request";
 import { ownProfileOf } from "../guardians/own-profile";
 import {
@@ -78,6 +79,7 @@ export type PayForMyRegistrationResult =
       ok: false;
       error:
         | "nothing_to_pay"
+        | "unavailable"
         | "awaiting_guardian"
         | "participation_consent_required"
         | "fee_not_set"
@@ -230,11 +232,16 @@ async function planPayment(
       });
     }
     if (mine.status === "pending_guardian") {
-      if (mine.ownerKind !== "self") {
-        return done({ ok: false, error: "awaiting_guardian" });
-      }
-      if ((await ownProfileOf(tx, ctx, actor.userId, now)) !== "adult") {
-        return done({ ok: false, error: "awaiting_guardian" });
+      if (
+        mine.ownerKind !== "self" ||
+        (await ownProfileOf(tx, ctx, actor.userId, now)) !== "adult"
+      ) {
+        return done({
+          ok: false,
+          error: guardianFlowsActive(ctx.appEnv)
+            ? "awaiting_guardian"
+            : "unavailable",
+        });
       }
       if (
         !canTransition("pending_guardian", "pending_payment", "participant")
@@ -262,9 +269,10 @@ async function planPayment(
     } else if (mine.status !== "pending_payment") {
       return done({ ok: false, error: "nothing_to_pay" });
     }
-    if ((await lackingParticipation(tx, ctx, [registrationId])).size > 0) {
-      return done({ ok: false, error: "participation_consent_required" });
-    }
+    const refusal = (
+      await participationRefusals(tx, ctx, [registrationId])
+    ).get(registrationId);
+    if (refusal) return done({ ok: false, error: refusal });
     // A payment for it is in review (#79): staff decide, nobody pays again.
     const [inReview] = await heldInReview(tx, registrationId);
     if (inReview) return done({ ok: false, error: "nothing_to_pay" });
@@ -413,9 +421,10 @@ async function openOrder(
     });
     // Consent can change while the gateway is opening the order. Keep the
     // reference for reconciliation and only return a checkout with consent.
-    if ((await lackingParticipation(tx, ctx, registrationIds)).size > 0) {
-      return { ok: false, error: "participation_consent_required" };
-    }
+    const [refusal] = (
+      await participationRefusals(tx, ctx, registrationIds)
+    ).values();
+    if (refusal) return { ok: false, error: refusal };
     return {
       ok: true,
       kind: "checkout",

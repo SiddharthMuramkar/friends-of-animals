@@ -22,6 +22,7 @@ export const APP_ROUTES = {
   adminSettings: "/admin/settings",
   accountConsents: "/account/consents",
   adminConsentDocuments: "/admin/consent-documents",
+  adminConsentForms: "/admin/consent-forms",
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
@@ -84,6 +85,14 @@ export function adminPaymentReviewCasePath(caseId: string): string {
  */
 export const ADMIN_REFUNDS = "/admin/refunds";
 
+export const ADMIN_LEDGER = "/admin/ledger";
+export const ADMIN_LEDGER_ACCOUNTS = `${ADMIN_LEDGER}/accounts`;
+export const ADMIN_NEW_LEDGER_ENTRY = `${ADMIN_LEDGER}/entries/new`;
+
+export function adminLedgerPostingPath(seq: bigint | string): string {
+  return `${ADMIN_LEDGER}/${encodeURIComponent(String(seq))}`;
+}
+
 /** One refund's page: finance approves, rejects, retries or records it. */
 export function adminRefundPath(refundId: string): string {
   return `${ADMIN_REFUNDS}/${encodeURIComponent(refundId)}`;
@@ -97,6 +106,11 @@ export function adminBatchRefundPath(batchId: string): string {
 /** One institution's page in the admin area. */
 export function adminInstitutionPath(institutionId: string): string {
   return `${APP_ROUTES.adminInstitutions}/${encodeURIComponent(institutionId)}`;
+}
+
+/** One signed form in the staff review queue. */
+export function adminConsentFormPath(formId: string): string {
+  return `${APP_ROUTES.adminConsentForms}/${encodeURIComponent(formId)}`;
 }
 
 /** One post's editor in the admin area (#112). */
@@ -123,6 +137,15 @@ export function institutionRegistrationPath(
 ): string {
   const query = new URLSearchParams({ institution: institutionId });
   return `/institution/registrations/${encodeURIComponent(reference)}?${query.toString()}`;
+}
+
+/** A school's consent dashboard, behind sign-in. */
+export function studentConsentsPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/consents?${query.toString()}`;
 }
 
 /** Where a coordinator adds a student to a registration (#75). */
@@ -228,6 +251,7 @@ export function studentImportFilePath(
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  "/admin/consent-forms/[id]",
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
   "/admin/competitions/[id]/terms",
@@ -245,8 +269,13 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_REFUNDS,
   "/admin/refunds/[id]",
   "/admin/payments/batches/[id]/refund",
+  ADMIN_LEDGER,
+  ADMIN_LEDGER_ACCOUNTS,
+  ADMIN_NEW_LEDGER_ENTRY,
+  "/admin/ledger/[seq]",
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
+  "/institution/registrations/[ref]/consents",
   "/institution/registrations/[ref]/students/new",
   "/institution/registrations/[ref]/import",
   "/institution/registrations/[ref]/import/template.csv",
@@ -358,4 +387,14 @@ export function isNonProductionPath(pathname: string): boolean {
   return NON_PRODUCTION_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
+}
+
+export const CONSENT_LINK_PREFIX = "/consent";
+
+export function consentLinkPath(token: string): string {
+  return `${CONSENT_LINK_PREFIX}/${encodeURIComponent(token)}`;
+}
+
+export function isConsentLinkPage(pathname: string): boolean {
+  return fitsTemplate(pathname, `${CONSENT_LINK_PREFIX}/[token]`);
 }

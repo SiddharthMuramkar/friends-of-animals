@@ -27,6 +27,18 @@ export type Audience =
   /** Nobody may receive it: the caller records it as suppressed. */
   | { kind: "suppress"; reason: "no_guardian" | "no_login" };
 
+export function verifiedGuardianIds(
+  guardians: AudienceSubject["guardians"]
+): string[] {
+  return [
+    ...new Set(
+      guardians
+        .filter((guardian) => guardian.verified && !guardian.revoked)
+        .map((guardian) => guardian.userId)
+    ),
+  ];
+}
+
 /**
  * The recipients of a message about `subject`. Only verified, unrevoked
  * guardians count, each once, in link order; a minor with none is not
@@ -41,18 +53,14 @@ export function minorAudience(subject: AudienceSubject): Audience {
         }
       : { kind: "suppress", reason: "no_login" };
   }
-  const guardianIds = new Set(
-    subject.guardians
-      .filter((guardian) => guardian.verified && !guardian.revoked)
-      .map((guardian) => guardian.userId)
-  );
-  if (guardianIds.size === 0)
+  const guardianIds = verifiedGuardianIds(subject.guardians);
+  if (guardianIds.length === 0)
     return { kind: "suppress", reason: "no_guardian" };
-  const recipients: Recipient[] = [...guardianIds].map((userId) => ({
+  const recipients: Recipient[] = guardianIds.map((userId) => ({
     userId,
     channels: "all",
   }));
-  if (subject.loginUserId && !guardianIds.has(subject.loginUserId)) {
+  if (subject.loginUserId && !guardianIds.includes(subject.loginUserId)) {
     recipients.push({ userId: subject.loginUserId, channels: "in_app_only" });
   }
   return { kind: "deliver", recipients };

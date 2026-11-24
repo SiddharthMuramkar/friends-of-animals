@@ -1,0 +1,118 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  decideSchoolRouteUse,
+  isPublicPurpose,
+  PUBLIC_PURPOSES,
+  type CurrentConsent,
+  type Use,
+} from "./public-use";
+import type { ConsentMethod } from "./purposes";
+
+const never: CurrentConsent = { status: "never" };
+const given = (method: ConsentMethod): CurrentConsent => ({
+  status: "given",
+  method,
+});
+const withdrawn = (method: ConsentMethod): CurrentConsent => ({
+  status: "withdrawn",
+  method,
+});
+
+const decide = (
+  use: Use,
+  institutionDeclared: boolean,
+  consent: CurrentConsent
+) => decideSchoolRouteUse({ use, institutionDeclared, consent });
+
+describe("isPublicPurpose", () => {
+  it("covers display, credit fields, social media and auction", () => {
+    expect(PUBLIC_PURPOSES).toEqual([
+      "public_display",
+      "display_school",
+      "display_city",
+      "social_media",
+      "auction",
+    ]);
+  });
+
+  it("leaves out participation and communications", () => {
+    expect(isPublicPurpose("participation")).toBe(false);
+    expect(isPublicPurpose("communications")).toBe(false);
+    expect(isPublicPurpose("judging")).toBe(false);
+  });
+});
+
+describe("decideSchoolRouteUse: participation and judging", () => {
+  it("are covered by the institution's declaration alone", () => {
+    for (const use of ["participation", "judging"] as const) {
+      expect(decide(use, true, never)).toEqual({
+        allowed: true,
+        basis: "institution_declaration",
+      });
+    }
+  });
+
+  it("need the declaration or a guardian's participation consent", () => {
+    expect(decide("judging", false, never)).toEqual({
+      allowed: false,
+      reason: "no_declaration",
+    });
+    expect(decide("participation", false, given("otp_link"))).toEqual({
+      allowed: true,
+      basis: "code_link",
+    });
+    expect(decide("participation", false, given("web_form"))).toEqual({
+      allowed: true,
+      basis: "web_form",
+    });
+    expect(decide("participation", false, given("staff_recorded"))).toEqual({
+      allowed: false,
+      reason: "no_declaration",
+    });
+  });
+
+  it("stop when a guardian withdrew participation, declaration or not", () => {
+    expect(decide("judging", true, withdrawn("web_form"))).toEqual({
+      allowed: false,
+      reason: "withdrawn",
+    });
+  });
+});
+
+describe("decideSchoolRouteUse: public uses", () => {
+  it("never follow from the declaration alone", () => {
+    for (const use of PUBLIC_PURPOSES) {
+      expect(decide(use, true, never)).toEqual({
+        allowed: false,
+        reason: "no_guardian_consent",
+      });
+    }
+  });
+
+  it.each([
+    ["otp_link", { allowed: true, basis: "code_link" }],
+    ["paper_form", { allowed: true, basis: "signed_form" }],
+    ["web_form", { allowed: false, reason: "method_not_accepted" }],
+    ["staff_recorded", { allowed: false, reason: "method_not_accepted" }],
+  ] as const)(
+    "applies the school public-use rule for a %s grant",
+    (method, expected) => {
+      for (const purpose of PUBLIC_PURPOSES) {
+        expect(decide(purpose, true, given(method))).toEqual(expected);
+        expect(decide(purpose, false, given(method))).toEqual(expected);
+      }
+    }
+  );
+
+  it("stop once consent is withdrawn", () => {
+    expect(decide("display_school", true, withdrawn("otp_link"))).toEqual({
+      allowed: false,
+      reason: "withdrawn",
+    });
+    expect(decide("auction", true, withdrawn("web_form"))).toEqual({
+      allowed: false,
+      reason: "withdrawn",
+    });
+  });
+});

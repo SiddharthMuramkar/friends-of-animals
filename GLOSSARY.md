@@ -481,6 +481,20 @@ the rest come back in a report of rows to fix, which the coordinator corrects
 and uploads again. Nothing of the file is kept.
 _Avoid_: Bulk upload, batch enrolment, import job
 
+## Entries
+
+**Entry**
+The work a participant submits for a competition registration. An individual registration can have one entry.
+
+**Entry ID**
+The reference assigned to an entry when its first upload is confirmed, such as `NEIGH27-E-7K3QZ9`.
+
+**Live file**
+The entry’s current image after it passes its safety and processing checks.
+
+**Pending replacement**
+A new upload for a submitted entry. The live file stays in place until the new upload passes its checks.
+
 ## Files
 
 **File**:

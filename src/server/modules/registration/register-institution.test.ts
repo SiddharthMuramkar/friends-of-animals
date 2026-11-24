@@ -63,6 +63,8 @@ describe("registerInstitutionForCompetition", () => {
         reference: result.reference,
         status: "active",
         registeredBy: userId,
+        participationDeclaredAt: null,
+        participationDeclaredByUserId: null,
         createdAt: h.clock.now(),
         updatedAt: h.clock.now(),
       },

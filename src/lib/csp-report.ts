@@ -10,6 +10,8 @@
  * sent for `report-to`.
  */
 
+import { stripQuery } from "./observability/scrub";
+
 import { z } from "zod";
 
 /** One violation, safe to log. */
@@ -60,7 +62,7 @@ function scrubUrl(raw: string): string | undefined {
     return undefined;
   }
   if (url.protocol === "https:" || url.protocol === "http:") {
-    return `${url.origin}${url.pathname}`.slice(0, MAX_TEXT);
+    return stripQuery(`${url.origin}${url.pathname}`).slice(0, MAX_TEXT);
   }
   return url.protocol;
 }

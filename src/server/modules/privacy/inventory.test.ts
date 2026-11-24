@@ -312,6 +312,60 @@ describe("the data inventory", () => {
     }
   });
 
+  it("lists entry text, participant links and stored images with provisional retention (#85)", () => {
+    const columns = [
+      "entry.code",
+      "entry.registration_id",
+      "entry.participant_profile_id",
+      "entry.title",
+      "entry.description",
+      "entry.statement",
+      "entry.created_by_user_id",
+      "entry_file.id",
+      "entry_file.entry_id",
+      "entry_file.file_asset_id",
+      "entry_file.uploaded_by_user_id",
+      "entry_file.pending_text",
+      "entry_file.receipt_title",
+      "entry_upload_grant.file_asset_id",
+      "entry_upload_grant.registration_id",
+      "entry_upload_grant.upload_key",
+      "entry_transition.entry_id",
+      "entry_transition.entry_file_id",
+      "entry_transition.actor_user_id",
+      "file_asset.owner_user_id",
+      "file_asset.storage_key",
+      "file_derivative.file_asset_id",
+      "file_derivative.storage_key",
+    ];
+    expect(columns.filter((column) => !listed.has(column))).toEqual([]);
+    const entryData = DATA_INVENTORY.filter((item) =>
+      columns.includes(`${item.table}.${item.column}`)
+    );
+    expect(entryData.every(({ retention }) => retention.toConfirm)).toBe(true);
+  });
+
+  it("keeps consent-link contacts for 90 days and answers with the evidence record", () => {
+    for (const column of ["contact_ciphertext", "contact_hash"]) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === "consent_link" && each.column === column
+      );
+      expect(entry?.retention.period).toMatch(/^90 days after/);
+      expect(entry?.retention.toConfirm).toBe(true);
+    }
+    for (const [table, column] of [
+      ["consent_link", "answers"],
+      ["consent_event", "giver_contact_hash"],
+      ["consent_event", "consent_link_id"],
+    ]) {
+      const entry = DATA_INVENTORY.find(
+        (each) => each.table === table && each.column === column
+      );
+      expect(entry?.retention.period).toMatch(/consent applies, then 3 years/);
+      expect(entry?.retention.toConfirm).toBe(true);
+    }
+  });
+
   it("names only columns that exist, once each", () => {
     const columns = new Set(
       tables.flatMap((table) =>
@@ -321,6 +375,45 @@ describe("the data inventory", () => {
 
     expect([...listed].filter((column) => !columns.has(column))).toEqual([]);
     expect(listed.size).toBe(DATA_INVENTORY.length);
+  });
+
+  it("covers signed-form scope, evidence, and the identities who submitted and reviewed it", () => {
+    const formPeriod =
+      "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure";
+    const consentPeriod = "While the consent applies, then 3 years";
+    const expected = [
+      ["consent_form", "file_asset_id", formPeriod],
+      ["consent_form", "participant_profile_id", formPeriod],
+      ["consent_form", "competition_id", formPeriod],
+      ["consent_form", "institution_registration_id", formPeriod],
+      ["consent_form", "uses", formPeriod],
+      ["consent_form", "documents", formPeriod],
+      ["consent_form", "uploaded_by_user_id", formPeriod],
+      ["consent_form", "reviewed_by_user_id", formPeriod],
+      ["consent_form", "rejection_note", formPeriod],
+      ["consent_form_upload", "file_asset_id", formPeriod],
+      ["consent_form_upload", "registration_id", formPeriod],
+      ["consent_event", "consent_form_id", consentPeriod],
+      ["consent_event", "reviewer_user_id", consentPeriod],
+      [
+        "institution_registration",
+        "participation_declared_by_user_id",
+        "While the institution takes part, then 3 years after the competition ends",
+      ],
+    ];
+    for (const [table, column, period] of expected) {
+      expect
+        .soft(
+          DATA_INVENTORY.find(
+            (entry) => entry.table === table && entry.column === column
+          ),
+          `${table}.${column}`
+        )
+        .toMatchObject({
+          purpose: expect.any(String),
+          retention: { period, toConfirm: true },
+        });
+    }
   });
 
   it("gives each entry a purpose and a retention marked to confirm", () => {

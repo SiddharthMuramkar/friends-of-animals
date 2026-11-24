@@ -7,6 +7,7 @@ export const PAY_OUTCOMES = [
   "confirmed",
   "checkout",
   "nothing_to_pay",
+  "unavailable",
   "awaiting_guardian",
   "participation_consent_required",
   "fee_not_set",

@@ -25,6 +25,7 @@ import { fileAsset, type FileAssetRow } from "../../../db/schema";
 import { uuidv7 } from "../../../ids";
 import { invalidInput, type InvalidInput } from "../../../input";
 import { emit } from "../../../outbox/emit";
+import type { Clock } from "../../../ports/clock";
 import { ObjectMissingError, type ObjectStorage } from "../../../ports/storage";
 import type { UseCaseContext } from "../../../use-cases";
 import { fileIdInput, requestUploadInput } from "../inputs";
@@ -177,7 +178,9 @@ export async function completeUpload(
   if (!parsed.success) return invalidInput(parsed.error);
   const { fileId } = parsed.data;
   const found = await findFile(ctx.db, fileId);
-  if (!found) return { ok: false, error: "not_found" };
+  if (!found || found.purpose === "entry_image") {
+    return { ok: false, error: "not_found" };
+  }
   await authorize(ctx, "file.complete", { ownerId: found.ownerUserId });
   if (found.status !== "pending_upload") return asItStands(found);
 
@@ -190,32 +193,47 @@ export async function completeUpload(
     if (!file) return { ok: false, error: "not_found" };
     if (file.status !== "pending_upload") return asItStands(file);
 
-    const stored = { bucket: file.bucket, key: file.storageKey };
-    await takeUpload(ctx.storage, file);
-    const check = checkStoredObject(file, await ctx.storage.head(stored));
-    if (!check.ok && check.refusal === "upload_missing") {
-      return { ok: false, error: "upload_missing" };
-    }
-    const now = ctx.clock.now();
-    if (!check.ok) {
-      // Delete first: if the update then fails, the file is still pending
-      // and a retry finds no object, rather than an object left behind.
-      await ctx.storage.delete(stored);
-      const rejected = await leavePending(tx, file, "upload_rejected", now);
-      return rejected
-        ? { ok: false, error: "upload_rejected" }
-        : asItStands((await findFile(tx, fileId))!);
-    }
-
-    const status = await leavePending(tx, file, "upload_confirmed", now);
-    if (!status) return asItStands((await findFile(tx, fileId))!);
-    await emit(tx, ctx.clock, {
-      type: "files.file_uploaded",
-      aggregate: { type: "file_asset", id: fileId },
-      payload: { fileId },
-    });
-    return { ok: true, fileId, status };
+    const prepared = await preparePendingUpload(ctx, tx, file);
+    if (!prepared.ok) return prepared;
+    return acceptPendingUpload(tx, ctx.clock, file);
   });
+}
+
+/** Takes and checks a locked pending upload without dispatching a scan. */
+export async function preparePendingUpload(
+  ctx: Pick<FilesContext, "clock" | "storage">,
+  tx: AppDb,
+  file: FileAssetRow
+): Promise<
+  { ok: true } | { ok: false; error: "upload_missing" | "upload_rejected" }
+> {
+  const stored = { bucket: file.bucket, key: file.storageKey };
+  await takeUpload(ctx.storage, file);
+  const check = checkStoredObject(file, await ctx.storage.head(stored));
+  if (check.ok) return { ok: true };
+  if (check.refusal === "upload_missing") {
+    return { ok: false, error: "upload_missing" };
+  }
+  // Delete first so a failed update leaves no rejected object behind.
+  await ctx.storage.delete(stored);
+  await leavePending(tx, file, "upload_rejected", ctx.clock.now());
+  return { ok: false, error: "upload_rejected" };
+}
+
+/** Confirms a prepared upload under the file lock in the caller's transaction. */
+export async function acceptPendingUpload(
+  tx: AppDb,
+  clock: Clock,
+  file: FileAssetRow
+): Promise<Extract<CompleteUploadResult, { ok: true }>> {
+  const status = await leavePending(tx, file, "upload_confirmed", clock.now());
+  if (!status) throw new Error("Locked upload is no longer pending");
+  await emit(tx, clock, {
+    type: "files.file_uploaded",
+    aggregate: { type: "file_asset", id: file.id },
+    payload: { fileId: file.id },
+  });
+  return { ok: true, fileId: file.id, status };
 }
 
 /**

@@ -2,13 +2,16 @@ import { and, asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { Actor } from "@/server/actor";
+import { createApp } from "@/server/app";
 import {
   auditLog,
   guardianInvitation,
+  outbox,
   participantProfile,
   userRole,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { drainUntilIdle } from "@/server/outbox";
 import {
   adultForm,
   openToIndividuals,
@@ -100,6 +103,61 @@ async function rolesOf(h: Harness, actor: Actor) {
 }
 
 describe("inviteTeenLogin", () => {
+  it("blocks child creation and teen invitation changes in production while retaining existing links and withdrawals", async () => {
+    const h = await createHarness();
+    const { actor, teenId, invitationId, token } = await invited(h);
+    const teen = await signedIn(h, ARJUN);
+    const production = createApp({ ...h.deps, appEnv: "production" });
+    const parent = production.as(actor);
+    const deliveries = await h.db.select().from(outbox);
+
+    expect(
+      await parent.addChild({
+        fullName: "Asha Rao",
+        dateOfBirth: bornYearsAgo(h, 10),
+        relationship: "parent",
+      })
+    ).toEqual({ ok: false, error: "unavailable" });
+    expect(await parent.listChildren()).toHaveLength(2);
+    expect(
+      await parent.inviteTeenLogin({ childId: teenId, email: ARJUN.email })
+    ).toEqual({ ok: false, error: "unavailable" });
+    expect(await h.db.select().from(outbox)).toEqual(deliveries);
+    expect(await production.as(teen).acceptTeenInvitation({ token })).toEqual({
+      ok: false,
+      error: "unavailable",
+    });
+    expect(await profileOf(h, teenId)).toMatchObject({ loginUserId: null });
+    expect(await invitationRow(h, invitationId)).toMatchObject({
+      status: "pending",
+    });
+
+    expect(await parent.withdrawTeenInvitation({ childId: teenId })).toEqual({
+      ok: true,
+    });
+    expect(await invitationRow(h, invitationId)).toMatchObject({
+      status: "revoked",
+    });
+  });
+
+  it("does not deliver a pending teen invitation from the production worker", async () => {
+    const h = await createHarness();
+    const { actor, teenId } = await family(h);
+    const invite = await h
+      .as(actor)
+      .inviteTeenLogin({ childId: teenId, email: ARJUN.email });
+    if (!invite.ok) throw new Error("Teen invite fixture failed");
+
+    await drainUntilIdle({ ...h.deps, appEnv: "production" });
+
+    expect(h.email.sent.some((message) => message.to === ARJUN.email)).toBe(
+      false
+    );
+    expect(await invitationRow(h, invite.invitationId)).toMatchObject({
+      status: "pending",
+    });
+  });
+
   it("invites a 13- to 17-year-old by email, for 7 days, with one message after the drain", async () => {
     const h = await createHarness();
     const { actor, teenId } = await family(h);

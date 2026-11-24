@@ -417,6 +417,39 @@ export function guardianBuilder(deps: SeedDeps) {
       fullName: name,
       children: options.children,
     });
-    return { account, ...family };
+    return {
+      account,
+      ...family,
+      /** Seeds a verified guardian link for a pupil already on the roster. */
+      async linkInstitutionRegistration(registrationId: string) {
+        const [target] = await deps.db
+          .select({ participantProfileId: registration.participantProfileId })
+          .from(registration)
+          .where(
+            and(
+              eq(registration.id, registrationId),
+              eq(registration.route, "institution")
+            )
+          );
+        if (!target) throw new Error("Expected an institution registration");
+        const now = deps.clock.now();
+        const id = uuidv7(now);
+        await deps.db.insert(guardianLink).values({
+          id,
+          guardianId: family.guardianId,
+          participantProfileId: target.participantProfileId,
+          relationship: "parent",
+          createdAt: now,
+        });
+        return {
+          async revoke() {
+            await deps.db
+              .update(guardianLink)
+              .set({ revokedAt: deps.clock.now() })
+              .where(eq(guardianLink.id, id));
+          },
+        };
+      },
+    };
   };
 }

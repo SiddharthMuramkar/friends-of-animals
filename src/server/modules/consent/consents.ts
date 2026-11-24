@@ -104,17 +104,30 @@ function signedInUser(ctx: ConsentContext): string {
 
 /** One event to append to a subject's log. */
 export type ConsentEventToAppend = {
-  subject: ConsentSubject;
-  giverUserId: string;
   purpose: ConsentPurpose;
   action: ConsentEventAction;
   documentId: string;
-  method: ConsentMethod;
-  /** Set for a guardian's change or an adult's publication consent in a competition. */
-  competitionId?: string | null;
-  /** The role that allowed it, for the audit log: a guardian's (#82). */
+  /** The role that allowed it, for the audit log. */
   actorRole?: Role | null;
-};
+} & (
+  | {
+      method: Exclude<ConsentMethod, "otp_link">;
+      subject: ConsentSubject;
+      giverUserId: string;
+      /** Set for guardian or adult publication consent in a competition. */
+      competitionId?: string | null;
+    }
+  | {
+      method: "otp_link";
+      subject: { type: "participant_profile"; id: string };
+      competitionId: string;
+      giver: {
+        kind: "guardian_contact";
+        contactHash: string;
+        consentLinkId: string;
+      };
+    }
+);
 
 /**
  * Appends one event for the subject, after `state` (what its log says
@@ -144,11 +157,14 @@ export async function appendConsentEvent(
     occurredAt = nextEventTime(state, now);
     id = nextEventId(occurredAt);
   }
+  const contact = event.method === "otp_link" ? event.giver : null;
   await tx.insert(consentEvent).values({
     id,
     subjectType: event.subject.type,
     subjectId: event.subject.id,
-    giverUserId: event.giverUserId,
+    giverUserId: event.method === "otp_link" ? null : event.giverUserId,
+    giverContactHash: contact?.contactHash ?? null,
+    consentLinkId: contact?.consentLinkId ?? null,
     purpose: event.purpose,
     documentId: event.documentId,
     action: event.action,
@@ -173,15 +189,20 @@ export async function appendConsentEvent(
       payload: { ...ids, purpose },
     });
   }
-  await recordAudit(tx, ctx, {
-    action: `consent.${event.action}`,
-    entity: { type: "consent_event", id },
-    before: null,
-    after: ids,
-    // Giving and withdrawing one's own consent needs no role; a
-    // guardian's for a child is allowed by their guardian role.
-    actorRole: event.actorRole ?? null,
-  });
+  await recordAudit(
+    tx,
+    ctx,
+    {
+      action: `consent.${event.action}`,
+      entity: { type: "consent_event", id },
+      before: null,
+      after: contact ? { ...ids, consentLinkId: contact.consentLinkId } : ids,
+      // Giving and withdrawing one's own consent needs no role; a
+      // guardian's for a child is allowed by their guardian role.
+      actorRole: event.actorRole ?? null,
+    },
+    { withoutRequestMeta: contact !== null }
+  );
   return id;
 }
 

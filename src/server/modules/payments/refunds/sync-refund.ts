@@ -31,10 +31,12 @@ import type { AppDb } from "../../../db/app-db";
 import { paymentBatch, refund, type RefundRow } from "../../../db/schema";
 import { emit } from "../../../outbox/emit";
 import type { Clock } from "../../../ports/clock";
-import type {
-  GatewayRefund,
-  PaymentGateway,
+import {
+  RefundRefusedError,
+  type GatewayRefund,
+  type PaymentGateway,
 } from "../../../ports/payment-gateway";
+import { lockBatch } from "../batches";
 import {
   decideRefundSync,
   refundIdempotencyKey,
@@ -42,7 +44,12 @@ import {
   type RefundForSync,
 } from "../domain/refund-sync";
 import { nextRefundStatus, type RefundEvent } from "../domain/refund-status";
-import { auditRefund, lockRefund, refundRegistrations } from "./rows";
+import {
+  auditRefund,
+  lockRefund,
+  refundableBatch,
+  refundRegistrations,
+} from "./rows";
 
 export type RefundSyncDeps = {
   db: AppDb;
@@ -76,6 +83,7 @@ export type RefundSyncOutcome = (typeof REFUND_SYNC_OUTCOMES)[number];
 
 function forSync(row: RefundRow): RefundForSync | null {
   if (row.method === "gateway" && row.gatewayPaymentId === null) return null;
+  if (row.currency !== "INR") throw new Error("Gateway refunds require INR");
   return {
     id: row.id,
     status: row.status,
@@ -84,7 +92,7 @@ function forSync(row: RefundRow): RefundForSync | null {
     gatewayRefundId: row.gatewayRefundId,
     paymentId: row.gatewayPaymentId ?? "",
     amountMinor: row.amountMinor,
-    currency: "INR",
+    currency: row.currency,
   };
 }
 
@@ -114,12 +122,33 @@ export async function syncRefund(
     subject.paymentId
   );
   if (decideRefundSync(subject, atGateway).kind === "send") {
-    const sent = await deps.payments.refund({
-      paymentId: subject.paymentId,
-      amount: { amountMinor: subject.amountMinor, currency: "INR" },
-      idempotencyKey: refundIdempotencyKey(subject),
-      notes: refundNotes(subject),
-    });
+    const validation = await validateUnsentAttempt(deps, found, actorRole);
+    if (validation !== "send") return validation;
+    let sent: GatewayRefund;
+    try {
+      sent = await deps.payments.refund({
+        paymentId: subject.paymentId,
+        amount: {
+          amountMinor: subject.amountMinor,
+          currency: subject.currency,
+        },
+        idempotencyKey: refundIdempotencyKey(subject),
+        notes: refundNotes(subject),
+      });
+    } catch (error) {
+      if (!(error instanceof RefundRefusedError)) throw error;
+      return failUnsentAttempt(
+        deps,
+        found,
+        {
+          refusedByGateway: true,
+          ...(error.reason === "full_refund_only"
+            ? { fullRefundOnly: true }
+            : {}),
+        },
+        actorRole
+      );
+    }
     atGateway = [sent, ...atGateway.filter((each) => each.id !== sent.id)];
   }
 
@@ -202,6 +231,122 @@ async function apply(
     await settleRefunded(tx, deps, row, status, actorRole);
     return "refunded";
   }
+  await failLocked(
+    tx,
+    deps,
+    row,
+    status,
+    { gatewayRefundId: decision.gatewayRefundId },
+    actorRole
+  );
+  return "failed";
+}
+
+function canSend(row: RefundRow): boolean {
+  return (
+    row.status === "approved" &&
+    row.gatewayRefundId === null &&
+    row.sentAt === null
+  );
+}
+
+/** Checks the approval while holding the same batch lock as refund planning. */
+async function validateUnsentAttempt(
+  deps: RefundSyncDeps,
+  attempt: RefundRow,
+  actorRole: Role | null
+): Promise<RefundSyncOutcome | "send"> {
+  return deps.db.transaction(async (tx) => {
+    const batch = await lockBatch(tx, attempt.batchId);
+    if (batch?.gateway !== deps.payments.name) return "other_gateway";
+    const row = await lockRefund(tx, attempt.id);
+    if (!row || row.attempt !== attempt.attempt) return "unchanged";
+    if (!canSend(row)) {
+      return row.status === "approved" || row.status === "processing"
+        ? "missing_at_gateway"
+        : "unchanged";
+    }
+    // A later duplicate has its own receipt and balance.
+    if (
+      row.kind === "duplicate" ||
+      batch.gatewayPaymentId !== row.gatewayPaymentId ||
+      batch.status !== "captured"
+    ) {
+      return "send";
+    }
+
+    const capture = await refundableBatch(tx, batch);
+    if (capture.kind === "dashboard") {
+      await failLocked(
+        tx,
+        deps,
+        row,
+        row.status,
+        { dashboardManaged: true },
+        actorRole
+      );
+      return "failed";
+    }
+    // The commitment total includes this approval. If the holds cover every
+    // registration, the approved payouts must account for the entire receipt.
+    const balanceAfterCommitments =
+      capture.amountMinor - capture.committedMinor;
+    const coversRemaining = capture.items.every(
+      (item) => item.refund !== "none"
+    );
+    if (
+      balanceAfterCommitments >= 0n &&
+      (!coversRemaining || balanceAfterCommitments === 0n)
+    ) {
+      return "send";
+    }
+
+    await failLocked(
+      tx,
+      deps,
+      row,
+      row.status,
+      {
+        approvedAmountMinor: row.amountMinor.toString(),
+        availableAmountMinor: (
+          balanceAfterCommitments + row.amountMinor
+        ).toString(),
+      },
+      actorRole
+    );
+    return "failed";
+  });
+}
+
+/** A refusal fails only this attempt, while it is still unacknowledged. */
+async function failUnsentAttempt(
+  deps: RefundSyncDeps,
+  attempt: RefundRow,
+  details: Record<string, unknown>,
+  actorRole: Role | null
+): Promise<RefundSyncOutcome> {
+  return deps.db.transaction(async (tx) => {
+    const row = await lockRefund(tx, attempt.id);
+    if (!row || row.attempt !== attempt.attempt || !canSend(row)) {
+      return "unchanged";
+    }
+    await failLocked(tx, deps, row, row.status, details, actorRole);
+    return "failed";
+  });
+}
+
+/** Keeps the refund's holds in place for finance to retry or close. */
+async function failLocked(
+  tx: AppDb,
+  deps: RefundSyncDeps,
+  row: RefundRow,
+  status: RefundRow["status"],
+  details: Record<string, unknown>,
+  actorRole: Role | null
+): Promise<void> {
+  const move = nextRefundStatus(status, "gateway_failed");
+  if (!move.ok) throw new Error(`Refund ${row.id} can't fail`);
+  const now = deps.clock.now();
   await tx
     .update(refund)
     .set({ status: move.to, failedAt: now, updatedAt: now })
@@ -213,7 +358,7 @@ async function apply(
     {
       action: "refund.failed",
       before: { status },
-      after: { status: move.to, gatewayRefundId: decision.gatewayRefundId },
+      after: { status: move.to, ...details },
     },
     actorRole
   );
@@ -222,7 +367,6 @@ async function apply(
     aggregate: { type: "refund", id: row.id },
     payload: { refundId: row.id },
   });
-  return "failed";
 }
 
 /**
@@ -239,7 +383,11 @@ export async function settleRefunded(
   extra: Record<string, unknown> = {}
 ): Promise<void> {
   const now = ctx.clock.now();
-  const registrationsRefunded = await refundRegistrations(tx, row.id, now);
+  const registrationsRefunded = await refundRegistrations(
+    tx,
+    { refundId: row.id },
+    now
+  );
   await auditRefund(
     tx,
     ctx,

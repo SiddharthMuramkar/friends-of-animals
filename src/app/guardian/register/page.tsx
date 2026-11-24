@@ -6,10 +6,13 @@ import { Suspense } from "react";
 import { FormAlert, SubmitButton, TextField } from "@/components/form";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
+import { env } from "@/env";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { guardianFlowsActive } from "@/server/modules/guardians/availability";
 
+import { GuardianSetupUnavailable } from "../_components/setup-unavailable";
 import {
   confirmGuardianCodeAction,
   resendGuardianCodeAction,
@@ -42,12 +45,7 @@ export default async function Page({ searchParams }: Props) {
   const t = await getTranslations("guardian.register");
   return (
     <Section hue={HUE} tone="tint" width="prose" className="pt-10 sm:pt-14">
-      <PageHeader
-        eyebrow={t("eyebrow")}
-        tile={HUE}
-        title={t("title")}
-        lead={t("lead")}
-      />
+      <PageHeader eyebrow={t("eyebrow")} tile={HUE} title={t("title")} />
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
@@ -58,6 +56,7 @@ export default async function Page({ searchParams }: Props) {
 }
 
 const PROBLEMS: readonly DeclareProblem[] = [
+  "unavailable",
   "linked_child",
   "registered_as_minor",
   "no_verified_email",
@@ -68,6 +67,9 @@ const PROBLEMS: readonly DeclareProblem[] = [
 async function Register({ searchParams }: Pick<Props, "searchParams">) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
+  if (!guardianFlowsActive(env().APP_ENV)) {
+    return <GuardianSetupUnavailable />;
+  }
   const [t, callout, profile, query] = await Promise.all([
     getTranslations("guardian.register"),
     getTranslations("common.callout"),
@@ -75,11 +77,15 @@ async function Register({ searchParams }: Pick<Props, "searchParams">) {
     searchParams,
   ]);
   if (profile.registered && profile.verified) redirect(APP_ROUTES.guardian);
+  const lead = (
+    <p className="max-w-prose text-lead text-ink-muted">{t("lead")}</p>
+  );
 
   if (profile.registered && query.step === "code") {
     const error = isCodeError(query.error) ? query.error : undefined;
     return (
       <div className="mt-8 flex flex-col gap-6">
+        {lead}
         {error ? (
           <FormAlert tone="danger" label={callout("danger")}>
             <p>{t(`codeErrors.${error}`)}</p>
@@ -127,7 +133,8 @@ async function Register({ searchParams }: Pick<Props, "searchParams">) {
   }
 
   return (
-    <div className="mt-8">
+    <div className="mt-8 flex flex-col gap-6">
+      {lead}
       <DeclareForm
         initial={{
           fullName: profile.registered ? profile.fullName : "",

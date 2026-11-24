@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { createApp } from "@/server/app";
 import { auditLog, guardian, userRole, verification } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import { createHarness, type Harness } from "@/test/harness";
@@ -25,6 +26,22 @@ async function guardianRoles(h: Harness, userId: string) {
 }
 
 describe("registerAsGuardian", () => {
+  it.each(["production", "staging"] as const)(
+    "leaves guardian setup unavailable in %s for a signed-in member",
+    async (appEnv) => {
+      const h = await createHarness({ appEnv });
+      const { actor } = await signedInMember(h);
+
+      expect(await h.as(actor).registerAsGuardian(DECLARATION)).toEqual({
+        ok: false,
+        error: "unavailable",
+      });
+      expect(await h.as(actor).myGuardianProfile()).toEqual({
+        registered: false,
+      });
+    }
+  );
+
   it("records a member's declaration as an unverified guardian", async () => {
     const h = await createHarness();
     const { actor } = await signedInMember(h);
@@ -123,6 +140,37 @@ describe("registerAsGuardian", () => {
 });
 
 describe("guardian verification by one-time code", () => {
+  it("leaves verification and email delivery unavailable in production, even with a valid code", async () => {
+    const h = await createHarness({ appEnv: "production" });
+    const { member, actor } = await signedInMember(h);
+    const preview = createApp({ ...h.deps, appEnv: "preview" }).as(actor);
+    const production = h.as(actor);
+    expect(await preview.registerAsGuardian(DECLARATION)).toEqual({ ok: true });
+    expect(await preview.startGuardianVerification()).toMatchObject({
+      ok: true,
+    });
+    const code = h.email.codeFor(member.email)!;
+    const sent = h.email.sent.length;
+
+    expect(await production.startGuardianVerification()).toEqual({
+      ok: false,
+      error: "unavailable",
+    });
+    expect(h.email.sent).toHaveLength(sent);
+    expect(await production.confirmGuardianVerification({ code })).toEqual({
+      ok: false,
+      error: "unavailable",
+    });
+    expect(await production.myGuardianProfile()).toMatchObject({
+      registered: true,
+      verified: false,
+    });
+    expect(await guardianRoles(h, member.id)).toEqual([]);
+    expect(await preview.confirmGuardianVerification({ code })).toEqual({
+      ok: true,
+    });
+  });
+
   it("sends one code to the member's own verified email, directly", async () => {
     const h = await createHarness();
     const { member, actor } = await signedInMember(h);
