@@ -105,8 +105,11 @@ export interface PaymentGateway {
   /**
    * Refunds `amount` of the captured payment `paymentId` (#80): all of it
    * or part. A second call with the same `idempotencyKey` returns the
-   * refund the first made instead of refunding again. Rejects if the
-   * gateway refuses, for example for more than is left of the payment.
+   * refund the first made instead of refunding again. Rejects with a
+   * `RefundRefusedError` when the gateway refuses this refund for good
+   * (for more than is left of the payment, or a payment it can't refund),
+   * so asking again would be refused again; with any other error for an
+   * outage, a timeout or an answer it can't read, which may pass.
    */
   refund(request: {
     paymentId: string;
@@ -117,6 +120,21 @@ export interface PaymentGateway {
 
   /** Every refund of `paymentId`, as the gateway records it. */
   fetchRefunds(paymentId: string): Promise<GatewayRefund[]>;
+}
+
+/**
+ * The gateway refused a refund for good (#80): sending the same refund
+ * again would be refused again. The refund fails, so finance may close it
+ * or retry it once the cause is fixed. The message names no credential.
+ */
+export class RefundRefusedError extends Error {
+  constructor(
+    message: string,
+    readonly reason: "definitive" | "full_refund_only" = "definitive"
+  ) {
+    super(message);
+    this.name = "RefundRefusedError";
+  }
 }
 
 /** Thrown in production while no payment gateway is configured. */

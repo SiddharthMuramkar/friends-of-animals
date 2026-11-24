@@ -4,7 +4,8 @@
       "label": "Admin",
       "roles": "Roles",
       "audit": "Audit log",
-      "breaches": "Breach log"
+      "breaches": "Breach log",
+      "consentForms": "Signed forms"
     },
     "loading": "Loading…",
     "denied": {

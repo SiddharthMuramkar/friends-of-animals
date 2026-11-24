@@ -44,14 +44,21 @@ async function withdrawnByUser(
 }
 
 describe("the messages withdrawal receipt", () => {
-  it("answers a person withdrawing their own messages consent", async () => {
-    const h = await createHarness();
-    const member = await h.seed.member({ name: "Asha Rao" });
+  it.each(["local", "production"] as const)(
+    "delivers the receipt for the member's own withdrawal in %s",
+    async (appEnv) => {
+      const h = await createHarness({ appEnv });
+      const member = await h.seed.member({ name: "Asha Rao" });
+      const actor = await h.signIn(member);
 
-    await withdrawnByUser(h, member.id, "messages");
+      await withdrawnByUser(h, member.id, "messages");
 
-    expect(receiptsTo(h, member.email)).toHaveLength(1);
-  });
+      expect(receiptsTo(h, member.email)).toHaveLength(1);
+      expect(await h.as(actor).listInbox()).toContainEqual(
+        expect.objectContaining({ title: "Consent to messages withdrawn" })
+      );
+    }
+  );
 
   it("answers no other purpose, even a user's", async () => {
     const h = await createHarness();

@@ -48,6 +48,29 @@ describe("parseCspReport: application/csp-report", () => {
     expect(JSON.stringify(result)).not.toMatch(/asha|secret|inbox|nonce/);
   });
 
+  it("omits the consent credential from report URLs", () => {
+    const url = "https://foa.example.test/consent/synthetic-token";
+    const result = parseCspReport(
+      "application/csp-report",
+      legacy({
+        "document-uri": url,
+        "source-file": url,
+        "blocked-uri": url,
+        "effective-directive": "script-src",
+      })
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      violations: [
+        {
+          documentUrl: "https://foa.example.test/consent/[redacted]",
+          sourceFile: "https://foa.example.test/consent/[redacted]",
+          blocked: "https://foa.example.test/consent/[redacted]",
+        },
+      ],
+    });
+  });
+
   it("keeps the inline and eval keywords and only the scheme of data URLs", () => {
     const blocked = (uri: string) => {
       const result = parseCspReport(

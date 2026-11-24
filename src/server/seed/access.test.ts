@@ -74,8 +74,8 @@ describe("the access seed", () => {
     // two from the consent seeder's publishers, two from the
     // notifications seeder's template editors, the seeded institution's
     // admin (#73), the safeguarding seeder's lead (#116), and the
-    // guardians seeder's guardian and linked teen (#81).
-    expect(first).toHaveLength(15);
+    // guardians seeder's guardian and linked teen (#81), plus Ledger Finance.
+    expect(first).toHaveLength(16);
   });
 
   it("keeps fixed scope ids that links and journeys can name", () => {

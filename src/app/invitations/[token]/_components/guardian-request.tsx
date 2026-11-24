@@ -1,14 +1,17 @@
 import { CircleCheck } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { GuardianSetupUnavailable } from "@/app/guardian/_components/setup-unavailable";
 import { FormAlert, SelectField, SubmitButton } from "@/components/form";
 import { ButtonLink } from "@/components/site/button-link";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader } from "@/components/site/heading";
+import { env } from "@/env";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { GuardianRequestView } from "@/server/modules/guardians";
+import { guardianFlowsActive } from "@/server/modules/guardians/availability";
 import { GUARDIAN_RELATIONSHIPS } from "@/server/modules/registration/domain/student-details";
 
 import { acceptGuardianRequestAction } from "../_lib/actions";
@@ -81,6 +84,14 @@ export async function GuardianRequest({
         <ExplainState className="mt-8" title={t(`${state}.title`)} back={home}>
           <p>{t(`${state}.body`)}</p>
         </ExplainState>
+      </>
+    );
+  }
+  if (!guardianFlowsActive(env().APP_ENV)) {
+    return (
+      <>
+        {header}
+        <GuardianSetupUnavailable back={home} />
       </>
     );
   }

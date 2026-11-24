@@ -1,8 +1,9 @@
-import { asc, eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
+import { describe, expect, it, vi } from "vitest";
 
 import { outbox, paymentBatch } from "@/server/db/schema";
 import { listFailedDeliveries } from "@/server/outbox";
+import { RefundRefusedError } from "@/server/ports/payment-gateway";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { signInStaff } from "../testing";
@@ -58,12 +59,15 @@ function refundWebhook(
   );
 }
 
-async function eventsOf(h: Harness, type: string) {
+async function deliveriesOf(
+  h: Harness,
+  type: "refund.processed" | "refund.failed"
+) {
   return h.db
-    .select()
+    .select({ eventId: outbox.eventId, handler: outbox.handler })
     .from(outbox)
     .where(eq(outbox.eventType, type))
-    .orderBy(asc(outbox.id));
+    .orderBy(outbox.handler);
 }
 
 describe("a refund the gateway holds", () => {
@@ -99,7 +103,12 @@ describe("a refund the gateway holds", () => {
       "refunded",
       "refunded",
     ]);
-    expect(await eventsOf(h, "refund.processed")).toHaveLength(1);
+    const deliveries = await deliveriesOf(h, "refund.processed");
+    expect(new Set(deliveries.map(({ eventId }) => eventId)).size).toBe(1);
+    expect(deliveries.map(({ handler }) => handler)).toEqual([
+      "ledger.post_refund",
+      "notifications.dispatch",
+    ]);
 
     const settled = await refundRows(h);
     expect(await h.as(h.visitor()).receiveGatewayWebhook(webhook)).toEqual({
@@ -169,7 +178,10 @@ describe("a refund the gateway fails", () => {
       status: "failed",
       failedAt: h.clock.now(),
     });
-    expect(await eventsOf(h, "refund.failed")).toHaveLength(1);
+    const deliveries = await deliveriesOf(h, "refund.failed");
+    expect(deliveries.map(({ handler }) => handler)).toEqual([
+      "notifications.dispatch",
+    ]);
     expect(await statusesOf(h, paid.registrationIds)).toEqual([
       "confirmed",
       "confirmed",
@@ -312,6 +324,93 @@ describe("a lost answer", () => {
   });
 });
 
+describe("a refund the gateway refuses for good", () => {
+  it("is failed at once, so finance may close it or send it again, and its students aren't held forever", async () => {
+    const h = await createHarness();
+    const { paid, refundId, finance } = await approved(h);
+    // Someone refunded the whole payment from the gateway's dashboard, so
+    // nothing is left for ours: the gateway will never take it.
+    await h.gateway.refund({
+      paymentId: paid.paymentId,
+      amount: { amountMinor: FEE_PAISE * 2n, currency: "INR" },
+      idempotencyKey: "dashboard",
+      notes: {},
+    });
+
+    await h.drain();
+
+    expect(await refundRow(h, refundId)).toMatchObject({
+      status: "failed",
+      failedAt: h.clock.now(),
+      gatewayRefundId: null,
+    });
+    expect(h.gateway.refunds).toHaveLength(1);
+    expect(await deliveriesOf(h, "refund.failed")).toEqual([
+      expect.objectContaining({ handler: "notifications.dispatch" }),
+    ]);
+    expect(await listFailedDeliveries(h.db)).toEqual([]);
+    expect((await refundAudit(h)).at(-1)).toMatchObject({
+      action: "refund.failed",
+      before: { status: "approved" },
+      after: { status: "failed", refusedByGateway: true },
+    });
+    expect(await statusesOf(h, paid.registrationIds)).toEqual([
+      "confirmed",
+      "confirmed",
+    ]);
+
+    // Draining again sends nothing more and changes nothing.
+    const before = await refundRows(h);
+    h.clock.advance({ minutes: 30 });
+    await h.drain();
+    expect(await refundRows(h)).toEqual(before);
+
+    await h.passSecondFactor(finance.actor);
+    expect(
+      await h.as(finance.actor).rejectRefund({
+        refundId,
+        note: "Refunded from the gateway's dashboard already.",
+      })
+    ).toEqual({ ok: true, status: "rejected" });
+  });
+
+  it("ignores a delayed refusal after the gateway has acknowledged the attempt", async () => {
+    const h = await createHarness();
+    const { paid, refundId } = await approved(h);
+    const started = Promise.withResolvers<void>();
+    const refuse = Promise.withResolvers<void>();
+    vi.spyOn(h.gateway, "refund").mockImplementationOnce(async () => {
+      started.resolve();
+      await refuse.promise;
+      throw new RefundRefusedError("Delayed definitive refusal");
+    });
+    const delivery = h.drain();
+    try {
+      await started.promise;
+      h.gateway.answerNextRefund("pending");
+      expect(
+        await h
+          .as(h.visitor())
+          .receiveGatewayWebhook(
+            refundWebhook(h, "refund.processed", paid, "rfnd_unknown")
+          )
+      ).toEqual({ ok: true, outcome: "refund_updated" });
+      const acknowledged = await refundRow(h, refundId);
+      expect(acknowledged).toMatchObject({
+        status: "processing",
+        gatewayRefundId: h.gateway.refunds[0]!.id,
+      });
+      refuse.resolve();
+      await delivery;
+      expect(await refundRow(h, refundId)).toEqual(acknowledged);
+      expect(await deliveriesOf(h, "refund.failed")).toEqual([]);
+    } finally {
+      refuse.resolve();
+      await delivery;
+    }
+  });
+});
+
 describe("a batch paid through another gateway", () => {
   it("is never refunded through this one: it stays approved and the delivery fails for staff to see", async () => {
     const h = await createHarness();
@@ -385,6 +484,41 @@ describe("a batch paid offline", () => {
     expect(JSON.stringify((await refundAudit(h)).at(-1)?.after)).not.toContain(
       "UTIB"
     );
+  });
+
+  it("never lets the requester record paying back their own refund", async () => {
+    const h = await createHarness();
+    const paid = await chequePaidBatch(h);
+    const both = await h.seed.member();
+    await h.seed.grant(both, {
+      role: "staff_admin",
+      scope: { type: "global" },
+    });
+    await h.seed.grant(both, { role: "finance", scope: { type: "global" } });
+    const actor = await h.signIn(both);
+    const asked = await h
+      .as(actor)
+      .requestRefund({ batchId: paid.batchId, reason: REASON });
+    if (!asked.ok) throw new Error("not asked");
+    const finance = await signInStaff(h, "finance");
+    await h.as(finance.actor).approveRefund({ refundId: asked.refundId });
+    const before = await refundRows(h);
+
+    expect(
+      await h.as(actor).recordManualRefund({
+        refundId: asked.refundId,
+        method: "bank_transfer",
+        reference: "UTIB0001234567",
+      })
+    ).toEqual({ ok: false, error: "same_person" });
+    expect(await refundRows(h)).toEqual(before);
+    expect(
+      await h.as(finance.actor).recordManualRefund({
+        refundId: asked.refundId,
+        method: "bank_transfer",
+        reference: "UTIB0001234567",
+      })
+    ).toEqual({ ok: true, status: "refunded" });
   });
 
   it("records a manual refund only for an approved manual refund, by finance", async () => {

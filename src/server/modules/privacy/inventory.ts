@@ -108,6 +108,48 @@ const CONSENT_RECORD = {
   toConfirm: true,
 } as const;
 
+const ENTRY_RECORD = {
+  period: "3 years after the competition ends (HR-31)",
+  basis:
+    "Lets participants and FOA find the submitted work, resolve questions and review judging or upload history",
+  toConfirm: true,
+} as const;
+
+const ENTRY_MEDIA = {
+  period: "Until 90 days after the competition ends (HR-31)",
+  basis:
+    "Keeps private originals for processing and metadata-stripped copies for review and appeals",
+  toConfirm: true,
+} as const;
+
+const ENTRY_UPLOAD_GRANT = {
+  period:
+    "Until the upload URL expires after 10 minutes and cleanup runs (HR-31)",
+  basis: "Confirms and rate-limits uploads and removes unused staged data",
+  toConfirm: true,
+} as const;
+
+const SIGNED_FORM_RECORD = {
+  period:
+    "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure (HR-31)",
+  basis: "Lets FOA check the signed evidence and account for its review",
+  toConfirm: true,
+} as const;
+
+const AFTER_CONSENT_LINK_CLOSES = {
+  period: "90 days after the link is answered, revoked or expires (HR-31)",
+  basis:
+    "Reaches the guardian contact and helps FOA answer queries about link delivery",
+  toConfirm: true,
+} as const;
+
+const WHILE_CONSENT_LINK_OPEN = {
+  period: "Until used, revoked or expired (HR-31)",
+  basis:
+    "Provides a single-use link and verifies control of the contact before recording choices",
+  toConfirm: true,
+} as const;
+
 /** A guardian's own record and links: as long as a child of theirs is kept. */
 const WHILE_GUARDIAN_LOOKS_AFTER_A_CHILD = {
   period:
@@ -144,6 +186,333 @@ const WHILE_STUDENT_TAKES_PART = {
 } as const;
 
 export const DATA_INVENTORY: readonly InventoryEntry[] = [
+  {
+    table: "entry",
+    column: "code",
+    purpose: "Identifies the work when a participant asks FOA about an entry",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "registration_id",
+    purpose: "Links the entry to its confirmed competition registration",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "participant_profile_id",
+    purpose:
+      "Links the work to the participant and the person authorised to view it",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "title",
+    purpose: "Displays the name the participant gave the work",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "description",
+    purpose: "Describes the work for the participant and authorised reviewers",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "statement",
+    purpose: "Lets the participant explain the work in their own words",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry",
+    column: "created_by_user_id",
+    purpose: "Records which participant or guardian first uploaded the work",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_file",
+    column: "id",
+    purpose: "Identifies which upload attempt an entry notice is about",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_file",
+    column: "entry_id",
+    purpose: "Associates each upload attempt with the participant's entry",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_file",
+    column: "file_asset_id",
+    purpose:
+      "Links to privately stored artwork and the safe copies made from it",
+    retention: ENTRY_MEDIA,
+  },
+  {
+    table: "entry_file",
+    column: "uploaded_by_user_id",
+    purpose: "Records who uploaded each version of the work",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_file",
+    column: "pending_text",
+    purpose: "Keeps a replacement's proposed text with the image being checked",
+    retention: {
+      period: "Until the replacement passes, fails or is superseded (HR-31)",
+      basis:
+        "Publishes the text with its approved image and discards unused revisions",
+      toConfirm: true,
+    },
+  },
+  {
+    table: "entry_file",
+    column: "receipt_title",
+    purpose:
+      "Keeps the adult participant's receipt tied to the submitted title",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_upload_grant",
+    column: "file_asset_id",
+    purpose: "Associates the short-lived grant with the uploader's staged file",
+    retention: ENTRY_UPLOAD_GRANT,
+  },
+  {
+    table: "entry_upload_grant",
+    column: "registration_id",
+    purpose: "Limits the grant to the authorised registration",
+    retention: ENTRY_UPLOAD_GRANT,
+  },
+  {
+    table: "entry_upload_grant",
+    column: "upload_key",
+    purpose: "Locates the staged object to clear when the grant expires",
+    retention: ENTRY_UPLOAD_GRANT,
+  },
+  {
+    table: "entry_transition",
+    column: "entry_id",
+    purpose: "Associates a change in status with the participant's entry",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_transition",
+    column: "entry_file_id",
+    purpose: "Shows which upload caused a change in the entry's status",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "entry_transition",
+    column: "actor_user_id",
+    purpose: "Records which user acted when the entry changed status",
+    retention: ENTRY_RECORD,
+  },
+  {
+    table: "file_asset",
+    column: "owner_user_id",
+    purpose: "Identifies who owns an uploaded file, including an entry image",
+    retention: ENTRY_MEDIA,
+  },
+  {
+    table: "file_asset",
+    column: "storage_key",
+    purpose:
+      "Locates an entry's private original, including quarantined uploads",
+    retention: ENTRY_MEDIA,
+  },
+  {
+    table: "file_derivative",
+    column: "file_asset_id",
+    purpose: "Links a metadata-stripped copy to the uploaded file it came from",
+    retention: ENTRY_MEDIA,
+  },
+  {
+    table: "file_derivative",
+    column: "storage_key",
+    purpose: "Locates a metadata-stripped copy used to show a live entry image",
+    retention: ENTRY_MEDIA,
+  },
+  {
+    table: "consent_form",
+    column: "file_asset_id",
+    purpose:
+      "Locates the private scan bearing the guardian's name and signature",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "participant_profile_id",
+    purpose: "Identifies the enrolled student whose signed form FOA reviewed",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "competition_id",
+    purpose: "Identifies the competition covered by the guardian's signed form",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "institution_registration_id",
+    purpose:
+      "Connects the signed form to the student's school registration for review and coordinator access",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "uses",
+    purpose: "Records the public uses the guardian marked on the signed form",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "documents",
+    purpose:
+      "Preserves the exact consent document versions reviewed for the guardian's choices",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "uploaded_by_user_id",
+    purpose: "Identifies the coordinator who submitted the form",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "reviewed_by_user_id",
+    purpose: "Identifies the authorised reviewer who made the decision",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form",
+    column: "rejection_note",
+    purpose:
+      "Explains how the coordinator can correct the submission. Staff are asked to leave out personal details",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form_upload",
+    column: "file_asset_id",
+    purpose:
+      "Identifies the private scan upload bound to the student's enrolment",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_form_upload",
+    column: "registration_id",
+    purpose:
+      "Restricts a signed-form upload to the enrolled student it was requested for",
+    retention: SIGNED_FORM_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "consent_form_id",
+    purpose:
+      "Links a consent decision to the signed evidence of what the guardian agreed to",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "reviewer_user_id",
+    purpose: "Identifies who verified the signed evidence for this consent",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "institution_registration",
+    column: "participation_declared_by_user_id",
+    purpose:
+      "Identifies who declared that the institution authorises participation and judging",
+    retention: WHILE_REGISTRATION_KEPT,
+  },
+  // School guardian consent by code link (#83).
+  ...(
+    [
+      [
+        "contact_ciphertext",
+        "Delivers the consent link and one-time code to the guardian",
+        AFTER_CONSENT_LINK_CLOSES,
+      ],
+      [
+        "contact_hash",
+        "Identifies the normalised delivery contact without reading it",
+        AFTER_CONSENT_LINK_CLOSES,
+      ],
+      [
+        "token_ciphertext",
+        "Builds the guardian's link when the message is delivered",
+        WHILE_CONSENT_LINK_OPEN,
+      ],
+      [
+        "token_hash",
+        "Finds the link and recognises previously used or revoked links",
+        AFTER_CONSENT_LINK_CLOSES,
+      ],
+      [
+        "code_hash",
+        "Verifies the one-time code sent to the guardian contact",
+        WHILE_CONSENT_LINK_OPEN,
+      ],
+      [
+        "session_token_hash",
+        "Binds the answer session to the browser which verified the code",
+        WHILE_CONSENT_LINK_OPEN,
+      ],
+      [
+        "answers",
+        "Records the public uses the guardian gave or declined on the link",
+        CONSENT_RECORD,
+      ],
+      [
+        "offered_uses",
+        "Records the document versions shown for the guardian's choices",
+        CONSENT_RECORD,
+      ],
+      [
+        "participant_profile_id",
+        "Identifies the student whose choices the link records",
+        CONSENT_RECORD,
+      ],
+      [
+        "student_registration_id",
+        "Keeps the link tied to this student's school enrolment",
+        CONSENT_RECORD,
+      ],
+      [
+        "institution_registration_id",
+        "Scopes the student's link to the school's registration",
+        CONSENT_RECORD,
+      ],
+      [
+        "competition_id",
+        "Identifies the competition for which the guardian answered",
+        CONSENT_RECORD,
+      ],
+      [
+        "sent_by_user_id",
+        "Records the coordinator who issued the guardian link",
+        CONSENT_RECORD,
+      ],
+    ] as const
+  ).map(([column, purpose, retention]) => ({
+    table: "consent_link",
+    column,
+    purpose,
+    retention,
+  })),
+  {
+    table: "consent_event",
+    column: "giver_contact_hash",
+    purpose:
+      "Identifies the verified consent giver without storing the contact in the consent log",
+    retention: CONSENT_RECORD,
+  },
+  {
+    table: "consent_event",
+    column: "consent_link_id",
+    purpose: "Links a recorded consent to the guardian's code link evidence",
+    retention: CONSENT_RECORD,
+  },
   // Accounts (#57, #58)
   {
     table: "user",
@@ -651,6 +1020,24 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     table: "refund",
     column: "manual_recorded_by",
     purpose: "Who in finance recorded paying a refund back by hand",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "ledger_posting",
+    column: "description",
+    purpose: "Describes the entry and may name a counterparty",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "ledger_posting",
+    column: "created_by_user_id",
+    purpose: "Identifies the finance user who entered or reversed a posting",
+    retention: PAYMENT_RECORD,
+  },
+  {
+    table: "ledger_line",
+    column: "memo",
+    purpose: "Explains a journal line and may name a counterparty",
     retention: PAYMENT_RECORD,
   },
   // Guardians and their children (#81). A child's profile is a

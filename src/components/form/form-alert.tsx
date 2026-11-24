@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import {
   CALLOUT_TONE,
@@ -28,15 +28,22 @@ export function FormAlert({
   label,
   children,
   className,
+  ref,
+  tabIndex,
 }: {
   tone: Tone;
   label: ReactNode;
   children: ReactNode;
   className?: string;
-}) {
+} & Pick<ComponentProps<"div">, "ref" | "tabIndex">) {
   const { icon: Icon, box, label: word } = CALLOUT_TONE[tone];
   return (
-    <div role={ROLE[tone]} className={cn(calloutBox, box, className)}>
+    <div
+      ref={ref}
+      role={ROLE[tone]}
+      tabIndex={tabIndex}
+      className={cn(calloutBox, box, className)}
+    >
       <p className={cn("flex items-center gap-2 font-semibold", word)}>
         <Icon aria-hidden="true" className="size-5 shrink-0" />
         <span>{label}</span>

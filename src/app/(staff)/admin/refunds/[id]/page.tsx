@@ -19,7 +19,10 @@ import {
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import type { RefundView } from "@/server/modules/payments";
-import { formatPaise } from "@/server/modules/payments/domain/money-format";
+import {
+  formatCapturedAmount,
+  formatPaise,
+} from "@/server/modules/payments/domain/money-format";
 import { REFUND_TEXT_MAX_LENGTH } from "@/server/modules/payments/refunds/rows";
 
 import { adminCall } from "../../_lib/boundary";
@@ -161,7 +164,7 @@ async function Details({ refund }: { refund: RefundView }) {
           {formatPaise(refund.amountMinor)}
         </Row>
         <Row term={t("detail.details.paid")}>
-          {formatPaise(refund.batchAmountMinor)}
+          {formatCapturedAmount(refund.batchAmountMinor, refund.batchCurrency)}
         </Row>
         <Row term={t("detail.details.method")}>
           {t(`methods.${refund.method}`)}
@@ -385,6 +388,17 @@ async function Actions({ refund }: { refund: RefundView }) {
     );
   }
 
+  if (refund.viewer.isRequester) {
+    return (
+      <section aria-labelledby="refund-manual" className={CARD}>
+        <SectionHeading id="refund-manual" title={t("detail.manualTitle")} />
+        <p className="mt-3 text-ink-muted">
+          {t("detail.manual.alerts.same_person")}
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section aria-labelledby="refund-manual" className={CARD}>
       <SectionHeading id="refund-manual" title={t("detail.manualTitle")} />
@@ -411,6 +425,7 @@ async function Actions({ refund }: { refund: RefundView }) {
             alerts: {
               not_approved: t("detail.manual.alerts.not_approved"),
               not_manual: t("detail.manual.alerts.not_manual"),
+              same_person: t("detail.manual.alerts.same_person"),
               unexpected: t("unexpected"),
             },
             submit: t("detail.manual.submit"),

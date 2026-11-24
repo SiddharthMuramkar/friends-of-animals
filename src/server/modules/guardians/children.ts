@@ -45,6 +45,7 @@ import {
   type AddChildRefusal,
   type ChildKind,
 } from "./domain/children";
+import { guardianFlowsActive } from "./availability";
 import { guardianOfUser } from "./guardian-record";
 
 export type AddChildInput = {
@@ -61,7 +62,7 @@ export type AddChildInput = {
 export type AddChildResult =
   | { ok: true; childId: string; kind: ChildKind }
   | InvalidInput
-  | { ok: false; error: AddChildRefusal | "already_added" };
+  | { ok: false; error: AddChildRefusal | "already_added" | "unavailable" };
 
 export type GetChildResult = { ok: true; child: ChildDetail };
 
@@ -114,6 +115,9 @@ export async function addChild(
 ): Promise<AddChildResult> {
   const allowed = await authorizeChildren(ctx);
   if (!allowed.ok) return allowed;
+  if (!guardianFlowsActive(ctx.appEnv)) {
+    return { ok: false, error: "unavailable" };
+  }
   const { userId, role: actorRole } = allowed;
   const parsed = addChildInput.safeParse(input);
   if (!parsed.success) {

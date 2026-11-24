@@ -7,11 +7,14 @@ import { PageHeader } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
+import { env } from "@/env";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import { guardianFlowsActive } from "@/server/modules/guardians/availability";
 import { GUARDIAN_RELATIONSHIPS } from "@/server/modules/registration/domain/student-details";
 
+import { GuardianSetupUnavailable } from "../../_components/setup-unavailable";
 import {
   ADD_CHILD_FIELDS,
   type AddChildField,
@@ -30,6 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const HUE = "green";
 
 const REFUSALS: readonly AddChildRefusal[] = [
+  "unavailable",
   "dob_invalid",
   "adult",
   "already_added",
@@ -40,12 +44,7 @@ export default async function Page() {
   const t = await getTranslations("guardian.newChild");
   return (
     <Section hue={HUE} tone="tint" width="prose" className="pt-10 sm:pt-14">
-      <PageHeader
-        eyebrow={t("eyebrow")}
-        tile={HUE}
-        title={t("title")}
-        lead={t("lead")}
-      />
+      <PageHeader eyebrow={t("eyebrow")} tile={HUE} title={t("title")} />
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
@@ -58,6 +57,14 @@ export default async function Page() {
 async function NewChild() {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
+  if (!guardianFlowsActive(env().APP_ENV)) {
+    const t = await getTranslations("guardian.newChild");
+    return (
+      <GuardianSetupUnavailable
+        back={{ href: APP_ROUTES.guardian, label: t("back") }}
+      />
+    );
+  }
   const [t, callout, profile] = await Promise.all([
     getTranslations("guardian.newChild"),
     getTranslations("common.callout"),
@@ -68,6 +75,7 @@ async function NewChild() {
   }
   return (
     <div className="mt-8 flex flex-col gap-6">
+      <p className="max-w-prose text-lead text-ink-muted">{t("lead")}</p>
       <AddChildForm
         labels={{
           fields: Object.fromEntries(

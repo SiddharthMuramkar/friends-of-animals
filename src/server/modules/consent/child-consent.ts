@@ -37,6 +37,7 @@ import { DomainError } from "../../errors";
 import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import { pinnedDocuments } from "../competitions/terms/repository";
+import { guardianFlowsActive } from "../guardians/availability";
 import { childResource } from "../guardians/child-access";
 import { childDateOfBirth } from "../guardians/child-view";
 import { guardianOfUser } from "../guardians/guardian-record";
@@ -81,6 +82,7 @@ import {
   subjectEvents,
   type ConsentSubject,
 } from "./repository";
+import { schoolPublicCredit } from "./school-route-use";
 
 /** A document version as the guardian's page shows and links it. */
 export type ChildConsentDocument = {
@@ -130,7 +132,11 @@ export type GiveChildConsentResult =
   | NotVerified
   | {
       ok: false;
-      error: GiveRefusal | "document_outdated" | "no_published_document";
+      error:
+        | GiveRefusal
+        | "document_outdated"
+        | "no_published_document"
+        | "unavailable";
     };
 
 export type WithdrawChildConsentResult =
@@ -215,7 +221,7 @@ function subjectOf(childId: string): ConsentSubject {
 }
 
 /** What the competition says about consent, or null for no competition. */
-async function competitionSetup(
+export async function competitionSetup(
   db: AppDb,
   competitionId: string
 ): Promise<{
@@ -260,7 +266,11 @@ async function liveRegistration(
   competitionId: string
 ) {
   const [found] = await db
-    .select({ id: registration.id, createdAt: registration.createdAt })
+    .select({
+      id: registration.id,
+      createdAt: registration.createdAt,
+      route: registration.route,
+    })
     .from(registration)
     .where(
       and(
@@ -283,6 +293,9 @@ export async function giveChildConsent(
     input?.childId
   );
   if (!allowed.ok) return allowed;
+  if (!guardianFlowsActive(ctx.appEnv)) {
+    return { ok: false, error: "unavailable" };
+  }
   const parsed = giveChildConsentInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { childId, purpose, documentId } = parsed.data;
@@ -520,6 +533,17 @@ export async function publicUse(
       use,
       new Set([purpose])
     );
+  }
+
+  if (child.ownerKind === "institution") {
+    if (registration.route !== "institution") return null;
+    return schoolPublicCredit(ctx.db, {
+      profileId,
+      competitionId,
+      use,
+      setup: found.setup,
+      person: { ...person, minor: true },
+    });
   }
 
   const events = await childEvents(ctx.db, profileId, competitionId);

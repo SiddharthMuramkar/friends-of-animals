@@ -34,6 +34,11 @@ import {
   contactMessageValues,
   contactTeamMembers,
 } from "../contact/notify";
+import {
+  ENTRY_ATTEMPT_VARIABLES,
+  ENTRY_RECEIPT_VARIABLES,
+  entryValues,
+} from "../entries/message-values";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
 import {
@@ -63,6 +68,8 @@ export const RECIPIENT_VARIABLES = ["recipient.name"] as const;
 /** The user an event is about, if it is about a user. */
 function subjectUserOf(delivery: Delivery): string | null {
   switch (delivery.eventType) {
+    case "consent.form_reviewed":
+      return delivery.payload.uploaderUserId;
     case "identity.user_signed_up":
       return delivery.payload.userId;
     case "consent.withdrawn":
@@ -73,6 +80,7 @@ function subjectUserOf(delivery: Delivery): string | null {
         delivery.payload.purpose === "messages"
         ? delivery.payload.subjectId
         : null;
+    case "consent.link_sent":
     case "contact_message.received":
       // A visitor's message (#113): its sender has no account.
       return null;
@@ -80,6 +88,10 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "files.processing_requested":
     case "files.file_processed":
     case "files.file_processing_failed":
+    case "files.file_quarantined":
+    case "files.file_rejected":
+    case "entry.upload_grant_issued":
+    case "entry.sweep_staged_upload":
       // A file's own pipeline (#63, #85), not a message route: no route
       // row names these events.
       return null;
@@ -148,6 +160,25 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The fan-out job and the authority's own email (#116); no route row
       // sends to a user for either.
       return null;
+    case "entry.submitted":
+    case "entry.file_rejected":
+    case "entry.file_failed":
+      // About a registration's entry (#85): `registration_owner` and
+      // `guardian_of_participant` find who hears of it.
+      return null;
+  }
+}
+
+/** The individual registration an event is about, for its owner or guardians. */
+function registrationOf(delivery: Delivery): string | null {
+  switch (delivery.eventType) {
+    case "registration.confirmed":
+    case "entry.submitted":
+    case "entry.file_rejected":
+    case "entry.file_failed":
+      return delivery.payload.registrationId;
+    default:
+      return null;
   }
 }
 
@@ -182,13 +213,14 @@ export const AUDIENCES = {
       ? payerOn(db, delivery.payload.batchId, "individual")
       : [],
   /**
-   * The adult whose own registration it is (#78), for its confirmation; a
-   * school's student has none, so nobody receives it here.
+   * The adult whose own registration it is (#78), for its confirmation and
+   * its entry's messages (#85); a school's student has none, so nobody
+   * receives it here.
    */
-  registration_owner: async (db, delivery) =>
-    delivery.eventType === "registration.confirmed"
-      ? ownerOfRegistration(db, delivery.payload.registrationId)
-      : [],
+  registration_owner: async (db, delivery) => {
+    const registrationId = registrationOf(delivery);
+    return registrationId ? ownerOfRegistration(db, registrationId) : [];
+  },
   /**
    * The guardians of the child a registration is for (#81): messages about
    * a minor go to them, and a teen with an own login gets an inbox copy. A
@@ -197,10 +229,10 @@ export const AUDIENCES = {
    * Later events about a registration can add their own route here.
    * Financial receipts and refunds go to the payer's account.
    */
-  guardian_of_participant: async (db, delivery) =>
-    delivery.eventType === "registration.confirmed"
-      ? guardianOfParticipant(db, delivery.payload.registrationId)
-      : [],
+  guardian_of_participant: async (db, delivery) => {
+    const registrationId = registrationOf(delivery);
+    return registrationId ? guardianOfParticipant(db, registrationId) : [];
+  },
   /**
    * Whoever wrote through the contact form (#113). They have no account, so
    * no user receives it here: the contact module emails their address with
@@ -364,12 +396,19 @@ function reasonSentence(block: TransitionBlock): string {
 
 /** What each event lets a template say. */
 export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
+  "consent.form_reviewed": { names: [], load: async () => ({}) },
   "identity.user_signed_up": { names: [], load: async () => ({}) },
   "consent.withdrawn": { names: [], load: async () => ({}) },
+  // Bearer links are delivered by their own handler. Their secrets never enter this map.
+  "consent.link_sent": { names: [], load: async () => ({}) },
   "files.file_uploaded": { names: [], load: async () => ({}) },
   "files.processing_requested": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },
   "files.file_processing_failed": { names: [], load: async () => ({}) },
+  "files.file_quarantined": { names: [], load: async () => ({}) },
+  "files.file_rejected": { names: [], load: async () => ({}) },
+  "entry.upload_grant_issued": { names: [], load: async () => ({}) },
+  "entry.sweep_staged_upload": { names: [], load: async () => ({}) },
   "institution.verified": {
     names: ["institution.name", "institution.code"],
     load: (db, { payload }) => institutionValues(db, payload.institutionId),
@@ -442,6 +481,18 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: AUTHORITY_NOTICE_VARIABLES,
     // The authority handler renders these variables for its configured address.
     load: async () => ({}),
+  },
+  "entry.submitted": {
+    names: ENTRY_RECEIPT_VARIABLES,
+    load: (db, { payload }) => entryValues(db, payload, true),
+  },
+  "entry.file_rejected": {
+    names: ENTRY_ATTEMPT_VARIABLES,
+    load: (db, { payload }) => entryValues(db, payload),
+  },
+  "entry.file_failed": {
+    names: ENTRY_ATTEMPT_VARIABLES,
+    load: (db, { payload }) => entryValues(db, payload),
   },
 };
 

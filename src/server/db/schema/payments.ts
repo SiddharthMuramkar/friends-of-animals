@@ -259,6 +259,9 @@ export const paymentReviewOutcomeEnum = pgEnum(
   PAYMENT_REVIEW_OUTCOMES
 );
 
+export const DASHBOARD_REFUND_REFERENCE_UNIQUE =
+  "payment_review_case_dashboard_refund_reference_unique";
+
 export const paymentReviewCase = pgTable(
   "payment_review_case",
   {
@@ -269,7 +272,7 @@ export const paymentReviewCase = pgTable(
     reason: paymentReviewReasonEnum().notNull(),
     /** The captured payment under review. */
     gatewayPaymentId: text("gateway_payment_id"),
-    /** What the gateway captured, in paise, and in what currency. */
+    /** What the gateway captured, in the currency's minor units. */
     amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
     currency: char({ length: 3 }).notNull(),
     /** Where the batch stood before review, so resolving knows where it
@@ -286,6 +289,10 @@ export const paymentReviewCase = pgTable(
     resolutionReason: text("resolution_reason"),
     /** The refunds ticket (#80) owes the payer this payment back. */
     refundDue: boolean("refund_due").notNull().default(false),
+    /** The gateway's processed refund, verified before clearing refundDue. */
+    dashboardRefundReference: text("dashboard_refund_reference").unique(
+      DASHBOARD_REFUND_REFERENCE_UNIQUE
+    ),
   },
   (table) => [
     // A payment is reviewed once, however often its signals arrive.
@@ -298,8 +305,12 @@ export const paymentReviewCase = pgTable(
       sql`(${table.resolvedAt} IS NULL) = (${table.outcome} IS NULL) AND (${table.outcome} IS NULL) = (${table.resolutionReason} IS NULL)`
     ),
     check(
-      "payment_review_case_refund_only_on_refund",
-      sql`NOT ${table.refundDue} OR ${table.outcome} = 'refund'`
+      "payment_review_case_refund_due_matches_outcome",
+      sql`NOT ${table.refundDue} OR (${table.outcome} IS NOT NULL AND (${table.outcome} = 'refund' OR (${table.outcome} = 'confirm' AND ${table.currency} <> 'INR' AND ${table.gatewayPaymentId} IS NOT NULL AND ${table.amountMinor} > 0)))`
+    ),
+    check(
+      "payment_review_case_dashboard_refund_settled",
+      sql`${table.dashboardRefundReference} IS NULL OR (NOT ${table.refundDue} AND ${table.resolvedAt} IS NOT NULL AND ${table.outcome} IN ('refund', 'confirm') AND ${table.currency} <> 'INR' AND ${table.gatewayPaymentId} IS NOT NULL AND ${table.amountMinor} > 0)`
     ),
     index("payment_review_case_batch_id_idx").on(table.batchId),
     index("payment_review_case_opened_at_idx").on(table.openedAt),

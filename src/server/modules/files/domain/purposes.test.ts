@@ -118,6 +118,33 @@ describe("checkUploadRequest", () => {
       }
     }
   });
+
+  it.each([
+    [
+      "test_upload",
+      true,
+      ["image/png", "image/jpeg", "image/webp", "application/pdf"],
+    ],
+    ["cms_image", false, ["image/png", "image/jpeg", "image/webp"]],
+    [
+      "offline_payment_proof",
+      false,
+      ["image/png", "image/jpeg", "image/webp", "application/pdf"],
+    ],
+  ] as const)(
+    "preserves the allowed uploads for %s",
+    (purpose, directUpload, contentTypes) => {
+      expect(PURPOSE_RULES[purpose]).toMatchObject({
+        directUpload,
+        contentTypes,
+      });
+      for (const contentType of ["image/heic", "image/heif"]) {
+        expect(
+          checkUploadRequest({ purpose, contentType, sizeBytes: 10 }, "local")
+        ).toEqual({ ok: false, refusal: "type_not_allowed" });
+      }
+    }
+  );
 });
 
 describe("normaliseContentType", () => {

@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ADMIN_LEDGER,
+  ADMIN_LEDGER_ACCOUNTS,
+  ADMIN_NEW_LEDGER_ENTRY,
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_REFUNDS,
   adminBatchRefundPath,
+  adminLedgerPostingPath,
   adminRefundPath,
   adminCmsDocumentPath,
   adminPaymentBatchPath,
@@ -64,6 +68,20 @@ describe("isSignedInPage", () => {
     expect(isSignedInPage(`/admin/breaches/${COMPETITION_ID}/extra`)).toBe(
       false
     );
+  });
+
+  it("keeps the ledger pages behind sign-in (#105)", () => {
+    const paths = [
+      ADMIN_LEDGER,
+      ADMIN_LEDGER_ACCOUNTS,
+      ADMIN_NEW_LEDGER_ENTRY,
+      adminLedgerPostingPath(9_007_199_254_740_993n),
+    ];
+    for (const path of paths) {
+      expect(isSignedInPage(path), path).toBe(true);
+      expect(isSignedInPath(path), path).toBe(true);
+    }
+    expect(paths[3]).toBe("/admin/ledger/9007199254740993");
   });
 
   it("knows a competition's edit and preview pages, whatever its id", () => {

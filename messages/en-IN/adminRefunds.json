@@ -166,7 +166,8 @@
         },
         "alerts": {
           "not_approved": "This refund isn't waiting to be paid back. The page now shows its state.",
-          "not_manual": "This refund goes back through the gateway, not by hand."
+          "not_manual": "This refund goes back through the gateway, not by hand.",
+          "same_person": "Another member of finance must record a refund you requested."
         }
       },
       "done": {
@@ -178,8 +179,8 @@
     },
     "request": {
       "meta": {
-        "title": "Ask for a refund",
-        "description": "Ask finance to refund some or all of a payment."
+        "title": "Payment refunds",
+        "description": "View a payment's refund history or ask finance to refund it."
       },
       "back": "Back to the payment",
       "title": "Ask for a refund",
@@ -190,6 +191,14 @@
         "back": "Go to your dashboard"
       },
       "notCaptured": "Only a paid payment can be refunded. This one isn't paid.",
+      "dashboard": {
+        "title": "Refund history",
+        "heading": "Refunds through the payment gateway",
+        "review": "Discretionary refunds are available for payments received in INR. Finance can review this receipt in its original currency.",
+        "required": "Finance needs to refund this payment from the gateway dashboard.",
+        "recorded": "Finance recorded the refund from the gateway dashboard.",
+        "openReview": "Open payment review"
+      },
       "summaryTitle": "The payment",
       "summary": {
         "payer": "Paid by",
@@ -206,7 +215,7 @@
         "student": "{number}, {amount}",
         "inRefund": "{number}: in a refund already",
         "refunded": "{number}: refunded",
-        "noneLeft": "Every student of this payment is refunded or in a refund already.",
+        "noneLeft": "There is no amount available to refund for the students on this payment.",
         "reason": {
           "label": "Reason",
           "hint": "Up to {max} characters. Finance reads it before deciding."
@@ -219,7 +228,7 @@
         },
         "alerts": {
           "batch_not_captured": "This payment isn't paid, so nothing can be refunded.",
-          "nothing_to_refund": "Every student of this payment is refunded or in a refund already.",
+          "nothing_to_refund": "Choose at least one student with an amount left to refund.",
           "item_in_live_refund": "A student you chose is in another refund already. The page now shows who is left.",
           "item_already_refunded": "A student you chose is refunded already. The page now shows who is left.",
           "exceeds_paid": "That's more than this payment has left to refund.",

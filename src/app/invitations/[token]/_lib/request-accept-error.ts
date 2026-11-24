@@ -10,6 +10,7 @@ export type RequestAcceptError = Extract<
 >["error"];
 
 const REQUEST_ACCEPT_ERRORS: readonly RequestAcceptError[] = [
+  "unavailable",
   "not_found",
   "already_used",
   "withdrawn",

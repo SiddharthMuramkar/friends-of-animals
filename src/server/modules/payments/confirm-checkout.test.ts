@@ -39,24 +39,27 @@ async function capturedEvents(h: Harness) {
 }
 
 describe("confirmCheckout", () => {
-  it("confirms the batch's registrations when Checkout's signature is genuine", async () => {
-    const h = await createHarness();
-    const school = await schoolWithStudents(h, { students: 2 });
-    const { batchId, orderId } = await openOrder(school);
-    const returned = h.gateway.capture(orderId);
+  it.each(["local", "production"] as const)(
+    "confirms the school's registrations with a genuine checkout signature in %s",
+    async (appEnv) => {
+      const h = await createHarness({ appEnv });
+      const school = await schoolWithStudents(h, { students: 2 });
+      const { batchId, orderId } = await openOrder(school);
+      const returned = h.gateway.capture(orderId);
 
-    const result = await confirm(h, school, { batchId, ...returned });
+      const result = await confirm(h, school, { batchId, ...returned });
 
-    expect(result).toEqual({ ok: true, outcome: "captured" });
-    const registrations = await registrationsOf(h, school.registrationIds);
-    expect(registrations.map((r) => r.status)).toEqual([
-      "confirmed",
-      "confirmed",
-    ]);
-    for (const { registrationNumber } of registrations) {
-      expect(registrationNumber).toMatch(REGISTRATION_NUMBER);
+      expect(result).toEqual({ ok: true, outcome: "captured" });
+      const registrations = await registrationsOf(h, school.registrationIds);
+      expect(registrations.map((r) => r.status)).toEqual([
+        "confirmed",
+        "confirmed",
+      ]);
+      for (const { registrationNumber } of registrations) {
+        expect(registrationNumber).toMatch(REGISTRATION_NUMBER);
+      }
     }
-  });
+  );
 
   it("refuses a signature that isn't genuine and changes nothing", async () => {
     const h = await createHarness();

@@ -16,7 +16,9 @@ import { accessUseCases } from "./access";
 import type { Actor } from "./actor";
 import { auditUseCases } from "./audit";
 import { cmsUseCases } from "./modules/cms";
+import { consentLinksUseCases } from "./modules/consent-links";
 import { consentUseCases } from "./modules/consent";
+import { consentFormUseCases } from "./modules/consent-forms";
 import { productionDeps, type Deps } from "./deps";
 import { identityUseCases, resolveActor } from "./identity";
 import { competitionsUseCases } from "./modules/competitions";
@@ -35,6 +37,8 @@ import { registrationUseCases } from "./modules/registration";
 import { paymentsUseCases } from "./modules/payments";
 import { participantsUseCases } from "./modules/participants";
 import { guardiansUseCases } from "./modules/guardians";
+import { ledgerUseCases } from "./modules/ledger";
+import { entriesUseCases } from "./modules/entries";
 import { breachesUseCases } from "./modules/breaches";
 import { composeUseCases } from "./use-cases";
 
@@ -46,6 +50,8 @@ const useCases = composeUseCases(
   filesUseCases,
   settingsUseCases,
   consentUseCases,
+  consentFormUseCases,
+  consentLinksUseCases,
   competitionsUseCases,
   cmsUseCases,
   notificationsUseCases,
@@ -60,6 +66,8 @@ const useCases = composeUseCases(
   paymentsUseCases,
   participantsUseCases,
   guardiansUseCases,
+  ledgerUseCases,
+  entriesUseCases,
   breachesUseCases
 );
 

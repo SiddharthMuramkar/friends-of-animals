@@ -13,6 +13,7 @@ import { createTranslator } from "next-intl";
 import guardianMessages from "../../../../messages/en-IN/guardian.json";
 import { formats, LOCALE } from "../../../i18n/formats";
 import { invitationPath } from "../../../lib/app-routes";
+import type { AppEnv } from "../../../lib/site";
 import type { FieldCipher } from "../../crypto/field-cipher";
 import type { AppDb } from "../../db/app-db";
 import {
@@ -23,10 +24,12 @@ import {
 import type { Clock } from "../../ports/clock";
 import type { EmailSender } from "../../ports/email";
 import { invitationStatus } from "../institutions/domain/invitation";
+import { guardianFlowsActive } from "./availability";
 import { guardianName } from "./guardian-record";
 import { readTeenContact, TEEN_INVITATION_TOKEN } from "./teen-contact";
 
 export type TeenInvitationMessageDeps = {
+  appEnv: AppEnv;
   db: AppDb;
   clock: Clock;
   email: EmailSender;
@@ -50,6 +53,7 @@ export async function sendTeenInvitation(
   deps: TeenInvitationMessageDeps,
   payload: { invitationId: string }
 ): Promise<void> {
+  if (!guardianFlowsActive(deps.appEnv)) return;
   const [row] = await deps.db
     .select({
       channel: guardianInvitation.channel,
