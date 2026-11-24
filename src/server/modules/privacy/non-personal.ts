@@ -204,6 +204,12 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "resolved_at",
     "to_status",
   ],
+  conduct_certification: [
+    "certified_at",
+    "id",
+    "institution_registration_id",
+    "statement_version",
+  ],
   consent_document: [
     "id",
     "legal_revision_id",

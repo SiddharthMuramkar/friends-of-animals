@@ -1,7 +1,7 @@
 // startEntryUpload({ registrationId, discipline?, file }) (#85): the first
 // step of submitting, replacing or retrying an entry's picture. The
-// participant or their verified guardian asks to
-// upload one file, described as the browser sees it; the server checks it
+// participant or their verified guardian, or on the school route the
+// student's coordinator (#87), asks to upload one file, described as the browser sees it; the server checks it
 // against the discipline's rule (the same check the form runs), the
 // registration and the submission window, then presigns a private upload
 // under the Files module's `entry_image` purpose. Nothing about the entry
@@ -53,6 +53,8 @@ export type StartEntryUploadInput = {
 
 /** Why an upload can't go ahead, as the form names it. */
 export type EntryUploadRefusal =
+  /** The school route takes digital work from the shortlist only (#87, #91). */
+  | "shortlist_only"
   | "registration_not_confirmed"
   | "participation_consent_required"
   | "discipline_not_offered"
@@ -103,7 +105,9 @@ export async function startEntryUpload(
     replacesFileId,
     restartPendingUpload,
   } = parsed.data;
-  await authorizeEntrySubmission(ctx, registrationId);
+  const submitter = await authorizeEntrySubmission(ctx, registrationId);
+  if (submitter.scopeRefusal)
+    return { ok: false, error: submitter.scopeRefusal };
   if (ctx.actor.kind !== "user") throw new Error("unreachable");
   const ownerId = ctx.actor.userId;
 
@@ -164,6 +168,7 @@ export async function startEntryUpload(
         registrationId,
         now,
         retiringFileId,
+        uploader: submitter.whose === "student" ? "coordinator" : "participant",
       }))
     ) {
       return { ok: false, error: "upload_limit" };

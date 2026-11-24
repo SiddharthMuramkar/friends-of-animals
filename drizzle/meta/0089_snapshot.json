@@ -1,5 +1,5 @@
 {
-  "id": "06e5bf84-d4c0-441e-acfe-7f29280ebc03",
+  "id": "f0313622-e933-4528-b4e8-e1d8d440ecd7",
   "prevId": "a9e8dd13-51e4-4045-bab3-784c7e2a583d",
   "version": "7",
   "dialect": "postgresql",
@@ -12105,6 +12105,100 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.conduct_certification": {
+      "name": "conduct_certification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "institution_registration_id": {
+          "name": "institution_registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "certified_by_user_id": {
+          "name": "certified_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "certified_at": {
+          "name": "certified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statement_version": {
+          "name": "statement_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "conduct_certification_certified_by_user_id_idx": {
+          "name": "conduct_certification_certified_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "certified_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "conduct_certification_institution_registration_id_institution_registration_id_fk": {
+          "name": "conduct_certification_institution_registration_id_institution_registration_id_fk",
+          "tableFrom": "conduct_certification",
+          "tableTo": "institution_registration",
+          "columnsFrom": [
+            "institution_registration_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "conduct_certification_certified_by_user_id_user_id_fk": {
+          "name": "conduct_certification_certified_by_user_id_user_id_fk",
+          "tableFrom": "conduct_certification",
+          "tableTo": "user",
+          "columnsFrom": [
+            "certified_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "conduct_certification_institution_registration_unique": {
+          "name": "conduct_certification_institution_registration_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "institution_registration_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.directory_listing": {
       "name": "directory_listing",
       "schema": "",
@@ -12319,21 +12413,6 @@
           "method": "btree",
           "with": {}
         },
-        "directory_listing_services_idx": {
-          "name": "directory_listing_services_idx",
-          "columns": [
-            {
-              "expression": "services",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
         "directory_listing_status_changed_by_idx": {
           "name": "directory_listing_status_changed_by_idx",
           "columns": [
@@ -12511,86 +12590,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.pincode_location": {
-      "name": "pincode_location",
-      "schema": "",
-      "columns": {
-        "pin_code": {
-          "name": "pin_code",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "latitude": {
-          "name": "latitude",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "longitude": {
-          "name": "longitude",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "district": {
-          "name": "district",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "post_offices": {
-          "name": "post_offices",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "pincode_location_latitude_idx": {
-          "name": "pincode_location_latitude_idx",
-          "columns": [
-            {
-              "expression": "latitude",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "pincode_location_pin_code_format": {
-          "name": "pincode_location_pin_code_format",
-          "value": "\"pincode_location\".\"pin_code\" ~ '^[1-9][0-9]{5}$'"
-        },
-        "pincode_location_coordinates_range": {
-          "name": "pincode_location_coordinates_range",
-          "value": "\"pincode_location\".\"latitude\" BETWEEN -90 AND 90 AND \"pincode_location\".\"longitude\" BETWEEN -180 AND 180"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.campaign": {
