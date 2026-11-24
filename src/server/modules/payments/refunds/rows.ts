@@ -6,7 +6,17 @@
 // Loads under plain Node (the worker, the seed script): relative imports
 // only, no "server-only".
 
-import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  inArray,
+  isNull,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import type { Role } from "../../../access/domain/roles";
 import type { Actor } from "../../../actor";
@@ -62,6 +72,41 @@ export const acceptedReviewOfBatch = and(
   eq(paymentBatch.status, "captured")
 );
 
+/**
+ * The refunds of `batchIds` that count against each batch's original
+ * receipt, including ones with no items: every one not rejected that
+ * returns the captured payment, or, for a batch paid offline, every manual
+ * one but a duplicate's (#80b).
+ */
+export async function refundsAgainstCapture(db: AppDb, batchIds: string[]) {
+  if (batchIds.length === 0) return [];
+  return db
+    .select({
+      id: refund.id,
+      batchId: refund.batchId,
+      kind: refund.kind,
+      status: refund.status,
+      amountMinor: refund.amountMinor,
+    })
+    .from(refund)
+    .innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
+    .where(
+      and(
+        inArray(refund.batchId, batchIds),
+        ne(refund.status, "rejected"),
+        or(
+          eq(refund.gatewayPaymentId, paymentBatch.gatewayPaymentId),
+          and(
+            eq(paymentBatch.captureMethod, "offline"),
+            eq(refund.method, "manual"),
+            ne(refund.kind, "duplicate")
+          )
+        )
+      )
+    )
+    .orderBy(asc(refund.id));
+}
+
 type RefundableCapture =
   | (RefundableBatch & { kind: "inr" })
   | (Pick<RefundableBatch, "amountMinor" | "items"> & {
@@ -71,13 +116,18 @@ type RefundableCapture =
       state: "review" | "required" | "recorded";
     });
 
-/** The refundable amount and allocation for every registration the batch holds. */
+/**
+ * The refundable amount and allocation for every registration the batch
+ * holds. `excludeRefundIds` reads the batch as if those refunds held and
+ * committed nothing: a cancellation consolidating its own refund (#80b).
+ */
 export async function refundableBatch(
   db: AppDb,
   batch: Pick<
     PaymentBatchRow,
     "id" | "status" | "amountMinor" | "gatewayPaymentId" | "captureMethod"
-  >
+  >,
+  excludeRefundIds: readonly string[] = []
 ): Promise<RefundableCapture> {
   const captured = batch.status === "captured";
   const [receipt] = captured
@@ -118,6 +168,10 @@ export async function refundableBatch(
         : undefined
     ) ?? sql`false`;
   const notRejected = sql`${refund.status} <> 'rejected'`;
+  const notExcluded =
+    excludeRefundIds.length > 0
+      ? notInArray(refund.id, [...excludeRefundIds])
+      : undefined;
   // Use one snapshot for holds and committed amounts. A concurrent rejection
   // releases both together, so the allocation must observe both or neither.
   const committed = db
@@ -127,7 +181,14 @@ export async function refundableBatch(
         .as("committed_minor"),
     })
     .from(refund)
-    .where(and(eq(refund.batchId, batch.id), notRejected, againstCapture))
+    .where(
+      and(
+        eq(refund.batchId, batch.id),
+        notRejected,
+        againstCapture,
+        notExcluded
+      )
+    )
     .as("committed");
   const liveItems = db
     .select({
@@ -143,7 +204,13 @@ export async function refundableBatch(
         eq(refundItem.batchId, refund.batchId)
       )
     )
-    .where(and(eq(refundItem.batchId, batch.id), isNull(refundItem.releasedAt)))
+    .where(
+      and(
+        eq(refundItem.batchId, batch.id),
+        isNull(refundItem.releasedAt),
+        notExcluded
+      )
+    )
     .unionAll(
       db
         .select({
@@ -156,7 +223,8 @@ export async function refundableBatch(
           and(
             eq(refund.batchId, batch.id),
             notRejected,
-            sql`cardinality(${refund.zeroShareRegistrationIds}) > 0`
+            sql`cardinality(${refund.zeroShareRegistrationIds}) > 0`,
+            notExcluded
           )
         )
     )

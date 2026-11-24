@@ -31,6 +31,7 @@ import { seedNotifications } from "./notifications";
 import { seedRegistrations } from "./registration";
 import { seedPayments } from "./payments";
 import { seedRefunds } from "./refunds";
+import { seedCancelledCompetition } from "./competition-cancelled";
 import { seedParticipants } from "./participants";
 import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
@@ -70,6 +71,9 @@ const seeders: readonly Seeder[] = [
   // After the payments seed: a refund waiting for finance on its paid
   // batch, and one refunded (#80).
   seedRefunds,
+  // After the registration seed: a cancelled competition with one of its
+  // students refunded and one cancelled (#80).
+  seedCancelledCompetition,
   // After the competitions, their terms and the accounts: adults who
   // registered themselves for NEIGH27, one paid.
   seedParticipants,

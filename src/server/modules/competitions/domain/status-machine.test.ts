@@ -17,7 +17,16 @@ const ALLOWED: Record<string, TransitionCause> = {
   // Only once every enabled discipline has a published rubric (#88): the
   // guard runs where the move is made (../transition-guards.ts).
   "registration_closed->school_judging": "schedule",
+  // A super admin cancels a competition from any status but cancelled
+  // (#80); nothing leaves cancelled.
+  "draft->cancelled": "cancellation",
+  "published->cancelled": "cancellation",
+  "registration_open->cancelled": "cancellation",
+  "registration_closed->cancelled": "cancellation",
+  "school_judging->cancelled": "cancellation",
 };
+
+const CAUSES = ["manager", "schedule", "cancellation"] as const;
 
 const PAIRS = COMPETITION_STATUSES.flatMap((from) =>
   COMPETITION_STATUSES.map((to) => [from, to] as const)
@@ -31,6 +40,7 @@ describe("the competition status machine", () => {
       "registration_open",
       "registration_closed",
       "school_judging",
+      "cancelled",
     ]);
   });
 
@@ -40,7 +50,7 @@ describe("the competition status machine", () => {
 
   it.each(PAIRS)("%s -> %s is allowed only for its own cause", (from, to) => {
     const cause = ALLOWED[`${from}->${to}`];
-    for (const by of ["manager", "schedule"] as const) {
+    for (const by of CAUSES) {
       expect(canTransition(from, to, by)).toBe(by === cause);
     }
   });
@@ -59,6 +69,18 @@ describe("the competition status machine", () => {
       false
     );
     expect(canTransition("draft", "registration_open", "schedule")).toBe(false);
+  });
+
+  it("reaches cancelled only by a cancellation, and never leaves it", () => {
+    for (const from of COMPETITION_STATUSES) {
+      if (from === "cancelled") continue;
+      expect(transitionCause(from, "cancelled")).toBe("cancellation");
+      expect(canTransition(from, "cancelled", "manager")).toBe(false);
+      expect(canTransition(from, "cancelled", "schedule")).toBe(false);
+    }
+    for (const to of COMPETITION_STATUSES) {
+      expect(transitionCause("cancelled", to)).toBe(null);
+    }
   });
 
   it("never moves backwards or stays put", () => {

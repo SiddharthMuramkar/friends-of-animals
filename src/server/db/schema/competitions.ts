@@ -33,6 +33,7 @@ import {
   PHYSICAL_ARTWORK_KINDS,
 } from "../../modules/competitions/domain/vocabulary";
 import { user } from "./identity";
+import { outbox } from "./outbox";
 
 /**
  * The status machine's statuses. #71 added the ones the schedule moves to
@@ -108,6 +109,11 @@ export const competition = pgTable(
     auctionPermitted: boolean("auction_permitted").notNull().default(false),
     status: competitionStatusEnum().notNull().default("draft"),
     publishedAt: timestamptz("published_at"),
+    /** When a super admin cancelled it (#80); null unless cancelled. */
+    cancelledAt: timestamptz("cancelled_at"),
+    /** Why, as the super admin wrote it: 1 to 500 characters, shown to
+     * staff and in the audit log; set with `cancelled_at`. */
+    cancelReason: text("cancel_reason"),
     /** Null for seed data, or once the creating user's account is gone. */
     createdByUserId: uuid("created_by_user_id").references(() => user.id, {
       onDelete: "set null",
@@ -131,10 +137,25 @@ export const competition = pgTable(
       "competition_counts_not_negative",
       sql`${table.shortlistPerCategory} >= 0 AND ${table.schoolPositions} >= 0`
     ),
-    // A competition has been published exactly when it has left draft.
+    // A draft was never published, and a competition that left draft was,
+    // unless it was cancelled as a draft (#80). Written with cancelled_at,
+    // not the cancelled status: a value is never used by DDL in the PR that
+    // adds it (rule F2).
     check(
       "competition_published_at_matches_status",
-      sql`(${table.status} = 'draft') = (${table.publishedAt} IS NULL)`
+      sql`(${table.status} <> 'draft' OR ${table.publishedAt} IS NULL) AND (${table.publishedAt} IS NOT NULL OR ${table.status} = 'draft' OR ${table.cancelledAt} IS NOT NULL)`
+    ),
+    // Use only previously committed enum values here (F2). When adding
+    // another status, include it among the statuses without cancellation
+    // metadata.
+    check(
+      "competition_cancellation_complete",
+      sql`(${table.status} NOT IN ('draft', 'published', 'registration_open', 'registration_closed', 'school_judging')) = (${table.cancelledAt} IS NOT NULL)
+        AND (${table.cancelledAt} IS NULL) = (${table.cancelReason} IS NULL)`
+    ),
+    check(
+      "competition_cancel_reason_present",
+      sql`${table.cancelReason} IS NULL OR length(trim(${table.cancelReason})) > 0`
     ),
     index("competition_status_idx").on(table.status),
     // Deleting a user sets this to null; the index keeps that from scanning.
@@ -143,6 +164,17 @@ export const competition = pgTable(
 );
 
 export type Competition = typeof competition.$inferSelect;
+
+/** A reserved family email. A null sentAt means the outcome is unknown. */
+export const competitionCancellationEmail = pgTable(
+  "competition_cancellation_email",
+  {
+    deliveryId: uuid("delivery_id")
+      .primaryKey()
+      .references(() => outbox.id, { onDelete: "cascade" }),
+    sentAt: timestamptz("sent_at"),
+  }
+);
 
 export const competitionAgeGroup = pgTable(
   "competition_age_group",

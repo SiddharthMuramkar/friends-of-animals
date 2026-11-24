@@ -27,11 +27,13 @@ import {
   registration,
 } from "../../db/schema";
 import type { Delivery, OutboxDeps } from "../../outbox/handlers";
+import { oneLineSubject, type EmailMessage } from "../../ports/email";
 import {
   renderEmailHtml,
   renderTemplate,
 } from "../notifications/domain/template";
 import { DEFAULT_LOCALE } from "../notifications/locale";
+import type { RegistrationStatus } from "./domain/registration-status";
 import { PROFILE_PURPOSE } from "./student-profile";
 
 /** The audience of the route row that tells the family. */
@@ -86,6 +88,37 @@ export async function sendRegistrationConfirmation(
   delivery: Delivery<"registration.confirmed">
 ): Promise<void> {
   const { registrationId } = delivery.payload;
+  const message = await familyContactEmail(deps, {
+    eventType: delivery.eventType,
+    registrationId,
+    // Gone, or no longer confirmed (a refund, #80): nothing to send.
+    sendWhile: (status) => status === "confirmed",
+    values: () => confirmationValues(deps.db, registrationId),
+  });
+  if (message) await deps.email.send(message);
+}
+
+/**
+ * Renders an email to a registration's family contact (a minor's guardian, or the adult
+ * student) with the template of the event's enabled `family_contact`
+ * route, while that route sends email and the registration is in a status
+ * `sendWhile` accepts. `values` gives the template's variables beyond the
+ * recipient's name. Also the cancellation's (#80).
+ */
+export async function familyContactEmail(
+  deps: OutboxDeps,
+  {
+    eventType,
+    registrationId,
+    sendWhile,
+    values,
+  }: {
+    eventType: string;
+    registrationId: string;
+    sendWhile: (status: RegistrationStatus) => boolean;
+    values: () => Promise<Record<string, string>>;
+  }
+): Promise<EmailMessage | null> {
   const [contact] = await deps.db
     .select({
       status: registration.status,
@@ -100,8 +133,7 @@ export async function sendRegistrationConfirmation(
       eq(participantProfile.id, registration.participantProfileId)
     )
     .where(eq(registration.id, registrationId));
-  // Gone, or no longer confirmed (a refund, #80): nothing to send.
-  if (contact?.status !== "confirmed") return;
+  if (!contact || !sendWhile(contact.status)) return null;
 
   // Switched off, or not by email: the family isn't told.
   const [route] = await deps.db
@@ -112,14 +144,14 @@ export async function sendRegistrationConfirmation(
     .from(messageRoute)
     .where(
       and(
-        eq(messageRoute.eventType, delivery.eventType),
+        eq(messageRoute.eventType, eventType),
         eq(messageRoute.audience, FAMILY_AUDIENCE),
         eq(messageRoute.enabled, true)
       )
     )
     .orderBy(asc(messageRoute.createdAt))
     .limit(1);
-  if (!route?.channels.includes("email")) return;
+  if (!route?.channels.includes("email")) return null;
 
   // A minor's guardian, or else the adult student.
   const guardian = contact.guardianNameCiphertext !== null;
@@ -131,7 +163,7 @@ export async function sendRegistrationConfirmation(
       )
     : contact.emailCiphertext &&
       deps.cipher.decrypt(PROFILE_PURPOSE.email, contact.emailCiphertext);
-  if (!to) return;
+  if (!to) return null;
 
   const [template] = await deps.db
     .select({ subject: messageTemplate.subject, body: messageTemplate.body })
@@ -146,20 +178,20 @@ export async function sendRegistrationConfirmation(
   if (!template) {
     throw new Error(`Template ${route.templateKey} has no email`);
   }
-  const values = {
+  const rendered = {
     "recipient.name": guardian
       ? deps.cipher.decrypt(
           PROFILE_PURPOSE.guardianName,
           contact.guardianNameCiphertext!
         )
       : contact.fullName,
-    ...(await confirmationValues(deps.db, registrationId)),
+    ...(await values()),
   };
-  const text = renderTemplate(template.body, values);
-  await deps.email.send({
+  const text = renderTemplate(template.body, rendered);
+  return {
     to,
-    subject: renderTemplate(template.subject ?? "", values),
+    subject: oneLineSubject(renderTemplate(template.subject ?? "", rendered)),
     text,
     html: renderEmailHtml(text),
-  });
+  };
 }

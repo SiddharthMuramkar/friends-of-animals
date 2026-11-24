@@ -27,6 +27,8 @@
       "publishedOn": "Published {date}",
       "edit": "Edit",
       "editLabel": "Edit {name}",
+      "cancel": "Cancel",
+      "cancelLabel": "Cancel {name}",
       "preview": "Preview",
       "previewLabel": "Preview {name}",
       "rubrics": "Rubrics",

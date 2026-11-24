@@ -25,8 +25,16 @@ export type ReceivedEmail = {
 };
 
 export interface EmailSender {
-  /** Sends one message. Rejects if the provider refuses it. */
-  send(message: EmailMessage): Promise<void>;
+  /**
+   * Sends one message. With a tracked delivery ID, make one provider
+   * attempt and use the ID for correlation where supported.
+   */
+  send(message: EmailMessage, options?: { deliveryId: string }): Promise<void>;
+}
+
+/** The provider definitely did not accept this send. */
+export class EmailNotSentError extends Error {
+  override name = "EmailNotSentError";
 }
 
 /**
@@ -59,7 +67,7 @@ export function oneLineSubject(subject: string): string {
 }
 
 /** Thrown in production while no real email provider is configured. */
-export class EmailNotConfiguredError extends Error {
+export class EmailNotConfiguredError extends EmailNotSentError {
   constructor() {
     super(
       "No email provider is configured for production. Set " +

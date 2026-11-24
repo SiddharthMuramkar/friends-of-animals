@@ -76,14 +76,16 @@ const COMMON = {
   ageGroups: AGE_GROUPS,
 } satisfies Partial<CompetitionFields>;
 
-type SeedCompetition = {
+export type SeedCompetition = {
   id: string;
-  status: CompetitionStatus;
   slug: string;
   publishedAt: Date | null;
   fields: Omit<CompetitionFields, "categories"> &
     Partial<Pick<CompetitionFields, "categories">>;
-};
+} & (
+  | { status: "cancelled"; cancelled: { at: Date; reason: string } }
+  | { status: Exclude<CompetitionStatus, "cancelled">; cancelled?: never }
+);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -247,7 +249,7 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
  * jobs for its dates still ahead. Seed data: no audit entry, no creating
  * user.
  */
-async function insertCompetition(
+export async function insertCompetition(
   { db, clock }: DbWithClock,
   seed: SeedCompetition
 ): Promise<boolean> {
@@ -263,6 +265,8 @@ async function insertCompetition(
       ...columnsOf(parsed.values),
       status: seed.status,
       publishedAt: seed.publishedAt,
+      cancelledAt: seed.cancelled?.at ?? null,
+      cancelReason: seed.cancelled?.reason ?? null,
       createdAt: now,
       updatedAt: now,
     })
@@ -301,14 +305,14 @@ export async function seedCompetitions(deps: SeedDeps): Promise<void> {
 
 export type SeedCompetitionOptions = {
   /** Draft unless given; a published one is stamped with the clock. */
-  status?: CompetitionStatus;
+  status?: Exclude<CompetitionStatus, "cancelled">;
 } & Partial<CompetitionFields>;
 
 /**
  * The `h.seed.competition()` builder: a complete competition (publishable
  * as it is) with its own code and slug, and any fields given.
  */
-export function competitionBuilder(deps: SeedDeps) {
+export function competitionBuilder(deps: DbWithClock) {
   let made = 0;
   return async ({
     status = "draft",
