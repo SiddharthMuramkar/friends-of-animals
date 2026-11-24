@@ -483,6 +483,14 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "public_group",
     "updated_at",
   ],
+  ledger_budget: [
+    "account_id",
+    "amount_minor",
+    "created_at",
+    "id",
+    "period_month",
+    "updated_at",
+  ],
   ledger_line: [
     "account_id",
     "credit_minor",

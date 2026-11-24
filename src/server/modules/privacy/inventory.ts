@@ -1020,6 +1020,9 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     LEDGER_RECORD,
     "retain"
   ),
+  // Budgets (#109): who set each one.
+  actorColumn("ledger_budget", "created_by_user_id", LEDGER_RECORD, "retain"),
+  actorColumn("ledger_budget", "updated_by_user_id", LEDGER_RECORD, "retain"),
   ...(
     [
       ["ledger_account", "name", LEDGER_CATEGORY],

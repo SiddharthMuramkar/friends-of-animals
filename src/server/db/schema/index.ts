@@ -12,6 +12,7 @@ export * from "./audit";
 export * from "./outbox";
 export * from "./ledger";
 export * from "./ledger-periods";
+export * from "./ledger-budgets";
 export * from "./institution-invitations";
 export * from "./consent";
 export * from "./consent-links";

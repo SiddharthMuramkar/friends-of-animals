@@ -13,3 +13,15 @@ export function monthLabel(
     timeZone: "Asia/Kolkata",
   });
 }
+
+/** A ledger period as a table heading: "Dec 26". */
+export function shortMonthLabel(
+  format: Awaited<ReturnType<typeof getFormatter>>,
+  month: string
+): string {
+  return format.dateTime(periodStart(month), {
+    month: "short",
+    year: "2-digit",
+    timeZone: "Asia/Kolkata",
+  });
+}

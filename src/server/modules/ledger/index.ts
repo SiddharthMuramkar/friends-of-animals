@@ -15,7 +15,9 @@ import {
   rejectFinanceRequest,
 } from "./approvals";
 import { backfillLedgerFromPayments } from "./backfill";
+import { budgetVsActual, setBudget } from "./budgets";
 import { postPaymentCapture, postRefund } from "./consumers";
+import { exportLedger } from "./export";
 import { createManualEntry, type ManualEntryInput } from "./manual-entry";
 import {
   getPosting,
@@ -63,4 +65,14 @@ export const ledgerUseCases = (ctx: UseCaseContext) => ({
   cancelFinanceRequest: (input: { requestId: string }) =>
     cancelFinanceRequest(ctx, input),
   expireFinanceRequests: () => expireFinanceRequests(ctx),
+  // Budgets and the accountant's export (#109).
+  setBudget: (input: {
+    accountCode: string;
+    periodMonth: string;
+    amount: string;
+  }) => setBudget(ctx, input),
+  budgetVsActual: (input?: { from?: string; to?: string }) =>
+    budgetVsActual(ctx, input),
+  exportLedger: (input: { from: string; to: string }) =>
+    exportLedger(ctx, input),
 });

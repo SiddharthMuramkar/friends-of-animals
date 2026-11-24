@@ -15,4 +15,8 @@ export const LEDGER_POLICY = {
   "ledger.approval_approve": stepUp(finance),
   "ledger.approval_decide": finance,
   "ledger.approval_expire": platform,
+  // Budgets and the accountant's export (#109). Exporting data needs a
+  // fresh second factor (#55 story 20).
+  "ledger.budget_set": finance,
+  "ledger.export": stepUp(finance),
 } satisfies Policy<string>;
