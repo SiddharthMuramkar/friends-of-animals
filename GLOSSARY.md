@@ -255,6 +255,31 @@ _Avoid_: Mock payment, dummy gateway
 FOA's double-entry financial record. Each posting records money in INR with
 equal debits and credits, and corrections are recorded as new postings.
 
+**Locked period**:
+A month of the Ledger that finance has closed once it was reconciled. Nothing
+posts into it or any month before it; a correction goes in as a reversal in an
+open month. Locking or reopening one needs a second finance approver. The
+transparency page shows only locked periods, so a locked period is also a
+published period.
+_Avoid_: Closed month, frozen period
+
+**Late adjustment**:
+A capture or refund the platform records after its month was locked. It counts
+in the first open month after the locked ones, and says so.
+_Avoid_: Back-dated entry, prior-period adjustment
+
+**Finance request**:
+A money operation that waits for a second finance user before it happens:
+locking or reopening a month, or a manual entry above the limit in settings.
+The person who asked can withdraw it but never approve it, and it expires if
+nobody decides it in time.
+_Avoid_: Approval, maker-checker, dual control
+
+**Budget**:
+What FOA plans to receive or spend in one Ledger category in one month,
+compared with the actual in the budget report.
+_Avoid_: Forecast, allocation, target
+
 **Registration number**:
 What a confirmed registration is known by: the competition's code, "R" and
 six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the
