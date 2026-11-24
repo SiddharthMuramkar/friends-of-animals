@@ -557,6 +557,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | [`entries`](#entries)             | A participant's entry in a competition and its uploaded picture                                                                | #85                     |
 | [`files`](#files)                 | Uploads, the malware scan, image derivatives, signed delivery                                                                  | #63, #85                |
 | [`guardians`](#guardians)         | Guardians, the children they manage, teen logins, guardian requests                                                            | #81                     |
+| `institution-submissions`         | The school route's submission roster and conduct certification                                                                 | #87                     |
 | [`institutions`](#institutions)   | Institution registration and verification; coordinator invitations (`coordinators/`)                                           | #73, #74                |
 | [`judging`](#judging)             | Rubrics per discipline, the school-judging guard, the judging guide                                                            | #88                     |
 | [`ledger`](#ledger)               | Double-entry postings for payments and refunds, manual entries, reversals                                                      | #105                    |
@@ -759,10 +760,11 @@ An **Entry** is the work one confirmed individual registration submits for a com
 | Action                       | Who                                                                                                                                                                          |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `entry.submit`, `entry.read` | The registration's owner. A verified guardian with an active link owns their ward's registration; a linked teen owns their own. `submitEssayText` checks `entry.submit` too. |
+| `entry.submit_for_student`   | On the school route (#87): a coordinator or the authorised person of the student's institution, at that institution's scope.                                                 |
 | `entry.list_mine`            | Any signed-in member; the list holds only their own entries and their wards'.                                                                                                |
 | `entry.list_competition`     | A competition manager for that competition, or a global one (second factor required).                                                                                        |
 
-Only `route = individual` registrations qualify; institution registrations fail the owner check until #87. The registration must be `confirmed` (`registration_not_confirmed`). A guardian-owned minor profile needs participation consent (`participation_consent_required`); on staging and production `guardianFlowsActive` is false, so that check refuses even with consent on file.
+An individual registration's owner submits it; on the school route (`route = institution`) the student's institution submits through the same two calls (`authorizeEntrySubmission` in `registration-facts.ts`), and only while the competition's `digital_scope` is `all_participants` (`shortlist_only` otherwise, until #91). Another institution's coordinator is refused (forbidden) before anything else is checked. The registration must be `confirmed` (`registration_not_confirmed`). A guardian-owned minor profile needs participation consent (`participation_consent_required`); on staging and production `guardianFlowsActive` is false, so that check refuses even with consent on file.
 
 **Two calls:**
 
@@ -827,11 +829,11 @@ The enum already has `school_shortlisted`, `not_shortlisted`, `submitted_to_foa`
 | `entry.file_rejected` | virus check failed (also on replacement)       | `entry.file_rejected`     | `entry.file_rejected.guardian`     |
 | `entry.file_failed`   | file could not be opened (also on replacement) | `entry.processing_failed` | `entry.processing_failed.guardian` |
 
-A replacement that goes live emits no event.
+A replacement that goes live emits no event. On the school route nobody has an account, so the route rows reach nobody; `entries.send_family_receipt` (`family-receipt.ts`, #87) emails the student's family contact (a minor's guardian or the adult student) template `entry.received.family` by its `family_contact` route, as the registration confirmation does. The coordinator gets nothing.
 
-**Refusals.** `startEntryUpload`: `registration_not_confirmed`, `participation_consent_required`, `discipline_not_offered`, `discipline_required`, `empty`, `wrong_type`, `too_large`, `too_long`, `submission_not_open`, `deadline_passed`, `entry_locked`, `upload_limit`. `completeEntryUpload` adds `file_not_found`, `upload_missing` (PUT, then complete again) and `upload_rejected` (storage held something else and deleted it). Both return `invalid_input` for a bad body.
+**Refusals.** `startEntryUpload`: `shortlist_only` (school route), `registration_not_confirmed`, `participation_consent_required`, `discipline_not_offered`, `discipline_required`, `empty`, `wrong_type`, `too_large`, `too_long`, `submission_not_open`, `deadline_passed`, `entry_locked`, `upload_limit`. `completeEntryUpload` adds `file_not_found`, `upload_missing` (PUT, then complete again) and `upload_rejected` (storage held something else and deleted it). Both return `invalid_input` for a bad body.
 
-**Upload grants** (`upload-grants.ts`): at most 3 unfinished uploads per uploader, 6 grants per uploader in the window, one unfinished grant per registration. Pass `replacesFileId` or `restartPendingUpload: true` to retire the current grant and take its slot. Each grant schedules its own expiry and a sweep of the staged object an hour later.
+**Upload grants** (`upload-grants.ts`): at most 3 unfinished uploads per uploader, 6 grants per uploader in the window (30 for a coordinator uploading for a class, #87), one unfinished grant per registration. Pass `replacesFileId` or `restartPendingUpload: true` to retire the current grant and take its slot. Each grant schedules its own expiry and a sweep of the staged object an hour later.
 
 - **Tests:** `domain/status.test.ts`, `domain/submission.test.ts`, `domain/upload-rules.test.ts`, `domain/essay-text.test.ts`, `use-cases/submit-entry.test.ts`, `use-cases/entry-outcomes.test.ts`, `use-cases/replace-entry-file.test.ts`, `use-cases/entry-authz.test.ts`, `use-cases/video-entry.test.ts`, `use-cases/essay-entry.test.ts`, `use-cases/complete-entry-upload.pg.test.ts`, `use-cases/submit-essay-text.pg.test.ts`, `src/server/rich-text/essay.test.ts`, `src/app/participant/entries/_lib/upload-flow.test.ts`; E2E `85-entries.spec.ts`, `86-video-essay.spec.ts`.
 
@@ -859,6 +861,20 @@ A member declares they are a child's parent or lawful guardian and verifies by c
 - **Pages:** `/guardian`, `/guardian/register`, `/guardian/children/new`, `/guardian/children/[id]`, `/invitations/[token]`.
 - **Events:** `guardian.teen_invited`, `guardian.guardian_requested`. **Gated:** off in production and staging (`availability.ts`, `guardianFlowsActive`; E2E `55-guardian-launch-pause.spec.ts`). SMS waits for HR-14.
 - **Tests:** `children.test.ts`, `verify-guardian.test.ts`, `teen-login.test.ts`, `claim-child.pg.test.ts`; E2E `81-guardians.spec.ts`.
+
+### institution-submissions
+
+The school route's side of submitting (#87). The uploads themselves go through the [`entries`](#entries) use cases, which take a coordinator for their institution's students.
+
+- **Table** `conduct_certification` (`conduct-certification.ts`): one row per institution registration (unique), with `certified_by_user_id`, `certified_at` and `statement_version`. Written once; no revoking in M2.
+- **Use cases:** `listInstitutionSubmissions` (the roster: every student of one institution registration with Entry ID, status, next step `submit`/`replace`/`retry` or a hold, counts, the deadline, whether conduct is certified), `getStudentSubmission` (one student's entry, its live picture and the upload allowed now, by registration number), `certifyConduct` (once; audited as `conduct.certified`; needs a confirmed student and an uncancelled competition; a second call answers `already_certified`), `getConductCertification`.
+- **For #89:** `isConductCertified(db, institutionRegistrationId)` and `requireConductCertified(db, id)` (throws `ConductNotCertifiedError`, code `conduct_not_certified`) in `conduct.ts`.
+- **Rules:** the roster is pure (`domain/roster.ts`); its gate comes from the competition's digital submission scope and entries' window rule. The statement's wording is a draft (`messages/en-IN/institutionSubmissions.json`, HR-36) with its version in `domain/conduct-statement.ts`; change both together.
+- **Who may call:** `institution_submissions.read`, `conduct.read`, `conduct.certify`: the institution's coordinators and authorised person, at its scope (as `institution.coordinate`).
+- **Pages:** `/institution/registrations/[ref]/submissions`, `.../submissions/[number]` (reuses the participant upload form), `.../conduct`; the registration page links to the roster once a student is confirmed.
+- **Seed:** `src/server/seed/institution-submissions.ts`: the verified school's registration for Trees for Birds (TREES27, free, open for submissions) with submitted, checking, rejected, not-started and unconfirmed students.
+- **Migrations:** `0089_87_conduct_certification`, `0090_87_entry_family_receipt` (the family receipt's template and route).
+- **Tests:** `conduct.test.ts`, `certify-conduct.pg.test.ts`, `submissions.test.ts`, `domain/roster.test.ts`, `entries/use-cases/coordinator-submit.test.ts`; E2E `87-coordinator-submissions.spec.ts`.
 
 ### institutions
 
@@ -1148,6 +1164,7 @@ People apply to volunteer, and FOA vets anyone who will work near children (#123
 | `files.process_image`                       | outbox, media queue (worker-media only) | `files.processing_requested`                          | `modules/files/process-image.ts`, `src/worker-media/process-media.ts` |
 | `files.process_video`                       | outbox, media queue, 20-minute lease    | `files.video_processing_requested`                    | `modules/files/process-video.ts`, `ports/media-ffmpeg.ts`             |
 | `entries.apply_file_outcome`                | outbox                                  | every `files.*` outcome event, `files.file_ready`     | `modules/entries/apply-file-outcome.ts`                               |
+| `entries.send_family_receipt`               | outbox                                  | `entry.submitted` (school route only)                 | `modules/entries/family-receipt.ts`                                   |
 | `entries.expire_upload_grant`               | outbox, delayed                         | at grant expiry                                       | `modules/entries/upload-grants.ts`                                    |
 | `entries.sweep_staged_upload`               | outbox, delayed                         | shortly after expiry                                  | `src/server/outbox/handlers.ts`                                       |
 | `cms.publish_scheduled_post`                | outbox, delayed                         | at the publish instant                                | `modules/cms/posts/publishing.ts`                                     |

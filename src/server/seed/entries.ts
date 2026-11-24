@@ -80,7 +80,38 @@ const EXAMPLES = [
   },
 ] as const;
 
-async function seedEntryDerivatives(
+type SampleDerivatives = Awaited<
+  ReturnType<ReturnType<typeof sharpMediaProcessor>["processImage"]>
+>["derivatives"];
+
+/**
+ * The sample illustration's derivatives, made once per process: every
+ * seeded live entry (#85, #87) shows the same picture, and decoding and
+ * resizing it again would only slow each seed.
+ */
+let sample: Promise<SampleDerivatives> | undefined;
+
+function sampleDerivatives(
+  kinds: Parameters<
+    ReturnType<typeof sharpMediaProcessor>["processImage"]
+  >[0]["kinds"]
+): Promise<SampleDerivatives> {
+  sample ??= (async () => {
+    const source = new URL(
+      "../../assets/site-art/scenes/scene-street-neighbours.webp",
+      import.meta.url
+    );
+    const { derivatives } = await sharpMediaProcessor().processImage({
+      bytes: await readFile(source),
+      kinds,
+    });
+    return derivatives;
+  })();
+  return sample;
+}
+
+/** Writes a live entry file's derivatives from an FOA sample illustration. */
+export async function seedEntryDerivatives(
   db: AppDb,
   storage: Pick<ObjectStorage, "write">,
   {
@@ -101,15 +132,7 @@ async function seedEntryDerivatives(
   // Made by an earlier seed: decoding and resizing again would only slow
   // every reseed (and every test that seeds a preview).
   if (kinds.every((kind) => made.some((row) => row.kind === kind))) return;
-  const source = new URL(
-    "../../assets/site-art/scenes/scene-street-neighbours.webp",
-    import.meta.url
-  );
-  const { derivatives } = await sharpMediaProcessor().processImage({
-    bytes: await readFile(source),
-    kinds,
-  });
-  for (const { kind, width, height, bytes } of derivatives) {
+  for (const { kind, width, height, bytes } of await sampleDerivatives(kinds)) {
     const key = derivativeKeyFor({ prefix, fileId, kind });
     await storage.write({
       bucket,

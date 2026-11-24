@@ -38,6 +38,7 @@ const KIND_ERRORS = [
 ] as const satisfies FormError[];
 
 const SHARED_ERRORS = [
+  "shortlist_only",
   "registration_not_confirmed",
   "participation_consent_required",
   "discipline_not_offered",

@@ -21,6 +21,7 @@ import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
 import { seedDirectory } from "./directory";
 import { seedEntries } from "./entries";
+import { seedInstitutionSubmissions } from "./institution-submissions";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
 import { seedBreaches } from "./breaches";
@@ -88,6 +89,9 @@ const seeders: readonly Seeder[] = [
   seedParticipants,
   // After the participants seed: Asha's entries, one per outcome (#85).
   seedEntries,
+  // After the institutions, competitions and entries seeds: the school's
+  // TREES27 students and their entries, for the coordinator roster (#87).
+  seedInstitutionSubmissions,
   // After the participants seed: a guardian, their under-13 child and a
   // teen whose own login is linked to them (#81).
   seedGuardians,

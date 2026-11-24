@@ -102,6 +102,7 @@
       }
     },
     "errors": {
+      "shortlist_only": "This competition takes digital work only for entries on the school’s shortlist.",
       "registration_not_confirmed": "Confirm your registration before submitting an entry.",
       "participation_consent_required": "This place needs a parent or guardian’s consent to take part before work can be submitted. A parent or guardian can give it on the child’s consents page.",
       "discipline_not_offered": "This competition doesn’t take entries in that discipline.",

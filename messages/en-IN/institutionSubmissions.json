@@ -1,0 +1,125 @@
+{
+  "institutionSubmissions": {
+    "roster": {
+      "meta": {
+        "title": "Entries",
+        "description": "Submit each student’s work and follow every entry."
+      },
+      "eyebrow": "Your institution",
+      "title": "Entries",
+      "lead": "Upload each student’s work. We check every picture before it counts, and each entry gets an Entry ID.",
+      "loading": "Loading your students’ entries…",
+      "for": "{institution} · {competition}",
+      "reference": "Reference {reference}",
+      "deadline": "Submissions close {date} (India time).",
+      "counts": "{submitted, plural, =0 {No entries submitted yet} one {# entry submitted} other {# entries submitted}} · {needingUpload, plural, =0 {nobody waiting for an upload} one {# student waiting for an upload} other {# students waiting for an upload}} · {total, plural, one {# student} other {# students}} in all",
+      "listTitle": "Students",
+      "empty": "No students are enrolled yet.",
+      "entryCode": "Entry ID {code}",
+      "number": "Registration number {number}",
+      "noEntry": "No entry yet",
+      "checking": "We’re checking the newest picture.",
+      "action": {
+        "submit": "Upload work",
+        "replace": "Replace picture",
+        "retry": "Upload another picture",
+        "view": "View entry"
+      },
+      "actionFor": "{action} for {name}",
+      "hold": {
+        "registration_not_confirmed": "Work can be uploaded once this student’s registration is confirmed.",
+        "shortlist_only": "This competition takes digital work only for entries on your school’s shortlist.",
+        "submission_not_open": "Submissions aren’t open yet.",
+        "deadline_passed": "The submission deadline has passed."
+      },
+      "gate": {
+        "shortlist_only": "This competition takes digital work only for entries on your school’s shortlist, after your school round.",
+        "submission_not_open": "Submissions aren’t open yet.",
+        "deadline_passed": "The submission deadline has passed. Entries can no longer be added or replaced."
+      },
+      "conduct": {
+        "title": "Conduct certification",
+        "certified": "Certified. Your school round can be finalised.",
+        "notCertified": "Before your school round can be finalised, a coordinator confirms the competition was run in school according to FOA’s guidelines.",
+        "link": "Certify conduct"
+      },
+      "notFound": {
+        "title": "We couldn’t find that registration",
+        "body": "It may belong to another institution, or the link may be wrong.",
+        "back": "Back to your competitions"
+      },
+      "noInstitution": {
+        "title": "You don’t act for an institution",
+        "body": "Ask your institution’s authorised person to invite you as a coordinator.",
+        "back": "Back to your dashboard"
+      },
+      "back": "Back to the registration",
+      "dashboardLink": "Entries"
+    },
+    "student": {
+      "meta": "A student’s entry",
+      "eyebrow": "Entry for a student",
+      "loading": "Loading the entry…",
+      "for": "{institution} · {competition}",
+      "number": "Registration number {number}",
+      "noEntry": "No work has been uploaded for this student yet.",
+      "code": "Entry ID",
+      "statement": "Statement",
+      "pictureAlt": "Submitted image for {title}",
+      "pictureUnavailable": "There is no image preview for this entry yet.",
+      "submittedOn": "Submitted on {date}",
+      "upload": {
+        "submit": "Upload work",
+        "replace": "Replace the picture",
+        "retry": "Upload another picture"
+      },
+      "replaceHint": "The current picture stays submitted until the new one passes its checks.",
+      "hold": {
+        "registration_not_confirmed": "Work can be uploaded once this student’s registration is confirmed.",
+        "shortlist_only": "This competition takes digital work only for entries on your school’s shortlist.",
+        "submission_not_open": "Submissions aren’t open yet.",
+        "deadline_passed": "The submission deadline has passed.",
+        "entry_locked": "This entry can no longer be changed.",
+        "discipline_not_offered": "This competition has no picture submission."
+      },
+      "notFound": {
+        "title": "We couldn’t find that student",
+        "body": "They may be enrolled under another registration, or the link may be wrong."
+      },
+      "back": "Back to entries"
+    },
+    "conduct": {
+      "meta": {
+        "title": "Conduct certification",
+        "description": "Confirm the competition was run in school according to FOA’s guidelines."
+      },
+      "eyebrow": "Your institution",
+      "title": "Conduct certification",
+      "lead": "Once your students have taken part, one coordinator confirms how the competition was run. It is needed before your school round can be finalised.",
+      "loading": "Loading…",
+      "for": "{institution} · {competition}",
+      "statementTitle": "What you confirm",
+      "statement": "I confirm that {competition} was run at {institution} according to FOA’s guidelines: every student worked alone on their own original work, with the permitted materials and in the time allowed, under a teacher’s supervision, and the entries we submit are theirs.",
+      "version": "Statement version {version}",
+      "certify": "Certify conduct",
+      "certifying": "Certifying…",
+      "certified": "Certified by {name} on {date}.",
+      "certifiedByFormer": "Certified on {date} by a coordinator who no longer has an account.",
+      "cannot": "You can certify once at least one student’s registration is confirmed.",
+      "outcome": {
+        "certified": "Thank you. The competition’s conduct is certified.",
+        "already_certified": "Another coordinator has certified it already.",
+        "no_confirmed_students": "Certify once at least one student’s registration is confirmed.",
+        "competition_cancelled": "This competition was cancelled, so there is nothing to certify.",
+        "not_found": "We couldn’t find that registration.",
+        "forbidden": "You no longer act for this institution.",
+        "failed": "Something went wrong and nothing was saved. Try again."
+      },
+      "notFound": {
+        "title": "We couldn’t find that registration",
+        "body": "It may belong to another institution, or the link may be wrong."
+      },
+      "back": "Back to entries"
+    }
+  }
+}

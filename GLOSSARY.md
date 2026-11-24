@@ -477,6 +477,13 @@ What a coordinator of a registered institution reads before their school
 round: FOA's judging framework and the published Rubric of each discipline.
 _Avoid_: Judging kit, rules
 
+**Conduct certification**:
+A coordinator's statement, made once per Institution registration, that the
+competition was run in their school according to FOA's guidelines. The school
+round can't be finalised without it.
+_Avoid_: Conduct declaration, sign-off (the participation declaration is the
+institution's consent to take part)
+
 ## Registration
 
 **Institution registration**:
@@ -520,8 +527,9 @@ _Avoid_: Bulk upload, batch enrolment, import job
 
 ## Entries
 
-**Entry**
-The work a participant submits for a competition registration. An individual registration can have one entry.
+**Entry**:
+The work a participant submits for a competition registration; a registration
+has at most one. On the School route the student's coordinator submits it.
 
 **Entry ID**
 The reference assigned to an entry when its first upload is confirmed, or its first typed essay is saved, such as `NEIGH27-E-7K3QZ9`.
@@ -531,6 +539,17 @@ The entry’s current work (an image, a video, or an essay typed or as a PDF) af
 
 **Pending replacement**
 A new upload for a submitted entry. The live file stays in place until the new upload passes its checks.
+
+**Digital submission scope**:
+Which of a competition's school-route participants send their work to FOA as
+a digital upload: all of them (the default), or only the entries on each
+school's shortlist.
+_Avoid_: Submission mode, upload policy
+
+**Submission roster**:
+A coordinator's list of every student of one Institution registration, with
+each student's Entry status and what the coordinator can do for them next.
+_Avoid_: Entries dashboard, student list
 
 ## Files
 
@@ -649,6 +668,12 @@ approval before a community manager approves or declines it.
 _Avoid_: Signup, volunteer form, registration
 
 ## Taking part
+
+**School route**:
+How a student takes part through their school: a coordinator enrols them in
+the Institution registration, the institution pays, and the coordinator
+submits their work.
+_Avoid_: Route A, institution route
 
 **Individual route**:
 How someone takes part in a competition on their own, instead of being

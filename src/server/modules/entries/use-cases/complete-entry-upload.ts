@@ -122,7 +122,9 @@ export async function completeEntryUpload(
   const parsed = completeEntryUploadInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const request = parsed.data;
-  await authorizeEntrySubmission(ctx, request.registrationId);
+  const submitter = await authorizeEntrySubmission(ctx, request.registrationId);
+  if (submitter.scopeRefusal)
+    return { ok: false, error: submitter.scopeRefusal };
   const [registered] = await ctx.db
     .select({ status: registration.status })
     .from(registration)

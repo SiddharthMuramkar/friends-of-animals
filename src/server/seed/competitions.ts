@@ -4,7 +4,8 @@
 // The published ones are one per status the schedule moves through (#71):
 // their key dates are set from the seed clock, so each date agrees with
 // its status whenever a preview is seeded. Two more, past registration
-// and open for submissions, hold the entries seed's examples (#85).
+// and open for submissions, hold the entries seed's examples (#85), and a
+// third takes the seeded school's entries (#87).
 // Also two global competition managers with the seed authenticator (#60's
 // SEED_TOTP_SECRET), so previews can run the admin pages.
 // Loads under plain Node (the seed script): relative imports only, no
@@ -116,6 +117,21 @@ export const SEED_ENTRY_COMPETITIONS = [
 ] as const;
 
 /**
+ * Taking institutions only, past registration and open for submissions,
+ * free, with digital work from every participant, for the school-route
+ * submissions seed (#87): the verified institution's students, some with
+ * entries, and the coordinator's roster.
+ */
+export const SEED_SCHOOL_SUBMISSIONS_COMPETITION = {
+  id: "01938a00-0000-7000-8000-000000008701",
+  code: "TREES27",
+  slug: "trees-for-birds",
+  name: "Trees for Birds",
+  theme:
+    "Draw, paint or photograph a tree near your school and the birds that live in it.",
+} as const;
+
+/**
  * The seeded competitions as of `now`. Every key date is whole days from
  * the seed day, at an IST time of day, so a date is never within a day of
  * `now` and the status each one is seeded with is the one its dates say.
@@ -174,6 +190,26 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         },
       })
     ),
+    (({ id, slug, ...fields }): SeedCompetition => ({
+      id,
+      slug,
+      status: "registration_closed",
+      publishedAt: daysAgo(40),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        ...fields,
+        participation: "institutions",
+        disciplines: ["drawing", "painting", "photography"],
+        ageCutoffDate: "2027-01-01",
+        keyDates: {
+          registration_opens: ist(-35, "09:00"),
+          registration_closes: ist(-3, "23:59"),
+          submissions_close: ist(60, "23:59"),
+          school_round_closes: ist(75, "23:59"),
+        },
+      },
+    }))(SEED_SCHOOL_SUBMISSIONS_COMPETITION),
     {
       id: "01938a00-0000-7000-8000-000000002102",
       status: "published",

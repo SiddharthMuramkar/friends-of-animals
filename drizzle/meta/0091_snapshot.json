@@ -1,6 +1,6 @@
 {
-  "id": "47db1c14-8181-449b-93b6-dd9b562c749e",
-  "prevId": "ce6f35f4-4d60-4b80-8064-54211d8e856c",
+  "id": "4e51066b-611e-41a0-85c6-dfba0308717c",
+  "prevId": "f5600752-04f7-48f2-9aeb-d0711e1c37ed",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -279,18 +279,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "essay_body": {
-          "name": "essay_body",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "word_count": {
-          "name": "word_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "status": {
           "name": "status",
           "type": "entry_file_status",
@@ -438,14 +426,6 @@
         "entry_file_asset_matches_kind": {
           "name": "entry_file_asset_matches_kind",
           "value": "(\"entry_file\".\"kind\" = 'text') = (\"entry_file\".\"file_asset_id\" IS NULL)"
-        },
-        "entry_file_essay_matches_kind": {
-          "name": "entry_file_essay_matches_kind",
-          "value": "(\"entry_file\".\"kind\" = 'text') = (\"entry_file\".\"essay_body\" IS NOT NULL) AND (\"entry_file\".\"kind\" = 'text') = (\"entry_file\".\"word_count\" IS NOT NULL)"
-        },
-        "entry_file_word_count_positive": {
-          "name": "entry_file_word_count_positive",
-          "value": "\"entry_file\".\"word_count\" IS NULL OR \"entry_file\".\"word_count\" > 0"
         },
         "entry_file_became_live_at_matches_status": {
           "name": "entry_file_became_live_at_matches_status",
@@ -12125,6 +12105,100 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.conduct_certification": {
+      "name": "conduct_certification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "institution_registration_id": {
+          "name": "institution_registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "certified_by_user_id": {
+          "name": "certified_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "certified_at": {
+          "name": "certified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statement_version": {
+          "name": "statement_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "conduct_certification_certified_by_user_id_idx": {
+          "name": "conduct_certification_certified_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "certified_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "conduct_certification_institution_registration_id_institution_registration_id_fk": {
+          "name": "conduct_certification_institution_registration_id_institution_registration_id_fk",
+          "tableFrom": "conduct_certification",
+          "columnsFrom": [
+            "institution_registration_id"
+          ],
+          "tableTo": "institution_registration",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "conduct_certification_certified_by_user_id_user_id_fk": {
+          "name": "conduct_certification_certified_by_user_id_user_id_fk",
+          "tableFrom": "conduct_certification",
+          "columnsFrom": [
+            "certified_by_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "conduct_certification_institution_registration_unique": {
+          "name": "conduct_certification_institution_registration_unique",
+          "columns": [
+            "institution_registration_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.directory_listing": {
       "name": "directory_listing",
       "schema": "",
@@ -13391,9 +13465,7 @@
         "offline_payment_proof",
         "consent_form",
         "entry_image",
-        "directory_document",
-        "entry_video",
-        "entry_document"
+        "directory_document"
       ]
     },
     "public.file_asset_status": {
