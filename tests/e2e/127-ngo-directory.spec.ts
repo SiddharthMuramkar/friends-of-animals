@@ -162,9 +162,14 @@ test("FOA's staff admin needs a reason to verify a listing, which then shows on 
   await expect(
     page.getByRole("link", { name: "e2e-paws@example.test" })
   ).toBeVisible();
-  // The address and the unchosen phone never show.
-  await expect(page.getByText("Koregaon Park")).toHaveCount(0);
-  await expect(page.getByText("90000 12790")).toHaveCount(0);
+  // The address and the unchosen phone never show. (The review page the
+  // link came from may stay in the document, hidden, for a quick way back.)
+  await expect(
+    page.getByText("Koregaon Park").filter({ visible: true })
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("90000 12790").filter({ visible: true })
+  ).toHaveCount(0);
   await checkBothThemes(page, "/ngos/[slug]");
   expect(violations).toEqual([]);
 });
