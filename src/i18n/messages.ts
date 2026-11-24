@@ -25,6 +25,7 @@ import adminLedger from "../../messages/en-IN/adminLedger.json";
 import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import adminAnnouncements from "../../messages/en-IN/adminAnnouncements.json";
 import art from "../../messages/en-IN/art.json";
+import adminBreaches from "../../messages/en-IN/adminBreaches.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -35,6 +36,7 @@ import competitionTerms from "../../messages/en-IN/competitionTerms.json";
 import consent from "../../messages/en-IN/consent.json";
 import consentAdmin from "../../messages/en-IN/consentAdmin.json";
 import competitionStatus from "../../messages/en-IN/competitionStatus.json";
+import competitionCancel from "../../messages/en-IN/competitionCancel.json";
 import contact from "../../messages/en-IN/contact.json";
 import coordinatorConsents from "../../messages/en-IN/coordinatorConsents.json";
 import guardianConsent from "../../messages/en-IN/guardianConsent.json";
@@ -97,6 +99,7 @@ export const NAMESPACES = [
   "adminLedger",
   "adminAnnouncements",
   "art",
+  "adminBreaches",
   "auth",
   "authPhone",
   "awareness",
@@ -107,6 +110,7 @@ export const NAMESPACES = [
   "consent",
   "consentAdmin",
   "competitionStatus",
+  "competitionCancel",
   "contact",
   "coordinators",
   "coordinatorConsents",
@@ -173,6 +177,7 @@ export const messages = {
   ...adminConsentForms,
   ...adminAnnouncements,
   ...art,
+  ...adminBreaches,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -183,6 +188,7 @@ export const messages = {
   ...consent,
   ...consentAdmin,
   ...competitionStatus,
+  ...competitionCancel,
   ...contact,
   ...coordinators,
   ...coordinatorConsents,

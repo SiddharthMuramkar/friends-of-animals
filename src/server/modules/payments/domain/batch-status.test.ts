@@ -29,6 +29,11 @@ const ALLOWED: ReadonlyArray<
   ["needs_review", "review_confirmed", "captured"],
   ["needs_review", "review_cleared", "captured"],
   ["needs_review", "review_dismissed", "cancelled"],
+  // Its competition was cancelled before anyone paid (#80). A payment that
+  // still arrives on its order opens a review case, as for any cancelled
+  // batch.
+  ["created", "competition_cancelled", "cancelled"],
+  ["order_created", "competition_cancelled", "cancelled"],
 ];
 
 const allowedTo = (from: PaymentBatchStatus, event: PaymentBatchEvent) =>

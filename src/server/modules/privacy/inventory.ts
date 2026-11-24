@@ -13,8 +13,10 @@
 // guardian record, since that links the row to them. A row's own id,
 // timestamps, statuses and organisations' details are not.
 //
-// Policy keys describe the intended retention of each field. The periods
-// are defaults pending counsel confirmation (HR-31).
+// Each entry names its retention policy (./policies): a policy the daily
+// sweep enforces, or a lifecycle the data follows instead (deleted with
+// the account, kept with the record). The periods are defaults pending
+// counsel confirmation (HR-31).
 
 // Loads under plain Node: relative imports only, no "server-only".
 
@@ -47,11 +49,6 @@ const PERIOD_TEXT = {
 };
 const PURPOSES: Partial<Record<string, Partial<Record<string, string>>>> =
   inventoryMessages.adminPrivacy.inventory.purposes;
-
-/** The policy keys used by the catalogue's retention descriptors. */
-export const RETENTION_POLICY_KEYS: ReadonlySet<string> = new Set(
-  Object.keys(policyPeriods)
-);
 
 type Subject = InventoryEntry["subject"];
 type StaticPeriodKey = Exclude<keyof typeof PERIOD_TEXT, "contactMessages">;
@@ -148,6 +145,26 @@ const SAFEGUARDING_RECORD = {
   basis:
     "Child protection: the record of what was reported and done, kept for " +
     "the child, FOA and the authorities (legal basis to confirm)",
+  toConfirm: true,
+} as const;
+
+/**
+ * src/server/modules/breaches/retention-policy.ts picks the breaches past
+ * it for #114's sweep, which deletes each with its timeline and notices.
+ */
+const BREACH_RECORD = {
+  policy: "breachRecords",
+  periodKey: "breachRecords",
+  basis:
+    "Legal obligation: FOA shows the Data Protection Board what it knew, did and told whom about a personal data breach (legal basis to confirm)",
+  toConfirm: true,
+} as const;
+
+const LEGAL_HOLD = {
+  policy: "releasedLegalHolds",
+  periodKey: "releasedLegalHolds",
+  basis:
+    "Records why FOA must keep a person's records past their retention, and who decided it",
   toConfirm: true,
 } as const;
 
@@ -473,6 +490,20 @@ const incidentLog = rowsOf("safeguarding_incident_log", {
   subject: { kind: "safeguarding_report", via: "report_id" },
   retention: SAFEGUARDING_RECORD,
   onExpiry: "delete_row",
+});
+
+/** A breach's rows go with the breach (ON DELETE CASCADE). */
+const breachRows = (table: string, subject: Subject) =>
+  rowsOf(table, { subject, retention: BREACH_RECORD, onExpiry: "delete_row" });
+
+const breach = breachRows("breach_record", {
+  kind: "breach_affected",
+  via: "id",
+});
+
+const breachTimeline = breachRows("breach_timeline_event", {
+  kind: "breach_affected",
+  via: "breach_id",
 });
 
 const profile = rowsOf("participant_profile", {
@@ -836,6 +867,33 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   incidentLog("author_user_id", "identity", {
     subject: { kind: "user", via: "author_user_id" },
   }),
+  // The breach log (#116): breach staff (super and staff admins) read it.
+  breach("title_ciphertext", "content"),
+  breach("impact_ciphertext", "content"),
+  breach("authority_reference_ciphertext", "content"),
+  breach("lead_user_id", "identity", {
+    subject: { kind: "user", via: "lead_user_id" },
+  }),
+  breachTimeline("note_ciphertext", "content"),
+  breachTimeline("author_user_id", "identity", {
+    subject: { kind: "user", via: "author_user_id" },
+  }),
+  breachRows("breach_notification", {
+    kind: "user",
+    via: "recipient_user_id",
+  })("recipient_user_id", "identity"),
+  breachRows("breach_notification", {
+    kind: "participant_profile",
+    via: "guardian_profile_ids",
+  })("guardian_profile_ids", "identity"),
+  breachRows("breach_fan_out", { kind: "user", via: "after_user_id" })(
+    "after_user_id",
+    "identity"
+  ),
+  breachRows("breach_unreachable", {
+    kind: "breach_affected",
+    via: "subject_type + subject_id",
+  })("subject_id", "identity"),
   // Blog posts and stories (#112)
   ...["body", "easy_read", "excerpt", "seo_title", "slug", "title"].map(
     (column): InventoryField => ({
@@ -1119,6 +1177,22 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   },
   actorColumn("announcement", "created_by", ANNOUNCEMENT_RECORD),
   actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
+  // Legal holds (#114): a released hold stays as the record of who held
+  // what and why, until the releasedLegalHolds policy deletes it.
+  ...(
+    [
+      ["subject_id", "identity"],
+      ["reason", "content"],
+    ] as const
+  ).map(([column, category]) =>
+    rowsOf("legal_hold", {
+      subject: { kind: "held_subject", via: "subject_type, subject_id" },
+      retention: LEGAL_HOLD,
+      onExpiry: "delete_row",
+    })(column, category)
+  ),
+  actorColumn("legal_hold", "placed_by_user_id", LEGAL_HOLD),
+  actorColumn("legal_hold", "released_by_user_id", LEGAL_HOLD),
 ];
 
 const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(

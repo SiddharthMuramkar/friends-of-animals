@@ -2,7 +2,7 @@
 // pages and the proxy's slug check. Anyone may read it; a draft is never
 // in it. Loads under plain Node: relative imports only.
 
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
 
 import { authorize } from "../../access/can";
 import { competition } from "../../db/schema";
@@ -20,7 +20,7 @@ export type PublishedCompetition = PublicCompetition & {
   terms: PublicCompetitionTerms;
 };
 
-const isPublished = ne(competition.status, "draft");
+const isPublished = isNotNull(competition.publishedAt);
 
 function publicViews(
   stored: readonly StoredCompetition[]

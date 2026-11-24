@@ -42,6 +42,7 @@ const STATUS_TONE = {
   pending_payment: "marigold",
   refunded: "neutral",
   pending_guardian: "marigold",
+  cancelled: "neutral",
 } as const satisfies Record<RegistrationStatus, string>;
 
 const CARD =

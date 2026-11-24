@@ -32,6 +32,10 @@ describe("statusJobs", () => {
     ]);
   });
 
+  it("schedules nothing for a cancelled competition (#80)", () => {
+    expect(statusJobs("cancelled", DATES)).toEqual([]);
+  });
+
   it("schedules nothing for a draft", () => {
     expect(statusJobs("draft", DATES)).toEqual([]);
   });
@@ -225,6 +229,14 @@ describe("planStatusJob", () => {
     ).toEqual(["registration_open", "registration_closed"]);
   });
 
+  it("does nothing for a cancelled competition, early or late (#80)", () => {
+    for (const now of [before(OPEN), after(CLOSE)]) {
+      expect(
+        planStatusJob(openJob, { status: "cancelled", keyDates: DATES }, now)
+      ).toEqual({ kind: "stale" });
+    }
+  });
+
   it("advances nothing for a date no status change hangs on yet", () => {
     const ROUND = new Date("2027-03-25T12:30:00.000Z");
     expect(
@@ -241,6 +253,10 @@ describe("planStatusJob", () => {
 });
 
 describe("upcomingChange", () => {
+  it("counts down to nothing once a competition is cancelled", () => {
+    expect(upcomingChange("cancelled", DATES, before(OPEN))).toBe(null);
+  });
+
   it("counts down to registration opening", () => {
     expect(upcomingChange("published", DATES, before(OPEN))).toEqual({
       kind: "scheduled",

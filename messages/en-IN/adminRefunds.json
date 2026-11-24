@@ -36,7 +36,8 @@
       "withdrawn": "Withdrawn",
       "pending_payment": "Waiting for payment",
       "refunded": "Refunded",
-      "pending_guardian": "Waiting for a guardian"
+      "pending_guardian": "Waiting for a guardian",
+      "cancelled": "Cancelled"
     },
     "payer": {
       "unknown": "Account closed",
@@ -99,6 +100,7 @@
         "decidedBy": "Decided by",
         "decidedOn": "Decided on",
         "note": "Finance's note",
+        "supersededByCancellation": "The competition was cancelled. Its cancellation refund takes over this request.",
         "gatewayPayment": "Gateway payment",
         "gatewayRefund": "Gateway refund",
         "attempt": "Attempt",
@@ -146,6 +148,7 @@
       "failedTitle": "The gateway couldn't refund this",
       "failed": {
         "lead": "Send it again, or close it if FOA paid the money back another way. Closing frees its students for another refund.",
+        "cancellationRequired": "The competition was cancelled. Send this refund again once the gateway can pay it.",
         "retry": "Send it again",
         "close": "Close without refunding",
         "alerts": {

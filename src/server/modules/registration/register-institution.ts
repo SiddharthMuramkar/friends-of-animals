@@ -7,7 +7,7 @@
 // may register, and the one reason when it may not, is the pure
 // decideInstitutionRegistration (./domain/institution-registration.ts).
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -49,7 +49,7 @@ const registerInput = z.object({
 });
 
 /**
- * The competition, its registration-close date and whether it takes
+ * The published competition, its registration-close date and whether it takes
  * institutions, locked for share: a status job moving it waits for this
  * registration, or this registration sees the move.
  */
@@ -61,7 +61,9 @@ async function competitionFacts(tx: AppDb, competitionId: string) {
       participation: competition.participation,
     })
     .from(competition)
-    .where(eq(competition.id, competitionId))
+    .where(
+      and(eq(competition.id, competitionId), isNotNull(competition.publishedAt))
+    )
     .for("share");
   if (!row) return null;
   const [closes] = await tx
@@ -115,7 +117,7 @@ export async function registerInstitutionForCompetition(
 
     const decision = decideInstitutionRegistration({
       window: target ? registrationWindow(target, now) : "unpublished",
-      // Only a draft has none, and a draft is refused before this counts.
+      // Unavailable competitions are refused before participation matters.
       participation: target?.participation ?? "individuals",
       institutionStatus: registering?.status ?? "missing",
       alreadyRegistered: existing !== undefined,

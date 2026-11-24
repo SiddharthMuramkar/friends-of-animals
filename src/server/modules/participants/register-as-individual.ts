@@ -32,7 +32,7 @@
 // consents, any guardian request and the audit entry in one transaction,
 // or nothing.
 
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, isNotNull, ne } from "drizzle-orm";
 
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
@@ -121,7 +121,8 @@ export type RegisterAsIndividualResult =
 
 /**
  * The competition named by `slug`, share-locked so a status job waits for
- * this registration; null for none, or a draft.
+ * this registration. An unpublished competition (a draft, or one cancelled
+ * as a draft, #80) is unavailable.
  */
 async function competitionFacts(tx: AppDb, slug: string, now: Date) {
   const [found] = await tx
@@ -132,9 +133,9 @@ async function competitionFacts(tx: AppDb, slug: string, now: Date) {
       ageCutoffDate: competition.ageCutoffDate,
     })
     .from(competition)
-    .where(eq(competition.slug, slug))
+    .where(and(eq(competition.slug, slug), isNotNull(competition.publishedAt)))
     .for("share");
-  if (!found || found.status === "draft") return null;
+  if (!found) return null;
   if (found.ageCutoffDate === null) {
     throw new Error("A published competition has no age cut-off date");
   }

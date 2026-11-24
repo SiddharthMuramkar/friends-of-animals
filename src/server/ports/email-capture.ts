@@ -5,7 +5,7 @@
 //
 // Loads under plain Node (seed script), so no "server-only" here.
 
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 
 import type { DbWithClock } from "../db/app-db";
 import { capturedMessage } from "../db/schema";
@@ -18,16 +18,14 @@ import {
 } from "./email";
 
 /**
- * How long the capture mailbox keeps a message. Staging captures real
- * visitors' addresses and codes, and staff or a Seam 2 journey read a code
- * within minutes, so a week is plenty. Each send drops older messages, of
- * every channel, and reading never returns them.
+ * The mailbox only shows recent captures. The privacy sweep owns storage
+ * retention, including the configured period and legal holds.
  */
-export const CAPTURE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+export const CAPTURE_MAILBOX_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Messages captured at or after this instant are still kept. */
-function keptSince(now: Date): Date {
-  return new Date(now.getTime() - CAPTURE_RETENTION_MS);
+/** Messages captured at or after this instant are visible in the mailbox. */
+export function captureMailboxSince(now: Date): Date {
+  return new Date(now.getTime() - CAPTURE_MAILBOX_WINDOW_MS);
 }
 
 /**
@@ -61,9 +59,6 @@ export function captureEmailSender({ db, clock }: DbWithClock): EmailSender {
     async send(message) {
       const now = clock.now();
       try {
-        await db
-          .delete(capturedMessage)
-          .where(lt(capturedMessage.createdAt, keptSince(now)));
         await db.insert(capturedMessage).values({
           id: nextId(now),
           channel: "email",
@@ -98,7 +93,7 @@ export async function readCapturedEmail(
         and(
           eq(capturedMessage.channel, "email"),
           eq(capturedMessage.toAddress, normaliseEmailAddress(to)),
-          gte(capturedMessage.createdAt, keptSince(clock.now()))
+          gte(capturedMessage.createdAt, captureMailboxSince(clock.now()))
         )
       )
       .orderBy(desc(capturedMessage.createdAt), desc(capturedMessage.id))

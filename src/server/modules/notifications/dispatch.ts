@@ -1,6 +1,6 @@
 // dispatchEvent(deps, delivery): the outbox handler notifications.dispatch.
-// Every domain event reaches it; it sends what the event's enabled route
-// rows name, and nothing when there are none.
+// It sends what the event's enabled route rows name. Required breach
+// notices use one scoped route and wait when that route is unavailable.
 //
 // For each route and each recipient its audience resolves to, it reads the
 // recipient's contacts, channel choices and messages consent and the SMS
@@ -25,12 +25,22 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, notExists, or, sql } from "drizzle-orm";
 
+import {
+  PRINCIPAL_NOTICE,
+  PRINCIPAL_NOTICE_AUDIENCE,
+  PRINCIPAL_NOTICE_CHANNELS,
+  principalNoticeValues,
+} from "../breaches/notice-message";
+import { revalidateNoticeScope } from "../breaches/notice-scope";
+import { recordPrincipalDelivery } from "../breaches/notify";
+import { lockBreach } from "../breaches/record";
 import { currentConsent } from "../consent/domain/consent-state";
 import { subjectEvents } from "../consent/repository";
 import type { AppDb } from "../../db/app-db";
 import {
+  breachNotification,
   INBOX_BODY_PURPOSE,
   INBOX_TITLE_PURPOSE,
   inboxItem,
@@ -45,7 +55,7 @@ import {
 import type { Ciphertext, FieldCipher } from "../../crypto/field-cipher";
 import { readStoredPhone } from "../../identity/stored-phone";
 import { uuidv7 } from "../../ids";
-import { oneLineSubject } from "../../ports/email";
+import { EmailNotSentError, oneLineSubject } from "../../ports/email";
 import type { Delivery, OutboxDeps } from "../../outbox";
 import {
   AUDIENCES,
@@ -89,6 +99,10 @@ export async function dispatchEvent(
   deps: OutboxDeps,
   delivery: Delivery
 ): Promise<void> {
+  if (delivery.eventType === PRINCIPAL_NOTICE) {
+    await dispatchBreachNotice(deps, delivery);
+    return;
+  }
   const routes = await deps.db
     .select()
     .from(messageRoute)
@@ -157,6 +171,148 @@ export async function dispatchEvent(
   if (failures.length > 0) throw failures[0]!.error;
 }
 
+async function dispatchBreachNotice(
+  deps: OutboxDeps,
+  delivery: Delivery<typeof PRINCIPAL_NOTICE>
+): Promise<void> {
+  const failures: unknown[] = [];
+  for (const channel of PRINCIPAL_NOTICE_CHANNELS) {
+    try {
+      const failure = await deliverBreachChannel(deps, delivery, channel);
+      if (failure) failures.push(failure.error);
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length > 0) throw failures[0];
+}
+
+/** Recheck one pending channel immediately before handing off its content. */
+async function deliverBreachChannel(
+  deps: OutboxDeps,
+  delivery: Delivery<typeof PRINCIPAL_NOTICE>,
+  channel: (typeof PRINCIPAL_NOTICE_CHANNELS)[number]
+) {
+  const { breachId, recipientUserId } = delivery.payload;
+  return deps.db.transaction(async (tx) => {
+    const breach = await lockBreach(tx, breachId);
+    if (!breach) return;
+    // An explicit resubmission opens a fresh event for a suppressed channel.
+    // An older event can still run, but its own suppression stays final.
+    const suppressedByEvent = tx
+      .select({ id: messageDelivery.id })
+      .from(messageDelivery)
+      .where(
+        and(
+          eq(messageDelivery.eventId, delivery.eventId),
+          eq(messageDelivery.templateKey, PRINCIPAL_NOTICE),
+          eq(messageDelivery.userId, recipientUserId),
+          eq(messageDelivery.channel, channel),
+          eq(messageDelivery.status, "suppressed")
+        )
+      );
+    const [notice] = await tx
+      .select()
+      .from(breachNotification)
+      .where(
+        and(
+          eq(breachNotification.breachId, breachId),
+          eq(breachNotification.recipientUserId, recipientUserId),
+          eq(breachNotification.channel, channel),
+          notExists(suppressedByEvent)
+        )
+      )
+      .for("update");
+    if (!notice || notice.sentAt || notice.suppressedAt) return;
+
+    const [route] = await tx
+      .select()
+      .from(messageRoute)
+      .where(
+        and(
+          eq(messageRoute.eventType, PRINCIPAL_NOTICE),
+          eq(messageRoute.audience, PRINCIPAL_NOTICE_AUDIENCE),
+          eq(messageRoute.templateKey, PRINCIPAL_NOTICE),
+          eq(messageRoute.enabled, true),
+          eq(messageRoute.requiredByLaw, true)
+        )
+      )
+      .for("share");
+    if (!route?.channels.includes(channel)) {
+      throw new Error(`No enabled required breach notice route for ${channel}`);
+    }
+    const templates = await templatesFor(tx, route.templateKey);
+    if (!templates[channel])
+      throw new Error(`No breach notice template for ${channel}`);
+
+    const channelDeps = { ...deps, db: tx };
+    // Account writers lock the user before attaching a profile. Hold the
+    // corresponding shared lock from eligibility checking through handoff.
+    const recipient = await recipientOf(channelDeps, recipientUserId, {
+      lock: true,
+    });
+    if (!recipient) return;
+    const now = deps.clock.now();
+    const scope = await revalidateNoticeScope(
+      tx,
+      deps,
+      now,
+      notice,
+      recipientUserId
+    );
+    const message: Message = {
+      delivery,
+      route,
+      templates,
+      recipient,
+      values: scope
+        ? { ...principalNoticeValues(scope), "recipient.name": recipient.name }
+        : {},
+    };
+    if (!scope || (channel === "email" && recipient.email === null)) {
+      await recordSuppressed(
+        channelDeps,
+        message,
+        channel,
+        scope ? "no_contact" : "no_guardian",
+        true
+      );
+      await tx
+        .update(breachNotification)
+        .set({
+          guardianProfileIds: [],
+          suppressedAt: now,
+        })
+        .where(eq(breachNotification.id, notice.id));
+      return;
+    }
+
+    if (channel === "email") {
+      const failure = await deliverByPort(channelDeps, message, channel);
+      if (failure) return failure;
+    } else {
+      await deliverInApp(channelDeps, message);
+    }
+    const sentAt = deps.clock.now();
+    await recordPrincipalDelivery(
+      tx,
+      deps.clock,
+      breach,
+      recipientUserId,
+      sentAt
+    );
+    await tx
+      .update(breachNotification)
+      .set({
+        recipientRole: scope.as,
+        aboutCount: scope.aboutCount,
+        guardianProfileIds: [],
+        sentAt,
+      })
+      .where(eq(breachNotification.id, notice.id));
+  });
+}
+
 async function templatesFor(db: AppDb, key: string): Promise<Templates> {
   const rows = await db
     .select()
@@ -172,9 +328,10 @@ async function templatesFor(db: AppDb, key: string): Promise<Templates> {
 
 async function recipientOf(
   deps: OutboxDeps,
-  userId: string
+  userId: string,
+  { lock = false } = {}
 ): Promise<Recipient | null> {
-  const [row] = await deps.db
+  const query = deps.db
     .select({
       id: user.id,
       name: user.name,
@@ -184,6 +341,7 @@ async function recipientOf(
     })
     .from(user)
     .where(eq(user.id, userId));
+  const [row] = await (lock ? query.for("share") : query);
   if (!row) return null;
   return {
     id: row.id,
@@ -275,20 +433,30 @@ async function recordSuppressed(
   { db, clock }: OutboxDeps,
   message: Message,
   channel: MessageChannel,
-  reason: SuppressionReason
+  reason: SuppressionReason,
+  replaceIncomplete = false
 ): Promise<void> {
   const now = clock.now();
-  await db
-    .insert(messageDelivery)
-    .values({
-      id: uuidv7(now),
-      ...deliveryKey(message, channel),
-      status: "suppressed",
-      reason,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing({ target: ONCE_TARGET });
+  const insert = db.insert(messageDelivery).values({
+    id: uuidv7(now),
+    ...deliveryKey(message, channel),
+    status: "suppressed",
+    reason,
+    createdAt: now,
+    updatedAt: now,
+  });
+  if (replaceIncomplete) {
+    // This path's rows are claimed as `pending` (claimDelivery). Only
+    // contact-delivery.ts claims rows as `sending`, for an in-flight send,
+    // so a suppression never overwrites one.
+    await insert.onConflictDoUpdate({
+      target: ONCE_TARGET,
+      set: { status: "suppressed", reason, updatedAt: now },
+      setWhere: inArray(messageDelivery.status, ["pending", "failed"]),
+    });
+    return;
+  }
+  await insert.onConflictDoNothing({ target: ONCE_TARGET });
 }
 
 function rendered(message: InboxMessage, channel: MessageChannel) {
@@ -394,22 +562,54 @@ async function deliverByPort(
   const deliveryId = await claimDelivery(deps.db, now, message, channel);
   if (!deliveryId) return null;
   const content = rendered(message, channel);
-  await deps.db
+  const tracked =
+    channel === "email" &&
+    (message.delivery.eventType === "registration.competition_cancelled" ||
+      message.delivery.eventType ===
+        "institution_registration.competition_cancelled");
+  // A pending cancellation email with an attempt already recorded may
+  // have reached the provider. Only a definite rejection can be retried.
+  const [claimed] = await deps.db
     .update(messageDelivery)
     .set({
+      ...(tracked ? { status: "pending" as const } : {}),
       templateVersion: content.version,
       attempts: sql`${messageDelivery.attempts} + 1`,
       updatedAt: now,
     })
-    .where(eq(messageDelivery.id, deliveryId));
+    .where(
+      and(
+        eq(messageDelivery.id, deliveryId),
+        tracked
+          ? or(
+              eq(messageDelivery.status, "failed"),
+              and(
+                eq(messageDelivery.status, "pending"),
+                eq(messageDelivery.attempts, 0)
+              )
+            )
+          : undefined
+      )
+    )
+    .returning({ id: messageDelivery.id });
+  const uncertain = () => ({
+    deliveryId,
+    error: new Error(
+      `Cancellation email for delivery ${deliveryId} needs reconciliation`
+    ),
+  });
+  if (!claimed) return tracked ? uncertain() : null;
   try {
     if (channel === "email") {
-      await deps.email.send({
-        to: message.recipient.email!,
-        subject: content.subject ?? "",
-        text: content.body,
-        html: renderEmailHtml(content.body),
-      });
+      await deps.email.send(
+        {
+          to: message.recipient.email!,
+          subject: content.subject ?? "",
+          text: content.body,
+          html: renderEmailHtml(content.body),
+        },
+        tracked ? { deliveryId } : undefined
+      );
     } else {
       await deps.sms.send({
         to: readStoredPhone(deps, message.recipient.storedPhone!),
@@ -420,6 +620,7 @@ async function deliverByPort(
       });
     }
   } catch (error) {
+    if (tracked && !(error instanceof EmailNotSentError)) return uncertain();
     await deps.db
       .update(messageDelivery)
       .set({ status: "failed", updatedAt: deps.clock.now() })

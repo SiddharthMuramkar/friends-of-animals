@@ -25,13 +25,13 @@
     "values": {
       "on": "On",
       "off": "Off",
-      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} other {{count, plural, one {# text} other {# texts}}}}",
+      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} other {{count, plural, one {# text} other {# texts}}}}",
       "notSet": "Not set yet"
     },
     "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
     "form": {
       "newValue": "New value",
-      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} other {texts}}",
+      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} other {texts}}",
       "range": "A whole number from {min} to {max}.",
       "save": "Save",
       "saving": "Saving…",
@@ -110,6 +110,74 @@
         "reportsPerIpPerHour": {
           "label": "Safeguarding reports per hour from one connection",
           "description": "The most concerns the report form takes from one internet connection in an hour. Past it, the form shows Childline 1098, 112 and FOA's safeguarding email instead, so nobody is left without help."
+        }
+      },
+      "breach": {
+        "authorityEmail": {
+          "label": "Authority's address for breach notices",
+          "description": "Where the breach log emails a notice to the authority, such as the Data Protection Board. Leave it empty until FOA's lawyer confirms the address: staff then file the notice by hand and record the reference they get."
+        }
+      },
+      "retention": {
+        "enforce": {
+          "label": "Delete expired records",
+          "description": "Lets the daily retention run at 02:15 delete and anonymise records past their retention period. While it is off, the run only counts them and records the counts in the audit log. Turn it on once FOA's counsel has confirmed the periods below."
+        },
+        "expiredVerificationsDays": {
+          "label": "Keep expired sign-in codes",
+          "description": "Days a sign-in code or link is kept after it expires, then the daily run deletes it."
+        },
+        "expiredSessionsDays": {
+          "label": "Keep expired sessions",
+          "description": "Days a sign-in session, with the network address and browser it recorded, is kept after it expires."
+        },
+        "capturedMessagesDays": {
+          "label": "Keep captured test messages",
+          "description": "Days a message captured instead of sent (local runs and previews only) is kept."
+        },
+        "messageDeliveriesDays": {
+          "label": "Keep the message log",
+          "description": "Days the record of each email, text or in-app message sent is kept."
+        },
+        "readInboxItemsDays": {
+          "label": "Keep read in-app messages",
+          "description": "Days an in-app message is kept after the person reads it. Unread messages stay while the account is open."
+        },
+        "quarantinedFilesDays": {
+          "label": "Keep quarantined files",
+          "description": "Days a flagged file and its stored object are kept after quarantine."
+        },
+        "dispatchedOutboxDays": {
+          "label": "Keep finished background jobs",
+          "description": "Days a background job that ran is kept. A job that failed stays until staff resolve it."
+        },
+        "coordinatorInvitationLinksDays": {
+          "label": "Clear expired coordinator invitation links",
+          "description": "Days after a coordinator invitation expires unanswered before its link's secret is cleared."
+        },
+        "guardianInvitationLinksDays": {
+          "label": "Clear expired guardian invitation links",
+          "description": "Days after a guardian's or teen's invitation expires unanswered before its link's secret is cleared."
+        },
+        "coordinatorInvitationsDays": {
+          "label": "Keep closed coordinator invitations",
+          "description": "Days a coordinator invitation is kept after it is accepted, withdrawn or expires."
+        },
+        "guardianInvitationsDays": {
+          "label": "Keep closed guardian invitations",
+          "description": "Days a teen-login invitation or a teen's guardian request is kept after it is accepted, withdrawn or expires."
+        },
+        "contactMessagesMonths": {
+          "label": "Keep closed contact messages",
+          "description": "Calendar months a closed contact message and its staff notes are kept."
+        },
+        "releasedLegalHoldsDays": {
+          "label": "Keep released legal holds",
+          "description": "Days a legal hold is kept, as the record of what was held and why, after it is released."
+        },
+        "financialRecordsDays": {
+          "label": "Keep payment records",
+          "description": "Days a payment, its refunds and its reviews are kept whole before the payer's details are removed. Payment records always stay at least until 8 years after the end of their financial year, whatever this says."
         }
       }
     }

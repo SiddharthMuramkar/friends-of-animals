@@ -29,7 +29,7 @@ export type PhoneCodeCheck =
   | "code_expired"
   | "too_many_attempts";
 
-function identifierFor(phoneHash: string): string {
+export function phoneVerificationIdentifier(phoneHash: string): string {
   return `sms-sign-in:${phoneHash}`;
 }
 
@@ -53,7 +53,7 @@ export async function issuePhoneCode(
   { db, clock, auth }: UseCaseContext,
   phoneHash: string
 ): Promise<string> {
-  const identifier = identifierFor(phoneHash);
+  const identifier = phoneVerificationIdentifier(phoneHash);
   const code = String(randomInt(10 ** SIGN_IN_CODE.length)).padStart(
     SIGN_IN_CODE.length,
     "0"
@@ -88,7 +88,7 @@ export async function checkPhoneCode(
   code: string,
   { keep = false }: { keep?: boolean } = {}
 ): Promise<PhoneCodeCheck> {
-  const identifier = identifierFor(phoneHash);
+  const identifier = phoneVerificationIdentifier(phoneHash);
   const taken = await db
     .delete(verification)
     .where(eq(verification.identifier, identifier))

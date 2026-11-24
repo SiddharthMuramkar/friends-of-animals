@@ -12,6 +12,7 @@ import { signInStaff } from "@/server/modules/payments/testing";
 import { REGISTRATION_NUMBER } from "@/server/modules/registration/domain/registration-number";
 import { createHarness } from "@/test/harness";
 
+import { SEED_CANCELLED } from "./competition-cancelled";
 import { SEED_COORDINATORS } from "./coordinators";
 import { SEED_PAYMENTS } from "./payments";
 import { SEED_REFUNDS } from "./refunds";
@@ -48,6 +49,8 @@ describe("the payments seed", () => {
       { id: SEED_PAYMENTS.inReview.batchId, status: "needs_review" },
       // The refunds seed's batch of one, refunded (#80).
       { id: SEED_REFUNDS.refunded.batchId, status: "captured" },
+      // The cancelled competition's batch, refunded by its cancellation.
+      { id: SEED_CANCELLED.batchId, status: "captured" },
     ]);
     expect(await rows()).toEqual(once);
   });

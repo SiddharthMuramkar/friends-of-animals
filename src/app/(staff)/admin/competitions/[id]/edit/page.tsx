@@ -1,4 +1,4 @@
-import { ArrowLeft, Eye, IndianRupee } from "lucide-react";
+import { ArrowLeft, Ban, Eye, IndianRupee } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
@@ -8,7 +8,7 @@ import { StatusCountdown } from "@/components/competitions/status-countdown";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { adminCompetitionCancelPath, APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -52,12 +52,13 @@ export default async function Page({ params, searchParams }: Props) {
 async function EditCompetition({ params, searchParams }: Props) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [{ id }, { done }, t, callout, terms] = await Promise.all([
+  const [{ id }, { done }, t, callout, terms, cancel] = await Promise.all([
     params,
     searchParams,
     getTranslations("adminCompetitions"),
     getTranslations("common.callout"),
     getTranslations("adminCompetitionTerms"),
+    getTranslations("competitionCancel"),
   ]);
   let result;
   try {
@@ -104,6 +105,15 @@ async function EditCompetition({ params, searchParams }: Props) {
           <ArrowLeft aria-hidden="true" />
           {t("edit.back")}
         </ButtonLink>
+        {competition.mayCancel ? (
+          <ButtonLink
+            href={adminCompetitionCancelPath(competition.id)}
+            variant="quiet"
+          >
+            <Ban aria-hidden="true" />
+            {cancel("editLink")}
+          </ButtonLink>
+        ) : null}
       </div>
       <StatusCountdown
         change={competition.nextChange}

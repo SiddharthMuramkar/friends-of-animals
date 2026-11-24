@@ -498,6 +498,62 @@
       "when": 1795490908696,
       "tag": "0070_84_announcement_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1795495147904,
+      "tag": "0071_114_privacy_retention",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1795495163850,
+      "tag": "0072_114_contact_retention_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1795495164850,
+      "tag": "0073_80_pre_cancel_enum_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1795495165850,
+      "tag": "0074_80_cancel_competition",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1795495166850,
+      "tag": "0075_80_cancel_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1795495269140,
+      "tag": "0076_116_breach_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1795495270802,
+      "tag": "0077_116_breach_timeline_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1795495272354,
+      "tag": "0078_116_breach_notice_defaults",
+      "breakpoints": true
     }
   ]
 }

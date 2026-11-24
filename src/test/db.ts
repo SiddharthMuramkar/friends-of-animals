@@ -44,7 +44,7 @@ export async function migrateTemplate(): Promise<Blob> {
  */
 export async function createMigratedClient({
   before,
-}: { before?: (empty: PGlite) => Promise<unknown> } = {}): Promise<PGlite> {
+}: { before?: (empty: PGlite) => Promise<unknown> } = {}) {
   const client = await PGlite.create({ extensions });
   try {
     await before?.(client);

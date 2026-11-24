@@ -30,13 +30,22 @@ export async function emit(
   event: DomainEvent,
   options: { availableAt?: Date } = {}
 ): Promise<void> {
-  const payload = EVENT_PAYLOADS[event.type].parse(event.payload);
-  const handlers: readonly string[] = SUBSCRIBERS[event.type];
-  if (handlers.length === 0) return;
+  await emitBatch(tx, clock, [event], options);
+}
+
+/** Saves a bounded batch of events and their subscribers in one write. */
+export async function emitBatch(
+  tx: AppDb,
+  clock: Clock,
+  events: readonly DomainEvent[],
+  options: { availableAt?: Date } = {}
+): Promise<void> {
   const now = clock.now();
-  const eventId = uuidv7(now);
-  await tx.insert(outbox).values(
-    handlers.map((handler) => ({
+  const deliveries = events.flatMap((event) => {
+    const payload = EVENT_PAYLOADS[event.type].parse(event.payload);
+    const eventId = uuidv7(now);
+    const handlers: readonly string[] = SUBSCRIBERS[event.type];
+    return handlers.map((handler) => ({
       id: uuidv7(now),
       eventId,
       eventType: event.type,
@@ -46,6 +55,7 @@ export async function emit(
       payload,
       occurredAt: now,
       availableAt: options.availableAt ?? now,
-    }))
-  );
+    }));
+  });
+  if (deliveries.length > 0) await tx.insert(outbox).values(deliveries);
 }

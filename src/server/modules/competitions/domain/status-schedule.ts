@@ -59,13 +59,13 @@ function sameInstant(a: Date | undefined, b: Date | undefined): boolean {
 
 /**
  * The jobs to schedule when a competition is published: one for each key
- * date that is set. A draft has none.
+ * date that is set. A draft has none, and a cancelled one (#80) none.
  */
 export function statusJobs(
   status: CompetitionStatus,
   keyDates: KeyDates
 ): StatusJob[] {
-  if (status === "draft") return [];
+  if (status === "draft" || status === "cancelled") return [];
   return KEY_DATE_KINDS.flatMap((kind) => {
     const dueAt = keyDates[kind];
     return dueAt ? [{ kind, dueAt }] : [];
@@ -133,6 +133,8 @@ export function planStatusJob(
   competition: { status: CompetitionStatus; keyDates: KeyDates },
   now: Date
 ): StatusJobPlan {
+  // A cancelled competition moves no more (#80): every job of it is stale.
+  if (competition.status === "cancelled") return { kind: "stale" };
   if (isStale(job, competition.keyDates)) return { kind: "stale" };
   if (now.getTime() < job.dueAt.getTime()) {
     return { kind: "early", dueAt: job.dueAt };

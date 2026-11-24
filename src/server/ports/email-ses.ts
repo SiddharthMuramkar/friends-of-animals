@@ -17,6 +17,7 @@ import {
 } from "@aws-sdk/client-sesv2";
 
 import {
+  EmailNotSentError,
   normaliseEmailAddress,
   subjectHasBreak,
   type EmailSender,
@@ -61,16 +62,20 @@ function masked(reason: string): string {
 }
 
 /** The adapter's own error for whatever the SDK threw. */
-function sesFailure(error: unknown): SesEmailError {
+function sesFailure(error: unknown, tracked: boolean): Error {
   if (error instanceof SESv2ServiceException) {
     const { httpStatusCode, requestId } = error.$metadata;
     const where = [
       `HTTP ${httpStatusCode ?? "?"}`,
       ...(requestId ? [`request ${requestId}`] : []),
     ].join(", ");
-    return new SesEmailError(
+    const failure = new SesEmailError(
       `SES refused the message: ${error.name} (${where}). ${masked(error.message)}`.trim()
     );
+    if (tracked && [400, 401, 403, 404, 429].includes(httpStatusCode ?? 0)) {
+      return new EmailNotSentError(failure.message);
+    }
+    return failure;
   }
   // Without `cause`: a network error can carry the request.
   const kind = error instanceof Error ? error.name : typeof error;
@@ -89,22 +94,30 @@ export function sesEmailSender(
   config: SesConfig,
   transport?: SesTransport
 ): EmailSender {
-  const client = new SESv2Client({
+  const clientConfig = {
     region: config.region,
     credentials: {
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
     },
     ...(transport ? { requestHandler: transport } : {}),
-  });
+  } satisfies SESv2ClientConfig;
+  const client = new SESv2Client(clientConfig);
+  let trackedClient: SESv2Client | undefined;
   return {
-    async send(message) {
+    async send(message, options) {
+      if (options && !config.configurationSet) {
+        throw new EmailNotSentError(
+          "Tracked SES email requires a configuration set with event publishing"
+        );
+      }
       // Refused before SES sees it: SES would take it, and a subject is
       // one header line.
       if (subjectHasBreak(message.subject)) {
-        throw new SesEmailError(
-          "the subject has a line break or control character"
-        );
+        const problem = "the subject has a line break or control character";
+        throw options
+          ? new EmailNotSentError(problem)
+          : new SesEmailError(problem);
       }
       const command = new SendEmailCommand({
         FromEmailAddress: config.from,
@@ -121,14 +134,29 @@ export function sesEmailSender(
         ...(config.configurationSet
           ? { ConfigurationSetName: config.configurationSet }
           : {}),
+        ...(options
+          ? {
+              EmailTags: [
+                { Name: "outbox_delivery_id", Value: options.deliveryId },
+              ],
+            }
+          : {}),
       });
       let messageId: string | undefined;
       try {
-        ({ MessageId: messageId } = await client.send(command, {
+        // The worker reconciles an uncertain tracked send. An SDK retry
+        // after a lost response could otherwise send the email twice.
+        const sender = options
+          ? (trackedClient ??= new SESv2Client({
+              ...clientConfig,
+              maxAttempts: 1,
+            }))
+          : client;
+        ({ MessageId: messageId } = await sender.send(command, {
           abortSignal: AbortSignal.timeout(TIMEOUT_MS),
         }));
       } catch (error) {
-        throw sesFailure(error);
+        throw sesFailure(error, options !== undefined);
       }
       // Only SES's id, to follow a bounce or a complaint: never the
       // address, the subject or the text, which can hold a code.

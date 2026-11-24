@@ -48,6 +48,37 @@ own office contact details are stored plain and listed in the catalogue.
 Announcement inbox titles and bodies are encrypted. Their retention period is
 365 days after the recipient reads the message (HR-31, pending confirmation).
 
+## Breach log
+
+A breach's title, impact, authority reference and timeline notes are
+encrypted, because they can name the people affected. The catalogue also
+lists who leads the response, who wrote each timeline entry, who was told,
+and the accounts and child profiles a notice couldn't reach. All of it is
+kept while the breach is open and for 5 years after it closes, then deleted
+with the breach (HR-31, pending confirmation).
+
+## Scheduled retention
+
+The worker runs the retention sweep
+([`sweep.ts`](../../src/server/modules/privacy/sweep.ts)) at 02:15 IST over
+the policy registry in
+[`policies/`](../../src/server/modules/privacy/policies/index.ts). Every
+entry's `retention.policy` names either a swept policy or a lifecycle policy
+that the data follows instead. The sweep starts in dry-run mode and records
+counts per policy in the audit log, never personal data. A super admin can
+change the timed periods and turn on enforcement (`retention.enforce`) in
+`/admin/settings` after counsel confirms them. Statutory floors and legal
+holds still apply.
+
+A super admin places a legal hold on an account, a participant profile or an
+institution from `/admin/privacy`, with a fresh second factor. While a hold
+is in force the sweep keeps every record about that subject and counts it as
+held. Closed contact messages default to 24 calendar months, and quarantined
+uploads and their objects default to 30 days after quarantine. A payment's
+proof is never purged: `offline_payment.proof_file_asset_id` stays required,
+so a quarantined proof is kept with its payment record. Payment records are
+anonymised, not deleted, after the 8-year financial floor.
+
 ## Competition entry data
 
 The proposed entry retention periods are three years after the competition

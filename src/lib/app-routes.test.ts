@@ -8,6 +8,7 @@ import {
   ADMIN_REFUNDS,
   adminBatchRefundPath,
   adminLedgerPostingPath,
+  adminCompetitionCancelPath,
   adminRefundPath,
   adminCmsDocumentPath,
   adminPaymentBatchPath,
@@ -78,6 +79,19 @@ describe("isSignedInPage", () => {
     );
   });
 
+  it("serves the breach log and its detail page in the signed-in tree (#116)", () => {
+    for (const path of [
+      "/admin/breaches",
+      `/admin/breaches/${COMPETITION_ID}`,
+    ]) {
+      expect(isSignedInPage(path), path).toBe(true);
+      expect(isSignedInPath(path), path).toBe(true);
+    }
+    expect(isSignedInPage(`/admin/breaches/${COMPETITION_ID}/extra`)).toBe(
+      false
+    );
+  });
+
   it("keeps the ledger pages behind sign-in (#105)", () => {
     const paths = [
       ADMIN_LEDGER,
@@ -90,6 +104,16 @@ describe("isSignedInPage", () => {
       expect(isSignedInPath(path), path).toBe(true);
     }
     expect(paths[3]).toBe("/admin/ledger/9007199254740993");
+  });
+
+  it("knows a competition's cancel page, whatever its id (#80)", () => {
+    expect(adminCompetitionCancelPath(COMPETITION_ID)).toBe(
+      `/admin/competitions/${COMPETITION_ID}/cancel`
+    );
+    expect(isSignedInPage(adminCompetitionCancelPath(COMPETITION_ID))).toBe(
+      true
+    );
+    expect(isSignedInPage("/admin/competitions/cancel")).toBe(false);
   });
 
   it("knows a competition's edit and preview pages, whatever its id", () => {

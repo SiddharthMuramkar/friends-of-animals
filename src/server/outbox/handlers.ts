@@ -35,6 +35,7 @@ import { sendGuardianRequest } from "../modules/guardians/guardian-request-messa
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
 import { sendApprovedRefund } from "../modules/payments/refunds/sync-refund";
 import { fanOutAnnouncement } from "../modules/announcements/fan-out";
+import { sendCancellationToFamily } from "../modules/competitions/cancellation-message";
 import {
   ledgerWorker,
   postPaymentCapture,
@@ -42,6 +43,8 @@ import {
 } from "../modules/ledger/consumers";
 import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
 import { expireUploadGrant } from "../modules/entries/upload-grants";
+import { fanOutBreachNotices } from "../modules/breaches/fan-out";
+import { sendAuthorityNotice } from "../modules/breaches/authority-message";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -150,6 +153,8 @@ export const HANDLERS: Handlers = {
     sendGuardianRequest(deps, payload),
   // Sends a competition's announcement to its registrants (#84).
   "announcements.fan_out": fanOutAnnouncement,
+  // Emails each family that its competition was cancelled (#80).
+  "registration.send_cancellation": sendCancellationToFamily,
   // Brings an entry's file up to date with its scan and derivatives (#85).
   "entries.apply_file_outcome": (deps, { payload }) =>
     applyEntryFileOutcome(deps, payload),
@@ -167,6 +172,12 @@ export const HANDLERS: Handlers = {
       key: uploadKeyFor({ prefix: files.keyPrefix, fileId }),
     });
   },
+  // Plans one page of a breach's notices to every account, and saves the
+  // next page (#116). Safe to repeat: a notice already queued is skipped.
+  "breaches.fan_out": (deps, { payload }) => fanOutBreachNotices(deps, payload),
+  // Emails the authority about a breach, once (#116).
+  "breaches.send_authority_notice": (deps, { payload }) =>
+    sendAuthorityNotice(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

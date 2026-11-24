@@ -93,6 +93,7 @@ const STUDENT_TONE = {
   refunded: "neutral",
   // An individual's, never a school's (#81).
   pending_guardian: "marigold",
+  cancelled: "neutral",
 } as const satisfies Record<RegistrationStatus, string>;
 
 const param = (value: string | string[] | undefined) =>

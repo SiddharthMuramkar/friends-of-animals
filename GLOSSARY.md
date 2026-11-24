@@ -237,6 +237,14 @@ with no finance approval, and no registration changes. Most often the second
 of two payments.
 _Avoid_: Auto-refund, double refund
 
+**Cancelled competition**:
+A competition a super admin called off, with a reason, behind a fresh second
+factor. It is final and moves no more. Every paid fee goes back in one
+cancellation refund per Payment batch, with nobody else approving it;
+unpaid and free registrations are cancelled at once, a paid one is refunded
+once its money is back, and every family contact and coordinator is told.
+_Avoid_: Withdrawn competition, deleted competition, archived competition
+
 **Test checkout**:
 Where a payer pays outside production while no Razorpay test keys are set:
 the fallback gateway's stand-in for Razorpay's Checkout, on the pay page. It

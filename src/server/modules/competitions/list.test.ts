@@ -73,3 +73,25 @@ describe("listCompetitionsForAdmin", () => {
     });
   });
 });
+
+describe("listCompetitionsForCancellation", () => {
+  it("lists drafts for a super admin while keeping the edit permission separate", async () => {
+    const h = await createHarness();
+    const draft = await h.seed.competition();
+    const admin = h.as(await signInWith(h, "super_admin"));
+
+    expect(await admin.listCompetitionsForCancellation()).toMatchObject([
+      { id: draft.id, status: "draft" },
+    ]);
+    await expect(
+      admin.getCompetitionForEdit({ competitionId: draft.id })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    await expect(
+      admin.publishCompetition({ competitionId: draft.id })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    const manager = h.as(await signInManager(h));
+    await expect(
+      manager.listCompetitionsForCancellation()
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+});

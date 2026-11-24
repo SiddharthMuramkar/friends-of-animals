@@ -11,11 +11,31 @@
 
 import { CODE_REQUEST_LIMITS } from "../../identity/settings";
 import {
+  CONTACT_RETENTION,
+  MAX_RETENTION_DAYS,
+  minimumRetentionDays,
+  RETENTION_PERIODS,
+  type RetentionPeriod,
+} from "../privacy/domain/periods";
+import {
   booleanSetting,
   integerSetting,
   type SettingDefinition,
   textSetting,
 } from "./definition";
+
+/**
+ * A retention policy's period in days (#114): its default, and a minimum
+ * the policy's statutory floor sets, so no value can shorten the floor.
+ */
+function retentionDays(period: RetentionPeriod) {
+  return integerSetting({
+    default: period.defaultDays,
+    min: minimumRetentionDays(period),
+    max: MAX_RETENTION_DAYS,
+    unit: "days",
+  });
+}
 
 export const SETTINGS = {
   // Identity and access (#60): staff sessions are shorter than members'.
@@ -65,6 +85,60 @@ export const SETTINGS = {
     max: 100,
     unit: "reports",
   }),
+  // Breaches (#116): where a breach notice to the authority is emailed.
+  // Empty until FOA's counsel names the channel (HR-49); staff then file
+  // the notice by hand and record the authority's reference.
+  "breach.authorityEmail": textSetting({ default: "", maxLength: 254 }),
+  // Retention (#114). Off until a super admin turns it on: the daily sweep
+  // then deletes and anonymises expired records; while off it only counts
+  // them (a dry run, still audited). Every period waits for counsel
+  // (HR-31); src/server/modules/privacy/domain/periods.ts holds them.
+  "retention.enforce": booleanSetting({ default: false }),
+  "retention.expiredVerificationsDays": retentionDays(
+    RETENTION_PERIODS.expiredVerifications
+  ),
+  "retention.expiredSessionsDays": retentionDays(
+    RETENTION_PERIODS.expiredSessions
+  ),
+  "retention.capturedMessagesDays": retentionDays(
+    RETENTION_PERIODS.capturedMessages
+  ),
+  "retention.messageDeliveriesDays": retentionDays(
+    RETENTION_PERIODS.messageDeliveries
+  ),
+  "retention.readInboxItemsDays": retentionDays(
+    RETENTION_PERIODS.readInboxItems
+  ),
+  "retention.quarantinedFilesDays": retentionDays(
+    RETENTION_PERIODS.quarantinedFiles
+  ),
+  "retention.dispatchedOutboxDays": retentionDays(
+    RETENTION_PERIODS.dispatchedOutbox
+  ),
+  "retention.coordinatorInvitationLinksDays": retentionDays(
+    RETENTION_PERIODS.coordinatorInvitationLinks
+  ),
+  "retention.guardianInvitationLinksDays": retentionDays(
+    RETENTION_PERIODS.guardianInvitationLinks
+  ),
+  "retention.coordinatorInvitationsDays": retentionDays(
+    RETENTION_PERIODS.coordinatorInvitations
+  ),
+  "retention.guardianInvitationsDays": retentionDays(
+    RETENTION_PERIODS.guardianInvitations
+  ),
+  [CONTACT_RETENTION.settingKey]: integerSetting({
+    default: CONTACT_RETENTION.defaultMonths,
+    min: CONTACT_RETENTION.minimumMonths,
+    max: CONTACT_RETENTION.maximumMonths,
+    unit: "months",
+  }),
+  "retention.releasedLegalHoldsDays": retentionDays(
+    RETENTION_PERIODS.releasedLegalHolds
+  ),
+  "retention.financialRecordsDays": retentionDays(
+    RETENTION_PERIODS.financialRecords
+  ),
 } satisfies Record<string, SettingDefinition<unknown>>;
 
 export type SettingKey = keyof typeof SETTINGS;

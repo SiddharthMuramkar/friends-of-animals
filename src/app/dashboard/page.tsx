@@ -74,6 +74,11 @@ async function Areas() {
     )
   );
   const finance = grants.some((grant) => grant.role === "finance");
+  const competitions = grants.some(
+    (grant) =>
+      grant.role === "competition_manager" ||
+      (grant.role === "super_admin" && grant.scope.type === "global")
+  );
   const links = dashboardLinks(dashboards);
   const name = (link: DashboardLink) =>
     t(`areas.${link.area}`, { id: link.id ?? "" });
@@ -118,6 +123,7 @@ async function Areas() {
             lead={lead}
             money={money}
             finance={finance}
+            competitions={competitions}
           />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
@@ -132,12 +138,14 @@ async function AreaBody({
   lead,
   money,
   finance,
+  competitions,
 }: {
   area: DashboardLink["area"];
   id?: string;
   lead: boolean;
   money: boolean;
   finance: boolean;
+  competitions: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -175,6 +183,14 @@ async function AreaBody({
         ? links([
             { href: APP_ROUTES.adminRoles, label: t("admin.roles") },
             { href: APP_ROUTES.adminAudit, label: t("admin.audit") },
+            ...(competitions
+              ? [
+                  {
+                    href: APP_ROUTES.adminCompetitions,
+                    label: t("admin.competitions"),
+                  },
+                ]
+              : []),
             ...(lead
               ? [
                   {

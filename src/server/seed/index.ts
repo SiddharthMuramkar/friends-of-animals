@@ -22,6 +22,7 @@ import { seedContact } from "./contact";
 import { seedEntries } from "./entries";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
+import { seedBreaches } from "./breaches";
 import { seedLedger } from "./ledger";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
@@ -31,9 +32,11 @@ import { seedNotifications } from "./notifications";
 import { seedRegistrations } from "./registration";
 import { seedPayments } from "./payments";
 import { seedRefunds } from "./refunds";
+import { seedCancelledCompetition } from "./competition-cancelled";
 import { seedParticipants } from "./participants";
 import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
+import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
 import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
@@ -57,7 +60,10 @@ const seeders: readonly Seeder[] = [
   seedSecondFactor,
   seedSettings,
   seedSafeguarding,
+  // After the identity and access seeds: the seeded members (#116).
+  seedBreaches,
   seedInstitutions,
+  seedPrivacy,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,
   // After the institutions and competitions seeds: it needs both.
@@ -68,6 +74,9 @@ const seeders: readonly Seeder[] = [
   // After the payments seed: a refund waiting for finance on its paid
   // batch, and one refunded (#80).
   seedRefunds,
+  // After the registration seed: a cancelled competition with one of its
+  // students refunded and one cancelled (#80).
+  seedCancelledCompetition,
   // After the competitions, their terms and the accounts: adults who
   // registered themselves for NEIGH27, one paid.
   seedParticipants,

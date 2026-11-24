@@ -11,7 +11,7 @@
 // verified the institution (#73). Then the guide narrows to the
 // competitions the institution registered for (HR-37).
 
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../access/can";
@@ -87,7 +87,7 @@ async function registeredInstitutionScopes(
 
 /** Published, and with a school round: the competitions with a guide. */
 const hasGuide = and(
-  ne(competition.status, "draft"),
+  isNotNull(competition.publishedAt),
   ne(competition.participation, "individuals")
 );
 
@@ -115,10 +115,9 @@ export async function getJudgingGuide(
       disciplines: competition.disciplines,
     })
     .from(competition)
-    .where(eq(competition.code, parsed.data.code));
+    .where(and(eq(competition.code, parsed.data.code), hasGuide));
   if (
     !found ||
-    found.status === "draft" ||
     found.participation === null ||
     !schoolsTakePart(found.participation)
   ) {

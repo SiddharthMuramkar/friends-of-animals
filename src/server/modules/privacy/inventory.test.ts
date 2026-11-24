@@ -8,8 +8,9 @@ import { CONTACT_INVENTORY } from "@/server/modules/contact/inventory";
 
 import { checkInventoryCoverage } from "./domain/coverage";
 import { schemaColumns } from "./domain/schema-columns";
-import { DATA_INVENTORY, RETENTION_POLICY_KEYS } from "./inventory";
+import { DATA_INVENTORY } from "./inventory";
 import { NON_PERSONAL } from "./non-personal";
+import { LIFECYCLE_POLICY_KEYS, RETENTION_POLICY_KEYS } from "./policies";
 
 const tables = (Object.values(schema) as unknown[])
   .filter((value): value is PgTable => is(value, PgTable))
@@ -37,6 +38,16 @@ describe("the data inventory", () => {
         policies: RETENTION_POLICY_KEYS,
       })
     ).toEqual([]);
+  });
+
+  it("explains every retention policy on the privacy page, and names each lifecycle from an entry", () => {
+    expect(new Set(Object.keys(messages.adminPrivacy.policies.items))).toEqual(
+      RETENTION_POLICY_KEYS
+    );
+    const named = new Set(
+      DATA_INVENTORY.map(({ retention }) => retention.policy)
+    );
+    expect(LIFECYCLE_POLICY_KEYS.filter((key) => !named.has(key))).toEqual([]);
   });
 
   it("has one non-empty purpose message for every catalogue field", () => {

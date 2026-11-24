@@ -3,9 +3,9 @@
 // A route row names an audience by key. Each audience turns an event into
 // the users who receive it: by default on every channel the route names; a
 // member may be limited to the inbox, or recorded as told nothing (#81: a
-// minor with no verified guardian). Later tickets add an audience here
-// (#75 `institution_coordinators`) and route rows that use it, in a
-// migration; #88 added `competition_managers`, #81 `guardian_of_participant`.
+// minor with no verified guardian). Later tickets add an audience here and
+// route rows that use it, in a migration; #88 added `competition_managers`,
+// #81 `guardian_of_participant`, #80 `institution_coordinators`.
 //
 // Every message knows its recipient (RECIPIENT_VARIABLES). An event may
 // give more variables (EVENT_VARIABLES): the names it provides and how to
@@ -46,9 +46,14 @@ import {
 } from "../entries/message-values";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
+import {
+  AUTHORITY_NOTICE_VARIABLES,
+  PRINCIPAL_NOTICE_VARIABLES,
+} from "../breaches/notice-message";
 import { ownerOfRegistration } from "../participants/owner";
 import { payerOn, RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
 import {
+  dashboardRefundValues,
   financeTeam,
   REFUND_VARIABLES,
   refundValues,
@@ -57,6 +62,13 @@ import {
   CONFIRMATION_VARIABLES,
   confirmationValues,
 } from "../registration/confirmation-message";
+import {
+  CANCELLATION_VARIABLES,
+  cancellationValues,
+  INSTITUTION_CANCELLATION_VARIABLES,
+  institutionCancellationValues,
+  institutionCoordinators,
+} from "../competitions/cancellation-message";
 import {
   TRANSITION_BLOCK,
   type TransitionBlock,
@@ -143,6 +155,7 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The funnel to the gateway (#80); no route row names it.
       return null;
     case "refund.processed":
+    case "refund.dashboard_processed":
       // Whoever started the batch's payment is told their money is back.
       return delivery.payload.payerUserId;
     case "refund.failed":
@@ -152,6 +165,15 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The guardian a teen names may have no account yet: the request
       // goes to the address the teen gave by its own handler (#81).
       return null;
+    case "breach.principal_notice":
+      // Possibly a guardian, told about a child: `breach_recipient` names
+      // whoever the breaches module planned (#116).
+      return null;
+    case "breach.fan_out_requested":
+    case "breach.authority_notice":
+      // The fan-out job and the authority's own email (#116); no route row
+      // sends to a user for either.
+      return null;
     case "entry.submitted":
     case "entry.file_rejected":
     case "entry.file_failed":
@@ -160,6 +182,14 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "competition.announcement_sent":
       // For a competition's registrants (`announcement_registrants`).
+      return null;
+    case "registration.competition_cancelled":
+      // The family contact goes by its own handler; an adult's own by
+      // `registration_owner`, a minor's guardians by
+      // `guardian_of_participant` (#80).
+      return null;
+    case "institution_registration.competition_cancelled":
+      // For its coordinators (`institution_coordinators`, #80).
       return null;
   }
 }
@@ -213,6 +243,13 @@ export const AUDIENCES = {
    * receives it here.
    */
   registration_owner: async (db, delivery) => {
+    // A registration still held for a guardian when its competition was
+    // cancelled (#80) is a minor's: their guardians hear of it instead.
+    if (delivery.eventType === "registration.competition_cancelled") {
+      return delivery.payload.awaitingGuardian
+        ? []
+        : ownerOfRegistration(db, delivery.payload.registrationId);
+    }
     const registrationId = registrationOf(delivery);
     return registrationId ? ownerOfRegistration(db, registrationId) : [];
   },
@@ -225,9 +262,25 @@ export const AUDIENCES = {
    * Financial receipts and refunds go to the payer's account.
    */
   guardian_of_participant: async (db, delivery) => {
+    if (delivery.eventType === "registration.competition_cancelled") {
+      return guardianOfParticipant(
+        db,
+        delivery.payload.registrationId,
+        delivery.payload.awaitingGuardian
+      );
+    }
     const registrationId = registrationOf(delivery);
     return registrationId ? guardianOfParticipant(db, registrationId) : [];
   },
+  /**
+   * Everyone who acts for an institution registration's institution: its
+   * coordinators and its authorised person (#80: its competition was
+   * cancelled).
+   */
+  institution_coordinators: async (db, delivery) =>
+    delivery.eventType === "institution_registration.competition_cancelled"
+      ? institutionCoordinators(db, delivery.payload.institutionRegistrationId)
+      : [],
   /**
    * Whoever wrote through the contact form (#113). They have no account, so
    * no user receives it here: the contact module emails their address with
@@ -279,6 +332,17 @@ export const AUDIENCES = {
   /** The announcements handler resolves both audiences from one roster. */
   announcement_registrants: async () => [],
   announcement_contacts: async () => [],
+  /**
+   * The breach dispatcher checks the saved recipient and live guardian links
+   * for this route. The generic audience resolver grants no recipients.
+   */
+  breach_recipient: async () => [],
+  /**
+   * The authority a breach is reported to (#116). It is an address, not a
+   * user, so no user receives it here: the breaches module emails the
+   * configured address with this route's template while it is enabled.
+   */
+  breach_authority: async () => [],
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -456,11 +520,36 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: REFUND_VARIABLES,
     load: (db, { payload }) => refundValues(db, payload.refundId),
   },
+  "refund.dashboard_processed": {
+    names: REFUND_VARIABLES,
+    load: (db, { payload }) => dashboardRefundValues(db, payload.reviewCaseId),
+  },
   "refund.failed": {
     names: REFUND_VARIABLES,
     load: (db, { payload }) => refundValues(db, payload.refundId),
   },
   "guardian.guardian_requested": { names: [], load: async () => ({}) },
+  // Whose data it involved, never what happened (#116).
+  "breach.principal_notice": {
+    names: PRINCIPAL_NOTICE_VARIABLES,
+    // Revalidated separately for each channel by the breach dispatcher.
+    load: async () => ({}),
+  },
+  "breach.fan_out_requested": { names: [], load: async () => ({}) },
+  "breach.authority_notice": {
+    names: AUTHORITY_NOTICE_VARIABLES,
+    // The authority handler renders these variables for its configured address.
+    load: async () => ({}),
+  },
+  "registration.competition_cancelled": {
+    names: CANCELLATION_VARIABLES,
+    load: (db, { payload }) => cancellationValues(db, payload),
+  },
+  "institution_registration.competition_cancelled": {
+    names: INSTITUTION_CANCELLATION_VARIABLES,
+    load: (db, { payload }) =>
+      institutionCancellationValues(db, payload.institutionRegistrationId),
+  },
   "entry.submitted": {
     names: ENTRY_RECEIPT_VARIABLES,
     load: (db, { payload }) => entryValues(db, payload, true),
