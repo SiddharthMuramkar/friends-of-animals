@@ -1,7 +1,7 @@
 // The directory module (#127): NGO directory listings, their registration
 // by an organisation or an individual rescuer, FOA staff's verification,
-// and the public read of a verified listing. Search by service and
-// distance (#128) and adoption listings (#129) build on it. Its use cases
+// the public read of a verified listing, and search by service and
+// distance (#128). Adoption listings (#129) build on it. Its use cases
 // join `as(actor)` through `directoryUseCases`.
 
 import type { UseCaseContext } from "../../use-cases";
@@ -27,6 +27,7 @@ import {
   type ListListingsForReviewInput,
 } from "./queries";
 import { registerListing } from "./register";
+import { searchListings, type SearchListingsInput } from "./search";
 import {
   updateListing,
   withdrawListing,
@@ -59,6 +60,21 @@ export type {
   MyListingSummary,
 } from "./queries";
 export type { RegisterListingResult } from "./register";
+export type {
+  SearchedFrom,
+  SearchListingsInput,
+  SearchListingsResult,
+  SearchResult,
+} from "./search";
+export { SEARCH_RESULT_LIMIT } from "./search";
+export {
+  DEFAULT_RADIUS_KM,
+  RADIUS_OPTIONS_KM,
+  type RadiusKm,
+  type SearchField,
+  type SearchFieldError,
+} from "./domain/search-input";
+export type { ApproximateDistance } from "./domain/geo";
 export type {
   UpdateListingInput,
   UpdateListingResult,
@@ -104,4 +120,5 @@ export const directoryUseCases = (ctx: UseCaseContext) => ({
   reinstateListing: (input: DecideListingInput) => reinstateListing(ctx, input),
   getPublicListing: (input: { slug: string }) => getPublicListing(ctx, input),
   publicListingSlugs: () => publicListingSlugs(ctx),
+  searchListings: (input: SearchListingsInput) => searchListings(ctx, input),
 });

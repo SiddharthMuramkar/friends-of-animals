@@ -9,6 +9,7 @@ import { robotsHeaders } from "./src/lib/indexing";
 import {
   checkoutPageHeaders,
   consentLinkHeaders,
+  directorySearchHeaders,
   securityHeaders,
 } from "./src/lib/security-headers";
 import { unconfirmedFactsWarning } from "./src/lib/site";
@@ -46,6 +47,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders(process.env.APP_ENV) },
       ...checkoutPageHeaders(),
+      ...directorySearchHeaders(),
       ...consentLinkHeaders(),
       ...cspHeaderRules(cspContext(), [
         ...SIGNED_IN_PREFIXES,
