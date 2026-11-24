@@ -19,6 +19,7 @@ import { seedConsentForms } from "./consent-forms";
 import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
+import { seedDirectory } from "./directory";
 import { seedEntries } from "./entries";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
@@ -48,6 +49,7 @@ export type { SeedBuilders } from "./builders";
 export { SEED_ACCOUNTS } from "./accounts";
 export { SEED_SCOPES } from "./scopes";
 export { SEED_COMPETITION_MANAGER } from "./competitions";
+export { SEED_DIRECTORY } from "./directory";
 
 const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
@@ -65,6 +67,8 @@ const seeders: readonly Seeder[] = [
   // After the identity and access seeds: the seeded members (#116).
   seedBreaches,
   seedInstitutions,
+  // After the identity and access seeds: its own seeded members (#127).
+  seedDirectory,
   seedPrivacy,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,

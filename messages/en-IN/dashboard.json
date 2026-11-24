@@ -22,6 +22,7 @@
       "body": "Your competition entries, certificates and donations will show here as those parts of the site open.",
       "sessions": "See where you're signed in",
       "children": "Your children, as a parent or guardian",
+      "directory": "Your listing in FOA's NGO directory",
       "volunteer": "Volunteer with Friends of Animals",
       "privacy": "Your privacy requests: see, correct or erase your data"
     },
@@ -34,6 +35,7 @@
       "payments": "Payments needing review",
       "refunds": "Refunds",
       "ledger": "Ledger",
+      "directory": "Directory listings",
       "volunteers": "Volunteer applications",
       "privacyRequests": "Privacy requests"
     },
@@ -44,7 +46,8 @@
       "body": "The entries you're asked to judge will show here when judging opens."
     },
     "organisation": {
-      "body": "Your organisation's own page comes later. Your role there is already set."
+      "body": "Your listing in FOA's NGO directory. Keep it up to date and send FOA proof.",
+      "listing": "Open your listing"
     }
   }
 }

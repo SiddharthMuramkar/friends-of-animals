@@ -41,6 +41,10 @@ import {
   announcementMessageFor,
 } from "../announcements/render";
 import {
+  LISTING_DECISION_VARIABLES,
+  listingDecisionValues,
+} from "../directory/decision-message";
+import {
   ENTRY_ATTEMPT_VARIABLES,
   ENTRY_RECEIPT_VARIABLES,
   entryValues,
@@ -136,6 +140,15 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "institution.reinstated":
       // The authorised person, who registered the institution (#73).
       return delivery.payload.userId;
+    case "directory.listing_verified":
+    case "directory.listing_rejected":
+    case "directory.listing_suspended":
+    case "directory.listing_reinstated":
+      // The person who registered the listing hears FOA's decision (#127).
+      return delivery.payload.userId;
+    case "directory.listing_submitted":
+      // For staff, who find it in the review queue; no route row names it.
+      return null;
     case "competitions.key_date_scheduled":
       // A status job (#71): it's about a competition, not a user, and no
       // route row names it.
@@ -601,6 +614,23 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => reminderValues(db, payload.reminderJobId),
   },
   "institution.coordinator_invited": { names: [], load: async () => ({}) },
+  "directory.listing_submitted": { names: [], load: async () => ({}) },
+  "directory.listing_verified": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
+  "directory.listing_rejected": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
+  "directory.listing_suspended": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
+  "directory.listing_reinstated": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
   "contact_message.received": {
     names: CONTACT_MESSAGE_VARIABLES,
     load: async (db, delivery) =>

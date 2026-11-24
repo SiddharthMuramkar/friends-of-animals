@@ -5,7 +5,9 @@
 //
 // institution.created_by stays NOT NULL (Decision 2, #114): the authorised
 // person who registered an institution can't be deleted while it names
-// them, and erasure hands the institution to someone else first.
+// them, and erasure hands the institution to someone else first. The same
+// holds for directory_listing.owner_user_id (#127): erasure withdraws the
+// person's listings, or hands them to another representative, first.
 
 import { is } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
@@ -41,6 +43,7 @@ describe("deleting an account", () => {
       "consent_event.reviewer_user_id (no action)",
       "consent_form.reviewed_by_user_id (restrict)",
       "consent_form.uploaded_by_user_id (restrict)",
+      "directory_listing.owner_user_id (no action)",
       "file_asset.owner_user_id (restrict)",
       "institution.created_by (no action)",
     ]);

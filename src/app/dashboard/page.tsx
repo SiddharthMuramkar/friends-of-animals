@@ -9,6 +9,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_DIRECTORY,
   ADMIN_LEDGER,
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY_REQUESTS,
@@ -19,6 +20,8 @@ import {
   DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
+  MY_LISTINGS,
+  myListingPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
@@ -80,6 +83,10 @@ async function Areas() {
     )
   );
   const finance = grants.some((grant) => grant.role === "finance");
+  // Staff admins and super admins check directory listings (#127).
+  const directory = grants.some(
+    (grant) => grant.role === "staff_admin" || grant.role === "super_admin"
+  );
   // Community managers and super admins vet volunteers (#123).
   const community = grants.some(
     (grant) =>
@@ -136,6 +143,7 @@ async function Areas() {
             officer={officer}
             money={money}
             finance={finance}
+            directory={directory}
             competitions={competitions}
             community={community}
           />
@@ -153,6 +161,7 @@ async function AreaBody({
   officer,
   money,
   finance,
+  directory,
   competitions,
   community,
 }: {
@@ -162,6 +171,7 @@ async function AreaBody({
   officer: boolean;
   money: boolean;
   finance: boolean;
+  directory: boolean;
   competitions: boolean;
   community: boolean;
 }) {
@@ -188,8 +198,12 @@ async function AreaBody({
             { href: APP_ROUTES.accountSessions, label: t("member.sessions") },
             { href: APP_ROUTES.guardian, label: t("member.children") },
             { href: MY_PRIVACY_REQUESTS, label: t("member.privacy") },
+            { href: MY_LISTINGS, label: t("member.directory") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
           ])
+        : null}
+      {area === "organisation" && id
+        ? links([{ href: myListingPath(id), label: t("organisation.listing") }])
         : null}
       {area === "institution" && id
         ? links([
@@ -226,6 +240,9 @@ async function AreaBody({
                     label: t("admin.privacyRequests"),
                   },
                 ]
+              : []),
+            ...(directory
+              ? [{ href: ADMIN_DIRECTORY, label: t("admin.directory") }]
               : []),
             ...(money
               ? [
