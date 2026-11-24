@@ -305,6 +305,42 @@ export type DomainEvent =
       payload: { competitionId: string };
     }
   | {
+      /**
+       * A competition entered school judging (#89): its school rounds
+       * open.
+       */
+      type: "competition.school_judging_started";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * A coordinator finalised their school round (#89). The only
+       * producer is finaliseSchoolRound: each entry of the round is now
+       * school-shortlisted (and, under all-participants scope, submitted to
+       * FOA) or not shortlisted, and its family is told which.
+       */
+      type: "school_round.shortlist_finalised";
+      aggregate: { type: "school_round"; id: string };
+      payload: {
+        roundId: string;
+        competitionId: string;
+        institutionRegistrationId: string;
+      };
+    }
+  | {
+      /** An entry was shortlisted in a finalised school round (#89). */
+      type: "entry.school_shortlisted";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; registrationId: string; roundId: string };
+    }
+  | {
+      /** An entry was not shortlisted in a finalised school round (#89). */
+      type: "entry.not_shortlisted";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; registrationId: string; roundId: string };
+    }
+  | {
       /** An institution registered for a competition (#75). */
       type: "registration.institution_registered";
       aggregate: { type: "institution_registration"; id: string };
@@ -477,6 +513,11 @@ const DIRECTORY_LISTING_EVENT = z.object({
   userId: z.uuid(),
 });
 const VOLUNTEER_APPLICATION = z.object({ applicationId: z.uuid() });
+const SCHOOL_ROUND_OUTCOME_EVENT = z.object({
+  entryId: z.uuid(),
+  registrationId: z.uuid(),
+  roundId: z.uuid(),
+});
 
 const INSTITUTION_DECIDED = z.object({
   institutionId: z.uuid(),
@@ -573,6 +614,14 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
   }),
   "registration.confirmed": z.object({ registrationId: z.uuid() }),
+  "competition.school_judging_started": z.object({ competitionId: z.uuid() }),
+  "school_round.shortlist_finalised": z.object({
+    roundId: z.uuid(),
+    competitionId: z.uuid(),
+    institutionRegistrationId: z.uuid(),
+  }),
+  "entry.school_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
+  "entry.not_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
   "payment.batch_captured": z.object({
     batchId: z.uuid(),
     payerUserId: z.uuid().nullable(),
@@ -714,6 +763,14 @@ export const SUBSCRIBERS = {
   // Each guard's retryOn events (modules/competitions/transition-guards.ts).
   "rubric.published": ["competitions.retry_blocked_moves"],
   "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
+  // The competition's school rounds open (#89).
+  "competition.school_judging_started": ["school_round.open_rounds"],
+  // Each family is told the outcome, one event per entry (#89).
+  "school_round.shortlist_finalised": ["school_round.queue_family_outcomes"],
+  // The family contact isn't a user: the message goes by the school
+  // round's own handler, by its `family_contact` route (#89).
+  "entry.school_shortlisted": ["school_round.send_family_outcome"],
+  "entry.not_shortlisted": ["school_round.send_family_outcome"],
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],

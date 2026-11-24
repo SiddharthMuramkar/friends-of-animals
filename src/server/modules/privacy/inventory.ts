@@ -998,6 +998,40 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "certified_by_user_id",
     WHILE_REGISTRATION_KEPT
   ),
+  // The school round (#89): who attested, finalised and picked; the
+  // judging panel's names and roles (HR-31: retention to confirm).
+  actorColumn(
+    "school_round",
+    "judging_attested_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  actorColumn("school_round", "finalised_by_user_id", WHILE_REGISTRATION_KEPT),
+  actorColumn(
+    "school_round_pick",
+    "picked_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  actorColumn(
+    "school_round_transition",
+    "actor_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  {
+    table: "school_round_panel_member",
+    column: "full_name",
+    category: "identity",
+    subject: { kind: "panel_member", via: "id" },
+    retention: WHILE_REGISTRATION_KEPT,
+    onExpiry: "delete_row",
+  },
+  {
+    table: "school_round_panel_member",
+    column: "designation",
+    category: "identity",
+    subject: { kind: "panel_member", via: "id" },
+    retention: WHILE_REGISTRATION_KEPT,
+    onExpiry: "delete_row",
+  },
   // Students an institution enrols (#75)
   profile("full_name", "identity"),
   profile("dob_ciphertext", "demographic"),

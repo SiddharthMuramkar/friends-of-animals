@@ -91,6 +91,10 @@ import {
   volunteerApplicant,
   volunteerGuardians,
 } from "../volunteers/message-audiences";
+import {
+  outcomeValues,
+  SCHOOL_ROUND_OUTCOME_VARIABLES,
+} from "../school-round/family-outcomes";
 import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
@@ -236,6 +240,16 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
+      return null;
+    case "competition.school_judging_started":
+    case "school_round.shortlist_finalised":
+      // Open the rounds and queue the families' messages (#89); no route
+      // row names them.
+      return null;
+    case "entry.school_shortlisted":
+    case "entry.not_shortlisted":
+      // The family contact isn't a user: their message goes by the school
+      // round's own handler (#89), not by a route row.
       return null;
   }
 }
@@ -671,6 +685,16 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "entry.file_failed": {
     names: ENTRY_ATTEMPT_VARIABLES,
     load: (db, { payload }) => entryValues(db, payload),
+  },
+  "competition.school_judging_started": { names: [], load: async () => ({}) },
+  "school_round.shortlist_finalised": { names: [], load: async () => ({}) },
+  "entry.school_shortlisted": {
+    names: SCHOOL_ROUND_OUTCOME_VARIABLES,
+    load: (db, { payload }) => outcomeValues(db, payload),
+  },
+  "entry.not_shortlisted": {
+    names: SCHOOL_ROUND_OUTCOME_VARIABLES,
+    load: (db, { payload }) => outcomeValues(db, payload),
   },
   "competition.announcement_sent": {
     names: ANNOUNCEMENT_VARIABLES,

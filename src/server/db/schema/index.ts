@@ -47,3 +47,4 @@ export * from "./conduct-certification";
 export * from "./directory";
 export * from "./campaigns";
 export * from "./volunteers";
+export * from "./school-round";

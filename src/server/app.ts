@@ -47,6 +47,7 @@ import { directoryUseCases } from "./modules/directory";
 import { volunteersUseCases } from "./modules/volunteers";
 import { remindersUseCases } from "./modules/reminders";
 import { campaignsUseCases } from "./modules/campaigns";
+import { schoolRoundUseCases } from "./modules/school-round";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -82,7 +83,8 @@ const useCases = composeUseCases(
   volunteersUseCases,
   remindersUseCases,
   campaignsUseCases,
-  institutionSubmissionsUseCases
+  institutionSubmissionsUseCases,
+  schoolRoundUseCases
 );
 
 /** Every use case, by name, bound to one actor. */
