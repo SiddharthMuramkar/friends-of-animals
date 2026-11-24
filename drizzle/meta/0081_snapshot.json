@@ -1,6 +1,6 @@
 {
-  "id": "b1f20823-31a0-4488-b6fb-ddc7da7fc689",
-  "prevId": "a4a062ab-f6cc-43ac-b9ec-4ddf120fabca",
+  "id": "54461435-6cdf-4ad7-9cd8-f9bbb0cfd2d6",
+  "prevId": "bfcbc7da-a053-42dc-a266-391b731c7846",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -11728,6 +11728,154 @@
       },
       "isRLSEnabled": false
     },
+    "public.reminder_job": {
+      "name": "reminder_job",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reminder_name": {
+          "name": "reminder_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offset_hours": {
+          "name": "offset_hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deadline_at": {
+          "name": "deadline_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fire_at": {
+          "name": "fire_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "reminder_job_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'scheduled'"
+        },
+        "fired_at": {
+          "name": "fired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "reminder_job_planned_once": {
+          "name": "reminder_job_planned_once",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "offset_hours",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "deadline_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"reminder_job\".\"status\" IN ('scheduled', 'fired')",
+          "concurrently": false
+        },
+        "reminder_job_subject_idx": {
+          "name": "reminder_job_subject_idx",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reminder_job_name_format": {
+          "name": "reminder_job_name_format",
+          "value": "\"reminder_job\".\"reminder_name\" ~ '^[a-z][a-z0-9_]*$'"
+        },
+        "reminder_job_offset_hours": {
+          "name": "reminder_job_offset_hours",
+          "value": "\"reminder_job\".\"offset_hours\" BETWEEN 1 AND 720"
+        },
+        "reminder_job_fire_at": {
+          "name": "reminder_job_fire_at",
+          "value": "\"reminder_job\".\"fire_at\" = \"reminder_job\".\"deadline_at\" - make_interval(hours => \"reminder_job\".\"offset_hours\")"
+        },
+        "reminder_job_fired_stamped": {
+          "name": "reminder_job_fired_stamped",
+          "value": "(\"reminder_job\".\"status\" = 'fired') = (\"reminder_job\".\"fired_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.legal_hold": {
       "name": "legal_hold",
       "schema": "",
@@ -11956,321 +12104,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.volunteer_application": {
-      "name": "volunteer_application",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "applicant_user_id": {
-          "name": "applicant_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "participant_profile_id": {
-          "name": "participant_profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "date_of_birth_ciphertext": {
-          "name": "date_of_birth_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "interests": {
-          "name": "interests",
-          "type": "volunteer_interest[]",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "availability": {
-          "name": "availability",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "volunteer_application_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "guardian_user_id": {
-          "name": "guardian_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "guardian_decided_at": {
-          "name": "guardian_decided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "safeguarding_consent_id": {
-          "name": "safeguarding_consent_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "conduct_consent_id": {
-          "name": "conduct_consent_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_by_user_id": {
-          "name": "decided_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_at": {
-          "name": "decided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decline_reason_ciphertext": {
-          "name": "decline_reason_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "volunteer_application_one_open_per_applicant": {
-          "name": "volunteer_application_one_open_per_applicant",
-          "columns": [
-            {
-              "expression": "applicant_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "where": "\"volunteer_application\".\"status\" IN ('awaiting_guardian', 'submitted')",
-          "concurrently": false
-        },
-        "volunteer_application_applicant_user_id_idx": {
-          "name": "volunteer_application_applicant_user_id_idx",
-          "columns": [
-            {
-              "expression": "applicant_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "volunteer_application_status_created_at_idx": {
-          "name": "volunteer_application_status_created_at_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "volunteer_application_participant_profile_id_idx": {
-          "name": "volunteer_application_participant_profile_id_idx",
-          "columns": [
-            {
-              "expression": "participant_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "volunteer_application_guardian_user_id_idx": {
-          "name": "volunteer_application_guardian_user_id_idx",
-          "columns": [
-            {
-              "expression": "guardian_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "volunteer_application_decided_by_user_id_idx": {
-          "name": "volunteer_application_decided_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "decided_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "volunteer_application_applicant_user_id_user_id_fk": {
-          "name": "volunteer_application_applicant_user_id_user_id_fk",
-          "tableFrom": "volunteer_application",
-          "columnsFrom": [
-            "applicant_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        },
-        "volunteer_application_participant_profile_id_participant_profile_id_fk": {
-          "name": "volunteer_application_participant_profile_id_participant_profile_id_fk",
-          "tableFrom": "volunteer_application",
-          "columnsFrom": [
-            "participant_profile_id"
-          ],
-          "tableTo": "participant_profile",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "volunteer_application_guardian_user_id_user_id_fk": {
-          "name": "volunteer_application_guardian_user_id_user_id_fk",
-          "tableFrom": "volunteer_application",
-          "columnsFrom": [
-            "guardian_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "volunteer_application_safeguarding_consent_id_consent_event_id_fk": {
-          "name": "volunteer_application_safeguarding_consent_id_consent_event_id_fk",
-          "tableFrom": "volunteer_application",
-          "columnsFrom": [
-            "safeguarding_consent_id"
-          ],
-          "tableTo": "consent_event",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "volunteer_application_conduct_consent_id_consent_event_id_fk": {
-          "name": "volunteer_application_conduct_consent_id_consent_event_id_fk",
-          "tableFrom": "volunteer_application",
-          "columnsFrom": [
-            "conduct_consent_id"
-          ],
-          "tableTo": "consent_event",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "volunteer_application_decided_by_user_id_user_id_fk": {
-          "name": "volunteer_application_decided_by_user_id_user_id_fk",
-          "tableFrom": "volunteer_application",
-          "columnsFrom": [
-            "decided_by_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "volunteer_application_has_interests": {
-          "name": "volunteer_application_has_interests",
-          "value": "cardinality(\"volunteer_application\".\"interests\") > 0"
-        },
-        "volunteer_application_closed_at_matches_status": {
-          "name": "volunteer_application_closed_at_matches_status",
-          "value": "(\"volunteer_application\".\"status\" IN ('awaiting_guardian', 'submitted')) = (\"volunteer_application\".\"closed_at\" IS NULL)"
-        },
-        "volunteer_application_approval_recorded": {
-          "name": "volunteer_application_approval_recorded",
-          "value": "\"volunteer_application\".\"status\" <> 'approved' OR (\"volunteer_application\".\"safeguarding_consent_id\" IS NOT NULL AND \"volunteer_application\".\"conduct_consent_id\" IS NOT NULL AND \"volunteer_application\".\"decided_at\" IS NOT NULL)"
-        },
-        "volunteer_application_decline_has_reason": {
-          "name": "volunteer_application_decline_has_reason",
-          "value": "\"volunteer_application\".\"status\" <> 'declined' OR (\"volunteer_application\".\"decline_reason_ciphertext\" IS NOT NULL AND \"volunteer_application\".\"decided_at\" IS NOT NULL)"
-        },
-        "volunteer_application_reason_only_when_declined": {
-          "name": "volunteer_application_reason_only_when_declined",
-          "value": "\"volunteer_application\".\"status\" = 'declined' OR \"volunteer_application\".\"decline_reason_ciphertext\" IS NULL"
-        }
-      },
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -12430,9 +12263,7 @@
         "display_city",
         "social_media",
         "auction",
-        "communications",
-        "volunteer_safeguarding_declaration",
-        "volunteer_code_of_conduct"
+        "communications"
       ]
     },
     "public.consent_subject_type": {
@@ -13001,28 +12832,14 @@
         "sent"
       ]
     },
-    "public.volunteer_application_status": {
-      "name": "volunteer_application_status",
+    "public.reminder_job_status": {
+      "name": "reminder_job_status",
       "schema": "public",
       "values": [
-        "awaiting_guardian",
-        "guardian_declined",
-        "submitted",
-        "approved",
-        "declined",
-        "withdrawn"
-      ]
-    },
-    "public.volunteer_interest": {
-      "name": "volunteer_interest",
-      "schema": "public",
-      "values": [
-        "technology",
-        "content",
-        "outreach",
-        "competition_management",
-        "social_media",
-        "community_building"
+        "scheduled",
+        "fired",
+        "cancelled",
+        "superseded"
       ]
     }
   },
