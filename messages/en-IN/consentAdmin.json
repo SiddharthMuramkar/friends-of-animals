@@ -24,7 +24,9 @@
       "display_city": "Showing a child's city",
       "social_media": "A child's consent to social media",
       "auction": "A child's consent to auction",
-      "communications": "Messages about a child"
+      "communications": "Messages about a child",
+      "volunteer_safeguarding_declaration": "Volunteer safeguarding declaration",
+      "volunteer_code_of_conduct": "Volunteer code of conduct"
     },
     "current": "Version {version}, published {date} by {name}.",
     "currentPublisherGone": "Version {version}, published {date} by an account that no longer exists.",

@@ -8,9 +8,23 @@
 import { GUARDIAN_PURPOSES } from "./guardian-purposes";
 
 /**
+ * The two declarations a volunteer applicant makes (#123): the safeguarding
+ * declaration and the code of conduct. Each is a document staff publish;
+ * the volunteers module records the applicant's acceptance when they apply
+ * (or accept a newer version), never through `giveConsent`, and a
+ * community manager's approval needs both on their current versions.
+ */
+export const VOLUNTEER_PURPOSES = [
+  "volunteer_safeguarding_declaration",
+  "volunteer_code_of_conduct",
+] as const;
+export type VolunteerPurpose = (typeof VOLUNTEER_PURPOSES)[number];
+
+/**
  * `competition_terms` is a competition's own terms (#72), apart from the
  * site's terms of use. The guardian purposes (#82) follow: what a verified
- * guardian gives and withdraws for a child (./guardian-purposes.ts).
+ * guardian gives and withdraws for a child (./guardian-purposes.ts). Then
+ * the volunteer declarations (#123).
  */
 export const CONSENT_PURPOSES = [
   "privacy_notice",
@@ -18,6 +32,7 @@ export const CONSENT_PURPOSES = [
   "messages",
   "competition_terms",
   ...GUARDIAN_PURPOSES,
+  ...VOLUNTEER_PURPOSES,
 ] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 

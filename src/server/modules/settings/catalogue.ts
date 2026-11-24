@@ -18,6 +18,10 @@ import {
   type RetentionPeriod,
 } from "../privacy/domain/periods";
 import {
+  VOLUNTEER_AGE_RULE_BOUNDS,
+  VOLUNTEER_AGE_RULE_DEFAULTS,
+} from "../volunteers/domain/eligibility";
+import {
   booleanSetting,
   integerSetting,
   type SettingDefinition,
@@ -89,6 +93,21 @@ export const SETTINGS = {
   // Empty until FOA's counsel names the channel (HR-49); staff then file
   // the notice by hand and record the authority's reference.
   "breach.authorityEmail": textSetting({ default: "", maxLength: 254 }),
+  // Volunteers (#123). Applying stays closed until FOA's safeguarding lead
+  // and counsel sign M6 off (HR-55) and police checks are in place
+  // (HR-38); local runs and previews are seeded open. The age rules are
+  // FOA's defaults until leadership confirms them (HR-57).
+  "volunteers.applicationsOpen": booleanSetting({ default: false }),
+  "volunteers.minAgeYears": integerSetting({
+    default: VOLUNTEER_AGE_RULE_DEFAULTS.minAgeYears,
+    ...VOLUNTEER_AGE_RULE_BOUNDS.minAgeYears,
+    unit: "years",
+  }),
+  "volunteers.guardianApprovalBelowAgeYears": integerSetting({
+    default: VOLUNTEER_AGE_RULE_DEFAULTS.guardianApprovalBelowAgeYears,
+    ...VOLUNTEER_AGE_RULE_BOUNDS.guardianApprovalBelowAgeYears,
+    unit: "years",
+  }),
   // Retention (#114). Off until a super admin turns it on: the daily sweep
   // then deletes and anonymises expired records; while off it only counts
   // them (a dry run, still audited). Every period waits for counsel
@@ -133,6 +152,9 @@ export const SETTINGS = {
     max: CONTACT_RETENTION.maximumMonths,
     unit: "months",
   }),
+  "retention.volunteerApplicationsDays": retentionDays(
+    RETENTION_PERIODS.volunteerApplications
+  ),
   "retention.releasedLegalHoldsDays": retentionDays(
     RETENTION_PERIODS.releasedLegalHolds
   ),
