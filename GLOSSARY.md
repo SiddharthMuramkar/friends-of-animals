@@ -456,6 +456,15 @@ saves a new one; the old one finds its date has moved and does nothing. Unlike
 a Scheduled job, it is tied to one competition and one instant.
 _Avoid_: Status cron, status tick
 
+**Reminder**:
+A message a set number of hours before one of a competition's deadlines, such
+as its submissions closing, to whoever still owes that deadline when the
+reminder goes: an adult who entered, a child's guardian, or a school's
+coordinators, never someone who has met it. How many hours before is a runtime
+setting. Moving the deadline or changing the hours plans it again; the old one
+does nothing at its old time, and a cancelled competition's reminders never go.
+_Avoid_: Nudge, chaser, notification (that is any message)
+
 **Guard**:
 A condition on one move of a competition's status, such as "every enabled
 discipline has a published Rubric" before school judging. A Status job makes

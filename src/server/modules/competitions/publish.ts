@@ -6,13 +6,15 @@
 // Publishing refuses until publishProblems finds nothing, so every
 // published competition has what the public page needs. It also saves a
 // status job for each key date (#71), so the schedule moves the status on
-// from there. Loads under plain Node: relative imports only.
+// from there, and tells the reminders module (#84) to plan its reminders.
+// Loads under plain Node: relative imports only.
 
 import { eq } from "drizzle-orm";
 
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
 import { competition } from "../../db/schema";
+import { emit } from "../../outbox/emit";
 import { publishProblems, type PublishProblem } from "./domain/publish-rules";
 import { statusJobs } from "./domain/status-schedule";
 import type { CompetitionStatus } from "./domain/vocabulary";
@@ -143,6 +145,11 @@ export async function publishCompetition(
       competitionId,
       statusJobs("published", values.keyDates)
     );
+    await emit(tx, ctx.clock, {
+      type: "competition.published",
+      aggregate: { type: "competition", id: competitionId },
+      payload: { competitionId },
+    });
     return {
       ok: true,
       competition: {

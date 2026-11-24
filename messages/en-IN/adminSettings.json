@@ -140,6 +140,16 @@
           "description": "Where the breach log emails a notice to the authority, such as the Data Protection Board. Leave it empty until FOA's lawyer confirms the address: staff then file the notice by hand and record the reference they get."
         }
       },
+      "reminders": {
+        "entrySubmissionDueFirstHours": {
+          "label": "First reminder before submissions close",
+          "description": "How many hours before a competition's submission deadline the first reminder goes to everyone who still owes an entry: an adult who entered, a child's guardian, or a school's coordinators. Use 0 for no first reminder. A change applies to reminders not yet sent."
+        },
+        "entrySubmissionDueSecondHours": {
+          "label": "Second reminder before submissions close",
+          "description": "How many hours before the submission deadline the second reminder goes, to whoever still owes an entry then. Use 0 for no second reminder."
+        }
+      },
       "retention": {
         "enforce": {
           "label": "Delete expired records",
