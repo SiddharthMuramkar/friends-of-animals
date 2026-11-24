@@ -44,10 +44,7 @@ import {
   ENTRY_RECEIPT_VARIABLES,
   entryValues,
 } from "../entries/message-values";
-import {
-  CAMPAIGN_VARIABLES,
-  campaignEventValues,
-} from "../campaigns/render";
+import { CAMPAIGN_VARIABLES, campaignEventValues } from "../campaigns/render";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
 import {

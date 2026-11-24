@@ -33,7 +33,10 @@ describe("the withdrawal link", () => {
   it("withdraws the person's consent to News and updates, and keeps them out of later sends", async () => {
     const h = await createHarness();
     const manager = await communityManager(h);
-    const asha = await person(h, { name: "Asha Rao", email: "asha@example.test" });
+    const asha = await person(h, {
+      name: "Asha Rao",
+      email: "asha@example.test",
+    });
     const first = await sendToEveryone(h, manager);
     const token = withdrawalTokenIn(h, asha.email);
     const visitor = h.visitor();
@@ -71,7 +74,10 @@ describe("the withdrawal link", () => {
 
     h.clock.advance({ days: 1 });
     const later = { subject: "Volunteer day", body: "Join us." };
-    const ravi = await person(h, { name: "Ravi Iyer", email: "ravi@example.test" });
+    const ravi = await person(h, {
+      name: "Ravi Iyer",
+      email: "ravi@example.test",
+    });
     const second = await draftCampaign(h, manager, {}, later);
     const sent = await sendDraft(h, manager, second);
     await h.drain();
@@ -84,13 +90,21 @@ describe("the withdrawal link", () => {
   it("stops the campaign's other waiting message to the same person", async () => {
     const h = await createHarness();
     const manager = await communityManager(h);
-    const asha = await person(h, { name: "Asha Rao", email: "asha@example.test" });
+    const asha = await person(h, {
+      name: "Asha Rao",
+      email: "asha@example.test",
+    });
     await sendToEveryone(h, manager);
     const token = withdrawalTokenIn(h, asha.email);
-    const second = await draftCampaign(h, manager, {}, {
-      subject: "Second",
-      body: "Again",
-    });
+    const second = await draftCampaign(
+      h,
+      manager,
+      {},
+      {
+        subject: "Second",
+        body: "Again",
+      }
+    );
     await sendDraft(h, manager, second);
 
     await h.as(h.visitor()).withdrawByLink({ token });
@@ -149,7 +163,10 @@ describe("the withdrawal link", () => {
   it("is for whoever holds the link, not the platform's own processes", async () => {
     const h = await createHarness();
     const manager = await communityManager(h);
-    const asha = await person(h, { name: "Asha Rao", email: "asha@example.test" });
+    const asha = await person(h, {
+      name: "Asha Rao",
+      email: "asha@example.test",
+    });
     await sendToEveryone(h, manager);
     const token = withdrawalTokenIn(h, asha.email);
     const worker = { kind: "system", process: "worker" } as const;

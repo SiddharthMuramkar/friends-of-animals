@@ -24,7 +24,10 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { AudienceCounts, ConsentBasis } from "../../modules/campaigns/domain/audience";
+import type {
+  AudienceCounts,
+  ConsentBasis,
+} from "../../modules/campaigns/domain/audience";
 import {
   CAMPAIGN_RECIPIENT_STATUSES,
   CAMPAIGN_STATUSES,

@@ -113,7 +113,8 @@ export async function person(
         ...(details.registerFor.city ? { city: details.registerFor.city } : {}),
       })
     );
-    if (!registered.ok) throw new Error(`Registering failed: ${registered.error}`);
+    if (!registered.ok)
+      throw new Error(`Registering failed: ${registered.error}`);
   }
   return { actor, userId: account.id, email: account.email };
 }
@@ -168,7 +169,8 @@ export async function guardianOfChild(
     ...childForm(details.competition, childId),
     ...(details.city ? { city: details.city } : {}),
   });
-  if (!registered.ok) throw new Error(`Registering failed: ${registered.error}`);
+  if (!registered.ok)
+    throw new Error(`Registering failed: ${registered.error}`);
   if (details.consent ?? true) {
     const documentId = await currentDocument(h, "communications");
     const given = await h.as(actor).giveChildConsent({

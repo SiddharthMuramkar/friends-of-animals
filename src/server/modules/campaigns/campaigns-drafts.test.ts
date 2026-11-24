@@ -151,15 +151,25 @@ describe("updateCampaign, getCampaign and listCampaigns", () => {
   it("lists campaigns newest first and answers not_found for an unknown id", async () => {
     const h = await createHarness();
     const manager = await communityManager(h);
-    const first = await draftCampaign(h, manager, {}, {
-      subject: "First",
-      body: "One",
-    });
+    const first = await draftCampaign(
+      h,
+      manager,
+      {},
+      {
+        subject: "First",
+        body: "One",
+      }
+    );
     h.clock.advance({ minutes: 1 });
-    const second = await draftCampaign(h, manager, {}, {
-      subject: "Second",
-      body: "Two",
-    });
+    const second = await draftCampaign(
+      h,
+      manager,
+      {},
+      {
+        subject: "Second",
+        body: "Two",
+      }
+    );
 
     expect(await h.as(manager).listCampaigns()).toEqual({
       ok: true,

@@ -26,7 +26,11 @@ import {
   recipientOf,
 } from "../notifications/dispatch";
 import { planDelivery } from "../notifications/domain/delivery-plan";
-import { basisHolds, type BasisCheck, type ConsentBasis } from "./domain/audience";
+import {
+  basisHolds,
+  type BasisCheck,
+  type ConsentBasis,
+} from "./domain/audience";
 import { activeGuardians, latestConsents } from "./load-audience";
 import {
   CAMPAIGN_TEMPLATE,
@@ -48,7 +52,12 @@ export async function checksFor(
   const users = bases.filter((b) => b.purpose === "messages");
   const children = bases.filter((b) => b.purpose === "communications");
   const [own, ofChildren, guardians] = await Promise.all([
-    latestConsents(db, "user", "messages", users.map((b) => b.subjectId)),
+    latestConsents(
+      db,
+      "user",
+      "messages",
+      users.map((b) => b.subjectId)
+    ),
     latestConsents(
       db,
       "participant_profile",
@@ -105,7 +114,10 @@ export async function deliverCampaignMessage(
 
   const checks = await checksFor(deps.db, recipient.userId, recipient.bases);
   const account = await recipientOf(deps, recipient.userId);
-  if (!account || !checks.some((check) => basisHolds(check, recipient.userId))) {
+  if (
+    !account ||
+    !checks.some((check) => basisHolds(check, recipient.userId))
+  ) {
     await settle(deps, recipient.id, campaignId, "skipped");
     return;
   }

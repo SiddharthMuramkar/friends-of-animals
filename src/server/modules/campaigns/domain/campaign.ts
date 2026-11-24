@@ -16,7 +16,11 @@ import { subjectHasBreak } from "../../../ports/email";
 export const CAMPAIGN_STATUSES = ["draft", "sending", "sent"] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 
-export const CAMPAIGN_RECIPIENT_STATUSES = ["queued", "sent", "skipped"] as const;
+export const CAMPAIGN_RECIPIENT_STATUSES = [
+  "queued",
+  "sent",
+  "skipped",
+] as const;
 export type CampaignRecipientStatus =
   (typeof CAMPAIGN_RECIPIENT_STATUSES)[number];
 

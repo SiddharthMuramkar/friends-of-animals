@@ -19,7 +19,10 @@ import { authorize } from "../../../access/can";
 import { recordAudit } from "../../../audit/record";
 import { hashLinkToken } from "../../../crypto/link-token";
 import type { AppDb } from "../../../db/app-db";
-import { campaignRecipient, type CampaignRecipientRow } from "../../../db/schema";
+import {
+  campaignRecipient,
+  type CampaignRecipientRow,
+} from "../../../db/schema";
 import type { UseCaseContext } from "../../../use-cases";
 import { withdrawByMessageLink } from "../../consent";
 import { basisHolds } from "../domain/audience";
@@ -75,8 +78,7 @@ export async function viewWithdrawalLink(
     ok: true,
     status: "open",
     ownConsent: open.some((basis) => basis.purpose === "messages"),
-    children: open.filter((basis) => basis.purpose === "communications")
-      .length,
+    children: open.filter((basis) => basis.purpose === "communications").length,
   };
 }
 

@@ -15,11 +15,7 @@ import {
   type SegmentDefinition,
 } from "../domain/segment";
 import { loadCandidates } from "../load-audience";
-import {
-  campaignTemplates,
-  campaignValues,
-  renderCampaign,
-} from "../render";
+import { campaignTemplates, campaignValues, renderCampaign } from "../render";
 import { loadCampaign, viewOf, type CampaignView } from "./drafts";
 
 export type CampaignPreview = {

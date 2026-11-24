@@ -65,7 +65,10 @@ describe("planAudience", () => {
       adult("u-meera", never),
     ]);
     expect(plan.recipients).toEqual([
-      { userId: "u-asha", bases: [{ purpose: "messages", subjectId: "u-asha" }] },
+      {
+        userId: "u-asha",
+        bases: [{ purpose: "messages", subjectId: "u-asha" }],
+      },
     ]);
     expect(plan.counts).toEqual({
       matched: 3,

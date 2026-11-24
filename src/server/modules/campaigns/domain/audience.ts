@@ -208,7 +208,10 @@ export function planAudience(
 
   const recipients = [...byRecipient.entries()]
     .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([userId, bases]) => ({ userId, bases: bases.toSorted(compareBases) }));
+    .map(([userId, bases]) => ({
+      userId,
+      bases: bases.toSorted(compareBases),
+    }));
   counts.recipients = recipients.length;
   return { recipients, counts };
 }

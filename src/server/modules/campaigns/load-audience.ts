@@ -23,7 +23,15 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, desc, eq, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  notInArray,
+} from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
 import {
@@ -44,7 +52,10 @@ import { SEGMENT_ROLES, type SegmentAttributes } from "./domain/segment";
 const ENDED_REGISTRATIONS = ["withdrawn", "refunded", "cancelled"] as const;
 
 /** The roles that look after an institution, for its competitions and city. */
-const INSTITUTION_ROLES = ["institution_admin", "institution_coordinator"] as const;
+const INSTITUTION_ROLES = [
+  "institution_admin",
+  "institution_coordinator",
+] as const;
 
 type Attributes = { [K in keyof SegmentAttributes]: Set<string> };
 
@@ -100,7 +111,9 @@ export async function latestConsents(
         eq(consentEvent.subjectType, subjectType),
         eq(consentEvent.purpose, purpose),
         isNull(consentEvent.competitionId),
-        subjectIds ? inArray(consentEvent.subjectId, [...subjectIds]) : undefined
+        subjectIds
+          ? inArray(consentEvent.subjectId, [...subjectIds])
+          : undefined
       )
     )
     .orderBy(consentEvent.subjectId, ...order);
@@ -191,9 +204,7 @@ export async function loadCandidates(db: AppDb): Promise<AudienceCandidate[]> {
           notInArray(registration.status, [...ENDED_REGISTRATIONS])
         )
       ),
-    db
-      .select({ id: institution.id, city: institution.city })
-      .from(institution),
+    db.select({ id: institution.id, city: institution.city }).from(institution),
     db
       .select({
         institutionId: institutionRegistration.institutionId,
@@ -234,8 +245,15 @@ export async function loadCandidates(db: AppDb): Promise<AudienceCandidate[]> {
       grant.scopeId !== null &&
       (INSTITUTION_ROLES as readonly string[]).includes(grant.role)
     ) {
-      add(ofUser, grant.userId, "cities", cityOfInstitution.get(grant.scopeId) ?? null);
-      for (const competitionId of competitionsOfInstitution.get(grant.scopeId) ?? []) {
+      add(
+        ofUser,
+        grant.userId,
+        "cities",
+        cityOfInstitution.get(grant.scopeId) ?? null
+      );
+      for (const competitionId of competitionsOfInstitution.get(
+        grant.scopeId
+      ) ?? []) {
         add(ofUser, grant.userId, "competitionIds", competitionId);
       }
     }
@@ -264,7 +282,9 @@ export async function loadCandidates(db: AppDb): Promise<AudienceCandidate[]> {
       profileId: profile.id,
       loginUserId: profile.loginUserId,
       attributes: frozen(ofChild.get(profile.id)),
-      communicationsConsent: communications.get(profile.id) ?? { status: "never" },
+      communicationsConsent: communications.get(profile.id) ?? {
+        status: "never",
+      },
       activeGuardianUserIds: guardians.get(profile.id) ?? [],
     });
   }

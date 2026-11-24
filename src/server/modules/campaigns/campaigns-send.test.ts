@@ -34,8 +34,14 @@ describe("a segment's members", () => {
   it("are only people whose consent to News and updates is current", async () => {
     const h = await createHarness();
     const manager = await communityManager(h);
-    const asha = await person(h, { name: "Asha Rao", email: "asha@example.test" });
-    const ravi = await person(h, { name: "Ravi Iyer", email: "ravi@example.test" });
+    const asha = await person(h, {
+      name: "Asha Rao",
+      email: "asha@example.test",
+    });
+    const ravi = await person(h, {
+      name: "Ravi Iyer",
+      email: "ravi@example.test",
+    });
     await h.as(ravi.actor).withdrawConsent({ purpose: "messages" });
     const meera = await person(h, {
       name: "Meera Nair",
@@ -120,7 +126,10 @@ describe("a segment's members", () => {
     const h = await createHarness();
     const manager = await communityManager(h);
     const competition = await consentCompetition(h, { fee: 0n });
-    const teen = await person(h, { name: "Tara Teen", email: "tara@example.test" });
+    const teen = await person(h, {
+      name: "Tara Teen",
+      email: "tara@example.test",
+    });
     const guardian = await guardianOfChild(h, {
       name: "Gita Guardian",
       email: "gita@example.test",
@@ -161,7 +170,10 @@ describe("sendCampaign", () => {
   it("queues the messages through the outbox and audits the counts, never who", async () => {
     const h = await createHarness();
     const manager = await communityManager(h);
-    const asha = await person(h, { name: "Asha Rao", email: "asha@example.test" });
+    const asha = await person(h, {
+      name: "Asha Rao",
+      email: "asha@example.test",
+    });
     await person(h, {
       name: "Meera Nair",
       email: "meera@example.test",
@@ -217,8 +229,14 @@ describe("sendCampaign", () => {
   it("holds a message back when its consent is withdrawn before it goes", async () => {
     const h = await createHarness();
     const manager = await communityManager(h);
-    const asha = await person(h, { name: "Asha Rao", email: "asha@example.test" });
-    const ravi = await person(h, { name: "Ravi Iyer", email: "ravi@example.test" });
+    const asha = await person(h, {
+      name: "Asha Rao",
+      email: "asha@example.test",
+    });
+    const ravi = await person(h, {
+      name: "Ravi Iyer",
+      email: "ravi@example.test",
+    });
     const draft = await draftCampaign(h, manager);
     await sendDraft(h, manager, draft);
 
@@ -237,7 +255,10 @@ describe("sendCampaign", () => {
   it("keeps to the recipient's channel choice: no email when they turned it off", async () => {
     const h = await createHarness();
     const manager = await communityManager(h);
-    const asha = await person(h, { name: "Asha Rao", email: "asha@example.test" });
+    const asha = await person(h, {
+      name: "Asha Rao",
+      email: "asha@example.test",
+    });
     await h
       .as(asha.actor)
       .updateNotificationPreferences({ email: false, sms: true });
@@ -256,7 +277,10 @@ describe("sendCampaign", () => {
   it("retries an email the provider refused, without a second inbox copy", async () => {
     const h = await createHarness();
     const manager = await communityManager(h);
-    const asha = await person(h, { name: "Asha Rao", email: "asha@example.test" });
+    const asha = await person(h, {
+      name: "Asha Rao",
+      email: "asha@example.test",
+    });
     const draft = await draftCampaign(h, manager);
     await sendDraft(h, manager, draft);
 

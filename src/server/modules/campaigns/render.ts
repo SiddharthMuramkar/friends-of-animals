@@ -26,7 +26,10 @@ import { DEFAULT_LOCALE } from "../notifications/locale";
 export const CAMPAIGN_TEMPLATE = "campaigns.message";
 
 /** The variables the campaign template may use, beyond the recipient's. */
-export const CAMPAIGN_VARIABLES = ["campaign.subject", "campaign.body"] as const;
+export const CAMPAIGN_VARIABLES = [
+  "campaign.subject",
+  "campaign.body",
+] as const;
 
 /** Filled by code after the editable wording; never a template variable. */
 const NOTICE_VARIABLE = "withdrawal.notice";
@@ -47,9 +50,7 @@ export type CampaignTemplates = Partial<
 >;
 
 /** The template's rows in the default locale, by channel. */
-export async function campaignTemplates(
-  db: AppDb
-): Promise<CampaignTemplates> {
+export async function campaignTemplates(db: AppDb): Promise<CampaignTemplates> {
   const rows = await db
     .select()
     .from(messageTemplate)

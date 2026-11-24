@@ -105,15 +105,13 @@ export const segmentDefinitionSchema = z
         .pipe(z.string().min(1).max(SEGMENT_LIMITS.cityLength))
     ),
   })
-  .transform(
-    (input): SegmentDefinition => ({
-      roles: SEGMENT_ROLES.filter((role) => input.roles.includes(role)),
-      competitionIds: [
-        ...new Set(input.competitionIds.map((id) => id.toLowerCase())),
-      ].toSorted(),
-      cities: canonicalCities(input.cities),
-    })
-  );
+  .transform((input): SegmentDefinition => ({
+    roles: SEGMENT_ROLES.filter((role) => input.roles.includes(role)),
+    competitionIds: [
+      ...new Set(input.competitionIds.map((id) => id.toLowerCase())),
+    ].toSorted(),
+    cities: canonicalCities(input.cities),
+  }));
 
 /** Whether the definition filters nobody out: everyone who consented. */
 export function isUnfiltered(definition: SegmentDefinition): boolean {

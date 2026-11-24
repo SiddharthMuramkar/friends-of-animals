@@ -17,10 +17,7 @@ import { uuidv7 } from "../../../ids";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import type { AudienceCounts } from "../domain/audience";
-import {
-  campaignContentSchema,
-  type CampaignStatus,
-} from "../domain/campaign";
+import { campaignContentSchema, type CampaignStatus } from "../domain/campaign";
 import {
   segmentDefinitionSchema,
   type SegmentDefinition,
@@ -87,7 +84,10 @@ function parseDraft(input: unknown) {
   });
   const rest = draftInput.safeParse(input);
   if (content.success && rest.success) {
-    return { ok: true, value: { ...content.data, segment: rest.data.segment } } as const;
+    return {
+      ok: true,
+      value: { ...content.data, segment: rest.data.segment },
+    } as const;
   }
   const fields = new Set<string>();
   for (const issue of content.error?.issues ?? []) {
